@@ -159,9 +159,38 @@ class AppController {
     _notify();
   }
 
+  void removeChild(String id) {
+    _children.removeWhere((c) => c.id == id);
+    // Tags tied to that child go too.
+    _devices.removeWhere((d) => d.childId == id);
+    if (_selectedChildId == id) {
+      _selectedChildId = _children.isNotEmpty ? _children.first.id : null;
+    }
+    _persist();
+    _notify();
+  }
+
+  void removeDevice(String id) {
+    _devices.removeWhere((d) => d.id == id);
+    _persist();
+    _notify();
+  }
+
   void updateProfile(UserProfile p) {
     _profile = p;
     _persist();
+    _notify();
+  }
+
+  /// Wipe the session and return to onboarding (Settings → "Reset").
+  Future<void> resetApp() async {
+    _children.clear();
+    _devices.clear();
+    _selectedChildId = null;
+    _profile = const UserProfile();
+    _onboarded = false;
+    store.clear();
+    await _persistStore?.clear();
     _notify();
   }
 

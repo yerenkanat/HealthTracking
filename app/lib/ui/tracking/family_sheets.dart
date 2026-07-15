@@ -5,9 +5,70 @@ library;
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../core/geofence.dart';
+import '../../domain/country_codes.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+
+Future<void> showEditProfileSheet(BuildContext context, AppController controller) {
+  final p = controller.profile;
+  final nameCtl = TextEditingController(text: p.displayName);
+  final phoneCtl = TextEditingController(text: p.phoneNumber);
+  var dial = p.dialCode;
+  return _sheet(context, (ctx, l) {
+    return StatefulBuilder(
+      builder: (ctx, setState) => _SheetBody(
+        title: l.t('set_edit_profile'),
+        icon: Icons.person,
+        fields: [
+          TextField(
+            controller: nameCtl,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(labelText: l.t('onb_name_hint')),
+          ),
+          const SizedBox(height: 12),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                color: Palette.glass,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Palette.border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: countries.firstWhere((c) => c.dial == dial, orElse: () => defaultCountry).iso + '|' + dial,
+                  onChanged: (v) { if (v != null) setState(() => dial = v.split('|')[1]); },
+                  items: [
+                    for (final c in countries)
+                      DropdownMenuItem(value: '${c.iso}|${c.dial}', child: Text('${c.flag} ${c.dial}')),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: phoneCtl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(labelText: l.t('onb_phone_hint')),
+              ),
+            ),
+          ]),
+        ],
+        onSave: () {
+          if (nameCtl.text.trim().isEmpty) return false;
+          controller.updateProfile(controller.profile.copyWith(
+            displayName: nameCtl.text.trim(),
+            dialCode: dial,
+            phoneNumber: phoneCtl.text.trim(),
+          ));
+          return true;
+        },
+      ),
+    );
+  });
+}
 
 Future<void> showAddChildSheet(BuildContext context, AppController controller) {
   final nameCtl = TextEditingController();

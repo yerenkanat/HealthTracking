@@ -83,12 +83,33 @@ void main() async {
   ctl3.setLocale(AppLocale.kk);
   await Future<void>.delayed(Duration.zero);
   _chk('setLocale persisted', (await store3.load())?.locale == AppLocale.kk);
+
   await ctl3.dispose();
 
   // ---- new controller restores everything ----
   final ctl4 = AppController(persistStore: store3);
   await ctl4.restore();
   _chk('new controller restores session', ctl4.onboarded && ctl4.children.length == 2 && ctl4.locale == AppLocale.kk);
+
+  // ---- add device, then remove ----
+  ctl4.addDevice(const PairedDevice(id: 'TAG-1', name: 'Tag', kind: DeviceKind.tag, childId: 'child-1'));
+  await Future<void>.delayed(Duration.zero);
+  _chk('device added', ctl4.devices.any((d) => d.id == 'TAG-1'));
+  ctl4.removeDevice('TAG-1');
+  await Future<void>.delayed(Duration.zero);
+  _chk('device removed + persisted', !ctl4.devices.any((d) => d.id == 'TAG-1') &&
+      (await store3.load())?.devices.any((d) => d.id == 'TAG-1') == false);
+
+  // ---- remove a child reselects remaining ----
+  ctl4.removeChild('child-1'); // currently selected; child-2 remains
+  await Future<void>.delayed(Duration.zero);
+  _chk('child removed', ctl4.children.length == 1 && ctl4.children.first.id == 'child-2');
+  _chk('reselected remaining child', ctl4.childName == 'Aida');
+
+  // ---- reset wipes + returns to onboarding ----
+  await ctl4.resetApp();
+  _chk('reset clears onboarded', !ctl4.onboarded && ctl4.children.isEmpty);
+  _chk('reset clears persisted', (await store3.load()) == null);
   await ctl4.dispose();
 
   print('\n$_pass passed, $_fail failed');
