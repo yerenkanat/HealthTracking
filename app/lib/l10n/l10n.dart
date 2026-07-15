@@ -186,6 +186,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'stat_avg': {AppLocale.ru: 'Среднее', AppLocale.kk: 'Орташа', AppLocale.en: 'Average'},
   'detail_no_data': {AppLocale.ru: 'Недостаточно данных для графика', AppLocale.kk: 'График үшін деректер жеткіліксіз', AppLocale.en: 'Not enough data to chart yet'},
   'detail_safe_range': {AppLocale.ru: 'Безопасный диапазон', AppLocale.kk: 'Қауіпсіз аралық', AppLocale.en: 'Safe range'},
+  'range_24h': {AppLocale.ru: '24 ч', AppLocale.kk: '24 сағ', AppLocale.en: '24h'},
+  'range_7d': {AppLocale.ru: '7 дней', AppLocale.kk: '7 күн', AppLocale.en: '7 days'},
+  'range_all': {AppLocale.ru: 'Всё', AppLocale.kk: 'Барлығы', AppLocale.en: 'All'},
   'db_outside_range': {AppLocale.ru: ', вне безопасного диапазона', AppLocale.kk: ', қауіпсіз аралықтан тыс', AppLocale.en: ', outside the safe range'},
 
   // Tracking

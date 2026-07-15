@@ -9,7 +9,9 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
-class MetricDetailScreen extends StatelessWidget {
+enum _Range { d1, d7, all }
+
+class MetricDetailScreen extends StatefulWidget {
   final String metricKey;
   final String unit;
   final IconData icon;
@@ -26,10 +28,28 @@ class MetricDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<MetricDetailScreen> createState() => _MetricDetailScreenState();
+}
+
+class _MetricDetailScreenState extends State<MetricDetailScreen> {
+  _Range _range = _Range.all;
+
+  List<HealthSample> _filtered() {
+    if (_range == _Range.all) return widget.samples;
+    final now = DateTime.now();
+    final cutoff = now.subtract(_range == _Range.d1 ? const Duration(hours: 24) : const Duration(days: 7));
+    return widget.samples.where((s) => s.at.isAfter(cutoff)).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final metricKey = widget.metricKey;
+    final unit = widget.unit;
+    final icon = widget.icon;
+    final color = widget.color;
     final label = l.metricLabel(metricKey);
-    final series = buildSeries(samples, metricKey);
+    final series = buildSeries(_filtered(), metricKey);
     final stats = statsFor(series);
     final band = bandFor(metricKey);
     final danger = latestInDanger(metricKey, stats);
@@ -73,7 +93,9 @@ class MetricDetailScreen extends StatelessWidget {
                 if (stats != null) _TrendChip(stats.trend),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
+            _RangeSelector(range: _range, onChanged: (r) => setState(() => _range = r)),
+            const SizedBox(height: 14),
 
             // Chart
             GlassCard(
@@ -118,6 +140,47 @@ class MetricDetailScreen extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RangeSelector extends StatelessWidget {
+  final _Range range;
+  final ValueChanged<_Range> onChanged;
+  const _RangeSelector({required this.range, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final items = [(_Range.d1, l.t('range_24h')), (_Range.d7, l.t('range_7d')), (_Range.all, l.t('range_all'))];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          for (final (r, lbl) in items)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(r),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: r == range ? Palette.surface : Colors.transparent,
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: r == range ? Palette.cardShadow : null,
+                  ),
+                  child: Text(lbl,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: r == range ? Palette.text : Palette.textDim,
+                      )),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
