@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  dart-logic:
+    name: Dart pure-logic verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      # The verify_* scripts have no package: imports, so they run without pub get.
+      - name: Verify safety core
+        run: dart run tool/verify_core.dart
+        working-directory: app
+      - name: Verify data/orchestration layer
+        run: dart run tool/verify_datalayer.dart
+        working-directory: app
+      - name: Verify dashboard + tracking logic
+        run: dart run tool/verify_features.dart
+        working-directory: app
+      - name: Verify app controller + store
+        run: dart run tool/verify_app.dart
+        working-directory: app
+
+  flutter-tests:
+    name: Flutter widget + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+        working-directory: app
+      - run: flutter analyze
+        working-directory: app
+      - run: flutter test
+        working-directory: app
+
+  backend:
+    name: Backend (typecheck + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm test

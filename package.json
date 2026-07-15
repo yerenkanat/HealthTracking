@@ -1,0 +1,18 @@
+{
+  "name": "femtech-child-safety-consortium",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dual-purpose MVP: pregnancy health tracker + child safety tracker (Flutter app + Node backend)",
+  "workspaces": [
+    "packages/shared",
+    "packages/backend"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b packages/shared packages/backend"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

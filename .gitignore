@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+*.log
+
+# Dart / Flutter
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/pubspec.lock
+.dart_tool/
+
+# Env / secrets (never commit health or location keys)
+.env
+*.pem
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# Vendored Claude Code skills (dev tooling, not product code)
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

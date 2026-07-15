@@ -1,0 +1,24 @@
+{
+  "_comment": "CANONICAL medical triage thresholds — the single source of truth shared by the Dart app (on-device) and the Node backend (server guardrails). Owned by the OB-GYN specialist. Any change here must be accompanied by clinical sign-off. Both languages load/assert against THIS file; neither may hardcode a different value (enforced by the contract tests).",
+  "version": 1,
+  "bloodPressure": {
+    "systolicEmergency": 140,
+    "diastolicEmergency": 90,
+    "systolicSevere": 160,
+    "diastolicSevere": 110
+  },
+  "temperatureC": {
+    "feverEmergency": 38.5,
+    "feverWarning": 37.8
+  },
+  "spo2Pct": {
+    "emergency": 90,
+    "warning": 95
+  },
+  "heartRateBpm": {
+    "tachyWarning": 120,
+    "tachyEmergency": 140,
+    "bradyWarning": 50,
+    "bradyEmergency": 40
+  }
+}

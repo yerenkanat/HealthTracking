@@ -1,0 +1,22 @@
+{
+  "_comment": "Golden conformance vectors. BOTH the Dart app and the Node server run assessTelemetry() over these EXACT inputs and MUST produce the listed severity + forceEmergencyScreen. If the two implementations ever diverge, one language's contract test fails. This is the anti-drift guarantee for the safety-critical path.",
+  "version": 1,
+  "cases": [
+    { "name": "bp_140_85_emergency",      "input": { "systolicMmHg": 140, "diastolicMmHg": 85 }, "severity": "emergency", "forceEmergencyScreen": true,  "topCode": "PREECLAMPSIA_BP" },
+    { "name": "bp_118_90_emergency",      "input": { "systolicMmHg": 118, "diastolicMmHg": 90 }, "severity": "emergency", "forceEmergencyScreen": true,  "topCode": "PREECLAMPSIA_BP" },
+    { "name": "bp_165_112_severe",        "input": { "systolicMmHg": 165, "diastolicMmHg": 112 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "PREECLAMPSIA_BP_SEVERE" },
+    { "name": "bp_118_76_ok",             "input": { "systolicMmHg": 118, "diastolicMmHg": 76 }, "severity": "ok",        "forceEmergencyScreen": false },
+    { "name": "bp_139_89_boundary_ok",    "input": { "systolicMmHg": 139, "diastolicMmHg": 89 }, "severity": "ok",        "forceEmergencyScreen": false },
+    { "name": "fever_386_emergency",      "input": { "coreTempC": 38.6 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "HIGH_FEVER" },
+    { "name": "fever_379_warning",        "input": { "coreTempC": 37.9 }, "severity": "warning",   "forceEmergencyScreen": false, "topCode": "LOW_FEVER" },
+    { "name": "spo2_93_sleep_warning",    "input": { "spo2Pct": 93, "duringSleep": true }, "severity": "warning", "forceEmergencyScreen": false, "topCode": "HYPOXIA_SLEEP" },
+    { "name": "spo2_93_awake_info",       "input": { "spo2Pct": 93, "duringSleep": false }, "severity": "info",   "forceEmergencyScreen": false, "topCode": "HYPOXIA_SLEEP" },
+    { "name": "spo2_88_emergency",        "input": { "spo2Pct": 88 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "HYPOXIA_SEVERE" },
+    { "name": "hr_118_ok",                "input": { "heartRateBpm": 118 }, "severity": "ok",     "forceEmergencyScreen": false },
+    { "name": "hr_122_warning",           "input": { "heartRateBpm": 122 }, "severity": "warning", "forceEmergencyScreen": false, "topCode": "TACHYCARDIA" },
+    { "name": "hr_145_emergency",         "input": { "heartRateBpm": 145 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "TACHYCARDIA_SEVERE" },
+    { "name": "hr_38_brady_emergency",    "input": { "heartRateBpm": 38 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "BRADYCARDIA_SEVERE" },
+    { "name": "multi_142_122_96",         "input": { "systolicMmHg": 142, "heartRateBpm": 122, "spo2Pct": 96 }, "severity": "emergency", "forceEmergencyScreen": true },
+    { "name": "empty_ok",                 "input": {}, "severity": "ok", "forceEmergencyScreen": false }
+  ]
+}

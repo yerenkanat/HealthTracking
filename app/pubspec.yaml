@@ -1,0 +1,31 @@
+name: fcs_app
+description: FemTech & Child Safety — Flutter app (pregnancy health + child safety).
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.27.0"           # Color.withValues used in the emergency screen
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_blue_plus: ^1.32.0      # BLE band + beacon
+  geolocator: ^12.0.0            # GPS/location fixes
+  sensors_plus: ^6.0.0          # accelerometer → AdaptiveScanController
+  connectivity_plus: ^6.0.0     # flush batcher on reconnect
+  flutter_local_notifications: ^17.0.0
+  firebase_messaging: ^15.0.0   # FCM/APNS push
+  url_launcher: ^6.3.0          # tel: dialer for the emergency call button
+  http: ^1.2.0                  # backend API transport
+  google_maps_flutter: ^2.9.0   # child tracking map + geofence overlays
+  mmkv: ^2.0.0                  # fast disk mirror for offline-first batcher
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  test: ^1.25.0
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

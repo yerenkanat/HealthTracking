@@ -1,0 +1,191 @@
+-- =============================================================================
+-- FemTech & Child Safety Consortium — Relational + Timeseries + Geospatial schema
+-- Target: PostgreSQL 15+ with TimescaleDB and PostGIS extensions.
+-- Specialists: Senior Backend Engineer, OB-GYN (metric columns/constraints),
+--              Geofencing Specialist (PostGIS), Data Privacy Officer (encryption notes).
+--
+-- Privacy: health + child-location data are special-category (GDPR Art.9) / PHI (HIPAA).
+--   * Column-level: `bp_calibration.*_offset` and any free-text are stored under
+--     application-layer envelope encryption (see backend/src/crypto). DB stores ciphertext.
+--   * At-rest: enable cluster-level TDE / encrypted EBS volumes.
+--   * Retention: location_history is auto-dropped after 90d via a Timescale policy.
+-- =============================================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- -----------------------------------------------------------------------------
+-- Identity
+-- -----------------------------------------------------------------------------
+CREATE TABLE users (                       -- Mothers / primary caregivers
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email          CITEXT UNIQUE NOT NULL,
+  phone_e164     TEXT,
+  display_name   TEXT NOT NULL,
+  locale         TEXT NOT NULL DEFAULT 'ru-KZ',   -- Localization Specialist: CIS default
+  timezone       TEXT NOT NULL DEFAULT 'Asia/Almaty',
+  -- Pregnancy context lets the OB-GYN rules adapt (trimester-aware baselines).
+  due_date       DATE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE devices (                     -- Smart bands paired to a user
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ble_mac        TEXT NOT NULL,
+  model          TEXT,                     -- OEM model for protocol selection
+  firmware       TEXT,
+  paired_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, ble_mac)
+);
+
+CREATE TABLE children (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  guardian_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL,            -- e.g. "Sultan"
+  -- Beacon identity: iBeacon triple, or a Tuya/LBS tag id for non-iBeacon tags.
+  beacon_uuid    TEXT,
+  beacon_major   INT,
+  beacon_minor   INT,
+  tag_serial     TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (beacon_uuid IS NOT NULL OR tag_serial IS NOT NULL)
+);
+CREATE INDEX idx_children_guardian ON children(guardian_id);
+CREATE INDEX idx_children_beacon    ON children(beacon_uuid, beacon_major, beacon_minor);
+
+-- -----------------------------------------------------------------------------
+-- Pregnancy health metrics — TIMESERIES (TimescaleDB hypertable)
+-- -----------------------------------------------------------------------------
+CREATE TABLE pregnancy_health_metrics (
+  device_id      UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id        UUID NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  recorded_at    TIMESTAMPTZ NOT NULL,
+  core_temp_c    REAL,
+  skin_temp_c    REAL,
+  heart_rate_bpm SMALLINT,
+  spo2_pct       SMALLINT,
+  systolic_mmhg  SMALLINT,      -- PPG screening estimate (calibrated)
+  diastolic_mmhg SMALLINT,      -- PPG screening estimate (calibrated)
+  during_sleep   BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Highest triage severity computed at ingest, for fast dashboard filtering.
+  triage_severity TEXT NOT NULL DEFAULT 'ok'
+    CHECK (triage_severity IN ('ok','info','warning','emergency')),
+  CONSTRAINT sane_hr   CHECK (heart_rate_bpm IS NULL OR heart_rate_bpm BETWEEN 20 AND 250),
+  CONSTRAINT sane_spo2 CHECK (spo2_pct IS NULL OR spo2_pct BETWEEN 50 AND 100),
+  CONSTRAINT sane_bp   CHECK (systolic_mmhg IS NULL OR systolic_mmhg BETWEEN 60 AND 260)
+);
+SELECT create_hypertable('pregnancy_health_metrics', 'recorded_at',
+                         chunk_time_interval => INTERVAL '7 days');
+CREATE INDEX idx_phm_user_time ON pregnancy_health_metrics (user_id, recorded_at DESC);
+
+-- Compress chunks older than 14 days (Timescale native columnar compression).
+ALTER TABLE pregnancy_health_metrics SET (
+  timescaledb.compress,
+  timescaledb.compress_segmentby = 'user_id',
+  timescaledb.compress_orderby   = 'recorded_at DESC'
+);
+SELECT add_compression_policy('pregnancy_health_metrics', INTERVAL '14 days');
+
+-- Continuous aggregate: hourly rollups powering charts without scanning raw rows.
+CREATE MATERIALIZED VIEW phm_hourly
+  WITH (timescaledb.continuous) AS
+SELECT
+  user_id,
+  time_bucket('1 hour', recorded_at) AS bucket,
+  avg(heart_rate_bpm)::REAL AS avg_hr,
+  min(spo2_pct)             AS min_spo2,
+  max(systolic_mmhg)        AS max_systolic,
+  max(diastolic_mmhg)       AS max_diastolic,
+  max(core_temp_c)          AS max_temp
+FROM pregnancy_health_metrics
+GROUP BY user_id, bucket
+WITH NO DATA;
+SELECT add_continuous_aggregate_policy('phm_hourly',
+  start_offset => INTERVAL '3 days',
+  end_offset   => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 hour');
+
+-- Weekly manual tonometer calibration inputs (drives the PPG BP offset).
+CREATE TABLE bp_calibration (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  measured_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  cuff_systolic     SMALLINT NOT NULL,
+  cuff_diastolic    SMALLINT NOT NULL,
+  ppg_systolic      SMALLINT NOT NULL,   -- band's raw reading at calibration time
+  ppg_diastolic     SMALLINT NOT NULL,
+  systolic_offset   REAL NOT NULL,       -- cuff - ppg, applied to future readings
+  diastolic_offset  REAL NOT NULL
+);
+CREATE INDEX idx_bpcal_user_time ON bp_calibration (user_id, measured_at DESC);
+
+-- -----------------------------------------------------------------------------
+-- Geofences + child location history (PostGIS)
+-- -----------------------------------------------------------------------------
+CREATE TABLE geofences (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  guardian_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  child_id     UUID REFERENCES children(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,                     -- "Home", "School"
+  shape        TEXT NOT NULL CHECK (shape IN ('circle','polygon')),
+  -- Circles: center + radius. Polygons: `area`. Exactly one is populated.
+  center       GEOGRAPHY(POINT, 4326),
+  radius_m     REAL,
+  area         GEOGRAPHY(POLYGON, 4326),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK ( (shape = 'circle'  AND center IS NOT NULL AND radius_m IS NOT NULL)
+       OR (shape = 'polygon' AND area  IS NOT NULL) )
+);
+CREATE INDEX idx_geofences_center ON geofences USING GIST (center);
+CREATE INDEX idx_geofences_area   ON geofences USING GIST (area);
+
+CREATE TABLE location_history (                    -- TIMESERIES hypertable
+  child_id     UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  observed_at  TIMESTAMPTZ NOT NULL,
+  geog         GEOGRAPHY(POINT, 4326) NOT NULL,
+  source       TEXT NOT NULL CHECK (source IN ('gps','wifi','lbs','ble')),
+  accuracy_m   REAL
+);
+SELECT create_hypertable('location_history', 'observed_at',
+                         chunk_time_interval => INTERVAL '7 days');
+CREATE INDEX idx_loc_child_time ON location_history (child_id, observed_at DESC);
+CREATE INDEX idx_loc_geog       ON location_history USING GIST (geog);
+-- Privacy retention: drop location trails older than 90 days automatically.
+SELECT add_retention_policy('location_history', INTERVAL '90 days');
+
+-- Debounced geofence crossing log (written only on real state transitions).
+CREATE TABLE geofence_events (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  child_id     UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  geofence_id  UUID NOT NULL REFERENCES geofences(id) ON DELETE CASCADE,
+  transition   TEXT NOT NULL CHECK (transition IN ('enter','exit')),
+  source       TEXT NOT NULL,
+  occurred_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_gfevents_child_time ON geofence_events (child_id, occurred_at DESC);
+
+-- Push tokens for FCM/APNS delivery.
+CREATE TABLE push_tokens (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  platform    TEXT NOT NULL CHECK (platform IN ('ios','android')),
+  token       TEXT NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, token)
+);
+
+-- =============================================================================
+-- Example geospatial queries (Geofencing Specialist)
+-- =============================================================================
+-- Is the child currently inside any of their geofences? (single round-trip)
+--   SELECT g.id, g.name, g.shape
+--   FROM geofences g
+--   WHERE g.child_id = $1
+--     AND (
+--       (g.shape = 'circle'  AND ST_DWithin(g.center, ST_MakePoint($3,$2)::geography, g.radius_m))
+--       OR (g.shape = 'polygon' AND ST_Covers(g.area, ST_MakePoint($3,$2)::geography))
+--     );
+-- ($2 = lat, $3 = lng). ST_DWithin on geography uses meters and hits the GIST index.

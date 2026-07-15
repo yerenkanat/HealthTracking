@@ -1,0 +1,37 @@
+# Local integration stack for the FCS backend.
+#   docker compose -f infra/docker-compose.yml up -d
+# Brings up Postgres (with TimescaleDB + PostGIS) and Redis, and auto-applies the
+# schema on first boot. Specialists: DevOps + Backend Engineer.
+services:
+  db:
+    # timescaledb-ha ships TimescaleDB AND PostGIS in one image (both extensions
+    # the schema needs). Pinned to a pg16 tag.
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: fcs
+      POSTGRES_PASSWORD: fcs
+      POSTGRES_DB: fcs
+    ports:
+      - "5432:5432"
+    volumes:
+      # Auto-run the schema on first init.
+      - ../packages/backend/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - fcs_pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fcs -d fcs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  fcs_pgdata:
