@@ -48,9 +48,7 @@ class _HomeShellState extends State<HomeShell> {
         onOpenSettings: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => SettingsScreen(controller: c)),
         ),
-        onOpenProfile: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ProfileScreen(controller: c)),
-        ),
+        onOpenProfile: () => setState(() => _index = 3),
       ),
       AdvisorScreen(samples: c.samples),
       ChildMapScreen(
@@ -66,6 +64,7 @@ class _HomeShellState extends State<HomeShell> {
         onAddChild: () => showAddChildSheet(context, c),
         onAddDevice: () => showAddDeviceSheet(context, c),
       ),
+      ProfileScreen(controller: c),
     ];
 
     return Scaffold(
@@ -86,6 +85,10 @@ class _HomeShellState extends State<HomeShell> {
               icon: const Icon(Icons.location_on_outlined),
               selectedIcon: const Icon(Icons.location_on),
               label: l.t('nav_child')),
+          NavigationDestination(
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: const Icon(Icons.person),
+              label: l.t('nav_profile')),
         ],
       ),
     );
