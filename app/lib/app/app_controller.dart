@@ -16,6 +16,7 @@ import '../core/triage.dart';
 import '../core/geofence.dart';
 import '../data/sample_store.dart';
 import '../data/api_client.dart';
+import '../domain/chat_controller.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../l10n/l10n.dart';
@@ -151,8 +152,18 @@ class AppController {
   ApiClient? get api => _api;
   TelemetryBatcher? get batcher => _batcher;
 
+  ChatController? _chat;
+  ChatController? get chat => _chat;
+
+  /// Attach the assistant once the runtime is wired (async, post first-paint).
+  void attachChat(ChatController chat) {
+    _chat = chat;
+    _notify(); // reveal the Assistant tab
+  }
+
   Future<void> dispose() async {
     await _monitor?.dispose();
+    await _chat?.dispose();
     await _changes.close();
   }
 }

@@ -15,15 +15,18 @@ without a device or cloud is unit-tested and green on each change.
 | Dart dashboard + tracking derivation | 24 | ✅ |
 | Dart app controller + sample store | 15 | ✅ |
 | Dart localization (ru/kk/en + coverage) | 33 | ✅ |
+| Dart assistant chat controller | 11 | ✅ |
 | Node backend guardrail + ingest | 11 | ✅ |
 | Node cross-language contract (app vs server agree) | 20 | ✅ |
-| **Total** | **155** | ✅ |
+| **Total** | **166** | ✅ |
 
 ## What's built
 - **Flutter app** (`app/`): entry point, calm FemTech theme, home shell (Health +
-  Child tabs), health dashboard (sparklines + danger bands), child tracking map,
-  and an app-wide Emergency Rescue screen that overrides everything on a critical
-  reading. State flows through one pure-Dart `AppController`.
+  Assistant + Child tabs), health dashboard (sparklines + danger bands), child
+  tracking map, a guardrailed AI assistant chat (with a persistent "not a diagnosis"
+  disclaimer, and chat that escalates to the emergency screen), and an app-wide
+  Emergency Rescue screen that overrides everything on a critical reading. State
+  flows through one pure-Dart `AppController`.
 - **Backend** (`packages/backend/`): Fastify HTTP surface, Postgres+Timescale+PostGIS
   schema, Redis caching/dedup, geofence pipeline, FCM/APNS push, and the AI guardrail
   with a deterministic triage override the LLM cannot bypass.
@@ -53,8 +56,11 @@ without a device or cloud is unit-tested and green on each change.
 1. Onboarding + Firebase Auth; pair a band; load child profile/geofences.
 2. Wire `BleDeviceManager` live in `bootstrapRuntime` (marked TODO in `main.dart`).
 3. Run `flutter test` + the Docker integration smoke in CI on a real runner.
-4. RAG knowledge base for the assistant (`retrieveRagPassages` is stubbed).
-5. Localization pass (ru-KZ / kk-KZ), Nudge-Master notification copy review.
+4. RAG knowledge base for the assistant (`retrieveRagPassages` is stubbed) — the
+   chat UI + guardrails are done; it needs a vetted content source.
+5. Assistant request language should follow the in-app language switch at runtime
+   (currently set at startup).
+6. Nudge-Master notification copy review; native RU/KK medical-copy review.
 
 ## How to verify locally
 ```bash

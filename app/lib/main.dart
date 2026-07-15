@@ -11,9 +11,12 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_controller.dart';
+import 'domain/ai_chat_service.dart';
+import 'domain/chat_controller.dart';
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
 import 'data/http_transport.dart';
+import 'l10n/l10n.dart';
 import 'net/telemetry_batcher.dart';
 
 Future<void> main() async {
@@ -55,6 +58,21 @@ Future<void> bootstrapRuntime(AppController controller) async {
     );
 
     controller.attachRuntime(monitor: monitor, batcher: batcher, api: api);
+
+    // Assistant: guardrailed chat. Emergencies escalate into the app-wide
+    // Emergency Rescue screen via the controller.
+    final chatService = AiChatService(
+      api: api,
+      userId: const String.fromEnvironment('USER_ID', defaultValue: 'me'),
+      locale: controller.locale.name,
+      monitor: monitor,
+      onEmergency: (e) => controller.onChatEmergency(e.message, e.callButtons),
+    );
+    controller.attachChat(ChatController(
+      service: chatService,
+      networkErrorText: () => L10n(controller.locale).t('chat_error'),
+      emergencyNoteText: () => L10n(controller.locale).t('chat_emergency_note'),
+    ));
 
     // TODO(once paired): construct BleDeviceManager(config) and:
     //   ble.onTelemetry.listen((rec) {

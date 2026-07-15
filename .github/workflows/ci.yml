@@ -30,6 +30,9 @@ jobs:
       - name: Verify localization (ru/kk/en coverage)
         run: dart run tool/verify_l10n.dart
         working-directory: app
+      - name: Verify assistant chat controller
+        run: dart run tool/verify_chat.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
