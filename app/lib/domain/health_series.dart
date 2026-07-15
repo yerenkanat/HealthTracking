@@ -16,6 +16,7 @@ class HealthSample {
   final double? systolic;
   final double? diastolic;
   final double? coreTemp;
+  final bool duringSleep;
   const HealthSample({
     required this.at,
     this.heartRate,
@@ -23,6 +24,7 @@ class HealthSample {
     this.systolic,
     this.diastolic,
     this.coreTemp,
+    this.duringSleep = false,
   });
 
   factory HealthSample.fromJson(Map<String, dynamic> j) => HealthSample(
@@ -32,6 +34,7 @@ class HealthSample {
         systolic: (j['systolicMmHg'] as num?)?.toDouble(),
         diastolic: (j['diastolicMmHg'] as num?)?.toDouble(),
         coreTemp: (j['coreTempC'] as num?)?.toDouble(),
+        duringSleep: (j['duringSleep'] as bool?) ?? false,
       );
 }
 

@@ -1,0 +1,94 @@
+/// HealthAdvisor — turns the mother's smart-band data into a few plain, safe,
+/// data-grounded advisory cards. This is the app's "AI advisor": it reasons over
+/// the actual telemetry (BP, HR, SpO2, temperature trends) rather than free chat.
+/// Pure Dart → unit-testable. Owned by OB-GYN (thresholds) + AI Engineer.
+///
+/// Safety: advisories are gentle wellness guidance, NEVER a diagnosis. True
+/// emergencies are handled separately by the triage layer (assessTelemetry →
+/// Emergency Rescue screen), which always wins. Each advisory carries a CODE that
+/// the UI localizes (ru/kk/en), so no language is baked into the logic.
+library;
+
+import '../core/triage.dart' show TriageThresholds;
+import 'health_series.dart';
+
+enum AdviceTone { positive, info, watch }
+
+class Advisory {
+  final String code; // localized by the UI, e.g. 'ADV_BP_ELEVATED'
+  final AdviceTone tone;
+  final String metric; // 'systolic' | 'hr' | 'spo2' | 'temp' | 'general'
+  final double? value; // the number behind the advice (for "{value}" interpolation)
+  const Advisory(this.code, this.tone, this.metric, {this.value});
+}
+
+/// Generate advisories from recent samples. Ordered watch-first so the UI shows
+/// the most important guidance on top.
+List<Advisory> generateAdvisories(
+  List<HealthSample> samples, {
+  int minSamples = 3,
+}) {
+  if (samples.length < minSamples) {
+    return const [Advisory('ADV_GATHERING', AdviceTone.info, 'general')];
+  }
+
+  final watch = <Advisory>[];
+  final positive = <Advisory>[];
+
+  // ---- Blood pressure ----
+  final sys = statsFor(buildSeries(samples, 'systolic'));
+  final dia = statsFor(buildSeries(samples, 'diastolic'));
+  if (sys != null && dia != null) {
+    // "elevated" = below the emergency cutoff but worth watching.
+    final sysElevated = sys.latest >= 135 && sys.latest < TriageThresholds.bpSystolicEmergency;
+    final diaElevated = dia.latest >= 85 && dia.latest < TriageThresholds.bpDiastolicEmergency;
+    if (sysElevated || diaElevated) {
+      watch.add(Advisory('ADV_BP_ELEVATED', AdviceTone.watch, 'systolic', value: sys.latest));
+    } else if (sys.latest < 130 && dia.latest < 85) {
+      positive.add(Advisory('ADV_BP_STEADY', AdviceTone.positive, 'systolic', value: sys.latest));
+    }
+  }
+
+  // ---- Heart rate trend (first half vs second half of the window) ----
+  final hrSeries = buildSeries(samples, 'hr');
+  if (hrSeries.length >= 4) {
+    final mid = hrSeries.length ~/ 2;
+    final firstAvg = _mean(hrSeries.sublist(0, mid).map((p) => p.value));
+    final secondAvg = _mean(hrSeries.sublist(mid).map((p) => p.value));
+    if (secondAvg - firstAvg >= 8) {
+      watch.add(Advisory('ADV_HR_RISING', AdviceTone.watch, 'hr', value: secondAvg));
+    } else if ((secondAvg - firstAvg).abs() < 5) {
+      positive.add(Advisory('ADV_HR_STEADY', AdviceTone.positive, 'hr', value: secondAvg));
+    }
+  }
+
+  // ---- SpO2 during sleep ----
+  final sleepDips = samples
+      .where((s) => s.duringSleep && s.spo2 != null && s.spo2! < TriageThresholds.spo2Warning)
+      .toList();
+  if (sleepDips.isNotEmpty) {
+    final lowest = sleepDips.map((s) => s.spo2!).reduce((a, b) => a < b ? a : b);
+    watch.add(Advisory('ADV_SPO2_SLEEP_DIP', AdviceTone.watch, 'spo2', value: lowest));
+  }
+
+  // ---- Temperature ----
+  final temp = statsFor(buildSeries(samples, 'temp'));
+  if (temp != null && temp.latest >= TriageThresholds.feverWarningC) {
+    watch.add(Advisory('ADV_TEMP_ELEVATED', AdviceTone.watch, 'temp', value: temp.latest));
+  }
+
+  // ---- Overall reassurance when nothing needs watching ----
+  if (watch.isEmpty) {
+    return [const Advisory('ADV_ALL_STEADY', AdviceTone.positive, 'general'), ...positive];
+  }
+  return [...watch, ...positive];
+}
+
+double _mean(Iterable<double> xs) {
+  var sum = 0.0, n = 0;
+  for (final x in xs) {
+    sum += x;
+    n++;
+  }
+  return n == 0 ? 0 : sum / n;
+}

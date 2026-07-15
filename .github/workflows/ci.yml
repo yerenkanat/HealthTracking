@@ -39,6 +39,9 @@ jobs:
       - name: Verify persistence (config round-trip + restore)
         run: dart run tool/verify_persistence.dart
         working-directory: app
+      - name: Verify health advisor
+        run: dart run tool/verify_advisor.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

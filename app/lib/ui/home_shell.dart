@@ -9,7 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../app/app_controller.dart';
 import '../core/geofence.dart';
 import '../l10n/l10n_scope.dart';
-import 'chat/assistant_chat_screen.dart';
+import 'advisor/advisor_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'tracking/child_map_screen.dart';
 
@@ -35,7 +35,6 @@ class _HomeShellState extends State<HomeShell> {
     final loc = c.childLocation;
 
     final l = L10nScope.of(context);
-    final chat = c.chat;
 
     final pages = [
       HealthDashboardScreen(
@@ -44,9 +43,7 @@ class _HomeShellState extends State<HomeShell> {
         currentLocale: c.locale,
         onLocaleChange: c.setLocale,
       ),
-      chat != null
-          ? AssistantChatScreen(controller: chat)
-          : const Center(child: CircularProgressIndicator()),
+      AdvisorScreen(samples: c.samples),
       ChildMapScreen(
         childName: c.childName,
         childLocation: loc?.coords,
@@ -68,9 +65,9 @@ class _HomeShellState extends State<HomeShell> {
               selectedIcon: const Icon(Icons.favorite),
               label: l.t('nav_health')),
           NavigationDestination(
-              icon: const Icon(Icons.spa_outlined),
-              selectedIcon: const Icon(Icons.spa),
-              label: l.t('nav_assistant')),
+              icon: const Icon(Icons.auto_awesome_outlined),
+              selectedIcon: const Icon(Icons.auto_awesome),
+              label: l.t('nav_advisor')),
           NavigationDestination(
               icon: const Icon(Icons.location_on_outlined),
               selectedIcon: const Icon(Icons.location_on),

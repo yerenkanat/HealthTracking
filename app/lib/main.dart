@@ -11,7 +11,9 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_controller.dart';
+import 'core/geofence.dart';
 import 'data/prefs_app_store.dart';
+import 'domain/health_series.dart';
 import 'domain/ai_chat_service.dart';
 import 'domain/chat_controller.dart';
 import 'domain/health_monitor.dart';
@@ -28,10 +30,36 @@ Future<void> main() async {
   // so a returning user skips straight past onboarding.
   final controller = AppController(persistStore: PrefsAppStore());
   await controller.restore();
+  if (const bool.fromEnvironment('DEMO')) _seedDemo(controller);
   runApp(FcsApp(controller: controller));
 
   // Kick off device + backend wiring without blocking first paint.
   unawaited(bootstrapRuntime(controller));
+}
+
+/// Demo seed (only with --dart-define=DEMO=true): realistic band samples + a
+/// child with zones, so the redesigned UI can be shown without a physical band.
+void _seedDemo(AppController c) {
+  final now = DateTime.now();
+  final hr = [72, 74, 73, 76, 78, 75, 79, 81, 80, 83, 85, 84];
+  final samples = <HealthSample>[
+    for (var i = 0; i < 12; i++)
+      HealthSample(
+        at: now.subtract(Duration(minutes: (12 - i) * 5)),
+        heartRate: hr[i].toDouble(),
+        spo2: (97 + (i % 2)).toDouble(),
+        systolic: (116 + i * 2).toDouble(), // rises to 138 → "watch" advisory
+        diastolic: (74 + i ~/ 3).toDouble(),
+        coreTemp: 36.5 + (i % 3) * 0.1,
+        duringSleep: i < 4,
+      ),
+  ];
+  c.debugSeed(samples);
+  c.configureChild(name: 'Sultan', fences: [
+    Geofence.circle('home', 'Home', const Coordinates(43.238949, 76.889709), 100),
+    Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),
+  ]);
+  c.onChildLocation(const Coordinates(43.25, 76.95));
 }
 
 /// Connects the verified spine to live sources. Kept out of the widget tree so

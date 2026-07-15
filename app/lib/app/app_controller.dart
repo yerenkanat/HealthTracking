@@ -157,6 +157,7 @@ class AppController {
       systolic: t.systolicMmHg?.toDouble(),
       diastolic: t.diastolicMmHg?.toDouble(),
       coreTemp: t.coreTempC,
+      duringSleep: t.duringSleep,
     ));
     if (triage.forceEmergencyScreen) {
       final f = triage.findings.isNotEmpty ? triage.findings.first : null;
@@ -201,6 +202,14 @@ class AppController {
 
   void _notify() {
     if (!_changes.isClosed) _changes.add(null);
+  }
+
+  /// Debug/demo only: inject pre-built samples (used by --dart-define=DEMO=true).
+  void debugSeed(List<HealthSample> samples) {
+    for (final s in samples) {
+      store.addSample(s);
+    }
+    _notify();
   }
 
   // ---- Runtime lifecycle (owned here so main.dart stays a thin entry point) ----

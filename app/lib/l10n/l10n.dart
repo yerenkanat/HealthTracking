@@ -57,6 +57,27 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'chat_emergency_note': {AppLocale.ru: 'Открываю экран экстренной помощи.', AppLocale.kk: 'Шұғыл көмек экранын ашып жатырмын.', AppLocale.en: 'Opening the emergency screen.'},
   'chat_send': {AppLocale.ru: 'Отправить', AppLocale.kk: 'Жіберу', AppLocale.en: 'Send'},
 
+  // Health advisor (data-driven advice from band telemetry)
+  'nav_advisor': {AppLocale.ru: 'Советник', AppLocale.kk: 'Кеңесші', AppLocale.en: 'Advisor'},
+  'adv_title': {AppLocale.ru: 'Советник здоровья', AppLocale.kk: 'Денсаулық кеңесшісі', AppLocale.en: 'Health advisor'},
+  'adv_intro': {AppLocale.ru: 'На основе данных вашего браслета', AppLocale.kk: 'Білезік деректері негізінде', AppLocale.en: 'Based on your band data'},
+  'ADV_GATHERING': {AppLocale.ru: 'Собираем данные', AppLocale.kk: 'Деректер жиналуда', AppLocale.en: 'Gathering data'},
+  'ADV_GATHERING_b': {AppLocale.ru: 'Наденьте браслет — советы появятся после нескольких измерений.', AppLocale.kk: 'Білезікті тағыңыз — бірнеше өлшеуден кейін кеңестер пайда болады.', AppLocale.en: 'Wear your band — advice appears after a few readings.'},
+  'ADV_ALL_STEADY': {AppLocale.ru: 'Всё стабильно', AppLocale.kk: 'Барлығы тұрақты', AppLocale.en: 'All steady'},
+  'ADV_ALL_STEADY_b': {AppLocale.ru: 'Ваши показатели в пределах нормы. Так держать.', AppLocale.kk: 'Көрсеткіштеріңіз қалыпты шамада. Осылай жалғастырыңыз.', AppLocale.en: 'Your readings are within a healthy range. Keep it up.'},
+  'ADV_BP_STEADY': {AppLocale.ru: 'Давление в норме', AppLocale.kk: 'Қысым қалыпты', AppLocale.en: 'Blood pressure steady'},
+  'ADV_BP_STEADY_b': {AppLocale.ru: 'Артериальное давление держится в здоровом диапазоне.', AppLocale.kk: 'Қан қысымы сау аралықта.', AppLocale.en: 'Your blood pressure is holding in a healthy range.'},
+  'ADV_BP_ELEVATED': {AppLocale.ru: 'Следите за давлением', AppLocale.kk: 'Қысымды қадағалаңыз', AppLocale.en: 'Watch your blood pressure'},
+  'ADV_BP_ELEVATED_b': {AppLocale.ru: 'Давление повышено. Отдохните, выпейте воды и измерьте снова. При стойком повышении обратитесь к врачу.', AppLocale.kk: 'Қысым жоғарылаған. Демалыңыз, су ішіп, қайта өлшеңіз. Тұрақты жоғары болса, дәрігерге жүгініңіз.', AppLocale.en: 'Your blood pressure is elevated. Rest, hydrate, and re-measure. If it stays high, contact your doctor.'},
+  'ADV_HR_STEADY': {AppLocale.ru: 'Пульс ровный', AppLocale.kk: 'Тамыр соғысы тұрақты', AppLocale.en: 'Heart rate steady'},
+  'ADV_HR_STEADY_b': {AppLocale.ru: 'Частота сердечных сокращений стабильна.', AppLocale.kk: 'Жүрек соғу жиілігі тұрақты.', AppLocale.en: 'Your heart rate is stable.'},
+  'ADV_HR_RISING': {AppLocale.ru: 'Пульс растёт', AppLocale.kk: 'Тамыр соғысы артып барады', AppLocale.en: 'Heart rate rising'},
+  'ADV_HR_RISING_b': {AppLocale.ru: 'Средний пульс вырос за последнее время. Отдохните; при беспокойстве обратитесь к врачу.', AppLocale.kk: 'Соңғы кезде орташа тамыр соғысы өсті. Демалыңыз; алаңдасаңыз дәрігерге жүгініңіз.', AppLocale.en: 'Your average heart rate has risen recently. Rest; if concerned, see your doctor.'},
+  'ADV_SPO2_SLEEP_DIP': {AppLocale.ru: 'Кислород во сне', AppLocale.kk: 'Ұйқыдағы оттегі', AppLocale.en: 'Oxygen during sleep'},
+  'ADV_SPO2_SLEEP_DIP_b': {AppLocale.ru: 'Во сне уровень кислорода опускался ниже 95%. Если повторяется — обсудите с врачом.', AppLocale.kk: 'Ұйқы кезінде оттегі деңгейі 95%-дан төмендеді. Қайталанса, дәрігермен ақылдасыңыз.', AppLocale.en: 'Your blood oxygen dipped below 95% during sleep. If it recurs, discuss with your doctor.'},
+  'ADV_TEMP_ELEVATED': {AppLocale.ru: 'Повышенная температура', AppLocale.kk: 'Дене қызуы жоғары', AppLocale.en: 'Elevated temperature'},
+  'ADV_TEMP_ELEVATED_b': {AppLocale.ru: 'Температура выше нормы. Отдых и питьё; следите за динамикой.', AppLocale.kk: 'Температура қалыптыдан жоғары. Демалыс пен сұйықтық; өзгерісті бақылаңыз.', AppLocale.en: 'Your temperature is above normal. Rest and hydrate; keep an eye on it.'},
+
   // Onboarding
   'onb_welcome_title': {AppLocale.ru: 'Добро пожаловать в Умай', AppLocale.kk: 'Умайға қош келдіңіз', AppLocale.en: 'Welcome to Umay'},
   'onb_welcome_body': {AppLocale.ru: 'Спокойный уход за беременностью и безопасность ребёнка в одном приложении.', AppLocale.kk: 'Жүктілікке қамқорлық пен бала қауіпсіздігі бір қолданбада.', AppLocale.en: 'Calm pregnancy care and child safety in one app.'},

@@ -68,6 +68,16 @@ class _SparkPainter extends CustomPainter {
     for (var i = 1; i < points.length; i++) {
       path.lineTo(x(i), y(points[i].value));
     }
+    // Glow pass (blurred underlay) for the high-tech look.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..color = color.withValues(alpha: 0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
     canvas.drawPath(
       path,
       Paint()
@@ -77,9 +87,9 @@ class _SparkPainter extends CustomPainter {
         ..color = color,
     );
 
-    // Latest point emphasized (red if in danger).
+    // Latest point emphasized.
     final last = Offset(x(points.length - 1), y(points.last.value));
-    canvas.drawCircle(last, 3.5, Paint()..color = inDanger ? const Color(0xFFE5484D) : color);
+    canvas.drawCircle(last, 3.5, Paint()..color = color);
   }
 
   @override

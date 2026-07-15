@@ -18,6 +18,7 @@ without a device or cloud is unit-tested and green on each change.
 | Dart assistant chat controller | 11 | ✅ |
 | Dart onboarding flow | 25 | ✅ |
 | Dart persistence (round-trip + restore) | 19 | ✅ |
+| Dart health advisor (data → advice) | 9 | ✅ |
 | **Flutter widget + unit tests (executed via `flutter test`)** | 38 | ✅ |
 | Node backend guardrail + ingest | 11 | ✅ |
 | Node cross-language contract (app vs server agree) | 20 | ✅ |
@@ -45,13 +46,15 @@ without a device or cloud is unit-tested and green on each change.
 > CI; the in-process integration test covers the routing/validation/handler logic.
 
 ## What's built
-- **Flutter app** (`app/`): first-run onboarding (welcome → language → profile →
-  pair band → child + zones) gating the app, entry point, calm FemTech theme, home
-  shell (Health + Assistant + Child tabs), health dashboard (sparklines + danger
-  bands), child tracking map, a guardrailed AI assistant chat (with a persistent
-  "not a diagnosis" disclaimer, and chat that escalates to the emergency screen),
-  and an app-wide Emergency Rescue screen that overrides everything on a critical
-  reading. State flows through one pure-Dart `AppController`.
+- **Flutter app** (`app/`): **modern high-tech dark UI** (glassmorphism, aurora
+  glow background, violet/pink/teal gradients, Outfit + JetBrains Mono type —
+  grounded in the ui-ux-pro-max design system). First-run onboarding gating the
+  app; home shell (Health + Advisor + Child tabs); health dashboard as a glass
+  metric grid with glowing sparklines; a **data-driven Health Advisor** (reasons
+  over band telemetry → advisory cards; NOT a chatbot); child tracking (graceful
+  map placeholder without a Maps key); and an app-wide Emergency Rescue screen that
+  overrides everything on a critical reading. One pure-Dart `AppController`.
+  Verified on the Android emulator with `--dart-define=DEMO=true` seed data.
 - **Backend** (`packages/backend/`): Fastify HTTP surface, Postgres+Timescale+PostGIS
   schema, Redis caching/dedup, geofence pipeline, FCM/APNS push, and the AI guardrail
   with a deterministic triage override the LLM cannot bypass.

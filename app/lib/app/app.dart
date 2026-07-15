@@ -34,8 +34,8 @@ class FcsApp extends StatelessWidget {
           child: MaterialApp(
             title: 'Umay',
             debugShowCheckedModeBanner: false,
-            theme: FcsTheme.light(),
-            darkTheme: FcsTheme.dark(),
+            theme: FcsTheme.dark(),
+            themeMode: ThemeMode.dark,
             locale: appLocaleToFlutter(controller.locale),
             supportedLocales: supportedFlutterLocales,
             localizationsDelegates: const [
