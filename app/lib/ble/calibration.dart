@@ -19,6 +19,18 @@ class BpCalibration {
   final double diastolicOffset;
   final DateTime calibratedAt;
   const BpCalibration(this.systolicOffset, this.diastolicOffset, this.calibratedAt);
+
+  Map<String, dynamic> toJson() => {
+        'systolicOffset': systolicOffset,
+        'diastolicOffset': diastolicOffset,
+        'calibratedAt': calibratedAt.toIso8601String(),
+      };
+
+  factory BpCalibration.fromJson(Map<String, dynamic> j) => BpCalibration(
+        (j['systolicOffset'] as num).toDouble(),
+        (j['diastolicOffset'] as num).toDouble(),
+        DateTime.parse(j['calibratedAt'] as String),
+      );
 }
 
 class CalibratedBp {

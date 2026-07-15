@@ -106,6 +106,18 @@ void main() async {
   _chk('child removed', ctl4.children.length == 1 && ctl4.children.first.id == 'child-2');
   _chk('reselected remaining child', ctl4.childName == 'Aida');
 
+  // ---- BP calibration stored + persisted + restored ----
+  ctl4.calibrateBp(cuffSystolic: 128, cuffDiastolic: 82, ppgSystolic: 120, ppgDiastolic: 78,
+      at: DateTime.parse('2026-07-15T00:00:00Z'));
+  await Future<void>.delayed(Duration.zero);
+  _chk('calibration offsets stored', ctl4.bpCalibration?.systolicOffset == 8 && ctl4.bpCalibration?.diastolicOffset == 4);
+  _chk('calibration persisted', (await store3.load())?.bpCalibration?.systolicOffset == 8);
+  // restore into a fresh controller
+  final ctl5 = AppController(persistStore: store3);
+  await ctl5.restore();
+  _chk('calibration restored', ctl5.bpCalibration?.diastolicOffset == 4);
+  await ctl5.dispose();
+
   // ---- reset wipes + returns to onboarding ----
   await ctl4.resetApp();
   _chk('reset clears onboarded', !ctl4.onboarded && ctl4.children.isEmpty);

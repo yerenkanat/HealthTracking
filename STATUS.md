@@ -20,6 +20,7 @@ without a device or cloud is unit-tested and green on each change.
 | Dart persistence (round-trip, restore, add/remove child+device, reset) | 25 | ✅ |
 | Dart health advisor (data → advice) | 9 | ✅ |
 | Dart family (phone/E.164, children, devices) | 17 | ✅ |
+| Dart sensor calibration (BP offsets, skin→core, RSSI) | 15 | ✅ |
 | **Flutter widget + unit tests (executed via `flutter test`)** | 38 | ✅ |
 | Node backend guardrail + ingest | 11 | ✅ |
 | Node cross-language contract (app vs server agree) | 20 | ✅ |

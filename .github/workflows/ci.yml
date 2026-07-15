@@ -45,6 +45,9 @@ jobs:
       - name: Verify family (phone, children, devices)
         run: dart run tool/verify_family.dart
         working-directory: app
+      - name: Verify sensor calibration (BP/temp/RSSI)
+        run: dart run tool/verify_calibration.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

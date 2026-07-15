@@ -12,6 +12,7 @@ library;
 
 import 'dart:async';
 
+import '../ble/calibration.dart';
 import '../core/triage.dart';
 import '../core/geofence.dart';
 import '../data/sample_store.dart';
@@ -56,6 +57,7 @@ class AppController {
   final List<ChildProfile> _children = [];
   String? _selectedChildId;
   final List<PairedDevice> _devices = [];
+  BpCalibration? _bpCalibration;
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -99,6 +101,7 @@ class AppController {
     _devices
       ..clear()
       ..addAll(cfg.devices);
+    _bpCalibration = cfg.bpCalibration;
     _onboarded = true;
     _notify();
   }
@@ -109,6 +112,7 @@ class AppController {
         profile: _profile,
         children: List.of(_children),
         devices: List.of(_devices),
+        bpCalibration: _bpCalibration,
       );
 
   void _persist() {
@@ -182,12 +186,39 @@ class AppController {
     _notify();
   }
 
+  // ---- Blood-pressure calibration (weekly manual tonometer reading) ----
+  BpCalibration? get bpCalibration => _bpCalibration;
+
+  /// Latest PPG blood-pressure reading from the band, used as the calibration
+  /// reference. Null if no BP sample yet.
+  ({int systolic, int diastolic})? get latestBp {
+    final s = store.latest;
+    if (s == null || s.systolic == null || s.diastolic == null) return null;
+    return (systolic: s.systolic!.round(), diastolic: s.diastolic!.round());
+  }
+
+  /// Record a cuff reading against the band's PPG reading → store the offsets.
+  void calibrateBp({
+    required int cuffSystolic,
+    required int cuffDiastolic,
+    required int ppgSystolic,
+    required int ppgDiastolic,
+    DateTime? at,
+  }) {
+    final o = computeBpOffsets(cuffSystolic, cuffDiastolic, ppgSystolic, ppgDiastolic);
+    _bpCalibration = BpCalibration(o.systolicOffset, o.diastolicOffset, at ?? _now());
+    // TODO(auth): POST to /calibration/bp once we have a signed-in userId.
+    _persist();
+    _notify();
+  }
+
   /// Wipe the session and return to onboarding (Settings → "Reset").
   Future<void> resetApp() async {
     _children.clear();
     _devices.clear();
     _selectedChildId = null;
     _profile = const UserProfile();
+    _bpCalibration = null;
     _onboarded = false;
     store.clear();
     await _persistStore?.clear();

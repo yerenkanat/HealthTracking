@@ -124,6 +124,20 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Umay — pregnancy care and child safety. Not a medical device.'
   },
   'set_version': {AppLocale.ru: 'Версия', AppLocale.kk: 'Нұсқа', AppLocale.en: 'Version'},
+  'set_bp_calibration': {AppLocale.ru: 'Калибровка давления', AppLocale.kk: 'Қысымды калибрлеу', AppLocale.en: 'Blood pressure'},
+  'cal_title': {AppLocale.ru: 'Калибровка давления', AppLocale.kk: 'Қысымды калибрлеу', AppLocale.en: 'Calibrate blood pressure'},
+  'cal_intro': {
+    AppLocale.ru: 'Введите показания вашего тонометра, чтобы уточнить оценку давления по браслету.',
+    AppLocale.kk: 'Білезік бойынша қысым бағасын нақтылау үшін тонометр көрсеткіштерін енгізіңіз.',
+    AppLocale.en: "Enter your cuff (tonometer) reading to correct the band's blood-pressure estimate."
+  },
+  'cal_cuff_sys': {AppLocale.ru: 'Систолическое (тонометр)', AppLocale.kk: 'Систолалық (тонометр)', AppLocale.en: 'Systolic (cuff)'},
+  'cal_cuff_dia': {AppLocale.ru: 'Диастолическое (тонометр)', AppLocale.kk: 'Диастолалық (тонометр)', AppLocale.en: 'Diastolic (cuff)'},
+  'cal_band_reading': {AppLocale.ru: 'Показания браслета: {sys}/{dia}', AppLocale.kk: 'Білезік көрсеткіші: {sys}/{dia}', AppLocale.en: 'Band reading: {sys}/{dia}'},
+  'cal_no_band': {AppLocale.ru: 'Нет данных браслета для калибровки. Наденьте браслет и измерьте давление.', AppLocale.kk: 'Калибрлеуге білезік деректері жоқ. Білезікті тағып, қысымды өлшеңіз.', AppLocale.en: 'No band reading yet. Wear your band and measure blood pressure first.'},
+  'cal_last': {AppLocale.ru: 'Откалибровано {ago}', AppLocale.kk: '{ago} калибрленген', AppLocale.en: 'Calibrated {ago}'},
+  'cal_never': {AppLocale.ru: 'Не откалибровано', AppLocale.kk: 'Калибрленбеген', AppLocale.en: 'Not calibrated'},
+  'cal_stale': {AppLocale.ru: 'Рекомендуется повторная калибровка', AppLocale.kk: 'Қайта калибрлеу ұсынылады', AppLocale.en: 'Recalibration recommended'},
   'prof_children_count': {AppLocale.ru: 'Дети', AppLocale.kk: 'Балалар', AppLocale.en: 'Children'},
   'prof_devices_count': {AppLocale.ru: 'Устройства', AppLocale.kk: 'Құрылғылар', AppLocale.en: 'Devices'},
   'prof_no_phone': {AppLocale.ru: 'Телефон не указан', AppLocale.kk: 'Телефон көрсетілмеген', AppLocale.en: 'No phone number'},

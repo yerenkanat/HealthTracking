@@ -5,6 +5,7 @@ library;
 
 import 'dart:convert';
 
+import '../ble/calibration.dart';
 import '../core/geofence.dart';
 import '../domain/family.dart';
 import '../l10n/l10n.dart';
@@ -66,6 +67,7 @@ class PersistedConfig {
   final UserProfile profile;
   final List<ChildProfile> children;
   final List<PairedDevice> devices;
+  final BpCalibration? bpCalibration;
 
   const PersistedConfig({
     required this.onboarded,
@@ -73,15 +75,17 @@ class PersistedConfig {
     required this.profile,
     required this.children,
     required this.devices,
+    this.bpCalibration,
   });
 
   Map<String, dynamic> toJson() => {
-        'version': 2,
+        'version': 3,
         'onboarded': onboarded,
         'locale': locale.name,
         'profile': profile.toJson(),
         'children': [for (final c in children) childToJson(c)],
         'devices': [for (final d in devices) d.toJson()],
+        if (bpCalibration != null) 'bpCalibration': bpCalibration!.toJson(),
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -98,6 +102,9 @@ class PersistedConfig {
           for (final d in (j['devices'] as List? ?? const []))
             PairedDevice.fromJson((d as Map).cast<String, dynamic>())
         ],
+        bpCalibration: j['bpCalibration'] is Map
+            ? BpCalibration.fromJson((j['bpCalibration'] as Map).cast<String, dynamic>())
+            : null,
       );
 
   String encode() => jsonEncode(toJson());

@@ -7,6 +7,7 @@ import '../../app/app_controller.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../calibration/bp_calibration_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
@@ -95,6 +96,17 @@ class SettingsScreen extends StatelessWidget {
                     ],
             ),
 
+            // ---- Blood pressure calibration ----
+            _Section(title: l.t('set_bp_calibration'), children: [
+              _Row(
+                leading: Icons.speed_rounded,
+                title: l.t('cal_title'),
+                subtitle: _calStatus(l, c),
+                trailing: const Icon(Icons.chevron_right, color: Palette.textDim),
+                onTap: () => showCalibrateBpSheet(context, c),
+              ),
+            ]),
+
             // ---- About ----
             _Section(title: l.t('set_about'), children: [
               _Row(leading: Icons.info_outline, title: 'Umay', subtitle: l.t('set_about_body')),
@@ -116,6 +128,14 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _calStatus(L10n l, AppController c) {
+    final cal = c.bpCalibration;
+    if (cal == null) return l.t('cal_never');
+    final age = DateTime.now().difference(cal.calibratedAt);
+    if (age.inDays > 8) return l.t('cal_stale');
+    return l.t('cal_last', {'ago': l.ago(age)});
   }
 
   Future<void> _confirmReset(BuildContext context, AppController c) async {
