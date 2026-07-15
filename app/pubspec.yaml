@@ -22,6 +22,7 @@ dependencies:
   url_launcher: ^6.3.0          # tel: dialer for the emergency call button
   http: ^1.2.0                  # backend API transport
   google_maps_flutter: ^2.9.0   # child tracking map + geofence overlays
+  shared_preferences: ^2.3.0    # persist onboarding/session config
   mmkv: ^2.0.0                  # fast disk mirror for offline-first batcher
 
 dev_dependencies:

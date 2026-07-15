@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_controller.dart';
+import 'data/prefs_app_store.dart';
 import 'domain/ai_chat_service.dart';
 import 'domain/chat_controller.dart';
 import 'domain/health_monitor.dart';
@@ -23,7 +24,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // NOTE: initialize Firebase (auth + messaging) here before runApp in production.
 
-  final controller = AppController();
+  // Restore a saved session (language, profile, child, zones) BEFORE first paint,
+  // so a returning user skips straight past onboarding.
+  final controller = AppController(persistStore: PrefsAppStore());
+  await controller.restore();
   runApp(FcsApp(controller: controller));
 
   // Kick off device + backend wiring without blocking first paint.

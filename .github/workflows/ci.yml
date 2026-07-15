@@ -36,6 +36,9 @@ jobs:
       - name: Verify onboarding flow
         run: dart run tool/verify_onboarding.dart
         working-directory: app
+      - name: Verify persistence (config round-trip + restore)
+        run: dart run tool/verify_persistence.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

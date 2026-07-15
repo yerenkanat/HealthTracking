@@ -20,7 +20,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: HealthDashboardScreen(samples: samples)));
     expect(find.text('Heart rate'), findsOneWidget);
     expect(find.text('Blood oxygen'), findsOneWidget);
-    expect(find.text('80'), findsOneWidget); // latest HR
+    expect(find.text('80'), findsOneWidget); // latest HR (first tile, on-screen)
+    // The temperature tile is the 5th — scroll it into view before asserting.
+    await tester.scrollUntilVisible(find.text('36.8'), 200, scrollable: find.byType(Scrollable));
     expect(find.text('36.8'), findsOneWidget); // latest temp
   });
 

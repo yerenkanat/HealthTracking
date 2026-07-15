@@ -16,6 +16,8 @@ import '../core/triage.dart';
 import '../core/geofence.dart';
 import '../data/sample_store.dart';
 import '../data/api_client.dart';
+import '../data/app_store.dart';
+import '../data/persisted_config.dart';
 import '../domain/chat_controller.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
@@ -54,17 +56,56 @@ class AppController {
   String _displayName = '';
 
   AppLocale _locale;
+  final AppStore? _persistStore;
+  String? _bandId;
 
-  AppController({SampleStore? store, DateTime Function()? now, AppLocale? locale})
-      : store = store ?? SampleStore(),
+  AppController({
+    SampleStore? store,
+    DateTime Function()? now,
+    AppLocale? locale,
+    AppStore? persistStore,
+  })  : store = store ?? SampleStore(),
         _now = now ?? DateTime.now,
+        _persistStore = persistStore,
         _locale = locale ?? resolveInitialLocale(null); // default: Russian
 
   AppLocale get locale => _locale;
+  String? get bandId => _bandId;
+
   void setLocale(AppLocale l) {
     if (l == _locale) return;
     _locale = l;
+    _persist();
     _notify();
+  }
+
+  /// Load any saved config on boot. Call before the first frame's logic; if the
+  /// user completed onboarding previously, they skip straight into the app.
+  Future<void> restore() async {
+    final cfg = await _persistStore?.load();
+    if (cfg == null || !cfg.onboarded) return;
+    _locale = cfg.locale;
+    _displayName = cfg.displayName;
+    _childName = cfg.childName;
+    _bandId = cfg.bandId;
+    _geofences = cfg.geofences;
+    _onboarded = true;
+    _notify();
+  }
+
+  PersistedConfig _snapshot() => PersistedConfig(
+        onboarded: _onboarded,
+        locale: _locale,
+        displayName: _displayName,
+        childName: _childName,
+        bandId: _bandId,
+        geofences: _geofences,
+      );
+
+  void _persist() {
+    final s = _persistStore;
+    if (s == null) return;
+    unawaited(s.save(_snapshot()));
   }
 
   /// Fires whenever any observable state changes (UI rebuilds on this).
@@ -97,10 +138,12 @@ class AppController {
     _locale = r.locale;
     _displayName = r.displayName;
     _childName = r.childName;
+    _bandId = r.bandId;
     _geofences = r.geofences;
     _onboarded = true;
     _onboarding?.dispose();
     _onboarding = null;
+    _persist();
     _notify();
   }
 

@@ -17,9 +17,17 @@ without a device or cloud is unit-tested and green on each change.
 | Dart localization (ru/kk/en + coverage) | 33 | ✅ |
 | Dart assistant chat controller | 11 | ✅ |
 | Dart onboarding flow | 25 | ✅ |
+| Dart persistence (round-trip + restore) | 19 | ✅ |
+| **Flutter widget + unit tests (executed via `flutter test`)** | 38 | ✅ |
 | Node backend guardrail + ingest | 11 | ✅ |
 | Node cross-language contract (app vs server agree) | 20 | ✅ |
-| **Total** | **191** | ✅ |
+| **Total** | **248** | ✅ |
+
+> The Flutter widget suite now **runs** (Flutter SDK found at `/c/src/flutter`):
+> `flutter test` → 38/38, `flutter analyze` → 0 errors/warnings. Running it caught
+> a real crash bug (a missing `flutter/semantics.dart` import in the emergency
+> screen). Docker still isn't available locally, so the DB integration smoke runs
+> in CI, not on this machine.
 
 ## What's built
 - **Flutter app** (`app/`): first-run onboarding (welcome → language → profile →
@@ -55,9 +63,9 @@ without a device or cloud is unit-tested and green on each change.
    pen-test ingest + AI endpoints (injection tests already seeded).
 
 ## Next up (in priority order)
-1. Firebase Auth (the onboarding flow + profile/child/zone capture are done; add
-   sign-in and persist `onboarded` + config via shared_preferences/MMKV so it
-   survives restart).
+1. Firebase Auth (onboarding, profile/child/zone capture, AND persistence via
+   shared_preferences are done — a completed setup now survives restart. Remaining:
+   sign-in identity + syncing the persisted config to the backend account).
 2. Wire `BleDeviceManager` live in `bootstrapRuntime`, and feed the onboarding
    band-scan step from a real BLE scan (marked TODO in `main.dart`).
 3. Run `flutter test` + the Docker integration smoke in CI on a real runner.
