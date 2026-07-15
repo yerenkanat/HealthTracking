@@ -39,7 +39,6 @@ class HealthDashboardScreen extends StatelessWidget {
   final String greetingName;
   final AppLocale? currentLocale;
   final void Function(AppLocale)? onLocaleChange;
-  final VoidCallback? onOpenSettings;
   final VoidCallback? onOpenProfile;
   const HealthDashboardScreen({
     super.key,
@@ -47,7 +46,6 @@ class HealthDashboardScreen extends StatelessWidget {
     this.greetingName = '',
     this.currentLocale,
     this.onLocaleChange,
-    this.onOpenSettings,
     this.onOpenProfile,
   });
 
@@ -73,11 +71,6 @@ class HealthDashboardScreen extends StatelessWidget {
                   PopupMenuItem(value: AppLocale.kk, child: Text('Қазақша')),
                   PopupMenuItem(value: AppLocale.en, child: Text('English')),
                 ],
-              ),
-            if (onOpenSettings != null)
-              IconButton(
-                icon: const Icon(Icons.settings_outlined, color: Palette.textDim),
-                onPressed: onOpenSettings,
               ),
             const SizedBox(width: 4),
           ],
