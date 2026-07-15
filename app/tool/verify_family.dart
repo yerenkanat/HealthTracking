@@ -35,6 +35,11 @@ void main() {
   final pj = UserProfile.fromJson(p.toJson());
   _chk('profile round-trip', pj.displayName == 'Aigerim' && pj.e164 == '+77001234567');
 
+  const pd = UserProfile(displayName: 'A', dialCode: '+7', phoneNumber: '7001234567', doctorPhone: '+77771234567');
+  _chk('profile hasDoctor', pd.hasDoctor);
+  _chk('profile doctor round-trip', UserProfile.fromJson(pd.toJson()).doctorPhone == '+77771234567');
+  _chk('profile no doctor by default', !p.hasDoctor);
+
   // ---- ChildProfile ----
   final child = ChildProfile(
     id: 'c1', name: 'Sultan',

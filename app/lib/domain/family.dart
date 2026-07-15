@@ -10,22 +10,32 @@ class UserProfile {
   final String displayName;
   final String dialCode; // '+7'
   final String phoneNumber; // national digits/formatted
-  const UserProfile({this.displayName = '', this.dialCode = '+7', this.phoneNumber = ''});
+  final String doctorPhone; // emergency contact (E.164 or free-form), optional
+  const UserProfile({
+    this.displayName = '',
+    this.dialCode = '+7',
+    this.phoneNumber = '',
+    this.doctorPhone = '',
+  });
 
   String get e164 => toE164(dialCode, phoneNumber);
   bool get hasPhone => isValidNationalNumber(phoneNumber);
+  bool get hasDoctor => doctorPhone.trim().isNotEmpty;
 
-  UserProfile copyWith({String? displayName, String? dialCode, String? phoneNumber}) => UserProfile(
+  UserProfile copyWith({String? displayName, String? dialCode, String? phoneNumber, String? doctorPhone}) => UserProfile(
         displayName: displayName ?? this.displayName,
         dialCode: dialCode ?? this.dialCode,
         phoneNumber: phoneNumber ?? this.phoneNumber,
+        doctorPhone: doctorPhone ?? this.doctorPhone,
       );
 
-  Map<String, dynamic> toJson() => {'displayName': displayName, 'dialCode': dialCode, 'phoneNumber': phoneNumber};
+  Map<String, dynamic> toJson() =>
+      {'displayName': displayName, 'dialCode': dialCode, 'phoneNumber': phoneNumber, 'doctorPhone': doctorPhone};
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
         displayName: (j['displayName'] as String?) ?? '',
         dialCode: (j['dialCode'] as String?) ?? '+7',
         phoneNumber: (j['phoneNumber'] as String?) ?? '',
+        doctorPhone: (j['doctorPhone'] as String?) ?? '',
       );
 }
 

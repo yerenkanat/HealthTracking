@@ -14,6 +14,7 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
   final p = controller.profile;
   final nameCtl = TextEditingController(text: p.displayName);
   final phoneCtl = TextEditingController(text: p.phoneNumber);
+  final doctorCtl = TextEditingController(text: p.doctorPhone);
   var dial = p.dialCode;
   return _sheet(context, (ctx, l) {
     return StatefulBuilder(
@@ -55,6 +56,15 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
               ),
             ),
           ]),
+          const SizedBox(height: 12),
+          TextField(
+            controller: doctorCtl,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: l.t('prof_doctor_hint'),
+              prefixIcon: const Icon(Icons.local_hospital_outlined, size: 20),
+            ),
+          ),
         ],
         onSave: () {
           if (nameCtl.text.trim().isEmpty) return false;
@@ -62,6 +72,7 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
             displayName: nameCtl.text.trim(),
             dialCode: dial,
             phoneNumber: phoneCtl.text.trim(),
+            doctorPhone: doctorCtl.text.trim(),
           ));
           return true;
         },

@@ -274,7 +274,10 @@ class AppController {
       _raiseEmergency(EmergencyView(
         code: f?.code, // UI localizes the code
         message: f?.message ?? 'Urgent health alert.',
-        callButtons: const [(label: 'Call ambulance', tel: '103')],
+        callButtons: [
+          if (_profile.hasDoctor) (label: 'Call your doctor', tel: _profile.doctorPhone),
+          const (label: 'Call ambulance', tel: '103'),
+        ],
       ));
     } else {
       _notify();
