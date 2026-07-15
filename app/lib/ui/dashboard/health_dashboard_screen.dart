@@ -1,5 +1,6 @@
-/// Health dashboard — high-tech dark glass. A 2-column grid of metric cards, each
-/// with a mono readout, trend, and a glowing sparkline; danger readings glow red.
+/// Health dashboard — premium light UI. A 2-column grid of soft white metric
+/// cards, each with a distinct icon + color, a mono readout, trend, and an
+/// area-fill sparkline; danger readings turn red.
 /// Pure presentation over the verified health_series logic.
 library;
 
@@ -14,17 +15,22 @@ import 'sparkline.dart';
 class MetricSpec {
   final String key;
   final String unit;
+  final IconData icon;
   final Gradient gradient;
-  final Color glow;
-  const MetricSpec(this.key, this.unit, this.gradient, this.glow);
+  final Color color;
+  const MetricSpec(this.key, this.unit, this.icon, this.gradient, this.color);
 }
 
+const _hrColor = Color(0xFFFF5A7A);
+const _tempA = Color(0xFFF59E0B);
+const _tempB = Color(0xFFFBBF24);
+
 const _specs = <MetricSpec>[
-  MetricSpec('hr', 'bpm', Palette.violetPink, Palette.pink),
-  MetricSpec('spo2', '%', Palette.tealBlue, Palette.teal),
-  MetricSpec('systolic', 'mmHg', LinearGradient(colors: [Palette.pink, Palette.violet]), Palette.pink),
-  MetricSpec('diastolic', 'mmHg', LinearGradient(colors: [Palette.violet, Palette.blue]), Palette.violet),
-  MetricSpec('temp', '°C', LinearGradient(colors: [Color(0xFFFB923C), Color(0xFFFBBF24)]), Color(0xFFFB923C)),
+  MetricSpec('hr', 'bpm', Icons.favorite_rounded, LinearGradient(colors: [_hrColor, Palette.pink]), _hrColor),
+  MetricSpec('spo2', '%', Icons.air_rounded, Palette.tealBlue, Palette.teal),
+  MetricSpec('systolic', 'mmHg', Icons.speed_rounded, LinearGradient(colors: [Palette.violet, Palette.pink]), Palette.violet),
+  MetricSpec('diastolic', 'mmHg', Icons.compress_rounded, LinearGradient(colors: [Palette.blue, Palette.violet]), Palette.blue),
+  MetricSpec('temp', '°C', Icons.thermostat_rounded, LinearGradient(colors: [_tempA, _tempB]), _tempA),
 ];
 
 class HealthDashboardScreen extends StatelessWidget {
@@ -95,7 +101,7 @@ class _MetricCard extends StatelessWidget {
     return Semantics(
       label: '$label: $value ${spec.unit}${danger ? l.t('db_outside_range') : ''}',
       child: GlassCard(
-      glow: danger ? Palette.danger : spec.glow,
+      glow: danger ? Palette.danger : spec.color,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,9 +109,9 @@ class _MetricCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 26, height: 26,
-                decoration: BoxDecoration(gradient: spec.gradient, borderRadius: BorderRadius.circular(9)),
-                child: const Icon(Icons.monitor_heart_outlined, size: 15, color: Colors.white),
+                width: 30, height: 30,
+                decoration: BoxDecoration(gradient: spec.gradient, borderRadius: BorderRadius.circular(10)),
+                child: Icon(spec.icon, size: 17, color: Colors.white),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -139,7 +145,7 @@ class _MetricCard extends StatelessWidget {
             child: Sparkline(
               points: series,
               band: bandFor(spec.key),
-              color: danger ? Palette.danger : spec.glow,
+              color: danger ? Palette.danger : spec.color,
               inDanger: danger,
             ),
           ),

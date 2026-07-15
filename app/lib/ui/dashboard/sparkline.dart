@@ -68,22 +68,27 @@ class _SparkPainter extends CustomPainter {
     for (var i = 1; i < points.length; i++) {
       path.lineTo(x(i), y(points[i].value));
     }
-    // Glow pass (blurred underlay) for the high-tech look.
+    // Soft area fill under the line for a refined, premium look.
+    final area = Path.from(path)
+      ..lineTo(x(points.length - 1), size.height)
+      ..lineTo(x(0), size.height)
+      ..close();
     canvas.drawPath(
-      path,
+      area,
       Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..color = color.withValues(alpha: 0.35)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [color.withValues(alpha: 0.16), color.withValues(alpha: 0.0)],
+        ).createShader(Offset.zero & size),
     );
     canvas.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
+        ..strokeWidth = 2.2
         ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
         ..color = color,
     );
 

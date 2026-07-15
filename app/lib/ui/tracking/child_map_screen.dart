@@ -155,9 +155,9 @@ class _StatusCard extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12)],
+        decoration: const BoxDecoration(
+          color: Palette.bgElevated,
+          border: Border(top: BorderSide(color: Palette.border)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +168,7 @@ class _StatusCard extends StatelessWidget {
                 const Spacer(),
                 if (status.distanceFromHomeM != null)
                   Text(l.distanceFromHome(status.distanceFromHomeM!),
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                      style: TextStyle(color: Palette.textDim, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 12),
@@ -182,7 +182,7 @@ class _StatusCard extends StatelessWidget {
                 const Icon(Icons.place_outlined, size: 16),
                 const SizedBox(width: 4),
                 Text(l.t('tr_inside_zone', {'zone': status.currentZone}),
-                    style: TextStyle(color: Colors.grey.shade700)),
+                    style: TextStyle(color: Palette.textDim)),
               ]),
             ],
           ],

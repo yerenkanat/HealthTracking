@@ -1,12 +1,14 @@
-/// Reusable high-tech visual components: glass cards, gradient backdrop, a metric
-/// ring gauge, and a glowing sparkline. Shared across the redesigned screens.
+/// Reusable UI components for the premium light theme: a subtle app background,
+/// soft white cards, a metric ring gauge, and tone pills. (Kept the file/class
+/// names stable so screens don't need import churn.)
 library;
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
-/// A soft space-gradient background with faint colored glows — the app backdrop.
+/// The app canvas: a soft off-white with a whisper of tint at the corners — subtle,
+/// premium, never neon.
 class AuroraBackground extends StatelessWidget {
   final Widget child;
   const AuroraBackground({super.key, required this.child});
@@ -17,32 +19,31 @@ class AuroraBackground extends StatelessWidget {
       decoration: const BoxDecoration(color: Palette.bg),
       child: Stack(
         children: [
-          Positioned(top: -120, left: -80, child: _glow(Palette.violet, 300)),
-          Positioned(top: 120, right: -100, child: _glow(Palette.pink, 260)),
-          Positioned(bottom: -140, left: -40, child: _glow(Palette.teal, 280)),
+          Positioned(top: -100, right: -80, child: _tint(Palette.violet, 260)),
+          Positioned(bottom: -120, left: -90, child: _tint(Palette.teal, 240)),
           child,
         ],
       ),
     );
   }
 
-  Widget _glow(Color c, double size) => IgnorePointer(
+  Widget _tint(Color c, double size) => IgnorePointer(
         child: Container(
           width: size,
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: RadialGradient(colors: [c.withValues(alpha: 0.22), c.withValues(alpha: 0.0)]),
+            gradient: RadialGradient(colors: [c.withValues(alpha: 0.06), c.withValues(alpha: 0.0)]),
           ),
         ),
       );
 }
 
-/// Frosted glass card: translucent fill, hairline border, rounded, optional glow.
+/// Soft white card: subtle shadow + hairline border, generous radius.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color? glow;
+  final Color? glow; // optional accent tint for the shadow (used sparingly)
   final VoidCallback? onTap;
   const GlassCard({
     super.key,
@@ -56,15 +57,15 @@ class GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Palette.glass,
-        borderRadius: BorderRadius.circular(22),
+        color: Palette.surface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Palette.border),
         boxShadow: glow == null
-            ? null
-            : [BoxShadow(color: glow!.withValues(alpha: 0.25), blurRadius: 28, spreadRadius: -6)],
+            ? Palette.cardShadow
+            : [BoxShadow(color: glow!.withValues(alpha: 0.18), blurRadius: 22, offset: const Offset(0, 8), spreadRadius: -8)],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -77,7 +78,7 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Circular progress ring with a gradient sweep — for a single metric.
+/// Circular progress ring with a gradient sweep.
 class MetricRing extends StatelessWidget {
   final double fraction; // 0..1
   final Gradient gradient;
@@ -142,7 +143,7 @@ class _RingPainter extends CustomPainter {
   bool shouldRepaint(_RingPainter old) => old.fraction != fraction;
 }
 
-/// A pill badge (status/tone).
+/// A soft tinted pill badge (status/tone).
 class TonePill extends StatelessWidget {
   final String label;
   final Color color;
@@ -153,9 +154,8 @@ class TonePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (icon != null) ...[Icon(icon, size: 13, color: color), const SizedBox(width: 5)],

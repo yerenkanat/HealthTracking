@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import '../../l10n/l10n_scope.dart';
+import '../theme.dart';
 
 class EmergencyCallButton {
   final String label; // "Call ambulance"
@@ -46,9 +47,9 @@ class EmergencyRescueScreen extends StatefulWidget {
 }
 
 class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
-  static const _surface = Color(0xFF14171F); // steady dark, not panic-inducing
-  static const _emergency = Color(0xFFE5484D); // clear accent for the call action
-  static const _onSurface = Color(0xFFF5F7FA);
+  static const _surface = Palette.bg; // steady dark, not panic-inducing
+  static const _emergency = Palette.danger; // clear accent for the call action
+  static const _onSurface = Palette.text;
 
   @override
   void initState() {
@@ -76,7 +77,15 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
       canPop: false, // block the back gesture — dismissal must be deliberate
       child: Scaffold(
         backgroundColor: _surface,
-        body: SafeArea(
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.topCenter,
+              radius: 1.1,
+              colors: [Color(0x33FB5E6D), Palette.bg],
+            ),
+          ),
+          child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
             child: Column(
@@ -121,18 +130,24 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                   Semantics(
                     button: true,
                     label: '${primary.label}. Emergency call.',
-                    child: SizedBox(
-                      height: 76,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _emergency,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: _emergency.withValues(alpha: 0.5), blurRadius: 32, spreadRadius: -4)],
+                      ),
+                      child: SizedBox(
+                        height: 78,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _emergency,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                          icon: const Icon(Icons.phone_in_talk_rounded, size: 30),
+                          label: Text('${primary.label}  (${primary.tel})',
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                          onPressed: () => widget.onCall(primary),
                         ),
-                        icon: const Icon(Icons.phone_in_talk_rounded, size: 30),
-                        label: Text('${primary.label}  (${primary.tel})',
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                        onPressed: () => widget.onCall(primary),
                       ),
                     ),
                   ),
@@ -162,6 +177,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),
