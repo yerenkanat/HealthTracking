@@ -19,6 +19,7 @@ import '../data/api_client.dart';
 import '../domain/chat_controller.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
+import '../domain/onboarding_controller.dart';
 import '../l10n/l10n.dart';
 import '../net/telemetry_batcher.dart';
 
@@ -49,6 +50,8 @@ class AppController {
   ChildLocationView? _childLocation;
   List<Geofence> _geofences = const [];
   String _childName = 'your child';
+  bool _onboarded = false;
+  String _displayName = '';
 
   AppLocale _locale;
 
@@ -74,11 +77,30 @@ class AppController {
   List<HealthSample> get samples => store.all;
   List<Geofence> get geofences => _geofences;
   String get childName => _childName;
+  bool get onboarded => _onboarded;
+  String get displayName => _displayName;
+
+  // One long-lived onboarding controller so first-run progress survives rebuilds.
+  OnboardingController? _onboarding;
+  OnboardingController get onboarding =>
+      _onboarding ??= OnboardingController(initialLocale: _locale);
 
   /// Loaded once from the backend after sign-in (child profile + zones).
   void configureChild({required String name, required List<Geofence> fences}) {
     _childName = name;
     _geofences = fences;
+    _notify();
+  }
+
+  /// Apply the first-run onboarding result and enter the main app.
+  void completeOnboarding(OnboardingResult r) {
+    _locale = r.locale;
+    _displayName = r.displayName;
+    _childName = r.childName;
+    _geofences = r.geofences;
+    _onboarded = true;
+    _onboarding?.dispose();
+    _onboarding = null;
     _notify();
   }
 

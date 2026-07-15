@@ -16,6 +16,7 @@ import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import '../ui/theme.dart';
 import '../ui/home_shell.dart';
+import '../ui/onboarding/onboarding_flow.dart';
 import '../ui/emergency/emergency_rescue_screen.dart';
 
 class FcsApp extends StatelessWidget {
@@ -50,6 +51,14 @@ class FcsApp extends StatelessWidget {
   }
 
   Widget _rootFor(L10n l) {
+    // First run: gate the whole app behind onboarding.
+    if (!controller.onboarded) {
+      return OnboardingFlow(
+        controller: controller.onboarding,
+        onLocaleChange: controller.setLocale,
+        onComplete: controller.completeOnboarding,
+      );
+    }
     if (controller.route == AppRoute.emergency && controller.emergency != null) {
       final e = controller.emergency!;
       // On-device emergencies carry a triage code → localize here. Chat-driven

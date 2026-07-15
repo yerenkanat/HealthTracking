@@ -1,0 +1,127 @@
+/// OnboardingController — the first-run flow state machine. Pure Dart (dart:async
+/// listeners), so step navigation + per-step validation + config assembly are all
+/// unit-testable without Flutter. Owned by PM + Mobile Architect.
+///
+/// Steps: welcome → language → profile → pairBand → child → done.
+/// Band pairing is optional (a user may only want the child tracker, or pair the
+/// band later). Child setup requires a name + a Home zone (the anchor for
+/// "arrived home" alerts). School is optional.
+library;
+
+import 'dart:async';
+
+import '../core/geofence.dart';
+import '../l10n/l10n.dart';
+
+enum OnboardingStep { welcome, language, profile, pairBand, child, done }
+
+class ZoneInput {
+  final String name;
+  final double lat;
+  final double lng;
+  final double radiusM;
+  const ZoneInput(this.name, this.lat, this.lng, {this.radiusM = 100});
+  Geofence toGeofence(String id) => Geofence.circle(id, name, Coordinates(lat, lng), radiusM);
+}
+
+class OnboardingResult {
+  final AppLocale locale;
+  final String displayName;
+  final String? bandId;
+  final String childName;
+  final List<Geofence> geofences;
+  const OnboardingResult({
+    required this.locale,
+    required this.displayName,
+    required this.bandId,
+    required this.childName,
+    required this.geofences,
+  });
+}
+
+class OnboardingController {
+  static const _order = [
+    OnboardingStep.welcome,
+    OnboardingStep.language,
+    OnboardingStep.profile,
+    OnboardingStep.pairBand,
+    OnboardingStep.child,
+    OnboardingStep.done,
+  ];
+
+  final _changes = StreamController<void>.broadcast();
+
+  OnboardingStep _step = OnboardingStep.welcome;
+  AppLocale _locale;
+  String _displayName = '';
+  String? _bandId;
+  String _childName = '';
+  ZoneInput? _home;
+  ZoneInput? _school;
+
+  OnboardingController({AppLocale initialLocale = AppLocale.ru}) : _locale = initialLocale;
+
+  Stream<void> get changes => _changes.stream;
+  OnboardingStep get step => _step;
+  AppLocale get locale => _locale;
+  String get displayName => _displayName;
+  String? get bandId => _bandId;
+  String get childName => _childName;
+  ZoneInput? get home => _home;
+  ZoneInput? get school => _school;
+
+  int get stepIndex => _order.indexOf(_step);
+  int get totalSteps => _order.length - 1; // 'done' is terminal, not a page
+  bool get isComplete => _step == OnboardingStep.done;
+
+  // ---- inputs ----
+  void setLocale(AppLocale l) => _set(() => _locale = l);
+  void setDisplayName(String v) => _set(() => _displayName = v);
+  void setBandId(String? v) => _set(() => _bandId = v);
+  void setChildName(String v) => _set(() => _childName = v);
+  void setHome(ZoneInput? z) => _set(() => _home = z);
+  void setSchool(ZoneInput? z) => _set(() => _school = z);
+
+  /// Whether the current step's requirements are met.
+  bool get canProceed => switch (_step) {
+        OnboardingStep.welcome => true,
+        OnboardingStep.language => true,
+        OnboardingStep.profile => _displayName.trim().isNotEmpty,
+        OnboardingStep.pairBand => true, // optional — may skip
+        OnboardingStep.child => _childName.trim().isNotEmpty && _home != null,
+        OnboardingStep.done => true,
+      };
+
+  void next() {
+    if (!canProceed || isComplete) return;
+    _set(() => _step = _order[stepIndex + 1]);
+  }
+
+  void back() {
+    if (stepIndex == 0) return;
+    _set(() => _step = _order[stepIndex - 1]);
+  }
+
+  /// Assemble the final config (call once [isComplete]). Home always present given
+  /// the child-step guard; School included when provided.
+  OnboardingResult build() {
+    final fences = <Geofence>[
+      if (_home != null) _home!.toGeofence('home'),
+      if (_school != null) _school!.toGeofence('school'),
+    ];
+    return OnboardingResult(
+      locale: _locale,
+      displayName: _displayName.trim(),
+      bandId: _bandId,
+      childName: _childName.trim(),
+      geofences: fences,
+    );
+  }
+
+  void _set(void Function() mutate) {
+    mutate();
+    if (!_changes.isClosed) _changes.add(null);
+  }
+
+  Future<void> dispose() => _changes.close();
+}

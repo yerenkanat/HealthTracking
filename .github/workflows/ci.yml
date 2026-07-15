@@ -33,6 +33,9 @@ jobs:
       - name: Verify assistant chat controller
         run: dart run tool/verify_chat.dart
         working-directory: app
+      - name: Verify onboarding flow
+        run: dart run tool/verify_onboarding.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
