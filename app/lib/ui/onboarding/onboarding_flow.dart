@@ -8,9 +8,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../domain/country_codes.dart';
 import '../../domain/onboarding_controller.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../theme.dart';
+import '../widgets/glass.dart';
 
 /// A discovered band the user can pick during onboarding.
 typedef DiscoveredBand = ({String id, String name});
@@ -43,7 +46,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     return StreamBuilder<void>(
       stream: c.changes,
       builder: (context, _) {
-        return Scaffold(
+        return AuroraBackground(
+          child: Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             leading: c.stepIndex > 0
                 ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: c.back)
@@ -68,6 +73,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               ),
             ),
           ),
+        ),
         );
       },
     );
@@ -147,18 +153,67 @@ class _ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final dial = controller.dialCode;
+    return ListView(
       children: [
         Text(l.t('onb_profile_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
         const SizedBox(height: 20),
         TextField(
           autofocus: true,
-          decoration: InputDecoration(labelText: l.t('onb_name_hint'), border: const OutlineInputBorder()),
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: l.t('onb_name_hint')),
           onChanged: controller.setDisplayName,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Country / dial-code picker
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                color: Palette.glass,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Palette.border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _dialValue(dial),
+                  dropdownColor: Palette.surfaceHi,
+                  borderRadius: BorderRadius.circular(16),
+                  onChanged: (v) {
+                    if (v != null) controller.setDialCode(v.split('|')[1]);
+                  },
+                  items: [
+                    for (final country in countries)
+                      DropdownMenuItem(
+                        value: '${country.iso}|${country.dial}',
+                        child: Text('${country.flag} ${country.dial}',
+                            style: const TextStyle(fontSize: 15)),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(labelText: l.t('onb_phone_hint')),
+                onChanged: controller.setPhoneNumber,
+              ),
+            ),
+          ],
         ),
       ],
     );
+  }
+
+  // DropdownButton needs unique values; dial codes repeat (KZ/RU = +7), so we key
+  // by "iso|dial" and default to the first country matching the current dial.
+  String _dialValue(String dial) {
+    final match = countries.firstWhere((c) => c.dial == dial, orElse: () => defaultCountry);
+    return '${match.iso}|${match.dial}';
   }
 }
 

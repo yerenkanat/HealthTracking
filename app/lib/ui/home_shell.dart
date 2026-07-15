@@ -12,6 +12,7 @@ import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'tracking/child_map_screen.dart';
+import 'tracking/family_sheets.dart';
 
 /// Google Maps needs a real API key to render. Build with
 /// `--dart-define=MAPS_ENABLED=true` once android/app has a valid key; otherwise
@@ -51,6 +52,11 @@ class _HomeShellState extends State<HomeShell> {
         fences: c.geofences,
         now: DateTime.now(),
         mapBuilder: _buildMap,
+        childOptions: [for (final ch in c.children) (id: ch.id, name: ch.name)],
+        selectedChildId: c.selectedChild?.id,
+        onSelectChild: c.selectChild,
+        onAddChild: () => showAddChildSheet(context, c),
+        onAddDevice: () => showAddDeviceSheet(context, c),
       ),
     ];
 

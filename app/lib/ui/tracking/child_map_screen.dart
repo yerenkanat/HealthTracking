@@ -11,9 +11,13 @@ import '../../core/geofence.dart';
 import '../../domain/child_tracker_state.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../theme.dart';
+import '../widgets/glass.dart';
 
 typedef MapBuilder = Widget Function(
     BuildContext context, Coordinates? child, List<Geofence> fences);
+
+typedef ChildOption = ({String id, String name});
 
 class ChildMapScreen extends StatelessWidget {
   final String childName;
@@ -23,6 +27,13 @@ class ChildMapScreen extends StatelessWidget {
   final DateTime now;
   final MapBuilder mapBuilder;
 
+  // Family management (optional — omitted in widget tests).
+  final List<ChildOption> childOptions;
+  final String? selectedChildId;
+  final void Function(String id)? onSelectChild;
+  final VoidCallback? onAddChild;
+  final VoidCallback? onAddDevice;
+
   const ChildMapScreen({
     super.key,
     required this.childName,
@@ -31,6 +42,11 @@ class ChildMapScreen extends StatelessWidget {
     required this.fences,
     required this.now,
     required this.mapBuilder,
+    this.childOptions = const [],
+    this.selectedChildId,
+    this.onSelectChild,
+    this.onAddChild,
+    this.onAddDevice,
   });
 
   @override
@@ -44,12 +60,82 @@ class ChildMapScreen extends StatelessWidget {
       now: now,
     );
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l.t('tr_title', {'name': childName}))),
+    return AuroraBackground(
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: Text(l.t('tr_title', {'name': childName})),
+        actions: [
+          if (onAddChild != null || onAddDevice != null)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.add, color: Palette.text),
+              color: Palette.surfaceHi,
+              onSelected: (v) {
+                if (v == 'child') onAddChild?.call();
+                if (v == 'device') onAddDevice?.call();
+              },
+              itemBuilder: (_) => [
+                if (onAddChild != null)
+                  PopupMenuItem(value: 'child', child: Row(children: [
+                    const Icon(Icons.child_care, size: 18, color: Palette.textDim),
+                    const SizedBox(width: 10), Text(l.t('tr_add_child')),
+                  ])),
+                if (onAddDevice != null)
+                  PopupMenuItem(value: 'device', child: Row(children: [
+                    const Icon(Icons.watch, size: 18, color: Palette.textDim),
+                    const SizedBox(width: 10), Text(l.t('tr_add_device')),
+                  ])),
+              ],
+            ),
+        ],
+      ),
       body: Column(
         children: [
+          if (childOptions.length > 1 || (childOptions.isNotEmpty && onAddChild != null))
+            _ChildSelector(
+              options: childOptions,
+              selectedId: selectedChildId,
+              onSelect: onSelectChild,
+            ),
           Expanded(child: mapBuilder(context, childLocation, fences)),
           _StatusCard(status: status, headline: l.trackingHeadline(status, childName, now), l: l),
+        ],
+      ),
+      ),
+    );
+  }
+}
+
+class _ChildSelector extends StatelessWidget {
+  final List<ChildOption> options;
+  final String? selectedId;
+  final void Function(String id)? onSelect;
+  const _ChildSelector({required this.options, required this.selectedId, this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        children: [
+          for (final o in options)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(o.name),
+                selected: o.id == selectedId,
+                onSelected: (_) => onSelect?.call(o.id),
+                selectedColor: Palette.violet.withValues(alpha: 0.25),
+                backgroundColor: Palette.glass,
+                side: const BorderSide(color: Palette.border),
+                labelStyle: TextStyle(
+                  color: o.id == selectedId ? Palette.text : Palette.textDim,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
         ],
       ),
     );

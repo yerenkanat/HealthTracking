@@ -33,11 +33,12 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    // Profile: Next disabled until a name is entered.
+    // Profile: Next disabled until a name AND phone are entered.
     expect(find.text("What's your name?"), findsOneWidget);
     final nextBtn = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next'));
     expect(nextBtn.onPressed, isNull); // gated
-    await tester.enterText(find.byType(TextField), 'Aigerim');
+    await tester.enterText(find.byType(TextField).first, 'Aigerim'); // name
+    await tester.enterText(find.byType(TextField).last, '7001234567'); // phone
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
@@ -62,8 +63,9 @@ void main() {
 
     // Result assembled.
     expect(result, isNotNull);
-    expect(result!.displayName, 'Aigerim');
-    expect(result!.childName, 'Sultan');
-    expect(result!.geofences.any((f) => f.name == 'Home'), isTrue);
+    expect(result!.profile.displayName, 'Aigerim');
+    expect(result!.profile.e164, '+77001234567');
+    expect(result!.child.name, 'Sultan');
+    expect(result!.child.geofences.any((f) => f.name == 'Home'), isTrue);
   });
 }

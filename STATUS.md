@@ -16,9 +16,10 @@ without a device or cloud is unit-tested and green on each change.
 | Dart app controller + sample store | 15 | ✅ |
 | Dart localization (ru/kk/en + coverage) | 33 | ✅ |
 | Dart assistant chat controller | 11 | ✅ |
-| Dart onboarding flow | 25 | ✅ |
+| Dart onboarding flow | 24 | ✅ |
 | Dart persistence (round-trip + restore) | 19 | ✅ |
 | Dart health advisor (data → advice) | 9 | ✅ |
+| Dart family (phone/E.164, children, devices) | 17 | ✅ |
 | **Flutter widget + unit tests (executed via `flutter test`)** | 38 | ✅ |
 | Node backend guardrail + ingest | 11 | ✅ |
 | Node cross-language contract (app vs server agree) | 20 | ✅ |

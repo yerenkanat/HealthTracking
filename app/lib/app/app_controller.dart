@@ -19,6 +19,7 @@ import '../data/api_client.dart';
 import '../data/app_store.dart';
 import '../data/persisted_config.dart';
 import '../domain/chat_controller.dart';
+import '../domain/family.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/onboarding_controller.dart';
@@ -50,14 +51,14 @@ class AppController {
   bool _emergencyActive = false;
   EmergencyView? _emergency;
   ChildLocationView? _childLocation;
-  List<Geofence> _geofences = const [];
-  String _childName = 'your child';
   bool _onboarded = false;
-  String _displayName = '';
+  UserProfile _profile = const UserProfile();
+  final List<ChildProfile> _children = [];
+  String? _selectedChildId;
+  final List<PairedDevice> _devices = [];
 
   AppLocale _locale;
   final AppStore? _persistStore;
-  String? _bandId;
 
   AppController({
     SampleStore? store,
@@ -70,7 +71,12 @@ class AppController {
         _locale = locale ?? resolveInitialLocale(null); // default: Russian
 
   AppLocale get locale => _locale;
-  String? get bandId => _bandId;
+  String? get bandId {
+    for (final d in _devices) {
+      if (d.kind == DeviceKind.band) return d.id;
+    }
+    return null;
+  }
 
   void setLocale(AppLocale l) {
     if (l == _locale) return;
@@ -85,10 +91,14 @@ class AppController {
     final cfg = await _persistStore?.load();
     if (cfg == null || !cfg.onboarded) return;
     _locale = cfg.locale;
-    _displayName = cfg.displayName;
-    _childName = cfg.childName;
-    _bandId = cfg.bandId;
-    _geofences = cfg.geofences;
+    _profile = cfg.profile;
+    _children
+      ..clear()
+      ..addAll(cfg.children);
+    _selectedChildId = cfg.children.isNotEmpty ? cfg.children.first.id : null;
+    _devices
+      ..clear()
+      ..addAll(cfg.devices);
     _onboarded = true;
     _notify();
   }
@@ -96,10 +106,9 @@ class AppController {
   PersistedConfig _snapshot() => PersistedConfig(
         onboarded: _onboarded,
         locale: _locale,
-        displayName: _displayName,
-        childName: _childName,
-        bandId: _bandId,
-        geofences: _geofences,
+        profile: _profile,
+        children: List.of(_children),
+        devices: List.of(_devices),
       );
 
   void _persist() {
@@ -116,30 +125,71 @@ class AppController {
   EmergencyView? get emergency => _emergency;
   ChildLocationView? get childLocation => _childLocation;
   List<HealthSample> get samples => store.all;
-  List<Geofence> get geofences => _geofences;
-  String get childName => _childName;
   bool get onboarded => _onboarded;
-  String get displayName => _displayName;
+  UserProfile get profile => _profile;
+  String get displayName => _profile.displayName;
+  List<ChildProfile> get children => List.unmodifiable(_children);
+  List<PairedDevice> get devices => List.unmodifiable(_devices);
+
+  ChildProfile? get selectedChild {
+    if (_children.isEmpty) return null;
+    return _children.firstWhere((c) => c.id == _selectedChildId, orElse: () => _children.first);
+  }
+
+  String get childName => selectedChild?.name ?? 'your child';
+  List<Geofence> get geofences => selectedChild?.geofences ?? const [];
+
+  void selectChild(String id) {
+    if (_children.any((c) => c.id == id)) {
+      _selectedChildId = id;
+      _notify();
+    }
+  }
+
+  void addChild(ChildProfile child) {
+    _children.add(child);
+    _selectedChildId ??= child.id;
+    _persist();
+    _notify();
+  }
+
+  void addDevice(PairedDevice device) {
+    _devices.add(device);
+    _persist();
+    _notify();
+  }
+
+  void updateProfile(UserProfile p) {
+    _profile = p;
+    _persist();
+    _notify();
+  }
 
   // One long-lived onboarding controller so first-run progress survives rebuilds.
   OnboardingController? _onboarding;
   OnboardingController get onboarding =>
       _onboarding ??= OnboardingController(initialLocale: _locale);
 
-  /// Loaded once from the backend after sign-in (child profile + zones).
+  /// Demo/seed helper: replace children with a single configured child.
   void configureChild({required String name, required List<Geofence> fences}) {
-    _childName = name;
-    _geofences = fences;
+    _children
+      ..clear()
+      ..add(ChildProfile(id: 'child-1', name: name, geofences: fences));
+    _selectedChildId = 'child-1';
     _notify();
   }
 
   /// Apply the first-run onboarding result and enter the main app.
   void completeOnboarding(OnboardingResult r) {
     _locale = r.locale;
-    _displayName = r.displayName;
-    _childName = r.childName;
-    _bandId = r.bandId;
-    _geofences = r.geofences;
+    _profile = r.profile;
+    _children
+      ..clear()
+      ..add(r.child);
+    _selectedChildId = r.child.id;
+    if (r.bandId != null) {
+      _devices.add(PairedDevice(id: r.bandId!, name: 'Band', kind: DeviceKind.band));
+    }
     _onboarded = true;
     _onboarding?.dispose();
     _onboarding = null;

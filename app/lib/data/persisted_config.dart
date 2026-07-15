@@ -1,11 +1,12 @@
-/// PersistedConfig — the durable slice of app state that must survive a restart:
-/// whether onboarding is done, the chosen language, the mother's display name, and
-/// the child's name + geofences. Pure Dart (JSON in/out) → round-trip testable.
+/// PersistedConfig — durable app state across restarts: onboarding done, language,
+/// the mother's profile (name + phone), her children (multiple, each with zones),
+/// and paired devices. Pure Dart (JSON in/out) → round-trip testable.
 library;
 
 import 'dart:convert';
 
 import '../core/geofence.dart';
+import '../domain/family.dart';
 import '../l10n/l10n.dart';
 
 // ---- Geofence (de)serialization (circle + polygon) ----
@@ -42,42 +43,60 @@ Geofence geofenceFromJson(Map<String, dynamic> j) {
   );
 }
 
+Map<String, dynamic> childToJson(ChildProfile c) => {
+      'id': c.id,
+      'name': c.name,
+      'tagId': c.tagId,
+      'geofences': [for (final f in c.geofences) geofenceToJson(f)],
+    };
+
+ChildProfile childFromJson(Map<String, dynamic> j) => ChildProfile(
+      id: j['id'] as String,
+      name: (j['name'] as String?) ?? '',
+      tagId: j['tagId'] as String?,
+      geofences: [
+        for (final f in (j['geofences'] as List? ?? const []))
+          geofenceFromJson((f as Map).cast<String, dynamic>())
+      ],
+    );
+
 class PersistedConfig {
   final bool onboarded;
   final AppLocale locale;
-  final String displayName;
-  final String childName;
-  final String? bandId;
-  final List<Geofence> geofences;
+  final UserProfile profile;
+  final List<ChildProfile> children;
+  final List<PairedDevice> devices;
 
   const PersistedConfig({
     required this.onboarded,
     required this.locale,
-    required this.displayName,
-    required this.childName,
-    required this.bandId,
-    required this.geofences,
+    required this.profile,
+    required this.children,
+    required this.devices,
   });
 
   Map<String, dynamic> toJson() => {
-        'version': 1,
+        'version': 2,
         'onboarded': onboarded,
         'locale': locale.name,
-        'displayName': displayName,
-        'childName': childName,
-        'bandId': bandId,
-        'geofences': [for (final f in geofences) geofenceToJson(f)],
+        'profile': profile.toJson(),
+        'children': [for (final c in children) childToJson(c)],
+        'devices': [for (final d in devices) d.toJson()],
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
         onboarded: (j['onboarded'] as bool?) ?? false,
         locale: appLocaleFromCode(j['locale'] as String?) ?? AppLocale.ru,
-        displayName: (j['displayName'] as String?) ?? '',
-        childName: (j['childName'] as String?) ?? '',
-        bandId: j['bandId'] as String?,
-        geofences: [
-          for (final f in (j['geofences'] as List? ?? const []))
-            geofenceFromJson((f as Map).cast<String, dynamic>())
+        profile: j['profile'] is Map
+            ? UserProfile.fromJson((j['profile'] as Map).cast<String, dynamic>())
+            : const UserProfile(),
+        children: [
+          for (final c in (j['children'] as List? ?? const []))
+            childFromJson((c as Map).cast<String, dynamic>())
+        ],
+        devices: [
+          for (final d in (j['devices'] as List? ?? const []))
+            PairedDevice.fromJson((d as Map).cast<String, dynamic>())
         ],
       );
 

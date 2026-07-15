@@ -12,6 +12,8 @@ import 'dart:async';
 
 import '../core/geofence.dart';
 import '../l10n/l10n.dart';
+import 'country_codes.dart';
+import 'family.dart';
 
 enum OnboardingStep { welcome, language, profile, pairBand, child, done }
 
@@ -26,16 +28,14 @@ class ZoneInput {
 
 class OnboardingResult {
   final AppLocale locale;
-  final String displayName;
+  final UserProfile profile;
   final String? bandId;
-  final String childName;
-  final List<Geofence> geofences;
+  final ChildProfile child;
   const OnboardingResult({
     required this.locale,
-    required this.displayName,
+    required this.profile,
     required this.bandId,
-    required this.childName,
-    required this.geofences,
+    required this.child,
   });
 }
 
@@ -54,6 +54,8 @@ class OnboardingController {
   OnboardingStep _step = OnboardingStep.welcome;
   AppLocale _locale;
   String _displayName = '';
+  String _dialCode = defaultCountry.dial;
+  String _phoneNumber = '';
   String? _bandId;
   String _childName = '';
   ZoneInput? _home;
@@ -65,6 +67,8 @@ class OnboardingController {
   OnboardingStep get step => _step;
   AppLocale get locale => _locale;
   String get displayName => _displayName;
+  String get dialCode => _dialCode;
+  String get phoneNumber => _phoneNumber;
   String? get bandId => _bandId;
   String get childName => _childName;
   ZoneInput? get home => _home;
@@ -77,6 +81,8 @@ class OnboardingController {
   // ---- inputs ----
   void setLocale(AppLocale l) => _set(() => _locale = l);
   void setDisplayName(String v) => _set(() => _displayName = v);
+  void setDialCode(String v) => _set(() => _dialCode = v);
+  void setPhoneNumber(String v) => _set(() => _phoneNumber = v);
   void setBandId(String? v) => _set(() => _bandId = v);
   void setChildName(String v) => _set(() => _childName = v);
   void setHome(ZoneInput? z) => _set(() => _home = z);
@@ -86,7 +92,7 @@ class OnboardingController {
   bool get canProceed => switch (_step) {
         OnboardingStep.welcome => true,
         OnboardingStep.language => true,
-        OnboardingStep.profile => _displayName.trim().isNotEmpty,
+        OnboardingStep.profile => _displayName.trim().isNotEmpty && isValidNationalNumber(_phoneNumber),
         OnboardingStep.pairBand => true, // optional — may skip
         OnboardingStep.child => _childName.trim().isNotEmpty && _home != null,
         OnboardingStep.done => true,
@@ -111,10 +117,13 @@ class OnboardingController {
     ];
     return OnboardingResult(
       locale: _locale,
-      displayName: _displayName.trim(),
+      profile: UserProfile(
+        displayName: _displayName.trim(),
+        dialCode: _dialCode,
+        phoneNumber: _phoneNumber.trim(),
+      ),
       bandId: _bandId,
-      childName: _childName.trim(),
-      geofences: fences,
+      child: ChildProfile(id: 'child-1', name: _childName.trim(), geofences: fences),
     );
   }
 

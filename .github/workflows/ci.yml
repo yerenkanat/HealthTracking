@@ -42,6 +42,9 @@ jobs:
       - name: Verify health advisor
         run: dart run tool/verify_advisor.dart
         working-directory: app
+      - name: Verify family (phone, children, devices)
+        run: dart run tool/verify_family.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
