@@ -7,6 +7,7 @@ import '../../app/app_controller.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../profile/profile_screen.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
 
@@ -32,9 +33,9 @@ class SettingsScreen extends StatelessWidget {
                 leading: Icons.person_outline,
                 title: c.displayName.isEmpty ? '—' : c.displayName,
                 subtitle: c.profile.hasPhone ? '${c.profile.dialCode} ${c.profile.phoneNumber}' : null,
-                trailing: TextButton(
-                  onPressed: () => showEditProfileSheet(context, c),
-                  child: Text(l.t('act_edit')),
+                trailing: const Icon(Icons.chevron_right, color: Palette.textDim),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ProfileScreen(controller: c)),
                 ),
               ),
             ]),

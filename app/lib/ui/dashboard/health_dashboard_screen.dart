@@ -39,6 +39,7 @@ class HealthDashboardScreen extends StatelessWidget {
   final AppLocale? currentLocale;
   final void Function(AppLocale)? onLocaleChange;
   final VoidCallback? onOpenSettings;
+  final VoidCallback? onOpenProfile;
   const HealthDashboardScreen({
     super.key,
     required this.samples,
@@ -46,6 +47,7 @@ class HealthDashboardScreen extends StatelessWidget {
     this.currentLocale,
     this.onLocaleChange,
     this.onOpenSettings,
+    this.onOpenProfile,
   });
 
   @override
@@ -55,6 +57,8 @@ class HealthDashboardScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
+          leadingWidth: onOpenProfile == null ? null : 60,
+          leading: onOpenProfile == null ? null : _AvatarButton(name: greetingName, onTap: onOpenProfile!),
           title: Text(greetingName.isEmpty ? l.t('db_title') : l.t('db_greeting', {'name': greetingName})),
           actions: [
             if (onLocaleChange != null)
@@ -173,6 +177,32 @@ class _MetricCard extends StatelessWidget {
   }
 
   String _fmt(String key, double v) => key == 'temp' ? v.toStringAsFixed(1) : v.round().toString();
+}
+
+class _AvatarButton extends StatelessWidget {
+  final String name;
+  final VoidCallback onTap;
+  const _AvatarButton({required this.name, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final initials = name.trim().isEmpty ? '' : name.trim().substring(0, 1).toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.only(left: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: const BoxDecoration(gradient: Palette.violetPink, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: initials.isEmpty
+              ? const Icon(Icons.person, color: Colors.white, size: 20)
+              : Text(initials, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {

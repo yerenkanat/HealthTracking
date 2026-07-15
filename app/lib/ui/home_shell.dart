@@ -11,6 +11,7 @@ import '../core/geofence.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
+import 'profile/profile_screen.dart';
 import 'settings/settings_screen.dart';
 import 'tracking/child_map_screen.dart';
 import 'tracking/family_sheets.dart';
@@ -41,11 +42,14 @@ class _HomeShellState extends State<HomeShell> {
     final pages = [
       HealthDashboardScreen(
         samples: c.samples,
-        greetingName: '',
+        greetingName: c.displayName,
         currentLocale: c.locale,
         onLocaleChange: c.setLocale,
         onOpenSettings: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => SettingsScreen(controller: c)),
+        ),
+        onOpenProfile: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => ProfileScreen(controller: c)),
         ),
       ),
       AdvisorScreen(samples: c.samples),
