@@ -30,6 +30,15 @@ void main() {
   _chk('normal → ADV_ALL_STEADY', _has(n, 'ADV_ALL_STEADY'));
   _chk('normal → no watch tone', n.every((a) => a.tone != AdviceTone.watch));
   _chk('normal → BP steady advisory', _has(n, 'ADV_BP_STEADY'));
+  _chk('normal → temp steady', _has(n, 'ADV_TEMP_STEADY'));
+  _chk('normal → spo2 steady', _has(n, 'ADV_SPO2_STEADY'));
+
+  // ---- restful sleep (all sleep, no dips) ----
+  final sleep = [
+    for (var i = 0; i < 5; i++)
+      HealthSample(at: _t(i), heartRate: 60, spo2: 97, duringSleep: true, systolic: 116, diastolic: 74, coreTemp: 36.6),
+  ];
+  _chk('sleep samples, no dips → ADV_SLEEP_OK', _has(generateAdvisories(sleep), 'ADV_SLEEP_OK'));
 
   // ---- Elevated BP (below emergency) → watch ----
   final bp = [

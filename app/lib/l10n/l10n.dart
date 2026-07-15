@@ -78,6 +78,12 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ADV_SPO2_SLEEP_DIP_b': {AppLocale.ru: 'Во сне уровень кислорода опускался ниже 95%. Если повторяется — обсудите с врачом.', AppLocale.kk: 'Ұйқы кезінде оттегі деңгейі 95%-дан төмендеді. Қайталанса, дәрігермен ақылдасыңыз.', AppLocale.en: 'Your blood oxygen dipped below 95% during sleep. If it recurs, discuss with your doctor.'},
   'ADV_TEMP_ELEVATED': {AppLocale.ru: 'Повышенная температура', AppLocale.kk: 'Дене қызуы жоғары', AppLocale.en: 'Elevated temperature'},
   'ADV_TEMP_ELEVATED_b': {AppLocale.ru: 'Температура выше нормы. Отдых и питьё; следите за динамикой.', AppLocale.kk: 'Температура қалыптыдан жоғары. Демалыс пен сұйықтық; өзгерісті бақылаңыз.', AppLocale.en: 'Your temperature is above normal. Rest and hydrate; keep an eye on it.'},
+  'ADV_TEMP_STEADY': {AppLocale.ru: 'Температура в норме', AppLocale.kk: 'Температура қалыпты', AppLocale.en: 'Temperature is normal'},
+  'ADV_TEMP_STEADY_b': {AppLocale.ru: 'Температура тела в пределах нормы.', AppLocale.kk: 'Дене температурасы қалыпты шамада.', AppLocale.en: 'Your body temperature is within a normal range.'},
+  'ADV_SPO2_STEADY': {AppLocale.ru: 'Кислород в норме', AppLocale.kk: 'Оттегі қалыпты', AppLocale.en: 'Healthy oxygen levels'},
+  'ADV_SPO2_STEADY_b': {AppLocale.ru: 'Уровень кислорода в крови здоровый.', AppLocale.kk: 'Қандағы оттегі деңгейі сау.', AppLocale.en: 'Your blood oxygen has been at healthy levels.'},
+  'ADV_SLEEP_OK': {AppLocale.ru: 'Спокойный сон', AppLocale.kk: 'Тыныш ұйқы', AppLocale.en: 'Restful sleep'},
+  'ADV_SLEEP_OK_b': {AppLocale.ru: 'Во сне показатели были стабильны — хороший отдых.', AppLocale.kk: 'Ұйқы кезінде көрсеткіштер тұрақты болды — жақсы демалыс.', AppLocale.en: 'Your readings were stable during sleep — a good rest.'},
 
   // Onboarding
   'onb_welcome_title': {AppLocale.ru: 'Добро пожаловать в Умай', AppLocale.kk: 'Умайға қош келдіңіз', AppLocale.en: 'Welcome to Umay'},

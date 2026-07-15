@@ -75,6 +75,20 @@ List<Advisory> generateAdvisories(
   final temp = statsFor(buildSeries(samples, 'temp'));
   if (temp != null && temp.latest >= TriageThresholds.feverWarningC) {
     watch.add(Advisory('ADV_TEMP_ELEVATED', AdviceTone.watch, 'temp', value: temp.latest));
+  } else if (temp != null) {
+    positive.add(Advisory('ADV_TEMP_STEADY', AdviceTone.positive, 'temp', value: temp.latest));
+  }
+
+  // ---- SpO2 steady (healthy oxygen, no sleep dips) ----
+  final spo2Stats = statsFor(buildSeries(samples, 'spo2'));
+  if (spo2Stats != null && spo2Stats.min >= 96 && sleepDips.isEmpty) {
+    positive.add(Advisory('ADV_SPO2_STEADY', AdviceTone.positive, 'spo2', value: spo2Stats.latest));
+  }
+
+  // ---- Restful sleep (sleep samples with no oxygen dips) ----
+  final sleepCount = samples.where((s) => s.duringSleep).length;
+  if (sleepCount >= 2 && sleepDips.isEmpty) {
+    positive.add(Advisory('ADV_SLEEP_OK', AdviceTone.positive, 'general', value: sleepCount.toDouble()));
   }
 
   // ---- Overall reassurance when nothing needs watching ----
