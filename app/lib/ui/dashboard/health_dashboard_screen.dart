@@ -10,6 +10,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import 'metric_detail_screen.dart';
 import 'sparkline.dart';
 
 class MetricSpec {
@@ -115,6 +116,15 @@ class _MetricCard extends StatelessWidget {
       child: GlassCard(
       glow: danger ? Palette.danger : spec.color,
       padding: const EdgeInsets.all(16),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => MetricDetailScreen(
+          metricKey: spec.key,
+          unit: spec.unit,
+          icon: spec.icon,
+          color: spec.color,
+          samples: samples,
+        ),
+      )),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

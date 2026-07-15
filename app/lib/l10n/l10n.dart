@@ -164,6 +164,12 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'db_empty_title': {AppLocale.ru: 'Пока нет данных', AppLocale.kk: 'Әзірге деректер жоқ', AppLocale.en: 'No readings yet'},
   'db_empty_body': {AppLocale.ru: 'Наденьте браслет — и данные появятся здесь.', AppLocale.kk: 'Білезікті тағыңыз — деректер осында пайда болады.', AppLocale.en: 'Put on your band and readings will appear here.'},
   'db_stats': {AppLocale.ru: 'мин {min} · макс {max} · сред {avg}', AppLocale.kk: 'мин {min} · макс {max} · орт {avg}', AppLocale.en: 'min {min} · max {max} · avg {avg}'},
+  'stat_latest': {AppLocale.ru: 'Сейчас', AppLocale.kk: 'Қазір', AppLocale.en: 'Latest'},
+  'stat_min': {AppLocale.ru: 'Мин', AppLocale.kk: 'Мин', AppLocale.en: 'Min'},
+  'stat_max': {AppLocale.ru: 'Макс', AppLocale.kk: 'Макс', AppLocale.en: 'Max'},
+  'stat_avg': {AppLocale.ru: 'Среднее', AppLocale.kk: 'Орташа', AppLocale.en: 'Average'},
+  'detail_no_data': {AppLocale.ru: 'Недостаточно данных для графика', AppLocale.kk: 'График үшін деректер жеткіліксіз', AppLocale.en: 'Not enough data to chart yet'},
+  'detail_safe_range': {AppLocale.ru: 'Безопасный диапазон', AppLocale.kk: 'Қауіпсіз аралық', AppLocale.en: 'Safe range'},
   'db_outside_range': {AppLocale.ru: ', вне безопасного диапазона', AppLocale.kk: ', қауіпсіз аралықтан тыс', AppLocale.en: ', outside the safe range'},
 
   // Tracking
