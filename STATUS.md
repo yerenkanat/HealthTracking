@@ -23,11 +23,26 @@ without a device or cloud is unit-tested and green on each change.
 | Node cross-language contract (app vs server agree) | 20 | ✅ |
 | **Total** | **248** | ✅ |
 
-> The Flutter widget suite now **runs** (Flutter SDK found at `/c/src/flutter`):
-> `flutter test` → 38/38, `flutter analyze` → 0 errors/warnings. Running it caught
-> a real crash bug (a missing `flutter/semantics.dart` import in the emergency
-> screen). Docker still isn't available locally, so the DB integration smoke runs
-> in CI, not on this machine.
+> **Executed, not just written:**
+> - `flutter test` → 38/38, `flutter analyze` → 0 errors/warnings.
+> - `npx vitest run` → 40/40 (triage, contract, geofence, **+ 8 in-process
+>   integration tests** that boot the real Fastify server via `fastify.inject()`
+>   — no Docker needed).
+> - **The app runs on the Android emulator** (`flutter run`, API 35). Onboarding,
+>   the assistant chat, and the health dashboard all render correctly in Russian.
+>
+> **Bugs found by executing** (that written-only code hid):
+> - Missing `flutter/semantics.dart` import → emergency screen would crash (fixed).
+> - `main.dart` wired `HealthMonitor.onEmergency` with swapped arg order → compile
+>   error caught by the Gradle build (fixed).
+> - AndroidManifest lacked INTERNET / location / BLE permissions, the `tel:` query
+>   (emergency-call button would silently fail on Android 11+), and the Maps key
+>   slot (added all).
+>
+> **Still needs config:** the child map tab is blank until a real `GOOGLE_MAPS_API_KEY`
+> is set (env var → `android/app/build.gradle.kts`). Docker isn't installed here, so
+> the docker-compose smoke (literal pg/Timescale/PostGIS + ioredis drivers) runs in
+> CI; the in-process integration test covers the routing/validation/handler logic.
 
 ## What's built
 - **Flutter app** (`app/`): first-run onboarding (welcome → language → profile →
@@ -63,10 +78,14 @@ without a device or cloud is unit-tested and green on each change.
    pen-test ingest + AI endpoints (injection tests already seeded).
 
 ## Next up (in priority order)
-1. Firebase Auth (onboarding, profile/child/zone capture, AND persistence via
+1. Provide a real `GOOGLE_MAPS_API_KEY` (child map) and re-enable the deferred,
+   config-dependent plugins in `pubspec.yaml` (firebase_messaging, mmkv,
+   flutter_local_notifications — currently commented out since they're unused in
+   Dart and need native config to build).
+2. Firebase Auth (onboarding, profile/child/zone capture, AND persistence via
    shared_preferences are done — a completed setup now survives restart. Remaining:
    sign-in identity + syncing the persisted config to the backend account).
-2. Wire `BleDeviceManager` live in `bootstrapRuntime`, and feed the onboarding
+3. Wire `BleDeviceManager` live in `bootstrapRuntime`, and feed the onboarding
    band-scan step from a real BLE scan (marked TODO in `main.dart`).
 3. Run `flutter test` + the Docker integration smoke in CI on a real runner.
 4. RAG knowledge base for the assistant (`retrieveRagPassages` is stubbed) — the

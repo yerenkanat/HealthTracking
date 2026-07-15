@@ -17,13 +17,13 @@ dependencies:
   geolocator: ^12.0.0            # GPS/location fixes
   sensors_plus: ^6.0.0          # accelerometer → AdaptiveScanController
   connectivity_plus: ^6.0.0     # flush batcher on reconnect
-  flutter_local_notifications: ^17.0.0
-  firebase_messaging: ^15.0.0   # FCM/APNS push
+  # flutter_local_notifications: ^17.0.0
+  # firebase_messaging: ^15.0.0   # FCM/APNS push
   url_launcher: ^6.3.0          # tel: dialer for the emergency call button
   http: ^1.2.0                  # backend API transport
   google_maps_flutter: ^2.9.0   # child tracking map + geofence overlays
   shared_preferences: ^2.3.0    # persist onboarding/session config
-  mmkv: ^2.0.0                  # fast disk mirror for offline-first batcher
+  # mmkv: ^2.0.0                  # fast disk mirror for offline-first batcher
 
 dev_dependencies:
   flutter_test:

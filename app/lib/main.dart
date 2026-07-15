@@ -55,10 +55,12 @@ Future<void> bootstrapRuntime(AppController controller) async {
     await batcher.init();
 
     // HealthMonitor: on-device triage → batcher (urgent bypass on emergencies).
+    // onEmergency forwards to the controller (note: HealthMonitor's signature is
+    // (triage, telemetry); AppController.onTelemetry is (telemetry, triage)).
     final monitor = HealthMonitor(
       deviceId: const String.fromEnvironment('BAND_ID', defaultValue: 'band-unpaired'),
       enqueue: (t, {required urgent}) => batcher.enqueueTelemetry(t, urgent: urgent),
-      onEmergency: controller.onTelemetry, // latches emergency in the controller
+      onEmergency: (triage, t) => controller.onTelemetry(t, triage),
     );
 
     controller.attachRuntime(monitor: monitor, batcher: batcher, api: api);

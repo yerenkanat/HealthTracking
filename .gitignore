@@ -24,3 +24,9 @@ GoogleService-Info.plist
 # OS
 .DS_Store
 Thumbs.db
+
+# Flutter Android build artifacts
+app/android/.gradle/
+app/android/local.properties
+app/android/**/build/
+app/.gradle/
