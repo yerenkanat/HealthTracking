@@ -73,8 +73,8 @@ const bpCalSchema = z.object({
   measuredAt: z.string(),
 });
 
-export function buildServer(deps: ServerDeps): FastifyInstance {
-  const app = Fastify({ logger: true });
+export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): FastifyInstance {
+  const app = Fastify({ logger: opts.logger ?? true });
 
   app.get('/health', async () => ({ ok: true }));
 
