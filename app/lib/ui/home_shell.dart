@@ -13,6 +13,11 @@ import 'chat/assistant_chat_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'tracking/child_map_screen.dart';
 
+/// Google Maps needs a real API key to render. Build with
+/// `--dart-define=MAPS_ENABLED=true` once android/app has a valid key; otherwise
+/// the tracking tab shows a clean placeholder instead of a black map surface.
+const bool _mapsEnabled = bool.fromEnvironment('MAPS_ENABLED', defaultValue: false);
+
 class HomeShell extends StatefulWidget {
   final AppController controller;
   const HomeShell({super.key, required this.controller});
@@ -75,8 +80,10 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  /// Real Google map with the child marker + geofence circles.
+  /// Real Google map with the child marker + geofence circles — or a graceful
+  /// placeholder when Maps isn't configured (avoids a black platform-view surface).
   Widget _buildMap(BuildContext context, Coordinates? child, List<Geofence> fences) {
+    if (!_mapsEnabled) return _MapPlaceholder(fences: fences, child: child);
     final center = child ??
         (fences.isNotEmpty && fences.first.center != null
             ? fences.first.center!
@@ -100,6 +107,50 @@ class _HomeShellState extends State<HomeShell> {
         if (child != null)
           Marker(markerId: const MarkerId('child'), position: LatLng(child.lat, child.lng)),
       },
+    );
+  }
+}
+
+/// Shown in place of GoogleMap when no Maps key is configured. Lists the child's
+/// zones so the tab is still useful; the status card below shows live position.
+class _MapPlaceholder extends StatelessWidget {
+  final List<Geofence> fences;
+  final Coordinates? child;
+  const _MapPlaceholder({required this.fences, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l = L10nScope.of(context);
+    return Container(
+      color: scheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.map_outlined, size: 56, color: scheme.primary),
+          const SizedBox(height: 12),
+          Text(l.t('map_unavailable'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
+          if (fences.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final f in fences)
+                  Chip(
+                    avatar: Icon(Icons.place, size: 16, color: scheme.primary),
+                    label: Text(f.name),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
