@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../app/app_controller.dart';
 import '../core/geofence.dart';
+import '../l10n/l10n_scope.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'tracking/child_map_screen.dart';
 
@@ -28,7 +29,12 @@ class _HomeShellState extends State<HomeShell> {
     final loc = c.childLocation;
 
     final pages = [
-      HealthDashboardScreen(samples: c.samples, greetingName: ''),
+      HealthDashboardScreen(
+        samples: c.samples,
+        greetingName: '',
+        currentLocale: c.locale,
+        onLocaleChange: c.setLocale,
+      ),
       ChildMapScreen(
         childName: c.childName,
         childLocation: loc?.coords,
@@ -44,9 +50,15 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.favorite_outline), selectedIcon: Icon(Icons.favorite), label: 'Health'),
-          NavigationDestination(icon: Icon(Icons.location_on_outlined), selectedIcon: Icon(Icons.location_on), label: 'Child'),
+        destinations: [
+          NavigationDestination(
+              icon: const Icon(Icons.favorite_outline),
+              selectedIcon: const Icon(Icons.favorite),
+              label: L10nScope.of(context).t('nav_health')),
+          NavigationDestination(
+              icon: const Icon(Icons.location_on_outlined),
+              selectedIcon: const Icon(Icons.location_on),
+              label: L10nScope.of(context).t('nav_child')),
         ],
       ),
     );

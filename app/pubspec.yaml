@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:          # ru / kk / en Material+Cupertino localizations
+    sdk: flutter
+  intl: any
   flutter_blue_plus: ^1.32.0      # BLE band + beacon
   geolocator: ^12.0.0            # GPS/location fixes
   sensors_plus: ^6.0.0          # accelerometer → AdaptiveScanController

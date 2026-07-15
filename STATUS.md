@@ -14,9 +14,10 @@ without a device or cloud is unit-tested and green on each change.
 | Dart data/orchestration (API client, HealthMonitor, chat routing) | 16 | ✅ |
 | Dart dashboard + tracking derivation | 24 | ✅ |
 | Dart app controller + sample store | 15 | ✅ |
+| Dart localization (ru/kk/en + coverage) | 33 | ✅ |
 | Node backend guardrail + ingest | 11 | ✅ |
 | Node cross-language contract (app vs server agree) | 20 | ✅ |
-| **Total** | **122** | ✅ |
+| **Total** | **155** | ✅ |
 
 ## What's built
 - **Flutter app** (`app/`): entry point, calm FemTech theme, home shell (Health +
@@ -28,6 +29,10 @@ without a device or cloud is unit-tested and green on each change.
   with a deterministic triage override the LLM cannot bypass.
 - **Shared safety contract** (`packages/contract/`): one JSON source of truth for
   medical thresholds + golden vectors; app and server proven to agree.
+- **Localization**: Russian (default on install), Kazakh, English. Medical triage
+  emits codes; the UI localizes them (no language baked into safety logic). A
+  coverage test fails the build if any key is missing a translation. In-app
+  language switcher on the dashboard.
 - **Infra** (`infra/`): docker-compose integration stack + end-to-end smoke test.
 - **CI** (`.github/workflows/ci.yml`): runs all the above on every push/PR.
 
@@ -37,6 +42,8 @@ without a device or cloud is unit-tested and green on each change.
    → Needs clinical sign-off before any medical claim.
 2. **OEM BLE frame offsets unconfirmed** (Hardware). Parsers use the common
    DaFit-style envelope. → Confirm `BandCmd` ids/offsets against the real SDK.
+2a. **RU/KK medical translations need native + clinical review** (L10n + OB-GYN).
+    Current Russian/Kazakh triage copy is a first pass; verify wording before launch.
 3. **Regulatory** (PM). Determine SaMD / medical-device obligations per market
    (KZ/CIS + any EU/US).
 4. **Privacy** (Security). Envelope-encrypt health + location columns; key rotation;

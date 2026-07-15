@@ -18,14 +18,18 @@ import '../data/sample_store.dart';
 import '../data/api_client.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
+import '../l10n/l10n.dart';
 import '../net/telemetry_batcher.dart';
 
 enum AppRoute { home, emergency }
 
 class EmergencyView {
+  /// Triage code for on-device emergencies (UI localizes it). Null for
+  /// server-driven chat emergencies, where [message] is already localized.
+  final String? code;
   final String message;
   final List<({String label, String tel})> callButtons;
-  const EmergencyView(this.message, this.callButtons);
+  const EmergencyView({this.code, required this.message, required this.callButtons});
 }
 
 class ChildLocationView {
@@ -45,9 +49,19 @@ class AppController {
   List<Geofence> _geofences = const [];
   String _childName = 'your child';
 
-  AppController({SampleStore? store, DateTime Function()? now})
+  AppLocale _locale;
+
+  AppController({SampleStore? store, DateTime Function()? now, AppLocale? locale})
       : store = store ?? SampleStore(),
-        _now = now ?? DateTime.now;
+        _now = now ?? DateTime.now,
+        _locale = locale ?? resolveInitialLocale(null); // default: Russian
+
+  AppLocale get locale => _locale;
+  void setLocale(AppLocale l) {
+    if (l == _locale) return;
+    _locale = l;
+    _notify();
+  }
 
   /// Fires whenever any observable state changes (UI rebuilds on this).
   Stream<void> get changes => _changes.stream;
@@ -79,20 +93,25 @@ class AppController {
       coreTemp: t.coreTempC,
     ));
     if (triage.forceEmergencyScreen) {
+      final f = triage.findings.isNotEmpty ? triage.findings.first : null;
       _raiseEmergency(EmergencyView(
-        triage.findings.isNotEmpty ? triage.findings.first.message : 'Urgent health alert.',
-        const [(label: 'Call ambulance', tel: '103')],
+        code: f?.code, // UI localizes the code
+        message: f?.message ?? 'Urgent health alert.',
+        callButtons: const [(label: 'Call ambulance', tel: '103')],
       ));
     } else {
       _notify();
     }
   }
 
-  /// From the AI chat service when the server escalates a message.
+  /// From the AI chat service when the server escalates a message (already localized).
   void onChatEmergency(String message, List<({String label, String tel})> callButtons) {
-    _raiseEmergency(EmergencyView(message, callButtons.isEmpty
-        ? const [(label: 'Call ambulance', tel: '103')]
-        : callButtons));
+    _raiseEmergency(EmergencyView(
+      message: message,
+      callButtons: callButtons.isEmpty
+          ? const [(label: 'Call ambulance', tel: '103')]
+          : callButtons,
+    ));
   }
 
   void onChildLocation(Coordinates coords) {

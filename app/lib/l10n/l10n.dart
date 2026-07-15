@@ -1,0 +1,199 @@
+/// Localization core — PURE Dart (no Flutter import) so the catalog + lookups are
+/// unit-testable. Russian is the default on install; Kazakh and English are also
+/// supported. The Flutter glue (InheritedWidget + delegate) lives in l10n_scope.dart.
+///
+/// Safety note: medical triage returns CODES, never baked-in language. This layer
+/// maps a code → localized message. English strings are kept identical to the
+/// original literals so existing widget tests stay valid under the English locale.
+///
+/// ⚠ Translation review: Russian/Kazakh medical strings need a native + clinical
+/// review before production (tracked in STATUS.md risks).
+library;
+
+import '../domain/child_tracker_state.dart';
+
+enum AppLocale { ru, kk, en }
+
+AppLocale? appLocaleFromCode(String? code) {
+  switch (code) {
+    case 'ru':
+      return AppLocale.ru;
+    case 'kk':
+      return AppLocale.kk;
+    case 'en':
+      return AppLocale.en;
+    default:
+      return null;
+  }
+}
+
+/// Default on install is RUSSIAN, regardless of device locale, per product spec.
+/// A previously saved preference wins if present.
+AppLocale resolveInitialLocale(String? savedPref) =>
+    appLocaleFromCode(savedPref) ?? AppLocale.ru;
+
+/// key → { locale → string }. Missing (locale) falls back to en, then to the key.
+const Map<String, Map<AppLocale, String>> _catalog = {
+  // Navigation
+  'nav_health': {AppLocale.ru: 'Здоровье', AppLocale.kk: 'Денсаулық', AppLocale.en: 'Health'},
+  'nav_child': {AppLocale.ru: 'Ребёнок', AppLocale.kk: 'Бала', AppLocale.en: 'Child'},
+
+  // Emergency screen
+  'em_title': {AppLocale.ru: 'Срочное предупреждение о здоровье', AppLocale.kk: 'Шұғыл денсаулық ескертуі', AppLocale.en: 'Urgent health alert'},
+  'em_call_ambulance': {AppLocale.ru: 'Вызвать скорую', AppLocale.kk: 'Жедел жәрдем шақыру', AppLocale.en: 'Call ambulance'},
+  'em_call_doctor': {AppLocale.ru: 'Позвонить врачу', AppLocale.kk: 'Дәрігерге қоңырау шалу', AppLocale.en: 'Call your doctor'},
+  'em_not_emergency': {AppLocale.ru: 'Это не экстренная ситуация', AppLocale.kk: 'Бұл төтенше жағдай емес', AppLocale.en: "This isn't an emergency"},
+  'em_dismiss_title': {AppLocale.ru: 'Закрыть предупреждение?', AppLocale.kk: 'Ескертуді жабу керек пе?', AppLocale.en: 'Dismiss this alert?'},
+  'em_dismiss_body': {
+    AppLocale.ru: 'Мы обнаружили показатель, который может быть опасен при беременности. Закрывайте, только если вы уверены, что вам ничего не угрожает.',
+    AppLocale.kk: 'Біз жүктілік кезінде қауіпті болуы мүмкін көрсеткішті байқадық. Тек өзіңізді қауіпсіз сезінсеңіз ғана жабыңыз.',
+    AppLocale.en: 'We detected a reading that can be serious in pregnancy. Only dismiss if you are sure you are safe.'
+  },
+  'em_keep': {AppLocale.ru: 'Оставить', AppLocale.kk: 'Қалдыру', AppLocale.en: 'Keep it'},
+  'em_dismiss': {AppLocale.ru: 'Закрыть', AppLocale.kk: 'Жабу', AppLocale.en: 'Dismiss'},
+
+  // Dashboard
+  'db_title': {AppLocale.ru: 'Ваше здоровье', AppLocale.kk: 'Сіздің денсаулығыңыз', AppLocale.en: 'Your health'},
+  'db_greeting': {AppLocale.ru: 'Здравствуйте, {name}', AppLocale.kk: 'Сәлеметсіз бе, {name}', AppLocale.en: 'Hi, {name}'},
+  'metric_hr': {AppLocale.ru: 'Пульс', AppLocale.kk: 'Жүрек соғысы', AppLocale.en: 'Heart rate'},
+  'metric_spo2': {AppLocale.ru: 'Кислород в крови', AppLocale.kk: 'Қандағы оттегі', AppLocale.en: 'Blood oxygen'},
+  'metric_systolic': {AppLocale.ru: 'Систолическое', AppLocale.kk: 'Систолалық', AppLocale.en: 'Systolic'},
+  'metric_diastolic': {AppLocale.ru: 'Диастолическое', AppLocale.kk: 'Диастолалық', AppLocale.en: 'Diastolic'},
+  'metric_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Температура', AppLocale.en: 'Temperature'},
+  'db_empty_title': {AppLocale.ru: 'Пока нет данных', AppLocale.kk: 'Әзірге деректер жоқ', AppLocale.en: 'No readings yet'},
+  'db_empty_body': {AppLocale.ru: 'Наденьте браслет — и данные появятся здесь.', AppLocale.kk: 'Білезікті тағыңыз — деректер осында пайда болады.', AppLocale.en: 'Put on your band and readings will appear here.'},
+  'db_stats': {AppLocale.ru: 'мин {min} · макс {max} · сред {avg}', AppLocale.kk: 'мин {min} · макс {max} · орт {avg}', AppLocale.en: 'min {min} · max {max} · avg {avg}'},
+  'db_outside_range': {AppLocale.ru: ', вне безопасного диапазона', AppLocale.kk: ', қауіпсіз аралықтан тыс', AppLocale.en: ', outside the safe range'},
+
+  // Tracking
+  'tr_title': {AppLocale.ru: 'Где {name}?', AppLocale.kk: '{name} қайда?', AppLocale.en: 'Where is {name}?'},
+  'fresh_live': {AppLocale.ru: 'В сети', AppLocale.kk: 'Желіде', AppLocale.en: 'Live'},
+  'fresh_recent': {AppLocale.ru: 'Недавно', AppLocale.kk: 'Жақында', AppLocale.en: 'Recent'},
+  'fresh_stale': {AppLocale.ru: 'Задержка', AppLocale.kk: 'Кешігу', AppLocale.en: 'Delayed'},
+  'tr_inside_zone': {AppLocale.ru: 'В зоне «{zone}»', AppLocale.kk: '«{zone}» аймағында', AppLocale.en: 'Inside {zone} zone'},
+  'tr_dist_m': {AppLocale.ru: '{m} м от дома', AppLocale.kk: 'үйден {m} м', AppLocale.en: '{m} m from home'},
+  'tr_dist_km': {AppLocale.ru: '{km} км от дома', AppLocale.kk: 'үйден {km} км', AppLocale.en: '{km} km from home'},
+  'tr_at_zone': {AppLocale.ru: '{name} в «{zone}»', AppLocale.kk: '{name} «{zone}» жерінде', AppLocale.en: '{name} is at {zone}'},
+  'tr_on_move': {AppLocale.ru: '{name} в пути — обновлено {ago}', AppLocale.kk: '{name} жолда — {ago} жаңартылды', AppLocale.en: '{name} is on the move — updated {ago}'},
+  'tr_stale': {AppLocale.ru: 'Местоположение {name} {phrase} — последний раз {ago}', AppLocale.kk: '{name} орналасуы {phrase} — соңғы рет {ago}', AppLocale.en: "{name}'s location is {phrase} — last seen {ago}"},
+  'tr_waiting': {AppLocale.ru: 'Ожидание местоположения {name}…', AppLocale.kk: '{name} орналасуын күту…', AppLocale.en: "Waiting for {name}'s location…"},
+  'stale_delayed': {AppLocale.ru: 'задерживается', AppLocale.kk: 'кешігуде', AppLocale.en: 'delayed'},
+  'stale_outdated': {AppLocale.ru: 'устарело', AppLocale.kk: 'ескірген', AppLocale.en: 'out of date'},
+
+  // Relative time
+  'ago_just_now': {AppLocale.ru: 'только что', AppLocale.kk: 'дәл қазір', AppLocale.en: 'just now'},
+  'ago_lt_minute': {AppLocale.ru: 'меньше минуты назад', AppLocale.kk: 'бір минуттан аз уақыт бұрын', AppLocale.en: 'less than a minute ago'},
+  'ago_min': {AppLocale.ru: '{n} мин назад', AppLocale.kk: '{n} мин бұрын', AppLocale.en: '{n} min ago'},
+  'ago_hour': {AppLocale.ru: '{n} ч назад', AppLocale.kk: '{n} сағ бұрын', AppLocale.en: '{n} h ago'},
+  'ago_day': {AppLocale.ru: '{n} дн назад', AppLocale.kk: '{n} күн бұрын', AppLocale.en: '{n} d ago'},
+
+  // Triage messages (emergency-severity codes; the safety layer emits the code)
+  'PREECLAMPSIA_BP': {
+    AppLocale.ru: 'Обнаружено высокое давление — признак преэклампсии. Немедленно свяжитесь с врачом.',
+    AppLocale.kk: 'Жоғары қан қысымы анықталды — преэклампсия белгісі. Дереу дәрігерге хабарласыңыз.',
+    AppLocale.en: 'High blood pressure detected — a warning sign of preeclampsia. Contact your doctor immediately.'
+  },
+  'PREECLAMPSIA_BP_SEVERE': {
+    AppLocale.ru: 'Обнаружено очень высокое давление. Это может быть признаком тяжёлой преэклампсии. Немедленно обратитесь за неотложной помощью.',
+    AppLocale.kk: 'Өте жоғары қан қысымы анықталды. Бұл ауыр преэклампсия белгісі болуы мүмкін. Дереу жедел жәрдемге жүгініңіз.',
+    AppLocale.en: 'Severe-range blood pressure detected. This can signal severe preeclampsia. Seek emergency care now.'
+  },
+  'HIGH_FEVER': {
+    AppLocale.ru: 'Высокая температура во время беременности. Требуется срочный осмотр врача.',
+    AppLocale.kk: 'Жүктілік кезіндегі жоғары қызу. Шұғыл медициналық тексеру қажет.',
+    AppLocale.en: 'High fever detected during pregnancy. Urgent medical review is needed.'
+  },
+  'HYPOXIA_SEVERE': {
+    AppLocale.ru: 'Обнаружен очень низкий уровень кислорода в крови. Немедленно обратитесь за неотложной помощью.',
+    AppLocale.kk: 'Қандағы оттегі деңгейі өте төмен. Дереу жедел жәрдемге жүгініңіз.',
+    AppLocale.en: 'Very low blood oxygen detected. Seek emergency care now.'
+  },
+  'TACHYCARDIA_SEVERE': {
+    AppLocale.ru: 'Обнаружено опасное сердцебиение. Срочно обратитесь за медицинской помощью.',
+    AppLocale.kk: 'Қауіпті жүрек соғысы анықталды. Шұғыл медициналық көмекке жүгініңіз.',
+    AppLocale.en: 'Dangerous heart rate detected. Seek urgent medical help.'
+  },
+  'BRADYCARDIA_SEVERE': {
+    AppLocale.ru: 'Обнаружено опасное сердцебиение. Срочно обратитесь за медицинской помощью.',
+    AppLocale.kk: 'Қауіпті жүрек соғысы анықталды. Шұғыл медициналық көмекке жүгініңіз.',
+    AppLocale.en: 'Dangerous heart rate detected. Seek urgent medical help.'
+  },
+  'EMERGENCY_GENERIC': {
+    AppLocale.ru: 'Обнаружен серьёзный признак. Немедленно обратитесь за медицинской помощью.',
+    AppLocale.kk: 'Елеулі белгі анықталды. Дереу медициналық көмекке жүгініңіз.',
+    AppLocale.en: 'A serious sign was detected. Please seek medical help immediately.'
+  },
+};
+
+/// The set of triage codes that have a localized message (for coverage checks).
+const triageCodesWithMessages = <String>{
+  'PREECLAMPSIA_BP',
+  'PREECLAMPSIA_BP_SEVERE',
+  'HIGH_FEVER',
+  'HYPOXIA_SEVERE',
+  'TACHYCARDIA_SEVERE',
+  'BRADYCARDIA_SEVERE',
+  'EMERGENCY_GENERIC',
+};
+
+class L10n {
+  final AppLocale locale;
+  const L10n(this.locale);
+
+  String get localeCode => locale.name;
+
+  /// Look up [key], interpolate {placeholders} from [params].
+  String t(String key, [Map<String, Object?> params = const {}]) {
+    final row = _catalog[key];
+    var s = row?[locale] ?? row?[AppLocale.en] ?? key;
+    params.forEach((k, v) => s = s.replaceAll('{$k}', '$v'));
+    return s;
+  }
+
+  String triageMessage(String? code) =>
+      code != null && _catalog.containsKey(code) ? t(code) : t('EMERGENCY_GENERIC');
+
+  String metricLabel(String metricKey) => t('metric_$metricKey');
+
+  String freshnessLabel(Freshness f) => switch (f) {
+        Freshness.live => t('fresh_live'),
+        Freshness.recent => t('fresh_recent'),
+        Freshness.stale => t('fresh_stale'),
+      };
+
+  /// Localized "x ago" — mirrors the buckets in child_tracker_state.formatAgo.
+  String ago(Duration age) {
+    if (age.inSeconds < 45) return t('ago_just_now');
+    if (age.inMinutes < 1) return t('ago_lt_minute');
+    if (age.inMinutes < 60) return t('ago_min', {'n': age.inMinutes});
+    if (age.inHours < 24) return t('ago_hour', {'n': age.inHours});
+    return t('ago_day', {'n': age.inDays});
+  }
+
+  String distanceFromHome(double meters) => meters >= 1000
+      ? t('tr_dist_km', {'km': (meters / 1000).toStringAsFixed(1)})
+      : t('tr_dist_m', {'m': meters.round()});
+
+  /// Localized tracking headline composed from structured status fields.
+  String trackingHeadline(ChildStatus status, String childName, DateTime now) {
+    if (status.location == null || status.updatedAt == null) {
+      return t('tr_waiting', {'name': childName});
+    }
+    final age = now.difference(status.updatedAt!);
+    final agoStr = ago(age);
+    if (status.freshness == Freshness.stale) {
+      final phrase = age.inHours >= 1 ? t('stale_outdated') : t('stale_delayed');
+      return t('tr_stale', {'name': childName, 'phrase': phrase, 'ago': agoStr});
+    }
+    if (status.currentZone != null) {
+      return t('tr_at_zone', {'name': childName, 'zone': status.currentZone});
+    }
+    return t('tr_on_move', {'name': childName, 'ago': agoStr});
+  }
+}
+
+/// All catalog keys (for the coverage test).
+Iterable<String> get allL10nKeys => _catalog.keys;
+
+/// For coverage: how many locales a key defines.
+int localesDefinedFor(String key) => _catalog[key]?.length ?? 0;

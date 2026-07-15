@@ -16,6 +16,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../l10n/l10n_scope.dart';
 
 class EmergencyCallButton {
   final String label; // "Call ambulance"
@@ -54,8 +55,10 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
     // Felt, not just seen. And announce for screen-reader users immediately.
     HapticFeedback.heavyImpact();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final l = L10nScope.of(context);
       SemanticsService.announce(
-        'Urgent health alert. ${widget.message}',
+        '${l.t('em_title')}. ${widget.message}',
         TextDirection.ltr,
         assertiveness: Assertiveness.assertive,
       );
@@ -64,6 +67,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
     final primary = widget.callButtons.isNotEmpty ? widget.callButtons.first : null;
     final secondary = widget.callButtons.skip(1).toList();
 
@@ -83,7 +87,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Urgent health alert',
+                        l.t('em_title'),
                         style: const TextStyle(
                           color: _onSurface,
                           fontSize: 24,
@@ -152,7 +156,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                 const SizedBox(height: 6),
                 TextButton(
                   onPressed: _confirmDismiss,
-                  child: Text("This isn't an emergency",
+                  child: Text(l.t('em_not_emergency'),
                       style: TextStyle(color: _onSurface.withValues(alpha: 0.6), fontSize: 15)),
                 ),
               ],
@@ -164,15 +168,15 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
   }
 
   Future<void> _confirmDismiss() async {
+    final l = L10nScope.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Dismiss this alert?'),
-        content: const Text(
-            'We detected a reading that can be serious in pregnancy. Only dismiss if you are sure you are safe.'),
+        title: Text(l.t('em_dismiss_title')),
+        content: Text(l.t('em_dismiss_body')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Dismiss')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.t('em_keep'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.t('em_dismiss'))),
         ],
       ),
     );

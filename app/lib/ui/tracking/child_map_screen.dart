@@ -1,15 +1,16 @@
 /// Child tracking screen — live map with geofence zones, the child's marker, and
-/// a status card driven by the verified deriveChildStatus() logic.
+/// a status card driven by the verified deriveChildStatus() logic + L10n.
 ///
-/// The map itself (google_maps_flutter) is a platform view that can't render in a
-/// pure widget test, so it's isolated behind [mapBuilder] — the default builds the
-/// real GoogleMap; tests inject a stub. Everything above the map (the status card,
-/// freshness pill, distance) is plain widgets and IS testable.
+/// The map (google_maps_flutter) is a platform view that can't render in a pure
+/// widget test, so it's isolated behind [mapBuilder] — the default builds the real
+/// GoogleMap; tests inject a stub. The status card is plain widgets and IS testable.
 library;
 
 import 'package:flutter/material.dart';
 import '../../core/geofence.dart';
 import '../../domain/child_tracker_state.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/l10n_scope.dart';
 
 typedef MapBuilder = Widget Function(
     BuildContext context, Coordinates? child, List<Geofence> fences);
@@ -34,6 +35,7 @@ class ChildMapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
     final status = deriveChildStatus(
       childName: childName,
       location: childLocation,
@@ -43,11 +45,11 @@ class ChildMapScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text('Where is $childName?')),
+      appBar: AppBar(title: Text(l.t('tr_title', {'name': childName}))),
       body: Column(
         children: [
           Expanded(child: mapBuilder(context, childLocation, fences)),
-          _StatusCard(status: status),
+          _StatusCard(status: status, headline: l.trackingHeadline(status, childName, now), l: l),
         ],
       ),
     );
@@ -56,7 +58,9 @@ class ChildMapScreen extends StatelessWidget {
 
 class _StatusCard extends StatelessWidget {
   final ChildStatus status;
-  const _StatusCard({required this.status});
+  final String headline;
+  final L10n l;
+  const _StatusCard({required this.status, required this.headline, required this.l});
 
   @override
   Widget build(BuildContext context) {
@@ -74,25 +78,24 @@ class _StatusCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                _FreshnessPill(status.freshness),
+                _FreshnessPill(status.freshness, l),
                 const Spacer(),
                 if (status.distanceFromHomeM != null)
-                  Text(_distance(status.distanceFromHomeM!),
+                  Text(l.distanceFromHome(status.distanceFromHomeM!),
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 12),
             Semantics(
               liveRegion: true,
-              child: Text(status.headline,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              child: Text(headline, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
             ),
             if (status.currentZone != null) ...[
               const SizedBox(height: 4),
               Row(children: [
                 const Icon(Icons.place_outlined, size: 16),
                 const SizedBox(width: 4),
-                Text('Inside ${status.currentZone} zone',
+                Text(l.t('tr_inside_zone', {'zone': status.currentZone}),
                     style: TextStyle(color: Colors.grey.shade700)),
               ]),
             ],
@@ -101,21 +104,19 @@ class _StatusCard extends StatelessWidget {
       ),
     );
   }
-
-  String _distance(double m) =>
-      m >= 1000 ? '${(m / 1000).toStringAsFixed(1)} km from home' : '${m.round()} m from home';
 }
 
 class _FreshnessPill extends StatelessWidget {
   final Freshness freshness;
-  const _FreshnessPill(this.freshness);
+  final L10n l;
+  const _FreshnessPill(this.freshness, this.l);
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch (freshness) {
-      Freshness.live => ('Live', const Color(0xFF12B886)),
-      Freshness.recent => ('Recent', const Color(0xFFFAB005)),
-      Freshness.stale => ('Delayed', const Color(0xFF868E96)),
+    final color = switch (freshness) {
+      Freshness.live => const Color(0xFF12B886),
+      Freshness.recent => const Color(0xFFFAB005),
+      Freshness.stale => const Color(0xFF868E96),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -123,7 +124,8 @@ class _FreshnessPill extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(l.freshnessLabel(freshness),
+            style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
       ]),
     );
   }
