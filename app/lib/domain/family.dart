@@ -65,6 +65,16 @@ class UserProfile {
       );
 }
 
+/// A child's gender (optional). `name` doubles as the persisted value + l10n key.
+enum Gender { boy, girl }
+
+Gender? genderFromName(String? s) {
+  for (final g in Gender.values) {
+    if (g.name == s) return g;
+  }
+  return null;
+}
+
 class ChildProfile {
   final String id;
   final String name;
@@ -72,6 +82,7 @@ class ChildProfile {
   final String? tagId; // beacon/tracker id, if paired
   final DateTime? dateOfBirth; // for age-based personalization (safety tips, thresholds)
   final String? photoPath; // local file path to the child's photo
+  final Gender? gender; // optional
 
   const ChildProfile({
     required this.id,
@@ -80,6 +91,7 @@ class ChildProfile {
     this.tagId,
     this.dateOfBirth,
     this.photoPath,
+    this.gender,
   });
 
   bool get hasDateOfBirth => dateOfBirth != null;
@@ -101,8 +113,10 @@ class ChildProfile {
     String? tagId,
     DateTime? dateOfBirth,
     String? photoPath,
+    Gender? gender,
     bool clearDateOfBirth = false,
     bool clearPhoto = false,
+    bool clearGender = false,
   }) =>
       ChildProfile(
         id: id,
@@ -111,6 +125,7 @@ class ChildProfile {
         tagId: tagId ?? this.tagId,
         dateOfBirth: clearDateOfBirth ? null : (dateOfBirth ?? this.dateOfBirth),
         photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
+        gender: clearGender ? null : (gender ?? this.gender),
       );
 }
 

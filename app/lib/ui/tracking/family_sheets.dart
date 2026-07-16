@@ -96,6 +96,7 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
   final nameCtl = TextEditingController(text: existing?.name ?? '');
   DateTime? dob = existing?.dateOfBirth;
   String? photoPath = existing?.photoPath;
+  Gender? gender = existing?.gender;
   final oldPhoto = existing?.photoPath;
 
   return _sheet(context, (ctx, l) {
@@ -120,7 +121,28 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
             decoration: InputDecoration(labelText: l.t('onb_child_name_hint')),
             onChanged: (_) => setState(() {}), // refresh avatar initials
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          // Gender — optional (tap again to clear).
+          Text(l.t('child_gender'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, children: [
+            for (final g in Gender.values)
+              ChoiceChip(
+                avatar: Icon(g == Gender.boy ? Icons.boy : Icons.girl,
+                    size: 18, color: gender == g ? Palette.violet : Palette.textDim),
+                label: Text(l.t('gender_${g.name}')),
+                selected: gender == g,
+                onSelected: (_) => setState(() => gender = gender == g ? null : g),
+                selectedColor: Palette.violet.withValues(alpha: 0.18),
+                backgroundColor: Palette.glass,
+                side: const BorderSide(color: Palette.border),
+                labelStyle: TextStyle(
+                  color: gender == g ? Palette.text : Palette.textDim,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ]),
+          const SizedBox(height: 14),
           // Date of birth — optional, but powers age-based personalization.
           _DateField(
             label: l.t('child_dob_hint'),
@@ -147,6 +169,7 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
               name: name,
               dateOfBirth: dob, clearDateOfBirth: dob == null,
               photoPath: photoPath, clearPhoto: photoPath == null,
+              gender: gender, clearGender: gender == null,
             ));
           } else {
             // Default Home zone; the user can refine zones later.
@@ -155,6 +178,7 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
               name: name,
               dateOfBirth: dob,
               photoPath: photoPath,
+              gender: gender,
               geofences: [
                 Geofence.circle('home', l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
               ],

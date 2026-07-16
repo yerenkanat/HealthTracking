@@ -56,7 +56,12 @@ class SettingsScreen extends StatelessWidget {
                   _Row(
                     leading: Icons.child_care,
                     leadingWidget: PhotoAvatar(
-                      photoPath: child.photoPath, name: child.name, size: 34, fallbackIcon: Icons.child_care),
+                      photoPath: child.photoPath, name: child.name, size: 34,
+                      fallbackIcon: child.gender == Gender.boy
+                          ? Icons.boy
+                          : child.gender == Gender.girl
+                              ? Icons.girl
+                              : Icons.child_care),
                     title: child.name,
                     subtitle: _childSubtitle(l, child),
                     onTap: () => showEditChildSheet(context, c, child),

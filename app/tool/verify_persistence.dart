@@ -27,7 +27,7 @@ void main() async {
     locale: AppLocale.kk,
     profile: const UserProfile(displayName: 'Aigerim', dialCode: '+7', phoneNumber: '700 123 45 67'),
     children: [
-      ChildProfile(id: 'child-1', name: 'Sultan', dateOfBirth: DateTime(2019, 3, 8), photoPath: '/docs/photos/c1.jpg', geofences: [
+      ChildProfile(id: 'child-1', name: 'Sultan', dateOfBirth: DateTime(2019, 3, 8), photoPath: '/docs/photos/c1.jpg', gender: Gender.boy, geofences: [
         Geofence.circle('home', 'Home', const Coordinates(43.238949, 76.889709), 100),
       ]),
       const ChildProfile(id: 'child-2', name: 'Aida'),
@@ -50,6 +50,7 @@ void main() async {
   _chk('round-trip 2 children', decoded.children.length == 2 && decoded.children[1].name == 'Aida');
   _chk('round-trip child DOB', decoded.children[0].dateOfBirth == DateTime(2019, 3, 8) && !decoded.children[1].hasDateOfBirth);
   _chk('round-trip child photo', decoded.children[0].photoPath == '/docs/photos/c1.jpg' && !decoded.children[1].hasPhoto);
+  _chk('round-trip child gender', decoded.children[0].gender == Gender.boy && decoded.children[1].gender == null);
   _chk('round-trip child geofence', decoded.children[0].geofences.first.center?.lat == 43.238949);
   _chk('round-trip device', decoded.devices.length == 1 && decoded.devices.first.kind == DeviceKind.band);
   _chk('round-trip notificationsEnabled', decoded.notificationsEnabled == false);

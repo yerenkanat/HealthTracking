@@ -58,6 +58,13 @@ void main() {
   const childPhoto = ChildProfile(id: 'cp', name: 'K', photoPath: '/docs/photos/c1.jpg');
   _chk('child set/clear photo', childPhoto.hasPhoto && !childPhoto.copyWith(clearPhoto: true).hasPhoto);
 
+  // ---- Gender ----
+  const boy = ChildProfile(id: 'cg', name: 'S', gender: Gender.boy);
+  _chk('child gender set', boy.gender == Gender.boy);
+  _chk('child gender switch', boy.copyWith(gender: Gender.girl).gender == Gender.girl);
+  _chk('child gender clear', boy.copyWith(clearGender: true).gender == null);
+  _chk('genderFromName round-trip', genderFromName('girl') == Gender.girl && genderFromName(null) == null);
+
   // ---- ChildProfile ----
   final child = ChildProfile(
     id: 'c1', name: 'Sultan',

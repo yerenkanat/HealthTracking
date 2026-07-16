@@ -302,6 +302,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
 
   // Child date of birth + age
+  'child_gender': {AppLocale.ru: 'Пол', AppLocale.kk: 'Жынысы', AppLocale.en: 'Gender'},
+  'gender_boy': {AppLocale.ru: 'Мальчик', AppLocale.kk: 'Ұл', AppLocale.en: 'Boy'},
+  'gender_girl': {AppLocale.ru: 'Девочка', AppLocale.kk: 'Қыз', AppLocale.en: 'Girl'},
   'child_dob_hint': {AppLocale.ru: 'Дата рождения', AppLocale.kk: 'Туған күні', AppLocale.en: 'Date of birth'},
   'child_dob_help': {AppLocale.ru: 'Помогает персонализировать советы по возрасту', AppLocale.kk: 'Жасына қарай кеңестерді жекелендіруге көмектеседі', AppLocale.en: 'Helps personalize tips by age'},
   'age_years': {AppLocale.ru: '{n} г.', AppLocale.kk: '{n} жас', AppLocale.en: '{n} yrs'},
