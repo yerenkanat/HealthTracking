@@ -129,6 +129,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'zone_radius': {AppLocale.ru: 'Радиус', AppLocale.kk: 'Радиус', AppLocale.en: 'Radius'},
   'zone_type_other': {AppLocale.ru: 'Другое', AppLocale.kk: 'Басқа', AppLocale.en: 'Other'},
   'zone_use_location': {AppLocale.ru: 'Моё текущее место', AppLocale.kk: 'Қазіргі орным', AppLocale.en: 'Use my current location'},
+  'zone_pick_on_map': {AppLocale.ru: 'Выбрать на карте', AppLocale.kk: 'Картадан таңдау', AppLocale.en: 'Pick on map'},
+  'zone_pick_hint': {AppLocale.ru: 'Нажмите на карту, чтобы выбрать центр зоны', AppLocale.kk: 'Аймақ орталығын таңдау үшін картаны басыңыз', AppLocale.en: 'Tap the map to set the zone centre'},
   'zone_location_set': {AppLocale.ru: 'Место задано', AppLocale.kk: 'Орын белгіленді', AppLocale.en: 'Location set'},
   'zone_meters': {AppLocale.ru: '{m} м', AppLocale.kk: '{m} м', AppLocale.en: '{m} m'},
   'confirm_remove_zone_title': {AppLocale.ru: 'Удалить зону?', AppLocale.kk: 'Аймақты жою керек пе?', AppLocale.en: 'Remove zone?'},

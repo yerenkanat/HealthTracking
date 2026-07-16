@@ -12,6 +12,11 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
+import 'map_zone_picker.dart';
+
+/// Google Maps needs a real key to render; the map picker is only offered when
+/// the app is built with --dart-define=MAPS_ENABLED=true.
+const bool _mapsEnabled = bool.fromEnvironment('MAPS_ENABLED', defaultValue: false);
 
 class ZonesScreen extends StatelessWidget {
   final AppController controller;
@@ -196,6 +201,18 @@ class _ZoneSheetState extends State<_ZoneSheet> {
     super.dispose();
   }
 
+  Future<void> _pickOnMap() async {
+    final picked = await Navigator.of(context).push<ZonePick>(MaterialPageRoute(
+      builder: (_) => MapZonePickerScreen(initialCenter: _center, initialRadius: _radius),
+    ));
+    if (picked != null && mounted) {
+      setState(() {
+        _center = picked.center;
+        _radius = picked.radius;
+      });
+    }
+  }
+
   Future<void> _useCurrentLocation() async {
     setState(() => _locating = true);
     try {
@@ -265,6 +282,19 @@ class _ZoneSheetState extends State<_ZoneSheet> {
             onChanged: (v) => setState(() => _radius = v),
           ),
           const SizedBox(height: 6),
+          if (_mapsEnabled) ...[
+            FilledButton.tonalIcon(
+              onPressed: _pickOnMap,
+              icon: const Icon(Icons.map_outlined, size: 18),
+              label: Text(l.t('zone_pick_on_map')),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                backgroundColor: Palette.violet.withValues(alpha: 0.12),
+                foregroundColor: Palette.violet,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           OutlinedButton.icon(
             onPressed: _locating ? null : _useCurrentLocation,
             icon: _locating
