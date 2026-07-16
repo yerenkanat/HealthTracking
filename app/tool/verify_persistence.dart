@@ -112,6 +112,21 @@ void main() async {
   _chk('device removed + persisted', !ctl4.devices.any((d) => d.id == 'TAG-1') &&
       (await store3.load())?.devices.any((d) => d.id == 'TAG-1') == false);
 
+  // ---- geofence zones CRUD on a child ----
+  ctl4.upsertGeofence('child-2', Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 150));
+  await Future<void>.delayed(Duration.zero);
+  _chk('zone added', ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
+  _chk('zone persisted', (await store3.load())!.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
+  // upsert same id updates in place (no duplicate)
+  ctl4.upsertGeofence('child-2', Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 250));
+  await Future<void>.delayed(Duration.zero);
+  final z = ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.where((f) => f.id == 'z1').toList();
+  _chk('zone updated in place', z.length == 1 && z.first.radiusM == 250);
+  ctl4.removeGeofence('child-2', 'z1');
+  await Future<void>.delayed(Duration.zero);
+  _chk('zone removed + persisted', !ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1') &&
+      !(await store3.load())!.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
+
   // ---- remove a child reselects remaining ----
   ctl4.removeChild('child-1'); // currently selected; child-2 remains
   await Future<void>.delayed(Duration.zero);

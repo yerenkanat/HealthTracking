@@ -35,6 +35,7 @@ class ChildMapScreen extends StatelessWidget {
   final void Function(String id)? onSelectChild;
   final VoidCallback? onAddChild;
   final VoidCallback? onAddDevice;
+  final VoidCallback? onManageZones;
   final int? childAgeMonths; // for age-appropriate safety tips (null if no DOB)
 
   const ChildMapScreen({
@@ -50,6 +51,7 @@ class ChildMapScreen extends StatelessWidget {
     this.onSelectChild,
     this.onAddChild,
     this.onAddDevice,
+    this.onManageZones,
     this.childAgeMonths,
   });
 
@@ -88,7 +90,7 @@ class ChildMapScreen extends StatelessWidget {
               )),
             ),
           ),
-          if (onAddChild != null || onAddDevice != null)
+          if (onAddChild != null || onAddDevice != null || onManageZones != null)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: _FloatingActionChip(
@@ -96,6 +98,7 @@ class ChildMapScreen extends StatelessWidget {
                 onSelected: (v) {
                   if (v == 'child') onAddChild?.call();
                   if (v == 'device') onAddDevice?.call();
+                  if (v == 'zones') onManageZones?.call();
                 },
                 items: [
                   if (onAddChild != null)
@@ -107,6 +110,11 @@ class ChildMapScreen extends StatelessWidget {
                     PopupMenuItem(value: 'device', child: Row(children: [
                       const Icon(Icons.watch, size: 18, color: Palette.textDim),
                       const SizedBox(width: 10), Text(l.t('tr_add_device')),
+                    ])),
+                  if (onManageZones != null)
+                    PopupMenuItem(value: 'zones', child: Row(children: [
+                      const Icon(Icons.add_location_alt_outlined, size: 18, color: Palette.textDim),
+                      const SizedBox(width: 10), Text(l.t('tr_manage_zones')),
                     ])),
                 ],
               ),

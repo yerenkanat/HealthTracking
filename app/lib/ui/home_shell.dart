@@ -15,6 +15,7 @@ import 'dashboard/health_dashboard_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/child_map_screen.dart';
 import 'tracking/family_sheets.dart';
+import 'tracking/zones_screen.dart';
 
 /// Google Maps needs a real API key to render. Build with
 /// `--dart-define=MAPS_ENABLED=true` once android/app has a valid key; otherwise
@@ -68,6 +69,11 @@ class _HomeShellState extends State<HomeShell> {
         onSelectChild: c.selectChild,
         onAddChild: () => showAddChildSheet(context, c),
         onAddDevice: () => showAddDeviceSheet(context, c),
+        onManageZones: c.selectedChild == null
+            ? null
+            : () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ZonesScreen(controller: c, childId: c.selectedChild!.id),
+                )),
       ),
       ProfileScreen(controller: c),
     ];

@@ -180,6 +180,32 @@ class AppController {
     _notify();
   }
 
+  // ---- Geofence zones (per child) ----
+  /// Add or replace a zone on [childId] (matched by geofence id).
+  void upsertGeofence(String childId, Geofence fence) {
+    final i = _children.indexWhere((c) => c.id == childId);
+    if (i < 0) return;
+    final zones = List<Geofence>.from(_children[i].geofences);
+    final z = zones.indexWhere((f) => f.id == fence.id);
+    if (z >= 0) {
+      zones[z] = fence;
+    } else {
+      zones.add(fence);
+    }
+    _children[i] = _children[i].copyWith(geofences: zones);
+    _persist();
+    _notify();
+  }
+
+  void removeGeofence(String childId, String fenceId) {
+    final i = _children.indexWhere((c) => c.id == childId);
+    if (i < 0) return;
+    final zones = _children[i].geofences.where((f) => f.id != fenceId).toList();
+    _children[i] = _children[i].copyWith(geofences: zones);
+    _persist();
+    _notify();
+  }
+
   void removeChild(String id) {
     _children.removeWhere((c) => c.id == id);
     // Tags tied to that child go too.
