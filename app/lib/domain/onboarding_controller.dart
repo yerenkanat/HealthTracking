@@ -56,6 +56,8 @@ class OnboardingController {
   String _displayName = '';
   String _dialCode = defaultCountry.dial;
   String _phoneNumber = '';
+  bool _expecting = false;
+  DateTime? _dueDate;
   String? _bandId;
   String _childName = '';
   DateTime? _childDob;
@@ -70,6 +72,8 @@ class OnboardingController {
   String get displayName => _displayName;
   String get dialCode => _dialCode;
   String get phoneNumber => _phoneNumber;
+  bool get expecting => _expecting;
+  DateTime? get dueDate => _dueDate;
   String? get bandId => _bandId;
   String get childName => _childName;
   DateTime? get childDob => _childDob;
@@ -85,6 +89,8 @@ class OnboardingController {
   void setDisplayName(String v) => _set(() => _displayName = v);
   void setDialCode(String v) => _set(() => _dialCode = v);
   void setPhoneNumber(String v) => _set(() => _phoneNumber = v);
+  void setExpecting(bool v) => _set(() => _expecting = v);
+  void setDueDate(DateTime? v) => _set(() => _dueDate = v);
   void setBandId(String? v) => _set(() => _bandId = v);
   void setChildName(String v) => _set(() => _childName = v);
   void setChildDob(DateTime? d) => _set(() => _childDob = d);
@@ -124,6 +130,7 @@ class OnboardingController {
         displayName: _displayName.trim(),
         dialCode: _dialCode,
         phoneNumber: _phoneNumber.trim(),
+        dueDate: _expecting ? _dueDate : null,
       ),
       bandId: _bandId,
       child: ChildProfile(id: 'child-1', name: _childName.trim(), dateOfBirth: _childDob, geofences: fences),

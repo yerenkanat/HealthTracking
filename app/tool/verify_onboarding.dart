@@ -73,6 +73,15 @@ void main() {
   c2.next();
   _chk('band optional → null bandId', c2.build().bandId == null);
 
+  // ---- Expecting → due date drives pregnancy mode ----
+  final c3 = OnboardingController();
+  _chk('not expecting by default', !c3.expecting && c3.build().profile.dueDate == null);
+  c3.setExpecting(true);
+  c3.setDueDate(DateTime(2026, 12, 1));
+  _chk('expecting + due date → profile.dueDate', c3.build().profile.dueDate == DateTime(2026, 12, 1));
+  c3.setExpecting(false);
+  _chk('unchecking expecting drops due date', c3.build().profile.dueDate == null);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

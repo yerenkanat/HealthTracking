@@ -205,6 +205,8 @@ class _ProfilePage extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 24),
+        _ExpectingSection(controller: controller),
       ],
     );
   }
@@ -214,6 +216,60 @@ class _ProfilePage extends StatelessWidget {
   String _dialValue(String dial) {
     final match = countries.firstWhere((c) => c.dial == dial, orElse: () => defaultCountry);
     return '${match.iso}|${match.dial}';
+  }
+}
+
+/// "Are you expecting?" — sets pregnancy vs cycle mode from day one. When on,
+/// reveals a due-date picker (optional; the calendar can also set it later).
+class _ExpectingSection extends StatelessWidget {
+  final OnboardingController controller;
+  const _ExpectingSection({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: Palette.glass,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Palette.border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: controller.expecting,
+            onChanged: controller.setExpecting,
+            title: Text(l.t('onb_expecting'), style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(l.t('onb_expecting_sub'), style: const TextStyle(fontSize: 12.5)),
+          ),
+          if (controller.expecting)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.calendar_month_rounded, color: Palette.violet),
+              title: Text(controller.dueDate == null
+                  ? l.t('cal_due_pick')
+                  : l.t('onb_due_date_set', {'date': MaterialLocalizations.of(context).formatMediumDate(controller.dueDate!)})),
+              trailing: const Icon(Icons.chevron_right, color: Palette.textDim),
+              onTap: () async {
+                final now = DateTime.now();
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: controller.dueDate ?? now.add(const Duration(days: 140)),
+                  firstDate: now.subtract(const Duration(days: 60)),
+                  lastDate: now.add(const Duration(days: 300)),
+                  helpText: l.t('cal_due_pick'),
+                );
+                if (picked != null) controller.setDueDate(picked);
+              },
+            ),
+        ],
+        ),
+      ),
+    );
   }
 }
 
