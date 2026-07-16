@@ -5,10 +5,13 @@ library;
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../core/geofence.dart';
+import '../../data/photo_store.dart';
 import '../../domain/country_codes.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../widgets/avatar.dart';
+import '../widgets/photo_picker_sheet.dart';
 
 Future<void> showEditProfileSheet(BuildContext context, AppController controller) {
   final p = controller.profile;
@@ -81,20 +84,41 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
   });
 }
 
-Future<void> showAddChildSheet(BuildContext context, AppController controller) {
-  final nameCtl = TextEditingController();
-  DateTime? dob;
+Future<void> showAddChildSheet(BuildContext context, AppController controller) =>
+    _childSheet(context, controller);
+
+Future<void> showEditChildSheet(BuildContext context, AppController controller, ChildProfile child) =>
+    _childSheet(context, controller, existing: child);
+
+/// Shared add/edit child sheet: photo + name + date of birth.
+Future<void> _childSheet(BuildContext context, AppController controller, {ChildProfile? existing}) {
+  final isEdit = existing != null;
+  final nameCtl = TextEditingController(text: existing?.name ?? '');
+  DateTime? dob = existing?.dateOfBirth;
+  String? photoPath = existing?.photoPath;
+  final oldPhoto = existing?.photoPath;
+
   return _sheet(context, (ctx, l) {
     return StatefulBuilder(
       builder: (ctx, setState) => _SheetBody(
-        title: l.t('tr_add_child'),
+        title: l.t(isEdit ? 'act_edit' : 'tr_add_child'),
         icon: Icons.child_care,
         fields: [
+          Center(
+            child: _PhotoPickerAvatar(
+              photoPath: photoPath,
+              name: nameCtl.text,
+              prefix: existing?.id ?? 'child',
+              onChanged: (p) => setState(() => photoPath = p),
+            ),
+          ),
+          const SizedBox(height: 18),
           TextField(
             controller: nameCtl,
-            autofocus: true,
+            autofocus: !isEdit,
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(labelText: l.t('onb_child_name_hint')),
+            onChanged: (_) => setState(() {}), // refresh avatar initials
           ),
           const SizedBox(height: 12),
           // Date of birth — optional, but powers age-based personalization.
@@ -118,20 +142,70 @@ Future<void> showAddChildSheet(BuildContext context, AppController controller) {
         onSave: () {
           final name = nameCtl.text.trim();
           if (name.isEmpty) return false;
-          // Default Home zone; the user can refine zones later.
-          controller.addChild(ChildProfile(
-            id: 'child-${DateTime.now().microsecondsSinceEpoch}',
-            name: name,
-            dateOfBirth: dob,
-            geofences: [
-              Geofence.circle('home', l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
-            ],
-          ));
+          if (isEdit) {
+            controller.updateChild(existing.copyWith(
+              name: name,
+              dateOfBirth: dob, clearDateOfBirth: dob == null,
+              photoPath: photoPath, clearPhoto: photoPath == null,
+            ));
+          } else {
+            // Default Home zone; the user can refine zones later.
+            controller.addChild(ChildProfile(
+              id: 'child-${DateTime.now().microsecondsSinceEpoch}',
+              name: name,
+              dateOfBirth: dob,
+              photoPath: photoPath,
+              geofences: [
+                Geofence.circle('home', l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
+              ],
+            ));
+          }
+          if (oldPhoto != null && oldPhoto != photoPath) {
+            PhotoStore().delete(oldPhoto); // fire-and-forget cleanup
+          }
           return true;
         },
       ),
     );
   });
+}
+
+/// A tappable avatar (with camera badge) that opens the photo picker and reports
+/// the chosen/removed path via [onChanged] (null = removed).
+class _PhotoPickerAvatar extends StatelessWidget {
+  final String? photoPath;
+  final String name;
+  final String prefix;
+  final void Function(String?) onChanged;
+  const _PhotoPickerAvatar({required this.photoPath, required this.name, required this.prefix, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final r = await pickPhoto(context, prefix: prefix, canRemove: photoPath != null && photoPath!.isNotEmpty);
+        if (r == null) return;
+        onChanged(r.remove ? null : r.path);
+      },
+      child: Stack(
+        children: [
+          PhotoAvatar(photoPath: photoPath, name: name, size: 84, fallbackIcon: Icons.child_care),
+          Positioned(
+            right: 0, bottom: 0,
+            child: Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                color: Palette.violet,
+                shape: BoxShape.circle,
+                border: Border.all(color: Palette.surface, width: 2.5),
+              ),
+              child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 Future<void> showAddDeviceSheet(BuildContext context, AppController controller) {

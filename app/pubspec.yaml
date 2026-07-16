@@ -23,6 +23,8 @@ dependencies:
   http: ^1.2.0                  # backend API transport
   google_maps_flutter: ^2.9.0   # child tracking map + geofence overlays
   shared_preferences: ^2.3.0    # persist onboarding/session config
+  image_picker: ^1.1.0          # pick profile / child photos from gallery or camera
+  path_provider: ^2.1.0         # app documents dir to store picked photos
   # mmkv: ^2.0.0                  # fast disk mirror for offline-first batcher
 
 dev_dependencies:

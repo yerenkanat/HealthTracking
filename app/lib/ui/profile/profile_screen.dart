@@ -4,11 +4,14 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
+import '../../data/photo_store.dart';
 import '../../l10n/l10n_scope.dart';
 import '../settings/settings_screen.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
+import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
+import '../widgets/photo_picker_sheet.dart';
 
 class ProfileScreen extends StatelessWidget {
   final AppController controller;
@@ -40,11 +43,15 @@ class ProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
               const SizedBox(height: 12),
-              // Avatar + name + phone
+              // Avatar (tap to add/change photo) + name + phone
               Center(
                 child: Column(
                   children: [
-                    _Avatar(name: c.displayName),
+                    _EditablePhoto(
+                      photoPath: c.profile.photoPath,
+                      name: c.displayName,
+                      onTap: () => _editProfilePhoto(context, c),
+                    ),
                     const SizedBox(height: 16),
                     Text(name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
@@ -94,34 +101,53 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class _Avatar extends StatelessWidget {
+/// The mother's avatar with a small camera badge — tap to add/change the photo.
+class _EditablePhoto extends StatelessWidget {
+  final String? photoPath;
   final String name;
-  const _Avatar({required this.name});
+  final VoidCallback onTap;
+  const _EditablePhoto({required this.photoPath, required this.name, required this.onTap});
+
   @override
   Widget build(BuildContext context) {
-    final initials = _initials(name);
-    return Container(
-      width: 96,
-      height: 96,
-      decoration: BoxDecoration(
-        gradient: Palette.violetPink,
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: Palette.violet.withValues(alpha: 0.3), blurRadius: 22, offset: const Offset(0, 10), spreadRadius: -6)],
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          PhotoAvatar(
+            photoPath: photoPath,
+            name: name,
+            size: 96,
+            shadow: [BoxShadow(color: Palette.violet.withValues(alpha: 0.3), blurRadius: 22, offset: const Offset(0, 10), spreadRadius: -6)],
+          ),
+          Positioned(
+            right: 0, bottom: 0,
+            child: Container(
+              width: 30, height: 30,
+              decoration: BoxDecoration(
+                color: Palette.violet,
+                shape: BoxShape.circle,
+                border: Border.all(color: Palette.bg, width: 2.5),
+              ),
+              child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 15),
+            ),
+          ),
+        ],
       ),
-      alignment: Alignment.center,
-      child: initials.isEmpty
-          ? const Icon(Icons.person, color: Colors.white, size: 44)
-          : Text(initials,
-              style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700)),
     );
   }
+}
 
-  String _initials(String s) {
-    final parts = s.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-    if (parts.isEmpty) return '';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+Future<void> _editProfilePhoto(BuildContext context, AppController c) async {
+  final r = await pickPhoto(context, prefix: 'profile', canRemove: c.profile.hasPhoto);
+  if (r == null) return;
+  final old = c.profile.photoPath;
+  if (r.remove) {
+    c.updateProfile(c.profile.copyWith(clearPhoto: true));
+  } else if (r.path != null) {
+    c.updateProfile(c.profile.copyWith(photoPath: r.path));
   }
+  if (old != null && old != c.profile.photoPath) await PhotoStore().delete(old);
 }
 
 class _StatTile extends StatelessWidget {

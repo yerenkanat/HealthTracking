@@ -50,6 +50,7 @@ Map<String, dynamic> childToJson(ChildProfile c) => {
       'name': c.name,
       'tagId': c.tagId,
       if (c.dateOfBirth != null) 'dateOfBirth': c.dateOfBirth!.toIso8601String(),
+      if (c.photoPath != null) 'photoPath': c.photoPath,
       'geofences': [for (final f in c.geofences) geofenceToJson(f)],
     };
 
@@ -58,6 +59,7 @@ ChildProfile childFromJson(Map<String, dynamic> j) => ChildProfile(
       name: (j['name'] as String?) ?? '',
       tagId: j['tagId'] as String?,
       dateOfBirth: j['dateOfBirth'] is String ? DateTime.tryParse(j['dateOfBirth'] as String) : null,
+      photoPath: j['photoPath'] as String?,
       geofences: [
         for (final f in (j['geofences'] as List? ?? const []))
           geofenceFromJson((f as Map).cast<String, dynamic>())

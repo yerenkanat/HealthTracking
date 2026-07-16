@@ -44,6 +44,7 @@ class _HomeShellState extends State<HomeShell> {
         samples: c.samples,
         sleepNights: c.sleepNights,
         greetingName: c.displayName,
+        photoPath: c.profile.photoPath,
         currentLocale: c.locale,
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),

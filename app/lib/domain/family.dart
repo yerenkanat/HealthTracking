@@ -12,18 +12,21 @@ class UserProfile {
   final String phoneNumber; // national digits/formatted
   final String doctorPhone; // emergency contact (E.164 or free-form), optional
   final DateTime? dueDate; // estimated due date (EDD) → drives gestation week
+  final String? photoPath; // local file path to the profile photo
   const UserProfile({
     this.displayName = '',
     this.dialCode = '+7',
     this.phoneNumber = '',
     this.doctorPhone = '',
     this.dueDate,
+    this.photoPath,
   });
 
   String get e164 => toE164(dialCode, phoneNumber);
   bool get hasPhone => isValidNationalNumber(phoneNumber);
   bool get hasDoctor => doctorPhone.trim().isNotEmpty;
   bool get hasDueDate => dueDate != null;
+  bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
 
   UserProfile copyWith({
     String? displayName,
@@ -31,7 +34,9 @@ class UserProfile {
     String? phoneNumber,
     String? doctorPhone,
     DateTime? dueDate,
+    String? photoPath,
     bool clearDueDate = false,
+    bool clearPhoto = false,
   }) =>
       UserProfile(
         displayName: displayName ?? this.displayName,
@@ -39,6 +44,7 @@ class UserProfile {
         phoneNumber: phoneNumber ?? this.phoneNumber,
         doctorPhone: doctorPhone ?? this.doctorPhone,
         dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
+        photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
       );
 
   Map<String, dynamic> toJson() => {
@@ -47,6 +53,7 @@ class UserProfile {
         'phoneNumber': phoneNumber,
         'doctorPhone': doctorPhone,
         if (dueDate != null) 'dueDate': dueDate!.toIso8601String(),
+        if (photoPath != null) 'photoPath': photoPath,
       };
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
         displayName: (j['displayName'] as String?) ?? '',
@@ -54,6 +61,7 @@ class UserProfile {
         phoneNumber: (j['phoneNumber'] as String?) ?? '',
         doctorPhone: (j['doctorPhone'] as String?) ?? '',
         dueDate: j['dueDate'] is String ? DateTime.tryParse(j['dueDate'] as String) : null,
+        photoPath: j['photoPath'] as String?,
       );
 }
 
@@ -63,6 +71,7 @@ class ChildProfile {
   final List<Geofence> geofences;
   final String? tagId; // beacon/tracker id, if paired
   final DateTime? dateOfBirth; // for age-based personalization (safety tips, thresholds)
+  final String? photoPath; // local file path to the child's photo
 
   const ChildProfile({
     required this.id,
@@ -70,9 +79,11 @@ class ChildProfile {
     this.geofences = const [],
     this.tagId,
     this.dateOfBirth,
+    this.photoPath,
   });
 
   bool get hasDateOfBirth => dateOfBirth != null;
+  bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
 
   /// Whole months of age at [now]; 0 if unknown or in the future. Kept pure so
   /// the UI just localizes it (see L10n.childAge).
@@ -89,7 +100,9 @@ class ChildProfile {
     List<Geofence>? geofences,
     String? tagId,
     DateTime? dateOfBirth,
+    String? photoPath,
     bool clearDateOfBirth = false,
+    bool clearPhoto = false,
   }) =>
       ChildProfile(
         id: id,
@@ -97,6 +110,7 @@ class ChildProfile {
         geofences: geofences ?? this.geofences,
         tagId: tagId ?? this.tagId,
         dateOfBirth: clearDateOfBirth ? null : (dateOfBirth ?? this.dateOfBirth),
+        photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
       );
 }
 

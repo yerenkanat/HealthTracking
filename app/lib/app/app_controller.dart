@@ -171,6 +171,15 @@ class AppController {
     _notify();
   }
 
+  /// Replace an existing child (edit name / DOB / photo / zones).
+  void updateChild(ChildProfile child) {
+    final i = _children.indexWhere((c) => c.id == child.id);
+    if (i < 0) return;
+    _children[i] = child;
+    _persist();
+    _notify();
+  }
+
   void removeChild(String id) {
     _children.removeWhere((c) => c.id == id);
     // Tags tied to that child go too.

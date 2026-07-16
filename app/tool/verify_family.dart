@@ -49,6 +49,15 @@ void main() {
       UserProfile.fromJson(withDue.toJson()).dueDate == DateTime(2026, 12, 1));
   _chk('profile keeps name when setting dueDate', withDue.displayName == 'Aigerim');
 
+  // ---- Photo ----
+  _chk('profile no photo by default', !p.hasPhoto);
+  final withPhoto = p.copyWith(photoPath: '/docs/photos/profile_1.jpg');
+  _chk('profile set photo', withPhoto.hasPhoto && withPhoto.photoPath == '/docs/photos/profile_1.jpg');
+  _chk('profile clear photo', !withPhoto.copyWith(clearPhoto: true).hasPhoto);
+  _chk('profile photo round-trip', UserProfile.fromJson(withPhoto.toJson()).photoPath == '/docs/photos/profile_1.jpg');
+  const childPhoto = ChildProfile(id: 'cp', name: 'K', photoPath: '/docs/photos/c1.jpg');
+  _chk('child set/clear photo', childPhoto.hasPhoto && !childPhoto.copyWith(clearPhoto: true).hasPhoto);
+
   // ---- ChildProfile ----
   final child = ChildProfile(
     id: 'c1', name: 'Sultan',

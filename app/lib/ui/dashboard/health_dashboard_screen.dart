@@ -16,6 +16,7 @@ import '../../domain/sleep.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
 import 'metric_detail_screen.dart';
 import 'sleep_card.dart';
@@ -46,6 +47,7 @@ class HealthDashboardView extends StatelessWidget {
   final List<HealthSample> samples;
   final List<SleepSummary> sleepNights;
   final String greetingName;
+  final String? photoPath;
   final AppLocale? currentLocale;
   final void Function(AppLocale)? onLocaleChange;
   final VoidCallback? onOpenProfile;
@@ -55,6 +57,7 @@ class HealthDashboardView extends StatelessWidget {
     required this.samples,
     this.sleepNights = const [],
     this.greetingName = '',
+    this.photoPath,
     this.currentLocale,
     this.onLocaleChange,
     this.onOpenProfile,
@@ -69,7 +72,7 @@ class HealthDashboardView extends StatelessWidget {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           leadingWidth: onOpenProfile == null ? null : 60,
-          leading: onOpenProfile == null ? null : _AvatarButton(name: greetingName, onTap: onOpenProfile!),
+          leading: onOpenProfile == null ? null : _AvatarButton(name: greetingName, photoPath: photoPath, onTap: onOpenProfile!),
           title: Text(greetingName.isEmpty ? l.t('db_title') : l.t('db_greeting', {'name': greetingName})),
           actions: [
             if (onLocaleChange != null)
@@ -470,25 +473,17 @@ class _IconBadge extends StatelessWidget {
 
 class _AvatarButton extends StatelessWidget {
   final String name;
+  final String? photoPath;
   final VoidCallback onTap;
-  const _AvatarButton({required this.name, required this.onTap});
+  const _AvatarButton({required this.name, required this.onTap, this.photoPath});
   @override
   Widget build(BuildContext context) {
-    final initials = name.trim().isEmpty ? '' : name.trim().substring(0, 1).toUpperCase();
     return Padding(
       padding: const EdgeInsets.only(left: 12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: const BoxDecoration(gradient: Palette.violetPink, shape: BoxShape.circle),
-          alignment: Alignment.center,
-          child: initials.isEmpty
-              ? const Icon(Icons.person, color: Colors.white, size: 20)
-              : Text(initials, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-        ),
+        child: PhotoAvatar(photoPath: photoPath, name: name, size: 38),
       ),
     );
   }

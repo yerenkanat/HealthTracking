@@ -11,6 +11,7 @@ import '../calibration/bp_calibration_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
+import '../widgets/avatar.dart';
 import '../widgets/confirm.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -67,8 +68,11 @@ class SettingsScreen extends StatelessWidget {
                 for (final child in c.children)
                   _Row(
                     leading: Icons.child_care,
+                    leadingWidget: PhotoAvatar(
+                      photoPath: child.photoPath, name: child.name, size: 34, fallbackIcon: Icons.child_care),
                     title: child.name,
                     subtitle: _childSubtitle(l, child),
+                    onTap: () => showEditChildSheet(context, c, child),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Palette.textDim),
                       tooltip: l.t('act_remove'),
@@ -264,11 +268,12 @@ class _Section extends StatelessWidget {
 
 class _Row extends StatelessWidget {
   final IconData leading;
+  final Widget? leadingWidget; // overrides [leading] icon when set
   final String title;
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
-  const _Row({required this.leading, required this.title, this.subtitle, this.trailing, this.onTap});
+  const _Row({required this.leading, this.leadingWidget, required this.title, this.subtitle, this.trailing, this.onTap});
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -277,7 +282,7 @@ class _Row extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Row(
           children: [
-            Icon(leading, size: 22, color: Palette.textDim),
+            leadingWidget ?? Icon(leading, size: 22, color: Palette.textDim),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
