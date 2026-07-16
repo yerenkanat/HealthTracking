@@ -61,6 +61,9 @@ class _HomeShellState extends State<HomeShell> {
         mapBuilder: _buildMap,
         childOptions: [for (final ch in c.children) (id: ch.id, name: ch.name)],
         selectedChildId: c.selectedChild?.id,
+        childAgeMonths: c.selectedChild?.hasDateOfBirth == true
+            ? c.selectedChild!.ageInMonths(DateTime.now())
+            : null,
         onSelectChild: c.selectChild,
         onAddChild: () => showAddChildSheet(context, c),
         onAddDevice: () => showAddDeviceSheet(context, c),

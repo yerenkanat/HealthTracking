@@ -14,6 +14,7 @@ import '../../core/geofence.dart';
 import '../../domain/child_tracker_state.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import 'child_safety_screen.dart';
 
 typedef MapBuilder = Widget Function(
     BuildContext context, Coordinates? child, List<Geofence> fences);
@@ -34,6 +35,7 @@ class ChildMapScreen extends StatelessWidget {
   final void Function(String id)? onSelectChild;
   final VoidCallback? onAddChild;
   final VoidCallback? onAddDevice;
+  final int? childAgeMonths; // for age-appropriate safety tips (null if no DOB)
 
   const ChildMapScreen({
     super.key,
@@ -48,6 +50,7 @@ class ChildMapScreen extends StatelessWidget {
     this.onSelectChild,
     this.onAddChild,
     this.onAddDevice,
+    this.childAgeMonths,
   });
 
   @override
@@ -69,6 +72,22 @@ class ChildMapScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         title: _FloatingTitle(l.t('tr_title', {'name': childName})),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _FloatingIconButton(
+              icon: Icons.shield_outlined,
+              tooltip: l.t('safety_title'),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => ChildSafetyScreen(
+                  childName: childName,
+                  ageMonths: childAgeMonths,
+                  currentZone: status.currentZone,
+                  freshness: status.freshness,
+                  hasLocation: childLocation != null,
+                ),
+              )),
+            ),
+          ),
           if (onAddChild != null || onAddDevice != null)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -378,6 +397,30 @@ class _FloatingTitle extends StatelessWidget {
         ],
       ),
       child: Text(text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Palette.text)),
+    );
+  }
+}
+
+class _FloatingIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _FloatingIconButton({required this.icon, required this.tooltip, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Palette.bgElevated,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Palette.text),
+        tooltip: tooltip,
+        onPressed: onTap,
+      ),
     );
   }
 }

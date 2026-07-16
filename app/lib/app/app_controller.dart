@@ -293,10 +293,10 @@ class AppController {
       _onboarding ??= OnboardingController(initialLocale: _locale);
 
   /// Demo/seed helper: replace children with a single configured child.
-  void configureChild({required String name, required List<Geofence> fences}) {
+  void configureChild({required String name, required List<Geofence> fences, DateTime? dateOfBirth}) {
     _children
       ..clear()
-      ..add(ChildProfile(id: 'child-1', name: name, geofences: fences));
+      ..add(ChildProfile(id: 'child-1', name: name, geofences: fences, dateOfBirth: dateOfBirth));
     _selectedChildId = 'child-1';
     _notify();
   }

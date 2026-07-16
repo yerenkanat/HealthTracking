@@ -79,10 +79,14 @@ void _seedDemo(AppController c) {
       ),
   ]);
 
-  c.configureChild(name: 'Sultan', fences: [
-    Geofence.circle('home', 'Home', const Coordinates(43.238949, 76.889709), 100),
-    Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),
-  ]);
+  c.configureChild(
+    name: 'Sultan',
+    dateOfBirth: DateTime(now.year - 8, now.month, now.day), // ~8 yrs → school-age tips
+    fences: [
+      Geofence.circle('home', 'Home', const Coordinates(43.238949, 76.889709), 100),
+      Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),
+    ],
+  );
   c.onChildLocation(const Coordinates(43.25, 76.95));
 }
 
