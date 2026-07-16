@@ -128,18 +128,6 @@ class SettingsScreen extends StatelessWidget {
               _Row(leading: Icons.info_outline, title: 'Umay', subtitle: l.t('set_about_body')),
               _Row(leading: Icons.tag, title: l.t('set_version'), trailing: const Text('0.1.0', style: TextStyle(color: Palette.textDim))),
             ]),
-
-            const SizedBox(height: 12),
-            // ---- Reset (destructive) ----
-            OutlinedButton.icon(
-              onPressed: () => _confirmReset(context, c),
-              icon: const Icon(Icons.restart_alt, color: Palette.danger),
-              label: Text(l.t('set_reset'), style: const TextStyle(color: Palette.danger)),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                side: BorderSide(color: Palette.danger.withValues(alpha: 0.4)),
-              ),
-            ),
           ],
         ),
       ),
@@ -160,19 +148,6 @@ class SettingsScreen extends StatelessWidget {
     return '${l.childAge(child.ageInMonths(DateTime.now()))} · $zones';
   }
 
-  Future<void> _confirmReset(BuildContext context, AppController c) async {
-    final l = L10nScope.of(context);
-    final ok = await confirmDestructive(
-      context,
-      title: l.t('set_reset_title'),
-      message: l.t('set_reset_body'),
-      confirmLabel: l.t('set_reset'),
-    );
-    if (ok && context.mounted) {
-      await c.resetApp();
-      if (context.mounted) Navigator.pop(context); // leave settings → onboarding shows
-    }
-  }
 }
 
 /// Highlighted call-to-action for weekly blood-pressure calibration — a critical
