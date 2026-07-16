@@ -27,11 +27,10 @@ Widget _wrap(Widget child) =>
     MaterialApp(home: L10nScope(l10n: const L10n(AppLocale.en), child: child));
 
 void main() {
-  testWidgets('Settings shows profile, language, child, calibration, about', (tester) async {
+  testWidgets('Settings shows language, child, calibration, about', (tester) async {
     final c = _onboarded();
     await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));
 
-    expect(find.text('Aigerim'), findsOneWidget); // profile row
     expect(find.text('English'), findsOneWidget); // language option
     expect(find.text('Sultan'), findsOneWidget); // child row
     final scrollable = find.byType(Scrollable).first;

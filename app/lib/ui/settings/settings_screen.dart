@@ -8,7 +8,6 @@ import '../../domain/family.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../calibration/bp_calibration_sheet.dart';
-import '../profile/profile_screen.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
@@ -30,19 +29,6 @@ class SettingsScreen extends StatelessWidget {
         builder: (context, _) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            // ---- Profile ----
-            _Section(title: l.t('set_profile'), children: [
-              _Row(
-                leading: Icons.person_outline,
-                title: c.displayName.isEmpty ? '—' : c.displayName,
-                subtitle: c.profile.hasPhone ? '${c.profile.dialCode} ${c.profile.phoneNumber}' : null,
-                trailing: const Icon(Icons.chevron_right, color: Palette.textDim),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ProfileScreen(controller: c)),
-                ),
-              ),
-            ]),
-
             // ---- Language (distinct code badge per language) ----
             _Section(title: l.t('set_language'), children: [
               for (final (loc, name, code) in const [
