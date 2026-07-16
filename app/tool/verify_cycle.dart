@@ -4,6 +4,7 @@ library;
 
 import 'dart:io';
 import '../lib/domain/cycle_log.dart';
+import '../lib/domain/cycle_predictions.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -77,6 +78,42 @@ void main() {
   // Mistyped far-future date clamps at 0.
   final clampLow = gestationFor(today.add(const Duration(days: 400)), today)!;
   _chk('gestation clamps low', clampLow.totalDays == 0 && clampLow.week == 0);
+
+  // ---- Flow on DayLog ----
+  final period = empty.withFlowToggled(Flow.medium);
+  _chk('flow set', period.flow == Flow.medium && period.hasPeriod && period.isNotEmpty);
+  _chk('flow re-toggle clears', period.withFlowToggled(Flow.medium).flow == null);
+  _chk('flow switch replaces', period.withFlowToggled(Flow.heavy).flow == Flow.heavy);
+  _chk('flow round-trip', DayLog.fromJson(period.toJson()).flow == Flow.medium);
+
+  // ---- Cycle predictions ----
+  Set<DateTime> periodSet(List<DateTime> ds) => ds.toSet();
+  // No data → no prediction.
+  _chk('no period data → hasData false', !computeCycle({}, DateTime(2026, 7, 15)).hasData);
+
+  // Two 28-day cycles: starts Jun 3 and Jul 1, each 5 days.
+  final days = <DateTime>[
+    for (var i = 0; i < 5; i++) DateTime(2026, 6, 3).add(Duration(days: i)),
+    for (var i = 0; i < 5; i++) DateTime(2026, 7, 1).add(Duration(days: i)),
+  ];
+  final info = computeCycle(periodSet(days), DateTime(2026, 7, 15));
+  _chk('period starts detected', periodStarts(periodSet(days)).length == 2);
+  _chk('avg cycle 28', info.avgCycleLength == 28);
+  _chk('avg period 5', info.avgPeriodLength == 5);
+  _chk('last start Jul 1', info.lastPeriodStart == DateTime(2026, 7, 1));
+  _chk('next start Jul 29', info.nextPeriodStart == DateTime(2026, 7, 29));
+  _chk('days until next = 14', info.daysUntilNextPeriod == 14);
+  _chk('ovulation Jul 15', info.ovulation == DateTime(2026, 7, 15));
+  _chk('cycle day 15', info.cycleDay == 15);
+  _chk('fertile window Jul 10..16',
+      info.fertileStart == DateTime(2026, 7, 10) && info.fertileEnd == DateTime(2026, 7, 16));
+
+  // Day classification.
+  _chk('logged day → period', cycleDayType(DateTime(2026, 7, 2), info, loggedPeriod: true) == CycleDayType.period);
+  _chk('ovulation day type', cycleDayType(DateTime(2026, 7, 15), info, loggedPeriod: false) == CycleDayType.ovulation);
+  _chk('fertile day type', cycleDayType(DateTime(2026, 7, 12), info, loggedPeriod: false) == CycleDayType.fertile);
+  _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
+  _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

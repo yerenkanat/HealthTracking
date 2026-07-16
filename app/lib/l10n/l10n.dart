@@ -293,6 +293,28 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ADV_SLEEP_GOOD': {AppLocale.ru: 'Хороший сон', AppLocale.kk: 'Жақсы ұйқы', AppLocale.en: 'Good sleep'},
   'ADV_SLEEP_GOOD_b': {AppLocale.ru: 'Прошлой ночью вы хорошо выспались с достаточным глубоким сном.', AppLocale.kk: 'Өткен түні терең ұйқымен жақсы дем алдыңыз.', AppLocale.en: 'You slept well last night with enough deep sleep.'},
 
+  // Menstrual cycle / period tracking
+  'log_period': {AppLocale.ru: 'Менструация', AppLocale.kk: 'Етеккір', AppLocale.en: 'Period'},
+  'flow_light': {AppLocale.ru: 'Слабые', AppLocale.kk: 'Әлсіз', AppLocale.en: 'Light'},
+  'flow_medium': {AppLocale.ru: 'Умеренные', AppLocale.kk: 'Орташа', AppLocale.en: 'Medium'},
+  'flow_heavy': {AppLocale.ru: 'Обильные', AppLocale.kk: 'Күшті', AppLocale.en: 'Heavy'},
+  'cyc_period': {AppLocale.ru: 'Месячные', AppLocale.kk: 'Етеккір', AppLocale.en: 'Period'},
+  'cyc_predicted': {AppLocale.ru: 'Прогноз', AppLocale.kk: 'Болжам', AppLocale.en: 'Predicted'},
+  'cyc_fertile': {AppLocale.ru: 'Фертильные', AppLocale.kk: 'Құнарлы', AppLocale.en: 'Fertile'},
+  'cyc_ovulation': {AppLocale.ru: 'Овуляция', AppLocale.kk: 'Овуляция', AppLocale.en: 'Ovulation'},
+  'cyc_day_short': {AppLocale.ru: 'день', AppLocale.kk: 'күн', AppLocale.en: 'day'},
+  'cyc_period_in': {AppLocale.ru: 'Месячные через {n} дн.', AppLocale.kk: 'Етеккірге {n} күн', AppLocale.en: 'Period in {n} days'},
+  'cyc_period_today': {AppLocale.ru: 'Месячные ожидаются сегодня', AppLocale.kk: 'Бүгін етеккір күтіледі', AppLocale.en: 'Period expected today'},
+  'cyc_period_late': {AppLocale.ru: 'Задержка {n} дн.', AppLocale.kk: '{n} күн кешігу', AppLocale.en: '{n} days late'},
+  'cyc_phase_period': {AppLocale.ru: 'Менструация', AppLocale.kk: 'Етеккір', AppLocale.en: 'Period'},
+  'cyc_phase_fertile': {AppLocale.ru: 'Фертильное окно', AppLocale.kk: 'Құнарлы кезең', AppLocale.en: 'Fertile window'},
+  'cyc_phase_ovulation': {AppLocale.ru: 'Овуляция', AppLocale.kk: 'Овуляция', AppLocale.en: 'Ovulation'},
+  'cyc_no_data_title': {AppLocale.ru: 'Отслеживайте цикл', AppLocale.kk: 'Циклді қадағалаңыз', AppLocale.en: 'Track your cycle'},
+  'cyc_no_data_body': {AppLocale.ru: 'Отметьте день менструации, чтобы видеть прогнозы.', AppLocale.kk: 'Болжамды көру үшін етеккір күнін белгілеңіз.', AppLocale.en: 'Log a period day to see predictions.'},
+  'cyc_expecting': {AppLocale.ru: 'Ждёте ребёнка? Укажите срок', AppLocale.kk: 'Бала күтудесіз бе? Мерзімін қосыңыз', AppLocale.en: 'Expecting? Add a due date'},
+  'cyc_end_pregnancy': {AppLocale.ru: 'Больше не беременны?', AppLocale.kk: 'Енді жүкті емессіз бе?', AppLocale.en: 'No longer pregnant?'},
+  'cyc_end_pregnancy_body': {AppLocale.ru: 'Отслеживание беременности отключится, и вернётся календарь цикла. Ваши записи останутся.', AppLocale.kk: 'Жүктілікті бақылау өшіріліп, цикл күнтізбесі қайтады. Жазбаларыңыз сақталады.', AppLocale.en: 'Pregnancy tracking turns off and cycle tracking returns. Your logs are kept.'},
+
   // Tracking
   'tr_title': {AppLocale.ru: 'Где {name}?', AppLocale.kk: '{name} қайда?', AppLocale.en: 'Where is {name}?'},
   'fresh_live': {AppLocale.ru: 'В сети', AppLocale.kk: 'Желіде', AppLocale.en: 'Live'},

@@ -1,0 +1,147 @@
+/// Menstrual cycle prediction (Flo-style) — PURE Dart, unit-testable via
+/// `dart run tool/verify_cycle.dart`. Given the set of days the user logged a
+/// period, it derives period-start days, the average cycle + period length, and
+/// predicts the next period, the fertile window, and ovulation.
+///
+/// This is wellness estimation, NOT contraception guidance — predictions are
+/// approximate and clearly labelled as such in the UI.
+library;
+
+import 'cycle_log.dart' show dateKey;
+
+/// How a calendar day relates to the cycle, for colouring the month grid.
+/// Priority (highest first): logged period → ovulation → fertile → predicted period.
+enum CycleDayType { period, predictedPeriod, ovulation, fertile, none }
+
+class CycleInfo {
+  final int avgCycleLength; // days between period starts (clamped 21..35)
+  final int avgPeriodLength; // bleeding days (clamped 2..8)
+  final DateTime? lastPeriodStart;
+  final DateTime? nextPeriodStart; // predicted, on/after today
+  final DateTime? ovulation; // predicted (nextPeriodStart - 14)
+  final DateTime? fertileStart;
+  final DateTime? fertileEnd;
+  final int? cycleDay; // 1-based day within the current cycle
+  final bool hasData; // enough logs to predict
+  final DateTime today; // anchor the prediction was computed against
+
+  const CycleInfo({
+    required this.avgCycleLength,
+    required this.avgPeriodLength,
+    required this.lastPeriodStart,
+    required this.nextPeriodStart,
+    required this.ovulation,
+    required this.fertileStart,
+    required this.fertileEnd,
+    required this.cycleDay,
+    required this.hasData,
+    required this.today,
+  });
+
+  int? get daysUntilNextPeriod =>
+      nextPeriodStart == null ? null : nextPeriodStart!.difference(today).inDays;
+
+  /// True when the user is currently within a predicted/logged period window.
+  bool get isPredictedLate =>
+      nextPeriodStart != null && daysUntilNextPeriod != null && daysUntilNextPeriod! < 0;
+}
+
+DateTime _dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+/// A day is a period START if it was logged and the previous day was not.
+List<DateTime> periodStarts(Set<DateTime> periodDays) {
+  final norm = {for (final d in periodDays) dateKey(d)};
+  final sorted = periodDays.map(_dayOnly).toSet().toList()..sort();
+  final starts = <DateTime>[];
+  for (final d in sorted) {
+    if (!norm.contains(dateKey(d.subtract(const Duration(days: 1))))) starts.add(d);
+  }
+  return starts;
+}
+
+int _clamp(int v, int lo, int hi) => v < lo ? lo : (v > hi ? hi : v);
+
+/// Compute cycle info from logged [periodDays] relative to [today].
+CycleInfo computeCycle(
+  Set<DateTime> periodDays,
+  DateTime today, {
+  int defaultCycle = 28,
+  int defaultPeriod = 5,
+}) {
+  final t = _dayOnly(today);
+  final starts = periodStarts(periodDays);
+
+  if (starts.isEmpty) {
+    return CycleInfo(
+      avgCycleLength: 28, avgPeriodLength: 5,
+      lastPeriodStart: null, nextPeriodStart: null, ovulation: null,
+      fertileStart: null, fertileEnd: null, cycleDay: null, hasData: false, today: t,
+    );
+  }
+
+  // Average cycle length from gaps between consecutive starts.
+  var avgCycle = defaultCycle;
+  if (starts.length >= 2) {
+    var sum = 0;
+    for (var i = 1; i < starts.length; i++) {
+      sum += starts[i].difference(starts[i - 1]).inDays;
+    }
+    avgCycle = _clamp((sum / (starts.length - 1)).round(), 21, 35);
+  }
+
+  // Average period length: consecutive logged days from each start.
+  final norm = {for (final d in periodDays) dateKey(d)};
+  var periodSum = 0;
+  for (final s in starts) {
+    var len = 1;
+    while (norm.contains(dateKey(s.add(Duration(days: len))))) {
+      len++;
+    }
+    periodSum += len;
+  }
+  final avgPeriod = _clamp((periodSum / starts.length).round(), 2, 8);
+
+  final lastStart = starts.last;
+
+  // Next predicted start: roll forward from the last start until on/after today.
+  var next = lastStart.add(Duration(days: avgCycle));
+  while (next.isBefore(t)) {
+    next = next.add(Duration(days: avgCycle));
+  }
+  final ovulation = next.subtract(const Duration(days: 14));
+  final fertileStart = ovulation.subtract(const Duration(days: 5));
+  final fertileEnd = ovulation.add(const Duration(days: 1));
+
+  final cycleDay = t.isBefore(lastStart) ? null : t.difference(lastStart).inDays + 1;
+
+  return CycleInfo(
+    avgCycleLength: avgCycle,
+    avgPeriodLength: avgPeriod,
+    lastPeriodStart: lastStart,
+    nextPeriodStart: next,
+    ovulation: ovulation,
+    fertileStart: fertileStart,
+    fertileEnd: fertileEnd,
+    cycleDay: cycleDay,
+    hasData: true,
+    today: t,
+  );
+}
+
+bool _inRange(DateTime d, DateTime? start, DateTime? end) =>
+    start != null && end != null && !d.isBefore(start) && !d.isAfter(end);
+
+/// Classify [day] for the calendar. [loggedPeriod] is whether the day itself has
+/// a flow logged (checked by the caller from dayLogs).
+CycleDayType cycleDayType(DateTime day, CycleInfo info, {required bool loggedPeriod}) {
+  final d = _dayOnly(day);
+  if (loggedPeriod) return CycleDayType.period;
+  if (!info.hasData) return CycleDayType.none;
+  if (info.ovulation != null && dateKey(d) == dateKey(info.ovulation!)) return CycleDayType.ovulation;
+  if (_inRange(d, info.fertileStart, info.fertileEnd)) return CycleDayType.fertile;
+  final next = info.nextPeriodStart;
+  if (next != null && !d.isBefore(next) && d.isBefore(next.add(Duration(days: info.avgPeriodLength)))) {
+    return CycleDayType.predictedPeriod;
+  }
+  return CycleDayType.none;
+}

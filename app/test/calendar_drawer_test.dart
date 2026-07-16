@@ -1,7 +1,7 @@
 /// Widget tests for the Flo-style logging drawer (run with `flutter test`).
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/ui/calendar/logging_drawer.dart';
@@ -10,15 +10,19 @@ void main() {
   Widget harness(DayLog log, {
     void Function(Mood)? onMood,
     void Function(Symptom)? onSymptom,
+    void Function(Flow)? onFlow,
     VoidCallback? onKick,
+    bool pregnant = true,
   }) =>
       MaterialApp(
         home: Scaffold(
           body: FloStyleCalendarDrawer(
             day: DateTime(2026, 7, 15),
             log: log,
+            pregnant: pregnant,
             onToggleMood: onMood ?? (_) {},
             onToggleSymptom: onSymptom ?? (_) {},
+            onToggleFlow: onFlow ?? (_) {},
             onKick: onKick ?? () {},
             onResetKicks: () {},
           ),
@@ -55,5 +59,22 @@ void main() {
     await tester.pumpWidget(harness(const DayLog(date: '2026-07-15', kicks: 7)));
     expect(find.text('7'), findsOneWidget);
     expect(find.text('kicks today'), findsOneWidget);
+  });
+
+  testWidgets('cycle mode shows period flow, not the kick counter', (tester) async {
+    await tester.pumpWidget(harness(const DayLog(date: '2026-07-15'), pregnant: false));
+    expect(find.text('PERIOD'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Medium'), findsOneWidget);
+    expect(find.text('Heavy'), findsOneWidget);
+    expect(find.text('KICK COUNTER'), findsNothing);
+  });
+
+  testWidgets('tapping a flow pill fires onToggleFlow', (tester) async {
+    Flow? picked;
+    await tester.pumpWidget(harness(const DayLog(date: '2026-07-15'), pregnant: false, onFlow: (f) => picked = f));
+    await tester.tap(find.text('Medium'));
+    await tester.pump();
+    expect(picked, Flow.medium);
   });
 }

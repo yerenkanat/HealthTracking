@@ -8,7 +8,7 @@
 /// Deliverable component for the Women's Health calendar (Tab 2).
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -33,11 +33,20 @@ import '../widgets/confirm.dart';
       Symptom.swelling => (icon: Icons.back_hand_rounded, color: Palette.blue),
     };
 
+/// Icon + accent colour for menstrual flow intensity (localized via `flow_<name>`).
+({IconData icon, Color color}) _flowStyle(Flow f) => switch (f) {
+      Flow.light => (icon: Icons.water_drop_outlined, color: Palette.rose),
+      Flow.medium => (icon: Icons.water_drop_rounded, color: Palette.roseDeep),
+      Flow.heavy => (icon: Icons.opacity_rounded, color: Palette.danger),
+    };
+
 class FloStyleCalendarDrawer extends StatelessWidget {
   final DateTime day;
   final DayLog log;
+  final bool pregnant; // pregnancy mode → kick counter; cycle mode → period flow
   final void Function(Mood) onToggleMood;
   final void Function(Symptom) onToggleSymptom;
+  final void Function(Flow) onToggleFlow;
   final VoidCallback onKick;
   final VoidCallback onResetKicks;
 
@@ -47,8 +56,10 @@ class FloStyleCalendarDrawer extends StatelessWidget {
     required this.log,
     required this.onToggleMood,
     required this.onToggleSymptom,
+    required this.onToggleFlow,
     required this.onKick,
     required this.onResetKicks,
+    this.pregnant = true,
   });
 
   @override
@@ -122,10 +133,29 @@ class FloStyleCalendarDrawer extends StatelessWidget {
               ),
               const SizedBox(height: 22),
 
-              // ---- Fetal kick counter ----
-              _SectionLabel(l.t('log_kicks')),
-              const SizedBox(height: 10),
-              _KickCounter(kicks: log.kicks, onKick: onKick, onReset: onResetKicks),
+              // ---- Period flow (cycle mode) OR fetal kick counter (pregnancy) ----
+              if (pregnant) ...[
+                _SectionLabel(l.t('log_kicks')),
+                const SizedBox(height: 10),
+                _KickCounter(kicks: log.kicks, onKick: onKick, onReset: onResetKicks),
+              ] else ...[
+                _SectionLabel(l.t('log_period')),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final f in Flow.values)
+                      _PillButton(
+                        icon: _flowStyle(f).icon,
+                        color: _flowStyle(f).color,
+                        label: l.t('flow_${f.name}'),
+                        selected: log.flow == f,
+                        onTap: () => onToggleFlow(f),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 8),
 
               // Done

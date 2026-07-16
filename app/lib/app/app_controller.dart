@@ -21,6 +21,7 @@ import '../data/app_store.dart';
 import '../data/persisted_config.dart';
 import '../domain/chat_controller.dart';
 import '../domain/cycle_log.dart';
+import '../domain/cycle_predictions.dart';
 import '../domain/family.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
@@ -215,6 +216,26 @@ class AppController {
   void toggleSymptomFor(DateTime day, Symptom s) => setDayLog(logFor(day).toggleSymptom(s));
   void addKickFor(DateTime day, [int by = 1]) => setDayLog(logFor(day).addKick(by));
   void resetKicksFor(DateTime day) => setDayLog(logFor(day).resetKicks());
+  void toggleFlowFor(DateTime day, Flow f) => setDayLog(logFor(day).withFlowToggled(f));
+
+  // ---- Menstrual cycle (used when NOT pregnant) ----
+  /// Whether the app is in pregnancy mode (a due date is set) vs cycle mode.
+  bool get isPregnant => _profile.dueDate != null;
+
+  /// The set of days a period flow was logged (for cycle prediction + calendar).
+  Set<DateTime> get periodDays {
+    final out = <DateTime>{};
+    for (final log in _dayLogs.values) {
+      if (log.hasPeriod) {
+        final d = dateFromKey(log.date);
+        if (d != null) out.add(d);
+      }
+    }
+    return out;
+  }
+
+  /// Predicted cycle info from logged periods (empty until the user logs a period).
+  CycleInfo get cycle => computeCycle(periodDays, _now());
 
   /// Estimated due date and the derived gestation (null until the mother sets one).
   DateTime? get dueDate => _profile.dueDate;

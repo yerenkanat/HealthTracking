@@ -9,9 +9,10 @@
 /// screen is presentation + light month-grid math only.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
+import '../../domain/cycle_predictions.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
@@ -52,21 +53,32 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
         appBar: AppBar(title: Text(l.t('cal_screen_title'))),
         body: StreamBuilder<void>(
           stream: c.changes,
-          builder: (context, _) => ListView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-            children: [
-              _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
-              const SizedBox(height: 16),
-              _MonthCalendar(
-                month: _month,
-                today: _today,
-                logs: c.dayLogs,
-                onPrev: () => _shiftMonth(-1),
-                onNext: () => _shiftMonth(1),
-                onTapDay: _openDay,
-              ),
-            ],
-          ),
+          builder: (context, _) {
+            final cycleMode = !c.isPregnant;
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+              children: [
+                if (cycleMode)
+                  _CycleHeader(controller: c, today: _today, onSetDueDate: _pickDueDate)
+                else
+                  _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
+                const SizedBox(height: 16),
+                _MonthCalendar(
+                  month: _month,
+                  today: _today,
+                  logs: c.dayLogs,
+                  cycle: cycleMode ? c.cycle : null,
+                  onPrev: () => _shiftMonth(-1),
+                  onNext: () => _shiftMonth(1),
+                  onTapDay: _openDay,
+                ),
+                if (cycleMode && c.cycle.hasData) ...[
+                  const SizedBox(height: 14),
+                  const _CycleLegend(),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -96,8 +108,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
         builder: (context, _) => FloStyleCalendarDrawer(
           day: day,
           log: c.logFor(day),
+          pregnant: c.isPregnant,
           onToggleMood: (m) => c.toggleMoodFor(day, m),
           onToggleSymptom: (s) => c.toggleSymptomFor(day, s),
+          onToggleFlow: (f) => c.toggleFlowFor(day, f),
           onKick: () => c.addKickFor(day),
           onResetKicks: () => c.resetKicksFor(day),
         ),
@@ -207,10 +221,193 @@ class _GestationHeader extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: GestureDetector(
+              onTap: () => _confirmEndPregnancy(context),
+              child: Text(l.t('cyc_end_pregnancy'),
+                  style: const TextStyle(color: Palette.textDim, fontSize: 12, decoration: TextDecoration.underline)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _WeekStrip(today: today, logs: controller.dayLogs),
+        ],
+      ),
+    );
+  }
+
+  /// Gentle, neutral confirmation before switching out of pregnancy mode.
+  /// Not styled as destructive — logged data is kept, and the wording is soft.
+  Future<void> _confirmEndPregnancy(BuildContext context) async {
+    final l = L10nScope.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.t('cyc_end_pregnancy')),
+        content: Text(l.t('cyc_end_pregnancy_body')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.t('act_cancel'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.t('onb_finish'))),
+        ],
+      ),
+    );
+    if (ok == true) controller.setDueDate(null);
+  }
+}
+
+/// Cycle header (non-pregnant mode): cycle day + days-to-next-period + phase,
+/// with a 7-day strip. Invites the user to log a period when there's no data yet.
+class _CycleHeader extends StatelessWidget {
+  final AppController controller;
+  final DateTime today;
+  final VoidCallback onSetDueDate;
+  const _CycleHeader({required this.controller, required this.today, required this.onSetDueDate});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final info = controller.cycle;
+
+    if (!info.hasData) {
+      return GlassCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 46, height: 46,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(colors: [Palette.rose, Palette.roseDeep]),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.water_drop_rounded, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l.t('cyc_no_data_title'),
+                          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 3),
+                      Text(l.t('cyc_no_data_body'),
+                          style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _ExpectingLink(onTap: onSetDueDate),
+          ],
+        ),
+      );
+    }
+
+    final loggedToday = controller.logFor(today).hasPeriod;
+    final phaseType = cycleDayType(today, info, loggedPeriod: loggedToday);
+    final until = info.daysUntilNextPeriod ?? 0;
+    final subtitle = until > 0
+        ? l.t('cyc_period_in', {'n': until})
+        : until == 0
+            ? l.t('cyc_period_today')
+            : l.t('cyc_period_late', {'n': -until});
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.06)],
+        ),
+        border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              MetricRing(
+                fraction: (info.cycleDay ?? 1) / info.avgCycleLength,
+                gradient: const LinearGradient(colors: [Palette.rose, Palette.violet]),
+                size: 72, stroke: 8,
+                center: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${info.cycleDay ?? 1}',
+                        style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 22, fontWeight: FontWeight.w700, height: 1)),
+                    Text(l.t('cyc_day_short'), style: const TextStyle(color: Palette.textDim, fontSize: 10)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(subtitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 5),
+                    if (_phaseLabel(l, phaseType) != null)
+                      _PhasePill(label: _phaseLabel(l, phaseType)!, type: phaseType),
+                    const SizedBox(height: 6),
+                    _ExpectingLink(onTap: onSetDueDate),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           _WeekStrip(today: today, logs: controller.dayLogs),
         ],
       ),
+    );
+  }
+
+  String? _phaseLabel(dynamic l, CycleDayType t) => switch (t) {
+        CycleDayType.period => l.t('cyc_phase_period'),
+        CycleDayType.fertile => l.t('cyc_phase_fertile'),
+        CycleDayType.ovulation => l.t('cyc_phase_ovulation'),
+        _ => null,
+      };
+}
+
+class _PhasePill extends StatelessWidget {
+  final String label;
+  final CycleDayType type;
+  const _PhasePill({required this.label, required this.type});
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (type) {
+      CycleDayType.period => Palette.roseDeep,
+      CycleDayType.ovulation => Palette.teal,
+      CycleDayType.fertile => Palette.teal,
+      _ => Palette.textDim,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+    );
+  }
+}
+
+class _ExpectingLink extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ExpectingLink({required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.pregnant_woman_rounded, size: 15, color: Palette.violet),
+        const SizedBox(width: 4),
+        Text(l.t('cyc_expecting'),
+            style: const TextStyle(color: Palette.violet, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 }
@@ -290,6 +487,7 @@ class _MonthCalendar extends StatelessWidget {
   final DateTime month;
   final DateTime today;
   final Map<String, DayLog> logs;
+  final CycleInfo? cycle; // non-null in cycle mode → colour by cycle phase
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final void Function(DateTime day) onTapDay;
@@ -300,6 +498,7 @@ class _MonthCalendar extends StatelessWidget {
     required this.onPrev,
     required this.onNext,
     required this.onTapDay,
+    this.cycle,
   });
 
   @override
@@ -361,6 +560,21 @@ class _MonthCalendar extends StatelessWidget {
     final isToday = isSameDay(date, today);
     final isFuture = date.isAfter(today);
 
+    // Colour resolution: cycle phase (cycle mode) wins, else the generic
+    // "something logged" pink dot.
+    Color fill = Colors.transparent;
+    Color? textColor;
+    Color borderColor = Palette.violet;
+    if (cycle != null) {
+      final type = cycleDayType(date, cycle!, loggedPeriod: log?.hasPeriod ?? false);
+      final s = cycleCellStyle(type);
+      fill = s.fill;
+      textColor = s.text;
+    } else if (logged) {
+      fill = Palette.rose.withValues(alpha: 0.16);
+      textColor = Palette.roseDeep;
+    }
+
     return GestureDetector(
       onTap: isFuture ? null : () => onTapDay(date),
       behavior: HitTestBehavior.opaque,
@@ -370,20 +584,61 @@ class _MonthCalendar extends StatelessWidget {
           child: Container(
             width: 34, height: 34,
             decoration: BoxDecoration(
-              color: logged ? Palette.rose.withValues(alpha: 0.16) : Colors.transparent,
+              color: fill,
               shape: BoxShape.circle,
-              border: isToday ? Border.all(color: Palette.violet, width: 1.6) : null,
+              border: isToday ? Border.all(color: borderColor, width: 1.6) : null,
             ),
             alignment: Alignment.center,
             child: Text('$dayNum',
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                  color: isFuture ? Palette.textDim.withValues(alpha: 0.5) : (logged ? Palette.roseDeep : Palette.text),
+                  color: textColor ?? (isFuture ? Palette.textDim.withValues(alpha: 0.5) : Palette.text),
                 )),
           ),
         ),
       ),
     );
+  }
+}
+
+/// Fill + text colour for each cycle day type in the month grid.
+({Color fill, Color? text}) cycleCellStyle(CycleDayType type) => switch (type) {
+      CycleDayType.period => (fill: Palette.roseDeep, text: Colors.white),
+      CycleDayType.predictedPeriod => (fill: Palette.rose.withValues(alpha: 0.18), text: Palette.roseDeep),
+      CycleDayType.ovulation => (fill: Palette.teal, text: Colors.white),
+      CycleDayType.fertile => (fill: Palette.teal.withValues(alpha: 0.16), text: Palette.teal),
+      CycleDayType.none => (fill: Colors.transparent, text: null),
+    };
+
+/// Legend for the cycle calendar colours.
+class _CycleLegend extends StatelessWidget {
+  const _CycleLegend();
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Wrap(
+      spacing: 16, runSpacing: 8,
+      children: [
+        _LegendDot(color: Palette.roseDeep, label: l.t('cyc_period')),
+        _LegendDot(color: Palette.rose.withValues(alpha: 0.5), label: l.t('cyc_predicted')),
+        _LegendDot(color: Palette.teal.withValues(alpha: 0.5), label: l.t('cyc_fertile')),
+        _LegendDot(color: Palette.teal, label: l.t('cyc_ovulation')),
+      ],
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 11, height: 11, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+    ]);
   }
 }

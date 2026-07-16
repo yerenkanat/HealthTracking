@@ -16,6 +16,16 @@ enum Mood { happy, calm, anxious, tired, sad }
 /// entry — selecting it clears the others (handled in [DayLog.toggleSymptom]).
 enum Symptom { allGood, cramps, spotting, headache, nausea, swelling }
 
+/// Menstrual flow intensity for a day (null = no period logged that day).
+enum Flow { light, medium, heavy }
+
+Flow? flowFromName(String? s) {
+  for (final f in Flow.values) {
+    if (f.name == s) return f;
+  }
+  return null;
+}
+
 Mood? moodFromName(String? s) {
   for (final m in Mood.values) {
     if (m.name == s) return m;
@@ -57,24 +67,39 @@ class DayLog {
   final Mood? mood;
   final Set<Symptom> symptoms;
   final int kicks;
+  final Flow? flow; // menstrual flow logged that day (null = none)
 
   const DayLog({
     required this.date,
     this.mood,
     this.symptoms = const {},
     this.kicks = 0,
+    this.flow,
   });
 
-  /// A day with no mood, no symptoms, and no kicks contributes no calendar dot.
-  bool get isEmpty => mood == null && symptoms.isEmpty && kicks == 0;
+  /// A day with no mood, symptoms, kicks, or flow contributes no calendar dot.
+  bool get isEmpty => mood == null && symptoms.isEmpty && kicks == 0 && flow == null;
   bool get isNotEmpty => !isEmpty;
+  bool get hasPeriod => flow != null;
 
-  DayLog copyWith({Mood? mood, Set<Symptom>? symptoms, int? kicks, bool clearMood = false}) => DayLog(
+  DayLog copyWith({
+    Mood? mood,
+    Set<Symptom>? symptoms,
+    int? kicks,
+    Flow? flow,
+    bool clearMood = false,
+    bool clearFlow = false,
+  }) =>
+      DayLog(
         date: date,
         mood: clearMood ? null : (mood ?? this.mood),
         symptoms: symptoms ?? this.symptoms,
         kicks: kicks ?? this.kicks,
+        flow: clearFlow ? null : (flow ?? this.flow),
       );
+
+  /// Toggle [f] — tapping the already-selected flow clears it.
+  DayLog withFlowToggled(Flow f) => flow == f ? copyWith(clearFlow: true) : copyWith(flow: f);
 
   /// Toggle [mood] — tapping the already-selected mood clears it.
   DayLog withMoodToggled(Mood m) =>
@@ -104,6 +129,7 @@ class DayLog {
         if (mood != null) 'mood': mood!.name,
         if (symptoms.isNotEmpty) 'symptoms': [for (final s in symptoms) s.name],
         if (kicks > 0) 'kicks': kicks,
+        if (flow != null) 'flow': flow!.name,
       };
 
   factory DayLog.fromJson(Map<String, dynamic> j) => DayLog(
@@ -114,6 +140,7 @@ class DayLog {
             if (symptomFromName(s as String?) != null) symptomFromName(s)!
         },
         kicks: (j['kicks'] as num?)?.toInt() ?? 0,
+        flow: flowFromName(j['flow'] as String?),
       );
 }
 
