@@ -70,6 +70,15 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('a tracker tag shows which child it is linked to', (tester) async {
+    final c = _onboarded(); // has child 'Sultan' (id child-1)
+    c.addDevice(const PairedDevice(id: 'TAG-01', name: 'Sultan tag', kind: DeviceKind.tag, childId: 'child-1'));
+    await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));
+    expect(find.text('Sultan tag'), findsOneWidget);
+    expect(find.textContaining('Linked to Sultan'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('Settings language selection updates the controller', (tester) async {
     final c = _onboarded();
     await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));

@@ -88,7 +88,7 @@ class SettingsScreen extends StatelessWidget {
                         _Row(
                           leading: d.kind == DeviceKind.band ? Icons.watch : Icons.sensors,
                           title: d.name,
-                          subtitle: '${l.t(d.kind == DeviceKind.band ? 'dev_band' : 'dev_tag')} · ${d.id}',
+                          subtitle: _deviceSubtitle(l, c, d),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline, color: Palette.textDim),
                             tooltip: l.t('act_remove'),
@@ -146,6 +146,16 @@ class SettingsScreen extends StatelessWidget {
     final age = DateTime.now().difference(cal.calibratedAt);
     if (age.inDays > 8) return l.t('cal_stale');
     return l.t('cal_last', {'ago': l.ago(age)});
+  }
+
+  String _deviceSubtitle(L10n l, AppController c, PairedDevice d) {
+    final kindLabel = l.t(d.kind == DeviceKind.band ? 'dev_band' : 'dev_tag');
+    if (d.kind == DeviceKind.tag && d.childId != null) {
+      for (final ch in c.children) {
+        if (ch.id == d.childId) return '${l.t('dev_linked_to', {'name': ch.name})} · ${d.id}';
+      }
+    }
+    return '$kindLabel · ${d.id}';
   }
 
   String _childSubtitle(L10n l, ChildProfile child) {

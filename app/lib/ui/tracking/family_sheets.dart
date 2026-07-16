@@ -212,6 +212,10 @@ Future<void> showAddDeviceSheet(BuildContext context, AppController controller) 
   final nameCtl = TextEditingController();
   final idCtl = TextEditingController();
   var kind = DeviceKind.band;
+  final children = controller.children;
+  // A tag belongs to one child; default to the currently selected child.
+  String? tagChildId = controller.selectedChild?.id ?? (children.isNotEmpty ? children.first.id : null);
+
   return _sheet(context, (ctx, l) {
     return StatefulBuilder(
       builder: (ctx, setState) => _SheetBody(
@@ -235,6 +239,34 @@ Future<void> showAddDeviceSheet(BuildContext context, AppController controller) 
               ),
             ),
           ]),
+          // A tracker tag is linked to a specific child — let the user pick which.
+          if (kind == DeviceKind.tag) ...[
+            const SizedBox(height: 16),
+            Text(l.t('dev_for_child'),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            const SizedBox(height: 8),
+            if (children.isEmpty)
+              Text(l.t('dev_no_child'), style: const TextStyle(color: Palette.textDim, fontSize: 13))
+            else
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                children: [
+                  for (final ch in children)
+                    ChoiceChip(
+                      label: Text(ch.name),
+                      selected: ch.id == tagChildId,
+                      onSelected: (_) => setState(() => tagChildId = ch.id),
+                      selectedColor: Palette.violet.withValues(alpha: 0.20),
+                      backgroundColor: Palette.glass,
+                      side: const BorderSide(color: Palette.border),
+                      labelStyle: TextStyle(
+                        color: ch.id == tagChildId ? Palette.text : Palette.textDim,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: nameCtl,
@@ -249,11 +281,13 @@ Future<void> showAddDeviceSheet(BuildContext context, AppController controller) 
         onSave: () {
           final id = idCtl.text.trim();
           if (id.isEmpty) return false;
+          // A tag must be linked to a child; block saving one with no child.
+          if (kind == DeviceKind.tag && tagChildId == null) return false;
           controller.addDevice(PairedDevice(
             id: id,
             name: nameCtl.text.trim().isEmpty ? l.t(kind == DeviceKind.band ? 'dev_band' : 'dev_tag') : nameCtl.text.trim(),
             kind: kind,
-            childId: kind == DeviceKind.tag ? controller.selectedChild?.id : null,
+            childId: kind == DeviceKind.tag ? tagChildId : null,
           ));
           return true;
         },
