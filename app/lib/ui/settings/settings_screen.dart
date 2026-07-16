@@ -43,15 +43,16 @@ class SettingsScreen extends StatelessWidget {
               ),
             ]),
 
-            // ---- Language ----
+            // ---- Language (distinct code badge per language) ----
             _Section(title: l.t('set_language'), children: [
-              for (final (loc, name) in const [
-                (AppLocale.ru, 'Русский'),
-                (AppLocale.kk, 'Қазақша'),
-                (AppLocale.en, 'English'),
+              for (final (loc, name, code) in const [
+                (AppLocale.ru, 'Русский', 'RU'),
+                (AppLocale.kk, 'Қазақша', 'KK'),
+                (AppLocale.en, 'English', 'EN'),
               ])
                 _Row(
                   leading: Icons.translate,
+                  leadingWidget: _LangBadge(code: code, selected: c.locale == loc),
                   title: name,
                   trailing: c.locale == loc
                       ? const Icon(Icons.check_circle, color: Palette.violet)
@@ -300,6 +301,28 @@ class _Row extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A small 2-letter language-code badge (RU / KK / EN) used in the language list
+/// so each row has a distinct leading marker instead of a repeated translate icon.
+class _LangBadge extends StatelessWidget {
+  final String code;
+  final bool selected;
+  const _LangBadge({required this.code, required this.selected});
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Palette.violet : Palette.textDim;
+    return Container(
+      width: 34, height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(code,
+          style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }
