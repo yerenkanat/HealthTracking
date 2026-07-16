@@ -11,31 +11,49 @@ class UserProfile {
   final String dialCode; // '+7'
   final String phoneNumber; // national digits/formatted
   final String doctorPhone; // emergency contact (E.164 or free-form), optional
+  final DateTime? dueDate; // estimated due date (EDD) → drives gestation week
   const UserProfile({
     this.displayName = '',
     this.dialCode = '+7',
     this.phoneNumber = '',
     this.doctorPhone = '',
+    this.dueDate,
   });
 
   String get e164 => toE164(dialCode, phoneNumber);
   bool get hasPhone => isValidNationalNumber(phoneNumber);
   bool get hasDoctor => doctorPhone.trim().isNotEmpty;
+  bool get hasDueDate => dueDate != null;
 
-  UserProfile copyWith({String? displayName, String? dialCode, String? phoneNumber, String? doctorPhone}) => UserProfile(
+  UserProfile copyWith({
+    String? displayName,
+    String? dialCode,
+    String? phoneNumber,
+    String? doctorPhone,
+    DateTime? dueDate,
+    bool clearDueDate = false,
+  }) =>
+      UserProfile(
         displayName: displayName ?? this.displayName,
         dialCode: dialCode ?? this.dialCode,
         phoneNumber: phoneNumber ?? this.phoneNumber,
         doctorPhone: doctorPhone ?? this.doctorPhone,
+        dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
       );
 
-  Map<String, dynamic> toJson() =>
-      {'displayName': displayName, 'dialCode': dialCode, 'phoneNumber': phoneNumber, 'doctorPhone': doctorPhone};
+  Map<String, dynamic> toJson() => {
+        'displayName': displayName,
+        'dialCode': dialCode,
+        'phoneNumber': phoneNumber,
+        'doctorPhone': doctorPhone,
+        if (dueDate != null) 'dueDate': dueDate!.toIso8601String(),
+      };
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
         displayName: (j['displayName'] as String?) ?? '',
         dialCode: (j['dialCode'] as String?) ?? '+7',
         phoneNumber: (j['phoneNumber'] as String?) ?? '',
         doctorPhone: (j['doctorPhone'] as String?) ?? '',
+        dueDate: j['dueDate'] is String ? DateTime.tryParse(j['dueDate'] as String) : null,
       );
 }
 

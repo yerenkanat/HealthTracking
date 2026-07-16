@@ -18,9 +18,16 @@ class Palette {
   static const teal = Color(0xFF12B3A6);
   static const blue = Color(0xFF4F8DF5);
 
+  // Warm FemTech accents (women's-health calendar + gestation)
+  static const rose = Color(0xFFF67CA6); // soft warm pink
+  static const roseDeep = Color(0xFFE0568A);
+  static const blush = Color(0xFFFDF2F6); // whisper-pink surface tint
+  static const lilac = Color(0xFFEDE9FF); // soft violet fill
+
   // Status
   static const good = Color(0xFF17A672);
   static const watch = Color(0xFFE0930B);
+  static const amber = Color(0xFFE8890B); // warm, low-anxiety "delayed" state
   static const danger = Color(0xFFE5484D);
 
   // Text + lines
@@ -38,6 +45,11 @@ class Palette {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [teal, blue],
+  );
+  static const roseViolet = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [rose, violet],
   );
 
   // Soft, premium card shadow (not glow).

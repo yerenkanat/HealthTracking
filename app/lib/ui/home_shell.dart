@@ -10,6 +10,7 @@ import '../app/app_controller.dart';
 import '../core/geofence.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
+import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/child_map_screen.dart';
@@ -39,14 +40,17 @@ class _HomeShellState extends State<HomeShell> {
     final l = L10nScope.of(context);
 
     final pages = [
-      HealthDashboardScreen(
+      HealthDashboardView(
         samples: c.samples,
         greetingName: c.displayName,
         currentLocale: c.locale,
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
+        onOpenAdvisor: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => AdvisorScreen(samples: c.samples)),
+        ),
       ),
-      AdvisorScreen(samples: c.samples),
+      WomensHealthScreen(controller: c),
       ChildMapScreen(
         childName: c.childName,
         childLocation: loc?.coords,
@@ -74,9 +78,9 @@ class _HomeShellState extends State<HomeShell> {
               selectedIcon: const Icon(Icons.favorite),
               label: l.t('nav_health')),
           NavigationDestination(
-              icon: const Icon(Icons.auto_awesome_outlined),
-              selectedIcon: const Icon(Icons.auto_awesome),
-              label: l.t('nav_advisor')),
+              icon: const Icon(Icons.calendar_today_outlined),
+              selectedIcon: const Icon(Icons.calendar_month),
+              label: l.t('nav_calendar')),
           NavigationDestination(
               icon: const Icon(Icons.location_on_outlined),
               selectedIcon: const Icon(Icons.location_on),
@@ -121,8 +125,10 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-/// Shown in place of GoogleMap when no Maps key is configured. Lists the child's
-/// zones so the tab is still useful; the status card below shows live position.
+/// Shown in place of GoogleMap when no Maps key is configured. Just a calm
+/// message — the child's zones are surfaced by the floating zone pills layered
+/// above the map, and live position by the status card, so we don't repeat them
+/// here.
 class _MapPlaceholder extends StatelessWidget {
   final List<Geofence> fences;
   final Coordinates? child;
@@ -144,21 +150,6 @@ class _MapPlaceholder extends StatelessWidget {
           Text(l.t('map_unavailable'),
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
-          if (fences.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final f in fences)
-                  Chip(
-                    avatar: Icon(Icons.place, size: 16, color: scheme.primary),
-                    label: Text(f.name),
-                  ),
-              ],
-            ),
-          ],
         ],
       ),
     );

@@ -14,17 +14,17 @@ void main() {
   }
 
   testWidgets('empty state renders in Russian by default scope', (tester) async {
-    await tester.pumpWidget(wrap(AppLocale.ru, const HealthDashboardScreen(samples: [])));
+    await tester.pumpWidget(wrap(AppLocale.ru, const HealthDashboardView(samples: [])));
     expect(find.text('Пока нет данных'), findsOneWidget);
   });
 
   testWidgets('empty state renders in Kazakh', (tester) async {
-    await tester.pumpWidget(wrap(AppLocale.kk, const HealthDashboardScreen(samples: [])));
+    await tester.pumpWidget(wrap(AppLocale.kk, const HealthDashboardView(samples: [])));
     expect(find.text('Әзірге деректер жоқ'), findsOneWidget);
   });
 
   testWidgets('falls back to English with no scope', (tester) async {
-    await tester.pumpWidget(wrap(null, const HealthDashboardScreen(samples: [])));
+    await tester.pumpWidget(wrap(null, const HealthDashboardView(samples: [])));
     expect(find.text('No readings yet'), findsOneWidget);
   });
 
@@ -32,7 +32,7 @@ void main() {
     AppLocale? picked;
     await tester.pumpWidget(wrap(
       AppLocale.ru,
-      HealthDashboardScreen(
+      HealthDashboardView(
         samples: const [],
         currentLocale: AppLocale.ru,
         onLocaleChange: (l) => picked = l,

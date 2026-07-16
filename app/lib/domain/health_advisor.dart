@@ -98,6 +98,12 @@ List<Advisory> generateAdvisories(
   return [...watch, ...positive];
 }
 
+/// The single most important advisory for the dashboard's "peace of mind"
+/// banner: watch-first, else the overall-steady reassurance. Never null — mirrors
+/// [generateAdvisories], which always returns at least one card. The banner reads
+/// green for a positive tone, warm amber for a watch tone, neutral while gathering.
+Advisory overallStatus(List<HealthSample> samples) => generateAdvisories(samples).first;
+
 double _mean(Iterable<double> xs) {
   var sum = 0.0, n = 0;
   for (final x in xs) {

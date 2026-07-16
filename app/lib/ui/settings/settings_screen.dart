@@ -96,16 +96,13 @@ class SettingsScreen extends StatelessWidget {
                     ],
             ),
 
-            // ---- Blood pressure calibration ----
-            _Section(title: l.t('set_bp_calibration'), children: [
-              _Row(
-                leading: Icons.speed_rounded,
-                title: l.t('cal_title'),
-                subtitle: _calStatus(l, c),
-                trailing: const Icon(Icons.chevron_right, color: Palette.textDim),
-                onTap: () => showCalibrateBpSheet(context, c),
-              ),
-            ]),
+            // ---- Blood pressure calibration (highlighted CTA) ----
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 18, 6, 8),
+              child: Text(l.t('set_bp_calibration').toUpperCase(),
+                  style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            ),
+            _CalibrateCta(status: _calStatus(l, c), onTap: () => showCalibrateBpSheet(context, c)),
 
             // ---- About ----
             _Section(title: l.t('set_about'), children: [
@@ -158,6 +155,77 @@ class SettingsScreen extends StatelessWidget {
       await c.resetApp();
       if (context.mounted) Navigator.pop(context); // leave settings → onboarding shows
     }
+  }
+}
+
+/// Highlighted call-to-action for weekly blood-pressure calibration — a critical
+/// feature, so it gets a distinct accent card with an informative tooltip rather
+/// than a plain list row.
+class _CalibrateCta extends StatelessWidget {
+  final String status;
+  final VoidCallback onTap;
+  const _CalibrateCta({required this.status, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Tooltip(
+      message: l.t('cal_tooltip'),
+      triggerMode: TooltipTriggerMode.tap,
+      showDuration: const Duration(seconds: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Palette.violet.withValues(alpha: 0.10), Palette.pink.withValues(alpha: 0.07)],
+              ),
+              border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Palette.violet, Palette.pink]),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: const Icon(Icons.monitor_heart_rounded, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(l.t('cal_title'),
+                                style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+                          ),
+                          const Icon(Icons.info_outline_rounded, size: 16, color: Palette.violet),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(status, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, color: Palette.violet),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

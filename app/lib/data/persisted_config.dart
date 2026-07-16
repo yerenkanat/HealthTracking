@@ -7,6 +7,7 @@ import 'dart:convert';
 
 import '../ble/calibration.dart';
 import '../core/geofence.dart';
+import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../l10n/l10n.dart';
 
@@ -68,6 +69,7 @@ class PersistedConfig {
   final List<ChildProfile> children;
   final List<PairedDevice> devices;
   final BpCalibration? bpCalibration;
+  final Map<String, DayLog> dayLogs; // dateKey → women's-health day entry
 
   const PersistedConfig({
     required this.onboarded,
@@ -76,16 +78,18 @@ class PersistedConfig {
     required this.children,
     required this.devices,
     this.bpCalibration,
+    this.dayLogs = const {},
   });
 
   Map<String, dynamic> toJson() => {
-        'version': 3,
+        'version': 4,
         'onboarded': onboarded,
         'locale': locale.name,
         'profile': profile.toJson(),
         'children': [for (final c in children) childToJson(c)],
         'devices': [for (final d in devices) d.toJson()],
         if (bpCalibration != null) 'bpCalibration': bpCalibration!.toJson(),
+        if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -105,6 +109,8 @@ class PersistedConfig {
         bpCalibration: j['bpCalibration'] is Map
             ? BpCalibration.fromJson((j['bpCalibration'] as Map).cast<String, dynamic>())
             : null,
+        dayLogs: dayLogsFromJson(
+            j['dayLogs'] is Map ? (j['dayLogs'] as Map).cast<String, dynamic>() : null),
       );
 
   String encode() => jsonEncode(toJson());

@@ -20,6 +20,7 @@ import '../data/api_client.dart';
 import '../data/app_store.dart';
 import '../data/persisted_config.dart';
 import '../domain/chat_controller.dart';
+import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
@@ -58,6 +59,7 @@ class AppController {
   String? _selectedChildId;
   final List<PairedDevice> _devices = [];
   BpCalibration? _bpCalibration;
+  final Map<String, DayLog> _dayLogs = {};
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -102,6 +104,9 @@ class AppController {
       ..clear()
       ..addAll(cfg.devices);
     _bpCalibration = cfg.bpCalibration;
+    _dayLogs
+      ..clear()
+      ..addAll(cfg.dayLogs);
     _onboarded = true;
     _notify();
   }
@@ -113,6 +118,7 @@ class AppController {
         children: List.of(_children),
         devices: List.of(_devices),
         bpCalibration: _bpCalibration,
+        dayLogs: Map.of(_dayLogs),
       );
 
   void _persist() {
@@ -186,6 +192,39 @@ class AppController {
     _notify();
   }
 
+  // ---- Women's-health day logging (mood / symptoms / fetal kicks) ----
+  Map<String, DayLog> get dayLogs => Map.unmodifiable(_dayLogs);
+
+  /// The log for [day] (never null — an empty entry when nothing is recorded).
+  DayLog logFor(DateTime day) => _dayLogs[dateKey(day)] ?? DayLog(date: dateKey(day));
+
+  /// Persist [log], dropping it from storage entirely when it becomes empty so
+  /// the calendar doesn't show a dot for a day the user cleared.
+  void setDayLog(DayLog log) {
+    if (log.isEmpty) {
+      _dayLogs.remove(log.date);
+    } else {
+      _dayLogs[log.date] = log;
+    }
+    _persist();
+    _notify();
+  }
+
+  void toggleMoodFor(DateTime day, Mood m) => setDayLog(logFor(day).withMoodToggled(m));
+  void toggleSymptomFor(DateTime day, Symptom s) => setDayLog(logFor(day).toggleSymptom(s));
+  void addKickFor(DateTime day, [int by = 1]) => setDayLog(logFor(day).addKick(by));
+  void resetKicksFor(DateTime day) => setDayLog(logFor(day).resetKicks());
+
+  /// Estimated due date and the derived gestation (null until the mother sets one).
+  DateTime? get dueDate => _profile.dueDate;
+  GestationInfo? get gestation => gestationFor(_profile.dueDate, _now());
+
+  void setDueDate(DateTime? date) {
+    _profile = _profile.copyWith(dueDate: date, clearDueDate: date == null);
+    _persist();
+    _notify();
+  }
+
   // ---- Blood-pressure calibration (weekly manual tonometer reading) ----
   BpCalibration? get bpCalibration => _bpCalibration;
 
@@ -219,6 +258,7 @@ class AppController {
     _selectedChildId = null;
     _profile = const UserProfile();
     _bpCalibration = null;
+    _dayLogs.clear();
     _onboarded = false;
     store.clear();
     await _persistStore?.clear();

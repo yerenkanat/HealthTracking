@@ -86,19 +86,6 @@ class ProfileScreen extends StatelessWidget {
                   )),
                 ],
               ),
-              const SizedBox(height: 14),
-              GlassCard(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => SettingsScreen(controller: c)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.settings_outlined, color: Palette.textDim),
-                  const SizedBox(width: 14),
-                  Expanded(child: Text(l.t('prof_open_settings'),
-                      style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600))),
-                  const Icon(Icons.chevron_right, color: Palette.textDim),
-                ]),
-              ),
             ],
           );
         },

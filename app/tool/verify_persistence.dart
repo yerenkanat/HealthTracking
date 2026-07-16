@@ -8,6 +8,7 @@ import '../lib/app/app_controller.dart';
 import '../lib/core/geofence.dart';
 import '../lib/data/app_store.dart';
 import '../lib/data/persisted_config.dart';
+import '../lib/domain/cycle_log.dart';
 import '../lib/domain/family.dart';
 import '../lib/domain/onboarding_controller.dart';
 import '../lib/l10n/l10n.dart';
@@ -31,6 +32,10 @@ void main() async {
       const ChildProfile(id: 'child-2', name: 'Aida'),
     ],
     devices: const [PairedDevice(id: 'AA:BB', name: 'Band', kind: DeviceKind.band)],
+    dayLogs: {
+      '2026-07-14': const DayLog(date: '2026-07-14', mood: Mood.happy, symptoms: {Symptom.cramps}, kicks: 4),
+      '2026-07-15': const DayLog(date: '2026-07-15', kicks: 0), // empty → dropped on encode
+    },
   );
   final decoded = PersistedConfig.decode(cfg.encode());
   _chk('round-trip onboarded + locale', decoded.onboarded && decoded.locale == AppLocale.kk);
@@ -38,6 +43,11 @@ void main() async {
   _chk('round-trip 2 children', decoded.children.length == 2 && decoded.children[1].name == 'Aida');
   _chk('round-trip child geofence', decoded.children[0].geofences.first.center?.lat == 43.238949);
   _chk('round-trip device', decoded.devices.length == 1 && decoded.devices.first.kind == DeviceKind.band);
+  _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
+  _chk('round-trip dayLog fields',
+      decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&
+          decoded.dayLogs['2026-07-14']?.symptoms.contains(Symptom.cramps) == true &&
+          decoded.dayLogs['2026-07-14']?.kicks == 4);
 
   // ---- AppController.restore() ----
   final ctl = AppController(persistStore: InMemoryAppStore(cfg));
@@ -118,9 +128,27 @@ void main() async {
   _chk('calibration restored', ctl5.bpCalibration?.diastolicOffset == 4);
   await ctl5.dispose();
 
+  // ---- day logs: toggle + kicks persist + restore ----
+  final day = DateTime(2026, 7, 15);
+  ctl4.toggleMoodFor(day, Mood.calm);
+  ctl4.toggleSymptomFor(day, Symptom.nausea);
+  ctl4.addKickFor(day);
+  ctl4.addKickFor(day);
+  await Future<void>.delayed(Duration.zero);
+  _chk('day log recorded', ctl4.logFor(day).mood == Mood.calm && ctl4.logFor(day).kicks == 2);
+  _chk('day log persisted', (await store3.load())?.dayLogs['2026-07-15']?.kicks == 2);
+  final ctl6 = AppController(persistStore: store3, now: () => day);
+  await ctl6.restore();
+  _chk('day log restored', ctl6.logFor(day).symptoms.contains(Symptom.nausea) && ctl6.logFor(day).mood == Mood.calm);
+  // due date drives gestation (now pinned to `day` for determinism)
+  ctl6.setDueDate(day.add(const Duration(days: 112)));
+  _chk('gestation from due date', ctl6.gestation?.week == 24 && ctl6.gestation?.dayOfWeek == 0);
+  await ctl6.dispose();
+
   // ---- reset wipes + returns to onboarding ----
   await ctl4.resetApp();
   _chk('reset clears onboarded', !ctl4.onboarded && ctl4.children.isEmpty);
+  _chk('reset clears day logs', ctl4.dayLogs.isEmpty);
   _chk('reset clears persisted', (await store3.load()) == null);
   await ctl4.dispose();
 

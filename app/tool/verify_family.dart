@@ -40,6 +40,15 @@ void main() {
   _chk('profile doctor round-trip', UserProfile.fromJson(pd.toJson()).doctorPhone == '+77771234567');
   _chk('profile no doctor by default', !p.hasDoctor);
 
+  // ---- Due date (gestation) ----
+  _chk('profile no dueDate by default', !p.hasDueDate);
+  final withDue = p.copyWith(dueDate: DateTime(2026, 12, 1));
+  _chk('profile set dueDate', withDue.hasDueDate && withDue.dueDate == DateTime(2026, 12, 1));
+  _chk('profile clear dueDate', !withDue.copyWith(clearDueDate: true).hasDueDate);
+  _chk('profile dueDate round-trip',
+      UserProfile.fromJson(withDue.toJson()).dueDate == DateTime(2026, 12, 1));
+  _chk('profile keeps name when setting dueDate', withDue.displayName == 'Aigerim');
+
   // ---- ChildProfile ----
   final child = ChildProfile(
     id: 'c1', name: 'Sultan',
