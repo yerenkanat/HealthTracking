@@ -13,6 +13,14 @@ the issue fixed, before saying a screen is done.
       listing zones that the floating zone pills already show).
 - [ ] Each icon/button has exactly one obvious meaning; no two buttons do the same thing.
 
+## 1b. Destructive actions always confirm
+- [ ] **Every delete / remove / unpair / reset asks for confirmation first** via
+      `confirmDestructive(...)` — a single mis-tap must never silently lose data.
+      _This is the mistake that added this rule (a child was deleted on a mis-tap
+      with no prompt)._
+- [ ] The confirm dialog names what's affected and warns when it can't be undone.
+- [ ] Delete affordances have a tooltip/semantics label.
+
 ## 2. Navigation integrity
 - [ ] Bottom nav ≤ 5 tabs, each with a distinct icon + label.
 - [ ] Back behaviour is predictable; no dead ends, no navigation loops that trap the user.

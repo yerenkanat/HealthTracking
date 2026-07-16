@@ -48,6 +48,12 @@ void main() {
   _chk('ago() buckets: minutes', en.ago(const Duration(minutes: 5)) == '5 min ago');
   _chk('ago() ru minutes', const L10n(AppLocale.ru).ago(const Duration(minutes: 5)) == '5 мин назад');
 
+  // ---- Child age formatting ----
+  _chk('childAge newborn', en.childAge(0) == 'Newborn');
+  _chk('childAge months', en.childAge(8) == '8 mo');
+  _chk('childAge year+months', en.childAge(14) == '1y 2m');
+  _chk('childAge years', en.childAge(30) == '2 yrs');
+
   // ---- Triage code → message ----
   for (final code in triageCodesWithMessages) {
     _chk('triage $code has ru message', const L10n(AppLocale.ru).triageMessage(code).isNotEmpty);

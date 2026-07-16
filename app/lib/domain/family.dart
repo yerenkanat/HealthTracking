@@ -62,14 +62,41 @@ class ChildProfile {
   final String name;
   final List<Geofence> geofences;
   final String? tagId; // beacon/tracker id, if paired
+  final DateTime? dateOfBirth; // for age-based personalization (safety tips, thresholds)
 
-  const ChildProfile({required this.id, required this.name, this.geofences = const [], this.tagId});
+  const ChildProfile({
+    required this.id,
+    required this.name,
+    this.geofences = const [],
+    this.tagId,
+    this.dateOfBirth,
+  });
 
-  ChildProfile copyWith({String? name, List<Geofence>? geofences, String? tagId}) => ChildProfile(
+  bool get hasDateOfBirth => dateOfBirth != null;
+
+  /// Whole months of age at [now]; 0 if unknown or in the future. Kept pure so
+  /// the UI just localizes it (see L10n.childAge).
+  int ageInMonths(DateTime now) {
+    final d = dateOfBirth;
+    if (d == null) return 0;
+    var months = (now.year - d.year) * 12 + (now.month - d.month);
+    if (now.day < d.day) months -= 1;
+    return months < 0 ? 0 : months;
+  }
+
+  ChildProfile copyWith({
+    String? name,
+    List<Geofence>? geofences,
+    String? tagId,
+    DateTime? dateOfBirth,
+    bool clearDateOfBirth = false,
+  }) =>
+      ChildProfile(
         id: id,
         name: name ?? this.name,
         geofences: geofences ?? this.geofences,
         tagId: tagId ?? this.tagId,
+        dateOfBirth: clearDateOfBirth ? null : (dateOfBirth ?? this.dateOfBirth),
       );
 }
 

@@ -11,6 +11,7 @@ import '../calibration/bp_calibration_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
+import '../widgets/confirm.dart';
 
 class SettingsScreen extends StatelessWidget {
   final AppController controller;
@@ -67,10 +68,19 @@ class SettingsScreen extends StatelessWidget {
                   _Row(
                     leading: Icons.child_care,
                     title: child.name,
-                    subtitle: '${child.geofences.length} · ${l.t('nav_child')}',
+                    subtitle: _childSubtitle(l, child),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Palette.textDim),
-                      onPressed: () => c.removeChild(child.id),
+                      tooltip: l.t('act_remove'),
+                      onPressed: () async {
+                        final ok = await confirmDestructive(
+                          context,
+                          title: l.t('confirm_remove_child_title'),
+                          message: l.t('confirm_remove_child_body', {'name': child.name}),
+                          confirmLabel: l.t('act_remove'),
+                        );
+                        if (ok) c.removeChild(child.id);
+                      },
                     ),
                   ),
               ],
@@ -90,7 +100,16 @@ class SettingsScreen extends StatelessWidget {
                           subtitle: '${l.t(d.kind == DeviceKind.band ? 'dev_band' : 'dev_tag')} · ${d.id}',
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline, color: Palette.textDim),
-                            onPressed: () => c.removeDevice(d.id),
+                            tooltip: l.t('act_remove'),
+                            onPressed: () async {
+                              final ok = await confirmDestructive(
+                                context,
+                                title: l.t('confirm_remove_device_title'),
+                                message: l.t('confirm_remove_device_body', {'name': d.name}),
+                                confirmLabel: l.t('act_remove'),
+                              );
+                              if (ok) c.removeDevice(d.id);
+                            },
                           ),
                         ),
                     ],
@@ -135,23 +154,21 @@ class SettingsScreen extends StatelessWidget {
     return l.t('cal_last', {'ago': l.ago(age)});
   }
 
+  String _childSubtitle(L10n l, ChildProfile child) {
+    final zones = '${child.geofences.length} · ${l.t('nav_child')}';
+    if (!child.hasDateOfBirth) return zones;
+    return '${l.childAge(child.ageInMonths(DateTime.now()))} · $zones';
+  }
+
   Future<void> _confirmReset(BuildContext context, AppController c) async {
     final l = L10nScope.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.t('set_reset_title')),
-        content: Text(l.t('set_reset_body')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.t('act_cancel'))),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.t('set_reset'), style: const TextStyle(color: Palette.danger)),
-          ),
-        ],
-      ),
+    final ok = await confirmDestructive(
+      context,
+      title: l.t('set_reset_title'),
+      message: l.t('set_reset_body'),
+      confirmLabel: l.t('set_reset'),
     );
-    if (ok == true && context.mounted) {
+    if (ok && context.mounted) {
       await c.resetApp();
       if (context.mounted) Navigator.pop(context); // leave settings → onboarding shows
     }

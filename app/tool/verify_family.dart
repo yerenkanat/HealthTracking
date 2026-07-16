@@ -58,6 +58,16 @@ void main() {
   _chk('child fields', child.name == 'Sultan' && child.geofences.length == 1 && child.tagId == 'TAG-1');
   _chk('child copyWith name', child.copyWith(name: 'Aida').name == 'Aida' && child.copyWith(name: 'Aida').id == 'c1');
 
+  // ---- Child date of birth + age ----
+  _chk('child no DOB by default', !child.hasDateOfBirth && child.ageInMonths(DateTime(2026, 7, 15)) == 0);
+  final dobChild = ChildProfile(id: 'c2', name: 'Baby', dateOfBirth: DateTime(2024, 1, 15));
+  _chk('child hasDateOfBirth', dobChild.hasDateOfBirth);
+  _chk('child ageInMonths (past birthday)', dobChild.ageInMonths(DateTime(2026, 7, 15)) == 30);
+  final preBday = ChildProfile(id: 'c3', name: 'B', dateOfBirth: DateTime(2024, 7, 20));
+  _chk('child ageInMonths (before birthday this month)', preBday.ageInMonths(DateTime(2026, 7, 15)) == 23);
+  _chk('child ageInMonths clamps future to 0', preBday.ageInMonths(DateTime(2024, 1, 1)) == 0);
+  _chk('child DOB copyWith clear', !dobChild.copyWith(clearDateOfBirth: true).hasDateOfBirth);
+
   // ---- PairedDevice ----
   const band = PairedDevice(id: 'AA:BB', name: 'Band 1', kind: DeviceKind.band);
   const tag = PairedDevice(id: 'TAG-1', name: 'Sultan tag', kind: DeviceKind.tag, childId: 'c1');

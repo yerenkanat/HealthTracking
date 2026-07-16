@@ -277,7 +277,29 @@ class _ChildPage extends StatelessWidget {
           decoration: InputDecoration(labelText: l.t('onb_child_name_hint'), border: const OutlineInputBorder()),
           onChanged: controller.setChildName,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.cake_outlined),
+          title: Text(l.t('child_dob_hint')),
+          subtitle: Text(l.t('child_dob_help'), style: const TextStyle(fontSize: 12)),
+          trailing: controller.childDob != null
+              ? Text(MaterialLocalizations.of(context).formatMediumDate(controller.childDob!),
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600))
+              : const Icon(Icons.chevron_right),
+          onTap: () async {
+            final now = DateTime.now();
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: controller.childDob ?? DateTime(now.year - 4, now.month, now.day),
+              firstDate: DateTime(now.year - 18),
+              lastDate: now,
+              helpText: l.t('child_dob_hint'),
+            );
+            if (picked != null) controller.setChildDob(picked);
+          },
+        ),
+        const SizedBox(height: 12),
         ListTile(
           leading: const Icon(Icons.home_outlined),
           title: Text(l.t('onb_home_label')),

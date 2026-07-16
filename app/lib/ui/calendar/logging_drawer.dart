@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../widgets/confirm.dart';
 
 /// Icon + accent colour for each mood (localized label via `mood_<name>`).
 ({IconData icon, Color color}) _moodStyle(Mood m) => switch (m) {
@@ -250,7 +251,15 @@ class _KickCounter extends StatelessWidget {
               ),
               if (kicks > 0)
                 TextButton(
-                  onPressed: onReset,
+                  onPressed: () async {
+                    final ok = await confirmDestructive(
+                      context,
+                      title: l.t('confirm_reset_kicks_title'),
+                      message: l.t('confirm_reset_kicks_body'),
+                      confirmLabel: l.t('kick_reset'),
+                    );
+                    if (ok) onReset();
+                  },
                   style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
                   child: Text(l.t('kick_reset'), style: const TextStyle(fontSize: 12.5)),
                 ),

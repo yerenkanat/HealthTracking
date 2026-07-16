@@ -1,5 +1,5 @@
-/// Bottom sheets for adding a child or a device — high-tech dark glass styling.
-/// Wired from the Child tab's "+" menu.
+/// Bottom sheets for adding a child or a device — premium light styling.
+/// Wired from the Child tab's "+" menu and Settings.
 library;
 
 import 'package:flutter/material.dart';
@@ -83,31 +83,53 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
 
 Future<void> showAddChildSheet(BuildContext context, AppController controller) {
   final nameCtl = TextEditingController();
+  DateTime? dob;
   return _sheet(context, (ctx, l) {
-    return _SheetBody(
-      title: l.t('tr_add_child'),
-      icon: Icons.child_care,
-      fields: [
-        TextField(
-          controller: nameCtl,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(labelText: l.t('onb_child_name_hint')),
-        ),
-      ],
-      onSave: () {
-        final name = nameCtl.text.trim();
-        if (name.isEmpty) return false;
-        // Default Home zone; the user can refine zones later.
-        controller.addChild(ChildProfile(
-          id: 'child-${DateTime.now().microsecondsSinceEpoch}',
-          name: name,
-          geofences: [
-            Geofence.circle('home', l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
-          ],
-        ));
-        return true;
-      },
+    return StatefulBuilder(
+      builder: (ctx, setState) => _SheetBody(
+        title: l.t('tr_add_child'),
+        icon: Icons.child_care,
+        fields: [
+          TextField(
+            controller: nameCtl,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(labelText: l.t('onb_child_name_hint')),
+          ),
+          const SizedBox(height: 12),
+          // Date of birth — optional, but powers age-based personalization.
+          _DateField(
+            label: l.t('child_dob_hint'),
+            helper: l.t('child_dob_help'),
+            value: dob,
+            onTap: () async {
+              final now = DateTime.now();
+              final picked = await showDatePicker(
+                context: ctx,
+                initialDate: dob ?? DateTime(now.year - 4, now.month, now.day),
+                firstDate: DateTime(now.year - 18),
+                lastDate: now,
+                helpText: l.t('child_dob_hint'),
+              );
+              if (picked != null) setState(() => dob = picked);
+            },
+          ),
+        ],
+        onSave: () {
+          final name = nameCtl.text.trim();
+          if (name.isEmpty) return false;
+          // Default Home zone; the user can refine zones later.
+          controller.addChild(ChildProfile(
+            id: 'child-${DateTime.now().microsecondsSinceEpoch}',
+            name: name,
+            dateOfBirth: dob,
+            geofences: [
+              Geofence.circle('home', l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
+            ],
+          ));
+          return true;
+        },
+      ),
     );
   });
 }
@@ -239,6 +261,49 @@ class _SheetBody extends StatelessWidget {
           ]),
         ],
       ),
+    );
+  }
+}
+
+/// A tappable, input-styled field that opens a date picker. Shows the chosen
+/// date (locale-formatted) or a hint when empty, plus optional helper text.
+class _DateField extends StatelessWidget {
+  final String label;
+  final String? helper;
+  final DateTime? value;
+  final VoidCallback onTap;
+  const _DateField({required this.label, required this.onTap, this.helper, this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final ml = MaterialLocalizations.of(context);
+    final hasValue = value != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: const Icon(Icons.cake_outlined, size: 20),
+            ),
+            child: Text(
+              hasValue ? ml.formatMediumDate(value!) : ml.dateHelpText,
+              style: TextStyle(
+                fontSize: 15.5,
+                color: hasValue ? Palette.text : Palette.textDim,
+              ),
+            ),
+          ),
+        ),
+        if (helper != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 6),
+            child: Text(helper!, style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+          ),
+      ],
     );
   }
 }

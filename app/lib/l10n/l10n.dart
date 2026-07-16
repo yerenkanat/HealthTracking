@@ -241,6 +241,34 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Calibrate with a medical tonometer weekly for precise smart-band mapping.'
   },
 
+  // Destructive-action confirmations
+  'confirm_remove_child_title': {AppLocale.ru: 'Удалить ребёнка?', AppLocale.kk: 'Баланы жою керек пе?', AppLocale.en: 'Remove child?'},
+  'confirm_remove_child_body': {
+    AppLocale.ru: '«{name}» и связанные с ним устройства будут удалены. Это действие нельзя отменить.',
+    AppLocale.kk: '«{name}» және онымен байланысты құрылғылар жойылады. Бұл әрекетті қайтару мүмкін емес.',
+    AppLocale.en: "{name} and any linked devices will be removed. This can't be undone."
+  },
+  'confirm_remove_device_title': {AppLocale.ru: 'Удалить устройство?', AppLocale.kk: 'Құрылғыны жою керек пе?', AppLocale.en: 'Remove device?'},
+  'confirm_remove_device_body': {
+    AppLocale.ru: '«{name}» будет отвязано и удалено.',
+    AppLocale.kk: '«{name}» ажыратылып, жойылады.',
+    AppLocale.en: '{name} will be unpaired and removed.'
+  },
+  'confirm_reset_kicks_title': {AppLocale.ru: 'Сбросить счётчик?', AppLocale.kk: 'Санауышты ысыру керек пе?', AppLocale.en: 'Reset kick count?'},
+  'confirm_reset_kicks_body': {
+    AppLocale.ru: 'Счётчик шевелений за этот день обнулится.',
+    AppLocale.kk: 'Осы күнгі тебіну саны нөлге түседі.',
+    AppLocale.en: 'The kick count for this day will be reset to zero.'
+  },
+
+  // Child date of birth + age
+  'child_dob_hint': {AppLocale.ru: 'Дата рождения', AppLocale.kk: 'Туған күні', AppLocale.en: 'Date of birth'},
+  'child_dob_help': {AppLocale.ru: 'Помогает персонализировать советы по возрасту', AppLocale.kk: 'Жасына қарай кеңестерді жекелендіруге көмектеседі', AppLocale.en: 'Helps personalize tips by age'},
+  'age_years': {AppLocale.ru: '{n} г.', AppLocale.kk: '{n} жас', AppLocale.en: '{n} yrs'},
+  'age_year_months': {AppLocale.ru: '{y} г. {m} мес.', AppLocale.kk: '{y} жыл {m} ай', AppLocale.en: '{y}y {m}m'},
+  'age_months': {AppLocale.ru: '{n} мес.', AppLocale.kk: '{n} ай', AppLocale.en: '{n} mo'},
+  'age_newborn': {AppLocale.ru: 'Новорождённый', AppLocale.kk: 'Жаңа туған', AppLocale.en: 'Newborn'},
+
   // Tracking
   'tr_title': {AppLocale.ru: 'Где {name}?', AppLocale.kk: '{name} қайда?', AppLocale.en: 'Where is {name}?'},
   'fresh_live': {AppLocale.ru: 'В сети', AppLocale.kk: 'Желіде', AppLocale.en: 'Live'},
@@ -331,6 +359,14 @@ class L10n {
       code != null && _catalog.containsKey(code) ? t(code) : t('EMERGENCY_GENERIC');
 
   String metricLabel(String metricKey) => t('metric_$metricKey');
+
+  /// Localized child age from whole months (see ChildProfile.ageInMonths).
+  String childAge(int months) {
+    if (months >= 24) return t('age_years', {'n': months ~/ 12});
+    if (months >= 12) return t('age_year_months', {'y': months ~/ 12, 'm': months % 12});
+    if (months >= 1) return t('age_months', {'n': months});
+    return t('age_newborn');
+  }
 
   String freshnessLabel(Freshness f) => switch (f) {
         Freshness.live => t('fresh_live'),

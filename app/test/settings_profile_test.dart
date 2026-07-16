@@ -42,6 +42,35 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('removing a child asks for confirmation and cancel keeps it', (tester) async {
+    final c = _onboarded();
+    await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));
+    expect(c.children.length, 1);
+
+    // Tap the child's delete icon → confirmation dialog appears, child NOT gone yet.
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Remove child?'), findsOneWidget);
+    expect(c.children.length, 1); // still there — nothing deleted on tap
+
+    // Cancel → child remains.
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(c.children.length, 1);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('confirming child removal deletes it', (tester) async {
+    final c = _onboarded();
+    await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove')); // destructive confirm button
+    await tester.pumpAndSettle();
+    expect(c.children.isEmpty, true);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('Settings language selection updates the controller', (tester) async {
     final c = _onboarded();
     await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));
