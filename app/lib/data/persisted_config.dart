@@ -74,6 +74,7 @@ class PersistedConfig {
   final List<PairedDevice> devices;
   final BpCalibration? bpCalibration;
   final Map<String, DayLog> dayLogs; // dateKey → women's-health day entry
+  final bool notificationsEnabled;
 
   const PersistedConfig({
     required this.onboarded,
@@ -83,6 +84,7 @@ class PersistedConfig {
     required this.devices,
     this.bpCalibration,
     this.dayLogs = const {},
+    this.notificationsEnabled = true,
   });
 
   Map<String, dynamic> toJson() => {
@@ -94,6 +96,7 @@ class PersistedConfig {
         'devices': [for (final d in devices) d.toJson()],
         if (bpCalibration != null) 'bpCalibration': bpCalibration!.toJson(),
         if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
+        'notificationsEnabled': notificationsEnabled,
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -115,6 +118,7 @@ class PersistedConfig {
             : null,
         dayLogs: dayLogsFromJson(
             j['dayLogs'] is Map ? (j['dayLogs'] as Map).cast<String, dynamic>() : null),
+        notificationsEnabled: (j['notificationsEnabled'] as bool?) ?? true,
       );
 
   String encode() => jsonEncode(toJson());

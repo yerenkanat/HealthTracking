@@ -52,6 +52,7 @@ class AppController {
   final SampleStore store;
   final DateTime Function() _now;
   final _changes = StreamController<void>.broadcast();
+  final _alertStream = StreamController<SafetyAlert>.broadcast();
 
   bool _emergencyActive = false;
   EmergencyView? _emergency;
@@ -62,6 +63,7 @@ class AppController {
   String? _selectedChildId;
   final List<PairedDevice> _devices = [];
   BpCalibration? _bpCalibration;
+  bool _notificationsEnabled = true;
   final Map<String, DayLog> _dayLogs = {};
 
   AppLocale _locale;
@@ -107,6 +109,7 @@ class AppController {
       ..clear()
       ..addAll(cfg.devices);
     _bpCalibration = cfg.bpCalibration;
+    _notificationsEnabled = cfg.notificationsEnabled;
     _dayLogs
       ..clear()
       ..addAll(cfg.dayLogs);
@@ -121,6 +124,7 @@ class AppController {
         children: List.of(_children),
         devices: List.of(_devices),
         bpCalibration: _bpCalibration,
+        notificationsEnabled: _notificationsEnabled,
         dayLogs: Map.of(_dayLogs),
       );
 
@@ -405,6 +409,18 @@ class AppController {
     _notify();
   }
 
+  /// Each newly generated alert (for the runtime to raise an OS notification).
+  /// Only emits while notifications are enabled; the in-app feed fills regardless.
+  Stream<SafetyAlert> get newAlerts => _alertStream.stream;
+
+  bool get notificationsEnabled => _notificationsEnabled;
+  void setNotificationsEnabled(bool v) {
+    if (v == _notificationsEnabled) return;
+    _notificationsEnabled = v;
+    _persist();
+    _notify();
+  }
+
   void onChildLocation(Coordinates coords) {
     _childLocation = ChildLocationView(coords, _now());
     final child = selectedChild;
@@ -421,6 +437,12 @@ class AppController {
         // Newest first; the just-entered zone sits at the top.
         _alerts.insertAll(0, r.alerts.reversed);
         if (_alerts.length > 50) _alerts.removeRange(50, _alerts.length);
+        // Emit chronologically for OS notifications (gated by the preference).
+        if (_notificationsEnabled && !_alertStream.isClosed) {
+          for (final a in r.alerts) {
+            _alertStream.add(a);
+          }
+        }
       }
     }
     _notify();
@@ -497,6 +519,7 @@ class AppController {
   Future<void> dispose() async {
     await _monitor?.dispose();
     await _chat?.dispose();
+    await _alertStream.close();
     await _changes.close();
   }
 }

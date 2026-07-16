@@ -157,6 +157,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'set_children': {AppLocale.ru: 'Дети', AppLocale.kk: 'Балалар', AppLocale.en: 'Children'},
   'set_devices': {AppLocale.ru: 'Устройства', AppLocale.kk: 'Құрылғылар', AppLocale.en: 'Devices'},
   'set_no_devices': {AppLocale.ru: 'Нет устройств', AppLocale.kk: 'Құрылғылар жоқ', AppLocale.en: 'No devices yet'},
+  'set_notifications': {AppLocale.ru: 'Уведомления', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Notifications'},
+  'set_notifications_sub': {AppLocale.ru: 'Оповещения о входе и выходе из зон', AppLocale.kk: 'Аймаққа кіру/шығу туралы ескертулер', AppLocale.en: 'Zone entry and exit alerts'},
   'set_about': {AppLocale.ru: 'О приложении', AppLocale.kk: 'Қолданба туралы', AppLocale.en: 'About'},
   'set_about_body': {
     AppLocale.ru: 'Умай — уход за беременностью и безопасность ребёнка. Не является медицинским прибором.',

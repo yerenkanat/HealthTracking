@@ -32,6 +32,7 @@ void main() async {
       const ChildProfile(id: 'child-2', name: 'Aida'),
     ],
     devices: const [PairedDevice(id: 'AA:BB', name: 'Band', kind: DeviceKind.band)],
+    notificationsEnabled: false,
     dayLogs: {
       '2026-07-14': const DayLog(date: '2026-07-14', mood: Mood.happy, symptoms: {Symptom.cramps}, kicks: 4),
       '2026-07-15': const DayLog(date: '2026-07-15', kicks: 0), // empty → dropped on encode
@@ -45,6 +46,8 @@ void main() async {
   _chk('round-trip child photo', decoded.children[0].photoPath == '/docs/photos/c1.jpg' && !decoded.children[1].hasPhoto);
   _chk('round-trip child geofence', decoded.children[0].geofences.first.center?.lat == 43.238949);
   _chk('round-trip device', decoded.devices.length == 1 && decoded.devices.first.kind == DeviceKind.band);
+  _chk('round-trip notificationsEnabled', decoded.notificationsEnabled == false);
+  _chk('notificationsEnabled defaults true', PersistedConfig.decode('{"onboarded":true,"locale":"en"}').notificationsEnabled);
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&

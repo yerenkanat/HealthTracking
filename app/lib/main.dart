@@ -12,7 +12,9 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'app/app_controller.dart';
 import 'core/geofence.dart';
+import 'data/notification_service.dart';
 import 'data/prefs_app_store.dart';
+import 'domain/geofence_alerts.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
 import 'domain/ai_chat_service.dart';
@@ -97,6 +99,27 @@ void _seedDemo(AppController c) {
 /// Connects the verified spine to live sources. Kept out of the widget tree so
 /// UI is testable and the app still renders if any of this is unavailable.
 Future<void> bootstrapRuntime(AppController controller) async {
+  // On-device notifications for child zone alerts. The controller only emits to
+  // newAlerts while the user's notifications preference is on, so this is the sole
+  // gate we need here. Best-effort — the app works fine without it.
+  try {
+    final notifications = LocalNotificationService();
+    await notifications.init();
+    await notifications.requestPermission();
+    controller.newAlerts.listen((alert) {
+      final l = L10n(controller.locale);
+      final title = l.t(alert.kind == AlertKind.entered ? 'alert_entered' : 'alert_left', {'zone': alert.zoneName});
+      notifications.show(title: title, body: alert.childName);
+    });
+
+    // DEMO only: 3s after launch the child moves School → Home, firing real
+    // "left School" + "entered Home" notifications so the feature is visible.
+    if (const bool.fromEnvironment('DEMO')) {
+      Future.delayed(const Duration(seconds: 3),
+          () => controller.onChildLocation(const Coordinates(43.238949, 76.889709)));
+    }
+  } catch (_) {/* notifications are best-effort */}
+
   try {
     final api = ApiClient(HttpApiTransport(
       baseUrl: Uri.parse(

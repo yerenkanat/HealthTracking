@@ -106,6 +106,21 @@ class SettingsScreen extends StatelessWidget {
                     ],
             ),
 
+            // ---- Notifications ----
+            _Section(title: l.t('set_notifications'), children: [
+              _Row(
+                leading: Icons.notifications_active_outlined,
+                title: l.t('set_notifications'),
+                subtitle: l.t('set_notifications_sub'),
+                trailing: Switch(
+                  value: c.notificationsEnabled,
+                  activeColor: Palette.violet,
+                  onChanged: c.setNotificationsEnabled,
+                ),
+                onTap: () => c.setNotificationsEnabled(!c.notificationsEnabled),
+              ),
+            ]),
+
             // ---- Blood pressure calibration (highlighted CTA) ----
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 18, 6, 8),
