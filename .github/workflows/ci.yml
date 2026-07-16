@@ -48,6 +48,9 @@ jobs:
       - name: Verify sensor calibration (BP/temp/RSSI)
         run: dart run tool/verify_calibration.dart
         working-directory: app
+      - name: Verify offline telemetry batcher
+        run: dart run tool/verify_batcher.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
