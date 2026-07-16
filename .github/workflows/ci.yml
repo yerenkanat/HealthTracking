@@ -51,6 +51,15 @@ jobs:
       - name: Verify offline telemetry batcher
         run: dart run tool/verify_batcher.dart
         working-directory: app
+      - name: Verify women's-health calendar + cycle predictions
+        run: dart run tool/verify_cycle.dart
+        working-directory: app
+      - name: Verify sleep (nightly summaries + quality)
+        run: dart run tool/verify_sleep.dart
+        working-directory: app
+      - name: Verify child safety advisor (age bands + status)
+        run: dart run tool/verify_safety.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
