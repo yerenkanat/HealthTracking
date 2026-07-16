@@ -339,6 +339,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
 
   // Menstrual cycle / period tracking
   'log_period': {AppLocale.ru: 'Менструация', AppLocale.kk: 'Етеккір', AppLocale.en: 'Period'},
+  'cyc_log_period': {AppLocale.ru: 'Отметить месячные', AppLocale.kk: 'Етеккірді белгілеу', AppLocale.en: 'Log period'},
+  'cyc_period_logged': {AppLocale.ru: 'Отмечено сегодня', AppLocale.kk: 'Бүгін белгіленді', AppLocale.en: 'Logged today'},
+  'cyc_period_logged_toast': {AppLocale.ru: 'Месячные отмечены на сегодня', AppLocale.kk: 'Бүгінге етеккір белгіленді', AppLocale.en: 'Period logged for today'},
   'flow_light': {AppLocale.ru: 'Слабые', AppLocale.kk: 'Әлсіз', AppLocale.en: 'Light'},
   'flow_medium': {AppLocale.ru: 'Умеренные', AppLocale.kk: 'Орташа', AppLocale.en: 'Medium'},
   'flow_heavy': {AppLocale.ru: 'Обильные', AppLocale.kk: 'Күшті', AppLocale.en: 'Heavy'},

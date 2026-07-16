@@ -3,6 +3,7 @@
 library;
 
 import 'dart:io';
+import '../lib/domain/family.dart';
 import '../lib/domain/onboarding_controller.dart';
 import '../lib/l10n/l10n.dart';
 
@@ -72,6 +73,13 @@ void main() {
   c2.setHome(const ZoneInput('Home', 1, 2));
   c2.next();
   _chk('band optional → null bandId', c2.build().bandId == null);
+
+  // ---- Child gender flows into the result ----
+  final cg = OnboardingController();
+  cg.setChildName('Sultan');
+  cg.setChildGender(Gender.boy);
+  _chk('child gender in result', cg.build().child.gender == Gender.boy);
+  _chk('child gender defaults null', OnboardingController().build().child.gender == null);
 
   // ---- Expecting → due date drives pregnancy mode ----
   final c3 = OnboardingController();

@@ -61,6 +61,7 @@ class OnboardingController {
   String? _bandId;
   String _childName = '';
   DateTime? _childDob;
+  Gender? _childGender;
   ZoneInput? _home;
   ZoneInput? _school;
 
@@ -77,6 +78,7 @@ class OnboardingController {
   String? get bandId => _bandId;
   String get childName => _childName;
   DateTime? get childDob => _childDob;
+  Gender? get childGender => _childGender;
   ZoneInput? get home => _home;
   ZoneInput? get school => _school;
 
@@ -94,6 +96,7 @@ class OnboardingController {
   void setBandId(String? v) => _set(() => _bandId = v);
   void setChildName(String v) => _set(() => _childName = v);
   void setChildDob(DateTime? d) => _set(() => _childDob = d);
+  void setChildGender(Gender? g) => _set(() => _childGender = g);
   void setHome(ZoneInput? z) => _set(() => _home = z);
   void setSchool(ZoneInput? z) => _set(() => _school = z);
 
@@ -133,7 +136,7 @@ class OnboardingController {
         dueDate: _expecting ? _dueDate : null,
       ),
       bandId: _bandId,
-      child: ChildProfile(id: 'child-1', name: _childName.trim(), dateOfBirth: _childDob, geofences: fences),
+      child: ChildProfile(id: 'child-1', name: _childName.trim(), dateOfBirth: _childDob, gender: _childGender, geofences: fences),
     );
   }
 

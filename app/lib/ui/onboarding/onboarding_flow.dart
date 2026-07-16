@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../domain/country_codes.dart';
+import '../../domain/family.dart';
 import '../../domain/onboarding_controller.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
@@ -355,6 +356,22 @@ class _ChildPage extends StatelessWidget {
             if (picked != null) controller.setChildDob(picked);
           },
         ),
+        const SizedBox(height: 12),
+        Row(children: [
+          Text(l.t('child_gender'), style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(width: 12),
+          for (final g in Gender.values)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                avatar: Icon(g == Gender.boy ? Icons.boy : Icons.girl, size: 18,
+                    color: controller.childGender == g ? Palette.violet : Palette.textDim),
+                label: Text(l.t('gender_${g.name}')),
+                selected: controller.childGender == g,
+                onSelected: (_) => controller.setChildGender(controller.childGender == g ? null : g),
+              ),
+            ),
+        ]),
         const SizedBox(height: 12),
         ListTile(
           leading: const Icon(Icons.home_outlined),

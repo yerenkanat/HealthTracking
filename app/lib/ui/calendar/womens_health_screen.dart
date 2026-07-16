@@ -49,28 +49,39 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final c = widget.controller;
-    return AuroraBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(l.t('cal_screen_title')),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.insights_rounded),
-              tooltip: l.t('cyc_insights_title'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => CycleInsightsScreen(controller: c)),
-              ),
+    return StreamBuilder<void>(
+      stream: c.changes,
+      builder: (context, _) {
+        final cycleMode = !c.isPregnant;
+        final periodToday = c.logFor(_today).hasPeriod;
+        return AuroraBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              title: Text(l.t('cal_screen_title')),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.insights_rounded),
+                  tooltip: l.t('cyc_insights_title'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => CycleInsightsScreen(controller: c)),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
             ),
-            const SizedBox(width: 4),
-          ],
-        ),
-        body: StreamBuilder<void>(
-          stream: c.changes,
-          builder: (context, _) {
-            final cycleMode = !c.isPregnant;
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+            // Quick, discoverable one-tap period logging (cycle mode only).
+            floatingActionButton: cycleMode
+                ? FloatingActionButton.extended(
+                    onPressed: _logPeriodToday,
+                    backgroundColor: Palette.roseDeep,
+                    foregroundColor: Colors.white,
+                    icon: Icon(periodToday ? Icons.check_rounded : Icons.water_drop_rounded),
+                    label: Text(l.t(periodToday ? 'cyc_period_logged' : 'cyc_log_period')),
+                  )
+                : null,
+            body: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
               children: [
                 if (cycleMode)
                   _CycleHeader(controller: c, today: _today, onSetDueDate: _pickDueDate)
@@ -95,11 +106,27 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   const _CycleLegend(),
                 ],
               ],
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  /// One tap marks today as a period day; if already logged, open the day sheet
+  /// to change intensity or clear it.
+  void _logPeriodToday() {
+    final c = widget.controller;
+    final l = L10nScope.of(context);
+    if (c.logFor(_today).hasPeriod) {
+      _openDay(_today);
+      return;
+    }
+    c.toggleFlowFor(_today, Flow.medium);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(l.t('cyc_period_logged_toast')),
+      action: SnackBarAction(label: l.t('act_remove'), onPressed: () => c.toggleFlowFor(_today, Flow.medium)),
+    ));
   }
 
   Future<void> _pickDueDate() async {
