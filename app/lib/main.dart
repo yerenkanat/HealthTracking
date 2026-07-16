@@ -87,7 +87,11 @@ void _seedDemo(AppController c) {
       Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),
     ],
   );
-  c.onChildLocation(const Coordinates(43.25, 76.95));
+  // A short movement history → generates zone enter/exit alerts for the feed:
+  // at Home → on the move → arrives at School (where the map leaves them).
+  c.onChildLocation(const Coordinates(43.238949, 76.889709)); // Home → entered Home
+  c.onChildLocation(const Coordinates(43.245, 76.92)); // between → left Home
+  c.onChildLocation(const Coordinates(43.25, 76.95)); // School → entered School
 }
 
 /// Connects the verified spine to live sources. Kept out of the widget tree so

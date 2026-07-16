@@ -13,6 +13,7 @@ import 'advisor/advisor_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'profile/profile_screen.dart';
+import 'tracking/alerts_screen.dart';
 import 'tracking/child_map_screen.dart';
 import 'tracking/family_sheets.dart';
 import 'tracking/zones_screen.dart';
@@ -74,6 +75,10 @@ class _HomeShellState extends State<HomeShell> {
             : () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => ZonesScreen(controller: c, childId: c.selectedChild!.id),
                 )),
+        alertCount: c.alerts.length,
+        onOpenAlerts: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
+        ),
       ),
       ProfileScreen(controller: c),
     ];

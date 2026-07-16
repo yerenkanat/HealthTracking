@@ -60,6 +60,9 @@ jobs:
       - name: Verify child safety advisor (age bands + status)
         run: dart run tool/verify_safety.dart
         working-directory: app
+      - name: Verify geofence enter/exit alerts
+        run: dart run tool/verify_alerts.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

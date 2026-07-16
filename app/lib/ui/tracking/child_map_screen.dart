@@ -36,6 +36,8 @@ class ChildMapScreen extends StatelessWidget {
   final VoidCallback? onAddChild;
   final VoidCallback? onAddDevice;
   final VoidCallback? onManageZones;
+  final VoidCallback? onOpenAlerts;
+  final int alertCount;
   final int? childAgeMonths; // for age-appropriate safety tips (null if no DOB)
 
   const ChildMapScreen({
@@ -52,6 +54,8 @@ class ChildMapScreen extends StatelessWidget {
     this.onAddChild,
     this.onAddDevice,
     this.onManageZones,
+    this.onOpenAlerts,
+    this.alertCount = 0,
     this.childAgeMonths,
   });
 
@@ -74,6 +78,16 @@ class ChildMapScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         title: _FloatingTitle(l.t('tr_title', {'name': childName})),
         actions: [
+          if (onOpenAlerts != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _FloatingIconButton(
+                icon: Icons.notifications_none_rounded,
+                tooltip: l.t('alerts_title'),
+                badgeCount: alertCount,
+                onTap: onOpenAlerts!,
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _FloatingIconButton(
@@ -413,22 +427,44 @@ class _FloatingIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
-  const _FloatingIconButton({required this.icon, required this.tooltip, required this.onTap});
+  final int badgeCount;
+  const _FloatingIconButton({required this.icon, required this.tooltip, required this.onTap, this.badgeCount = 0});
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Palette.bgElevated,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
-        ],
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Palette.text),
-        tooltip: tooltip,
-        onPressed: onTap,
-      ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Palette.bgElevated,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
+            ],
+          ),
+          child: IconButton(
+            icon: Icon(icon, color: Palette.text),
+            tooltip: tooltip,
+            onPressed: onTap,
+          ),
+        ),
+        if (badgeCount > 0)
+          Positioned(
+            right: 2, top: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              decoration: BoxDecoration(
+                color: Palette.danger,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: Palette.bg, width: 1.5),
+              ),
+              alignment: Alignment.center,
+              child: Text(badgeCount > 9 ? '9+' : '$badgeCount',
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+            ),
+          ),
+      ],
     );
   }
 }

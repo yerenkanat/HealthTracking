@@ -23,6 +23,7 @@ import '../domain/chat_controller.dart';
 import '../domain/cycle_log.dart';
 import '../domain/cycle_predictions.dart';
 import '../domain/family.dart';
+import '../domain/geofence_alerts.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/sleep.dart';
@@ -316,6 +317,8 @@ class AppController {
     _profile = const UserProfile();
     _bpCalibration = null;
     _dayLogs.clear();
+    _alerts.clear();
+    _lastChildZone = null;
     _onboarded = false;
     store.clear();
     await _persistStore?.clear();
@@ -391,8 +394,35 @@ class AppController {
     ));
   }
 
+  // ---- Child safety alerts (zone enter/exit history) ----
+  String? _lastChildZone;
+  final List<SafetyAlert> _alerts = [];
+  List<SafetyAlert> get alerts => List.unmodifiable(_alerts);
+
+  void clearAlerts() {
+    if (_alerts.isEmpty) return;
+    _alerts.clear();
+    _notify();
+  }
+
   void onChildLocation(Coordinates coords) {
     _childLocation = ChildLocationView(coords, _now());
+    final child = selectedChild;
+    if (child != null) {
+      final r = alertsForFix(
+        prevZone: _lastChildZone,
+        location: coords,
+        fences: child.geofences,
+        childName: child.name,
+        at: _now(),
+      );
+      _lastChildZone = r.zone;
+      if (r.alerts.isNotEmpty) {
+        // Newest first; the just-entered zone sits at the top.
+        _alerts.insertAll(0, r.alerts.reversed);
+        if (_alerts.length > 50) _alerts.removeRange(50, _alerts.length);
+      }
+    }
     _notify();
   }
 
