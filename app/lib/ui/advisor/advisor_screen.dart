@@ -1,6 +1,7 @@
 /// Health Advisor screen — the app's "AI advisor". It reasons over the mother's
 /// smart-band data (via HealthAdvisor) and shows a few plain, safe, data-grounded
-/// advisory cards. NOT a chatbot. High-tech dark glass styling.
+/// advisory cards. NOT a chatbot. Premium light styling; opened from the
+/// dashboard's advisor entry (a pushed route with a back button).
 library;
 
 import 'package:flutter/material.dart';
