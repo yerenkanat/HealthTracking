@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart' hide Flow;
+import 'package:flutter/services.dart' show HapticFeedback;
 import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -209,7 +210,10 @@ class _PillButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
           borderRadius: BorderRadius.circular(30),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
@@ -303,7 +307,10 @@ class _KickCounter extends StatelessWidget {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: onKick,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  onKick();
+                },
                 customBorder: const CircleBorder(),
                 child: Container(
                   width: 64, height: 64,

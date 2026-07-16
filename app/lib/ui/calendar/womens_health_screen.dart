@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart' hide Flow;
+import 'package:flutter/services.dart' show HapticFeedback;
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/cycle_predictions.dart';
@@ -586,7 +587,12 @@ class _MonthCalendar extends StatelessWidget {
     return Semantics(
       button: !isFuture,
       child: GestureDetector(
-      onTap: isFuture ? null : () => onTapDay(date),
+      onTap: isFuture
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTapDay(date);
+            },
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         height: 40,
