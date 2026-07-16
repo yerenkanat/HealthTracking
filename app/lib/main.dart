@@ -14,6 +14,7 @@ import 'app/app_controller.dart';
 import 'core/geofence.dart';
 import 'data/prefs_app_store.dart';
 import 'domain/health_series.dart';
+import 'domain/sleep.dart';
 import 'domain/ai_chat_service.dart';
 import 'domain/chat_controller.dart';
 import 'domain/health_monitor.dart';
@@ -55,6 +56,29 @@ void _seedDemo(AppController c) {
       ),
   ];
   c.debugSeed(samples);
+
+  // A week of nightly sleep summaries (deep / rem / light / awake, minutes).
+  final today = DateTime(now.year, now.month, now.day);
+  const nightsData = [
+    [95, 105, 280, 25], // last night — solid
+    [70, 90, 250, 35],
+    [55, 80, 300, 40],
+    [90, 110, 270, 20],
+    [40, 70, 230, 55], // short night
+    [85, 95, 285, 30],
+    [100, 115, 260, 22],
+  ];
+  c.debugSeedSleep([
+    for (var i = 0; i < nightsData.length; i++)
+      SleepSummary(
+        night: today.subtract(Duration(days: i)),
+        deepMin: nightsData[i][0],
+        remMin: nightsData[i][1],
+        lightMin: nightsData[i][2],
+        awakeMin: nightsData[i][3],
+      ),
+  ]);
+
   c.configureChild(name: 'Sultan', fences: [
     Geofence.circle('home', 'Home', const Coordinates(43.238949, 76.889709), 100),
     Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),

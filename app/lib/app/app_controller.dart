@@ -24,6 +24,7 @@ import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
+import '../domain/sleep.dart';
 import '../domain/onboarding_controller.dart';
 import '../l10n/l10n.dart';
 import '../net/telemetry_batcher.dart';
@@ -362,6 +363,25 @@ class AppController {
     for (final s in samples) {
       store.addSample(s);
     }
+    _notify();
+  }
+
+  // ---- Sleep (nightly summaries from the band; not persisted — like samples) ----
+  final List<SleepSummary> _sleep = [];
+  List<SleepSummary> get sleepNights => List.unmodifiable(_sleep);
+  SleepSummary? get lastNight => latestNight(_sleep);
+
+  /// Record a nightly sleep summary (replaces any existing entry for that date).
+  void addSleepSummary(SleepSummary s) {
+    _sleep.removeWhere((n) =>
+        n.night.year == s.night.year && n.night.month == s.night.month && n.night.day == s.night.day);
+    _sleep.add(s);
+    _notify();
+  }
+
+  /// Debug/demo only: seed a run of nightly sleep summaries.
+  void debugSeedSleep(List<SleepSummary> nights) {
+    _sleep.addAll(nights);
     _notify();
   }
 

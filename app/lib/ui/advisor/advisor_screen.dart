@@ -7,18 +7,20 @@ library;
 import 'package:flutter/material.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
+import '../../domain/sleep.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
 class AdvisorScreen extends StatelessWidget {
   final List<HealthSample> samples;
-  const AdvisorScreen({super.key, required this.samples});
+  final SleepSummary? lastNight;
+  const AdvisorScreen({super.key, required this.samples, this.lastNight});
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final advisories = generateAdvisories(samples);
+    final advisories = generateAdvisories(samples, lastNight: lastNight);
 
     return AuroraBackground(
       child: Scaffold(

@@ -11,6 +11,7 @@
 library;
 
 import '../domain/child_tracker_state.dart';
+import '../domain/sleep.dart';
 
 enum AppLocale { ru, kk, en }
 
@@ -269,6 +270,29 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'age_months': {AppLocale.ru: '{n} мес.', AppLocale.kk: '{n} ай', AppLocale.en: '{n} mo'},
   'age_newborn': {AppLocale.ru: 'Новорождённый', AppLocale.kk: 'Жаңа туған', AppLocale.en: 'Newborn'},
 
+  // Sleep
+  'metric_sleep': {AppLocale.ru: 'Сон', AppLocale.kk: 'Ұйқы', AppLocale.en: 'Sleep'},
+  'sleep_last_night': {AppLocale.ru: 'Прошлой ночью', AppLocale.kk: 'Өткен түні', AppLocale.en: 'Last night'},
+  'sleep_recent_nights': {AppLocale.ru: 'Последние ночи', AppLocale.kk: 'Соңғы түндер', AppLocale.en: 'Recent nights'},
+  'sleep_deep': {AppLocale.ru: 'Глубокий', AppLocale.kk: 'Терең', AppLocale.en: 'Deep'},
+  'sleep_rem': {AppLocale.ru: 'Быстрый', AppLocale.kk: 'REM', AppLocale.en: 'REM'},
+  'sleep_light': {AppLocale.ru: 'Лёгкий', AppLocale.kk: 'Жеңіл', AppLocale.en: 'Light'},
+  'sleep_awake': {AppLocale.ru: 'Бодрствование', AppLocale.kk: 'Ояу', AppLocale.en: 'Awake'},
+  'sleep_efficiency': {AppLocale.ru: 'Эффективность', AppLocale.kk: 'Тиімділік', AppLocale.en: 'Efficiency'},
+  'sleep_avg': {AppLocale.ru: 'В среднем за {n} ноч.', AppLocale.kk: '{n} түн орташа', AppLocale.en: 'Avg over {n} nights'},
+  'sleep_title': {AppLocale.ru: 'Сон', AppLocale.kk: 'Ұйқы', AppLocale.en: 'Sleep'},
+  'sleep_empty': {AppLocale.ru: 'Данные о сне появятся после ночи с браслетом.', AppLocale.kk: 'Ұйқы деректері білезікпен өткен түннен кейін пайда болады.', AppLocale.en: 'Sleep data appears after a night with your band.'},
+  'sleep_quality_good': {AppLocale.ru: 'Хороший сон', AppLocale.kk: 'Жақсы ұйқы', AppLocale.en: 'Good sleep'},
+  'sleep_quality_fair': {AppLocale.ru: 'Средний сон', AppLocale.kk: 'Орташа ұйқы', AppLocale.en: 'Fair sleep'},
+  'sleep_quality_poor': {AppLocale.ru: 'Мало сна', AppLocale.kk: 'Аз ұйқы', AppLocale.en: 'Poor sleep'},
+  'dur_hm': {AppLocale.ru: '{h} ч {m} мин', AppLocale.kk: '{h} сағ {m} мин', AppLocale.en: '{h}h {m}m'},
+  'dur_h': {AppLocale.ru: '{h} ч', AppLocale.kk: '{h} сағ', AppLocale.en: '{h}h'},
+  'dur_m': {AppLocale.ru: '{m} мин', AppLocale.kk: '{m} мин', AppLocale.en: '{m}m'},
+  'ADV_SLEEP_SHORT': {AppLocale.ru: 'Недосып', AppLocale.kk: 'Ұйқы жетіспеді', AppLocale.en: 'Short on sleep'},
+  'ADV_SLEEP_SHORT_b': {AppLocale.ru: 'Прошлой ночью вы спали меньше 6 часов. Постарайтесь отдохнуть днём.', AppLocale.kk: 'Өткен түні 6 сағаттан аз ұйықтадыңыз. Күндіз демалуға тырысыңыз.', AppLocale.en: 'You slept under 6 hours last night. Try to rest during the day.'},
+  'ADV_SLEEP_GOOD': {AppLocale.ru: 'Хороший сон', AppLocale.kk: 'Жақсы ұйқы', AppLocale.en: 'Good sleep'},
+  'ADV_SLEEP_GOOD_b': {AppLocale.ru: 'Прошлой ночью вы хорошо выспались с достаточным глубоким сном.', AppLocale.kk: 'Өткен түні терең ұйқымен жақсы дем алдыңыз.', AppLocale.en: 'You slept well last night with enough deep sleep.'},
+
   // Tracking
   'tr_title': {AppLocale.ru: 'Где {name}?', AppLocale.kk: '{name} қайда?', AppLocale.en: 'Where is {name}?'},
   'fresh_live': {AppLocale.ru: 'В сети', AppLocale.kk: 'Желіде', AppLocale.en: 'Live'},
@@ -359,6 +383,22 @@ class L10n {
       code != null && _catalog.containsKey(code) ? t(code) : t('EMERGENCY_GENERIC');
 
   String metricLabel(String metricKey) => t('metric_$metricKey');
+
+  /// Localized "7h 40m" style duration from minutes.
+  String duration(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    if (h > 0 && m > 0) return t('dur_hm', {'h': h, 'm': m});
+    if (h > 0) return t('dur_h', {'h': h});
+    return t('dur_m', {'m': m});
+  }
+
+  /// Localized sleep-quality label.
+  String sleepQuality(SleepQuality q) => switch (q) {
+        SleepQuality.good => t('sleep_quality_good'),
+        SleepQuality.fair => t('sleep_quality_fair'),
+        SleepQuality.poor => t('sleep_quality_poor'),
+      };
 
   /// Localized child age from whole months (see ChildProfile.ageInMonths).
   String childAge(int months) {

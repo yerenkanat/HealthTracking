@@ -11,6 +11,7 @@ library;
 
 import '../core/triage.dart' show TriageThresholds;
 import 'health_series.dart';
+import 'sleep.dart';
 
 enum AdviceTone { positive, info, watch }
 
@@ -27,6 +28,7 @@ class Advisory {
 List<Advisory> generateAdvisories(
   List<HealthSample> samples, {
   int minSamples = 3,
+  SleepSummary? lastNight,
 }) {
   if (samples.length < minSamples) {
     return const [Advisory('ADV_GATHERING', AdviceTone.info, 'general')];
@@ -85,10 +87,19 @@ List<Advisory> generateAdvisories(
     positive.add(Advisory('ADV_SPO2_STEADY', AdviceTone.positive, 'spo2', value: spo2Stats.latest));
   }
 
-  // ---- Restful sleep (sleep samples with no oxygen dips) ----
-  final sleepCount = samples.where((s) => s.duringSleep).length;
-  if (sleepCount >= 2 && sleepDips.isEmpty) {
-    positive.add(Advisory('ADV_SLEEP_OK', AdviceTone.positive, 'general', value: sleepCount.toDouble()));
+  // ---- Sleep last night (nightly summary from the band, when available) ----
+  if (lastNight != null) {
+    if (lastNight.asleepMin < SleepThresholds.fairAsleepMin) {
+      watch.add(const Advisory('ADV_SLEEP_SHORT', AdviceTone.watch, 'general'));
+    } else if (lastNight.quality == SleepQuality.good) {
+      positive.add(const Advisory('ADV_SLEEP_GOOD', AdviceTone.positive, 'general'));
+    }
+  } else {
+    // Fallback: restful sleep inferred from sleep samples with no oxygen dips.
+    final sleepCount = samples.where((s) => s.duringSleep).length;
+    if (sleepCount >= 2 && sleepDips.isEmpty) {
+      positive.add(Advisory('ADV_SLEEP_OK', AdviceTone.positive, 'general', value: sleepCount.toDouble()));
+    }
   }
 
   // ---- Overall reassurance when nothing needs watching ----

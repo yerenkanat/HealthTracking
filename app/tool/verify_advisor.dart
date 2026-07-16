@@ -5,6 +5,7 @@ library;
 import 'dart:io';
 import '../lib/domain/health_advisor.dart';
 import '../lib/domain/health_series.dart';
+import '../lib/domain/sleep.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -70,6 +71,17 @@ void main() {
       HealthSample(at: _t(i), heartRate: 78, systolic: 118, diastolic: 76, coreTemp: i == 4 ? 37.9 : 36.8),
   ];
   _chk('temp 37.9 → ADV_TEMP_ELEVATED', _has(generateAdvisories(temp), 'ADV_TEMP_ELEVATED'));
+
+  // ---- Sleep advisories (nightly summary) ----
+  final steady = [
+    for (var i = 0; i < 5; i++)
+      HealthSample(at: _t(i), heartRate: 74, spo2: 98, systolic: 118, diastolic: 76, coreTemp: 36.7),
+  ];
+  final shortNight = SleepSummary(night: DateTime(2026, 7, 15), deepMin: 30, remMin: 40, lightMin: 170, awakeMin: 60); // 4h
+  _chk('short sleep → ADV_SLEEP_SHORT', _has(generateAdvisories(steady, lastNight: shortNight), 'ADV_SLEEP_SHORT'));
+  final goodNight = SleepSummary(night: DateTime(2026, 7, 15), deepMin: 90, remMin: 100, lightMin: 270, awakeMin: 30); // 7h40
+  _chk('good sleep → ADV_SLEEP_GOOD', _has(generateAdvisories(steady, lastNight: goodNight), 'ADV_SLEEP_GOOD'));
+  _chk('no lastNight → no ADV_SLEEP_SHORT', !_has(generateAdvisories(steady), 'ADV_SLEEP_SHORT'));
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

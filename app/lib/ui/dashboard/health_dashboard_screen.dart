@@ -12,11 +12,13 @@ library;
 import 'package:flutter/material.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
+import '../../domain/sleep.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'metric_detail_screen.dart';
+import 'sleep_card.dart';
 import 'sparkline.dart';
 
 class MetricSpec {
@@ -42,6 +44,7 @@ const _specs = <MetricSpec>[
 
 class HealthDashboardView extends StatelessWidget {
   final List<HealthSample> samples;
+  final List<SleepSummary> sleepNights;
   final String greetingName;
   final AppLocale? currentLocale;
   final void Function(AppLocale)? onLocaleChange;
@@ -50,6 +53,7 @@ class HealthDashboardView extends StatelessWidget {
   const HealthDashboardView({
     super.key,
     required this.samples,
+    this.sleepNights = const [],
     this.greetingName = '',
     this.currentLocale,
     this.onLocaleChange,
@@ -102,6 +106,10 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
+                  if (latestNight(sleepNights) != null) ...[
+                    const SizedBox(height: 14),
+                    SleepCard(nights: sleepNights),
+                  ],
                   if (onOpenAdvisor != null) ...[
                     const SizedBox(height: 18),
                     _AdvisorEntry(onTap: onOpenAdvisor!),

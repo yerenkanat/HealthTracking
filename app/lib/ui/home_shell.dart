@@ -42,12 +42,13 @@ class _HomeShellState extends State<HomeShell> {
     final pages = [
       HealthDashboardView(
         samples: c.samples,
+        sleepNights: c.sleepNights,
         greetingName: c.displayName,
         currentLocale: c.locale,
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
         onOpenAdvisor: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => AdvisorScreen(samples: c.samples)),
+          MaterialPageRoute(builder: (_) => AdvisorScreen(samples: c.samples, lastNight: c.lastNight)),
         ),
       ),
       WomensHealthScreen(controller: c),
