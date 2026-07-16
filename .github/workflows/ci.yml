@@ -63,6 +63,9 @@ jobs:
       - name: Verify geofence enter/exit alerts
         run: dart run tool/verify_alerts.dart
         working-directory: app
+      - name: Verify pregnancy milestones
+        run: dart run tool/verify_milestones.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

@@ -14,6 +14,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/cycle_predictions.dart';
+import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
@@ -96,6 +97,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
                   _CyclePredictions(info: c.cycle),
+                ],
+                if (!cycleMode && c.gestation != null) ...[
+                  const SizedBox(height: 14),
+                  _PregnancyMilestones(week: c.gestation!.week),
                 ],
                 const SizedBox(height: 16),
                 _MonthCalendar(
@@ -741,6 +746,74 @@ class _MonthCalendar extends StatelessWidget {
       CycleDayType.fertile => (fill: Palette.teal.withValues(alpha: 0.16), text: Palette.teal),
       CycleDayType.none => (fill: Colors.transparent, text: null),
     };
+
+/// Pregnancy timeline milestones (non-medical): current stage + what's next.
+class _PregnancyMilestones extends StatelessWidget {
+  final int week;
+  const _PregnancyMilestones({required this.week});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final current = currentMilestone(week);
+    final next = nextMilestone(week);
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('gest_milestones').toUpperCase(),
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 12),
+          _MilestoneRow(
+            icon: Icons.flag_rounded,
+            color: Palette.violet,
+            label: l.t(current.code),
+            badge: l.t('ms_now'),
+            badgeColor: Palette.violet,
+          ),
+          if (next != null) ...[
+            const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
+            _MilestoneRow(
+              icon: Icons.outlined_flag_rounded,
+              color: Palette.rose,
+              label: l.t(next.code),
+              badge: l.t('ms_next_in', {'n': weeksUntil(week, next)}),
+              badgeColor: Palette.roseDeep,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MilestoneRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String badge;
+  final Color badgeColor;
+  const _MilestoneRow({required this.icon, required this.color, required this.label, required this.badge, required this.badgeColor});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+          child: Text(badge, style: TextStyle(color: badgeColor, fontWeight: FontWeight.w700, fontSize: 12)),
+        ),
+      ],
+    );
+  }
+}
 
 /// A labelled slider row for the cycle-settings sheet.
 class _SliderRow extends StatelessWidget {
