@@ -38,6 +38,27 @@ const metricsQuery = z.object({
   to: z.string(),
   metric: z.enum(['hr', 'spo2', 'systolic', 'diastolic', 'temp']),
 });
+const sleepBody = z.object({
+  night: z.string(),
+  deepMin: z.number().int().min(0).max(1440),
+  remMin: z.number().int().min(0).max(1440),
+  lightMin: z.number().int().min(0).max(1440),
+  awakeMin: z.number().int().min(0).max(1440),
+});
+const dayLogBody = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  mood: z.enum(['happy', 'calm', 'anxious', 'tired', 'sad']).nullable().optional(),
+  symptoms: z.array(z.enum(['allGood', 'cramps', 'spotting', 'headache', 'nausea', 'swelling'])).default([]),
+  kicks: z.number().int().min(0).max(999).default(0),
+  flow: z.enum(['light', 'medium', 'heavy']).nullable().optional(),
+});
+const dayLogQuery = z.object({ from: z.string(), to: z.string() });
+const alertBody = z.object({
+  childId: z.string().min(1),
+  kind: z.enum(['entered', 'left']),
+  zoneName: z.string().min(1).max(80),
+  at: z.string(),
+});
 
 export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authUser: AuthUser): void {
   // Guard: resolve the user or 401.
@@ -132,5 +153,63 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!u) return;
     const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
     return reply.send({ events: await repo.listGeofenceEvents((req.params as { id: string }).id, limit) });
+  });
+
+  // ---- Sleep (nightly summaries) ----
+  app.get('/sleep', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(90, Number((req.query as { limit?: string }).limit ?? 30) || 30);
+    return reply.send({ nights: await repo.listSleep(u.userId, limit) });
+  });
+
+  app.post('/sleep', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = sleepBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.recordSleep(u.userId, parsed.data);
+    return reply.code(201).send({ ok: true });
+  });
+
+  // ---- Women's-health day logs ----
+  app.get('/cycle/days', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = dayLogQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    return reply.send({ days: await repo.listDayLogs(u.userId, parsed.data.from, parsed.data.to) });
+  });
+
+  app.put('/cycle/days', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = dayLogBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.upsertDayLog(u.userId, {
+      date: parsed.data.date,
+      mood: parsed.data.mood ?? null,
+      symptoms: parsed.data.symptoms,
+      kicks: parsed.data.kicks,
+      flow: parsed.data.flow ?? null,
+    });
+    return reply.send({ ok: true });
+  });
+
+  // ---- Child safety alerts (zone enter/exit) ----
+  app.get('/alerts', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
+    return reply.send({ alerts: await repo.listAlerts(u.userId, limit) });
+  });
+
+  app.post('/alerts', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = alertBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.recordAlert(u.userId, parsed.data);
+    return reply.code(201).send({ ok: true });
   });
 }

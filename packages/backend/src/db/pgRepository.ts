@@ -244,5 +244,59 @@ export function createPgRepository(pool: Pool): Repository {
       const { rows } = await pool.query(`SELECT staff_id, action, target, at FROM audit_log ORDER BY at DESC LIMIT $1`, [limit]);
       return rows.map((r) => ({ staffId: r.staff_id, action: r.action, target: r.target, at: new Date(r.at).toISOString() }));
     },
+
+    // ---- Sleep ----
+    async recordSleep(userId, s) {
+      await pool.query(
+        `INSERT INTO sleep_nights (user_id, night, deep_min, rem_min, light_min, awake_min)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (user_id, night) DO UPDATE
+           SET deep_min = EXCLUDED.deep_min, rem_min = EXCLUDED.rem_min,
+               light_min = EXCLUDED.light_min, awake_min = EXCLUDED.awake_min`,
+        [userId, s.night, s.deepMin, s.remMin, s.lightMin, s.awakeMin]);
+    },
+    async listSleep(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT night, deep_min, rem_min, light_min, awake_min FROM sleep_nights
+         WHERE user_id = $1 ORDER BY night DESC LIMIT $2`, [userId, limit]);
+      return rows.map((r) => ({
+        night: new Date(r.night).toISOString(),
+        deepMin: r.deep_min, remMin: r.rem_min, lightMin: r.light_min, awakeMin: r.awake_min,
+      }));
+    },
+
+    // ---- Women's-health day logs ----
+    async upsertDayLog(userId, log) {
+      await pool.query(
+        `INSERT INTO cycle_day_logs (user_id, log_date, mood, symptoms, kicks, flow)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (user_id, log_date) DO UPDATE
+           SET mood = EXCLUDED.mood, symptoms = EXCLUDED.symptoms,
+               kicks = EXCLUDED.kicks, flow = EXCLUDED.flow`,
+        [userId, log.date, log.mood, log.symptoms, log.kicks, log.flow]);
+    },
+    async listDayLogs(userId, from, to) {
+      const { rows } = await pool.query(
+        `SELECT log_date, mood, symptoms, kicks, flow FROM cycle_day_logs
+         WHERE user_id = $1 AND log_date BETWEEN $2 AND $3 ORDER BY log_date`, [userId, from, to]);
+      return rows.map((r) => ({
+        date: r.log_date, mood: r.mood, symptoms: r.symptoms ?? [], kicks: r.kicks, flow: r.flow,
+      }));
+    },
+
+    // ---- Safety alerts ----
+    async recordAlert(userId, a) {
+      await pool.query(
+        `INSERT INTO safety_alerts (user_id, child_id, kind, zone_name, at) VALUES ($1,$2,$3,$4,$5)`,
+        [userId, a.childId, a.kind, a.zoneName, a.at]);
+    },
+    async listAlerts(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT child_id, kind, zone_name, at FROM safety_alerts
+         WHERE user_id = $1 ORDER BY at DESC LIMIT $2`, [userId, limit]);
+      return rows.map((r) => ({
+        childId: r.child_id, kind: r.kind, zoneName: r.zone_name, at: new Date(r.at).toISOString(),
+      }));
+    },
   };
 }

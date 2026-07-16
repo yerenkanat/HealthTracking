@@ -177,6 +177,39 @@ CREATE TABLE audit_log (
 );
 CREATE INDEX idx_audit_at ON audit_log (at DESC);
 
+-- Nightly sleep summaries from the band (one row per wake-day per user).
+CREATE TABLE sleep_nights (
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  night       DATE NOT NULL,
+  deep_min    INTEGER NOT NULL DEFAULT 0,
+  rem_min     INTEGER NOT NULL DEFAULT 0,
+  light_min   INTEGER NOT NULL DEFAULT 0,
+  awake_min   INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, night)
+);
+
+-- Women's-health day logs (mood / symptoms / fetal kicks / menstrual flow).
+CREATE TABLE cycle_day_logs (
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  log_date    DATE NOT NULL,
+  mood        TEXT,                              -- happy | calm | anxious | tired | sad
+  symptoms    TEXT[] NOT NULL DEFAULT '{}',      -- allGood | cramps | spotting | ...
+  kicks       INTEGER NOT NULL DEFAULT 0,
+  flow        TEXT,                              -- light | medium | heavy | NULL
+  PRIMARY KEY (user_id, log_date)
+);
+
+-- Child safety alerts (geofence enter/exit history).
+CREATE TABLE safety_alerts (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  child_id    UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL CHECK (kind IN ('entered','left')),
+  zone_name   TEXT NOT NULL,
+  at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_safety_alerts_user_at ON safety_alerts (user_id, at DESC);
+
 -- Push tokens for FCM/APNS delivery.
 CREATE TABLE push_tokens (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

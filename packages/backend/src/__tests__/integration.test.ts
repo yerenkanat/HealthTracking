@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
-import type { Repository } from '../db/repository';
+import type { Repository, SleepNight, DayLogRow, SafetyAlertRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
 const USER = '11111111-1111-1111-1111-111111111111';
@@ -42,6 +42,9 @@ function makeDeps(
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
+  const sleepRows: SleepNight[] = [];
+  const dayLogs = new Map<string, DayLogRow>();
+  const alertRows: SafetyAlertRow[] = [];
   let idSeq = 1;
 
   const repo: Repository = {
@@ -81,6 +84,19 @@ function makeDeps(
     deleteGeofence: async () => {},
     queryMetrics: async () => [{ t: '2026-07-15T08:00:00Z', value: 72 }, { t: '2026-07-15T08:05:00Z', value: 80 }],
     listGeofenceEvents: async () => events.filter((e) => e.transition),
+    // Sleep
+    recordSleep: async (_u, s) => {
+      const i = sleepRows.findIndex((x) => x.night === s.night);
+      if (i >= 0) sleepRows[i] = s; else sleepRows.push(s);
+    },
+    listSleep: async (_u, limit) => [...sleepRows].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    // Day logs
+    upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
+    listDayLogs: async (_u, from, to) =>
+      [...dayLogs.values()].filter((d) => d.date >= from && d.date <= to).sort((a, b) => a.date.localeCompare(b.date)),
+    // Safety alerts
+    recordAlert: async (_u, a) => void alertRows.unshift(a),
+    listAlerts: async (_u, limit) => alertRows.slice(0, limit),
     // Admin
     adminStats: async () => ({ activeUsers: 1, devicesOnline: devices.length, alertsToday: pushes.emergency, ingestLastHour: healthRows.length }),
     recentEmergencies: async () => [{ userId: USER, displayName: 'Aigerim', code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }],
@@ -264,6 +280,61 @@ describe('CRUD + history routes (in-process)', () => {
     await anon.ready();
     expect((await anon.inject({ method: 'GET', url: '/children' })).statusCode).toBe(401);
     expect((await anon.inject({ method: 'POST', url: '/children', payload: { name: 'X' } })).statusCode).toBe(401);
+  });
+});
+
+describe('sleep / cycle / alerts routes (in-process)', () => {
+  it('sleep: record nights → list newest-first', async () => {
+    expect((await get('/sleep')).json().nights).toHaveLength(0);
+    expect((await post('/sleep', { night: '2026-07-14', deepMin: 70, remMin: 90, lightMin: 250, awakeMin: 35 })).statusCode).toBe(201);
+    await post('/sleep', { night: '2026-07-15', deepMin: 95, remMin: 105, lightMin: 280, awakeMin: 25 });
+    const nights = (await get('/sleep')).json().nights;
+    expect(nights).toHaveLength(2);
+    expect(nights[0].night).toBe('2026-07-15'); // newest first
+    expect(nights[0].deepMin).toBe(95);
+  });
+
+  it('sleep: rejects out-of-range minutes (zod 400)', async () => {
+    expect((await post('/sleep', { night: '2026-07-15', deepMin: -1, remMin: 0, lightMin: 0, awakeMin: 0 })).statusCode).toBe(400);
+    expect((await post('/sleep', { night: '2026-07-15', deepMin: 0, remMin: 0, lightMin: 9999, awakeMin: 0 })).statusCode).toBe(400);
+  });
+
+  it('cycle day logs: upsert (PUT) + range query', async () => {
+    const put = await app.inject({
+      method: 'PUT', url: '/cycle/days',
+      payload: { date: '2026-07-15', mood: 'calm', symptoms: ['cramps'], kicks: 3, flow: 'medium' },
+    });
+    expect(put.statusCode).toBe(200);
+    // upsert same day updates in place
+    await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '2026-07-15', mood: 'happy', symptoms: [], kicks: 5 } });
+    const days = (await get('/cycle/days?from=2026-07-01&to=2026-07-31')).json().days;
+    expect(days).toHaveLength(1);
+    expect(days[0].mood).toBe('happy');
+    expect(days[0].kicks).toBe(5);
+    expect(days[0].flow).toBeNull(); // omitted → cleared to null
+  });
+
+  it('cycle day logs: rejects a bad date + bad enum (zod 400)', async () => {
+    expect((await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '15-07-2026' } })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '2026-07-15', flow: 'gushing' } })).statusCode).toBe(400);
+    expect((await get('/cycle/days?from=only-one')).statusCode).toBe(400); // missing `to`
+  });
+
+  it('alerts: record enter/exit → list newest-first', async () => {
+    await post('/alerts', { childId: CHILD, kind: 'left', zoneName: 'Home', at: '2026-07-16T09:00:00Z' });
+    await post('/alerts', { childId: CHILD, kind: 'entered', zoneName: 'School', at: '2026-07-16T09:05:00Z' });
+    const alerts = (await get('/alerts')).json().alerts;
+    expect(alerts).toHaveLength(2);
+    expect(alerts[0].kind).toBe('entered');
+    expect(alerts[0].zoneName).toBe('School');
+    expect((await post('/alerts', { childId: CHILD, kind: 'teleported', zoneName: 'X', at: '2026-07-16T09:05:00Z' })).statusCode).toBe(400);
+  });
+
+  it('401 when unauthenticated', async () => {
+    const anon = makeDeps(async () => null).server;
+    await anon.ready();
+    expect((await anon.inject({ method: 'GET', url: '/sleep' })).statusCode).toBe(401);
+    expect((await anon.inject({ method: 'POST', url: '/alerts', payload: {} })).statusCode).toBe(401);
   });
 });
 

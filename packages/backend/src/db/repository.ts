@@ -13,6 +13,29 @@ import type {
   TriageSeverity,
 } from '@fcs/shared';
 
+export interface SleepNight {
+  night: string; // ISO date (wake day)
+  deepMin: number;
+  remMin: number;
+  lightMin: number;
+  awakeMin: number;
+}
+
+export interface DayLogRow {
+  date: string; // yyyy-MM-dd
+  mood: string | null;
+  symptoms: string[];
+  kicks: number;
+  flow: string | null; // light | medium | heavy | null
+}
+
+export interface SafetyAlertRow {
+  childId: string;
+  kind: 'entered' | 'left';
+  zoneName: string;
+  at: string; // ISO timestamp
+}
+
 export interface Repository {
   // Health
   insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<void>;
@@ -48,6 +71,18 @@ export interface Repository {
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
   listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;
+
+  // ---- Sleep (nightly summaries) ----
+  recordSleep(userId: string, s: SleepNight): Promise<void>;
+  listSleep(userId: string, limit: number): Promise<SleepNight[]>;
+
+  // ---- Women's-health day logs (mood / symptoms / kicks / flow) ----
+  upsertDayLog(userId: string, log: DayLogRow): Promise<void>;
+  listDayLogs(userId: string, from: string, to: string): Promise<DayLogRow[]>;
+
+  // ---- Child safety alerts (zone enter/exit history) ----
+  recordAlert(userId: string, a: SafetyAlertRow): Promise<void>;
+  listAlerts(userId: string, limit: number): Promise<SafetyAlertRow[]>;
 
   // ---- Admin / back-office ----
   adminStats(): Promise<{ activeUsers: number; devicesOnline: number; alertsToday: number; ingestLastHour: number }>;
