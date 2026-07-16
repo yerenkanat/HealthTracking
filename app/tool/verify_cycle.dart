@@ -5,6 +5,7 @@ library;
 import 'dart:io';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/cycle_predictions.dart';
+import '../lib/domain/cycle_insights.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -114,6 +115,25 @@ void main() {
   _chk('fertile day type', cycleDayType(DateTime(2026, 7, 12), info, loggedPeriod: false) == CycleDayType.fertile);
   _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
   _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
+
+  // ---- Cycle insights (history + frequencies) ----
+  final hist = cycleHistory(periodSet(days));
+  _chk('two cycles in history', hist.length == 2);
+  _chk('newest cycle first (Jul 1, ongoing)', hist.first.start == DateTime(2026, 7, 1) && hist.first.cycleLength == null);
+  _chk('older cycle length 28', hist.last.start == DateTime(2026, 6, 3) && hist.last.cycleLength == 28);
+  _chk('period length 5', hist.first.periodLength == 5);
+  _chk('empty history', cycleHistory({}).isEmpty);
+
+  final logs = [
+    const DayLog(date: '2026-07-01', mood: Mood.happy, symptoms: {Symptom.cramps}),
+    const DayLog(date: '2026-07-02', mood: Mood.happy, symptoms: {Symptom.cramps, Symptom.headache}),
+    const DayLog(date: '2026-07-03', mood: Mood.tired, symptoms: {Symptom.cramps}),
+  ];
+  final mf = moodFrequency(logs);
+  _chk('mood frequency ranks happy first', mf.first.mood == Mood.happy && mf.first.count == 2);
+  final sf = symptomFrequency(logs);
+  _chk('symptom frequency ranks cramps first', sf.first.symptom == Symptom.cramps && sf.first.count == 3);
+  _chk('symptom frequency includes headache', sf.any((e) => e.symptom == Symptom.headache && e.count == 1));
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

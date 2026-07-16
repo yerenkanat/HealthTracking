@@ -17,6 +17,7 @@ import '../../domain/cycle_predictions.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import 'cycle_insights_screen.dart';
 import 'logging_drawer.dart';
 
 class WomensHealthScreen extends StatefulWidget {
@@ -51,7 +52,19 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: Text(l.t('cal_screen_title'))),
+        appBar: AppBar(
+          title: Text(l.t('cal_screen_title')),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.insights_rounded),
+              tooltip: l.t('cyc_insights_title'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => CycleInsightsScreen(controller: c)),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
         body: StreamBuilder<void>(
           stream: c.changes,
           builder: (context, _) {
