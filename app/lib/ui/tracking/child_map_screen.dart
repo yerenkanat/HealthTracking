@@ -109,6 +109,7 @@ class ChildMapScreen extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: _FloatingActionChip(
                 icon: Icons.add,
+                tooltip: l.t('act_add'),
                 onSelected: (v) {
                   if (v == 'child') onAddChild?.call();
                   if (v == 'device') onAddDevice?.call();
@@ -471,9 +472,10 @@ class _FloatingIconButton extends StatelessWidget {
 
 class _FloatingActionChip extends StatelessWidget {
   final IconData icon;
+  final String tooltip;
   final void Function(String) onSelected;
   final List<PopupMenuEntry<String>> items;
-  const _FloatingActionChip({required this.icon, required this.onSelected, required this.items});
+  const _FloatingActionChip({required this.icon, required this.tooltip, required this.onSelected, required this.items});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -486,6 +488,7 @@ class _FloatingActionChip extends StatelessWidget {
       ),
       child: PopupMenuButton<String>(
         icon: Icon(icon, color: Palette.text),
+        tooltip: tooltip,
         color: Palette.surfaceHi,
         onSelected: onSelected,
         itemBuilder: (_) => items,

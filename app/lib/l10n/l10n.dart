@@ -144,6 +144,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'act_cancel': {AppLocale.ru: 'Отмена', AppLocale.kk: 'Бас тарту', AppLocale.en: 'Cancel'},
   'act_edit': {AppLocale.ru: 'Изменить', AppLocale.kk: 'Өзгерту', AppLocale.en: 'Edit'},
   'act_remove': {AppLocale.ru: 'Удалить', AppLocale.kk: 'Жою', AppLocale.en: 'Remove'},
+  'act_add': {AppLocale.ru: 'Добавить', AppLocale.kk: 'Қосу', AppLocale.en: 'Add'},
 
   // Photos
   'photo_title': {AppLocale.ru: 'Фото', AppLocale.kk: 'Сурет', AppLocale.en: 'Photo'},

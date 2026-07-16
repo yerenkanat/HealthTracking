@@ -516,13 +516,21 @@ class _MonthCalendar extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(onPressed: onPrev, icon: const Icon(Icons.chevron_left, color: Palette.textDim)),
+              IconButton(
+                onPressed: onPrev,
+                tooltip: ml.previousMonthTooltip,
+                icon: const Icon(Icons.chevron_left, color: Palette.textDim),
+              ),
               Expanded(
                 child: Text(ml.formatMonthYear(month),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
               ),
-              IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right, color: Palette.textDim)),
+              IconButton(
+                onPressed: onNext,
+                tooltip: ml.nextMonthTooltip,
+                icon: const Icon(Icons.chevron_right, color: Palette.textDim),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -575,7 +583,9 @@ class _MonthCalendar extends StatelessWidget {
       textColor = Palette.roseDeep;
     }
 
-    return GestureDetector(
+    return Semantics(
+      button: !isFuture,
+      child: GestureDetector(
       onTap: isFuture ? null : () => onTapDay(date),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
@@ -597,6 +607,7 @@ class _MonthCalendar extends StatelessWidget {
                 )),
           ),
         ),
+      ),
       ),
     );
   }
