@@ -113,6 +113,10 @@ class AppController {
     _dayLogs
       ..clear()
       ..addAll(cfg.dayLogs);
+    _alerts
+      ..clear()
+      ..addAll(cfg.alerts);
+    _lastChildZone = cfg.lastChildZone;
     _onboarded = true;
     _notify();
   }
@@ -126,6 +130,8 @@ class AppController {
         bpCalibration: _bpCalibration,
         notificationsEnabled: _notificationsEnabled,
         dayLogs: Map.of(_dayLogs),
+        alerts: List.of(_alerts),
+        lastChildZone: _lastChildZone,
       );
 
   void _persist() {
@@ -406,6 +412,7 @@ class AppController {
   void clearAlerts() {
     if (_alerts.isEmpty) return;
     _alerts.clear();
+    _persist();
     _notify();
   }
 
@@ -443,6 +450,7 @@ class AppController {
             _alertStream.add(a);
           }
         }
+        _persist(); // survive restart (feed + last zone, so we don't re-fire)
       }
     }
     _notify();

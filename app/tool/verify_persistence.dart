@@ -10,6 +10,7 @@ import '../lib/data/app_store.dart';
 import '../lib/data/persisted_config.dart';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/family.dart';
+import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/onboarding_controller.dart';
 import '../lib/l10n/l10n.dart';
 
@@ -33,6 +34,11 @@ void main() async {
     ],
     devices: const [PairedDevice(id: 'AA:BB', name: 'Band', kind: DeviceKind.band)],
     notificationsEnabled: false,
+    lastChildZone: 'School',
+    alerts: [
+      SafetyAlert(kind: AlertKind.entered, childName: 'Sultan', zoneName: 'School', at: DateTime.utc(2026, 7, 16, 9)),
+      SafetyAlert(kind: AlertKind.left, childName: 'Sultan', zoneName: 'Home', at: DateTime.utc(2026, 7, 16, 8)),
+    ],
     dayLogs: {
       '2026-07-14': const DayLog(date: '2026-07-14', mood: Mood.happy, symptoms: {Symptom.cramps}, kicks: 4),
       '2026-07-15': const DayLog(date: '2026-07-15', kicks: 0), // empty → dropped on encode
@@ -48,6 +54,9 @@ void main() async {
   _chk('round-trip device', decoded.devices.length == 1 && decoded.devices.first.kind == DeviceKind.band);
   _chk('round-trip notificationsEnabled', decoded.notificationsEnabled == false);
   _chk('notificationsEnabled defaults true', PersistedConfig.decode('{"onboarded":true,"locale":"en"}').notificationsEnabled);
+  _chk('round-trip alerts feed', decoded.alerts.length == 2 &&
+      decoded.alerts.first.kind == AlertKind.entered && decoded.alerts.first.zoneName == 'School');
+  _chk('round-trip lastChildZone', decoded.lastChildZone == 'School');
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&

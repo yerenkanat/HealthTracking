@@ -9,6 +9,7 @@ import '../ble/calibration.dart';
 import '../core/geofence.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
+import '../domain/geofence_alerts.dart';
 import '../l10n/l10n.dart';
 
 // ---- Geofence (de)serialization (circle + polygon) ----
@@ -75,6 +76,8 @@ class PersistedConfig {
   final BpCalibration? bpCalibration;
   final Map<String, DayLog> dayLogs; // dateKey → women's-health day entry
   final bool notificationsEnabled;
+  final List<SafetyAlert> alerts; // recent zone enter/exit history
+  final String? lastChildZone; // last known zone (avoids re-firing on restart)
 
   const PersistedConfig({
     required this.onboarded,
@@ -85,6 +88,8 @@ class PersistedConfig {
     this.bpCalibration,
     this.dayLogs = const {},
     this.notificationsEnabled = true,
+    this.alerts = const [],
+    this.lastChildZone,
   });
 
   Map<String, dynamic> toJson() => {
@@ -97,6 +102,8 @@ class PersistedConfig {
         if (bpCalibration != null) 'bpCalibration': bpCalibration!.toJson(),
         if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
         'notificationsEnabled': notificationsEnabled,
+        if (alerts.isNotEmpty) 'alerts': [for (final a in alerts) a.toJson()],
+        if (lastChildZone != null) 'lastChildZone': lastChildZone,
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -119,6 +126,11 @@ class PersistedConfig {
         dayLogs: dayLogsFromJson(
             j['dayLogs'] is Map ? (j['dayLogs'] as Map).cast<String, dynamic>() : null),
         notificationsEnabled: (j['notificationsEnabled'] as bool?) ?? true,
+        alerts: [
+          for (final a in (j['alerts'] as List? ?? const []))
+            SafetyAlert.fromJson((a as Map).cast<String, dynamic>())
+        ],
+        lastChildZone: j['lastChildZone'] as String?,
       );
 
   String encode() => jsonEncode(toJson());
