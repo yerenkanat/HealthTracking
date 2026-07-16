@@ -7,25 +7,44 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { Pool } from 'pg';
+import type { FastifyRequest } from 'fastify';
 import { buildServer } from './server';
-import { createPgRepository } from './db/pgRepository';
-import { createAnthropicCaller } from './ai/anthropicClient';
-import {
-  getChildLastLocation,
-  setChildLastLocation,
-  setBpCalibration,
-  resolveTransition,
-} from './cache/redis';
-import { emergencyCopy, geofenceCopy, sendPush } from './notifications/push';
+import type { ServerDeps } from './server';
+import { createMemoryRepository } from './db/memoryRepository';
 import type { BandTelemetry, ChildLocationFix } from '@fcs/shared';
 import { assessTelemetry } from '@fcs/shared';
 
-async function main(): Promise<void> {
+// NOTE: pg / Redis / Anthropic / push are imported *dynamically* inside
+// productionDeps() so memory mode (npm run dev) never loads them — importing the
+// Redis module eagerly connects a client, which we must avoid without a stack.
+
+// TODO(auth): verify a Firebase ID token from the Authorization header.
+// Dev stub: trust an x-user-id header. DO NOT ship this to production.
+const authUser = async (req: FastifyRequest) => {
+  const id = req.headers['x-user-id'];
+  return typeof id === 'string' && id.length > 0 ? { userId: id } : null;
+};
+// TODO(auth): verify a staff session/JWT with RBAC claims.
+// Dev stub: trust x-staff-id + x-staff-role headers. DO NOT ship this.
+const authAdmin = async (req: FastifyRequest) => {
+  const id = req.headers['x-staff-id'];
+  const role = req.headers['x-staff-role'];
+  const roles = ['admin', 'clinician', 'support'];
+  return typeof id === 'string' && id.length > 0 && typeof role === 'string' && roles.includes(role)
+    ? { staffId: id, role: role as 'admin' | 'clinician' | 'support' }
+    : null;
+};
+
+/** Real deps: pg + Redis + Anthropic + push (loaded lazily). */
+async function productionDeps(): Promise<ServerDeps> {
+  const { Pool } = await import('pg');
+  const { createPgRepository } = await import('./db/pgRepository');
+  const { createAnthropicCaller } = await import('./ai/anthropicClient');
+  const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
+  const { emergencyCopy, geofenceCopy, sendPush } = await import('./notifications/push');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const repo = createPgRepository(pool);
-
-  const app = buildServer({
+  return {
     repo,
     guardrail: { callLLM: createAnthropicCaller() },
     ingest: {
@@ -40,22 +59,8 @@ async function main(): Promise<void> {
         await sendPush(tokens, geofenceCopy(evt, childName));
       },
     },
-    // TODO(auth): verify a Firebase ID token from the Authorization header.
-    // Dev stub: trust an x-user-id header. DO NOT ship this to production.
-    authUser: async (req) => {
-      const id = req.headers['x-user-id'];
-      return typeof id === 'string' && id.length > 0 ? { userId: id } : null;
-    },
-    // TODO(auth): verify a staff session/JWT with RBAC claims.
-    // Dev stub: trust x-staff-id + x-staff-role headers. DO NOT ship this.
-    authAdmin: async (req) => {
-      const id = req.headers['x-staff-id'];
-      const role = req.headers['x-staff-role'];
-      const roles = ['admin', 'clinician', 'support'];
-      return typeof id === 'string' && id.length > 0 && typeof role === 'string' && roles.includes(role)
-        ? { staffId: id, role: role as 'admin' | 'clinician' | 'support' }
-        : null;
-    },
+    authUser,
+    authAdmin,
     cacheLastLocation: (childId) => getChildLastLocation(childId),
     setBpCalibration: (userId, offsets) =>
       setBpCalibration(userId, {
@@ -63,7 +68,44 @@ async function main(): Promise<void> {
         diastolicOffset: offsets.diastolicOffset,
         calibratedAt: offsets.calibratedAt,
       }),
-  });
+  };
+}
+
+/** In-memory deps: no external services — for `npm run dev` on test data. */
+function memoryDeps(): ServerDeps {
+  const repo = createMemoryRepository();
+  const lastLoc = new Map<string, ChildLocationFix>();
+  const fenceState = new Map<string, 'in' | 'out'>();
+  return {
+    repo,
+    guardrail: { callLLM: async () => 'Rest and hydrate gently. (dev echo — set an ANTHROPIC key for real replies)' },
+    ingest: {
+      cacheLocation: async (fix) => void lastLoc.set(fix.childId, fix),
+      resolveTransition: async (childId, fenceId, inside) => {
+        const key = `${childId}:${fenceId}`;
+        const next = inside ? 'in' : 'out';
+        const prev = fenceState.get(key) ?? null;
+        fenceState.set(key, next);
+        if (prev === next) return null;
+        if (prev === null && next === 'out') return null;
+        return inside ? 'enter' : 'exit';
+      },
+      sendEmergencyPush: async () => {},
+      sendGeofencePush: async () => {},
+    },
+    authUser,
+    authAdmin,
+    cacheLastLocation: async (childId) => lastLoc.get(childId) ?? null,
+    setBpCalibration: async () => {},
+  };
+}
+
+async function main(): Promise<void> {
+  const memoryMode = process.env.USE_MEMORY_DB === 'true' || !process.env.DATABASE_URL;
+  const app = buildServer(memoryMode ? memoryDeps() : await productionDeps());
+  if (memoryMode) {
+    app.log.warn('USE_MEMORY_DB / no DATABASE_URL → in-memory repository (dev only; data is not persisted)');
+  }
 
   // Guard: never let a broken triage import ship. Fail fast at boot.
   const probe = assessTelemetry({ deviceId: 'boot', recordedAt: new Date(0).toISOString(), systolicMmHg: 145 } as BandTelemetry);
