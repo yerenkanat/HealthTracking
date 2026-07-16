@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
-import type { Repository, SleepNight, DayLogRow, SafetyAlertRow } from '../db/repository';
+import type { Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
 const USER = '11111111-1111-1111-1111-111111111111';
@@ -45,6 +45,7 @@ function makeDeps(
   const sleepRows: SleepNight[] = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alertRows: SafetyAlertRow[] = [];
+  let profile: ProfileRow | null = null;
   let idSeq = 1;
 
   const repo: Repository = {
@@ -97,6 +98,13 @@ function makeDeps(
     // Safety alerts
     recordAlert: async (_u, a) => void alertRows.unshift(a),
     listAlerts: async (_u, limit) => alertRows.slice(0, limit),
+    // Profile + device reassignment
+    getProfile: async () => profile,
+    upsertProfile: async (_u, p) => void (profile = p),
+    reassignDevice: async (id, childId) => {
+      const d = devices.find((x) => x.id === id);
+      if (d) d.childId = childId;
+    },
     // Admin
     adminStats: async () => ({ activeUsers: 1, devicesOnline: devices.length, alertsToday: pushes.emergency, ingestLastHour: healthRows.length }),
     recentEmergencies: async () => [{ userId: USER, displayName: 'Aigerim', code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }],
@@ -335,6 +343,47 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
     await anon.ready();
     expect((await anon.inject({ method: 'GET', url: '/sleep' })).statusCode).toBe(401);
     expect((await anon.inject({ method: 'POST', url: '/alerts', payload: {} })).statusCode).toBe(401);
+  });
+});
+
+describe('profile + device reassignment routes (in-process)', () => {
+  it('profile: 404 until set, then PUT upsert → GET', async () => {
+    expect((await get('/profile')).statusCode).toBe(404);
+    const put = await app.inject({
+      method: 'PUT', url: '/profile',
+      payload: { displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-12-01', locale: 'ru-KZ' },
+    });
+    expect(put.statusCode).toBe(200);
+    const p = (await get('/profile')).json().profile;
+    expect(p.displayName).toBe('Aigerim');
+    expect(p.dueDate).toBe('2026-12-01');
+  });
+
+  it('profile: rejects empty name + malformed due date (zod 400)', async () => {
+    expect((await app.inject({ method: 'PUT', url: '/profile', payload: { displayName: '' } })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'PUT', url: '/profile', payload: { displayName: 'A', dueDate: '12/01/2026' } })).statusCode).toBe(400);
+  });
+
+  it('reassign a tracker tag to another child (PATCH), then unlink', async () => {
+    await post('/devices', { id: 'TAG-1', name: 'Tag', kind: 'tag', childId: CHILD });
+    const find = async () => (await get('/devices')).json().devices.find((x: { id: string }) => x.id === 'TAG-1');
+    expect((await find()).childId).toBe(CHILD);
+
+    const other = '55555555-5555-5555-5555-555555555555';
+    expect((await app.inject({ method: 'PATCH', url: '/devices/TAG-1', payload: { childId: other } })).statusCode).toBe(200);
+    expect((await find()).childId).toBe(other);
+
+    await app.inject({ method: 'PATCH', url: '/devices/TAG-1', payload: { childId: null } });
+    expect((await find()).childId).toBeNull();
+    // childId is required in the body
+    expect((await app.inject({ method: 'PATCH', url: '/devices/TAG-1', payload: {} })).statusCode).toBe(400);
+  });
+
+  it('401 when unauthenticated', async () => {
+    const anon = makeDeps(async () => null).server;
+    await anon.ready();
+    expect((await anon.inject({ method: 'GET', url: '/profile' })).statusCode).toBe(401);
+    expect((await anon.inject({ method: 'PUT', url: '/profile', payload: { displayName: 'X' } })).statusCode).toBe(401);
   });
 });
 

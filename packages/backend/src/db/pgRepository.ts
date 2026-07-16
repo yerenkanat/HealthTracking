@@ -130,14 +130,16 @@ export function createPgRepository(pool: Pool): Repository {
 
     async listDevices(userId) {
       const { rows } = await pool.query(
-        `SELECT id, ble_mac, model FROM devices WHERE user_id = $1 ORDER BY paired_at`, [userId]);
-      // Devices table currently models bands; tags can extend this schema later.
-      return rows.map((r) => ({ id: r.id, name: r.model ?? r.ble_mac, kind: 'band', childId: null }));
+        `SELECT id, ble_mac, model, name, kind, child_id FROM devices WHERE user_id = $1 ORDER BY paired_at`, [userId]);
+      return rows.map((r) => ({
+        id: r.id, name: r.name ?? r.model ?? r.ble_mac, kind: r.kind ?? 'band', childId: r.child_id ?? null,
+      }));
     },
     async createDevice(userId, d) {
       await pool.query(
-        `INSERT INTO devices (id, user_id, ble_mac, model) VALUES ($1,$2,$3,$4)
-         ON CONFLICT (id) DO NOTHING`, [d.id, userId, d.id, d.name]);
+        `INSERT INTO devices (id, user_id, ble_mac, model, kind, name, child_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING`,
+        [d.id, userId, d.id, d.name, d.kind, d.name, d.childId ?? null]);
     },
     async deleteDevice(deviceId) {
       await pool.query(`DELETE FROM devices WHERE id = $1`, [deviceId]);
@@ -297,6 +299,33 @@ export function createPgRepository(pool: Pool): Repository {
       return rows.map((r) => ({
         childId: r.child_id, kind: r.kind, zoneName: r.zone_name, at: new Date(r.at).toISOString(),
       }));
+    },
+
+    // ---- Profile ----
+    async getProfile(userId) {
+      const { rows } = await pool.query(
+        `SELECT display_name, phone_e164, due_date, locale FROM users WHERE id = $1`, [userId]);
+      if (rows.length === 0) return null;
+      const r = rows[0];
+      return {
+        displayName: r.display_name,
+        phone: r.phone_e164,
+        dueDate: r.due_date ? new Date(r.due_date).toISOString().slice(0, 10) : null,
+        locale: r.locale,
+      };
+    },
+    async upsertProfile(userId, p) {
+      // The user row exists from signup (email is required); this updates it.
+      await pool.query(
+        `UPDATE users SET display_name = $2, phone_e164 = $3, due_date = $4,
+                          locale = COALESCE($5, locale), updated_at = now()
+         WHERE id = $1`,
+        [userId, p.displayName, p.phone, p.dueDate, p.locale]);
+    },
+
+    // ---- Device reassignment ----
+    async reassignDevice(deviceId, childId) {
+      await pool.query(`UPDATE devices SET child_id = $2 WHERE id = $1`, [deviceId, childId]);
     },
   };
 }

@@ -36,6 +36,13 @@ export interface SafetyAlertRow {
   at: string; // ISO timestamp
 }
 
+export interface ProfileRow {
+  displayName: string;
+  phone: string | null; // E.164
+  dueDate: string | null; // yyyy-MM-dd
+  locale: string;
+}
+
 export interface Repository {
   // Health
   insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<void>;
@@ -83,6 +90,13 @@ export interface Repository {
   // ---- Child safety alerts (zone enter/exit history) ----
   recordAlert(userId: string, a: SafetyAlertRow): Promise<void>;
   listAlerts(userId: string, limit: number): Promise<SafetyAlertRow[]>;
+
+  // ---- Profile ----
+  getProfile(userId: string): Promise<ProfileRow | null>;
+  upsertProfile(userId: string, p: ProfileRow): Promise<void>;
+
+  // ---- Device → child reassignment (tracker tag ownership) ----
+  reassignDevice(deviceId: string, childId: string | null): Promise<void>;
 
   // ---- Admin / back-office ----
   adminStats(): Promise<{ activeUsers: number; devicesOnline: number; alertsToday: number; ingestLastHour: number }>;

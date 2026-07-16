@@ -31,12 +31,15 @@ CREATE TABLE users (                       -- Mothers / primary caregivers
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE devices (                     -- Smart bands paired to a user
+CREATE TABLE devices (                     -- Smart bands + child tracker tags
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   ble_mac        TEXT NOT NULL,
   model          TEXT,                     -- OEM model for protocol selection
   firmware       TEXT,
+  kind           TEXT NOT NULL DEFAULT 'band' CHECK (kind IN ('band','tag')),
+  name           TEXT,
+  child_id       UUID REFERENCES children(id) ON DELETE SET NULL,  -- tracker tag → child
   paired_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, ble_mac)
 );

@@ -59,6 +59,13 @@ const alertBody = z.object({
   zoneName: z.string().min(1).max(80),
   at: z.string(),
 });
+const profileBody = z.object({
+  displayName: z.string().min(1).max(80),
+  phone: z.string().max(30).nullable().optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  locale: z.string().max(10).optional(),
+});
+const reassignBody = z.object({ childId: z.string().min(1).nullable() });
 
 export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authUser: AuthUser): void {
   // Guard: resolve the user or 401.
@@ -211,5 +218,38 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     await repo.recordAlert(u.userId, parsed.data);
     return reply.code(201).send({ ok: true });
+  });
+
+  // ---- Profile ----
+  app.get('/profile', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const profile = await repo.getProfile(u.userId);
+    if (!profile) return reply.code(404).send({ error: 'not_found' });
+    return reply.send({ profile });
+  });
+
+  app.put('/profile', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = profileBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.upsertProfile(u.userId, {
+      displayName: parsed.data.displayName,
+      phone: parsed.data.phone ?? null,
+      dueDate: parsed.data.dueDate ?? null,
+      locale: parsed.data.locale ?? 'ru-KZ',
+    });
+    return reply.send({ ok: true });
+  });
+
+  // ---- Reassign a device (e.g. move a tracker tag to another child) ----
+  app.patch('/devices/:id', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = reassignBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.reassignDevice((req.params as { id: string }).id, parsed.data.childId);
+    return reply.send({ ok: true });
   });
 }
