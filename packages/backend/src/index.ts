@@ -44,6 +44,16 @@ async function main(): Promise<void> {
       const id = req.headers['x-user-id'];
       return typeof id === 'string' && id.length > 0 ? { userId: id } : null;
     },
+    // TODO(auth): verify a staff session/JWT with RBAC claims.
+    // Dev stub: trust x-staff-id + x-staff-role headers. DO NOT ship this.
+    authAdmin: async (req) => {
+      const id = req.headers['x-staff-id'];
+      const role = req.headers['x-staff-role'];
+      const roles = ['admin', 'clinician', 'support'];
+      return typeof id === 'string' && id.length > 0 && typeof role === 'string' && roles.includes(role)
+        ? { staffId: id, role: role as 'admin' | 'clinician' | 'support' }
+        : null;
+    },
     cacheLastLocation: (childId) => getChildLastLocation(childId),
     setBpCalibration: (userId, offsets) =>
       setBpCalibration(userId, {

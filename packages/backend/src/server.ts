@@ -21,6 +21,7 @@ import {
 } from './ai/AIGuardrailProcessor';
 import { computeBpOffsets } from './health/bpCalibration';
 import { registerCrudRoutes, type AuthUser } from './routes/crud';
+import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -31,6 +32,8 @@ export interface ServerDeps {
   setBpCalibration: (userId: string, offsets: { systolicOffset: number; diastolicOffset: number; calibratedAt: string }) => Promise<void>;
   /** Resolve the caller's user from the request (verify Firebase token in prod). */
   authUser?: AuthUser;
+  /** Resolve the caller's staff identity + role for /admin routes. */
+  authAdmin?: AuthAdmin;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -83,6 +86,8 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
 
   // Client CRUD + history routes (require an authUser resolver).
   if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser);
+  // Admin / back-office routes (require an authAdmin resolver).
+  if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
 
   app.post('/ingest/batch', async (req, reply) => {
     const parsed = batchSchema.safeParse(req.body);

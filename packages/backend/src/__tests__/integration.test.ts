@@ -25,7 +25,11 @@ const HOME: Geofence = {
   radiusM: 100,
 };
 
-function makeDeps(authUser: () => Promise<{ userId: string } | null> = async () => ({ userId: USER })) {
+type StaffRole = 'admin' | 'clinician' | 'support';
+function makeDeps(
+  authUser: () => Promise<{ userId: string } | null> = async () => ({ userId: USER }),
+  authAdmin: () => Promise<{ staffId: string; role: StaffRole } | null> = async () => ({ staffId: 's1', role: 'admin' }),
+) {
   const events: GeofenceEvent[] = [];
   const pushes = { emergency: 0, geofence: 0 };
   const healthRows: unknown[] = [];
@@ -37,6 +41,7 @@ function makeDeps(authUser: () => Promise<{ userId: string } | null> = async () 
   const children: Array<{ id: string; name: string }> = [];
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
+  const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   let idSeq = 1;
 
   const repo: Repository = {
@@ -76,6 +81,14 @@ function makeDeps(authUser: () => Promise<{ userId: string } | null> = async () 
     deleteGeofence: async () => {},
     queryMetrics: async () => [{ t: '2026-07-15T08:00:00Z', value: 72 }, { t: '2026-07-15T08:05:00Z', value: 80 }],
     listGeofenceEvents: async () => events.filter((e) => e.transition),
+    // Admin
+    adminStats: async () => ({ activeUsers: 1, devicesOnline: devices.length, alertsToday: pushes.emergency, ingestLastHour: healthRows.length }),
+    recentEmergencies: async () => [{ userId: USER, displayName: 'Aigerim', code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }],
+    adminListUsers: async () => ({ total: 1, users: [{ id: USER, displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-11-01' }] }),
+    adminUserHealth: async (userId) =>
+      userId === USER ? { latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 }, triage: [{ code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }] } : null,
+    writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
+    listAudit: async () => audit.map((a) => ({ ...a })),
   };
 
   const server = buildServer(
@@ -99,6 +112,7 @@ function makeDeps(authUser: () => Promise<{ userId: string } | null> = async () 
       cacheLastLocation: async () => lastLocation,
       setBpCalibration: async () => {},
       authUser,
+      authAdmin,
     },
     { logger: false },
   );
@@ -250,5 +264,53 @@ describe('CRUD + history routes (in-process)', () => {
     await anon.ready();
     expect((await anon.inject({ method: 'GET', url: '/children' })).statusCode).toBe(401);
     expect((await anon.inject({ method: 'POST', url: '/children', payload: { name: 'X' } })).statusCode).toBe(401);
+  });
+});
+
+describe('admin API (in-process, RBAC + audit)', () => {
+  it('stats returns KPIs to staff', async () => {
+    const r = await get('/admin/stats');
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toHaveProperty('activeUsers');
+    expect(r.json()).toHaveProperty('alertsToday');
+  });
+
+  it('emergency feed returns events and writes an audit entry', async () => {
+    const r = await get('/admin/emergencies');
+    expect(r.statusCode).toBe(200);
+    expect(r.json().emergencies[0].code).toBe('PREECLAMPSIA_BP');
+    const audit = (await get('/admin/audit')).json().audit;
+    expect(audit.some((a: { action: string }) => a.action === 'view_emergencies')).toBe(true);
+  });
+
+  it('patient health view is audited; unknown user 404', async () => {
+    const r = await get(`/admin/users/${USER}/health`);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().latest.systolic).toBe(138);
+    const audit = (await get('/admin/audit')).json().audit;
+    expect(audit.some((a: { action: string; target: string }) => a.action === 'view_health' && a.target === USER)).toBe(true);
+    expect((await get('/admin/users/00000000-0000-0000-0000-000000000000/health')).statusCode).toBe(404);
+  });
+
+  it('user list + audit require the admin role (clinician → 403)', async () => {
+    const clinician = makeDeps(undefined, async () => ({ staffId: 'c1', role: 'clinician' })).server;
+    await clinician.ready();
+    expect((await clinician.inject({ method: 'GET', url: '/admin/users' })).statusCode).toBe(403);
+    expect((await clinician.inject({ method: 'GET', url: '/admin/audit' })).statusCode).toBe(403);
+    // but a clinician can still view stats + patient health
+    expect((await clinician.inject({ method: 'GET', url: '/admin/stats' })).statusCode).toBe(200);
+  });
+
+  it('admin can list users', async () => {
+    const r = await get('/admin/users');
+    expect(r.statusCode).toBe(200);
+    expect(r.json().total).toBe(1);
+    expect(r.json().users[0].displayName).toBe('Aigerim');
+  });
+
+  it('401 when staff is unauthenticated', async () => {
+    const anon = makeDeps(undefined, async () => null).server;
+    await anon.ready();
+    expect((await anon.inject({ method: 'GET', url: '/admin/stats' })).statusCode).toBe(401);
   });
 });

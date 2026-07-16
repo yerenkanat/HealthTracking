@@ -48,4 +48,12 @@ export interface Repository {
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
   listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;
+
+  // ---- Admin / back-office ----
+  adminStats(): Promise<{ activeUsers: number; devicesOnline: number; alertsToday: number; ingestLastHour: number }>;
+  recentEmergencies(limit: number): Promise<Array<{ userId: string; displayName: string; code: string; severity: string; at: string }>>;
+  adminListUsers(q: string, limit: number, offset: number): Promise<{ total: number; users: Array<{ id: string; displayName: string; phone: string | null; dueDate: string | null }> }>;
+  adminUserHealth(userId: string): Promise<{ latest: Record<string, number | null>; triage: Array<{ code: string; severity: string; at: string }> } | null>;
+  writeAudit(entry: { staffId: string; action: string; target?: string }): Promise<void>;
+  listAudit(limit: number): Promise<Array<{ staffId: string; action: string; target: string | null; at: string }>>;
 }

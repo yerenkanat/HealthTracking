@@ -167,6 +167,16 @@ CREATE TABLE geofence_events (
 );
 CREATE INDEX idx_gfevents_child_time ON geofence_events (child_id, occurred_at DESC);
 
+-- Staff audit log (every back-office access to PHI/location is recorded).
+CREATE TABLE audit_log (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  staff_id    TEXT NOT NULL,
+  action      TEXT NOT NULL,
+  target      TEXT,
+  at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_audit_at ON audit_log (at DESC);
+
 -- Push tokens for FCM/APNS delivery.
 CREATE TABLE push_tokens (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

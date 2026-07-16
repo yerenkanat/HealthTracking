@@ -188,5 +188,61 @@ export function createPgRepository(pool: Pool): Repository {
         transition: r.transition, at: new Date(r.occurred_at).toISOString(), source: r.source,
       }));
     },
+
+    // ---- Admin ----
+    async adminStats() {
+      const [users, devices, alerts, ingest] = await Promise.all([
+        pool.query(`SELECT count(*)::int AS n FROM users`),
+        pool.query(`SELECT count(*)::int AS n FROM devices`),
+        pool.query(`SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE triage_severity='emergency' AND recorded_at > now() - interval '1 day'`),
+        pool.query(`SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE recorded_at > now() - interval '1 hour'`),
+      ]);
+      return { activeUsers: users.rows[0].n, devicesOnline: devices.rows[0].n, alertsToday: alerts.rows[0].n, ingestLastHour: ingest.rows[0].n };
+    },
+    async recentEmergencies(limit) {
+      const { rows } = await pool.query(
+        `SELECT m.user_id, u.display_name, m.triage_severity, m.recorded_at
+         FROM pregnancy_health_metrics m JOIN users u ON u.id = m.user_id
+         WHERE m.triage_severity = 'emergency' ORDER BY m.recorded_at DESC LIMIT $1`, [limit]);
+      return rows.map((r) => ({
+        userId: r.user_id, displayName: r.display_name, code: 'EMERGENCY',
+        severity: r.triage_severity, at: new Date(r.recorded_at).toISOString(),
+      }));
+    },
+    async adminListUsers(q, limit, offset) {
+      const like = `%${q}%`;
+      const total = await pool.query(
+        `SELECT count(*)::int AS n FROM users WHERE display_name ILIKE $1 OR email ILIKE $1`, [like]);
+      const { rows } = await pool.query(
+        `SELECT id, display_name, phone_e164, due_date FROM users
+         WHERE display_name ILIKE $1 OR email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+        [like, limit, offset]);
+      return {
+        total: total.rows[0].n,
+        users: rows.map((r) => ({ id: r.id, displayName: r.display_name, phone: r.phone_e164, dueDate: r.due_date })),
+      };
+    },
+    async adminUserHealth(userId) {
+      const latest = await pool.query(
+        `SELECT heart_rate_bpm, spo2_pct, systolic_mmhg, diastolic_mmhg, core_temp_c
+         FROM pregnancy_health_metrics WHERE user_id = $1 ORDER BY recorded_at DESC LIMIT 1`, [userId]);
+      if (latest.rows.length === 0) return null;
+      const r = latest.rows[0];
+      const triage = await pool.query(
+        `SELECT triage_severity, recorded_at FROM pregnancy_health_metrics
+         WHERE user_id = $1 AND triage_severity IN ('warning','emergency') ORDER BY recorded_at DESC LIMIT 20`, [userId]);
+      return {
+        latest: { hr: r.heart_rate_bpm, spo2: r.spo2_pct, systolic: r.systolic_mmhg, diastolic: r.diastolic_mmhg, temp: r.core_temp_c },
+        triage: triage.rows.map((t) => ({ code: t.triage_severity, severity: t.triage_severity, at: new Date(t.recorded_at).toISOString() })),
+      };
+    },
+    async writeAudit(entry) {
+      await pool.query(`INSERT INTO audit_log (staff_id, action, target) VALUES ($1,$2,$3)`,
+        [entry.staffId, entry.action, entry.target ?? null]);
+    },
+    async listAudit(limit) {
+      const { rows } = await pool.query(`SELECT staff_id, action, target, at FROM audit_log ORDER BY at DESC LIMIT $1`, [limit]);
+      return rows.map((r) => ({ staffId: r.staff_id, action: r.action, target: r.target, at: new Date(r.at).toISOString() }));
+    },
   };
 }
