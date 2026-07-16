@@ -34,6 +34,8 @@ void main() async {
     ],
     devices: const [PairedDevice(id: 'AA:BB', name: 'Band', kind: DeviceKind.band)],
     notificationsEnabled: false,
+    avgCycleLength: 30,
+    avgPeriodLength: 6,
     lastChildZone: 'School',
     alerts: [
       SafetyAlert(kind: AlertKind.entered, childName: 'Sultan', zoneName: 'School', at: DateTime.utc(2026, 7, 16, 9)),
@@ -58,6 +60,7 @@ void main() async {
   _chk('round-trip alerts feed', decoded.alerts.length == 2 &&
       decoded.alerts.first.kind == AlertKind.entered && decoded.alerts.first.zoneName == 'School');
   _chk('round-trip lastChildZone', decoded.lastChildZone == 'School');
+  _chk('round-trip cycle baseline', decoded.avgCycleLength == 30 && decoded.avgPeriodLength == 6);
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&

@@ -60,6 +60,12 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
             appBar: AppBar(
               title: Text(l.t('cal_screen_title')),
               actions: [
+                if (cycleMode)
+                  IconButton(
+                    icon: const Icon(Icons.tune_rounded),
+                    tooltip: l.t('cyc_settings_title'),
+                    onPressed: _openCycleSettings,
+                  ),
                 IconButton(
                   icon: const Icon(Icons.insights_rounded),
                   tooltip: l.t('cyc_insights_title'),
@@ -105,6 +111,63 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   const SizedBox(height: 14),
                   const _CycleLegend(),
                 ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openCycleSettings() {
+    final c = widget.controller;
+    var cycleLen = c.avgCycleLength.toDouble();
+    var periodLen = c.avgPeriodLength.toDouble();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      builder: (ctx) {
+        final l = L10nScope.of(ctx);
+        return StatefulBuilder(
+          builder: (ctx, setSheet) => Padding(
+            padding: EdgeInsets.only(
+                left: 20, right: 20, top: 16, bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                Text(l.t('cyc_settings_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(l.t('cyc_settings_hint'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                const SizedBox(height: 18),
+                _SliderRow(
+                  label: l.t('cyc_avg_cycle_label'),
+                  value: cycleLen, min: 21, max: 35,
+                  display: l.t('cyc_days_short', {'n': cycleLen.round()}),
+                  onChanged: (v) => setSheet(() => cycleLen = v),
+                ),
+                const SizedBox(height: 12),
+                _SliderRow(
+                  label: l.t('cyc_avg_period_label'),
+                  value: periodLen, min: 2, max: 8,
+                  display: l.t('cyc_days_short', {'n': periodLen.round()}),
+                  onChanged: (v) => setSheet(() => periodLen = v),
+                ),
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: () {
+                    c.setCycleBaseline(cycle: cycleLen.round(), period: periodLen.round());
+                    Navigator.pop(ctx);
+                  },
+                  child: Text(l.t('act_save')),
+                ),
               ],
             ),
           ),
@@ -678,6 +741,34 @@ class _MonthCalendar extends StatelessWidget {
       CycleDayType.fertile => (fill: Palette.teal.withValues(alpha: 0.16), text: Palette.teal),
       CycleDayType.none => (fill: Colors.transparent, text: null),
     };
+
+/// A labelled slider row for the cycle-settings sheet.
+class _SliderRow extends StatelessWidget {
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final String display;
+  final ValueChanged<double> onChanged;
+  const _SliderRow({required this.label, required this.value, required this.min, required this.max, required this.display, required this.onChanged});
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
+          Text(display, style: const TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: Palette.roseDeep)),
+        ]),
+        Slider(
+          value: value, min: min, max: max, divisions: (max - min).round(),
+          activeColor: Palette.roseDeep,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
 
 /// Predictions summary (cycle mode): next-period date + delay status, fertile
 /// window dates, and ovulation date — the "when is my next period / am I late"

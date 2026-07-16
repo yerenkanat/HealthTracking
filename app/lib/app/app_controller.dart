@@ -64,6 +64,8 @@ class AppController {
   final List<PairedDevice> _devices = [];
   BpCalibration? _bpCalibration;
   bool _notificationsEnabled = true;
+  int? _avgCycleLength;
+  int? _avgPeriodLength;
   final Map<String, DayLog> _dayLogs = {};
 
   AppLocale _locale;
@@ -110,6 +112,8 @@ class AppController {
       ..addAll(cfg.devices);
     _bpCalibration = cfg.bpCalibration;
     _notificationsEnabled = cfg.notificationsEnabled;
+    _avgCycleLength = cfg.avgCycleLength;
+    _avgPeriodLength = cfg.avgPeriodLength;
     _dayLogs
       ..clear()
       ..addAll(cfg.dayLogs);
@@ -129,6 +133,8 @@ class AppController {
         devices: List.of(_devices),
         bpCalibration: _bpCalibration,
         notificationsEnabled: _notificationsEnabled,
+        avgCycleLength: _avgCycleLength,
+        avgPeriodLength: _avgPeriodLength,
         dayLogs: Map.of(_dayLogs),
         alerts: List.of(_alerts),
         lastChildZone: _lastChildZone,
@@ -280,8 +286,19 @@ class AppController {
     return out;
   }
 
+  /// User-set cycle baseline (used until ≥2 cycles are logged and derived).
+  int get avgCycleLength => _avgCycleLength ?? 28;
+  int get avgPeriodLength => _avgPeriodLength ?? 5;
+  void setCycleBaseline({int? cycle, int? period}) {
+    if (cycle != null) _avgCycleLength = cycle;
+    if (period != null) _avgPeriodLength = period;
+    _persist();
+    _notify();
+  }
+
   /// Predicted cycle info from logged periods (empty until the user logs a period).
-  CycleInfo get cycle => computeCycle(periodDays, _now());
+  CycleInfo get cycle =>
+      computeCycle(periodDays, _now(), defaultCycle: avgCycleLength, defaultPeriod: avgPeriodLength);
 
   /// Estimated due date and the derived gestation (null until the mother sets one).
   DateTime? get dueDate => _profile.dueDate;

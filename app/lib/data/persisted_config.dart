@@ -80,6 +80,8 @@ class PersistedConfig {
   final bool notificationsEnabled;
   final List<SafetyAlert> alerts; // recent zone enter/exit history
   final String? lastChildZone; // last known zone (avoids re-firing on restart)
+  final int? avgCycleLength; // user-set baseline until ≥2 cycles are logged
+  final int? avgPeriodLength;
 
   const PersistedConfig({
     required this.onboarded,
@@ -92,6 +94,8 @@ class PersistedConfig {
     this.notificationsEnabled = true,
     this.alerts = const [],
     this.lastChildZone,
+    this.avgCycleLength,
+    this.avgPeriodLength,
   });
 
   Map<String, dynamic> toJson() => {
@@ -106,6 +110,8 @@ class PersistedConfig {
         'notificationsEnabled': notificationsEnabled,
         if (alerts.isNotEmpty) 'alerts': [for (final a in alerts) a.toJson()],
         if (lastChildZone != null) 'lastChildZone': lastChildZone,
+        if (avgCycleLength != null) 'avgCycleLength': avgCycleLength,
+        if (avgPeriodLength != null) 'avgPeriodLength': avgPeriodLength,
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -133,6 +139,8 @@ class PersistedConfig {
             SafetyAlert.fromJson((a as Map).cast<String, dynamic>())
         ],
         lastChildZone: j['lastChildZone'] as String?,
+        avgCycleLength: (j['avgCycleLength'] as num?)?.toInt(),
+        avgPeriodLength: (j['avgPeriodLength'] as num?)?.toInt(),
       );
 
   String encode() => jsonEncode(toJson());
