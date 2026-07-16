@@ -30,3 +30,11 @@ app/android/.gradle/
 app/android/local.properties
 app/android/**/build/
 app/.gradle/
+
+# Flutter iOS build artifacts
+app/ios/Pods/
+app/ios/.symlinks/
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
+app/ios/Flutter/ephemeral/
+app/ios/build/
