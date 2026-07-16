@@ -63,6 +63,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _CycleHeader(controller: c, today: _today, onSetDueDate: _pickDueDate)
                 else
                   _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
+                if (cycleMode && c.cycle.hasData) ...[
+                  const SizedBox(height: 14),
+                  _CyclePredictions(info: c.cycle),
+                ],
                 const SizedBox(height: 16),
                 _MonthCalendar(
                   month: _month,
@@ -207,6 +211,13 @@ class _GestationHeader extends StatelessWidget {
                           : l.t('gest_overdue'),
                       style: const TextStyle(color: Palette.textDim, fontSize: 13),
                     ),
+                    if (controller.dueDate != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        l.t('gest_due', {'date': MaterialLocalizations.of(context).formatMediumDate(controller.dueDate!)}),
+                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5),
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     GestureDetector(
                       onTap: onSetDueDate,
@@ -627,6 +638,108 @@ class _MonthCalendar extends StatelessWidget {
       CycleDayType.fertile => (fill: Palette.teal.withValues(alpha: 0.16), text: Palette.teal),
       CycleDayType.none => (fill: Colors.transparent, text: null),
     };
+
+/// Predictions summary (cycle mode): next-period date + delay status, fertile
+/// window dates, and ovulation date — the "when is my next period / am I late"
+/// answers the calendar colours only hint at.
+class _CyclePredictions extends StatelessWidget {
+  final CycleInfo info;
+  const _CyclePredictions({required this.info});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final ml = MaterialLocalizations.of(context);
+    final until = info.daysUntilNextPeriod ?? 0;
+    final (statusText, statusColor) = until > 0
+        ? (l.t('cyc_period_in', {'n': until}), Palette.roseDeep)
+        : until == 0
+            ? (l.t('cyc_period_today'), Palette.roseDeep)
+            : (l.t('cyc_period_late', {'n': -until}), Palette.amber);
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('cyc_predictions').toUpperCase(),
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 12),
+          _PredRow(
+            icon: Icons.water_drop_rounded,
+            color: Palette.roseDeep,
+            label: l.t('cyc_next_period'),
+            value: ml.formatMediumDate(info.nextPeriodStart!),
+            badge: statusText,
+            badgeColor: statusColor,
+          ),
+          const _PredDivider(),
+          _PredRow(
+            icon: Icons.eco_rounded,
+            color: Palette.teal,
+            label: l.t('cyc_phase_fertile'),
+            value: '${ml.formatMediumDate(info.fertileStart!)} – ${ml.formatMediumDate(info.fertileEnd!)}',
+          ),
+          const _PredDivider(),
+          _PredRow(
+            icon: Icons.brightness_high_rounded,
+            color: Palette.teal,
+            label: l.t('cyc_ovulation'),
+            value: ml.formatMediumDate(info.ovulation!),
+          ),
+          const SizedBox(height: 10),
+          Text(l.t('cyc_avg_cycle', {'n': info.avgCycleLength}),
+              style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PredRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+  final String? badge;
+  final Color? badgeColor;
+  const _PredRow({required this.icon, required this.color, required this.label, required this.value, this.badge, this.badgeColor});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              const SizedBox(height: 1),
+              Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+        if (badge != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: badgeColor!.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+            child: Text(badge!, style: TextStyle(color: badgeColor, fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+      ],
+    );
+  }
+}
+
+class _PredDivider extends StatelessWidget {
+  const _PredDivider();
+  @override
+  Widget build(BuildContext context) =>
+      const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border));
+}
 
 /// Legend for the cycle calendar colours.
 class _CycleLegend extends StatelessWidget {

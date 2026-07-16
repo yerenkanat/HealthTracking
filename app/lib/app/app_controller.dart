@@ -474,6 +474,12 @@ class AppController {
     if (!_changes.isClosed) _changes.add(null);
   }
 
+  /// Debug/demo only: skip onboarding so the seeded demo shows the app directly.
+  void debugMarkOnboarded() {
+    _onboarded = true;
+    _notify();
+  }
+
   /// Debug/demo only: inject pre-built samples (used by --dart-define=DEMO=true).
   void debugSeed(List<HealthSample> samples) {
     for (final s in samples) {

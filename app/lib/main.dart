@@ -7,7 +7,7 @@
 library;
 
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 
 import 'app/app.dart';
 import 'app/app_controller.dart';
@@ -15,6 +15,7 @@ import 'core/geofence.dart';
 import 'data/notification_service.dart';
 import 'data/prefs_app_store.dart';
 import 'domain/geofence_alerts.dart';
+import 'domain/cycle_log.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
 import 'domain/ai_chat_service.dart';
@@ -89,11 +90,23 @@ void _seedDemo(AppController c) {
       Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),
     ],
   );
+  // Two past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
+  // shows real predictions out of the box: last period ended a few days ago →
+  // ~cycle day 7, next period in ~3 weeks.
+  for (final start in [today.subtract(const Duration(days: 6)), today.subtract(const Duration(days: 34))]) {
+    for (var i = 0; i < 5; i++) {
+      final d = start.add(Duration(days: i));
+      c.setDayLog(DayLog(date: dateKey(d), flow: i < 2 ? Flow.medium : Flow.light));
+    }
+  }
+
   // A short movement history → generates zone enter/exit alerts for the feed:
   // at Home → on the move → arrives at School (where the map leaves them).
   c.onChildLocation(const Coordinates(43.238949, 76.889709)); // Home → entered Home
   c.onChildLocation(const Coordinates(43.245, 76.92)); // between → left Home
   c.onChildLocation(const Coordinates(43.25, 76.95)); // School → entered School
+
+  c.debugMarkOnboarded(); // demo skips onboarding → lands straight in the app
 }
 
 /// Connects the verified spine to live sources. Kept out of the widget tree so
