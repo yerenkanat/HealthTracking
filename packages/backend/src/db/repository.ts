@@ -33,4 +33,19 @@ export interface Repository {
   // Emergency routing
   emergencyContacts(userId: string): Promise<Array<{ label: string; tel: string }>>;
   deviceOwner(deviceId: string): Promise<{ userId: string } | null>;
+
+  // ---- CRUD + history (client API) ----
+  listChildren(userId: string): Promise<Array<{ id: string; name: string }>>;
+  createChild(userId: string, name: string): Promise<{ id: string; name: string }>;
+  deleteChild(childId: string): Promise<void>;
+
+  listDevices(userId: string): Promise<Array<{ id: string; name: string; kind: string; childId: string | null }>>;
+  createDevice(userId: string, d: { id: string; name: string; kind: string; childId?: string | null }): Promise<void>;
+  deleteDevice(deviceId: string): Promise<void>;
+
+  createGeofence(childId: string, g: Geofence): Promise<Geofence>;
+  deleteGeofence(geofenceId: string): Promise<void>;
+
+  queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
+  listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;
 }

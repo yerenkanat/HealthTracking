@@ -20,6 +20,7 @@ import {
   type GuardrailDeps,
 } from './ai/AIGuardrailProcessor';
 import { computeBpOffsets } from './health/bpCalibration';
+import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -28,6 +29,8 @@ export interface ServerDeps {
   guardrail: GuardrailDeps;
   cacheLastLocation: (childId: string) => Promise<unknown>;
   setBpCalibration: (userId: string, offsets: { systolicOffset: number; diastolicOffset: number; calibratedAt: string }) => Promise<void>;
+  /** Resolve the caller's user from the request (verify Firebase token in prod). */
+  authUser?: AuthUser;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -77,6 +80,9 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   const app = Fastify({ logger: opts.logger ?? true });
 
   app.get('/health', async () => ({ ok: true }));
+
+  // Client CRUD + history routes (require an authUser resolver).
+  if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser);
 
   app.post('/ingest/batch', async (req, reply) => {
     const parsed = batchSchema.safeParse(req.body);

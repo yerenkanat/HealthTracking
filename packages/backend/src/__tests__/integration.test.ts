@@ -25,7 +25,7 @@ const HOME: Geofence = {
   radiusM: 100,
 };
 
-function makeDeps() {
+function makeDeps(authUser: () => Promise<{ userId: string } | null> = async () => ({ userId: USER })) {
   const events: GeofenceEvent[] = [];
   const pushes = { emergency: 0, geofence: 0 };
   const healthRows: unknown[] = [];
@@ -33,10 +33,17 @@ function makeDeps() {
   let lastLocation: ChildLocationFix | null = null;
   const fenceState = new Map<string, 'in' | 'out'>(); // real Redis-like dedup
 
+  // In-memory CRUD state
+  const children: Array<{ id: string; name: string }> = [];
+  const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
+  const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
+  let idSeq = 1;
+
   const repo: Repository = {
     insertHealthMetric: async (m) => void healthRows.push(m),
     insertBpCalibration: async (_u, c) => void calRows.push(c),
-    loadGeofences: async (childId) => (childId === CHILD ? [HOME] : []),
+    loadGeofences: async (childId) =>
+      childId === CHILD ? [HOME, ...(geofences.get(childId) ?? [])] : (geofences.get(childId) ?? []),
     insertGeofenceEvent: async (e) => void events.push(e),
     insertLocation: async () => {},
     guardianPushTokens: async () => ({ tokens: ['t'], childName: 'Sultan' }),
@@ -44,6 +51,31 @@ function makeDeps() {
     retrieveRagPassages: async () => [],
     emergencyContacts: async () => [{ label: 'Doctor', tel: '+7700' }],
     deviceOwner: async (id) => (id === DEVICE ? { userId: USER } : null),
+    // CRUD
+    listChildren: async () => children.map((c) => ({ ...c })),
+    createChild: async (_u, name) => {
+      const c = { id: `child-${idSeq++}`, name };
+      children.push(c);
+      return c;
+    },
+    deleteChild: async (id) => {
+      const i = children.findIndex((c) => c.id === id);
+      if (i >= 0) children.splice(i, 1);
+    },
+    listDevices: async () => devices.map((d) => ({ ...d })),
+    createDevice: async (_u, d) => void devices.push({ ...d, childId: d.childId ?? null }),
+    deleteDevice: async (id) => {
+      const i = devices.findIndex((d) => d.id === id);
+      if (i >= 0) devices.splice(i, 1);
+    },
+    createGeofence: async (childId, g) => {
+      const withId = { ...g, id: `gf-${idSeq++}` };
+      geofences.set(childId, [...(geofences.get(childId) ?? []), withId]);
+      return withId;
+    },
+    deleteGeofence: async () => {},
+    queryMetrics: async () => [{ t: '2026-07-15T08:00:00Z', value: 72 }, { t: '2026-07-15T08:05:00Z', value: 80 }],
+    listGeofenceEvents: async () => events.filter((e) => e.transition),
   };
 
   const server = buildServer(
@@ -66,6 +98,7 @@ function makeDeps() {
       },
       cacheLastLocation: async () => lastLocation,
       setBpCalibration: async () => {},
+      authUser,
     },
     { logger: false },
   );
@@ -166,5 +199,56 @@ describe('server wiring (in-process)', () => {
   it('AI chat normal question returns a grounded reply', async () => {
     const r = await post('/ai/chat', { userId: USER, locale: 'en', message: 'tips for sleep?' });
     expect(r.json().kind).toBe('chat');
+  });
+});
+
+describe('CRUD + history routes (in-process)', () => {
+  it('children: create → list → delete', async () => {
+    expect((await get('/children')).json().children).toHaveLength(0);
+    const created = await post('/children', { name: 'Sultan' });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    expect((await get('/children')).json().children).toHaveLength(1);
+    const del = await app.inject({ method: 'DELETE', url: `/children/${id}` });
+    expect(del.statusCode).toBe(204);
+    expect((await get('/children')).json().children).toHaveLength(0);
+  });
+
+  it('children: rejects empty name (zod 400)', async () => {
+    expect((await post('/children', { name: '' })).statusCode).toBe(400);
+  });
+
+  it('devices: create → list → delete', async () => {
+    const r = await post('/devices', { id: 'AA:BB', name: 'Band', kind: 'band' });
+    expect(r.statusCode).toBe(201);
+    expect((await get('/devices')).json().devices).toHaveLength(1);
+    expect((await post('/devices', { id: 'x', kind: 'nope' })).statusCode).toBe(400); // bad kind
+    const del = await app.inject({ method: 'DELETE', url: '/devices/AA:BB' });
+    expect(del.statusCode).toBe(204);
+    expect((await get('/devices')).json().devices).toHaveLength(0);
+  });
+
+  it('geofences: create a circle for a child, then list', async () => {
+    const r = await post(`/children/${CHILD}/geofences`, {
+      name: 'Park', shape: 'circle', center: { lat: 43.24, lng: 76.9 }, radiusM: 80,
+    });
+    expect(r.statusCode).toBe(201);
+    expect(r.json().name).toBe('Park');
+    const list = (await get(`/children/${CHILD}/geofences`)).json().geofences;
+    expect(list.some((g: { name: string }) => g.name === 'Park')).toBe(true);
+  });
+
+  it('metrics history query validates + returns points', async () => {
+    expect((await get('/metrics?from=a&to=b&metric=nope')).statusCode).toBe(400);
+    const r = await get('/metrics?from=2026-07-15T00:00:00Z&to=2026-07-16T00:00:00Z&metric=hr');
+    expect(r.statusCode).toBe(200);
+    expect(r.json().points.length).toBeGreaterThan(0);
+  });
+
+  it('401 when the request is unauthenticated', async () => {
+    const anon = makeDeps(async () => null).server;
+    await anon.ready();
+    expect((await anon.inject({ method: 'GET', url: '/children' })).statusCode).toBe(401);
+    expect((await anon.inject({ method: 'POST', url: '/children', payload: { name: 'X' } })).statusCode).toBe(401);
   });
 });

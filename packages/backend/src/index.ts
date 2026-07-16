@@ -38,6 +38,12 @@ async function main(): Promise<void> {
         await sendPush(tokens, geofenceCopy(evt, childName));
       },
     },
+    // TODO(auth): verify a Firebase ID token from the Authorization header.
+    // Dev stub: trust an x-user-id header. DO NOT ship this to production.
+    authUser: async (req) => {
+      const id = req.headers['x-user-id'];
+      return typeof id === 'string' && id.length > 0 ? { userId: id } : null;
+    },
     cacheLastLocation: (childId) => getChildLastLocation(childId),
     setBpCalibration: (userId, offsets) =>
       setBpCalibration(userId, {
