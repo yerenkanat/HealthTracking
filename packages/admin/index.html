@@ -1,0 +1,401 @@
+<style>
+  :root{
+    --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
+    --hair:#ECEDF3; --accent:#6D5AE6; --accent-soft:#EEEBFC;
+    --crit:#E5484D; --warn:#E0930B; --good:#17A672;
+    --crit-soft:#FCECEC; --warn-soft:#FBF1E1; --good-soft:#E6F5EE;
+    --shadow:0 8px 24px -12px rgba(27,29,40,.14);
+    --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    --r:16px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0E0F16; --surface:#171922; --surface-2:#1C1F2A; --ink:#EDEEF4; --muted:#9BA0B5;
+      --hair:#262A38; --accent:#9385F0; --accent-soft:#221F3A;
+      --crit-soft:#2A1A1D; --warn-soft:#2A2113; --good-soft:#132720;
+      --shadow:0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0E0F16; --surface:#171922; --surface-2:#1C1F2A; --ink:#EDEEF4; --muted:#9BA0B5;
+    --hair:#262A38; --accent:#9385F0; --accent-soft:#221F3A;
+    --crit-soft:#2A1A1D; --warn-soft:#2A2113; --good-soft:#132720;
+    --shadow:0 10px 30px -14px rgba(0,0,0,.6);
+  }
+  :root[data-theme="light"]{
+    --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
+    --hair:#ECEDF3; --accent:#6D5AE6; --accent-soft:#EEEBFC;
+    --crit-soft:#FCECEC; --warn-soft:#FBF1E1; --good-soft:#E6F5EE;
+    --shadow:0 8px 24px -12px rgba(27,29,40,.14);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* Sidebar */
+  .side{background:var(--surface);border-right:1px solid var(--hair);padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+  .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#E85C8A);display:grid;place-items:center;color:#fff;font-weight:800}
+  .brand b{font-size:15px;letter-spacing:-.2px}
+  .brand span{display:block;font-size:11px;color:var(--muted);font-weight:500}
+  .nav{display:flex;gap:11px;align-items:center;padding:10px 12px;border-radius:11px;color:var(--muted);font-weight:600;cursor:pointer;border:1px solid transparent}
+  .nav:hover{background:var(--surface-2)}
+  .nav.active{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 22%,transparent)}
+  .nav .ic{width:18px;height:18px;flex:0 0 auto}
+  .nav .badge{margin-left:auto;background:var(--crit);color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700}
+  .side .foot{margin-top:auto;font-size:11px;color:var(--muted);padding:8px}
+
+  /* Main */
+  .main{min-width:0;display:flex;flex-direction:column}
+  .top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--hair);padding:16px 26px;display:flex;align-items:center;gap:16px}
+  .top h1{font-size:19px;margin:0;letter-spacing:-.4px}
+  .top .sub{color:var(--muted);font-size:12.5px}
+  .spacer{flex:1}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--hair);border-radius:30px;padding:5px 6px 5px 12px;font-weight:600;font-size:12.5px}
+  .chip .role{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;text-transform:capitalize}
+  .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#E85C8A);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+  .iconbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center}
+  .modepill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid var(--hair)}
+  .modepill.mock{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+  .modepill.live{color:var(--good);background:var(--good-soft);border-color:transparent}
+
+  .content{padding:24px 26px 48px;max-width:1180px;width:100%}
+  .view{display:none}.view.active{display:block}
+
+  /* KPI tiles */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .card{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow)}
+  .kpi{padding:18px}
+  .kpi .lbl{color:var(--muted);font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .kpi .dot{width:9px;height:9px;border-radius:50%}
+  .kpi .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:30px;font-weight:700;margin-top:12px;letter-spacing:-1px}
+  .kpi .delta{font-size:12px;color:var(--muted);margin-top:2px}
+  .kpi .delta b{color:var(--good)}
+  .kpi .delta b.down{color:var(--crit)}
+
+  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:16px}
+  .sec-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 6px}
+  .sec-h h3{margin:0;font-size:15px;letter-spacing:-.2px}
+  .sec-h .link{color:var(--accent);font-weight:600;font-size:12.5px;cursor:pointer}
+
+  /* Emergency feed */
+  .feed{display:flex;flex-direction:column}
+  .frow{display:grid;grid-template-columns:4px 1fr auto;gap:14px;padding:13px 18px;border-top:1px solid var(--hair);align-items:center}
+  .frow:first-child{border-top:none}
+  .stripe{align-self:stretch;border-radius:3px;background:var(--crit)}
+  .stripe.warn{background:var(--warn)}
+  .frow .who{font-weight:700}
+  .frow .meta{color:var(--muted);font-size:12.5px}
+  .pill{font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+  .pill.crit{background:var(--crit-soft);color:var(--crit)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .pill.good{background:var(--good-soft);color:var(--good)}
+  .frow .act{display:flex;gap:8px;align-items:center}
+  .btn{border:1px solid var(--hair);background:var(--surface);color:var(--ink);border-radius:9px;padding:6px 12px;font-weight:600;font-size:12.5px;cursor:pointer;font-family:var(--sans)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .t{color:var(--muted);font-size:12px;white-space:nowrap}
+
+  /* Chart card */
+  .chartwrap{padding:8px 18px 18px}
+  canvas{width:100%;height:150px;display:block}
+  .legend{display:flex;gap:16px;color:var(--muted);font-size:12px;padding:0 18px 16px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  /* Tables */
+  .tablewrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:560px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;padding:12px 18px;border-bottom:1px solid var(--hair)}
+  td{padding:13px 18px;border-bottom:1px solid var(--hair);font-size:13.5px}
+  tr:last-child td{border-bottom:none}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--surface-2)}
+  .search{display:flex;gap:10px;padding:14px 18px;align-items:center}
+  .search input{flex:1;background:var(--surface-2);border:1px solid var(--hair);border-radius:10px;padding:9px 13px;color:var(--ink);font-size:13.5px;font-family:var(--sans)}
+  .search input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+
+  /* Drawer */
+  .scrim{position:fixed;inset:0;background:rgba(10,11,18,.42);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:min(460px,94vw);background:var(--bg);border-left:1px solid var(--hair);transform:translateX(100%);transition:transform .24s cubic-bezier(.2,.7,.2,1);z-index:41;overflow-y:auto}
+  .drawer.open{transform:none}
+  .drawer .dh{display:flex;align-items:center;gap:14px;padding:22px 22px 14px}
+  .drawer .dh .avatar{width:46px;height:46px;font-size:18px}
+  .drawer .dh b{font-size:18px}
+  .drawer .dh .close{margin-left:auto}
+  .vitals{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 22px 6px}
+  .vital{background:var(--surface);border:1px solid var(--hair);border-radius:13px;padding:13px}
+  .vital .k{color:var(--muted);font-size:12px;font-weight:600}
+  .vital .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:23px;font-weight:700;margin-top:5px}
+  .vital.alert .v{color:var(--crit)}
+  .dsec{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;padding:20px 22px 6px}
+  .tl{padding:0 22px 24px;display:flex;flex-direction:column;gap:2px}
+  .tli{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--hair)}
+  .tli:first-child{border-top:none}
+  .tld{width:8px;height:8px;border-radius:50%}
+  .disc{margin:16px 22px 26px;padding:12px 14px;background:var(--warn-soft);color:var(--warn);border-radius:12px;font-size:12px;font-weight:600}
+
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr}
+    .side{position:fixed;left:-260px}
+    .kpis{grid-template-columns:1fr 1fr}
+    .grid2{grid-template-columns:1fr}
+  }
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">U</div>
+      <div><b>Umay</b><span>Back-office</span></div>
+    </div>
+    <div class="nav active" data-view="overview">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Overview
+    </div>
+    <div class="nav" data-view="emergencies">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      Emergencies <span class="badge" id="navBadge">3</span>
+    </div>
+    <div class="nav" data-view="users">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Users
+    </div>
+    <div class="nav" data-view="audit">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
+      Audit log
+    </div>
+    <div class="foot">v0.1.0 · not a medical device</div>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <div>
+        <h1 id="pageTitle">Overview</h1>
+        <div class="sub" id="pageSub">Live monitoring across pregnancy &amp; child-safety</div>
+      </div>
+      <div class="spacer"></div>
+      <span class="modepill mock" id="modePill">Demo data</span>
+      <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      </button>
+      <span class="chip"><span class="role" id="staffRole">clinician</span><span id="staffName">Dr. Nurlan</span><span class="avatar" id="staffAv">N</span></span>
+    </div>
+
+    <div class="content">
+      <!-- OVERVIEW -->
+      <section class="view active" id="overview">
+        <div class="kpis" id="kpis"></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Live emergency feed</h3><span class="link" data-view="emergencies">View all</span></div>
+            <div class="feed" id="feedMini"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Alerts · last 7 days</h3></div>
+            <div class="chartwrap"><canvas id="spark" width="600" height="150"></canvas></div>
+            <div class="legend"><span><i style="background:var(--crit)"></i>Emergency</span><span><i style="background:var(--warn)"></i>Warning</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EMERGENCIES -->
+      <section class="view" id="emergencies">
+        <div class="card"><div class="feed" id="feedFull"></div></div>
+      </section>
+
+      <!-- USERS -->
+      <section class="view" id="users">
+        <div class="card">
+          <div class="search"><input id="userSearch" placeholder="Search by name or phone…" aria-label="Search users"></div>
+          <div class="tablewrap">
+            <table><thead><tr><th>Name</th><th>Phone</th><th>Due date</th><th>Last reading</th><th></th></tr></thead>
+            <tbody id="usersBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- AUDIT -->
+      <section class="view" id="audit">
+        <div class="card">
+          <div class="tablewrap">
+            <table><thead><tr><th>When</th><th>Staff</th><th>Action</th><th>Target</th></tr></thead>
+            <tbody id="auditBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Patient detail"></aside>
+
+<script>
+(function(){
+  "use strict";
+  // ---- Mock data (mirrors the /admin API response shapes) ----
+  const MOCK = {
+    stats:{activeUsers:1284,devicesOnline:power(1071),alertsToday:3,ingestLastHour:power(9420)},
+    emergencies:[
+      {userId:"u1",displayName:"Aigerim S.",code:"PREECLAMPSIA_BP",severity:"emergency",at:"2m ago",detail:"BP 162/108 mmHg"},
+      {userId:"u2",displayName:"Madina K.",code:"HYPOXIA_SEVERE",severity:"emergency",at:"18m ago",detail:"SpO₂ 88% during sleep"},
+      {userId:"u3",displayName:"Zarina B.",code:"HIGH_FEVER",severity:"emergency",at:"41m ago",detail:"Core temp 38.9°C"},
+      {userId:"u4",displayName:"Dana T.",code:"TACHYCARDIA",severity:"warning",at:"1h ago",detail:"Resting HR 122 bpm"},
+      {userId:"u5",displayName:"Aruzhan M.",code:"PREECLAMPSIA_BP",severity:"warning",at:"2h ago",detail:"BP 141/91 mmHg"}
+    ],
+    users:[
+      {id:"u1",displayName:"Aigerim S.",phone:"+7 707 345 22 44",dueDate:"Nov 2026",last:"2m ago"},
+      {id:"u2",displayName:"Madina K.",phone:"+7 701 118 90 12",dueDate:"Sep 2026",last:"18m ago"},
+      {id:"u3",displayName:"Zarina B.",phone:"+7 705 900 77 31",dueDate:"Jan 2027",last:"41m ago"},
+      {id:"u4",displayName:"Dana T.",phone:"+998 90 123 45 67",dueDate:"Oct 2026",last:"1h ago"},
+      {id:"u5",displayName:"Aruzhan M.",phone:"+996 700 220 118",dueDate:"Dec 2026",last:"2h ago"},
+      {id:"u6",displayName:"Saltanat R.",phone:"+7 702 554 09 80",dueDate:"Feb 2027",last:"3h ago"}
+    ],
+    health:{
+      u1:{latest:{hr:96,spo2:96,systolic:162,diastolic:108,temp:37.1},alert:["systolic","diastolic"],
+        triage:[{code:"Severe BP",severity:"emergency",at:"2m ago"},{code:"High BP",severity:"warning",at:"3h ago"},{code:"Rising HR",severity:"warning",at:"1d ago"}]},
+      _default:{latest:{hr:78,spo2:98,systolic:118,diastolic:76,temp:36.6},alert:[],
+        triage:[{code:"All steady",severity:"good",at:"1h ago"}]}
+    },
+    audit:[
+      {at:"09:41",staffId:"s1",action:"view_health",target:"Aigerim S."},
+      {at:"09:39",staffId:"s1",action:"view_emergencies",target:"—"},
+      {at:"09:31",staffId:"s2",action:"list_users",target:"—"},
+      {at:"09:12",staffId:"s1",action:"view_health",target:"Madina K."},
+      {at:"08:58",staffId:"s3",action:"view_emergencies",target:"—"}
+    ]
+  };
+  function power(n){return n} // readability helper for seed values
+
+  // ---- Live-API mode: if served same-origin from the backend, fetch real data ----
+  const STAFF={id:"s1",role:"clinician",name:"Dr. Nurlan"};
+  async function api(path){
+    const r=await fetch(path,{headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
+    if(!r.ok) throw new Error(r.status); return r.json();
+  }
+  let LIVE=false;
+  async function boot(){
+    try{
+      const s=await api("/admin/stats"); MOCK.stats=s; LIVE=true;
+      const m=document.getElementById("modePill"); m.textContent="Live"; m.className="modepill live";
+      try{ MOCK.emergencies=(await api("/admin/emergencies")).emergencies||MOCK.emergencies; }catch(e){}
+    }catch(e){ /* keep demo data */ }
+    render();
+  }
+
+  // ---- Rendering ----
+  const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+  const sevRank={emergency:0,warning:1,good:2};
+  function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+
+  function renderKpis(){
+    const s=MOCK.stats;
+    const tiles=[
+      {lbl:"Active users",dot:"var(--accent)",val:s.activeUsers,delta:'<b>+4.2%</b> this week'},
+      {lbl:"Devices online",dot:"var(--good)",val:s.devicesOnline,delta:Math.round(s.devicesOnline/s.activeUsers*100)+'% of users'},
+      {lbl:"Alerts today",dot:"var(--crit)",val:s.alertsToday,delta:'<b class="down">2 unresolved</b>'},
+      {lbl:"Ingest · last hour",dot:"var(--warn)",val:s.ingestLastHour,delta:'readings received'}
+    ];
+    $("#kpis").innerHTML=tiles.map(t=>`<div class="card kpi"><div class="lbl"><span class="dot" style="background:${t.dot}"></span>${t.lbl}</div><div class="val">${fmt(t.val)}</div><div class="delta">${t.delta}</div></div>`).join("");
+  }
+  function fmt(n){return typeof n==="number"?n.toLocaleString("en-US"):n}
+
+  function feedRow(e){
+    const warn=e.severity==="warning";
+    return `<div class="frow"><div class="stripe ${warn?'warn':''}"></div>
+      <div><div class="who">${esc(e.displayName)}</div><div class="meta">${esc(e.detail||e.code)} · <span class="t">${esc(e.at)}</span></div></div>
+      <div class="act"><span class="pill ${warn?'warn':'crit'}">${warn?'Warning':'Emergency'}</span>
+      <button class="btn" data-user="${esc(e.userId)}">View</button><button class="btn primary">Acknowledge</button></div></div>`;
+  }
+  function renderFeeds(){
+    const sorted=[...MOCK.emergencies].sort((a,b)=>sevRank[a.severity]-sevRank[b.severity]);
+    $("#feedMini").innerHTML=sorted.slice(0,4).map(feedRow).join("");
+    $("#feedFull").innerHTML=sorted.map(feedRow).join("");
+    $("#navBadge").textContent=MOCK.emergencies.filter(e=>e.severity==="emergency").length;
+  }
+
+  function renderUsers(q=""){
+    const rows=MOCK.users.filter(u=>(u.displayName+u.phone).toLowerCase().includes(q.toLowerCase()));
+    $("#usersBody").innerHTML=rows.map(u=>`<tr data-user="${u.id}"><td><b>${esc(u.displayName)}</b></td><td class="num">${esc(u.phone)}</td><td>${esc(u.dueDate)}</td><td class="t">${esc(u.last)}</td><td style="text-align:right">›</td></tr>`).join("")
+      || `<tr><td colspan="5" style="color:var(--muted)">No users match “${esc(q)}”.</td></tr>`;
+  }
+  function renderAudit(){
+    $("#auditBody").innerHTML=MOCK.audit.map(a=>`<tr style="cursor:default"><td class="num t">${esc(a.at)}</td><td>${esc(a.staffId)}</td><td><code style="font-family:var(--mono)">${esc(a.action)}</code></td><td class="t">${esc(a.target)}</td></tr>`).join("");
+  }
+
+  function drawSpark(){
+    const c=$("#spark"), dpr=window.devicePixelRatio||1;
+    const w=c.clientWidth, h=150; c.width=w*dpr; c.height=h*dpr;
+    const ctx=c.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+    const emg=[1,0,2,1,3,2,3], wrn=[2,3,1,4,2,3,4], max=6;
+    const cs=getComputedStyle(document.documentElement);
+    const grid=cs.getPropertyValue("--hair"), crit=cs.getPropertyValue("--crit"), warn=cs.getPropertyValue("--warn");
+    for(let i=0;i<4;i++){const y=h*i/3;ctx.strokeStyle=grid;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+    const line=(data,col)=>{
+      ctx.beginPath();
+      data.forEach((v,i)=>{const x=w*i/(data.length-1),y=h-6-(v/max)*(h-16);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+      const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,col+"33");g.addColorStop(1,col+"00");
+      ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+      ctx.beginPath();data.forEach((v,i)=>{const x=w*i/(data.length-1),y=h-6-(v/max)*(h-16);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+      ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.lineJoin="round";ctx.stroke();
+      const lx=w,ly=h-6-(data[data.length-1]/max)*(h-16);ctx.fillStyle=col;ctx.beginPath();ctx.arc(lx-1,ly,4,0,7);ctx.fill();
+    };
+    line(wrn,warn.trim());line(emg,crit.trim());
+  }
+
+  // Drawer (patient health)
+  function openUser(id){
+    const u=MOCK.users.find(x=>x.id===id)||{displayName:"User",phone:""};
+    const h=MOCK.health[id]||MOCK.health._default;
+    const initial=u.displayName.trim()[0]||"U";
+    const vital=(k,label,unit)=>`<div class="vital ${h.alert.includes(k)?'alert':''}"><div class="k">${label}</div><div class="v">${h.latest[k]}<span style="font-size:12px;color:var(--muted)"> ${unit}</span></div></div>`;
+    $("#drawer").innerHTML=`
+      <div class="dh"><span class="avatar">${esc(initial)}</span><div><b>${esc(u.displayName)}</b><div class="t num">${esc(u.phone)}</div></div>
+        <button class="iconbtn close" id="dClose" aria-label="Close">✕</button></div>
+      <div class="dsec">Latest readings</div>
+      <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
+      <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
+      <div class="dsec">Triage history</div>
+      <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>
+      <div class="disc">Read-only clinical view. All access is written to the audit log.</div>`;
+    $("#drawer").classList.add("open");$("#scrim").classList.add("open");
+    $("#dClose").onclick=closeDrawer;
+    MOCK.audit.unshift({at:"now",staffId:STAFF.id,action:"view_health",target:u.displayName});renderAudit();
+  }
+  function closeDrawer(){$("#drawer").classList.remove("open");$("#scrim").classList.remove("open");}
+
+  // Navigation
+  const titles={overview:["Overview","Live monitoring across pregnancy &amp; child-safety"],emergencies:["Emergencies","Active triage alerts, most severe first"],users:["Users","Search and open a patient record"],audit:["Audit log","Every staff action on protected data"]};
+  function go(v){
+    $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
+    $$(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
+    $("#pageTitle").textContent=titles[v][0];$("#pageSub").innerHTML=titles[v][1];
+    if(v==="overview")drawSpark();
+    window.scrollTo(0,0);
+  }
+
+  function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawSpark();}
+
+  // Events
+  document.addEventListener("click",e=>{
+    const nav=e.target.closest("[data-view]"); if(nav){go(nav.dataset.view);return;}
+    const urow=e.target.closest("[data-user]"); if(urow){openUser(urow.dataset.user);return;}
+    if(e.target.id==="scrim")closeDrawer();
+  });
+  $("#userSearch").addEventListener("input",e=>renderUsers(e.target.value));
+  $("#themeBtn").addEventListener("click",()=>{
+    const r=document.documentElement, cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+    r.setAttribute("data-theme",cur==="dark"?"light":"dark");drawSpark();
+  });
+  window.addEventListener("resize",()=>{if($("#overview").classList.contains("active"))drawSpark();});
+  $("#staffName").textContent=STAFF.name;$("#staffRole").textContent=STAFF.role;$("#staffAv").textContent=STAFF.name.replace("Dr. ","")[0];
+
+  boot();
+})();
+</script>

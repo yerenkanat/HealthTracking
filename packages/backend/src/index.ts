@@ -5,6 +5,8 @@
  * logic testable with fakes.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { buildServer } from './server';
 import { createPgRepository } from './db/pgRepository';
@@ -66,6 +68,18 @@ async function main(): Promise<void> {
   // Guard: never let a broken triage import ship. Fail fast at boot.
   const probe = assessTelemetry({ deviceId: 'boot', recordedAt: new Date(0).toISOString(), systolicMmHg: 145 } as BandTelemetry);
   if (!probe.forceEmergencyScreen) throw new Error('Triage self-check failed at boot');
+
+  // Serve the admin dashboard (static HTML) at /admin/ui. It calls the /admin API
+  // same-origin with the staff headers. Loaded once at boot.
+  try {
+    const adminBody = readFileSync(fileURLToPath(new URL('../../admin/index.html', import.meta.url)), 'utf8');
+    const adminHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<title>Umay Back-office</title></head><body>${adminBody}</body></html>`;
+    app.get('/admin/ui', async (_req, reply) => reply.type('text/html').send(adminHtml));
+  } catch {
+    app.log.warn('admin dashboard html not found; /admin/ui disabled');
+  }
 
   const port = Number(process.env.PORT ?? 8080);
   await app.listen({ port, host: '0.0.0.0' });
