@@ -433,4 +433,26 @@ describe('admin API (in-process, RBAC + audit)', () => {
     await anon.ready();
     expect((await anon.inject({ method: 'GET', url: '/admin/stats' })).statusCode).toBe(401);
   });
+
+  it('patient wellness (sleep/cycle/alerts) is staff-viewable + audited', async () => {
+    // Seed the target user's data via the client API (same USER in tests).
+    await post('/sleep', { night: '2026-07-15', deepMin: 95, remMin: 105, lightMin: 280, awakeMin: 25 });
+    await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '2026-07-15', mood: 'calm', symptoms: [], kicks: 2 } });
+    await post('/alerts', { childId: CHILD, kind: 'entered', zoneName: 'School', at: '2026-07-16T09:00:00Z' });
+
+    const r = await get(`/admin/users/${USER}/wellness`);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().sleep[0].deepMin).toBe(95);
+    expect(r.json().days[0].mood).toBe('calm');
+    expect(r.json().alerts[0].zoneName).toBe('School');
+    const audit = (await get('/admin/audit')).json().audit;
+    expect(audit.some((a: { action: string; target: string }) => a.action === 'view_wellness' && a.target === USER)).toBe(true);
+  });
+
+  it('a clinician can view wellness but not the audit log', async () => {
+    const clinician = makeDeps(undefined, async () => ({ staffId: 'c1', role: 'clinician' as const })).server;
+    await clinician.ready();
+    expect((await clinician.inject({ method: 'GET', url: `/admin/users/${USER}/wellness` })).statusCode).toBe(200);
+    expect((await clinician.inject({ method: 'GET', url: '/admin/audit' })).statusCode).toBe(403);
+  });
 });

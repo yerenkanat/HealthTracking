@@ -69,6 +69,20 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.send(health);
   });
 
+  // ---- Patient wellness (sleep / cycle / safety alerts) — audited ----
+  app.get('/admin/users/:id/wellness', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const userId = (req.params as { id: string }).id;
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_wellness', target: userId });
+    const [sleep, days, alerts] = await Promise.all([
+      repo.listSleep(userId, 14),
+      repo.listDayLogs(userId, '1970-01-01', '2999-12-31'),
+      repo.listAlerts(userId, 50),
+    ]);
+    return reply.send({ sleep, days, alerts });
+  });
+
   // ---- Audit log (admin only) ----
   app.get('/admin/audit', async (req, reply) => {
     const s = await requireAdmin(req, reply);
