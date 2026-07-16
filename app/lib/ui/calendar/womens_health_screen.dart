@@ -188,7 +188,7 @@ class _GestationHeader extends StatelessWidget {
                   children: [
                     Text('${g.week}',
                         style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 22, fontWeight: FontWeight.w700, height: 1)),
-                    const Text('wk', style: TextStyle(color: Palette.textDim, fontSize: 10)),
+                    Text(l.t('gest_wk_short'), style: const TextStyle(color: Palette.textDim, fontSize: 10)),
                   ],
                 ),
               ),

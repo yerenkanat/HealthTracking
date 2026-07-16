@@ -255,6 +255,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'gest_days_left': {AppLocale.ru: 'Осталось {n} дней', AppLocale.kk: '{n} күн қалды', AppLocale.en: '{n} days to go'},
   'gest_overdue': {AppLocale.ru: 'Срок подошёл', AppLocale.kk: 'Мерзімі жетті', AppLocale.en: 'Any day now'},
   'gest_trimester': {AppLocale.ru: '{n}-й триместр', AppLocale.kk: '{n}-триместр', AppLocale.en: 'Trimester {n}'},
+  'gest_wk_short': {AppLocale.ru: 'нед', AppLocale.kk: 'апта', AppLocale.en: 'wk'},
   'log_title': {AppLocale.ru: 'Как вы себя чувствуете?', AppLocale.kk: 'Өзіңізді қалай сезінесіз?', AppLocale.en: 'How are you feeling?'},
   'log_mood': {AppLocale.ru: 'Настроение', AppLocale.kk: 'Көңіл-күй', AppLocale.en: 'Mood'},
   'log_symptoms': {AppLocale.ru: 'Симптомы', AppLocale.kk: 'Симптомдар', AppLocale.en: 'Symptoms'},
