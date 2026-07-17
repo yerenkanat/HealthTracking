@@ -7,7 +7,16 @@ library;
 import '../core/geofence.dart';
 import 'child_tracker_state.dart' show currentZone;
 
-enum AlertKind { entered, left }
+/// entered/left are geofence transitions; checkIn/sos are manual events the
+/// parent (or child) raises from the tracking screen.
+enum AlertKind { entered, left, checkIn, sos }
+
+AlertKind alertKindFromName(String? s) => switch (s) {
+      'entered' => AlertKind.entered,
+      'checkIn' => AlertKind.checkIn,
+      'sos' => AlertKind.sos,
+      _ => AlertKind.left,
+    };
 
 class SafetyAlert {
   final AlertKind kind;
@@ -24,7 +33,7 @@ class SafetyAlert {
       };
 
   factory SafetyAlert.fromJson(Map<String, dynamic> j) => SafetyAlert(
-        kind: j['kind'] == 'entered' ? AlertKind.entered : AlertKind.left,
+        kind: alertKindFromName(j['kind'] as String?),
         childName: (j['childName'] as String?) ?? '',
         zoneName: (j['zoneName'] as String?) ?? '',
         at: DateTime.parse(j['at'] as String),

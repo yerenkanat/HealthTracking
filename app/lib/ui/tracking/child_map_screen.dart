@@ -12,8 +12,10 @@ library;
 import 'package:flutter/material.dart';
 import '../../core/geofence.dart';
 import '../../domain/child_tracker_state.dart';
+import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../widgets/confirm.dart';
 import 'child_safety_screen.dart';
 
 typedef MapBuilder = Widget Function(
@@ -39,6 +41,8 @@ class ChildMapScreen extends StatelessWidget {
   final VoidCallback? onOpenAlerts;
   final int alertCount;
   final int? childAgeMonths; // for age-appropriate safety tips (null if no DOB)
+  final VoidCallback? onCheckIn; // manual "arrived / all good" event
+  final VoidCallback? onSos; // manual emergency signal (confirmed first)
 
   const ChildMapScreen({
     super.key,
@@ -57,6 +61,8 @@ class ChildMapScreen extends StatelessWidget {
     this.onOpenAlerts,
     this.alertCount = 0,
     this.childAgeMonths,
+    this.onCheckIn,
+    this.onSos,
   });
 
   @override
@@ -165,18 +171,128 @@ class ChildMapScreen extends StatelessWidget {
             ),
           ),
 
-          // Floating bottom layer: polished status card.
+          // Floating bottom layer: check-in / SOS actions + polished status card.
           Positioned(
             left: 12, right: 12, bottom: 12,
-            child: MinimalTrackingStatusBar(
-              freshness: status.freshness,
-              headline: l.trackingHeadline(status, childName, now),
-              zoneLabel: status.currentZone == null ? null : l.t('tr_inside_zone', {'zone': status.currentZone}),
-              distanceLabel: status.distanceFromHomeM == null ? null : l.distanceFromHome(status.distanceFromHomeM!),
-              freshnessLabel: l.freshnessLabel(status.freshness),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onCheckIn != null || onSos != null) ...[
+                  _ChildActionRow(
+                    onCheckIn: onCheckIn,
+                    onSos: onSos == null ? null : () => _confirmSos(context, l),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                MinimalTrackingStatusBar(
+                  freshness: status.freshness,
+                  headline: l.trackingHeadline(status, childName, now),
+                  zoneLabel: status.currentZone == null ? null : l.t('tr_inside_zone', {'zone': status.currentZone}),
+                  distanceLabel: status.distanceFromHomeM == null ? null : l.distanceFromHome(status.distanceFromHomeM!),
+                  freshnessLabel: l.freshnessLabel(status.freshness),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _confirmSos(BuildContext context, L10n l) async {
+    final ok = await confirmDestructive(
+      context,
+      title: l.t('sos_confirm_title'),
+      message: l.t('sos_confirm_body'),
+      confirmLabel: l.t('sos_confirm_send'),
+    );
+    if (!ok || !context.mounted) return;
+    onSos?.call();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('sos_sent')), behavior: SnackBarBehavior.floating, backgroundColor: Palette.danger),
+    );
+  }
+}
+
+/// The check-in + SOS action row that floats above the status card. Check-in is a
+/// calm one-tap "all good"; SOS is a prominent danger button (confirmed first).
+class _ChildActionRow extends StatelessWidget {
+  final VoidCallback? onCheckIn;
+  final VoidCallback? onSos;
+  const _ChildActionRow({this.onCheckIn, this.onSos});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Row(
+      children: [
+        if (onCheckIn != null)
+          Expanded(
+            child: _ActionButton(
+              icon: Icons.how_to_reg_rounded,
+              label: l.t('child_checkin'),
+              foreground: Palette.blue,
+              filled: false,
+              onTap: () {
+                onCheckIn!();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l.t('child_checkin_done')), behavior: SnackBarBehavior.floating),
+                );
+              },
+            ),
+          ),
+        if (onCheckIn != null && onSos != null) const SizedBox(width: 10),
+        if (onSos != null)
+          Expanded(
+            child: _ActionButton(
+              icon: Icons.sos_rounded,
+              label: l.t('child_sos'),
+              foreground: Colors.white,
+              filled: true,
+              onTap: onSos!,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color foreground;
+  final bool filled;
+  final VoidCallback onTap;
+  const _ActionButton({required this.icon, required this.label, required this.foreground, required this.filled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: filled ? Palette.danger : Palette.bgElevated,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: filled ? null : Border.all(color: Palette.border),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: foreground),
+              const SizedBox(width: 8),
+              Text(label, style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 15)),
+            ],
+          ),
+        ),
       ),
     );
   }

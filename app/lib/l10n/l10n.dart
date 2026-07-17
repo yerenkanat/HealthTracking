@@ -119,6 +119,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'alerts_clear': {AppLocale.ru: 'Очистить', AppLocale.kk: 'Тазалау', AppLocale.en: 'Clear'},
   'alert_entered': {AppLocale.ru: 'Вход в «{zone}»', AppLocale.kk: '«{zone}» аймағына кіру', AppLocale.en: 'Entered {zone}'},
   'alert_left': {AppLocale.ru: 'Выход из «{zone}»', AppLocale.kk: '«{zone}» аймағынан шығу', AppLocale.en: 'Left {zone}'},
+  'alert_checkin': {AppLocale.ru: 'Отметка «Всё хорошо»', AppLocale.kk: '«Бәрі жақсы» белгісі', AppLocale.en: 'Checked in — all good'},
+  'alert_sos': {AppLocale.ru: 'SOS — сигнал тревоги', AppLocale.kk: 'SOS — дабыл сигналы', AppLocale.en: 'SOS — emergency signal'},
+  'child_checkin': {AppLocale.ru: 'Всё хорошо', AppLocale.kk: 'Бәрі жақсы', AppLocale.en: 'Check in'},
+  'child_checkin_done': {AppLocale.ru: 'Отметка отправлена', AppLocale.kk: 'Белгі жіберілді', AppLocale.en: 'Check-in recorded'},
+  'child_sos': {AppLocale.ru: 'SOS', AppLocale.kk: 'SOS', AppLocale.en: 'SOS'},
+  'sos_confirm_title': {AppLocale.ru: 'Отправить сигнал SOS?', AppLocale.kk: 'SOS сигналын жіберу керек пе?', AppLocale.en: 'Send an SOS signal?'},
+  'sos_confirm_body': {AppLocale.ru: 'Это отметит экстренную ситуацию в ленте безопасности.', AppLocale.kk: 'Бұл қауіпсіздік лентасында төтенше жағдайды белгілейді.', AppLocale.en: 'This flags an emergency in the safety feed.'},
+  'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
+  'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
   // Geofence zones management
   'zones_title': {AppLocale.ru: 'Зоны {name}', AppLocale.kk: '{name} аймақтары', AppLocale.en: "{name}'s zones"},

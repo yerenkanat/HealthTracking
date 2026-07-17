@@ -491,6 +491,24 @@ class AppController {
     _notify();
   }
 
+  /// Record a manual child event (check-in or SOS) for the selected child. It
+  /// lands at the top of the safety feed and, when notifications are on, is
+  /// emitted for an OS notification — the same path geofence alerts take.
+  void logChildEvent(AlertKind kind) {
+    final child = selectedChild;
+    final alert = SafetyAlert(
+      kind: kind,
+      childName: child?.name ?? childName,
+      zoneName: _lastChildZone ?? '',
+      at: _now(),
+    );
+    _alerts.insert(0, alert);
+    if (_alerts.length > 50) _alerts.removeRange(50, _alerts.length);
+    if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
+    _persist();
+    _notify();
+  }
+
   /// Each newly generated alert (for the runtime to raise an OS notification).
   /// Only emits while notifications are enabled; the in-app feed fills regardless.
   Stream<SafetyAlert> get newAlerts => _alertStream.stream;

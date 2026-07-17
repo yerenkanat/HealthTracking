@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../app/app_controller.dart';
 import '../core/geofence.dart';
+import '../domain/geofence_alerts.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'calendar/womens_health_screen.dart';
@@ -84,6 +85,8 @@ class _HomeShellState extends State<HomeShell> {
         onOpenAlerts: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
         ),
+        onCheckIn: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.checkIn),
+        onSos: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.sos),
       ),
       ProfileScreen(controller: c),
     ];

@@ -72,10 +72,12 @@ class _AlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final entered = alert.kind == AlertKind.entered;
-    final color = entered ? Palette.good : Palette.amber;
-    final icon = entered ? Icons.login_rounded : Icons.logout_rounded;
-    final title = l.t(entered ? 'alert_entered' : 'alert_left', {'zone': alert.zoneName});
+    final (color, icon, title) = switch (alert.kind) {
+      AlertKind.entered => (Palette.good, Icons.login_rounded, l.t('alert_entered', {'zone': alert.zoneName})),
+      AlertKind.left => (Palette.amber, Icons.logout_rounded, l.t('alert_left', {'zone': alert.zoneName})),
+      AlertKind.checkIn => (Palette.blue, Icons.how_to_reg_rounded, l.t('alert_checkin')),
+      AlertKind.sos => (Palette.danger, Icons.sos_rounded, l.t('alert_sos')),
+    };
     final age = now.difference(alert.at);
 
     return GlassCard(
