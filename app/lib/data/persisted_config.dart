@@ -12,6 +12,7 @@ import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/kick_session.dart';
+import '../domain/weight.dart';
 import '../l10n/l10n.dart';
 
 // ---- Geofence (de)serialization (circle + polygon) ----
@@ -88,6 +89,7 @@ class PersistedConfig {
   final Map<String, int> waterLog; // dateKey → glasses drunk that day
   final int? waterGoal; // daily target (glasses); null → default
   final List<Appointment> appointments; // the mother's dated reminders
+  final List<WeightEntry> weights; // weight log (one per day)
 
   const PersistedConfig({
     required this.onboarded,
@@ -106,6 +108,7 @@ class PersistedConfig {
     this.waterLog = const {},
     this.waterGoal,
     this.appointments = const [],
+    this.weights = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -126,6 +129,7 @@ class PersistedConfig {
         if (waterLog.isNotEmpty) 'waterLog': waterLog,
         if (waterGoal != null) 'waterGoal': waterGoal,
         if (appointments.isNotEmpty) 'appointments': [for (final a in appointments) a.toJson()],
+        if (weights.isNotEmpty) 'weights': [for (final w in weights) w.toJson()],
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -166,6 +170,10 @@ class PersistedConfig {
         appointments: [
           for (final a in (j['appointments'] as List? ?? const []))
             Appointment.fromJson((a as Map).cast<String, dynamic>())
+        ],
+        weights: [
+          for (final w in (j['weights'] as List? ?? const []))
+            WeightEntry.fromJson((w as Map).cast<String, dynamic>())
         ],
       );
 

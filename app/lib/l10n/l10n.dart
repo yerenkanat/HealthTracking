@@ -355,6 +355,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'The kick count for this day will be reset to zero.'
   },
 
+  // Weight (pregnancy)
+  'weight_title': {AppLocale.ru: 'Вес', AppLocale.kk: 'Салмақ', AppLocale.en: 'Weight'},
+  'weight_log': {AppLocale.ru: 'Записать', AppLocale.kk: 'Жазу', AppLocale.en: 'Log weight'},
+  'weight_log_title': {AppLocale.ru: 'Ваш вес сегодня', AppLocale.kk: 'Бүгінгі салмағыңыз', AppLocale.en: 'Your weight today'},
+  'weight_empty': {AppLocale.ru: 'Запишите вес, чтобы видеть динамику.', AppLocale.kk: 'Динамиканы көру үшін салмақты жазыңыз.', AppLocale.en: 'Log your weight to see the trend.'},
+  'weight_delta': {AppLocale.ru: '{sign}{kg} кг с начала', AppLocale.kk: 'басынан {sign}{kg} кг', AppLocale.en: '{sign}{kg} kg since start'},
+
   // Hydration (daily water)
   'water_title': {AppLocale.ru: 'Вода', AppLocale.kk: 'Су', AppLocale.en: 'Water'},
   'water_progress': {AppLocale.ru: '{n} из {goal} стаканов', AppLocale.kk: '{goal} стақаннан {n}', AppLocale.en: '{n} of {goal} glasses'},

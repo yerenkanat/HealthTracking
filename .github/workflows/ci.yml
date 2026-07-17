@@ -81,6 +81,9 @@ jobs:
       - name: Verify appointments / reminders
         run: dart run tool/verify_appointments.dart
         working-directory: app
+      - name: Verify weight tracking
+        run: dart run tool/verify_weight.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

@@ -23,6 +23,7 @@ import '../widgets/glass.dart';
 import 'cycle_insights_screen.dart';
 import 'cycle_summary.dart';
 import 'kick_session_screen.dart';
+import 'weight_card.dart';
 import 'logging_drawer.dart';
 
 class WomensHealthScreen extends StatefulWidget {
@@ -111,6 +112,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 if (!cycleMode && c.gestation != null) ...[
                   const SizedBox(height: 14),
                   _PregnancyMilestones(week: c.gestation!.week),
+                ],
+                if (!cycleMode) ...[
+                  const SizedBox(height: 14),
+                  WeightCard(entries: c.weights, onLog: (kg) => c.logWeight(_today, kg)),
                 ],
                 const SizedBox(height: 16),
                 _MonthCalendar(

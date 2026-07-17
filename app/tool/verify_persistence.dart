@@ -13,6 +13,7 @@ import '../lib/domain/family.dart';
 import '../lib/domain/appointment.dart';
 import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/kick_session.dart';
+import '../lib/domain/weight.dart';
 import '../lib/domain/onboarding_controller.dart';
 import '../lib/l10n/l10n.dart';
 
@@ -57,6 +58,10 @@ void main() async {
       Appointment(id: 'apt-1', title: 'OB visit', at: DateTime.utc(2026, 7, 20, 9, 30), note: 'Bring results'),
       Appointment(id: 'apt-2', title: 'Ultrasound', at: DateTime.utc(2026, 8, 3, 14)),
     ],
+    weights: const [
+      WeightEntry(date: '2026-07-01', kg: 62.0),
+      WeightEntry(date: '2026-07-15', kg: 63.4),
+    ],
   );
   final decoded = PersistedConfig.decode(cfg.encode());
   _chk('round-trip onboarded + locale', decoded.onboarded && decoded.locale == AppLocale.kk);
@@ -81,6 +86,8 @@ void main() async {
   _chk('round-trip appointments', decoded.appointments.length == 2 &&
       decoded.appointments[0].title == 'OB visit' && decoded.appointments[0].note == 'Bring results' &&
       decoded.appointments[0].at == DateTime.utc(2026, 7, 20, 9, 30) && decoded.appointments[1].note == '');
+  _chk('round-trip weights', decoded.weights.length == 2 &&
+      decoded.weights[0].date == '2026-07-01' && decoded.weights[1].kg == 63.4);
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&

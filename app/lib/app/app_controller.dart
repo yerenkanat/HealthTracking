@@ -29,6 +29,7 @@ import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/hydration.dart';
 import '../domain/kick_session.dart';
+import '../domain/weight.dart';
 import '../domain/sleep.dart';
 import '../domain/onboarding_controller.dart';
 import '../l10n/l10n.dart';
@@ -76,6 +77,7 @@ class AppController {
   int? _waterGoal;
   final List<Appointment> _appointments = [];
   int _apptSeq = 0; // disambiguates ids created within the same microsecond
+  List<WeightEntry> _weights = [];
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -136,6 +138,7 @@ class AppController {
     _appointments
       ..clear()
       ..addAll(cfg.appointments);
+    _weights = List.of(cfg.weights);
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -161,6 +164,7 @@ class AppController {
         waterLog: Map.of(_waterLog),
         waterGoal: _waterGoal,
         appointments: List.of(_appointments),
+        weights: List.of(_weights),
       );
 
   void _persist() {
@@ -349,6 +353,23 @@ class AppController {
 
   void removeAppointment(String id) {
     _appointments.removeWhere((a) => a.id == id);
+    _persist();
+    _notify();
+  }
+
+  // ---- Weight log (one entry per day) ----
+  List<WeightEntry> get weights => List.unmodifiable(_weights);
+  WeightStats? get weightStats => computeWeightStats(_weights);
+
+  /// Record [kg] for [day] (replaces any existing same-day entry).
+  void logWeight(DateTime day, double kg) {
+    _weights = upsertWeight(_weights, day, kg);
+    _persist();
+    _notify();
+  }
+
+  void removeWeightEntry(String dateKeyToRemove) {
+    _weights = removeWeight(_weights, dateKeyToRemove);
     _persist();
     _notify();
   }
