@@ -72,6 +72,9 @@ jobs:
       - name: Verify timed kick session
         run: dart run tool/verify_kicks.dart
         working-directory: app
+      - name: Verify shareable cycle summary
+        run: dart run tool/verify_cycle_summary.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

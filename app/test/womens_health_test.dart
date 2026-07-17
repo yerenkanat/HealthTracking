@@ -2,9 +2,11 @@
 /// cycle mode headers.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
@@ -39,6 +41,34 @@ void main() {
     await tester.pumpWidget(wrap(c));
     expect(find.text('Track your cycle'), findsOneWidget);
     expect(find.textContaining('Week 20'), findsNothing);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('cycle mode with data can share a copied summary', (tester) async {
+    final c = controllerFor(); // cycle mode
+    // Log a period so predictions exist (hasData → the share action appears).
+    for (final d in [DateTime(2026, 7, 10), DateTime(2026, 7, 11), DateTime(2026, 7, 12)]) {
+      c.toggleFlowFor(d, Flow.medium);
+    }
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String?;
+        return null;
+      },
+    );
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await tester.pumpWidget(wrap(c));
+    await tester.tap(find.byIcon(Icons.ios_share_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Cycle summary copied to clipboard'), findsOneWidget);
+    expect(copied, contains('Cycle forecast'));
+    expect(copied, contains('Next period:'));
     addTearDown(c.dispose);
   });
 

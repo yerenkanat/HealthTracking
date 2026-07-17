@@ -10,16 +10,18 @@
 library;
 
 import 'package:flutter/material.dart' hide Flow;
-import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeedback;
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
 import '../../domain/pregnancy_milestones.dart';
+import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'cycle_insights_screen.dart';
+import 'cycle_summary.dart';
 import 'kick_session_screen.dart';
 import 'logging_drawer.dart';
 
@@ -63,6 +65,12 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
             appBar: AppBar(
               title: Text(l.t('cal_screen_title')),
               actions: [
+                if (cycleMode && c.cycle.hasData)
+                  IconButton(
+                    icon: const Icon(Icons.ios_share_rounded),
+                    tooltip: l.t('cyc_share'),
+                    onPressed: () => _shareCycle(c.cycle, l),
+                  ),
                 if (cycleMode)
                   IconButton(
                     icon: const Icon(Icons.tune_rounded),
@@ -127,6 +135,16 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _shareCycle(CycleInfo info, L10n l) async {
+    final ml = MaterialLocalizations.of(context);
+    final text = buildCycleSummary(l, info, formatDate: ml.formatMediumDate);
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('cyc_share_copied')), behavior: SnackBarBehavior.floating),
     );
   }
 
