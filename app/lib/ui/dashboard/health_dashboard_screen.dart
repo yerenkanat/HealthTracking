@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/sleep.dart';
@@ -18,6 +19,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
+import 'health_summary.dart';
 import 'metric_detail_screen.dart';
 import 'sleep_card.dart';
 import 'sparkline.dart';
@@ -75,6 +77,12 @@ class HealthDashboardView extends StatelessWidget {
           leading: onOpenProfile == null ? null : _AvatarButton(name: greetingName, photoPath: photoPath, onTap: onOpenProfile!),
           title: Text(greetingName.isEmpty ? l.t('db_title') : l.t('db_greeting', {'name': greetingName})),
           actions: [
+            if (samples.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.ios_share_rounded, color: Palette.textDim),
+                tooltip: l.t('db_share'),
+                onPressed: () => _shareSummary(context, l),
+              ),
             if (onLocaleChange != null)
               PopupMenuButton<AppLocale>(
                 icon: const Icon(Icons.language, color: Palette.textDim),
@@ -120,6 +128,15 @@ class HealthDashboardView extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+
+  Future<void> _shareSummary(BuildContext context, L10n l) async {
+    final text = buildHealthSummary(l, samples, nights: sleepNights, name: greetingName);
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('db_share_copied')), behavior: SnackBarBehavior.floating),
     );
   }
 }

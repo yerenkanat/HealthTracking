@@ -66,6 +66,9 @@ jobs:
       - name: Verify pregnancy milestones
         run: dart run tool/verify_milestones.dart
         working-directory: app
+      - name: Verify shareable health summary
+        run: dart run tool/verify_summary.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
