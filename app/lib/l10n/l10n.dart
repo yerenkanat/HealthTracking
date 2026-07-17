@@ -331,6 +331,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'The kick count for this day will be reset to zero.'
   },
 
+  // Hydration (daily water)
+  'water_title': {AppLocale.ru: 'Вода', AppLocale.kk: 'Су', AppLocale.en: 'Water'},
+  'water_progress': {AppLocale.ru: '{n} из {goal} стаканов', AppLocale.kk: '{goal} стақаннан {n}', AppLocale.en: '{n} of {goal} glasses'},
+  'water_goal_met': {AppLocale.ru: 'Дневная норма выполнена 🎉', AppLocale.kk: 'Күнделікті норма орындалды 🎉', AppLocale.en: 'Daily goal reached 🎉'},
+  'water_add': {AppLocale.ru: 'Добавить стакан', AppLocale.kk: 'Стақан қосу', AppLocale.en: 'Add a glass'},
+  'water_remove': {AppLocale.ru: 'Убрать стакан', AppLocale.kk: 'Стақанды алу', AppLocale.en: 'Remove a glass'},
+  'water_goal_title': {AppLocale.ru: 'Дневная норма воды', AppLocale.kk: 'Күнделікті су нормасы', AppLocale.en: 'Daily water goal'},
+  'water_goal_hint': {AppLocale.ru: 'Сколько стаканов в день — ваша цель.', AppLocale.kk: 'Күніне неше стақан — сіздің мақсатыңыз.', AppLocale.en: 'How many glasses a day you aim for.'},
+
   // Child date of birth + age
   'child_gender': {AppLocale.ru: 'Пол', AppLocale.kk: 'Жынысы', AppLocale.en: 'Gender'},
   'gender_boy': {AppLocale.ru: 'Мальчик', AppLocale.kk: 'Ұл', AppLocale.en: 'Boy'},

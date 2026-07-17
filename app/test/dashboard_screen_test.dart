@@ -63,6 +63,35 @@ void main() {
     expect(find.byIcon(Icons.ios_share_rounded), findsNothing);
   });
 
+  testWidgets('water card adds a glass and reflects the goal', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    var count = 3;
+    await tester.pumpWidget(StatefulBuilder(
+      builder: (context, setState) => MaterialApp(
+        home: HealthDashboardView(
+          samples: samples,
+          waterCount: count,
+          waterGoal: 8,
+          onAddWater: () => setState(() => count++),
+          onRemoveWater: () => setState(() => count--),
+          onSetWaterGoal: (_) {},
+        ),
+      ),
+    ));
+    await tester.scrollUntilVisible(find.text('Water'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('3 of 8 glasses'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pump();
+    expect(count, 4);
+    expect(find.text('4 of 8 glasses'), findsOneWidget);
+  });
+
+  testWidgets('no water card when hydration is not wired', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
+    expect(find.text('Water'), findsNothing);
+  });
+
   testWidgets('danger reading gets alert styling (semantics mentions safe range)', (tester) async {
     final samples = [
       HealthSample(at: t(0), systolic: 120, diastolic: 78),

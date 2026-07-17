@@ -26,6 +26,7 @@ import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
+import '../domain/hydration.dart';
 import '../domain/kick_session.dart';
 import '../domain/sleep.dart';
 import '../domain/onboarding_controller.dart';
@@ -70,6 +71,8 @@ class AppController {
   final Map<String, DayLog> _dayLogs = {};
   final List<KickSessionRecord> _kickSessions = []; // completed timed sessions (oldest→newest)
   static const _maxKickSessions = 50;
+  final Map<String, int> _waterLog = {}; // dateKey → glasses today
+  int? _waterGoal;
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -123,6 +126,10 @@ class AppController {
     _kickSessions
       ..clear()
       ..addAll(cfg.kickSessions);
+    _waterLog
+      ..clear()
+      ..addAll(cfg.waterLog);
+    _waterGoal = cfg.waterGoal;
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -145,6 +152,8 @@ class AppController {
         alerts: List.of(_alerts),
         lastChildZone: _lastChildZone,
         kickSessions: List.of(_kickSessions),
+        waterLog: Map.of(_waterLog),
+        waterGoal: _waterGoal,
       );
 
   void _persist() {
@@ -289,6 +298,31 @@ class AppController {
       _kickSessions.removeRange(0, _kickSessions.length - _maxKickSessions);
     }
     _dayLogs[dateKey(day)] = logFor(day).addKick(count);
+    _persist();
+    _notify();
+  }
+
+  // ---- Hydration (glasses of water per day) ----
+  /// Glasses logged on [day] (0 if none).
+  int waterFor(DateTime day) => _waterLog[dateKey(day)] ?? 0;
+
+  /// The daily target (defaults to [defaultWaterGoal] until the user changes it).
+  int get waterGoal => _waterGoal ?? defaultWaterGoal;
+
+  /// Add [by] glasses to [day] (won't go below zero); drops the entry at zero.
+  void addWater(DateTime day, [int by = 1]) {
+    final next = (waterFor(day) + by).clamp(0, 30);
+    if (next == 0) {
+      _waterLog.remove(dateKey(day));
+    } else {
+      _waterLog[dateKey(day)] = next;
+    }
+    _persist();
+    _notify();
+  }
+
+  void setWaterGoal(int glasses) {
+    _waterGoal = clampWaterGoal(glasses);
     _persist();
     _notify();
   }

@@ -53,6 +53,11 @@ class _HomeShellState extends State<HomeShell> {
         onOpenAdvisor: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => AdvisorScreen(samples: c.samples, lastNight: c.lastNight)),
         ),
+        waterCount: c.waterFor(DateTime.now()),
+        waterGoal: c.waterGoal,
+        onAddWater: () => c.addWater(DateTime.now()),
+        onRemoveWater: () => c.addWater(DateTime.now(), -1),
+        onSetWaterGoal: c.setWaterGoal,
       ),
       WomensHealthScreen(controller: c),
       ChildMapScreen(

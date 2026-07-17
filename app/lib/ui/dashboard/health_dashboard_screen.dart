@@ -23,6 +23,7 @@ import 'health_summary.dart';
 import 'metric_detail_screen.dart';
 import 'sleep_card.dart';
 import 'sparkline.dart';
+import 'water_card.dart';
 
 class MetricSpec {
   final String key;
@@ -54,6 +55,12 @@ class HealthDashboardView extends StatelessWidget {
   final void Function(AppLocale)? onLocaleChange;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenAdvisor;
+  // Hydration (optional — the card shows only when wired up).
+  final int waterCount;
+  final int waterGoal;
+  final VoidCallback? onAddWater;
+  final VoidCallback? onRemoveWater;
+  final ValueChanged<int>? onSetWaterGoal;
   const HealthDashboardView({
     super.key,
     required this.samples,
@@ -64,6 +71,11 @@ class HealthDashboardView extends StatelessWidget {
     this.onLocaleChange,
     this.onOpenProfile,
     this.onOpenAdvisor,
+    this.waterCount = 0,
+    this.waterGoal = 8,
+    this.onAddWater,
+    this.onRemoveWater,
+    this.onSetWaterGoal,
   });
 
   @override
@@ -117,6 +129,16 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
+                  if (onAddWater != null) ...[
+                    const SizedBox(height: 14),
+                    WaterCard(
+                      count: waterCount,
+                      goal: waterGoal,
+                      onAdd: onAddWater!,
+                      onRemove: onRemoveWater ?? () {},
+                      onSetGoal: onSetWaterGoal ?? (_) {},
+                    ),
+                  ],
                   if (latestNight(sleepNights) != null) ...[
                     const SizedBox(height: 14),
                     SleepCard(nights: sleepNights),

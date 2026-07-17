@@ -84,6 +84,8 @@ class PersistedConfig {
   final int? avgCycleLength; // user-set baseline until ≥2 cycles are logged
   final int? avgPeriodLength;
   final List<KickSessionRecord> kickSessions; // completed timed sessions (newest last)
+  final Map<String, int> waterLog; // dateKey → glasses drunk that day
+  final int? waterGoal; // daily target (glasses); null → default
 
   const PersistedConfig({
     required this.onboarded,
@@ -99,6 +101,8 @@ class PersistedConfig {
     this.avgCycleLength,
     this.avgPeriodLength,
     this.kickSessions = const [],
+    this.waterLog = const {},
+    this.waterGoal,
   });
 
   Map<String, dynamic> toJson() => {
@@ -116,6 +120,8 @@ class PersistedConfig {
         if (avgCycleLength != null) 'avgCycleLength': avgCycleLength,
         if (avgPeriodLength != null) 'avgPeriodLength': avgPeriodLength,
         if (kickSessions.isNotEmpty) 'kickSessions': [for (final k in kickSessions) k.toJson()],
+        if (waterLog.isNotEmpty) 'waterLog': waterLog,
+        if (waterGoal != null) 'waterGoal': waterGoal,
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -149,6 +155,10 @@ class PersistedConfig {
           for (final k in (j['kickSessions'] as List? ?? const []))
             KickSessionRecord.fromJson((k as Map).cast<String, dynamic>())
         ],
+        waterLog: j['waterLog'] is Map
+            ? {for (final e in (j['waterLog'] as Map).entries) '${e.key}': (e.value as num).toInt()}
+            : const {},
+        waterGoal: (j['waterGoal'] as num?)?.toInt(),
       );
 
   String encode() => jsonEncode(toJson());

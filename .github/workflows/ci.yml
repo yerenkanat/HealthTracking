@@ -75,6 +75,9 @@ jobs:
       - name: Verify shareable cycle summary
         run: dart run tool/verify_cycle_summary.dart
         working-directory: app
+      - name: Verify hydration helpers
+        run: dart run tool/verify_water.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
