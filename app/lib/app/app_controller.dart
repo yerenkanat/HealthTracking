@@ -11,6 +11,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import '../ble/calibration.dart';
 import '../core/triage.dart';
@@ -194,6 +195,12 @@ class AppController {
     if (s == null) return;
     unawaited(s.save(_snapshot()));
   }
+
+  /// A human-readable, pretty-printed JSON backup of all durable app data
+  /// (profile, children, devices, cycle logs, kick sessions, water, weights,
+  /// appointments, battery, alerts). Same shape PersistedConfig round-trips, so a
+  /// backup can be restored. Health telemetry samples are excluded (regenerated).
+  String exportJson() => const JsonEncoder.withIndent('  ').convert(_snapshot().toJson());
 
   /// Fires whenever any observable state changes (UI rebuilds on this).
   Stream<void> get changes => _changes.stream;

@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../app/app_controller.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n.dart';
@@ -134,6 +135,17 @@ class SettingsScreen extends StatelessWidget {
             ),
             _CalibrateCta(status: _calStatus(l, c), onTap: () => showCalibrateBpSheet(context, c)),
 
+            // ---- Data ----
+            _Section(title: l.t('set_data'), children: [
+              _Row(
+                leading: Icons.download_rounded,
+                title: l.t('set_export'),
+                subtitle: l.t('set_export_sub'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => _openExport(context, c),
+              ),
+            ]),
+
             // ---- About ----
             _Section(title: l.t('set_about'), children: [
               _Row(leading: Icons.info_outline, title: 'Umay', subtitle: l.t('set_about_body')),
@@ -141,6 +153,54 @@ class SettingsScreen extends StatelessWidget {
             ]),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _openExport(BuildContext context, AppController c) async {
+    final l = L10nScope.of(context);
+    final json = c.exportJson();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(l.t('set_export')),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.t('set_export_hint'), style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+              const SizedBox(height: 12),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(12), border: Border.all(color: Palette.border)),
+                  child: SingleChildScrollView(
+                    child: SelectableText(json,
+                        style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11.5, height: 1.35, color: Palette.text)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogCtx).pop(), child: Text(l.t('act_cancel'))),
+          FilledButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: json));
+              if (!dialogCtx.mounted) return;
+              Navigator.of(dialogCtx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l.t('set_export_copied')), behavior: SnackBarBehavior.floating),
+              );
+            },
+            style: FilledButton.styleFrom(backgroundColor: Palette.violet),
+            icon: const Icon(Icons.copy_rounded, size: 18),
+            label: Text(l.t('set_export_copy')),
+          ),
+        ],
       ),
     );
   }
