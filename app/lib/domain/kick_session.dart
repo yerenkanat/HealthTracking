@@ -33,6 +33,30 @@ class KickSession {
       startedAt == null ? Duration.zero : now.difference(startedAt!);
 }
 
+/// A completed session, kept in history: how many movements, how long it ran,
+/// and when it ended. Pure + JSON-serializable for persistence.
+class KickSessionRecord {
+  final DateTime endedAt;
+  final int count;
+  final int durationSec;
+
+  const KickSessionRecord({required this.endedAt, required this.count, required this.durationSec});
+
+  Duration get duration => Duration(seconds: durationSec);
+
+  Map<String, dynamic> toJson() => {
+        'endedAt': endedAt.toIso8601String(),
+        'count': count,
+        'durationSec': durationSec,
+      };
+
+  factory KickSessionRecord.fromJson(Map<String, dynamic> j) => KickSessionRecord(
+        endedAt: DateTime.parse(j['endedAt'] as String),
+        count: (j['count'] as num).toInt(),
+        durationSec: (j['durationSec'] as num).toInt(),
+      );
+}
+
 /// Running-clock label: "M:SS", or "H:MM:SS" once past an hour. Negative or
 /// zero durations render as "0:00".
 String formatElapsed(Duration d) {

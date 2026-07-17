@@ -16,8 +16,8 @@ import '../theme.dart';
 import '../widgets/confirm.dart';
 
 class KickSessionScreen extends StatefulWidget {
-  /// Called with the number of movements recorded when the mother saves.
-  final void Function(int count) onSave;
+  /// Called with the number of movements and how long the session ran, on save.
+  final void Function(int count, Duration elapsed) onSave;
   const KickSessionScreen({super.key, required this.onSave});
 
   @override
@@ -59,7 +59,7 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
       return;
     }
     // Save the session — it added real data, so leaving needs no destructive prompt.
-    widget.onSave(_session.count);
+    widget.onSave(_session.count, _session.elapsed(DateTime.now()));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

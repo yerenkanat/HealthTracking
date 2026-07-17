@@ -11,6 +11,7 @@ import '../lib/data/persisted_config.dart';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/family.dart';
 import '../lib/domain/geofence_alerts.dart';
+import '../lib/domain/kick_session.dart';
 import '../lib/domain/onboarding_controller.dart';
 import '../lib/l10n/l10n.dart';
 
@@ -45,6 +46,10 @@ void main() async {
       '2026-07-14': const DayLog(date: '2026-07-14', mood: Mood.happy, symptoms: {Symptom.cramps}, kicks: 4),
       '2026-07-15': const DayLog(date: '2026-07-15', kicks: 0), // empty → dropped on encode
     },
+    kickSessions: [
+      KickSessionRecord(endedAt: DateTime.utc(2026, 7, 15, 21, 30), count: 10, durationSec: 620),
+      KickSessionRecord(endedAt: DateTime.utc(2026, 7, 16, 8, 5), count: 6, durationSec: 240),
+    ],
   );
   final decoded = PersistedConfig.decode(cfg.encode());
   _chk('round-trip onboarded + locale', decoded.onboarded && decoded.locale == AppLocale.kk);
@@ -61,6 +66,9 @@ void main() async {
       decoded.alerts.first.kind == AlertKind.entered && decoded.alerts.first.zoneName == 'School');
   _chk('round-trip lastChildZone', decoded.lastChildZone == 'School');
   _chk('round-trip cycle baseline', decoded.avgCycleLength == 30 && decoded.avgPeriodLength == 6);
+  _chk('round-trip kick sessions', decoded.kickSessions.length == 2 &&
+      decoded.kickSessions[0].count == 10 && decoded.kickSessions[0].durationSec == 620 &&
+      decoded.kickSessions[1].endedAt == DateTime.utc(2026, 7, 16, 8, 5));
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&

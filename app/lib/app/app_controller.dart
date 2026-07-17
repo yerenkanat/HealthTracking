@@ -26,6 +26,7 @@ import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
+import '../domain/kick_session.dart';
 import '../domain/sleep.dart';
 import '../domain/onboarding_controller.dart';
 import '../l10n/l10n.dart';
@@ -67,6 +68,8 @@ class AppController {
   int? _avgCycleLength;
   int? _avgPeriodLength;
   final Map<String, DayLog> _dayLogs = {};
+  final List<KickSessionRecord> _kickSessions = []; // completed timed sessions (oldest→newest)
+  static const _maxKickSessions = 50;
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -117,6 +120,9 @@ class AppController {
     _dayLogs
       ..clear()
       ..addAll(cfg.dayLogs);
+    _kickSessions
+      ..clear()
+      ..addAll(cfg.kickSessions);
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -138,6 +144,7 @@ class AppController {
         dayLogs: Map.of(_dayLogs),
         alerts: List.of(_alerts),
         lastChildZone: _lastChildZone,
+        kickSessions: List.of(_kickSessions),
       );
 
   void _persist() {
@@ -268,6 +275,23 @@ class AppController {
   void toggleSymptomFor(DateTime day, Symptom s) => setDayLog(logFor(day).toggleSymptom(s));
   void addKickFor(DateTime day, [int by = 1]) => setDayLog(logFor(day).addKick(by));
   void resetKicksFor(DateTime day) => setDayLog(logFor(day).resetKicks());
+
+  /// Completed timed sessions, newest first (for the pregnancy history list).
+  List<KickSessionRecord> get kickSessions => _kickSessions.reversed.toList(growable: false);
+
+  /// Record a finished timed session AND fold its movements into [day]'s counter,
+  /// so the day dot/total stays in sync with the history. Oldest entries are
+  /// trimmed past [_maxKickSessions].
+  void logKickSession(DateTime day, int count, Duration elapsed) {
+    if (count <= 0) return;
+    _kickSessions.add(KickSessionRecord(endedAt: _now(), count: count, durationSec: elapsed.inSeconds));
+    if (_kickSessions.length > _maxKickSessions) {
+      _kickSessions.removeRange(0, _kickSessions.length - _maxKickSessions);
+    }
+    _dayLogs[dateKey(day)] = logFor(day).addKick(count);
+    _persist();
+    _notify();
+  }
   void toggleFlowFor(DateTime day, Flow f) => setDayLog(logFor(day).withFlowToggled(f));
 
   // ---- Menstrual cycle (used when NOT pregnant) ----

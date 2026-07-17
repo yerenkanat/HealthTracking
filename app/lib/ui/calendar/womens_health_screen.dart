@@ -14,6 +14,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/cycle_predictions.dart';
+import '../../domain/kick_session.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -116,6 +117,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
                   const _CycleLegend(),
+                ],
+                if (!cycleMode && c.kickSessions.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _KickHistory(sessions: c.kickSessions, today: _today),
                 ],
               ],
             ),
@@ -231,7 +236,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
           onStartSession: () {
             Navigator.of(sheetCtx).pop(); // close the sheet, then open the session
             Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => KickSessionScreen(onSave: (n) => c.addKickFor(day, n)),
+              builder: (_) => KickSessionScreen(onSave: (n, elapsed) => c.logKickSession(day, n, elapsed)),
             ));
           },
         ),
@@ -790,6 +795,68 @@ class _PregnancyMilestones extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Recent timed kick sessions: count · duration · when. Newest first, capped to
+/// a short list so the pregnancy view stays scannable.
+class _KickHistory extends StatelessWidget {
+  final List<KickSessionRecord> sessions;
+  final DateTime today;
+  const _KickHistory({required this.sessions, required this.today});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final shown = sessions.take(5).toList();
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('kick_history').toUpperCase(),
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 12),
+          for (var i = 0; i < shown.length; i++) ...[
+            if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
+            _KickHistoryRow(record: shown[i], now: today),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _KickHistoryRow extends StatelessWidget {
+  final KickSessionRecord record;
+  final DateTime now;
+  const _KickHistoryRow({required this.record, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final age = now.difference(record.endedAt);
+    return Row(
+      children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(gradient: Palette.roseViolet, borderRadius: BorderRadius.circular(10)),
+          child: const Icon(Icons.child_care_rounded, size: 18, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.t('kick_history_count', {'n': record.count}),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text('${formatElapsed(record.duration)} · ${l.ago(age.isNegative ? Duration.zero : age)}',
+                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

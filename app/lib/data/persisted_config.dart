@@ -10,6 +10,7 @@ import '../core/geofence.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
+import '../domain/kick_session.dart';
 import '../l10n/l10n.dart';
 
 // ---- Geofence (de)serialization (circle + polygon) ----
@@ -82,6 +83,7 @@ class PersistedConfig {
   final String? lastChildZone; // last known zone (avoids re-firing on restart)
   final int? avgCycleLength; // user-set baseline until ≥2 cycles are logged
   final int? avgPeriodLength;
+  final List<KickSessionRecord> kickSessions; // completed timed sessions (newest last)
 
   const PersistedConfig({
     required this.onboarded,
@@ -96,6 +98,7 @@ class PersistedConfig {
     this.lastChildZone,
     this.avgCycleLength,
     this.avgPeriodLength,
+    this.kickSessions = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -112,6 +115,7 @@ class PersistedConfig {
         if (lastChildZone != null) 'lastChildZone': lastChildZone,
         if (avgCycleLength != null) 'avgCycleLength': avgCycleLength,
         if (avgPeriodLength != null) 'avgPeriodLength': avgPeriodLength,
+        if (kickSessions.isNotEmpty) 'kickSessions': [for (final k in kickSessions) k.toJson()],
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -141,6 +145,10 @@ class PersistedConfig {
         lastChildZone: j['lastChildZone'] as String?,
         avgCycleLength: (j['avgCycleLength'] as num?)?.toInt(),
         avgPeriodLength: (j['avgPeriodLength'] as num?)?.toInt(),
+        kickSessions: [
+          for (final k in (j['kickSessions'] as List? ?? const []))
+            KickSessionRecord.fromJson((k as Map).cast<String, dynamic>())
+        ],
       );
 
   String encode() => jsonEncode(toJson());

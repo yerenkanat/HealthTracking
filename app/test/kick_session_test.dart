@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
 
 void main() {
-  Future<void> pumpAndOpen(WidgetTester tester, void Function(int) onSave) async {
+  Future<void> pumpAndOpen(WidgetTester tester, void Function(int, Duration) onSave) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: Builder(
@@ -25,7 +25,7 @@ void main() {
 
   testWidgets('counting movements, undo, then saving reports the count', (tester) async {
     int? saved;
-    await pumpAndOpen(tester, (n) => saved = n);
+    await pumpAndOpen(tester, (n, _) => saved = n);
 
     expect(find.text('0'), findsOneWidget);
     for (var i = 0; i < 3; i++) {
@@ -45,7 +45,7 @@ void main() {
 
   testWidgets('closing an empty session does not save and needs no confirmation', (tester) async {
     int? saved;
-    await pumpAndOpen(tester, (n) => saved = n);
+    await pumpAndOpen(tester, (n, _) => saved = n);
 
     // Nothing counted → the primary button reads "Close" and skips saving.
     expect(find.text('Close'), findsOneWidget);
@@ -57,7 +57,7 @@ void main() {
 
   testWidgets('leaving a non-empty session asks to discard', (tester) async {
     int? saved;
-    await pumpAndOpen(tester, (n) => saved = n);
+    await pumpAndOpen(tester, (n, _) => saved = n);
 
     await tester.tap(find.text('movement'));
     await tester.pump();
