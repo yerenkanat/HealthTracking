@@ -19,6 +19,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'cycle_insights_screen.dart';
+import 'kick_session_screen.dart';
 import 'logging_drawer.dart';
 
 class WomensHealthScreen extends StatefulWidget {
@@ -227,6 +228,12 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
           onToggleFlow: (f) => c.toggleFlowFor(day, f),
           onKick: () => c.addKickFor(day),
           onResetKicks: () => c.resetKicksFor(day),
+          onStartSession: () {
+            Navigator.of(sheetCtx).pop(); // close the sheet, then open the session
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => KickSessionScreen(onSave: (n) => c.addKickFor(day, n)),
+            ));
+          },
         ),
       ),
     );

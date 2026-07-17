@@ -50,6 +50,7 @@ class FloStyleCalendarDrawer extends StatelessWidget {
   final void Function(Flow) onToggleFlow;
   final VoidCallback onKick;
   final VoidCallback onResetKicks;
+  final VoidCallback? onStartSession; // opens the timed kick session (pregnancy)
 
   const FloStyleCalendarDrawer({
     super.key,
@@ -60,6 +61,7 @@ class FloStyleCalendarDrawer extends StatelessWidget {
     required this.onToggleFlow,
     required this.onKick,
     required this.onResetKicks,
+    this.onStartSession,
     this.pregnant = true,
   });
 
@@ -139,6 +141,22 @@ class FloStyleCalendarDrawer extends StatelessWidget {
                 _SectionLabel(l.t('log_kicks')),
                 const SizedBox(height: 10),
                 _KickCounter(kicks: log.kicks, onKick: onKick, onReset: onResetKicks),
+                if (onStartSession != null) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onStartSession,
+                      icon: const Icon(Icons.timer_outlined, size: 18),
+                      label: Text(l.t('kick_session_start')),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Palette.violet,
+                        side: BorderSide(color: Palette.violet.withValues(alpha: 0.35)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
               ] else ...[
                 _SectionLabel(l.t('log_period')),
                 const SizedBox(height: 10),
