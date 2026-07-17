@@ -52,11 +52,27 @@ class ChildLocationView {
   const ChildLocationView(this.coords, this.at);
 }
 
+/// A request for the runtime to schedule or cancel an OS reminder notification.
+/// [at] == null means "cancel the notification with this id". Keeps the pure
+/// controller free of any Flutter-plugin dependency (same pattern as newAlerts).
+class ReminderCommand {
+  final int id;
+  final DateTime? at;
+  final String? title;
+  final String? body;
+  const ReminderCommand.schedule(this.id, DateTime this.at, String this.title, String this.body);
+  const ReminderCommand.cancel(this.id)
+      : at = null,
+        title = null,
+        body = null;
+}
+
 class AppController {
   final SampleStore store;
   final DateTime Function() _now;
   final _changes = StreamController<void>.broadcast();
   final _alertStream = StreamController<SafetyAlert>.broadcast();
+  final _reminderStream = StreamController<ReminderCommand>.broadcast();
 
   bool _emergencyActive = false;
   EmergencyView? _emergency;
@@ -344,17 +360,45 @@ class AppController {
   /// The soonest upcoming appointment (for the profile entry preview), or null.
   Appointment? get nextAppt => nextAppointment(_appointments, _now());
 
+  /// Schedule/cancel commands for the runtime to raise OS reminder notifications.
+  Stream<ReminderCommand> get reminderCommands => _reminderStream.stream;
+
+  /// Stable notification id for an appointment (positive 31-bit).
+  static int reminderIdFor(String appointmentId) => appointmentId.hashCode & 0x7fffffff;
+
+  ReminderCommand _scheduleCommandFor(Appointment a) {
+    final l = L10n(_locale);
+    final body = a.note.isNotEmpty ? a.note : l.t('appt_notif_body');
+    return ReminderCommand.schedule(reminderIdFor(a.id), a.at, a.title, body);
+  }
+
   void addAppointment(String title, DateTime at, {String note = ''}) {
     final id = 'apt-${_now().microsecondsSinceEpoch}-${_apptSeq++}';
-    _appointments.add(Appointment(id: id, title: title.trim(), at: at, note: note.trim()));
+    final appt = Appointment(id: id, title: title.trim(), at: at, note: note.trim());
+    _appointments.add(appt);
+    if (at.isAfter(_now()) && !_reminderStream.isClosed) {
+      _reminderStream.add(_scheduleCommandFor(appt));
+    }
     _persist();
     _notify();
   }
 
   void removeAppointment(String id) {
     _appointments.removeWhere((a) => a.id == id);
+    if (!_reminderStream.isClosed) _reminderStream.add(ReminderCommand.cancel(reminderIdFor(id)));
     _persist();
     _notify();
+  }
+
+  /// Re-emit schedule commands for every still-future appointment. Called by the
+  /// runtime after it attaches its listener, so OS reminders survive reinstalls
+  /// or a device reboot that dropped pending alarms.
+  void rescheduleReminders() {
+    if (_reminderStream.isClosed) return;
+    final now = _now();
+    for (final a in _appointments) {
+      if (a.at.isAfter(now)) _reminderStream.add(_scheduleCommandFor(a));
+    }
   }
 
   // ---- Weight log (one entry per day) ----
@@ -674,6 +718,7 @@ class AppController {
     await _monitor?.dispose();
     await _chat?.dispose();
     await _alertStream.close();
+    await _reminderStream.close();
     await _changes.close();
   }
 }

@@ -212,6 +212,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'appt_note_label': {AppLocale.ru: 'Заметка (необязательно)', AppLocale.kk: 'Ескертпе (міндетті емес)', AppLocale.en: 'Note (optional)'},
   'appt_delete_title': {AppLocale.ru: 'Удалить напоминание?', AppLocale.kk: 'Еске салғышты жою керек пе?', AppLocale.en: 'Delete this reminder?'},
   'appt_delete_body': {AppLocale.ru: '«{title}» будет удалено.', AppLocale.kk: '«{title}» жойылады.', AppLocale.en: '"{title}" will be removed.'},
+  'appt_notif_body': {AppLocale.ru: 'Скоро запланированный визит.', AppLocale.kk: 'Жоспарланған бару жақындады.', AppLocale.en: "It's almost time for your appointment."},
   'prof_no_phone': {AppLocale.ru: 'Телефон не указан', AppLocale.kk: 'Телефон көрсетілмеген', AppLocale.en: 'No phone number'},
   'prof_open_settings': {AppLocale.ru: 'Открыть настройки', AppLocale.kk: 'Параметрлерді ашу', AppLocale.en: 'Open settings'},
   'set_reset': {AppLocale.ru: 'Сбросить приложение', AppLocale.kk: 'Қолданбаны қалпына келтіру', AppLocale.en: 'Reset app'},

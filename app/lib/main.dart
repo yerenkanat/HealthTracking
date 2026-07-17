@@ -125,6 +125,17 @@ Future<void> bootstrapRuntime(AppController controller) async {
       notifications.show(title: title, body: alert.childName);
     });
 
+    // Appointment reminders: schedule/cancel OS notifications as they change,
+    // then reconcile once so future reminders survive a reinstall / reboot.
+    controller.reminderCommands.listen((cmd) {
+      if (cmd.at == null) {
+        notifications.cancel(cmd.id);
+      } else {
+        notifications.scheduleAt(id: cmd.id, title: cmd.title!, body: cmd.body!, at: cmd.at!);
+      }
+    });
+    controller.rescheduleReminders();
+
     // DEMO only: 3s after launch the child moves School → Home, firing real
     // "left School" + "entered Home" notifications so the feature is visible.
     if (const bool.fromEnvironment('DEMO')) {

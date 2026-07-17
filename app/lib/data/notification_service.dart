@@ -4,11 +4,20 @@
 library;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 abstract class NotificationService {
   Future<void> init();
   Future<bool> requestPermission();
   Future<void> show({required String title, required String body});
+
+  /// Schedule a one-off notification for [at] (a wall-clock local time). A past
+  /// time is ignored. [id] must be stable so it can be cancelled/replaced.
+  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at});
+
+  /// Cancel a previously scheduled notification by [id] (no-op if none).
+  Future<void> cancel(int id);
 }
 
 /// No-op implementation (tests, or platforms without support).
@@ -19,13 +28,20 @@ class NoopNotificationService implements NotificationService {
   Future<bool> requestPermission() async => false;
   @override
   Future<void> show({required String title, required String body}) async {}
+  @override
+  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at}) async {}
+  @override
+  Future<void> cancel(int id) async {}
 }
 
 class LocalNotificationService implements NotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   static const _channelId = 'safety_alerts';
   static const _channelName = 'Safety alerts';
+  static const _reminderChannelId = 'reminders';
+  static const _reminderChannelName = 'Reminders';
   int _id = 0;
+  bool _tzReady = false;
 
   @override
   Future<void> init() async {
@@ -39,6 +55,34 @@ class LocalNotificationService implements NotificationService {
       description: 'Zone entry and exit alerts for your children',
       importance: Importance.high,
     ));
+    await android13?.createNotificationChannel(const AndroidNotificationChannel(
+      _reminderChannelId,
+      _reminderChannelName,
+      description: 'Appointment and health reminders',
+      importance: Importance.high,
+    ));
+    await _initTimezone();
+  }
+
+  /// Load the tz database and point tz.local at a zone whose CURRENT offset
+  /// matches the device (no native plugin needed). Falls back to Asia/Almaty —
+  /// the app's primary region. Good enough for near-term reminder scheduling.
+  Future<void> _initTimezone() async {
+    try {
+      tzdata.initializeTimeZones();
+      final deviceOffsetMs = DateTime.now().timeZoneOffset.inMilliseconds;
+      tz.Location? match;
+      for (final loc in tz.timeZoneDatabase.locations.values) {
+        if (tz.TZDateTime.now(loc).timeZoneOffset.inMilliseconds == deviceOffsetMs) {
+          match = loc;
+          break;
+        }
+      }
+      tz.setLocalLocation(match ?? tz.getLocation('Asia/Almaty'));
+      _tzReady = true;
+    } catch (_) {
+      _tzReady = false;
+    }
   }
 
   @override
@@ -59,4 +103,28 @@ class LocalNotificationService implements NotificationService {
     );
     await _plugin.show(_id++, title, body, details);
   }
+
+  @override
+  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at}) async {
+    if (!_tzReady) return; // no zone → can't schedule safely
+    final when = tz.TZDateTime.from(at, tz.local);
+    if (!when.isAfter(tz.TZDateTime.now(tz.local))) return; // past → skip
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _reminderChannelId, _reminderChannelName,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+    );
+    // Inexact scheduling avoids needing the SCHEDULE_EXACT_ALARM permission;
+    // reminders don't need second-precision.
+    await _plugin.zonedSchedule(
+      id, title, body, when, details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  @override
+  Future<void> cancel(int id) async => _plugin.cancel(id);
 }
