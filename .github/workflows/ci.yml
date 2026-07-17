@@ -84,6 +84,9 @@ jobs:
       - name: Verify weight tracking
         run: dart run tool/verify_weight.dart
         working-directory: app
+      - name: Verify contraction timing
+        run: dart run tool/verify_contractions.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

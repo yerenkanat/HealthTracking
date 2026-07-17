@@ -20,6 +20,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import 'contraction_timer_screen.dart';
 import 'cycle_insights_screen.dart';
 import 'cycle_summary.dart';
 import 'kick_session_screen.dart';
@@ -66,6 +67,14 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
             appBar: AppBar(
               title: Text(l.t('cal_screen_title')),
               actions: [
+                if (!cycleMode)
+                  IconButton(
+                    icon: const Icon(Icons.timer_outlined),
+                    tooltip: l.t('contr_title'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ContractionTimerScreen()),
+                    ),
+                  ),
                 if (cycleMode && c.cycle.hasData)
                   IconButton(
                     icon: const Icon(Icons.ios_share_rounded),

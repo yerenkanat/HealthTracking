@@ -356,6 +356,23 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'The kick count for this day will be reset to zero.'
   },
 
+  // Contraction timer (pregnancy)
+  'contr_title': {AppLocale.ru: 'Схватки', AppLocale.kk: 'Толғақ', AppLocale.en: 'Contractions'},
+  'contr_start': {AppLocale.ru: 'Начать', AppLocale.kk: 'Бастау', AppLocale.en: 'Start'},
+  'contr_stop': {AppLocale.ru: 'Стоп', AppLocale.kk: 'Тоқтату', AppLocale.en: 'Stop'},
+  'contr_hint': {AppLocale.ru: 'Нажмите, когда схватка началась.', AppLocale.kk: 'Толғақ басталғанда басыңыз.', AppLocale.en: 'Tap when a contraction begins.'},
+  'contr_running': {AppLocale.ru: 'Схватка идёт — нажмите в конце.', AppLocale.kk: 'Толғақ жүріп жатыр — соңында басыңыз.', AppLocale.en: 'Contraction in progress — tap when it ends.'},
+  'contr_empty': {AppLocale.ru: 'Схватки пока не записаны.', AppLocale.kk: 'Толғақ әлі жазылмаған.', AppLocale.en: 'No contractions recorded yet.'},
+  'contr_count': {AppLocale.ru: 'Всего', AppLocale.kk: 'Барлығы', AppLocale.en: 'Total'},
+  'contr_avg_dur': {AppLocale.ru: 'Ср. длит.', AppLocale.kk: 'Орт. ұзақтығы', AppLocale.en: 'Avg length'},
+  'contr_avg_freq': {AppLocale.ru: 'Ср. интервал', AppLocale.kk: 'Орт. аралық', AppLocale.en: 'Avg interval'},
+  'contr_duration': {AppLocale.ru: 'Длительность {d}', AppLocale.kk: 'Ұзақтығы {d}', AppLocale.en: 'Lasted {d}'},
+  'contr_apart': {AppLocale.ru: 'через {i}', AppLocale.kk: '{i} кейін', AppLocale.en: '{i} apart'},
+  'contr_first': {AppLocale.ru: 'первая', AppLocale.kk: 'бірінші', AppLocale.en: 'first'},
+  'contr_reset': {AppLocale.ru: 'Сбросить', AppLocale.kk: 'Ысыру', AppLocale.en: 'Reset'},
+  'contr_reset_title': {AppLocale.ru: 'Сбросить схватки?', AppLocale.kk: 'Толғақтарды ысыру керек пе?', AppLocale.en: 'Reset contractions?'},
+  'contr_reset_body': {AppLocale.ru: 'Записанные схватки будут удалены.', AppLocale.kk: 'Жазылған толғақтар жойылады.', AppLocale.en: 'The recorded contractions will be cleared.'},
+
   // Weight (pregnancy)
   'weight_title': {AppLocale.ru: 'Вес', AppLocale.kk: 'Салмақ', AppLocale.en: 'Weight'},
   'weight_log': {AppLocale.ru: 'Записать', AppLocale.kk: 'Жазу', AppLocale.en: 'Log weight'},
