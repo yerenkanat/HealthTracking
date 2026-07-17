@@ -90,6 +90,9 @@ void _seedDemo(AppController c) {
       Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),
     ],
   );
+  // Demo: seed the tracker battery so the status chip is populated.
+  final demoChild = c.selectedChild;
+  if (demoChild != null) c.setChildBattery(demoChild.id, 62);
   // Two past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
   // shows real predictions out of the box: last period ended a few days ago →
   // ~cycle day 7, next period in ~3 weeks.

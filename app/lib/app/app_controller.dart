@@ -20,6 +20,7 @@ import '../data/api_client.dart';
 import '../data/app_store.dart';
 import '../data/persisted_config.dart';
 import '../domain/appointment.dart';
+import '../domain/battery.dart';
 import '../domain/chat_controller.dart';
 import '../domain/cycle_log.dart';
 import '../domain/cycle_predictions.dart';
@@ -94,6 +95,7 @@ class AppController {
   final List<Appointment> _appointments = [];
   int _apptSeq = 0; // disambiguates ids created within the same microsecond
   List<WeightEntry> _weights = [];
+  final Map<String, int> _childBattery = {}; // childId → tracker battery %
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -155,6 +157,9 @@ class AppController {
       ..clear()
       ..addAll(cfg.appointments);
     _weights = List.of(cfg.weights);
+    _childBattery
+      ..clear()
+      ..addAll(cfg.childBattery);
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -181,6 +186,7 @@ class AppController {
         waterGoal: _waterGoal,
         appointments: List.of(_appointments),
         weights: List.of(_weights),
+        childBattery: Map.of(_childBattery),
       );
 
   void _persist() {
@@ -414,6 +420,20 @@ class AppController {
 
   void removeWeightEntry(String dateKeyToRemove) {
     _weights = removeWeight(_weights, dateKeyToRemove);
+    _persist();
+    _notify();
+  }
+
+  // ---- Child tracker battery ----
+  /// Last-known tracker battery % for [childId] (null if unknown).
+  int? batteryFor(String? childId) => childId == null ? null : _childBattery[childId];
+
+  /// The selected child's tracker battery %, or null.
+  int? get selectedChildBattery => batteryFor(selectedChild?.id);
+
+  /// Update a child tracker's battery reading (from device telemetry).
+  void setChildBattery(String childId, int pct) {
+    _childBattery[childId] = clampPct(pct);
     _persist();
     _notify();
   }

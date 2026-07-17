@@ -87,6 +87,9 @@ jobs:
       - name: Verify contraction timing
         run: dart run tool/verify_contractions.dart
         working-directory: app
+      - name: Verify tracker battery classification
+        run: dart run tool/verify_battery.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests

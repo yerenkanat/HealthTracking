@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../core/geofence.dart';
+import '../../domain/battery.dart';
 import '../../domain/child_tracker_state.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
@@ -41,6 +42,7 @@ class ChildMapScreen extends StatelessWidget {
   final VoidCallback? onOpenAlerts;
   final int alertCount;
   final int? childAgeMonths; // for age-appropriate safety tips (null if no DOB)
+  final int? batteryPct; // tracker battery %, null if unknown
   final VoidCallback? onCheckIn; // manual "arrived / all good" event
   final VoidCallback? onSos; // manual emergency signal (confirmed first)
 
@@ -61,6 +63,7 @@ class ChildMapScreen extends StatelessWidget {
     this.onOpenAlerts,
     this.alertCount = 0,
     this.childAgeMonths,
+    this.batteryPct,
     this.onCheckIn,
     this.onSos,
   });
@@ -190,6 +193,7 @@ class ChildMapScreen extends StatelessWidget {
                   zoneLabel: status.currentZone == null ? null : l.t('tr_inside_zone', {'zone': status.currentZone}),
                   distanceLabel: status.distanceFromHomeM == null ? null : l.distanceFromHome(status.distanceFromHomeM!),
                   freshnessLabel: l.freshnessLabel(status.freshness),
+                  batteryPct: batteryPct,
                 ),
               ],
             ),
@@ -309,6 +313,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
   final String? zoneLabel;
   final String? distanceLabel;
   final String freshnessLabel;
+  final int? batteryPct;
 
   const MinimalTrackingStatusBar({
     super.key,
@@ -317,6 +322,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
     required this.freshnessLabel,
     this.zoneLabel,
     this.distanceLabel,
+    this.batteryPct,
   });
 
   // Warm, low-anxiety palette: live = calm green, recent = calm blue, delayed =
@@ -364,6 +370,10 @@ class MinimalTrackingStatusBar extends StatelessWidget {
                       style: TextStyle(color: _accent, fontWeight: FontWeight.w700, fontSize: 13)),
                 ]),
               ),
+              if (batteryPct != null) ...[
+                const SizedBox(width: 8),
+                _BatteryChip(pct: batteryPct!),
+              ],
               const Spacer(),
               if (distanceLabel != null)
                 Text(distanceLabel!, style: const TextStyle(color: Palette.textDim, fontSize: 13)),
@@ -384,6 +394,37 @@ class MinimalTrackingStatusBar extends StatelessWidget {
             ]),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Tracker battery chip: an icon + "%", coloured by level (critical red, low
+/// amber, otherwise a calm neutral). Sits next to the freshness badge.
+class _BatteryChip extends StatelessWidget {
+  final int pct;
+  const _BatteryChip({required this.pct});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final level = batteryLevel(pct);
+    final (color, icon) = switch (level) {
+      BatteryLevel.critical => (Palette.danger, Icons.battery_alert_rounded),
+      BatteryLevel.low => (Palette.amber, Icons.battery_2_bar_rounded),
+      BatteryLevel.ok => (Palette.textDim, Icons.battery_5_bar_rounded),
+      BatteryLevel.full => (Palette.good, Icons.battery_full_rounded),
+    };
+    return Semantics(
+      label: l.t('tr_battery', {'pct': pct}),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(30)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text('$pct%', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+        ]),
       ),
     );
   }

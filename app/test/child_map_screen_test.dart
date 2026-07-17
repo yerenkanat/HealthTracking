@@ -10,7 +10,7 @@ void main() {
   final school = Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120);
   final now = DateTime.utc(2026, 7, 15, 9, 0);
 
-  Widget harness({Coordinates? loc, DateTime? updated, VoidCallback? onCheckIn, VoidCallback? onSos}) => MaterialApp(
+  Widget harness({Coordinates? loc, DateTime? updated, VoidCallback? onCheckIn, VoidCallback? onSos, int? batteryPct}) => MaterialApp(
         home: ChildMapScreen(
           childName: 'Sultan',
           childLocation: loc,
@@ -20,6 +20,7 @@ void main() {
           mapBuilder: (_, __, ___) => const SizedBox(key: Key('map-stub')),
           onCheckIn: onCheckIn,
           onSos: onSos,
+          batteryPct: batteryPct,
         ),
       );
 
@@ -76,5 +77,15 @@ void main() {
     await tester.pumpWidget(harness(loc: home.center, updated: now));
     expect(find.text('Check in'), findsNothing);
     expect(find.text('SOS'), findsNothing);
+  });
+
+  testWidgets('battery chip shows the tracker percentage', (tester) async {
+    await tester.pumpWidget(harness(loc: home.center, updated: now, batteryPct: 62));
+    expect(find.text('62%'), findsOneWidget);
+  });
+
+  testWidgets('no battery chip when battery is unknown', (tester) async {
+    await tester.pumpWidget(harness(loc: home.center, updated: now));
+    expect(find.textContaining('%'), findsNothing);
   });
 }
