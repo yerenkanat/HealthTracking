@@ -19,6 +19,7 @@ import '../data/sample_store.dart';
 import '../data/api_client.dart';
 import '../data/app_store.dart';
 import '../data/persisted_config.dart';
+import '../domain/appointment.dart';
 import '../domain/chat_controller.dart';
 import '../domain/cycle_log.dart';
 import '../domain/cycle_predictions.dart';
@@ -73,6 +74,8 @@ class AppController {
   static const _maxKickSessions = 50;
   final Map<String, int> _waterLog = {}; // dateKey → glasses today
   int? _waterGoal;
+  final List<Appointment> _appointments = [];
+  int _apptSeq = 0; // disambiguates ids created within the same microsecond
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -130,6 +133,9 @@ class AppController {
       ..clear()
       ..addAll(cfg.waterLog);
     _waterGoal = cfg.waterGoal;
+    _appointments
+      ..clear()
+      ..addAll(cfg.appointments);
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -154,6 +160,7 @@ class AppController {
         kickSessions: List.of(_kickSessions),
         waterLog: Map.of(_waterLog),
         waterGoal: _waterGoal,
+        appointments: List.of(_appointments),
       );
 
   void _persist() {
@@ -323,6 +330,25 @@ class AppController {
 
   void setWaterGoal(int glasses) {
     _waterGoal = clampWaterGoal(glasses);
+    _persist();
+    _notify();
+  }
+
+  // ---- Appointments / reminders ----
+  List<Appointment> get appointments => List.unmodifiable(_appointments);
+
+  /// The soonest upcoming appointment (for the profile entry preview), or null.
+  Appointment? get nextAppt => nextAppointment(_appointments, _now());
+
+  void addAppointment(String title, DateTime at, {String note = ''}) {
+    final id = 'apt-${_now().microsecondsSinceEpoch}-${_apptSeq++}';
+    _appointments.add(Appointment(id: id, title: title.trim(), at: at, note: note.trim()));
+    _persist();
+    _notify();
+  }
+
+  void removeAppointment(String id) {
+    _appointments.removeWhere((a) => a.id == id);
     _persist();
     _notify();
   }

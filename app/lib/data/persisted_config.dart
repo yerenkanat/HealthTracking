@@ -7,6 +7,7 @@ import 'dart:convert';
 
 import '../ble/calibration.dart';
 import '../core/geofence.dart';
+import '../domain/appointment.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
@@ -86,6 +87,7 @@ class PersistedConfig {
   final List<KickSessionRecord> kickSessions; // completed timed sessions (newest last)
   final Map<String, int> waterLog; // dateKey → glasses drunk that day
   final int? waterGoal; // daily target (glasses); null → default
+  final List<Appointment> appointments; // the mother's dated reminders
 
   const PersistedConfig({
     required this.onboarded,
@@ -103,6 +105,7 @@ class PersistedConfig {
     this.kickSessions = const [],
     this.waterLog = const {},
     this.waterGoal,
+    this.appointments = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -122,6 +125,7 @@ class PersistedConfig {
         if (kickSessions.isNotEmpty) 'kickSessions': [for (final k in kickSessions) k.toJson()],
         if (waterLog.isNotEmpty) 'waterLog': waterLog,
         if (waterGoal != null) 'waterGoal': waterGoal,
+        if (appointments.isNotEmpty) 'appointments': [for (final a in appointments) a.toJson()],
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -159,6 +163,10 @@ class PersistedConfig {
             ? {for (final e in (j['waterLog'] as Map).entries) '${e.key}': (e.value as num).toInt()}
             : const {},
         waterGoal: (j['waterGoal'] as num?)?.toInt(),
+        appointments: [
+          for (final a in (j['appointments'] as List? ?? const []))
+            Appointment.fromJson((a as Map).cast<String, dynamic>())
+        ],
       );
 
   String encode() => jsonEncode(toJson());

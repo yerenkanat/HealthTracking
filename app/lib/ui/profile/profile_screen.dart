@@ -5,7 +5,10 @@ library;
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../data/photo_store.dart';
+import '../../domain/appointment.dart';
+import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../appointments/appointments_screen.dart';
 import '../settings/settings_screen.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
@@ -93,9 +96,56 @@ class ProfileScreen extends StatelessWidget {
                   )),
                 ],
               ),
+              const SizedBox(height: 14),
+              _AppointmentsEntry(
+                subtitle: _apptSubtitle(l, c),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => AppointmentsScreen(controller: c)),
+                ),
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  String _apptSubtitle(L10n l, AppController c) {
+    final next = c.nextAppt;
+    if (next == null) return l.t('appt_none');
+    final d = daysUntil(next, DateTime.now());
+    final when = d == 0
+        ? l.t('appt_today')
+        : d == 1
+            ? l.t('appt_tomorrow')
+            : l.t('appt_in_days', {'n': d});
+    return '${next.title} · $when';
+  }
+}
+
+/// Tappable profile row that opens the reminders list, previewing the next one.
+class _AppointmentsEntry extends StatelessWidget {
+  final String subtitle;
+  final VoidCallback onTap;
+  const _AppointmentsEntry({required this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(gradient: Palette.roseViolet, borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.event_note_rounded, color: Colors.white, size: 22),
+        ),
+        title: Text(l.t('appt_title'), style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        onTap: onTap,
       ),
     );
   }

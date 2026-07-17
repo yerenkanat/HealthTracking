@@ -10,6 +10,7 @@ import '../lib/data/app_store.dart';
 import '../lib/data/persisted_config.dart';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/family.dart';
+import '../lib/domain/appointment.dart';
 import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/kick_session.dart';
 import '../lib/domain/onboarding_controller.dart';
@@ -52,6 +53,10 @@ void main() async {
     ],
     waterLog: const {'2026-07-16': 5, '2026-07-15': 8},
     waterGoal: 9,
+    appointments: [
+      Appointment(id: 'apt-1', title: 'OB visit', at: DateTime.utc(2026, 7, 20, 9, 30), note: 'Bring results'),
+      Appointment(id: 'apt-2', title: 'Ultrasound', at: DateTime.utc(2026, 8, 3, 14)),
+    ],
   );
   final decoded = PersistedConfig.decode(cfg.encode());
   _chk('round-trip onboarded + locale', decoded.onboarded && decoded.locale == AppLocale.kk);
@@ -73,6 +78,9 @@ void main() async {
       decoded.kickSessions[1].endedAt == DateTime.utc(2026, 7, 16, 8, 5));
   _chk('round-trip water log + goal',
       decoded.waterLog['2026-07-16'] == 5 && decoded.waterLog['2026-07-15'] == 8 && decoded.waterGoal == 9);
+  _chk('round-trip appointments', decoded.appointments.length == 2 &&
+      decoded.appointments[0].title == 'OB visit' && decoded.appointments[0].note == 'Bring results' &&
+      decoded.appointments[0].at == DateTime.utc(2026, 7, 20, 9, 30) && decoded.appointments[1].note == '');
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&

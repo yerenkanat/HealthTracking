@@ -78,6 +78,9 @@ jobs:
       - name: Verify hydration helpers
         run: dart run tool/verify_water.dart
         working-directory: app
+      - name: Verify appointments / reminders
+        run: dart run tool/verify_appointments.dart
+        working-directory: app
 
   flutter-tests:
     name: Flutter widget + unit tests
