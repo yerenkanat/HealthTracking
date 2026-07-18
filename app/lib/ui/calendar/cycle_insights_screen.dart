@@ -163,6 +163,11 @@ class CycleInsightsScreen extends StatelessWidget {
                   ),
                 ],
 
+                if (topSymptomPhase(logs, controller.periodDays) case final insight?) ...[
+                  const SizedBox(height: 16),
+                  _SymptomPhaseCard(insight: insight),
+                ],
+
                 if (moods.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _SectionCard(
@@ -257,6 +262,56 @@ class _StreakBanner extends StatelessWidget {
 }
 
 /// "Your cycles are regular / vary by N days" — a plain-language read on
+/// "Your cramps most often appear in the luteal phase" — a data-driven pattern
+/// linking the user's most-logged symptom to the phase it clusters in.
+class _SymptomPhaseCard extends StatelessWidget {
+  final SymptomPhaseInsight insight;
+  const _SymptomPhaseCard({required this.insight});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final phaseName = l.t('phase_${insight.phase.name}');
+    final symptomName = l.t('sym_${insight.symptom.name}');
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Palette.violet.withValues(alpha: 0.10), Palette.roseDeep.withValues(alpha: 0.05)],
+        ),
+        border: Border.all(color: Palette.violet.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(13)),
+            child: const Icon(Icons.insights_rounded, color: Palette.violet, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('cyc_sym_phase_title').toUpperCase(),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                const SizedBox(height: 4),
+                Text(l.t('cyc_sym_phase_body', {'symptom': symptomName, 'phase': phaseName}),
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: Palette.text, height: 1.3)),
+                const SizedBox(height: 3),
+                Text(l.t('cyc_sym_phase_count', {'n': insight.count, 'total': insight.total}),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Min / average / max cycle length over the user's completed cycles.
 class _CycleLengthCard extends StatelessWidget {
   final CycleLengthStats stats;

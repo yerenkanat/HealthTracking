@@ -5,7 +5,7 @@
 library;
 
 import 'cycle_log.dart';
-import 'cycle_predictions.dart' show periodStarts;
+import 'cycle_predictions.dart' show CycleInfo, CyclePhase, cyclePhaseFor, periodStarts;
 
 /// One recorded cycle: its start, how many days it ran to the next period start
 /// ([cycleLength] — null for the most recent/ongoing cycle), and the bleeding
@@ -194,6 +194,95 @@ List<({Mood mood, int count})> moodFrequency(Iterable<DayLog> logs) {
 List<({Symptom symptom, int count})> symptomFrequencySince(Iterable<DayLog> logs, DateTime since) {
   final sinceKey = dateKey(since);
   return symptomFrequency([for (final l in logs) if (l.date.compareTo(sinceKey) >= 0) l]);
+}
+
+int _clampi(int v, int lo, int hi) => v < lo ? lo : (v > hi ? hi : v);
+
+/// The cycle phase a historical [date] fell in, based on the cycle that CONTAINS
+/// it (the period start on/before the date, running to the next start). Null when
+/// the date precedes all logged periods. Reuses the verified [cyclePhaseFor]
+/// classification against a reconstructed cycle.
+CyclePhase? phaseOfLoggedDay(DateTime date, Set<DateTime> periodDays) {
+  final starts = periodStarts(periodDays); // ascending
+  if (starts.isEmpty) return null;
+  final d = DateTime(date.year, date.month, date.day);
+
+  // The containing cycle's start (greatest start ≤ date) and the following start.
+  DateTime? s;
+  DateTime? next;
+  for (final st in starts) {
+    if (!st.isAfter(d)) {
+      s = st;
+    } else {
+      next = st;
+      break;
+    }
+  }
+  if (s == null) return null; // date is before any logged period
+
+  final cycleLen = _clampi(next != null ? next.difference(s).inDays : 28, 21, 35);
+  // Bleeding length: consecutive logged days from the start.
+  final norm = {for (final pd in periodDays) dateKey(pd)};
+  var periodLen = 1;
+  while (norm.contains(dateKey(s.add(Duration(days: periodLen))))) {
+    periodLen++;
+  }
+  final ovulation = s.add(Duration(days: cycleLen - 14));
+  final info = CycleInfo(
+    avgCycleLength: cycleLen,
+    avgPeriodLength: _clampi(periodLen, 2, 8),
+    lastPeriodStart: s,
+    nextPeriodStart: s.add(Duration(days: cycleLen)),
+    ovulation: ovulation,
+    fertileStart: ovulation.subtract(const Duration(days: 5)),
+    fertileEnd: ovulation.add(const Duration(days: 1)),
+    cycleDay: d.difference(s).inDays + 1,
+    hasData: true,
+    today: d,
+  );
+  return cyclePhaseFor(info)?.phase;
+}
+
+/// Which phase a symptom clusters in: the [symptom], the [phase] it was logged in
+/// most, the [count] there, and the [total] placeable occurrences.
+class SymptomPhaseInsight {
+  final Symptom symptom;
+  final CyclePhase phase;
+  final int count;
+  final int total;
+  const SymptomPhaseInsight(this.symptom, this.phase, this.count, this.total);
+}
+
+/// For the user's most-logged symptom, which cycle phase it most often appears
+/// in. Null when there's no symptom data, no period data, or nothing placeable.
+SymptomPhaseInsight? topSymptomPhase(Iterable<DayLog> logs, Set<DateTime> periodDays) {
+  final freq = symptomFrequency(logs);
+  if (freq.isEmpty || periodDays.isEmpty) return null;
+  final symptom = freq.first.symptom;
+
+  final counts = <CyclePhase, int>{};
+  var total = 0;
+  for (final l in logs) {
+    if (!l.symptoms.contains(symptom)) continue;
+    final d = dateFromKey(l.date);
+    if (d == null) continue;
+    final phase = phaseOfLoggedDay(d, periodDays);
+    if (phase == null) continue;
+    counts[phase] = (counts[phase] ?? 0) + 1;
+    total++;
+  }
+  if (total == 0) return null;
+
+  CyclePhase? top;
+  var topN = 0;
+  for (final phase in CyclePhase.values) {
+    final n = counts[phase] ?? 0;
+    if (n > topN) {
+      topN = n;
+      top = phase;
+    }
+  }
+  return top == null ? null : SymptomPhaseInsight(symptom, top, topN, total);
 }
 
 /// The days on which [symptom] was logged, most recent first.

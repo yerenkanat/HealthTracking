@@ -116,6 +116,24 @@ void main() {
   _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
   _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
 
+  // ---- Symptom by phase ----
+  final phaseDays = <DateTime>{
+    for (var i = 0; i < 5; i++) DateTime(2026, 6, 1).add(Duration(days: i)),
+    for (var i = 0; i < 5; i++) DateTime(2026, 6, 29).add(Duration(days: i)),
+  };
+  _chk('bleeding day → menstrual', phaseOfLoggedDay(DateTime(2026, 6, 2), phaseDays) == CyclePhase.menstrual);
+  _chk('mid-late day → luteal', phaseOfLoggedDay(DateTime(2026, 6, 20), phaseDays) == CyclePhase.luteal);
+  final phaseLogs = [
+    const DayLog(date: '2026-06-02', symptoms: {Symptom.cramps}), // menstrual
+    const DayLog(date: '2026-06-03', symptoms: {Symptom.cramps}), // menstrual
+    const DayLog(date: '2026-06-20', symptoms: {Symptom.headache}), // luteal (less frequent symptom)
+  ];
+  final insight = topSymptomPhase(phaseLogs, phaseDays);
+  _chk('top symptom is the most frequent', insight?.symptom == Symptom.cramps);
+  _chk('top symptom clusters in menstrual', insight?.phase == CyclePhase.menstrual && insight?.count == 2 && insight?.total == 2);
+  _chk('no insight without period data', topSymptomPhase(phaseLogs, const {}) == null);
+  _chk('no insight without symptoms', topSymptomPhase(const [DayLog(date: '2026-06-02', mood: Mood.happy)], phaseDays) == null);
+
   // ---- Fertile-window countdown ----
   FertileCountdown? fcOn(DateTime t) => fertileCountdown(computeCycle(periodSet(days), t));
   _chk('no data → no countdown', fertileCountdown(computeCycle({}, DateTime(2026, 7, 15))) == null);

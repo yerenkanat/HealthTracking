@@ -153,6 +153,21 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('symptom-phase card links the top symptom to its phase', (tester) async {
+    final c = AppController(now: () => today);
+    // Two periods with cramps logged on the bleeding days → cramps cluster in the
+    // menstrual phase.
+    for (final start in [today.subtract(const Duration(days: 6)), today.subtract(const Duration(days: 34))]) {
+      for (var i = 0; i < 5; i++) {
+        c.setDayLog(DayLog(date: dateKey(start.add(Duration(days: i))), flow: Flow.medium, symptoms: const {Symptom.cramps}));
+      }
+    }
+    await tester.pumpWidget(wrap(c));
+    await tester.scrollUntilVisible(find.text('SYMPTOM PATTERN'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('most often appears in the Menstrual phase'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('cycle length range card appears with completed cycles', (tester) async {
     final c = AppController(now: () => today);
     // Three ~28-day periods → two completed cycles → length stats available.
