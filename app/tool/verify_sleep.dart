@@ -57,6 +57,14 @@ void main() {
   }());
   _chk('stats null on empty', sleepStats(const []) == null);
 
+  // ---- Sleep consistency ----
+  SleepSummary night(int asleep) => SleepSummary(night: DateTime(2026, 7, 15), lightMin: asleep);
+  _chk('consistency insufficient with <3', sleepConsistency([night(400), night(410)]).level == SleepConsistency.insufficient);
+  final consistent = sleepConsistency([night(420), night(440), night(400)]); // spread 40
+  _chk('consistent when spread ≤60', consistent.level == SleepConsistency.consistent && consistent.spreadMin == 40);
+  _chk('variable when spread 61..120', sleepConsistency([night(360), night(450), night(420)]).level == SleepConsistency.variable); // spread 90
+  _chk('irregular when spread >120', sleepConsistency([night(300), night(480), night(400)]).level == SleepConsistency.irregular); // spread 180
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

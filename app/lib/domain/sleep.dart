@@ -112,6 +112,35 @@ SleepStats? sleepStats(List<SleepSummary> nights) {
   );
 }
 
+enum SleepConsistency { insufficient, consistent, variable, irregular }
+
+/// How steady the night-to-night sleep DURATION is.
+class SleepConsistencyInsight {
+  final SleepConsistency level;
+  final int nights; // nights considered
+  final int spreadMin; // longest − shortest asleep minutes
+  const SleepConsistencyInsight(this.level, this.nights, this.spreadMin);
+}
+
+/// Classify sleep-duration consistency over [nights]. Needs ≥3 nights; the spread
+/// (max − min asleep minutes) buckets it: ≤60 consistent, ≤120 variable, else
+/// irregular.
+SleepConsistencyInsight sleepConsistency(List<SleepSummary> nights) {
+  if (nights.length < 3) return SleepConsistencyInsight(SleepConsistency.insufficient, nights.length, 0);
+  var min = nights.first.asleepMin, max = nights.first.asleepMin;
+  for (final n in nights) {
+    if (n.asleepMin < min) min = n.asleepMin;
+    if (n.asleepMin > max) max = n.asleepMin;
+  }
+  final spread = max - min;
+  final level = spread <= 60
+      ? SleepConsistency.consistent
+      : spread <= 120
+          ? SleepConsistency.variable
+          : SleepConsistency.irregular;
+  return SleepConsistencyInsight(level, nights.length, spread);
+}
+
 /// Nights sorted oldest → newest (for a left-to-right bar chart).
 List<SleepSummary> sortedByNight(List<SleepSummary> nights) {
   final out = List<SleepSummary>.from(nights);

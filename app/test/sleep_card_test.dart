@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/sleep.dart';
 import 'package:fcs_app/ui/dashboard/sleep_card.dart';
+import 'package:fcs_app/ui/dashboard/sleep_detail_screen.dart';
 
 void main() {
   final nights = [
@@ -34,5 +35,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('RECENT NIGHTS'), findsOneWidget); // detail chart header
     expect(find.text('Deep'), findsWidgets); // legend
+  });
+
+  testWidgets('detail screen shows a consistency read with 3+ nights', (tester) async {
+    // Three nights within ~40 min of each other → "consistent".
+    final threeNights = [
+      SleepSummary(night: DateTime(2026, 7, 15), lightMin: 420),
+      SleepSummary(night: DateTime(2026, 7, 14), lightMin: 440),
+      SleepSummary(night: DateTime(2026, 7, 13), lightMin: 400),
+    ];
+    await tester.pumpWidget(MaterialApp(home: SleepDetailScreen(nights: threeNights)));
+    expect(find.text('Your sleep is consistent'), findsOneWidget);
+    expect(find.textContaining('spread between nights'), findsOneWidget);
   });
 }

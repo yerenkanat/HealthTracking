@@ -18,6 +18,7 @@ class SleepDetailScreen extends StatelessWidget {
     final l = L10nScope.of(context);
     final ordered = sortedByNight(nights);
     final stats = sleepStats(nights);
+    final consistency = sleepConsistency(nights);
 
     return AuroraBackground(
       child: Scaffold(
@@ -35,6 +36,10 @@ class SleepDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                 children: [
                   if (stats != null) _StatsHeader(stats: stats),
+                  if (consistency.level != SleepConsistency.insufficient) ...[
+                    const SizedBox(height: 14),
+                    _ConsistencyCard(insight: consistency),
+                  ],
                   const SizedBox(height: 16),
                   GlassCard(
                     child: Column(
@@ -56,6 +61,48 @@ class SleepDetailScreen extends StatelessWidget {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// "Your sleep is consistent / varies / is irregular" from night-to-night
+/// duration spread — coloured by level.
+class _ConsistencyCard extends StatelessWidget {
+  final SleepConsistencyInsight insight;
+  const _ConsistencyCard({required this.insight});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final (accent, icon, headline) = switch (insight.level) {
+      SleepConsistency.consistent => (Palette.good, Icons.check_circle_rounded, l.t('sleep_cons_good')),
+      SleepConsistency.variable => (Palette.amber, Icons.timeline_rounded, l.t('sleep_cons_variable')),
+      SleepConsistency.irregular => (Palette.roseDeep, Icons.show_chart_rounded, l.t('sleep_cons_irregular')),
+      SleepConsistency.insufficient => (Palette.textDim, Icons.hourglass_empty_rounded, ''),
+    };
+    return GlassCard(
+      glow: accent,
+      child: Row(
+        children: [
+          Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
+            child: Icon(icon, color: accent, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(headline, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: accent)),
+                const SizedBox(height: 2),
+                Text(l.t('sleep_cons_sub', {'spread': l.duration(insight.spreadMin)}),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
