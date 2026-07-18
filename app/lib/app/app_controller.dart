@@ -242,9 +242,20 @@ class AppController {
 
   /// A human-readable, pretty-printed JSON backup of all durable app data
   /// (profile, children, devices, cycle logs, kick sessions, water, weights,
-  /// appointments, battery, alerts). Same shape PersistedConfig round-trips, so a
-  /// backup can be restored. Health telemetry samples are excluded (regenerated).
-  String exportJson() => const JsonEncoder.withIndent('  ').convert(_snapshot().toJson());
+  /// appointments, battery, alerts). Leads with metadata (app + version + export
+  /// time); the rest is the PersistedConfig shape, so a backup round-trips on
+  /// import (the extra metadata keys are ignored). Telemetry samples are excluded.
+  String exportJson() {
+    final map = <String, dynamic>{
+      'app': 'Umay',
+      'appVersion': appVersion,
+      'exportedAt': _now().toIso8601String(),
+      ..._snapshot().toJson(),
+    };
+    return const JsonEncoder.withIndent('  ').convert(map);
+  }
+
+  static const appVersion = '0.1.0';
 
   /// Fires whenever any observable state changes (UI rebuilds on this).
   Stream<void> get changes => _changes.stream;
