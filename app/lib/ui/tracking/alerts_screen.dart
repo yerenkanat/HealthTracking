@@ -10,13 +10,20 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
-class AlertsScreen extends StatelessWidget {
+class AlertsScreen extends StatefulWidget {
   final AppController controller;
   const AlertsScreen({super.key, required this.controller});
+  @override
+  State<AlertsScreen> createState() => _AlertsScreenState();
+}
+
+class _AlertsScreenState extends State<AlertsScreen> {
+  AlertFilter _filter = AlertFilter.all;
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final controller = widget.controller;
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -34,8 +41,8 @@ class AlertsScreen extends StatelessWidget {
         body: StreamBuilder<void>(
           stream: controller.changes,
           builder: (context, _) {
-            final alerts = controller.alerts;
-            if (alerts.isEmpty) {
+            final all = controller.alerts;
+            if (all.isEmpty) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(28),
@@ -51,14 +58,69 @@ class AlertsScreen extends StatelessWidget {
                 ),
               );
             }
-            return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              itemCount: alerts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, i) => _AlertCard(alert: alerts[i], now: DateTime.now()),
+            // A filter no longer present (e.g. after clearing) falls back to All.
+            final present = presentAlertFilters(all);
+            if (_filter != AlertFilter.all && !present.contains(_filter)) _filter = AlertFilter.all;
+            final alerts = filterAlerts(all, _filter);
+            return Column(
+              children: [
+                if (present.length > 1) _FilterChips(present: present, selected: _filter, onSelect: (f) => setState(() => _filter = f)),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount: alerts.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, i) => _AlertCard(alert: alerts[i], now: DateTime.now()),
+                  ),
+                ),
+              ],
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+/// A horizontal row of filter chips: All + the categories that have alerts.
+class _FilterChips extends StatelessWidget {
+  final Set<AlertFilter> present;
+  final AlertFilter selected;
+  final ValueChanged<AlertFilter> onSelect;
+  const _FilterChips({required this.present, required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    String label(AlertFilter f) => switch (f) {
+          AlertFilter.all => l.t('alerts_filter_all'),
+          AlertFilter.zones => l.t('alerts_filter_zones'),
+          AlertFilter.sos => l.t('alerts_filter_sos'),
+          AlertFilter.checkIns => l.t('alerts_filter_checkins'),
+          AlertFilter.battery => l.t('alerts_filter_battery'),
+        };
+    final chips = [AlertFilter.all, ...present];
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final f = chips[i];
+          final sel = f == selected;
+          return ChoiceChip(
+            label: Text(label(f)),
+            selected: sel,
+            onSelected: (_) => onSelect(f),
+            showCheckmark: false,
+            selectedColor: Palette.violet.withValues(alpha: 0.16),
+            side: BorderSide(color: sel ? Palette.violet.withValues(alpha: 0.5) : Palette.border),
+            labelStyle: TextStyle(color: sel ? Palette.violet : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
+            backgroundColor: Palette.surface,
+          );
+        },
       ),
     );
   }

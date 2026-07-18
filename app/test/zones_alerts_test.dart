@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
+import 'package:fcs_app/domain/geofence_alerts.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/tracking/alerts_screen.dart';
@@ -68,6 +69,30 @@ void main() {
       await tester.tap(find.text('Clear'));
       await tester.pumpAndSettle();
       expect(find.textContaining('No alerts yet'), findsOneWidget);
+      addTearDown(c.dispose);
+    });
+
+    testWidgets('filter chips narrow the feed to a category', (tester) async {
+      final c = AppController(now: () => DateTime(2026, 7, 16, 9));
+      c.configureChild(name: 'Sultan', fences: [_home, _school]);
+      c.onChildLocation(_home.center!); // entered Home (zone)
+      c.logChildEvent(AlertKind.sos); // an SOS
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c)));
+
+      // Both categories shown initially.
+      expect(find.text('Entered Home'), findsOneWidget);
+      expect(find.text('SOS — emergency signal'), findsOneWidget);
+
+      // Filter to SOS only.
+      await tester.tap(find.widgetWithText(ChoiceChip, 'SOS'));
+      await tester.pumpAndSettle();
+      expect(find.text('SOS — emergency signal'), findsOneWidget);
+      expect(find.text('Entered Home'), findsNothing);
+
+      // Back to All.
+      await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
+      await tester.pumpAndSettle();
+      expect(find.text('Entered Home'), findsOneWidget);
       addTearDown(c.dispose);
     });
   });

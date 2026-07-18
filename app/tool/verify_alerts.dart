@@ -66,6 +66,24 @@ void main() {
   ctl.clearAlerts();
   _chk('clearAlerts empties feed', ctl.alerts.isEmpty);
 
+  // ---- Alert filtering ----
+  final feed = [
+    SafetyAlert(kind: AlertKind.entered, childName: 'A', zoneName: 'Home', at: DateTime(2026, 7, 16, 9)),
+    SafetyAlert(kind: AlertKind.left, childName: 'A', zoneName: 'School', at: DateTime(2026, 7, 16, 8)),
+    SafetyAlert(kind: AlertKind.sos, childName: 'A', zoneName: '', at: DateTime(2026, 7, 16, 7)),
+    SafetyAlert(kind: AlertKind.lowBattery, childName: 'A', zoneName: '8', at: DateTime(2026, 7, 16, 6)),
+  ];
+  _chk('filter all keeps everything', filterAlerts(feed, AlertFilter.all).length == 4);
+  _chk('filter zones = entered + left', filterAlerts(feed, AlertFilter.zones).length == 2);
+  _chk('filter sos = one', filterAlerts(feed, AlertFilter.sos).length == 1 && filterAlerts(feed, AlertFilter.sos).first.kind == AlertKind.sos);
+  _chk('filter battery = one', filterAlerts(feed, AlertFilter.battery).single.kind == AlertKind.lowBattery);
+  _chk('filter check-ins = none here', filterAlerts(feed, AlertFilter.checkIns).isEmpty);
+  _chk('present filters exclude empty check-ins',
+      presentAlertFilters(feed).contains(AlertFilter.zones) &&
+          presentAlertFilters(feed).contains(AlertFilter.sos) &&
+          presentAlertFilters(feed).contains(AlertFilter.battery) &&
+          !presentAlertFilters(feed).contains(AlertFilter.checkIns));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

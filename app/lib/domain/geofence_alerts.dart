@@ -12,6 +12,28 @@ import 'child_tracker_state.dart' show currentZone;
 /// child tracker's battery drops into the low range.
 enum AlertKind { entered, left, checkIn, sos, lowBattery }
 
+/// Categories the alerts feed can filter by.
+enum AlertFilter { all, zones, sos, checkIns, battery }
+
+bool alertMatchesFilter(SafetyAlert a, AlertFilter f) => switch (f) {
+      AlertFilter.all => true,
+      AlertFilter.zones => a.kind == AlertKind.entered || a.kind == AlertKind.left,
+      AlertFilter.sos => a.kind == AlertKind.sos,
+      AlertFilter.checkIns => a.kind == AlertKind.checkIn,
+      AlertFilter.battery => a.kind == AlertKind.lowBattery,
+    };
+
+/// Alerts matching [f], preserving order.
+List<SafetyAlert> filterAlerts(List<SafetyAlert> alerts, AlertFilter f) =>
+    [for (final a in alerts) if (alertMatchesFilter(a, f)) a];
+
+/// Which category filters (besides `all`) actually have alerts — for showing only
+/// relevant chips.
+Set<AlertFilter> presentAlertFilters(List<SafetyAlert> alerts) => {
+      for (final f in [AlertFilter.zones, AlertFilter.sos, AlertFilter.checkIns, AlertFilter.battery])
+        if (alerts.any((a) => alertMatchesFilter(a, f))) f,
+    };
+
 AlertKind alertKindFromName(String? s) => switch (s) {
       'entered' => AlertKind.entered,
       'checkIn' => AlertKind.checkIn,
