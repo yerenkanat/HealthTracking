@@ -38,6 +38,7 @@ class CycleInsightsScreen extends StatelessWidget {
             final since = _now().subtract(const Duration(days: 7));
             final thisWeek = symptomFrequencySince(logs, since);
             final moodsWeek = moodFrequencySince(logs, since);
+            final streak = loggingStreak(logs, _now());
             final notes = recentNotes(logs);
 
             if (!info.hasData) {
@@ -74,6 +75,10 @@ class CycleInsightsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (streak >= 2) ...[
+                  const SizedBox(height: 14),
+                  _StreakBanner(days: streak),
+                ],
                 if (regularity.level != CycleRegularity.insufficient) ...[
                   const SizedBox(height: 14),
                   _RegularityCard(insight: regularity),
@@ -176,6 +181,39 @@ class _Stat extends StatelessWidget {
       const SizedBox(height: 3),
       Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
     ]);
+  }
+}
+
+/// A motivational logging-streak banner.
+class _StreakBanner extends StatelessWidget {
+  final int days;
+  const _StreakBanner({required this.days});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return GlassCard(
+      glow: Palette.amber,
+      child: Row(
+        children: [
+          Container(
+            width: 46, height: 46,
+            decoration: const BoxDecoration(gradient: LinearGradient(colors: [Palette.amber, Palette.roseDeep]), shape: BoxShape.circle),
+            child: const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('cyc_streak', {'n': days}), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Palette.amber)),
+                const SizedBox(height: 2),
+                Text(l.t('cyc_streak_sub'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

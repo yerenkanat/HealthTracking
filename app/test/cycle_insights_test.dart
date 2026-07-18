@@ -57,6 +57,20 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('logging streak banner shows consecutive logged days', (tester) async {
+    final c = AppController(now: () => today); // today = 2026-07-16
+    // A period (so hasData) covers today-6..today-2; plus notes today, -1, -2, -3.
+    for (var i = 0; i < 3; i++) {
+      c.setDayLog(DayLog(date: dateKey(today.subtract(Duration(days: 6 + i))), flow: Flow.medium));
+    }
+    for (var i = 0; i < 4; i++) {
+      c.setNoteFor(today.subtract(Duration(days: i)), 'logged');
+    }
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('4-day logging streak'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('mood-this-week card counts only the last 7 days', (tester) async {
     final c = AppController(now: () => today); // today = 2026-07-16
     for (var i = 0; i < 3; i++) {

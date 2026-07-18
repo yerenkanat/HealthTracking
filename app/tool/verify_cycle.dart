@@ -182,6 +182,16 @@ void main() {
   _chk('recent mood counts exclude old', recentMoods.first.mood == Mood.happy && recentMoods.first.count == 2);
   _chk('recent mood excludes out-of-window', !recentMoods.any((e) => e.mood == Mood.sad));
 
+  // ---- Logging streak ----
+  final t = DateTime(2026, 7, 16);
+  List<DayLog> logged(List<int> daysAgo) =>
+      [for (final d in daysAgo) DayLog(date: dateKey(t.subtract(Duration(days: d))), mood: Mood.happy)];
+  _chk('streak counts consecutive incl today', loggingStreak(logged([0, 1, 2]), t) == 3);
+  _chk('streak stops at a gap', loggingStreak(logged([0, 1, 3]), t) == 2);
+  _chk('pending today counts from yesterday', loggingStreak(logged([1, 2, 3]), t) == 3);
+  _chk('empty logs → 0 streak', loggingStreak(const [], t) == 0);
+  _chk('empty day log does not count', loggingStreak([DayLog(date: dateKey(t))], t) == 0);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

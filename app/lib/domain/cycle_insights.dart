@@ -74,6 +74,22 @@ RegularityInsight cycleRegularity(List<CycleSpan> history) {
   return RegularityInsight(level, lengths.length, variation, (sum / lengths.length).round());
 }
 
+/// Consecutive days (ending [today]) with any non-empty day log. A not-yet-logged
+/// today doesn't break the streak — it counts from yesterday; a missed earlier day
+/// ends it.
+int loggingStreak(Iterable<DayLog> logs, DateTime today) {
+  final logged = {for (final l in logs) if (l.isNotEmpty) l.date};
+  bool has(DateTime d) => logged.contains(dateKey(d));
+  final t = DateTime(today.year, today.month, today.day);
+  var day = has(t) ? t : t.subtract(const Duration(days: 1));
+  var streak = 0;
+  while (has(day)) {
+    streak++;
+    day = day.subtract(const Duration(days: 1));
+  }
+  return streak;
+}
+
 /// The days that carry a free-text note, most recent first (up to [limit]).
 List<DayLog> recentNotes(Iterable<DayLog> logs, {int limit = 5}) {
   final withNotes = [for (final l in logs) if (l.note.trim().isNotEmpty) l];
