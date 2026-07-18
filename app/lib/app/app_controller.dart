@@ -131,6 +131,12 @@ class AppController {
   Future<void> restore() async {
     final cfg = await _persistStore?.load();
     if (cfg == null || !cfg.onboarded) return;
+    _applyConfig(cfg);
+    _notify();
+  }
+
+  /// Replace all in-memory state from [cfg]. Shared by restore() and import.
+  void _applyConfig(PersistedConfig cfg) {
     _locale = cfg.locale;
     _profile = cfg.profile;
     _children
@@ -166,7 +172,24 @@ class AppController {
       ..addAll(cfg.alerts);
     _lastChildZone = cfg.lastChildZone;
     _onboarded = true;
+  }
+
+  /// Restore all durable data from a JSON backup (the [exportJson] format).
+  /// Returns true on success; false if the text isn't valid backup JSON — the
+  /// current state is left untouched on failure.
+  bool importJson(String json) {
+    PersistedConfig cfg;
+    try {
+      cfg = PersistedConfig.decode(json);
+    } catch (_) {
+      return false;
+    }
+    _applyConfig(cfg);
+    // Re-arm reminder notifications for the imported appointments.
+    rescheduleReminders();
+    _persist();
     _notify();
+    return true;
   }
 
   PersistedConfig _snapshot() => PersistedConfig(

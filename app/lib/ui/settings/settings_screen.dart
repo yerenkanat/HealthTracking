@@ -144,6 +144,13 @@ class SettingsScreen extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
                 onTap: () => _openExport(context, c),
               ),
+              _Row(
+                leading: Icons.upload_rounded,
+                title: l.t('set_import'),
+                subtitle: l.t('set_import_sub'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => _openImport(context, c),
+              ),
             ]),
 
             // ---- About ----
@@ -172,7 +179,11 @@ class SettingsScreen extends StatelessWidget {
             children: [
               Text(l.t('set_export_hint'), style: const TextStyle(color: Palette.textDim, fontSize: 13)),
               const SizedBox(height: 12),
-              Flexible(
+              // Bounded scroll area — a Flexible in a min-height Column can fail to
+              // lay out; a ConstrainedBox sized to the screen keeps the dialog from
+              // overflowing on short screens while staying generous on tall ones.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(12), border: Border.all(color: Palette.border)),
@@ -205,6 +216,23 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _openImport(BuildContext context, AppController c) async {
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => const _ImportDialog(),
+    );
+    if (text == null || text.trim().isEmpty || !context.mounted) return;
+    final l = L10nScope.of(context);
+    final ok = c.importJson(text.trim());
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.t(ok ? 'set_import_ok' : 'set_import_fail')),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: ok ? null : Palette.danger,
+      ),
+    );
+  }
+
   String _calStatus(L10n l, AppController c) {
     final cal = c.bpCalibration;
     if (cal == null) return l.t('cal_never');
@@ -229,6 +257,79 @@ class SettingsScreen extends StatelessWidget {
     return '${l.childAge(child.ageInMonths(DateTime.now()))} · $zones';
   }
 
+}
+
+/// Paste-a-backup dialog: a text field for the exported JSON, a clear warning
+/// that importing REPLACES current data, and an Import button (the explicit
+/// destructive confirmation). Returns the pasted text, or null on cancel. A
+/// dialog (not a bottom sheet) so button/width layout stays robust.
+class _ImportDialog extends StatefulWidget {
+  const _ImportDialog();
+  @override
+  State<_ImportDialog> createState() => _ImportDialogState();
+}
+
+class _ImportDialogState extends State<_ImportDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final hasText = _controller.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: Text(l.t('set_import')),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Palette.danger.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                const Icon(Icons.warning_amber_rounded, color: Palette.danger, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(l.t('set_import_warn'), style: const TextStyle(color: Palette.danger, fontSize: 12.5, height: 1.3))),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 140,
+              child: TextField(
+                controller: _controller,
+                expands: true,
+                maxLines: null,
+                minLines: null,
+                textAlignVertical: TextAlignVertical.top,
+                style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12),
+                decoration: InputDecoration(
+                  hintText: l.t('set_import_hint'),
+                  alignLabelWithHint: true,
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l.t('act_cancel'))),
+        FilledButton(
+          onPressed: hasText ? () => Navigator.of(context).pop(_controller.text) : null,
+          style: FilledButton.styleFrom(backgroundColor: Palette.danger),
+          child: Text(l.t('set_import_apply')),
+        ),
+      ],
+    );
+  }
 }
 
 /// Highlighted call-to-action for weekly blood-pressure calibration — a critical

@@ -32,4 +32,33 @@ void main() {
     expect(jsonDecode(json), isA<Map<String, dynamic>>());
     c.dispose();
   });
+
+  test('export → import restores the data into a fresh controller', () {
+    final a = AppController(now: () => DateTime(2026, 7, 15));
+    a.addAppointment('OB visit', DateTime(2026, 8, 1, 9, 0));
+    a.logWeight(DateTime(2026, 7, 15), 65.0);
+    a.addWater(DateTime(2026, 7, 15), 3);
+    final backup = a.exportJson();
+
+    final b = AppController(now: () => DateTime(2026, 7, 15));
+    expect(b.appointments, isEmpty);
+    final ok = b.importJson(backup);
+    expect(ok, isTrue);
+    expect(b.appointments.single.title, 'OB visit');
+    expect(b.weights.single.kg, 65.0);
+    expect(b.waterFor(DateTime(2026, 7, 15)), 3);
+    expect(b.onboarded, isTrue);
+
+    a.dispose();
+    b.dispose();
+  });
+
+  test('importing garbage fails and leaves state untouched', () {
+    final c = AppController(now: () => DateTime(2026, 7, 15));
+    c.addAppointment('Keep me', DateTime(2026, 8, 1, 9, 0));
+    final ok = c.importJson('not json at all');
+    expect(ok, isFalse);
+    expect(c.appointments.single.title, 'Keep me'); // unchanged
+    c.dispose();
+  });
 }

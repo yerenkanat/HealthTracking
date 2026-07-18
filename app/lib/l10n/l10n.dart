@@ -180,6 +180,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'set_export_hint': {AppLocale.ru: 'Скопируйте и сохраните в надёжном месте. Показания браслета не включены.', AppLocale.kk: 'Көшіріп, сенімді жерде сақтаңыз. Білезік көрсеткіштері кірмейді.', AppLocale.en: 'Copy and keep it somewhere safe. Band readings are not included.'},
   'set_export_copy': {AppLocale.ru: 'Копировать', AppLocale.kk: 'Көшіру', AppLocale.en: 'Copy'},
   'set_export_copied': {AppLocale.ru: 'Резервная копия скопирована', AppLocale.kk: 'Сақтық көшірме көшірілді', AppLocale.en: 'Backup copied to clipboard'},
+  'set_import': {AppLocale.ru: 'Импорт данных', AppLocale.kk: 'Деректерді импорттау', AppLocale.en: 'Import data'},
+  'set_import_sub': {AppLocale.ru: 'Восстановить из резервной копии', AppLocale.kk: 'Сақтық көшірмеден қалпына келтіру', AppLocale.en: 'Restore from a backup'},
+  'set_import_warn': {AppLocale.ru: 'Импорт заменит все текущие данные.', AppLocale.kk: 'Импорт барлық ағымдағы деректерді ауыстырады.', AppLocale.en: 'Importing replaces all your current data.'},
+  'set_import_hint': {AppLocale.ru: 'Вставьте JSON резервной копии сюда', AppLocale.kk: 'Мұнда JSON сақтық көшірмесін қойыңыз', AppLocale.en: 'Paste your backup JSON here'},
+  'set_import_apply': {AppLocale.ru: 'Импортировать', AppLocale.kk: 'Импорттау', AppLocale.en: 'Import'},
+  'set_import_ok': {AppLocale.ru: 'Данные восстановлены', AppLocale.kk: 'Деректер қалпына келтірілді', AppLocale.en: 'Data restored'},
+  'set_import_fail': {AppLocale.ru: 'Не удалось прочитать резервную копию', AppLocale.kk: 'Сақтық көшірмені оқу мүмкін болмады', AppLocale.en: "Couldn't read that backup"},
   'set_about': {AppLocale.ru: 'О приложении', AppLocale.kk: 'Қолданба туралы', AppLocale.en: 'About'},
   'set_about_body': {
     AppLocale.ru: 'Умай — уход за беременностью и безопасность ребёнка. Не является медицинским прибором.',
