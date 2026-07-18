@@ -14,6 +14,7 @@ import '../../domain/kick_session.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
+import '../widgets/glass.dart';
 
 class KickSessionScreen extends StatefulWidget {
   /// Called with the number of movements and how long the session ran, on save.
@@ -133,55 +134,92 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                   style: const TextStyle(color: Palette.textDim, fontSize: 13, height: 1.35),
                 ),
                 const Spacer(),
-                // Big central tap target with the running count.
-                Semantics(
-                  button: true,
-                  label: l.t('kick_add'),
-                  value: '${_session.count}',
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _tap,
-                      customBorder: const CircleBorder(),
-                      child: Container(
-                        width: 220,
-                        height: 220,
-                        decoration: BoxDecoration(
-                          gradient: Palette.roseViolet,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Palette.rose.withValues(alpha: 0.40),
-                              blurRadius: 40,
-                              spreadRadius: -8,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${_session.count}',
-                              style: const TextStyle(
-                                fontFamily: 'JetBrainsMono',
-                                fontSize: 72,
-                                fontWeight: FontWeight.w700,
-                                height: 1,
-                                color: Colors.white,
+                // Big central tap target, ringed with progress toward the goal.
+                Builder(builder: (context) {
+                  final reached = kickGoalReached(_session.count, defaultKickGoal);
+                  return Semantics(
+                    button: true,
+                    label: l.t('kick_add'),
+                    value: '${_session.count} / $defaultKickGoal',
+                    child: SizedBox(
+                      width: 244,
+                      height: 244,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          MetricRing(
+                            fraction: kickGoalFraction(_session.count, defaultKickGoal),
+                            gradient: reached
+                                ? const LinearGradient(colors: [Palette.good, Palette.teal])
+                                : Palette.roseViolet,
+                            size: 244,
+                            stroke: 8,
+                          ),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _tap,
+                              customBorder: const CircleBorder(),
+                              child: Container(
+                                width: 206,
+                                height: 206,
+                                decoration: BoxDecoration(
+                                  gradient: reached
+                                      ? const LinearGradient(colors: [Palette.good, Palette.teal])
+                                      : Palette.roseViolet,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (reached ? Palette.good : Palette.rose).withValues(alpha: 0.40),
+                                      blurRadius: 40,
+                                      spreadRadius: -8,
+                                      offset: const Offset(0, 12),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                                          textBaseline: TextBaseline.alphabetic,
+                                          children: [
+                                            Text(
+                                              '${_session.count}',
+                                              style: const TextStyle(
+                                                fontFamily: 'JetBrainsMono', fontSize: 68, fontWeight: FontWeight.w700, height: 1, color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              ' / $defaultKickGoal',
+                                              style: TextStyle(
+                                                fontFamily: 'JetBrainsMono', fontSize: 26, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.85),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      l.t(reached ? 'kick_goal_reached' : 'kick_session_tap'),
+                                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              l.t('kick_session_tap'),
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
+                  );
+                }),
                 const SizedBox(height: 18),
                 TextButton.icon(
                   onPressed: _session.count == 0 ? null : _undo,

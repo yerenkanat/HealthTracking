@@ -43,6 +43,20 @@ void main() {
     expect(saved, 2);
   });
 
+  testWidgets('reaching the goal shows the goal-reached state', (tester) async {
+    await pumpAndOpen(tester, (_, __) {});
+    // Ten taps on the counter (label is "movement" until the goal is reached).
+    for (var i = 0; i < 10; i++) {
+      await tester.tap(find.text('movement'));
+      await tester.pump();
+    }
+    expect(find.text('10'), findsOneWidget); // count reached the goal
+    expect(find.text('Goal reached 🎉'), findsOneWidget);
+    // Clean up the running timer.
+    await tester.tap(find.text('Save session'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('closing an empty session does not save and needs no confirmation', (tester) async {
     int? saved;
     await pumpAndOpen(tester, (n, _) => saved = n);

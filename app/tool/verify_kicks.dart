@@ -40,6 +40,17 @@ void main() {
   _chk("format 1:05:09 past an hour", formatElapsed(const Duration(hours: 1, minutes: 5, seconds: 9)) == '1:05:09');
   _chk("negative clamps to 0:00", formatElapsed(const Duration(seconds: -3)) == '0:00');
 
+  // Goal progress.
+  _chk('default goal is 10', defaultKickGoal == 10);
+  _chk('0 → 0.0', kickGoalFraction(0, 10) == 0.0);
+  _chk('5/10 → 0.5', kickGoalFraction(5, 10) == 0.5);
+  _chk('10/10 → 1.0', kickGoalFraction(10, 10) == 1.0);
+  _chk('over goal clamps to 1.0', kickGoalFraction(14, 10) == 1.0);
+  _chk('zero goal safe', kickGoalFraction(3, 0) == 0.0);
+  _chk('goal not reached at 9', !kickGoalReached(9, 10));
+  _chk('goal reached at 10', kickGoalReached(10, 10));
+  _chk('goal reached above', kickGoalReached(12, 10));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

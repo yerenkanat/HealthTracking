@@ -57,6 +57,20 @@ class KickSessionRecord {
       );
 }
 
+/// A per-session movement goal — a neutral personal target (not medical advice),
+/// with a progress fraction for the ring.
+const int defaultKickGoal = 10;
+
+/// Progress toward [goal], clamped 0..1.
+double kickGoalFraction(int count, int goal) {
+  if (goal <= 0 || count <= 0) return 0;
+  final f = count / goal;
+  return f > 1 ? 1 : f;
+}
+
+/// Whether the session reached its goal.
+bool kickGoalReached(int count, int goal) => goal > 0 && count >= goal;
+
 /// Running-clock label: "M:SS", or "H:MM:SS" once past an hour. Negative or
 /// zero durations render as "0:00".
 String formatElapsed(Duration d) {
