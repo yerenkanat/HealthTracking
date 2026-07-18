@@ -365,6 +365,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'kick_session_discard': {AppLocale.ru: 'Прервать', AppLocale.kk: 'Тоқтату', AppLocale.en: 'Discard'},
   'kick_goal_reached': {AppLocale.ru: 'Цель достигнута 🎉', AppLocale.kk: 'Мақсатқа жетті 🎉', AppLocale.en: 'Goal reached 🎉'},
   'kick_history': {AppLocale.ru: 'История сессий', AppLocale.kk: 'Сессиялар тарихы', AppLocale.en: 'Session history'},
+  'kick_avg_count': {AppLocale.ru: 'Ср. шевелений', AppLocale.kk: 'Орт. тебіну', AppLocale.en: 'Avg movements'},
+  'kick_avg_length': {AppLocale.ru: 'Ср. длительность', AppLocale.kk: 'Орт. ұзақтық', AppLocale.en: 'Avg length'},
+  'kick_goal_hits': {AppLocale.ru: 'Цель достигнута', AppLocale.kk: 'Мақсатқа жетті', AppLocale.en: 'Goals met'},
   'kick_history_count': {AppLocale.ru: '{n} шевелений', AppLocale.kk: '{n} тебіну', AppLocale.en: '{n} movements'},
   'cal_tooltip': {
     AppLocale.ru: 'Калибруйте по медицинскому тонометру еженедельно для точной оценки давления по браслету.',

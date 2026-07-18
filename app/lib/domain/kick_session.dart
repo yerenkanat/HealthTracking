@@ -71,6 +71,32 @@ double kickGoalFraction(int count, int goal) {
 /// Whether the session reached its goal.
 bool kickGoalReached(int count, int goal) => goal > 0 && count >= goal;
 
+/// Aggregate stats over recorded kick sessions — for the history header.
+class KickHistorySummary {
+  final int sessions;
+  final double avgCount; // average movements per session
+  final Duration avgDuration; // average session length
+  final int goalReached; // sessions that met the goal
+  const KickHistorySummary(this.sessions, this.avgCount, this.avgDuration, this.goalReached);
+}
+
+/// Summarize [records] against [goal]. Empty history → all zero.
+KickHistorySummary kickHistorySummary(List<KickSessionRecord> records, {int goal = defaultKickGoal}) {
+  if (records.isEmpty) return const KickHistorySummary(0, 0, Duration.zero, 0);
+  var countSum = 0, durSum = 0, reached = 0;
+  for (final r in records) {
+    countSum += r.count;
+    durSum += r.durationSec;
+    if (kickGoalReached(r.count, goal)) reached++;
+  }
+  return KickHistorySummary(
+    records.length,
+    countSum / records.length,
+    Duration(seconds: (durSum / records.length).round()),
+    reached,
+  );
+}
+
 /// Running-clock label: "M:SS", or "H:MM:SS" once past an hour. Negative or
 /// zero durations render as "0:00".
 String formatElapsed(Duration d) {

@@ -103,6 +103,20 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('kick history shows a summary strip and goal badge', (tester) async {
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // pregnancy mode
+    c.logKickSession(today, 12, const Duration(seconds: 600)); // reaches goal (10)
+    c.logKickSession(today, 8, const Duration(seconds: 400)); // misses goal
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('SESSION HISTORY'), 200, scrollable: find.byType(Scrollable).first);
+    // Summary strip: labels + goals-met fraction (1 of 2 reached the goal).
+    expect(find.text('Avg movements'), findsOneWidget);
+    expect(find.text('Goals met'), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget); // one of two reached the goal
+    addTearDown(c.dispose);
+  });
+
   testWidgets('kick session history can be cleared (with confirm)', (tester) async {
     final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // pregnancy mode
     c.logKickSession(today, 5, const Duration(seconds: 30));

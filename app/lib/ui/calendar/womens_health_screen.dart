@@ -960,11 +960,16 @@ class _KickHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final shown = sessions.take(5).toList();
+    final summary = kickHistorySummary(sessions);
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _HistoryHeader(title: l.t('kick_history'), onClear: onClear),
+          if (summary.sessions >= 2) ...[
+            const SizedBox(height: 12),
+            _KickSummaryStrip(summary: summary),
+          ],
           const SizedBox(height: 12),
           for (var i = 0; i < shown.length; i++) ...[
             if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
@@ -1029,6 +1034,51 @@ class _SeeAllRow extends StatelessWidget {
   }
 }
 
+/// Compact three-stat strip summarizing kick history: avg movements, avg length,
+/// and how many sessions met the goal.
+class _KickSummaryStrip extends StatelessWidget {
+  final KickHistorySummary summary;
+  const _KickSummaryStrip({required this.summary});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: Palette.violet.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          _KickSummaryStat(value: summary.avgCount.toStringAsFixed(summary.avgCount % 1 == 0 ? 0 : 1), label: l.t('kick_avg_count')),
+          _kickDivider(),
+          _KickSummaryStat(value: formatElapsed(summary.avgDuration), label: l.t('kick_avg_length')),
+          _kickDivider(),
+          _KickSummaryStat(value: '${summary.goalReached}/${summary.sessions}', label: l.t('kick_goal_hits')),
+        ],
+      ),
+    );
+  }
+
+  Widget _kickDivider() => Container(width: 1, height: 30, color: Palette.border);
+}
+
+class _KickSummaryStat extends StatelessWidget {
+  final String value;
+  final String label;
+  const _KickSummaryStat({required this.value, required this.label});
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: Column(
+          children: [
+            Text(value, style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700, color: Palette.text)),
+            const SizedBox(height: 2),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11)),
+          ],
+        ),
+      );
+}
+
 class _KickHistoryRow extends StatelessWidget {
   final KickSessionRecord record;
   final DateTime now;
@@ -1038,6 +1088,7 @@ class _KickHistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final age = now.difference(record.endedAt);
+    final reached = kickGoalReached(record.count, defaultKickGoal);
     return Row(
       children: [
         Container(
@@ -1058,6 +1109,12 @@ class _KickHistoryRow extends StatelessWidget {
             ],
           ),
         ),
+        if (reached)
+          Container(
+            width: 26, height: 26,
+            decoration: BoxDecoration(color: Palette.good.withValues(alpha: 0.14), shape: BoxShape.circle),
+            child: const Icon(Icons.check_rounded, size: 16, color: Palette.good),
+          ),
       ],
     );
   }

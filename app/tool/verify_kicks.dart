@@ -51,6 +51,21 @@ void main() {
   _chk('goal reached at 10', kickGoalReached(10, 10));
   _chk('goal reached above', kickGoalReached(12, 10));
 
+  // ---- History summary ----
+  final t = DateTime(2026, 7, 15, 10);
+  final recs = [
+    KickSessionRecord(endedAt: t, count: 12, durationSec: 600), // reached
+    KickSessionRecord(endedAt: t, count: 8, durationSec: 900), // not reached
+    KickSessionRecord(endedAt: t, count: 10, durationSec: 300), // reached
+  ];
+  final sum = kickHistorySummary(recs);
+  _chk('summary sessions = 3', sum.sessions == 3);
+  _chk('summary avg count = 10', sum.avgCount == 10.0);
+  _chk('summary avg duration = 600s', sum.avgDuration == const Duration(seconds: 600));
+  _chk('summary goal reached = 2', sum.goalReached == 2);
+  final emptySum = kickHistorySummary(const <KickSessionRecord>[]);
+  _chk('empty summary zeroed', emptySum.sessions == 0 && emptySum.avgCount == 0 && emptySum.goalReached == 0);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
