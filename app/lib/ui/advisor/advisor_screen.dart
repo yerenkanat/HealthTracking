@@ -15,12 +15,22 @@ import '../widgets/glass.dart';
 class AdvisorScreen extends StatelessWidget {
   final List<HealthSample> samples;
   final SleepSummary? lastNight;
-  const AdvisorScreen({super.key, required this.samples, this.lastNight});
+  final int? waterCount;
+  final int waterGoal;
+  final int nowHour;
+  const AdvisorScreen({
+    super.key,
+    required this.samples,
+    this.lastNight,
+    this.waterCount,
+    this.waterGoal = 0,
+    this.nowHour = 12,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final advisories = generateAdvisories(samples, lastNight: lastNight);
+    final advisories = generateAdvisories(samples, lastNight: lastNight, waterCount: waterCount, waterGoal: waterGoal, hour: nowHour);
 
     return AuroraBackground(
       child: Scaffold(

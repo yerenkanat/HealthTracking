@@ -56,7 +56,13 @@ class _HomeShellState extends State<HomeShell> {
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
         onOpenAdvisor: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => AdvisorScreen(samples: c.samples, lastNight: c.lastNight)),
+          MaterialPageRoute(builder: (_) => AdvisorScreen(
+            samples: c.samples,
+            lastNight: c.lastNight,
+            waterCount: c.waterFor(DateTime.now()),
+            waterGoal: c.waterGoal,
+            nowHour: DateTime.now().hour,
+          )),
         ),
         waterCount: c.waterFor(DateTime.now()),
         waterGoal: c.waterGoal,

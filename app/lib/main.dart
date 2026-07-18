@@ -101,7 +101,7 @@ void _seedDemo(AppController c) {
   // Demo: a week of water so the weekly trend + streak are populated (addWater
   // accumulates, so only seed when there's no water logged yet).
   if (c.waterLog.isEmpty) {
-    const demoWater = [6, 8, 5, 8, 9, 8, 4]; // 6 days ago → today
+    const demoWater = [6, 8, 5, 8, 9, 8, 8]; // 6 days ago → today (today meets the goal)
     for (var i = 0; i < demoWater.length; i++) {
       c.addWater(today.subtract(Duration(days: demoWater.length - 1 - i)), demoWater[i]);
     }

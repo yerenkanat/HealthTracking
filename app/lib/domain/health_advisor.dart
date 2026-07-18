@@ -29,6 +29,9 @@ List<Advisory> generateAdvisories(
   List<HealthSample> samples, {
   int minSamples = 3,
   SleepSummary? lastNight,
+  int? waterCount, // today's water glasses (null = not tracked)
+  int waterGoal = 0,
+  int hour = 12, // local hour of day, for time-aware hydration nudges
 }) {
   if (samples.length < minSamples) {
     return const [Advisory('ADV_GATHERING', AdviceTone.info, 'general')];
@@ -99,6 +102,17 @@ List<Advisory> generateAdvisories(
     final sleepCount = samples.where((s) => s.duringSleep).length;
     if (sleepCount >= 2 && sleepDips.isEmpty) {
       positive.add(Advisory('ADV_SLEEP_OK', AdviceTone.positive, 'general', value: sleepCount.toDouble()));
+    }
+  }
+
+  // ---- Hydration (from the water tracker, when available). Ranked after the
+  // medical checks so band-driven concerns always come first. ----
+  if (waterCount != null && waterGoal > 0) {
+    if (waterCount >= waterGoal) {
+      positive.add(Advisory('ADV_HYDRATED', AdviceTone.positive, 'general', value: waterCount.toDouble()));
+    } else if (hour >= 17 && waterCount * 2 < waterGoal) {
+      // Evening and under half the goal → a gentle nudge.
+      watch.add(Advisory('ADV_HYDRATE_LOW', AdviceTone.watch, 'general', value: waterCount.toDouble()));
     }
   }
 

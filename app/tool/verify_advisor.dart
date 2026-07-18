@@ -83,6 +83,19 @@ void main() {
   _chk('good sleep → ADV_SLEEP_GOOD', _has(generateAdvisories(steady, lastNight: goodNight), 'ADV_SLEEP_GOOD'));
   _chk('no lastNight → no ADV_SLEEP_SHORT', !_has(generateAdvisories(steady), 'ADV_SLEEP_SHORT'));
 
+  // ---- Hydration ----
+  _chk('goal met → ADV_HYDRATED', _has(generateAdvisories(steady, waterCount: 8, waterGoal: 8), 'ADV_HYDRATED'));
+  _chk('evening + behind → ADV_HYDRATE_LOW (watch)',
+      _has(generateAdvisories(steady, waterCount: 2, waterGoal: 8, hour: 20), 'ADV_HYDRATE_LOW'));
+  _chk('morning + behind → no nudge',
+      !_has(generateAdvisories(steady, waterCount: 2, waterGoal: 8, hour: 9), 'ADV_HYDRATE_LOW'));
+  _chk('evening but over half → no nudge',
+      !_has(generateAdvisories(steady, waterCount: 5, waterGoal: 8, hour: 20), 'ADV_HYDRATE_LOW'));
+  _chk('no water tracked → no hydration advisory',
+      !_has(generateAdvisories(steady), 'ADV_HYDRATED') && !_has(generateAdvisories(steady), 'ADV_HYDRATE_LOW'));
+  _chk('medical watch still ranks before hydration nudge',
+      generateAdvisories(bp, waterCount: 1, waterGoal: 8, hour: 20).first.code == 'ADV_BP_ELEVATED');
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
