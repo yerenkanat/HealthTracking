@@ -130,6 +130,13 @@ List<({Symptom symptom, int count})> symptomFrequencySince(Iterable<DayLog> logs
   return symptomFrequency([for (final l in logs) if (l.date.compareTo(sinceKey) >= 0) l]);
 }
 
+/// The days on which [symptom] was logged, most recent first.
+List<DayLog> daysWithSymptom(Iterable<DayLog> logs, Symptom symptom) {
+  final matches = [for (final l in logs) if (l.symptoms.contains(symptom)) l];
+  matches.sort((a, b) => b.date.compareTo(a.date)); // dateKey sorts chronologically
+  return matches;
+}
+
 /// Count of each symptom across the given day logs (descending by count).
 List<({Symptom symptom, int count})> symptomFrequency(Iterable<DayLog> logs) {
   final counts = <Symptom, int>{};

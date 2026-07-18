@@ -552,6 +552,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_top_symptoms': {AppLocale.ru: 'Частые симптомы', AppLocale.kk: 'Жиі симптомдар', AppLocale.en: 'Common symptoms'},
   'cyc_top_moods': {AppLocale.ru: 'Настроение', AppLocale.kk: 'Көңіл-күй', AppLocale.en: 'Moods'},
   'cyc_times': {AppLocale.ru: '{n}×', AppLocale.kk: '{n}×', AppLocale.en: '{n}×'},
+  'sym_days_count': {AppLocale.ru: 'Отмечено дней: {n}', AppLocale.kk: 'Белгіленген күндер: {n}', AppLocale.en: 'Logged on {n} days'},
+  'sym_days_empty': {AppLocale.ru: 'Этот симптом ещё не отмечался.', AppLocale.kk: 'Бұл симптом әлі белгіленбеген.', AppLocale.en: 'This symptom hasn\'t been logged yet.'},
   'cyc_next_period': {AppLocale.ru: 'Следующие месячные', AppLocale.kk: 'Келесі етеккір', AppLocale.en: 'Next period'},
   'cyc_avg_cycle': {AppLocale.ru: 'Средний цикл: {n} дн.', AppLocale.kk: 'Орташа цикл: {n} күн', AppLocale.en: 'Average cycle: {n} days'},
   'gest_due': {AppLocale.ru: 'Дата родов: {date}', AppLocale.kk: 'Босану күні: {date}', AppLocale.en: 'Due date: {date}'},

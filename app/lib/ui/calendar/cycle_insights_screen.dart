@@ -12,6 +12,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'notes_browser_screen.dart';
+import 'symptom_days_screen.dart';
 
 class CycleInsightsScreen extends StatelessWidget {
   final AppController controller;
@@ -19,6 +20,12 @@ class CycleInsightsScreen extends StatelessWidget {
   const CycleInsightsScreen({super.key, required this.controller, DateTime Function()? now}) : _nowFn = now;
 
   DateTime _now() => (_nowFn ?? DateTime.now)();
+
+  void _openSymptom(BuildContext context, List<DayLog> logs, Symptom symptom) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SymptomDaysScreen(logs: logs, symptom: symptom),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +113,12 @@ class CycleInsightsScreen extends StatelessWidget {
                     title: l.t('cyc_this_week'),
                     child: Column(children: [
                       for (final s in thisWeek.take(4))
-                        _FreqRow(label: l.t('sym_${s.symptom.name}'), count: s.count, color: Palette.amber),
+                        _FreqRow(
+                          label: l.t('sym_${s.symptom.name}'),
+                          count: s.count,
+                          color: Palette.amber,
+                          onTap: () => _openSymptom(context, logs.toList(), s.symptom),
+                        ),
                     ]),
                   ),
                 ],
@@ -128,7 +140,12 @@ class CycleInsightsScreen extends StatelessWidget {
                     title: l.t('cyc_top_symptoms'),
                     child: Column(children: [
                       for (final s in symptoms.take(4))
-                        _FreqRow(label: l.t('sym_${s.symptom.name}'), count: s.count, color: Palette.roseDeep),
+                        _FreqRow(
+                          label: l.t('sym_${s.symptom.name}'),
+                          count: s.count,
+                          color: Palette.roseDeep,
+                          onTap: () => _openSymptom(context, logs.toList(), s.symptom),
+                        ),
                     ]),
                   ),
                 ],
@@ -332,11 +349,12 @@ class _FreqRow extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
-  const _FreqRow({required this.label, required this.count, required this.color});
+  final VoidCallback? onTap;
+  const _FreqRow({required this.label, required this.count, required this.color, this.onTap});
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
@@ -345,9 +363,15 @@ class _FreqRow extends StatelessWidget {
           Expanded(child: Text(label, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600))),
           Text(l.t('cyc_times', {'n': count}),
               style: const TextStyle(fontFamily: 'JetBrainsMono', color: Palette.textDim, fontSize: 13, fontWeight: FontWeight.w700)),
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, size: 18, color: Palette.textDim),
+          ],
         ],
       ),
     );
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10), child: row);
   }
 }
 

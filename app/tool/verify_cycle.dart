@@ -204,6 +204,16 @@ void main() {
   _chk('search narrows further', searchNotes(searchLogs, 'ultrasound').single.date == '2026-07-01');
   _chk('search no match → empty', searchNotes(searchLogs, 'zzz').isEmpty);
 
+  // ---- Symptom drill-down ----
+  final symLogs = [
+    const DayLog(date: '2026-07-01', symptoms: {Symptom.cramps, Symptom.headache}),
+    const DayLog(date: '2026-07-09', symptoms: {Symptom.cramps}),
+    const DayLog(date: '2026-07-05', symptoms: {Symptom.nausea}),
+  ];
+  _chk('days with symptom, newest-first', daysWithSymptom(symLogs, Symptom.cramps).map((l) => l.date).join(',') == '2026-07-09,2026-07-01');
+  _chk('symptom logged once', daysWithSymptom(symLogs, Symptom.headache).single.date == '2026-07-01');
+  _chk('symptom never logged → empty', daysWithSymptom(symLogs, Symptom.swelling).isEmpty);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

@@ -101,6 +101,24 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('tapping a symptom opens its drill-down of logged days', (tester) async {
+    final c = AppController(now: () => today);
+    // A logged period (so hasData) with cramps on two of the days.
+    final start = today.subtract(const Duration(days: 6));
+    for (var i = 0; i < 5; i++) {
+      final d = start.add(Duration(days: i));
+      c.setDayLog(DayLog(date: dateKey(d), flow: Flow.medium, symptoms: i < 2 ? const {Symptom.cramps} : const {}));
+    }
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('COMMON SYMPTOMS'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Mild cramps').last);
+    await tester.pumpAndSettle();
+    // Drill-down screen: header count for the two logged days.
+    expect(find.text('Logged on 2 days'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('regularity card appears with 2+ completed cycles', (tester) async {
     final c = AppController(now: () => today);
     // Three ~28-day periods → two completed cycles → "regular".
