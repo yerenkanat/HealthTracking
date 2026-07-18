@@ -116,6 +116,19 @@ void main() {
   _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
   _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
 
+  // ---- Cycle phase ----
+  final pset = periodSet(days);
+  CyclePhaseInfo? phaseOn(DateTime t) => cyclePhaseFor(computeCycle(pset, t));
+  _chk('no data → no phase', cyclePhaseFor(computeCycle({}, DateTime(2026, 7, 15))) == null);
+  final menstrual = phaseOn(DateTime(2026, 7, 3));
+  _chk('menstrual phase on a bleeding day', menstrual?.phase == CyclePhase.menstrual && menstrual?.dayInPhase == 3 && menstrual?.phaseLength == 5);
+  final follicular = phaseOn(DateTime(2026, 7, 8));
+  _chk('follicular between period and fertile', follicular?.phase == CyclePhase.follicular && follicular?.dayInPhase == 3);
+  final fertile = phaseOn(DateTime(2026, 7, 15));
+  _chk('fertile in the fertile window', fertile?.phase == CyclePhase.fertile && fertile?.dayInPhase == 6 && fertile?.phaseLength == 7);
+  final luteal = phaseOn(DateTime(2026, 7, 20));
+  _chk('luteal after the fertile window', luteal?.phase == CyclePhase.luteal && luteal?.dayInPhase == 4);
+
   // ---- Cycle insights (history + frequencies) ----
   final hist = cycleHistory(periodSet(days));
   _chk('two cycles in history', hist.length == 2);

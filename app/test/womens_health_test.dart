@@ -44,6 +44,19 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('cycle mode shows the current phase card', (tester) async {
+    final c = controllerFor(); // cycle mode, today = Jul 16
+    // A period Jul 10–12 → today (Jul 16) lands after the period, before the
+    // fertile window → follicular phase.
+    for (final d in [DateTime(2026, 7, 10), DateTime(2026, 7, 11), DateTime(2026, 7, 12)]) {
+      c.toggleFlowFor(d, Flow.medium);
+    }
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Follicular'), findsOneWidget);
+    expect(find.textContaining('Day 4 of'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('cycle mode with data can share a copied summary', (tester) async {
     final c = controllerFor(); // cycle mode
     // Log a period so predictions exist (hasData → the share action appears).

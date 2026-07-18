@@ -38,8 +38,7 @@ class CycleInfo {
     required this.today,
   });
 
-  int? get daysUntilNextPeriod =>
-      nextPeriodStart == null ? null : nextPeriodStart!.difference(today).inDays;
+  int? get daysUntilNextPeriod => nextPeriodStart?.difference(today).inDays;
 
   /// True when the user is currently within a predicted/logged period window.
   bool get isPredictedLate =>
@@ -130,6 +129,54 @@ CycleInfo computeCycle(
 
 bool _inRange(DateTime d, DateTime? start, DateTime? end) =>
     start != null && end != null && !d.isBefore(start) && !d.isAfter(end);
+
+/// The four broad phases of the menstrual cycle. Educational framing over the
+/// user's own predicted cycle — not a medical determination.
+enum CyclePhase { menstrual, follicular, fertile, luteal }
+
+/// Where today sits in the cycle: the [phase], the 1-based [dayInPhase], and the
+/// approximate [phaseLength] in days. Returned by [cyclePhaseFor].
+class CyclePhaseInfo {
+  final CyclePhase phase;
+  final int dayInPhase;
+  final int phaseLength;
+  const CyclePhaseInfo(this.phase, this.dayInPhase, this.phaseLength);
+}
+
+/// Classify the current phase from a computed [info]. Null when there isn't
+/// enough data (no prediction, or today precedes the last period start).
+/// Boundaries: menstrual = bleeding days; fertile = the predicted fertile window
+/// (incl. ovulation); follicular = between period and fertile window; luteal =
+/// after the fertile window up to the next period.
+CyclePhaseInfo? cyclePhaseFor(CycleInfo info) {
+  final start = info.lastPeriodStart;
+  final day = info.cycleDay;
+  if (!info.hasData || start == null || day == null || day < 1) return null;
+  final t = _dayOnly(info.today);
+  final s = _dayOnly(start);
+  int cd(DateTime d) => _dayOnly(d).difference(s).inDays + 1; // 1-based cycle day
+  final p = info.avgPeriodLength;
+
+  // Menstrual: the bleeding days at the top of the cycle.
+  if (day <= p) return CyclePhaseInfo(CyclePhase.menstrual, day, p);
+
+  final fStart = info.fertileStart, fEnd = info.fertileEnd;
+  // Fertile window (inclusive), when known.
+  if (_inRange(t, fStart == null ? null : _dayOnly(fStart), fEnd == null ? null : _dayOnly(fEnd))) {
+    final len = cd(fEnd!) - cd(fStart!) + 1;
+    return CyclePhaseInfo(CyclePhase.fertile, day - cd(fStart) + 1, len);
+  }
+  // Follicular: after the period, before the fertile window opens.
+  if (fStart != null && t.isBefore(_dayOnly(fStart))) {
+    final len = (cd(fStart) - 1) - p; // days between end of period and fertile start
+    return CyclePhaseInfo(CyclePhase.follicular, day - p, len < 1 ? 1 : len);
+  }
+  // Luteal: after the fertile window, up to the next period.
+  final afterEnd = fEnd == null ? p : cd(fEnd);
+  final cycleEnd = info.avgCycleLength; // next period starts at cycleEnd+1
+  final len = cycleEnd - afterEnd;
+  return CyclePhaseInfo(CyclePhase.luteal, day - afterEnd, len < 1 ? 1 : len);
+}
 
 /// Classify [day] for the calendar. [loggedPeriod] is whether the day itself has
 /// a flow logged (checked by the caller from dayLogs).

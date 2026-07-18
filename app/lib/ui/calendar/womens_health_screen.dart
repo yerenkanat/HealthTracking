@@ -121,6 +121,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
+                  _CyclePhaseCard(info: c.cycle),
+                  const SizedBox(height: 14),
                   _CyclePredictions(info: c.cycle),
                 ],
                 if (!cycleMode && c.gestation != null) ...[
@@ -1177,6 +1179,71 @@ class _SliderRow extends StatelessWidget {
           onChanged: onChanged,
         ),
       ],
+    );
+  }
+}
+
+/// Current cycle-phase card: which of the four phases today falls in, the day
+/// within that phase, and a short educational note. Colour-coded per phase.
+class _CyclePhaseCard extends StatelessWidget {
+  final CycleInfo info;
+  const _CyclePhaseCard({required this.info});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final phase = cyclePhaseFor(info);
+    if (phase == null) return const SizedBox.shrink();
+    final (name, color, icon) = switch (phase.phase) {
+      CyclePhase.menstrual => (l.t('phase_menstrual'), Palette.roseDeep, Icons.water_drop_rounded),
+      CyclePhase.follicular => (l.t('phase_follicular'), Palette.violet, Icons.eco_rounded),
+      CyclePhase.fertile => (l.t('phase_fertile'), Palette.teal, Icons.brightness_high_rounded),
+      CyclePhase.luteal => (l.t('phase_luteal'), Palette.amber, Icons.nightlight_round),
+    };
+    final note = l.t('phase_${phase.phase.name}_note');
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.04)],
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(14)),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(name, style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: color)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+                      child: Text(l.t('phase_day', {'n': phase.dayInPhase, 'of': phase.phaseLength}),
+                          style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11.5)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(note, style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
