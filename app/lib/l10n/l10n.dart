@@ -679,6 +679,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'fresh_stale': {AppLocale.ru: 'Задержка', AppLocale.kk: 'Кешігу', AppLocale.en: 'Delayed'},
   'tr_inside_zone': {AppLocale.ru: 'В зоне «{zone}»', AppLocale.kk: '«{zone}» аймағында', AppLocale.en: 'Inside {zone} zone'},
   'tr_in_zone_for': {AppLocale.ru: 'уже {dur}', AppLocale.kk: '{dur} болды', AppLocale.en: 'for {dur}'},
+  'tr_last_checkin': {AppLocale.ru: 'Отметился {ago}', AppLocale.kk: '{ago} белгіленді', AppLocale.en: 'Checked in {ago}'},
   'tr_battery': {AppLocale.ru: 'Заряд трекера {pct}%', AppLocale.kk: 'Трекер заряды {pct}%', AppLocale.en: 'Tracker battery {pct}%'},
   'bat_history_title': {AppLocale.ru: 'История заряда', AppLocale.kk: 'Заряд тарихы', AppLocale.en: 'Battery history'},
   'bat_change_down': {AppLocale.ru: 'Снизился на {n}% за период', AppLocale.kk: 'Кезең ішінде {n}%-ға төмендеді', AppLocale.en: 'Down {n}% over this period'},

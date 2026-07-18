@@ -19,6 +19,7 @@ void main() {
     int? batteryPct,
     List<BatteryReading> batteryHistory = const [],
     DateTime? zoneEnteredAt,
+    DateTime? lastCheckInAt,
   }) =>
       MaterialApp(
         home: ChildMapScreen(
@@ -33,6 +34,7 @@ void main() {
           batteryPct: batteryPct,
           batteryHistory: batteryHistory,
           zoneEnteredAt: zoneEnteredAt,
+          lastCheckInAt: lastCheckInAt,
         ),
       );
 
@@ -137,5 +139,19 @@ void main() {
     await tester.pumpWidget(harness(loc: school.center, updated: now.subtract(const Duration(minutes: 1))));
     expect(find.text('Inside School zone'), findsOneWidget);
     expect(find.textContaining('for '), findsNothing);
+  });
+
+  testWidgets('shows the last check-in time when available', (tester) async {
+    await tester.pumpWidget(harness(
+      loc: home.center,
+      updated: now.subtract(const Duration(minutes: 1)),
+      lastCheckInAt: now.subtract(const Duration(hours: 2)),
+    ));
+    expect(find.textContaining('Checked in'), findsOneWidget);
+  });
+
+  testWidgets('no check-in row when never checked in', (tester) async {
+    await tester.pumpWidget(harness(loc: home.center, updated: now.subtract(const Duration(minutes: 1))));
+    expect(find.textContaining('Checked in'), findsNothing);
   });
 }

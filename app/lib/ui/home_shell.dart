@@ -124,6 +124,7 @@ class _HomeShellState extends State<HomeShell> {
         batteryPct: c.selectedChildBattery,
         batteryHistory: c.selectedChildBatteryHistory,
         zoneEnteredAt: zoneEnteredAt,
+        lastCheckInAt: lastCheckIn(c.alerts, c.childName),
         onCheckIn: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.checkIn),
         onSos: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.sos),
       ),

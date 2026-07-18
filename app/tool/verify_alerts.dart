@@ -111,6 +111,17 @@ void main() {
   _chk('entry time null when never entered', zoneEntryTime(feed2, 'Aisha', 'Park') == null);
   _chk('left events are ignored', zoneEntryTime(feed2, 'Aisha', 'Home') == DateTime(2026, 7, 15, 18));
 
+  // ---- Last check-in ----
+  final checkinFeed = [
+    SafetyAlert(kind: AlertKind.checkIn, childName: 'Aisha', zoneName: '', at: DateTime(2026, 7, 16, 9)),
+    SafetyAlert(kind: AlertKind.entered, childName: 'Aisha', zoneName: 'Home', at: DateTime(2026, 7, 16, 8)),
+    SafetyAlert(kind: AlertKind.checkIn, childName: 'Aisha', zoneName: '', at: DateTime(2026, 7, 15, 18)),
+    SafetyAlert(kind: AlertKind.checkIn, childName: 'Timur', zoneName: '', at: DateTime(2026, 7, 16, 7)),
+  ];
+  _chk('last check-in = most recent for child', lastCheckIn(checkinFeed, 'Aisha') == DateTime(2026, 7, 16, 9));
+  _chk('last check-in per child', lastCheckIn(checkinFeed, 'Timur') == DateTime(2026, 7, 16, 7));
+  _chk('no check-in → null', lastCheckIn(checkinFeed, 'Nobody') == null);
+
   // ---- Today's activity summary ----
   final today = DateTime(2026, 7, 16, 12);
   final dayFeed = [

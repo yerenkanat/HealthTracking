@@ -45,6 +45,7 @@ class ChildMapScreen extends StatelessWidget {
   final int? batteryPct; // tracker battery %, null if unknown
   final List<BatteryReading> batteryHistory; // recent readings, oldest-first
   final DateTime? zoneEnteredAt; // when the child entered their current zone
+  final DateTime? lastCheckInAt; // when the child last checked in
   final VoidCallback? onCheckIn; // manual "arrived / all good" event
   final VoidCallback? onSos; // manual emergency signal (confirmed first)
 
@@ -68,6 +69,7 @@ class ChildMapScreen extends StatelessWidget {
     this.batteryPct,
     this.batteryHistory = const [],
     this.zoneEnteredAt,
+    this.lastCheckInAt,
     this.onCheckIn,
     this.onSos,
   });
@@ -201,6 +203,7 @@ class ChildMapScreen extends StatelessWidget {
                   batteryHistory: batteryHistory,
                   now: now,
                   zoneEnteredAt: zoneEnteredAt,
+                  lastCheckInAt: lastCheckInAt,
                 ),
               ],
             ),
@@ -324,6 +327,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
   final List<BatteryReading> batteryHistory;
   final DateTime? now;
   final DateTime? zoneEnteredAt; // when the child entered the current zone
+  final DateTime? lastCheckInAt; // when the child last checked in
 
   const MinimalTrackingStatusBar({
     super.key,
@@ -336,6 +340,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
     this.batteryHistory = const [],
     this.now,
     this.zoneEnteredAt,
+    this.lastCheckInAt,
   });
 
   // Warm, low-anxiety palette: live = calm green, recent = calm blue, delayed =
@@ -417,6 +422,19 @@ class MinimalTrackingStatusBar extends StatelessWidget {
                 ),
               ],
             ]),
+          ],
+          if (lastCheckInAt != null && now != null) ...[
+            const SizedBox(height: 6),
+            Builder(builder: (context) {
+              final l = L10nScope.of(context);
+              final age = now!.difference(lastCheckInAt!);
+              return Row(children: [
+                const Icon(Icons.how_to_reg_rounded, size: 16, color: Palette.blue),
+                const SizedBox(width: 5),
+                Text(l.t('tr_last_checkin', {'ago': l.ago(age.isNegative ? Duration.zero : age)}),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+              ]);
+            }),
           ],
         ],
       ),

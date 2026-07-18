@@ -60,6 +60,15 @@ DateTime? zoneEntryTime(List<SafetyAlert> alerts, String childName, String zoneN
   return null;
 }
 
+/// When [childName] last checked in (their most recent check-in event), from the
+/// alert feed ([alerts] newest-first). Null if they haven't checked in.
+DateTime? lastCheckIn(List<SafetyAlert> alerts, String childName) {
+  for (final a in alerts) {
+    if (a.kind == AlertKind.checkIn && a.childName == childName) return a.at;
+  }
+  return null;
+}
+
 /// Alerts stamped on the same calendar day as [day].
 List<SafetyAlert> alertsOnDay(List<SafetyAlert> alerts, DateTime day) => [
       for (final a in alerts)
