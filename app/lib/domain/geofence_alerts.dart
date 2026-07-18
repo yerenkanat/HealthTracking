@@ -50,6 +50,16 @@ List<SafetyAlert> filterAlertsByChild(List<SafetyAlert> alerts, String? childNam
         ? alerts
         : [for (final a in alerts) if (a.childName == childName) a];
 
+/// When [childName] most recently ENTERED [zoneName], from the alert feed
+/// ([alerts] newest-first, as the controller stores them). Null if there's no
+/// such entry event — used to show how long a child has been in their zone.
+DateTime? zoneEntryTime(List<SafetyAlert> alerts, String childName, String zoneName) {
+  for (final a in alerts) {
+    if (a.kind == AlertKind.entered && a.childName == childName && a.zoneName == zoneName) return a.at;
+  }
+  return null;
+}
+
 AlertKind alertKindFromName(String? s) => switch (s) {
       'entered' => AlertKind.entered,
       'checkIn' => AlertKind.checkIn,

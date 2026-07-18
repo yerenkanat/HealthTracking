@@ -18,6 +18,7 @@ void main() {
     VoidCallback? onSos,
     int? batteryPct,
     List<BatteryReading> batteryHistory = const [],
+    DateTime? zoneEnteredAt,
   }) =>
       MaterialApp(
         home: ChildMapScreen(
@@ -31,6 +32,7 @@ void main() {
           onSos: onSos,
           batteryPct: batteryPct,
           batteryHistory: batteryHistory,
+          zoneEnteredAt: zoneEnteredAt,
         ),
       );
 
@@ -118,5 +120,22 @@ void main() {
     await tester.tap(find.text('62%'));
     await tester.pumpAndSettle();
     expect(find.text('Battery history'), findsNothing);
+  });
+
+  testWidgets('zone dwell chip shows how long the child has been in the zone', (tester) async {
+    // Inside School, entered 2h 10m before now.
+    await tester.pumpWidget(harness(
+      loc: school.center,
+      updated: now.subtract(const Duration(minutes: 1)),
+      zoneEnteredAt: now.subtract(const Duration(hours: 2, minutes: 10)),
+    ));
+    expect(find.text('Inside School zone'), findsOneWidget);
+    expect(find.text('for 2h 10m'), findsOneWidget);
+  });
+
+  testWidgets('no dwell chip when the entry time is unknown', (tester) async {
+    await tester.pumpWidget(harness(loc: school.center, updated: now.subtract(const Duration(minutes: 1))));
+    expect(find.text('Inside School zone'), findsOneWidget);
+    expect(find.textContaining('for '), findsNothing);
   });
 }

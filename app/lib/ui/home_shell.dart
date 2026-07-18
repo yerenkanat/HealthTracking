@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../app/app_controller.dart';
 import '../core/geofence.dart';
+import '../domain/child_tracker_state.dart' show currentZone;
 import '../domain/geofence_alerts.dart';
 import '../domain/hydration.dart';
 import '../l10n/l10n.dart';
@@ -42,6 +43,9 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final loc = c.childLocation;
+    // How long the child has been in their current zone (from the alert feed).
+    final curZone = loc == null ? null : currentZone(loc.coords, c.geofences);
+    final zoneEnteredAt = curZone == null ? null : zoneEntryTime(c.alerts, c.childName, curZone);
 
     final l = L10nScope.of(context);
 
@@ -107,6 +111,7 @@ class _HomeShellState extends State<HomeShell> {
         ),
         batteryPct: c.selectedChildBattery,
         batteryHistory: c.selectedChildBatteryHistory,
+        zoneEnteredAt: zoneEnteredAt,
         onCheckIn: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.checkIn),
         onSos: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.sos),
       ),

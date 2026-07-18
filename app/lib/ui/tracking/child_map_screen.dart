@@ -44,6 +44,7 @@ class ChildMapScreen extends StatelessWidget {
   final int? childAgeMonths; // for age-appropriate safety tips (null if no DOB)
   final int? batteryPct; // tracker battery %, null if unknown
   final List<BatteryReading> batteryHistory; // recent readings, oldest-first
+  final DateTime? zoneEnteredAt; // when the child entered their current zone
   final VoidCallback? onCheckIn; // manual "arrived / all good" event
   final VoidCallback? onSos; // manual emergency signal (confirmed first)
 
@@ -66,6 +67,7 @@ class ChildMapScreen extends StatelessWidget {
     this.childAgeMonths,
     this.batteryPct,
     this.batteryHistory = const [],
+    this.zoneEnteredAt,
     this.onCheckIn,
     this.onSos,
   });
@@ -198,6 +200,7 @@ class ChildMapScreen extends StatelessWidget {
                   batteryPct: batteryPct,
                   batteryHistory: batteryHistory,
                   now: now,
+                  zoneEnteredAt: zoneEnteredAt,
                 ),
               ],
             ),
@@ -320,6 +323,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
   final int? batteryPct;
   final List<BatteryReading> batteryHistory;
   final DateTime? now;
+  final DateTime? zoneEnteredAt; // when the child entered the current zone
 
   const MinimalTrackingStatusBar({
     super.key,
@@ -331,6 +335,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
     this.batteryPct,
     this.batteryHistory = const [],
     this.now,
+    this.zoneEnteredAt,
   });
 
   // Warm, low-anxiety palette: live = calm green, recent = calm blue, delayed =
@@ -398,12 +403,40 @@ class MinimalTrackingStatusBar extends StatelessWidget {
             Row(children: [
               Icon(Icons.place_rounded, size: 16, color: _accent),
               const SizedBox(width: 5),
-              Text(zoneLabel!, style: const TextStyle(color: Palette.textDim, fontSize: 13.5)),
+              Expanded(child: Text(zoneLabel!, style: const TextStyle(color: Palette.textDim, fontSize: 13.5))),
+              if (_dwellLabel(context) != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(color: _accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.schedule_rounded, size: 12, color: _accent),
+                    const SizedBox(width: 4),
+                    Text(_dwellLabel(context)!, style: TextStyle(color: _accent, fontWeight: FontWeight.w700, fontSize: 12)),
+                  ]),
+                ),
+              ],
             ]),
           ],
         ],
       ),
     );
+  }
+
+  /// "for 2h 10m" — how long the child has been in the current zone, from the
+  /// entry time. Null when unknown or not currently in a zone.
+  String? _dwellLabel(BuildContext context) {
+    if (zoneLabel == null || zoneEnteredAt == null || now == null) return null;
+    final d = now!.difference(zoneEnteredAt!);
+    if (d.isNegative) return null;
+    return L10nScope.of(context).t('tr_in_zone_for', {'dur': _shortDuration(d)});
+  }
+
+  String _shortDuration(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    if (h > 0) return '${h}h ${m}m';
+    return '${m}m';
   }
 }
 

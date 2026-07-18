@@ -98,6 +98,19 @@ void main() {
   _chk('empty child = all', filterAlertsByChild(multi, '').length == 4);
   _chk('unknown child = none', filterAlertsByChild(multi, 'Nobody').isEmpty);
 
+  // ---- Zone entry time (dwell) ----
+  final feed2 = [
+    // Newest-first, as the controller stores them.
+    SafetyAlert(kind: AlertKind.entered, childName: 'Aisha', zoneName: 'School', at: DateTime(2026, 7, 16, 9)),
+    SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'Home', at: DateTime(2026, 7, 16, 8, 30)),
+    SafetyAlert(kind: AlertKind.entered, childName: 'Aisha', zoneName: 'Home', at: DateTime(2026, 7, 15, 18)),
+    SafetyAlert(kind: AlertKind.entered, childName: 'Timur', zoneName: 'School', at: DateTime(2026, 7, 16, 8)),
+  ];
+  _chk('entry time = most recent matching entered', zoneEntryTime(feed2, 'Aisha', 'School') == DateTime(2026, 7, 16, 9));
+  _chk('entry time matches per child', zoneEntryTime(feed2, 'Timur', 'School') == DateTime(2026, 7, 16, 8));
+  _chk('entry time null when never entered', zoneEntryTime(feed2, 'Aisha', 'Park') == null);
+  _chk('left events are ignored', zoneEntryTime(feed2, 'Aisha', 'Home') == DateTime(2026, 7, 15, 18));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
