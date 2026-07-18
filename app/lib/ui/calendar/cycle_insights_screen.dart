@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../domain/cycle_insights.dart';
+import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
@@ -31,6 +32,7 @@ class CycleInsightsScreen extends StatelessWidget {
             final logs = controller.dayLogs.values;
             final moods = moodFrequency(logs);
             final symptoms = symptomFrequency(logs);
+            final notes = recentNotes(logs);
 
             if (!info.hasData) {
               return Center(
@@ -103,6 +105,19 @@ class CycleInsightsScreen extends StatelessWidget {
                     child: Column(children: [
                       for (final m in moods.take(4))
                         _FreqRow(label: l.t('mood_${m.mood.name}'), count: m.count, color: Palette.violet),
+                    ]),
+                  ),
+                ],
+
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: l.t('cyc_recent_notes'),
+                    child: Column(children: [
+                      for (var i = 0; i < notes.length; i++) ...[
+                        if (i > 0) const _ThinDivider(),
+                        _NoteRow(log: notes[i]),
+                      ],
                     ]),
                   ),
                 ],
@@ -255,6 +270,28 @@ class _FreqRow extends StatelessWidget {
           Expanded(child: Text(label, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600))),
           Text(l.t('cyc_times', {'n': count}),
               style: const TextStyle(fontFamily: 'JetBrainsMono', color: Palette.textDim, fontSize: 13, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoteRow extends StatelessWidget {
+  final DayLog log;
+  const _NoteRow({required this.log});
+  @override
+  Widget build(BuildContext context) {
+    final ml = MaterialLocalizations.of(context);
+    final date = DateTime.tryParse(log.date);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(date == null ? log.date : ml.formatMediumDate(date),
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Palette.roseDeep)),
+          const SizedBox(height: 2),
+          Text(log.note, style: const TextStyle(fontSize: 14, color: Palette.text, height: 1.3)),
         ],
       ),
     );

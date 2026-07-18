@@ -74,6 +74,13 @@ RegularityInsight cycleRegularity(List<CycleSpan> history) {
   return RegularityInsight(level, lengths.length, variation, (sum / lengths.length).round());
 }
 
+/// The days that carry a free-text note, most recent first (up to [limit]).
+List<DayLog> recentNotes(Iterable<DayLog> logs, {int limit = 5}) {
+  final withNotes = [for (final l in logs) if (l.note.trim().isNotEmpty) l];
+  withNotes.sort((a, b) => b.date.compareTo(a.date)); // dateKey sorts chronologically
+  return withNotes.take(limit).toList();
+}
+
 /// Count of each mood across the given day logs (descending by count).
 List<({Mood mood, int count})> moodFrequency(Iterable<DayLog> logs) {
   final counts = <Mood, int>{};

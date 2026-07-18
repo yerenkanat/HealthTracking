@@ -41,6 +41,22 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('recent notes section lists days that have a note', (tester) async {
+    final c = AppController(now: () => today);
+    // A logged period (so hasData) + a couple of day notes.
+    for (var i = 0; i < 3; i++) {
+      c.setDayLog(DayLog(date: dateKey(today.subtract(Duration(days: 6 + i))), flow: Flow.medium));
+    }
+    c.setNoteFor(DateTime(2026, 7, 10), 'first ultrasound');
+    c.setNoteFor(DateTime(2026, 7, 12), 'felt some cramps');
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('RECENT NOTES'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('first ultrasound'), findsOneWidget);
+    expect(find.text('felt some cramps'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('regularity card appears with 2+ completed cycles', (tester) async {
     final c = AppController(now: () => today);
     // Three ~28-day periods → two completed cycles → "regular".

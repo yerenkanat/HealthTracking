@@ -492,6 +492,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_reg_variable': {AppLocale.ru: 'Цикл слегка непостоянный', AppLocale.kk: 'Цикл сәл құбылмалы', AppLocale.en: 'Your cycle varies a little'},
   'cyc_reg_irregular': {AppLocale.ru: 'Цикл нерегулярный', AppLocale.kk: 'Цикл тұрақсыз', AppLocale.en: 'Your cycle is irregular'},
   'cyc_reg_sub': {AppLocale.ru: 'Разброс {var} дн. · в среднем {avg} дн.', AppLocale.kk: 'Айырмасы {var} күн · орташа {avg} күн', AppLocale.en: 'Varies by {var} days · {avg}-day average'},
+  'cyc_recent_notes': {AppLocale.ru: 'Заметки', AppLocale.kk: 'Ескертпелер', AppLocale.en: 'Recent notes'},
   'cyc_cycles_tracked': {AppLocale.ru: 'Циклов', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycles'},
   'cyc_avg_period_stat': {AppLocale.ru: 'Менструация', AppLocale.kk: 'Етеккір', AppLocale.en: 'Period'},
   'cyc_avg_cycle_stat': {AppLocale.ru: 'Цикл', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycle'},

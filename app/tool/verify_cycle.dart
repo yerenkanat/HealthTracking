@@ -145,6 +145,20 @@ void main() {
   _chk('variable when spread 5..8', reg([26, 32, null]).level == CycleRegularity.variable);
   _chk('irregular when spread >8', reg([24, 40]).level == CycleRegularity.irregular);
 
+  // ---- Recent notes ----
+  final noteLogs = [
+    const DayLog(date: '2026-07-01', note: 'first scan'),
+    const DayLog(date: '2026-07-05', note: '  '), // blank → excluded
+    const DayLog(date: '2026-07-10', note: 'felt tired'),
+    const DayLog(date: '2026-07-03', mood: Mood.happy), // no note → excluded
+    const DayLog(date: '2026-07-08', note: 'good day'),
+  ];
+  final notes = recentNotes(noteLogs);
+  _chk('recent notes excludes blank/none', notes.length == 3);
+  _chk('recent notes newest first', notes.first.date == '2026-07-10' && notes.last.date == '2026-07-01');
+  _chk('recent notes respects limit', recentNotes(noteLogs, limit: 2).length == 2);
+  _chk('recent notes empty when none', recentNotes(const [DayLog(date: '2026-07-01')]).isEmpty);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
