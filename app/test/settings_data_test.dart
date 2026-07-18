@@ -20,6 +20,8 @@ void main() {
     await tester.pumpWidget(wrap(c));
 
     await tester.scrollUntilVisible(find.text('Export data'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Export data'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Export data'));
     await tester.pumpAndSettle(); // throws if the dialog overflows / fails layout
 
