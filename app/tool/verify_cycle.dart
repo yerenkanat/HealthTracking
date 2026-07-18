@@ -159,6 +159,19 @@ void main() {
   _chk('recent notes respects limit', recentNotes(noteLogs, limit: 2).length == 2);
   _chk('recent notes empty when none', recentNotes(const [DayLog(date: '2026-07-01')]).isEmpty);
 
+  // ---- Symptom frequency within a recent window ----
+  final windowLogs = [
+    const DayLog(date: '2026-07-01', symptoms: {Symptom.cramps}), // old
+    const DayLog(date: '2026-07-14', symptoms: {Symptom.cramps, Symptom.nausea}), // in window
+    const DayLog(date: '2026-07-16', symptoms: {Symptom.cramps}), // in window
+  ];
+  final since = DateTime(2026, 7, 10);
+  final recent = symptomFrequencySince(windowLogs, since);
+  _chk('recent symptom counts exclude old logs', recent.first.symptom == Symptom.cramps && recent.first.count == 2);
+  _chk('recent symptoms include in-window nausea', recent.any((e) => e.symptom == Symptom.nausea && e.count == 1));
+  _chk('recent window boundary is inclusive', symptomFrequencySince([const DayLog(date: '2026-07-10', symptoms: {Symptom.cramps})], since).length == 1);
+  _chk('recent window empty when all older', symptomFrequencySince([const DayLog(date: '2026-07-01', symptoms: {Symptom.cramps})], since).isEmpty);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

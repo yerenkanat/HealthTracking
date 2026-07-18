@@ -14,7 +14,10 @@ import '../widgets/glass.dart';
 
 class CycleInsightsScreen extends StatelessWidget {
   final AppController controller;
-  const CycleInsightsScreen({super.key, required this.controller});
+  final DateTime Function()? _nowFn;
+  const CycleInsightsScreen({super.key, required this.controller, DateTime Function()? now}) : _nowFn = now;
+
+  DateTime _now() => (_nowFn ?? DateTime.now)();
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +35,7 @@ class CycleInsightsScreen extends StatelessWidget {
             final logs = controller.dayLogs.values;
             final moods = moodFrequency(logs);
             final symptoms = symptomFrequency(logs);
+            final thisWeek = symptomFrequencySince(logs, _now().subtract(const Duration(days: 7)));
             final notes = recentNotes(logs);
 
             if (!info.hasData) {
@@ -86,6 +90,17 @@ class CycleInsightsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                if (thisWeek.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: l.t('cyc_this_week'),
+                    child: Column(children: [
+                      for (final s in thisWeek.take(4))
+                        _FreqRow(label: l.t('sym_${s.symptom.name}'), count: s.count, color: Palette.amber),
+                    ]),
+                  ),
+                ],
 
                 if (symptoms.isNotEmpty) ...[
                   const SizedBox(height: 16),

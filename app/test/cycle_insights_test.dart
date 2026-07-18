@@ -13,7 +13,7 @@ void main() {
   final today = DateTime(2026, 7, 16);
 
   Widget wrap(AppController c) => MaterialApp(
-        home: L10nScope(l10n: const L10n(AppLocale.en), child: CycleInsightsScreen(controller: c)),
+        home: L10nScope(l10n: const L10n(AppLocale.en), child: CycleInsightsScreen(controller: c, now: () => today)),
       );
 
   testWidgets('empty state when nothing is logged', (tester) async {
@@ -36,8 +36,24 @@ void main() {
     expect(find.text('Cycle insights'), findsOneWidget); // app bar
     expect(find.text('CYCLE HISTORY'), findsOneWidget); // section
     expect(find.text('COMMON SYMPTOMS'), findsOneWidget);
-    expect(find.text('Mild cramps'), findsOneWidget); // logged symptom
+    expect(find.text('Mild cramps'), findsWidgets); // logged symptom (all-time + this-week cards)
     expect(find.text('Ongoing'), findsOneWidget); // most recent cycle
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('this-week symptoms card counts only the last 7 days', (tester) async {
+    final c = AppController(now: () => today); // today = 2026-07-16
+    for (var i = 0; i < 3; i++) {
+      c.setDayLog(DayLog(date: dateKey(today.subtract(Duration(days: 6 + i))), flow: Flow.medium));
+    }
+    // An old symptom (outside the window) + a recent one (inside).
+    c.setDayLog(DayLog(date: dateKey(DateTime(2026, 6, 20)), symptoms: const {Symptom.headache}));
+    c.setDayLog(DayLog(date: dateKey(DateTime(2026, 7, 14)), symptoms: const {Symptom.nausea}));
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('SYMPTOMS THIS WEEK'), 200, scrollable: find.byType(Scrollable).first);
+    // The nausea (Jul 14, in window) shows under "this week"; headache (Jun 20) doesn't.
+    expect(find.text('Nausea'), findsWidgets);
     addTearDown(c.dispose);
   });
 

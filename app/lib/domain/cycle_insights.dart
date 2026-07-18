@@ -92,6 +92,13 @@ List<({Mood mood, int count})> moodFrequency(Iterable<DayLog> logs) {
   return out;
 }
 
+/// Symptom counts restricted to logs on/after [since] (a recent window, e.g. the
+/// last 7 days). Descending by count.
+List<({Symptom symptom, int count})> symptomFrequencySince(Iterable<DayLog> logs, DateTime since) {
+  final sinceKey = dateKey(since);
+  return symptomFrequency([for (final l in logs) if (l.date.compareTo(sinceKey) >= 0) l]);
+}
+
 /// Count of each symptom across the given day logs (descending by count).
 List<({Symptom symptom, int count})> symptomFrequency(Iterable<DayLog> logs) {
   final counts = <Symptom, int>{};
