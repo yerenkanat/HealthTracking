@@ -19,7 +19,10 @@ import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 
 class ContractionTimerScreen extends StatefulWidget {
-  const ContractionTimerScreen({super.key});
+  /// Called with the session summary when the screen closes (if any contractions
+  /// were recorded), so it can be added to history.
+  final void Function(int count, Duration avgDuration, Duration avgInterval)? onSave;
+  const ContractionTimerScreen({super.key, this.onSave});
   @override
   State<ContractionTimerScreen> createState() => _ContractionTimerScreenState();
 }
@@ -32,6 +35,12 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    // Persist the session on the way out (reset clears the list, so a reset
+    // session won't be saved).
+    if (_contractions.isNotEmpty) {
+      final s = contractionStats(_contractions);
+      widget.onSave?.call(s.count, s.avgDuration, s.avgInterval);
+    }
     super.dispose();
   }
 

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeedback;
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
+import '../../domain/contraction.dart';
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
 import '../../domain/pregnancy_milestones.dart';
@@ -72,7 +73,9 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     icon: const Icon(Icons.timer_outlined),
                     tooltip: l.t('contr_title'),
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ContractionTimerScreen()),
+                      MaterialPageRoute(builder: (_) => ContractionTimerScreen(
+                        onSave: (count, dur, interval) => c.logContractionSession(count, dur, interval),
+                      )),
                     ),
                   ),
                 if (cycleMode && c.cycle.hasData)
@@ -144,6 +147,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 if (!cycleMode && c.kickSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   _KickHistory(sessions: c.kickSessions, today: _today),
+                ],
+                if (!cycleMode && c.contractionSessions.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _ContractionHistory(sessions: c.contractionSessions, today: _today),
                 ],
               ],
             ),
@@ -907,6 +914,68 @@ class _KickHistoryRow extends StatelessWidget {
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
               Text('${formatElapsed(record.duration)} · ${l.ago(age.isNegative ? Duration.zero : age)}',
+                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Recent contraction sessions: count · average interval · when.
+class _ContractionHistory extends StatelessWidget {
+  final List<ContractionSessionRecord> sessions;
+  final DateTime today;
+  const _ContractionHistory({required this.sessions, required this.today});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final shown = sessions.take(5).toList();
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('contr_history').toUpperCase(),
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 12),
+          for (var i = 0; i < shown.length; i++) ...[
+            if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
+            _ContractionHistoryRow(record: shown[i], now: today),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ContractionHistoryRow extends StatelessWidget {
+  final ContractionSessionRecord record;
+  final DateTime now;
+  const _ContractionHistoryRow({required this.record, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final age = now.difference(record.endedAt);
+    final interval = record.avgIntervalSec > 0 ? formatElapsed(record.avgInterval) : '—';
+    return Row(
+      children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+          child: const Icon(Icons.timer_outlined, size: 18, color: Palette.violet),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.t('contr_history_count', {'n': record.count}),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text('${l.t('contr_history_interval', {'i': interval})} · ${l.ago(age.isNegative ? Duration.zero : age)}',
                   style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
             ],
           ),

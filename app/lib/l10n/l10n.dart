@@ -400,6 +400,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'contr_reset': {AppLocale.ru: 'Сбросить', AppLocale.kk: 'Ысыру', AppLocale.en: 'Reset'},
   'contr_reset_title': {AppLocale.ru: 'Сбросить схватки?', AppLocale.kk: 'Толғақтарды ысыру керек пе?', AppLocale.en: 'Reset contractions?'},
   'contr_reset_body': {AppLocale.ru: 'Записанные схватки будут удалены.', AppLocale.kk: 'Жазылған толғақтар жойылады.', AppLocale.en: 'The recorded contractions will be cleared.'},
+  'contr_history': {AppLocale.ru: 'История схваток', AppLocale.kk: 'Толғақтар тарихы', AppLocale.en: 'Contraction history'},
+  'contr_history_count': {AppLocale.ru: '{n} схваток', AppLocale.kk: '{n} толғақ', AppLocale.en: '{n} contractions'},
+  'contr_history_interval': {AppLocale.ru: 'интервал {i}', AppLocale.kk: 'аралығы {i}', AppLocale.en: '{i} apart'},
 
   // Weight (pregnancy)
   'weight_title': {AppLocale.ru: 'Вес', AppLocale.kk: 'Салмақ', AppLocale.en: 'Weight'},

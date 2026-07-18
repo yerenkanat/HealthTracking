@@ -10,6 +10,26 @@ void main() {
         home: L10nScope(l10n: L10n(AppLocale.en), child: ContractionTimerScreen()),
       );
 
+  testWidgets('recorded contractions are saved on close (onSave)', (tester) async {
+    int? savedCount;
+    await tester.pumpWidget(MaterialApp(
+      home: L10nScope(
+        l10n: const L10n(AppLocale.en),
+        child: ContractionTimerScreen(onSave: (count, _, __) => savedCount = count),
+      ),
+    ));
+    // Record two contractions.
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.text(i == 0 ? 'Start' : 'Start'));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.text('Stop').first);
+      await tester.pump();
+    }
+    // Dispose the screen (replace it) → onSave fires with the count.
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    expect(savedCount, 2);
+  });
+
   testWidgets('starts empty with a Start button and hint', (tester) async {
     await tester.pumpWidget(wrap());
     expect(find.text('Start'), findsOneWidget);

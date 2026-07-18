@@ -31,6 +31,37 @@ class ContractionStats {
   const ContractionStats(this.count, this.avgDuration, this.avgInterval);
 }
 
+/// A finished contraction-timing session, kept in history. Pure + JSON.
+class ContractionSessionRecord {
+  final DateTime endedAt;
+  final int count;
+  final int avgDurationSec;
+  final int avgIntervalSec;
+  const ContractionSessionRecord({
+    required this.endedAt,
+    required this.count,
+    required this.avgDurationSec,
+    required this.avgIntervalSec,
+  });
+
+  Duration get avgDuration => Duration(seconds: avgDurationSec);
+  Duration get avgInterval => Duration(seconds: avgIntervalSec);
+
+  Map<String, dynamic> toJson() => {
+        'endedAt': endedAt.toIso8601String(),
+        'count': count,
+        'avgDurationSec': avgDurationSec,
+        'avgIntervalSec': avgIntervalSec,
+      };
+
+  factory ContractionSessionRecord.fromJson(Map<String, dynamic> j) => ContractionSessionRecord(
+        endedAt: DateTime.parse(j['endedAt'] as String),
+        count: (j['count'] as num).toInt(),
+        avgDurationSec: (j['avgDurationSec'] as num).toInt(),
+        avgIntervalSec: (j['avgIntervalSec'] as num).toInt(),
+      );
+}
+
 /// Averages over [list] (assumed earliest-first). Interval average needs ≥2
 /// contractions; with fewer it is Duration.zero.
 ContractionStats contractionStats(List<Contraction> list) {

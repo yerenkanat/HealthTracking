@@ -8,6 +8,7 @@ import 'dart:convert';
 import '../ble/calibration.dart';
 import '../core/geofence.dart';
 import '../domain/appointment.dart';
+import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
@@ -86,6 +87,7 @@ class PersistedConfig {
   final int? avgCycleLength; // user-set baseline until ≥2 cycles are logged
   final int? avgPeriodLength;
   final List<KickSessionRecord> kickSessions; // completed timed sessions (newest last)
+  final List<ContractionSessionRecord> contractionSessions; // completed labour-timing sessions
   final Map<String, int> waterLog; // dateKey → glasses drunk that day
   final int? waterGoal; // daily target (glasses); null → default
   final List<Appointment> appointments; // the mother's dated reminders
@@ -107,6 +109,7 @@ class PersistedConfig {
     this.avgCycleLength,
     this.avgPeriodLength,
     this.kickSessions = const [],
+    this.contractionSessions = const [],
     this.waterLog = const {},
     this.waterGoal,
     this.appointments = const [],
@@ -130,6 +133,7 @@ class PersistedConfig {
         if (avgCycleLength != null) 'avgCycleLength': avgCycleLength,
         if (avgPeriodLength != null) 'avgPeriodLength': avgPeriodLength,
         if (kickSessions.isNotEmpty) 'kickSessions': [for (final k in kickSessions) k.toJson()],
+        if (contractionSessions.isNotEmpty) 'contractionSessions': [for (final s in contractionSessions) s.toJson()],
         if (waterLog.isNotEmpty) 'waterLog': waterLog,
         if (waterGoal != null) 'waterGoal': waterGoal,
         if (appointments.isNotEmpty) 'appointments': [for (final a in appointments) a.toJson()],
@@ -168,6 +172,10 @@ class PersistedConfig {
         kickSessions: [
           for (final k in (j['kickSessions'] as List? ?? const []))
             KickSessionRecord.fromJson((k as Map).cast<String, dynamic>())
+        ],
+        contractionSessions: [
+          for (final s in (j['contractionSessions'] as List? ?? const []))
+            ContractionSessionRecord.fromJson((s as Map).cast<String, dynamic>())
         ],
         waterLog: j['waterLog'] is Map
             ? {for (final e in (j['waterLog'] as Map).entries) '${e.key}': (e.value as num).toInt()}

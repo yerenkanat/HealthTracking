@@ -23,6 +23,7 @@ import '../data/persisted_config.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
 import '../domain/chat_controller.dart';
+import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/cycle_predictions.dart';
 import '../domain/family.dart';
@@ -92,6 +93,7 @@ class AppController {
   final Map<String, DayLog> _dayLogs = {};
   final List<KickSessionRecord> _kickSessions = []; // completed timed sessions (oldest→newest)
   static const _maxKickSessions = 50;
+  final List<ContractionSessionRecord> _contractionSessions = []; // oldest→newest
   final Map<String, int> _waterLog = {}; // dateKey → glasses today
   int? _waterGoal;
   final List<Appointment> _appointments = [];
@@ -158,6 +160,9 @@ class AppController {
     _kickSessions
       ..clear()
       ..addAll(cfg.kickSessions);
+    _contractionSessions
+      ..clear()
+      ..addAll(cfg.contractionSessions);
     _waterLog
       ..clear()
       ..addAll(cfg.waterLog);
@@ -209,6 +214,7 @@ class AppController {
         alerts: List.of(_alerts),
         lastChildZone: _lastChildZone,
         kickSessions: List.of(_kickSessions),
+        contractionSessions: List.of(_contractionSessions),
         waterLog: Map.of(_waterLog),
         waterGoal: _waterGoal,
         appointments: List.of(_appointments),
@@ -365,6 +371,27 @@ class AppController {
       _kickSessions.removeRange(0, _kickSessions.length - _maxKickSessions);
     }
     _dayLogs[dateKey(day)] = logFor(day).addKick(count);
+    _persist();
+    _notify();
+  }
+
+  // ---- Contraction sessions (labour-timing history) ----
+  /// Completed contraction sessions, newest first.
+  List<ContractionSessionRecord> get contractionSessions =>
+      _contractionSessions.reversed.toList(growable: false);
+
+  /// Record a finished contraction session summary. Trimmed past 50.
+  void logContractionSession(int count, Duration avgDuration, Duration avgInterval) {
+    if (count <= 0) return;
+    _contractionSessions.add(ContractionSessionRecord(
+      endedAt: _now(),
+      count: count,
+      avgDurationSec: avgDuration.inSeconds,
+      avgIntervalSec: avgInterval.inSeconds,
+    ));
+    if (_contractionSessions.length > 50) {
+      _contractionSessions.removeRange(0, _contractionSessions.length - 50);
+    }
     _persist();
     _notify();
   }

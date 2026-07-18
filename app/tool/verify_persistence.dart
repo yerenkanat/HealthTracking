@@ -11,6 +11,7 @@ import '../lib/data/persisted_config.dart';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/family.dart';
 import '../lib/domain/appointment.dart';
+import '../lib/domain/contraction.dart';
 import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/kick_session.dart';
 import '../lib/domain/weight.dart';
@@ -52,6 +53,9 @@ void main() async {
       KickSessionRecord(endedAt: DateTime.utc(2026, 7, 15, 21, 30), count: 10, durationSec: 620),
       KickSessionRecord(endedAt: DateTime.utc(2026, 7, 16, 8, 5), count: 6, durationSec: 240),
     ],
+    contractionSessions: [
+      ContractionSessionRecord(endedAt: DateTime.utc(2026, 12, 1, 3), count: 6, avgDurationSec: 55, avgIntervalSec: 300),
+    ],
     waterLog: const {'2026-07-16': 5, '2026-07-15': 8},
     waterGoal: 9,
     appointments: [
@@ -83,6 +87,9 @@ void main() async {
   _chk('round-trip kick sessions', decoded.kickSessions.length == 2 &&
       decoded.kickSessions[0].count == 10 && decoded.kickSessions[0].durationSec == 620 &&
       decoded.kickSessions[1].endedAt == DateTime.utc(2026, 7, 16, 8, 5));
+  _chk('round-trip contraction sessions', decoded.contractionSessions.length == 1 &&
+      decoded.contractionSessions[0].count == 6 && decoded.contractionSessions[0].avgDurationSec == 55 &&
+      decoded.contractionSessions[0].avgIntervalSec == 300);
   _chk('round-trip water log + goal',
       decoded.waterLog['2026-07-16'] == 5 && decoded.waterLog['2026-07-15'] == 8 && decoded.waterGoal == 9);
   _chk('round-trip appointments', decoded.appointments.length == 2 &&
