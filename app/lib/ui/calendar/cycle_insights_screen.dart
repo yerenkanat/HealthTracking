@@ -40,6 +40,7 @@ class CycleInsightsScreen extends StatelessWidget {
             final info = controller.cycle;
             final history = cycleHistory(controller.periodDays);
             final regularity = cycleRegularity(history);
+            final lengthStats = cycleLengthStats(history);
             final logs = controller.dayLogs.values;
             final moods = moodFrequency(logs);
             final symptoms = symptomFrequency(logs);
@@ -91,6 +92,10 @@ class CycleInsightsScreen extends StatelessWidget {
                 if (regularity.level != CycleRegularity.insufficient) ...[
                   const SizedBox(height: 14),
                   _RegularityCard(insight: regularity),
+                ],
+                if (lengthStats != null && lengthStats.count >= 2) ...[
+                  const SizedBox(height: 14),
+                  _CycleLengthCard(stats: lengthStats),
                 ],
                 const SizedBox(height: 16),
 
@@ -252,6 +257,59 @@ class _StreakBanner extends StatelessWidget {
 }
 
 /// "Your cycles are regular / vary by N days" — a plain-language read on
+/// Min / average / max cycle length over the user's completed cycles.
+class _CycleLengthCard extends StatelessWidget {
+  final CycleLengthStats stats;
+  const _CycleLengthCard({required this.stats});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return _SectionCard(
+      title: l.t('cyc_length_range'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _LenStat(value: '${stats.min}', label: l.t('cyc_len_shortest'), color: Palette.teal),
+              _lenDivider(),
+              _LenStat(value: '${stats.avg}', label: l.t('cyc_len_average'), color: Palette.roseDeep),
+              _lenDivider(),
+              _LenStat(value: '${stats.max}', label: l.t('cyc_len_longest'), color: Palette.violet),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(l.t('cyc_len_based_on', {'n': stats.count}),
+              style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _lenDivider() => Container(width: 1, height: 34, color: Palette.border);
+}
+
+class _LenStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  const _LenStat({required this.value, required this.label, required this.color});
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: Column(
+          children: [
+            RichText(
+              text: TextSpan(children: [
+                TextSpan(text: value, style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 22, fontWeight: FontWeight.w700, color: color)),
+              ]),
+            ),
+            const SizedBox(height: 3),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
+          ],
+        ),
+      );
+}
+
 /// consistency, coloured by level (green regular, amber variable, rose irregular).
 class _RegularityCard extends StatelessWidget {
   final RegularityInsight insight;

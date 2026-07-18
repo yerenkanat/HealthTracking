@@ -152,4 +152,23 @@ void main() {
     expect(find.textContaining('28-day average'), findsOneWidget);
     addTearDown(c.dispose);
   });
+
+  testWidgets('cycle length range card appears with completed cycles', (tester) async {
+    final c = AppController(now: () => today);
+    // Three ~28-day periods → two completed cycles → length stats available.
+    for (final start in [
+      today.subtract(const Duration(days: 6)),
+      today.subtract(const Duration(days: 34)),
+      today.subtract(const Duration(days: 62)),
+    ]) {
+      for (var i = 0; i < 5; i++) {
+        c.setDayLog(DayLog(date: dateKey(start.add(Duration(days: i))), flow: Flow.medium));
+      }
+    }
+    await tester.pumpWidget(wrap(c));
+    await tester.scrollUntilVisible(find.text('CYCLE LENGTH'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('CYCLE LENGTH'), findsOneWidget);
+    expect(find.textContaining('Based on 2 completed cycles'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
 }

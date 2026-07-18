@@ -42,6 +42,30 @@ List<CycleSpan> cycleHistory(Set<DateTime> periodDays) {
   return spans.reversed.toList(); // newest first
 }
 
+/// Min / average / max over the user's COMPLETED cycle lengths, with the count
+/// considered. Null when there are no completed cycles yet.
+class CycleLengthStats {
+  final int count;
+  final int min;
+  final int max;
+  final int avg;
+  const CycleLengthStats(this.count, this.min, this.max, this.avg);
+}
+
+/// Compute length stats from [history] (as returned by [cycleHistory]). Null if
+/// no cycle has a recorded length (i.e. only the ongoing cycle exists).
+CycleLengthStats? cycleLengthStats(List<CycleSpan> history) {
+  final lengths = [for (final s in history) if (s.cycleLength != null) s.cycleLength!];
+  if (lengths.isEmpty) return null;
+  var min = lengths.first, max = lengths.first, sum = 0;
+  for (final v in lengths) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  return CycleLengthStats(lengths.length, min, max, (sum / lengths.length).round());
+}
+
 enum CycleRegularity { insufficient, regular, variable, irregular }
 
 /// A read on how consistent the user's cycles are, over their completed cycles.

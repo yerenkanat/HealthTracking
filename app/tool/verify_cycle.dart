@@ -116,6 +116,20 @@ void main() {
   _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
   _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
 
+  // ---- Cycle length stats ----
+  final spans = [
+    CycleSpan(DateTime(2026, 7, 1), null, 5), // ongoing → excluded
+    CycleSpan(DateTime(2026, 6, 3), 28, 5),
+    CycleSpan(DateTime(2026, 5, 6), 30, 5),
+    CycleSpan(DateTime(2026, 4, 8), 26, 5),
+  ];
+  final lenStats = cycleLengthStats(spans);
+  _chk('length stats count = completed cycles', lenStats?.count == 3);
+  _chk('length stats min = 26', lenStats?.min == 26);
+  _chk('length stats max = 30', lenStats?.max == 30);
+  _chk('length stats avg = 28', lenStats?.avg == 28); // (28+30+26)/3
+  _chk('length stats null with only ongoing', cycleLengthStats([CycleSpan(DateTime(2026, 7, 1), null, 5)]) == null);
+
   // ---- Cycle phase ----
   final pset = periodSet(days);
   CyclePhaseInfo? phaseOn(DateTime t) => cyclePhaseFor(computeCycle(pset, t));
