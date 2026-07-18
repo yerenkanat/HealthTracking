@@ -60,6 +60,21 @@ DateTime? zoneEntryTime(List<SafetyAlert> alerts, String childName, String zoneN
   return null;
 }
 
+/// Alerts stamped on the same calendar day as [day].
+List<SafetyAlert> alertsOnDay(List<SafetyAlert> alerts, DateTime day) => [
+      for (final a in alerts)
+        if (a.at.year == day.year && a.at.month == day.month && a.at.day == day.day) a,
+    ];
+
+/// Count of each alert kind present in [alerts] (kinds with zero are omitted).
+Map<AlertKind, int> alertKindCounts(List<SafetyAlert> alerts) {
+  final counts = <AlertKind, int>{};
+  for (final a in alerts) {
+    counts[a.kind] = (counts[a.kind] ?? 0) + 1;
+  }
+  return counts;
+}
+
 AlertKind alertKindFromName(String? s) => switch (s) {
       'entered' => AlertKind.entered,
       'checkIn' => AlertKind.checkIn,

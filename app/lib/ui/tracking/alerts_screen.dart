@@ -12,7 +12,8 @@ import '../widgets/glass.dart';
 
 class AlertsScreen extends StatefulWidget {
   final AppController controller;
-  const AlertsScreen({super.key, required this.controller});
+  final DateTime Function()? _nowFn;
+  const AlertsScreen({super.key, required this.controller, DateTime Function()? now}) : _nowFn = now;
   @override
   State<AlertsScreen> createState() => _AlertsScreenState();
 }
@@ -20,6 +21,8 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   AlertFilter _filter = AlertFilter.all;
   String? _child; // null = all children
+
+  DateTime _now() => (widget._nowFn ?? DateTime.now)();
 
   @override
   Widget build(BuildContext context) {
@@ -67,8 +70,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
             final present = presentAlertFilters(byChild);
             if (_filter != AlertFilter.all && !present.contains(_filter)) _filter = AlertFilter.all;
             final alerts = filterAlerts(byChild, _filter);
+            // Today's activity summary (respects the child filter).
+            final todayCounts = alertKindCounts(alertsOnDay(byChild, _now()));
             return Column(
               children: [
+                if (todayCounts.isNotEmpty) _TodaySummary(counts: todayCounts),
                 if (children.length > 1)
                   _ChildChips(children: children, selected: _child, onSelect: (c) => setState(() => _child = c)),
                 if (present.length > 1) _FilterChips(present: present, selected: _filter, onSelect: (f) => setState(() => _filter = f)),
@@ -77,7 +83,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: alerts.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) => _AlertCard(alert: alerts[i], now: DateTime.now()),
+                    itemBuilder: (context, i) => _AlertCard(alert: alerts[i], now: _now()),
                   ),
                 ),
               ],
@@ -128,6 +134,57 @@ class _FilterChips extends StatelessWidget {
             backgroundColor: Palette.surface,
           );
         },
+      ),
+    );
+  }
+}
+
+/// A compact "Today" strip summarizing how many of each alert kind fired today —
+/// a quick pulse of the day's activity above the feed.
+class _TodaySummary extends StatelessWidget {
+  final Map<AlertKind, int> counts;
+  const _TodaySummary({required this.counts});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    // Fixed order; zone enter+left are merged into one "zone events" figure.
+    final zone = (counts[AlertKind.entered] ?? 0) + (counts[AlertKind.left] ?? 0);
+    final items = <(IconData, Color, int, String)>[
+      if (zone > 0) (Icons.swap_horiz_rounded, Palette.good, zone, l.t('today_zone_events')),
+      if ((counts[AlertKind.checkIn] ?? 0) > 0) (Icons.how_to_reg_rounded, Palette.blue, counts[AlertKind.checkIn]!, l.t('today_checkins')),
+      if ((counts[AlertKind.sos] ?? 0) > 0) (Icons.sos_rounded, Palette.danger, counts[AlertKind.sos]!, l.t('today_sos')),
+      if ((counts[AlertKind.lowBattery] ?? 0) > 0) (Icons.battery_alert_rounded, Palette.amber, counts[AlertKind.lowBattery]!, l.t('today_battery')),
+    ];
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Palette.violet.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('today_title').toUpperCase(),
+              style: const TextStyle(color: Palette.textDim, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16, runSpacing: 8,
+            children: [
+              for (final (icon, color, n, label) in items)
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(icon, size: 16, color: color),
+                  const SizedBox(width: 5),
+                  Text('$n', style: TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: color, fontSize: 14)),
+                  const SizedBox(width: 4),
+                  Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                ]),
+            ],
+          ),
+        ],
       ),
     );
   }

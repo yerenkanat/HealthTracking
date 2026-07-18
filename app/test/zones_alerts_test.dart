@@ -97,6 +97,20 @@ void main() {
       addTearDown(c.dispose);
     });
 
+    testWidgets('today summary counts the day\'s activity', (tester) async {
+      final now = DateTime(2026, 7, 16, 9);
+      final c = AppController(now: () => now);
+      c.configureChild(name: 'Sultan', fences: [_home, _school]);
+      c.onChildLocation(_home.center!); // entered Home (a zone event)
+      c.logChildEvent(AlertKind.checkIn); // a check-in
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => now)));
+
+      expect(find.text('TODAY'), findsOneWidget);
+      expect(find.text('zone events'), findsOneWidget);
+      expect(find.text('check-ins'), findsOneWidget);
+      addTearDown(c.dispose);
+    });
+
     testWidgets('per-child chips narrow the feed to one child', (tester) async {
       final c = AppController(now: () => DateTime(2026, 7, 16, 9));
       c.configureChild(name: 'Aisha', fences: [_home, _school]);

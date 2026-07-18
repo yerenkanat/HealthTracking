@@ -111,6 +111,22 @@ void main() {
   _chk('entry time null when never entered', zoneEntryTime(feed2, 'Aisha', 'Park') == null);
   _chk('left events are ignored', zoneEntryTime(feed2, 'Aisha', 'Home') == DateTime(2026, 7, 15, 18));
 
+  // ---- Today's activity summary ----
+  final today = DateTime(2026, 7, 16, 12);
+  final dayFeed = [
+    SafetyAlert(kind: AlertKind.entered, childName: 'A', zoneName: 'Home', at: DateTime(2026, 7, 16, 9)),
+    SafetyAlert(kind: AlertKind.left, childName: 'A', zoneName: 'School', at: DateTime(2026, 7, 16, 8)),
+    SafetyAlert(kind: AlertKind.checkIn, childName: 'A', zoneName: '', at: DateTime(2026, 7, 16, 7)),
+    SafetyAlert(kind: AlertKind.entered, childName: 'A', zoneName: 'Park', at: DateTime(2026, 7, 15, 9)), // yesterday
+  ];
+  final todays = alertsOnDay(dayFeed, today);
+  _chk('today filters to same calendar day', todays.length == 3);
+  final counts = alertKindCounts(todays);
+  _chk('counts entered today', counts[AlertKind.entered] == 1);
+  _chk('counts left today', counts[AlertKind.left] == 1);
+  _chk('counts check-in today', counts[AlertKind.checkIn] == 1);
+  _chk('absent kind omitted', !counts.containsKey(AlertKind.sos));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
