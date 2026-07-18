@@ -19,6 +19,7 @@ class AlertsScreen extends StatefulWidget {
 
 class _AlertsScreenState extends State<AlertsScreen> {
   AlertFilter _filter = AlertFilter.all;
+  String? _child; // null = all children
 
   @override
   Widget build(BuildContext context) {
@@ -58,12 +59,18 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 ),
               );
             }
+            // A selected child that no longer appears falls back to all children.
+            final children = childNamesInAlerts(all);
+            if (_child != null && !children.contains(_child)) _child = null;
+            final byChild = filterAlertsByChild(all, _child);
             // A filter no longer present (e.g. after clearing) falls back to All.
-            final present = presentAlertFilters(all);
+            final present = presentAlertFilters(byChild);
             if (_filter != AlertFilter.all && !present.contains(_filter)) _filter = AlertFilter.all;
-            final alerts = filterAlerts(all, _filter);
+            final alerts = filterAlerts(byChild, _filter);
             return Column(
               children: [
+                if (children.length > 1)
+                  _ChildChips(children: children, selected: _child, onSelect: (c) => setState(() => _child = c)),
                 if (present.length > 1) _FilterChips(present: present, selected: _filter, onSelect: (f) => setState(() => _filter = f)),
                 Expanded(
                   child: ListView.separated(
@@ -118,6 +125,46 @@ class _FilterChips extends StatelessWidget {
             selectedColor: Palette.violet.withValues(alpha: 0.16),
             side: BorderSide(color: sel ? Palette.violet.withValues(alpha: 0.5) : Palette.border),
             labelStyle: TextStyle(color: sel ? Palette.violet : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
+            backgroundColor: Palette.surface,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A horizontal row of per-child chips: All children + one chip per child that
+/// has alerts. Shown only when the feed spans more than one child.
+class _ChildChips extends StatelessWidget {
+  final List<String> children;
+  final String? selected; // null = all
+  final ValueChanged<String?> onSelect;
+  const _ChildChips({required this.children, required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    // null sentinel = "All children"; then one entry per child name.
+    final items = <String?>[null, ...children];
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final c = items[i];
+          final sel = c == selected;
+          return ChoiceChip(
+            avatar: c == null ? null : Icon(Icons.person_rounded, size: 16, color: sel ? Palette.pink : Palette.textDim),
+            label: Text(c ?? l.t('alerts_child_all')),
+            selected: sel,
+            onSelected: (_) => onSelect(c),
+            showCheckmark: false,
+            selectedColor: Palette.pink.withValues(alpha: 0.16),
+            side: BorderSide(color: sel ? Palette.pink.withValues(alpha: 0.5) : Palette.border),
+            labelStyle: TextStyle(color: sel ? Palette.pink : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
             backgroundColor: Palette.surface,
           );
         },

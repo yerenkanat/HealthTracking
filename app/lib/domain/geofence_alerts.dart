@@ -34,6 +34,22 @@ Set<AlertFilter> presentAlertFilters(List<SafetyAlert> alerts) => {
         if (alerts.any((a) => alertMatchesFilter(a, f))) f,
     };
 
+/// Distinct child names present in [alerts], in first-seen order.
+List<String> childNamesInAlerts(List<SafetyAlert> alerts) {
+  final seen = <String>{};
+  final out = <String>[];
+  for (final a in alerts) {
+    if (a.childName.isNotEmpty && seen.add(a.childName)) out.add(a.childName);
+  }
+  return out;
+}
+
+/// Alerts for [childName] (order preserved); a null/empty name means all children.
+List<SafetyAlert> filterAlertsByChild(List<SafetyAlert> alerts, String? childName) =>
+    (childName == null || childName.isEmpty)
+        ? alerts
+        : [for (final a in alerts) if (a.childName == childName) a];
+
 AlertKind alertKindFromName(String? s) => switch (s) {
       'entered' => AlertKind.entered,
       'checkIn' => AlertKind.checkIn,

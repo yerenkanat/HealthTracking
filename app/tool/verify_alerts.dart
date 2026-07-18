@@ -84,6 +84,20 @@ void main() {
           presentAlertFilters(feed).contains(AlertFilter.battery) &&
           !presentAlertFilters(feed).contains(AlertFilter.checkIns));
 
+  // ---- Per-child filtering ----
+  final multi = [
+    SafetyAlert(kind: AlertKind.entered, childName: 'Aisha', zoneName: 'Home', at: DateTime(2026, 7, 16, 9)),
+    SafetyAlert(kind: AlertKind.sos, childName: 'Timur', zoneName: '', at: DateTime(2026, 7, 16, 8)),
+    SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'School', at: DateTime(2026, 7, 16, 7)),
+    SafetyAlert(kind: AlertKind.checkIn, childName: '', zoneName: '', at: DateTime(2026, 7, 16, 6)),
+  ];
+  _chk('child names distinct, first-seen order', childNamesInAlerts(multi).join(',') == 'Aisha,Timur');
+  _chk('filter by child keeps only that child', filterAlertsByChild(multi, 'Aisha').length == 2);
+  _chk('filter by child preserves order', filterAlertsByChild(multi, 'Aisha').first.kind == AlertKind.entered);
+  _chk('null child = all', filterAlertsByChild(multi, null).length == 4);
+  _chk('empty child = all', filterAlertsByChild(multi, '').length == 4);
+  _chk('unknown child = none', filterAlertsByChild(multi, 'Nobody').isEmpty);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

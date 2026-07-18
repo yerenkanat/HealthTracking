@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
+import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
@@ -93,6 +94,32 @@ void main() {
       await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
       await tester.pumpAndSettle();
       expect(find.text('Entered Home'), findsOneWidget);
+      addTearDown(c.dispose);
+    });
+
+    testWidgets('per-child chips narrow the feed to one child', (tester) async {
+      final c = AppController(now: () => DateTime(2026, 7, 16, 9));
+      c.configureChild(name: 'Aisha', fences: [_home, _school]);
+      c.addChild(const ChildProfile(id: 'child-2', name: 'Timur'));
+      c.onChildLocation(_home.center!); // Aisha entered Home (child-1 selected)
+      c.selectChild('child-2');
+      c.logChildEvent(AlertKind.sos); // Timur SOS
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c)));
+
+      // Both children's events are visible under "all children".
+      expect(find.text('Entered Home'), findsOneWidget);
+      expect(find.text('SOS — emergency signal'), findsOneWidget);
+
+      // Filter to Aisha only.
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Aisha'));
+      await tester.pumpAndSettle();
+      expect(find.text('Entered Home'), findsOneWidget);
+      expect(find.text('SOS — emergency signal'), findsNothing);
+
+      // Back to all children.
+      await tester.tap(find.widgetWithText(ChoiceChip, 'All children'));
+      await tester.pumpAndSettle();
+      expect(find.text('SOS — emergency signal'), findsOneWidget);
       addTearDown(c.dispose);
     });
   });

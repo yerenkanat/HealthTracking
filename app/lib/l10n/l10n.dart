@@ -127,6 +127,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'alert_sos': {AppLocale.ru: 'SOS — сигнал тревоги', AppLocale.kk: 'SOS — дабыл сигналы', AppLocale.en: 'SOS — emergency signal'},
   'alert_low_battery': {AppLocale.ru: 'Низкий заряд трекера ({pct}%)', AppLocale.kk: 'Трекер заряды төмен ({pct}%)', AppLocale.en: 'Tracker battery low ({pct}%)'},
   'alerts_filter_all': {AppLocale.ru: 'Все', AppLocale.kk: 'Барлығы', AppLocale.en: 'All'},
+  'alerts_child_all': {AppLocale.ru: 'Все дети', AppLocale.kk: 'Барлық бала', AppLocale.en: 'All children'},
   'alerts_filter_zones': {AppLocale.ru: 'Зоны', AppLocale.kk: 'Аймақтар', AppLocale.en: 'Zones'},
   'alerts_filter_sos': {AppLocale.ru: 'SOS', AppLocale.kk: 'SOS', AppLocale.en: 'SOS'},
   'alerts_filter_checkins': {AppLocale.ru: 'Отметки', AppLocale.kk: 'Белгілер', AppLocale.en: 'Check-ins'},
