@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/health_series.dart';
+import 'package:fcs_app/domain/weekly_digest.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/widgets/glass.dart';
 
@@ -78,6 +79,32 @@ void main() {
     await tester.tap(find.text('Cycle · Day 14'));
     await tester.pump();
     expect(opened, isTrue);
+  });
+
+  testWidgets('weekly digest card shows the week roll-up', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        weeklyDigest: const WeeklyDigest(
+          daysLogged: 4, waterGlasses: 23, waterGoalDays: 2, avgSleepMin: 360, sleepNights: 3),
+      ),
+    ));
+    await tester.scrollUntilVisible(find.text('This week'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('This week'), findsOneWidget);
+    expect(find.text('4'), findsOneWidget); // days logged
+    expect(find.text('6h 0m'), findsOneWidget); // avg sleep 360 min
+  });
+
+  testWidgets('weekly digest card hidden when there is no data', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        weeklyDigest: const WeeklyDigest(daysLogged: 0, waterGlasses: 0, waterGoalDays: 0, avgSleepMin: 0, sleepNights: 0),
+      ),
+    ));
+    expect(find.text('This week'), findsNothing);
   });
 
   testWidgets('status chip is hidden without an onOpenStatus callback', (tester) async {

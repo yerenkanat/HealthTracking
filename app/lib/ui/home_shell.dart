@@ -11,6 +11,7 @@ import '../core/geofence.dart';
 import '../domain/child_tracker_state.dart' show currentZone;
 import '../domain/geofence_alerts.dart';
 import '../domain/hydration.dart';
+import '../domain/weekly_digest.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
@@ -60,6 +61,10 @@ class _HomeShellState extends State<HomeShell> {
         statusChip: _statusChip(c, l),
         statusChipPregnancy: c.isPregnant,
         onOpenStatus: () => setState(() => _index = 1),
+        weeklyDigest: computeWeeklyDigest(
+          c.dayLogs, c.waterLog, c.sleepNights, DateTime.now(),
+          waterGoal: c.waterGoal,
+        ),
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
         onOpenAdvisor: () => Navigator.of(context).push(

@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/sleep.dart';
+import '../../domain/weekly_digest.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -60,6 +61,7 @@ class HealthDashboardView extends StatelessWidget {
   final String statusChip;
   final bool statusChipPregnancy;
   final VoidCallback? onOpenStatus;
+  final WeeklyDigest? weeklyDigest; // this-week roll-up (null/no-data = hidden)
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -81,6 +83,7 @@ class HealthDashboardView extends StatelessWidget {
     this.statusChip = '',
     this.statusChipPregnancy = false,
     this.onOpenStatus,
+    this.weeklyDigest,
     this.waterCount = 0,
     this.waterGoal = 8,
     this.onAddWater,
@@ -144,6 +147,10 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
+                  if (weeklyDigest?.hasData ?? false) ...[
+                    const SizedBox(height: 14),
+                    _WeeklyDigestCard(digest: weeklyDigest!),
+                  ],
                   if (onAddWater != null) ...[
                     const SizedBox(height: 14),
                     WaterCard(
@@ -555,6 +562,74 @@ class _StatusChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// This-week roll-up: days logged, water glasses (+ goal days), and average
+/// sleep — a friendly weekly recap card.
+class _WeeklyDigestCard extends StatelessWidget {
+  final WeeklyDigest digest;
+  const _WeeklyDigestCard({required this.digest});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final sleepLabel = digest.sleepNights == 0
+        ? '—'
+        : '${digest.avgSleepMin ~/ 60}h ${digest.avgSleepMin % 60}m';
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(gradient: Palette.roseViolet, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.calendar_view_week_rounded, size: 17, color: Colors.white),
+              ),
+              const SizedBox(width: 10),
+              Text(l.t('db_week_title'),
+                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Palette.text)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _DigestStat(value: '${digest.daysLogged}', label: l.t('db_week_logged'), color: Palette.violet),
+              _digestDivider(),
+              _DigestStat(
+                value: '${digest.waterGlasses}',
+                label: l.t('db_week_water', {'n': digest.waterGoalDays}),
+                color: Palette.blue,
+              ),
+              _digestDivider(),
+              _DigestStat(value: sleepLabel, label: l.t('db_week_sleep'), color: Palette.teal),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _digestDivider() => Container(width: 1, height: 34, color: Palette.border);
+}
+
+class _DigestStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  const _DigestStat({required this.value, required this.label, required this.color});
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: Column(
+          children: [
+            Text(value, style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 20, fontWeight: FontWeight.w700, color: color)),
+            const SizedBox(height: 3),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11, height: 1.2)),
+          ],
+        ),
+      );
 }
 
 class _IconBadge extends StatelessWidget {
