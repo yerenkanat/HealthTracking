@@ -20,6 +20,7 @@ import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 import 'contraction_timer_screen.dart';
 import 'cycle_insights_screen.dart';
@@ -146,11 +147,13 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 ],
                 if (!cycleMode && c.kickSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _KickHistory(sessions: c.kickSessions, today: _today),
+                  _KickHistory(sessions: c.kickSessions, today: _today, onClear: () => _clearHistory(
+                        title: l.t('kick_history_clear_title'), onConfirmed: c.clearKickSessions)),
                 ],
                 if (!cycleMode && c.contractionSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _ContractionHistory(sessions: c.contractionSessions, today: _today),
+                  _ContractionHistory(sessions: c.contractionSessions, today: _today, onClear: () => _clearHistory(
+                        title: l.t('contr_history_clear_title'), onConfirmed: c.clearContractionSessions)),
                 ],
               ],
             ),
@@ -158,6 +161,17 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
         );
       },
     );
+  }
+
+  Future<void> _clearHistory({required String title, required VoidCallback onConfirmed}) async {
+    final l = L10nScope.of(context);
+    final ok = await confirmDestructive(
+      context,
+      title: title,
+      message: l.t('hist_clear_body'),
+      confirmLabel: l.t('hist_clear'),
+    );
+    if (ok) onConfirmed();
   }
 
   Future<void> _shareCycle(CycleInfo info, L10n l) async {
@@ -861,12 +875,41 @@ class _PregnancyMilestones extends StatelessWidget {
   }
 }
 
+/// Shared history-card header: an uppercase title + a small clear-all action.
+class _HistoryHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onClear;
+  const _HistoryHeader({required this.title, required this.onClear});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(title.toUpperCase(),
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+        ),
+        InkWell(
+          onTap: onClear,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Text(l.t('hist_clear'),
+                style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Recent timed kick sessions: count · duration · when. Newest first, capped to
 /// a short list so the pregnancy view stays scannable.
 class _KickHistory extends StatelessWidget {
   final List<KickSessionRecord> sessions;
   final DateTime today;
-  const _KickHistory({required this.sessions, required this.today});
+  final VoidCallback onClear;
+  const _KickHistory({required this.sessions, required this.today, required this.onClear});
 
   @override
   Widget build(BuildContext context) {
@@ -876,8 +919,7 @@ class _KickHistory extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l.t('kick_history').toUpperCase(),
-              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          _HistoryHeader(title: l.t('kick_history'), onClear: onClear),
           const SizedBox(height: 12),
           for (var i = 0; i < shown.length; i++) ...[
             if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
@@ -927,7 +969,8 @@ class _KickHistoryRow extends StatelessWidget {
 class _ContractionHistory extends StatelessWidget {
   final List<ContractionSessionRecord> sessions;
   final DateTime today;
-  const _ContractionHistory({required this.sessions, required this.today});
+  final VoidCallback onClear;
+  const _ContractionHistory({required this.sessions, required this.today, required this.onClear});
 
   @override
   Widget build(BuildContext context) {
@@ -937,8 +980,7 @@ class _ContractionHistory extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l.t('contr_history').toUpperCase(),
-              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          _HistoryHeader(title: l.t('contr_history'), onClear: onClear),
           const SizedBox(height: 12),
           for (var i = 0; i < shown.length; i++) ...[
             if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),

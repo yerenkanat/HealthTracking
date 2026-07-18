@@ -361,6 +361,14 @@ class AppController {
   /// Completed timed sessions, newest first (for the pregnancy history list).
   List<KickSessionRecord> get kickSessions => _kickSessions.reversed.toList(growable: false);
 
+  /// Clear the kick-session history.
+  void clearKickSessions() {
+    if (_kickSessions.isEmpty) return;
+    _kickSessions.clear();
+    _persist();
+    _notify();
+  }
+
   /// Record a finished timed session AND fold its movements into [day]'s counter,
   /// so the day dot/total stays in sync with the history. Oldest entries are
   /// trimmed past [_maxKickSessions].
@@ -379,6 +387,14 @@ class AppController {
   /// Completed contraction sessions, newest first.
   List<ContractionSessionRecord> get contractionSessions =>
       _contractionSessions.reversed.toList(growable: false);
+
+  /// Clear the contraction-session history.
+  void clearContractionSessions() {
+    if (_contractionSessions.isEmpty) return;
+    _contractionSessions.clear();
+    _persist();
+    _notify();
+  }
 
   /// Record a finished contraction session summary. Trimmed past 50.
   void logContractionSession(int count, Duration avgDuration, Duration avgInterval) {

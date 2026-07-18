@@ -72,6 +72,23 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('kick session history can be cleared (with confirm)', (tester) async {
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // pregnancy mode
+    c.logKickSession(today, 5, const Duration(seconds: 30));
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('SESSION HISTORY'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('5 movements'), findsOneWidget);
+    await tester.tap(find.text('Clear').first); // header action
+    await tester.pumpAndSettle();
+    expect(find.text('Clear session history?'), findsOneWidget);
+    await tester.tap(find.text('Clear').last); // dialog confirm
+    await tester.pumpAndSettle();
+    expect(c.kickSessions, isEmpty);
+    expect(find.text('SESSION HISTORY'), findsNothing);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('an appointment on a visible day shows a dot on the month grid', (tester) async {
     final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
     c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0)); // same month as today
