@@ -37,6 +37,13 @@ void main() {
   final atNow = Appointment(id: 'e', title: 'Now', at: now);
   _chk('now counts as upcoming', splitAppointments([atNow], now).upcoming.length == 1);
 
+  // Countdown buckets.
+  _chk('when today (0)', appointmentWhen(0) == ApptWhen.today);
+  _chk('when today (past)', appointmentWhen(-3) == ApptWhen.today);
+  _chk('when tomorrow', appointmentWhen(1) == ApptWhen.tomorrow);
+  _chk('when soon (<=7)', appointmentWhen(5) == ApptWhen.soon && appointmentWhen(7) == ApptWhen.soon);
+  _chk('when later (>7)', appointmentWhen(8) == ApptWhen.later);
+
   // JSON round-trip (with + without a note).
   final withNote = Appointment(id: 'x', title: 'Scan', at: DateTime(2026, 8, 1, 9, 15), note: 'Bring papers');
   final rt = Appointment.fromJson(withNote.toJson());

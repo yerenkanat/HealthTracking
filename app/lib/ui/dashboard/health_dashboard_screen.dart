@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../domain/appointment.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/sleep.dart';
@@ -62,6 +63,9 @@ class HealthDashboardView extends StatelessWidget {
   final bool statusChipPregnancy;
   final VoidCallback? onOpenStatus;
   final WeeklyDigest? weeklyDigest; // this-week roll-up (null/no-data = hidden)
+  final Appointment? nextAppointment; // soonest upcoming (null = hidden)
+  final DateTime? nowForAppointment; // anchor for the countdown
+  final VoidCallback? onOpenAppointments;
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -84,6 +88,9 @@ class HealthDashboardView extends StatelessWidget {
     this.statusChipPregnancy = false,
     this.onOpenStatus,
     this.weeklyDigest,
+    this.nextAppointment,
+    this.nowForAppointment,
+    this.onOpenAppointments,
     this.waterCount = 0,
     this.waterGoal = 8,
     this.onAddWater,
@@ -147,6 +154,14 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
+                  if (nextAppointment != null) ...[
+                    const SizedBox(height: 14),
+                    _NextAppointmentCard(
+                      appt: nextAppointment!,
+                      now: nowForAppointment ?? DateTime.now(),
+                      onTap: onOpenAppointments,
+                    ),
+                  ],
                   if (weeklyDigest?.hasData ?? false) ...[
                     const SizedBox(height: 14),
                     _WeeklyDigestCard(digest: weeklyDigest!),
@@ -559,6 +574,65 @@ class _StatusChip extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The soonest upcoming appointment with a friendly countdown ("Tomorrow",
+/// "in 5 days"), tappable to open the full appointments list.
+class _NextAppointmentCard extends StatelessWidget {
+  final Appointment appt;
+  final DateTime now;
+  final VoidCallback? onTap;
+  const _NextAppointmentCard({required this.appt, required this.now, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final ml = MaterialLocalizations.of(context);
+    final days = daysUntil(appt, now);
+    final when = appointmentWhen(days);
+    final (accent, badge) = switch (when) {
+      ApptWhen.today => (Palette.roseDeep, l.t('appt_today')),
+      ApptWhen.tomorrow => (Palette.roseDeep, l.t('appt_tomorrow')),
+      ApptWhen.soon => (Palette.violet, l.t('appt_in_days', {'n': days})),
+      ApptWhen.later => (Palette.textDim, l.t('appt_in_days', {'n': days})),
+    };
+    final time = TimeOfDay.fromDateTime(appt.at).format(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(13)),
+            child: Icon(Icons.event_rounded, color: accent, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('appt_next').toUpperCase(),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                const SizedBox(height: 3),
+                Text(appt.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Palette.text)),
+                const SizedBox(height: 2),
+                Text('${ml.formatMediumDate(appt.at)} · $time',
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+            child: Text(badge, style: TextStyle(color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+        ],
       ),
     );
   }

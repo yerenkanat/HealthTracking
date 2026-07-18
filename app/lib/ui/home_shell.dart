@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../app/app_controller.dart';
 import '../core/geofence.dart';
+import '../domain/appointment.dart' show nextAppointment;
 import '../domain/child_tracker_state.dart' show currentZone;
 import '../domain/geofence_alerts.dart';
 import '../domain/hydration.dart';
@@ -15,6 +16,7 @@ import '../domain/weekly_digest.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
+import 'appointments/appointments_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'dashboard/water_history_screen.dart';
@@ -64,6 +66,11 @@ class _HomeShellState extends State<HomeShell> {
         weeklyDigest: computeWeeklyDigest(
           c.dayLogs, c.waterLog, c.sleepNights, DateTime.now(),
           waterGoal: c.waterGoal,
+        ),
+        nextAppointment: nextAppointment(c.appointments, DateTime.now()),
+        nowForAppointment: DateTime.now(),
+        onOpenAppointments: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => AppointmentsScreen(controller: c)),
         ),
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),

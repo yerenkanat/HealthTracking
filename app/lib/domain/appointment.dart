@@ -56,3 +56,15 @@ int daysUntil(Appointment a, DateTime now) {
   final d1 = DateTime(a.at.year, a.at.month, a.at.day);
   return d1.difference(d0).inDays;
 }
+
+/// How imminent an appointment is, for copy + accent colour on the countdown
+/// card. Buckets the whole-day distance: today, tomorrow, within a week, later.
+enum ApptWhen { today, tomorrow, soon, later }
+
+ApptWhen appointmentWhen(int daysUntil) => daysUntil <= 0
+    ? ApptWhen.today
+    : daysUntil == 1
+        ? ApptWhen.tomorrow
+        : daysUntil <= 7
+            ? ApptWhen.soon
+            : ApptWhen.later;

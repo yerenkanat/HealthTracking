@@ -229,6 +229,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'appt_plus_day': {AppLocale.ru: 'Перенести на день', AppLocale.kk: 'Бір күнге жылжыту', AppLocale.en: 'Move +1 day'},
   'appt_plus_week': {AppLocale.ru: 'Перенести на неделю', AppLocale.kk: 'Бір аптаға жылжыту', AppLocale.en: 'Move +1 week'},
   'appt_upcoming': {AppLocale.ru: 'Предстоящие', AppLocale.kk: 'Алдағы', AppLocale.en: 'Upcoming'},
+  'appt_next': {AppLocale.ru: 'Следующий визит', AppLocale.kk: 'Келесі қабылдау', AppLocale.en: 'Next appointment'},
   'appt_past': {AppLocale.ru: 'Прошедшие', AppLocale.kk: 'Өткен', AppLocale.en: 'Past'},
   'appt_empty': {AppLocale.ru: 'Пока нет напоминаний.\nДобавьте визит к врачу или обследование.', AppLocale.kk: 'Әзірге еске салғыш жоқ.\nДәрігерге бару немесе тексеру қосыңыз.', AppLocale.en: 'No reminders yet.\nAdd a doctor visit or a check-up.'},
   'appt_none': {AppLocale.ru: 'Нет предстоящих напоминаний', AppLocale.kk: 'Алдағы еске салғыш жоқ', AppLocale.en: 'No upcoming reminders'},
