@@ -279,6 +279,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'share_summary_nodata': {AppLocale.ru: 'Пока нет данных', AppLocale.kk: 'Әзірге дерек жоқ', AppLocale.en: 'No readings yet'},
   'share_status_pregnancy': {AppLocale.ru: 'Беременность · {week} нед.', AppLocale.kk: 'Жүктілік · {week} апта', AppLocale.en: 'Pregnancy · week {week}'},
   'share_status_cycle': {AppLocale.ru: 'Цикл · день {day} · месячные через {n} дн.', AppLocale.kk: 'Цикл · {day}-күн · етеккір {n} күнде', AppLocale.en: 'Cycle · day {day} · period in {n} days'},
+  'db_chip_cycle': {AppLocale.ru: 'Цикл · день {n}', AppLocale.kk: 'Цикл · {n}-күн', AppLocale.en: 'Cycle · Day {n}'},
+  'db_chip_pregnancy': {AppLocale.ru: 'Беременность · {n} нед.', AppLocale.kk: 'Жүктілік · {n}-апта', AppLocale.en: 'Pregnancy · Week {n}'},
   'share_status_cycle_late': {AppLocale.ru: 'Цикл · день {day} · задержка {n} дн.', AppLocale.kk: 'Цикл · {day}-күн · кешігу {n} күн', AppLocale.en: 'Cycle · day {day} · {n} days late'},
   'metric_hr': {AppLocale.ru: 'Пульс', AppLocale.kk: 'Жүрек соғысы', AppLocale.en: 'Heart rate'},
   'metric_spo2': {AppLocale.ru: 'Кислород в крови', AppLocale.kk: 'Қандағы оттегі', AppLocale.en: 'Blood oxygen'},

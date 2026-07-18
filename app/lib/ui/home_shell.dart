@@ -53,6 +53,9 @@ class _HomeShellState extends State<HomeShell> {
         photoPath: c.profile.photoPath,
         currentLocale: c.locale,
         summaryStatus: _summaryStatus(c, l),
+        statusChip: _statusChip(c, l),
+        statusChipPregnancy: c.isPregnant,
+        onOpenStatus: () => setState(() => _index = 1),
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
         onOpenAdvisor: () => Navigator.of(context).push(
@@ -151,6 +154,18 @@ class _HomeShellState extends State<HomeShell> {
           ? l.t('share_status_cycle', {'day': cyc.cycleDay, 'n': until})
           : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
     }
+    return '';
+  }
+
+  /// A short chip label for the dashboard: pregnancy week or cycle day. Empty
+  /// when there's no cycle/pregnancy data yet (chip hidden).
+  String _statusChip(AppController c, L10n l) {
+    if (c.isPregnant) {
+      final g = c.gestation;
+      return g != null ? l.t('db_chip_pregnancy', {'n': g.week}) : '';
+    }
+    final cyc = c.cycle;
+    if (cyc.hasData && cyc.cycleDay != null) return l.t('db_chip_cycle', {'n': cyc.cycleDay});
     return '';
   }
 

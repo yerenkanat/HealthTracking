@@ -56,6 +56,10 @@ class HealthDashboardView extends StatelessWidget {
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenAdvisor;
   final String summaryStatus; // pregnancy/cycle status line for the shared summary
+  // Quick status chip: cycle day / pregnancy week (empty = hidden).
+  final String statusChip;
+  final bool statusChipPregnancy;
+  final VoidCallback? onOpenStatus;
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -74,6 +78,9 @@ class HealthDashboardView extends StatelessWidget {
     this.onOpenProfile,
     this.onOpenAdvisor,
     this.summaryStatus = '',
+    this.statusChip = '',
+    this.statusChipPregnancy = false,
+    this.onOpenStatus,
     this.waterCount = 0,
     this.waterGoal = 8,
     this.onAddWater,
@@ -119,6 +126,10 @@ class HealthDashboardView extends StatelessWidget {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                 children: [
+                  if (statusChip.isNotEmpty && onOpenStatus != null) ...[
+                    _StatusChip(label: statusChip, pregnancy: statusChipPregnancy, onTap: onOpenStatus!),
+                    const SizedBox(height: 12),
+                  ],
                   _PeaceOfMindBanner(samples: samples, name: greetingName),
                   const SizedBox(height: 16),
                   GridView.count(
@@ -496,6 +507,49 @@ class _AdvisorEntry extends StatelessWidget {
                 child: const Icon(Icons.arrow_forward_rounded, color: Palette.violet, size: 17),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A compact, tappable pill showing the current cycle day or pregnancy week,
+/// opening the women's-health tab. Rose for cycle, violet for pregnancy.
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final bool pregnancy;
+  final VoidCallback onTap;
+  const _StatusChip({required this.label, required this.pregnancy, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = pregnancy ? Palette.violet : Palette.roseDeep;
+    final icon = pregnancy ? Icons.pregnant_woman_rounded : Icons.spa_rounded;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(30),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              color: accent.withValues(alpha: 0.10),
+              border: Border.all(color: accent.withValues(alpha: 0.22)),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 17, color: accent),
+                const SizedBox(width: 7),
+                Text(label, style: TextStyle(color: accent, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 2),
+                Icon(Icons.chevron_right_rounded, size: 18, color: accent.withValues(alpha: 0.8)),
+              ],
+            ),
           ),
         ),
       ),

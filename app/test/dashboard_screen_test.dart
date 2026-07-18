@@ -64,6 +64,30 @@ void main() {
     expect(find.byIcon(Icons.ios_share_rounded), findsNothing);
   });
 
+  testWidgets('status chip shows the cycle/pregnancy label and taps through', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    var opened = false;
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        statusChip: 'Cycle · Day 14',
+        onOpenStatus: () => opened = true,
+      ),
+    ));
+    expect(find.text('Cycle · Day 14'), findsOneWidget);
+    await tester.tap(find.text('Cycle · Day 14'));
+    await tester.pump();
+    expect(opened, isTrue);
+  });
+
+  testWidgets('status chip is hidden without an onOpenStatus callback', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(samples: samples, statusChip: 'Cycle · Day 14'), // no onOpenStatus
+    ));
+    expect(find.text('Cycle · Day 14'), findsNothing);
+  });
+
   testWidgets('water card adds a glass and reflects the goal', (tester) async {
     final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
     var count = 3;
