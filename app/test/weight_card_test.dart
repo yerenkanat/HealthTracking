@@ -12,7 +12,7 @@ void main() {
       );
 
   testWidgets('empty state prompts to log', (tester) async {
-    await tester.pumpWidget(wrap(WeightCard(entries: const [], onLog: (_) {})));
+    await tester.pumpWidget(wrap(WeightCard(entries: const [], onLog: (_) {}, onSetGoal: (_) {})));
     expect(find.text('Log your weight to see the trend.'), findsOneWidget);
   });
 
@@ -21,7 +21,7 @@ void main() {
       WeightEntry(date: '2026-07-01', kg: 62.0),
       WeightEntry(date: '2026-07-15', kg: 63.4),
     ];
-    await tester.pumpWidget(wrap(WeightCard(entries: entries, onLog: (_) {})));
+    await tester.pumpWidget(wrap(WeightCard(entries: entries, onLog: (_) {}, onSetGoal: (_) {})));
     expect(find.text('63.4'), findsOneWidget);
     expect(find.text('+1.4 kg since start'), findsOneWidget);
   });
@@ -31,6 +31,7 @@ void main() {
     await tester.pumpWidget(wrap(WeightCard(
       entries: const [WeightEntry(date: '2026-07-15', kg: 63.0)],
       onLog: (kg) => logged = kg,
+      onSetGoal: (_) {},
     )));
     await tester.tap(find.text('Log weight'));
     await tester.pumpAndSettle();
@@ -42,5 +43,34 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(logged, closeTo(63.2, 1e-9));
+  });
+
+  testWidgets('shows target progress and "reached"', (tester) async {
+    // Latest 63.0, target 70 → 7.0 kg to go.
+    await tester.pumpWidget(wrap(WeightCard(
+      entries: const [WeightEntry(date: '2026-07-15', kg: 63.0)],
+      onLog: (_) {},
+      onSetGoal: (_) {},
+      goalKg: 70,
+    )));
+    expect(find.textContaining('7.0 kg to go'), findsOneWidget);
+
+    // Latest at/over the target → reached.
+    await tester.pumpWidget(wrap(WeightCard(
+      entries: const [WeightEntry(date: '2026-07-15', kg: 70.5)],
+      onLog: (_) {},
+      onSetGoal: (_) {},
+      goalKg: 70,
+    )));
+    expect(find.text('Target reached 🎉'), findsOneWidget);
+  });
+
+  testWidgets('no target → shows a set-target prompt', (tester) async {
+    await tester.pumpWidget(wrap(WeightCard(
+      entries: const [WeightEntry(date: '2026-07-15', kg: 63.0)],
+      onLog: (_) {},
+      onSetGoal: (_) {},
+    )));
+    expect(find.text('+ Set a weight target'), findsOneWidget);
   });
 }

@@ -16,7 +16,9 @@ import '../widgets/glass.dart';
 class WeightCard extends StatelessWidget {
   final List<WeightEntry> entries;
   final ValueChanged<double> onLog;
-  const WeightCard({super.key, required this.entries, required this.onLog});
+  final double? goalKg;
+  final ValueChanged<double?> onSetGoal;
+  const WeightCard({super.key, required this.entries, required this.onLog, this.goalKg, required this.onSetGoal});
 
   @override
   Widget build(BuildContext context) {
@@ -70,8 +72,30 @@ class WeightCard extends StatelessWidget {
                 child: Sparkline(points: points, band: const MetricBand(), color: Palette.violet),
               ),
             ],
+            const SizedBox(height: 10),
+            _TargetRow(latest: stats.latest, goalKg: goalKg, onTap: () => _openTarget(context, l, stats.latest)),
           ],
         ],
+      ),
+    );
+  }
+
+  void _openTarget(BuildContext context, L10n l, double latest) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetCtx) => _WeightTargetSheet(
+        seed: goalKg ?? (latest + 5),
+        hasGoal: goalKg != null,
+        onSave: (kg) {
+          onSetGoal(kg);
+          Navigator.of(sheetCtx).pop();
+        },
+        onClear: () {
+          onSetGoal(null);
+          Navigator.of(sheetCtx).pop();
+        },
       ),
     );
   }
@@ -103,6 +127,104 @@ class _DeltaBadge extends StatelessWidget {
       decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
       child: Text(l.t('weight_delta', {'sign': sign, 'kg': delta.abs().toStringAsFixed(1)}),
           style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+    );
+  }
+}
+
+/// A tappable target row: set a target, or show progress toward it.
+class _TargetRow extends StatelessWidget {
+  final double latest;
+  final double? goalKg;
+  final VoidCallback onTap;
+  const _TargetRow({required this.latest, required this.goalKg, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final Widget content;
+    if (goalKg == null) {
+      content = Text(l.t('weight_set_target'),
+          style: const TextStyle(color: Palette.violet, fontSize: 13, fontWeight: FontWeight.w600));
+    } else {
+      final reached = weightTargetReached(latest, goalKg!);
+      final remaining = weightRemaining(latest, goalKg!).abs();
+      content = Row(children: [
+        Icon(Icons.flag_rounded, size: 16, color: reached ? Palette.good : Palette.textDim),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            reached
+                ? l.t('weight_target_reached')
+                : l.t('weight_target_to_go', {'target': goalKg!.toStringAsFixed(1), 'kg': remaining.toStringAsFixed(1)}),
+            style: TextStyle(color: reached ? Palette.good : Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const Icon(Icons.edit_outlined, size: 14, color: Palette.textDim),
+      ]);
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: content),
+    );
+  }
+}
+
+/// Set / edit / clear the target weight.
+class _WeightTargetSheet extends StatefulWidget {
+  final double seed;
+  final bool hasGoal;
+  final ValueChanged<double> onSave;
+  final VoidCallback onClear;
+  const _WeightTargetSheet({required this.seed, required this.hasGoal, required this.onSave, required this.onClear});
+  @override
+  State<_WeightTargetSheet> createState() => _WeightTargetSheetState();
+}
+
+class _WeightTargetSheetState extends State<_WeightTargetSheet> {
+  late double _kg = widget.seed.clamp(minWeightKg, maxWeightKg).toDouble();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 18, 20, 24 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('weight_target_title'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Palette.text)),
+          const SizedBox(height: 18),
+          Center(
+            child: Text('${_kg.toStringAsFixed(1)} kg',
+                style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 30, fontWeight: FontWeight.w700, color: Palette.text)),
+          ),
+          Slider(
+            value: _kg,
+            min: 40,
+            max: 130,
+            divisions: (130 - 40) * 2,
+            label: _kg.toStringAsFixed(1),
+            activeColor: Palette.violet,
+            onChanged: (v) => setState(() => _kg = double.parse(v.toStringAsFixed(1))),
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            if (widget.hasGoal)
+              TextButton(
+                onPressed: widget.onClear,
+                style: TextButton.styleFrom(foregroundColor: Palette.danger),
+                child: Text(l.t('weight_target_clear')),
+              ),
+            const Spacer(),
+            FilledButton(
+              onPressed: () => widget.onSave(double.parse(_kg.toStringAsFixed(1))),
+              style: FilledButton.styleFrom(backgroundColor: Palette.violet, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+              child: Text(l.t('act_save'), style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ]),
+        ],
+      ),
     );
   }
 }

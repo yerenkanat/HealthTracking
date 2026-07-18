@@ -92,6 +92,7 @@ class PersistedConfig {
   final int? waterGoal; // daily target (glasses); null → default
   final List<Appointment> appointments; // the mother's dated reminders
   final List<WeightEntry> weights; // weight log (one per day)
+  final double? weightGoalKg; // user-set target weight (null = none)
   final Map<String, int> childBattery; // childId → tracker battery % (last known)
   final int? waterReminderMinutes; // daily reminder time (minutes since midnight); null = off
 
@@ -114,6 +115,7 @@ class PersistedConfig {
     this.waterGoal,
     this.appointments = const [],
     this.weights = const [],
+    this.weightGoalKg,
     this.childBattery = const {},
     this.waterReminderMinutes,
   });
@@ -138,6 +140,7 @@ class PersistedConfig {
         if (waterGoal != null) 'waterGoal': waterGoal,
         if (appointments.isNotEmpty) 'appointments': [for (final a in appointments) a.toJson()],
         if (weights.isNotEmpty) 'weights': [for (final w in weights) w.toJson()],
+        if (weightGoalKg != null) 'weightGoalKg': weightGoalKg,
         if (childBattery.isNotEmpty) 'childBattery': childBattery,
         if (waterReminderMinutes != null) 'waterReminderMinutes': waterReminderMinutes,
       };
@@ -189,6 +192,7 @@ class PersistedConfig {
           for (final w in (j['weights'] as List? ?? const []))
             WeightEntry.fromJson((w as Map).cast<String, dynamic>())
         ],
+        weightGoalKg: (j['weightGoalKg'] as num?)?.toDouble(),
         childBattery: j['childBattery'] is Map
             ? {for (final e in (j['childBattery'] as Map).entries) '${e.key}': (e.value as num).toInt()}
             : const {},

@@ -128,7 +128,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 ],
                 if (!cycleMode) ...[
                   const SizedBox(height: 14),
-                  WeightCard(entries: c.weights, onLog: (kg) => c.logWeight(_today, kg)),
+                  WeightCard(entries: c.weights, onLog: (kg) => c.logWeight(_today, kg), goalKg: c.weightGoalKg, onSetGoal: c.setWeightGoal),
                 ],
                 const SizedBox(height: 16),
                 _MonthCalendar(

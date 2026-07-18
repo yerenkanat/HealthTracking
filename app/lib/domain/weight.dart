@@ -52,6 +52,13 @@ class WeightStats {
   double get delta => latest - first;
 }
 
+/// Remaining distance to a target weight (target − latest). Positive = still to
+/// gain, negative = above the target.
+double weightRemaining(double latest, double target) => target - latest;
+
+/// Whether the latest weight has reached the target (within 0.05 kg).
+bool weightTargetReached(double latest, double target) => (target - latest) <= 0.05;
+
 /// Summary over the (assumed sorted) [entries], or null when empty.
 WeightStats? computeWeightStats(List<WeightEntry> entries) {
   if (entries.isEmpty) return null;

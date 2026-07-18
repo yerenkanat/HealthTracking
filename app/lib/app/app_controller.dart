@@ -99,6 +99,7 @@ class AppController {
   final List<Appointment> _appointments = [];
   int _apptSeq = 0; // disambiguates ids created within the same microsecond
   List<WeightEntry> _weights = [];
+  double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
 
@@ -171,6 +172,7 @@ class AppController {
       ..clear()
       ..addAll(cfg.appointments);
     _weights = List.of(cfg.weights);
+    _weightGoalKg = cfg.weightGoalKg;
     _childBattery
       ..clear()
       ..addAll(cfg.childBattery);
@@ -219,6 +221,7 @@ class AppController {
         waterGoal: _waterGoal,
         appointments: List.of(_appointments),
         weights: List.of(_weights),
+        weightGoalKg: _weightGoalKg,
         childBattery: Map.of(_childBattery),
         waterReminderMinutes: _waterReminderMinutes,
       );
@@ -537,6 +540,16 @@ class AppController {
 
   void removeWeightEntry(String dateKeyToRemove) {
     _weights = removeWeight(_weights, dateKeyToRemove);
+    _persist();
+    _notify();
+  }
+
+  /// The user-set target weight (kg), or null.
+  double? get weightGoalKg => _weightGoalKg;
+
+  /// Set (or clear, with null) the target weight.
+  void setWeightGoal(double? kg) {
+    _weightGoalKg = kg;
     _persist();
     _notify();
   }

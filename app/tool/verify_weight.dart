@@ -46,6 +46,13 @@ void main() {
   final rt = WeightEntry.fromJson(e.last.toJson());
   _chk('round-trip', rt.date == '2026-07-15' && rt.kg == 63.9);
 
+  // Target progress.
+  _chk('remaining to target', weightRemaining(63.9, 70) == (70 - 63.9));
+  _chk('remaining negative when above', weightRemaining(72, 70) == -2);
+  _chk('target not reached below', !weightTargetReached(63.9, 70));
+  _chk('target reached at goal', weightTargetReached(70, 70));
+  _chk('target reached when above', weightTargetReached(71, 70));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

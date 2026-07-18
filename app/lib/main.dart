@@ -90,6 +90,12 @@ void _seedDemo(AppController c) {
       Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120),
     ],
   );
+  // Demo: a weight entry + target so the weight card shows progress.
+  if (c.weights.isEmpty) {
+    c.logWeight(today.subtract(const Duration(days: 14)), 62.0);
+    c.logWeight(today, 65.0);
+    c.setWeightGoal(72.0);
+  }
   // Demo: seed the tracker battery so the status chip is populated.
   final demoChild = c.selectedChild;
   if (demoChild != null) c.setChildBattery(demoChild.id, 62);
