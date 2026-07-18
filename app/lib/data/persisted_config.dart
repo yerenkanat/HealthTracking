@@ -96,6 +96,7 @@ class PersistedConfig {
   final Map<String, int> childBattery; // childId → tracker battery % (last known)
   final int? waterReminderMinutes; // daily reminder time (minutes since midnight); null = off
   final bool periodReminderEnabled; // remind ~2 days before the predicted period
+  final bool fertileReminderEnabled; // remind when the fertile window opens
 
   const PersistedConfig({
     required this.onboarded,
@@ -120,6 +121,7 @@ class PersistedConfig {
     this.childBattery = const {},
     this.waterReminderMinutes,
     this.periodReminderEnabled = false,
+    this.fertileReminderEnabled = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -146,6 +148,7 @@ class PersistedConfig {
         if (childBattery.isNotEmpty) 'childBattery': childBattery,
         if (waterReminderMinutes != null) 'waterReminderMinutes': waterReminderMinutes,
         if (periodReminderEnabled) 'periodReminderEnabled': periodReminderEnabled,
+        if (fertileReminderEnabled) 'fertileReminderEnabled': fertileReminderEnabled,
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -201,6 +204,7 @@ class PersistedConfig {
             : const {},
         waterReminderMinutes: (j['waterReminderMinutes'] as num?)?.toInt(),
         periodReminderEnabled: (j['periodReminderEnabled'] as bool?) ?? false,
+        fertileReminderEnabled: (j['fertileReminderEnabled'] as bool?) ?? false,
       );
 
   String encode() => jsonEncode(toJson());

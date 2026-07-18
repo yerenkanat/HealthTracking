@@ -71,6 +71,46 @@ void main() {
     await c.dispose();
   });
 
+  test('fertile reminder schedules for the fertile-window start', () async {
+    final c = AppController(now: () => today);
+    seedCycle(c);
+    final cmds = <ReminderCommand>[];
+    final sub = c.reminderCommands.listen(cmds.add);
+
+    c.setFertileReminder(true);
+    await Future<void>.delayed(Duration.zero);
+
+    final scheduled = cmds.where((r) => r.at != null).toList();
+    expect(scheduled, isNotEmpty);
+    final fs = c.cycle.fertileStart!;
+    expect(scheduled.last.at, DateTime(fs.year, fs.month, fs.day, 10));
+
+    // Disabling cancels it.
+    cmds.clear();
+    c.setFertileReminder(false);
+    await Future<void>.delayed(Duration.zero);
+    expect(cmds.any((r) => r.at == null), isTrue);
+    expect(c.fertileReminderEnabled, isFalse);
+
+    await sub.cancel();
+    await c.dispose();
+  });
+
+  test('period + fertile reminders are independent', () async {
+    final c = AppController(now: () => today);
+    seedCycle(c);
+    c.setPeriodReminder(true); // period on, fertile off
+    final cmds = <ReminderCommand>[];
+    final sub = c.reminderCommands.listen(cmds.add);
+    // A cycle change reconciles both; the period one schedules, the fertile one cancels.
+    c.toggleFlowFor(today, Flow.medium);
+    await Future<void>.delayed(Duration.zero);
+    expect(cmds.any((r) => r.at != null), isTrue); // period scheduled
+    expect(cmds.any((r) => r.at == null), isTrue); // fertile cancelled
+    await sub.cancel();
+    await c.dispose();
+  });
+
   test('no cycle data → no scheduled reminder (cancels)', () async {
     final c = AppController(now: () => today);
     final cmds = <ReminderCommand>[];

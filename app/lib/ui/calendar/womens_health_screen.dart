@@ -256,6 +256,17 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   title: Text(l.t('period_reminder'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                   subtitle: Text(l.t('period_reminder_sub'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeThumbColor: Palette.teal,
+                  value: c.fertileReminderEnabled,
+                  onChanged: (v) {
+                    c.setFertileReminder(v);
+                    setSheet(() {});
+                  },
+                  title: Text(l.t('fertile_reminder'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  subtitle: Text(l.t('fertile_reminder_sub'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                ),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () {
