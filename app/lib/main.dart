@@ -96,9 +96,14 @@ void _seedDemo(AppController c) {
     c.logWeight(today, 65.0);
     c.setWeightGoal(72.0);
   }
-  // Demo: seed the tracker battery so the status chip is populated.
+  // Demo: seed the tracker battery (a short declining series so the history
+  // sheet has something to show) so the status chip is populated.
   final demoChild = c.selectedChild;
-  if (demoChild != null) c.setChildBattery(demoChild.id, 62);
+  if (demoChild != null) {
+    for (final pct in [88, 80, 71, 62]) {
+      c.setChildBattery(demoChild.id, pct);
+    }
+  }
   // Demo: an upcoming appointment so the reminders list + calendar dot show data.
   // Guarded so re-running the demo (hot restart) doesn't pile up duplicates.
   if (c.appointments.isEmpty) {

@@ -43,6 +43,7 @@ class ChildMapScreen extends StatelessWidget {
   final int alertCount;
   final int? childAgeMonths; // for age-appropriate safety tips (null if no DOB)
   final int? batteryPct; // tracker battery %, null if unknown
+  final List<BatteryReading> batteryHistory; // recent readings, oldest-first
   final VoidCallback? onCheckIn; // manual "arrived / all good" event
   final VoidCallback? onSos; // manual emergency signal (confirmed first)
 
@@ -64,6 +65,7 @@ class ChildMapScreen extends StatelessWidget {
     this.alertCount = 0,
     this.childAgeMonths,
     this.batteryPct,
+    this.batteryHistory = const [],
     this.onCheckIn,
     this.onSos,
   });
@@ -194,6 +196,8 @@ class ChildMapScreen extends StatelessWidget {
                   distanceLabel: status.distanceFromHomeM == null ? null : l.distanceFromHome(status.distanceFromHomeM!),
                   freshnessLabel: l.freshnessLabel(status.freshness),
                   batteryPct: batteryPct,
+                  batteryHistory: batteryHistory,
+                  now: now,
                 ),
               ],
             ),
@@ -314,6 +318,8 @@ class MinimalTrackingStatusBar extends StatelessWidget {
   final String? distanceLabel;
   final String freshnessLabel;
   final int? batteryPct;
+  final List<BatteryReading> batteryHistory;
+  final DateTime? now;
 
   const MinimalTrackingStatusBar({
     super.key,
@@ -323,6 +329,8 @@ class MinimalTrackingStatusBar extends StatelessWidget {
     this.zoneLabel,
     this.distanceLabel,
     this.batteryPct,
+    this.batteryHistory = const [],
+    this.now,
   });
 
   // Warm, low-anxiety palette: live = calm green, recent = calm blue, delayed =
@@ -372,7 +380,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
               ),
               if (batteryPct != null) ...[
                 const SizedBox(width: 8),
-                _BatteryChip(pct: batteryPct!),
+                _BatteryChip(pct: batteryPct!, history: batteryHistory, now: now ?? DateTime.now()),
               ],
               const Spacer(),
               if (distanceLabel != null)
@@ -403,7 +411,9 @@ class MinimalTrackingStatusBar extends StatelessWidget {
 /// amber, otherwise a calm neutral). Sits next to the freshness badge.
 class _BatteryChip extends StatelessWidget {
   final int pct;
-  const _BatteryChip({required this.pct});
+  final List<BatteryReading> history;
+  final DateTime now;
+  const _BatteryChip({required this.pct, this.history = const [], required this.now});
 
   @override
   Widget build(BuildContext context) {
@@ -415,8 +425,10 @@ class _BatteryChip extends StatelessWidget {
       BatteryLevel.ok => (Palette.textDim, Icons.battery_5_bar_rounded),
       BatteryLevel.full => (Palette.good, Icons.battery_full_rounded),
     };
-    return Semantics(
+    final tappable = history.length >= 2;
+    final chip = Semantics(
       label: l.t('tr_battery', {'pct': pct}),
+      button: tappable,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(30)),
@@ -424,8 +436,82 @@ class _BatteryChip extends StatelessWidget {
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 5),
           Text('$pct%', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+          if (tappable) ...[
+            const SizedBox(width: 3),
+            Icon(Icons.expand_more_rounded, size: 14, color: color),
+          ],
         ]),
       ),
+    );
+    if (!tappable) return chip;
+    return InkWell(
+      borderRadius: BorderRadius.circular(30),
+      onTap: () => _showHistory(context, l),
+      child: chip,
+    );
+  }
+
+  void _showHistory(BuildContext context, L10n l) {
+    final change = batteryChange(history);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Palette.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      builder: (ctx) {
+        final recent = history.reversed.toList(); // newest-first for display
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Text(l.t('bat_history_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(
+                change == 0
+                    ? l.t('bat_change_flat')
+                    : l.t(change < 0 ? 'bat_change_down' : 'bat_change_up', {'n': change.abs()}),
+                style: const TextStyle(color: Palette.textDim, fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.4),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: recent.length,
+                  separatorBuilder: (_, __) => const Divider(height: 14, color: Palette.border),
+                  itemBuilder: (_, i) {
+                    final r = recent[i];
+                    final level = batteryLevel(r.pct);
+                    final color = switch (level) {
+                      BatteryLevel.critical => Palette.danger,
+                      BatteryLevel.low => Palette.amber,
+                      BatteryLevel.ok => Palette.textDim,
+                      BatteryLevel.full => Palette.good,
+                    };
+                    final age = now.difference(r.at);
+                    return Row(
+                      children: [
+                        Icon(Icons.circle, size: 10, color: color),
+                        const SizedBox(width: 12),
+                        Text('${r.pct}%', style: TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: color, fontSize: 15)),
+                        const Spacer(),
+                        Text(l.ago(age.isNegative ? Duration.zero : age), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -23,3 +23,33 @@ bool isLowBattery(int pct) {
 
 /// Clamp a raw reading into 0..100.
 int clampPct(int pct) => pct < 0 ? 0 : (pct > 100 ? 100 : pct);
+
+/// A single timestamped battery reading, kept in a per-child history. Pure + JSON.
+class BatteryReading {
+  final DateTime at;
+  final int pct;
+  const BatteryReading(this.at, this.pct);
+
+  Map<String, dynamic> toJson() => {'at': at.toIso8601String(), 'pct': pct};
+
+  factory BatteryReading.fromJson(Map<String, dynamic> j) =>
+      BatteryReading(DateTime.parse(j['at'] as String), (j['pct'] as num).toInt());
+}
+
+/// Append [pct] at [at] to [history] (oldest-first), collapsing a same-percentage
+/// reading in a row (no point storing "62, 62, 62") and capping the list at
+/// [cap] most-recent entries. Returns a new list.
+List<BatteryReading> appendBatteryReading(List<BatteryReading> history, int pct, DateTime at, {int cap = 30}) {
+  final p = clampPct(pct);
+  if (history.isNotEmpty && history.last.pct == p) return history;
+  final next = [...history, BatteryReading(at, p)];
+  if (next.length > cap) return next.sublist(next.length - cap);
+  return next;
+}
+
+/// Net change across a reading history (last − first). 0 for fewer than 2.
+int batteryChange(List<BatteryReading> history) =>
+    history.length < 2 ? 0 : history.last.pct - history.first.pct;
+
+/// Whether the tracker is draining over the recorded window (net change < 0).
+bool batteryDraining(List<BatteryReading> history) => batteryChange(history) < 0;

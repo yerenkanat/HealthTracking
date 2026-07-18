@@ -101,6 +101,7 @@ class AppController {
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
+  final Map<String, List<BatteryReading>> _batteryHistory = {}; // childId → readings (oldest-first)
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
   bool _periodReminderEnabled = false;
   bool _fertileReminderEnabled = false;
@@ -180,6 +181,9 @@ class AppController {
     _childBattery
       ..clear()
       ..addAll(cfg.childBattery);
+    _batteryHistory
+      ..clear()
+      ..addAll({for (final e in cfg.childBatteryHistory.entries) e.key: List.of(e.value)});
     _waterReminderMinutes = cfg.waterReminderMinutes;
     _periodReminderEnabled = cfg.periodReminderEnabled;
     _fertileReminderEnabled = cfg.fertileReminderEnabled;
@@ -229,6 +233,7 @@ class AppController {
         weights: List.of(_weights),
         weightGoalKg: _weightGoalKg,
         childBattery: Map.of(_childBattery),
+        childBatteryHistory: {for (final e in _batteryHistory.entries) e.key: List.of(e.value)},
         waterReminderMinutes: _waterReminderMinutes,
         periodReminderEnabled: _periodReminderEnabled,
         fertileReminderEnabled: _fertileReminderEnabled,
@@ -581,6 +586,13 @@ class AppController {
   /// The selected child's tracker battery %, or null.
   int? get selectedChildBattery => batteryFor(selectedChild?.id);
 
+  /// Recorded battery readings for [childId], oldest-first (empty if unknown).
+  List<BatteryReading> batteryHistoryFor(String? childId) =>
+      childId == null ? const [] : (_batteryHistory[childId] ?? const []);
+
+  /// The selected child's battery reading history, oldest-first.
+  List<BatteryReading> get selectedChildBatteryHistory => batteryHistoryFor(selectedChild?.id);
+
   /// Update a child tracker's battery reading (from device telemetry). When the
   /// reading first crosses into the low range, raise a low-battery alert (feed +
   /// OS notification) — but not repeatedly while it stays low.
@@ -589,6 +601,7 @@ class AppController {
     final prev = _childBattery[childId];
     final crossedIntoLow = isLowBattery(next) && (prev == null || !isLowBattery(prev));
     _childBattery[childId] = next;
+    _batteryHistory[childId] = appendBatteryReading(_batteryHistory[childId] ?? const [], next, _now());
     if (crossedIntoLow) {
       String name = childName;
       for (final c in _children) {

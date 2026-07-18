@@ -106,6 +106,7 @@ class _HomeShellState extends State<HomeShell> {
           MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
         ),
         batteryPct: c.selectedChildBattery,
+        batteryHistory: c.selectedChildBatteryHistory,
         onCheckIn: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.checkIn),
         onSos: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.sos),
       ),

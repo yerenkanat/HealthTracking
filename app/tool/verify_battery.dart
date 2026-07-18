@@ -33,6 +33,26 @@ void main() {
   _chk('clampPct high', clampPct(140) == 100);
   _chk('clampPct mid', clampPct(63) == 63);
 
+  // ---- Reading history ----
+  final t = DateTime(2026, 7, 15, 9);
+  var h = <BatteryReading>[];
+  h = appendBatteryReading(h, 80, t);
+  h = appendBatteryReading(h, 80, t.add(const Duration(hours: 1))); // duplicate collapses
+  h = appendBatteryReading(h, 74, t.add(const Duration(hours: 2)));
+  h = appendBatteryReading(h, 60, t.add(const Duration(hours: 3)));
+  _chk('duplicate reading collapsed', h.length == 3);
+  _chk('history is oldest-first', h.first.pct == 80 && h.last.pct == 60);
+  _chk('net change is negative', batteryChange(h) == -20 && batteryDraining(h));
+  _chk('single reading → no change', batteryChange([BatteryReading(t, 50)]) == 0);
+  _chk('reading round-trips', BatteryReading.fromJson(h.last.toJson()).pct == 60);
+
+  // Cap keeps only the most recent N.
+  var capped = <BatteryReading>[];
+  for (var i = 0; i < 40; i++) {
+    capped = appendBatteryReading(capped, 100 - i, t.add(Duration(minutes: i)), cap: 10);
+  }
+  _chk('history capped at 10', capped.length == 10 && capped.last.pct == 61);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/core/geofence.dart';
+import 'package:fcs_app/domain/battery.dart';
 import 'package:fcs_app/ui/tracking/child_map_screen.dart';
 
 void main() {
@@ -10,7 +11,15 @@ void main() {
   final school = Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120);
   final now = DateTime.utc(2026, 7, 15, 9, 0);
 
-  Widget harness({Coordinates? loc, DateTime? updated, VoidCallback? onCheckIn, VoidCallback? onSos, int? batteryPct}) => MaterialApp(
+  Widget harness({
+    Coordinates? loc,
+    DateTime? updated,
+    VoidCallback? onCheckIn,
+    VoidCallback? onSos,
+    int? batteryPct,
+    List<BatteryReading> batteryHistory = const [],
+  }) =>
+      MaterialApp(
         home: ChildMapScreen(
           childName: 'Sultan',
           childLocation: loc,
@@ -21,6 +30,7 @@ void main() {
           onCheckIn: onCheckIn,
           onSos: onSos,
           batteryPct: batteryPct,
+          batteryHistory: batteryHistory,
         ),
       );
 
@@ -87,5 +97,26 @@ void main() {
   testWidgets('no battery chip when battery is unknown', (tester) async {
     await tester.pumpWidget(harness(loc: home.center, updated: now));
     expect(find.textContaining('%'), findsNothing);
+  });
+
+  testWidgets('battery chip opens a history sheet with recent readings', (tester) async {
+    final history = [
+      BatteryReading(now.subtract(const Duration(hours: 6)), 88),
+      BatteryReading(now.subtract(const Duration(hours: 4)), 80),
+      BatteryReading(now.subtract(const Duration(hours: 2)), 62),
+    ];
+    await tester.pumpWidget(harness(loc: home.center, updated: now, batteryPct: 62, batteryHistory: history));
+    await tester.tap(find.text('62%'));
+    await tester.pumpAndSettle();
+    expect(find.text('Battery history'), findsOneWidget);
+    expect(find.text('Down 26% over this period'), findsOneWidget); // 88 → 62
+    expect(find.text('88%'), findsOneWidget); // an earlier reading in the list
+  });
+
+  testWidgets('battery chip is not tappable with fewer than two readings', (tester) async {
+    await tester.pumpWidget(harness(loc: home.center, updated: now, batteryPct: 62, batteryHistory: [BatteryReading(now, 62)]));
+    await tester.tap(find.text('62%'));
+    await tester.pumpAndSettle();
+    expect(find.text('Battery history'), findsNothing);
   });
 }

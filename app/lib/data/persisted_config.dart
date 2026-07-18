@@ -8,6 +8,7 @@ import 'dart:convert';
 import '../ble/calibration.dart';
 import '../core/geofence.dart';
 import '../domain/appointment.dart';
+import '../domain/battery.dart';
 import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
@@ -94,6 +95,7 @@ class PersistedConfig {
   final List<WeightEntry> weights; // weight log (one per day)
   final double? weightGoalKg; // user-set target weight (null = none)
   final Map<String, int> childBattery; // childId → tracker battery % (last known)
+  final Map<String, List<BatteryReading>> childBatteryHistory; // childId → readings (oldest-first)
   final int? waterReminderMinutes; // daily reminder time (minutes since midnight); null = off
   final bool periodReminderEnabled; // remind ~2 days before the predicted period
   final bool fertileReminderEnabled; // remind when the fertile window opens
@@ -119,6 +121,7 @@ class PersistedConfig {
     this.weights = const [],
     this.weightGoalKg,
     this.childBattery = const {},
+    this.childBatteryHistory = const {},
     this.waterReminderMinutes,
     this.periodReminderEnabled = false,
     this.fertileReminderEnabled = false,
@@ -146,6 +149,10 @@ class PersistedConfig {
         if (weights.isNotEmpty) 'weights': [for (final w in weights) w.toJson()],
         if (weightGoalKg != null) 'weightGoalKg': weightGoalKg,
         if (childBattery.isNotEmpty) 'childBattery': childBattery,
+        if (childBatteryHistory.isNotEmpty)
+          'childBatteryHistory': {
+            for (final e in childBatteryHistory.entries) e.key: [for (final r in e.value) r.toJson()]
+          },
         if (waterReminderMinutes != null) 'waterReminderMinutes': waterReminderMinutes,
         if (periodReminderEnabled) 'periodReminderEnabled': periodReminderEnabled,
         if (fertileReminderEnabled) 'fertileReminderEnabled': fertileReminderEnabled,
@@ -201,6 +208,14 @@ class PersistedConfig {
         weightGoalKg: (j['weightGoalKg'] as num?)?.toDouble(),
         childBattery: j['childBattery'] is Map
             ? {for (final e in (j['childBattery'] as Map).entries) '${e.key}': (e.value as num).toInt()}
+            : const {},
+        childBatteryHistory: j['childBatteryHistory'] is Map
+            ? {
+                for (final e in (j['childBatteryHistory'] as Map).entries)
+                  '${e.key}': [
+                    for (final r in (e.value as List)) BatteryReading.fromJson((r as Map).cast<String, dynamic>())
+                  ]
+              }
             : const {},
         waterReminderMinutes: (j['waterReminderMinutes'] as num?)?.toInt(),
         periodReminderEnabled: (j['periodReminderEnabled'] as bool?) ?? false,

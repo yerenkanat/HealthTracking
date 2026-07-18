@@ -11,6 +11,7 @@ import '../lib/data/persisted_config.dart';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/family.dart';
 import '../lib/domain/appointment.dart';
+import '../lib/domain/battery.dart';
 import '../lib/domain/contraction.dart';
 import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/kick_session.dart';
@@ -68,6 +69,9 @@ void main() async {
     ],
     weightGoalKg: 70.0,
     childBattery: const {'child-1': 62, 'child-2': 8},
+    childBatteryHistory: {
+      'child-1': [BatteryReading(DateTime(2026, 7, 15, 8), 80), BatteryReading(DateTime(2026, 7, 15, 12), 62)],
+    },
     waterReminderMinutes: 20 * 60 + 30, // 20:30
     periodReminderEnabled: true,
     fertileReminderEnabled: true,
@@ -102,6 +106,10 @@ void main() async {
       decoded.weights[0].date == '2026-07-01' && decoded.weights[1].kg == 63.4);
   _chk('round-trip weight goal', decoded.weightGoalKg == 70.0);
   _chk('round-trip child battery', decoded.childBattery['child-1'] == 62 && decoded.childBattery['child-2'] == 8);
+  _chk('round-trip battery history',
+      decoded.childBatteryHistory['child-1']?.length == 2 &&
+          decoded.childBatteryHistory['child-1']?.last.pct == 62 &&
+          decoded.childBatteryHistory['child-1']?.first.at == DateTime(2026, 7, 15, 8));
   _chk('round-trip water reminder', decoded.waterReminderMinutes == 20 * 60 + 30);
   _chk('round-trip period reminder', decoded.periodReminderEnabled == true);
   _chk('round-trip fertile reminder', decoded.fertileReminderEnabled == true);
