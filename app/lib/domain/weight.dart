@@ -59,6 +59,26 @@ double weightRemaining(double latest, double target) => target - latest;
 /// Whether the latest weight has reached the target (within 0.05 kg).
 bool weightTargetReached(double latest, double target) => (target - latest) <= 0.05;
 
+/// Average kilograms gained per week across the logged span (first → last
+/// entry). Null when there are fewer than 2 entries or the span is under a day.
+/// Can be negative (net loss).
+double? weeklyGainRate(List<WeightEntry> entries) {
+  if (entries.length < 2) return null;
+  final first = entries.first.day, last = entries.last.day;
+  if (first == null || last == null) return null;
+  final days = last.difference(first).inDays;
+  if (days <= 0) return null;
+  return (entries.last.kg - entries.first.kg) / (days / 7.0);
+}
+
+/// Whole weeks spanned by the log (first → last entry); 0 for fewer than 2.
+int weeksSpanned(List<WeightEntry> entries) {
+  if (entries.length < 2) return 0;
+  final first = entries.first.day, last = entries.last.day;
+  if (first == null || last == null) return 0;
+  return last.difference(first).inDays ~/ 7;
+}
+
 /// Summary over the (assumed sorted) [entries], or null when empty.
 WeightStats? computeWeightStats(List<WeightEntry> entries) {
   if (entries.isEmpty) return null;

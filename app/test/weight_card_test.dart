@@ -24,6 +24,8 @@ void main() {
     await tester.pumpWidget(wrap(WeightCard(entries: entries, onLog: (_) {}, onSetGoal: (_) {})));
     expect(find.text('63.4'), findsOneWidget);
     expect(find.text('+1.4 kg since start'), findsOneWidget);
+    // +1.4 kg over 14 days (2 weeks) → 0.7 kg/week.
+    expect(find.text('Averaging +0.7 kg/week over 2 wks'), findsOneWidget);
   });
 
   testWidgets('log sheet saves the stepped value', (tester) async {

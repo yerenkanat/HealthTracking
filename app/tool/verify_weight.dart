@@ -42,6 +42,14 @@ void main() {
 
   _chk('empty stats null', computeWeightStats(const []) == null);
 
+  // Weekly gain rate: +1.9 kg over Jul 1 → Jul 15 (14 days = 2 weeks) = 0.95/wk.
+  _chk('weekly gain rate', (weeklyGainRate(e)! - 0.95).abs() < 1e-9);
+  _chk('weeks spanned', weeksSpanned(e) == 2);
+  _chk('rate null with one entry', weeklyGainRate([e.first]) == null);
+  _chk('weeks null with one entry', weeksSpanned([e.first]) == 0);
+  final sameDay = [const WeightEntry(date: '2026-07-01', kg: 60), const WeightEntry(date: '2026-07-01', kg: 61)];
+  _chk('rate null within a day', weeklyGainRate(sameDay) == null);
+
   // JSON round-trip.
   final rt = WeightEntry.fromJson(e.last.toJson());
   _chk('round-trip', rt.date == '2026-07-15' && rt.kg == 63.9);

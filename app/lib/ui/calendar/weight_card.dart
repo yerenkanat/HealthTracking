@@ -83,6 +83,22 @@ class WeightCard extends StatelessWidget {
                 child: Sparkline(points: points, band: const MetricBand(), color: Palette.violet),
               ),
             ],
+            if (weeklyGainRate(entries) case final rate? when weeksSpanned(entries) >= 1) ...[
+              const SizedBox(height: 8),
+              Row(children: [
+                Icon(rate >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                    size: 15, color: Palette.textDim),
+                const SizedBox(width: 6),
+                Text(
+                  l.t('weight_rate', {
+                    'sign': rate >= 0 ? '+' : '−',
+                    'kg': rate.abs().toStringAsFixed(1),
+                    'weeks': weeksSpanned(entries),
+                  }),
+                  style: const TextStyle(color: Palette.textDim, fontSize: 12),
+                ),
+              ]),
+            ],
             const SizedBox(height: 10),
             _TargetRow(latest: stats.latest, goalKg: goalKg, onTap: () => _openTarget(context, l, stats.latest)),
           ],

@@ -469,6 +469,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'weight_log_title': {AppLocale.ru: 'Ваш вес сегодня', AppLocale.kk: 'Бүгінгі салмағыңыз', AppLocale.en: 'Your weight today'},
   'weight_empty': {AppLocale.ru: 'Запишите вес, чтобы видеть динамику.', AppLocale.kk: 'Динамиканы көру үшін салмақты жазыңыз.', AppLocale.en: 'Log your weight to see the trend.'},
   'weight_delta': {AppLocale.ru: '{sign}{kg} кг с начала', AppLocale.kk: 'басынан {sign}{kg} кг', AppLocale.en: '{sign}{kg} kg since start'},
+  'weight_rate': {AppLocale.ru: 'В среднем {sign}{kg} кг/нед. за {weeks} нед.', AppLocale.kk: 'Орташа {sign}{kg} кг/апта, {weeks} апта', AppLocale.en: 'Averaging {sign}{kg} kg/week over {weeks} wks'},
   'weight_set_target': {AppLocale.ru: '+ Задать цель веса', AppLocale.kk: '+ Салмақ мақсатын қою', AppLocale.en: '+ Set a weight target'},
   'weight_target_title': {AppLocale.ru: 'Целевой вес', AppLocale.kk: 'Мақсатты салмақ', AppLocale.en: 'Target weight'},
   'weight_target_to_go': {AppLocale.ru: 'Цель {target} кг · осталось {kg} кг', AppLocale.kk: 'Мақсат {target} кг · {kg} кг қалды', AppLocale.en: 'Target {target} kg · {kg} kg to go'},
