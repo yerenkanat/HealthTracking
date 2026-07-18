@@ -57,6 +57,18 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('cycle mode shows the fertile-window countdown when upcoming', (tester) async {
+    final c = controllerFor(); // cycle mode, today = Jul 16
+    // Period Jul 10–12 → fertile window opens Jul 19 (still upcoming on Jul 16).
+    for (final d in [DateTime(2026, 7, 10), DateTime(2026, 7, 11), DateTime(2026, 7, 12)]) {
+      c.toggleFlowFor(d, Flow.medium);
+    }
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Fertile window in 3 days'), findsOneWidget);
+    expect(find.textContaining('Ovulation in about'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('cycle mode with data can share a copied summary', (tester) async {
     final c = controllerFor(); // cycle mode
     // Log a period so predictions exist (hasData → the share action appears).

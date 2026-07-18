@@ -557,6 +557,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_phase_fertile': {AppLocale.ru: 'Фертильное окно', AppLocale.kk: 'Құнарлы кезең', AppLocale.en: 'Fertile window'},
   'cyc_phase_ovulation': {AppLocale.ru: 'Овуляция', AppLocale.kk: 'Овуляция', AppLocale.en: 'Ovulation'},
   'cyc_predictions': {AppLocale.ru: 'Прогнозы', AppLocale.kk: 'Болжамдар', AppLocale.en: 'Predictions'},
+  'cyc_fertile_in': {AppLocale.ru: 'Фертильное окно через {n} дн.', AppLocale.kk: 'Құнарлы кезең {n} күнде', AppLocale.en: 'Fertile window in {n} days'},
+  'cyc_ovulation_in': {AppLocale.ru: 'Овуляция примерно через {n} дн.', AppLocale.kk: 'Овуляция шамамен {n} күнде', AppLocale.en: 'Ovulation in about {n} days'},
   'phase_day': {AppLocale.ru: 'День {n} из {of}', AppLocale.kk: '{of} ішінен {n}-күн', AppLocale.en: 'Day {n} of {of}'},
   'phase_menstrual': {AppLocale.ru: 'Менструация', AppLocale.kk: 'Етеккір', AppLocale.en: 'Menstrual'},
   'phase_follicular': {AppLocale.ru: 'Фолликулярная фаза', AppLocale.kk: 'Фолликулалық фаза', AppLocale.en: 'Follicular'},

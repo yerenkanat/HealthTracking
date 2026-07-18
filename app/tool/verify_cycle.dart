@@ -116,6 +116,17 @@ void main() {
   _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
   _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
 
+  // ---- Fertile-window countdown ----
+  FertileCountdown? fcOn(DateTime t) => fertileCountdown(computeCycle(periodSet(days), t));
+  _chk('no data → no countdown', fertileCountdown(computeCycle({}, DateTime(2026, 7, 15))) == null);
+  final fcUp = fcOn(DateTime(2026, 7, 7)); // before window (Jul 10..16), ovulation Jul 15
+  _chk('upcoming state before window', fcUp?.state == FertileWindowState.upcoming);
+  _chk('days to window start', fcUp?.daysToStart == 3); // Jul 7 → Jul 10
+  _chk('days to ovulation', fcUp?.daysToOvulation == 8); // Jul 7 → Jul 15
+  _chk('active within window', fcOn(DateTime(2026, 7, 12))?.state == FertileWindowState.active);
+  _chk('ovulation day distance 0', fcOn(DateTime(2026, 7, 15))?.daysToOvulation == 0);
+  _chk('passed after window', fcOn(DateTime(2026, 7, 18))?.state == FertileWindowState.passed);
+
   // ---- Cycle length stats ----
   final spans = [
     CycleSpan(DateTime(2026, 7, 1), null, 5), // ongoing → excluded

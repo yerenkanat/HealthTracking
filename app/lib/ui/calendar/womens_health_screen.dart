@@ -123,6 +123,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
                   _CyclePhaseCard(info: c.cycle),
+                  if (fertileCountdown(c.cycle)?.state == FertileWindowState.upcoming) ...[
+                    const SizedBox(height: 14),
+                    _FertileCountdownCard(countdown: fertileCountdown(c.cycle)!),
+                  ],
                   const SizedBox(height: 14),
                   _CyclePredictions(info: c.cycle),
                 ],
@@ -1340,6 +1344,53 @@ class _CyclePhaseCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(note, style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A heads-up before the fertile window opens: "Fertile window in N days ·
+/// ovulation in M days". Only shown while the window is still upcoming (the
+/// phase card covers it once it's active).
+class _FertileCountdownCard extends StatelessWidget {
+  final FertileCountdown countdown;
+  const _FertileCountdownCard({required this.countdown});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Palette.teal.withValues(alpha: 0.12), Palette.teal.withValues(alpha: 0.04)],
+        ),
+        border: Border.all(color: Palette.teal.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: Palette.teal.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(13)),
+            child: const Icon(Icons.eco_rounded, color: Palette.teal, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('cyc_fertile_in', {'n': countdown.daysToStart}),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Palette.teal, height: 1.2)),
+                const SizedBox(height: 3),
+                Text(l.t('cyc_ovulation_in', {'n': countdown.daysToOvulation}),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
               ],
             ),
           ),

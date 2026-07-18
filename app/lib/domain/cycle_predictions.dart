@@ -143,6 +143,32 @@ class CyclePhaseInfo {
   const CyclePhaseInfo(this.phase, this.dayInPhase, this.phaseLength);
 }
 
+/// Where the fertile window sits relative to today.
+enum FertileWindowState { upcoming, active, passed }
+
+/// A countdown to (or within) the predicted fertile window. [daysToStart] is how
+/// many days until the window opens (upcoming only); [daysToOvulation] is the
+/// signed day distance to ovulation (0 = today, negative = already passed).
+class FertileCountdown {
+  final FertileWindowState state;
+  final int daysToStart;
+  final int daysToOvulation;
+  const FertileCountdown(this.state, this.daysToStart, this.daysToOvulation);
+}
+
+/// Compute the fertile-window countdown from [info]. Null when the window can't
+/// be predicted (not enough data).
+FertileCountdown? fertileCountdown(CycleInfo info) {
+  final fs = info.fertileStart, fe = info.fertileEnd, ov = info.ovulation;
+  if (!info.hasData || fs == null || fe == null || ov == null) return null;
+  final t = _dayOnly(info.today);
+  final start = _dayOnly(fs), end = _dayOnly(fe), ovul = _dayOnly(ov);
+  final toOv = ovul.difference(t).inDays;
+  if (t.isBefore(start)) return FertileCountdown(FertileWindowState.upcoming, start.difference(t).inDays, toOv);
+  if (!t.isAfter(end)) return FertileCountdown(FertileWindowState.active, 0, toOv);
+  return FertileCountdown(FertileWindowState.passed, 0, toOv);
+}
+
 /// Classify the current phase from a computed [info]. Null when there isn't
 /// enough data (no prediction, or today precedes the last period start).
 /// Boundaries: menstrual = bleeding days; fertile = the predicted fertile window
