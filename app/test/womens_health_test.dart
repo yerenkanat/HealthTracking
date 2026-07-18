@@ -103,6 +103,15 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('pregnancy view shows the weekly baby-size card', (tester) async {
+    // Due in 140 days → ~40 - 20 = week 20 → banana.
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('BABY SIZE'), findsOneWidget);
+    expect(find.textContaining('About the size of a'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('kick history shows a summary strip and goal badge', (tester) async {
     final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // pregnancy mode
     c.logKickSession(today, 12, const Duration(seconds: 600)); // reaches goal (10)

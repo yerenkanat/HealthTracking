@@ -16,6 +16,7 @@ import '../../domain/cycle_log.dart';
 import '../../domain/contraction.dart';
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
+import '../../domain/baby_size.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
@@ -126,6 +127,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _CyclePredictions(info: c.cycle),
                 ],
                 if (!cycleMode && c.gestation != null) ...[
+                  const SizedBox(height: 14),
+                  _BabySizeCard(week: c.gestation!.week),
                   const SizedBox(height: 14),
                   _PregnancyMilestones(week: c.gestation!.week),
                 ],
@@ -868,6 +871,59 @@ class _MonthCalendar extends StatelessWidget {
     };
 
 /// Pregnancy timeline milestones (non-medical): current stage + what's next.
+/// Weekly "baby is about the size of a …" card — an approximate length and a
+/// friendly everyday comparison for the current pregnancy week. Illustrative,
+/// not medical.
+class _BabySizeCard extends StatelessWidget {
+  final int week;
+  const _BabySizeCard({required this.week});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final size = babySizeFor(week);
+    if (size == null) return const SizedBox.shrink();
+    final cm = size.lengthCm % 1 == 0 ? size.lengthCm.toStringAsFixed(0) : size.lengthCm.toStringAsFixed(1);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.05)],
+        ),
+        border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52, height: 52,
+            decoration: const BoxDecoration(gradient: Palette.roseViolet, shape: BoxShape.circle),
+            child: const Icon(Icons.spa_rounded, color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('bsize_title').toUpperCase(),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                const SizedBox(height: 3),
+                Text(l.t('bsize_about', {'food': l.t(size.code)}),
+                    style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: Palette.text, height: 1.2)),
+                const SizedBox(height: 2),
+                Text(l.t('bsize_length', {'cm': cm}),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PregnancyMilestones extends StatelessWidget {
   final int week;
   const _PregnancyMilestones({required this.week});
