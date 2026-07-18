@@ -135,6 +135,16 @@ void main() {
   _chk('symptom frequency ranks cramps first', sf.first.symptom == Symptom.cramps && sf.first.count == 3);
   _chk('symptom frequency includes headache', sf.any((e) => e.symptom == Symptom.headache && e.count == 1));
 
+  // ---- Cycle regularity ----
+  RegularityInsight reg(List<int?> cycleLengths) => cycleRegularity(
+      [for (final c in cycleLengths) CycleSpan(DateTime(2026, 1, 1), c, 5)]);
+  _chk('insufficient with <2 completed', reg([28, null]).level == CycleRegularity.insufficient);
+  final regular = reg([28, 29, 27, null]);
+  _chk('regular when spread ≤4', regular.level == CycleRegularity.regular && regular.variationDays == 2);
+  _chk('regular avg cycle', regular.avgCycle == 28 && regular.cyclesConsidered == 3);
+  _chk('variable when spread 5..8', reg([26, 32, null]).level == CycleRegularity.variable);
+  _chk('irregular when spread >8', reg([24, 40]).level == CycleRegularity.irregular);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

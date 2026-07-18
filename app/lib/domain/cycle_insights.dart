@@ -36,10 +36,42 @@ List<CycleSpan> cycleHistory(Set<DateTime> periodDays) {
   final spans = <CycleSpan>[];
   for (var i = 0; i < starts.length; i++) {
     final next = i + 1 < starts.length ? starts[i + 1] : null;
-    final cycleLen = next == null ? null : next.difference(starts[i]).inDays;
+    final cycleLen = next?.difference(starts[i]).inDays;
     spans.add(CycleSpan(starts[i], cycleLen, periodLen(starts[i])));
   }
   return spans.reversed.toList(); // newest first
+}
+
+enum CycleRegularity { insufficient, regular, variable, irregular }
+
+/// A read on how consistent the user's cycles are, over their completed cycles.
+class RegularityInsight {
+  final CycleRegularity level;
+  final int cyclesConsidered; // completed cycles used (need ≥2 for a verdict)
+  final int variationDays; // spread between the longest and shortest cycle
+  final int avgCycle; // average completed cycle length (0 when insufficient)
+  const RegularityInsight(this.level, this.cyclesConsidered, this.variationDays, this.avgCycle);
+}
+
+/// Classify cycle regularity from [history] (as returned by [cycleHistory]).
+/// Needs ≥2 completed cycles; otherwise [CycleRegularity.insufficient]. The
+/// spread (max − min) buckets it: ≤4 days regular, ≤8 variable, else irregular.
+RegularityInsight cycleRegularity(List<CycleSpan> history) {
+  final lengths = [for (final s in history) if (s.cycleLength != null) s.cycleLength!];
+  if (lengths.length < 2) return RegularityInsight(CycleRegularity.insufficient, lengths.length, 0, 0);
+  var min = lengths.first, max = lengths.first, sum = 0;
+  for (final v in lengths) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  final variation = max - min;
+  final level = variation <= 4
+      ? CycleRegularity.regular
+      : variation <= 8
+          ? CycleRegularity.variable
+          : CycleRegularity.irregular;
+  return RegularityInsight(level, lengths.length, variation, (sum / lengths.length).round());
 }
 
 /// Count of each mood across the given day logs (descending by count).

@@ -27,6 +27,7 @@ class CycleInsightsScreen extends StatelessWidget {
           builder: (context, _) {
             final info = controller.cycle;
             final history = cycleHistory(controller.periodDays);
+            final regularity = cycleRegularity(history);
             final logs = controller.dayLogs.values;
             final moods = moodFrequency(logs);
             final symptoms = symptomFrequency(logs);
@@ -65,6 +66,10 @@ class CycleInsightsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (regularity.level != CycleRegularity.insufficient) ...[
+                  const SizedBox(height: 14),
+                  _RegularityCard(insight: regularity),
+                ],
                 const SizedBox(height: 16),
 
                 // Cycle history
@@ -128,6 +133,50 @@ class _Stat extends StatelessWidget {
       const SizedBox(height: 3),
       Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
     ]);
+  }
+}
+
+/// "Your cycles are regular / vary by N days" — a plain-language read on
+/// consistency, coloured by level (green regular, amber variable, rose irregular).
+class _RegularityCard extends StatelessWidget {
+  final RegularityInsight insight;
+  const _RegularityCard({required this.insight});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final (accent, icon, headline) = switch (insight.level) {
+      CycleRegularity.regular => (Palette.good, Icons.check_circle_rounded, l.t('cyc_reg_regular')),
+      CycleRegularity.variable => (Palette.amber, Icons.timeline_rounded, l.t('cyc_reg_variable')),
+      CycleRegularity.irregular => (Palette.roseDeep, Icons.show_chart_rounded, l.t('cyc_reg_irregular')),
+      CycleRegularity.insufficient => (Palette.textDim, Icons.hourglass_empty_rounded, ''),
+    };
+    return GlassCard(
+      glow: accent,
+      child: Row(
+        children: [
+          Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
+            child: Icon(icon, color: accent, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(headline, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: accent)),
+                const SizedBox(height: 2),
+                Text(
+                  l.t('cyc_reg_sub', {'var': insight.variationDays, 'avg': insight.avgCycle}),
+                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

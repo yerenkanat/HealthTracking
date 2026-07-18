@@ -40,4 +40,22 @@ void main() {
     expect(find.text('Ongoing'), findsOneWidget); // most recent cycle
     addTearDown(c.dispose);
   });
+
+  testWidgets('regularity card appears with 2+ completed cycles', (tester) async {
+    final c = AppController(now: () => today);
+    // Three ~28-day periods → two completed cycles → "regular".
+    for (final start in [
+      today.subtract(const Duration(days: 6)),
+      today.subtract(const Duration(days: 34)),
+      today.subtract(const Duration(days: 62)),
+    ]) {
+      for (var i = 0; i < 5; i++) {
+        c.setDayLog(DayLog(date: dateKey(start.add(Duration(days: i))), flow: Flow.medium));
+      }
+    }
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Your cycle is regular'), findsOneWidget);
+    expect(find.textContaining('28-day average'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
 }

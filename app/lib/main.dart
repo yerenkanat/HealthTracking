@@ -100,10 +100,14 @@ void _seedDemo(AppController c) {
   for (var i = 0; i < demoWater.length; i++) {
     c.addWater(today.subtract(Duration(days: demoWater.length - 1 - i)), demoWater[i]);
   }
-  // Two past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
-  // shows real predictions out of the box: last period ended a few days ago →
-  // ~cycle day 7, next period in ~3 weeks.
-  for (final start in [today.subtract(const Duration(days: 6)), today.subtract(const Duration(days: 34))]) {
+  // Three past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
+  // shows real predictions AND the insights regularity read out of the box: last
+  // period ended a few days ago → ~cycle day 7, next period in ~3 weeks.
+  for (final start in [
+    today.subtract(const Duration(days: 6)),
+    today.subtract(const Duration(days: 34)),
+    today.subtract(const Duration(days: 62)),
+  ]) {
     for (var i = 0; i < 5; i++) {
       final d = start.add(Duration(days: i));
       c.setDayLog(DayLog(date: dateKey(d), flow: i < 2 ? Flow.medium : Flow.light));
