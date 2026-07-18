@@ -192,6 +192,18 @@ void main() {
   _chk('empty logs → 0 streak', loggingStreak(const [], t) == 0);
   _chk('empty day log does not count', loggingStreak([DayLog(date: dateKey(t))], t) == 0);
 
+  // ---- Notes search ----
+  final searchLogs = [
+    const DayLog(date: '2026-07-01', note: 'First ultrasound scan'),
+    const DayLog(date: '2026-07-10', note: 'Felt tired all day'),
+    const DayLog(date: '2026-07-08', note: 'Second scan booked'),
+    const DayLog(date: '2026-07-03', mood: Mood.happy), // no note
+  ];
+  _chk('search empty → all notes newest-first', searchNotes(searchLogs, '').length == 3 && searchNotes(searchLogs, '').first.date == '2026-07-10');
+  _chk('search matches substring (case-insensitive)', searchNotes(searchLogs, 'SCAN').length == 2);
+  _chk('search narrows further', searchNotes(searchLogs, 'ultrasound').single.date == '2026-07-01');
+  _chk('search no match → empty', searchNotes(searchLogs, 'zzz').isEmpty);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

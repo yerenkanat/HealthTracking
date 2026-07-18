@@ -90,12 +90,21 @@ int loggingStreak(Iterable<DayLog> logs, DateTime today) {
   return streak;
 }
 
-/// The days that carry a free-text note, most recent first (up to [limit]).
-List<DayLog> recentNotes(Iterable<DayLog> logs, {int limit = 5}) {
-  final withNotes = [for (final l in logs) if (l.note.trim().isNotEmpty) l];
-  withNotes.sort((a, b) => b.date.compareTo(a.date)); // dateKey sorts chronologically
-  return withNotes.take(limit).toList();
+/// Days whose note matches [query] (case-insensitive substring; empty query =
+/// all notes), most recent first.
+List<DayLog> searchNotes(Iterable<DayLog> logs, String query) {
+  final q = query.trim().toLowerCase();
+  final matches = [
+    for (final l in logs)
+      if (l.note.trim().isNotEmpty && (q.isEmpty || l.note.toLowerCase().contains(q))) l
+  ];
+  matches.sort((a, b) => b.date.compareTo(a.date)); // dateKey sorts chronologically
+  return matches;
 }
+
+/// The days that carry a free-text note, most recent first (up to [limit]).
+List<DayLog> recentNotes(Iterable<DayLog> logs, {int limit = 5}) =>
+    searchNotes(logs, '').take(limit).toList();
 
 /// Mood counts restricted to logs on/after [since] (a recent window). Descending.
 List<({Mood mood, int count})> moodFrequencySince(Iterable<DayLog> logs, DateTime since) {

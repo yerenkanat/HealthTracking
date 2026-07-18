@@ -11,6 +11,7 @@ import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import 'notes_browser_screen.dart';
 
 class CycleInsightsScreen extends StatelessWidget {
   final AppController controller;
@@ -39,7 +40,8 @@ class CycleInsightsScreen extends StatelessWidget {
             final thisWeek = symptomFrequencySince(logs, since);
             final moodsWeek = moodFrequencySince(logs, since);
             final streak = loggingStreak(logs, _now());
-            final notes = recentNotes(logs);
+            final allNotes = searchNotes(logs, '');
+            final notes = allNotes.take(5).toList();
 
             if (!info.hasData) {
               return Center(
@@ -151,6 +153,13 @@ class CycleInsightsScreen extends StatelessWidget {
                         if (i > 0) const _ThinDivider(),
                         _NoteRow(log: notes[i]),
                       ],
+                      const _ThinDivider(),
+                      _SeeAllNotesRow(
+                        label: l.t('notes_see_all', {'n': '${allNotes.length}'}),
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => NotesBrowserScreen(logs: logs.toList()),
+                        )),
+                      ),
                     ]),
                   ),
                 ],
@@ -368,4 +377,26 @@ class _ThinDivider extends StatelessWidget {
   const _ThinDivider();
   @override
   Widget build(BuildContext context) => const Divider(height: 12, color: Palette.border);
+}
+
+class _SeeAllNotesRow extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _SeeAllNotesRow({required this.label, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(children: [
+          const Icon(Icons.search_rounded, size: 18, color: Palette.roseDeep),
+          const SizedBox(width: 8),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Palette.roseDeep))),
+          const Icon(Icons.chevron_right_rounded, size: 20, color: Palette.roseDeep),
+        ]),
+      ),
+    );
+  }
 }
