@@ -320,6 +320,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'log_mood': {AppLocale.ru: 'Настроение', AppLocale.kk: 'Көңіл-күй', AppLocale.en: 'Mood'},
   'log_symptoms': {AppLocale.ru: 'Симптомы', AppLocale.kk: 'Симптомдар', AppLocale.en: 'Symptoms'},
   'log_kicks': {AppLocale.ru: 'Счётчик шевелений', AppLocale.kk: 'Тебіну санауышы', AppLocale.en: 'Kick counter'},
+  'log_note': {AppLocale.ru: 'Заметка', AppLocale.kk: 'Ескертпе', AppLocale.en: 'Note'},
+  'log_note_hint': {AppLocale.ru: 'Как прошёл день?', AppLocale.kk: 'Күн қалай өтті?', AppLocale.en: 'How was your day?'},
   'mood_happy': {AppLocale.ru: 'Радость', AppLocale.kk: 'Қуаныш', AppLocale.en: 'Happy'},
   'mood_calm': {AppLocale.ru: 'Спокойствие', AppLocale.kk: 'Тыныштық', AppLocale.en: 'Calm'},
   'mood_anxious': {AppLocale.ru: 'Тревога', AppLocale.kk: 'Мазасыздық', AppLocale.en: 'Anxious'},

@@ -530,6 +530,7 @@ class AppController {
     _notify();
   }
   void toggleFlowFor(DateTime day, Flow f) => setDayLog(logFor(day).withFlowToggled(f));
+  void setNoteFor(DateTime day, String note) => setDayLog(logFor(day).withNote(note));
 
   // ---- Menstrual cycle (used when NOT pregnant) ----
   /// Whether the app is in pregnancy mode (a due date is set) vs cycle mode.

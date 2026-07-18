@@ -68,6 +68,7 @@ class DayLog {
   final Set<Symptom> symptoms;
   final int kicks;
   final Flow? flow; // menstrual flow logged that day (null = none)
+  final String note; // free-text note for the day
 
   const DayLog({
     required this.date,
@@ -75,10 +76,11 @@ class DayLog {
     this.symptoms = const {},
     this.kicks = 0,
     this.flow,
+    this.note = '',
   });
 
-  /// A day with no mood, symptoms, kicks, or flow contributes no calendar dot.
-  bool get isEmpty => mood == null && symptoms.isEmpty && kicks == 0 && flow == null;
+  /// A day with no mood, symptoms, kicks, flow, or note contributes no calendar dot.
+  bool get isEmpty => mood == null && symptoms.isEmpty && kicks == 0 && flow == null && note.isEmpty;
   bool get isNotEmpty => !isEmpty;
   bool get hasPeriod => flow != null;
 
@@ -87,6 +89,7 @@ class DayLog {
     Set<Symptom>? symptoms,
     int? kicks,
     Flow? flow,
+    String? note,
     bool clearMood = false,
     bool clearFlow = false,
   }) =>
@@ -96,7 +99,11 @@ class DayLog {
         symptoms: symptoms ?? this.symptoms,
         kicks: kicks ?? this.kicks,
         flow: clearFlow ? null : (flow ?? this.flow),
+        note: note ?? this.note,
       );
+
+  /// Set (or clear, with '') the day's note.
+  DayLog withNote(String value) => copyWith(note: value.trim());
 
   /// Toggle [f] — tapping the already-selected flow clears it.
   DayLog withFlowToggled(Flow f) => flow == f ? copyWith(clearFlow: true) : copyWith(flow: f);
@@ -130,6 +137,7 @@ class DayLog {
         if (symptoms.isNotEmpty) 'symptoms': [for (final s in symptoms) s.name],
         if (kicks > 0) 'kicks': kicks,
         if (flow != null) 'flow': flow!.name,
+        if (note.isNotEmpty) 'note': note,
       };
 
   factory DayLog.fromJson(Map<String, dynamic> j) => DayLog(
@@ -141,6 +149,7 @@ class DayLog {
         },
         kicks: (j['kicks'] as num?)?.toInt() ?? 0,
         flow: flowFromName(j['flow'] as String?),
+        note: (j['note'] as String?) ?? '',
       );
 }
 

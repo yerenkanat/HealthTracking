@@ -12,6 +12,7 @@ void main() {
     void Function(Symptom)? onSymptom,
     void Function(Flow)? onFlow,
     VoidCallback? onKick,
+    ValueChanged<String>? onSetNote,
     bool pregnant = true,
   }) =>
       MaterialApp(
@@ -25,6 +26,7 @@ void main() {
             onToggleFlow: onFlow ?? (_) {},
             onKick: onKick ?? () {},
             onResetKicks: () {},
+            onSetNote: onSetNote,
           ),
         ),
       );
@@ -68,6 +70,27 @@ void main() {
     expect(find.text('Medium'), findsOneWidget);
     expect(find.text('Heavy'), findsOneWidget);
     expect(find.text('KICK COUNTER'), findsNothing);
+  });
+
+  testWidgets('note field shows a prefilled note and saves on submit', (tester) async {
+    String? saved;
+    await tester.pumpWidget(harness(
+      const DayLog(date: '2026-07-15', note: 'first scan today'),
+      onSetNote: (n) => saved = n,
+    ));
+    expect(find.text('NOTE'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'first scan today'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'ultrasound went well');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(saved, 'ultrasound went well');
+  });
+
+  testWidgets('no note field when onSetNote is not wired', (tester) async {
+    await tester.pumpWidget(harness(const DayLog(date: '2026-07-15')));
+    expect(find.text('NOTE'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
   });
 
   testWidgets('tapping a flow pill fires onToggleFlow', (tester) async {

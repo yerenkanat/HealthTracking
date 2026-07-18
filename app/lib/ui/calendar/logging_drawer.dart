@@ -51,6 +51,7 @@ class FloStyleCalendarDrawer extends StatelessWidget {
   final VoidCallback onKick;
   final VoidCallback onResetKicks;
   final VoidCallback? onStartSession; // opens the timed kick session (pregnancy)
+  final ValueChanged<String>? onSetNote;
 
   const FloStyleCalendarDrawer({
     super.key,
@@ -62,6 +63,7 @@ class FloStyleCalendarDrawer extends StatelessWidget {
     required this.onKick,
     required this.onResetKicks,
     this.onStartSession,
+    this.onSetNote,
     this.pregnant = true,
   });
 
@@ -175,6 +177,12 @@ class FloStyleCalendarDrawer extends StatelessWidget {
                   ],
                 ),
               ],
+              if (onSetNote != null) ...[
+                const SizedBox(height: 22),
+                _SectionLabel(l.t('log_note')),
+                const SizedBox(height: 10),
+                _NoteField(initial: log.note, hint: l.t('log_note_hint'), onSave: onSetNote!),
+              ],
               const SizedBox(height: 8),
 
               // Done
@@ -201,6 +209,60 @@ class _SectionLabel extends StatelessWidget {
         text.toUpperCase(),
         style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6),
       );
+}
+
+/// Free-text day note. Keeps its own controller (survives the drawer's rebuilds)
+/// and saves on focus loss / submit, so we don't persist on every keystroke.
+class _NoteField extends StatefulWidget {
+  final String initial;
+  final String hint;
+  final ValueChanged<String> onSave;
+  const _NoteField({required this.initial, required this.hint, required this.onSave});
+  @override
+  State<_NoteField> createState() => _NoteFieldState();
+}
+
+class _NoteFieldState extends State<_NoteField> {
+  late final _ctl = TextEditingController(text: widget.initial);
+  late final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (!_focus.hasFocus && _ctl.text.trim() != widget.initial) widget.onSave(_ctl.text);
+  }
+
+  @override
+  void dispose() {
+    _focus.removeListener(_onFocusChange);
+    _focus.dispose();
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _ctl,
+      focusNode: _focus,
+      minLines: 1,
+      maxLines: 3,
+      textCapitalization: TextCapitalization.sentences,
+      textInputAction: TextInputAction.done,
+      onSubmitted: widget.onSave,
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        filled: true,
+        fillColor: Palette.glass,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
 }
 
 /// A large, illustrated pill button (≥48dp tall). Unselected = soft grey fill;

@@ -266,6 +266,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
           onToggleFlow: (f) => c.toggleFlowFor(day, f),
           onKick: () => c.addKickFor(day),
           onResetKicks: () => c.resetKicksFor(day),
+          onSetNote: (note) => c.setNoteFor(day, note),
           onStartSession: () {
             Navigator.of(sheetCtx).pop(); // close the sheet, then open the session
             Navigator.of(context).push(MaterialPageRoute(

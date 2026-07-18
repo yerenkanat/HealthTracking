@@ -45,7 +45,7 @@ void main() async {
       SafetyAlert(kind: AlertKind.left, childName: 'Sultan', zoneName: 'Home', at: DateTime.utc(2026, 7, 16, 8)),
     ],
     dayLogs: {
-      '2026-07-14': const DayLog(date: '2026-07-14', mood: Mood.happy, symptoms: {Symptom.cramps}, kicks: 4),
+      '2026-07-14': const DayLog(date: '2026-07-14', mood: Mood.happy, symptoms: {Symptom.cramps}, kicks: 4, note: 'felt great today'),
       '2026-07-15': const DayLog(date: '2026-07-15', kicks: 0), // empty → dropped on encode
     },
     kickSessions: [
@@ -96,7 +96,8 @@ void main() async {
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&
           decoded.dayLogs['2026-07-14']?.symptoms.contains(Symptom.cramps) == true &&
-          decoded.dayLogs['2026-07-14']?.kicks == 4);
+          decoded.dayLogs['2026-07-14']?.kicks == 4 &&
+          decoded.dayLogs['2026-07-14']?.note == 'felt great today');
 
   // ---- AppController.restore() ----
   final ctl = AppController(persistStore: InMemoryAppStore(cfg));
