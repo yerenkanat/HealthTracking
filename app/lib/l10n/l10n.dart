@@ -405,6 +405,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'contr_history_interval': {AppLocale.ru: 'интервал {i}', AppLocale.kk: 'аралығы {i}', AppLocale.en: '{i} apart'},
   'contr_history_clear_title': {AppLocale.ru: 'Очистить историю схваток?', AppLocale.kk: 'Толғақтар тарихын тазалау керек пе?', AppLocale.en: 'Clear contraction history?'},
   'hist_clear': {AppLocale.ru: 'Очистить', AppLocale.kk: 'Тазалау', AppLocale.en: 'Clear'},
+  'hist_see_all': {AppLocale.ru: 'Показать все ({n})', AppLocale.kk: 'Барлығын көрсету ({n})', AppLocale.en: 'See all ({n})'},
   'hist_clear_body': {AppLocale.ru: 'Записи истории будут удалены.', AppLocale.kk: 'Тарих жазбалары жойылады.', AppLocale.en: 'The history entries will be removed.'},
   'kick_history_clear_title': {AppLocale.ru: 'Очистить историю сессий?', AppLocale.kk: 'Сессиялар тарихын тазалау керек пе?', AppLocale.en: 'Clear session history?'},
 

@@ -72,6 +72,24 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('"See all" opens the full kick-session history', (tester) async {
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // pregnancy mode
+    for (var i = 0; i < 6; i++) {
+      c.logKickSession(today, i + 1, const Duration(seconds: 30)); // 6 > 5 shown
+    }
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('See all (6)'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('See all (6)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('See all (6)'));
+    await tester.pumpAndSettle();
+    // Full-history screen lists every session (6 rows) under the history title.
+    expect(find.text('Session history'), findsOneWidget); // app bar
+    expect(find.textContaining('movements'), findsNWidgets(6));
+    addTearDown(c.dispose);
+  });
+
   testWidgets('kick session history can be cleared (with confirm)', (tester) async {
     final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // pregnancy mode
     c.logKickSession(today, 5, const Duration(seconds: 30));

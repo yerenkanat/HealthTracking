@@ -147,13 +147,17 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 ],
                 if (!cycleMode && c.kickSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _KickHistory(sessions: c.kickSessions, today: _today, onClear: () => _clearHistory(
-                        title: l.t('kick_history_clear_title'), onConfirmed: c.clearKickSessions)),
+                  _KickHistory(sessions: c.kickSessions, today: _today,
+                      onClear: () => _clearHistory(title: l.t('kick_history_clear_title'), onConfirmed: c.clearKickSessions),
+                      onOpenAll: () => _openFullHistory(l.t('kick_history'),
+                          [for (final s in c.kickSessions) _KickHistoryRow(record: s, now: _today)])),
                 ],
                 if (!cycleMode && c.contractionSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _ContractionHistory(sessions: c.contractionSessions, today: _today, onClear: () => _clearHistory(
-                        title: l.t('contr_history_clear_title'), onConfirmed: c.clearContractionSessions)),
+                  _ContractionHistory(sessions: c.contractionSessions, today: _today,
+                      onClear: () => _clearHistory(title: l.t('contr_history_clear_title'), onConfirmed: c.clearContractionSessions),
+                      onOpenAll: () => _openFullHistory(l.t('contr_history'),
+                          [for (final s in c.contractionSessions) _ContractionHistoryRow(record: s, now: _today)])),
                 ],
               ],
             ),
@@ -161,6 +165,12 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
         );
       },
     );
+  }
+
+  void _openFullHistory(String title, List<Widget> rows) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SessionHistoryScreen(title: title, rows: rows),
+    ));
   }
 
   Future<void> _clearHistory({required String title, required VoidCallback onConfirmed}) async {
@@ -909,7 +919,8 @@ class _KickHistory extends StatelessWidget {
   final List<KickSessionRecord> sessions;
   final DateTime today;
   final VoidCallback onClear;
-  const _KickHistory({required this.sessions, required this.today, required this.onClear});
+  final VoidCallback onOpenAll;
+  const _KickHistory({required this.sessions, required this.today, required this.onClear, required this.onOpenAll});
 
   @override
   Widget build(BuildContext context) {
@@ -925,7 +936,60 @@ class _KickHistory extends StatelessWidget {
             if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
             _KickHistoryRow(record: shown[i], now: today),
           ],
+          if (sessions.length > shown.length) _SeeAllRow(count: sessions.length, onTap: onOpenAll),
         ],
+      ),
+    );
+  }
+}
+
+/// A generic full-history screen: a titled list of pre-built rows.
+class SessionHistoryScreen extends StatelessWidget {
+  final String title;
+  final List<Widget> rows;
+  const SessionHistoryScreen({super.key, required this.title, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    return AuroraBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: Text(title)),
+        body: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          itemCount: rows.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 6),
+          itemBuilder: (_, i) => GlassCard(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), child: rows[i]),
+        ),
+      ),
+    );
+  }
+}
+
+class _SeeAllRow extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+  const _SeeAllRow({required this.count, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(l.t('hist_see_all', {'n': count}),
+                  style: const TextStyle(color: Palette.violet, fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, size: 18, color: Palette.violet),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -970,7 +1034,8 @@ class _ContractionHistory extends StatelessWidget {
   final List<ContractionSessionRecord> sessions;
   final DateTime today;
   final VoidCallback onClear;
-  const _ContractionHistory({required this.sessions, required this.today, required this.onClear});
+  final VoidCallback onOpenAll;
+  const _ContractionHistory({required this.sessions, required this.today, required this.onClear, required this.onOpenAll});
 
   @override
   Widget build(BuildContext context) {
@@ -986,6 +1051,7 @@ class _ContractionHistory extends StatelessWidget {
             if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
             _ContractionHistoryRow(record: shown[i], now: today),
           ],
+          if (sessions.length > shown.length) _SeeAllRow(count: sessions.length, onTap: onOpenAll),
         ],
       ),
     );
