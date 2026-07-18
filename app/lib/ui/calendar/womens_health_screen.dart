@@ -132,6 +132,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   today: _today,
                   logs: c.dayLogs,
                   cycle: cycleMode ? c.cycle : null,
+                  appointmentDays: {for (final a in c.appointments) dateKey(a.at)},
                   onPrev: () => _shiftMonth(-1),
                   onNext: () => _shiftMonth(1),
                   onTapDay: _openDay,
@@ -652,6 +653,7 @@ class _MonthCalendar extends StatelessWidget {
   final DateTime today;
   final Map<String, DayLog> logs;
   final CycleInfo? cycle; // non-null in cycle mode → colour by cycle phase
+  final Set<String> appointmentDays; // dateKeys with a reminder → dot marker
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final void Function(DateTime day) onTapDay;
@@ -663,6 +665,7 @@ class _MonthCalendar extends StatelessWidget {
     required this.onNext,
     required this.onTapDay,
     this.cycle,
+    this.appointmentDays = const {},
   });
 
   @override
@@ -731,6 +734,7 @@ class _MonthCalendar extends StatelessWidget {
     final logged = log?.isNotEmpty ?? false;
     final isToday = isSameDay(date, today);
     final isFuture = date.isAfter(today);
+    final hasAppointment = appointmentDays.contains(dateKey(date));
 
     // Colour resolution: cycle phase (cycle mode) wins, else the generic
     // "something logged" pink dot.
@@ -759,22 +763,40 @@ class _MonthCalendar extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         height: 40,
-        child: Center(
-          child: Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(
-              color: fill,
-              shape: BoxShape.circle,
-              border: isToday ? Border.all(color: borderColor, width: 1.6) : null,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                color: fill,
+                shape: BoxShape.circle,
+                border: isToday ? Border.all(color: borderColor, width: 1.6) : null,
+              ),
+              alignment: Alignment.center,
+              child: Text('$dayNum',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                    color: textColor ?? (isFuture ? Palette.textDim.withValues(alpha: 0.5) : Palette.text),
+                  )),
             ),
-            alignment: Alignment.center,
-            child: Text('$dayNum',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                  color: textColor ?? (isFuture ? Palette.textDim.withValues(alpha: 0.5) : Palette.text),
-                )),
-          ),
+            // Appointment marker: a small amber dot at the bottom of the cell,
+            // bordered so it stays visible on filled (period/ovulation) days.
+            if (hasAppointment)
+              Positioned(
+                bottom: 1,
+                child: Container(
+                  key: ValueKey('appt-dot-$dayNum'),
+                  width: 6, height: 6,
+                  decoration: BoxDecoration(
+                    color: Palette.amber,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Palette.surface, width: 1),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
       ),

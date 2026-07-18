@@ -93,6 +93,8 @@ void _seedDemo(AppController c) {
   // Demo: seed the tracker battery so the status chip is populated.
   final demoChild = c.selectedChild;
   if (demoChild != null) c.setChildBattery(demoChild.id, 62);
+  // Demo: an upcoming appointment so the reminders list + calendar dot show data.
+  c.addAppointment('Приём у гинеколога', today.add(const Duration(days: 5, hours: 10)));
   // Two past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
   // shows real predictions out of the box: last period ended a few days ago →
   // ~cycle day 7, next period in ~3 weeks.

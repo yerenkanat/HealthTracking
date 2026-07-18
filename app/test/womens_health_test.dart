@@ -72,6 +72,18 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('an appointment on a visible day shows a dot on the month grid', (tester) async {
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+    c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0)); // same month as today
+    await tester.pumpWidget(wrap(c));
+    // The month grid is below the fold in the test viewport — scroll it in.
+    await tester.scrollUntilVisible(find.byKey(const ValueKey('appt-dot-20')), 200,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.byKey(const ValueKey('appt-dot-20')), findsOneWidget);
+    expect(find.byKey(const ValueKey('appt-dot-19')), findsNothing);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('the "No longer pregnant?" action returns to cycle mode', (tester) async {
     final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
     await tester.pumpWidget(wrap(c));
