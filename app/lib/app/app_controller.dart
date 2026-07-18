@@ -102,6 +102,8 @@ class AppController {
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
+  bool _periodReminderEnabled = false;
+  static const _periodReminderId = 800001;
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -177,6 +179,7 @@ class AppController {
       ..clear()
       ..addAll(cfg.childBattery);
     _waterReminderMinutes = cfg.waterReminderMinutes;
+    _periodReminderEnabled = cfg.periodReminderEnabled;
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -224,6 +227,7 @@ class AppController {
         weightGoalKg: _weightGoalKg,
         childBattery: Map.of(_childBattery),
         waterReminderMinutes: _waterReminderMinutes,
+        periodReminderEnabled: _periodReminderEnabled,
       );
 
   void _persist() {
@@ -352,6 +356,7 @@ class AppController {
     } else {
       _dayLogs[log.date] = log;
     }
+    _reconcilePeriodReminder(); // a period change moves the prediction
     _persist();
     _notify();
   }
@@ -610,9 +615,43 @@ class AppController {
   void setCycleBaseline({int? cycle, int? period}) {
     if (cycle != null) _avgCycleLength = cycle;
     if (period != null) _avgPeriodLength = period;
+    _reconcilePeriodReminder(); // baseline shifts the prediction
     _persist();
     _notify();
   }
+
+  // ---- Period reminder (a notification ~2 days before the predicted period) ----
+  bool get periodReminderEnabled => _periodReminderEnabled;
+
+  void setPeriodReminder(bool enabled) {
+    _periodReminderEnabled = enabled;
+    _reconcilePeriodReminder();
+    _persist();
+    _notify();
+  }
+
+  /// (Re)compute the period-reminder notification: schedule it 2 days before the
+  /// predicted next period (at 10:00) when enabled and still in the future, else
+  /// cancel it. Emits on the reminder-command stream the runtime already listens to.
+  void _reconcilePeriodReminder() {
+    if (_reminderStream.isClosed) return;
+    final info = cycle;
+    final next = info.nextPeriodStart;
+    if (_periodReminderEnabled && info.hasData && next != null) {
+      final d = next.subtract(const Duration(days: 2));
+      final at = DateTime(d.year, d.month, d.day, 10);
+      if (at.isAfter(_now())) {
+        final l = L10n(_locale);
+        _reminderStream.add(ReminderCommand.schedule(
+            _periodReminderId, at, l.t('period_reminder_title'), l.t('period_reminder_body')));
+        return;
+      }
+    }
+    _reminderStream.add(const ReminderCommand.cancel(_periodReminderId));
+  }
+
+  /// Re-emit the period reminder on boot (after the runtime attaches its listener).
+  void reconcilePeriodReminder() => _reconcilePeriodReminder();
 
   /// Predicted cycle info from logged periods (empty until the user logs a period).
   CycleInfo get cycle =>

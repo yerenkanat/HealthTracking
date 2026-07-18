@@ -186,6 +186,7 @@ Future<void> bootstrapRuntime(AppController controller) async {
       }
     });
     controller.reconcileWaterReminder();
+    controller.reconcilePeriodReminder();
 
     // DEMO only: 3s after launch the child moves School → Home, firing real
     // "left School" + "entered Home" notifications so the feature is visible.

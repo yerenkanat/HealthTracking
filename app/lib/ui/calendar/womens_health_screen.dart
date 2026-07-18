@@ -235,7 +235,19 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   display: l.t('cyc_days_short', {'n': periodLen.round()}),
                   onChanged: (v) => setSheet(() => periodLen = v),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 6),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeThumbColor: Palette.roseDeep,
+                  value: c.periodReminderEnabled,
+                  onChanged: (v) {
+                    c.setPeriodReminder(v);
+                    setSheet(() {});
+                  },
+                  title: Text(l.t('period_reminder'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  subtitle: Text(l.t('period_reminder_sub'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                ),
+                const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () {
                     c.setCycleBaseline(cycle: cycleLen.round(), period: periodLen.round());
