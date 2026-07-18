@@ -246,28 +246,16 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   display: l.t('cyc_days_short', {'n': periodLen.round()}),
                   onChanged: (v) => setSheet(() => periodLen = v),
                 ),
-                const SizedBox(height: 6),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  activeThumbColor: Palette.roseDeep,
-                  value: c.periodReminderEnabled,
-                  onChanged: (v) {
-                    c.setPeriodReminder(v);
-                    setSheet(() {});
-                  },
-                  title: Text(l.t('period_reminder'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  subtitle: Text(l.t('period_reminder_sub'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  activeThumbColor: Palette.teal,
-                  value: c.fertileReminderEnabled,
-                  onChanged: (v) {
-                    c.setFertileReminder(v);
-                    setSheet(() {});
-                  },
-                  title: Text(l.t('fertile_reminder'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  subtitle: Text(l.t('fertile_reminder_sub'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_outlined, size: 18, color: Palette.textDim),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(l.t('rem_manage_hint'),
+                          style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 FilledButton(

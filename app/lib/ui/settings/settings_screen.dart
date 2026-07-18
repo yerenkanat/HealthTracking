@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../app/app_controller.dart';
 import '../../domain/family.dart';
+import '../../domain/reminders.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../calibration/bp_calibration_sheet.dart';
 import '../theme.dart';
+import 'reminders_center_screen.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
 import '../widgets/confirm.dart';
@@ -120,23 +122,25 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: l.t('set_notifications_sub'),
                 trailing: Switch(
                   value: c.notificationsEnabled,
-                  activeColor: Palette.violet,
+                  activeThumbColor: Palette.violet,
                   onChanged: c.setNotificationsEnabled,
                 ),
                 onTap: () => c.setNotificationsEnabled(!c.notificationsEnabled),
               ),
               _Row(
-                leading: Icons.water_drop_outlined,
-                title: l.t('water_reminder'),
-                subtitle: c.waterReminderMinutes == null
-                    ? l.t('water_reminder_off')
-                    : l.t('water_reminder_at', {'time': _fmtMinutes(context, c.waterReminderMinutes!)}),
-                trailing: Switch(
-                  value: c.waterReminderMinutes != null,
-                  activeColor: Palette.violet,
-                  onChanged: (on) => _toggleWaterReminder(context, c, on),
-                ),
-                onTap: c.waterReminderMinutes == null ? null : () => _pickWaterReminderTime(context, c),
+                leading: Icons.notifications_outlined,
+                title: l.t('rem_title'),
+                subtitle: l.t('rem_active', {
+                  'n': activeReminderCount(
+                    period: c.periodReminderEnabled,
+                    fertile: c.fertileReminderEnabled,
+                    water: c.waterReminderMinutes != null,
+                  )
+                }),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => RemindersCenterScreen(controller: c),
+                )),
               ),
             ]),
 
@@ -244,28 +248,6 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: ok ? null : Palette.danger,
       ),
     );
-  }
-
-  String _fmtMinutes(BuildContext context, int minutes) =>
-      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context);
-
-  Future<void> _toggleWaterReminder(BuildContext context, AppController c, bool on) async {
-    if (!on) {
-      c.setWaterReminder(null);
-      return;
-    }
-    // Turning on → pick a time (default 8pm); cancelling leaves it off.
-    final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 20, minute: 0));
-    if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
-  }
-
-  Future<void> _pickWaterReminderTime(BuildContext context, AppController c) async {
-    final current = c.waterReminderMinutes ?? 20 * 60;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
-    );
-    if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
   }
 
   String _calStatus(L10n l, AppController c) {
