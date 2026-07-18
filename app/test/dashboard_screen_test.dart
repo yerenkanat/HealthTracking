@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
+import 'package:fcs_app/ui/widgets/glass.dart';
 
 void main() {
   DateTime t(int m) => DateTime.utc(2026, 7, 15, 8, m);
@@ -90,6 +91,24 @@ void main() {
     final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
     await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
     expect(find.text('Water'), findsNothing);
+  });
+
+  testWidgets('tapping the water ring opens the weekly history', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    var opened = false;
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        waterCount: 4,
+        waterGoal: 8,
+        onAddWater: () {},
+        onOpenWaterHistory: () => opened = true,
+      ),
+    ));
+    await tester.scrollUntilVisible(find.text('Water'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.byType(MetricRing).last); // the water ring
+    await tester.pump();
+    expect(opened, isTrue);
   });
 
   testWidgets('danger reading gets alert styling (semantics mentions safe range)', (tester) async {

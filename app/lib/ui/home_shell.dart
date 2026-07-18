@@ -9,10 +9,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../app/app_controller.dart';
 import '../core/geofence.dart';
 import '../domain/geofence_alerts.dart';
+import '../domain/hydration.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
+import 'dashboard/water_history_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
 import 'tracking/child_map_screen.dart';
@@ -59,6 +61,13 @@ class _HomeShellState extends State<HomeShell> {
         onAddWater: () => c.addWater(DateTime.now()),
         onRemoveWater: () => c.addWater(DateTime.now(), -1),
         onSetWaterGoal: c.setWaterGoal,
+        onOpenWaterHistory: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => WaterHistoryScreen(
+            week: lastNDays(c.waterLog, DateTime.now(), 7),
+            goal: c.waterGoal,
+            streak: waterStreak(c.waterLog, DateTime.now(), c.waterGoal),
+          ),
+        )),
       ),
       WomensHealthScreen(controller: c),
       ChildMapScreen(

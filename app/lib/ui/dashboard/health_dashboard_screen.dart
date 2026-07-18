@@ -61,6 +61,7 @@ class HealthDashboardView extends StatelessWidget {
   final VoidCallback? onAddWater;
   final VoidCallback? onRemoveWater;
   final ValueChanged<int>? onSetWaterGoal;
+  final VoidCallback? onOpenWaterHistory;
   const HealthDashboardView({
     super.key,
     required this.samples,
@@ -76,6 +77,7 @@ class HealthDashboardView extends StatelessWidget {
     this.onAddWater,
     this.onRemoveWater,
     this.onSetWaterGoal,
+    this.onOpenWaterHistory,
   });
 
   @override
@@ -137,6 +139,7 @@ class HealthDashboardView extends StatelessWidget {
                       onAdd: onAddWater!,
                       onRemove: onRemoveWater ?? () {},
                       onSetGoal: onSetWaterGoal ?? (_) {},
+                      onOpenHistory: onOpenWaterHistory,
                     ),
                   ],
                   if (latestNight(sleepNights) != null) ...[

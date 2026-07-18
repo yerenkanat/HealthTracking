@@ -403,6 +403,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'water_remove': {AppLocale.ru: 'Убрать стакан', AppLocale.kk: 'Стақанды алу', AppLocale.en: 'Remove a glass'},
   'water_goal_title': {AppLocale.ru: 'Дневная норма воды', AppLocale.kk: 'Күнделікті су нормасы', AppLocale.en: 'Daily water goal'},
   'water_goal_hint': {AppLocale.ru: 'Сколько стаканов в день — ваша цель.', AppLocale.kk: 'Күніне неше стақан — сіздің мақсатыңыз.', AppLocale.en: 'How many glasses a day you aim for.'},
+  'water_week_title': {AppLocale.ru: 'Вода за неделю', AppLocale.kk: 'Апталық су', AppLocale.en: 'Water this week'},
+  'water_week_bars': {AppLocale.ru: 'Последние 7 дней', AppLocale.kk: 'Соңғы 7 күн', AppLocale.en: 'Last 7 days'},
+  'water_week_total': {AppLocale.ru: 'Всего стаканов', AppLocale.kk: 'Барлық стақан', AppLocale.en: 'Total glasses'},
+  'water_week_met': {AppLocale.ru: 'Дней с нормой', AppLocale.kk: 'Норма күндері', AppLocale.en: 'Goal days'},
+  'water_streak': {AppLocale.ru: 'Серия: {n} дн.', AppLocale.kk: 'Серия: {n} күн', AppLocale.en: '{n}-day streak'},
+  'water_streak_none': {AppLocale.ru: 'Пока без серии', AppLocale.kk: 'Әзірге серия жоқ', AppLocale.en: 'No streak yet'},
+  'water_streak_sub': {AppLocale.ru: 'Дней подряд с выполненной нормой', AppLocale.kk: 'Норма орындалған қатарынан күндер', AppLocale.en: 'Consecutive days you hit your goal'},
 
   // Child date of birth + age
   'child_gender': {AppLocale.ru: 'Пол', AppLocale.kk: 'Жынысы', AppLocale.en: 'Gender'},

@@ -366,6 +366,9 @@ class AppController {
   }
 
   // ---- Hydration (glasses of water per day) ----
+  /// The full water log (dateKey → glasses), for the weekly trend view.
+  Map<String, int> get waterLog => Map.unmodifiable(_waterLog);
+
   /// Glasses logged on [day] (0 if none).
   int waterFor(DateTime day) => _waterLog[dateKey(day)] ?? 0;
 

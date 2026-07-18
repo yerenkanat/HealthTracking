@@ -29,6 +29,31 @@ void main() {
   _chk('clamp in range unchanged', clampWaterGoal(10) == 10);
   _chk('default goal is 8', defaultWaterGoal == 8);
 
+  // Weekly series + streak.
+  final today = DateTime(2026, 7, 15);
+  final log = <String, int>{
+    '2026-07-15': 8, // today met
+    '2026-07-14': 9, // met
+    '2026-07-13': 8, // met
+    '2026-07-12': 3, // missed
+    '2026-07-11': 8, // met (but streak already broken above)
+    '2026-07-09': 8, // gap on the 10th
+  };
+  final week = lastNDays(log, today, 7);
+  _chk('7 days returned', week.length == 7);
+  _chk('oldest-first', week.first.day == DateTime(2026, 7, 9) && week.last.day == DateTime(2026, 7, 15));
+  _chk('missing day is 0', week[1].glasses == 0); // 2026-07-10
+  _chk('today glasses', week.last.glasses == 8);
+
+  _chk('streak counts back to first miss', waterStreak(log, today, 8) == 3); // 15,14,13
+  _chk('streak zero goal safe', waterStreak(log, today, 0) == 0);
+
+  // Today not yet met → streak counted from yesterday.
+  final log2 = {'2026-07-15': 2, '2026-07-14': 8, '2026-07-13': 8};
+  _chk('pending today counts from yesterday', waterStreak(log2, today, 8) == 2);
+  // Empty log → no streak.
+  _chk('empty → 0 streak', waterStreak(const {}, today, 8) == 0);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

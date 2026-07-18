@@ -18,6 +18,7 @@ class WaterCard extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onRemove;
   final ValueChanged<int> onSetGoal;
+  final VoidCallback? onOpenHistory;
   const WaterCard({
     super.key,
     required this.count,
@@ -25,6 +26,7 @@ class WaterCard extends StatelessWidget {
     required this.onAdd,
     required this.onRemove,
     required this.onSetGoal,
+    this.onOpenHistory,
   });
 
   @override
@@ -40,14 +42,18 @@ class WaterCard extends StatelessWidget {
         glow: accent,
         child: Row(
           children: [
-            MetricRing(
-              fraction: fraction,
-              gradient: met
-                  ? const LinearGradient(colors: [Palette.good, Palette.teal])
-                  : const LinearGradient(colors: [Palette.blue, Palette.teal]),
-              size: 66,
-              stroke: 7,
-              center: Icon(met ? Icons.check_rounded : Icons.water_drop_rounded, color: accent, size: 24),
+            InkWell(
+              onTap: onOpenHistory,
+              customBorder: const CircleBorder(),
+              child: MetricRing(
+                fraction: fraction,
+                gradient: met
+                    ? const LinearGradient(colors: [Palette.good, Palette.teal])
+                    : const LinearGradient(colors: [Palette.blue, Palette.teal]),
+                size: 66,
+                stroke: 7,
+                center: Icon(met ? Icons.check_rounded : Icons.water_drop_rounded, color: accent, size: 24),
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(

@@ -95,6 +95,11 @@ void _seedDemo(AppController c) {
   if (demoChild != null) c.setChildBattery(demoChild.id, 62);
   // Demo: an upcoming appointment so the reminders list + calendar dot show data.
   c.addAppointment('Приём у гинеколога', today.add(const Duration(days: 5, hours: 10)));
+  // Demo: a week of water so the weekly trend + streak are populated.
+  const demoWater = [6, 8, 5, 8, 9, 8, 4]; // 6 days ago → today
+  for (var i = 0; i < demoWater.length; i++) {
+    c.addWater(today.subtract(Duration(days: demoWater.length - 1 - i)), demoWater[i]);
+  }
   // Two past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
   // shows real predictions out of the box: last period ended a few days ago →
   // ~cycle day 7, next period in ~3 weeks.
