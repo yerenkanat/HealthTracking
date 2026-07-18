@@ -24,6 +24,7 @@ import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 import 'contraction_timer_screen.dart';
 import 'cycle_insights_screen.dart';
+import 'weight_history_screen.dart';
 import 'cycle_summary.dart';
 import 'kick_session_screen.dart';
 import 'weight_card.dart';
@@ -128,7 +129,15 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 ],
                 if (!cycleMode) ...[
                   const SizedBox(height: 14),
-                  WeightCard(entries: c.weights, onLog: (kg) => c.logWeight(_today, kg), goalKg: c.weightGoalKg, onSetGoal: c.setWeightGoal),
+                  WeightCard(
+                    entries: c.weights,
+                    onLog: (kg) => c.logWeight(_today, kg),
+                    goalKg: c.weightGoalKg,
+                    onSetGoal: c.setWeightGoal,
+                    onOpenHistory: c.weights.isEmpty ? null : () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => WeightHistoryScreen(entries: c.weights, onDelete: c.removeWeightEntry),
+                    )),
+                  ),
                 ],
                 const SizedBox(height: 16),
                 _MonthCalendar(

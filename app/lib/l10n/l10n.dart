@@ -420,6 +420,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'weight_target_to_go': {AppLocale.ru: 'Цель {target} кг · осталось {kg} кг', AppLocale.kk: 'Мақсат {target} кг · {kg} кг қалды', AppLocale.en: 'Target {target} kg · {kg} kg to go'},
   'weight_target_reached': {AppLocale.ru: 'Цель достигнута 🎉', AppLocale.kk: 'Мақсатқа жетті 🎉', AppLocale.en: 'Target reached 🎉'},
   'weight_target_clear': {AppLocale.ru: 'Убрать цель', AppLocale.kk: 'Мақсатты жою', AppLocale.en: 'Clear target'},
+  'weight_history_title': {AppLocale.ru: 'История веса', AppLocale.kk: 'Салмақ тарихы', AppLocale.en: 'Weight history'},
+  'weight_delete_title': {AppLocale.ru: 'Удалить запись?', AppLocale.kk: 'Жазбаны жою керек пе?', AppLocale.en: 'Delete this entry?'},
+  'weight_delete_body': {AppLocale.ru: 'Запись {kg} кг будет удалена.', AppLocale.kk: '{kg} кг жазбасы жойылады.', AppLocale.en: 'The {kg} kg entry will be removed.'},
 
   // Hydration (daily water)
   'water_title': {AppLocale.ru: 'Вода', AppLocale.kk: 'Су', AppLocale.en: 'Water'},

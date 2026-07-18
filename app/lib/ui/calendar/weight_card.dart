@@ -18,7 +18,8 @@ class WeightCard extends StatelessWidget {
   final ValueChanged<double> onLog;
   final double? goalKg;
   final ValueChanged<double?> onSetGoal;
-  const WeightCard({super.key, required this.entries, required this.onLog, this.goalKg, required this.onSetGoal});
+  final VoidCallback? onOpenHistory;
+  const WeightCard({super.key, required this.entries, required this.onLog, this.goalKg, required this.onSetGoal, this.onOpenHistory});
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +64,16 @@ class WeightCard extends StatelessWidget {
                 const Text('kg', style: TextStyle(color: Palette.textDim, fontSize: 13)),
                 const SizedBox(width: 10),
                 if (stats.count >= 2) _DeltaBadge(delta: stats.delta),
+                const Spacer(),
+                if (onOpenHistory != null)
+                  InkWell(
+                    onTap: onOpenHistory,
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.history_rounded, size: 20, color: Palette.textDim),
+                    ),
+                  ),
               ],
             ),
             if (points.length >= 2) ...[
