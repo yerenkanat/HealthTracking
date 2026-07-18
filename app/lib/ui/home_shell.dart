@@ -10,6 +10,7 @@ import '../app/app_controller.dart';
 import '../core/geofence.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/hydration.dart';
+import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'calendar/womens_health_screen.dart';
@@ -51,6 +52,7 @@ class _HomeShellState extends State<HomeShell> {
         greetingName: c.displayName,
         photoPath: c.profile.photoPath,
         currentLocale: c.locale,
+        summaryStatus: _summaryStatus(c, l),
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
         onOpenAdvisor: () => Navigator.of(context).push(
@@ -126,6 +128,24 @@ class _HomeShellState extends State<HomeShell> {
         ],
       ),
     );
+  }
+
+  /// A one-line pregnancy/cycle status for the shared health summary (empty when
+  /// there's nothing to say).
+  String _summaryStatus(AppController c, L10n l) {
+    if (c.isPregnant) {
+      final g = c.gestation;
+      if (g != null) return l.t('share_status_pregnancy', {'week': g.week});
+      return '';
+    }
+    final cyc = c.cycle;
+    if (cyc.hasData && cyc.cycleDay != null) {
+      final until = cyc.daysUntilNextPeriod ?? 0;
+      return until >= 0
+          ? l.t('share_status_cycle', {'day': cyc.cycleDay, 'n': until})
+          : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
+    }
+    return '';
   }
 
   /// Real Google map with the child marker + geofence circles — or a graceful

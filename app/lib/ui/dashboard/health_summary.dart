@@ -16,10 +16,12 @@ String buildHealthSummary(
   List<HealthSample> samples, {
   List<SleepSummary> nights = const [],
   String name = '',
+  String status = '', // optional pregnancy/cycle status line
 }) {
   final b = StringBuffer();
   b.writeln(l.t('share_summary_title'));
   if (name.isNotEmpty) b.writeln(name);
+  if (status.isNotEmpty) b.writeln(status);
   b.writeln();
 
   String row(String label, String value) => '• $label: $value';

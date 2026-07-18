@@ -55,6 +55,7 @@ class HealthDashboardView extends StatelessWidget {
   final void Function(AppLocale)? onLocaleChange;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenAdvisor;
+  final String summaryStatus; // pregnancy/cycle status line for the shared summary
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -72,6 +73,7 @@ class HealthDashboardView extends StatelessWidget {
     this.onLocaleChange,
     this.onOpenProfile,
     this.onOpenAdvisor,
+    this.summaryStatus = '',
     this.waterCount = 0,
     this.waterGoal = 8,
     this.onAddWater,
@@ -157,7 +159,7 @@ class HealthDashboardView extends StatelessWidget {
   }
 
   Future<void> _shareSummary(BuildContext context, L10n l) async {
-    final text = buildHealthSummary(l, samples, nights: sleepNights, name: greetingName);
+    final text = buildHealthSummary(l, samples, nights: sleepNights, name: greetingName, status: summaryStatus);
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

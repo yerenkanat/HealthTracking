@@ -54,6 +54,11 @@ void main() {
   _chk('empty → still has disclaimer', empty.contains('not a medical diagnosis'));
   _chk('empty → no name blank line noise', !empty.contains('Blood oxygen'));
 
+  // Optional status line (pregnancy/cycle) is included when provided, omitted otherwise.
+  final withStatus = buildHealthSummary(l, samples, name: 'Aizhan', status: 'Pregnancy · week 20');
+  _chk('status line included', withStatus.contains('Pregnancy · week 20'));
+  _chk('no status → no stray line', !s.contains('Pregnancy'));
+
   // Localization: Russian title + labels present.
   const ru = L10n(AppLocale.ru);
   final rs = buildHealthSummary(ru, samples, nights: nights, name: 'Аружан');
