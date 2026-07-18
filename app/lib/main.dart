@@ -94,11 +94,17 @@ void _seedDemo(AppController c) {
   final demoChild = c.selectedChild;
   if (demoChild != null) c.setChildBattery(demoChild.id, 62);
   // Demo: an upcoming appointment so the reminders list + calendar dot show data.
-  c.addAppointment('Приём у гинеколога', today.add(const Duration(days: 5, hours: 10)));
-  // Demo: a week of water so the weekly trend + streak are populated.
-  const demoWater = [6, 8, 5, 8, 9, 8, 4]; // 6 days ago → today
-  for (var i = 0; i < demoWater.length; i++) {
-    c.addWater(today.subtract(Duration(days: demoWater.length - 1 - i)), demoWater[i]);
+  // Guarded so re-running the demo (hot restart) doesn't pile up duplicates.
+  if (c.appointments.isEmpty) {
+    c.addAppointment('Приём у гинеколога', today.add(const Duration(days: 5, hours: 10)));
+  }
+  // Demo: a week of water so the weekly trend + streak are populated (addWater
+  // accumulates, so only seed when there's no water logged yet).
+  if (c.waterLog.isEmpty) {
+    const demoWater = [6, 8, 5, 8, 9, 8, 4]; // 6 days ago → today
+    for (var i = 0; i < demoWater.length; i++) {
+      c.addWater(today.subtract(Duration(days: demoWater.length - 1 - i)), demoWater[i]);
+    }
   }
   // Three past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
   // shows real predictions AND the insights regularity read out of the box: last

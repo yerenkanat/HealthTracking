@@ -49,14 +49,14 @@ class AppointmentsScreen extends StatelessWidget {
                   _SectionLabel(l.t('appt_upcoming')),
                   const SizedBox(height: 10),
                   for (final a in split.upcoming)
-                    _AppointmentCard(appt: a, now: now(), onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a)),
+                    _AppointmentCard(appt: a, now: now(), onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a), onReschedule: (d) => _reschedule(a, d)),
                 ],
                 if (split.past.isNotEmpty) ...[
                   const SizedBox(height: 18),
                   _SectionLabel(l.t('appt_past')),
                   const SizedBox(height: 10),
                   for (final a in split.past)
-                    _AppointmentCard(appt: a, now: now(), past: true, onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a)),
+                    _AppointmentCard(appt: a, now: now(), past: true, onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a), onReschedule: (d) => _reschedule(a, d)),
                 ],
               ],
             );
@@ -89,6 +89,9 @@ class AppointmentsScreen extends StatelessWidget {
       controller.addAppointment(result.title, result.at, note: result.note);
     }
   }
+
+  void _reschedule(Appointment a, Duration by) =>
+      controller.updateAppointment(a.id, a.title, a.at.add(by), note: a.note);
 
   Future<void> _openEdit(BuildContext context, Appointment appt) async {
     final result = await showModalBottomSheet<_NewAppt>(
@@ -253,7 +256,8 @@ class _AppointmentCard extends StatelessWidget {
   final bool past;
   final VoidCallback onDelete;
   final VoidCallback? onEdit;
-  const _AppointmentCard({required this.appt, required this.now, required this.onDelete, this.onEdit, this.past = false});
+  final ValueChanged<Duration>? onReschedule;
+  const _AppointmentCard({required this.appt, required this.now, required this.onDelete, this.onEdit, this.onReschedule, this.past = false});
 
   @override
   Widget build(BuildContext context) {
@@ -307,15 +311,52 @@ class _AppointmentCard extends StatelessWidget {
                 decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
                 child: Text(badge, style: TextStyle(color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
               ),
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 18, color: Palette.textDim),
-              tooltip: l.t('act_remove'),
-              onPressed: onDelete,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, size: 20, color: Palette.textDim),
+              color: Palette.surfaceHi,
+              tooltip: l.t('appt_actions'),
+              onSelected: (v) {
+                switch (v) {
+                  case 'edit':
+                    onEdit?.call();
+                  case 'day':
+                    onReschedule?.call(const Duration(days: 1));
+                  case 'week':
+                    onReschedule?.call(const Duration(days: 7));
+                  case 'delete':
+                    onDelete();
+                }
+              },
+              itemBuilder: (_) => [
+                if (onEdit != null)
+                  PopupMenuItem(value: 'edit', child: _MenuRow(icon: Icons.edit_outlined, label: l.t('appt_edit'))),
+                if (onReschedule != null && !past) ...[
+                  PopupMenuItem(value: 'day', child: _MenuRow(icon: Icons.today_rounded, label: l.t('appt_plus_day'))),
+                  PopupMenuItem(value: 'week', child: _MenuRow(icon: Icons.date_range_rounded, label: l.t('appt_plus_week'))),
+                ],
+                PopupMenuItem(value: 'delete', child: _MenuRow(icon: Icons.delete_outline_rounded, label: l.t('act_remove'), danger: true)),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool danger;
+  const _MenuRow({required this.icon, required this.label, this.danger = false});
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? Palette.danger : Palette.text;
+    return Row(children: [
+      Icon(icon, size: 18, color: danger ? Palette.danger : Palette.textDim),
+      const SizedBox(width: 10),
+      Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+    ]);
   }
 }
 

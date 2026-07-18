@@ -71,18 +71,34 @@ void main() {
     addTearDown(c.dispose);
   });
 
-  testWidgets('deleting a reminder asks to confirm; confirming removes it', (tester) async {
+  testWidgets('deleting a reminder (via the menu) asks to confirm; confirming removes it', (tester) async {
     final c = AppController(now: () => today);
     c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0));
     await tester.pumpWidget(wrap(c));
 
-    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
     expect(find.text('Delete this reminder?'), findsOneWidget);
-    await tester.tap(find.text('Remove'));
+    await tester.tap(find.text('Remove')); // dialog confirm
     await tester.pumpAndSettle();
     expect(c.appointments, isEmpty);
     expect(find.textContaining('No reminders yet'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('quick reschedule +1 week shifts the appointment', (tester) async {
+    final c = AppController(now: () => today);
+    c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0));
+    await tester.pumpWidget(wrap(c));
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move +1 week'));
+    await tester.pumpAndSettle();
+
+    expect(c.appointments.single.at, DateTime(2026, 7, 27, 9, 0)); // +7 days
     addTearDown(c.dispose);
   });
 }
