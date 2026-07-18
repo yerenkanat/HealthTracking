@@ -1,8 +1,9 @@
-# FemTech & Child Safety Consortium — MVP
+# Umay — FemTech & Child Safety MVP
 
-A dual-purpose mobile app: **(1) a pregnancy health tracker** (BLE smart band →
+A dual-purpose mobile app: **(1) a pregnancy & cycle health tracker** (BLE smart band →
 proactive medical AI assistant) and **(2) a child safety tracker** (BLE/GPS/Wi-Fi/LBS
-beacon → geofencing → instant parent alerts).
+beacon → geofencing → instant parent alerts). Premium light theme, fully localized in
+**Russian / Kazakh / English**.
 
 **Stack:** Flutter/Dart app · Node/TypeScript backend · PostgreSQL (TimescaleDB +
 PostGIS) · Redis · Anthropic Claude for the guardrailed assistant.
@@ -11,6 +12,30 @@ PostGIS) · Redis · Anthropic Claude for the guardrailed assistant.
 > diagnosis.** PPG blood pressure and skin-temperature are *screening signals* that
 > must be confirmed by a real cuff/thermometer. A genuine danger sign always routes
 > to a human clinician / emergency services — the AI can never override that path.
+
+## What the app does today
+
+Four tabs, all built and running (demo mode: `--dart-define=DEMO=true`):
+
+- **Health** — a reassuring dashboard: heart-rate / blood-oxygen / temperature /
+  merged blood-pressure cards with sparklines + danger bands, a "peace of mind"
+  status banner, last-night sleep, a **daily water tracker** (ring + goal + weekly
+  trend & streak), the data-driven **advisor**, and a one-tap **share health summary**.
+- **Calendar (Women's health)** — auto-switches between **cycle mode** (Flo-style
+  predictions: next period + delay, fertile window, ovulation; month grid; insights;
+  shareable forecast) and **pregnancy mode** (gestation progress, non-medical
+  milestones, **weight tracking**, a **timed kick session** with a goal ring + history,
+  and a **contraction timer**). Appointment **reminder dots** on the month grid.
+- **Child** — a live map (Google Maps, gated behind a key) with geofence zone pills, a
+  low-anxiety status card showing freshness + **tracker battery**, **check-in / SOS**
+  actions, and a safety-alert feed. Geofence enter/exit and **low-battery** events fire
+  real OS notifications.
+- **Profile / Settings** — the mother's profile, children (with gender + zones) and
+  devices, language, BP calibration, **appointment reminders** (scheduled as OS
+  notifications), and **JSON data export / import** (backup & restore).
+
+State lives in a pure-Dart `AppController` (dart:async streams), persisted as JSON via
+`shared_preferences`, so the whole feature surface is unit-testable without Flutter.
 
 ## Layout
 
@@ -41,13 +66,26 @@ packages/
     src/notifications/push.ts FCM/APNS + Nudge-Master copy
     src/ai/AIGuardrailProcessor.ts  deterministic triage override + INJECTED LLM (testable)
     src/ai/anthropicClient.ts       real Claude caller (claude-opus-4-8)
-app/lib/domain/health_monitor.dart  BLE telemetry → sync + emergency navigation
-app/lib/domain/health_series.dart   chart-ready series, stats, danger bands (verified)
-app/lib/domain/child_tracker_state.dart  freshness, current zone, "x min ago" (verified)
-app/lib/data/api_client.dart        typed backend client (injectable transport)
-app/lib/ui/emergency/emergency_rescue_screen.dart  low-anxiety emergency UI
-app/lib/ui/dashboard/                health dashboard (stat tiles + sparklines)
-app/lib/ui/tracking/child_map_screen.dart  live map + geofence zones + status card
+app/lib/app/app_controller.dart      single source of UI state (pure Dart streams)
+app/lib/data/persisted_config.dart   durable JSON state (profile, logs, water, weights…)
+app/lib/l10n/l10n.dart               ru/kk/en catalog (coverage-checked)
+app/lib/domain/                      PURE, unit-tested feature logic:
+  health_monitor.dart                 BLE telemetry → sync + emergency navigation
+  health_series.dart                  chart-ready series, stats, danger bands
+  health_advisor.dart                 data-grounded advisory cards (non-diagnostic)
+  child_tracker_state.dart            freshness, current zone, "x min ago"
+  geofence_alerts.dart                enter/left/checkIn/sos/lowBattery events
+  cycle_predictions.dart              next period / fertile / ovulation
+  cycle_log.dart / cycle_insights.dart  day logs (mood/symptom/flow) + history
+  pregnancy_milestones.dart · kick_session.dart · contraction.dart · weight.dart
+  hydration.dart · appointment.dart · battery.dart · sleep.dart · family.dart
+app/lib/ui/                          screens (thin presentation over the domain):
+  dashboard/                          health dashboard, water card + weekly history
+  calendar/                           women's health: cycle + pregnancy, kick/contraction
+  tracking/                           child map, zones, alerts feed, check-in/SOS
+  appointments/ · profile/ · settings/ · advisor/ · emergency/ · onboarding/
+app/lib/data/notification_service.dart  OS notifications (geofence, reminders, low battery)
+app/tool/verify_*.dart               25 dependency-free conformance runners (551 assertions)
 infra/                               docker-compose (timescale+postgis, redis) + smoke test
 docs/BATTERY_OPTIMIZATION.md  Code-Optimizer checklist
 ```
@@ -103,14 +141,19 @@ band frame → parse → calibrate → assessTelemetry()
 ## Verify
 
 ```bash
-# Pure-Dart logic (no Flutter SDK needed) — verified on every change:
+# Pure-Dart logic (no Flutter SDK needed) — 25 runners, 551 assertions, on every change:
 cd app
-dart run tool/verify_core.dart        # 36/36: thresholds, golden vectors, geofence, parsers
-dart run tool/verify_datalayer.dart   # 16/16: API parsing, HealthMonitor routing, chat escalation
-dart run tool/verify_features.dart    # 24/24: dashboard series/stats/bands, tracking derivation
+dart run tool/verify_core.dart        # 36: thresholds, golden vectors, geofence, parsers
+dart run tool/verify_cycle.dart       # 56: cycle predictions (period/fertile/ovulation)
+dart run tool/verify_persistence.dart # 52: full config JSON round-trip + restore
+dart run tool/verify_family.dart      # 40: phone, children, devices
+# …plus verify_{advisor,alerts,app,appointments,batcher,battery,calibration,chat,
+#   contractions,cycle_summary,datalayer,features,kicks,l10n,milestones,onboarding,
+#   safety,sleep,summary,water,weight}.dart   (see .github/workflows/ci.yml)
 
 # Full Dart + widget suites (needs Flutter SDK):
-flutter test                          # + emergency / dashboard / map widget tests
+flutter test                          # 108 widget/unit tests
+flutter analyze                       # clean
 
 # Node backend (needs npm install):
 cd .. && npm test                     # vitest: triage + geofence + cross-language contract
@@ -119,18 +162,18 @@ cd .. && npm test                     # vitest: triage + geofence + cross-langua
 docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke.mjs
 ```
 
-### Verification status (this machine, pure logic)
+### Verification status (this machine)
 | Layer | Result |
 |-------|--------|
-| Dart core (safety) | 36/36 ✅ |
-| Dart data/orchestration | 16/16 ✅ |
-| Dart dashboard + tracking | 24/24 ✅ |
-| Node guardrail + ingest | 11/11 ✅ |
-| Node cross-language contract | 20/20 ✅ |
+| Dart pure logic (25 `verify_*` runners) | **551 assertions ✅** |
+| Flutter widget + unit tests | **108 ✅** |
+| `flutter analyze` | clean ✅ |
+| Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 
-Flutter **widgets** (emergency/dashboard/map) and the **HTTP/DB integration** are
-written with tests but need a Flutter SDK / Docker to execute — the logic feeding
-them is verified above.
+CI (`.github/workflows/ci.yml`) runs every `verify_*` runner, `flutter analyze`,
+`flutter test`, and the backend suite on each push. The app runs standalone against
+in-process fakes today (`--dart-define=DEMO=true`, or the backend's `USE_MEMORY_DB`) —
+real endpoints + API keys drop in without touching the verified logic.
 
 ## Before production — honest gaps
 1. **Confirm the OEM BLE frame spec.** `band_parser.dart` uses the common DaFit-style
@@ -142,6 +185,7 @@ them is verified above.
    ingest and AI endpoints (injection tests included as a starting point).
 4. **Native background geofencing** (iOS region monitoring / Android GeofencingClient)
    to replace JS/Dart polling in the background — see the battery doc.
-5. **UI screens** not yet built — the Emergency Rescue screen and low-anxiety FemTech
-   dashboards are the next slice (the `ui-ux-pro-max` skill drives that design).
+5. **Live backend + real device data.** The full UI is built and verified against
+   demo/fake data; wiring the typed `ApiClient` to the real endpoints (telemetry,
+   location, `/ai/chat`) and pairing real bands/tags is the remaining integration.
 ```
