@@ -57,6 +57,20 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('mood-this-week card counts only the last 7 days', (tester) async {
+    final c = AppController(now: () => today); // today = 2026-07-16
+    for (var i = 0; i < 3; i++) {
+      c.setDayLog(DayLog(date: dateKey(today.subtract(Duration(days: 6 + i))), flow: Flow.medium));
+    }
+    c.setDayLog(DayLog(date: dateKey(DateTime(2026, 6, 20)), mood: Mood.sad)); // old
+    c.setDayLog(DayLog(date: dateKey(DateTime(2026, 7, 14)), mood: Mood.happy)); // in window
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('MOOD THIS WEEK'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Happy'), findsWidgets); // recent mood shows
+    addTearDown(c.dispose);
+  });
+
   testWidgets('recent notes section lists days that have a note', (tester) async {
     final c = AppController(now: () => today);
     // A logged period (so hasData) + a couple of day notes.

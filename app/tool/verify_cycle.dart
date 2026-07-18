@@ -172,6 +172,16 @@ void main() {
   _chk('recent window boundary is inclusive', symptomFrequencySince([const DayLog(date: '2026-07-10', symptoms: {Symptom.cramps})], since).length == 1);
   _chk('recent window empty when all older', symptomFrequencySince([const DayLog(date: '2026-07-01', symptoms: {Symptom.cramps})], since).isEmpty);
 
+  // ---- Mood frequency within a recent window ----
+  final moodWindow = [
+    const DayLog(date: '2026-07-02', mood: Mood.sad), // old
+    const DayLog(date: '2026-07-14', mood: Mood.happy), // in window
+    const DayLog(date: '2026-07-16', mood: Mood.happy), // in window
+  ];
+  final recentMoods = moodFrequencySince(moodWindow, since);
+  _chk('recent mood counts exclude old', recentMoods.first.mood == Mood.happy && recentMoods.first.count == 2);
+  _chk('recent mood excludes out-of-window', !recentMoods.any((e) => e.mood == Mood.sad));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

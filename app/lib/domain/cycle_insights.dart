@@ -81,6 +81,12 @@ List<DayLog> recentNotes(Iterable<DayLog> logs, {int limit = 5}) {
   return withNotes.take(limit).toList();
 }
 
+/// Mood counts restricted to logs on/after [since] (a recent window). Descending.
+List<({Mood mood, int count})> moodFrequencySince(Iterable<DayLog> logs, DateTime since) {
+  final sinceKey = dateKey(since);
+  return moodFrequency([for (final l in logs) if (l.date.compareTo(sinceKey) >= 0) l]);
+}
+
 /// Count of each mood across the given day logs (descending by count).
 List<({Mood mood, int count})> moodFrequency(Iterable<DayLog> logs) {
   final counts = <Mood, int>{};

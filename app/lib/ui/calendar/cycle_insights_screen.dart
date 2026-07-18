@@ -35,7 +35,9 @@ class CycleInsightsScreen extends StatelessWidget {
             final logs = controller.dayLogs.values;
             final moods = moodFrequency(logs);
             final symptoms = symptomFrequency(logs);
-            final thisWeek = symptomFrequencySince(logs, _now().subtract(const Duration(days: 7)));
+            final since = _now().subtract(const Duration(days: 7));
+            final thisWeek = symptomFrequencySince(logs, since);
+            final moodsWeek = moodFrequencySince(logs, since);
             final notes = recentNotes(logs);
 
             if (!info.hasData) {
@@ -98,6 +100,17 @@ class CycleInsightsScreen extends StatelessWidget {
                     child: Column(children: [
                       for (final s in thisWeek.take(4))
                         _FreqRow(label: l.t('sym_${s.symptom.name}'), count: s.count, color: Palette.amber),
+                    ]),
+                  ),
+                ],
+
+                if (moodsWeek.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: l.t('cyc_mood_week'),
+                    child: Column(children: [
+                      for (final m in moodsWeek.take(4))
+                        _FreqRow(label: l.t('mood_${m.mood.name}'), count: m.count, color: Palette.teal),
                     ]),
                   ),
                 ],

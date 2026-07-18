@@ -525,6 +525,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_reg_sub': {AppLocale.ru: 'Разброс {var} дн. · в среднем {avg} дн.', AppLocale.kk: 'Айырмасы {var} күн · орташа {avg} күн', AppLocale.en: 'Varies by {var} days · {avg}-day average'},
   'cyc_recent_notes': {AppLocale.ru: 'Заметки', AppLocale.kk: 'Ескертпелер', AppLocale.en: 'Recent notes'},
   'cyc_this_week': {AppLocale.ru: 'Симптомы за неделю', AppLocale.kk: 'Апталық симптомдар', AppLocale.en: 'Symptoms this week'},
+  'cyc_mood_week': {AppLocale.ru: 'Настроение за неделю', AppLocale.kk: 'Апталық көңіл-күй', AppLocale.en: 'Mood this week'},
   'cyc_cycles_tracked': {AppLocale.ru: 'Циклов', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycles'},
   'cyc_avg_period_stat': {AppLocale.ru: 'Менструация', AppLocale.kk: 'Етеккір', AppLocale.en: 'Period'},
   'cyc_avg_cycle_stat': {AppLocale.ru: 'Цикл', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycle'},
