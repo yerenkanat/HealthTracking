@@ -31,6 +31,32 @@ void main() {
     await c.dispose();
   });
 
+  test('editing an appointment reschedules its reminder to the new time', () async {
+    final c = AppController(now: () => now);
+    final cmds = <ReminderCommand>[];
+    final sub = c.reminderCommands.listen(cmds.add);
+
+    c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0));
+    await Future<void>.delayed(Duration.zero);
+    final id = c.appointments.single.id;
+    cmds.clear();
+
+    c.updateAppointment(id, 'OB visit moved', DateTime(2026, 7, 25, 14, 0));
+    await Future<void>.delayed(Duration.zero);
+    expect(cmds.single.at, DateTime(2026, 7, 25, 14, 0));
+    expect(cmds.single.title, 'OB visit moved');
+    expect(cmds.single.id, AppController.reminderIdFor(id)); // same id, rescheduled
+
+    // Moving it to the past cancels the reminder instead.
+    cmds.clear();
+    c.updateAppointment(id, 'OB visit moved', DateTime(2026, 7, 1, 9, 0));
+    await Future<void>.delayed(Duration.zero);
+    expect(cmds.single.at, isNull);
+
+    await sub.cancel();
+    await c.dispose();
+  });
+
   test('a past appointment does not schedule anything', () async {
     final c = AppController(now: () => now);
     final cmds = <ReminderCommand>[];

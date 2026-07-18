@@ -49,14 +49,14 @@ class AppointmentsScreen extends StatelessWidget {
                   _SectionLabel(l.t('appt_upcoming')),
                   const SizedBox(height: 10),
                   for (final a in split.upcoming)
-                    _AppointmentCard(appt: a, now: now(), onDelete: () => _confirmDelete(context, a)),
+                    _AppointmentCard(appt: a, now: now(), onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a)),
                 ],
                 if (split.past.isNotEmpty) ...[
                   const SizedBox(height: 18),
                   _SectionLabel(l.t('appt_past')),
                   const SizedBox(height: 10),
                   for (final a in split.past)
-                    _AppointmentCard(appt: a, now: now(), past: true, onDelete: () => _confirmDelete(context, a)),
+                    _AppointmentCard(appt: a, now: now(), past: true, onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a)),
                 ],
               ],
             );
@@ -89,6 +89,19 @@ class AppointmentsScreen extends StatelessWidget {
       controller.addAppointment(result.title, result.at, note: result.note);
     }
   }
+
+  Future<void> _openEdit(BuildContext context, Appointment appt) async {
+    final result = await showModalBottomSheet<_NewAppt>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Palette.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _AddAppointmentSheet(now: now(), initial: appt),
+    );
+    if (result != null) {
+      controller.updateAppointment(appt.id, result.title, result.at, note: result.note);
+    }
+  }
 }
 
 class _NewAppt {
@@ -100,16 +113,21 @@ class _NewAppt {
 
 class _AddAppointmentSheet extends StatefulWidget {
   final DateTime now;
-  const _AddAppointmentSheet({required this.now});
+  final Appointment? initial; // non-null → edit mode (prefilled)
+  const _AddAppointmentSheet({required this.now, this.initial});
   @override
   State<_AddAppointmentSheet> createState() => _AddAppointmentSheetState();
 }
 
 class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
-  final _title = TextEditingController();
-  final _note = TextEditingController();
-  late DateTime _date = DateTime(widget.now.year, widget.now.month, widget.now.day);
-  TimeOfDay _time = const TimeOfDay(hour: 9, minute: 0);
+  late final _title = TextEditingController(text: widget.initial?.title ?? '');
+  late final _note = TextEditingController(text: widget.initial?.note ?? '');
+  late DateTime _date = widget.initial == null
+      ? DateTime(widget.now.year, widget.now.month, widget.now.day)
+      : DateTime(widget.initial!.at.year, widget.initial!.at.month, widget.initial!.at.day);
+  late TimeOfDay _time = widget.initial == null
+      ? const TimeOfDay(hour: 9, minute: 0)
+      : TimeOfDay.fromDateTime(widget.initial!.at);
 
   @override
   void dispose() {
@@ -131,11 +149,12 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l.t('appt_add'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Palette.text)),
+          Text(l.t(widget.initial == null ? 'appt_add' : 'appt_edit'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Palette.text)),
           const SizedBox(height: 14),
           TextField(
             controller: _title,
-            autofocus: true,
+            autofocus: widget.initial == null,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
               labelText: l.t('appt_title_label'),
@@ -233,7 +252,8 @@ class _AppointmentCard extends StatelessWidget {
   final DateTime now;
   final bool past;
   final VoidCallback onDelete;
-  const _AppointmentCard({required this.appt, required this.now, required this.onDelete, this.past = false});
+  final VoidCallback? onEdit;
+  const _AppointmentCard({required this.appt, required this.now, required this.onDelete, this.onEdit, this.past = false});
 
   @override
   Widget build(BuildContext context) {
@@ -252,6 +272,7 @@ class _AppointmentCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GlassCard(
+        onTap: onEdit,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [

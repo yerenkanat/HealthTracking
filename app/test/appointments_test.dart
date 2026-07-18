@@ -47,6 +47,30 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('tapping a reminder opens a prefilled edit sheet and saves changes', (tester) async {
+    final c = AppController(now: () => today);
+    c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0), note: 'bring papers');
+    final id = c.appointments.single.id;
+    await tester.pumpWidget(wrap(c));
+
+    await tester.tap(find.text('OB visit'));
+    await tester.pumpAndSettle();
+    // Edit sheet is prefilled.
+    expect(find.text('Edit reminder'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'OB visit'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'bring papers'), findsOneWidget);
+
+    await tester.enterText(find.widgetWithText(TextField, 'OB visit'), 'OB-GYN checkup');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    // Same appointment (id preserved), new title.
+    expect(c.appointments.single.id, id);
+    expect(c.appointments.single.title, 'OB-GYN checkup');
+    expect(find.text('OB-GYN checkup'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('deleting a reminder asks to confirm; confirming removes it', (tester) async {
     final c = AppController(now: () => today);
     c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0));

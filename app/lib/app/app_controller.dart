@@ -454,6 +454,22 @@ class AppController {
     _notify();
   }
 
+  /// Edit an existing appointment in place (keeping its id). Reschedules its
+  /// reminder for the new time, or cancels it if the new time is in the past.
+  void updateAppointment(String id, String title, DateTime at, {String note = ''}) {
+    final i = _appointments.indexWhere((a) => a.id == id);
+    if (i < 0) return;
+    final appt = Appointment(id: id, title: title.trim(), at: at, note: note.trim());
+    _appointments[i] = appt;
+    if (!_reminderStream.isClosed) {
+      _reminderStream.add(at.isAfter(_now())
+          ? _scheduleCommandFor(appt)
+          : ReminderCommand.cancel(reminderIdFor(id)));
+    }
+    _persist();
+    _notify();
+  }
+
   /// Re-emit schedule commands for every still-future appointment. Called by the
   /// runtime after it attaches its listener, so OS reminders survive reinstalls
   /// or a device reboot that dropped pending alarms.

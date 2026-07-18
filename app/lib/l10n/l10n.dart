@@ -214,6 +214,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Appointments / reminders
   'appt_title': {AppLocale.ru: 'Напоминания', AppLocale.kk: 'Еске салғыштар', AppLocale.en: 'Reminders'},
   'appt_add': {AppLocale.ru: 'Добавить', AppLocale.kk: 'Қосу', AppLocale.en: 'Add reminder'},
+  'appt_edit': {AppLocale.ru: 'Изменить напоминание', AppLocale.kk: 'Еске салғышты өзгерту', AppLocale.en: 'Edit reminder'},
   'appt_upcoming': {AppLocale.ru: 'Предстоящие', AppLocale.kk: 'Алдағы', AppLocale.en: 'Upcoming'},
   'appt_past': {AppLocale.ru: 'Прошедшие', AppLocale.kk: 'Өткен', AppLocale.en: 'Past'},
   'appt_empty': {AppLocale.ru: 'Пока нет напоминаний.\nДобавьте визит к врачу или обследование.', AppLocale.kk: 'Әзірге еске салғыш жоқ.\nДәрігерге бару немесе тексеру қосыңыз.', AppLocale.en: 'No reminders yet.\nAdd a doctor visit or a check-up.'},
