@@ -40,6 +40,26 @@ void main() {
   final none = contractionStats(const []);
   _chk('empty stats zeroed', none.count == 0 && none.avgDuration == Duration.zero);
 
+  // ---- 5-1-1 progress ----
+  // The 3-contraction fixture: ~5 min apart, ~55s long, spans only 10 min.
+  final early = fiveOneOneProgress(list);
+  _chk('5-1-1 interval met (~5 min apart)', early.intervalMet);
+  _chk('5-1-1 duration not yet met (<60s avg)', !early.durationMet);
+  _chk('5-1-1 not sustained (10 min span)', !early.sustainedMet);
+  _chk('5-1-1 metCount = 1', early.metCount == 1 && !early.allMet);
+
+  // A full hour of minute-long contractions 5 min apart → all three met.
+  final active = [
+    for (var i = 0; i <= 12; i++)
+      Contraction(start: t.add(Duration(minutes: 5 * i)), end: t.add(Duration(minutes: 5 * i, seconds: 65))),
+  ];
+  final p = fiveOneOneProgress(active);
+  _chk('5-1-1 all met over a sustained hour', p.allMet && p.metCount == 3);
+
+  _chk('5-1-1 empty → nothing met', fiveOneOneProgress(const []).metCount == 0);
+  _chk('5-1-1 single contraction → interval/sustained false',
+      !fiveOneOneProgress([list.first]).intervalMet && !fiveOneOneProgress([list.first]).sustainedMet);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

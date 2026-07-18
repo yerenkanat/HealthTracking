@@ -53,6 +53,23 @@ void main() {
     expect(find.text('first'), findsOneWidget); // first contraction has no interval
   });
 
+  testWidgets('5-1-1 card appears after two contractions', (tester) async {
+    await tester.pumpWidget(wrap());
+    // No card with a single contraction.
+    await tester.tap(find.text('Start'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Stop').first);
+    await tester.pump();
+    expect(find.text('5-1-1 pattern'), findsNothing);
+    // A second contraction brings the informational 5-1-1 card in.
+    await tester.tap(find.text('Start'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Stop').first);
+    await tester.pump();
+    expect(find.text('5-1-1 pattern'), findsOneWidget);
+    expect(find.textContaining('not medical advice'), findsOneWidget);
+  });
+
   testWidgets('reset asks to confirm and clears', (tester) async {
     await tester.pumpWidget(wrap());
     await tester.tap(find.text('Start'));

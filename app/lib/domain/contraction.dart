@@ -1,8 +1,9 @@
 /// Contraction timing — a live labour-companion tool. Each contraction records
 /// its start and end; the interval is the gap between consecutive STARTS (the
 /// standard way contractions are timed). PURE Dart → unit-testable via
-/// verify_contractions.dart. NON-medical: it only measures duration + frequency,
-/// with no "go to hospital" thresholds.
+/// verify_contractions.dart. It measures duration + frequency and surfaces the
+/// widely-taught "5-1-1" childbirth-education pattern as INFORMATIONAL progress
+/// (never a directive) — the UI always defers to the user's own provider.
 library;
 
 class Contraction {
@@ -60,6 +61,35 @@ class ContractionSessionRecord {
         avgDurationSec: (j['avgDurationSec'] as num).toInt(),
         avgIntervalSec: (j['avgIntervalSec'] as num).toInt(),
       );
+}
+
+/// Progress against the "5-1-1" pattern taught in childbirth classes:
+/// contractions about 5 minutes apart, each lasting about 1 minute, sustained
+/// for 1 hour. Purely descriptive of the timed data — NOT medical advice.
+class FivOneOneProgress {
+  final bool intervalMet; // avg interval ≤ 5 min
+  final bool durationMet; // avg duration ≥ 1 min
+  final bool sustainedMet; // pattern has spanned ≥ 1 hour
+  const FivOneOneProgress(this.intervalMet, this.durationMet, this.sustainedMet);
+
+  /// How many of the three 5-1-1 criteria are currently met (0–3).
+  int get metCount => (intervalMet ? 1 : 0) + (durationMet ? 1 : 0) + (sustainedMet ? 1 : 0);
+
+  /// All three criteria met.
+  bool get allMet => intervalMet && durationMet && sustainedMet;
+}
+
+/// Evaluate the 5-1-1 pattern over [list] (earliest-first). Needs ≥2
+/// contractions for the interval/sustained checks; with fewer, those are false.
+FivOneOneProgress fiveOneOneProgress(List<Contraction> list) {
+  final stats = contractionStats(list);
+  final hasPair = list.length >= 2;
+  final spanSec = hasPair ? list.last.start.difference(list.first.start).inSeconds : 0;
+  return FivOneOneProgress(
+    hasPair && stats.avgInterval.inSeconds > 0 && stats.avgInterval.inSeconds <= 300,
+    stats.avgDuration.inSeconds >= 60,
+    hasPair && spanSec >= 3600,
+  );
 }
 
 /// Averages over [list] (assumed earliest-first). Interval average needs ≥2

@@ -104,6 +104,7 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
         child: Column(
           children: [
             if (_contractions.isNotEmpty) _StatsBar(stats: stats),
+            if (_contractions.length >= 2) _FiveOneOneCard(progress: fiveOneOneProgress(_contractions)),
             const SizedBox(height: 8),
             _BigButton(active: active, elapsed: elapsed, label: l.t(active ? 'contr_stop' : 'contr_start'), sub: l.t(active ? 'contr_running' : 'contr_hint'), onTap: _toggle),
             const SizedBox(height: 12),
@@ -158,6 +159,77 @@ class _StatsBar extends StatelessWidget {
   }
 
   Widget _divider() => Container(width: 1, height: 34, color: Palette.border);
+}
+
+/// Informational 5-1-1 progress: three criteria taught in childbirth classes,
+/// each checked off as the timed pattern meets it. Always framed as a heads-up,
+/// never a directive — the footer defers to the user's own provider.
+class _FiveOneOneCard extends StatelessWidget {
+  final FivOneOneProgress progress;
+  const _FiveOneOneCard({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final accent = progress.allMet ? Palette.roseDeep : Palette.violet;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: accent.withValues(alpha: 0.07),
+          border: Border.all(color: accent.withValues(alpha: 0.20)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(progress.allMet ? Icons.info_rounded : Icons.timeline_rounded, size: 18, color: accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(l.t('contr_511_title'),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accent)),
+                ),
+                Text('${progress.metCount}/3', style: TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: accent, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _Criterion(met: progress.intervalMet, label: l.t('contr_511_interval')),
+            _Criterion(met: progress.durationMet, label: l.t('contr_511_duration')),
+            _Criterion(met: progress.sustainedMet, label: l.t('contr_511_sustained')),
+            const SizedBox(height: 8),
+            Text(progress.allMet ? l.t('contr_511_ready') : l.t('contr_511_note'),
+                style: const TextStyle(color: Palette.textDim, fontSize: 11.5, height: 1.35)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Criterion extends StatelessWidget {
+  final bool met;
+  final String label;
+  const _Criterion({required this.met, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              size: 18, color: met ? Palette.good : Palette.textDim.withValues(alpha: 0.5)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label,
+                style: TextStyle(fontSize: 13.5, color: met ? Palette.text : Palette.textDim, fontWeight: met ? FontWeight.w600 : FontWeight.w400)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Stat extends StatelessWidget {
