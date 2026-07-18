@@ -11,6 +11,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../calibration/bp_calibration_sheet.dart';
 import '../theme.dart';
+import 'journey_screen.dart';
 import 'reminders_center_screen.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
@@ -154,6 +155,15 @@ class SettingsScreen extends StatelessWidget {
 
             // ---- Data ----
             _Section(title: l.t('set_data'), children: [
+              _Row(
+                leading: Icons.insights_rounded,
+                title: l.t('journey_title'),
+                subtitle: l.t('journey_sub'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => JourneyScreen(controller: c),
+                )),
+              ),
               _Row(
                 leading: Icons.download_rounded,
                 title: l.t('set_export'),
