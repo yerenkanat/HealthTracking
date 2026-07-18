@@ -75,6 +75,7 @@ class AppController {
   final _changes = StreamController<void>.broadcast();
   final _alertStream = StreamController<SafetyAlert>.broadcast();
   final _reminderStream = StreamController<ReminderCommand>.broadcast();
+  final _waterReminderStream = StreamController<int?>.broadcast(); // minutes-of-day or null=off
 
   bool _emergencyActive = false;
   EmergencyView? _emergency;
@@ -97,6 +98,7 @@ class AppController {
   int _apptSeq = 0; // disambiguates ids created within the same microsecond
   List<WeightEntry> _weights = [];
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
+  int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -167,6 +169,7 @@ class AppController {
     _childBattery
       ..clear()
       ..addAll(cfg.childBattery);
+    _waterReminderMinutes = cfg.waterReminderMinutes;
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -211,6 +214,7 @@ class AppController {
         appointments: List.of(_appointments),
         weights: List.of(_weights),
         childBattery: Map.of(_childBattery),
+        waterReminderMinutes: _waterReminderMinutes,
       );
 
   void _persist() {
@@ -391,6 +395,27 @@ class AppController {
     _waterGoal = clampWaterGoal(glasses);
     _persist();
     _notify();
+  }
+
+  /// Daily water-reminder time as minutes-of-day, or null when off.
+  int? get waterReminderMinutes => _waterReminderMinutes;
+
+  /// Schedule/cancel commands for the runtime's daily water notification (the new
+  /// minutes-of-day, or null to cancel).
+  Stream<int?> get waterReminderCommands => _waterReminderStream.stream;
+
+  /// Set (or clear, with null) the daily water reminder time.
+  void setWaterReminder(int? minutesOfDay) {
+    _waterReminderMinutes = minutesOfDay?.clamp(0, 24 * 60 - 1);
+    if (!_waterReminderStream.isClosed) _waterReminderStream.add(_waterReminderMinutes);
+    _persist();
+    _notify();
+  }
+
+  /// Re-emit the current water-reminder setting so the runtime can (re)schedule it
+  /// on boot after attaching its listener.
+  void reconcileWaterReminder() {
+    if (!_waterReminderStream.isClosed) _waterReminderStream.add(_waterReminderMinutes);
   }
 
   // ---- Appointments / reminders ----
@@ -790,6 +815,7 @@ class AppController {
     await _chat?.dispose();
     await _alertStream.close();
     await _reminderStream.close();
+    await _waterReminderStream.close();
     await _changes.close();
   }
 }

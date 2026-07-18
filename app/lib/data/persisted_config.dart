@@ -91,6 +91,7 @@ class PersistedConfig {
   final List<Appointment> appointments; // the mother's dated reminders
   final List<WeightEntry> weights; // weight log (one per day)
   final Map<String, int> childBattery; // childId → tracker battery % (last known)
+  final int? waterReminderMinutes; // daily reminder time (minutes since midnight); null = off
 
   const PersistedConfig({
     required this.onboarded,
@@ -111,6 +112,7 @@ class PersistedConfig {
     this.appointments = const [],
     this.weights = const [],
     this.childBattery = const {},
+    this.waterReminderMinutes,
   });
 
   Map<String, dynamic> toJson() => {
@@ -133,6 +135,7 @@ class PersistedConfig {
         if (appointments.isNotEmpty) 'appointments': [for (final a in appointments) a.toJson()],
         if (weights.isNotEmpty) 'weights': [for (final w in weights) w.toJson()],
         if (childBattery.isNotEmpty) 'childBattery': childBattery,
+        if (waterReminderMinutes != null) 'waterReminderMinutes': waterReminderMinutes,
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -181,6 +184,7 @@ class PersistedConfig {
         childBattery: j['childBattery'] is Map
             ? {for (final e in (j['childBattery'] as Map).entries) '${e.key}': (e.value as num).toInt()}
             : const {},
+        waterReminderMinutes: (j['waterReminderMinutes'] as num?)?.toInt(),
       );
 
   String encode() => jsonEncode(toJson());

@@ -125,6 +125,19 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 onTap: () => c.setNotificationsEnabled(!c.notificationsEnabled),
               ),
+              _Row(
+                leading: Icons.water_drop_outlined,
+                title: l.t('water_reminder'),
+                subtitle: c.waterReminderMinutes == null
+                    ? l.t('water_reminder_off')
+                    : l.t('water_reminder_at', {'time': _fmtMinutes(context, c.waterReminderMinutes!)}),
+                trailing: Switch(
+                  value: c.waterReminderMinutes != null,
+                  activeColor: Palette.violet,
+                  onChanged: (on) => _toggleWaterReminder(context, c, on),
+                ),
+                onTap: c.waterReminderMinutes == null ? null : () => _pickWaterReminderTime(context, c),
+              ),
             ]),
 
             // ---- Blood pressure calibration (highlighted CTA) ----
@@ -231,6 +244,28 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: ok ? null : Palette.danger,
       ),
     );
+  }
+
+  String _fmtMinutes(BuildContext context, int minutes) =>
+      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context);
+
+  Future<void> _toggleWaterReminder(BuildContext context, AppController c, bool on) async {
+    if (!on) {
+      c.setWaterReminder(null);
+      return;
+    }
+    // Turning on → pick a time (default 8pm); cancelling leaves it off.
+    final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 20, minute: 0));
+    if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
+  }
+
+  Future<void> _pickWaterReminderTime(BuildContext context, AppController c) async {
+    final current = c.waterReminderMinutes ?? 20 * 60;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
+    );
+    if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
   }
 
   String _calStatus(L10n l, AppController c) {

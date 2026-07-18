@@ -63,6 +63,7 @@ void main() async {
       WeightEntry(date: '2026-07-15', kg: 63.4),
     ],
     childBattery: const {'child-1': 62, 'child-2': 8},
+    waterReminderMinutes: 20 * 60 + 30, // 20:30
   );
   final decoded = PersistedConfig.decode(cfg.encode());
   _chk('round-trip onboarded + locale', decoded.onboarded && decoded.locale == AppLocale.kk);
@@ -90,6 +91,7 @@ void main() async {
   _chk('round-trip weights', decoded.weights.length == 2 &&
       decoded.weights[0].date == '2026-07-01' && decoded.weights[1].kg == 63.4);
   _chk('round-trip child battery', decoded.childBattery['child-1'] == 62 && decoded.childBattery['child-2'] == 8);
+  _chk('round-trip water reminder', decoded.waterReminderMinutes == 20 * 60 + 30);
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));
   _chk('round-trip dayLog fields',
       decoded.dayLogs['2026-07-14']?.mood == Mood.happy &&

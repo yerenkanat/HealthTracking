@@ -156,6 +156,25 @@ Future<void> bootstrapRuntime(AppController controller) async {
     });
     controller.rescheduleReminders();
 
+    // Daily water reminder: schedule/cancel a repeating notification as the
+    // setting changes, then reconcile once on boot.
+    const waterReminderId = 900001;
+    controller.waterReminderCommands.listen((minutes) {
+      if (minutes == null) {
+        notifications.cancel(waterReminderId);
+      } else {
+        final l = L10n(controller.locale);
+        notifications.scheduleDaily(
+          id: waterReminderId,
+          title: l.t('water_reminder_title'),
+          body: l.t('water_reminder_body'),
+          hour: minutes ~/ 60,
+          minute: minutes % 60,
+        );
+      }
+    });
+    controller.reconcileWaterReminder();
+
     // DEMO only: 3s after launch the child moves School → Home, firing real
     // "left School" + "entered Home" notifications so the feature is visible.
     if (const bool.fromEnvironment('DEMO')) {

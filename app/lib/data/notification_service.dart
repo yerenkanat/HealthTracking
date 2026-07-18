@@ -16,6 +16,10 @@ abstract class NotificationService {
   /// time is ignored. [id] must be stable so it can be cancelled/replaced.
   Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at});
 
+  /// Schedule a notification that repeats every day at [hour]:[minute] (local).
+  /// Re-calling with the same [id] replaces it.
+  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute});
+
   /// Cancel a previously scheduled notification by [id] (no-op if none).
   Future<void> cancel(int id);
 }
@@ -30,6 +34,8 @@ class NoopNotificationService implements NotificationService {
   Future<void> show({required String title, required String body}) async {}
   @override
   Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at}) async {}
+  @override
+  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute}) async {}
   @override
   Future<void> cancel(int id) async {}
 }
@@ -122,6 +128,27 @@ class LocalNotificationService implements NotificationService {
       id, title, body, when, details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  @override
+  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute}) async {
+    if (!_tzReady) return;
+    final now = tz.TZDateTime.now(tz.local);
+    var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (!when.isAfter(now)) when = when.add(const Duration(days: 1)); // next occurrence
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _reminderChannelId, _reminderChannelName,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+    );
+    await _plugin.zonedSchedule(
+      id, title, body, when, details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time, // repeat daily at this time
     );
   }
 
