@@ -129,6 +129,23 @@ void main() {
   final luteal = phaseOn(DateTime(2026, 7, 20));
   _chk('luteal after the fertile window', luteal?.phase == CyclePhase.luteal && luteal?.dayInPhase == 4);
 
+  // ---- Mood trend ----
+  final moodToday = DateTime(2026, 7, 20);
+  final moodLogs = [
+    // This week (0–6 days ago): happy ×2, tired ×1 → happy dominates.
+    DayLog(date: dateKey(moodToday.subtract(const Duration(days: 1))), mood: Mood.happy),
+    DayLog(date: dateKey(moodToday.subtract(const Duration(days: 2))), mood: Mood.happy),
+    DayLog(date: dateKey(moodToday.subtract(const Duration(days: 3))), mood: Mood.tired),
+    // Last week (7–13 days ago): sad ×1 → sad dominates.
+    DayLog(date: dateKey(moodToday.subtract(const Duration(days: 9))), mood: Mood.sad),
+  ];
+  final trend = moodTrend(moodLogs, moodToday, weeks: 3);
+  _chk('trend length = weeks', trend.length == 3);
+  _chk('oldest week (2 wks ago) empty', trend[0].mood == null && trend[0].count == 0);
+  _chk('middle week dominant = sad', trend[1].mood == Mood.sad);
+  _chk('current week dominant = happy (2)', trend[2].mood == Mood.happy && trend[2].count == 2);
+  _chk('mood outside window ignored', moodTrend([DayLog(date: dateKey(moodToday.subtract(const Duration(days: 40))), mood: Mood.calm)], moodToday, weeks: 3).every((w) => w.mood == null));
+
   // ---- Cycle insights (history + frequencies) ----
   final hist = cycleHistory(periodSet(days));
   _chk('two cycles in history', hist.length == 2);

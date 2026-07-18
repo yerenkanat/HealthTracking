@@ -134,6 +134,14 @@ class CycleInsightsScreen extends StatelessWidget {
                   ),
                 ],
 
+                if (moodTrend(logs, _now()).any((w) => w.mood != null)) ...[
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: l.t('cyc_mood_trend'),
+                    child: _MoodTrendStrip(weeks: moodTrend(logs, _now())),
+                  ),
+                ],
+
                 if (symptoms.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _SectionCard(
@@ -340,6 +348,75 @@ class _CycleRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+Color moodColor(Mood m) => switch (m) {
+      Mood.happy => Palette.amber,
+      Mood.calm => Palette.teal,
+      Mood.anxious => Palette.violet,
+      Mood.tired => Palette.blue,
+      Mood.sad => Palette.roseDeep,
+    };
+
+/// A compact per-week mood timeline: one dot per week (oldest → newest), each
+/// coloured by that week's dominant mood, with the current week ringed.
+class _MoodTrendStrip extends StatelessWidget {
+  final List<MoodWeek> weeks;
+  const _MoodTrendStrip({required this.weeks});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (var i = 0; i < weeks.length; i++)
+              _MoodDot(week: weeks[i], isCurrent: i == weeks.length - 1),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(l.t('cyc_weeks_ago', {'n': weeks.length - 1}),
+                style: const TextStyle(color: Palette.textDim, fontSize: 11)),
+            Text(l.t('cyc_this_week_short'), style: const TextStyle(color: Palette.textDim, fontSize: 11)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _MoodDot extends StatelessWidget {
+  final MoodWeek week;
+  final bool isCurrent;
+  const _MoodDot({required this.week, required this.isCurrent});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final mood = week.mood;
+    final color = mood == null ? Palette.border : moodColor(mood);
+    return Semantics(
+      label: mood == null ? null : l.t('mood_${mood.name}'),
+      child: Container(
+        width: 34, height: 34,
+        decoration: BoxDecoration(
+          color: mood == null ? Palette.glass : color.withValues(alpha: 0.18),
+          shape: BoxShape.circle,
+          border: Border.all(color: isCurrent ? color : Colors.transparent, width: 2),
+        ),
+        child: Center(
+          child: Container(
+            width: 12, height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+        ),
       ),
     );
   }

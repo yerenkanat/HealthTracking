@@ -119,6 +119,22 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('mood trend card appears when moods span weeks', (tester) async {
+    final c = AppController(now: () => today); // today = 2026-07-16
+    // A period so hasData, plus moods in this week and a prior week.
+    for (var i = 0; i < 3; i++) {
+      c.setDayLog(DayLog(date: dateKey(today.subtract(Duration(days: 6 + i))), flow: Flow.medium));
+    }
+    c.setDayLog(DayLog(date: dateKey(today.subtract(const Duration(days: 1))), mood: Mood.happy));
+    c.setDayLog(DayLog(date: dateKey(today.subtract(const Duration(days: 10))), mood: Mood.sad));
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('MOOD TREND'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('MOOD TREND'), findsOneWidget);
+    expect(find.text('This week'), findsOneWidget); // trend axis label
+    addTearDown(c.dispose);
+  });
+
   testWidgets('regularity card appears with 2+ completed cycles', (tester) async {
     final c = AppController(now: () => today);
     // Three ~28-day periods → two completed cycles → "regular".

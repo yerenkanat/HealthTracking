@@ -112,6 +112,48 @@ List<({Mood mood, int count})> moodFrequencySince(Iterable<DayLog> logs, DateTim
   return moodFrequency([for (final l in logs) if (l.date.compareTo(sinceKey) >= 0) l]);
 }
 
+/// One week in the mood trend: the week's end date, its dominant (most-logged)
+/// mood ([mood] — null if nothing was logged that week), and how many days that
+/// dominant mood was logged.
+class MoodWeek {
+  final DateTime weekEnd;
+  final Mood? mood;
+  final int count;
+  const MoodWeek(this.weekEnd, this.mood, this.count);
+}
+
+/// The dominant mood for each of the last [weeks] 7-day windows ending on
+/// [today], oldest week first. Ties resolve to the mood seen first in
+/// [Mood.values]. Weeks with no mood logged have a null [mood].
+List<MoodWeek> moodTrend(Iterable<DayLog> logs, DateTime today, {int weeks = 6}) {
+  final t = DateTime(today.year, today.month, today.day);
+  final buckets = List.generate(weeks, (_) => <Mood, int>{});
+  for (final l in logs) {
+    if (l.mood == null) continue;
+    final d = dateFromKey(l.date);
+    if (d == null) continue;
+    final diff = t.difference(DateTime(d.year, d.month, d.day)).inDays;
+    if (diff < 0 || diff >= weeks * 7) continue;
+    final b = diff ~/ 7;
+    buckets[b][l.mood!] = (buckets[b][l.mood!] ?? 0) + 1;
+  }
+  final out = <MoodWeek>[];
+  for (var i = weeks - 1; i >= 0; i--) {
+    final counts = buckets[i];
+    Mood? top;
+    var topN = 0;
+    for (final m in Mood.values) {
+      final n = counts[m] ?? 0;
+      if (n > topN) {
+        topN = n;
+        top = m;
+      }
+    }
+    out.add(MoodWeek(t.subtract(Duration(days: 7 * i)), top, topN));
+  }
+  return out;
+}
+
 /// Count of each mood across the given day logs (descending by count).
 List<({Mood mood, int count})> moodFrequency(Iterable<DayLog> logs) {
   final counts = <Mood, int>{};
