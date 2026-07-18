@@ -8,13 +8,15 @@ import '../core/geofence.dart';
 import 'child_tracker_state.dart' show currentZone;
 
 /// entered/left are geofence transitions; checkIn/sos are manual events the
-/// parent (or child) raises from the tracking screen.
-enum AlertKind { entered, left, checkIn, sos }
+/// parent (or child) raises from the tracking screen; lowBattery fires when a
+/// child tracker's battery drops into the low range.
+enum AlertKind { entered, left, checkIn, sos, lowBattery }
 
 AlertKind alertKindFromName(String? s) => switch (s) {
       'entered' => AlertKind.entered,
       'checkIn' => AlertKind.checkIn,
       'sos' => AlertKind.sos,
+      'lowBattery' => AlertKind.lowBattery,
       _ => AlertKind.left,
     };
 

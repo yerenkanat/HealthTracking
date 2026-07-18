@@ -77,6 +77,7 @@ class _AlertCard extends StatelessWidget {
       AlertKind.left => (Palette.amber, Icons.logout_rounded, l.t('alert_left', {'zone': alert.zoneName})),
       AlertKind.checkIn => (Palette.blue, Icons.how_to_reg_rounded, l.t('alert_checkin')),
       AlertKind.sos => (Palette.danger, Icons.sos_rounded, l.t('alert_sos')),
+      AlertKind.lowBattery => (Palette.amber, Icons.battery_alert_rounded, l.t('alert_low_battery', {'pct': alert.zoneName})),
     };
     final age = now.difference(alert.at);
 

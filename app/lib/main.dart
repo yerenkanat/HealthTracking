@@ -126,7 +126,13 @@ Future<void> bootstrapRuntime(AppController controller) async {
     await notifications.requestPermission();
     controller.newAlerts.listen((alert) {
       final l = L10n(controller.locale);
-      final title = l.t(alert.kind == AlertKind.entered ? 'alert_entered' : 'alert_left', {'zone': alert.zoneName});
+      final title = switch (alert.kind) {
+        AlertKind.entered => l.t('alert_entered', {'zone': alert.zoneName}),
+        AlertKind.left => l.t('alert_left', {'zone': alert.zoneName}),
+        AlertKind.checkIn => l.t('alert_checkin'),
+        AlertKind.sos => l.t('alert_sos'),
+        AlertKind.lowBattery => l.t('alert_low_battery', {'pct': alert.zoneName}),
+      };
       notifications.show(title: title, body: alert.childName);
     });
 
@@ -146,6 +152,11 @@ Future<void> bootstrapRuntime(AppController controller) async {
     if (const bool.fromEnvironment('DEMO')) {
       Future.delayed(const Duration(seconds: 3),
           () => controller.onChildLocation(const Coordinates(43.238949, 76.889709)));
+      // ...and 7s in, the tracker battery dips low → a low-battery notification.
+      final demoChildId = controller.selectedChild?.id;
+      if (demoChildId != null) {
+        Future.delayed(const Duration(seconds: 7), () => controller.setChildBattery(demoChildId, 8));
+      }
     }
   } catch (_) {/* notifications are best-effort */}
 

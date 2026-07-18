@@ -461,9 +461,27 @@ class AppController {
   /// The selected child's tracker battery %, or null.
   int? get selectedChildBattery => batteryFor(selectedChild?.id);
 
-  /// Update a child tracker's battery reading (from device telemetry).
+  /// Update a child tracker's battery reading (from device telemetry). When the
+  /// reading first crosses into the low range, raise a low-battery alert (feed +
+  /// OS notification) — but not repeatedly while it stays low.
   void setChildBattery(String childId, int pct) {
-    _childBattery[childId] = clampPct(pct);
+    final next = clampPct(pct);
+    final prev = _childBattery[childId];
+    final crossedIntoLow = isLowBattery(next) && (prev == null || !isLowBattery(prev));
+    _childBattery[childId] = next;
+    if (crossedIntoLow) {
+      String name = childName;
+      for (final c in _children) {
+        if (c.id == childId) {
+          name = c.name;
+          break;
+        }
+      }
+      final alert = SafetyAlert(kind: AlertKind.lowBattery, childName: name, zoneName: '$next', at: _now());
+      _alerts.insert(0, alert);
+      if (_alerts.length > 50) _alerts.removeRange(50, _alerts.length);
+      if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
+    }
     _persist();
     _notify();
   }
