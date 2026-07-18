@@ -30,7 +30,7 @@ void main() {
     c.addAppointment('Ultrasound', DateTime(2026, 7, 16, 15, 30));
     await tester.pumpWidget(wrap(c));
 
-    expect(find.text('UPCOMING'), findsOneWidget);
+    expect(find.text('Upcoming (2)'), findsOneWidget);
     expect(find.text('OB visit'), findsOneWidget);
     expect(find.text('Ultrasound'), findsOneWidget);
     expect(find.text('Tomorrow'), findsOneWidget); // the 16th, one day out
@@ -38,12 +38,29 @@ void main() {
     addTearDown(c.dispose);
   });
 
-  testWidgets('past reminders appear under a Past section', (tester) async {
+  testWidgets('past-only defaults to the Past tab', (tester) async {
     final c = AppController(now: () => today);
     c.addAppointment('Old scan', DateTime(2026, 7, 1, 12, 0));
     await tester.pumpWidget(wrap(c));
-    expect(find.text('PAST'), findsOneWidget);
+    expect(find.text('Past (1)'), findsOneWidget);
     expect(find.text('Old scan'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('the tabs switch between upcoming and past', (tester) async {
+    final c = AppController(now: () => today);
+    c.addAppointment('Future visit', DateTime(2026, 7, 20, 9, 0));
+    c.addAppointment('Old scan', DateTime(2026, 7, 1, 12, 0));
+    await tester.pumpWidget(wrap(c));
+
+    // Defaults to Upcoming: future shown, past hidden.
+    expect(find.text('Future visit'), findsOneWidget);
+    expect(find.text('Old scan'), findsNothing);
+    // Switch to Past.
+    await tester.tap(find.text('Past (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Old scan'), findsOneWidget);
+    expect(find.text('Future visit'), findsNothing);
     addTearDown(c.dispose);
   });
 

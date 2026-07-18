@@ -14,12 +14,22 @@ import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 
-class AppointmentsScreen extends StatelessWidget {
+class AppointmentsScreen extends StatefulWidget {
   final AppController controller;
-  final DateTime Function()? _nowFn;
-  const AppointmentsScreen({super.key, required this.controller, DateTime Function()? now}) : _nowFn = now;
+  final DateTime Function()? nowFn;
+  const AppointmentsScreen({super.key, required this.controller, DateTime Function()? now}) : nowFn = now;
 
-  DateTime now() => (_nowFn ?? DateTime.now)();
+  @override
+  State<AppointmentsScreen> createState() => _AppointmentsScreenState();
+}
+
+enum _ApptTab { upcoming, past }
+
+class _AppointmentsScreenState extends State<AppointmentsScreen> {
+  _ApptTab _tab = _ApptTab.upcoming;
+
+  AppController get controller => widget.controller;
+  DateTime now() => (widget.nowFn ?? DateTime.now)();
 
   @override
   Widget build(BuildContext context) {
@@ -42,22 +52,39 @@ class AppointmentsScreen extends StatelessWidget {
             if (split.upcoming.isEmpty && split.past.isEmpty) {
               return _EmptyState(l: l);
             }
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            // An empty selected tab falls back to the one that has items.
+            if (_tab == _ApptTab.upcoming && split.upcoming.isEmpty && split.past.isNotEmpty) _tab = _ApptTab.past;
+            if (_tab == _ApptTab.past && split.past.isEmpty && split.upcoming.isNotEmpty) _tab = _ApptTab.upcoming;
+            final list = _tab == _ApptTab.upcoming ? split.upcoming : split.past;
+            return Column(
               children: [
-                if (split.upcoming.isNotEmpty) ...[
-                  _SectionLabel(l.t('appt_upcoming')),
-                  const SizedBox(height: 10),
-                  for (final a in split.upcoming)
-                    _AppointmentCard(appt: a, now: now(), onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a), onReschedule: (d) => _reschedule(a, d)),
-                ],
-                if (split.past.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  _SectionLabel(l.t('appt_past')),
-                  const SizedBox(height: 10),
-                  for (final a in split.past)
-                    _AppointmentCard(appt: a, now: now(), past: true, onDelete: () => _confirmDelete(context, a), onEdit: () => _openEdit(context, a), onReschedule: (d) => _reschedule(a, d)),
-                ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: _ApptTabs(
+                    tab: _tab,
+                    upcomingCount: split.upcoming.length,
+                    pastCount: split.past.length,
+                    onSelect: (t) => setState(() => _tab = t),
+                  ),
+                ),
+                Expanded(
+                  child: list.isEmpty
+                      ? Center(child: Text(l.t('appt_none'), style: const TextStyle(color: Palette.textDim)))
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                          children: [
+                            for (final a in list)
+                              _AppointmentCard(
+                                appt: a,
+                                now: now(),
+                                past: _tab == _ApptTab.past,
+                                onDelete: () => _confirmDelete(context, a),
+                                onEdit: () => _openEdit(context, a),
+                                onReschedule: (d) => _reschedule(a, d),
+                              ),
+                          ],
+                        ),
+                ),
               ],
             );
           },
@@ -105,6 +132,51 @@ class AppointmentsScreen extends StatelessWidget {
       controller.updateAppointment(appt.id, result.title, result.at, note: result.note);
     }
   }
+}
+
+/// Segmented Upcoming / Past selector with counts.
+class _ApptTabs extends StatelessWidget {
+  final _ApptTab tab;
+  final int upcomingCount;
+  final int pastCount;
+  final ValueChanged<_ApptTab> onSelect;
+  const _ApptTabs({required this.tab, required this.upcomingCount, required this.pastCount, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          _seg(l.t('appt_upcoming'), upcomingCount, tab == _ApptTab.upcoming, () => onSelect(_ApptTab.upcoming)),
+          _seg(l.t('appt_past'), pastCount, tab == _ApptTab.past, () => onSelect(_ApptTab.past)),
+        ],
+      ),
+    );
+  }
+
+  Widget _seg(String label, int count, bool selected, VoidCallback onTap) => Expanded(
+        child: Material(
+          color: selected ? Palette.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(11),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 9),
+              child: Text('$label ($count)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: selected ? Palette.violet : Palette.textDim,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  )),
+            ),
+          ),
+        ),
+      );
 }
 
 class _NewAppt {
@@ -358,16 +430,6 @@ class _MenuRow extends StatelessWidget {
       Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
     ]);
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-  @override
-  Widget build(BuildContext context) => Text(
-        text.toUpperCase(),
-        style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
-      );
 }
 
 class _EmptyState extends StatelessWidget {
