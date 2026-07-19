@@ -99,6 +99,7 @@ class PersistedConfig {
   final int? waterReminderMinutes; // daily reminder time (minutes since midnight); null = off
   final bool periodReminderEnabled; // remind ~2 days before the predicted period
   final bool fertileReminderEnabled; // remind when the fertile window opens
+  final DateTime? lastExportAt; // when data was last exported (= backed up)
 
   const PersistedConfig({
     required this.onboarded,
@@ -125,6 +126,7 @@ class PersistedConfig {
     this.waterReminderMinutes,
     this.periodReminderEnabled = false,
     this.fertileReminderEnabled = false,
+    this.lastExportAt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -156,6 +158,7 @@ class PersistedConfig {
         if (waterReminderMinutes != null) 'waterReminderMinutes': waterReminderMinutes,
         if (periodReminderEnabled) 'periodReminderEnabled': periodReminderEnabled,
         if (fertileReminderEnabled) 'fertileReminderEnabled': fertileReminderEnabled,
+        if (lastExportAt != null) 'lastExportAt': lastExportAt!.toIso8601String(),
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -220,6 +223,7 @@ class PersistedConfig {
         waterReminderMinutes: (j['waterReminderMinutes'] as num?)?.toInt(),
         periodReminderEnabled: (j['periodReminderEnabled'] as bool?) ?? false,
         fertileReminderEnabled: (j['fertileReminderEnabled'] as bool?) ?? false,
+        lastExportAt: j['lastExportAt'] is String ? DateTime.tryParse(j['lastExportAt'] as String) : null,
       );
 
   String encode() => jsonEncode(toJson());

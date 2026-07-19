@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../app/app_controller.dart';
+import '../../domain/backup_status.dart';
 import '../../domain/family.dart';
 import '../../domain/reminders.dart';
 import '../../l10n/l10n.dart';
@@ -167,8 +168,10 @@ class SettingsScreen extends StatelessWidget {
               _Row(
                 leading: Icons.download_rounded,
                 title: l.t('set_export'),
-                subtitle: l.t('set_export_sub'),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                subtitle: _backupSubtitle(l, c),
+                trailing: shouldNudgeBackup(backupFreshness(c.lastExportAt, DateTime.now()))
+                    ? const Icon(Icons.error_outline_rounded, color: Palette.amber)
+                    : const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
                 onTap: () => _openExport(context, c),
               ),
               _Row(
@@ -258,6 +261,18 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: ok ? null : Palette.danger,
       ),
     );
+  }
+
+  /// Export subtitle doubles as the backup-freshness line: never backed up, or
+  /// how long ago, with a nudge once it goes stale.
+  String _backupSubtitle(L10n l, AppController c) {
+    final at = c.lastExportAt;
+    if (at == null) return l.t('backup_never');
+    final age = DateTime.now().difference(at);
+    final ago = l.ago(age.isNegative ? Duration.zero : age);
+    return backupFreshness(at, DateTime.now()) == BackupFreshness.stale
+        ? l.t('backup_stale', {'ago': ago})
+        : l.t('backup_last', {'ago': ago});
   }
 
   String _calStatus(L10n l, AppController c) {

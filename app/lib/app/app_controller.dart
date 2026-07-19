@@ -187,6 +187,7 @@ class AppController {
     _waterReminderMinutes = cfg.waterReminderMinutes;
     _periodReminderEnabled = cfg.periodReminderEnabled;
     _fertileReminderEnabled = cfg.fertileReminderEnabled;
+    _lastExportAt = cfg.lastExportAt;
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -237,6 +238,7 @@ class AppController {
         waterReminderMinutes: _waterReminderMinutes,
         periodReminderEnabled: _periodReminderEnabled,
         fertileReminderEnabled: _fertileReminderEnabled,
+        lastExportAt: _lastExportAt,
       );
 
   void _persist() {
@@ -251,14 +253,24 @@ class AppController {
   /// time); the rest is the PersistedConfig shape, so a backup round-trips on
   /// import (the extra metadata keys are ignored). Telemetry samples are excluded.
   String exportJson() {
+    final at = _now();
     final map = <String, dynamic>{
       'app': 'Umay',
       'appVersion': appVersion,
-      'exportedAt': _now().toIso8601String(),
+      'exportedAt': at.toIso8601String(),
       ..._snapshot().toJson(),
     };
+    // Exporting IS backing up — remember when, so Settings can show freshness.
+    _lastExportAt = at;
+    _persist();
+    _notify();
     return const JsonEncoder.withIndent('  ').convert(map);
   }
+
+  DateTime? _lastExportAt;
+
+  /// When the user last exported (backed up) their data; null if never.
+  DateTime? get lastExportAt => _lastExportAt;
 
   static const appVersion = '0.1.0';
 

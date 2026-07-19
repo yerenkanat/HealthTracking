@@ -14,6 +14,20 @@ void main() {
         home: L10nScope(l10n: const L10n(AppLocale.en), child: SettingsScreen(controller: c)),
       );
 
+  testWidgets('backup line reads "never" until an export happens', (tester) async {
+    final c = AppController(now: () => DateTime(2026, 7, 15));
+    await tester.pumpWidget(wrap(c));
+    await tester.scrollUntilVisible(find.text('Never backed up yet'), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Never backed up yet'), findsOneWidget);
+
+    // Exporting records the backup time → the line changes.
+    c.exportJson();
+    await tester.pumpAndSettle();
+    expect(find.text('Never backed up yet'), findsNothing);
+    expect(c.lastExportAt, isNotNull);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('export dialog opens and lays out without overflow', (tester) async {
     final c = AppController(now: () => DateTime(2026, 7, 15));
     c.addAppointment('OB visit', DateTime(2026, 8, 1, 9, 0));
