@@ -32,6 +32,7 @@ import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/hydration.dart';
 import '../domain/kick_session.dart';
+import '../domain/manual_vitals.dart';
 import '../domain/medication.dart';
 import '../domain/weight.dart';
 import '../domain/sleep.dart';
@@ -884,6 +885,26 @@ class AppController {
     _onboarding = null;
     _persist();
     _notify();
+  }
+
+  /// Record a hand-entered reading (cuff, thermometer, oximeter) for users
+  /// without a band. Returns false — changing nothing — if the reading doesn't
+  /// validate.
+  ///
+  /// Manual readings run through the SAME triage as band telemetry: a typed
+  /// 190/120 must raise the same emergency guidance a measured one would. The
+  /// app never treats a reading as safer because a human typed it.
+  bool logManualVitals(ManualVitals v) {
+    if (!vitalsAreValid(v)) return false;
+    final t = BandTelemetry(
+      heartRateBpm: v.heartRate,
+      spo2Pct: v.spo2,
+      systolicMmHg: v.systolic,
+      diastolicMmHg: v.diastolic,
+      coreTempC: v.temperature,
+    );
+    onTelemetry(t, assessTelemetry(t));
+    return true;
   }
 
   /// From BLEDeviceManager.onTelemetry (via HealthMonitor). Records the reading
