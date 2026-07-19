@@ -31,6 +31,7 @@ class RemindersCenterScreen extends StatelessWidget {
               period: c.periodReminderEnabled,
               fertile: c.fertileReminderEnabled,
               water: c.waterReminderMinutes != null,
+              medication: c.medReminderMinutes != null,
             );
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
@@ -72,6 +73,21 @@ class RemindersCenterScreen extends StatelessWidget {
                         onChanged: (on) => _toggleWater(context, c, on),
                         onTapBody: c.waterReminderMinutes == null ? null : () => _pickWaterTime(context, c),
                       ),
+                      const _ThinDivider(),
+                      _ReminderTile(
+                        icon: Icons.medication_rounded,
+                        color: Palette.violet,
+                        title: l.t('med_reminder'),
+                        subtitle: c.medications.isEmpty
+                            ? l.t('rem_needs_meds')
+                            : c.medReminderMinutes == null
+                                ? l.t('med_reminder_off')
+                                : l.t('med_reminder_at', {'time': minutesToHhmm(c.medReminderMinutes!)}),
+                        value: c.medReminderMinutes != null,
+                        // Nothing to be reminded about until something's tracked.
+                        onChanged: c.medications.isEmpty ? null : (on) => _toggleMed(context, c, on),
+                        onTapBody: c.medReminderMinutes == null ? null : () => _pickMedTime(context, c),
+                      ),
                     ],
                   ),
                 ),
@@ -93,6 +109,24 @@ class RemindersCenterScreen extends StatelessWidget {
     }
     final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 20, minute: 0));
     if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
+  }
+
+  Future<void> _toggleMed(BuildContext context, AppController c, bool on) async {
+    if (!on) {
+      c.setMedReminder(null);
+      return;
+    }
+    final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 9, minute: 0));
+    if (picked != null) c.setMedReminder(picked.hour * 60 + picked.minute);
+  }
+
+  Future<void> _pickMedTime(BuildContext context, AppController c) async {
+    final current = c.medReminderMinutes ?? 9 * 60;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
+    );
+    if (picked != null) c.setMedReminder(picked.hour * 60 + picked.minute);
   }
 
   Future<void> _pickWaterTime(BuildContext context, AppController c) async {

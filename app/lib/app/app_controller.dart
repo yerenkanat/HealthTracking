@@ -78,6 +78,7 @@ class AppController {
   final _alertStream = StreamController<SafetyAlert>.broadcast();
   final _reminderStream = StreamController<ReminderCommand>.broadcast();
   final _waterReminderStream = StreamController<int?>.broadcast(); // minutes-of-day or null=off
+  final _medReminderStream = StreamController<int?>.broadcast(); // minutes-of-day or null=off
 
   bool _emergencyActive = false;
   EmergencyView? _emergency;
@@ -106,6 +107,7 @@ class AppController {
   final List<Medication> _medications = [];
   MedLog _medLog = {}; // dateKey → medId → doses taken
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
+  int? _medReminderMinutes; // daily medication reminder time; null = off
   bool _periodReminderEnabled = false;
   bool _fertileReminderEnabled = false;
   static const _periodReminderId = 800001;
@@ -188,6 +190,7 @@ class AppController {
       ..clear()
       ..addAll({for (final e in cfg.childBatteryHistory.entries) e.key: List.of(e.value)});
     _waterReminderMinutes = cfg.waterReminderMinutes;
+    _medReminderMinutes = cfg.medReminderMinutes;
     _periodReminderEnabled = cfg.periodReminderEnabled;
     _fertileReminderEnabled = cfg.fertileReminderEnabled;
     _lastExportAt = cfg.lastExportAt;
@@ -243,6 +246,7 @@ class AppController {
         childBattery: Map.of(_childBattery),
         childBatteryHistory: {for (final e in _batteryHistory.entries) e.key: List.of(e.value)},
         waterReminderMinutes: _waterReminderMinutes,
+        medReminderMinutes: _medReminderMinutes,
         periodReminderEnabled: _periodReminderEnabled,
         fertileReminderEnabled: _fertileReminderEnabled,
         lastExportAt: _lastExportAt,
@@ -508,6 +512,26 @@ class AppController {
   /// on boot after attaching its listener.
   void reconcileWaterReminder() {
     if (!_waterReminderStream.isClosed) _waterReminderStream.add(_waterReminderMinutes);
+  }
+
+  /// Daily medication reminder time (minutes of day); null = off.
+  int? get medReminderMinutes => _medReminderMinutes;
+
+  /// Schedule/cancel commands for the runtime's daily medication notification.
+  Stream<int?> get medReminderCommands => _medReminderStream.stream;
+
+  /// Set (or clear, with null) the daily medication reminder time.
+  void setMedReminder(int? minutesOfDay) {
+    _medReminderMinutes = minutesOfDay?.clamp(0, 24 * 60 - 1);
+    if (!_medReminderStream.isClosed) _medReminderStream.add(_medReminderMinutes);
+    _persist();
+    _notify();
+  }
+
+  /// Re-emit the current medication-reminder setting so the runtime can
+  /// (re)schedule it on boot after attaching its listener.
+  void reconcileMedReminder() {
+    if (!_medReminderStream.isClosed) _medReminderStream.add(_medReminderMinutes);
   }
 
   // ---- Appointments / reminders ----
@@ -1049,6 +1073,7 @@ class AppController {
     await _alertStream.close();
     await _reminderStream.close();
     await _waterReminderStream.close();
+    await _medReminderStream.close();
     await _changes.close();
   }
 }

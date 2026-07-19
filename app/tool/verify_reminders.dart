@@ -14,8 +14,11 @@ void _chk(String n, bool ok) {
 void main() {
   // ---- Active count ----
   _chk('none active → 0', activeReminderCount(period: false, fertile: false, water: false) == 0);
-  _chk('all active → 3', activeReminderCount(period: true, fertile: true, water: true) == 3);
+  _chk('three active → 3', activeReminderCount(period: true, fertile: true, water: true) == 3);
   _chk('two active → 2', activeReminderCount(period: true, fertile: false, water: true) == 2);
+  _chk('medication counts too', activeReminderCount(period: true, fertile: true, water: true, medication: true) == 4);
+  _chk('medication alone → 1', activeReminderCount(period: false, fertile: false, water: false, medication: true) == 1);
+  _chk('medication defaults off', activeReminderCount(period: false, fertile: false, water: true) == 1);
 
   // ---- minutesToHhmm ----
   _chk('midnight → 0:00', minutesToHhmm(0) == '0:00');
@@ -25,7 +28,7 @@ void main() {
   _chk('wraps past a day', minutesToHhmm(24 * 60 + 90) == '1:30');
   _chk('negative clamps to 0:00', minutesToHhmm(-5) == '0:00');
 
-  _chk('enum has three kinds', ReminderKind.values.length == 3);
+  _chk('enum covers every reminder kind', ReminderKind.values.length == 4);
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

@@ -190,7 +190,24 @@ Future<void> bootstrapRuntime(AppController controller) async {
         );
       }
     });
+    // Daily medication reminder — same repeating-notification shape as water.
+    const medReminderId = 900002;
+    controller.medReminderCommands.listen((minutes) {
+      if (minutes == null) {
+        notifications.cancel(medReminderId);
+      } else {
+        final l = L10n(controller.locale);
+        notifications.scheduleDaily(
+          id: medReminderId,
+          title: l.t('med_reminder_title'),
+          body: l.t('med_reminder_body'),
+          hour: minutes ~/ 60,
+          minute: minutes % 60,
+        );
+      }
+    });
     controller.reconcileWaterReminder();
+    controller.reconcileMedReminder();
     controller.reconcileCycleReminders();
 
     // DEMO only: 3s after launch the child moves School → Home, firing real

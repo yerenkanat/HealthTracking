@@ -4,11 +4,16 @@
 library;
 
 /// The reminders the app can schedule.
-enum ReminderKind { period, fertile, water }
+enum ReminderKind { period, fertile, water, medication }
 
 /// How many reminders are currently on.
-int activeReminderCount({required bool period, required bool fertile, required bool water}) =>
-    (period ? 1 : 0) + (fertile ? 1 : 0) + (water ? 1 : 0);
+int activeReminderCount({
+  required bool period,
+  required bool fertile,
+  required bool water,
+  bool medication = false,
+}) =>
+    (period ? 1 : 0) + (fertile ? 1 : 0) + (water ? 1 : 0) + (medication ? 1 : 0);
 
 /// Format a minutes-of-day value as 24-hour "H:MM" (e.g. 1230 → "20:30").
 /// Values are wrapped into a single day and negatives are clamped to 0.

@@ -98,6 +98,7 @@ class PersistedConfig {
   final Map<String, int> childBattery; // childId → tracker battery % (last known)
   final Map<String, List<BatteryReading>> childBatteryHistory; // childId → readings (oldest-first)
   final int? waterReminderMinutes; // daily reminder time (minutes since midnight); null = off
+  final int? medReminderMinutes; // daily medication reminder time; null = off
   final bool periodReminderEnabled; // remind ~2 days before the predicted period
   final bool fertileReminderEnabled; // remind when the fertile window opens
   final DateTime? lastExportAt; // when data was last exported (= backed up)
@@ -127,6 +128,7 @@ class PersistedConfig {
     this.childBattery = const {},
     this.childBatteryHistory = const {},
     this.waterReminderMinutes,
+    this.medReminderMinutes,
     this.periodReminderEnabled = false,
     this.fertileReminderEnabled = false,
     this.lastExportAt,
@@ -161,6 +163,7 @@ class PersistedConfig {
             for (final e in childBatteryHistory.entries) e.key: [for (final r in e.value) r.toJson()]
           },
         if (waterReminderMinutes != null) 'waterReminderMinutes': waterReminderMinutes,
+        if (medReminderMinutes != null) 'medReminderMinutes': medReminderMinutes,
         if (periodReminderEnabled) 'periodReminderEnabled': periodReminderEnabled,
         if (fertileReminderEnabled) 'fertileReminderEnabled': fertileReminderEnabled,
         if (lastExportAt != null) 'lastExportAt': lastExportAt!.toIso8601String(),
@@ -228,6 +231,7 @@ class PersistedConfig {
               }
             : const {},
         waterReminderMinutes: (j['waterReminderMinutes'] as num?)?.toInt(),
+        medReminderMinutes: (j['medReminderMinutes'] as num?)?.toInt(),
         periodReminderEnabled: (j['periodReminderEnabled'] as bool?) ?? false,
         fertileReminderEnabled: (j['fertileReminderEnabled'] as bool?) ?? false,
         lastExportAt: j['lastExportAt'] is String ? DateTime.tryParse(j['lastExportAt'] as String) : null,

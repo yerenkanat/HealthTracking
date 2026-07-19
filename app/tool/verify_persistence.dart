@@ -82,6 +82,7 @@ void main() async {
       '2026-07-15': {'med-1': 1, 'med-2': 2},
     },
     waterReminderMinutes: 20 * 60 + 30, // 20:30
+    medReminderMinutes: 9 * 60, // 09:00
     periodReminderEnabled: true,
     fertileReminderEnabled: true,
   );
@@ -126,6 +127,7 @@ void main() async {
           decoded.childBatteryHistory['child-1']?.last.pct == 62 &&
           decoded.childBatteryHistory['child-1']?.first.at == DateTime(2026, 7, 15, 8));
   _chk('round-trip water reminder', decoded.waterReminderMinutes == 20 * 60 + 30);
+  _chk('round-trip medication reminder', decoded.medReminderMinutes == 9 * 60);
   _chk('round-trip period reminder', decoded.periodReminderEnabled == true);
   _chk('round-trip fertile reminder', decoded.fertileReminderEnabled == true);
   _chk('round-trip dayLogs drops empties', decoded.dayLogs.length == 1 && decoded.dayLogs.containsKey('2026-07-14'));

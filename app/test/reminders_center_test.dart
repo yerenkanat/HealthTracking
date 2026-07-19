@@ -38,6 +38,30 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('medication reminder is disabled until something is tracked', (tester) async {
+    final c = AppController(now: () => today);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Add a vitamin or medicine first'), findsOneWidget);
+
+    // With a medication tracked, the tile becomes usable.
+    c.addMedication('Folic acid');
+    await tester.pumpAndSettle();
+    expect(find.text('Add a vitamin or medicine first'), findsNothing);
+    // Both the water and medication tiles now read "Off" (neither is set).
+    expect(find.text('Off'), findsNWidgets(2));
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('an enabled medication reminder counts as active', (tester) async {
+    final c = AppController(now: () => today);
+    c.addMedication('Iron');
+    c.setMedReminder(9 * 60);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('1 active'), findsOneWidget);
+    expect(find.text('Every day at 9:00'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('cycle reminders are disabled without cycle data', (tester) async {
     final c = AppController(now: () => today); // no cycle logs
     await tester.pumpWidget(wrap(c));
