@@ -21,18 +21,24 @@ Four tabs, all built and running (demo mode: `--dart-define=DEMO=true`):
   merged blood-pressure cards with sparklines + danger bands, a "peace of mind"
   status banner, last-night sleep, a **daily water tracker** (ring + goal + weekly
   trend & streak), the data-driven **advisor**, and a one-tap **share health summary**.
-- **Calendar (Women's health)** — auto-switches between **cycle mode** (Flo-style
-  predictions: next period + delay, fertile window, ovulation; month grid; insights;
-  shareable forecast) and **pregnancy mode** (gestation progress, non-medical
-  milestones, **weight tracking**, a **timed kick session** with a goal ring + history,
-  and a **contraction timer**). Appointment **reminder dots** on the month grid.
+- **Calendar (Women's health)** — auto-switches between **cycle mode** (predictions
+  with a confidence chip, current **phase card**, fertile-window countdown, month
+  grid, shareable forecast, and **insights**: regularity, cycle-length range, flow
+  breakdown, mood trend, symptom-by-phase, logging streak, searchable notes) and
+  **pregnancy mode** (gestation progress, weekly **baby-size** comparison, non-medical
+  milestones, **weight tracking** with gain rate, a **timed kick session** with goal
+  ring + history, and a **contraction timer** with the informational 5-1-1 pattern).
+  Plus **vitamins & medicines**: track doses, tick them off, see adherence history.
 - **Child** — a live map (Google Maps, gated behind a key) with geofence zone pills, a
-  low-anxiety status card showing freshness + **tracker battery**, **check-in / SOS**
-  actions, and a safety-alert feed. Geofence enter/exit and **low-battery** events fire
+  low-anxiety status card showing freshness, **tracker battery** (with history), zone
+  **dwell time** and last check-in, **check-in / SOS** actions, and a safety-alert feed
+  (per-child and per-category filters, today's activity, days-since-SOS). Each child
+  also has a **detail screen**. Geofence enter/exit and **low-battery** events fire
   real OS notifications.
 - **Profile / Settings** — the mother's profile, children (with gender + zones) and
-  devices, language, BP calibration, **appointment reminders** (scheduled as OS
-  notifications), and **JSON data export / import** (backup & restore).
+  devices, language, BP calibration, a **Reminders centre** (period, fertile, water,
+  medication — all scheduled as OS notifications), **"Your journey"** lifetime totals,
+  and **JSON data export / import** with backup-freshness nudging.
 
 State lives in a pure-Dart `AppController` (dart:async streams), persisted as JSON via
 `shared_preferences`, so the whole feature surface is unit-testable without Flutter.
@@ -79,13 +85,15 @@ app/lib/domain/                      PURE, unit-tested feature logic:
   cycle_log.dart / cycle_insights.dart  day logs (mood/symptom/flow) + history
   pregnancy_milestones.dart · kick_session.dart · contraction.dart · weight.dart
   hydration.dart · appointment.dart · battery.dart · sleep.dart · family.dart
+  medication.dart · baby_size.dart · reminders.dart · setup_checklist.dart
+  journey_stats.dart · weekly_digest.dart · backup_status.dart
 app/lib/ui/                          screens (thin presentation over the domain):
   dashboard/                          health dashboard, water card + weekly history
   calendar/                           women's health: cycle + pregnancy, kick/contraction
   tracking/                           child map, zones, alerts feed, check-in/SOS
   appointments/ · profile/ · settings/ · advisor/ · emergency/ · onboarding/
 app/lib/data/notification_service.dart  OS notifications (geofence, reminders, low battery)
-app/tool/verify_*.dart               31 dependency-free conformance runners (777 assertions)
+app/tool/verify_*.dart               32 dependency-free conformance runners (838 assertions)
 app/tool/verify_all.dart             runs them all, prints a combined total
 infra/                               docker-compose (timescale+postgis, redis) + smoke test
 docs/BATTERY_OPTIMIZATION.md  Code-Optimizer checklist
@@ -142,12 +150,13 @@ band frame → parse → calibrate → assessTelemetry()
 ## Verify
 
 ```bash
-# Pure-Dart logic (no Flutter SDK needed) — 31 runners, 777 assertions:
+# Pure-Dart logic (no Flutter SDK needed) — 32 runners, 838 assertions:
 cd app
 dart run tool/verify_all.dart         # every runner, with a combined total
 
 # …or individually:
 dart run tool/verify_cycle.dart       # 128: predictions, phases, insights, trends
+dart run tool/verify_alerts.dart      #  61: geofence events, filters, dwell, visits
 dart run tool/verify_persistence.dart #  59: full config JSON round-trip + restore
 dart run tool/verify_alerts.dart      #  51: geofence events, filters, dwell, visits
 dart run tool/verify_family.dart      #  40: phone, children, devices
@@ -157,7 +166,7 @@ dart run tool/verify_core.dart        #  36: thresholds, golden vectors, geofenc
 #   onboarding,reminders,safety,setup,sleep,summary,water,weekly_digest,weight}.dart
 
 # Full Dart + widget suites (needs Flutter SDK):
-flutter test                          # 178 widget/unit tests
+flutter test                          # 213 widget/unit tests
 flutter analyze                       # clean
 
 # Node backend (needs npm install):
@@ -170,8 +179,8 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 ### Verification status (this machine)
 | Layer | Result |
 |-------|--------|
-| Dart pure logic (31 `verify_*` runners) | **777 assertions ✅** |
-| Flutter widget + unit tests | **178 ✅** |
+| Dart pure logic (32 `verify_*` runners) | **838 assertions ✅** |
+| Flutter widget + unit tests | **213 ✅** |
 | `flutter analyze` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 
