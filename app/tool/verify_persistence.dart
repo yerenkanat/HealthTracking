@@ -15,6 +15,7 @@ import '../lib/domain/battery.dart';
 import '../lib/domain/contraction.dart';
 import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/kick_session.dart';
+import '../lib/domain/medication.dart';
 import '../lib/domain/weight.dart';
 import '../lib/domain/onboarding_controller.dart';
 import '../lib/l10n/l10n.dart';
@@ -73,6 +74,13 @@ void main() async {
       'child-1': [BatteryReading(DateTime(2026, 7, 15, 8), 80), BatteryReading(DateTime(2026, 7, 15, 12), 62)],
     },
     lastExportAt: DateTime(2026, 7, 14, 10, 30),
+    medications: const [
+      Medication(id: 'med-1', name: 'Folic acid', dose: '400 mcg'),
+      Medication(id: 'med-2', name: 'Iron', dose: '27 mg', perDay: 2),
+    ],
+    medLog: const {
+      '2026-07-15': {'med-1': 1, 'med-2': 2},
+    },
     waterReminderMinutes: 20 * 60 + 30, // 20:30
     periodReminderEnabled: true,
     fertileReminderEnabled: true,
@@ -108,6 +116,11 @@ void main() async {
   _chk('round-trip weight goal', decoded.weightGoalKg == 70.0);
   _chk('round-trip child battery', decoded.childBattery['child-1'] == 62 && decoded.childBattery['child-2'] == 8);
   _chk('round-trip last export', decoded.lastExportAt == DateTime(2026, 7, 14, 10, 30));
+  _chk('round-trip medications',
+      decoded.medications.length == 2 &&
+          decoded.medications.last.name == 'Iron' &&
+          decoded.medications.last.perDay == 2);
+  _chk('round-trip medication log', decoded.medLog['2026-07-15']?['med-2'] == 2);
   _chk('round-trip battery history',
       decoded.childBatteryHistory['child-1']?.length == 2 &&
           decoded.childBatteryHistory['child-1']?.last.pct == 62 &&

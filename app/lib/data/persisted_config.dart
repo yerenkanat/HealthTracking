@@ -14,6 +14,7 @@ import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/kick_session.dart';
+import '../domain/medication.dart';
 import '../domain/weight.dart';
 import '../l10n/l10n.dart';
 
@@ -100,6 +101,8 @@ class PersistedConfig {
   final bool periodReminderEnabled; // remind ~2 days before the predicted period
   final bool fertileReminderEnabled; // remind when the fertile window opens
   final DateTime? lastExportAt; // when data was last exported (= backed up)
+  final List<Medication> medications; // supplements/medicines the user tracks
+  final MedLog medLog; // dateKey → medId → doses taken
 
   const PersistedConfig({
     required this.onboarded,
@@ -127,6 +130,8 @@ class PersistedConfig {
     this.periodReminderEnabled = false,
     this.fertileReminderEnabled = false,
     this.lastExportAt,
+    this.medications = const [],
+    this.medLog = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -159,6 +164,8 @@ class PersistedConfig {
         if (periodReminderEnabled) 'periodReminderEnabled': periodReminderEnabled,
         if (fertileReminderEnabled) 'fertileReminderEnabled': fertileReminderEnabled,
         if (lastExportAt != null) 'lastExportAt': lastExportAt!.toIso8601String(),
+        if (medications.isNotEmpty) 'medications': [for (final m in medications) m.toJson()],
+        if (medLog.isNotEmpty) 'medLog': medLogToJson(medLog),
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -224,6 +231,11 @@ class PersistedConfig {
         periodReminderEnabled: (j['periodReminderEnabled'] as bool?) ?? false,
         fertileReminderEnabled: (j['fertileReminderEnabled'] as bool?) ?? false,
         lastExportAt: j['lastExportAt'] is String ? DateTime.tryParse(j['lastExportAt'] as String) : null,
+        medications: [
+          for (final m in (j['medications'] as List? ?? const []))
+            Medication.fromJson((m as Map).cast<String, dynamic>())
+        ],
+        medLog: j['medLog'] is Map ? medLogFromJson((j['medLog'] as Map).cast<String, dynamic>()) : const {},
       );
 
   String encode() => jsonEncode(toJson());

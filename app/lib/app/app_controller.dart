@@ -32,6 +32,7 @@ import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/hydration.dart';
 import '../domain/kick_session.dart';
+import '../domain/medication.dart';
 import '../domain/weight.dart';
 import '../domain/sleep.dart';
 import '../domain/onboarding_controller.dart';
@@ -102,6 +103,8 @@ class AppController {
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
   final Map<String, List<BatteryReading>> _batteryHistory = {}; // childId → readings (oldest-first)
+  final List<Medication> _medications = [];
+  MedLog _medLog = {}; // dateKey → medId → doses taken
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
   bool _periodReminderEnabled = false;
   bool _fertileReminderEnabled = false;
@@ -188,6 +191,10 @@ class AppController {
     _periodReminderEnabled = cfg.periodReminderEnabled;
     _fertileReminderEnabled = cfg.fertileReminderEnabled;
     _lastExportAt = cfg.lastExportAt;
+    _medications
+      ..clear()
+      ..addAll(cfg.medications);
+    _medLog = {for (final e in cfg.medLog.entries) e.key: Map<String, int>.from(e.value)};
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -239,6 +246,8 @@ class AppController {
         periodReminderEnabled: _periodReminderEnabled,
         fertileReminderEnabled: _fertileReminderEnabled,
         lastExportAt: _lastExportAt,
+        medications: List.of(_medications),
+        medLog: {for (final e in _medLog.entries) e.key: Map<String, int>.from(e.value)},
       );
 
   void _persist() {
@@ -517,6 +526,64 @@ class AppController {
     final l = L10n(_locale);
     final body = a.note.isNotEmpty ? a.note : l.t('appt_notif_body');
     return ReminderCommand.schedule(reminderIdFor(a.id), a.at, a.title, body);
+  }
+
+  // ---- Medications & supplements ----
+  /// The medicines/supplements the user tracks, in the order they added them.
+  List<Medication> get medications => List.unmodifiable(_medications);
+
+  /// Doses taken, keyed by dateKey then medication id.
+  MedLog get medLog => {for (final e in _medLog.entries) e.key: Map.unmodifiable(e.value)};
+
+  int _medSeq = 0;
+
+  void addMedication(String name, {String dose = '', int perDay = 1}) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    _medications.add(Medication(
+      id: 'med-${_now().microsecondsSinceEpoch}-${_medSeq++}',
+      name: trimmed,
+      dose: dose.trim(),
+      perDay: Medication.clampPerDay(perDay),
+    ));
+    _persist();
+    _notify();
+  }
+
+  void updateMedication(String id, {String? name, String? dose, int? perDay}) {
+    final i = _medications.indexWhere((m) => m.id == id);
+    if (i < 0) return;
+    _medications[i] = _medications[i].copyWith(name: name?.trim(), dose: dose?.trim(), perDay: perDay);
+    _persist();
+    _notify();
+  }
+
+  /// Remove a medication and every dose recorded against it, so a deleted
+  /// medicine can't keep skewing adherence.
+  void removeMedication(String id) {
+    _medications.removeWhere((m) => m.id == id);
+    final pruned = <String, Map<String, int>>{};
+    for (final e in _medLog.entries) {
+      final day = Map<String, int>.from(e.value)..remove(id);
+      if (day.isNotEmpty) pruned[e.key] = day;
+    }
+    _medLog = pruned;
+    _persist();
+    _notify();
+  }
+
+  void takeMedicationDose(String id, [DateTime? day]) {
+    final med = _medications.where((m) => m.id == id).firstOrNull;
+    if (med == null) return;
+    _medLog = takeDose(_medLog, day ?? _now(), med);
+    _persist();
+    _notify();
+  }
+
+  void undoMedicationDose(String id, [DateTime? day]) {
+    _medLog = undoDose(_medLog, day ?? _now(), id);
+    _persist();
+    _notify();
   }
 
   void addAppointment(String title, DateTime at, {String note = ''}) {
