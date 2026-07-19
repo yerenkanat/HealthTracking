@@ -199,6 +199,14 @@ class AppController {
       ..clear()
       ..addAll(cfg.medications);
     _medLog = {for (final e in cfg.medLog.entries) e.key: Map<String, int>.from(e.value)};
+    // Re-seed the (transient) sample store with the readings the user typed, so
+    // the dashboard looks the same after a restart as it did before one.
+    _manualSamples
+      ..clear()
+      ..addAll(cfg.manualSamples);
+    for (final s in _manualSamples) {
+      store.addSample(s);
+    }
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -253,6 +261,7 @@ class AppController {
         lastExportAt: _lastExportAt,
         medications: List.of(_medications),
         medLog: {for (final e in _medLog.entries) e.key: Map<String, int>.from(e.value)},
+        manualSamples: List.of(_manualSamples),
       );
 
   void _persist() {
@@ -903,9 +912,31 @@ class AppController {
       diastolicMmHg: v.diastolic,
       coreTempC: v.temperature,
     );
+    // Remember it durably. Band telemetry is transient because the band
+    // re-supplies it on the next connection; a reading someone typed by hand
+    // has no such source, so it must survive a restart.
+    _manualSamples.add(HealthSample(
+      at: _now(),
+      heartRate: v.heartRate?.toDouble(),
+      spo2: v.spo2?.toDouble(),
+      systolic: v.systolic?.toDouble(),
+      diastolic: v.diastolic?.toDouble(),
+      coreTemp: v.temperature,
+    ));
+    if (_manualSamples.length > _maxManualSamples) {
+      _manualSamples.removeRange(0, _manualSamples.length - _maxManualSamples);
+    }
     onTelemetry(t, assessTelemetry(t));
+    _persist();
     return true;
   }
+
+  final List<HealthSample> _manualSamples = [];
+  static const _maxManualSamples = 500;
+
+  /// Hand-entered readings, oldest first. These are the only samples that
+  /// persist across restarts.
+  List<HealthSample> get manualSamples => List.unmodifiable(_manualSamples);
 
   /// From BLEDeviceManager.onTelemetry (via HealthMonitor). Records the reading
   /// and latches emergency if triage says so.

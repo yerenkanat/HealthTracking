@@ -27,6 +27,18 @@ class HealthSample {
     this.duringSleep = false,
   });
 
+  /// Mirrors [fromJson]'s wire names so a persisted sample reads back identically.
+  /// Null metrics are omitted — a reading rarely carries every field.
+  Map<String, dynamic> toJson() => {
+        'recordedAt': at.toIso8601String(),
+        if (heartRate != null) 'heartRateBpm': heartRate,
+        if (spo2 != null) 'spo2Pct': spo2,
+        if (systolic != null) 'systolicMmHg': systolic,
+        if (diastolic != null) 'diastolicMmHg': diastolic,
+        if (coreTemp != null) 'coreTempC': coreTemp,
+        if (duringSleep) 'duringSleep': true,
+      };
+
   factory HealthSample.fromJson(Map<String, dynamic> j) => HealthSample(
         at: DateTime.parse(j['recordedAt'] as String),
         heartRate: (j['heartRateBpm'] as num?)?.toDouble(),

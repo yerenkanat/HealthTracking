@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/data/app_store.dart';
 import 'package:fcs_app/domain/manual_vitals.dart';
 
 void main() {
@@ -39,6 +40,27 @@ void main() {
     expect(c.emergencyActive, isTrue, reason: 'typed readings must not be treated as safer than measured ones');
     expect(c.route, AppRoute.emergency);
     await c.dispose();
+  });
+
+  test('a hand-entered reading survives a restart', () async {
+    // Regression: manual readings went into the same transient store as band
+    // telemetry. The band re-supplies its readings on reconnect; nothing
+    // re-supplies one a person typed, so they vanished on restart — worst for
+    // exactly the band-less users the feature exists for.
+    final store = InMemoryAppStore();
+    final first = AppController(now: () => DateTime(2026, 7, 16, 9), persistStore: store);
+    first.debugMarkOnboarded();
+    first.logManualVitals(const ManualVitals(systolic: 118, diastolic: 76, heartRate: 70));
+    expect(first.samples, hasLength(1));
+    await first.dispose();
+
+    // A fresh launch reading the same saved config.
+    final second = AppController(now: () => DateTime(2026, 7, 17, 9), persistStore: store);
+    await second.restore();
+    expect(second.manualSamples, hasLength(1));
+    expect(second.samples, hasLength(1), reason: 'the reading should still chart after a restart');
+    expect(second.samples.single.systolic, 118);
+    await second.dispose();
   });
 
   test('an ordinary reading does not escalate', () async {

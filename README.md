@@ -96,7 +96,7 @@ app/lib/ui/                          screens (thin presentation over the domain)
   tracking/                           child map, zones, alerts feed, check-in/SOS
   appointments/ · profile/ · settings/ · advisor/ · emergency/ · onboarding/
 app/lib/data/notification_service.dart  OS notifications (geofence, reminders, low battery)
-app/tool/verify_*.dart               34 dependency-free conformance runners (891 assertions)
+app/tool/verify_*.dart               34 dependency-free conformance runners (892 assertions)
 app/tool/verify_all.dart             runs them all, prints a combined total
 infra/                               docker-compose (timescale+postgis, redis) + smoke test
 docs/BATTERY_OPTIMIZATION.md  Code-Optimizer checklist
@@ -153,7 +153,7 @@ band frame → parse → calibrate → assessTelemetry()
 ## Verify
 
 ```bash
-# Pure-Dart logic (no Flutter SDK needed) — 34 runners, 891 assertions:
+# Pure-Dart logic (no Flutter SDK needed) — 34 runners, 892 assertions:
 cd app
 dart run tool/verify_all.dart         # every runner, with a combined total
 
@@ -169,7 +169,7 @@ dart run tool/verify_core.dart        #  36: thresholds, golden vectors, geofenc
 #   onboarding,reminders,safety,setup,sleep,summary,water,weekly_digest,weight}.dart
 
 # Full Dart + widget suites (needs Flutter SDK):
-flutter test                          # 228 widget/unit tests
+flutter test                          # 229 widget/unit tests
 flutter analyze                       # clean
 
 # Node backend (needs npm install):
@@ -182,8 +182,8 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 ### Verification status (this machine)
 | Layer | Result |
 |-------|--------|
-| Dart pure logic (34 `verify_*` runners) | **891 assertions ✅** |
-| Flutter widget + unit tests | **228 ✅** |
+| Dart pure logic (34 `verify_*` runners) | **892 assertions ✅** |
+| Flutter widget + unit tests | **229 ✅** |
 | `flutter analyze` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 

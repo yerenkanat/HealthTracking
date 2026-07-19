@@ -15,6 +15,7 @@ import '../lib/domain/appointment.dart';
 import '../lib/domain/battery.dart';
 import '../lib/domain/contraction.dart';
 import '../lib/domain/geofence_alerts.dart';
+import '../lib/domain/health_series.dart';
 import '../lib/domain/kick_session.dart';
 import '../lib/domain/medication.dart';
 import '../lib/domain/weight.dart';
@@ -82,6 +83,9 @@ void main() async {
     medLog: const {
       '2026-07-15': {'med-1': 1, 'med-2': 2},
     },
+    manualSamples: [
+      HealthSample(at: DateTime.utc(2026, 7, 15, 9), systolic: 118, diastolic: 76, heartRate: 70),
+    ],
     waterReminderMinutes: 20 * 60 + 30, // 20:30
     medReminderMinutes: 9 * 60, // 09:00
     periodReminderEnabled: true,
@@ -123,6 +127,10 @@ void main() async {
           decoded.medications.last.name == 'Iron' &&
           decoded.medications.last.perDay == 2);
   _chk('round-trip medication log', decoded.medLog['2026-07-15']?['med-2'] == 2);
+  _chk('round-trip hand-entered readings',
+      decoded.manualSamples.length == 1 &&
+          decoded.manualSamples.single.systolic == 118 &&
+          decoded.manualSamples.single.at == DateTime.utc(2026, 7, 15, 9));
   _chk('round-trip battery history',
       decoded.childBatteryHistory['child-1']?.length == 2 &&
           decoded.childBatteryHistory['child-1']?.last.pct == 62 &&

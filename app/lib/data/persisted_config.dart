@@ -13,6 +13,7 @@ import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
+import '../domain/health_series.dart';
 import '../domain/kick_session.dart';
 import '../domain/medication.dart';
 import '../domain/weight.dart';
@@ -104,6 +105,9 @@ class PersistedConfig {
   final DateTime? lastExportAt; // when data was last exported (= backed up)
   final List<Medication> medications; // supplements/medicines the user tracks
   final MedLog medLog; // dateKey → medId → doses taken
+  /// Hand-entered readings only. Band telemetry stays transient because the band
+  /// re-supplies it each session; nothing re-supplies a reading a person typed.
+  final List<HealthSample> manualSamples;
 
   const PersistedConfig({
     required this.onboarded,
@@ -134,6 +138,7 @@ class PersistedConfig {
     this.lastExportAt,
     this.medications = const [],
     this.medLog = const {},
+    this.manualSamples = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -169,6 +174,7 @@ class PersistedConfig {
         if (lastExportAt != null) 'lastExportAt': lastExportAt!.toIso8601String(),
         if (medications.isNotEmpty) 'medications': [for (final m in medications) m.toJson()],
         if (medLog.isNotEmpty) 'medLog': medLogToJson(medLog),
+        if (manualSamples.isNotEmpty) 'manualSamples': [for (final s in manualSamples) s.toJson()],
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -240,6 +246,10 @@ class PersistedConfig {
             Medication.fromJson((m as Map).cast<String, dynamic>())
         ],
         medLog: j['medLog'] is Map ? medLogFromJson((j['medLog'] as Map).cast<String, dynamic>()) : const {},
+        manualSamples: [
+          for (final s in (j['manualSamples'] as List? ?? const []))
+            HealthSample.fromJson((s as Map).cast<String, dynamic>())
+        ],
       );
 
   String encode() => jsonEncode(toJson());
