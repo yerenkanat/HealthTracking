@@ -12,6 +12,7 @@ import '../domain/appointment.dart' show nextAppointment;
 import '../domain/child_tracker_state.dart' show currentZone;
 import '../domain/geofence_alerts.dart';
 import '../domain/hydration.dart';
+import '../domain/setup_checklist.dart';
 import '../domain/weekly_digest.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
@@ -67,6 +68,14 @@ class _HomeShellState extends State<HomeShell> {
           c.dayLogs, c.waterLog, c.sleepNights, DateTime.now(),
           waterGoal: c.waterGoal,
         ),
+        setupProgress: computeSetupProgress(
+          hasName: c.displayName.trim().isNotEmpty,
+          hasHealthData: c.dueDate != null || c.periodDays.isNotEmpty,
+          hasChild: c.children.isNotEmpty,
+          hasZone: c.children.any((ch) => ch.geofences.isNotEmpty),
+          hasBackup: c.lastExportAt != null,
+        ),
+        onOpenSetup: () => setState(() => _index = 3), // profile / settings tab
         nextAppointment: nextAppointment(c.appointments, DateTime.now()),
         nowForAppointment: DateTime.now(),
         onOpenAppointments: () => Navigator.of(context).push(

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/appointment.dart';
 import 'package:fcs_app/domain/health_series.dart';
+import 'package:fcs_app/domain/setup_checklist.dart';
 import 'package:fcs_app/domain/weekly_digest.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/widgets/glass.dart';
@@ -95,6 +96,37 @@ void main() {
     expect(find.text('This week'), findsOneWidget);
     expect(find.text('4'), findsOneWidget); // days logged
     expect(find.text('6h 0m'), findsOneWidget); // avg sleep 360 min
+  });
+
+  testWidgets('setup card shows progress and the next outstanding step', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    var opened = false;
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        setupProgress: computeSetupProgress(
+          hasName: true, hasHealthData: true, hasChild: false, hasZone: false, hasBackup: false),
+        onOpenSetup: () => opened = true,
+      ),
+    ));
+    await tester.scrollUntilVisible(find.text('Finish setting up'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('2/5'), findsOneWidget);
+    expect(find.text('Add a child'), findsOneWidget); // the next step
+    await tester.tap(find.text('Finish setting up'));
+    await tester.pump();
+    expect(opened, isTrue);
+  });
+
+  testWidgets('setup card disappears once everything is done', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        setupProgress: computeSetupProgress(
+          hasName: true, hasHealthData: true, hasChild: true, hasZone: true, hasBackup: true),
+      ),
+    ));
+    expect(find.text('Finish setting up'), findsNothing);
   });
 
   testWidgets('next appointment card shows the countdown and taps through', (tester) async {

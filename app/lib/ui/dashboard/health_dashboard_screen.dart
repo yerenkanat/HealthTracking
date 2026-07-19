@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import '../../domain/appointment.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
+import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
 import '../../domain/weekly_digest.dart';
 import '../../l10n/l10n.dart';
@@ -63,6 +64,8 @@ class HealthDashboardView extends StatelessWidget {
   final bool statusChipPregnancy;
   final VoidCallback? onOpenStatus;
   final WeeklyDigest? weeklyDigest; // this-week roll-up (null/no-data = hidden)
+  final SetupProgress? setupProgress; // first-run checklist (null/complete = hidden)
+  final VoidCallback? onOpenSetup; // where "finish setting up" leads
   final Appointment? nextAppointment; // soonest upcoming (null = hidden)
   final DateTime? nowForAppointment; // anchor for the countdown
   final VoidCallback? onOpenAppointments;
@@ -88,6 +91,8 @@ class HealthDashboardView extends StatelessWidget {
     this.statusChipPregnancy = false,
     this.onOpenStatus,
     this.weeklyDigest,
+    this.setupProgress,
+    this.onOpenSetup,
     this.nextAppointment,
     this.nowForAppointment,
     this.onOpenAppointments,
@@ -154,6 +159,10 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
+                  if (setupProgress != null && !setupProgress!.complete) ...[
+                    const SizedBox(height: 14),
+                    _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
+                  ],
                   if (nextAppointment != null) ...[
                     const SizedBox(height: 14),
                     _NextAppointmentCard(
@@ -574,6 +583,73 @@ class _StatusChip extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "Finish setting up" — a progress bar plus the next outstanding step, so a
+/// half-configured app tells you what's missing instead of feeling empty.
+/// Disappears entirely once every step is done.
+class _SetupCard extends StatelessWidget {
+  final SetupProgress progress;
+  final VoidCallback? onTap;
+  const _SetupCard({required this.progress, this.onTap});
+
+  static String _key(SetupStep s) => switch (s) {
+        SetupStep.profileName => 'setup_name',
+        SetupStep.healthMode => 'setup_health',
+        SetupStep.child => 'setup_child',
+        SetupStep.zone => 'setup_zone',
+        SetupStep.backup => 'setup_backup',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final next = progress.next!;
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.rocket_launch_rounded, size: 18, color: Palette.violet),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(l.t('setup_title'),
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Palette.text)),
+              ),
+              Text('${progress.done.length}/${progress.total}',
+                  style: const TextStyle(fontFamily: 'JetBrainsMono', color: Palette.violet, fontWeight: FontWeight.w700, fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress.fraction,
+              minHeight: 7,
+              backgroundColor: Palette.glass,
+              valueColor: const AlwaysStoppedAnimation(Palette.violet),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(children: [
+            const Icon(Icons.arrow_forward_rounded, size: 15, color: Palette.textDim),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(l.t(_key(next)),
+                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+            ),
+          ]),
+        ],
       ),
     );
   }
