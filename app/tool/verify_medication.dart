@@ -75,6 +75,17 @@ void main() {
   _chk('rate never exceeds 1', adherenceRate(meds, finished, today, days: 1)! <= 1.0);
   _chk('no meds → null rate', adherenceRate(const [], full, today) == null);
 
+  // ---- History ----
+  final hist = adherenceHistory(meds, full, today, days: 5);
+  _chk('history length matches the window', hist.length == 5);
+  _chk('history is oldest-first', hist.first.day.isBefore(hist.last.day));
+  _chk('history ends on today', hist.last.day == today);
+  _chk('planned uses the current regimen', hist.every((d) => d.planned == 3));
+  _chk('a complete day reads 3/3', hist[hist.length - 2].taken == 3); // yesterday
+  _chk('today (untouched) reads 0/3', hist.last.taken == 0);
+  _chk('history with no meds is all zero',
+      adherenceHistory(const [], full, today, days: 3).every((d) => d.planned == 0 && d.taken == 0));
+
   // ---- Totals + JSON ----
   _chk('total doses logged', totalDosesLogged(full) == 9);
   _chk('empty log totals zero', totalDosesLogged(const {}) == 0);

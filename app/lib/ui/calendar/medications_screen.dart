@@ -71,6 +71,13 @@ class MedicationsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                 ],
+                if (adherenceRate(meds, controller.medLog, today) case final rate?) ...[
+                  const SizedBox(height: 6),
+                  _HistoryStrip(
+                    history: adherenceHistory(meds, controller.medLog, today, days: 14),
+                    rate: rate,
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Text(l.t('med_disclaimer'),
                     style: const TextStyle(color: Palette.textDim, fontSize: 11.5, height: 1.4)),
@@ -164,6 +171,83 @@ class _TodayHeader extends StatelessWidget {
             ]),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// A fortnight of dose history: one bar per day, filled by how much of that
+/// day's plan was taken, plus the overall rate for the week.
+class _HistoryStrip extends StatelessWidget {
+  final List<MedDay> history;
+  final double rate;
+  const _HistoryStrip({required this.history, required this.rate});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text(l.t('med_history').toUpperCase(),
+                style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            const Spacer(),
+            Text(l.t('med_adherence', {'pct': (rate * 100).round()}),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                  color: rate >= 0.8 ? Palette.good : Palette.amber,
+                )),
+          ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 42,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final d in history)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                      child: Semantics(
+                        label: '${d.taken}/${d.planned}',
+                        child: _DayBar(fraction: d.planned == 0 ? 0 : d.taken / d.planned),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(l.t('med_history_span', {'n': history.length}),
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayBar extends StatelessWidget {
+  final double fraction; // 0..1 of that day's plan
+  const _DayBar({required this.fraction});
+  @override
+  Widget build(BuildContext context) {
+    final full = fraction >= 1;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: FractionallySizedBox(
+        heightFactor: fraction <= 0 ? 0.12 : (0.2 + 0.8 * fraction),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: fraction <= 0
+                ? Palette.border
+                : (full ? Palette.good : Palette.violet).withValues(alpha: full ? 0.85 : 0.55),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: const SizedBox(width: double.infinity),
+        ),
       ),
     );
   }

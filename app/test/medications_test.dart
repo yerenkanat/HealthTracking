@@ -108,6 +108,30 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('dose history shows a strip and the weekly adherence rate', (tester) async {
+    final c = AppController(now: () => today);
+    c.addMedication('Folic acid'); // 1 dose/day
+    final id = c.medications.single.id;
+    // Taken on 3 of the last 7 days → ~43% adherence.
+    for (var i = 1; i <= 3; i++) {
+      c.takeMedicationDose(id, today.subtract(Duration(days: i)));
+    }
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('DOSE HISTORY'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('DOSE HISTORY'), findsOneWidget);
+    expect(find.text('43% this week'), findsOneWidget); // 3 of 7
+    expect(find.text('Last 14 days'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('no history strip before anything is tracked', (tester) async {
+    final c = AppController(now: () => today);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('DOSE HISTORY'), findsNothing);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('card summarises today and ticks a dose', (tester) async {
     final c = AppController(now: () => today);
     c.addMedication('Folic acid');

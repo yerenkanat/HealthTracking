@@ -124,6 +124,24 @@ double? adherenceRate(List<Medication> meds, MedLog log, DateTime today, {int da
   return r > 1 ? 1 : r;
 }
 
+/// One day's dose record, for the history view.
+typedef MedDay = ({DateTime day, int taken, int planned});
+
+/// Per-day dose records over the last [days] ending at [today], oldest first.
+/// Planned counts come from the CURRENT medication list, so a day predating a
+/// medication still shows it as planned — the history reflects today's regimen.
+List<MedDay> adherenceHistory(List<Medication> meds, MedLog log, DateTime today, {int days = 14}) {
+  final t = DateTime(today.year, today.month, today.day);
+  return [
+    for (var i = days - 1; i >= 0; i--)
+      () {
+        final d = t.subtract(Duration(days: i));
+        final p = dayProgress(meds, log, d);
+        return (day: d, taken: p.taken, planned: p.planned);
+      }(),
+  ];
+}
+
 /// Total doses ever recorded — for the journey totals.
 int totalDosesLogged(MedLog log) {
   var n = 0;
