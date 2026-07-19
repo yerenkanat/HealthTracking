@@ -98,6 +98,37 @@ void main() {
     expect(find.text('6h 0m'), findsOneWidget); // avg sleep 360 min
   });
 
+  testWidgets('setup card reaches a brand-new user with no readings', (tester) async {
+    // Regression: the checklist used to be stranded behind the populated
+    // dashboard, so the one user who most needed it never saw it.
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: const [],
+        setupProgress: computeSetupProgress(
+          hasName: false, hasHealthData: false, hasChild: false, hasZone: false, hasBackup: false),
+      ),
+    ));
+    expect(find.text('No readings yet'), findsOneWidget); // still the empty state
+    expect(find.text('Finish setting up'), findsOneWidget); // ...plus the guidance
+    expect(find.text('Add your name in your profile'), findsOneWidget);
+  });
+
+  testWidgets('setup card sits above the metric grid, not below it', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        setupProgress: computeSetupProgress(
+          hasName: true, hasHealthData: false, hasChild: false, hasZone: false, hasBackup: false),
+      ),
+    ));
+    // Visible without scrolling, and above the first metric card.
+    expect(find.text('Finish setting up'), findsOneWidget);
+    final setupY = tester.getTopLeft(find.text('Finish setting up')).dy;
+    final metricY = tester.getTopLeft(find.text('Heart rate')).dy;
+    expect(setupY, lessThan(metricY));
+  });
+
   testWidgets('setup card shows progress and the next outstanding step', (tester) async {
     final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
     var opened = false;

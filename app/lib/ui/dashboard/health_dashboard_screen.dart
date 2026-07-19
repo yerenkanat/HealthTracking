@@ -136,14 +136,32 @@ class HealthDashboardView extends StatelessWidget {
             const SizedBox(width: 4),
           ],
         ),
+        // With no readings there's nothing to chart — but a half-configured app
+        // still owes the user its setup guidance, so the checklist shows here
+        // too rather than being stranded behind the populated dashboard.
         body: samples.isEmpty
-            ? _EmptyState()
+            ? ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                children: [
+                  if (setupProgress != null && !setupProgress!.complete) ...[
+                    _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
+                    const SizedBox(height: 20),
+                  ],
+                  _EmptyState(),
+                ],
+              )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                 children: [
                   if (statusChip.isNotEmpty && onOpenStatus != null) ...[
                     _StatusChip(label: statusChip, pregnancy: statusChipPregnancy, onTap: onOpenStatus!),
                     const SizedBox(height: 12),
+                  ],
+                  // Setup guidance outranks ambient status: an unfinished app
+                  // shouldn't hide "add a child" below a 2x2 grid of metrics.
+                  if (setupProgress != null && !setupProgress!.complete) ...[
+                    _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
+                    const SizedBox(height: 14),
                   ],
                   _PeaceOfMindBanner(samples: samples, name: greetingName),
                   const SizedBox(height: 16),
@@ -159,10 +177,6 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
-                  if (setupProgress != null && !setupProgress!.complete) ...[
-                    const SizedBox(height: 14),
-                    _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
-                  ],
                   if (nextAppointment != null) ...[
                     const SizedBox(height: 14),
                     _NextAppointmentCard(
