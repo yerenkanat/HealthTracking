@@ -84,6 +84,35 @@ void main() {
     expect(opened, isTrue);
   });
 
+  testWidgets('a late period gets its own amber chip treatment', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        statusChip: 'Period 3 days late',
+        statusChipLate: true,
+        onOpenStatus: () {},
+      ),
+    ));
+    expect(find.text('Period 3 days late'), findsOneWidget);
+    // Amber + a clock icon, distinct from the routine rose spa icon.
+    expect(find.byIcon(Icons.schedule_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.spa_rounded), findsNothing);
+  });
+
+  testWidgets('an on-time cycle keeps the routine chip', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        statusChip: 'Cycle · Day 14',
+        onOpenStatus: () {},
+      ),
+    ));
+    expect(find.byIcon(Icons.spa_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.schedule_rounded), findsNothing);
+  });
+
   testWidgets('weekly digest card shows the week roll-up', (tester) async {
     final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
     await tester.pumpWidget(MaterialApp(

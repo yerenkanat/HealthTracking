@@ -63,6 +63,7 @@ class _HomeShellState extends State<HomeShell> {
         summaryStatus: _summaryStatus(c, l),
         statusChip: _statusChip(c, l),
         statusChipPregnancy: c.isPregnant,
+        statusChipLate: _statusChipLate(c),
         onOpenStatus: () => setState(() => _index = 1),
         weeklyDigest: computeWeeklyDigest(
           c.dayLogs, c.waterLog, c.sleepNights, DateTime.now(),
@@ -193,9 +194,17 @@ class _HomeShellState extends State<HomeShell> {
       return g != null ? l.t('db_chip_pregnancy', {'n': g.week}) : '';
     }
     final cyc = c.cycle;
-    if (cyc.hasData && cyc.cycleDay != null) return l.t('db_chip_cycle', {'n': cyc.cycleDay});
-    return '';
+    if (!cyc.hasData || cyc.cycleDay == null) return '';
+    // A late period is the thing most worth surfacing — say so instead of
+    // burying it behind a cycle-day number.
+    final until = cyc.daysUntilNextPeriod;
+    if (cyc.isPredictedLate && until != null) return l.t('db_chip_late', {'n': -until});
+    return l.t('db_chip_cycle', {'n': cyc.cycleDay});
   }
+
+  /// Whether the cycle chip should read as "worth a look" (amber) rather than
+  /// routine. Pregnancy is never late.
+  bool _statusChipLate(AppController c) => !c.isPregnant && c.cycle.isPredictedLate;
 
   /// Real Google map with the child marker + geofence circles — or a graceful
   /// placeholder when Maps isn't configured (avoids a black platform-view surface).

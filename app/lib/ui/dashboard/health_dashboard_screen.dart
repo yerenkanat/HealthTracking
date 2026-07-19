@@ -62,6 +62,7 @@ class HealthDashboardView extends StatelessWidget {
   // Quick status chip: cycle day / pregnancy week (empty = hidden).
   final String statusChip;
   final bool statusChipPregnancy;
+  final bool statusChipLate; // period overdue → amber, not routine rose
   final VoidCallback? onOpenStatus;
   final WeeklyDigest? weeklyDigest; // this-week roll-up (null/no-data = hidden)
   final SetupProgress? setupProgress; // first-run checklist (null/complete = hidden)
@@ -89,6 +90,7 @@ class HealthDashboardView extends StatelessWidget {
     this.summaryStatus = '',
     this.statusChip = '',
     this.statusChipPregnancy = false,
+    this.statusChipLate = false,
     this.onOpenStatus,
     this.weeklyDigest,
     this.setupProgress,
@@ -154,7 +156,7 @@ class HealthDashboardView extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                 children: [
                   if (statusChip.isNotEmpty && onOpenStatus != null) ...[
-                    _StatusChip(label: statusChip, pregnancy: statusChipPregnancy, onTap: onOpenStatus!),
+                    _StatusChip(label: statusChip, pregnancy: statusChipPregnancy, late: statusChipLate, onTap: onOpenStatus!),
                     const SizedBox(height: 12),
                   ],
                   // Setup guidance outranks ambient status: an unfinished app
@@ -564,13 +566,23 @@ class _AdvisorEntry extends StatelessWidget {
 class _StatusChip extends StatelessWidget {
   final String label;
   final bool pregnancy;
+  final bool late;
   final VoidCallback onTap;
-  const _StatusChip({required this.label, required this.pregnancy, required this.onTap});
+  const _StatusChip({required this.label, required this.pregnancy, required this.onTap, this.late = false});
 
   @override
   Widget build(BuildContext context) {
-    final accent = pregnancy ? Palette.violet : Palette.roseDeep;
-    final icon = pregnancy ? Icons.pregnant_woman_rounded : Icons.spa_rounded;
+    // Amber for a late period — "worth a look", never an alarm red.
+    final accent = pregnancy
+        ? Palette.violet
+        : late
+            ? Palette.amber
+            : Palette.roseDeep;
+    final icon = pregnancy
+        ? Icons.pregnant_woman_rounded
+        : late
+            ? Icons.schedule_rounded
+            : Icons.spa_rounded;
     return Align(
       alignment: Alignment.centerLeft,
       child: Material(

@@ -339,6 +339,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'share_status_pregnancy': {AppLocale.ru: 'Беременность · {week} нед.', AppLocale.kk: 'Жүктілік · {week} апта', AppLocale.en: 'Pregnancy · week {week}'},
   'share_status_cycle': {AppLocale.ru: 'Цикл · день {day} · месячные через {n} дн.', AppLocale.kk: 'Цикл · {day}-күн · етеккір {n} күнде', AppLocale.en: 'Cycle · day {day} · period in {n} days'},
   'db_chip_cycle': {AppLocale.ru: 'Цикл · день {n}', AppLocale.kk: 'Цикл · {n}-күн', AppLocale.en: 'Cycle · Day {n}'},
+  'db_chip_late': {AppLocale.ru: 'Задержка {n} дн.', AppLocale.kk: '{n} күн кешігу', AppLocale.en: 'Period {n} days late'},
   'setup_title': {AppLocale.ru: 'Завершите настройку', AppLocale.kk: 'Баптауды аяқтаңыз', AppLocale.en: 'Finish setting up'},
   'setup_name': {AppLocale.ru: 'Добавьте своё имя в профиле', AppLocale.kk: 'Профильде атыңызды қосыңыз', AppLocale.en: 'Add your name in your profile'},
   'setup_health': {AppLocale.ru: 'Укажите срок родов или отметьте месячные', AppLocale.kk: 'Босану мерзімін немесе етеккірді белгілеңіз', AppLocale.en: 'Set a due date or log your period'},
