@@ -37,6 +37,19 @@ void main() {
   final atNow = Appointment(id: 'e', title: 'Now', at: now);
   _chk('now counts as upcoming', splitAppointments([atNow], now).upcoming.length == 1);
 
+  // Search by title or note.
+  final searchable = [
+    Appointment(id: 's1', title: 'Ultrasound scan', at: DateTime(2026, 8, 1), note: 'bring papers'),
+    Appointment(id: 's2', title: 'OB visit', at: DateTime(2026, 8, 2)),
+    Appointment(id: 's3', title: 'Blood test', at: DateTime(2026, 8, 3), note: 'fasting from midnight'),
+  ];
+  _chk('empty query returns everything', searchAppointments(searchable, '').length == 3);
+  _chk('whitespace query returns everything', searchAppointments(searchable, '   ').length == 3);
+  _chk('matches title case-insensitively', searchAppointments(searchable, 'ULTRASOUND').single.id == 's1');
+  _chk('matches the note too', searchAppointments(searchable, 'fasting').single.id == 's3');
+  _chk('no match → empty', searchAppointments(searchable, 'zzz').isEmpty);
+  _chk('search preserves order', searchAppointments(searchable, 's').map((a) => a.id).join(',') == 's1,s2,s3');
+
   // Countdown buckets.
   _chk('when today (0)', appointmentWhen(0) == ApptWhen.today);
   _chk('when today (past)', appointmentWhen(-3) == ApptWhen.today);

@@ -27,9 +27,19 @@ enum _ApptTab { upcoming, past }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   _ApptTab _tab = _ApptTab.upcoming;
+  final _search = TextEditingController();
+
+  /// Below this the list is easy to scan, and a search field is just clutter.
+  static const _searchThreshold = 6;
 
   AppController get controller => widget.controller;
   DateTime now() => (widget.nowFn ?? DateTime.now)();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,16 +58,43 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         body: StreamBuilder<void>(
           stream: controller.changes,
           builder: (context, _) {
-            final split = splitAppointments(controller.appointments, now());
-            if (split.upcoming.isEmpty && split.past.isEmpty) {
-              return _EmptyState(l: l);
-            }
+            final all = controller.appointments;
+            if (all.isEmpty) return _EmptyState(l: l);
+            // Search filters the whole set; the tabs then split what survives.
+            final showSearch = all.length >= _searchThreshold;
+            final split = splitAppointments(
+              showSearch ? searchAppointments(all, _search.text) : all,
+              now(),
+            );
             // An empty selected tab falls back to the one that has items.
             if (_tab == _ApptTab.upcoming && split.upcoming.isEmpty && split.past.isNotEmpty) _tab = _ApptTab.past;
             if (_tab == _ApptTab.past && split.past.isEmpty && split.upcoming.isNotEmpty) _tab = _ApptTab.upcoming;
             final list = _tab == _ApptTab.upcoming ? split.upcoming : split.past;
             return Column(
               children: [
+                if (showSearch)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: TextField(
+                      controller: _search,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: l.t('appt_search_hint'),
+                        prefixIcon: const Icon(Icons.search_rounded, color: Palette.textDim),
+                        suffixIcon: _search.text.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.close_rounded, color: Palette.textDim),
+                                tooltip: l.t('act_clear_search'),
+                                onPressed: () => setState(_search.clear),
+                              ),
+                        filled: true,
+                        fillColor: Palette.surface,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      ),
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                   child: _ApptTabs(
@@ -69,7 +106,16 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ),
                 Expanded(
                   child: list.isEmpty
-                      ? Center(child: Text(l.t('appt_none'), style: const TextStyle(color: Palette.textDim)))
+                      ? Center(
+                          child: Text(
+                            // A fruitless search reads differently from a
+                            // genuinely empty tab.
+                            showSearch && _search.text.trim().isNotEmpty && split.upcoming.isEmpty && split.past.isEmpty
+                                ? l.t('appt_no_match')
+                                : l.t('appt_none'),
+                            style: const TextStyle(color: Palette.textDim),
+                          ),
+                        )
                       : ListView(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                           children: [

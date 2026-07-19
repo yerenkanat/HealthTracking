@@ -65,6 +65,41 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('no search field for a short list', (tester) async {
+    final c = AppController(now: () => today);
+    c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0));
+    await tester.pumpWidget(wrap(c));
+    expect(find.widgetWithText(TextField, 'Search reminders'), findsNothing);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('search appears once the list grows and filters it', (tester) async {
+    final c = AppController(now: () => today);
+    for (var i = 0; i < 5; i++) {
+      c.addAppointment('Routine visit $i', DateTime(2026, 7, 20 + i, 9, 0));
+    }
+    c.addAppointment('Ultrasound', DateTime(2026, 7, 28, 9, 0), note: 'bring papers');
+    await tester.pumpWidget(wrap(c));
+
+    expect(find.widgetWithText(TextField, 'Search reminders'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'ultra');
+    await tester.pumpAndSettle();
+    expect(find.text('Ultrasound'), findsOneWidget);
+    expect(find.text('Routine visit 0'), findsNothing);
+    expect(find.text('Upcoming (1)'), findsOneWidget); // counts reflect the filter
+
+    // Matching the note works too.
+    await tester.enterText(find.byType(TextField), 'papers');
+    await tester.pumpAndSettle();
+    expect(find.text('Ultrasound'), findsOneWidget);
+
+    // A fruitless search says so.
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await tester.pumpAndSettle();
+    expect(find.text('No matching reminders.'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('tapping a reminder opens a prefilled edit sheet and saves changes', (tester) async {
     final c = AppController(now: () => today);
     c.addAppointment('OB visit', DateTime(2026, 7, 20, 9, 0), note: 'bring papers');

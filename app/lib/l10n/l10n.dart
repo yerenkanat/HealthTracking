@@ -253,6 +253,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'appt_plus_week': {AppLocale.ru: 'Перенести на неделю', AppLocale.kk: 'Бір аптаға жылжыту', AppLocale.en: 'Move +1 week'},
   'appt_upcoming': {AppLocale.ru: 'Предстоящие', AppLocale.kk: 'Алдағы', AppLocale.en: 'Upcoming'},
   'appt_next': {AppLocale.ru: 'Следующий визит', AppLocale.kk: 'Келесі қабылдау', AppLocale.en: 'Next appointment'},
+  'appt_search_hint': {AppLocale.ru: 'Поиск по напоминаниям', AppLocale.kk: 'Еске салғыштардан іздеу', AppLocale.en: 'Search reminders'},
+  'appt_no_match': {AppLocale.ru: 'Ничего не найдено.', AppLocale.kk: 'Ештеңе табылмады.', AppLocale.en: 'No matching reminders.'},
   'med_title': {AppLocale.ru: 'Витамины и лекарства', AppLocale.kk: 'Дәрумендер мен дәрілер', AppLocale.en: 'Vitamins & medicines'},
   'med_add': {AppLocale.ru: 'Добавить', AppLocale.kk: 'Қосу', AppLocale.en: 'Add'},
   'med_edit': {AppLocale.ru: 'Изменить', AppLocale.kk: 'Өзгерту', AppLocale.en: 'Edit'},

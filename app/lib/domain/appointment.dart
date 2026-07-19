@@ -44,6 +44,17 @@ class Appointment {
   return (upcoming: upcoming, past: past);
 }
 
+/// Appointments whose title or note matches [query] (case-insensitive
+/// substring; an empty query matches everything), order preserved.
+List<Appointment> searchAppointments(List<Appointment> all, String query) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return all;
+  return [
+    for (final a in all)
+      if (a.title.toLowerCase().contains(q) || a.note.toLowerCase().contains(q)) a,
+  ];
+}
+
 /// The soonest upcoming appointment, or null when none remain.
 Appointment? nextAppointment(List<Appointment> all, DateTime now) {
   final up = splitAppointments(all, now).upcoming;
