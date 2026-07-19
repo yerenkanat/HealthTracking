@@ -132,6 +132,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'alerts_filter_sos': {AppLocale.ru: 'SOS', AppLocale.kk: 'SOS', AppLocale.en: 'SOS'},
   'alerts_filter_checkins': {AppLocale.ru: 'Отметки', AppLocale.kk: 'Белгілер', AppLocale.en: 'Check-ins'},
   'alerts_filter_battery': {AppLocale.ru: 'Заряд', AppLocale.kk: 'Заряд', AppLocale.en: 'Battery'},
+  'sos_days_clear': {AppLocale.ru: '{n} дн. без сигналов SOS', AppLocale.kk: 'SOS сигналсыз {n} күн', AppLocale.en: '{n} days without an SOS'},
   'today_title': {AppLocale.ru: 'Сегодня', AppLocale.kk: 'Бүгін', AppLocale.en: 'Today'},
   'today_zone_events': {AppLocale.ru: 'событий в зонах', AppLocale.kk: 'аймақ оқиғасы', AppLocale.en: 'zone events'},
   'today_checkins': {AppLocale.ru: 'отметок', AppLocale.kk: 'белгі', AppLocale.en: 'check-ins'},

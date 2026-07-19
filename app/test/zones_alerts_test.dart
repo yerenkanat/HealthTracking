@@ -128,6 +128,28 @@ void main() {
       addTearDown(c.dispose);
     });
 
+    testWidgets('all-clear banner counts days since the last SOS', (tester) async {
+      // SOS raised on Jul 10; viewing on Jul 16 → 6 days clear.
+      final sosDay = DateTime(2026, 7, 10, 15);
+      final viewDay = DateTime(2026, 7, 16, 9);
+      final c = AppController(now: () => sosDay);
+      c.configureChild(name: 'Sultan', fences: [_home]);
+      c.logChildEvent(AlertKind.sos);
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => viewDay)));
+      expect(find.text('6 days without an SOS'), findsOneWidget);
+      addTearDown(c.dispose);
+    });
+
+    testWidgets('no all-clear banner for a same-day SOS', (tester) async {
+      final now = DateTime(2026, 7, 16, 9);
+      final c = AppController(now: () => now);
+      c.configureChild(name: 'Sultan', fences: [_home]);
+      c.logChildEvent(AlertKind.sos);
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => now)));
+      expect(find.textContaining('without an SOS'), findsNothing);
+      addTearDown(c.dispose);
+    });
+
     testWidgets('per-child chips narrow the feed to one child', (tester) async {
       final c = AppController(now: () => DateTime(2026, 7, 16, 9));
       c.configureChild(name: 'Aisha', fences: [_home, _school]);

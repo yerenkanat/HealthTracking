@@ -72,8 +72,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
             final alerts = filterAlerts(byChild, _filter);
             // Today's activity summary (respects the child filter).
             final todayCounts = alertKindCounts(alertsOnDay(byChild, _now()));
+            // Reassurance: how long since the last SOS (only once one exists).
+            final sosDays = daysSinceKind(byChild, _child, AlertKind.sos, _now());
             return Column(
               children: [
+                // Only from a day out — a same-day SOS is already the loudest
+                // thing in the feed and must not be dressed up as "all clear".
+                if (sosDays != null && sosDays >= 1) _AllClearBanner(days: sosDays),
                 if (todayCounts.isNotEmpty) _TodaySummary(counts: todayCounts),
                 if (children.length > 1)
                   _ChildChips(children: children, selected: _child, onSelect: (c) => setState(() => _child = c)),
@@ -135,6 +140,38 @@ class _FilterChips extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// A calm green "all clear" line: how long it's been since the last SOS. Only
+/// rendered once an SOS exists in history, so it reads as reassurance rather
+/// than noise.
+class _AllClearBanner extends StatelessWidget {
+  final int days;
+  const _AllClearBanner({required this.days});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: Palette.good.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Palette.good.withValues(alpha: 0.22)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.verified_user_rounded, size: 18, color: Palette.good),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            l.t('sos_days_clear', {'n': days}),
+            style: const TextStyle(color: Palette.good, fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+        ),
+      ]),
     );
   }
 }

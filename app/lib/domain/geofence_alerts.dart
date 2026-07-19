@@ -60,13 +60,30 @@ DateTime? zoneEntryTime(List<SafetyAlert> alerts, String childName, String zoneN
   return null;
 }
 
-/// When [childName] last checked in (their most recent check-in event), from the
-/// alert feed ([alerts] newest-first). Null if they haven't checked in.
-DateTime? lastCheckIn(List<SafetyAlert> alerts, String childName) {
+/// When the most recent [kind] event happened, from the alert feed ([alerts]
+/// newest-first). A null/empty [childName] matches any child (mirroring
+/// [filterAlertsByChild]). Null if there's no such event.
+DateTime? lastAlertOfKind(List<SafetyAlert> alerts, String? childName, AlertKind kind) {
+  final anyChild = childName == null || childName.isEmpty;
   for (final a in alerts) {
-    if (a.kind == AlertKind.checkIn && a.childName == childName) return a.at;
+    if (a.kind == kind && (anyChild || a.childName == childName)) return a.at;
   }
   return null;
+}
+
+/// When [childName] last checked in. Null if they haven't checked in.
+DateTime? lastCheckIn(List<SafetyAlert> alerts, String childName) =>
+    lastAlertOfKind(alerts, childName, AlertKind.checkIn);
+
+/// Whole days since [childName]'s last [kind] event, or null if it never
+/// happened. Clamped at 0 (a future-stamped event reads as today).
+int? daysSinceKind(List<SafetyAlert> alerts, String? childName, AlertKind kind, DateTime now) {
+  final at = lastAlertOfKind(alerts, childName, kind);
+  if (at == null) return null;
+  final days = DateTime(now.year, now.month, now.day)
+      .difference(DateTime(at.year, at.month, at.day))
+      .inDays;
+  return days < 0 ? 0 : days;
 }
 
 /// How many times [childName] has ENTERED each zone, most-visited first. Only

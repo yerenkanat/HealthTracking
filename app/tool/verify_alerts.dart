@@ -137,6 +137,22 @@ void main() {
   _chk('last check-in per child', lastCheckIn(checkinFeed, 'Timur') == DateTime(2026, 7, 16, 7));
   _chk('no check-in → null', lastCheckIn(checkinFeed, 'Nobody') == null);
 
+  // Generalized kind lookup + days-since.
+  final sosFeed = [
+    SafetyAlert(kind: AlertKind.checkIn, childName: 'Aisha', zoneName: '', at: DateTime(2026, 7, 16, 9)),
+    SafetyAlert(kind: AlertKind.sos, childName: 'Aisha', zoneName: '', at: DateTime(2026, 7, 4, 15)),
+    SafetyAlert(kind: AlertKind.sos, childName: 'Aisha', zoneName: '', at: DateTime(2026, 6, 1, 9)),
+  ];
+  final asOf = DateTime(2026, 7, 16, 20);
+  _chk('last SOS is the most recent', lastAlertOfKind(sosFeed, 'Aisha', AlertKind.sos) == DateTime(2026, 7, 4, 15));
+  _chk('days since last SOS', daysSinceKind(sosFeed, 'Aisha', AlertKind.sos, asOf) == 12);
+  _chk('days since ignores time of day', daysSinceKind(sosFeed, 'Aisha', AlertKind.checkIn, asOf) == 0);
+  _chk('never happened → null', daysSinceKind(sosFeed, 'Aisha', AlertKind.lowBattery, asOf) == null);
+  _chk('null child matches any', lastAlertOfKind(sosFeed, null, AlertKind.sos) == DateTime(2026, 7, 4, 15));
+  _chk('empty child matches any', daysSinceKind(sosFeed, '', AlertKind.sos, asOf) == 12);
+  _chk('future event clamps to 0',
+      daysSinceKind([SafetyAlert(kind: AlertKind.sos, childName: 'A', zoneName: '', at: DateTime(2026, 8, 1))], 'A', AlertKind.sos, asOf) == 0);
+
   // ---- Today's activity summary ----
   final today = DateTime(2026, 7, 16, 12);
   final dayFeed = [
