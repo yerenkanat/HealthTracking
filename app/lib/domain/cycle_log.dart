@@ -185,8 +185,14 @@ GestationInfo? gestationFor(DateTime? dueDate, DateTime today) {
 }
 
 /// (De)serialize a whole logbook (dateKey → DayLog) for persistence.
-Map<String, dynamic> dayLogsToJson(Map<String, DayLog> logs) =>
-    {for (final e in logs.entries) e.key: e.value.toJson()};
+/// Empty logs are skipped, mirroring [dayLogsFromJson] which discards them on
+/// read. Writing them meant every save carried entries the next load threw away
+/// — and they showed up in the user's export file as meaningless `{"date":...}`
+/// stubs. Skipping here also makes encode→decode→encode idempotent.
+Map<String, dynamic> dayLogsToJson(Map<String, DayLog> logs) => {
+      for (final e in logs.entries)
+        if (e.value.isNotEmpty) e.key: e.value.toJson(),
+    };
 
 Map<String, DayLog> dayLogsFromJson(Map<String, dynamic>? j) {
   if (j == null) return {};

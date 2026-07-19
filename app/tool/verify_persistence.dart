@@ -2,6 +2,7 @@
 /// restore/save (profile + children + devices). `dart run tool/verify_persistence.dart`
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import '../lib/app/app_controller.dart';
@@ -254,6 +255,62 @@ void main() async {
   _chk('reset clears day logs', ctl4.dayLogs.isEmpty);
   _chk('reset clears persisted', (await store3.load()) == null);
   await ctl4.dispose();
+
+  // ---- Upgrade safety ----
+  // Saved configs outlive the build that wrote them. A user upgrading must not
+  // lose data or crash because a field they never had is now read non-
+  // defensively, so decoding old/new/minimal payloads is asserted explicitly.
+  const legacy = '{"version":1,"onboarded":true,"locale":"ru",'
+      '"profile":{"displayName":"Aigerim"},"children":[],"devices":[]}';
+  PersistedConfig? oldCfg;
+  try {
+    oldCfg = PersistedConfig.decode(legacy);
+  } catch (_) {
+    oldCfg = null;
+  }
+  _chk('a legacy config still decodes', oldCfg != null);
+  _chk('legacy keeps the data it did have', oldCfg?.profile.displayName == 'Aigerim' && oldCfg?.onboarded == true);
+  _chk('fields added later default safely',
+      oldCfg != null &&
+          oldCfg.medications.isEmpty &&
+          oldCfg.medLog.isEmpty &&
+          oldCfg.weights.isEmpty &&
+          oldCfg.childBatteryHistory.isEmpty &&
+          oldCfg.lastExportAt == null &&
+          oldCfg.medReminderMinutes == null &&
+          oldCfg.waterReminderMinutes == null &&
+          !oldCfg.periodReminderEnabled);
+
+  // A payload from a NEWER build: unknown keys must be ignored, not fatal.
+  PersistedConfig? futureCfg;
+  try {
+    futureCfg = PersistedConfig.decode('{"version":99,"onboarded":true,"locale":"en",'
+        '"profile":{"displayName":"X"},"children":[],"devices":[],'
+        '"someUnknownFeature":{"a":1},"anotherNew":[1,2,3]}');
+  } catch (_) {
+    futureCfg = null;
+  }
+  _chk('a newer config decodes, ignoring unknown fields', futureCfg?.profile.displayName == 'X');
+
+  // The bare minimum a file could contain.
+  PersistedConfig? minimal;
+  try {
+    minimal = PersistedConfig.decode('{"onboarded":true}');
+  } catch (_) {
+    minimal = null;
+  }
+  _chk('a minimal config decodes', minimal != null && minimal.onboarded);
+
+  // Encoding what we decoded must not drift.
+  final reencoded = PersistedConfig.decode(cfg.encode()).encode();
+  _chk('encode → decode → encode is stable', reencoded == cfg.encode());
+  // The write side skips empty logs, matching the read side that discards them
+  // — otherwise every save persisted stubs the next load threw away. (Checked
+  // against the dayLogs map specifically: that date also appears legitimately in
+  // the water, weight and medication logs.)
+  final encodedLogs = (jsonDecode(cfg.encode()) as Map<String, dynamic>)['dayLogs'] as Map<String, dynamic>;
+  _chk('empty day logs are never written',
+      encodedLogs.containsKey('2026-07-14') && !encodedLogs.containsKey('2026-07-15'));
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
