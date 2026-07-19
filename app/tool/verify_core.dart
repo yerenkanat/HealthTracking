@@ -105,6 +105,36 @@ void main() {
   sm.push(2);
   _chk('beacon smoother median ~2 despite spike', sm.push(2) <= 2.0);
 
+  // ---- A zone must be enterable at any radius ----
+  // "Inside" requires being inside by at least the hysteresis buffer, and the
+  // deepest you can be inside a circle is its radius. A fence no bigger than the
+  // buffer was therefore impossible to enter — a permanently silent safe-zone.
+  // The UI's 50m minimum only masked this; imported backups carry any radius.
+  const spot = Coordinates(43.238949, 76.889709);
+  bool entersAtCentre(double radiusM) {
+    final t = GeofenceTracker([Geofence.circle('z', 'Z', spot, radiusM)]);
+    for (var i = 0; i < 5; i++) {
+      if (t.update(spot).any((h) => h.transition == GeofenceTransition.enter)) return true;
+    }
+    return false;
+  }
+
+  _chk('a tiny zone can still be entered', entersAtCentre(15));
+  _chk('a zone the size of the buffer can be entered', entersAtCentre(30));
+  _chk('an ordinary zone can be entered', entersAtCentre(100));
+  // Normal zones keep the full configured buffer — the clamp must not loosen
+  // drift protection where it was already working.
+  final drifty = GeofenceTracker([Geofence.circle('z', 'Z', spot, 100)]);
+  drifty.update(spot);
+  drifty.update(spot); // now confirmed inside
+  // ~120m north of centre: 20m past a 100m edge, i.e. still inside the 30m band.
+  final justOutsideBuffer = Coordinates(spot.lat + 120 / 111320, spot.lng);
+  var flapped = false;
+  for (var i = 0; i < 5; i++) {
+    if (drifty.update(justOutsideBuffer).isNotEmpty) flapped = true;
+  }
+  _chk('drift inside the buffer band does not flap a normal zone', !flapped);
+
   // ---- Malformed-frame safety ----
   // Frames arrive from an external device, so the parsers must REJECT bad input
   // rather than throw. The band frame states its own payload length, which a

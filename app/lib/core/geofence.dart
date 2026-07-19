@@ -141,6 +141,24 @@ class GeofenceTracker {
 
   GeofenceTracker(this.fences, [this.cfg = const HysteresisConfig()]);
 
+  /// The buffer to apply to [fence].
+  ///
+  /// "Inside" needs `signed <= -buffer`, and the deepest a point can be inside a
+  /// circle is its radius (at the centre). So a fence no bigger than the buffer
+  /// could NEVER be entered — the enter alert was silently impossible, even
+  /// standing dead centre. Today's UI enforces a 50m minimum radius, which only
+  /// hides this by coincidence; an imported backup carries any radius at all.
+  /// Shrink the buffer for such fences instead of letting them go dark.
+  ///
+  /// Fences larger than the buffer are unaffected, so normal zones behave
+  /// exactly as before. Polygons keep the configured buffer: their inward depth
+  /// isn't a single number, and they come from the map picker at map scale.
+  double _bufferFor(Geofence fence) {
+    if (fence.shape != GeofenceShape.circle) return cfg.bufferM;
+    final r = fence.radiusM ?? 0;
+    return cfg.bufferM < r ? cfg.bufferM : r / 2;
+  }
+
   List<GeofenceHit> update(Coordinates coords, [double accuracyM = 0]) {
     final out = <GeofenceHit>[];
     if (accuracyM > cfg.maxAccuracyM) return out; // reject low-quality fixes
@@ -148,11 +166,12 @@ class GeofenceTracker {
     for (final fence in fences) {
       final rt = _runtime.putIfAbsent(fence.id, () => _FenceRuntime());
       final signed = signedDistanceToBoundaryM(coords, fence);
+      final buffer = _bufferFor(fence);
 
       FenceState? observed;
-      if (signed <= -cfg.bufferM) {
+      if (signed <= -buffer) {
         observed = FenceState.inside;
-      } else if (signed >= cfg.bufferM) {
+      } else if (signed >= buffer) {
         observed = FenceState.outside;
       } // else: within buffer band → ambiguous, hold state.
 
