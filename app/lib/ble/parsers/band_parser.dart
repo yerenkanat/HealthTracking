@@ -67,6 +67,17 @@ class ParseResult {
   const ParseResult(this.frame, this.ok, [this.reason]);
 }
 
+/// How many payload bytes a command reads, or null if we don't handle it.
+/// Kept beside the switch below so the two can't drift apart.
+int? _payloadBytesNeeded(int cmd) => switch (cmd) {
+      BandCmd.heartRate => 1,
+      BandCmd.spo2 => 1,
+      BandCmd.temperature => 2,
+      BandCmd.bloodPressure => 2,
+      BandCmd.combinedHealth => 5,
+      _ => null,
+    };
+
 ParseResult parseBandFrame(Object input, {bool validateChecksum = false}) {
   final bytes = toBytes(input);
   final f = BandFrame();
@@ -80,7 +91,22 @@ ParseResult parseBandFrame(Object input, {bool validateChecksum = false}) {
 
   final cmd = bytes[1];
   final payloadLen = (bytes[2] << 8) | bytes[3];
+  // payloadLen is stated BY THE FRAME, so a malformed or truncated one can claim
+  // more than it carries. Trusting it made sublistView throw RangeError on data
+  // arriving from an external device — parsers must reject, never throw.
+  if (4 + payloadLen > bytes.length) {
+    return ParseResult(f, false, 'payload length $payloadLen exceeds frame');
+  }
   final p = Uint8List.sublistView(bytes, 4, 4 + payloadLen);
+
+  // Each command reads a fixed number of payload bytes; check before indexing.
+  final needed = _payloadBytesNeeded(cmd);
+  if (needed == null) {
+    return ParseResult(f, false, 'unhandled cmd 0x${cmd.toRadixString(16)}');
+  }
+  if (p.length < needed) {
+    return ParseResult(f, false, 'payload too short for cmd 0x${cmd.toRadixString(16)}');
+  }
 
   switch (cmd) {
     case BandCmd.heartRate:
@@ -112,7 +138,7 @@ ParseResult parseBandFrame(Object input, {bool validateChecksum = false}) {
       }
       f.duringSleep = p[4] == 1;
       break;
-    default:
+    default: // unreachable: _payloadBytesNeeded already rejected unknown cmds
       return ParseResult(f, false, 'unhandled cmd 0x${cmd.toRadixString(16)}');
   }
 

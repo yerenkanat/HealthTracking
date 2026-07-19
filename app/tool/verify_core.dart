@@ -105,6 +105,54 @@ void main() {
   sm.push(2);
   _chk('beacon smoother median ~2 despite spike', sm.push(2) <= 2.0);
 
+  // ---- Malformed-frame safety ----
+  // Frames arrive from an external device, so the parsers must REJECT bad input
+  // rather than throw. The band frame states its own payload length, which a
+  // truncated frame can overstate — that used to reach sublistView and blow up.
+  var bandThrew = 0, beaconThrew = 0, checked = 0;
+  for (var len = 0; len <= 40; len++) {
+    for (final cmd in [0x01, 0x02, 0x03, 0x04, 0x05, 0x10, 0xFF]) {
+      for (final plen in [0, 1, 2, 3, 4, 5, 200, 65535]) {
+        final b = Uint8List(len);
+        if (len > 0) b[0] = 0xAB; // header-shaped
+        if (len > 1) b[1] = cmd;
+        if (len > 2) b[2] = (plen >> 8) & 0xFF;
+        if (len > 3) b[3] = plen & 0xFF;
+        for (var i = 4; i < len; i++) {
+          b[i] = 70;
+        }
+        checked++;
+        try {
+          parseBandFrame(b);
+        } catch (_) {
+          bandThrew++;
+        }
+      }
+    }
+    final r = Uint8List(len);
+    for (var i = 0; i < len; i++) {
+      r[i] = (i * 37 + 11) & 0xFF;
+    }
+    if (len > 1) {
+      r[0] = 0x4C;
+      r[1] = 0x00; // Apple company id, so it gets past the early return
+    }
+    if (len > 3) {
+      r[2] = 0x02;
+      r[3] = 0x15;
+    }
+    try {
+      parseIBeacon(r, -60, DateTime(2026));
+    } catch (_) {
+      beaconThrew++;
+    }
+  }
+  _chk('malformed band frames never throw ($checked cases)', bandThrew == 0);
+  _chk('truncated beacon adverts never throw', beaconThrew == 0);
+  // A frame claiming more payload than it carries is rejected, not trusted.
+  final overstated = Uint8List.fromList([0xAB, 0x01, 0x00, 0x40, 70]);
+  _chk('overstated payload length is refused', !parseBandFrame(overstated).ok);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

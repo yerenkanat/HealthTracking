@@ -96,7 +96,7 @@ app/lib/ui/                          screens (thin presentation over the domain)
   tracking/                           child map, zones, alerts feed, check-in/SOS
   appointments/ · profile/ · settings/ · advisor/ · emergency/ · onboarding/
 app/lib/data/notification_service.dart  OS notifications (geofence, reminders, low battery)
-app/tool/verify_*.dart               34 dependency-free conformance runners (903 assertions)
+app/tool/verify_*.dart               34 dependency-free conformance runners (906 assertions)
 app/tool/verify_all.dart             runs them all, prints a combined total
 infra/                               docker-compose (timescale+postgis, redis) + smoke test
 docs/BATTERY_OPTIMIZATION.md  Code-Optimizer checklist
@@ -153,7 +153,7 @@ band frame → parse → calibrate → assessTelemetry()
 ## Verify
 
 ```bash
-# Pure-Dart logic (no Flutter SDK needed) — 34 runners, 903 assertions:
+# Pure-Dart logic (no Flutter SDK needed) — 34 runners, 906 assertions:
 cd app
 dart run tool/verify_all.dart         # every runner, with a combined total
 
@@ -182,7 +182,7 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 ### Verification status (this machine)
 | Layer | Result |
 |-------|--------|
-| Dart pure logic (34 `verify_*` runners) | **903 assertions ✅** |
+| Dart pure logic (34 `verify_*` runners) | **906 assertions ✅** |
 | Flutter widget + unit tests | **230 ✅** |
 | `flutter analyze` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
