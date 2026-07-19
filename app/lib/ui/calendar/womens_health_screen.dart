@@ -27,6 +27,7 @@ import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 import 'contraction_timer_screen.dart';
 import 'cycle_insights_screen.dart';
+import 'medications_screen.dart';
 import 'weight_history_screen.dart';
 import 'cycle_summary.dart';
 import 'kick_session_screen.dart';
@@ -95,6 +96,13 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     tooltip: l.t('cyc_settings_title'),
                     onPressed: _openCycleSettings,
                   ),
+                IconButton(
+                  icon: const Icon(Icons.medication_outlined),
+                  tooltip: l.t('med_title'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => MedicationsScreen(controller: c, now: () => _today)),
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.insights_rounded),
                   tooltip: l.t('cyc_insights_title'),
@@ -165,6 +173,16 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     onSetGoal: c.setWeightGoal,
                     onOpenHistory: c.weights.isEmpty ? null : () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => WeightHistoryScreen(entries: c.weights, onDelete: c.removeWeightEntry),
+                    )),
+                  ),
+                ],
+                if (c.medications.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  MedicationCard(
+                    controller: c,
+                    today: _today,
+                    onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => MedicationsScreen(controller: c, now: () => _today),
                     )),
                   ),
                 ],
