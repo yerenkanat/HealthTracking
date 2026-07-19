@@ -187,6 +187,44 @@ void main() {
   _chk('counts check-in today', counts[AlertKind.checkIn] == 1);
   _chk('absent kind omitted', !counts.containsKey(AlertKind.sos));
 
+  // ---- The feed cap must not erase an SOS ----
+  // Zone enter/left events are the highest-volume alert kind, so trimming the
+  // feed by age alone let a few days of ordinary crossings push a real SOS out
+  // — including out of the screen's dedicated SOS filter.
+  SafetyAlert mk(AlertKind k, DateTime at) =>
+      SafetyAlert(kind: k, childName: 'Aruzhan', zoneName: 'School', at: at);
+  final t0 = DateTime(2026, 7, 1, 8);
+  final capFeed = <SafetyAlert>[mk(AlertKind.sos, t0)];
+  for (var i = 1; i <= 60; i++) {
+    capFeed.insert(
+        0, mk(i.isEven ? AlertKind.left : AlertKind.entered, t0.add(Duration(hours: i))));
+    final kept = trimAlerts(capFeed);
+    capFeed
+      ..clear()
+      ..addAll(kept);
+  }
+  _chk('feed still respects its cap', capFeed.length == maxAlerts);
+  _chk('an SOS survives a flood of routine zone alerts',
+      capFeed.any((a) => a.kind == AlertKind.sos));
+  _chk('a low battery alert survives the same flood',
+      trimAlerts([
+        for (var i = 0; i < 60; i++) mk(AlertKind.entered, t0.add(Duration(hours: i))),
+        mk(AlertKind.lowBattery, t0),
+      ]).any((a) => a.kind == AlertKind.lowBattery));
+
+  // Routine alerts still age out oldest-first, so the feed stays current.
+  final aged = trimAlerts(
+      [for (var i = 60; i >= 1; i--) mk(AlertKind.entered, t0.add(Duration(hours: i)))]);
+  _chk('routine alerts age out oldest first',
+      aged.first.at == t0.add(const Duration(hours: 60)) &&
+          aged.last.at == t0.add(const Duration(hours: 11)));
+
+  // An all-critical feed still can't grow without bound.
+  final allSos = trimAlerts([for (var i = 60; i >= 1; i--) mk(AlertKind.sos, t0.add(Duration(hours: i)))]);
+  _chk('an all-critical feed is still capped', allSos.length == maxAlerts);
+  _chk('an all-critical feed keeps the newest', allSos.first.at == t0.add(const Duration(hours: 60)));
+  _chk('a feed under the cap is untouched', trimAlerts([mk(AlertKind.sos, t0)]).length == 1);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

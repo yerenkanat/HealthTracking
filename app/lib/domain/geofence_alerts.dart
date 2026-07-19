@@ -137,6 +137,43 @@ List<SafetyAlert> removeAlertFrom(List<SafetyAlert> alerts, SafetyAlert target) 
   return out;
 }
 
+/// How many alerts the safety feed keeps.
+const int maxAlerts = 50;
+
+/// Alerts that must not be lost to routine traffic. An SOS is the whole reason
+/// this app exists; a low battery is why a child stops being trackable at all.
+bool isCriticalAlert(SafetyAlert a) =>
+    a.kind == AlertKind.sos || a.kind == AlertKind.lowBattery;
+
+/// Trim [alerts] (newest first) to [maxAlerts], dropping the OLDEST entries —
+/// but never an SOS or low-battery alert while an ordinary one could go instead.
+///
+/// The feed used to trim purely by age, and zone enter/left events are by far
+/// the highest-volume kind: a child crossing a few zones a few times a day fills
+/// all 50 slots within a week. That silently erased older SOS alerts — the one
+/// record a parent would ever go back for, and one the feed offers a dedicated
+/// SOS filter for, which would then show nothing at all.
+///
+/// Ordinary alerts still age out oldest-first, so the feed stays fresh. Only
+/// when there is nothing routine left to drop does a critical alert age out.
+List<SafetyAlert> trimAlerts(List<SafetyAlert> alerts, {int max = maxAlerts}) {
+  if (alerts.length <= max) return List.of(alerts);
+  final over = alerts.length - max;
+  // Walk oldest→newest picking routine alerts to drop, then criticals if the
+  // feed is all-critical and still over the cap.
+  final drop = <int>{};
+  for (var i = alerts.length - 1; i >= 0 && drop.length < over; i--) {
+    if (!isCriticalAlert(alerts[i])) drop.add(i);
+  }
+  for (var i = alerts.length - 1; i >= 0 && drop.length < over; i--) {
+    drop.add(i);
+  }
+  return [
+    for (var i = 0; i < alerts.length; i++)
+      if (!drop.contains(i)) alerts[i],
+  ];
+}
+
 /// Alerts stamped on the same calendar day as [day].
 List<SafetyAlert> alertsOnDay(List<SafetyAlert> alerts, DateTime day) => [
       for (final a in alerts)

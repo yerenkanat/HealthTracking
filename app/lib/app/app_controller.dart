@@ -745,7 +745,7 @@ class AppController {
       }
       final alert = SafetyAlert(kind: AlertKind.lowBattery, childName: name, zoneName: '$next', at: _now());
       _alerts.insert(0, alert);
-      if (_alerts.length > 50) _alerts.removeRange(50, _alerts.length);
+      _trimAlerts();
       if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
     }
     _persist();
@@ -1000,6 +1000,16 @@ class AppController {
   final List<SafetyAlert> _alerts = [];
   List<SafetyAlert> get alerts => List.unmodifiable(_alerts);
 
+  /// Hold the feed at its cap, ageing out routine alerts before critical ones.
+  /// See [trimAlerts] — trimming by age alone let zone traffic erase old SOSes.
+  void _trimAlerts() {
+    if (_alerts.length <= maxAlerts) return;
+    final kept = trimAlerts(_alerts);
+    _alerts
+      ..clear()
+      ..addAll(kept);
+  }
+
   void clearAlerts() {
     if (_alerts.isEmpty) return;
     _alerts.clear();
@@ -1030,7 +1040,7 @@ class AppController {
       at: _now(),
     );
     _alerts.insert(0, alert);
-    if (_alerts.length > 50) _alerts.removeRange(50, _alerts.length);
+    _trimAlerts();
     if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
     _persist();
     _notify();
@@ -1063,7 +1073,7 @@ class AppController {
       if (r.alerts.isNotEmpty) {
         // Newest first; the just-entered zone sits at the top.
         _alerts.insertAll(0, r.alerts.reversed);
-        if (_alerts.length > 50) _alerts.removeRange(50, _alerts.length);
+        _trimAlerts();
         // Emit chronologically for OS notifications (gated by the preference).
         if (_notificationsEnabled && !_alertStream.isClosed) {
           for (final a in r.alerts) {
