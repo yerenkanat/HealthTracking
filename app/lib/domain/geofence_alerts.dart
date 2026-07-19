@@ -71,6 +71,16 @@ DateTime? lastAlertOfKind(List<SafetyAlert> alerts, String? childName, AlertKind
   return null;
 }
 
+/// When [childName] was last heard from at all — the newest alert of any kind.
+/// A null/empty name matches any child. Null when there's no activity yet.
+DateTime? lastActivityAt(List<SafetyAlert> alerts, String? childName) {
+  final anyChild = childName == null || childName.isEmpty;
+  for (final a in alerts) {
+    if (anyChild || a.childName == childName) return a.at;
+  }
+  return null;
+}
+
 /// When [childName] last checked in. Null if they haven't checked in.
 DateTime? lastCheckIn(List<SafetyAlert> alerts, String childName) =>
     lastAlertOfKind(alerts, childName, AlertKind.checkIn);

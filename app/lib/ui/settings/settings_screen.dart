@@ -14,6 +14,7 @@ import '../calibration/bp_calibration_sheet.dart';
 import '../theme.dart';
 import 'journey_screen.dart';
 import 'reminders_center_screen.dart';
+import '../tracking/child_detail_screen.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
 import '../widgets/confirm.dart';
@@ -69,7 +70,11 @@ class SettingsScreen extends StatelessWidget {
                               : Icons.child_care),
                     title: child.name,
                     subtitle: _childSubtitle(l, child),
-                    onTap: () => showEditChildSheet(context, c, child),
+                    // Row opens the child's overview; editing lives in there, so
+                    // each destination has exactly one entry point.
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ChildDetailScreen(controller: c, childId: child.id),
+                    )),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Palette.textDim),
                       tooltip: l.t('act_remove'),

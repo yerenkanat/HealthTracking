@@ -137,6 +137,13 @@ void main() {
   _chk('last check-in per child', lastCheckIn(checkinFeed, 'Timur') == DateTime(2026, 7, 16, 7));
   _chk('no check-in → null', lastCheckIn(checkinFeed, 'Nobody') == null);
 
+  // Last activity of any kind.
+  _chk('last activity is the newest alert', lastActivityAt(checkinFeed, 'Aisha') == DateTime(2026, 7, 16, 9));
+  _chk('last activity per child', lastActivityAt(checkinFeed, 'Timur') == DateTime(2026, 7, 16, 7));
+  _chk('last activity null for unknown child', lastActivityAt(checkinFeed, 'Nobody') == null);
+  _chk('last activity any-child', lastActivityAt(checkinFeed, null) == DateTime(2026, 7, 16, 9));
+  _chk('last activity on empty feed', lastActivityAt(const [], 'Aisha') == null);
+
   // Generalized kind lookup + days-since.
   final sosFeed = [
     SafetyAlert(kind: AlertKind.checkIn, childName: 'Aisha', zoneName: '', at: DateTime(2026, 7, 16, 9)),
