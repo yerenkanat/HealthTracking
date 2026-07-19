@@ -34,6 +34,10 @@ the issue fixed, before saying a screen is done.
 
 ## 4. Touch & accessibility
 - [ ] Interactive targets ≥ 48×48 dp with ≥ 8 dp spacing.
+      _Text links inside dense cards are the usual offenders — a 12dp label with
+      `vertical: 2` padding renders ~20dp and looks fine by eye. Measure, don't
+      squint: `test/touch_targets_test.dart` asserts rendered heights, and new
+      inline tap targets should be added to it._
 - [ ] Every icon-only button has a semantics label / tooltip.
 - [ ] Text contrast is legible for tired eyes; no gray-on-gray body text.
 - [ ] Live/critical status regions use Semantics(liveRegion: true).

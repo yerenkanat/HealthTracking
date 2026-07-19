@@ -66,8 +66,11 @@ class WaterCard extends StatelessWidget {
                   InkWell(
                     onTap: () => _openGoalSheet(context, l),
                     borderRadius: BorderRadius.circular(6),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                    // 48dp minimum: this opens the goal sheet, so it needs a
+                    // real tap target despite reading as a subtitle.
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         met ? l.t('water_goal_met') : l.t('water_progress', {'n': count, 'goal': goal}),
                         style: const TextStyle(color: Palette.textDim, fontSize: 12.5),

@@ -995,8 +995,11 @@ class _HistoryHeader extends StatelessWidget {
         InkWell(
           onTap: onClear,
           borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          // A destructive action needs a deliberate, full-size target.
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.center,
             child: Text(l.t('hist_clear'),
                 style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w600)),
           ),

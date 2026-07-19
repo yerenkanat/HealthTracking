@@ -192,7 +192,11 @@ class _TargetRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: content),
+      // Keep the row a full 48dp tap target even though the text is short.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Align(alignment: Alignment.centerLeft, child: content),
+      ),
     );
   }
 }
