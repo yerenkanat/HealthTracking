@@ -14,6 +14,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeed
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/contraction.dart';
+import '../../domain/cycle_insights.dart' show cycleHistory, cycleRegularity, predictionConfidence, PredictionConfidence;
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
 import '../../domain/baby_size.dart';
@@ -128,7 +129,16 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     _FertileCountdownCard(countdown: fertileCountdown(c.cycle)!),
                   ],
                   const SizedBox(height: 14),
-                  _CyclePredictions(info: c.cycle),
+                  Builder(builder: (_) {
+                    final reg = cycleRegularity(cycleHistory(c.periodDays));
+                    return _CyclePredictions(
+                      info: c.cycle,
+                      confidence: predictionConfidence(
+                        completedCycles: reg.cyclesConsidered,
+                        variationDays: reg.variationDays,
+                      ),
+                    );
+                  }),
                 ],
                 if (!cycleMode && c.gestation != null) ...[
                   const SizedBox(height: 14),
@@ -1405,7 +1415,8 @@ class _FertileCountdownCard extends StatelessWidget {
 /// answers the calendar colours only hint at.
 class _CyclePredictions extends StatelessWidget {
   final CycleInfo info;
-  const _CyclePredictions({required this.info});
+  final PredictionConfidence confidence;
+  const _CyclePredictions({required this.info, required this.confidence});
 
   @override
   Widget build(BuildContext context) {
@@ -1448,9 +1459,44 @@ class _CyclePredictions extends StatelessWidget {
             value: ml.formatMediumDate(info.ovulation!),
           ),
           const SizedBox(height: 10),
-          Text(l.t('cyc_avg_cycle', {'n': info.avgCycleLength}),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(l.t('cyc_avg_cycle', {'n': info.avgCycleLength}),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+              ),
+              _ConfidenceChip(confidence: confidence),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// How much history backs the predictions — a small honesty cue so early
+/// forecasts aren't over-trusted.
+class _ConfidenceChip extends StatelessWidget {
+  final PredictionConfidence confidence;
+  const _ConfidenceChip({required this.confidence});
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final (color, label) = switch (confidence) {
+      PredictionConfidence.low => (Palette.textDim, l.t('cyc_conf_low')),
+      PredictionConfidence.building => (Palette.amber, l.t('cyc_conf_building')),
+      PredictionConfidence.good => (Palette.good, l.t('cyc_conf_good')),
+    };
+    return Tooltip(
+      message: l.t('cyc_conf_tip'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.insights_rounded, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
+        ]),
       ),
     );
   }

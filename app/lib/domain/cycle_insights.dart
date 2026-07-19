@@ -66,6 +66,19 @@ CycleLengthStats? cycleLengthStats(List<CycleSpan> history) {
   return CycleLengthStats(lengths.length, min, max, (sum / lengths.length).round());
 }
 
+/// How much to trust the cycle predictions, given how much history backs them.
+enum PredictionConfidence { low, building, good }
+
+/// Confidence from the number of COMPLETED cycles and how much their lengths
+/// vary. No completed cycles → low (predictions use defaults); under three →
+/// still building; three or more → good, unless the spread is wide (>8 days),
+/// which keeps it at building.
+PredictionConfidence predictionConfidence({required int completedCycles, required int variationDays}) {
+  if (completedCycles <= 0) return PredictionConfidence.low;
+  if (completedCycles < 3) return PredictionConfidence.building;
+  return variationDays > 8 ? PredictionConfidence.building : PredictionConfidence.good;
+}
+
 enum CycleRegularity { insufficient, regular, variable, irregular }
 
 /// A read on how consistent the user's cycles are, over their completed cycles.

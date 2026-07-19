@@ -69,6 +69,28 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('predictions show a confidence chip that grows with history', (tester) async {
+    // One logged period → no completed cycles → low confidence.
+    final c1 = controllerFor();
+    for (final d in [DateTime(2026, 7, 10), DateTime(2026, 7, 11)]) {
+      c1.toggleFlowFor(d, Flow.medium);
+    }
+    await tester.pumpWidget(wrap(c1));
+    expect(find.text('low data'), findsOneWidget);
+    addTearDown(c1.dispose);
+
+    // Two logged periods → one completed cycle → still building.
+    final c2 = controllerFor();
+    for (final start in [DateTime(2026, 7, 10), DateTime(2026, 6, 12)]) {
+      for (var i = 0; i < 2; i++) {
+        c2.toggleFlowFor(start.add(Duration(days: i)), Flow.medium);
+      }
+    }
+    await tester.pumpWidget(wrap(c2));
+    expect(find.text('building'), findsOneWidget);
+    addTearDown(c2.dispose);
+  });
+
   testWidgets('cycle mode with data can share a copied summary', (tester) async {
     final c = controllerFor(); // cycle mode
     // Log a period so predictions exist (hasData → the share action appears).

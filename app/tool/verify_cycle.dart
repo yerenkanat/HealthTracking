@@ -116,6 +116,14 @@ void main() {
   _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
   _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
 
+  // ---- Prediction confidence ----
+  _chk('no completed cycles → low', predictionConfidence(completedCycles: 0, variationDays: 0) == PredictionConfidence.low);
+  _chk('one cycle → building', predictionConfidence(completedCycles: 1, variationDays: 0) == PredictionConfidence.building);
+  _chk('two cycles → building', predictionConfidence(completedCycles: 2, variationDays: 2) == PredictionConfidence.building);
+  _chk('three steady cycles → good', predictionConfidence(completedCycles: 3, variationDays: 3) == PredictionConfidence.good);
+  _chk('wide spread stays building', predictionConfidence(completedCycles: 5, variationDays: 12) == PredictionConfidence.building);
+  _chk('boundary spread 8 → good', predictionConfidence(completedCycles: 4, variationDays: 8) == PredictionConfidence.good);
+
   // ---- Symptom by phase ----
   final phaseDays = <DateTime>{
     for (var i = 0; i < 5; i++) DateTime(2026, 6, 1).add(Duration(days: i)),
