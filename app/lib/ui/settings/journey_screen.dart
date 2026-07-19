@@ -1,11 +1,12 @@
 /// JourneyScreen — a warm "Your journey" summary of everything tracked so far:
 /// days logged, notes, cycles, kick & contraction sessions, appointments, weight
-/// entries, and total water. Pure presentation over computeJourneyTotals.
+/// entries, doses taken, and total water. Pure presentation over computeJourneyTotals.
 library;
 
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../domain/journey_stats.dart';
+import '../../domain/medication.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
@@ -33,6 +34,7 @@ class JourneyScreen extends StatelessWidget {
               appointments: c.appointments.length,
               weightEntries: c.weights.length,
               waterLog: c.waterLog,
+              doses: totalDosesLogged(c.medLog),
             );
             if (!t.hasAny) {
               return Center(
@@ -52,6 +54,7 @@ class JourneyScreen extends StatelessWidget {
               (Icons.event_rounded, Palette.violet, t.appointments, l.t('journey_appointments')),
               (Icons.monitor_weight_rounded, Palette.teal, t.weightEntries, l.t('journey_weights')),
               (Icons.local_drink_rounded, Palette.blue, t.waterGlasses, l.t('journey_water')),
+              (Icons.medication_rounded, Palette.violet, t.doses, l.t('journey_doses')),
             ];
             return GridView.count(
               crossAxisCount: 2,

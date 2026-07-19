@@ -33,6 +33,7 @@ void main() {
     appointments: 2,
     weightEntries: 4,
     waterLog: waterLog,
+    doses: 12,
   );
   _chk('days logged counts non-empty', t.daysLogged == 3);
   _chk('notes counts noted days', t.notes == 2);
@@ -42,7 +43,13 @@ void main() {
   _chk('appointments passthrough', t.appointments == 2);
   _chk('weight entries passthrough', t.weightEntries == 4);
   _chk('water glasses summed', t.waterGlasses == 13);
+  _chk('doses passthrough', t.doses == 12);
   _chk('has any', t.hasAny);
+  // Doses alone are enough to count as a started journey.
+  _chk('doses alone count as data', computeJourneyTotals(
+    dayLogs: const {}, periodDays: const {}, kickSessions: 0, contractionSessions: 0,
+    appointments: 0, weightEntries: 0, waterLog: const {}, doses: 3,
+  ).hasAny);
 
   final empty = computeJourneyTotals(
     dayLogs: const {}, periodDays: const {}, kickSessions: 0, contractionSessions: 0,

@@ -31,6 +31,12 @@ void main() {
     c.logKickSession(today, 8, const Duration(seconds: 300));
     await tester.pumpWidget(wrap(c));
 
+    // A ticked-off dose also lands in the totals.
+    c.addMedication('Folic acid');
+    c.takeMedicationDose(c.medications.single.id, today);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('doses taken'), findsOneWidget);
+
     expect(find.text('days logged'), findsOneWidget);
     expect(find.text('3'), findsOneWidget); // 2 logs + the kick day
     expect(find.text('notes'), findsOneWidget);

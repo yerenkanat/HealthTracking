@@ -208,6 +208,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'journey_appointments': {AppLocale.ru: 'напоминаний', AppLocale.kk: 'еске салғыш', AppLocale.en: 'appointments'},
   'journey_weights': {AppLocale.ru: 'записей веса', AppLocale.kk: 'салмақ жазбасы', AppLocale.en: 'weight entries'},
   'journey_water': {AppLocale.ru: 'стаканов воды', AppLocale.kk: 'стакан су', AppLocale.en: 'glasses of water'},
+  'journey_doses': {AppLocale.ru: 'приёмов витаминов', AppLocale.kk: 'дәрумен қабылдау', AppLocale.en: 'doses taken'},
   'set_export': {AppLocale.ru: 'Экспорт данных', AppLocale.kk: 'Деректерді экспорттау', AppLocale.en: 'Export data'},
   'set_export_sub': {AppLocale.ru: 'Резервная копия в формате JSON', AppLocale.kk: 'JSON форматындағы сақтық көшірме', AppLocale.en: 'A JSON backup of your data'},
   'set_export_hint': {AppLocale.ru: 'Скопируйте и сохраните в надёжном месте. Показания браслета не включены.', AppLocale.kk: 'Көшіріп, сенімді жерде сақтаңыз. Білезік көрсеткіштері кірмейді.', AppLocale.en: 'Copy and keep it somewhere safe. Band readings are not included.'},

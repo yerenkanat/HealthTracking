@@ -15,6 +15,7 @@ class JourneyTotals {
   final int appointments;
   final int weightEntries;
   final int waterGlasses; // lifetime glasses of water
+  final int doses; // lifetime medication/supplement doses ticked off
   const JourneyTotals({
     required this.daysLogged,
     required this.notes,
@@ -24,6 +25,7 @@ class JourneyTotals {
     required this.appointments,
     required this.weightEntries,
     required this.waterGlasses,
+    this.doses = 0,
   });
 
   /// Whether anything has been tracked at all.
@@ -34,7 +36,8 @@ class JourneyTotals {
       contractionSessions > 0 ||
       appointments > 0 ||
       weightEntries > 0 ||
-      waterGlasses > 0;
+      waterGlasses > 0 ||
+      doses > 0;
 }
 
 /// Roll up lifetime totals. Session/appointment/weight counts are passed
@@ -47,6 +50,7 @@ JourneyTotals computeJourneyTotals({
   required int appointments,
   required int weightEntries,
   required Map<String, int> waterLog,
+  int doses = 0,
 }) {
   var logged = 0, notes = 0;
   for (final l in dayLogs.values) {
@@ -66,5 +70,6 @@ JourneyTotals computeJourneyTotals({
     appointments: appointments,
     weightEntries: weightEntries,
     waterGlasses: glasses,
+    doses: doses,
   );
 }
