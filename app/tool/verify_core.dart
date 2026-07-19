@@ -183,6 +183,116 @@ void main() {
   final overstated = Uint8List.fromList([0xAB, 0x01, 0x00, 0x40, 70]);
   _chk('overstated payload length is refused', !parseBandFrame(overstated).ok);
 
+  // ---- Triage boundary invariants ----
+  // The golden vectors pin specific readings; these pin the SHAPE of the rules
+  // across every value in range, which is where an inverted comparison or a
+  // mis-copied threshold hides — and this is the logic that decides whether a
+  // pregnant user is shown an emergency screen.
+  int rank(TriageSeverity s) => switch (s) {
+        TriageSeverity.ok => 0,
+        TriageSeverity.info => 1,
+        TriageSeverity.warning => 2,
+        TriageSeverity.emergency => 3,
+      };
+
+  // Severity must never fall as a reading gets more dangerous.
+  bool monotone(Iterable<BandTelemetry> worsening) {
+    var prev = -1;
+    for (final t in worsening) {
+      final r = rank(assessTelemetry(t).severity);
+      if (r < prev) return false;
+      prev = r;
+    }
+    return true;
+  }
+
+  _chk('rising systolic never gets less severe',
+      monotone([for (var s = 80; s <= 220; s++) BandTelemetry(systolicMmHg: s, diastolicMmHg: 70)]));
+  _chk('rising diastolic never gets less severe',
+      monotone([for (var d = 40; d <= 140; d++) BandTelemetry(systolicMmHg: 110, diastolicMmHg: d)]));
+  _chk('rising temperature never gets less severe',
+      monotone([for (var i = 350; i <= 420; i++) BandTelemetry(coreTempC: i / 10.0)]));
+  _chk('falling SpO2 never gets less severe',
+      monotone([for (var p = 100; p >= 50; p--) BandTelemetry(spo2Pct: p)]));
+  _chk('rising heart rate never gets less severe',
+      monotone([for (var h = 75; h <= 220; h++) BandTelemetry(heartRateBpm: h)]));
+  _chk('falling heart rate never gets less severe',
+      monotone([for (var h = 75; h >= 20; h--) BandTelemetry(heartRateBpm: h)]));
+
+  // More information must never make a reading look SAFER.
+  var reducedBySecondMetric = 0;
+  for (var s = 90; s <= 200; s += 5) {
+    for (var h = 30; h <= 200; h += 5) {
+      final alone = rank(assessTelemetry(BandTelemetry(systolicMmHg: s, diastolicMmHg: 70)).severity);
+      final withHr = rank(
+          assessTelemetry(BandTelemetry(systolicMmHg: s, diastolicMmHg: 70, heartRateBpm: h)).severity);
+      if (withHr < alone) reducedBySecondMetric++;
+    }
+  }
+  _chk('adding a second reading never lowers severity', reducedBySecondMetric == 0);
+
+  // Every finding must name the metric it actually measured and genuinely cross
+  // the threshold it cites — otherwise the emergency screen shows a wrong number.
+  var inconsistent = 0;
+  void checkFindings(BandTelemetry t) {
+    for (final f in assessTelemetry(t).findings) {
+      final v = f.value, th = f.threshold;
+      if (v == null || th == null) continue;
+      final actual = switch (f.metric) {
+        'systolicMmHg' => t.systolicMmHg,
+        'diastolicMmHg' => t.diastolicMmHg,
+        'coreTempC' => t.coreTempC,
+        'spo2Pct' => t.spo2Pct,
+        'heartRateBpm' => t.heartRateBpm,
+        _ => null,
+      };
+      if (actual != null && actual != v) {
+        inconsistent++;
+        continue;
+      }
+      final crosses = f.code.startsWith('HYPOXIA')
+          ? v < th
+          : f.code.startsWith('BRADY')
+              ? v <= th
+              : v >= th;
+      if (!crosses) inconsistent++;
+    }
+  }
+
+  for (var s = 0; s <= 240; s += 3) {
+    for (var d = 0; d <= 160; d += 3) {
+      checkFindings(BandTelemetry(systolicMmHg: s, diastolicMmHg: d));
+    }
+    checkFindings(BandTelemetry(systolicMmHg: s)); // partial BP: the other half is null
+  }
+  for (var d = 0; d <= 160; d++) {
+    checkFindings(BandTelemetry(diastolicMmHg: d));
+  }
+  for (var i = 300; i <= 440; i++) {
+    checkFindings(BandTelemetry(coreTempC: i / 10.0));
+  }
+  for (var p = 0; p <= 100; p++) {
+    checkFindings(BandTelemetry(spo2Pct: p));
+    checkFindings(BandTelemetry(spo2Pct: p, duringSleep: true));
+  }
+  for (var h = 0; h <= 260; h++) {
+    checkFindings(BandTelemetry(heartRateBpm: h));
+  }
+  _chk('every finding names its own metric and crosses its threshold', inconsistent == 0);
+
+  // An emergency must always raise the screen, and no reading at all is not one.
+  var unforced = 0;
+  for (var s = 60; s <= 240; s += 3) {
+    for (var i = 340; i <= 430; i += 7) {
+      final r = assessTelemetry(BandTelemetry(systolicMmHg: s, coreTempC: i / 10.0));
+      if (r.severity == TriageSeverity.emergency && !r.forceEmergencyScreen) unforced++;
+    }
+  }
+  _chk('an emergency severity always forces the emergency screen', unforced == 0);
+  final none = assessTelemetry(const BandTelemetry());
+  _chk('telemetry with no readings is not an emergency',
+      none.severity == TriageSeverity.ok && none.findings.isEmpty && !none.forceEmergencyScreen);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
