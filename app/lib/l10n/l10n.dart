@@ -555,6 +555,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'water_title': {AppLocale.ru: 'Вода', AppLocale.kk: 'Су', AppLocale.en: 'Water'},
   'water_progress': {AppLocale.ru: '{n} из {goal} стаканов', AppLocale.kk: '{goal} стақаннан {n}', AppLocale.en: '{n} of {goal} glasses'},
   'water_goal_met': {AppLocale.ru: 'Дневная норма выполнена 🎉', AppLocale.kk: 'Күнделікті норма орындалды 🎉', AppLocale.en: 'Daily goal reached 🎉'},
+  'water_correct': {AppLocale.ru: 'Исправить день', AppLocale.kk: 'Күнді түзету', AppLocale.en: 'Correct a day'},
   'water_add': {AppLocale.ru: 'Добавить стакан', AppLocale.kk: 'Стақан қосу', AppLocale.en: 'Add a glass'},
   'water_remove': {AppLocale.ru: 'Убрать стакан', AppLocale.kk: 'Стақанды алу', AppLocale.en: 'Remove a glass'},
   'water_goal_title': {AppLocale.ru: 'Дневная норма воды', AppLocale.kk: 'Күнделікті су нормасы', AppLocale.en: 'Daily water goal'},

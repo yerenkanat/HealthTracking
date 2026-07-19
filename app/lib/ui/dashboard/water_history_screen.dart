@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../app/app_controller.dart';
 import '../../domain/hydration.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -13,10 +14,39 @@ class WaterHistoryScreen extends StatelessWidget {
   final List<WaterDay> week; // oldest-first
   final int goal;
   final int streak;
-  const WaterHistoryScreen({super.key, required this.week, required this.goal, required this.streak});
+
+  /// When supplied, each day becomes correctable — you rarely log water the
+  /// moment you drink it, so yesterday's count is often wrong. The screen then
+  /// re-reads from the controller so edits show immediately.
+  final AppController? controller;
+  final DateTime Function()? _nowFn;
+  const WaterHistoryScreen({
+    super.key,
+    required this.week,
+    required this.goal,
+    required this.streak,
+    this.controller,
+    DateTime Function()? now,
+  }) : _nowFn = now;
+
+  DateTime _now() => (_nowFn ?? DateTime.now)();
 
   @override
   Widget build(BuildContext context) {
+    final c = controller;
+    if (c == null) return _build(context, week, goal, streak);
+    return StreamBuilder<void>(
+      stream: c.changes,
+      builder: (ctx, _) => _build(
+        ctx,
+        lastNDays(c.waterLog, _now(), 7),
+        c.waterGoal,
+        waterStreak(c.waterLog, _now(), c.waterGoal),
+      ),
+    );
+  }
+
+  Widget _build(BuildContext context, List<WaterDay> week, int goal, int streak) {
     final l = L10nScope.of(context);
     final maxGlasses = [goal, for (final d in week) d.glasses].reduce((a, b) => a > b ? a : b).clamp(1, 999);
     final total = week.fold<int>(0, (s, d) => s + d.glasses);
@@ -58,8 +88,78 @@ class WaterHistoryScreen extends StatelessWidget {
                 Expanded(child: _StatTile(value: '$metDays/7', label: l.t('water_week_met'))),
               ],
             ),
+            if (controller != null) ...[
+              const SizedBox(height: 14),
+              GlassCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.t('water_correct').toUpperCase(),
+                        style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                    const SizedBox(height: 6),
+                    // Newest first — the day you're most likely fixing.
+                    for (final d in week.reversed)
+                      _EditableDayRow(
+                        day: d,
+                        goal: goal,
+                        onAdjust: (by) => controller!.addWater(d.day, by),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One correctable day: the date, its count, and +/- controls.
+class _EditableDayRow extends StatelessWidget {
+  final WaterDay day;
+  final int goal;
+  final ValueChanged<int> onAdjust;
+  const _EditableDayRow({required this.day, required this.goal, required this.onAdjust});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final ml = MaterialLocalizations.of(context);
+    final met = hydrationGoalMet(day.glasses, goal);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(ml.formatMediumDate(day.day),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline_rounded, size: 22),
+            color: Palette.textDim,
+            tooltip: l.t('water_remove'),
+            // Nothing to take away from a day with no glasses logged.
+            onPressed: day.glasses == 0 ? null : () => onAdjust(-1),
+          ),
+          SizedBox(
+            width: 34,
+            child: Text('${day.glasses}',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: met ? Palette.good : Palette.text,
+                )),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
+            color: Palette.blue,
+            tooltip: l.t('water_add'),
+            onPressed: () => onAdjust(1),
+          ),
+        ],
       ),
     );
   }

@@ -19,8 +19,10 @@ Four tabs, all built and running (demo mode: `--dart-define=DEMO=true`):
 
 - **Health** — a reassuring dashboard: heart-rate / blood-oxygen / temperature /
   merged blood-pressure cards with sparklines + danger bands, a "peace of mind"
-  status banner, last-night sleep, a **daily water tracker** (ring + goal + weekly
-  trend & streak), the data-driven **advisor**, and a one-tap **share health summary**.
+  status banner, last-night sleep (vs the week's average), a **daily water tracker**
+  (ring + goal + weekly trend & streak, with past days correctable), the data-driven
+  **advisor**, and a one-tap **share health summary**. No band? Readings can be
+  **entered by hand** — and are triaged identically to measured ones.
 - **Calendar (Women's health)** — auto-switches between **cycle mode** (predictions
   with a confidence chip, current **phase card**, fertile-window countdown, month
   grid, shareable forecast, and **insights**: regularity, cycle-length range, flow
@@ -86,6 +88,7 @@ app/lib/domain/                      PURE, unit-tested feature logic:
   pregnancy_milestones.dart · kick_session.dart · contraction.dart · weight.dart
   hydration.dart · appointment.dart · battery.dart · sleep.dart · family.dart
   medication.dart · baby_size.dart · reminders.dart · setup_checklist.dart
+  manual_vitals.dart (hand-entered readings, triaged like band telemetry)
   journey_stats.dart · weekly_digest.dart · backup_status.dart
 app/lib/ui/                          screens (thin presentation over the domain):
   dashboard/                          health dashboard, water card + weekly history
@@ -93,7 +96,7 @@ app/lib/ui/                          screens (thin presentation over the domain)
   tracking/                           child map, zones, alerts feed, check-in/SOS
   appointments/ · profile/ · settings/ · advisor/ · emergency/ · onboarding/
 app/lib/data/notification_service.dart  OS notifications (geofence, reminders, low battery)
-app/tool/verify_*.dart               32 dependency-free conformance runners (838 assertions)
+app/tool/verify_*.dart               33 dependency-free conformance runners (860 assertions)
 app/tool/verify_all.dart             runs them all, prints a combined total
 infra/                               docker-compose (timescale+postgis, redis) + smoke test
 docs/BATTERY_OPTIMIZATION.md  Code-Optimizer checklist
@@ -150,7 +153,7 @@ band frame → parse → calibrate → assessTelemetry()
 ## Verify
 
 ```bash
-# Pure-Dart logic (no Flutter SDK needed) — 32 runners, 838 assertions:
+# Pure-Dart logic (no Flutter SDK needed) — 33 runners, 860 assertions:
 cd app
 dart run tool/verify_all.dart         # every runner, with a combined total
 
@@ -166,7 +169,7 @@ dart run tool/verify_core.dart        #  36: thresholds, golden vectors, geofenc
 #   onboarding,reminders,safety,setup,sleep,summary,water,weekly_digest,weight}.dart
 
 # Full Dart + widget suites (needs Flutter SDK):
-flutter test                          # 213 widget/unit tests
+flutter test                          # 227 widget/unit tests
 flutter analyze                       # clean
 
 # Node backend (needs npm install):
@@ -179,8 +182,8 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 ### Verification status (this machine)
 | Layer | Result |
 |-------|--------|
-| Dart pure logic (32 `verify_*` runners) | **838 assertions ✅** |
-| Flutter widget + unit tests | **213 ✅** |
+| Dart pure logic (33 `verify_*` runners) | **860 assertions ✅** |
+| Flutter widget + unit tests | **227 ✅** |
 | `flutter analyze` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 

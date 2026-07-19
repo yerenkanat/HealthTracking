@@ -105,6 +105,7 @@ class _HomeShellState extends State<HomeShell> {
             week: lastNDays(c.waterLog, DateTime.now(), 7),
             goal: c.waterGoal,
             streak: waterStreak(c.waterLog, DateTime.now(), c.waterGoal),
+            controller: c, // makes past days correctable
           ),
         )),
       ),
