@@ -27,6 +27,14 @@ class SleepCard extends StatelessWidget {
   final List<SleepSummary> nights;
   const SleepCard({super.key, required this.nights});
 
+  /// Average asleep minutes over the week ending at the latest night. Null with
+  /// fewer than two nights — a single night can't be compared against itself.
+  int? _weekAverage(SleepSummary last) {
+    final window = nightsWithin(nights, last.night, 7);
+    if (window.length < 2) return null;
+    return sleepStats(window)?.avgAsleepMin;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -77,6 +85,21 @@ class SleepCard extends StatelessWidget {
                 ),
               ],
             ),
+            // Compare last night against the recent week, so one bad night
+            // reads in context rather than as a verdict.
+            if (_weekAverage(last) case final avg?) ...[
+              const SizedBox(height: 6),
+              Row(children: [
+                Icon(
+                  last.asleepMin >= avg ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                  size: 15,
+                  color: Palette.textDim,
+                ),
+                const SizedBox(width: 6),
+                Text(l.t('sleep_week_avg', {'dur': l.duration(avg)}),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+              ]),
+            ],
             const SizedBox(height: 14),
             SleepStageBar(summary: last, height: 12),
             const SizedBox(height: 12),

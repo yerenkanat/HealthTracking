@@ -24,6 +24,18 @@ void main() {
     expect(find.text('1h 35m'), findsOneWidget); // deep = 95 min
   });
 
+  testWidgets('shows the week average alongside last night', (tester) async {
+    // 480 and 410 asleep minutes → 445 avg (7h 25m).
+    await tester.pumpWidget(wrap(SleepCard(nights: nights)));
+    expect(find.textContaining('average this week'), findsOneWidget);
+    expect(find.text('7h 25m average this week'), findsOneWidget);
+  });
+
+  testWidgets('no week average from a single night', (tester) async {
+    await tester.pumpWidget(wrap(SleepCard(nights: [nights.first])));
+    expect(find.textContaining('average this week'), findsNothing);
+  });
+
   testWidgets('empty nights render nothing', (tester) async {
     await tester.pumpWidget(wrap(const SleepCard(nights: [])));
     expect(find.text('Sleep'), findsNothing);

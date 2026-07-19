@@ -541,6 +541,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Sleep
   'metric_sleep': {AppLocale.ru: 'Сон', AppLocale.kk: 'Ұйқы', AppLocale.en: 'Sleep'},
   'sleep_last_night': {AppLocale.ru: 'Прошлой ночью', AppLocale.kk: 'Өткен түні', AppLocale.en: 'Last night'},
+  'sleep_week_avg': {AppLocale.ru: 'В среднем за неделю: {dur}', AppLocale.kk: 'Апталық орташа: {dur}', AppLocale.en: '{dur} average this week'},
   'sleep_recent_nights': {AppLocale.ru: 'Последние ночи', AppLocale.kk: 'Соңғы түндер', AppLocale.en: 'Recent nights'},
   'sleep_deep': {AppLocale.ru: 'Глубокий', AppLocale.kk: 'Терең', AppLocale.en: 'Deep'},
   'sleep_rem': {AppLocale.ru: 'Быстрый', AppLocale.kk: 'REM', AppLocale.en: 'REM'},

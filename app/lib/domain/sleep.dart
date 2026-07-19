@@ -95,6 +95,19 @@ SleepSummary? latestNight(List<SleepSummary> nights) {
   return best;
 }
 
+/// Nights whose date falls within the last [days] ending at [now] (inclusive of
+/// today). Used to average a recent window rather than all history.
+List<SleepSummary> nightsWithin(List<SleepSummary> nights, DateTime now, int days) {
+  final end = DateTime(now.year, now.month, now.day);
+  final start = end.subtract(Duration(days: days - 1));
+  return [
+    for (final n in nights)
+      if (!DateTime(n.night.year, n.night.month, n.night.day).isBefore(start) &&
+          !DateTime(n.night.year, n.night.month, n.night.day).isAfter(end))
+        n,
+  ];
+}
+
 SleepStats? sleepStats(List<SleepSummary> nights) {
   if (nights.isEmpty) return null;
   var totalAsleep = 0, best = 0;

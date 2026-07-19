@@ -65,6 +65,23 @@ void main() {
   _chk('variable when spread 61..120', sleepConsistency([night(360), night(450), night(420)]).level == SleepConsistency.variable); // spread 90
   _chk('irregular when spread >120', sleepConsistency([night(300), night(480), night(400)]).level == SleepConsistency.irregular); // spread 180
 
+  // ---- Recent-window helper ----
+  final wNow = DateTime(2026, 7, 20, 8);
+  final window = [
+    SleepSummary(night: DateTime(2026, 7, 20), deepMin: 90, remMin: 90, lightMin: 240), // today, 420
+    SleepSummary(night: DateTime(2026, 7, 18), deepMin: 60, remMin: 60, lightMin: 180), // 300
+    SleepSummary(night: DateTime(2026, 7, 14), deepMin: 60, remMin: 60, lightMin: 240), // edge of a 7-day window
+    SleepSummary(night: DateTime(2026, 7, 13), deepMin: 60, remMin: 60, lightMin: 60), // outside
+    SleepSummary(night: DateTime(2026, 7, 25), deepMin: 60, remMin: 60, lightMin: 60), // future, outside
+  ];
+  final last7 = nightsWithin(window, wNow, 7);
+  _chk('window keeps in-range nights', last7.length == 3);
+  _chk('window includes the 7th-day edge', last7.any((n) => n.night == DateTime(2026, 7, 14)));
+  _chk('window excludes older nights', !last7.any((n) => n.night == DateTime(2026, 7, 13)));
+  _chk('window excludes future nights', !last7.any((n) => n.night == DateTime(2026, 7, 25)));
+  _chk('window average', sleepStats(last7)!.avgAsleepMin == 360); // (420+300+360)/3
+  _chk('empty window → no stats', sleepStats(nightsWithin(const [], wNow, 7)) == null);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
