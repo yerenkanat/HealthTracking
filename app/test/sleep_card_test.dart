@@ -60,4 +60,37 @@ void main() {
     expect(find.text('Your sleep is consistent'), findsOneWidget);
     expect(find.textContaining('spread between nights'), findsOneWidget);
   });
+
+  // Without a band nothing ever records a night, so the card used to render
+  // nothing at all — leaving no way to log sleep by hand.
+  testWidgets('with no nights the card offers hand entry instead of vanishing', (tester) async {
+    var tapped = false;
+    await tester.pumpWidget(wrap(SleepCard(nights: const [], onLog: () => tapped = true)));
+    expect(find.text('Log sleep'), findsOneWidget);
+    await tester.tap(find.text('Log sleep'));
+    expect(tapped, isTrue);
+  });
+
+  testWidgets('with no nights and no hand entry the card stays hidden', (tester) async {
+    await tester.pumpWidget(wrap(const SleepCard(nights: [])));
+    expect(find.text('Log sleep'), findsNothing);
+    expect(find.text('Sleep'), findsNothing);
+  });
+
+  testWidgets('the detail screen offers hand entry too', (tester) async {
+    var tapped = false;
+    await tester.pumpWidget(
+        MaterialApp(home: SleepDetailScreen(nights: nights, onLog: () => tapped = true)));
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    expect(tapped, isTrue);
+  });
+
+  testWidgets('a hand-logged night shows its total without inventing stages', (tester) async {
+    // 7h30m asleep, 30 awake — and no deep/REM figure, because nobody can
+    // report their own. It must still read as a good night.
+    final manual = [SleepSummary.manual(night: DateTime(2026, 7, 15), asleepMin: 450, awakeMin: 30)];
+    await tester.pumpWidget(wrap(SleepCard(nights: manual)));
+    expect(find.text('7h 30m'), findsOneWidget);
+    expect(find.text('Good sleep'), findsOneWidget);
+  });
 }

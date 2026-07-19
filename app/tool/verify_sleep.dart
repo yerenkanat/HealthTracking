@@ -3,6 +3,7 @@
 library;
 
 import 'dart:io';
+import '../lib/domain/manual_sleep.dart';
 import '../lib/domain/sleep.dart';
 
 int _pass = 0, _fail = 0;
@@ -81,6 +82,72 @@ void main() {
   _chk('window excludes future nights', !last7.any((n) => n.night == DateTime(2026, 7, 25)));
   _chk('window average', sleepStats(last7)!.avgAsleepMin == 360); // (420+300+360)/3
   _chk('empty window → no stats', sleepStats(nightsWithin(const [], wNow, 7)) == null);
+
+  // ---- Hand-entered nights ----
+  DateTime at(int h, int m, {int day = 14}) => DateTime(2026, 7, day, h, m);
+
+  // The ordinary case crosses midnight, which is what the sheet resolves before
+  // handing an entry over: bed 23:00, up 07:00 the next morning.
+  final typedNight = SleepEntry(bedAt: at(23, 0), wokeAt: at(7, 0, day: 15), awakeMin: 30);
+  _chk('a normal night is valid', sleepEntryIsValid(typedNight));
+  _chk('time in bed is the elapsed time', typedNight.inBedMin == 8 * 60);
+  _chk('awake time comes off the total', typedNight.asleepMin == 7 * 60 + 30);
+  _chk('an entry is filed under the wake date', sleepEntryNight(typedNight) == DateTime(2026, 7, 15));
+
+  _chk('a zero-length night is rejected',
+      validateSleepEntry(SleepEntry(bedAt: at(23, 0), wokeAt: at(23, 0))) == SleepEntryError.empty);
+  _chk('a backwards night is rejected',
+      validateSleepEntry(SleepEntry(bedAt: at(7, 0), wokeAt: at(1, 0))) == SleepEntryError.empty);
+  _chk('an implausibly long night is rejected',
+      validateSleepEntry(SleepEntry(bedAt: at(1, 0), wokeAt: at(21, 0))) == SleepEntryError.tooLong);
+  _chk('18 hours exactly is still accepted',
+      sleepEntryIsValid(SleepEntry(bedAt: at(1, 0), wokeAt: at(19, 0))));
+  _chk('more awake than in bed is rejected',
+      validateSleepEntry(SleepEntry(bedAt: at(23, 0), wokeAt: at(7, 0, day: 15), awakeMin: 600)) ==
+          SleepEntryError.awakeExceedsInBed);
+  _chk('negative awake time is rejected',
+      validateSleepEntry(SleepEntry(bedAt: at(23, 0), wokeAt: at(7, 0, day: 15), awakeMin: -5)) ==
+          SleepEntryError.awakeExceedsInBed);
+  _chk('a night spent entirely awake is rejected',
+      validateSleepEntry(SleepEntry(bedAt: at(23, 0), wokeAt: at(7, 0, day: 15), awakeMin: 8 * 60)) ==
+          SleepEntryError.noSleep);
+
+  // ---- A manual night is judged only on what a person can report ----
+  // Nobody can measure their own deep sleep, so holding a hand-entered night to
+  // the deep-sleep threshold would score a perfect 8 hours as merely "fair".
+  final goodManual = SleepSummary.manual(night: DateTime(2026, 7, 15), asleepMin: 8 * 60, awakeMin: 20);
+  _chk('a full manual night reads as good', goodManual.quality == SleepQuality.good);
+  _chk('a manual night reports its own total', goodManual.asleepMin == 8 * 60);
+  _chk('a manual night has no stage breakdown', !goodManual.hasStages);
+  _chk('a short manual night is still only fair',
+      SleepSummary.manual(night: DateTime(2026, 7, 15), asleepMin: 6 * 60 + 30).quality ==
+          SleepQuality.fair);
+  _chk('a broken manual night is poor',
+      SleepSummary.manual(night: DateTime(2026, 7, 15), asleepMin: 4 * 60).quality ==
+          SleepQuality.poor);
+  // Efficiency IS knowable by hand, so it still counts against the total.
+  _chk('a manual night spent largely awake is not good',
+      SleepSummary.manual(night: DateTime(2026, 7, 15), asleepMin: 7 * 60, awakeMin: 3 * 60).quality !=
+          SleepQuality.good);
+
+  // A band night must be judged exactly as before — stages still required.
+  final bandNoDeep = SleepSummary(night: DateTime(2026, 7, 15), lightMin: 8 * 60);
+  _chk('a band night with no deep sleep is still not good', bandNoDeep.quality != SleepQuality.good);
+  _chk('a band night still reports stages', bandNoDeep.hasStages);
+
+  // ---- Round-trip, including older backups with no source recorded ----
+  final manualBack = SleepSummary.fromJson(goodManual.toJson());
+  _chk('a manual night round-trips',
+      manualBack.source == SleepSource.manual &&
+          manualBack.asleepMin == goodManual.asleepMin &&
+          manualBack.awakeMin == goodManual.awakeMin);
+  final bandJson = SleepSummary(night: DateTime(2026, 7, 15), deepMin: 60, remMin: 90, lightMin: 300).toJson();
+  _chk('a band night writes no manual fields',
+      !bandJson.containsKey('source') && !bandJson.containsKey('manualAsleepMin'));
+  _chk('a night saved before manual entry existed reads as a band night',
+      SleepSummary.fromJson({'night': '2026-07-15T00:00:00.000', 'deepMin': 60, 'remMin': 90, 'lightMin': 300})
+              .source ==
+          SleepSource.band);
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

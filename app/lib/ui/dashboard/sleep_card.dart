@@ -25,7 +25,10 @@ Color sleepAccentFor(SleepQuality q) => switch (q) {
 
 class SleepCard extends StatelessWidget {
   final List<SleepSummary> nights;
-  const SleepCard({super.key, required this.nights});
+
+  /// Opens the hand-entry sheet. Null when logging isn't offered at all.
+  final VoidCallback? onLog;
+  const SleepCard({super.key, required this.nights, this.onLog});
 
   /// Average asleep minutes over the week ending at the latest night. Null with
   /// fewer than two nights — a single night can't be compared against itself.
@@ -39,14 +42,17 @@ class SleepCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final last = latestNight(nights);
-    if (last == null) return const SizedBox.shrink();
+    // With no nights the card used to disappear entirely — which is exactly the
+    // state a user without a band is permanently in, leaving them no way to
+    // record sleep at all. Offer the hand-entry prompt instead.
+    if (last == null) return onLog == null ? const SizedBox.shrink() : _EmptySleepCard(onLog: onLog!);
     final accent = sleepAccentFor(last.quality);
 
     return Semantics(
       label: '${l.t('metric_sleep')}: ${l.duration(last.asleepMin)}, ${l.sleepQuality(last.quality)}',
       child: GlassCard(
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => SleepDetailScreen(nights: nights)),
+          MaterialPageRoute(builder: (_) => SleepDetailScreen(nights: nights, onLog: onLog)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,6 +153,55 @@ class SleepStageBar extends StatelessWidget {
                       Expanded(flex: mins, child: ColoredBox(color: color)),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// Shown when nothing has recorded a night yet — the normal state for anyone
+/// without a band. Explains what's missing and offers the way to fill it.
+class _EmptySleepCard extends StatelessWidget {
+  final VoidCallback onLog;
+  const _EmptySleepCard({required this.onLog});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 30, height: 30,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [sleepDeep, sleepRem]),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.bedtime_rounded, size: 17, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+            Text(l.t('metric_sleep'),
+                style: const TextStyle(color: Palette.text, fontSize: 15, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 10),
+          Text(l.t('sleep_empty'),
+              style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 48, // full-size target: this is the only way in without a band
+            child: OutlinedButton.icon(
+              onPressed: onLog,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(l.t('sleep_log_title')),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Palette.violet,
+                side: const BorderSide(color: Palette.violet),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

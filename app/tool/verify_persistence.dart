@@ -10,6 +10,8 @@ import '../lib/core/geofence.dart';
 import '../lib/data/app_store.dart';
 import '../lib/data/persisted_config.dart';
 import '../lib/domain/cycle_log.dart';
+import '../lib/domain/manual_sleep.dart';
+import '../lib/domain/sleep.dart';
 import '../lib/domain/family.dart';
 import '../lib/domain/appointment.dart';
 import '../lib/domain/battery.dart';
@@ -387,6 +389,40 @@ void main() async {
   final encodedLogs = (jsonDecode(cfg.encode()) as Map<String, dynamic>)['dayLogs'] as Map<String, dynamic>;
   _chk('empty day logs are never written',
       encodedLogs.containsKey('2026-07-14') && !encodedLogs.containsKey('2026-07-15'));
+
+  // ---- A hand-logged night survives a restart ----
+  // The band re-sends its own summaries on the next sync, so those stay
+  // transient. Nothing re-supplies a night the user typed, so losing it on
+  // restart would mean the band-less user can never build a sleep history.
+  final sleepStore = InMemoryAppStore();
+  final sleepCtl = AppController(persistStore: sleepStore);
+  await sleepCtl.restore();
+  sleepCtl.completeOnboarding(OnboardingResult(
+    locale: AppLocale.en,
+    profile: const UserProfile(displayName: 'Aigerim'),
+    bandId: null, // no band — the case this feature exists for
+    child: const ChildProfile(id: 'child-1', name: 'Kid'),
+  ));
+  final logged = sleepCtl.logManualSleep(SleepEntry(
+    bedAt: DateTime(2026, 7, 14, 23, 0),
+    wokeAt: DateTime(2026, 7, 15, 7, 0),
+    awakeMin: 30,
+  ));
+  _chk('a valid night is accepted', logged);
+  _chk('an impossible night is refused',
+      !sleepCtl.logManualSleep(SleepEntry(bedAt: DateTime(2026, 7, 14, 7), wokeAt: DateTime(2026, 7, 14, 1))));
+  await Future<void>.delayed(Duration.zero); // let the async save land
+
+  final sleepBack = AppController(persistStore: sleepStore);
+  await sleepBack.restore();
+  final restoredNight = latestNight(sleepBack.sleepNights);
+  _chk('a hand-logged night survives a restart', restoredNight != null);
+  _chk('the restored night keeps its total', restoredNight?.asleepMin == 7 * 60 + 30);
+  _chk('the restored night is still marked manual',
+      restoredNight?.source == SleepSource.manual);
+  _chk('the restored night keeps its quality', restoredNight?.quality == SleepQuality.good);
+  await sleepCtl.dispose();
+  await sleepBack.dispose();
 
   // ---- A decade of daily logging still round-trips ----
   // The day-keyed logs (water, medication, cycle) are deliberately uncapped:

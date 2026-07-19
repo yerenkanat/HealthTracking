@@ -20,9 +20,20 @@ class SleepThresholds {
   static const double goodEfficiency = 0.85; // ≥ 85% of time in bed asleep
 }
 
+/// Where a night's numbers came from. It changes what can fairly be judged:
+/// only the band measures sleep stages, so a hand-entered night has no deep or
+/// REM figure at all — it isn't zero, it's unknown.
+enum SleepSource { band, manual }
+
 SleepQuality assessSleep(SleepSummary s) {
+  // A manual night is judged on what a person can actually report: how long
+  // they slept and how much of their time in bed that was. Holding it to the
+  // deep-sleep threshold would score every hand-logged night on a figure the
+  // user was never able to supply — a perfect 8 hours would read "fair".
+  final deepOk = s.source == SleepSource.manual ||
+      s.deepFraction >= SleepThresholds.goodDeepFraction;
   if (s.asleepMin >= SleepThresholds.goodAsleepMin &&
-      s.deepFraction >= SleepThresholds.goodDeepFraction &&
+      deepOk &&
       s.efficiency >= SleepThresholds.goodEfficiency) {
     return SleepQuality.good;
   }
@@ -36,6 +47,11 @@ class SleepSummary {
   final int remMin;
   final int lightMin;
   final int awakeMin;
+  final SleepSource source;
+
+  /// Minutes asleep for a manual night, where no stage breakdown exists.
+  /// Null for band nights, which derive the total from their stages instead.
+  final int? manualAsleepMin;
 
   const SleepSummary({
     required this.night,
@@ -43,9 +59,28 @@ class SleepSummary {
     this.remMin = 0,
     this.lightMin = 0,
     this.awakeMin = 0,
+    this.source = SleepSource.band,
+    this.manualAsleepMin,
   });
 
-  int get asleepMin => deepMin + remMin + lightMin;
+  /// A hand-entered night: total asleep and awake, with no stage breakdown.
+  factory SleepSummary.manual({
+    required DateTime night,
+    required int asleepMin,
+    int awakeMin = 0,
+  }) =>
+      SleepSummary(
+        night: night,
+        awakeMin: awakeMin,
+        source: SleepSource.manual,
+        manualAsleepMin: asleepMin,
+      );
+
+  /// True when the deep/REM/light split is genuinely unknown rather than zero,
+  /// so the UI can omit the stage breakdown instead of drawing empty bars.
+  bool get hasStages => source == SleepSource.band;
+
+  int get asleepMin => manualAsleepMin ?? (deepMin + remMin + lightMin);
   int get inBedMin => asleepMin + awakeMin;
 
   /// Fraction of in-bed time actually asleep (0..1).
@@ -65,6 +100,10 @@ class SleepSummary {
         'remMin': remMin,
         'lightMin': lightMin,
         'awakeMin': awakeMin,
+        // Only written for manual nights, so existing band backups are unchanged
+        // and a reader that predates this still sees exactly what it expects.
+        if (source == SleepSource.manual) 'source': 'manual',
+        if (manualAsleepMin != null) 'manualAsleepMin': manualAsleepMin,
       };
 
   factory SleepSummary.fromJson(Map<String, dynamic> j) => SleepSummary(
@@ -73,6 +112,9 @@ class SleepSummary {
         remMin: (j['remMin'] as num?)?.toInt() ?? 0,
         lightMin: (j['lightMin'] as num?)?.toInt() ?? 0,
         awakeMin: (j['awakeMin'] as num?)?.toInt() ?? 0,
+        // Anything without a source predates manual entry, so it came from a band.
+        source: j['source'] == 'manual' ? SleepSource.manual : SleepSource.band,
+        manualAsleepMin: (j['manualAsleepMin'] as num?)?.toInt(),
       );
 }
 

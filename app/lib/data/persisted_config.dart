@@ -16,6 +16,7 @@ import '../domain/geofence_alerts.dart';
 import '../domain/health_series.dart';
 import '../domain/kick_session.dart';
 import '../domain/medication.dart';
+import '../domain/sleep.dart';
 import '../domain/weight.dart';
 import '../l10n/l10n.dart';
 
@@ -123,6 +124,11 @@ class PersistedConfig {
   /// re-supplies it each session; nothing re-supplies a reading a person typed.
   final List<HealthSample> manualSamples;
 
+  /// Hand-entered nights only, for the same reason as [manualSamples]: the band
+  /// re-sends its own summaries on the next sync, but nothing re-supplies a
+  /// night the user typed in themselves.
+  final List<SleepSummary> manualSleep;
+
   const PersistedConfig({
     required this.onboarded,
     required this.locale,
@@ -153,6 +159,7 @@ class PersistedConfig {
     this.medications = const [],
     this.medLog = const {},
     this.manualSamples = const [],
+    this.manualSleep = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -189,6 +196,7 @@ class PersistedConfig {
         if (medications.isNotEmpty) 'medications': [for (final m in medications) m.toJson()],
         if (medLog.isNotEmpty) 'medLog': medLogToJson(medLog),
         if (manualSamples.isNotEmpty) 'manualSamples': [for (final s in manualSamples) s.toJson()],
+        if (manualSleep.isNotEmpty) 'manualSleep': [for (final n in manualSleep) n.toJson()],
       };
 
   factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
@@ -263,6 +271,10 @@ class PersistedConfig {
         manualSamples: [
           for (final s in (j['manualSamples'] as List? ?? const []))
             HealthSample.fromJson((s as Map).cast<String, dynamic>())
+        ],
+        manualSleep: [
+          for (final n in (j['manualSleep'] as List? ?? const []))
+            SleepSummary.fromJson((n as Map).cast<String, dynamic>())
         ],
       );
 

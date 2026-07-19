@@ -74,6 +74,7 @@ class HealthDashboardView extends StatelessWidget {
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
+  final VoidCallback? onLogSleep;
   final VoidCallback? onAddWater;
   final VoidCallback? onRemoveWater;
   final ValueChanged<int>? onSetWaterGoal;
@@ -102,6 +103,7 @@ class HealthDashboardView extends StatelessWidget {
     this.onLogVitals,
     this.waterCount = 0,
     this.waterGoal = 8,
+    this.onLogSleep,
     this.onAddWater,
     this.onRemoveWater,
     this.onSetWaterGoal,
@@ -210,9 +212,12 @@ class HealthDashboardView extends StatelessWidget {
                       onOpenHistory: onOpenWaterHistory,
                     ),
                   ],
-                  if (latestNight(sleepNights) != null) ...[
+                  // Shown even with no nights when hand-entry is available, so a
+                  // user without a band still has a way in (the card renders its
+                  // own empty state).
+                  if (latestNight(sleepNights) != null || onLogSleep != null) ...[
                     const SizedBox(height: 14),
-                    SleepCard(nights: sleepNights),
+                    SleepCard(nights: sleepNights, onLog: onLogSleep),
                   ],
                   if (onOpenAdvisor != null) ...[
                     const SizedBox(height: 18),

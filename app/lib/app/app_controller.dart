@@ -35,6 +35,7 @@ import '../domain/kick_session.dart';
 import '../domain/manual_vitals.dart';
 import '../domain/medication.dart';
 import '../domain/weight.dart';
+import '../domain/manual_sleep.dart';
 import '../domain/sleep.dart';
 import '../domain/onboarding_controller.dart';
 import '../l10n/l10n.dart';
@@ -207,6 +208,14 @@ class AppController {
     for (final s in _manualSamples) {
       store.addSample(s);
     }
+    // Hand-logged nights go back into the sleep history too, so the sleep card
+    // and its averages read the same after a restart as they did before one.
+    _manualSleep
+      ..clear()
+      ..addAll(cfg.manualSleep);
+    for (final n in _manualSleep) {
+      addSleepSummary(n);
+    }
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
@@ -268,6 +277,7 @@ class AppController {
         medications: List.of(_medications),
         medLog: {for (final e in _medLog.entries) e.key: Map<String, int>.from(e.value)},
         manualSamples: List.of(_manualSamples),
+        manualSleep: List.of(_manualSleep),
       );
 
   void _persist() {
@@ -1136,6 +1146,37 @@ class AppController {
     _sleep.addAll(nights);
     _notify();
   }
+
+  /// Record a night the user typed in themselves, replacing any existing entry
+  /// for the same wake date. Returns false if the entry doesn't describe a
+  /// usable night (see [validateSleepEntry]).
+  ///
+  /// Unlike band summaries these are persisted: the band re-sends its own on
+  /// the next sync, but nothing re-supplies a night someone entered by hand —
+  /// the same reason hand-entered vitals are durable.
+  bool logManualSleep(SleepEntry e) {
+    if (!sleepEntryIsValid(e)) return false;
+    final summary = SleepSummary.manual(
+      night: sleepEntryNight(e),
+      asleepMin: e.asleepMin,
+      awakeMin: e.awakeMin,
+    );
+    addSleepSummary(summary);
+    _manualSleep.removeWhere((n) => _sameNight(n.night, summary.night));
+    _manualSleep.add(summary);
+    if (_manualSleep.length > _maxManualNights) {
+      _manualSleep.removeRange(0, _manualSleep.length - _maxManualNights);
+    }
+    _persist();
+    return true;
+  }
+
+  static bool _sameNight(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  final List<SleepSummary> _manualSleep = [];
+  static const _maxManualNights = 400; // over a year of hand-logged nights
+  List<SleepSummary> get manualSleep => List.unmodifiable(_manualSleep);
 
   // ---- Runtime lifecycle (owned here so main.dart stays a thin entry point) ----
   HealthMonitor? _monitor;

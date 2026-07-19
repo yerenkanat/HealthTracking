@@ -11,7 +11,10 @@ import 'sleep_card.dart';
 
 class SleepDetailScreen extends StatelessWidget {
   final List<SleepSummary> nights;
-  const SleepDetailScreen({super.key, required this.nights});
+
+  /// Opens the hand-entry sheet. Null when logging isn't offered at all.
+  final VoidCallback? onLog;
+  const SleepDetailScreen({super.key, required this.nights, this.onLog});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +26,17 @@ class SleepDetailScreen extends StatelessWidget {
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: Text(l.t('sleep_title'))),
+        appBar: AppBar(
+          title: Text(l.t('sleep_title')),
+          actions: [
+            if (onLog != null)
+              IconButton(
+                onPressed: onLog,
+                icon: const Icon(Icons.add_rounded),
+                tooltip: l.t('sleep_log_title'),
+              ),
+          ],
+        ),
         body: ordered.isEmpty
             ? Center(
                 child: Padding(

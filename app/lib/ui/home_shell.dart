@@ -20,6 +20,7 @@ import 'advisor/advisor_screen.dart';
 import 'appointments/appointments_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
+import 'dashboard/log_sleep_sheet.dart';
 import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
 import 'profile/profile_screen.dart';
@@ -97,6 +98,7 @@ class _HomeShellState extends State<HomeShell> {
         ),
         waterCount: c.waterFor(DateTime.now()),
         waterGoal: c.waterGoal,
+        onLogSleep: () => _logSleep(context, c),
         onAddWater: () => c.addWater(DateTime.now()),
         onRemoveWater: () => c.addWater(DateTime.now(), -1),
         onSetWaterGoal: c.setWaterGoal,
@@ -200,6 +202,19 @@ class _HomeShellState extends State<HomeShell> {
     final l = L10nScope.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l.t('vitals_saved')), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  /// Open the sleep sheet and record the night. Unlike band summaries this is
+  /// persisted, so it survives a restart — nothing else would re-supply it.
+  Future<void> _logSleep(BuildContext context, AppController c) async {
+    final entry = await showLogSleepSheet(context, now: DateTime.now());
+    if (entry == null) return;
+    final saved = c.logManualSleep(entry);
+    if (!saved || !context.mounted) return;
+    final l = L10nScope.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('sleep_logged')), behavior: SnackBarBehavior.floating),
     );
   }
 
