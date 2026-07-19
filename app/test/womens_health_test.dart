@@ -69,6 +69,23 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('shows the symptoms usually logged in the current phase', (tester) async {
+    final c = controllerFor(); // cycle mode, today = Jul 16
+    // Two periods (Jun 12–14, Jul 10–12) → today (Jul 16) is follicular.
+    for (final start in [DateTime(2026, 6, 12), DateTime(2026, 7, 10)]) {
+      for (var i = 0; i < 3; i++) {
+        c.toggleFlowFor(start.add(Duration(days: i)), Flow.medium);
+      }
+    }
+    // A headache logged on Jun 17 — the follicular stretch of the prior cycle.
+    c.setDayLog(DayLog(date: dateKey(DateTime(2026, 6, 17)), symptoms: const {Symptom.headache}));
+    await tester.pumpWidget(wrap(c));
+
+    expect(find.text('Around now you often log'), findsOneWidget);
+    expect(find.textContaining('Headache'), findsWidgets);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('predictions show a confidence chip that grows with history', (tester) async {
     // One logged period → no completed cycles → low confidence.
     final c1 = controllerFor();

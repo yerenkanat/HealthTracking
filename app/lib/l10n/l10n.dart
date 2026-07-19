@@ -574,6 +574,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_phase_fertile': {AppLocale.ru: 'Фертильное окно', AppLocale.kk: 'Құнарлы кезең', AppLocale.en: 'Fertile window'},
   'cyc_phase_ovulation': {AppLocale.ru: 'Овуляция', AppLocale.kk: 'Овуляция', AppLocale.en: 'Ovulation'},
   'cyc_predictions': {AppLocale.ru: 'Прогнозы', AppLocale.kk: 'Болжамдар', AppLocale.en: 'Predictions'},
+  'cyc_usual_title': {AppLocale.ru: 'Обычно в это время вы отмечаете', AppLocale.kk: 'Әдетте осы кезде белгілейсіз', AppLocale.en: 'Around now you often log'},
   'cyc_conf_low': {AppLocale.ru: 'мало данных', AppLocale.kk: 'дерек аз', AppLocale.en: 'low data'},
   'cyc_conf_building': {AppLocale.ru: 'уточняется', AppLocale.kk: 'нақтылануда', AppLocale.en: 'building'},
   'cyc_conf_good': {AppLocale.ru: 'надёжный', AppLocale.kk: 'сенімді', AppLocale.en: 'confident'},

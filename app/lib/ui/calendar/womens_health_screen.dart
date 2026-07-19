@@ -14,7 +14,8 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeed
 import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/contraction.dart';
-import '../../domain/cycle_insights.dart' show cycleHistory, cycleRegularity, predictionConfidence, PredictionConfidence;
+import '../../domain/cycle_insights.dart'
+    show cycleHistory, cycleRegularity, predictionConfidence, symptomsInPhase, PredictionConfidence;
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
 import '../../domain/baby_size.dart';
@@ -124,6 +125,15 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
                   _CyclePhaseCard(info: c.cycle),
+                  if (cyclePhaseFor(c.cycle) case final ph?)
+                    Builder(builder: (_) {
+                      final usual = symptomsInPhase(c.dayLogs.values, c.periodDays, ph.phase);
+                      if (usual.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: _UsualSymptomsCard(symptoms: usual),
+                      );
+                    }),
                   if (fertileCountdown(c.cycle)?.state == FertileWindowState.upcoming) ...[
                     const SizedBox(height: 14),
                     _FertileCountdownCard(countdown: fertileCountdown(c.cycle)!),
@@ -1354,6 +1364,59 @@ class _CyclePhaseCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(note, style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Around now you often log…" — the symptoms this user has historically logged
+/// during the phase they're in. Forward-looking and personal; not a prediction.
+class _UsualSymptomsCard extends StatelessWidget {
+  final List<({Symptom symptom, int count})> symptoms;
+  const _UsualSymptomsCard({required this.symptoms});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final top = symptoms.take(3).toList();
+    return GlassCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(color: Palette.amber.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)),
+            child: const Icon(Icons.lightbulb_outline_rounded, color: Palette.amber, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('cyc_usual_title'),
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Palette.text)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6, runSpacing: 6,
+                  children: [
+                    for (final s in top)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Palette.amber.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Palette.amber.withValues(alpha: 0.25)),
+                        ),
+                        child: Text('${l.t('sym_${s.symptom.name}')} · ${s.count}×',
+                            style: const TextStyle(color: Palette.text, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

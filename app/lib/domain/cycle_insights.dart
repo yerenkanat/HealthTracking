@@ -298,6 +298,30 @@ SymptomPhaseInsight? topSymptomPhase(Iterable<DayLog> logs, Set<DateTime> period
   return top == null ? null : SymptomPhaseInsight(symptom, top, topN, total);
 }
 
+/// Symptoms the user has historically logged during [phase], most frequent
+/// first. The inverse view of [topSymptomPhase]: given a phase, which symptoms
+/// show up — used for a forward-looking "around now you often log…" heads-up.
+List<({Symptom symptom, int count})> symptomsInPhase(
+  Iterable<DayLog> logs,
+  Set<DateTime> periodDays,
+  CyclePhase phase,
+) {
+  final counts = <Symptom, int>{};
+  for (final l in logs) {
+    if (l.symptoms.isEmpty) continue;
+    final d = dateFromKey(l.date);
+    if (d == null) continue;
+    if (phaseOfLoggedDay(d, periodDays) != phase) continue;
+    for (final s in l.symptoms) {
+      if (s == Symptom.allGood) continue;
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+  }
+  final out = [for (final e in counts.entries) (symptom: e.key, count: e.value)];
+  out.sort((a, b) => b.count.compareTo(a.count));
+  return out;
+}
+
 /// The days on which [symptom] was logged, most recent first.
 List<DayLog> daysWithSymptom(Iterable<DayLog> logs, Symptom symptom) {
   final matches = [for (final l in logs) if (l.symptoms.contains(symptom)) l];

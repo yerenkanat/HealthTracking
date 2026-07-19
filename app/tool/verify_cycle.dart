@@ -142,6 +142,20 @@ void main() {
   _chk('no insight without period data', topSymptomPhase(phaseLogs, const {}) == null);
   _chk('no insight without symptoms', topSymptomPhase(const [DayLog(date: '2026-06-02', mood: Mood.happy)], phaseDays) == null);
 
+  // Inverse view: which symptoms show up in a given phase.
+  final inPhaseLogs = [
+    const DayLog(date: '2026-06-02', symptoms: {Symptom.cramps, Symptom.headache}), // menstrual
+    const DayLog(date: '2026-06-03', symptoms: {Symptom.cramps}), // menstrual
+    const DayLog(date: '2026-06-20', symptoms: {Symptom.nausea}), // luteal
+    const DayLog(date: '2026-06-04', symptoms: {Symptom.allGood}), // menstrual, skipped
+  ];
+  final menstrualSyms = symptomsInPhase(inPhaseLogs, phaseDays, CyclePhase.menstrual);
+  _chk('phase symptoms sorted by count', menstrualSyms.first.symptom == Symptom.cramps && menstrualSyms.first.count == 2);
+  _chk('phase symptoms include the rest', menstrualSyms.length == 2 && menstrualSyms.last.symptom == Symptom.headache);
+  _chk('allGood is not a symptom', !menstrualSyms.any((s) => s.symptom == Symptom.allGood));
+  _chk('other phase has its own', symptomsInPhase(inPhaseLogs, phaseDays, CyclePhase.luteal).single.symptom == Symptom.nausea);
+  _chk('phase with none → empty', symptomsInPhase(inPhaseLogs, phaseDays, CyclePhase.fertile).isEmpty);
+
   // ---- Fertile-window countdown ----
   FertileCountdown? fcOn(DateTime t) => fertileCountdown(computeCycle(periodSet(days), t));
   _chk('no data → no countdown', fertileCountdown(computeCycle({}, DateTime(2026, 7, 15))) == null);
