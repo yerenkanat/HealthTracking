@@ -117,6 +117,26 @@ int visitsToZone(List<SafetyAlert> alerts, String childName, String zoneName) {
   return 0;
 }
 
+/// Remove the FIRST alert matching [target] on every field, returning a new
+/// list. Alerts carry no id, so identity is the whole record; matching only the
+/// first keeps genuine duplicates (two identical events) from vanishing together.
+List<SafetyAlert> removeAlertFrom(List<SafetyAlert> alerts, SafetyAlert target) {
+  var removed = false;
+  final out = <SafetyAlert>[];
+  for (final a in alerts) {
+    if (!removed &&
+        a.kind == target.kind &&
+        a.childName == target.childName &&
+        a.zoneName == target.zoneName &&
+        a.at == target.at) {
+      removed = true;
+      continue;
+    }
+    out.add(a);
+  }
+  return out;
+}
+
 /// Alerts stamped on the same calendar day as [day].
 List<SafetyAlert> alertsOnDay(List<SafetyAlert> alerts, DateTime day) => [
       for (final a in alerts)

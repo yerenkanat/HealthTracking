@@ -8,6 +8,7 @@ import '../../app/app_controller.dart';
 import '../../domain/geofence_alerts.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 
 class AlertsScreen extends StatefulWidget {
@@ -23,6 +24,18 @@ class _AlertsScreenState extends State<AlertsScreen> {
   String? _child; // null = all children
 
   DateTime _now() => (widget._nowFn ?? DateTime.now)();
+
+  /// Dismissing is still a delete, so it confirms like every other removal.
+  Future<void> _confirmDismiss(BuildContext context, SafetyAlert a) async {
+    final l = L10nScope.of(context);
+    final ok = await confirmDestructive(
+      context,
+      title: l.t('alerts_dismiss_title'),
+      message: l.t('alerts_dismiss_body'),
+      confirmLabel: l.t('alerts_dismiss'),
+    );
+    if (ok) widget.controller.removeAlert(a);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +101,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: alerts.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) => _AlertCard(alert: alerts[i], now: _now()),
+                    itemBuilder: (context, i) => _AlertCard(
+                      alert: alerts[i],
+                      now: _now(),
+                      onDismiss: () => _confirmDismiss(context, alerts[i]),
+                    ),
                   ),
                 ),
               ],
@@ -270,7 +287,8 @@ class _ChildChips extends StatelessWidget {
 class _AlertCard extends StatelessWidget {
   final SafetyAlert alert;
   final DateTime now;
-  const _AlertCard({required this.alert, required this.now});
+  final VoidCallback? onDismiss;
+  const _AlertCard({required this.alert, required this.now, this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -305,6 +323,12 @@ class _AlertCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onDismiss != null)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 18, color: Palette.textDim),
+              tooltip: l.t('alerts_dismiss'),
+              onPressed: onDismiss,
+            ),
         ],
       ),
     );

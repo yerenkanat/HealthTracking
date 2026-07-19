@@ -935,6 +935,17 @@ class AppController {
     _notify();
   }
 
+  /// Dismiss a single alert from the feed.
+  void removeAlert(SafetyAlert alert) {
+    final next = removeAlertFrom(_alerts, alert);
+    if (next.length == _alerts.length) return; // nothing matched
+    _alerts
+      ..clear()
+      ..addAll(next);
+    _persist();
+    _notify();
+  }
+
   /// Record a manual child event (check-in or SOS) for the selected child. It
   /// lands at the top of the safety feed and, when notifications are on, is
   /// emitted for an OS notification — the same path geofence alerts take.

@@ -114,6 +114,42 @@ void main() {
       addTearDown(c.dispose);
     });
 
+    testWidgets('dismissing one alert confirms first; cancel keeps it', (tester) async {
+      final now = DateTime(2026, 7, 16, 9);
+      final c = AppController(now: () => now);
+      c.configureChild(name: 'Sultan', fences: [_home]);
+      c.onChildLocation(_home.center!); // entered Home
+      c.logChildEvent(AlertKind.checkIn);
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => now)));
+      expect(c.alerts, hasLength(2));
+
+      await tester.tap(find.byTooltip('Dismiss').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Dismiss this alert?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(c.alerts, hasLength(2)); // nothing lost on cancel
+      addTearDown(c.dispose);
+    });
+
+    testWidgets('confirming dismissal removes just that alert', (tester) async {
+      final now = DateTime(2026, 7, 16, 9);
+      final c = AppController(now: () => now);
+      c.configureChild(name: 'Sultan', fences: [_home]);
+      c.onChildLocation(_home.center!);
+      c.logChildEvent(AlertKind.checkIn); // newest, shown first
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => now)));
+
+      await tester.tap(find.byTooltip('Dismiss').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Dismiss').last); // dialog confirm
+      await tester.pumpAndSettle();
+
+      expect(c.alerts, hasLength(1));
+      expect(c.alerts.single.kind, AlertKind.entered); // the other one survived
+      addTearDown(c.dispose);
+    });
+
     testWidgets('today summary counts the day\'s activity', (tester) async {
       final now = DateTime(2026, 7, 16, 9);
       final c = AppController(now: () => now);

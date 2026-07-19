@@ -160,6 +160,17 @@ void main() {
   _chk('future event clamps to 0',
       daysSinceKind([SafetyAlert(kind: AlertKind.sos, childName: 'A', zoneName: '', at: DateTime(2026, 8, 1))], 'A', AlertKind.sos, asOf) == 0);
 
+  // ---- Removing a single alert ----
+  final a1 = SafetyAlert(kind: AlertKind.entered, childName: 'A', zoneName: 'Home', at: DateTime(2026, 7, 16, 9));
+  final a2 = SafetyAlert(kind: AlertKind.sos, childName: 'A', zoneName: '', at: DateTime(2026, 7, 16, 8));
+  final dupe = SafetyAlert(kind: AlertKind.entered, childName: 'A', zoneName: 'Home', at: DateTime(2026, 7, 16, 9));
+  _chk('removes the matching alert', removeAlertFrom([a1, a2], a1).single.kind == AlertKind.sos);
+  _chk('keeps the others in order', removeAlertFrom([a1, a2], a2).single.kind == AlertKind.entered);
+  _chk('only the first duplicate goes', removeAlertFrom([a1, dupe, a2], a1).length == 2);
+  _chk('a non-member leaves the list alone',
+      removeAlertFrom([a2], a1).length == 1);
+  _chk('removing from empty is safe', removeAlertFrom(const [], a1).isEmpty);
+
   // ---- Today's activity summary ----
   final today = DateTime(2026, 7, 16, 12);
   final dayFeed = [
