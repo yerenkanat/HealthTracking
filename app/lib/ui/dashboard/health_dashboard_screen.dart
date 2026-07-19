@@ -70,6 +70,7 @@ class HealthDashboardView extends StatelessWidget {
   final Appointment? nextAppointment; // soonest upcoming (null = hidden)
   final DateTime? nowForAppointment; // anchor for the countdown
   final VoidCallback? onOpenAppointments;
+  final VoidCallback? onLogVitals; // hand-entered reading (no band required)
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -98,6 +99,7 @@ class HealthDashboardView extends StatelessWidget {
     this.nextAppointment,
     this.nowForAppointment,
     this.onOpenAppointments,
+    this.onLogVitals,
     this.waterCount = 0,
     this.waterGoal = 8,
     this.onAddWater,
@@ -117,6 +119,12 @@ class HealthDashboardView extends StatelessWidget {
           leading: onOpenProfile == null ? null : _AvatarButton(name: greetingName, photoPath: photoPath, onTap: onOpenProfile!),
           title: Text(greetingName.isEmpty ? l.t('db_title') : l.t('db_greeting', {'name': greetingName})),
           actions: [
+            if (onLogVitals != null)
+              IconButton(
+                icon: const Icon(Icons.add_chart_rounded, color: Palette.textDim),
+                tooltip: l.t('vitals_log'),
+                onPressed: onLogVitals,
+              ),
             if (samples.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.ios_share_rounded, color: Palette.textDim),
@@ -149,7 +157,7 @@ class HealthDashboardView extends StatelessWidget {
                     _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
                     const SizedBox(height: 20),
                   ],
-                  _EmptyState(),
+                  _EmptyState(onLogVitals: onLogVitals),
                 ],
               )
             : ListView(
@@ -839,6 +847,8 @@ class _AvatarButton extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
+  final VoidCallback? onLogVitals;
+  const _EmptyState({this.onLogVitals});
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -862,6 +872,20 @@ class _EmptyState extends StatelessWidget {
               const SizedBox(height: 8),
               Text(l.t('db_empty_body'),
                   textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)),
+              // Without a band this is the only way in — so offer it here
+              // rather than leaving the screen a dead end.
+              if (onLogVitals != null) ...[
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: onLogVitals,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(l.t('vitals_log')),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Palette.violet,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -20,6 +20,7 @@ import 'advisor/advisor_screen.dart';
 import 'appointments/appointments_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
+import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
@@ -77,6 +78,7 @@ class _HomeShellState extends State<HomeShell> {
           hasBackup: c.lastExportAt != null,
         ),
         onOpenSetup: () => setState(() => _index = 3), // profile / settings tab
+        onLogVitals: () => _logVitals(context, c),
         nextAppointment: nextAppointment(c.appointments, DateTime.now()),
         nowForAppointment: DateTime.now(),
         onOpenAppointments: () => Navigator.of(context).push(
@@ -184,6 +186,20 @@ class _HomeShellState extends State<HomeShell> {
           : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
     }
     return '';
+  }
+
+  /// Open the hand-entry sheet and record whatever comes back. The controller
+  /// triages it exactly as it would a band reading, so this may raise the
+  /// emergency screen — which is the intended behaviour.
+  Future<void> _logVitals(BuildContext context, AppController c) async {
+    final reading = await showLogVitalsSheet(context);
+    if (reading == null) return;
+    final saved = c.logManualVitals(reading);
+    if (!saved || !context.mounted) return;
+    final l = L10nScope.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('vitals_saved')), behavior: SnackBarBehavior.floating),
+    );
   }
 
   /// A short chip label for the dashboard: pregnancy week or cycle day. Empty
