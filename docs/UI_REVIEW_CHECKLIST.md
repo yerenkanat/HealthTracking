@@ -45,6 +45,19 @@ the issue fixed, before saying a screen is done.
 ## 5. State coverage
 - [ ] Empty, loading, and error states designed — not just the happy path.
 - [ ] Warm, reassuring, non-alarming copy (amber over red for "delayed", etc.).
+- [ ] A card that hides itself when empty still leaves a way IN. The sleep card
+      returned `SizedBox.shrink()` with no nights, which is the permanent state
+      for anyone without a band — the users the hand-entry path exists for saw
+      no sleep feature at all. Ask who lives in the empty state forever.
+- [ ] Anything the user types by hand is persisted. Band/sensor data is
+      transient because the device re-supplies it; nothing re-supplies a
+      hand-entered reading, so it must survive a restart.
+- [ ] A feature that grades user input only asks for what the user can know.
+      Judging a hand-logged night on deep sleep — unmeasurable without a band —
+      scored a perfect 8 hours as "fair".
+- [ ] Capped lists drop the right thing. The 50-alert feed trimmed purely by
+      age, so routine zone crossings silently erased older SOS alerts. If a
+      list has a cap, ask what the most important entry in it is.
 
 ## 6. Localisation
 - [ ] Every user-facing string goes through l10n (ru/kk/en) — no baked-in language.
