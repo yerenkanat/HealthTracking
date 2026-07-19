@@ -264,6 +264,29 @@ void main() async {
   _chk('reset clears persisted', (await store3.load()) == null);
   await ctl4.dispose();
 
+  // ---- Import must not destroy data on a wrong file ----
+  // Every config field is optional, so ANY JSON object decodes into a valid but
+  // EMPTY config. Applying one would wipe everything the user has — so picking
+  // the wrong file in the restore dialog must cost nothing.
+  _chk('random json is not a backup', !looksLikeBackup(jsonDecode('{"foo":1,"bar":"baz"}')));
+  _chk('empty object is not a backup', !looksLikeBackup(jsonDecode('{}')));
+  _chk('a json array is not a backup', !looksLikeBackup(jsonDecode('[1,2,3]')));
+  _chk('a bare number is not a backup', !looksLikeBackup(jsonDecode('42')));
+  _chk('the export marker is accepted', looksLikeBackup(jsonDecode('{"app":"Umay"}')));
+  _chk('a pre-marker backup is still accepted',
+      looksLikeBackup(jsonDecode('{"locale":"ru","profile":{}}')));
+  _chk('a real encoded config is recognised', looksLikeBackup(jsonDecode(cfg.encode())));
+
+  final guarded = AppController(persistStore: InMemoryAppStore(cfg));
+  await guarded.restore();
+  final childrenBefore = guarded.children.length;
+  final rejected = guarded.importJson('{"foo":1}');
+  _chk('importing a non-backup is refused', !rejected);
+  _chk('importing a non-backup leaves data untouched', guarded.children.length == childrenBefore);
+  _chk('importing garbage is refused', !guarded.importJson('not json at all'));
+  _chk('a genuine backup still imports', guarded.importJson(guarded.exportJson()));
+  await guarded.dispose();
+
   // ---- Upgrade safety ----
   // Saved configs outlive the build that wrote them. A user upgrading must not
   // lose data or crash because a field they never had is now read non-

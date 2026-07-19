@@ -29,6 +29,34 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('importing a non-backup file is refused and keeps your data', (tester) async {
+    // Regression: any valid JSON decoded into an empty config, which was then
+    // applied — so picking the wrong file in the restore dialog silently wiped
+    // everything AND reported success.
+    final c = AppController(now: () => DateTime(2026, 7, 15));
+    c.debugMarkOnboarded();
+    c.addAppointment('OB visit', DateTime(2026, 8, 1, 9, 0));
+    c.addMedication('Folic acid');
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('Import data'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Import data'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import data'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, '{"foo":1,"bar":"baz"}');
+    await tester.pump(); // let the Import button enable
+    await tester.tap(find.text('Import'));
+    await tester.pump(); // close the dialog
+    await tester.pump(const Duration(milliseconds: 400)); // let the snackbar in
+
+    expect(c.appointments, hasLength(1), reason: 'a wrong file must not cost data');
+    expect(c.medications, hasLength(1));
+    expect(find.text("Couldn't read that backup"), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
   testWidgets('export dialog opens and lays out without overflow', (tester) async {
     final c = AppController(now: () => DateTime(2026, 7, 15));
     c.addAppointment('OB visit', DateTime(2026, 8, 1, 9, 0));

@@ -220,7 +220,13 @@ class AppController {
   bool importJson(String json) {
     PersistedConfig cfg;
     try {
-      cfg = PersistedConfig.decode(json);
+      // Every config field has a default, so any JSON object decodes into a
+      // valid-but-EMPTY config — and applying that would wipe everything the
+      // user has. Reject anything that isn't recognisably one of our backups
+      // before touching state (picking the wrong file must not cost data).
+      final decoded = jsonDecode(json);
+      if (!looksLikeBackup(decoded)) return false;
+      cfg = PersistedConfig.fromJson((decoded as Map).cast<String, dynamic>());
     } catch (_) {
       return false;
     }

@@ -76,6 +76,20 @@ ChildProfile childFromJson(Map<String, dynamic> j) => ChildProfile(
       ],
     );
 
+/// Does this decoded JSON actually look like an Umay backup?
+///
+/// Every field of [PersistedConfig] is optional with a default, so ANY JSON
+/// object decodes into a valid-but-empty config. Applying one of those would
+/// wipe the user's data — so an import must check the payload is ours first.
+///
+/// Accepts either the export marker, or the two keys `toJson` always writes
+/// (so backups made before the marker existed still restore).
+bool looksLikeBackup(Object? decoded) {
+  if (decoded is! Map) return false;
+  if (decoded['app'] == 'Umay') return true;
+  return decoded.containsKey('locale') && decoded.containsKey('profile');
+}
+
 class PersistedConfig {
   final bool onboarded;
   final AppLocale locale;
