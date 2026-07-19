@@ -35,9 +35,11 @@ void main() {
     await tester.pumpWidget(wrap(c));
     expect(find.text('Cycle insights'), findsOneWidget); // app bar
     expect(find.text('CYCLE HISTORY'), findsOneWidget); // section
-    expect(find.text('COMMON SYMPTOMS'), findsOneWidget);
-    expect(find.text('Mild cramps'), findsWidgets); // logged symptom (all-time + this-week cards)
     expect(find.text('Ongoing'), findsOneWidget); // most recent cycle
+    // The symptom cards sit further down the (lazy) list.
+    await tester.scrollUntilVisible(find.text('COMMON SYMPTOMS'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('COMMON SYMPTOMS'), findsOneWidget);
+    expect(find.text('Mild cramps'), findsWidgets); // logged symptom
     addTearDown(c.dispose);
   });
 
@@ -112,6 +114,8 @@ void main() {
     await tester.pumpWidget(wrap(c));
 
     await tester.scrollUntilVisible(find.text('COMMON SYMPTOMS'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Mild cramps').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Mild cramps').last);
     await tester.pumpAndSettle();
     // Drill-down screen: header count for the two logged days.
@@ -150,6 +154,23 @@ void main() {
     await tester.pumpWidget(wrap(c));
     expect(find.text('Your cycle is regular'), findsOneWidget);
     expect(find.textContaining('28-day average'), findsOneWidget);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('flow breakdown shows per-intensity day counts', (tester) async {
+    final c = AppController(now: () => today);
+    // A period with mixed intensities: 2 medium + 1 heavy.
+    final start = today.subtract(const Duration(days: 6));
+    c.setDayLog(DayLog(date: dateKey(start), flow: Flow.heavy));
+    c.setDayLog(DayLog(date: dateKey(start.add(const Duration(days: 1))), flow: Flow.medium));
+    c.setDayLog(DayLog(date: dateKey(start.add(const Duration(days: 2))), flow: Flow.medium));
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('FLOW INTENSITY'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Medium'), findsOneWidget);
+    expect(find.text('Heavy'), findsOneWidget);
+    expect(find.text('Light'), findsNothing); // never logged → row omitted
+    expect(find.textContaining('3 bleeding days logged'), findsOneWidget);
     addTearDown(c.dispose);
   });
 

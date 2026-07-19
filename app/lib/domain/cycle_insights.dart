@@ -329,6 +329,27 @@ List<DayLog> daysWithSymptom(Iterable<DayLog> logs, Symptom symptom) {
   return matches;
 }
 
+/// How many days were logged at each flow intensity, in [Flow.values] order
+/// (light → heavy). Days without a flow are ignored. Always returns one entry
+/// per level (count 0 when unseen) so the UI can render a stable breakdown.
+List<({Flow flow, int count})> flowBreakdown(Iterable<DayLog> logs) {
+  final counts = <Flow, int>{};
+  for (final l in logs) {
+    final f = l.flow;
+    if (f != null) counts[f] = (counts[f] ?? 0) + 1;
+  }
+  return [for (final f in Flow.values) (flow: f, count: counts[f] ?? 0)];
+}
+
+/// Total days with any flow logged.
+int totalFlowDays(Iterable<DayLog> logs) {
+  var n = 0;
+  for (final l in logs) {
+    if (l.flow != null) n++;
+  }
+  return n;
+}
+
 /// Count of each symptom across the given day logs (descending by count).
 List<({Symptom symptom, int count})> symptomFrequency(Iterable<DayLog> logs) {
   final counts = <Symptom, int>{};

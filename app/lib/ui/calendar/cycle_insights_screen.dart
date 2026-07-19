@@ -4,7 +4,7 @@
 /// verified cycle_insights logic.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 import '../../app/app_controller.dart';
 import '../../domain/cycle_insights.dart';
 import '../../domain/cycle_log.dart';
@@ -96,6 +96,10 @@ class CycleInsightsScreen extends StatelessWidget {
                 if (lengthStats != null && lengthStats.count >= 2) ...[
                   const SizedBox(height: 14),
                   _CycleLengthCard(stats: lengthStats),
+                ],
+                if (totalFlowDays(logs) > 0) ...[
+                  const SizedBox(height: 14),
+                  _FlowBreakdownCard(breakdown: flowBreakdown(logs), total: totalFlowDays(logs)),
                 ],
                 const SizedBox(height: 16),
 
@@ -306,6 +310,65 @@ class _SymptomPhaseCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// How the user's bleeding days split across light / medium / heavy — a stacked
+/// bar plus per-level day counts.
+class _FlowBreakdownCard extends StatelessWidget {
+  final List<({Flow flow, int count})> breakdown;
+  final int total;
+  const _FlowBreakdownCard({required this.breakdown, required this.total});
+
+  static Color _color(Flow f) => switch (f) {
+        Flow.light => Palette.rose,
+        Flow.medium => Palette.roseDeep,
+        Flow.heavy => Palette.violet,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return _SectionCard(
+      title: l.t('cyc_flow_title'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Stacked proportion bar.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 10,
+              child: Row(
+                children: [
+                  for (final e in breakdown)
+                    if (e.count > 0) Expanded(flex: e.count, child: ColoredBox(color: _color(e.flow))),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final e in breakdown)
+            if (e.count > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  Container(width: 8, height: 8, decoration: BoxDecoration(color: _color(e.flow), shape: BoxShape.circle)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(l.t('flow_${e.flow.name}'),
+                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  ),
+                  Text(l.t('cyc_flow_days', {'n': e.count}),
+                      style: const TextStyle(fontFamily: 'JetBrainsMono', color: Palette.textDim, fontSize: 13, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+          const SizedBox(height: 6),
+          Text(l.t('cyc_flow_total', {'n': total}),
+              style: const TextStyle(color: Palette.textDim, fontSize: 12)),
         ],
       ),
     );

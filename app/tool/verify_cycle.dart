@@ -116,6 +116,21 @@ void main() {
   _chk('predicted period type', cycleDayType(DateTime(2026, 7, 30), info, loggedPeriod: false) == CycleDayType.predictedPeriod);
   _chk('ordinary day → none', cycleDayType(DateTime(2026, 7, 20), info, loggedPeriod: false) == CycleDayType.none);
 
+  // ---- Flow breakdown ----
+  final flowLogs = [
+    const DayLog(date: '2026-07-01', flow: Flow.heavy),
+    const DayLog(date: '2026-07-02', flow: Flow.medium),
+    const DayLog(date: '2026-07-03', flow: Flow.medium),
+    const DayLog(date: '2026-07-04', mood: Mood.happy), // no flow
+  ];
+  final fb = flowBreakdown(flowLogs);
+  _chk('breakdown has an entry per level', fb.length == Flow.values.length);
+  _chk('breakdown ordered light→heavy', fb.first.flow == Flow.light && fb.last.flow == Flow.heavy);
+  _chk('unseen level counts 0', fb.firstWhere((e) => e.flow == Flow.light).count == 0);
+  _chk('counts per level', fb.firstWhere((e) => e.flow == Flow.medium).count == 2 && fb.firstWhere((e) => e.flow == Flow.heavy).count == 1);
+  _chk('total flow days ignores no-flow', totalFlowDays(flowLogs) == 3);
+  _chk('empty → all zero', flowBreakdown(const []).every((e) => e.count == 0) && totalFlowDays(const []) == 0);
+
   // ---- Prediction confidence ----
   _chk('no completed cycles → low', predictionConfidence(completedCycles: 0, variationDays: 0) == PredictionConfidence.low);
   _chk('one cycle → building', predictionConfidence(completedCycles: 1, variationDays: 0) == PredictionConfidence.building);
