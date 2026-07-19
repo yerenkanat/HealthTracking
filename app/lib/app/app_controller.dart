@@ -560,7 +560,21 @@ class AppController {
   Stream<ReminderCommand> get reminderCommands => _reminderStream.stream;
 
   /// Stable notification id for an appointment (positive 31-bit).
-  static int reminderIdFor(String appointmentId) => appointmentId.hashCode & 0x7fffffff;
+  /// Notification id for a per-appointment reminder.
+  ///
+  /// Mapped into a reserved block so it can NEVER equal one of the fixed
+  /// reminder ids (period 800001, fertile 800002, water 900001, medication
+  /// 900002). Previously this was a raw 31-bit hash, which could in principle
+  /// land on one of them and silently cancel or overwrite a cycle/water/
+  /// medication reminder. The odds were negligible, but the block makes it
+  /// impossible by construction — and keeps any fixed id added later safe too.
+  ///
+  /// Appointment-to-appointment collisions remain birthday-bound within the
+  /// block; at realistic counts (hundreds) that stays vanishingly small.
+  static const int appointmentIdBase = 1000000;
+  static const int appointmentIdSpan = 1000000; // block: [1_000_000, 1_999_999]
+  static int reminderIdFor(String appointmentId) =>
+      appointmentIdBase + ((appointmentId.hashCode & 0x7fffffff) % appointmentIdSpan);
 
   ReminderCommand _scheduleCommandFor(Appointment a) {
     final l = L10n(_locale);

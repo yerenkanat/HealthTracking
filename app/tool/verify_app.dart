@@ -72,6 +72,30 @@ Future<void> main() async {
   await sub.cancel();
   await ctl.dispose();
 
+  // ---- Reminder notification ids ----
+  // Appointment reminders derive their id from a hash, so nothing stopped one
+  // from landing on a fixed reminder id (period/fertile/water/medication) and
+  // silently cancelling or overwriting it. They now map into a reserved block,
+  // which makes that impossible rather than merely improbable.
+  const fixedReminderIds = {800001, 800002, 900001, 900002};
+  const base = AppController.appointmentIdBase;
+  const span = AppController.appointmentIdSpan;
+  var outOfBlock = 0, hitFixed = 0;
+  const micros = 1750000000000000;
+  for (var i = 0; i < 50000; i++) {
+    final n = AppController.reminderIdFor('apt-${micros + i * 997}-${i % 7}');
+    if (n < base || n >= base + span) outOfBlock++;
+    if (fixedReminderIds.contains(n)) hitFixed++;
+  }
+  _chk('appointment reminder ids stay inside the reserved block', outOfBlock == 0);
+  _chk('appointment reminder ids never hit a fixed reminder id', hitFixed == 0);
+  _chk('no fixed reminder id falls in the appointment block',
+      !fixedReminderIds.any((f) => f >= base && f < base + span));
+  // Cancelling after a restart looks the id up again, so it must be reproducible
+  // for the same appointment — otherwise the notification could never be cleared.
+  _chk('a reminder id is reproducible for the same appointment',
+      AppController.reminderIdFor('apt-42-0') == AppController.reminderIdFor('apt-42-0'));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

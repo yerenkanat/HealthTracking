@@ -17,6 +17,7 @@ import '../lib/domain/contraction.dart';
 import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/health_series.dart';
 import '../lib/domain/kick_session.dart';
+import '../lib/domain/manual_vitals.dart';
 import '../lib/domain/medication.dart';
 import '../lib/domain/weight.dart';
 import '../lib/domain/onboarding_controller.dart';
@@ -263,6 +264,50 @@ void main() async {
   _chk('reset clears day logs', ctl4.dayLogs.isEmpty);
   _chk('reset clears persisted', (await store3.load()) == null);
   await ctl4.dispose();
+
+  // ---- A backup must actually restore everything ----
+  // Guards the whole export→import path end to end: a field wired into the
+  // controller but not into PersistedConfig would silently vanish from backups.
+  final src = AppController(now: () => DateTime(2026, 7, 20, 9));
+  src.debugMarkOnboarded();
+  src.updateProfile(const UserProfile(displayName: 'Aigerim', dialCode: '+7', phoneNumber: '700 123 45 67'));
+  src.configureChild(name: 'Sultan', fences: [Geofence.circle('h', 'Home', const Coordinates(43.2, 76.8), 100)]);
+  src.setDayLog(const DayLog(date: '2026-07-10', mood: Mood.happy, note: 'scan'));
+  src.addWater(DateTime(2026, 7, 20), 5);
+  src.setWaterGoal(9);
+  src.logWeight(DateTime(2026, 7, 20), 63.4);
+  src.setWeightGoal(70);
+  src.addAppointment('OB visit', DateTime(2026, 8, 1, 9));
+  src.addMedication('Folic acid', dose: '400 mcg');
+  src.takeMedicationDose(src.medications.single.id, DateTime(2026, 7, 20));
+  src.logKickSession(DateTime(2026, 7, 20), 10, const Duration(seconds: 600));
+  src.logContractionSession(6, const Duration(seconds: 55), const Duration(seconds: 300));
+  src.setChildBattery('child-1', 62);
+  src.logChildEvent(AlertKind.checkIn);
+  src.setWaterReminder(20 * 60);
+  src.setMedReminder(9 * 60);
+  src.setPeriodReminder(true);
+  src.setFertileReminder(true);
+  src.logManualVitals(const ManualVitals(systolic: 118, diastolic: 76));
+  src.setCycleBaseline(cycle: 30, period: 6);
+
+  final restored = AppController(now: () => DateTime(2026, 7, 20, 9));
+  _chk('a backup imports cleanly', restored.importJson(src.exportJson()));
+  String fingerprint(AppController c) => [
+        c.displayName, c.profile.e164, '${c.children.length}',
+        '${c.children.isEmpty ? 0 : c.children.first.geofences.length}',
+        '${c.dayLogs.length}', '${c.waterFor(DateTime(2026, 7, 20))}', '${c.waterGoal}',
+        '${c.weights.length}', '${c.weightGoalKg}', '${c.appointments.length}',
+        '${c.medications.length}', '${c.medLog.length}', '${c.kickSessions.length}',
+        '${c.contractionSessions.length}', '${c.alerts.length}',
+        '${c.waterReminderMinutes}', '${c.medReminderMinutes}',
+        '${c.periodReminderEnabled}', '${c.fertileReminderEnabled}',
+        '${c.manualSamples.length}', '${c.avgCycleLength}', c.locale.name,
+        '${c.batteryFor('child-1')}', '${c.batteryHistoryFor('child-1').length}',
+      ].join('|');
+  _chk('a backup restores every tracked field', fingerprint(src) == fingerprint(restored));
+  await src.dispose();
+  await restored.dispose();
 
   // ---- Import must not destroy data on a wrong file ----
   // Every config field is optional, so ANY JSON object decodes into a valid but
