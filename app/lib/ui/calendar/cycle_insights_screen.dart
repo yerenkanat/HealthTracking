@@ -23,7 +23,7 @@ class CycleInsightsScreen extends StatelessWidget {
 
   void _openSymptom(BuildContext context, List<DayLog> logs, Symptom symptom) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => SymptomDaysScreen(logs: logs, symptom: symptom),
+      builder: (_) => SymptomDaysScreen(logs: logs, symptom: symptom, controller: controller),
     ));
   }
 
@@ -196,7 +196,7 @@ class CycleInsightsScreen extends StatelessWidget {
                       _SeeAllNotesRow(
                         label: l.t('notes_see_all', {'n': '${allNotes.length}'}),
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => NotesBrowserScreen(logs: logs.toList()),
+                          builder: (_) => NotesBrowserScreen(logs: logs.toList(), controller: controller),
                         )),
                       ),
                     ]),

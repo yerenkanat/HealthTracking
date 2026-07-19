@@ -27,10 +27,10 @@ import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 import 'contraction_timer_screen.dart';
 import 'cycle_insights_screen.dart';
+import 'day_log_sheet.dart';
 import 'medications_screen.dart';
 import 'weight_history_screen.dart';
 import 'cycle_summary.dart';
-import 'kick_session_screen.dart';
 import 'weight_card.dart';
 import 'logging_drawer.dart';
 
@@ -347,34 +347,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     if (picked != null) c.setDueDate(picked);
   }
 
-  void _openDay(DateTime day) {
-    final c = widget.controller;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => StreamBuilder<void>(
-        stream: c.changes,
-        builder: (context, _) => FloStyleCalendarDrawer(
-          day: day,
-          log: c.logFor(day),
-          pregnant: c.isPregnant,
-          onToggleMood: (m) => c.toggleMoodFor(day, m),
-          onToggleSymptom: (s) => c.toggleSymptomFor(day, s),
-          onToggleFlow: (f) => c.toggleFlowFor(day, f),
-          onKick: () => c.addKickFor(day),
-          onResetKicks: () => c.resetKicksFor(day),
-          onSetNote: (note) => c.setNoteFor(day, note),
-          onStartSession: () {
-            Navigator.of(sheetCtx).pop(); // close the sheet, then open the session
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => KickSessionScreen(onSave: (n, elapsed) => c.logKickSession(day, n, elapsed)),
-            ));
-          },
-        ),
-      ),
-    );
-  }
+  void _openDay(DateTime day) => showDayLogSheet(context, widget.controller, day);
 }
 
 /// Gestation header: a "Week N, Day D" progress card + a 7-day horizontal strip

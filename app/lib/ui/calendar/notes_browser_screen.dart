@@ -5,14 +5,20 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../domain/cycle_insights.dart';
+import '../../app/app_controller.dart';
 import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import 'day_log_sheet.dart';
 
 class NotesBrowserScreen extends StatefulWidget {
   final List<DayLog> logs;
-  const NotesBrowserScreen({super.key, required this.logs});
+
+  /// When supplied, tapping a note opens the shared day-log editor — so a note
+  /// can be corrected or expanded from where it's being read.
+  final AppController? controller;
+  const NotesBrowserScreen({super.key, required this.logs, this.controller});
   @override
   State<NotesBrowserScreen> createState() => _NotesBrowserScreenState();
 }
@@ -28,8 +34,16 @@ class _NotesBrowserScreenState extends State<NotesBrowserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = widget.controller;
+    if (c == null) return _build(context);
+    // Rebuild once an edit made in the day sheet lands.
+    return StreamBuilder<void>(stream: c.changes, builder: (ctx, _) => _build(ctx));
+  }
+
+  Widget _build(BuildContext context) {
     final l = L10nScope.of(context);
-    final results = searchNotes(widget.logs, _search.text);
+    final source = widget.controller?.dayLogs.values.toList() ?? widget.logs;
+    final results = searchNotes(source, _search.text);
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -71,7 +85,15 @@ class _NotesBrowserScreenState extends State<NotesBrowserScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                       itemCount: results.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _NoteCard(log: results[i]),
+                      itemBuilder: (_, i) => _NoteCard(
+                        log: results[i],
+                        onTap: widget.controller == null
+                            ? null
+                            : () {
+                                final d = DateTime.tryParse(results[i].date);
+                                if (d != null) showDayLogSheet(context, widget.controller!, d);
+                              },
+                      ),
                     ),
             ),
           ],
@@ -83,12 +105,14 @@ class _NotesBrowserScreenState extends State<NotesBrowserScreen> {
 
 class _NoteCard extends StatelessWidget {
   final DayLog log;
-  const _NoteCard({required this.log});
+  final VoidCallback? onTap;
+  const _NoteCard({required this.log, this.onTap});
   @override
   Widget build(BuildContext context) {
     final ml = MaterialLocalizations.of(context);
     final date = DateTime.tryParse(log.date);
     return GlassCard(
+      onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

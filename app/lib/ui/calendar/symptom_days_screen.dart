@@ -4,21 +4,36 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../app/app_controller.dart';
 import '../../domain/cycle_insights.dart';
 import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import 'day_log_sheet.dart';
 
 class SymptomDaysScreen extends StatelessWidget {
   final List<DayLog> logs;
   final Symptom symptom;
-  const SymptomDaysScreen({super.key, required this.logs, required this.symptom});
+  /// When supplied, each day opens the shared log editor so a mis-logged day
+  /// can be corrected where it's noticed.
+  final AppController? controller;
+  const SymptomDaysScreen({super.key, required this.logs, required this.symptom, this.controller});
 
   @override
   Widget build(BuildContext context) {
+    final c = controller;
+    if (c == null) return _build(context);
+    // Rebuild after an edit made in the day sheet.
+    return StreamBuilder<void>(stream: c.changes, builder: (ctx, _) => _build(ctx));
+  }
+
+  Widget _build(BuildContext context) {
     final l = L10nScope.of(context);
-    final days = daysWithSymptom(logs, symptom);
+    // Re-read from the controller when we have one, so an edit made in the
+    // sheet is reflected the moment it closes.
+    final source = controller?.dayLogs.values.toList() ?? logs;
+    final days = daysWithSymptom(source, symptom);
     final name = l.t('sym_${symptom.name}');
     return AuroraBackground(
       child: Scaffold(
@@ -42,7 +57,15 @@ class SymptomDaysScreen extends StatelessWidget {
                   ),
                   for (var i = 0; i < days.length; i++) ...[
                     if (i > 0) const SizedBox(height: 8),
-                    _DayCard(log: days[i]),
+                    _DayCard(
+                      log: days[i],
+                      onTap: controller == null
+                          ? null
+                          : () {
+                              final d = DateTime.tryParse(days[i].date);
+                              if (d != null) showDayLogSheet(context, controller!, d);
+                            },
+                    ),
                   ],
                 ],
               ),
@@ -52,8 +75,9 @@ class SymptomDaysScreen extends StatelessWidget {
 }
 
 class _DayCard extends StatelessWidget {
+  final VoidCallback? onTap;
   final DayLog log;
-  const _DayCard({required this.log});
+  const _DayCard({required this.log, this.onTap});
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -62,6 +86,7 @@ class _DayCard extends StatelessWidget {
     // Other symptoms logged the same day, for context.
     final others = [for (final s in log.symptoms) if (s != Symptom.allGood) l.t('sym_${s.name}')];
     return GlassCard(
+      onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [

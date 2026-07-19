@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
@@ -34,6 +35,29 @@ void main() {
     expect(find.text('First ultrasound scan'), findsOneWidget);
     expect(find.text('Second scan booked'), findsOneWidget);
     expect(find.text('Felt tired all day'), findsNothing);
+  });
+
+  testWidgets('tapping a note opens that day for editing', (tester) async {
+    final c = AppController(now: () => DateTime(2026, 7, 16));
+    c.setNoteFor(DateTime(2026, 7, 10), 'first ultrasound');
+    await tester.pumpWidget(MaterialApp(
+      home: L10nScope(
+        l10n: const L10n(AppLocale.en),
+        child: NotesBrowserScreen(logs: c.dayLogs.values.toList(), controller: c),
+      ),
+    ));
+
+    await tester.tap(find.text('first ultrasound'));
+    await tester.pumpAndSettle();
+    expect(find.text('How are you feeling?'), findsOneWidget); // the shared day editor
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('notes are read-only without a controller', (tester) async {
+    await tester.pumpWidget(wrap());
+    await tester.tap(find.text('First ultrasound scan'));
+    await tester.pumpAndSettle();
+    expect(find.text('How are you feeling?'), findsNothing);
   });
 
   testWidgets('no match shows an empty message', (tester) async {
