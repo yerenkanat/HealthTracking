@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../app/app_controller.dart';
 import '../../domain/appointment.dart';
 import '../../l10n/l10n.dart';
@@ -13,6 +14,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
+import 'visit_summary.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   final AppController controller;
@@ -47,7 +49,17 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: Text(l.t('appt_title'))),
+        appBar: AppBar(
+          title: Text(l.t('appt_title')),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.assignment_outlined),
+              tooltip: l.t('visit_summary'),
+              onPressed: () => _copyVisitSummary(context),
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _openAdd(context),
           backgroundColor: Palette.violet,
@@ -136,6 +148,27 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           },
         ),
       ),
+    );
+  }
+
+  /// Copy a "since your last visit" digest for the appointment. Clipboard only —
+  /// no native share dependency, same as the other summaries.
+  Future<void> _copyVisitSummary(BuildContext context) async {
+    final l = L10nScope.of(context);
+    final c = controller;
+    final text = buildVisitSummary(
+      l,
+      samples: c.samples,
+      dayLogs: c.dayLogs,
+      medications: c.medications,
+      weights: c.weights,
+      now: now(),
+      name: c.displayName,
+    );
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('visit_copied')), behavior: SnackBarBehavior.floating),
     );
   }
 

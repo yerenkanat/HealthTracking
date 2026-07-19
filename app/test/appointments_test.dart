@@ -1,8 +1,10 @@
 /// Widget tests for the appointments/reminders screen (run with `flutter test`).
 library;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/domain/manual_vitals.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/appointments/appointments_screen.dart';
@@ -62,6 +64,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Old scan'), findsOneWidget);
     expect(find.text('Future visit'), findsNothing);
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('visit summary copies a since-last-visit digest', (tester) async {
+    final c = AppController(now: () => today);
+    c.addMedication('Folic acid', dose: '400 mcg');
+    c.logWeight(today, 63.4);
+    c.logManualVitals(const ManualVitals(systolic: 118, diastolic: 76, heartRate: 70));
+
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String?;
+        return null;
+      },
+    );
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await tester.pumpWidget(wrap(c));
+    await tester.tap(find.byTooltip('Summary for your visit'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Summary copied'), findsOneWidget);
+    expect(copied, contains('Visit summary'));
+    expect(copied, contains('Folic acid 400 mcg')); // medications
+    expect(copied, contains('63.4 kg')); // weight
+    expect(copied, contains('118/76')); // the hand-entered reading
     addTearDown(c.dispose);
   });
 
