@@ -69,6 +69,27 @@ DateTime? lastCheckIn(List<SafetyAlert> alerts, String childName) {
   return null;
 }
 
+/// How many times [childName] has ENTERED each zone, most-visited first. Only
+/// entry events count, so a visit isn't double-counted by its matching exit.
+List<({String zone, int visits})> zoneVisitCounts(List<SafetyAlert> alerts, String childName) {
+  final counts = <String, int>{};
+  for (final a in alerts) {
+    if (a.kind != AlertKind.entered || a.childName != childName || a.zoneName.isEmpty) continue;
+    counts[a.zoneName] = (counts[a.zoneName] ?? 0) + 1;
+  }
+  final out = [for (final e in counts.entries) (zone: e.key, visits: e.value)];
+  out.sort((a, b) => b.visits.compareTo(a.visits));
+  return out;
+}
+
+/// Visit count for a single zone (0 when never entered).
+int visitsToZone(List<SafetyAlert> alerts, String childName, String zoneName) {
+  for (final e in zoneVisitCounts(alerts, childName)) {
+    if (e.zone == zoneName) return e.visits;
+  }
+  return 0;
+}
+
 /// Alerts stamped on the same calendar day as [day].
 List<SafetyAlert> alertsOnDay(List<SafetyAlert> alerts, DateTime day) => [
       for (final a in alerts)

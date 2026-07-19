@@ -152,6 +152,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'zone_edit': {AppLocale.ru: 'Изменить зону', AppLocale.kk: 'Аймақты өзгерту', AppLocale.en: 'Edit zone'},
   'zone_name_hint': {AppLocale.ru: 'Название зоны', AppLocale.kk: 'Аймақ атауы', AppLocale.en: 'Zone name'},
   'zone_radius': {AppLocale.ru: 'Радиус', AppLocale.kk: 'Радиус', AppLocale.en: 'Radius'},
+  'zone_visits': {AppLocale.ru: '{n} посещ.', AppLocale.kk: '{n} рет', AppLocale.en: '{n} visits'},
   'zone_type_other': {AppLocale.ru: 'Другое', AppLocale.kk: 'Басқа', AppLocale.en: 'Other'},
   'zone_use_location': {AppLocale.ru: 'Моё текущее место', AppLocale.kk: 'Қазіргі орным', AppLocale.en: 'Use my current location'},
   'zone_pick_on_map': {AppLocale.ru: 'Выбрать на карте', AppLocale.kk: 'Картадан таңдау', AppLocale.en: 'Pick on map'},

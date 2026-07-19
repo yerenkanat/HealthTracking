@@ -111,6 +111,21 @@ void main() {
   _chk('entry time null when never entered', zoneEntryTime(feed2, 'Aisha', 'Park') == null);
   _chk('left events are ignored', zoneEntryTime(feed2, 'Aisha', 'Home') == DateTime(2026, 7, 15, 18));
 
+  // ---- Zone visit counts ----
+  final visitFeed = [
+    SafetyAlert(kind: AlertKind.entered, childName: 'Aisha', zoneName: 'School', at: DateTime(2026, 7, 16, 9)),
+    SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'School', at: DateTime(2026, 7, 16, 8)), // exits ignored
+    SafetyAlert(kind: AlertKind.entered, childName: 'Aisha', zoneName: 'Home', at: DateTime(2026, 7, 15, 18)),
+    SafetyAlert(kind: AlertKind.entered, childName: 'Aisha', zoneName: 'School', at: DateTime(2026, 7, 15, 9)),
+    SafetyAlert(kind: AlertKind.entered, childName: 'Timur', zoneName: 'Park', at: DateTime(2026, 7, 15, 9)),
+  ];
+  final visits = zoneVisitCounts(visitFeed, 'Aisha');
+  _chk('most-visited first', visits.first.zone == 'School' && visits.first.visits == 2);
+  _chk('exits are not counted', visits.firstWhere((v) => v.zone == 'Home').visits == 1);
+  _chk('only this child counted', !visits.any((v) => v.zone == 'Park'));
+  _chk('single-zone lookup', visitsToZone(visitFeed, 'Aisha', 'School') == 2);
+  _chk('never-entered zone → 0', visitsToZone(visitFeed, 'Aisha', 'Park') == 0);
+
   // ---- Last check-in ----
   final checkinFeed = [
     SafetyAlert(kind: AlertKind.checkIn, childName: 'Aisha', zoneName: '', at: DateTime(2026, 7, 16, 9)),

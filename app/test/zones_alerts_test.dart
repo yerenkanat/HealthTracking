@@ -36,6 +36,23 @@ void main() {
       addTearDown(c.dispose);
     });
 
+    testWidgets('zone rows show a visit count once entries are recorded', (tester) async {
+      final c = withZones();
+      // No visits yet → no badge.
+      await tester.pumpWidget(wrap(ZonesScreen(controller: c, childId: 'child-1')));
+      expect(find.textContaining('visits'), findsNothing);
+
+      // Two entries into Home, one into School.
+      c.onChildLocation(_home.center!);
+      c.onChildLocation(_school.center!);
+      c.onChildLocation(_home.center!);
+      await tester.pumpWidget(wrap(ZonesScreen(controller: c, childId: 'child-1')));
+      await tester.pumpAndSettle();
+      expect(find.text('2 visits'), findsOneWidget); // Home
+      expect(find.text('1 visits'), findsOneWidget); // School
+      addTearDown(c.dispose);
+    });
+
     testWidgets('deleting a zone asks for confirmation; cancel keeps it', (tester) async {
       final c = withZones();
       await tester.pumpWidget(wrap(ZonesScreen(controller: c, childId: 'child-1')));

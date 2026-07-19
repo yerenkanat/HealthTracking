@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../app/app_controller.dart';
 import '../../core/geofence.dart';
+import '../../domain/geofence_alerts.dart' show visitsToZone;
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
@@ -48,6 +49,7 @@ class ZonesScreen extends StatelessWidget {
                   for (final z in zones) ...[
                     _ZoneCard(
                       zone: z,
+                      visits: visitsToZone(controller.alerts, child?.name ?? '', z.name),
                       onEdit: () => _openSheet(context, existing: z),
                       onDelete: () => _confirmDelete(context, z),
                     ),
@@ -120,9 +122,10 @@ class ZonesScreen extends StatelessWidget {
 
 class _ZoneCard extends StatelessWidget {
   final Geofence zone;
+  final int visits; // recorded entries into this zone
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  const _ZoneCard({required this.zone, required this.onEdit, required this.onDelete});
+  const _ZoneCard({required this.zone, required this.visits, required this.onEdit, required this.onDelete});
 
   IconData get _icon {
     final n = zone.name.toLowerCase();
@@ -160,6 +163,17 @@ class _ZoneCard extends StatelessWidget {
               ],
             ),
           ),
+          if (visits > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(color: Palette.good.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.login_rounded, size: 12, color: Palette.good),
+                const SizedBox(width: 4),
+                Text(l.t('zone_visits', {'n': visits}),
+                    style: const TextStyle(color: Palette.good, fontWeight: FontWeight.w700, fontSize: 11.5)),
+              ]),
+            ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Palette.textDim),
             tooltip: l.t('act_remove'),
