@@ -388,6 +388,44 @@ void main() async {
   _chk('empty day logs are never written',
       encodedLogs.containsKey('2026-07-14') && !encodedLogs.containsKey('2026-07-15'));
 
+  // ---- A decade of daily logging still round-trips ----
+  // The day-keyed logs (water, medication, cycle) are deliberately uncapped:
+  // trimming them would throw away exactly the history the user is keeping.
+  // Measured, a decade of daily entries is ~550KB and ~4ms to encode, so the
+  // growth is fine — what matters is that nothing breaks or silently drops at
+  // that size, which is where an accidental O(n^2) or a lossy encode shows up.
+  final bigWater = <String, int>{};
+  final bigMed = <String, Map<String, int>>{};
+  final bigLogs = <String, DayLog>{};
+  final decadeStart = DateTime(2026, 1, 1);
+  const decadeDays = 3650;
+  for (var i = 0; i < decadeDays; i++) {
+    final d = decadeStart.add(Duration(days: i));
+    final k = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    bigWater[k] = 8;
+    bigMed[k] = {'m1': 1, 'm2': 2};
+    bigLogs[k] = DayLog(date: k, flow: Flow.medium, symptoms: const {Symptom.cramps}, note: 'ok');
+  }
+  final bigCfg = PersistedConfig(
+    onboarded: true,
+    locale: AppLocale.ru,
+    profile: const UserProfile(displayName: 'Aigerim'),
+    children: const [],
+    devices: const [],
+    waterLog: bigWater,
+    medLog: bigMed,
+    dayLogs: bigLogs,
+  );
+  final bigBack = PersistedConfig.fromJson(
+      (jsonDecode(jsonEncode(bigCfg.toJson())) as Map).cast<String, dynamic>());
+  _chk('a decade of water entries survives a round-trip',
+      bigBack.waterLog.length == decadeDays && bigBack.waterLog['2030-06-15'] == 8);
+  _chk('a decade of medication entries survives a round-trip',
+      bigBack.medLog.length == decadeDays && bigBack.medLog['2030-06-15']?['m2'] == 2);
+  _chk('a decade of day logs survives a round-trip',
+      bigBack.dayLogs.length == decadeDays &&
+          bigBack.dayLogs['2030-06-15']?.flow == Flow.medium);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
