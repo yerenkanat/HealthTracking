@@ -22,7 +22,8 @@ const List<Milestone> pregnancyMilestoneTable = [
 Milestone currentMilestone(int week) {
   var current = pregnancyMilestoneTable.first;
   for (final m in pregnancyMilestoneTable) {
-    if (m.week <= week) current = m; else break;
+    if (m.week > week) break;
+    current = m;
   }
   return current;
 }

@@ -1,4 +1,5 @@
 /// Widget test for the assistant chat screen (run with `flutter test`).
+library;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

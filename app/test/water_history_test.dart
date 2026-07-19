@@ -1,4 +1,5 @@
 /// Widget tests for the weekly water history screen.
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/hydration.dart';

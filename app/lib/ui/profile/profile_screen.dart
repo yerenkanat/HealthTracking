@@ -31,6 +31,7 @@ class ProfileScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Palette.textDim),
+            tooltip: l.t('settings_title'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => SettingsScreen(controller: c)),
             ),

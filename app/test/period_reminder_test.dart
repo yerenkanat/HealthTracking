@@ -1,4 +1,5 @@
 /// Unit tests for the period-reminder scheduling on the controller.
+library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/domain/cycle_log.dart';

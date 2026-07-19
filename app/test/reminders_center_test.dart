@@ -1,5 +1,6 @@
 /// Widget tests for the Reminders centre — the single home for period, fertile,
 /// and water reminders.
+library;
 import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';

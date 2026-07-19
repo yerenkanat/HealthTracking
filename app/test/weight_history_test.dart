@@ -1,4 +1,5 @@
 /// Widget tests for the weight history screen (delete flow).
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/weight.dart';

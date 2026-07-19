@@ -1,6 +1,7 @@
 /// Widget test for the onboarding flow (run with `flutter test`).
 /// Drives welcome → language → profile → pairBand → child → done and asserts the
 /// assembled result. Uses English scope so labels are stable.
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/onboarding_controller.dart';

@@ -1,4 +1,5 @@
 /// Unit tests for the low-battery alert emitted by setChildBattery.
+library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';

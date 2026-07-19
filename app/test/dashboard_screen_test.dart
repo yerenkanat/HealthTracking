@@ -1,4 +1,5 @@
 /// Widget tests for the health dashboard (run with `flutter test`).
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

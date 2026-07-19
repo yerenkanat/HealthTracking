@@ -48,6 +48,7 @@ class _NotesBrowserScreenState extends State<NotesBrowserScreen> {
                       ? null
                       : IconButton(
                           icon: const Icon(Icons.close_rounded, color: Palette.textDim),
+                          tooltip: l.t('act_clear_search'),
                           onPressed: () => setState(_search.clear),
                         ),
                   filled: true,

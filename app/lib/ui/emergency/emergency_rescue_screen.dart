@@ -59,7 +59,8 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final l = L10nScope.of(context);
-      SemanticsService.announce(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
         '${l.t('em_title')}. ${widget.message}',
         TextDirection.ltr,
         assertiveness: Assertiveness.assertive,

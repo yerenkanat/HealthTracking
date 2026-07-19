@@ -1,4 +1,5 @@
 /// Widget tests for the pregnancy weight card (run with `flutter test`).
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/weight.dart';

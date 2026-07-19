@@ -1,6 +1,7 @@
 /// Widget test for the Emergency Rescue screen (run with `flutter test`).
 /// Verifies: the triage message renders, the primary call button shows the right
 /// number and fires onCall, and dismissal requires explicit confirmation.
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';

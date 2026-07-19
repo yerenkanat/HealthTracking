@@ -1,6 +1,7 @@
 /// Widget-level localization tests (run with `flutter test`).
 /// Confirms the same screen renders Russian / Kazakh / English via L10nScope,
 /// and that the language switcher fires the change callback.
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/l10n/l10n.dart';

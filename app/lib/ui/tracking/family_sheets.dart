@@ -41,7 +41,7 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: countries.firstWhere((c) => c.dial == dial, orElse: () => defaultCountry).iso + '|' + dial,
+                  value: '${countries.firstWhere((c) => c.dial == dial, orElse: () => defaultCountry).iso}|$dial',
                   onChanged: (v) { if (v != null) setState(() => dial = v.split('|')[1]); },
                   items: [
                     for (final c in countries)

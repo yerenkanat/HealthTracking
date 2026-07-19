@@ -1,4 +1,5 @@
 /// Unit tests for the daily water-reminder command stream on the controller.
+library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 

@@ -1,4 +1,5 @@
 /// Widget tests for the "Your journey" totals screen.
+library;
 import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';

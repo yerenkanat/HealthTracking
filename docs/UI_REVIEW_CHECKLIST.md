@@ -50,7 +50,15 @@ the issue fixed, before saying a screen is done.
 1. Build & launch on the emulator; **look at every screen** (don't just trust the code).
 2. Walk this list per screen. Screenshot and compare against the spec.
 3. `flutter analyze lib test` → zero errors/warnings.
-4. `flutter test` + `dart run tool/verify_*.dart` → all green.
+   _Analyze the whole tree, not the files you touched: per-file analysis hid 33
+   issues (incl. the entire `test/` tree) until the first full run._
+4. `flutter test` + `dart run tool/verify_all.dart` → all green.
+
+## Known follow-ups (don't re-discover these)
+- `onboarding_flow.dart`: `Radio.groupValue`/`onChanged` are deprecated in favour
+  of a `RadioGroup` ancestor. It's a structural widget change in the onboarding
+  flow with no widget-test coverage, so it needs an emulator pass to verify —
+  deliberately deferred rather than changed blind.
 
 > If a reviewer/user finds a defect this list would have caught, add a line here
 > so it never recurs.

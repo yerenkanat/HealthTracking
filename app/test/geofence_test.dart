@@ -1,11 +1,12 @@
 /// Geofence geometry + anti-jitter hysteresis (run with `dart test`).
+library;
 import 'package:test/test.dart';
 import 'package:fcs_app/core/geofence.dart';
 
 void main() {
   final school = Geofence.circle(
       'school', 'School', const Coordinates(43.238949, 76.889709), 100);
-  final far = const Coordinates(43.245, 76.9);
+  const far = Coordinates(43.245, 76.9);
   final inside = school.center!;
 
   group('geometry', () {

@@ -1,6 +1,7 @@
 /// Dart-side cross-language contract test (run with `flutter test` / `dart test`).
 /// Loads the SAME golden vectors the Node server runs and asserts identical
 /// verdicts. Mirrors packages/shared/src/__tests__/contract.test.ts.
+library;
 import 'dart:convert';
 import 'dart:io';
 import 'package:test/test.dart';

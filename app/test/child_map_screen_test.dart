@@ -1,5 +1,6 @@
 /// Widget tests for the child tracking screen (run with `flutter test`).
 /// The real map is stubbed via mapBuilder so the status card can be tested.
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/core/geofence.dart';

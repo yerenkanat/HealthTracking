@@ -1,4 +1,5 @@
 /// Widget tests for the Settings and Profile screens (run with `flutter test`).
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';

@@ -1,4 +1,5 @@
 /// Unit tests for the JSON data export.
+library;
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';

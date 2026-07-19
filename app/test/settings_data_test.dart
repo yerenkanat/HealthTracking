@@ -1,6 +1,7 @@
 /// Widget tests for the Settings → Data (export / import) UI. Widget tests throw
 /// on layout errors, so these guard against the render-overflow regression the
 /// export dialog + import sheet previously had.
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
