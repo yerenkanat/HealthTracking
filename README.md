@@ -85,7 +85,8 @@ app/lib/ui/                          screens (thin presentation over the domain)
   tracking/                           child map, zones, alerts feed, check-in/SOS
   appointments/ · profile/ · settings/ · advisor/ · emergency/ · onboarding/
 app/lib/data/notification_service.dart  OS notifications (geofence, reminders, low battery)
-app/tool/verify_*.dart               25 dependency-free conformance runners (551 assertions)
+app/tool/verify_*.dart               31 dependency-free conformance runners (777 assertions)
+app/tool/verify_all.dart             runs them all, prints a combined total
 infra/                               docker-compose (timescale+postgis, redis) + smoke test
 docs/BATTERY_OPTIMIZATION.md  Code-Optimizer checklist
 ```
@@ -141,18 +142,22 @@ band frame → parse → calibrate → assessTelemetry()
 ## Verify
 
 ```bash
-# Pure-Dart logic (no Flutter SDK needed) — 25 runners, 551 assertions, on every change:
+# Pure-Dart logic (no Flutter SDK needed) — 31 runners, 777 assertions:
 cd app
-dart run tool/verify_core.dart        # 36: thresholds, golden vectors, geofence, parsers
-dart run tool/verify_cycle.dart       # 56: cycle predictions (period/fertile/ovulation)
-dart run tool/verify_persistence.dart # 52: full config JSON round-trip + restore
-dart run tool/verify_family.dart      # 40: phone, children, devices
-# …plus verify_{advisor,alerts,app,appointments,batcher,battery,calibration,chat,
-#   contractions,cycle_summary,datalayer,features,kicks,l10n,milestones,onboarding,
-#   safety,sleep,summary,water,weight}.dart   (see .github/workflows/ci.yml)
+dart run tool/verify_all.dart         # every runner, with a combined total
+
+# …or individually:
+dart run tool/verify_cycle.dart       # 128: predictions, phases, insights, trends
+dart run tool/verify_persistence.dart #  59: full config JSON round-trip + restore
+dart run tool/verify_alerts.dart      #  51: geofence events, filters, dwell, visits
+dart run tool/verify_family.dart      #  40: phone, children, devices
+dart run tool/verify_core.dart        #  36: thresholds, golden vectors, geofence, parsers
+# …plus verify_{advisor,app,appointments,baby_size,backup,batcher,battery,calibration,
+#   chat,contractions,cycle_summary,datalayer,features,journey,kicks,l10n,milestones,
+#   onboarding,reminders,safety,setup,sleep,summary,water,weekly_digest,weight}.dart
 
 # Full Dart + widget suites (needs Flutter SDK):
-flutter test                          # 108 widget/unit tests
+flutter test                          # 178 widget/unit tests
 flutter analyze                       # clean
 
 # Node backend (needs npm install):
@@ -165,8 +170,8 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 ### Verification status (this machine)
 | Layer | Result |
 |-------|--------|
-| Dart pure logic (25 `verify_*` runners) | **551 assertions ✅** |
-| Flutter widget + unit tests | **108 ✅** |
+| Dart pure logic (31 `verify_*` runners) | **777 assertions ✅** |
+| Flutter widget + unit tests | **178 ✅** |
 | `flutter analyze` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 

@@ -15,80 +15,9 @@ jobs:
         with:
           sdk: stable
       # The verify_* scripts have no package: imports, so they run without pub get.
-      - name: Verify safety core
-        run: dart run tool/verify_core.dart
-        working-directory: app
-      - name: Verify data/orchestration layer
-        run: dart run tool/verify_datalayer.dart
-        working-directory: app
-      - name: Verify dashboard + tracking logic
-        run: dart run tool/verify_features.dart
-        working-directory: app
-      - name: Verify app controller + store
-        run: dart run tool/verify_app.dart
-        working-directory: app
-      - name: Verify localization (ru/kk/en coverage)
-        run: dart run tool/verify_l10n.dart
-        working-directory: app
-      - name: Verify assistant chat controller
-        run: dart run tool/verify_chat.dart
-        working-directory: app
-      - name: Verify onboarding flow
-        run: dart run tool/verify_onboarding.dart
-        working-directory: app
-      - name: Verify persistence (config round-trip + restore)
-        run: dart run tool/verify_persistence.dart
-        working-directory: app
-      - name: Verify health advisor
-        run: dart run tool/verify_advisor.dart
-        working-directory: app
-      - name: Verify family (phone, children, devices)
-        run: dart run tool/verify_family.dart
-        working-directory: app
-      - name: Verify sensor calibration (BP/temp/RSSI)
-        run: dart run tool/verify_calibration.dart
-        working-directory: app
-      - name: Verify offline telemetry batcher
-        run: dart run tool/verify_batcher.dart
-        working-directory: app
-      - name: Verify women's-health calendar + cycle predictions
-        run: dart run tool/verify_cycle.dart
-        working-directory: app
-      - name: Verify sleep (nightly summaries + quality)
-        run: dart run tool/verify_sleep.dart
-        working-directory: app
-      - name: Verify child safety advisor (age bands + status)
-        run: dart run tool/verify_safety.dart
-        working-directory: app
-      - name: Verify geofence enter/exit alerts
-        run: dart run tool/verify_alerts.dart
-        working-directory: app
-      - name: Verify pregnancy milestones
-        run: dart run tool/verify_milestones.dart
-        working-directory: app
-      - name: Verify shareable health summary
-        run: dart run tool/verify_summary.dart
-        working-directory: app
-      - name: Verify timed kick session
-        run: dart run tool/verify_kicks.dart
-        working-directory: app
-      - name: Verify shareable cycle summary
-        run: dart run tool/verify_cycle_summary.dart
-        working-directory: app
-      - name: Verify hydration helpers
-        run: dart run tool/verify_water.dart
-        working-directory: app
-      - name: Verify appointments / reminders
-        run: dart run tool/verify_appointments.dart
-        working-directory: app
-      - name: Verify weight tracking
-        run: dart run tool/verify_weight.dart
-        working-directory: app
-      - name: Verify contraction timing
-        run: dart run tool/verify_contractions.dart
-        working-directory: app
-      - name: Verify tracker battery classification
-        run: dart run tool/verify_battery.dart
+      # verify_all discovers every runner, so adding one needs no CI change.
+      - name: Verify all pure-Dart domain logic
+        run: dart run tool/verify_all.dart
         working-directory: app
 
   flutter-tests:
