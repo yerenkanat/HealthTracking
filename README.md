@@ -173,7 +173,12 @@ flutter test                          # 251 widget/unit tests
 flutter analyze                       # clean
 
 # Node backend (needs npm install):
-cd .. && npm test                     # vitest: triage + geofence + cross-language contract
+cd .. && npm run typecheck            # tsc, both workspaces
+cd .. && npm test                     # vitest: triage + geofence + guardrail + contract
+
+# On-device (needs an emulator/device; grant notifications first):
+#   adb shell pm grant com.fcs.fcs_app android.permission.POST_NOTIFICATIONS
+flutter test integration_test/          # reminder scheduling + delivery
 
 # End-to-end wiring (needs Docker): see infra/README.md
 docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke.mjs
@@ -184,7 +189,10 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 |-------|--------|
 | Dart pure logic (35 `verify_*` runners) | **966 assertions ✅** |
 | Flutter widget + unit tests | **251 ✅** |
-| `flutter analyze` | clean ✅ |
+| `flutter analyze lib test` | clean ✅ |
+| Flutter on-device (`integration_test/`, emulator) | **6 ✅** |
+| Node backend (`npm test`) | **104 ✅** |
+| Node `npm run typecheck` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 
 CI (`.github/workflows/ci.yml`) runs every `verify_*` runner, `flutter analyze`,
