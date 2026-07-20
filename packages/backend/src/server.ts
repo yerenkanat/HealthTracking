@@ -11,7 +11,7 @@
  * Specialists: Backend Engineer + DevOps + Cybersecurity (validation at the edge).
  */
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { checkGeofenceBoundary } from './geofence/geofence';
 import { handleIngestBatch, type IngestDeps } from './routes/ingestHandler';
@@ -89,20 +89,44 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // Admin / back-office routes (require an authAdmin resolver).
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
 
+  /// Identity comes from authentication, never from the payload.
+  /// Returns the caller, or null after already sending 401.
+  async function requireCaller(req: FastifyRequest, reply: FastifyReply) {
+    const user = deps.authUser ? await deps.authUser(req) : null;
+    if (!user) {
+      reply.code(401).send({ error: 'unauthorized' });
+      return null;
+    }
+    return user;
+  }
+
   app.post('/ingest/batch', async (req, reply) => {
+    // Unauthenticated ingest let anyone fabricate a child's position — forging
+    // a "left school" alert or masking a real departure — and inject vitals
+    // that trigger a false emergency for the mother.
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
     const parsed = batchSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const summary = await handleIngestBatch(parsed.data.items, {
       repo: deps.repo,
       checkInside: (coords, fence) => checkGeofenceBoundary(coords, fence).inside,
+      callerUserId: caller.userId,
       ...deps.ingest,
     });
     return reply.send(summary);
   });
 
   app.post('/ai/chat', async (req, reply) => {
+    // The userId came from the BODY, unauthenticated: any caller could ask as
+    // somebody else and receive that person's emergency contacts in the reply.
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
     const parsed = chatSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    if (parsed.data.userId !== caller.userId) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
     const { userId, locale, message, latestTelemetry } = parsed.data;
     const [ragPassages, emergencyContacts] = await Promise.all([
       deps.repo.retrieveRagPassages(message, locale),
@@ -124,8 +148,16 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   });
 
   app.post('/calibration/bp', async (req, reply) => {
+    // Calibration offsets shift every later blood-pressure reading, and those
+    // readings feed preeclampsia triage. Writing them for an arbitrary userId
+    // could suppress a real emergency or manufacture a false one.
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
     const parsed = bpCalSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    if (parsed.data.userId !== caller.userId) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
     const d = parsed.data;
     const offsets = computeBpOffsets(d.cuffSystolic, d.cuffDiastolic, d.ppgSystolic, d.ppgDiastolic);
     await deps.repo.insertBpCalibration(d.userId, {

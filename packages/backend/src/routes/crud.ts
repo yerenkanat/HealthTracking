@@ -269,11 +269,23 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
 
   // ---- Reassign a device (e.g. move a tracker tag to another child) ----
   app.patch('/devices/:id', async (req, reply) => {
-    const u = await requireUser(req, reply);
+    // BOTH ends need checking. Owning the device isn't enough — attaching it to
+    // another family's child would wire a stranger's tracker to them — and
+    // owning the child isn't enough either, since that would let anyone
+    // commandeer someone else's tracker.
+    const { id } = req.params as { id: string };
+    const u = await requireOwned(req, reply, id, repo.deviceOwner);
     if (!u) return;
     const parsed = reassignBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    await repo.reassignDevice((req.params as { id: string }).id, parsed.data.childId);
+    const targetChild = parsed.data.childId;
+    if (targetChild) {
+      const childOwner = await repo.childOwner(targetChild);
+      if (!childOwner || childOwner.userId !== u.userId) {
+        return reply.code(403).send({ error: 'forbidden' });
+      }
+    }
+    await repo.reassignDevice(id, targetChild);
     return reply.send({ ok: true });
   });
 }

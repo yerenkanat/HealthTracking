@@ -383,7 +383,10 @@ describe('profile + device reassignment routes (in-process)', () => {
     const find = async () => (await get('/devices')).json().devices.find((x: { id: string }) => x.id === 'TAG-1');
     expect((await find()).childId).toBe(CHILD);
 
-    const other = '55555555-5555-5555-5555-555555555555';
+    // Reassign to a second child the SAME user owns. Reassignment now checks
+    // both ends, so an arbitrary child id is correctly refused (see
+    // authorization.test.ts) — this test needs a real sibling.
+    const other = (await post('/children', { name: 'Aida' })).json().id as string;
     expect((await app.inject({ method: 'PATCH', url: '/devices/TAG-1', payload: { childId: other } })).statusCode).toBe(200);
     expect((await find()).childId).toBe(other);
 

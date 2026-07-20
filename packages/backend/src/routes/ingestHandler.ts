@@ -24,6 +24,16 @@ export interface IngestDeps {
   checkInside: (coords: ChildLocationFix['coords'], fence: import('@fcs/shared').Geofence) => boolean;
   sendEmergencyPush: (userId: string, triage: ReturnType<typeof assessTelemetry>) => Promise<void>;
   sendGeofencePush: (evt: GeofenceEvent) => Promise<void>;
+
+  /// The authenticated caller. Every item is attributed to whoever owns the
+  /// device or child it names, so without this a caller could submit data for
+  /// somebody else's family — fabricating a child's location or injecting
+  /// vitals that raise a false emergency. Items the caller doesn't own are
+  /// counted as rejected rather than stored.
+  ///
+  /// Optional so existing internal callers keep working; when it is absent no
+  /// ownership filtering happens, so the HTTP route always passes it.
+  callerUserId?: string;
 }
 
 export interface IngestSummary {
@@ -73,6 +83,11 @@ async function ingestTelemetry(
     summary.rejected++;
     return;
   }
+  // Readings for someone else's band are not this caller's to submit.
+  if (deps.callerUserId && owner.userId !== deps.callerUserId) {
+    summary.rejected++;
+    return;
+  }
   // Server-side triage backstop (the device already triaged, but never trust the client).
   const triage = assessTelemetry(t);
   await deps.repo.insertHealthMetric({ ...t, userId: owner.userId, triageSeverity: triage.severity });
@@ -89,6 +104,15 @@ async function ingestLocation(
   deps: IngestDeps,
   summary: IngestSummary,
 ): Promise<void> {
+  // A position for someone else's child must never be recorded: it would move
+  // that child on their parent's map and fire geofence alerts from it.
+  if (deps.callerUserId) {
+    const owner = await deps.repo.childOwner(fix.childId);
+    if (!owner || owner.userId !== deps.callerUserId) {
+      summary.rejected++;
+      return;
+    }
+  }
   await Promise.all([deps.cacheLocation(fix), deps.repo.insertLocation(fix)]);
   summary.locationCount++;
 

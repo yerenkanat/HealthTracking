@@ -36,7 +36,7 @@ const HOME: Geofence = {
 
 function makeApp(callerId: string) {
   const children = new Map<string, string>([[ALICE_CHILD, ALICE]]);
-  const devices = new Map<string, string>([[ALICE_DEVICE, ALICE]]);
+  const devices = new Map<string, string>([[ALICE_DEVICE, ALICE], ['mallory-device', MALLORY]]);
   const deleted: string[] = [];
 
   const repo = {
@@ -150,6 +150,26 @@ describe("a signed-in user cannot reach another family's child", () => {
   it('cannot read where the child is right now', async () => {
     expect((await get(`/children/${ALICE_CHILD}/location`)).statusCode).toBe(403);
   });
+
+  it("cannot move somebody else's tracker", async () => {
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/devices/${ALICE_DEVICE}`,
+      payload: { childId: ALICE_CHILD },
+    });
+    expect(r.statusCode).toBe(403);
+  });
+
+  it("cannot attach their own tracker to somebody else's child", async () => {
+    // The other direction: owning the DEVICE is not enough if the target child
+    // belongs to another family — it would wire a stranger's tracker to them.
+    const r = await app.inject({
+      method: 'PATCH',
+      url: '/devices/mallory-device',
+      payload: { childId: ALICE_CHILD },
+    });
+    expect(r.statusCode).toBe(403);
+  });
 });
 
 describe('the location endpoint requires authentication at all', () => {
@@ -162,6 +182,77 @@ describe('the location endpoint requires authentication at all', () => {
     // The single most sensitive endpoint in the product: it answers "where is
     // this child". It must never be readable by an unauthenticated caller.
     expect((await get(`/children/${ALICE_CHILD}/location`)).statusCode).toBe(401);
+  });
+});
+
+describe('write endpoints do not take identity from the request body', () => {
+  // These three took a userId (or a device id) straight from the payload with
+  // no authentication at all, so any caller could act AS another user.
+  beforeEach(async () => {
+    app = makeApp('').server; // nobody signed in
+    await app.ready();
+  });
+
+  it('refuses anonymous telemetry and location ingest', async () => {
+    // Unauthenticated ingest lets anyone fabricate a child's position — forging
+    // "left school" alerts, or masking a real departure — and inject vitals that
+    // trigger a false emergency for the mother.
+    const r = await post('/ingest/batch', {
+      items: [{
+        type: 'location',
+        payload: { childId: ALICE_CHILD, coords: { lat: 43.3, lng: 76.9 }, source: 'gps', observedAt: '2026-07-20T08:00:00Z' },
+      }],
+    });
+    expect(r.statusCode).toBe(401);
+  });
+
+  it('refuses an anonymous chat request', async () => {
+    // The body carried the userId, and the handler looked up that user's
+    // emergency contacts and returned them in the response.
+    const r = await post('/ai/chat', { userId: ALICE, locale: 'ru', message: 'привет' });
+    expect(r.statusCode).toBe(401);
+  });
+
+  it('refuses an anonymous blood-pressure calibration write', async () => {
+    // Calibration offsets shift every later BP reading, and those readings feed
+    // preeclampsia triage — corrupting them can suppress or fabricate an alert.
+    const r = await post('/calibration/bp', {
+      userId: ALICE, cuffSystolic: 180, cuffDiastolic: 120,
+      ppgSystolic: 110, ppgDiastolic: 70, measuredAt: '2026-07-20T08:00:00Z',
+    });
+    expect(r.statusCode).toBe(401);
+  });
+});
+
+describe('a signed-in user cannot act as somebody else', () => {
+  beforeEach(async () => {
+    app = makeApp(MALLORY).server;
+    await app.ready();
+  });
+
+  it('cannot request chat as another user', async () => {
+    const r = await post('/ai/chat', { userId: ALICE, locale: 'ru', message: 'привет' });
+    expect(r.statusCode).toBe(403);
+  });
+
+  it('cannot write calibration for another user', async () => {
+    const r = await post('/calibration/bp', {
+      userId: ALICE, cuffSystolic: 180, cuffDiastolic: 120,
+      ppgSystolic: 110, ppgDiastolic: 70, measuredAt: '2026-07-20T08:00:00Z',
+    });
+    expect(r.statusCode).toBe(403);
+  });
+
+  it("cannot ingest location for another family's child", async () => {
+    const r = await post('/ingest/batch', {
+      items: [{
+        type: 'location',
+        payload: { childId: ALICE_CHILD, coords: { lat: 43.3, lng: 76.9 }, source: 'gps', observedAt: '2026-07-20T08:00:00Z' },
+      }],
+    });
+    // Accepted-but-ignored is fine; silently RECORDING it is not.
+    const body = r.statusCode === 200 ? (r.json() as { locationCount: number; rejected: number }) : null;
+    expect(body === null || body.locationCount === 0).toBe(true);
   });
 });
 
