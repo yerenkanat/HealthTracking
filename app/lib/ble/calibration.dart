@@ -134,9 +134,29 @@ BpOffsets computeBpOffsets(
 
 int _clamp(int v, int lo, int hi) => math.min(hi, math.max(lo, v));
 
+/// Returned instead of a distance when RSSI cannot yield one.
+///
+/// Negative on purpose so it can never be mistaken for a near reading — but a
+/// caller comparing `d < threshold` would still read it as "very close", so
+/// check [isValidDistance] before treating a value as a distance.
+const invalidDistanceM = -1.0;
+
+bool isValidDistance(double distanceM) => distanceM >= 0;
+
+/// The furthest a BLE advert is worth believing. Beyond roughly this, the
+/// path-loss model is extrapolating from noise.
+const maxUsefulDistanceM = 100.0;
+
 /// Log-distance path-loss model: RSSI → distance (m). txPower = RSSI @ 1m.
+///
+/// txPower arrives from the advertisement, so a broken or hostile beacon
+/// controls it. At the extremes of a signed byte the model yields distances in
+/// the millions of metres or in microns; both are clamped, because a wrong
+/// number that looks plausible is worse than an obviously capped one.
 double rssiToDistanceM(int rssi, {int txPower = -59, double n = 2.5}) {
-  if (rssi == 0) return -1;
+  if (rssi == 0) return invalidDistanceM;
   final ratio = (txPower - rssi) / (10 * n);
-  return double.parse(math.pow(10, ratio).toStringAsFixed(2));
+  final metres = math.pow(10, ratio).toDouble();
+  if (!metres.isFinite) return invalidDistanceM;
+  return double.parse(math.min(maxUsefulDistanceM, metres).toStringAsFixed(2));
 }

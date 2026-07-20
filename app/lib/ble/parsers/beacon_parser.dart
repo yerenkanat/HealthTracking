@@ -66,15 +66,19 @@ class DistanceSmoother {
   final List<double> _samples = [];
   DistanceSmoother([this.window = 5]);
 
+  /// Feed a sample and get the smoothed distance, or [invalidDistanceM] while
+  /// nothing usable has arrived yet. An invalid sample is dropped rather than
+  /// smoothed in — averaging a sentinel would drag the estimate toward zero,
+  /// which reads as "closer", the wrong direction to be wrong in.
   double push(double distanceM) {
-    if (distanceM < 0) return _median();
+    if (!isValidDistance(distanceM)) return _median();
     _samples.add(distanceM);
     if (_samples.length > window) _samples.removeAt(0);
     return _median();
   }
 
   double _median() {
-    if (_samples.isEmpty) return -1;
+    if (_samples.isEmpty) return invalidDistanceM;
     final s = [..._samples]..sort();
     final mid = s.length ~/ 2;
     return s.length.isOdd ? s[mid] : (s[mid - 1] + s[mid]) / 2;

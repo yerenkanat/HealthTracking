@@ -4,6 +4,7 @@ library;
 
 import 'dart:io';
 import '../lib/ble/calibration.dart';
+import '../lib/ble/parsers/beacon_parser.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -94,7 +95,37 @@ void main() {
   // ---- RSSI → distance ----
   _chk('rssi == txPower → ~1m', (rssiToDistanceM(-59, txPower: -59) - 1.0).abs() < 0.01);
   _chk('weaker rssi → farther', rssiToDistanceM(-79, txPower: -59) > rssiToDistanceM(-69, txPower: -59));
-  _chk('rssi 0 → invalid', rssiToDistanceM(0) == -1);
+  _chk('rssi 0 → invalid', !isValidDistance(rssiToDistanceM(0)));
+
+  // txPower comes off the advertisement, so a broken or hostile beacon picks
+  // it. At the extremes of a signed byte the raw model returns distances in the
+  // millions of metres; a capped number is safer than a plausible wrong one.
+  _chk('an absurd txPower cannot report a distance in the millions',
+      rssiToDistanceM(-60, txPower: 127) <= maxUsefulDistanceM);
+  _chk('a far reading is still reported as far',
+      rssiToDistanceM(-100, txPower: -59) > 10);
+  _chk('every txPower byte yields a usable number', () {
+    for (var tx = -128; tx <= 127; tx++) {
+      for (final rssi in [-100, -80, -59, -30, -1]) {
+        final d = rssiToDistanceM(rssi, txPower: tx);
+        if (!d.isFinite || d > maxUsefulDistanceM) return false;
+        if (d < 0 && d != invalidDistanceM) return false;
+      }
+    }
+    return true;
+  }());
+
+  // The invalid sentinel must never be mistaken for a near reading.
+  final smoother = DistanceSmoother(5);
+  _chk('a smoother with nothing in it reports invalid, not zero',
+      !isValidDistance(smoother.push(invalidDistanceM)));
+  smoother.push(4.0);
+  smoother.push(6.0);
+  _chk('an invalid sample does not drag the estimate toward zero', () {
+    final before = smoother.push(5.0);
+    final after = smoother.push(invalidDistanceM);
+    return after == before && after >= 4.0;
+  }());
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
