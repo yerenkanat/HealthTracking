@@ -633,6 +633,25 @@
       </div>
       <div class="row"><span class="lang">url</span>
         <input class="grow" data-f="url" value="${esc(item.url || "")}" placeholder="https://… (пусто → в приложении «Скоро»)" aria-label="url"></div>
+      ${item.kind === "lesson" ? `
+      <div class="row"><span class="lang">видео</span>
+        <select data-f="video.provider" aria-label="где лежит видео"
+                style="background:var(--surface-2);color:var(--ink);border:1px solid var(--hair);border-radius:8px;padding:7px">
+          <option value=""${!item.video ? " selected" : ""}>— нет —</option>
+          <option value="hls"${item.video?.provider === "hls" ? " selected" : ""}>HLS (в приложении)</option>
+          <option value="mp4"${item.video?.provider === "mp4" ? " selected" : ""}>MP4 (в приложении)</option>
+          <option value="youtube"${item.video?.provider === "youtube" ? " selected" : ""}>YouTube (откроется отдельно)</option>
+        </select>
+        <input class="grow" data-f="video.url" value="${esc(item.video?.url || "")}"
+               placeholder="ссылка на .m3u8 / .mp4 / YouTube" aria-label="ссылка на видео">
+      </div>
+      ${item.video?.provider === "youtube" ? `
+      <div class="row sub" style="padding-left:52px">
+        YouTube откроется в отдельном приложении с их плеером и логотипом — так требуют
+        их правила. Чтобы урок играл внутри Umay под нашим брендом, залейте видео на
+        хостинг с белой меткой (Bunny Stream, Cloudflare Stream, Mux, Vimeo Business)
+        и укажите HLS-ссылку.
+      </div>` : ""}` : ""}
       ${LOCALES.map((L) => `
         <div class="row">
           <span class="lang">${L}</span>
@@ -691,7 +710,9 @@
     document.querySelectorAll("#stageItems .item").forEach((el) => {
       const item = draft[Number(el.dataset.idx)];
       if (!item) return;
-      el.querySelectorAll("input[data-f]").forEach((inp) => {
+      // input AND select: the video provider is a dropdown, and a selector that
+      // only saw inputs would drop it silently on every publish.
+      el.querySelectorAll("input[data-f], select[data-f]").forEach((inp) => {
         const f = inp.dataset.f;
         const v = inp.value.trim();
         if (f.startsWith("title.") || f.startsWith("summary.")) {
@@ -700,6 +721,15 @@
           if (v) item[group][loc] = v; else delete item[group][loc];
         } else if (f === "priceMinor" || f === "durationMin" || f === "minAgeYears" || f === "maxAgeYears") {
           if (v) item[f] = Number(v); else delete item[f];
+        } else if (f.startsWith("video.")) {
+          // Both halves live in one object, and an incomplete pair is worse
+          // than none: a provider with no url would publish a lesson whose
+          // player has nothing to play.
+          const key = f.split(".")[1];
+          const draftVideo = { ...(item.video || {}) };
+          if (v) draftVideo[key] = v; else delete draftVideo[key];
+          if (draftVideo.provider && draftVideo.url) item.video = draftVideo;
+          else delete item.video;
         } else if (f === "cities") {
           // Blank means "everyone" — the field must disappear entirely rather
           // than become an empty list, which the app would read as a filter.

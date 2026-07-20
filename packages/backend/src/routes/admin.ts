@@ -63,6 +63,18 @@ const contentItem = z.object({
   // Targeting. Absent means "everyone", which is what almost every item should
   // be — these narrow an item to where it can actually be delivered or to
   // material that is genuinely age-specific.
+  // Where the lesson's video lives. 'hls'/'mp4' play in the app's own player;
+  // 'youtube' opens externally, because YouTube's terms require their player
+  // with their branding and forbid extracting the stream. Keeping the provider
+  // explicit means moving to a white-label host later is a re-import, not a
+  // code change.
+  video: z
+    .object({
+      provider: z.enum(['hls', 'mp4', 'youtube']),
+      url: z.string().min(1).max(500),
+      posterUrl: z.string().max(500).optional(),
+    })
+    .optional(),
   cities: z.array(z.string().min(1).max(60)).max(30).optional(),
   minAgeYears: z.number().int().min(10).max(80).optional(),
   maxAgeYears: z.number().int().min(10).max(80).optional(),

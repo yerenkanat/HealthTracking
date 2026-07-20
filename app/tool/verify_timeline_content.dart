@@ -268,6 +268,59 @@ void main() {
   _chk('blank city entries are dropped',
       ContentItem.fromJson({'id': 'j', 'kind': 'lesson', 'cities': ['  ', '']}).isForEveryone);
 
+  // ---- Where a lesson's video comes from ----
+  // The lessons should feel like this app's, not like a third party's, so a
+  // white-labelled host plays inline. YouTube deliberately does not: its terms
+  // require its own player with its branding, and the penalty for hiding that
+  // lands on the whole channel at once.
+  ContentItem lessonWith(Object? video, {String url = ''}) => ContentItem.fromJson({
+        'id': 'v', 'kind': 'lesson',
+        'title': {'ru': 'Урок'}, 'summary': {'ru': 'О'},
+        if (url.isNotEmpty) 'url': url,
+        if (video != null) 'video': video,
+      });
+
+  _chk('an HLS lesson plays in our own player',
+      lessonWith({'provider': 'hls', 'url': 'https://cdn.example/v.m3u8'}).playsInApp);
+  _chk('an MP4 lesson plays in our own player',
+      lessonWith({'provider': 'mp4', 'url': 'https://cdn.example/v.mp4'}).playsInApp);
+  _chk('a YouTube lesson does NOT play inline',
+      !lessonWith({'provider': 'youtube', 'url': 'https://youtu.be/abc'}).playsInApp);
+
+  // A catalogue authored before the field existed still works.
+  _chk('a bare .m3u8 url is recognised as inline-playable',
+      lessonWith(null, url: 'https://cdn.example/v.m3u8').playsInApp);
+  _chk('a bare youtube url falls back to opening externally',
+      !lessonWith(null, url: 'https://www.youtube.com/watch?v=abc').playsInApp);
+  _chk('a youtu.be short link is recognised too',
+      VideoSource.guessProvider('https://youtu.be/abc') == VideoProvider.youtube);
+
+  // The direction to be wrong in: an unidentifiable URL must not be streamed
+  // into our player on the assumption that it is fine.
+  _chk('an unrecognised url is treated as external, not inline',
+      !lessonWith(null, url: 'https://example.com/watch/123').playsInApp);
+  _chk('an unknown provider name falls back rather than trusting it',
+      !lessonWith({'provider': 'vimeo-embed', 'url': 'https://example.com/x'}).playsInApp);
+
+  _chk('a lesson with no link at all has no video', lessonWith(null).video == null);
+  _chk('an empty video url yields no source',
+      lessonWith({'provider': 'hls', 'url': '   '}).video == null);
+  _chk('a product is never treated as a video', ContentItem.fromJson({
+        'id': 'p', 'kind': 'product', 'title': {'ru': 'Т'}, 'summary': {'ru': 'О'},
+        'url': 'https://shop.example/item',
+      }).video == null);
+
+  // Round-trips, so the back-office can set it and the app reads it back.
+  final withVideo = lessonWith({
+    'provider': 'hls', 'url': 'https://cdn.example/v.m3u8', 'posterUrl': 'https://cdn/p.jpg',
+  });
+  final rewired = ContentItem.fromJson(
+      jsonDecode(jsonEncode(withVideo.toJson())) as Map<String, dynamic>);
+  _chk('a video source round-trips through JSON',
+      rewired.video?.provider == VideoProvider.hls && rewired.playsInApp);
+  _chk('the poster survives the round trip',
+      rewired.video?.posterUrl == 'https://cdn/p.jpg');
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

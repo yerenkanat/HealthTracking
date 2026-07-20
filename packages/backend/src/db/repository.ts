@@ -54,6 +54,8 @@ export interface ContentItemRow {
   currency?: string;
   imageUrl?: string;
   durationMin?: number; // lessons
+  // Where the lesson's video lives; see the zod schema in routes/admin.ts.
+  video?: { provider: 'hls' | 'mp4' | 'youtube'; url: string; posterUrl?: string };
   // Targeting; absent means the item is for everyone, which is the usual case.
   cities?: string[];
   minAgeYears?: number;

@@ -130,6 +130,13 @@ class ContentItem {
   final int? minAgeYears;
   final int? maxAgeYears;
 
+  /// Where a lesson's video lives, when it has one.
+  ///
+  /// Separate from [url] rather than replacing it: [url] still carries a
+  /// product's shop page, and a catalogue authored before this field existed
+  /// keeps working — see [video], which falls back to it.
+  final VideoSource? videoSource;
+
   const ContentItem({
     required this.id,
     required this.kind,
@@ -143,6 +150,7 @@ class ContentItem {
     this.cities = const [],
     this.minAgeYears,
     this.maxAgeYears,
+    this.videoSource,
   });
 
   /// True when this item is offered everywhere and to every age — the common
@@ -153,6 +161,21 @@ class ContentItem {
   bool get isLesson => kind == ContentKind.lesson;
   bool get isProduct => kind == ContentKind.product;
   bool get hasLink => url.trim().isNotEmpty;
+
+  /// The video to play for a lesson, or null.
+  ///
+  /// Falls back to [url] so a catalogue authored before `video` existed still
+  /// plays — the provider is inferred from the URL, and anything unrecognised
+  /// is treated as external rather than streamed into our own player.
+  VideoSource? get video {
+    if (videoSource != null && !videoSource!.isEmpty) return videoSource;
+    if (!isLesson || url.trim().isEmpty) return null;
+    return VideoSource(provider: VideoSource.guessProvider(url), url: url.trim());
+  }
+
+  /// Whether tapping this lesson opens our own player rather than leaving the
+  /// app. False for products, for unlinked items, and for YouTube.
+  bool get playsInApp => video?.playsInline ?? false;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -167,6 +190,7 @@ class ContentItem {
         if (cities.isNotEmpty) 'cities': cities,
         if (minAgeYears != null) 'minAgeYears': minAgeYears,
         if (maxAgeYears != null) 'maxAgeYears': maxAgeYears,
+        if (videoSource != null) 'video': videoSource!.toJson(),
       };
 
   factory ContentItem.fromJson(Map<String, dynamic> j) => ContentItem(
@@ -185,6 +209,7 @@ class ContentItem {
         ],
         minAgeYears: (j['minAgeYears'] as num?)?.toInt(),
         maxAgeYears: (j['maxAgeYears'] as num?)?.toInt(),
+        videoSource: VideoSource.fromJson(j['video']),
       );
 }
 
@@ -426,3 +451,100 @@ bool suitsViewer(ContentItem item, ContentViewer viewer) {
 /// profile can only cost someone the extras — never the baseline shelf.
 List<ContentItem> itemsForViewer(List<ContentItem> all, ContentViewer viewer) =>
     [for (final i in all) if (suitsViewer(i, viewer)) i];
+
+/// Where a lesson's video actually lives.
+///
+/// WHY THIS IS NOT JUST A URL
+///
+/// The lessons are meant to feel like Umay's, not like someone else's platform
+/// — a player we control, with our branding and no third party's. That is a
+/// hosting decision, and it should not be a code decision: the catalogue is
+/// authored as data and imported in bulk, so moving from one host to another
+/// has to be a re-import, not a rewrite.
+///
+/// A NOTE ON YOUTUBE, recorded so nobody has to rediscover it. Unlisted YouTube
+/// links are a reasonable way to author content early, but YouTube's terms
+/// require playback through their player with its branding intact, and forbid
+/// extracting the underlying stream. Hiding the logo or feeding the stream to
+/// our own player is not a grey area, and the penalty lands on the whole
+/// channel at once — every lesson, mid-course, for every user.
+///
+/// So [VideoProvider.youtube] is deliberately NOT playable in-app: it opens
+/// externally, which is compliant. Direct HLS or MP4 from a host that sells
+/// white-labelling (Bunny Stream, Cloudflare Stream, Mux, Vimeo Business) plays
+/// inline in our own player. Both are expressible here, so the catalogue can be
+/// authored today and moved later without touching this file.
+enum VideoProvider {
+  /// HLS manifest (.m3u8) — what every white-label host serves.
+  hls,
+
+  /// A plain progressive file. Simple, and fine for short lessons.
+  mp4,
+
+  /// Opens in the YouTube app or browser. Never played inline: see above.
+  youtube,
+}
+
+class VideoSource {
+  final VideoProvider provider;
+
+  /// The manifest/file URL, or the YouTube watch URL.
+  final String url;
+
+  /// Optional still shown before playback starts.
+  final String posterUrl;
+
+  const VideoSource({
+    required this.provider,
+    required this.url,
+    this.posterUrl = '',
+  });
+
+  /// Whether this can play inside our own player.
+  ///
+  /// The single place that decision is made, so a new provider cannot
+  /// accidentally become inline-playable by being added to the enum.
+  bool get playsInline =>
+      (provider == VideoProvider.hls || provider == VideoProvider.mp4) && url.trim().isNotEmpty;
+
+  bool get isEmpty => url.trim().isEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'provider': provider.name,
+        'url': url,
+        if (posterUrl.isNotEmpty) 'posterUrl': posterUrl,
+      };
+
+  /// Parse a source, tolerating the shapes a catalogue actually arrives in.
+  ///
+  /// Returns null for anything unusable rather than a half-built source, so a
+  /// lesson with a broken entry shows as "coming soon" instead of a dead
+  /// player. An unrecognised provider falls back to [VideoProvider.youtube] —
+  /// the one that opens externally — because guessing that an unknown URL is
+  /// safe to stream inline is the wrong way to be wrong.
+  static VideoSource? fromJson(Object? j) {
+    if (j is String) return j.trim().isEmpty ? null : VideoSource(provider: guessProvider(j), url: j.trim());
+    if (j is! Map) return null;
+    final url = '${j['url'] ?? ''}'.trim();
+    if (url.isEmpty) return null;
+    final raw = '${j['provider'] ?? ''}'.toLowerCase();
+    final provider = VideoProvider.values.where((p) => p.name == raw).firstOrNull ?? guessProvider(url);
+    return VideoSource(
+      provider: provider,
+      url: url,
+      posterUrl: '${j['posterUrl'] ?? ''}'.trim(),
+    );
+  }
+
+  /// Infer a provider from a bare URL, for a catalogue authored before the
+  /// field existed.
+  static VideoProvider guessProvider(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('youtube.com') || u.contains('youtu.be')) return VideoProvider.youtube;
+    if (u.contains('.m3u8')) return VideoProvider.hls;
+    if (u.endsWith('.mp4') || u.contains('.mp4?')) return VideoProvider.mp4;
+    // Unknown: treat as external. Streaming something we cannot identify into
+    // our own player is the riskier assumption.
+    return VideoProvider.youtube;
+  }
+}
