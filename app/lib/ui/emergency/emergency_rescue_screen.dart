@@ -92,6 +92,21 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // The message scrolls; the call button never does.
+                //
+                // This was a plain Column with a Spacer, which cannot shrink —
+                // so on a 360x640 phone the Russian copy overflowed by 14px
+                // before this screen carried the reading, and by 82 with it.
+                // Nothing in the test suite rendered this screen, so it went
+                // unseen on the one screen where losing a line is worst.
+                //
+                // Expanded + a scroll view keeps the button pinned in thumb
+                // reach while letting long triage copy run as far as it needs.
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                 Row(
                   children: [
                     const Icon(Icons.warning_amber_rounded, color: _emergency, size: 34),
@@ -125,7 +140,11 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                           style: TextStyle(color: _onSurface.withValues(alpha: 0.8), fontSize: 16)),
                     ),
                 ],
-                const Spacer(),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 // PRIMARY action — the one thing a frightened user should reach for.
                 if (primary != null)
                   Semantics(

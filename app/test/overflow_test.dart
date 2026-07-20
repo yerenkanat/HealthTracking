@@ -29,7 +29,14 @@ import 'package:fcs_app/ui/dashboard/sleep_detail_screen.dart';
 import 'package:fcs_app/ui/dashboard/water_card.dart';
 import 'package:fcs_app/ui/settings/journey_screen.dart';
 import 'package:fcs_app/ui/settings/reminders_center_screen.dart';
+import 'package:fcs_app/domain/family.dart';
+import 'package:fcs_app/domain/timeline_content.dart';
+import 'package:fcs_app/ui/content/timeline_content_screen.dart';
+import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
+import 'package:fcs_app/ui/profile/profile_screen.dart';
+import 'package:fcs_app/ui/settings/settings_screen.dart';
 import 'package:fcs_app/ui/tracking/alerts_screen.dart';
+import 'package:fcs_app/ui/tracking/zones_screen.dart';
 
 /// A small-but-real phone: 360x640 dp.
 const _smallPhone = Size(360, 640);
@@ -220,6 +227,86 @@ void main() {
       addTearDown(c.dispose);
       return JourneyScreen(controller: c);
     });
+  });
+
+  // ---- Screens that had no coverage at all ----
+  // Twenty of the app's screens were never rendered by this suite. These are
+  // the ones where a clipped line does the most damage.
+
+  testWidgets('the emergency screen fits every locale', (tester) async {
+    // The screen that matters most, and the one most likely to hold long text:
+    // Russian triage copy runs half again as long as the English it was written
+    // against, and it now carries the triggering reading underneath.
+    await checkAllLocales(
+      tester,
+      'EmergencyRescueScreen',
+      () => EmergencyRescueScreen(
+        message: 'Обнаружено высокое давление — признак преэклампсии. '
+            'Немедленно свяжитесь с врачом.',
+        details: const ['Ваше давление: 152/96 мм рт. ст.'],
+        callButtons: const [
+          EmergencyCallButton('Вызвать скорую', '103'),
+          EmergencyCallButton('Позвонить врачу', '+77011234567'),
+        ],
+        onCall: (_) async {},
+        onDismissConfirmed: () async {},
+      ),
+    );
+  });
+
+  testWidgets('the settings screen fits every locale', (tester) async {
+    // Holds the longest body copy in the app — the export warning naming
+    // everything inside the backup file.
+    await checkAllLocales(tester, 'SettingsScreen', () {
+      final c = AppController(now: () => today);
+      addTearDown(c.dispose);
+      return SettingsScreen(controller: c);
+    }, scroll: true);
+  });
+
+  testWidgets('the profile screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'ProfileScreen', () {
+      final c = AppController(now: () => today);
+      c.updateProfile(const UserProfile(
+        displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233'));
+      addTearDown(c.dispose);
+      return ProfileScreen(controller: c);
+    }, scroll: true);
+  });
+
+  testWidgets('the timeline content screen fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'TimelineContentScreen',
+      () => TimelineContentScreen(
+        stage: TimelineStage.pregnancyWeek(20),
+        items: const [
+          ContentItem(
+            id: 'l1', kind: ContentKind.lesson,
+            title: LocalizedText({'ru': 'Двадцатая неделя беременности: что происходит'}),
+            summary: LocalizedText({'ru': 'Подробный разбор изменений и что важно проверить.'}),
+            durationMin: 12,
+          ),
+          ContentItem(
+            id: 'p1', kind: ContentKind.product,
+            title: LocalizedText({'ru': 'Компрессионные чулки для беременных'}),
+            summary: LocalizedText({'ru': 'Помогают при отёках и тяжести в ногах.'}),
+            priceMinor: 1290000, currency: 'KZT',
+          ),
+        ],
+        onOpen: (_) {},
+      ),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the zones screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'ZonesScreen', () {
+      final c = AppController(now: () => today);
+      c.configureChild(name: 'Sultan', fences: const []);
+      addTearDown(c.dispose);
+      return ZonesScreen(controller: c, childId: c.selectedChild!.id);
+    }, scroll: true);
   });
 }
 
