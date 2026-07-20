@@ -5,11 +5,35 @@ library;
 import 'dart:math' as math;
 
 /// Skin (wrist) temperature → estimated core temperature.
-/// T_core = T_skin + Δt, Δt ≈ 3.0°C, tapered near/above core to avoid a fake fever.
+///
+/// The body holds core temperature nearly constant while letting skin swing
+/// widely — a wrist sits several degrees below core in a cool room and climbs
+/// close to it under a duvet, all at an unchanged core. So this maps a wide
+/// skin range onto a narrow core range, anchored at a resting wrist of 33°C
+/// reading as 36.8°C core.
+///
+/// The previous form added a flat +3.0°C with a taper that, on the numbers,
+/// never engaged below a 37°C wrist: a 35.5°C wrist — ordinary under bedding —
+/// came out as 38.5°C and tripped the pregnancy high-fever emergency. The
+/// direction of the fix matters more than its exact slope: a warm wrist must
+/// read as a warm wrist, not as a medical emergency.
+///
+/// This is an ESTIMATE from a consumer sensor, not a thermometer. It is fit to
+/// spot a trend, and it should not be the sole basis for an urgent claim.
 double skinToCoreTempC(double skinTempC) {
-  const baseOffset = 3.0;
-  final taper = skinTempC > 34 ? math.max(0.0, (37 - skinTempC) * 0.15 + 1) : 1.0;
-  final core = skinTempC + baseOffset * math.min(1.0, taper);
+  // A resting wrist and the core it corresponds to.
+  const skinRef = 33.0;
+  const coreRef = 36.8;
+
+  // How much of a skin swing carries through to core. Well below 1.0 because
+  // most of a skin change is the body regulating, not core actually moving.
+  // Chosen so an ordinary warm wrist — 35.5°C under bedding — stays under the
+  // 37.8°C raised-temperature warning, while a genuinely hot wrist can still
+  // reach the 38.5°C emergency. Both directions are pinned by assertions in
+  // tool/verify_calibration.dart against the thresholds in shared/triage.ts.
+  const sensitivity = 0.35;
+
+  final core = coreRef + (skinTempC - skinRef) * sensitivity;
   final clamped = math.min(42.0, math.max(34.0, core));
   return double.parse(clamped.toStringAsFixed(2));
 }
@@ -62,16 +86,51 @@ CalibratedBp applyBpCalibration(
   );
 }
 
-({double systolicOffset, double diastolicOffset}) computeBpOffsets(
+/// The widest cuff-vs-PPG disagreement that is still plausibly sensor bias.
+///
+/// Beyond this the two are not measuring the same thing — a cuff on the wrong
+/// arm, a number read off the wrong line, a digit typo. Encoding such a gap as
+/// an offset would silently distort every later reading.
+const maxSystolicOffset = 30.0;
+const maxDiastolicOffset = 20.0;
+
+/// Offsets derived from a cuff reading, or a refusal.
+///
+/// A refusal exists because the alternative is worse than useless: an offset of
+/// -60 makes a genuine 165/105 — severe hypertension, a preeclampsia sign — read
+/// as 105/85 and raise nothing. Silence there is the most dangerous outcome this
+/// code can produce, so an implausible calibration is rejected and the user is
+/// asked to measure again.
+class BpOffsets {
+  final double systolicOffset;
+  final double diastolicOffset;
+
+  /// Null when the calibration was accepted; otherwise why it was not.
+  final String? rejectedBecause;
+
+  const BpOffsets(this.systolicOffset, this.diastolicOffset, {this.rejectedBecause});
+
+  bool get accepted => rejectedBecause == null;
+}
+
+/// Derive the offsets to store from a fresh cuff reading (offset = cuff − ppg).
+///
+/// Rejects a disagreement too wide to be sensor bias rather than trusting it.
+BpOffsets computeBpOffsets(
   int cuffSystolic,
   int cuffDiastolic,
   int ppgSystolic,
   int ppgDiastolic,
-) =>
-    (
-      systolicOffset: (cuffSystolic - ppgSystolic).toDouble(),
-      diastolicOffset: (cuffDiastolic - ppgDiastolic).toDouble(),
-    );
+) {
+  final sys = (cuffSystolic - ppgSystolic).toDouble();
+  final dia = (cuffDiastolic - ppgDiastolic).toDouble();
+  if (sys.abs() > maxSystolicOffset || dia.abs() > maxDiastolicOffset) {
+    return BpOffsets(0, 0,
+        rejectedBecause: 'cuff and sensor disagree by '
+            '${sys.abs().round()}/${dia.abs().round()} mmHg, too far apart to be calibration');
+  }
+  return BpOffsets(sys, dia);
+}
 
 int _clamp(int v, int lo, int hi) => math.min(hi, math.max(lo, v));
 

@@ -261,6 +261,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cal_cuff_dia': {AppLocale.ru: 'Диастолическое (тонометр)', AppLocale.kk: 'Диастолалық (тонометр)', AppLocale.en: 'Diastolic (cuff)'},
   'cal_band_reading': {AppLocale.ru: 'Показания браслета: {sys}/{dia}', AppLocale.kk: 'Білезік көрсеткіші: {sys}/{dia}', AppLocale.en: 'Band reading: {sys}/{dia}'},
   'cal_no_band': {AppLocale.ru: 'Нет данных браслета для калибровки. Наденьте браслет и измерьте давление.', AppLocale.kk: 'Калибрлеуге білезік деректері жоқ. Білезікті тағып, қысымды өлшеңіз.', AppLocale.en: 'No band reading yet. Wear your band and measure blood pressure first.'},
+  'cal_too_far': {AppLocale.ru: 'Показания тонометра и браслета слишком расходятся — калибровка не сохранена. Проверьте цифры и измерьте ещё раз в покое.', AppLocale.kk: 'Тонометр мен білезік көрсеткіштері тым алшақ — калибрлеу сақталмады. Сандарды тексеріп, тыныш күйде қайта өлшеңіз.', AppLocale.en: 'Your cuff and band readings are too far apart — nothing was saved. Check the numbers and measure again at rest.'},
   'cal_last': {AppLocale.ru: 'Откалибровано {ago}', AppLocale.kk: '{ago} калибрленген', AppLocale.en: 'Calibrated {ago}'},
   'cal_never': {AppLocale.ru: 'Не откалибровано', AppLocale.kk: 'Калибрленбеген', AppLocale.en: 'Not calibrated'},
   'cal_stale': {AppLocale.ru: 'Рекомендуется повторная калибровка', AppLocale.kk: 'Қайта калибрлеу ұсынылады', AppLocale.en: 'Recalibration recommended'},

@@ -32,6 +32,10 @@ class _CalibrateBodyState extends State<_CalibrateBody> {
   final _sysCtl = TextEditingController();
   final _diaCtl = TextEditingController();
 
+  /// Set when the last attempt was refused as implausible. Cleared as soon as
+  /// she edits a field, so the warning never outlives the numbers it was about.
+  bool _rejected = false;
+
   @override
   void dispose() {
     _sysCtl.dispose();
@@ -100,17 +104,35 @@ class _CalibrateBodyState extends State<_CalibrateBody> {
               Expanded(child: TextField(
                 controller: _sysCtl,
                 keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() => _rejected = false),
                 decoration: InputDecoration(labelText: l.t('cal_cuff_sys')),
               )),
               const SizedBox(width: 12),
               Expanded(child: TextField(
                 controller: _diaCtl,
                 keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() => _rejected = false),
                 decoration: InputDecoration(labelText: l.t('cal_cuff_dia')),
               )),
             ]),
+            if (_rejected) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Palette.danger.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.error_outline_rounded, size: 20, color: Palette.danger),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(l.t('cal_too_far'),
+                        style: const TextStyle(color: Palette.danger, height: 1.35)),
+                  ),
+                ]),
+              ),
+            ],
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _valid(ppg) ? () => _save(ppg) : null,
@@ -129,12 +151,19 @@ class _CalibrateBodyState extends State<_CalibrateBody> {
   }
 
   void _save(({int systolic, int diastolic}) ppg) {
-    widget.controller.calibrateBp(
+    final saved = widget.controller.calibrateBp(
       cuffSystolic: int.parse(_sysCtl.text.trim()),
       cuffDiastolic: int.parse(_diaCtl.text.trim()),
       ppgSystolic: ppg.systolic,
       ppgDiastolic: ppg.diastolic,
     );
+    if (!saved) {
+      // Nothing was stored. Say so and keep the sheet open with her numbers
+      // still in it, so a mis-typed digit is one correction away — closing
+      // silently would look like it worked.
+      setState(() => _rejected = true);
+      return;
+    }
     Navigator.pop(context);
   }
 }

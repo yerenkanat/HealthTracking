@@ -72,10 +72,13 @@ const chatSchema = z.object({
 });
 const bpCalSchema = z.object({
   userId: z.string().uuid(),
-  cuffSystolic: z.number().int(),
-  cuffDiastolic: z.number().int(),
-  ppgSystolic: z.number().int(),
-  ppgDiastolic: z.number().int(),
+  // Bounded to physiologically possible readings. Unbounded integers here let a
+  // typo — or a hostile client — write an offset that silently distorts every
+  // later blood-pressure reading for this user.
+  cuffSystolic: z.number().int().min(60).max(260),
+  cuffDiastolic: z.number().int().min(30).max(200),
+  ppgSystolic: z.number().int().min(60).max(260),
+  ppgDiastolic: z.number().int().min(30).max(200),
   measuredAt: z.string(),
 });
 
@@ -159,7 +162,13 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
       return reply.code(403).send({ error: 'forbidden' });
     }
     const d = parsed.data;
-    const offsets = computeBpOffsets(d.cuffSystolic, d.cuffDiastolic, d.ppgSystolic, d.ppgDiastolic);
+    const { rejectedBecause, ...offsets } = computeBpOffsets(
+      d.cuffSystolic, d.cuffDiastolic, d.ppgSystolic, d.ppgDiastolic,
+    );
+    // Storing an implausible calibration is worse than storing none: it would
+    // shift every later reading, and a large negative offset can hide exactly
+    // the hypertension this app exists to catch.
+    if (rejectedBecause) return reply.code(422).send({ error: rejectedBecause });
     await deps.repo.insertBpCalibration(d.userId, {
       ...offsets,
       calibratedAt: d.measuredAt,

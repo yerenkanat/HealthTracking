@@ -893,7 +893,11 @@ class AppController {
   }
 
   /// Record a cuff reading against the band's PPG reading → store the offsets.
-  void calibrateBp({
+  /// Store a fresh cuff calibration. Returns false, changing nothing, when the
+  /// cuff and the sensor disagree too widely to be calibration — keeping the
+  /// previous offsets is always safer than adopting ones that would distort
+  /// every later reading.
+  bool calibrateBp({
     required int cuffSystolic,
     required int cuffDiastolic,
     required int ppgSystolic,
@@ -901,10 +905,12 @@ class AppController {
     DateTime? at,
   }) {
     final o = computeBpOffsets(cuffSystolic, cuffDiastolic, ppgSystolic, ppgDiastolic);
+    if (!o.accepted) return false;
     _bpCalibration = BpCalibration(o.systolicOffset, o.diastolicOffset, at ?? _now());
     // TODO(auth): POST to /calibration/bp once we have a signed-in userId.
     _persist();
     _notify();
+    return true;
   }
 
   /// Wipe the session and return to onboarding (Settings → "Reset").
