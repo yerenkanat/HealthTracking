@@ -21,6 +21,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
+import '../widgets/fitted_title.dart';
 import '../widgets/glass.dart';
 import 'health_summary.dart';
 import 'metric_detail_screen.dart';
@@ -119,7 +120,7 @@ class HealthDashboardView extends StatelessWidget {
         appBar: AppBar(
           leadingWidth: onOpenProfile == null ? null : 60,
           leading: onOpenProfile == null ? null : _AvatarButton(name: greetingName, photoPath: photoPath, onTap: onOpenProfile!),
-          title: Text(greetingName.isEmpty ? l.t('db_title') : l.t('db_greeting', {'name': greetingName})),
+          title: FittedTitle(greetingName.isEmpty ? l.t('db_title') : l.t('db_greeting', {'name': greetingName})),
           actions: [
             if (onLogVitals != null)
               IconButton(

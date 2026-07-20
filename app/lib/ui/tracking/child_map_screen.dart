@@ -447,14 +447,10 @@ class MinimalTrackingStatusBar extends StatelessWidget {
     if (zoneLabel == null || zoneEnteredAt == null || now == null) return null;
     final d = now!.difference(zoneEnteredAt!);
     if (d.isNegative) return null;
-    return L10nScope.of(context).t('tr_in_zone_for', {'dur': _shortDuration(d)});
-  }
-
-  String _shortDuration(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    if (h > 0) return '${h}h ${m}m';
-    return '${m}m';
+    // Use the shared localized formatter. Hand-rolling it here printed English
+    // units inside a Russian sentence — "уже 1m" instead of "уже 1 мин".
+    final l = L10nScope.of(context);
+    return l.t('tr_in_zone_for', {'dur': l.duration(d.inMinutes)});
   }
 }
 

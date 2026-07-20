@@ -29,6 +29,7 @@ import 'contraction_timer_screen.dart';
 import 'cycle_insights_screen.dart';
 import 'day_log_sheet.dart';
 import 'medications_screen.dart';
+import '../widgets/fitted_title.dart';
 import 'weight_history_screen.dart';
 import 'cycle_summary.dart';
 import 'weight_card.dart';
@@ -72,7 +73,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-              title: Text(l.t('cal_screen_title')),
+              title: FittedTitle(l.t('cal_screen_title')),
               actions: [
                 if (!cycleMode)
                   IconButton(

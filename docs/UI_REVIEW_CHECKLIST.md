@@ -63,6 +63,20 @@ the issue fixed, before saying a screen is done.
 - [ ] Every user-facing string goes through l10n (ru/kk/en) — no baked-in language.
 - [ ] `dart run tool/verify_l10n.dart` passes (all keys have all three locales).
 
+## What only LOOKING catches
+The automated checks pass on things that are still wrong, because they are
+legal layout:
+- **Ellipsis is not overflow.** No test fails when a title renders as "Ваше
+  здоров…". The dashboard and calendar titles were truncated on the first two
+  screens of the app, in its default language, with every test green.
+- **A hand-rolled formatter is not a missing translation.** verify_ui_strings
+  checks literals in the source; it cannot see `'${h}h ${m}m'` built at
+  runtime, which printed "уже 1m" inside a Russian sentence.
+
+And conversely, **the emulator is not a small phone**. The AVD here is 411dp
+wide; the five real overflow bugs only appear at 360dp. Neither the eye nor the
+test suite covers the other's blind spot — run both.
+
 ## How to run it
 1. Build & launch on the emulator; **look at every screen** (don't just trust the code).
 2. Walk this list per screen. Screenshot and compare against the spec.

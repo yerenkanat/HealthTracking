@@ -430,7 +430,10 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'db_chip_pregnancy': {AppLocale.ru: 'Беременность · {n} нед.', AppLocale.kk: 'Жүктілік · {n}-апта', AppLocale.en: 'Pregnancy · Week {n}'},
   'share_status_cycle_late': {AppLocale.ru: 'Цикл · день {day} · задержка {n} дн.', AppLocale.kk: 'Цикл · {day}-күн · кешігу {n} күн', AppLocale.en: 'Cycle · day {day} · {n} days late'},
   'metric_hr': {AppLocale.ru: 'Пульс', AppLocale.kk: 'Жүрек соғысы', AppLocale.en: 'Heart rate'},
-  'metric_spo2': {AppLocale.ru: 'Кислород в крови', AppLocale.kk: 'Қандағы оттегі', AppLocale.en: 'Blood oxygen'},
+  // Tile labels get one line in a half-width card. The fuller wordings were
+  // ellipsised on-device to "Кислород в …", which is worse than naming the
+  // metric slightly more briefly.
+  'metric_spo2': {AppLocale.ru: 'Кислород', AppLocale.kk: 'Оттегі', AppLocale.en: 'Blood oxygen'},
   'metric_systolic': {AppLocale.ru: 'Систолическое', AppLocale.kk: 'Систолалық', AppLocale.en: 'Systolic'},
   'metric_diastolic': {AppLocale.ru: 'Диастолическое', AppLocale.kk: 'Диастолалық', AppLocale.en: 'Diastolic'},
   'metric_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Температура', AppLocale.en: 'Temperature'},
