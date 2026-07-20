@@ -46,6 +46,12 @@ export function createMemoryRepository(): Repository {
     retrieveRagPassages: async () => [],
     emergencyContacts: async () => [{ label: 'Ambulance', tel: '103' }],
     deviceOwner: async (id) => (devices.some((d) => d.id === id) ? { userId: DEMO_USER } : null),
+    // The in-memory store is single-tenant, so anything that exists belongs to
+    // the demo user — but the checks still have to run, or the routes would be
+    // exercised unguarded in every test that uses this repository.
+    childOwner: async (id) => (children.some((c) => c.id === id) ? { userId: DEMO_USER } : null),
+    geofenceOwner: async (id) =>
+      [...geofences.values()].flat().some((g) => g.id === id) ? { userId: DEMO_USER } : null,
     // CRUD
     listChildren: async () => children.map((c) => ({ ...c })),
     createChild: async (_u, name) => {

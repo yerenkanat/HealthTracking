@@ -140,8 +140,22 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     return reply.send({ ok: true, ...offsets });
   });
 
+  // "Where is this child right now" — the most sensitive answer this service
+  // gives. It had NO auth check at all: anyone who knew or guessed a child id
+  // could track them. It now requires a signed-in caller who is that child's
+  // guardian. A stranger and a wrong-parent both get 403, never a hint that
+  // the id exists.
   app.get('/children/:id/location', async (req, reply) => {
     const { id } = req.params as { id: string };
+    // authUser is optional in ServerDeps. If no resolver is configured this
+    // route must fail CLOSED — an unauthenticated deployment serving child
+    // locations to anyone is the failure this check exists to prevent.
+    const user = deps.authUser ? await deps.authUser(req) : null;
+    if (!user) return reply.code(401).send({ error: 'unauthorized' });
+    const owner = await deps.repo.childOwner(id);
+    if (!owner || owner.userId !== user.userId) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
     const last = await deps.cacheLastLocation(id);
     if (!last) return reply.code(404).send({ error: 'no recent location' });
     return reply.send(last);

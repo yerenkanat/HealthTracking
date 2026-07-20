@@ -64,6 +64,13 @@ export interface Repository {
   emergencyContacts(userId: string): Promise<Array<{ label: string; tel: string }>>;
   deviceOwner(deviceId: string): Promise<{ userId: string } | null>;
 
+  // ---- Ownership lookups ----
+  // Routes that take an id from the URL must confirm the caller owns it.
+  // Being signed in is not the same as being this child's parent, and without
+  // these any account could read or delete another family's data by id.
+  childOwner(childId: string): Promise<{ userId: string } | null>;
+  geofenceOwner(geofenceId: string): Promise<{ userId: string } | null>;
+
   // ---- CRUD + history (client API) ----
   listChildren(userId: string): Promise<Array<{ id: string; name: string }>>;
   createChild(userId: string, name: string): Promise<{ id: string; name: string }>;

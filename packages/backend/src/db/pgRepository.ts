@@ -114,6 +114,16 @@ export function createPgRepository(pool: Pool): Repository {
       return rows[0] ? { userId: rows[0].user_id } : null;
     },
 
+    async childOwner(childId) {
+      const { rows } = await pool.query(`SELECT guardian_id FROM children WHERE id = $1`, [childId]);
+      return rows[0] ? { userId: rows[0].guardian_id } : null;
+    },
+
+    async geofenceOwner(geofenceId) {
+      const { rows } = await pool.query(`SELECT guardian_id FROM geofences WHERE id = $1`, [geofenceId]);
+      return rows[0] ? { userId: rows[0].guardian_id } : null;
+    },
+
     // ---- CRUD + history ----
     async listChildren(userId) {
       const { rows } = await pool.query(`SELECT id, name FROM children WHERE guardian_id = $1 ORDER BY created_at`, [userId]);

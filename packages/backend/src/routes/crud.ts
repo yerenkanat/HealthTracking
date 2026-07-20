@@ -78,6 +78,30 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     return u;
   }
 
+  /// Authentication is not authorization. Any route that takes an id from the
+  /// URL must also confirm the caller OWNS that id — otherwise one signed-in
+  /// account can read or delete another family's child, tracker or safe zone
+  /// just by supplying their identifier.
+  ///
+  /// A missing record answers 403 rather than 404 on purpose: replying "not
+  /// found" for ids that don't exist and "forbidden" for ids that do would let
+  /// anyone enumerate which children are registered.
+  async function requireOwned(
+    req: FastifyRequest,
+    reply: import('fastify').FastifyReply,
+    id: string,
+    lookup: (id: string) => Promise<{ userId: string } | null>,
+  ) {
+    const u = await requireUser(req, reply);
+    if (!u) return null;
+    const owner = await lookup(id);
+    if (!owner || owner.userId !== u.userId) {
+      reply.code(403).send({ error: 'forbidden' });
+      return null;
+    }
+    return u;
+  }
+
   // ---- Children ----
   app.get('/children', async (req, reply) => {
     const u = await requireUser(req, reply);
@@ -94,9 +118,9 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
   });
 
   app.delete('/children/:id', async (req, reply) => {
-    const u = await requireUser(req, reply);
-    if (!u) return;
-    await repo.deleteChild((req.params as { id: string }).id);
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    await repo.deleteChild(id);
     return reply.code(204).send();
   });
 
@@ -117,32 +141,32 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
   });
 
   app.delete('/devices/:id', async (req, reply) => {
-    const u = await requireUser(req, reply);
-    if (!u) return;
-    await repo.deleteDevice((req.params as { id: string }).id);
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.deviceOwner))) return;
+    await repo.deleteDevice(id);
     return reply.code(204).send();
   });
 
   // ---- Geofences (per child) ----
   app.get('/children/:id/geofences', async (req, reply) => {
-    const u = await requireUser(req, reply);
-    if (!u) return;
-    return reply.send({ geofences: await repo.loadGeofences((req.params as { id: string }).id) });
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    return reply.send({ geofences: await repo.loadGeofences(id) });
   });
 
   app.post('/children/:id/geofences', async (req, reply) => {
-    const u = await requireUser(req, reply);
-    if (!u) return;
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
     const parsed = geofenceBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const g = { id: '', ...parsed.data } as unknown as Geofence;
-    return reply.code(201).send(await repo.createGeofence((req.params as { id: string }).id, g));
+    return reply.code(201).send(await repo.createGeofence(id, g));
   });
 
   app.delete('/geofences/:id', async (req, reply) => {
-    const u = await requireUser(req, reply);
-    if (!u) return;
-    await repo.deleteGeofence((req.params as { id: string }).id);
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.geofenceOwner))) return;
+    await repo.deleteGeofence(id);
     return reply.code(204).send();
   });
 
@@ -156,10 +180,10 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
   });
 
   app.get('/children/:id/events', async (req, reply) => {
-    const u = await requireUser(req, reply);
-    if (!u) return;
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
     const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
-    return reply.send({ events: await repo.listGeofenceEvents((req.params as { id: string }).id, limit) });
+    return reply.send({ events: await repo.listGeofenceEvents(id, limit) });
   });
 
   // ---- Sleep (nightly summaries) ----
