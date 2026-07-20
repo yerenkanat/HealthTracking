@@ -227,17 +227,44 @@ class _ZoneSheetState extends State<_ZoneSheet> {
     }
   }
 
+  /// Move the zone centre to where the phone is.
+  ///
+  /// This used to fail in complete silence: a denied permission or a failed fix
+  /// simply stopped the spinner, leaving the default centre in place. She would
+  /// reasonably read that as success and save a zone around somewhere she has
+  /// never been — and then get "left home" alerts about the wrong place, which
+  /// is worse than having no zone at all.
   Future<void> _useCurrentLocation() async {
     setState(() => _locating = true);
+    String? failure; // an l10n key, or null when it worked
     try {
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm != LocationPermission.denied && perm != LocationPermission.deniedForever) {
+      if (perm == LocationPermission.deniedForever) {
+        // The system will not ask again; only Settings can undo this, so say so
+        // rather than letting her tap a button that can no longer work.
+        failure = 'zone_loc_denied_forever';
+      } else if (perm == LocationPermission.denied) {
+        failure = 'zone_loc_denied';
+      } else {
         final p = await Geolocator.getCurrentPosition();
         _center = Coordinates(p.latitude, p.longitude);
       }
-    } catch (_) {/* keep default/existing center */}
-    if (mounted) setState(() => _locating = false);
+    } catch (_) {
+      failure = 'zone_loc_failed'; // no fix: indoors, airplane mode, GPS off
+    }
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (failure != null) {
+      final l = L10nScope.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l.t(failure)),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Palette.danger,
+        ),
+      );
+    }
   }
 
   @override
