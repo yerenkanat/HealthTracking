@@ -88,9 +88,30 @@ bool _isUserFacing(String literal) {
   return _letter.hasMatch(t);
 }
 
+/// A unit suffix welded onto an interpolated value: `'${mins}m'`, `'${h}h'`.
+///
+/// The literal-scanner above cannot see these — it strips interpolations and
+/// judges what's left, and a lone "h" or "m" between two `${...}` looks like
+/// punctuation. But this is a real and repeated defect: two screens rendered
+/// "уже 1m" and "7h 30m" inside otherwise Russian text, because someone
+/// hand-wrote the units instead of calling the localized duration formatter.
+///
+/// There is deliberately NO list of "neutral" units here. "m" for minutes is
+/// exactly the bug, and kg/mmHg are already translated keys, so a unit welded
+/// to a value is a defect by default. Anything genuinely language-neutral goes
+/// in [_allowed] with its reason, where it can be reviewed.
+///
+/// Only BRACED interpolations are checked, and that is not a shortcut: in Dart
+/// a bare `$total` swallows any following letters into the identifier itself,
+/// so `'$totalm'` is the variable `totalm`, not `total` + "m". Matching bare
+/// interpolations too made the regex backtrack and report the last letter of
+/// every variable name — 37 false positives, no real ones.
+final _unitAfterInterpolation = RegExp(r'\$\{[^{}]*\}([A-Za-z]+)');
+
 void main() {
   final uiDir = Directory.fromUri(Platform.script.resolve('../lib/ui'));
   final offenders = <String>[];
+  final unitOffenders = <String>[];
   var scanned = 0;
 
   for (final f in uiDir.listSync(recursive: true).whereType<File>()) {
@@ -113,6 +134,14 @@ void main() {
           offenders.add('lib/ui/$rel:${i + 1}  "${lit.value}"');
         }
       }
+
+      // Units welded onto an interpolated value, anywhere in the file — these
+      // are built at runtime, so the literal scan above cannot see them.
+      for (final m in _unitAfterInterpolation.allMatches(line)) {
+        final suffix = m.group(1)!;
+        if (_allowed.containsKey(suffix)) continue;
+        unitOffenders.add('lib/ui/$rel:${i + 1}  ...\${…}$suffix  in  ${line.trim()}');
+      }
     }
   }
 
@@ -127,6 +156,17 @@ void main() {
   }
   _chk('no user-facing text bypasses l10n (${offenders.length} found in $scanned files)',
       offenders.isEmpty);
+
+  if (unitOffenders.isNotEmpty) {
+    print('\n  A unit is hand-written next to an interpolated value. Use the');
+    print('  localized formatter (l.duration(...)) or an l10n key instead:');
+    for (final o in unitOffenders) {
+      print('    $o');
+    }
+    print('');
+  }
+  _chk('no unit is hand-written beside an interpolated value '
+      '(${unitOffenders.length} found)', unitOffenders.isEmpty);
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

@@ -125,7 +125,9 @@ void main() {
     await tester.scrollUntilVisible(find.text('This week'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('This week'), findsOneWidget);
     expect(find.text('4'), findsOneWidget); // days logged
-    expect(find.text('6h 0m'), findsOneWidget); // avg sleep 360 min
+    // 360 min. The shared formatter drops a zero minutes component, so this
+    // reads "6h" rather than the "6h 0m" the hand-written version produced.
+    expect(find.text('6h'), findsOneWidget);
   });
 
   testWidgets('setup card reaches a brand-new user with no readings', (tester) async {

@@ -778,9 +778,9 @@ class _WeeklyDigestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final sleepLabel = digest.sleepNights == 0
-        ? '—'
-        : '${digest.avgSleepMin ~/ 60}h ${digest.avgSleepMin % 60}m';
+    // Through the localized formatter — hand-writing "h"/"m" here put English
+    // units in a Russian sentence, the same defect found on the child screen.
+    final sleepLabel = digest.sleepNights == 0 ? '—' : l.duration(digest.avgSleepMin);
     return GlassCard(
       padding: const EdgeInsets.all(16),
       child: Column(
