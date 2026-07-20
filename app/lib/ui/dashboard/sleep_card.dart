@@ -85,9 +85,16 @@ class SleepCard extends StatelessWidget {
                       fontFamily: 'JetBrainsMono', fontSize: 30, fontWeight: FontWeight.w700, height: 1, color: Palette.text,
                     )),
                 const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(l.t('sleep_last_night'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                // Flexible because the label is markedly longer in ru/kk than
+                // in the English this row was laid out against.
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(l.t('sleep_last_night'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                  ),
                 ),
               ],
             ),
@@ -102,8 +109,10 @@ class SleepCard extends StatelessWidget {
                   color: Palette.textDim,
                 ),
                 const SizedBox(width: 6),
-                Text(l.t('sleep_week_avg', {'dur': l.duration(avg)}),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+                Expanded(
+                  child: Text(l.t('sleep_week_avg', {'dur': l.duration(avg)}),
+                      style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+                ),
               ]),
             ],
             const SizedBox(height: 14),

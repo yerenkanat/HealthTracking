@@ -190,16 +190,25 @@ class _HistoryStrip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Text(l.t('med_history').toUpperCase(),
-                style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
-            const Spacer(),
-            Text(l.t('med_adherence', {'pct': (rate * 100).round()}),
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
-                  color: rate >= 0.8 ? Palette.good : Palette.amber,
-                )),
+          // Both labels are longer in ru/kk, and with a Spacer between two
+          // unbounded Texts the pair ran off a 360dp card. Flexible lets
+          // whichever is longer give way instead.
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Flexible(
+              child: Text(l.t('med_history').toUpperCase(),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(l.t('med_adherence', {'pct': (rate * 100).round()}),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                    color: rate >= 0.8 ? Palette.good : Palette.amber,
+                  )),
+            ),
           ]),
           const SizedBox(height: 12),
           SizedBox(

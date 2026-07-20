@@ -369,21 +369,29 @@ class _MetricCard extends StatelessWidget {
               ],
             ),
             const Spacer(),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(value,
-                    style: TextStyle(
-                      fontFamily: 'JetBrainsMono',
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                      color: danger ? Palette.danger : Palette.text,
-                    )),
-                const SizedBox(width: 4),
-                Text(spec.unit, style: const TextStyle(color: Palette.textDim, fontSize: 12)),
-              ],
+            // A 30px monospace reading is wider than a tile on a 360dp phone —
+            // "36.6" alone measures 121px in a 125px row — so the value and its
+            // unit overflowed on small screens in EVERY language. Scaling down
+            // only engages when it has to, so roomier screens look unchanged.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(value,
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        color: danger ? Palette.danger : Palette.text,
+                      )),
+                  const SizedBox(width: 4),
+                  Text(spec.unit, style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+                ],
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -461,7 +469,13 @@ class _BloodPressureCard extends StatelessWidget {
               ],
             ),
             const Spacer(),
-            Row(
+            // "118 / 76 mmHg" needs ~169px in a 125px tile on a 360dp phone, in
+            // every language. Scaling down keeps the whole reading — and its
+            // unit — visible instead of clipping it.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
@@ -481,6 +495,7 @@ class _BloodPressureCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(l.t('unit_mmhg'), style: const TextStyle(color: Palette.textDim, fontSize: 11)),
               ],
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(

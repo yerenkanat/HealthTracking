@@ -356,7 +356,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // inside a sentence it is already translated ('кг', 'мм рт. ст.'), so these
   // must match — a Latin 'kg' directly above a Cyrillic 'кг' reads as a bug.
   'unit_kg': {AppLocale.ru: 'кг', AppLocale.kk: 'кг', AppLocale.en: 'kg'},
-  'unit_mmhg': {AppLocale.ru: 'мм рт. ст.', AppLocale.kk: 'мм с.б.', AppLocale.en: 'mmHg'},
+  // The compact forms ("мм рт.ст.", not "мм рт. ст.") — this sits beside a
+  // 27px number inside a metric tile, where the spaced-out form overflowed.
+  'unit_mmhg': {AppLocale.ru: 'мм рт.ст.', AppLocale.kk: 'мм с.б.', AppLocale.en: 'mmHg'},
   'sleep_log_title': {AppLocale.ru: 'Записать сон', AppLocale.kk: 'Ұйқыны жазу', AppLocale.en: 'Log sleep'},
   'sleep_log_sub': {
     AppLocale.ru: 'Укажите, когда легли и когда встали. Стадии сна измеряет только браслет.',

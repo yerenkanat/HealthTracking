@@ -63,8 +63,18 @@ class WeightCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(l.t('unit_kg'), style: const TextStyle(color: Palette.textDim, fontSize: 13)),
                 const SizedBox(width: 10),
-                if (stats.count >= 2) _DeltaBadge(delta: stats.delta),
-                const Spacer(),
+                // The badge takes whatever is left rather than pushing the row
+                // off-screen: "+1.4 kg since start" becomes the much longer
+                // "+1.4 кг с начала" in Russian, which overflowed a 360dp card.
+                if (stats.count >= 2)
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _DeltaBadge(delta: stats.delta),
+                    ),
+                  )
+                else
+                  const Spacer(),
                 if (onOpenHistory != null)
                   InkWell(
                     onTap: onOpenHistory,
@@ -89,13 +99,18 @@ class WeightCard extends StatelessWidget {
                 Icon(rate >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                     size: 15, color: Palette.textDim),
                 const SizedBox(width: 6),
-                Text(
-                  l.t('weight_rate', {
-                    'sign': rate >= 0 ? '+' : '−',
-                    'kg': rate.abs().toStringAsFixed(1),
-                    'weeks': weeksSpanned(entries),
-                  }),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12),
+                // Expanded because this sentence is far longer in ru/kk:
+                // "Averaging +1.4 kg/week over 2 wks" becomes
+                // "В среднем +1.4 кг/нед. за 2 нед." and ran off a 360dp screen.
+                Expanded(
+                  child: Text(
+                    l.t('weight_rate', {
+                      'sign': rate >= 0 ? '+' : '−',
+                      'kg': rate.abs().toStringAsFixed(1),
+                      'weeks': weeksSpanned(entries),
+                    }),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12),
+                  ),
                 ),
               ]),
             ],
@@ -153,6 +168,8 @@ class _DeltaBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
       child: Text(l.t('weight_delta', {'sign': sign, 'kg': delta.abs().toStringAsFixed(1)}),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
     );
   }
