@@ -338,6 +338,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Emergency screen
   'em_title': {AppLocale.ru: 'Срочное предупреждение о здоровье', AppLocale.kk: 'Шұғыл денсаулық ескертуі', AppLocale.en: 'Urgent health alert'},
   'em_call_ambulance': {AppLocale.ru: 'Вызвать скорую', AppLocale.kk: 'Жедел жәрдем шақыру', AppLocale.en: 'Call ambulance'},
+  // Spoken by a screen reader after the button's own label, so it has to be in
+  // the same language as the rest of the sentence.
+  'em_call_semantics': {AppLocale.ru: 'Экстренный вызов.', AppLocale.kk: 'Шұғыл қоңырау.', AppLocale.en: 'Emergency call.'},
   'em_call_doctor': {AppLocale.ru: 'Позвонить врачу', AppLocale.kk: 'Дәрігерге қоңырау шалу', AppLocale.en: 'Call your doctor'},
   'em_not_emergency': {AppLocale.ru: 'Это не экстренная ситуация', AppLocale.kk: 'Бұл төтенше жағдай емес', AppLocale.en: "This isn't an emergency"},
   'em_dismiss_title': {AppLocale.ru: 'Закрыть предупреждение?', AppLocale.kk: 'Ескертуді жабу керек пе?', AppLocale.en: 'Dismiss this alert?'},

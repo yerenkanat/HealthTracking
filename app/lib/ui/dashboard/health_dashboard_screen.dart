@@ -441,7 +441,10 @@ class _BloodPressureCard extends StatelessWidget {
     final diaV = dia == null ? '—' : dia.latest.round().toString();
 
     return Semantics(
-      label: '${l.t('metric_bp')}: $sysV / $diaV mmHg${danger ? l.t('db_outside_range') : ''}',
+      // The unit goes through l10n here too — a screen reader would otherwise
+      // announce "mmHg" in the middle of a Russian sentence.
+      label: '${l.t('metric_bp')}: $sysV / $diaV ${l.t('unit_mmhg')}'
+          '${danger ? l.t('db_outside_range') : ''}',
       child: GlassCard(
         glow: danger ? Palette.danger : Palette.violet,
         padding: const EdgeInsets.all(16),

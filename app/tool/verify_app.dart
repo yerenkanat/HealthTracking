@@ -10,6 +10,7 @@ import '../lib/data/sample_store.dart';
 import '../lib/app/app_controller.dart';
 import '../lib/core/triage.dart';
 import '../lib/core/geofence.dart';
+import '../lib/domain/family.dart';
 import '../lib/domain/health_series.dart';
 
 int _pass = 0, _fail = 0;
@@ -71,6 +72,50 @@ Future<void> main() async {
 
   await sub.cancel();
   await ctl.dispose();
+
+  // ---- Emergency call buttons ----
+  // app.dart picks a localized label by MATCHING these strings. If the two
+  // sides ever drift the switch falls through and ships English to the
+  // emergency screen, so the labels the controller emits must all be known.
+  {
+    final em = AppController(now: () => DateTime(2026, 7, 16, 9));
+    em.updateProfile(const UserProfile(
+      displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233', doctorPhone: '+77011234567'));
+    em.onTelemetry(
+      const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115),
+      assessTelemetry(const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115)),
+    );
+    final buttons = em.emergency!.callButtons;
+    _chk('an emergency offers a way to call someone', buttons.isNotEmpty);
+    _chk('every default label is one app.dart can localize',
+        buttons.every((b) => EmergencyLabels.all.contains(b.label)));
+    _chk('the doctor is offered first when one is known',
+        buttons.first.label == EmergencyLabels.doctor);
+    _chk('the ambulance is always offered',
+        buttons.any((b) => b.tel == EmergencyLabels.ambulanceTel));
+
+    // With no doctor recorded there is still a way to get help.
+    final noDoc = AppController(now: () => DateTime(2026, 7, 16, 9));
+    noDoc.onTelemetry(
+      const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115),
+      assessTelemetry(const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115)),
+    );
+    _chk('without a doctor the ambulance is still offered',
+        noDoc.emergency!.callButtons.single.tel == EmergencyLabels.ambulanceTel);
+
+    // A later ordinary reading must NOT silently clear the emergency: it has
+    // to be dismissed deliberately, or a transient dip would hide a real one.
+    em.onTelemetry(
+      const BandTelemetry(systolicMmHg: 118, diastolicMmHg: 76),
+      assessTelemetry(const BandTelemetry(systolicMmHg: 118, diastolicMmHg: 76)),
+    );
+    _chk('a normal reading does not clear a latched emergency',
+        em.route == AppRoute.emergency && em.emergencyActive);
+    em.dismissEmergency();
+    _chk('dismissing returns to the app', em.route == AppRoute.home && !em.emergencyActive);
+    await em.dispose();
+    await noDoc.dispose();
+  }
 
   // ---- Reminder notification ids ----
   // Appointment reminders derive their id from a hash, so nothing stopped one

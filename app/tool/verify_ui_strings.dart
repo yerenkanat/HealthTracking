@@ -33,7 +33,10 @@ final _letter = RegExp(r'[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІ
 
 /// Where a literal would reach the user: as the text of a Text widget, or as a
 /// property that a screen reader or field label surfaces.
-final _sites = RegExp(r'''(?:\bText\(|\b(?:tooltip|labelText|hintText|helperText|semanticsLabel|errorText)\s*:\s*)''');
+/// `label:` is included for Semantics(label: ...), which a screen reader reads
+/// aloud. It was missing, and hid English inside an interpolated string on the
+/// EMERGENCY screen — the announcement was "Вызвать скорую. Emergency call."
+final _sites = RegExp(r'''(?:\bText\(|\b(?:tooltip|label|labelText|hintText|helperText|semanticsLabel|errorText)\s*:\s*)''');
 
 /// Read the Dart string literal starting at [i] (which must be its quote),
 /// returning its raw source and the index just past it. Understands escapes and

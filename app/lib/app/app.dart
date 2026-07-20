@@ -79,8 +79,8 @@ class FcsApp extends StatelessWidget {
   /// Map the well-known default button labels to localized strings; leave any
   /// custom server-provided label as-is.
   String _localizeButton(L10n l, String label) => switch (label) {
-        'Call ambulance' => l.t('em_call_ambulance'),
-        'Call your doctor' => l.t('em_call_doctor'),
+        EmergencyLabels.ambulance => l.t('em_call_ambulance'),
+        EmergencyLabels.doctor => l.t('em_call_doctor'),
         _ => label,
       };
 

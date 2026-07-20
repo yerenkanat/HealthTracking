@@ -130,7 +130,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                 if (primary != null)
                   Semantics(
                     button: true,
-                    label: '${primary.label}. Emergency call.',
+                    label: '${primary.label}. ${l.t('em_call_semantics')}',
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),

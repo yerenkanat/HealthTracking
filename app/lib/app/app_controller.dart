@@ -43,6 +43,23 @@ import '../net/telemetry_batcher.dart';
 
 enum AppRoute { home, emergency }
 
+/// Default labels for the emergency call buttons.
+///
+/// These are matched BY STRING in app.dart to choose a localized label, so
+/// they must be referenced rather than retyped: a stray edit on either side
+/// falls through to the default case and ships English straight to the
+/// emergency screen — the one screen where that matters most.
+class EmergencyLabels {
+  static const ambulance = 'Call ambulance';
+  static const doctor = 'Call your doctor';
+
+  /// Kazakhstan's ambulance number. The app's target market; a deployment
+  /// elsewhere has to revisit this.
+  static const ambulanceTel = '103';
+
+  static const all = {ambulance, doctor};
+}
+
 class EmergencyView {
   /// Triage code for on-device emergencies (UI localizes it). Null for
   /// server-driven chat emergencies, where [message] is already localized.
@@ -998,8 +1015,8 @@ class AppController {
         code: f?.code, // UI localizes the code
         message: f?.message ?? 'Urgent health alert.',
         callButtons: [
-          if (_profile.hasDoctor) (label: 'Call your doctor', tel: _profile.doctorPhone),
-          const (label: 'Call ambulance', tel: '103'),
+          if (_profile.hasDoctor) (label: EmergencyLabels.doctor, tel: _profile.doctorPhone),
+          const (label: EmergencyLabels.ambulance, tel: EmergencyLabels.ambulanceTel),
         ],
       ));
     } else {
@@ -1012,7 +1029,7 @@ class AppController {
     _raiseEmergency(EmergencyView(
       message: message,
       callButtons: callButtons.isEmpty
-          ? const [(label: 'Call ambulance', tel: '103')]
+          ? const [(label: EmergencyLabels.ambulance, tel: EmergencyLabels.ambulanceTel)]
           : callButtons,
     ));
   }
