@@ -261,6 +261,12 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cal_cuff_dia': {AppLocale.ru: 'Диастолическое (тонометр)', AppLocale.kk: 'Диастолалық (тонометр)', AppLocale.en: 'Diastolic (cuff)'},
   'cal_band_reading': {AppLocale.ru: 'Показания браслета: {sys}/{dia}', AppLocale.kk: 'Білезік көрсеткіші: {sys}/{dia}', AppLocale.en: 'Band reading: {sys}/{dia}'},
   'cal_no_band': {AppLocale.ru: 'Нет данных браслета для калибровки. Наденьте браслет и измерьте давление.', AppLocale.kk: 'Калибрлеуге білезік деректері жоқ. Білезікті тағып, қысымды өлшеңіз.', AppLocale.en: 'No band reading yet. Wear your band and measure blood pressure first.'},
+  // The reading behind an emergency, shown on the rescue screen. Purely
+  // factual — the number and its unit, nothing interpreted.
+  'em_reading_bp': {AppLocale.ru: 'Ваше давление: {v} мм рт. ст.', AppLocale.kk: 'Қысымыңыз: {v} мм сын. бағ.', AppLocale.en: 'Your blood pressure: {v} mmHg'},
+  'em_reading_temp': {AppLocale.ru: 'Ваша температура: {v} °C', AppLocale.kk: 'Дене қызуыңыз: {v} °C', AppLocale.en: 'Your temperature: {v} °C'},
+  'em_reading_spo2': {AppLocale.ru: 'Ваш кислород: {v}%', AppLocale.kk: 'Оттегіңіз: {v}%', AppLocale.en: 'Your blood oxygen: {v}%'},
+  'em_reading_hr': {AppLocale.ru: 'Ваш пульс: {v} уд/мин', AppLocale.kk: 'Пульсіңіз: {v} соғ/мин', AppLocale.en: 'Your heart rate: {v} bpm'},
   // A reading crossed an emergency threshold once. Calm and actionable on
   // purpose: she is not in an emergency, and one wrist estimate does not make
   // her one. Never say "preeclampsia" here — that word belongs to the confirmed

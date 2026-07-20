@@ -112,6 +112,12 @@ Future<void> main() async {
         buttons.every((b) => EmergencyLabels.all.contains(b.label)));
     _chk('the doctor is offered first when one is known',
         buttons.first.label == EmergencyLabels.doctor);
+    // She will be asked "what was the reading?" on the phone. It has to be on
+    // the screen she is already looking at.
+    _chk('the emergency carries the reading that caused it',
+        em.emergency?.readingKind == 'bp' && em.emergency?.readingValue == '170/115');
+    _chk('blood pressure shows both numbers, not just the one that crossed',
+        (em.emergency?.readingValue ?? '').contains('/'));
     _chk('the ambulance is always offered',
         buttons.any((b) => b.tel == EmergencyLabels.ambulanceTel));
 

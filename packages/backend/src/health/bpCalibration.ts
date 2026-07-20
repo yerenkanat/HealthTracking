@@ -4,14 +4,11 @@
  * app/lib/ble/calibration.dart so app and server agree on the correction.
  */
 
-/**
- * The widest cuff-vs-PPG disagreement that is still plausibly sensor bias.
- * Beyond this the two are not measuring the same thing, and storing the gap as
- * an offset would distort every later reading — including the ones preeclampsia
- * triage depends on. Mirrors maxSystolicOffset/maxDiastolicOffset in Dart.
- */
-export const MAX_SYSTOLIC_OFFSET = 30;
-export const MAX_DIASTOLIC_OFFSET = 20;
+// The bounds live in @fcs/shared beside the triage thresholds: the Dart app
+// enforces the same numbers, and both are pinned to
+// packages/contract/triage_thresholds.json so neither side can drift.
+import { MAX_SYSTOLIC_OFFSET, MAX_DIASTOLIC_OFFSET } from '@fcs/shared';
+export { MAX_SYSTOLIC_OFFSET, MAX_DIASTOLIC_OFFSET };
 
 export interface BpOffsets {
   systolicOffset: number;

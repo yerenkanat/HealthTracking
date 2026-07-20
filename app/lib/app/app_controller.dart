@@ -67,7 +67,24 @@ class EmergencyView {
   final String? code;
   final String message;
   final List<({String label, String tel})> callButtons;
-  const EmergencyView({this.code, required this.message, required this.callButtons});
+
+  /// Which measurement set this off — 'bp', 'temp', 'spo2', 'hr' — and its
+  /// value, formatted but locale-neutral ("152/96", "38.6").
+  ///
+  /// Shown on the emergency screen so she has a number to give the dispatcher
+  /// or her doctor. Kept as raw parts rather than a sentence for the same
+  /// reason as the call-button labels: the controller stays free of language,
+  /// and app.dart localizes.
+  final String? readingKind;
+  final String? readingValue;
+
+  const EmergencyView({
+    this.code,
+    required this.message,
+    required this.callButtons,
+    this.readingKind,
+    this.readingValue,
+  });
 }
 
 class ChildLocationView {
@@ -1048,9 +1065,12 @@ class AppController {
 
     if (decision.shouldEscalate) {
       _awaitingRepeat = null;
+      final reading = _readingFor(f?.metric, t);
       _raiseEmergency(EmergencyView(
         code: f?.code, // UI localizes the code
         message: f?.message ?? 'Urgent health alert.',
+        readingKind: reading?.kind,
+        readingValue: reading?.value,
         callButtons: [
           if (_profile.hasDoctor) (label: EmergencyLabels.doctor, tel: _profile.doctorPhone),
           const (label: EmergencyLabels.ambulance, tel: EmergencyLabels.ambulanceTel),
@@ -1060,6 +1080,32 @@ class AppController {
     }
 
     _notify();
+  }
+
+  /// The reading behind a finding, as a kind + a locale-neutral value.
+  ///
+  /// Blood pressure reports the pair even though the finding names only the
+  /// side that crossed: "152/96" is what a dispatcher asks for, and "152" alone
+  /// is the kind of half-answer that costs time on a phone call.
+  ({String kind, String value})? _readingFor(String? metric, BandTelemetry t) {
+    switch (metric) {
+      case 'systolicMmHg':
+      case 'diastolicMmHg':
+        final s = t.systolicMmHg, d = t.diastolicMmHg;
+        if (s == null && d == null) return null;
+        return (kind: 'bp', value: '${s ?? '—'}/${d ?? '—'}');
+      case 'coreTempC':
+        final c = t.coreTempC;
+        return c == null ? null : (kind: 'temp', value: c.toStringAsFixed(1));
+      case 'spo2Pct':
+        final o = t.spo2Pct;
+        return o == null ? null : (kind: 'spo2', value: '$o');
+      case 'heartRateBpm':
+        final h = t.heartRateBpm;
+        return h == null ? null : (kind: 'hr', value: '$h');
+      default:
+        return null; // e.g. SYMPTOM_RED_FLAG — there is no number to show
+    }
   }
 
   /// From the AI chat service when the server escalates a message (already localized).

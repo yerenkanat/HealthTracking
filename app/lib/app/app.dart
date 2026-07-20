@@ -72,6 +72,13 @@ class FcsApp extends StatelessWidget {
       final message = e.code != null ? l.triageMessage(e.code) : e.message;
       return EmergencyRescueScreen(
         message: message,
+        // The number that set this off. On a call to 103 or to her doctor, the
+        // first question is what the reading was — she should not have to leave
+        // this screen to find it.
+        details: [
+          if (e.readingKind != null && e.readingValue != null)
+            l.t('em_reading_${e.readingKind}', {'v': e.readingValue!}),
+        ],
         callButtons: [
           for (final b in e.callButtons) EmergencyCallButton(_localizeButton(l, b.label), b.tel),
         ],

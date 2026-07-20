@@ -20,5 +20,10 @@
     "tachyEmergency": 140,
     "bradyWarning": 50,
     "bradyEmergency": 40
+  },
+  "bpCalibration": {
+    "_comment": "The widest cuff-vs-PPG disagreement still treated as sensor bias rather than a bad measurement. Beyond this a calibration is REFUSED, because storing it would shift every later reading — and a large negative offset can hide the hypertension this app exists to catch. Both the app and the server enforce these; the server has no UI in front of it.",
+    "maxSystolicOffset": 30,
+    "maxDiastolicOffset": 20
   }
 }

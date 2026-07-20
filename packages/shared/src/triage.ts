@@ -44,6 +44,21 @@ export const TRIAGE_THRESHOLDS = {
   HR_BRADY_EMERGENCY: 40,
 } as const;
 
+/**
+ * The widest cuff-vs-PPG disagreement still treated as sensor bias rather than
+ * a bad measurement. Beyond this a calibration is REFUSED.
+ *
+ * Here rather than in the backend because the app enforces the same bounds, and
+ * the two must agree: if they drift, the phone and the server disagree about
+ * which calibrations are storable, silently. Pinned to
+ * packages/contract/triage_thresholds.json by the contract tests on both sides.
+ *
+ * Why it matters clinically: the offset shifts every later reading, and a large
+ * negative one can make genuine hypertension read as normal.
+ */
+export const MAX_SYSTOLIC_OFFSET = 30;
+export const MAX_DIASTOLIC_OFFSET = 20;
+
 const SEVERITY_RANK: Record<TriageSeverity, number> = {
   ok: 0,
   info: 1,
