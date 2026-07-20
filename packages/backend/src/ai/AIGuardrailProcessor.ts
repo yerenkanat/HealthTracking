@@ -45,14 +45,56 @@ export interface GuardrailDeps {
 }
 
 // --- Red-flag symptom detection on free text (defense-in-depth) ---
+//
+// These MUST cover every language the app ships in. The app defaults to
+// Russian and the assistant answers in the user's own language, so an
+// English-only rule set left this layer switched off for most users: "не могу
+// дышать" and "ребёнок не шевелится" sailed through while "I can't breathe"
+// escalated correctly.
+//
+// Note on \b and \w: both are ASCII-only in JavaScript, so neither works next
+// to Cyrillic — `сильн\w*` never matches "сильная", and a \b before "не" is not
+// a boundary at all. The non-English patterns use \p{L} with the /u flag for
+// word characters, and match on stems so case endings come along for free
+// (кровотечение / кровотечения / кровотечением).
 const RED_FLAG_PATTERNS: RegExp[] = [
+  // English
   /\b(can'?t|cannot|trouble|hard to)\s+breath/i,
+  // "vision is blurry" and "blurred vision" both have to land, not just
+  // "vision blurry" — this only matched the phrasing nobody uses.
+  /\b(blurred|blurry|double)\s+vision/i,
+  /\bvision\s+(is\s+|has\s+)?(blur|loss|lost|spots|chang|going)/i,
+  /\b(severe|worst|terrible)\s+headache/i,
   /\b(heavy|severe)\s+(bleeding|blood)/i,
-  /\bvision\s+(blur|loss|spots|changes)/i,
-  /\b(severe|worst)\s+headache/i,
-  /\b(baby|fetus).{0,20}(not moving|stopped moving|no movement)/i,
+  /\b(baby|fetus).{0,20}(not moving|stopped moving|no movement|hasn'?t moved)/i,
   /\b(faint|passed out|blacked out|seizure|convuls)/i,
   /\bsevere\s+(abdominal|belly|stomach)\s+pain/i,
+
+  // Russian
+  /(не могу|тяжело|трудно|нечем)\s+дыш/iu,
+  /задыха/iu,
+  /кровотеч/iu,
+  /(много|сильно)\s+кров/iu,
+  /(туман|пелена|мушки|темнеет)/iu,
+  /(зрение|вижу).{0,20}(упало|ухудш|плохо|пропа|не\s)/iu,
+  /(сильн\p{L}*|невыносим\p{L}*|ужасн\p{L}*|резк\p{L}*)\s+(головная\s+боль|боль\s+в\s+голове)/iu,
+  /сильно\s+болит\s+голова/iu,
+  /(ребёнок|ребенок|малыш|плод).{0,25}(не\s+шевел|не\s+двига|не\s+толка)/iu,
+  /(нет|отсутств\p{L}*)\s+шевелен/iu,
+  /(потеряла\s+сознание|теряю\s+сознание|обморок|судорог|припадок)/iu,
+  /(сильн\p{L}*|резк\p{L}*|остр\p{L}*)\s+боль\s+в\s+живот/iu,
+  /сильно\s+болит\s+живот/iu,
+
+  // Kazakh
+  /(дем\s+ала\s+алмай|тыныс\s+ал\p{L}*\s+қиын|демігу|тұншығ)/iu,
+  /қан\s*кет/iu,
+  /(көз\p{L}*\s+(көрмей|тұманд)|көру\s+нашарла|көз\p{L}*\s+алды\s+тұманд)/iu,
+  /бас\p{L}*\s+(қатты\s+)?ауыр/iu,
+  /қатты\s+бас\s+ауру/iu,
+  /(бала|нәресте).{0,25}(қозғалмай|қимылдамай|тыпырламай)/iu,
+  /(есінен\s+тан|талып\s+қал|естен\s+тан|құрыс)/iu,
+  /іш\p{L}*\s+(қатты\s+)?ауыр/iu,
+  /қатты\s+іш\s+ауру/iu,
 ];
 function textLooksEmergency(text: string): boolean {
   return RED_FLAG_PATTERNS.some((re) => re.test(text));
@@ -60,9 +102,18 @@ function textLooksEmergency(text: string): boolean {
 
 // --- Prompt-injection hardening ---
 const INJECTION_PATTERNS: RegExp[] = [
-  /ignore (all|previous|the above) (instructions|prompt)/i,
+  // The qualifiers repeat: "ignore all previous instructions" is the canonical
+  // phrasing and the original pattern allowed only ONE of them, so the most
+  // common injection of all slipped past.
+  /ignore\s+(all\s+|the\s+above\s+|previous\s+|prior\s+)*(instructions|prompts?|rules)/i,
+  /disregard\s+(all\s+|the\s+above\s+|previous\s+)*(instructions|prompts?|rules)/i,
   /you are (now|actually) [a-z ]{0,30}(dan|jailbreak|developer mode)/i,
-  /(reveal|print|show).{0,20}(system prompt|instructions)/i,
+  /(reveal|print|show|repeat).{0,20}(system prompt|instructions)/i,
+  // Same reason as the red flags: most users are writing in Russian.
+  /(игнорируй|игнорируйте|забудь|забудьте|не\s+обращай\s+внимания\s+на)\s+(на\s+)?(все\s+|вс[её]\s+|предыдущие\s+|прошлые\s+)*(инструкци\p{L}*|указани\p{L}*|правил\p{L}*)/iu,
+  /(покажи|выведи|раскрой|напиши|повтори)\p{L}*\s*(мне\s+)?(свой\s+|свои\s+|системн\p{L}*\s+)(промпт|инструкци\p{L}*)/iu,
+  /ты\s+(теперь|на\s+самом\s+деле)\s+[\p{L} ]{0,30}(dan|джейлбрейк|режим\s+разработчика)/iu,
+  /(елемеу|елеме|ұмыт)\p{L}*\s+(алдыңғы\s+)?(нұсқаулар\p{L}*|ережелер\p{L}*)/iu,
 ];
 function sanitizeUserMessage(text: string): { clean: string; injectionBlocked: boolean } {
   const injectionBlocked = INJECTION_PATTERNS.some((re) => re.test(text));
@@ -78,13 +129,29 @@ function sanitizeUserMessage(text: string): { clean: string; injectionBlocked: b
 function outputViolates(text: string): boolean {
   const specificReading =
     /\b(your|that|those|these|this)\s+(blood pressure|bp|spo2|oxygen|heart rate|pulse|temperature|reading|readings|numbers?|vitals?|results?)\b/i.test(text) ||
+    /(ваш\p{L}*|эт\p{L}+|такое)\s+(давлени|пульс|сатураци|кислород|температур|показател|значени|результат|цифр)/iu.test(text) ||
+    /(қысым|пульс|температура|көрсеткіш|оттег|нәтиже)\p{L}*(ыңыз|іңіз)/iu.test(text) ||
+    // A concrete BP pair reads the same in every language.
     /\b\d{2,3}\/\d{2,3}\b/.test(text);
   const reassure =
     /\b(fine|okay|ok|normal|safe|healthy)\b/i.test(text) ||
     /\b(nothing|no need)\s+to\s+worry\b/i.test(text) ||
-    /\bdon'?t\s+worry\b/i.test(text);
+    /\bdon'?t\s+worry\b/i.test(text) ||
+    /(в\s+норме|нормальн\p{L}*|в\s+порядке|вс[её]\s+хорошо|безопасн\p{L}*|здоров\p{L}*)/iu.test(text) ||
+    /(не\s+волнуйтесь|не\s+переживайте|не\s+беспокойтесь|беспокоиться\s+не\s+о\s+чем)/iu.test(text) ||
+    /(қалыпты|қауіпсіз|жақсы|дұрыс)/iu.test(text) ||
+    /(алаңдамаңыз|уайымдамаңыз)/iu.test(text);
   const falseReassurance = specificReading && reassure;
-  const prescribes = /\btake\s+\d+\s*(mg|ml|mcg|tablets?)\b/i.test(text);
+
+  // A dose plus an instruction to take it. Kept as two separate signals rather
+  // than one phrase so word order doesn't matter — Kazakh puts the verb last
+  // ("Күніне 500 мг қабылдаңыз"), which a verb-then-dose pattern would miss.
+  const hasDose = /\d+\s*(mg|ml|mcg|tablets?|мг|мл|мкг|таблет\p{L}*|капс\p{L}*)/iu.test(text);
+  const tellsToTake =
+    /\b(take|takes?|taking)\b/i.test(text) ||
+    /(приним\p{L}+|прими|выпей\p{L}*|пейте|пить)/iu.test(text) ||
+    /(ішіңіз|қабылдаңыз|іш\p{L}*)/iu.test(text);
+  const prescribes = hasDose && tellsToTake;
   return falseReassurance || prescribes;
 }
 
