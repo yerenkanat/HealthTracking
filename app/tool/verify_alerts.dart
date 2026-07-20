@@ -225,6 +225,33 @@ void main() {
   _chk('an all-critical feed keeps the newest', allSos.first.at == t0.add(const Duration(hours: 60)));
   _chk('a feed under the cap is untouched', trimAlerts([mk(AlertKind.sos, t0)]).length == 1);
 
+  // ---- Deleting a zone must not report leaving it ----
+  // The next location fix compares against the child's remembered zone. That
+  // memory outlived the zone itself, so deleting a zone while the child was
+  // inside it announced a departure from somewhere that no longer exists —
+  // pushed to the parent and occupying a slot in a capped safety feed.
+  final zoneHome = Geofence.circle('h', 'Home', const Coordinates(43.238949, 76.889709), 100);
+  final zoneSchool = Geofence.circle('s', 'School', const Coordinates(43.245, 76.9), 100);
+
+  final zoneCtl = AppController(now: () => DateTime(2026, 7, 16, 9));
+  zoneCtl.configureChild(name: 'Sultan', fences: [zoneHome, zoneSchool]);
+  zoneCtl.onChildLocation(zoneHome.center!); // now inside Home
+  final beforeDelete = zoneCtl.alerts.length;
+  zoneCtl.removeGeofence(zoneCtl.selectedChild!.id, 'h');
+  zoneCtl.onChildLocation(zoneHome.center!); // same spot, but Home is gone
+  _chk('deleting the zone a child is in raises no departure alert',
+      zoneCtl.alerts.length == beforeDelete);
+  _chk('no phantom "left" alert is recorded',
+      !zoneCtl.alerts.take(2).any((a) => a.kind == AlertKind.left && a.zoneName == 'Home'));
+
+  // Genuinely leaving a zone still reports, so the fix didn't silence the feature.
+  final zoneCtl2 = AppController(now: () => DateTime(2026, 7, 16, 9));
+  zoneCtl2.configureChild(name: 'Sultan', fences: [zoneHome, zoneSchool]);
+  zoneCtl2.onChildLocation(zoneHome.center!);
+  zoneCtl2.onChildLocation(zoneSchool.center!);
+  _chk('really leaving a zone still reports it',
+      zoneCtl2.alerts.any((a) => a.kind == AlertKind.left && a.zoneName == 'Home'));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

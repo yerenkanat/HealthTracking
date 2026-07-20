@@ -61,6 +61,50 @@ void main() {
   _chk('target reached at goal', weightTargetReached(70, 70));
   _chk('target reached when above', weightTargetReached(71, 70));
 
+  // ---- Invariants under messy input ----
+  // The cycle-length bug came from a derived number being wrecked by dirty
+  // data, so the same question is asked here: what survives typos, duplicate
+  // weigh-ins and extreme values? Unlike cycle length, these hold up — the
+  // entry point clamps and sorts — and these assertions keep it that way.
+  final base = DateTime(2026, 1, 1);
+  var entries = <WeightEntry>[];
+  var threw = 0, unsorted = 0, badStats = 0, nanRate = 0, outOfBand = 0;
+  for (var i = 0; i < 400; i++) {
+    final day = base.add(Duration(days: (i * 37) % 500));
+    // Includes nonsense a fat-fingered entry could produce.
+    final kg = [45.0, 60.0, 72.5, 0.0, -20.0, 5000.0, 300.0][i % 7];
+    try {
+      entries = upsertWeight(entries, day, kg);
+      final stats = computeWeightStats(entries);
+      final rate = weeklyGainRate(entries);
+      if (stats != null && stats.min > stats.max) badStats++;
+      if (rate != null && rate.isNaN) nanRate++;
+      if (weeksSpanned(entries) < 0) badStats++;
+      for (final e in entries) {
+        if (e.kg < minWeightKg || e.kg > maxWeightKg) outOfBand++;
+      }
+      for (var j = 1; j < entries.length; j++) {
+        if (entries[j - 1].date.compareTo(entries[j].date) > 0) unsorted++;
+      }
+    } catch (_) {
+      threw++;
+    }
+  }
+  _chk('messy weight input never throws', threw == 0);
+  _chk('entries stay sorted by date', unsorted == 0);
+  _chk('stats stay coherent (min <= max, weeks >= 0)', badStats == 0);
+  _chk('the gain rate is never NaN', nanRate == 0);
+  _chk('every stored weight is clamped to a plausible range', outOfBand == 0);
+
+  // Weighing yourself twice in a day replaces the entry rather than stacking
+  // two readings for the same date, which would double-count in every average.
+  var repeatedWeighIn = <WeightEntry>[];
+  for (var i = 0; i < 5; i++) {
+    repeatedWeighIn = upsertWeight(repeatedWeighIn, base, 60.0 + i);
+  }
+  _chk('a second weigh-in on the same day replaces the first',
+      repeatedWeighIn.length == 1 && repeatedWeighIn.single.kg == 64.0);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

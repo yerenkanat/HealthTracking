@@ -384,8 +384,20 @@ class AppController {
   void removeGeofence(String childId, String fenceId) {
     final i = _children.indexWhere((c) => c.id == childId);
     if (i < 0) return;
+    final removed = _children[i].geofences.where((f) => f.id == fenceId).firstOrNull;
     final zones = _children[i].geofences.where((f) => f.id != fenceId).toList();
     _children[i] = _children[i].copyWith(geofences: zones);
+    // Forget the child's remembered zone if this deletion is what emptied it.
+    // The next location fix compares against that memory, so a zone deleted
+    // while the child was inside it produced a "left Home" alert — a departure
+    // from somewhere that no longer exists, pushed to the parent and taking up
+    // a slot in a capped safety feed. Only clear when no zone of that name
+    // remains, so deleting one of two same-named zones keeps the memory.
+    if (removed != null &&
+        _lastChildZone == removed.name &&
+        !zones.any((f) => f.name == removed.name)) {
+      _lastChildZone = null;
+    }
     _persist();
     _notify();
   }
