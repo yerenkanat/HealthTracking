@@ -22,12 +22,16 @@ import {
 import { computeBpOffsets } from './health/bpCalibration';
 import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
+import { RateLimiter } from './http/rateLimit';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
   repo: Repository;
   ingest: Omit<IngestDeps, 'repo' | 'checkInside'>;
   guardrail: GuardrailDeps;
+  /// Injected so tests can drive the boundary without a real clock. Defaults
+  /// to 20 messages per 5 minutes per authenticated user.
+  chatLimiter?: RateLimiter;
   cacheLastLocation: (childId: string) => Promise<unknown>;
   setBpCalibration: (userId: string, offsets: { systolicOffset: number; diastolicOffset: number; calibratedAt: string }) => Promise<void>;
   /** Resolve the caller's user from the request (verify Firebase token in prod). */
@@ -85,6 +89,18 @@ const bpCalSchema = z.object({
 export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): FastifyInstance {
   const app = Fastify({ logger: opts.logger ?? true });
 
+  // 20 assistant messages per 5 minutes per user. A real conversation is
+  // nowhere near this; a runaway client hits it in seconds. Overridable so the
+  // tests can drive the boundary without waiting on a wall clock.
+  const chatLimiter = deps.chatLimiter ?? new RateLimiter({ limit: 20, windowMs: 5 * 60_000 });
+
+  // Expired windows are dropped periodically — otherwise the map keeps one
+  // entry per user who ever chatted, which is a leak that only surfaces months
+  // into production. unref() so this timer never holds the process open.
+  const sweeper = setInterval(() => chatLimiter.sweep(), 5 * 60_000);
+  if (typeof sweeper.unref === 'function') sweeper.unref();
+  app.addHook('onClose', async () => clearInterval(sweeper));
+
   app.get('/health', async () => ({ ok: true }));
 
   // Client CRUD + history routes (require an authUser resolver).
@@ -130,6 +146,23 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     if (parsed.data.userId !== caller.userId) {
       return reply.code(403).send({ error: 'forbidden' });
     }
+
+    // Every call here costs money and reaches a third party. A broken retry
+    // loop is as expensive as a hostile one, so the limit is per authenticated
+    // caller and generous enough that a real conversation never meets it.
+    //
+    // Deliberately AFTER the auth and ownership checks: an unauthenticated or
+    // forbidden request should not consume somebody else's budget, and taking
+    // a token before knowing who is asking would let an attacker exhaust it.
+    const rl = chatLimiter.take(caller.userId);
+    if (!rl.allowed) {
+      reply.header('retry-after', String(rl.retryAfterSec));
+      return reply.code(429).send({
+        error: 'rate_limited',
+        retryAfterSec: rl.retryAfterSec,
+      });
+    }
+
     const { userId, locale, message, latestTelemetry } = parsed.data;
     const [ragPassages, emergencyContacts] = await Promise.all([
       deps.repo.retrieveRagPassages(message, locale),

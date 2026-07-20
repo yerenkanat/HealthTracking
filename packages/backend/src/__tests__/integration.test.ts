@@ -30,6 +30,7 @@ type StaffRole = 'admin' | 'clinician' | 'support';
 function makeDeps(
   authUser: () => Promise<{ userId: string } | null> = async () => ({ userId: USER }),
   authAdmin: () => Promise<{ staffId: string; role: StaffRole } | null> = async () => ({ staffId: 's1', role: 'admin' }),
+  chatLimiter?: import('../http/rateLimit').RateLimiter,
 ) {
   const events: GeofenceEvent[] = [];
   const pushes = { emergency: 0, geofence: 0 };
@@ -175,6 +176,7 @@ function makeDeps(
       setBpCalibration: async () => {},
       authUser,
       authAdmin,
+      chatLimiter,
     },
     { logger: false },
   );
@@ -281,6 +283,78 @@ describe('server wiring (in-process)', () => {
   it('AI chat normal question returns a grounded reply', async () => {
     const r = await post('/ai/chat', { userId: USER, locale: 'en', message: 'tips for sleep?' });
     expect(r.json().kind).toBe('chat');
+  });
+});
+
+describe('/ai/chat rate limiting', () => {
+  // The route spends money and reaches a third party on every call, and had no
+  // limit of any kind — a broken retry loop was as expensive as an abusive one.
+  const buildLimited = async (limit: number) => {
+    const { RateLimiter } = await import('../http/rateLimit');
+    const limiter = new RateLimiter({ limit, windowMs: 60_000 });
+    const { server } = makeDeps(undefined, undefined, limiter);
+    await server.ready();
+    return { app: server, limiter };
+  };
+
+  const chat = (app: FastifyInstance, userId = USER) =>
+    app.inject({
+      method: 'POST',
+      url: '/ai/chat',
+      payload: { userId, locale: 'en', message: 'hello' } as InjectPayload,
+    });
+
+  it('refuses with 429 once the caller is over the limit', async () => {
+    const { app } = await buildLimited(2);
+    expect((await chat(app)).statusCode).toBe(200);
+    expect((await chat(app)).statusCode).toBe(200);
+    const over = await chat(app);
+    expect(over.statusCode).toBe(429);
+    expect(over.json().error).toBe('rate_limited');
+    await app.close();
+  });
+
+  it('tells the client how long to wait, in a header and the body', async () => {
+    const { app } = await buildLimited(1);
+    await chat(app);
+    const over = await chat(app);
+    expect(Number(over.headers['retry-after'])).toBeGreaterThan(0);
+    expect(over.json().retryAfterSec).toBeGreaterThan(0);
+    await app.close();
+  });
+
+  it('an unauthenticated request never spends the budget', async () => {
+    // The limit is taken AFTER auth on purpose: if it ran first, anyone could
+    // burn a stranger's allowance without ever proving who they are — a
+    // denial-of-service on the assistant, aimed at one named user.
+    const { RateLimiter } = await import('../http/rateLimit');
+    const limiter = new RateLimiter({ limit: 1, windowMs: 60_000 });
+    const { server } = makeDeps(async () => null, undefined, limiter); // nobody signed in
+    await server.ready();
+
+    for (let i = 0; i < 5; i++) {
+      expect((await chat(server)).statusCode).toBe(401);
+    }
+    expect(limiter.size).toBe(0); // not one token spent
+    await server.close();
+  });
+
+  it('a forbidden request does not spend the budget either', async () => {
+    // Asking as somebody else is rejected at the ownership check; that must
+    // not cost the impersonated user their allowance.
+    const { RateLimiter } = await import('../http/rateLimit');
+    const limiter = new RateLimiter({ limit: 1, windowMs: 60_000 });
+    const { server } = makeDeps(undefined, undefined, limiter);
+    await server.ready();
+
+    const r = await server.inject({
+      method: 'POST',
+      url: '/ai/chat',
+      payload: { userId: CHILD, locale: 'en', message: 'hi' } as InjectPayload,
+    });
+    expect(r.statusCode).toBe(403);
+    expect(limiter.size).toBe(0);
+    await server.close();
   });
 });
 
