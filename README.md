@@ -191,7 +191,7 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 | Flutter widget + unit tests | **264 ✅** |
 | `flutter analyze lib test` | clean ✅ |
 | Flutter on-device (`integration_test/`, emulator) | **6 ✅** |
-| Node backend (`npm test`) | **104 ✅** |
+| Node backend (`npm test`) | **116 ✅** |
 | Node `npm run typecheck` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 
