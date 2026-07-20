@@ -132,17 +132,21 @@ class _LanguagePage extends StatelessWidget {
       children: [
         Text(l.t('onb_language_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
         const SizedBox(height: 20),
-        for (final (loc, label) in options)
-          RadioListTile<AppLocale>(
-            value: loc,
-            groupValue: controller.locale,
-            title: Text(label),
-            onChanged: (v) {
-              if (v == null) return;
-              controller.setLocale(v);
-              onLocaleChange?.call(v); // update the whole app's language live
-            },
+        RadioGroup<AppLocale>(
+          groupValue: controller.locale,
+          onChanged: (v) {
+            if (v == null) return;
+            controller.setLocale(v);
+            onLocaleChange?.call(v); // update the whole app's language live
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (loc, label) in options)
+                RadioListTile<AppLocale>(value: loc, title: Text(label)),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -298,17 +302,19 @@ class _PairBandPage extends StatelessWidget {
                     if (bands.isEmpty) {
                       return Center(child: Text(l.t('onb_pair_scanning')));
                     }
-                    return ListView(
-                      children: [
-                        for (final b in bands)
-                          RadioListTile<String>(
-                            value: b.id,
-                            groupValue: controller.bandId,
-                            title: Text(b.name),
-                            subtitle: Text(b.id),
-                            onChanged: controller.setBandId,
-                          ),
-                      ],
+                    return RadioGroup<String>(
+                      groupValue: controller.bandId,
+                      onChanged: controller.setBandId,
+                      child: ListView(
+                        children: [
+                          for (final b in bands)
+                            RadioListTile<String>(
+                              value: b.id,
+                              title: Text(b.name),
+                              subtitle: Text(b.id),
+                            ),
+                        ],
+                      ),
                     );
                   },
                 ),

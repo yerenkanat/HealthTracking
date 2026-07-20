@@ -72,10 +72,16 @@ the issue fixed, before saying a screen is done.
 4. `flutter test` + `dart run tool/verify_all.dart` → all green.
 
 ## Known follow-ups (don't re-discover these)
-- `onboarding_flow.dart`: `Radio.groupValue`/`onChanged` are deprecated in favour
-  of a `RadioGroup` ancestor. It's a structural widget change in the onboarding
-  flow with no widget-test coverage, so it needs an emulator pass to verify —
-  deliberately deferred rather than changed blind.
+- Medication reminders actually firing on a device. The scheduling is covered by
+  tests, but the OS delivering the notification isn't something a widget test
+  can observe.
+
+_Cleared: the `onboarding_flow.dart` `RadioGroup` migration. It had been deferred
+for needing an emulator, but the real blocker was missing coverage — the flow
+test tapped straight past both radio pages. Writing tests for what selecting a
+language and a band actually does made the change verifiable without a device:
+the same tests passed before and after. When something is deferred as
+"needs a device", check whether it's really "needs a test" first._
 
 > If a reviewer/user finds a defect this list would have caught, add a line here
 > so it never recurs.

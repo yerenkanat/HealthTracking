@@ -69,4 +69,114 @@ void main() {
     expect(result!.child.name, 'Sultan');
     expect(result!.child.geofences.any((f) => f.name == 'Home'), isTrue);
   });
+
+  // The happy-path test above taps "Next" straight past the language page and
+  // skips band pairing, so the radio choices themselves were never exercised.
+  // These pin what selecting one actually does, independent of how the radios
+  // are wired underneath.
+  Widget flow(
+    OnboardingController controller, {
+    BandScanner? scanBands,
+    void Function(AppLocale)? onLocaleChange,
+  }) =>
+      MaterialApp(
+        home: L10nScope(
+          l10n: const L10n(AppLocale.en),
+          child: OnboardingFlow(
+            controller: controller,
+            onComplete: (_) {},
+            scanBands: scanBands,
+            onLocaleChange: onLocaleChange,
+          ),
+        ),
+      );
+
+  Future<void> toLanguage(WidgetTester tester) async {
+    await tester.tap(find.text('Get started'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('picking a language selects it and switches the app live', (tester) async {
+    final controller = OnboardingController(initialLocale: AppLocale.en);
+    final live = <AppLocale>[];
+    await tester.pumpWidget(flow(controller, onLocaleChange: live.add));
+    await toLanguage(tester);
+
+    expect(controller.locale, AppLocale.en);
+    await tester.tap(find.text('Қазақша'));
+    await tester.pumpAndSettle();
+
+    expect(controller.locale, AppLocale.kk);
+    expect(live, [AppLocale.kk]); // the whole app follows, not just this page
+  });
+
+  testWidgets('the selected language is the one shown as chosen', (tester) async {
+    final controller = OnboardingController(initialLocale: AppLocale.en);
+    await tester.pumpWidget(flow(controller));
+    await toLanguage(tester);
+
+    RadioListTile<AppLocale> tileFor(String label) => tester.widget<RadioListTile<AppLocale>>(
+        find.ancestor(of: find.text(label), matching: find.byType(RadioListTile<AppLocale>)));
+
+    expect(tileFor('English').value, AppLocale.en);
+    await tester.tap(find.text('Русский'));
+    await tester.pumpAndSettle();
+    expect(controller.locale, AppLocale.ru);
+  });
+
+  testWidgets('switching language re-labels the flow immediately', (tester) async {
+    final controller = OnboardingController(initialLocale: AppLocale.en);
+    late AppLocale current;
+    current = AppLocale.en;
+    await tester.pumpWidget(StatefulBuilder(builder: (context, setState) {
+      return MaterialApp(
+        home: L10nScope(
+          l10n: L10n(current),
+          child: OnboardingFlow(
+            controller: controller,
+            onComplete: (_) {},
+            onLocaleChange: (v) => setState(() => current = v),
+          ),
+        ),
+      );
+    }));
+    await toLanguage(tester);
+
+    expect(find.text('Choose your language'), findsOneWidget);
+    await tester.tap(find.text('Русский'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose your language'), findsNothing); // now in Russian
+  });
+
+  testWidgets('picking a discovered band records it', (tester) async {
+    final controller = OnboardingController(initialLocale: AppLocale.en);
+    await tester.pumpWidget(flow(
+      controller,
+      scanBands: () => Stream.value(const [
+        (id: 'AA:BB', name: 'Umay Band'),
+        (id: 'CC:DD', name: 'Other Band'),
+      ]),
+    ));
+
+    // Welcome → language → profile → pair.
+    await toLanguage(tester);
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Aigerim');
+    await tester.enterText(find.byType(TextField).last, '7001234567');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pair your band'), findsOneWidget);
+    expect(controller.bandId, isNull);
+    await tester.tap(find.text('Umay Band'));
+    await tester.pumpAndSettle();
+    expect(controller.bandId, 'AA:BB');
+
+    // Choosing a different band replaces the first, rather than adding to it.
+    await tester.tap(find.text('Other Band'));
+    await tester.pumpAndSettle();
+    expect(controller.bandId, 'CC:DD');
+  });
 }
