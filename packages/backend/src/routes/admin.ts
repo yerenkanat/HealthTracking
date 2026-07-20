@@ -7,7 +7,61 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { Repository } from '../db/repository';
+import { z } from 'zod';
+import type { ContentItemRow, Repository } from '../db/repository';
+
+/// Pregnancy weeks 1..40 and child months 0..60 (birth to five years). Content
+/// under any other key is unreachable by the app, so it is refused on write
+/// rather than accepted and silently never shown.
+function isStageKey(key: string): boolean {
+  const n = Number(key.slice(1));
+  if (!Number.isInteger(n)) return false;
+  if (key.startsWith('w')) return n >= 1 && n <= 40;
+  if (key.startsWith('m')) return n >= 0 && n <= 60;
+  return false;
+}
+
+function allStageKeys(): string[] {
+  return [
+    ...Array.from({ length: 40 }, (_, i) => `w${i + 1}`),
+    ...Array.from({ length: 61 }, (_, i) => `m${i}`),
+  ];
+}
+
+/// What is published and what is still empty — the first question anyone
+/// authoring 101 stages asks.
+function coverageOf(catalog: Record<string, ContentItemRow[]>) {
+  const filled: string[] = [];
+  const empty: string[] = [];
+  let items = 0;
+  let linked = 0;
+  for (const key of allStageKeys()) {
+    const list = catalog[key] ?? [];
+    if (list.length === 0) {
+      empty.push(key);
+      continue;
+    }
+    filled.push(key);
+    items += list.length;
+    linked += list.filter((i) => (i.url ?? '').trim().length > 0).length;
+  }
+  return { total: allStageKeys().length, filled, empty, items, linked };
+}
+
+const localizedText = z.record(z.string(), z.string());
+const contentItem = z.object({
+  id: z.string().min(1).max(80),
+  kind: z.enum(['lesson', 'product']),
+  title: localizedText,
+  summary: localizedText,
+  url: z.string().max(500).optional(),
+  // Minor units (tiyn). Integer on purpose — money in floating point drifts.
+  priceMinor: z.number().int().positive().optional(),
+  currency: z.string().max(8).optional(),
+  imageUrl: z.string().max(500).optional(),
+  durationMin: z.number().int().positive().max(600).optional(),
+});
+const stageContentBody = z.object({ items: z.array(contentItem).max(50) });
 
 export type StaffRole = 'admin' | 'clinician' | 'support';
 export type AuthAdmin = (req: FastifyRequest) => Promise<{ staffId: string; role: StaffRole } | null>;
@@ -81,6 +135,76 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       repo.listAlerts(userId, 50),
     ]);
     return reply.send({ sleep, days, alerts });
+  });
+
+  // ---- One family, assembled (clinician/admin) — audited PHI access ----
+  app.get('/admin/users/:id/detail', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const userId = (req.params as { id: string }).id;
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_user_detail', target: userId });
+    const detail = await repo.adminUserDetail(userId);
+    if (!detail) return reply.code(404).send({ error: 'not found' });
+    return reply.send(detail);
+  });
+
+  // ---- Device fleet ----
+  app.get('/admin/devices', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
+    return reply.send({ devices: await repo.adminDevices(limit) });
+  });
+
+  // ---- Safety feed across all families ----
+  app.get('/admin/safety', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_safety_feed' });
+    return reply.send({ events: await repo.adminSafetyEvents(limit) });
+  });
+
+  // ---- Analytics ----
+  app.get('/admin/analytics', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    return reply.send(await repo.adminAnalytics());
+  });
+
+  // ---- Timeline content (the CMS) ----
+  // Reading the catalogue is open to any staff; CHANGING what every user sees
+  // — including what is offered for sale — is an admin action and is audited.
+  app.get('/admin/content', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const catalog = await repo.contentCatalog();
+    return reply.send({ stages: catalog, coverage: coverageOf(catalog) });
+  });
+
+  app.put('/admin/content/:stage', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const stage = (req.params as { stage: string }).stage;
+    if (!isStageKey(stage)) {
+      return reply.code(400).send({ error: `unknown stage "${stage}" (expected w1..w40 or m0..m60)` });
+    }
+    const parsed = stageContentBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    // Ids must be unique WITHIN the stage; a repeat here would make two cards
+    // indistinguishable to the app and merge them in analytics.
+    const ids = new Set<string>();
+    for (const item of parsed.data.items) {
+      if (ids.has(item.id)) {
+        return reply.code(400).send({ error: `duplicate id "${item.id}" in ${stage}` });
+      }
+      ids.add(item.id);
+    }
+
+    await repo.putStageContent(stage, parsed.data.items as ContentItemRow[]);
+    await repo.writeAudit({ staffId: s.staffId, action: 'edit_content', target: stage });
+    return reply.send({ ok: true, stage, items: parsed.data.items.length });
   });
 
   // ---- Audit log (admin only) ----

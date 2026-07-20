@@ -46,6 +46,42 @@
   .nav.active{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 22%,transparent)}
   .nav .ic{width:18px;height:18px;flex:0 0 auto}
   .nav .badge{margin-left:auto;background:var(--crit);color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700}
+
+  /* ---- Timeline coverage map ----
+     101 stages have to be readable at a glance, so each is a small cell
+     coloured by state rather than a row in a very long list. */
+  .stagemap{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
+  .cell{border:1px solid var(--line);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;
+        font-size:11px;font-weight:700;color:var(--muted);background:var(--surface-2);line-height:1.25}
+  .cell:hover{border-color:var(--accent)}
+  .cell.sel{outline:2px solid var(--accent);outline-offset:1px}
+  .cell .n{display:block;font-size:12px;color:var(--text)}
+  .cell.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+  .cell.part{background:color-mix(in srgb,var(--warn) 18%,transparent);border-color:color-mix(in srgb,var(--warn) 42%,transparent)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:12px}
+  .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
+  .legend .sw.ok{background:color-mix(in srgb,var(--ok) 45%,transparent)}
+  .legend .sw.part{background:color-mix(in srgb,var(--warn) 45%,transparent)}
+  .legend .sw.none{background:var(--surface-2)}
+
+  /* ---- Item editor ---- */
+  .item{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
+  .item .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .item input{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px;
+               color:var(--text);font:inherit;font-size:13px;min-width:0}
+  .item input.grow{flex:1 1 200px}
+  .item .lang{width:34px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase}
+  .kindtag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .kindtag.lesson{background:var(--accent-soft);color:var(--accent)}
+  .kindtag.product{background:color-mix(in srgb,var(--crit) 14%,transparent);color:var(--crit)}
+  .btn{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;
+       color:var(--text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .btn:hover:not(:disabled){border-color:var(--accent)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.danger{color:var(--crit)}
+  .savebar{margin-top:10px;font-size:13px;font-weight:600;min-height:18px}
+  .savebar.ok{color:var(--ok)} .savebar.err{color:var(--crit)}
   .side .foot{margin-top:auto;font-size:11px;color:var(--muted);padding:8px}
 
   /* Main */
@@ -166,6 +202,22 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Users
     </div>
+    <div class="nav" data-view="content">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
+      Content <span class="badge" id="navContentBadge" style="background:var(--muted)">0</span>
+    </div>
+    <div class="nav" data-view="devices">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      Devices
+    </div>
+    <div class="nav" data-view="safety">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/></svg>
+      Safety
+    </div>
+    <div class="nav" data-view="analytics">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      Analytics
+    </div>
     <div class="nav" data-view="audit">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
       Audit log
@@ -217,6 +269,69 @@
             <table><thead><tr><th>Name</th><th>Phone</th><th>Due date</th><th>Last reading</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody></table>
           </div>
+        </div>
+      </section>
+
+      <!-- CONTENT (timeline CMS) -->
+      <section class="view" id="content">
+        <div class="card">
+          <div class="sec-h">
+            <h3>Timeline coverage</h3>
+            <span class="sub" id="covSummary">—</span>
+          </div>
+          <!-- Every stage as a cell: filled, empty, or unlinked. 101 of them,
+               so the map has to be scannable at a glance rather than a list. -->
+          <div class="sub" style="margin-bottom:6px">Pregnancy · weeks 1–40</div>
+          <div class="stagemap" id="mapWeeks"></div>
+          <div class="sub" style="margin:12px 0 6px">Child · months 0–60</div>
+          <div class="stagemap" id="mapMonths"></div>
+          <div class="legend">
+            <span><i class="sw ok"></i> published &amp; linked</span>
+            <span><i class="sw part"></i> published, no link yet</span>
+            <span><i class="sw none"></i> empty</span>
+          </div>
+        </div>
+
+        <div class="card" id="stageEditor" style="margin-top:14px">
+          <div class="sec-h">
+            <h3 id="stageTitle">Pick a stage</h3>
+            <span>
+              <button class="btn" id="addLesson" disabled>+ Lesson</button>
+              <button class="btn" id="addProduct" disabled>+ Product</button>
+              <button class="btn primary" id="saveStage" disabled>Publish</button>
+            </span>
+          </div>
+          <div id="stageItems"><div class="sub">Choose a week or month above to edit what it shows.</div></div>
+          <div class="savebar" id="saveMsg"></div>
+        </div>
+      </section>
+
+      <!-- DEVICES -->
+      <section class="view" id="devices">
+        <div class="card">
+          <div class="tablewrap">
+            <table><thead><tr><th>Device</th><th>Kind</th><th>Owner</th><th>Child</th><th>Battery</th><th>Last seen</th></tr></thead>
+            <tbody id="devicesBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SAFETY -->
+      <section class="view" id="safety">
+        <div class="card">
+          <div class="tablewrap">
+            <table><thead><tr><th>When</th><th>Family</th><th>Child</th><th>Event</th><th>Zone</th></tr></thead>
+            <tbody id="safetyBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="view" id="analytics">
+        <div class="kpis" id="anKpis"></div>
+        <div class="card" style="margin-top:14px">
+          <div class="sec-h"><h3>Content reach</h3></div>
+          <div id="anContent"></div>
         </div>
       </section>
 
@@ -371,11 +486,23 @@
   function closeDrawer(){$("#drawer").classList.remove("open");$("#scrim").classList.remove("open");}
 
   // Navigation
-  const titles={overview:["Overview","Live monitoring across pregnancy &amp; child-safety"],emergencies:["Emergencies","Active triage alerts, most severe first"],users:["Users","Search and open a patient record"],audit:["Audit log","Every staff action on protected data"]};
+  const titles={
+    overview:["Overview","Live monitoring across pregnancy &amp; child-safety"],
+    emergencies:["Emergencies","Active triage alerts, most severe first"],
+    users:["Users","Search and open a patient record"],
+    content:["Content","Lessons and products for every week of pregnancy and month of childhood"],
+    devices:["Devices","Every band and tracker across all accounts"],
+    safety:["Safety","SOS and geofence events across all families"],
+    analytics:["Analytics","Reach, engagement and catalogue coverage"],
+    audit:["Audit log","Every staff action on protected data"]
+  };
   function go(v){
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
     $$(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-    $("#pageTitle").textContent=titles[v][0];$("#pageSub").innerHTML=titles[v][1];
+    // A view without a title entry would blank the header; fall back rather
+    // than throwing and leaving the panel half-switched.
+    const t=titles[v]||[v,""];
+    $("#pageTitle").textContent=t[0];$("#pageSub").innerHTML=t[1];
     if(v==="overview")drawSpark();
     window.scrollTo(0,0);
   }
@@ -397,5 +524,264 @@
   $("#staffName").textContent=STAFF.name;$("#staffRole").textContent=STAFF.role;$("#staffAv").textContent=STAFF.name.replace("Dr. ","")[0];
 
   boot();
+})();
+</script>
+
+<script>
+/* ---------------------------------------------------------------------------
+   Back-office depth: the timeline CMS, device fleet, safety feed, analytics.
+
+   Self-contained on purpose — it talks to /admin/* directly rather than
+   reaching into the dashboard's IIFE above, so neither can break the other.
+   Every view degrades to a plain message when the API is unreachable, because
+   a blank panel is indistinguishable from a broken one.
+--------------------------------------------------------------------------- */
+(function () {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const STAFF = { id: "s1", role: "admin" };
+
+  async function api(path, opts) {
+    const r = await fetch(path, {
+      ...opts,
+      headers: {
+        "x-staff-id": STAFF.id,
+        "x-staff-role": STAFF.role,
+        ...(opts && opts.body ? { "content-type": "application/json" } : {}),
+      },
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    return r.json();
+  }
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const LOCALES = ["ru", "kk", "en"];
+  const weeks = Array.from({ length: 40 }, (_, i) => `w${i + 1}`);
+  const months = Array.from({ length: 61 }, (_, i) => `m${i}`);
+
+  let catalog = {};      // stage key → items
+  let selected = null;   // stage key being edited
+  let draft = [];        // working copy; only written on Publish
+
+  const stageLabel = (k) =>
+    k[0] === "w" ? `Week ${k.slice(1)}` : (k === "m0" ? "Newborn" : `${k.slice(1)} mo`);
+
+  function cellClass(items) {
+    if (!items || items.length === 0) return "";
+    return items.every((i) => (i.url || "").trim()) ? "ok" : "part";
+  }
+
+  function renderMap() {
+    for (const [el, keys] of [[$("#mapWeeks"), weeks], [$("#mapMonths"), months]]) {
+      if (!el) continue;
+      el.innerHTML = keys.map((k) => {
+        const items = catalog[k] || [];
+        return `<div class="cell ${cellClass(items)} ${selected === k ? "sel" : ""}" data-stage="${k}"
+                     title="${esc(stageLabel(k))} — ${items.length} item(s)">
+                  <span class="n">${k[0] === "w" ? k.slice(1) : k.slice(1)}</span>${items.length || ""}
+                </div>`;
+      }).join("");
+    }
+    const filled = [...weeks, ...months].filter((k) => (catalog[k] || []).length).length;
+    const items = Object.values(catalog).reduce((n, l) => n + l.length, 0);
+    const linked = Object.values(catalog).flat().filter((i) => (i.url || "").trim()).length;
+    const sum = $("#covSummary");
+    if (sum) sum.textContent = `${filled}/101 stages · ${items} items · ${linked} linked`;
+    const badge = $("#navContentBadge");
+    if (badge) badge.textContent = String(filled);
+  }
+
+  function itemHtml(item, idx) {
+    const isProduct = item.kind === "product";
+    return `<div class="item" data-idx="${idx}">
+      <div class="row">
+        <span class="kindtag ${item.kind}">${item.kind}</span>
+        <input class="grow" data-f="id" value="${esc(item.id)}" placeholder="unique id" aria-label="id">
+        ${isProduct
+          ? `<input data-f="priceMinor" type="number" style="width:130px" value="${item.priceMinor ?? ""}" placeholder="price (tiyn)" aria-label="price in tiyn">
+             <input data-f="currency" style="width:80px" value="${esc(item.currency || "KZT")}" aria-label="currency">`
+          : `<input data-f="durationMin" type="number" style="width:110px" value="${item.durationMin ?? ""}" placeholder="minutes" aria-label="minutes">`}
+        <button class="btn danger" data-del="${idx}">Remove</button>
+      </div>
+      <div class="row"><span class="lang">url</span>
+        <input class="grow" data-f="url" value="${esc(item.url || "")}" placeholder="https://… (leave blank → shows as “Скоро”)" aria-label="url"></div>
+      ${LOCALES.map((L) => `
+        <div class="row">
+          <span class="lang">${L}</span>
+          <input class="grow" data-f="title.${L}" value="${esc((item.title || {})[L] || "")}" placeholder="title (${L})" aria-label="title ${L}">
+          <input class="grow" data-f="summary.${L}" value="${esc((item.summary || {})[L] || "")}" placeholder="summary (${L})" aria-label="summary ${L}">
+        </div>`).join("")}
+    </div>`;
+  }
+
+  function renderEditor() {
+    const box = $("#stageItems");
+    if (!box) return;
+    $("#stageTitle").textContent = selected ? `${stageLabel(selected)} · ${selected}` : "Pick a stage";
+    for (const id of ["#addLesson", "#addProduct", "#saveStage"]) {
+      const b = $(id); if (b) b.disabled = !selected;
+    }
+    if (!selected) {
+      box.innerHTML = `<div class="sub">Choose a week or month above to edit what it shows.</div>`;
+      return;
+    }
+    box.innerHTML = draft.length
+      ? draft.map(itemHtml).join("")
+      : `<div class="sub">Nothing published for ${esc(stageLabel(selected))} yet — add a lesson or a product.</div>`;
+  }
+
+  function selectStage(k) {
+    selected = k;
+    // Deep copy: edits must not touch the loaded catalogue until Publish, or
+    // abandoning an edit would silently leave the map wrong.
+    draft = JSON.parse(JSON.stringify(catalog[k] || []));
+    setMsg("");
+    renderMap();
+    renderEditor();
+  }
+
+  function setMsg(text, kind) {
+    const el = $("#saveMsg");
+    if (!el) return;
+    el.textContent = text;
+    el.className = "savebar" + (kind ? " " + kind : "");
+  }
+
+  function readDraftFromDom() {
+    document.querySelectorAll("#stageItems .item").forEach((el) => {
+      const item = draft[Number(el.dataset.idx)];
+      if (!item) return;
+      el.querySelectorAll("input[data-f]").forEach((inp) => {
+        const f = inp.dataset.f;
+        const v = inp.value.trim();
+        if (f.startsWith("title.") || f.startsWith("summary.")) {
+          const [group, loc] = f.split(".");
+          item[group] = item[group] || {};
+          if (v) item[group][loc] = v; else delete item[group][loc];
+        } else if (f === "priceMinor" || f === "durationMin") {
+          if (v) item[f] = Number(v); else delete item[f];
+        } else if (v) {
+          item[f] = v;
+        } else {
+          delete item[f];
+        }
+      });
+    });
+  }
+
+  async function publish() {
+    readDraftFromDom();
+    try {
+      const res = await api(`/admin/content/${selected}`, {
+        method: "PUT",
+        body: JSON.stringify({ items: draft }),
+      });
+      catalog[selected] = JSON.parse(JSON.stringify(draft));
+      if (draft.length === 0) delete catalog[selected];
+      renderMap();
+      setMsg(`Published ${res.items} item(s) to ${stageLabel(selected)}.`, "ok");
+    } catch (e) {
+      // Surface the server's reason verbatim — "duplicate id", "unknown stage"
+      // are exactly what the author needs to see.
+      setMsg(String(e.message || e), "err");
+    }
+  }
+
+  function addItem(kind) {
+    const n = draft.filter((i) => i.kind === kind).length + 1;
+    draft.push({
+      id: `${selected}-${kind}-${n}`,
+      kind,
+      title: {}, summary: {},
+      ...(kind === "product" ? { priceMinor: 0, currency: "KZT" } : { durationMin: 5 }),
+    });
+    renderEditor();
+    setMsg("");
+  }
+
+  function rowsOrEmpty(tbody, rows, cols, empty) {
+    if (!tbody) return;
+    tbody.innerHTML = rows.length ? rows : `<tr><td colspan="${cols}" class="sub">${esc(empty)}</td></tr>`;
+  }
+
+  async function loadContent() {
+    try {
+      const body = await api("/admin/content");
+      catalog = body.stages || {};
+    } catch {
+      catalog = {};
+      setMsg("Content API unreachable — showing an empty catalogue.", "err");
+    }
+    renderMap();
+    renderEditor();
+  }
+
+  async function loadDevices() {
+    let list = [];
+    try { list = (await api("/admin/devices")).devices || []; } catch { /* falls through to the empty row */ }
+    rowsOrEmpty($("#devicesBody"), list.map((d) => `<tr>
+      <td>${esc(d.name || d.id)}</td><td>${esc(d.kind)}</td><td>${esc(d.displayName)}</td>
+      <td>${esc(d.childName || "—")}</td>
+      <td>${d.batteryPct == null ? "—" : esc(d.batteryPct) + "%"}</td>
+      <td>${esc(d.lastSeen || "—")}</td></tr>`).join(""), 6,
+      "No devices paired yet.");
+  }
+
+  async function loadSafety() {
+    let list = [];
+    try { list = (await api("/admin/safety")).events || []; } catch { /* empty row below */ }
+    rowsOrEmpty($("#safetyBody"), list.map((e) => `<tr>
+      <td>${esc(e.at)}</td><td>${esc(e.displayName)}</td><td>${esc(e.childName)}</td>
+      <td>${esc(e.kind)}</td><td>${esc(e.zoneName || "—")}</td></tr>`).join(""), 5,
+      "No safety events recorded.");
+  }
+
+  async function loadAnalytics() {
+    let a = null;
+    try { a = await api("/admin/analytics"); } catch { /* handled below */ }
+    const kpis = $("#anKpis");
+    if (!a) { if (kpis) kpis.innerHTML = `<div class="sub">Analytics API unreachable.</div>`; return; }
+    const card = (label, value) =>
+      `<div class="card kpi"><div class="lbl">${esc(label)}</div><div class="val">${esc(value)}</div></div>`;
+    if (kpis) {
+      kpis.innerHTML = [
+        card("Users", a.totalUsers), card("Pregnant", a.pregnant),
+        card("With children", a.withChildren), card("Devices", a.devices),
+        card("Alerts · 7d", a.alerts7d), card("SOS · all time", a.sosAllTime),
+      ].join("");
+    }
+    const c = $("#anContent");
+    if (c) {
+      const pct = a.contentItems ? Math.round((a.contentLinked / a.contentItems) * 100) : 0;
+      c.innerHTML = `<div class="sub">
+        ${a.contentStages} of 101 stages have content · ${a.contentItems} items ·
+        <b>${a.contentLinked}</b> linked (${pct}%). Unlinked items show as “Скоро” in the app.
+      </div>`;
+    }
+  }
+
+  // Wire up. The dashboard's own click handler drives nav switching; these
+  // listeners only add behaviour, so both coexist.
+  document.addEventListener("click", (e) => {
+    const cell = e.target.closest("[data-stage]");
+    if (cell) { selectStage(cell.dataset.stage); return; }
+    const del = e.target.closest("[data-del]");
+    if (del) { readDraftFromDom(); draft.splice(Number(del.dataset.del), 1); renderEditor(); return; }
+    const nav = e.target.closest("[data-view]");
+    if (nav) {
+      const v = nav.dataset.view;
+      if (v === "content") loadContent();
+      if (v === "devices") loadDevices();
+      if (v === "safety") loadSafety();
+      if (v === "analytics") loadAnalytics();
+    }
+  });
+  const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
+  on("#addLesson", () => addItem("lesson"));
+  on("#addProduct", () => addItem("product"));
+  on("#saveStage", publish);
+
+  loadContent();
 })();
 </script>

@@ -235,3 +235,16 @@ CREATE TABLE push_tokens (
 --       OR (g.shape = 'polygon' AND ST_Covers(g.area, ST_MakePoint($3,$2)::geography))
 --     );
 -- ($2 = lat, $3 = lng). ST_DWithin on geography uses meters and hits the GIST index.
+
+-- ---------------------------------------------------------------------------
+-- Timeline content (the CMS behind /admin/content)
+--
+-- One row per stage: 'w1'..'w40' for pregnancy weeks, 'm0'..'m60' for child
+-- months. The items are stored as JSONB because they are authored content
+-- rather than something queried by field — the app reads a whole stage at
+-- once, and the shape evolves with the catalogue rather than the schema.
+CREATE TABLE IF NOT EXISTS timeline_content (
+  stage_key   text PRIMARY KEY,
+  payload     jsonb NOT NULL,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);

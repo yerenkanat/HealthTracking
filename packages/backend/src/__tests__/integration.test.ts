@@ -46,6 +46,7 @@ function makeDeps(
   const sleepRows: SleepNight[] = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alertRows: SafetyAlertRow[] = [];
+  const contentRows = new Map<string, import('../db/repository').ContentItemRow[]>();
   let profile: ProfileRow | null = null;
   let idSeq = 1;
 
@@ -119,6 +120,35 @@ function makeDeps(
     adminListUsers: async () => ({ total: 1, users: [{ id: USER, displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-11-01' }] }),
     adminUserHealth: async (userId) =>
       userId === USER ? { latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 }, triage: [{ code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }] } : null,
+    adminUserDetail: async (userId) =>
+      userId === USER
+        ? {
+            id: USER, displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-11-01', locale: 'ru-KZ',
+            children: children.map((c) => ({ id: c.id, name: c.name, dateOfBirth: null, zones: 0 })),
+            devices: devices.map((d) => ({ ...d, batteryPct: 62 })),
+            latest: { hr: 80 }, triage: [], alerts: [], sleepNights: sleepRows.length, loggedDays: dayLogs.size,
+          }
+        : null,
+    adminDevices: async (limit) =>
+      devices.slice(0, limit).map((d) => ({
+        id: d.id, name: d.name, kind: d.kind, userId: USER, displayName: 'Aigerim',
+        childName: null, batteryPct: 62, lastSeen: '2026-07-15T08:00:00Z',
+      })),
+    adminSafetyEvents: async (limit) =>
+      alertRows.slice(0, limit).map((a) => ({
+        userId: USER, displayName: 'Aigerim', childName: 'Sultan',
+        kind: a.kind, zoneName: a.zoneName, at: a.at,
+      })),
+    adminAnalytics: async () => ({
+      totalUsers: 1, pregnant: 1, withChildren: children.length, devices: devices.length,
+      alerts7d: alertRows.length, sosAllTime: 0, stageDistribution: {},
+      contentStages: contentRows.size, contentItems: 0, contentLinked: 0,
+    }),
+    contentCatalog: async () => Object.fromEntries(contentRows),
+    putStageContent: async (stageKey, items) => {
+      if (items.length === 0) contentRows.delete(stageKey);
+      else contentRows.set(stageKey, items);
+    },
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
     listAudit: async () => audit.map((a) => ({ ...a })),
   };

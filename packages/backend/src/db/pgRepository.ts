@@ -6,6 +6,7 @@
  */
 
 import { Pool } from 'pg';
+import type { ContentItemRow } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -255,6 +256,135 @@ export function createPgRepository(pool: Pool): Repository {
     async listAudit(limit) {
       const { rows } = await pool.query(`SELECT staff_id, action, target, at FROM audit_log ORDER BY at DESC LIMIT $1`, [limit]);
       return rows.map((r) => ({ staffId: r.staff_id, action: r.action, target: r.target, at: new Date(r.at).toISOString() }));
+    },
+
+    // ---- Back-office drilldowns ----
+    async adminUserDetail(userId) {
+      const { rows: prof } = await pool.query(
+        `SELECT display_name, phone, due_date, locale FROM users WHERE id = $1`, [userId]);
+      if (!prof[0]) return null;
+      const [kids, devs, alerts, sleepCount, dayCount] = await Promise.all([
+        pool.query(
+          `SELECT c.id, c.name, c.date_of_birth,
+                  (SELECT count(*) FROM geofences g WHERE g.child_id = c.id) AS zones
+             FROM children c WHERE c.guardian_id = $1 ORDER BY c.name`, [userId]),
+        pool.query(
+          `SELECT id, name, kind, child_id, battery_pct FROM devices WHERE user_id = $1 ORDER BY name`, [userId]),
+        pool.query(
+          `SELECT a.kind, a.zone_name, a.at, c.name AS child_name
+             FROM safety_alerts a LEFT JOIN children c ON c.id = a.child_id
+            WHERE a.user_id = $1 ORDER BY a.at DESC LIMIT 20`, [userId]),
+        pool.query(`SELECT count(*) AS n FROM sleep_nights WHERE user_id = $1`, [userId]),
+        pool.query(`SELECT count(*) AS n FROM day_logs WHERE user_id = $1`, [userId]),
+      ]);
+      const health = await this.adminUserHealth(userId);
+      return {
+        id: userId,
+        displayName: prof[0].display_name ?? '',
+        phone: prof[0].phone ?? null,
+        dueDate: prof[0].due_date ? new Date(prof[0].due_date).toISOString().slice(0, 10) : null,
+        locale: prof[0].locale ?? null,
+        children: kids.rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          dateOfBirth: r.date_of_birth ? new Date(r.date_of_birth).toISOString().slice(0, 10) : null,
+          zones: Number(r.zones ?? 0),
+        })),
+        devices: devs.rows.map((r) => ({
+          id: r.id, name: r.name, kind: r.kind, childId: r.child_id,
+          batteryPct: r.battery_pct === null ? null : Number(r.battery_pct),
+        })),
+        latest: health?.latest ?? {},
+        triage: health?.triage ?? [],
+        alerts: alerts.rows.map((r) => ({
+          kind: r.kind, childName: r.child_name ?? '', zoneName: r.zone_name,
+          at: new Date(r.at).toISOString(),
+        })),
+        sleepNights: Number(sleepCount.rows[0]?.n ?? 0),
+        loggedDays: Number(dayCount.rows[0]?.n ?? 0),
+      };
+    },
+
+    async adminDevices(limit) {
+      const { rows } = await pool.query(
+        `SELECT d.id, d.name, d.kind, d.user_id, d.battery_pct, d.last_seen,
+                u.display_name, c.name AS child_name
+           FROM devices d
+           JOIN users u ON u.id = d.user_id
+           LEFT JOIN children c ON c.id = d.child_id
+          ORDER BY d.last_seen DESC NULLS LAST LIMIT $1`, [limit]);
+      return rows.map((r) => ({
+        id: r.id, name: r.name, kind: r.kind, userId: r.user_id,
+        displayName: r.display_name ?? '', childName: r.child_name ?? null,
+        batteryPct: r.battery_pct === null ? null : Number(r.battery_pct),
+        lastSeen: r.last_seen ? new Date(r.last_seen).toISOString() : null,
+      }));
+    },
+
+    async adminSafetyEvents(limit) {
+      const { rows } = await pool.query(
+        `SELECT a.user_id, a.kind, a.zone_name, a.at, u.display_name, c.name AS child_name
+           FROM safety_alerts a
+           JOIN users u ON u.id = a.user_id
+           LEFT JOIN children c ON c.id = a.child_id
+          ORDER BY a.at DESC LIMIT $1`, [limit]);
+      return rows.map((r) => ({
+        userId: r.user_id, displayName: r.display_name ?? '',
+        childName: r.child_name ?? '', kind: r.kind, zoneName: r.zone_name,
+        at: new Date(r.at).toISOString(),
+      }));
+    },
+
+    async adminAnalytics() {
+      const { rows } = await pool.query(`
+        SELECT (SELECT count(*) FROM users) AS total_users,
+               (SELECT count(*) FROM users WHERE due_date IS NOT NULL) AS pregnant,
+               (SELECT count(DISTINCT guardian_id) FROM children) AS with_children,
+               (SELECT count(*) FROM devices) AS devices,
+               (SELECT count(*) FROM safety_alerts WHERE at > now() - interval '7 days') AS alerts_7d,
+               (SELECT count(*) FROM safety_alerts WHERE kind = 'sos') AS sos_all_time`);
+      const r = rows[0] ?? {};
+      const catalog = await this.contentCatalog();
+      let items = 0, linked = 0;
+      for (const list of Object.values(catalog)) {
+        items += list.length;
+        linked += list.filter((i) => (i.url ?? '').trim().length > 0).length;
+      }
+      return {
+        totalUsers: Number(r.total_users ?? 0),
+        pregnant: Number(r.pregnant ?? 0),
+        withChildren: Number(r.with_children ?? 0),
+        devices: Number(r.devices ?? 0),
+        alerts7d: Number(r.alerts_7d ?? 0),
+        sosAllTime: Number(r.sos_all_time ?? 0),
+        stageDistribution: {},
+        contentStages: Object.keys(catalog).length,
+        contentItems: items,
+        contentLinked: linked,
+      };
+    },
+
+    // ---- Timeline content ----
+    async contentCatalog() {
+      const { rows } = await pool.query(
+        `SELECT stage_key, payload FROM timeline_content ORDER BY stage_key`);
+      const out: Record<string, ContentItemRow[]> = {};
+      for (const r of rows) {
+        out[r.stage_key] = Array.isArray(r.payload) ? r.payload : [];
+      }
+      return out;
+    },
+
+    async putStageContent(stageKey, items) {
+      if (items.length === 0) {
+        await pool.query(`DELETE FROM timeline_content WHERE stage_key = $1`, [stageKey]);
+        return;
+      }
+      await pool.query(
+        `INSERT INTO timeline_content (stage_key, payload, updated_at)
+         VALUES ($1, $2::jsonb, now())
+         ON CONFLICT (stage_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()`,
+        [stageKey, JSON.stringify(items)]);
     },
 
     // ---- Sleep ----

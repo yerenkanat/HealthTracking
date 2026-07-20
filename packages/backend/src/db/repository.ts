@@ -43,6 +43,69 @@ export interface ProfileRow {
   locale: string;
 }
 
+/** One lesson or product on the timeline. Mirrors the app's ContentItem. */
+export interface ContentItemRow {
+  id: string;
+  kind: 'lesson' | 'product';
+  title: Record<string, string>; // locale → text
+  summary: Record<string, string>;
+  url?: string;
+  priceMinor?: number; // products, in minor units (tiyn)
+  currency?: string;
+  imageUrl?: string;
+  durationMin?: number; // lessons
+}
+
+/** A whole family, assembled for the back-office drilldown. */
+export interface AdminUserDetail {
+  id: string;
+  displayName: string;
+  phone: string | null;
+  dueDate: string | null;
+  locale: string | null;
+  children: Array<{ id: string; name: string; dateOfBirth: string | null; zones: number }>;
+  devices: Array<{ id: string; name: string; kind: string; childId: string | null; batteryPct: number | null }>;
+  latest: Record<string, number | null>;
+  triage: Array<{ code: string; severity: string; at: string }>;
+  alerts: Array<{ kind: string; childName: string; zoneName: string; at: string }>;
+  sleepNights: number;
+  loggedDays: number;
+}
+
+export interface AdminDevice {
+  id: string;
+  name: string;
+  kind: string;
+  userId: string;
+  displayName: string;
+  childName: string | null;
+  batteryPct: number | null;
+  lastSeen: string | null;
+}
+
+export interface AdminSafetyEvent {
+  userId: string;
+  displayName: string;
+  childName: string;
+  kind: string; // entered | left | sos | checkIn | lowBattery
+  zoneName: string;
+  at: string;
+}
+
+export interface AdminAnalytics {
+  totalUsers: number;
+  pregnant: number;
+  withChildren: number;
+  devices: number;
+  alerts7d: number;
+  sosAllTime: number;
+  /** Stage key → how many accounts sit there right now. */
+  stageDistribution: Record<string, number>;
+  contentStages: number;
+  contentItems: number;
+  contentLinked: number;
+}
+
 export interface Repository {
   // Health
   insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<void>;
@@ -110,6 +173,29 @@ export interface Repository {
   recentEmergencies(limit: number): Promise<Array<{ userId: string; displayName: string; code: string; severity: string; at: string }>>;
   adminListUsers(q: string, limit: number, offset: number): Promise<{ total: number; users: Array<{ id: string; displayName: string; phone: string | null; dueDate: string | null }> }>;
   adminUserHealth(userId: string): Promise<{ latest: Record<string, number | null>; triage: Array<{ code: string; severity: string; at: string }> } | null>;
+  /// Everything the back-office needs about one family in a single call. The
+  /// dashboard used to show a name and some vitals; support answering "what is
+  /// going on with this account" needs the children, devices, zones and recent
+  /// safety events too.
+  adminUserDetail(userId: string): Promise<AdminUserDetail | null>;
+
+  /// Every band and tracker across all accounts, for the fleet view.
+  adminDevices(limit: number): Promise<AdminDevice[]>;
+
+  /// Safety events across all families, newest first — the SOS and geofence
+  /// feed that a duty operator watches.
+  adminSafetyEvents(limit: number): Promise<AdminSafetyEvent[]>;
+
+  /// Engagement and growth counters for the analytics view.
+  adminAnalytics(): Promise<AdminAnalytics>;
+
+  // ---- Timeline content (the CMS) ----
+  /// The whole catalogue, keyed by stage (`w1`..`w40`, `m0`..`m60`).
+  contentCatalog(): Promise<Record<string, ContentItemRow[]>>;
+  /// Replace one stage's items outright. Editing is per stage, so a save can
+  /// never partially apply across stages.
+  putStageContent(stageKey: string, items: ContentItemRow[]): Promise<void>;
+
   writeAudit(entry: { staffId: string; action: string; target?: string }): Promise<void>;
   listAudit(limit: number): Promise<Array<{ staffId: string; action: string; target: string | null; at: string }>>;
 }
