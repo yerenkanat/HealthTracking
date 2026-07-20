@@ -1,0 +1,98 @@
+/**
+ * Does the pg repository only touch tables and columns that exist?
+ *
+ * The whole app runs on the in-memory repository in development, so nothing
+ * here is exercised until it meets a real Postgres — and then it fails in
+ * production, on one endpoint, at whatever hour someone first opens it.
+ *
+ * This is not a substitute for running against a real database. It is the part
+ * that can be checked without one, and it already found adminUserDetail
+ * querying `day_logs` when the table is `cycle_day_logs` — every other query in
+ * the file had the name right.
+ */
+
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const schema = readFileSync(`${root}db/schema.sql`, 'utf8');
+
+/**
+ * Comments are stripped before the sweep. Prose contains SQL-shaped phrases —
+ * "the user row exists from signup" made `signup` look like a table — and the
+ * alternative, adding each to a noise list, would mask a real table of that
+ * name the day someone adds one.
+ */
+const repo = readFileSync(`${root}src/db/pgRepository.ts`, 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  .replace(/^\s*\/\/.*$/gm, ' ');
+
+/** Table names the schema creates. */
+function definedTables(): Set<string> {
+  const out = new Set<string>();
+  for (const m of schema.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)) {
+    out.add(m[1].toLowerCase());
+  }
+  return out;
+}
+
+/**
+ * Table names the repository reads or writes.
+ *
+ * Only the clauses where a table name can appear. UPDATE is deliberately
+ * excluded from a bare-word sweep because `UPDATE x SET` would otherwise make
+ * "set" look like a table.
+ */
+function referencedTables(): Set<string> {
+  const out = new Set<string>();
+  const patterns = [
+    /\bfrom\s+([a-z_][a-z0-9_]*)/gi,
+    /\bjoin\s+([a-z_][a-z0-9_]*)/gi,
+    /\binsert\s+into\s+([a-z_][a-z0-9_]*)/gi,
+    /\bupdate\s+([a-z_][a-z0-9_]*)\s+set\b/gi,
+    /\bdelete\s+from\s+([a-z_][a-z0-9_]*)/gi,
+  ];
+  for (const re of patterns) {
+    for (const m of repo.matchAll(re)) out.add(m[1].toLowerCase());
+  }
+  // Subquery aliases and SQL keywords that survive the sweep.
+  for (const noise of ['select', 'lateral', 'unnest', 'values', 'only']) out.delete(noise);
+  return out;
+}
+
+describe('pgRepository against db/schema.sql', () => {
+  it('queries only tables the schema creates', () => {
+    const defined = definedTables();
+    const missing = [...referencedTables()].filter((t) => !defined.has(t));
+    expect(missing, `no such table in schema.sql: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('the schema actually defines the tables this test relies on', () => {
+    // Guards the guard: if the extraction regex silently matched nothing, the
+    // check above would pass vacuously and prove exactly nothing.
+    const defined = definedTables();
+    expect(defined.size).toBeGreaterThan(10);
+    for (const core of ['users', 'children', 'geofences', 'timeline_content', 'cycle_day_logs']) {
+      expect(defined.has(core), `schema.sql should define ${core}`).toBe(true);
+    }
+  });
+
+  it('the repository actually references tables', () => {
+    // Same reasoning in the other direction: an empty reference set would make
+    // the first test pass no matter what the repository said.
+    expect(referencedTables().size).toBeGreaterThan(5);
+  });
+
+  it('every repository method the interface declares is implemented', () => {
+    // A method missing from the pg implementation is a runtime failure the
+    // moment production reaches it, and TypeScript will not always catch it
+    // through the object-literal-to-interface widening used here.
+    const iface = readFileSync(`${root}src/db/repository.ts`, 'utf8');
+    const declared = [...iface.matchAll(/^\s{2}([a-zA-Z][a-zA-Z0-9]*)\s*\(/gm)].map((m) => m[1]);
+    const missing = declared.filter(
+      (m) => !new RegExp(`\\basync ${m}\\s*\\(|\\b${m}\\s*:\\s*async`).test(repo),
+    );
+    expect(missing, `pgRepository is missing: ${missing.join(', ')}`).toEqual([]);
+  });
+});

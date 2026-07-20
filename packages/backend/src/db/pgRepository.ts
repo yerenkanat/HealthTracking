@@ -275,7 +275,7 @@ export function createPgRepository(pool: Pool): Repository {
              FROM safety_alerts a LEFT JOIN children c ON c.id = a.child_id
             WHERE a.user_id = $1 ORDER BY a.at DESC LIMIT 20`, [userId]),
         pool.query(`SELECT count(*) AS n FROM sleep_nights WHERE user_id = $1`, [userId]),
-        pool.query(`SELECT count(*) AS n FROM day_logs WHERE user_id = $1`, [userId]),
+        pool.query(`SELECT count(*) AS n FROM cycle_day_logs WHERE user_id = $1`, [userId]),
       ]);
       const health = await this.adminUserHealth(userId);
       return {
