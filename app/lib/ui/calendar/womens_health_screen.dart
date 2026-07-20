@@ -118,7 +118,9 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
             floatingActionButton: cycleMode
                 ? FloatingActionButton.extended(
                     onPressed: _logPeriodToday,
-                    backgroundColor: Palette.roseDeep,
+                    // White label on roseDeep measures 3.58:1. Darkened so the
+                    // most-used control on this screen is legible.
+                    backgroundColor: darkenForText(Palette.roseDeep),
                     foregroundColor: Colors.white,
                     icon: Icon(periodToday ? Icons.check_rounded : Icons.water_drop_rounded),
                     label: Text(l.t(periodToday ? 'cyc_period_logged' : 'cyc_log_period')),
@@ -451,7 +453,7 @@ class _GestationHeader extends StatelessWidget {
                         const Icon(Icons.edit_calendar_outlined, size: 14, color: Palette.violet),
                         const SizedBox(width: 4),
                         Text(l.t('gest_trimester', {'n': g.trimester}),
-                            style: const TextStyle(color: Palette.violet, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            style: const TextStyle(color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600)),
                       ]),
                     ),
                   ],
@@ -652,7 +654,7 @@ class _ExpectingLink extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-                color: Palette.violet, fontSize: 12.5, fontWeight: FontWeight.w600),
+                color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600),
           ),
         ),
       ]),
@@ -702,7 +704,16 @@ class _DayChip extends StatelessWidget {
         Container(
           width: 34, height: 34,
           decoration: BoxDecoration(
-            gradient: isToday ? Palette.roseViolet : null,
+            // The today chip carries WHITE text, and white on the pastel end of
+            // roseViolet measures 3.58:1 — under the 4.5 minimum. Darkening the
+            // stops keeps the gradient look while making the number legible;
+            // the accessibility suite checks the result rather than my eye.
+            gradient: isToday
+                ? LinearGradient(colors: [
+                    darkenForText(Palette.rose),
+                    darkenForText(Palette.violet),
+                  ])
+                : null,
             color: isToday ? null : Colors.white,
             shape: BoxShape.circle,
             border: isToday ? null : Border.all(color: Palette.border),
@@ -845,7 +856,11 @@ class _MonthCalendar extends StatelessWidget {
             },
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        height: 40,
+        // 48, not 40: this is the minimum touch target on both platforms, and
+        // these cells were below it. The visible circle stays 34 — only the
+        // hit area grows, so nothing looks different but the day someone is
+        // aiming for is the day they get.
+        height: 48,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -1096,7 +1111,7 @@ class _SeeAllRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(l.t('hist_see_all', {'n': count}),
-                  style: const TextStyle(color: Palette.violet, fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(color: Palette.violetText, fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(width: 4),
               const Icon(Icons.chevron_right_rounded, size: 18, color: Palette.violet),
             ],
@@ -1278,7 +1293,7 @@ class _MilestoneRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-          child: Text(badge, style: TextStyle(color: badgeColor, fontWeight: FontWeight.w700, fontSize: 12)),
+          child: Text(badge, style: TextStyle(color: darkenForText(badgeColor), fontWeight: FontWeight.w700, fontSize: 12)),
         ),
       ],
     );

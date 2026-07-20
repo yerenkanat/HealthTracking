@@ -32,6 +32,15 @@ import 'package:fcs_app/ui/content/timeline_content_screen.dart';
 import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
 import 'package:fcs_app/ui/profile/profile_screen.dart';
 import 'package:fcs_app/ui/settings/settings_screen.dart';
+import 'package:fcs_app/ui/advisor/advisor_screen.dart';
+import 'package:fcs_app/ui/calendar/contraction_timer_screen.dart';
+import 'package:fcs_app/ui/calendar/cycle_insights_screen.dart';
+import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
+import 'package:fcs_app/ui/calendar/weight_history_screen.dart';
+import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
+import 'package:fcs_app/ui/dashboard/water_history_screen.dart';
+import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
+import 'package:fcs_app/ui/tracking/zones_screen.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(
@@ -240,5 +249,67 @@ void main() {
         onOpen: (_) {},
       )),
     );
+  });
+
+  // ---- The rest of the app ----
+  // Completing the sweep so every screen is audited by something.
+
+  AppController seededA11y() {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    c.updateProfile(const UserProfile(
+      displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233'));
+    c.configureChild(name: 'Sultan', dateOfBirth: DateTime(2024, 3, 4), fences: const []);
+    return c;
+  }
+
+  testWidgets('the advisor screen meets the guidelines', (tester) async {
+    await audit(tester, screen(AdvisorScreen(
+        samples: samples, lastNight: nights.first, waterCount: 3, waterGoal: 8)));
+  });
+
+  testWidgets('the cycle insights screen meets the guidelines', (tester) async {
+    await audit(tester, screen(CycleInsightsScreen(controller: seededA11y(), now: () => today)));
+  });
+
+  testWidgets("the women's health screen meets the guidelines", (tester) async {
+    await audit(tester, screen(WomensHealthScreen(controller: seededA11y(), now: () => today)));
+  });
+
+  testWidgets('the child detail screen meets the guidelines', (tester) async {
+    final c = seededA11y();
+    await audit(tester, screen(
+        ChildDetailScreen(controller: c, childId: c.selectedChild!.id, now: () => today)));
+  });
+
+  testWidgets('the water history screen meets the guidelines', (tester) async {
+    await audit(tester, screen(WaterHistoryScreen(
+      week: [for (var i = 0; i < 7; i++)
+        (day: today.subtract(Duration(days: 6 - i)), glasses: 5 + i)],
+      goal: 8, streak: 3, now: () => today,
+    )));
+  });
+
+  testWidgets('the weight history screen meets the guidelines', (tester) async {
+    await audit(tester, screen(WeightHistoryScreen(
+      entries: const [
+        WeightEntry(date: '2026-07-01', kg: 62.0),
+        WeightEntry(date: '2026-07-15', kg: 63.4),
+      ],
+      onDelete: (_) {},
+    )));
+  });
+
+  testWidgets('the kick session screen meets the guidelines', (tester) async {
+    await audit(tester, screen(KickSessionScreen(onSave: (_, __) {})));
+  });
+
+  testWidgets('the contraction timer meets the guidelines', (tester) async {
+    await audit(tester, screen(ContractionTimerScreen(onSave: (_, __, ___) {})));
+  });
+
+  testWidgets('the zones screen meets the guidelines', (tester) async {
+    final c = seededA11y();
+    await audit(tester, screen(ZonesScreen(controller: c, childId: c.selectedChild!.id)));
   });
 }

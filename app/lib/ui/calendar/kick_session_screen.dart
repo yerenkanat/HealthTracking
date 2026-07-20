@@ -99,6 +99,7 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
           backgroundColor: Colors.transparent,
           title: Text(l.t('kick_session_title')),
           leading: IconButton(
+            tooltip: l.t('act_cancel'),
             icon: const Icon(Icons.close_rounded, color: Palette.textDim),
             onPressed: () async {
               if (await _confirmDiscard() && context.mounted) Navigator.of(context).pop();
@@ -137,7 +138,13 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                 // Big central tap target, ringed with progress toward the goal.
                 Builder(builder: (context) {
                   final reached = kickGoalReached(_session.count, defaultKickGoal);
-                  return Semantics(
+                  // MergeSemantics, or the InkWell inside publishes its OWN
+                  // unlabelled node beside this labelled one — a screen reader
+                  // then finds a bare "button" on the screen whose entire
+                  // purpose is that one control. The label here was always
+                  // right; it just was not reaching the node that gets tapped.
+                  return MergeSemantics(
+                    child: Semantics(
                     button: true,
                     label: l.t('kick_add'),
                     value: '${_session.count} / $defaultKickGoal',
@@ -218,6 +225,7 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                         ],
                       ),
                     ),
+                  ),
                   );
                 }),
                 const SizedBox(height: 18),

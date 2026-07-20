@@ -176,3 +176,21 @@ class FcsTheme {
     );
   }
 }
+
+/// Darken a brand colour enough to use as TEXT on its own pale tint.
+///
+/// The pattern "accent text on accent-at-12%" recurs all over this app — badges,
+/// tonal buttons, links — and the brand colours were chosen to look right as
+/// fills, not as small text. Palette.violet on its own tint measures 3.58:1
+/// against the 4.5 WCAG minimum; the same shape failed on the profile screen at
+/// 4.02. This pulls the lightness down until it carries.
+///
+/// [Palette.violetText] is the hand-tuned violet and stays preferable where the
+/// colour is known at authoring time; this is for the places that take a colour
+/// as a parameter and cannot name one.
+Color darkenForText(Color c) {
+  final hsl = HSLColor.fromColor(c);
+  // 0.36 lightness clears 4.5:1 against the app's near-white surfaces for every
+  // hue in the palette, checked by the accessibility suite rather than by eye.
+  return hsl.withLightness(hsl.lightness > 0.36 ? 0.36 : hsl.lightness).toColor();
+}
