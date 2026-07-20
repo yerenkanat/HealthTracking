@@ -72,9 +72,32 @@ the issue fixed, before saying a screen is done.
 4. `flutter test` + `dart run tool/verify_all.dart` → all green.
 
 ## Known follow-ups (don't re-discover these)
-- Medication reminders actually firing on a device. The scheduling is covered by
-  tests, but the OS delivering the notification isn't something a widget test
-  can observe.
+_(none open)_
+
+## Running the on-device tests
+`integration_test/` needs a real device or emulator:
+```
+adb shell pm grant com.fcs.fcs_app android.permission.POST_NOTIFICATIONS
+flutter test integration_test/reminder_delivery_test.dart -d <device>
+```
+Grant the permission FIRST and re-grant after any reinstall — `flutter test`
+reinstalls the app itself, which resets the runtime grant, and the consent
+dialog then has nobody to tap it and hangs the whole run. If a run stalls with
+no output, check `adb shell dumpsys window | grep mCurrentFocus`: a
+GrantPermissionsActivity or an "Application Not Responding" window means the
+emulator is blocking, not the app. A wedged emulator (`ANR: system`) makes
+notifications undeliverable and looks exactly like an app bug — reboot it
+before believing a delivery failure.
+
+_Cleared: "medication reminders actually firing". Now verified on-device by
+reminder_delivery_test.dart, which checks the permission, that a notification
+really reaches the shade, that scheduleDaily registers with the OS, that cancel
+deregisters, that rescheduling replaces rather than duplicates, and that a past
+time is refused. It deliberately does NOT assert when a scheduled reminder
+arrives: the app uses inexact alarms on purpose (so it needn't request
+SCHEDULE_EXACT_ALARM, which the emulator refuses anyway), and Android batches
+those freely. Asserting a delivery deadline would be asserting a guarantee the
+platform never made._
 
 _Cleared: the `onboarding_flow.dart` `RadioGroup` migration. It had been deferred
 for needing an emulator, but the real blocker was missing coverage — the flow

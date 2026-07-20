@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -70,24 +71,32 @@ class LocalNotificationService implements NotificationService {
     await _initTimezone();
   }
 
-  /// Load the tz database and point tz.local at a zone whose CURRENT offset
-  /// matches the device (no native plugin needed). Falls back to Asia/Almaty —
-  /// the app's primary region. Good enough for near-term reminder scheduling.
+  /// Load the tz database and point tz.local at the device's ACTUAL zone.
+  ///
+  /// This used to pick the first zone in the database whose current offset
+  /// matched the device. That is not the same thing: on a UTC+5 device it
+  /// selected Antarctica/Mawson rather than Asia/Almaty, and on UTC+0 it
+  /// selected Africa/Abidjan rather than Europe/London. Same offset today,
+  /// different rules tomorrow — daily reminders repeat by wall-clock time in
+  /// tz.local, and none of those stand-ins observe DST, so a 09:00 reminder
+  /// would arrive at 10:00 for half the year anywhere that does. Kazakhstan
+  /// dropped DST in 2005, which is why this never showed up locally.
   Future<void> _initTimezone() async {
     try {
       tzdata.initializeTimeZones();
-      final deviceOffsetMs = DateTime.now().timeZoneOffset.inMilliseconds;
-      tz.Location? match;
-      for (final loc in tz.timeZoneDatabase.locations.values) {
-        if (tz.TZDateTime.now(loc).timeZoneOffset.inMilliseconds == deviceOffsetMs) {
-          match = loc;
-          break;
-        }
-      }
-      tz.setLocalLocation(match ?? tz.getLocation('Asia/Almaty'));
+      final zone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(zone.identifier));
       _tzReady = true;
     } catch (_) {
-      _tzReady = false;
+      // An unknown or unavailable zone name must not take reminders down with
+      // it: fall back to the app's primary region rather than leaving tz unset,
+      // which would make every schedule call silently do nothing.
+      try {
+        tz.setLocalLocation(tz.getLocation('Asia/Almaty'));
+        _tzReady = true;
+      } catch (_) {
+        _tzReady = false;
+      }
     }
   }
 

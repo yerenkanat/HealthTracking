@@ -26,12 +26,15 @@ dependencies:
   shared_preferences: ^2.3.0    # persist onboarding/session config
   image_picker: ^1.1.0          # pick profile / child photos from gallery or camera
   path_provider: ^2.1.0         # app documents dir to store picked photos
+  flutter_timezone: ^5.1.0
   # mmkv: ^2.0.0                  # fast disk mirror for offline-first batcher
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   test: ^1.25.0
+  integration_test:
+    sdk: flutter
   flutter_lints: ^4.0.0
 
 flutter:
