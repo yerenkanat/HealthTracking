@@ -59,6 +59,35 @@ void main() {
   _chk('currentZone none when far', currentZone(const Coordinates(43.30, 77.0), fences) == null);
   _chk('distanceFromHome ~0 at home', (distanceFromHomeM(home.center!, fences) ?? 999) < 1);
 
+  // The home zone is created BY THE APP with a localized display name, so a
+  // Russian user's is "Дом" and a Kazakh user's is "Үй". This used to match the
+  // name against the literal English 'home', which meant distance-from-home was
+  // silently null for every user of the app's own default language — and the
+  // assertion above passed anyway, because it only ever tested English.
+  for (final label in ['Home', 'Дом', 'Үй', 'дом', '  ДОМ  ']) {
+    final localized = [Geofence.circle('home', label, home.center!, 100)];
+    _chk('a home zone named "$label" still gives a distance',
+        distanceFromHomeM(const Coordinates(43.240, 76.890), localized) != null);
+  }
+  // A zone the user made by hand has no 'home' id, so the name has to carry it.
+  _chk('a hand-made zone named "Дом" counts as home',
+      distanceFromHomeM(const Coordinates(43.240, 76.890),
+          [Geofence.circle('zone-7', 'Дом', home.center!, 100)]) != null);
+  // ...but an unrelated zone must not be mistaken for home.
+  _chk('a zone named "Школа" is not home',
+      distanceFromHomeM(const Coordinates(43.240, 76.890),
+          [Geofence.circle('zone-8', 'Школа', home.center!, 100)]) == null);
+
+  // A fix claiming to be from the FUTURE means the clocks disagree, and once
+  // they do we cannot know how old it is. "Live" is the word a parent acts on,
+  // so it is the one thing we must not say. Small skew is tolerated.
+  _chk('a slightly-ahead clock is tolerated',
+      freshnessOf(const Duration(minutes: -1)) == Freshness.live);
+  _chk('a fix from ten hours in the future is never live',
+      freshnessOf(const Duration(hours: -10)) == Freshness.stale);
+  _chk('nor from an hour in the future',
+      freshnessOf(const Duration(minutes: -60)) == Freshness.stale);
+
   _chk('formatAgo just now', formatAgo(const Duration(seconds: 10)) == 'just now');
   _chk('formatAgo minutes', formatAgo(const Duration(minutes: 5)) == '5 min ago');
   _chk('formatAgo hours', formatAgo(const Duration(hours: 2)) == '2 h ago');

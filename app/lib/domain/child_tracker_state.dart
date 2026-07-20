@@ -26,8 +26,24 @@ class ChildStatus {
   });
 }
 
+/// How far ahead of us a fix's timestamp may be before we stop believing it.
+///
+/// Small skew between a phone and a server is ordinary and must not make every
+/// fix look stale.
+const _clockSkewTolerance = Duration(minutes: 2);
+
 /// Freshness from the age of the last fix. A stale fix must never look "live".
+///
+/// A NEGATIVE age means the fix claims to be from the future. Beyond a little
+/// tolerance that is a clock disagreement, and once the clocks disagree we do
+/// not know how old the fix actually is — so we must not claim it is live.
+/// "Live" is precisely the word a parent acts on, and this is a child tracker;
+/// admitting we cannot tell is the only safe answer.
+///
+/// Not reachable today — updatedAt comes from the device clock — but
+/// ApiClient.lastLocation exists to be wired, and it carries a server timestamp.
 Freshness freshnessOf(Duration age) {
+  if (age.isNegative && age.abs() > _clockSkewTolerance) return Freshness.stale;
   if (age <= const Duration(minutes: 2)) return Freshness.live;
   if (age <= const Duration(minutes: 15)) return Freshness.recent;
   return Freshness.stale;
@@ -41,9 +57,25 @@ String? currentZone(Coordinates coords, List<Geofence> fences) {
   return null;
 }
 
+/// Names that mean "home", across the languages the app ships in.
+///
+/// A fallback only — the id is the reliable signal. This exists for a zone the
+/// user created and named by hand, where there is nothing else to go on.
+const _homeNames = {'home', 'дом', 'дома', 'үй', 'уй', 'уйим'};
+
+/// Whether a fence is the family's home.
+///
+/// Matches the stable id FIRST. The app creates that zone itself with a
+/// LOCALIZED display name — l.t('onb_home_label') — so a Russian user's home
+/// zone is called "Дом" and a Kazakh user's is "Үй". Matching the name against
+/// the literal English 'home', as this used to, meant distance-from-home was
+/// silently null for every user of the app's own default language.
+bool isHomeFence(Geofence f) =>
+    f.id.trim().toLowerCase() == 'home' || _homeNames.contains(f.name.trim().toLowerCase());
+
 double? distanceFromHomeM(Coordinates coords, List<Geofence> fences) {
   for (final f in fences) {
-    if (f.name.toLowerCase() == 'home' && f.center != null) {
+    if (isHomeFence(f) && f.center != null) {
       return haversineM(coords, f.center!);
     }
   }
