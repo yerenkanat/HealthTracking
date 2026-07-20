@@ -121,6 +121,16 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'alerts_title': {AppLocale.ru: 'Оповещения', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Alerts'},
   'alerts_empty': {AppLocale.ru: 'Пока нет оповещений. Здесь появятся входы и выходы из зон.', AppLocale.kk: 'Әзірге хабарлама жоқ. Мұнда аймаққа кіру мен шығу пайда болады.', AppLocale.en: 'No alerts yet. Zone entries and exits will appear here.'},
   'alerts_clear': {AppLocale.ru: 'Очистить', AppLocale.kk: 'Тазалау', AppLocale.en: 'Clear'},
+  'confirm_clear_alerts_title': {
+    AppLocale.ru: 'Очистить все уведомления?',
+    AppLocale.kk: 'Барлық хабарламаларды тазалау керек пе?',
+    AppLocale.en: 'Clear all alerts?',
+  },
+  'confirm_clear_alerts_body': {
+    AppLocale.ru: 'Вся история будет удалена, включая сигналы SOS и отметки о прибытии. Это действие нельзя отменить.',
+    AppLocale.kk: 'Бүкіл тарих жойылады, соның ішінде SOS сигналдары мен тіркелулер. Бұл әрекетті кері қайтару мүмкін емес.',
+    AppLocale.en: 'The whole history will be deleted, including SOS signals and check-ins. This cannot be undone.',
+  },
   'alert_entered': {AppLocale.ru: 'Вход в «{zone}»', AppLocale.kk: '«{zone}» аймағына кіру', AppLocale.en: 'Entered {zone}'},
   'alert_left': {AppLocale.ru: 'Выход из «{zone}»', AppLocale.kk: '«{zone}» аймағынан шығу', AppLocale.en: 'Left {zone}'},
   'alert_checkin': {AppLocale.ru: 'Отметка «Всё хорошо»', AppLocale.kk: '«Бәрі жақсы» белгісі', AppLocale.en: 'Checked in — all good'},

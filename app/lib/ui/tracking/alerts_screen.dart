@@ -37,6 +37,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
     if (ok) widget.controller.removeAlert(a);
   }
 
+  /// Clearing the whole feed was wired straight to the button, so a single
+  /// mis-tap wiped every alert — including the SOS history, the one record a
+  /// parent would ever go back for. Dismissing ONE alert already confirmed;
+  /// dismissing all of them certainly has to.
+  Future<void> _confirmClearAll(BuildContext context) async {
+    final l = L10nScope.of(context);
+    final ok = await confirmDestructive(
+      context,
+      title: l.t('confirm_clear_alerts_title'),
+      message: l.t('confirm_clear_alerts_body'),
+      confirmLabel: l.t('alerts_clear'),
+    );
+    if (ok) widget.controller.clearAlerts();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -51,7 +66,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
               stream: controller.changes,
               builder: (context, _) => controller.alerts.isEmpty
                   ? const SizedBox.shrink()
-                  : TextButton(onPressed: controller.clearAlerts, child: Text(l.t('alerts_clear'))),
+                  : TextButton(
+                      onPressed: () => _confirmClearAll(context),
+                      child: Text(l.t('alerts_clear')),
+                    ),
             ),
           ],
         ),

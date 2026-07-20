@@ -83,10 +83,30 @@ void main() {
       expect(find.text('Entered School'), findsOneWidget);
       expect(find.text('Left Home'), findsOneWidget);
       expect(find.textContaining('Sultan'), findsWidgets);
-      // Clear empties the feed.
+      // Clearing the whole feed confirms first — it destroys SOS history.
       await tester.tap(find.text('Clear'));
       await tester.pumpAndSettle();
+      expect(find.text('Clear all alerts?'), findsOneWidget);
+      await tester.tap(find.descendant(
+          of: find.byType(AlertDialog), matching: find.text('Clear')));
+      await tester.pumpAndSettle();
       expect(find.textContaining('No alerts yet'), findsOneWidget);
+      addTearDown(c.dispose);
+    });
+
+    testWidgets('cancelling "Clear all" keeps every alert', (tester) async {
+      final c = AppController(now: () => DateTime(2026, 7, 16, 9));
+      c.configureChild(name: 'Sultan', fences: [_home, _school]);
+      c.onChildLocation(_home.center!);
+      c.onChildLocation(_school.center!);
+      await tester.pumpWidget(wrap(AlertsScreen(controller: c)));
+
+      await tester.tap(find.text('Clear'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Entered School'), findsOneWidget);
+      expect(c.alerts, isNotEmpty); // a mis-tap must not wipe the SOS history
       addTearDown(c.dispose);
     });
 
