@@ -21,7 +21,6 @@ import 'appointments/appointments_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../data/demo_content.dart';
 import '../domain/timeline_content.dart';
 import 'content/timeline_content_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
@@ -40,7 +39,10 @@ const bool _mapsEnabled = bool.fromEnvironment('MAPS_ENABLED', defaultValue: fal
 
 class HomeShell extends StatefulWidget {
   final AppController controller;
-  const HomeShell({super.key, required this.controller});
+
+  /// The content catalogue in use — authored asset or seeded fallback.
+  final ContentCatalog catalog;
+  const HomeShell({super.key, required this.controller, required this.catalog});
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -221,10 +223,6 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  /// The catalogue. Seeded test content for now — swapping this for the
-  /// backend's response is the only change needed when the endpoint exists.
-  static final _catalog = demoContentCatalog();
-
   /// Where this family is on the timeline: their pregnancy week if there is a
   /// due date, otherwise the selected child's age in months.
   TimelineStage? _stageFor(AppController c) => currentStage(
@@ -236,7 +234,7 @@ class _HomeShellState extends State<HomeShell> {
 
   List<ContentItem> _contentFor(AppController c) {
     final stage = _stageFor(c);
-    return stage == null ? const [] : _catalog.itemsFor(stage);
+    return stage == null ? const [] : widget.catalog.itemsFor(stage);
   }
 
   /// Open a lesson video or a product page in the browser. Items without a URL

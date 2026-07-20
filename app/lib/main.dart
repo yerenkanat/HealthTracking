@@ -13,6 +13,7 @@ import 'app/app.dart';
 import 'app/app_controller.dart';
 import 'core/geofence.dart';
 import 'data/notification_service.dart';
+import 'data/content_repository.dart';
 import 'data/prefs_app_store.dart';
 import 'domain/geofence_alerts.dart';
 import 'domain/cycle_log.dart';
@@ -35,7 +36,15 @@ Future<void> main() async {
   final controller = AppController(persistStore: PrefsAppStore());
   await controller.restore();
   if (const bool.fromEnvironment('DEMO')) _seedDemo(controller);
-  runApp(FcsApp(controller: controller));
+
+  // Authored content if it is bundled, seeded content otherwise. Loading here
+  // keeps first paint free of a file read and means the tree never sees a
+  // half-loaded catalogue.
+  final loaded = await loadCatalog();
+  if (loaded.source == CatalogSource.demo && loaded.fallbackReason != null) {
+    debugPrint('content: using the seeded catalogue — ');
+  }
+  runApp(FcsApp(controller: controller, catalog: loaded.catalog));
 
   // Kick off device + backend wiring without blocking first paint.
   unawaited(bootstrapRuntime(controller));

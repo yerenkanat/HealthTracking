@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "main": "src/index.ts",
+  "//start": "tsx, not node --experimental-strip-types: node's ESM resolver needs an explicit extension on every relative import, and this codebase imports './server' rather than './server.ts'. `npm start` failed on the first import. A production deployment should compile ahead of time rather than rely on a dev runner.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "node --experimental-strip-types src/index.ts"
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

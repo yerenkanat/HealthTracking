@@ -39,6 +39,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # Authored timeline content. Edit this file to publish real lessons and
+    # products; the app falls back to the seeded catalogue if it is absent.
+    - assets/content/catalog.json
   fonts:
     - family: Outfit
       fonts:

@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_controller.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
+import '../domain/timeline_content.dart';
 import '../ui/theme.dart';
 import '../ui/home_shell.dart';
 import '../ui/onboarding/onboarding_flow.dart';
@@ -21,7 +22,11 @@ import '../ui/emergency/emergency_rescue_screen.dart';
 
 class FcsApp extends StatelessWidget {
   final AppController controller;
-  const FcsApp({super.key, required this.controller});
+
+  /// Timeline content in use. Loaded from the authored asset at startup,
+  /// falling back to the seeded catalogue — see [loadCatalog].
+  final ContentCatalog catalog;
+  const FcsApp({super.key, required this.controller, required this.catalog});
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +78,7 @@ class FcsApp extends StatelessWidget {
         onDismissConfirmed: () async => controller.dismissEmergency(),
       );
     }
-    return HomeShell(controller: controller);
+    return HomeShell(controller: controller, catalog: catalog);
   }
 
   /// Map the well-known default button labels to localized strings; leave any

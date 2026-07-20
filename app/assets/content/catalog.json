@@ -1,0 +1,5826 @@
+{
+  "w1": [
+    {
+      "id": "w1-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 1-я неделя",
+        "kk": "Балаға не болып жатыр · 1-апта",
+        "en": "What's happening with your baby · week 1"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w1-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 1-я неделя",
+        "kk": "Тыныс алу және демалыс · 1-апта",
+        "en": "Breathing and rest · week 1"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 1-й недели беременности.",
+        "kk": "Жүктіліктің 1-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 1 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w1-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 1-й недели.",
+        "kk": "1-аптаға таңдалған.",
+        "en": "Chosen for week 1."
+      },
+      "priceMinor": 740000,
+      "currency": "KZT"
+    }
+  ],
+  "w2": [
+    {
+      "id": "w2-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 2-я неделя",
+        "kk": "Тыныс алу және демалыс · 2-апта",
+        "en": "Breathing and rest · week 2"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w2-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 2-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 2-апта",
+        "en": "Nutrition and wellbeing · week 2"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 2-й недели беременности.",
+        "kk": "Жүктіліктің 2-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 2 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w2-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 2-й недели.",
+        "kk": "2-аптаға таңдалған.",
+        "en": "Chosen for week 2."
+      },
+      "priceMinor": 790000,
+      "currency": "KZT"
+    }
+  ],
+  "w3": [
+    {
+      "id": "w3-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 3-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 3-апта",
+        "en": "Nutrition and wellbeing · week 3"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w3-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 3-я неделя",
+        "kk": "Балаға не болып жатыр · 3-апта",
+        "en": "What's happening with your baby · week 3"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 3-й недели беременности.",
+        "kk": "Жүктіліктің 3-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 3 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w3-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 3-й недели.",
+        "kk": "3-аптаға таңдалған.",
+        "en": "Chosen for week 3."
+      },
+      "priceMinor": 840000,
+      "currency": "KZT"
+    }
+  ],
+  "w4": [
+    {
+      "id": "w4-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 4-я неделя",
+        "kk": "Балаға не болып жатыр · 4-апта",
+        "en": "What's happening with your baby · week 4"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w4-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 4-я неделя",
+        "kk": "Тыныс алу және демалыс · 4-апта",
+        "en": "Breathing and rest · week 4"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 4-й недели беременности.",
+        "kk": "Жүктіліктің 4-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 4 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w4-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 4-й недели.",
+        "kk": "4-аптаға таңдалған.",
+        "en": "Chosen for week 4."
+      },
+      "priceMinor": 890000,
+      "currency": "KZT"
+    }
+  ],
+  "w5": [
+    {
+      "id": "w5-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 5-я неделя",
+        "kk": "Тыныс алу және демалыс · 5-апта",
+        "en": "Breathing and rest · week 5"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w5-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 5-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 5-апта",
+        "en": "Nutrition and wellbeing · week 5"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 5-й недели беременности.",
+        "kk": "Жүктіліктің 5-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 5 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w5-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 5-й недели.",
+        "kk": "5-аптаға таңдалған.",
+        "en": "Chosen for week 5."
+      },
+      "priceMinor": 940000,
+      "currency": "KZT"
+    }
+  ],
+  "w6": [
+    {
+      "id": "w6-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 6-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 6-апта",
+        "en": "Nutrition and wellbeing · week 6"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w6-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 6-я неделя",
+        "kk": "Балаға не болып жатыр · 6-апта",
+        "en": "What's happening with your baby · week 6"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 6-й недели беременности.",
+        "kk": "Жүктіліктің 6-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 6 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w6-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 6-й недели.",
+        "kk": "6-аптаға таңдалған.",
+        "en": "Chosen for week 6."
+      },
+      "priceMinor": 990000,
+      "currency": "KZT"
+    }
+  ],
+  "w7": [
+    {
+      "id": "w7-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 7-я неделя",
+        "kk": "Балаға не болып жатыр · 7-апта",
+        "en": "What's happening with your baby · week 7"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w7-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 7-я неделя",
+        "kk": "Тыныс алу және демалыс · 7-апта",
+        "en": "Breathing and rest · week 7"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 7-й недели беременности.",
+        "kk": "Жүктіліктің 7-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 7 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w7-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 7-й недели.",
+        "kk": "7-аптаға таңдалған.",
+        "en": "Chosen for week 7."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    }
+  ],
+  "w8": [
+    {
+      "id": "w8-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 8-я неделя",
+        "kk": "Тыныс алу және демалыс · 8-апта",
+        "en": "Breathing and rest · week 8"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w8-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 8-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 8-апта",
+        "en": "Nutrition and wellbeing · week 8"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 8-й недели беременности.",
+        "kk": "Жүктіліктің 8-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 8 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w8-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 8-й недели.",
+        "kk": "8-аптаға таңдалған.",
+        "en": "Chosen for week 8."
+      },
+      "priceMinor": 740000,
+      "currency": "KZT"
+    }
+  ],
+  "w9": [
+    {
+      "id": "w9-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 9-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 9-апта",
+        "en": "Nutrition and wellbeing · week 9"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w9-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 9-я неделя",
+        "kk": "Балаға не болып жатыр · 9-апта",
+        "en": "What's happening with your baby · week 9"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 9-й недели беременности.",
+        "kk": "Жүктіліктің 9-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 9 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w9-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 9-й недели.",
+        "kk": "9-аптаға таңдалған.",
+        "en": "Chosen for week 9."
+      },
+      "priceMinor": 790000,
+      "currency": "KZT"
+    }
+  ],
+  "w10": [
+    {
+      "id": "w10-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 10-я неделя",
+        "kk": "Балаға не болып жатыр · 10-апта",
+        "en": "What's happening with your baby · week 10"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w10-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 10-я неделя",
+        "kk": "Тыныс алу және демалыс · 10-апта",
+        "en": "Breathing and rest · week 10"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 10-й недели беременности.",
+        "kk": "Жүктіліктің 10-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 10 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w10-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 10-й недели.",
+        "kk": "10-аптаға таңдалған.",
+        "en": "Chosen for week 10."
+      },
+      "priceMinor": 840000,
+      "currency": "KZT"
+    }
+  ],
+  "w11": [
+    {
+      "id": "w11-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 11-я неделя",
+        "kk": "Тыныс алу және демалыс · 11-апта",
+        "en": "Breathing and rest · week 11"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w11-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 11-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 11-апта",
+        "en": "Nutrition and wellbeing · week 11"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 11-й недели беременности.",
+        "kk": "Жүктіліктің 11-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 11 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w11-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 11-й недели.",
+        "kk": "11-аптаға таңдалған.",
+        "en": "Chosen for week 11."
+      },
+      "priceMinor": 890000,
+      "currency": "KZT"
+    }
+  ],
+  "w12": [
+    {
+      "id": "w12-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 12-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 12-апта",
+        "en": "Nutrition and wellbeing · week 12"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w12-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 12-я неделя",
+        "kk": "Балаға не болып жатыр · 12-апта",
+        "en": "What's happening with your baby · week 12"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 12-й недели беременности.",
+        "kk": "Жүктіліктің 12-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 12 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w12-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 12-й недели.",
+        "kk": "12-аптаға таңдалған.",
+        "en": "Chosen for week 12."
+      },
+      "priceMinor": 940000,
+      "currency": "KZT"
+    }
+  ],
+  "w13": [
+    {
+      "id": "w13-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 13-я неделя",
+        "kk": "Балаға не болып жатыр · 13-апта",
+        "en": "What's happening with your baby · week 13"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит первый триместр и что важно на этой неделе.",
+        "kk": "бірінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the first trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w13-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 13-я неделя",
+        "kk": "Тыныс алу және демалыс · 13-апта",
+        "en": "Breathing and rest · week 13"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 13-й недели беременности.",
+        "kk": "Жүктіліктің 13-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 13 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w13-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 13-й недели.",
+        "kk": "13-аптаға таңдалған.",
+        "en": "Chosen for week 13."
+      },
+      "priceMinor": 990000,
+      "currency": "KZT"
+    }
+  ],
+  "w14": [
+    {
+      "id": "w14-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 14-я неделя",
+        "kk": "Тыныс алу және демалыс · 14-апта",
+        "en": "Breathing and rest · week 14"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w14-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 14-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 14-апта",
+        "en": "Nutrition and wellbeing · week 14"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 14-й недели беременности.",
+        "kk": "Жүктіліктің 14-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 14 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w14-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 14-й недели.",
+        "kk": "14-аптаға таңдалған.",
+        "en": "Chosen for week 14."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    }
+  ],
+  "w15": [
+    {
+      "id": "w15-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 15-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 15-апта",
+        "en": "Nutrition and wellbeing · week 15"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w15-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 15-я неделя",
+        "kk": "Балаға не болып жатыр · 15-апта",
+        "en": "What's happening with your baby · week 15"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 15-й недели беременности.",
+        "kk": "Жүктіліктің 15-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 15 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w15-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 15-й недели.",
+        "kk": "15-аптаға таңдалған.",
+        "en": "Chosen for week 15."
+      },
+      "priceMinor": 740000,
+      "currency": "KZT"
+    }
+  ],
+  "w16": [
+    {
+      "id": "w16-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 16-я неделя",
+        "kk": "Балаға не болып жатыр · 16-апта",
+        "en": "What's happening with your baby · week 16"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w16-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 16-я неделя",
+        "kk": "Тыныс алу және демалыс · 16-апта",
+        "en": "Breathing and rest · week 16"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 16-й недели беременности.",
+        "kk": "Жүктіліктің 16-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 16 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w16-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 16-й недели.",
+        "kk": "16-аптаға таңдалған.",
+        "en": "Chosen for week 16."
+      },
+      "priceMinor": 790000,
+      "currency": "KZT"
+    }
+  ],
+  "w17": [
+    {
+      "id": "w17-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 17-я неделя",
+        "kk": "Тыныс алу және демалыс · 17-апта",
+        "en": "Breathing and rest · week 17"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w17-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 17-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 17-апта",
+        "en": "Nutrition and wellbeing · week 17"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 17-й недели беременности.",
+        "kk": "Жүктіліктің 17-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 17 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w17-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 17-й недели.",
+        "kk": "17-аптаға таңдалған.",
+        "en": "Chosen for week 17."
+      },
+      "priceMinor": 840000,
+      "currency": "KZT"
+    }
+  ],
+  "w18": [
+    {
+      "id": "w18-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 18-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 18-апта",
+        "en": "Nutrition and wellbeing · week 18"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w18-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 18-я неделя",
+        "kk": "Балаға не болып жатыр · 18-апта",
+        "en": "What's happening with your baby · week 18"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 18-й недели беременности.",
+        "kk": "Жүктіліктің 18-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 18 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w18-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 18-й недели.",
+        "kk": "18-аптаға таңдалған.",
+        "en": "Chosen for week 18."
+      },
+      "priceMinor": 890000,
+      "currency": "KZT"
+    }
+  ],
+  "w19": [
+    {
+      "id": "w19-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 19-я неделя",
+        "kk": "Балаға не болып жатыр · 19-апта",
+        "en": "What's happening with your baby · week 19"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w19-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 19-я неделя",
+        "kk": "Тыныс алу және демалыс · 19-апта",
+        "en": "Breathing and rest · week 19"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 19-й недели беременности.",
+        "kk": "Жүктіліктің 19-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 19 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w19-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 19-й недели.",
+        "kk": "19-аптаға таңдалған.",
+        "en": "Chosen for week 19."
+      },
+      "priceMinor": 940000,
+      "currency": "KZT"
+    }
+  ],
+  "w20": [
+    {
+      "id": "w20-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 20-я неделя",
+        "kk": "Тыныс алу және демалыс · 20-апта",
+        "en": "Breathing and rest · week 20"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w20-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 20-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 20-апта",
+        "en": "Nutrition and wellbeing · week 20"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 20-й недели беременности.",
+        "kk": "Жүктіліктің 20-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 20 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w20-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 20-й недели.",
+        "kk": "20-аптаға таңдалған.",
+        "en": "Chosen for week 20."
+      },
+      "priceMinor": 990000,
+      "currency": "KZT"
+    }
+  ],
+  "w21": [
+    {
+      "id": "w21-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 21-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 21-апта",
+        "en": "Nutrition and wellbeing · week 21"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w21-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 21-я неделя",
+        "kk": "Балаға не болып жатыр · 21-апта",
+        "en": "What's happening with your baby · week 21"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 21-й недели беременности.",
+        "kk": "Жүктіліктің 21-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 21 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w21-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 21-й недели.",
+        "kk": "21-аптаға таңдалған.",
+        "en": "Chosen for week 21."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    }
+  ],
+  "w22": [
+    {
+      "id": "w22-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 22-я неделя",
+        "kk": "Балаға не болып жатыр · 22-апта",
+        "en": "What's happening with your baby · week 22"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w22-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 22-я неделя",
+        "kk": "Тыныс алу және демалыс · 22-апта",
+        "en": "Breathing and rest · week 22"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 22-й недели беременности.",
+        "kk": "Жүктіліктің 22-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 22 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w22-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 22-й недели.",
+        "kk": "22-аптаға таңдалған.",
+        "en": "Chosen for week 22."
+      },
+      "priceMinor": 740000,
+      "currency": "KZT"
+    }
+  ],
+  "w23": [
+    {
+      "id": "w23-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 23-я неделя",
+        "kk": "Тыныс алу және демалыс · 23-апта",
+        "en": "Breathing and rest · week 23"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w23-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 23-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 23-апта",
+        "en": "Nutrition and wellbeing · week 23"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 23-й недели беременности.",
+        "kk": "Жүктіліктің 23-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 23 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w23-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 23-й недели.",
+        "kk": "23-аптаға таңдалған.",
+        "en": "Chosen for week 23."
+      },
+      "priceMinor": 790000,
+      "currency": "KZT"
+    }
+  ],
+  "w24": [
+    {
+      "id": "w24-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 24-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 24-апта",
+        "en": "Nutrition and wellbeing · week 24"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w24-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 24-я неделя",
+        "kk": "Балаға не болып жатыр · 24-апта",
+        "en": "What's happening with your baby · week 24"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 24-й недели беременности.",
+        "kk": "Жүктіліктің 24-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 24 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w24-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 24-й недели.",
+        "kk": "24-аптаға таңдалған.",
+        "en": "Chosen for week 24."
+      },
+      "priceMinor": 840000,
+      "currency": "KZT"
+    }
+  ],
+  "w25": [
+    {
+      "id": "w25-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 25-я неделя",
+        "kk": "Балаға не болып жатыр · 25-апта",
+        "en": "What's happening with your baby · week 25"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w25-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 25-я неделя",
+        "kk": "Тыныс алу және демалыс · 25-апта",
+        "en": "Breathing and rest · week 25"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 25-й недели беременности.",
+        "kk": "Жүктіліктің 25-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 25 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w25-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 25-й недели.",
+        "kk": "25-аптаға таңдалған.",
+        "en": "Chosen for week 25."
+      },
+      "priceMinor": 890000,
+      "currency": "KZT"
+    }
+  ],
+  "w26": [
+    {
+      "id": "w26-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 26-я неделя",
+        "kk": "Тыныс алу және демалыс · 26-апта",
+        "en": "Breathing and rest · week 26"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w26-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 26-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 26-апта",
+        "en": "Nutrition and wellbeing · week 26"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 26-й недели беременности.",
+        "kk": "Жүктіліктің 26-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 26 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w26-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 26-й недели.",
+        "kk": "26-аптаға таңдалған.",
+        "en": "Chosen for week 26."
+      },
+      "priceMinor": 940000,
+      "currency": "KZT"
+    }
+  ],
+  "w27": [
+    {
+      "id": "w27-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 27-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 27-апта",
+        "en": "Nutrition and wellbeing · week 27"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит второй триместр и что важно на этой неделе.",
+        "kk": "екінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the second trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w27-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 27-я неделя",
+        "kk": "Балаға не болып жатыр · 27-апта",
+        "en": "What's happening with your baby · week 27"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 27-й недели беременности.",
+        "kk": "Жүктіліктің 27-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 27 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w27-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 27-й недели.",
+        "kk": "27-аптаға таңдалған.",
+        "en": "Chosen for week 27."
+      },
+      "priceMinor": 990000,
+      "currency": "KZT"
+    }
+  ],
+  "w28": [
+    {
+      "id": "w28-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 28-я неделя",
+        "kk": "Балаға не болып жатыр · 28-апта",
+        "en": "What's happening with your baby · week 28"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w28-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 28-я неделя",
+        "kk": "Тыныс алу және демалыс · 28-апта",
+        "en": "Breathing and rest · week 28"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 28-й недели беременности.",
+        "kk": "Жүктіліктің 28-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 28 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w28-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 28-й недели.",
+        "kk": "28-аптаға таңдалған.",
+        "en": "Chosen for week 28."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    }
+  ],
+  "w29": [
+    {
+      "id": "w29-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 29-я неделя",
+        "kk": "Тыныс алу және демалыс · 29-апта",
+        "en": "Breathing and rest · week 29"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w29-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 29-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 29-апта",
+        "en": "Nutrition and wellbeing · week 29"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 29-й недели беременности.",
+        "kk": "Жүктіліктің 29-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 29 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w29-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 29-й недели.",
+        "kk": "29-аптаға таңдалған.",
+        "en": "Chosen for week 29."
+      },
+      "priceMinor": 740000,
+      "currency": "KZT"
+    }
+  ],
+  "w30": [
+    {
+      "id": "w30-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 30-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 30-апта",
+        "en": "Nutrition and wellbeing · week 30"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w30-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 30-я неделя",
+        "kk": "Балаға не болып жатыр · 30-апта",
+        "en": "What's happening with your baby · week 30"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 30-й недели беременности.",
+        "kk": "Жүктіліктің 30-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 30 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w30-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 30-й недели.",
+        "kk": "30-аптаға таңдалған.",
+        "en": "Chosen for week 30."
+      },
+      "priceMinor": 790000,
+      "currency": "KZT"
+    }
+  ],
+  "w31": [
+    {
+      "id": "w31-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 31-я неделя",
+        "kk": "Балаға не болып жатыр · 31-апта",
+        "en": "What's happening with your baby · week 31"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w31-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 31-я неделя",
+        "kk": "Тыныс алу және демалыс · 31-апта",
+        "en": "Breathing and rest · week 31"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 31-й недели беременности.",
+        "kk": "Жүктіліктің 31-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 31 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w31-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 31-й недели.",
+        "kk": "31-аптаға таңдалған.",
+        "en": "Chosen for week 31."
+      },
+      "priceMinor": 840000,
+      "currency": "KZT"
+    }
+  ],
+  "w32": [
+    {
+      "id": "w32-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 32-я неделя",
+        "kk": "Тыныс алу және демалыс · 32-апта",
+        "en": "Breathing and rest · week 32"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w32-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 32-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 32-апта",
+        "en": "Nutrition and wellbeing · week 32"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 32-й недели беременности.",
+        "kk": "Жүктіліктің 32-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 32 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w32-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 32-й недели.",
+        "kk": "32-аптаға таңдалған.",
+        "en": "Chosen for week 32."
+      },
+      "priceMinor": 890000,
+      "currency": "KZT"
+    }
+  ],
+  "w33": [
+    {
+      "id": "w33-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 33-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 33-апта",
+        "en": "Nutrition and wellbeing · week 33"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w33-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 33-я неделя",
+        "kk": "Балаға не болып жатыр · 33-апта",
+        "en": "What's happening with your baby · week 33"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 33-й недели беременности.",
+        "kk": "Жүктіліктің 33-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 33 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w33-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 33-й недели.",
+        "kk": "33-аптаға таңдалған.",
+        "en": "Chosen for week 33."
+      },
+      "priceMinor": 940000,
+      "currency": "KZT"
+    }
+  ],
+  "w34": [
+    {
+      "id": "w34-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 34-я неделя",
+        "kk": "Балаға не болып жатыр · 34-апта",
+        "en": "What's happening with your baby · week 34"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w34-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 34-я неделя",
+        "kk": "Тыныс алу және демалыс · 34-апта",
+        "en": "Breathing and rest · week 34"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 34-й недели беременности.",
+        "kk": "Жүктіліктің 34-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 34 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w34-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 34-й недели.",
+        "kk": "34-аптаға таңдалған.",
+        "en": "Chosen for week 34."
+      },
+      "priceMinor": 990000,
+      "currency": "KZT"
+    }
+  ],
+  "w35": [
+    {
+      "id": "w35-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 35-я неделя",
+        "kk": "Тыныс алу және демалыс · 35-апта",
+        "en": "Breathing and rest · week 35"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w35-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 35-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 35-апта",
+        "en": "Nutrition and wellbeing · week 35"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 35-й недели беременности.",
+        "kk": "Жүктіліктің 35-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 35 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w35-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 35-й недели.",
+        "kk": "35-аптаға таңдалған.",
+        "en": "Chosen for week 35."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    }
+  ],
+  "w36": [
+    {
+      "id": "w36-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 36-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 36-апта",
+        "en": "Nutrition and wellbeing · week 36"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w36-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 36-я неделя",
+        "kk": "Балаға не болып жатыр · 36-апта",
+        "en": "What's happening with your baby · week 36"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 36-й недели беременности.",
+        "kk": "Жүктіліктің 36-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 36 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w36-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 36-й недели.",
+        "kk": "36-аптаға таңдалған.",
+        "en": "Chosen for week 36."
+      },
+      "priceMinor": 740000,
+      "currency": "KZT"
+    }
+  ],
+  "w37": [
+    {
+      "id": "w37-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 37-я неделя",
+        "kk": "Балаға не болып жатыр · 37-апта",
+        "en": "What's happening with your baby · week 37"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "w37-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 37-я неделя",
+        "kk": "Тыныс алу және демалыс · 37-апта",
+        "en": "Breathing and rest · week 37"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 37-й недели беременности.",
+        "kk": "Жүктіліктің 37-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 37 of pregnancy."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "w37-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 37-й недели.",
+        "kk": "37-аптаға таңдалған.",
+        "en": "Chosen for week 37."
+      },
+      "priceMinor": 790000,
+      "currency": "KZT"
+    }
+  ],
+  "w38": [
+    {
+      "id": "w38-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 38-я неделя",
+        "kk": "Тыныс алу және демалыс · 38-апта",
+        "en": "Breathing and rest · week 38"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "w38-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 38-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 38-апта",
+        "en": "Nutrition and wellbeing · week 38"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 38-й недели беременности.",
+        "kk": "Жүктіліктің 38-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 38 of pregnancy."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w38-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Крем от растяжек",
+        "kk": "Созылу іздеріне қарсы крем",
+        "en": "Stretch-mark cream"
+      },
+      "summary": {
+        "ru": "Подобрано для 38-й недели.",
+        "kk": "38-аптаға таңдалған.",
+        "en": "Chosen for week 38."
+      },
+      "priceMinor": 840000,
+      "currency": "KZT"
+    }
+  ],
+  "w39": [
+    {
+      "id": "w39-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Питание и самочувствие · 39-я неделя",
+        "kk": "Тамақтану және көңіл-күй · 39-апта",
+        "en": "Nutrition and wellbeing · week 39"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "w39-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 39-я неделя",
+        "kk": "Балаға не болып жатыр · 39-апта",
+        "en": "What's happening with your baby · week 39"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 39-й недели беременности.",
+        "kk": "Жүктіліктің 39-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 39 of pregnancy."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "w39-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Витамины для беременных",
+        "kk": "Жүкті әйелдерге витаминдер",
+        "en": "Prenatal vitamins"
+      },
+      "summary": {
+        "ru": "Подобрано для 39-й недели.",
+        "kk": "39-аптаға таңдалған.",
+        "en": "Chosen for week 39."
+      },
+      "priceMinor": 890000,
+      "currency": "KZT"
+    }
+  ],
+  "w40": [
+    {
+      "id": "w40-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Что происходит с малышом · 40-я неделя",
+        "kk": "Балаға не болып жатыр · 40-апта",
+        "en": "What's happening with your baby · week 40"
+      },
+      "summary": {
+        "ru": "Урок о том, как проходит третий триместр и что важно на этой неделе.",
+        "kk": "үшінші триместр қалай өтетіні және осы аптада не маңызды екені туралы сабақ.",
+        "en": "A lesson on the third trimester and what matters this week."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "w40-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Дыхание и отдых · 40-я неделя",
+        "kk": "Тыныс алу және демалыс · 40-апта",
+        "en": "Breathing and rest · week 40"
+      },
+      "summary": {
+        "ru": "Короткий видеоурок для 40-й недели беременности.",
+        "kk": "Жүктіліктің 40-аптасына арналған қысқа бейнесабақ.",
+        "en": "A short video lesson for week 40 of pregnancy."
+      },
+      "durationMin": 4
+    },
+    {
+      "id": "w40-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Подушка для беременных",
+        "kk": "Жүктілерге арналған жастық",
+        "en": "Pregnancy pillow"
+      },
+      "summary": {
+        "ru": "Подобрано для 40-й недели.",
+        "kk": "40-аптаға таңдалған.",
+        "en": "Chosen for week 40."
+      },
+      "priceMinor": 940000,
+      "currency": "KZT"
+    }
+  ],
+  "m0": [
+    {
+      "id": "m0-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · новорождённого",
+        "kk": "Ұйқы және режим · жаңа туған нәресте",
+        "en": "Sleep and routine · a newborn"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m0-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · новорождённого",
+        "kk": "Даму және ойындар · жаңа туған нәресте",
+        "en": "Development and play · a newborn"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m0-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста новорождённого.",
+        "kk": "жаңа туған нәресте жасына сәйкес келеді.",
+        "en": "Suits a newborn."
+      },
+      "priceMinor": 450000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m0-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m1": [
+    {
+      "id": "m1-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 1 мес.",
+        "kk": "Тамақтандыру · 1 ай",
+        "en": "Feeding · 1 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m1-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 1 мес.",
+        "kk": "Ұйқы және режим · 1 ай",
+        "en": "Sleep and routine · 1 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m1-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 1 мес..",
+        "kk": "1 ай жасына сәйкес келеді.",
+        "en": "Suits 1 months."
+      },
+      "priceMinor": 490000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m1-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m2": [
+    {
+      "id": "m2-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 2 мес.",
+        "kk": "Даму және ойындар · 2 ай",
+        "en": "Development and play · 2 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m2-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 2 мес.",
+        "kk": "Тамақтандыру · 2 ай",
+        "en": "Feeding · 2 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m2-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 2 мес..",
+        "kk": "2 ай жасына сәйкес келеді.",
+        "en": "Suits 2 months."
+      },
+      "priceMinor": 530000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m2-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m3": [
+    {
+      "id": "m3-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 3 мес.",
+        "kk": "Ұйқы және режим · 3 ай",
+        "en": "Sleep and routine · 3 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m3-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 3 мес.",
+        "kk": "Даму және ойындар · 3 ай",
+        "en": "Development and play · 3 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m3-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 3 мес..",
+        "kk": "3 ай жасына сәйкес келеді.",
+        "en": "Suits 3 months."
+      },
+      "priceMinor": 570000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m3-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m4": [
+    {
+      "id": "m4-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 4 мес.",
+        "kk": "Тамақтандыру · 4 ай",
+        "en": "Feeding · 4 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m4-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 4 мес.",
+        "kk": "Ұйқы және режим · 4 ай",
+        "en": "Sleep and routine · 4 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m4-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 4 мес..",
+        "kk": "4 ай жасына сәйкес келеді.",
+        "en": "Suits 4 months."
+      },
+      "priceMinor": 610000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m4-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m5": [
+    {
+      "id": "m5-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 5 мес.",
+        "kk": "Даму және ойындар · 5 ай",
+        "en": "Development and play · 5 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m5-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 5 мес.",
+        "kk": "Тамақтандыру · 5 ай",
+        "en": "Feeding · 5 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m5-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 5 мес..",
+        "kk": "5 ай жасына сәйкес келеді.",
+        "en": "Suits 5 months."
+      },
+      "priceMinor": 650000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m5-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m6": [
+    {
+      "id": "m6-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 6 мес.",
+        "kk": "Ұйқы және режим · 6 ай",
+        "en": "Sleep and routine · 6 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m6-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 6 мес.",
+        "kk": "Даму және ойындар · 6 ай",
+        "en": "Development and play · 6 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m6-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 6 мес..",
+        "kk": "6 ай жасына сәйкес келеді.",
+        "en": "Suits 6 months."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m6-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m7": [
+    {
+      "id": "m7-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 7 мес.",
+        "kk": "Тамақтандыру · 7 ай",
+        "en": "Feeding · 7 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m7-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 7 мес.",
+        "kk": "Ұйқы және режим · 7 ай",
+        "en": "Sleep and routine · 7 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m7-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 7 мес..",
+        "kk": "7 ай жасына сәйкес келеді.",
+        "en": "Suits 7 months."
+      },
+      "priceMinor": 730000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m7-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m8": [
+    {
+      "id": "m8-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 8 мес.",
+        "kk": "Даму және ойындар · 8 ай",
+        "en": "Development and play · 8 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m8-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 8 мес.",
+        "kk": "Тамақтандыру · 8 ай",
+        "en": "Feeding · 8 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m8-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 8 мес..",
+        "kk": "8 ай жасына сәйкес келеді.",
+        "en": "Suits 8 months."
+      },
+      "priceMinor": 770000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m8-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m9": [
+    {
+      "id": "m9-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 9 мес.",
+        "kk": "Ұйқы және режим · 9 ай",
+        "en": "Sleep and routine · 9 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m9-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 9 мес.",
+        "kk": "Даму және ойындар · 9 ай",
+        "en": "Development and play · 9 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m9-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 9 мес..",
+        "kk": "9 ай жасына сәйкес келеді.",
+        "en": "Suits 9 months."
+      },
+      "priceMinor": 450000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m9-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m10": [
+    {
+      "id": "m10-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 10 мес.",
+        "kk": "Тамақтандыру · 10 ай",
+        "en": "Feeding · 10 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m10-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 10 мес.",
+        "kk": "Ұйқы және режим · 10 ай",
+        "en": "Sleep and routine · 10 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m10-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 10 мес..",
+        "kk": "10 ай жасына сәйкес келеді.",
+        "en": "Suits 10 months."
+      },
+      "priceMinor": 490000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m10-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m11": [
+    {
+      "id": "m11-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 11 мес.",
+        "kk": "Даму және ойындар · 11 ай",
+        "en": "Development and play · 11 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m11-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 11 мес.",
+        "kk": "Тамақтандыру · 11 ай",
+        "en": "Feeding · 11 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m11-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 11 мес..",
+        "kk": "11 ай жасына сәйкес келеді.",
+        "en": "Suits 11 months."
+      },
+      "priceMinor": 530000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m11-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m12": [
+    {
+      "id": "m12-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 12 мес.",
+        "kk": "Ұйқы және режим · 12 ай",
+        "en": "Sleep and routine · 12 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m12-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 12 мес.",
+        "kk": "Даму және ойындар · 12 ай",
+        "en": "Development and play · 12 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m12-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 12 мес..",
+        "kk": "12 ай жасына сәйкес келеді.",
+        "en": "Suits 12 months."
+      },
+      "priceMinor": 570000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m12-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m13": [
+    {
+      "id": "m13-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 13 мес.",
+        "kk": "Тамақтандыру · 13 ай",
+        "en": "Feeding · 13 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m13-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 13 мес.",
+        "kk": "Ұйқы және режим · 13 ай",
+        "en": "Sleep and routine · 13 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m13-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 13 мес..",
+        "kk": "13 ай жасына сәйкес келеді.",
+        "en": "Suits 13 months."
+      },
+      "priceMinor": 610000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m13-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m14": [
+    {
+      "id": "m14-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 14 мес.",
+        "kk": "Даму және ойындар · 14 ай",
+        "en": "Development and play · 14 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m14-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 14 мес.",
+        "kk": "Тамақтандыру · 14 ай",
+        "en": "Feeding · 14 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m14-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 14 мес..",
+        "kk": "14 ай жасына сәйкес келеді.",
+        "en": "Suits 14 months."
+      },
+      "priceMinor": 650000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m14-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m15": [
+    {
+      "id": "m15-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 15 мес.",
+        "kk": "Ұйқы және режим · 15 ай",
+        "en": "Sleep and routine · 15 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m15-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 15 мес.",
+        "kk": "Даму және ойындар · 15 ай",
+        "en": "Development and play · 15 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m15-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 15 мес..",
+        "kk": "15 ай жасына сәйкес келеді.",
+        "en": "Suits 15 months."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m15-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m16": [
+    {
+      "id": "m16-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 16 мес.",
+        "kk": "Тамақтандыру · 16 ай",
+        "en": "Feeding · 16 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m16-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 16 мес.",
+        "kk": "Ұйқы және режим · 16 ай",
+        "en": "Sleep and routine · 16 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m16-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 16 мес..",
+        "kk": "16 ай жасына сәйкес келеді.",
+        "en": "Suits 16 months."
+      },
+      "priceMinor": 730000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m16-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m17": [
+    {
+      "id": "m17-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 17 мес.",
+        "kk": "Даму және ойындар · 17 ай",
+        "en": "Development and play · 17 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m17-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 17 мес.",
+        "kk": "Тамақтандыру · 17 ай",
+        "en": "Feeding · 17 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m17-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 17 мес..",
+        "kk": "17 ай жасына сәйкес келеді.",
+        "en": "Suits 17 months."
+      },
+      "priceMinor": 770000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m17-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m18": [
+    {
+      "id": "m18-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 18 мес.",
+        "kk": "Ұйқы және режим · 18 ай",
+        "en": "Sleep and routine · 18 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m18-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 18 мес.",
+        "kk": "Даму және ойындар · 18 ай",
+        "en": "Development and play · 18 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m18-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 18 мес..",
+        "kk": "18 ай жасына сәйкес келеді.",
+        "en": "Suits 18 months."
+      },
+      "priceMinor": 450000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m18-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m19": [
+    {
+      "id": "m19-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 19 мес.",
+        "kk": "Тамақтандыру · 19 ай",
+        "en": "Feeding · 19 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m19-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 19 мес.",
+        "kk": "Ұйқы және режим · 19 ай",
+        "en": "Sleep and routine · 19 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m19-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 19 мес..",
+        "kk": "19 ай жасына сәйкес келеді.",
+        "en": "Suits 19 months."
+      },
+      "priceMinor": 490000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m19-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m20": [
+    {
+      "id": "m20-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 20 мес.",
+        "kk": "Даму және ойындар · 20 ай",
+        "en": "Development and play · 20 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m20-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 20 мес.",
+        "kk": "Тамақтандыру · 20 ай",
+        "en": "Feeding · 20 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m20-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 20 мес..",
+        "kk": "20 ай жасына сәйкес келеді.",
+        "en": "Suits 20 months."
+      },
+      "priceMinor": 530000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m20-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m21": [
+    {
+      "id": "m21-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 21 мес.",
+        "kk": "Ұйқы және режим · 21 ай",
+        "en": "Sleep and routine · 21 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m21-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 21 мес.",
+        "kk": "Даму және ойындар · 21 ай",
+        "en": "Development and play · 21 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m21-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 21 мес..",
+        "kk": "21 ай жасына сәйкес келеді.",
+        "en": "Suits 21 months."
+      },
+      "priceMinor": 570000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m21-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m22": [
+    {
+      "id": "m22-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 22 мес.",
+        "kk": "Тамақтандыру · 22 ай",
+        "en": "Feeding · 22 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m22-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 22 мес.",
+        "kk": "Ұйқы және режим · 22 ай",
+        "en": "Sleep and routine · 22 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m22-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 22 мес..",
+        "kk": "22 ай жасына сәйкес келеді.",
+        "en": "Suits 22 months."
+      },
+      "priceMinor": 610000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m22-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m23": [
+    {
+      "id": "m23-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 23 мес.",
+        "kk": "Даму және ойындар · 23 ай",
+        "en": "Development and play · 23 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m23-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 23 мес.",
+        "kk": "Тамақтандыру · 23 ай",
+        "en": "Feeding · 23 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m23-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 23 мес..",
+        "kk": "23 ай жасына сәйкес келеді.",
+        "en": "Suits 23 months."
+      },
+      "priceMinor": 650000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m23-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m24": [
+    {
+      "id": "m24-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 24 мес.",
+        "kk": "Ұйқы және режим · 24 ай",
+        "en": "Sleep and routine · 24 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m24-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 24 мес.",
+        "kk": "Даму және ойындар · 24 ай",
+        "en": "Development and play · 24 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m24-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 24 мес..",
+        "kk": "24 ай жасына сәйкес келеді.",
+        "en": "Suits 24 months."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m24-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m25": [
+    {
+      "id": "m25-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 25 мес.",
+        "kk": "Тамақтандыру · 25 ай",
+        "en": "Feeding · 25 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m25-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 25 мес.",
+        "kk": "Ұйқы және режим · 25 ай",
+        "en": "Sleep and routine · 25 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m25-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 25 мес..",
+        "kk": "25 ай жасына сәйкес келеді.",
+        "en": "Suits 25 months."
+      },
+      "priceMinor": 730000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m25-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m26": [
+    {
+      "id": "m26-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 26 мес.",
+        "kk": "Даму және ойындар · 26 ай",
+        "en": "Development and play · 26 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m26-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 26 мес.",
+        "kk": "Тамақтандыру · 26 ай",
+        "en": "Feeding · 26 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m26-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 26 мес..",
+        "kk": "26 ай жасына сәйкес келеді.",
+        "en": "Suits 26 months."
+      },
+      "priceMinor": 770000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m26-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m27": [
+    {
+      "id": "m27-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 27 мес.",
+        "kk": "Ұйқы және режим · 27 ай",
+        "en": "Sleep and routine · 27 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m27-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 27 мес.",
+        "kk": "Даму және ойындар · 27 ай",
+        "en": "Development and play · 27 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m27-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 27 мес..",
+        "kk": "27 ай жасына сәйкес келеді.",
+        "en": "Suits 27 months."
+      },
+      "priceMinor": 450000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m27-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m28": [
+    {
+      "id": "m28-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 28 мес.",
+        "kk": "Тамақтандыру · 28 ай",
+        "en": "Feeding · 28 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m28-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 28 мес.",
+        "kk": "Ұйқы және режим · 28 ай",
+        "en": "Sleep and routine · 28 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m28-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 28 мес..",
+        "kk": "28 ай жасына сәйкес келеді.",
+        "en": "Suits 28 months."
+      },
+      "priceMinor": 490000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m28-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m29": [
+    {
+      "id": "m29-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 29 мес.",
+        "kk": "Даму және ойындар · 29 ай",
+        "en": "Development and play · 29 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m29-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 29 мес.",
+        "kk": "Тамақтандыру · 29 ай",
+        "en": "Feeding · 29 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m29-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 29 мес..",
+        "kk": "29 ай жасына сәйкес келеді.",
+        "en": "Suits 29 months."
+      },
+      "priceMinor": 530000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m29-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m30": [
+    {
+      "id": "m30-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 30 мес.",
+        "kk": "Ұйқы және режим · 30 ай",
+        "en": "Sleep and routine · 30 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m30-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 30 мес.",
+        "kk": "Даму және ойындар · 30 ай",
+        "en": "Development and play · 30 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m30-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 30 мес..",
+        "kk": "30 ай жасына сәйкес келеді.",
+        "en": "Suits 30 months."
+      },
+      "priceMinor": 570000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m30-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m31": [
+    {
+      "id": "m31-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 31 мес.",
+        "kk": "Тамақтандыру · 31 ай",
+        "en": "Feeding · 31 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m31-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 31 мес.",
+        "kk": "Ұйқы және режим · 31 ай",
+        "en": "Sleep and routine · 31 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m31-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 31 мес..",
+        "kk": "31 ай жасына сәйкес келеді.",
+        "en": "Suits 31 months."
+      },
+      "priceMinor": 610000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m31-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m32": [
+    {
+      "id": "m32-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 32 мес.",
+        "kk": "Даму және ойындар · 32 ай",
+        "en": "Development and play · 32 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m32-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 32 мес.",
+        "kk": "Тамақтандыру · 32 ай",
+        "en": "Feeding · 32 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m32-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 32 мес..",
+        "kk": "32 ай жасына сәйкес келеді.",
+        "en": "Suits 32 months."
+      },
+      "priceMinor": 650000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m32-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m33": [
+    {
+      "id": "m33-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 33 мес.",
+        "kk": "Ұйқы және режим · 33 ай",
+        "en": "Sleep and routine · 33 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m33-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 33 мес.",
+        "kk": "Даму және ойындар · 33 ай",
+        "en": "Development and play · 33 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m33-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 33 мес..",
+        "kk": "33 ай жасына сәйкес келеді.",
+        "en": "Suits 33 months."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m33-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m34": [
+    {
+      "id": "m34-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 34 мес.",
+        "kk": "Тамақтандыру · 34 ай",
+        "en": "Feeding · 34 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m34-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 34 мес.",
+        "kk": "Ұйқы және режим · 34 ай",
+        "en": "Sleep and routine · 34 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m34-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 34 мес..",
+        "kk": "34 ай жасына сәйкес келеді.",
+        "en": "Suits 34 months."
+      },
+      "priceMinor": 730000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m34-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m35": [
+    {
+      "id": "m35-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 35 мес.",
+        "kk": "Даму және ойындар · 35 ай",
+        "en": "Development and play · 35 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m35-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 35 мес.",
+        "kk": "Тамақтандыру · 35 ай",
+        "en": "Feeding · 35 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m35-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 35 мес..",
+        "kk": "35 ай жасына сәйкес келеді.",
+        "en": "Suits 35 months."
+      },
+      "priceMinor": 770000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m35-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m36": [
+    {
+      "id": "m36-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 36 мес.",
+        "kk": "Ұйқы және режим · 36 ай",
+        "en": "Sleep and routine · 36 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m36-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 36 мес.",
+        "kk": "Даму және ойындар · 36 ай",
+        "en": "Development and play · 36 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m36-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 36 мес..",
+        "kk": "36 ай жасына сәйкес келеді.",
+        "en": "Suits 36 months."
+      },
+      "priceMinor": 450000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m36-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m37": [
+    {
+      "id": "m37-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 37 мес.",
+        "kk": "Тамақтандыру · 37 ай",
+        "en": "Feeding · 37 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m37-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 37 мес.",
+        "kk": "Ұйқы және режим · 37 ай",
+        "en": "Sleep and routine · 37 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m37-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 37 мес..",
+        "kk": "37 ай жасына сәйкес келеді.",
+        "en": "Suits 37 months."
+      },
+      "priceMinor": 490000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m37-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m38": [
+    {
+      "id": "m38-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 38 мес.",
+        "kk": "Даму және ойындар · 38 ай",
+        "en": "Development and play · 38 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m38-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 38 мес.",
+        "kk": "Тамақтандыру · 38 ай",
+        "en": "Feeding · 38 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m38-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 38 мес..",
+        "kk": "38 ай жасына сәйкес келеді.",
+        "en": "Suits 38 months."
+      },
+      "priceMinor": 530000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m38-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m39": [
+    {
+      "id": "m39-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 39 мес.",
+        "kk": "Ұйқы және режим · 39 ай",
+        "en": "Sleep and routine · 39 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m39-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 39 мес.",
+        "kk": "Даму және ойындар · 39 ай",
+        "en": "Development and play · 39 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m39-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 39 мес..",
+        "kk": "39 ай жасына сәйкес келеді.",
+        "en": "Suits 39 months."
+      },
+      "priceMinor": 570000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m39-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m40": [
+    {
+      "id": "m40-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 40 мес.",
+        "kk": "Тамақтандыру · 40 ай",
+        "en": "Feeding · 40 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m40-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 40 мес.",
+        "kk": "Ұйқы және режим · 40 ай",
+        "en": "Sleep and routine · 40 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m40-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 40 мес..",
+        "kk": "40 ай жасына сәйкес келеді.",
+        "en": "Suits 40 months."
+      },
+      "priceMinor": 610000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m40-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m41": [
+    {
+      "id": "m41-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 41 мес.",
+        "kk": "Даму және ойындар · 41 ай",
+        "en": "Development and play · 41 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m41-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 41 мес.",
+        "kk": "Тамақтандыру · 41 ай",
+        "en": "Feeding · 41 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m41-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 41 мес..",
+        "kk": "41 ай жасына сәйкес келеді.",
+        "en": "Suits 41 months."
+      },
+      "priceMinor": 650000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m41-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m42": [
+    {
+      "id": "m42-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 42 мес.",
+        "kk": "Ұйқы және режим · 42 ай",
+        "en": "Sleep and routine · 42 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m42-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 42 мес.",
+        "kk": "Даму және ойындар · 42 ай",
+        "en": "Development and play · 42 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m42-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 42 мес..",
+        "kk": "42 ай жасына сәйкес келеді.",
+        "en": "Suits 42 months."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m42-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m43": [
+    {
+      "id": "m43-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 43 мес.",
+        "kk": "Тамақтандыру · 43 ай",
+        "en": "Feeding · 43 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m43-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 43 мес.",
+        "kk": "Ұйқы және режим · 43 ай",
+        "en": "Sleep and routine · 43 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m43-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 43 мес..",
+        "kk": "43 ай жасына сәйкес келеді.",
+        "en": "Suits 43 months."
+      },
+      "priceMinor": 730000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m43-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m44": [
+    {
+      "id": "m44-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 44 мес.",
+        "kk": "Даму және ойындар · 44 ай",
+        "en": "Development and play · 44 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m44-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 44 мес.",
+        "kk": "Тамақтандыру · 44 ай",
+        "en": "Feeding · 44 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m44-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 44 мес..",
+        "kk": "44 ай жасына сәйкес келеді.",
+        "en": "Suits 44 months."
+      },
+      "priceMinor": 770000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m44-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m45": [
+    {
+      "id": "m45-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 45 мес.",
+        "kk": "Ұйқы және режим · 45 ай",
+        "en": "Sleep and routine · 45 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m45-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 45 мес.",
+        "kk": "Даму және ойындар · 45 ай",
+        "en": "Development and play · 45 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m45-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 45 мес..",
+        "kk": "45 ай жасына сәйкес келеді.",
+        "en": "Suits 45 months."
+      },
+      "priceMinor": 450000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m45-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m46": [
+    {
+      "id": "m46-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 46 мес.",
+        "kk": "Тамақтандыру · 46 ай",
+        "en": "Feeding · 46 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m46-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 46 мес.",
+        "kk": "Ұйқы және режим · 46 ай",
+        "en": "Sleep and routine · 46 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m46-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 46 мес..",
+        "kk": "46 ай жасына сәйкес келеді.",
+        "en": "Suits 46 months."
+      },
+      "priceMinor": 490000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m46-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m47": [
+    {
+      "id": "m47-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 47 мес.",
+        "kk": "Даму және ойындар · 47 ай",
+        "en": "Development and play · 47 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m47-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 47 мес.",
+        "kk": "Тамақтандыру · 47 ай",
+        "en": "Feeding · 47 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m47-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 47 мес..",
+        "kk": "47 ай жасына сәйкес келеді.",
+        "en": "Suits 47 months."
+      },
+      "priceMinor": 530000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m47-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m48": [
+    {
+      "id": "m48-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 48 мес.",
+        "kk": "Ұйқы және режим · 48 ай",
+        "en": "Sleep and routine · 48 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m48-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 48 мес.",
+        "kk": "Даму және ойындар · 48 ай",
+        "en": "Development and play · 48 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m48-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 48 мес..",
+        "kk": "48 ай жасына сәйкес келеді.",
+        "en": "Suits 48 months."
+      },
+      "priceMinor": 570000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m48-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m49": [
+    {
+      "id": "m49-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 49 мес.",
+        "kk": "Тамақтандыру · 49 ай",
+        "en": "Feeding · 49 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m49-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 49 мес.",
+        "kk": "Ұйқы және режим · 49 ай",
+        "en": "Sleep and routine · 49 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m49-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 49 мес..",
+        "kk": "49 ай жасына сәйкес келеді.",
+        "en": "Suits 49 months."
+      },
+      "priceMinor": 610000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m49-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m50": [
+    {
+      "id": "m50-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 50 мес.",
+        "kk": "Даму және ойындар · 50 ай",
+        "en": "Development and play · 50 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m50-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 50 мес.",
+        "kk": "Тамақтандыру · 50 ай",
+        "en": "Feeding · 50 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m50-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 50 мес..",
+        "kk": "50 ай жасына сәйкес келеді.",
+        "en": "Suits 50 months."
+      },
+      "priceMinor": 650000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m50-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m51": [
+    {
+      "id": "m51-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 51 мес.",
+        "kk": "Ұйқы және режим · 51 ай",
+        "en": "Sleep and routine · 51 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m51-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 51 мес.",
+        "kk": "Даму және ойындар · 51 ай",
+        "en": "Development and play · 51 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m51-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 51 мес..",
+        "kk": "51 ай жасына сәйкес келеді.",
+        "en": "Suits 51 months."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m51-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m52": [
+    {
+      "id": "m52-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 52 мес.",
+        "kk": "Тамақтандыру · 52 ай",
+        "en": "Feeding · 52 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m52-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 52 мес.",
+        "kk": "Ұйқы және режим · 52 ай",
+        "en": "Sleep and routine · 52 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m52-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 52 мес..",
+        "kk": "52 ай жасына сәйкес келеді.",
+        "en": "Suits 52 months."
+      },
+      "priceMinor": 730000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m52-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m53": [
+    {
+      "id": "m53-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 53 мес.",
+        "kk": "Даму және ойындар · 53 ай",
+        "en": "Development and play · 53 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m53-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 53 мес.",
+        "kk": "Тамақтандыру · 53 ай",
+        "en": "Feeding · 53 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m53-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 53 мес..",
+        "kk": "53 ай жасына сәйкес келеді.",
+        "en": "Suits 53 months."
+      },
+      "priceMinor": 770000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m53-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m54": [
+    {
+      "id": "m54-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 54 мес.",
+        "kk": "Ұйқы және режим · 54 ай",
+        "en": "Sleep and routine · 54 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m54-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 54 мес.",
+        "kk": "Даму және ойындар · 54 ай",
+        "en": "Development and play · 54 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m54-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 54 мес..",
+        "kk": "54 ай жасына сәйкес келеді.",
+        "en": "Suits 54 months."
+      },
+      "priceMinor": 450000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m54-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m55": [
+    {
+      "id": "m55-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 55 мес.",
+        "kk": "Тамақтандыру · 55 ай",
+        "en": "Feeding · 55 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 6
+    },
+    {
+      "id": "m55-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 55 мес.",
+        "kk": "Ұйқы және режим · 55 ай",
+        "en": "Sleep and routine · 55 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m55-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 55 мес..",
+        "kk": "55 ай жасына сәйкес келеді.",
+        "en": "Suits 55 months."
+      },
+      "priceMinor": 490000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m55-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ],
+  "m56": [
+    {
+      "id": "m56-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 56 мес.",
+        "kk": "Даму және ойындар · 56 ай",
+        "en": "Development and play · 56 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m56-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 56 мес.",
+        "kk": "Тамақтандыру · 56 ай",
+        "en": "Feeding · 56 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m56-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 56 мес..",
+        "kk": "56 ай жасына сәйкес келеді.",
+        "en": "Suits 56 months."
+      },
+      "priceMinor": 530000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m56-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 355000,
+      "currency": "KZT"
+    }
+  ],
+  "m57": [
+    {
+      "id": "m57-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 57 мес.",
+        "kk": "Ұйқы және режим · 57 ай",
+        "en": "Sleep and routine · 57 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m57-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 57 мес.",
+        "kk": "Даму және ойындар · 57 ай",
+        "en": "Development and play · 57 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m57-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 57 мес..",
+        "kk": "57 ай жасына сәйкес келеді.",
+        "en": "Suits 57 months."
+      },
+      "priceMinor": 570000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m57-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 390000,
+      "currency": "KZT"
+    }
+  ],
+  "m58": [
+    {
+      "id": "m58-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 58 мес.",
+        "kk": "Тамақтандыру · 58 ай",
+        "en": "Feeding · 58 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m58-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 58 мес.",
+        "kk": "Ұйқы және режим · 58 ай",
+        "en": "Sleep and routine · 58 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 8
+    },
+    {
+      "id": "m58-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 58 мес..",
+        "kk": "58 ай жасына сәйкес келеді.",
+        "en": "Suits 58 months."
+      },
+      "priceMinor": 610000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m58-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 425000,
+      "currency": "KZT"
+    }
+  ],
+  "m59": [
+    {
+      "id": "m59-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 59 мес.",
+        "kk": "Даму және ойындар · 59 ай",
+        "en": "Development and play · 59 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 10
+    },
+    {
+      "id": "m59-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Кормление · 59 мес.",
+        "kk": "Тамақтандыру · 59 ай",
+        "en": "Feeding · 59 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 9
+    },
+    {
+      "id": "m59-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Бутылочки и соски",
+        "kk": "Бөтелкелер мен емізіктер",
+        "en": "Bottles and teats"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 59 мес..",
+        "kk": "59 ай жасына сәйкес келеді.",
+        "en": "Suits 59 months."
+      },
+      "priceMinor": 650000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m59-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 460000,
+      "currency": "KZT"
+    }
+  ],
+  "m60": [
+    {
+      "id": "m60-l1",
+      "kind": "lesson",
+      "title": {
+        "ru": "Сон и режим · 60 мес.",
+        "kk": "Ұйқы және режим · 60 ай",
+        "en": "Sleep and routine · 60 months"
+      },
+      "summary": {
+        "ru": "Что важно знать в этом возрасте.",
+        "kk": "Осы жаста нені білу маңызды.",
+        "en": "What matters at this age."
+      },
+      "durationMin": 5
+    },
+    {
+      "id": "m60-l2",
+      "kind": "lesson",
+      "title": {
+        "ru": "Развитие и игры · 60 мес.",
+        "kk": "Даму және ойындар · 60 ай",
+        "en": "Development and play · 60 months"
+      },
+      "summary": {
+        "ru": "Практический видеоурок для родителей.",
+        "kk": "Ата-аналарға арналған практикалық бейнесабақ.",
+        "en": "A practical video lesson for parents."
+      },
+      "durationMin": 7
+    },
+    {
+      "id": "m60-p1",
+      "kind": "product",
+      "title": {
+        "ru": "Набор для купания",
+        "kk": "Шомылдыру жинағы",
+        "en": "Bath set"
+      },
+      "summary": {
+        "ru": "Подходит для возраста 60 мес..",
+        "kk": "60 ай жасына сәйкес келеді.",
+        "en": "Suits 60 months."
+      },
+      "priceMinor": 690000,
+      "currency": "KZT"
+    },
+    {
+      "id": "m60-p2",
+      "kind": "product",
+      "title": {
+        "ru": "Развивающий коврик",
+        "kk": "Дамытушы кілемше",
+        "en": "Play mat"
+      },
+      "summary": {
+        "ru": "Часто покупают в этом возрасте.",
+        "kk": "Осы жаста жиі сатып алады.",
+        "en": "Often bought at this age."
+      },
+      "priceMinor": 320000,
+      "currency": "KZT"
+    }
+  ]
+}

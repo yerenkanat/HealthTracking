@@ -10,6 +10,18 @@ A self-contained staff/clinician dashboard for the Umay backend.
 - **Audit log** — staff actions on protected data.
 
 ## Running it
+
+Start the backend, then open <http://localhost:8080/admin/ui>:
+
+```bash
+# from packages/backend — no Postgres/Redis needed, uses the in-memory repo
+USE_MEMORY_DB=true npm start          # macOS / Linux / Git Bash
+$env:USE_MEMORY_DB="true"; npm start  # PowerShell
+```
+
+Without `DATABASE_URL` the backend falls back to the in-memory repository on its
+own, so plain `npm start` works too — it just warns that nothing is persisted.
+
 Single HTML file, no build step. It talks to the backend's `/admin/*` API
 (`src/routes/admin.ts`) same-origin with `x-staff-id` / `x-staff-role` headers.
 
