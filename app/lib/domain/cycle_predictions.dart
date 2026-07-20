@@ -60,6 +60,15 @@ List<DateTime> periodStarts(Set<DateTime> periodDays) {
 
 int _clamp(int v, int lo, int hi) => v < lo ? lo : (v > hi ? hi : v);
 
+/// A gap longer than this isn't a cycle — it's a stretch the user didn't log,
+/// or several cycles rolled into one. Counting it as a single cycle length is
+/// what let one break in logging distort every later prediction.
+const int _maxPlausibleGapDays = 60;
+
+/// How many recent cycles inform the estimate. Enough to be stable, few enough
+/// that a real change in rhythm is not outvoted by old history.
+const int _recentCyclesConsidered = 6;
+
 /// Compute cycle info from logged [periodDays] relative to [today].
 CycleInfo computeCycle(
   Set<DateTime> periodDays,
@@ -78,14 +87,34 @@ CycleInfo computeCycle(
     );
   }
 
-  // Average cycle length from gaps between consecutive starts.
+  // Typical cycle length from the gaps between consecutive starts.
+  //
+  // The MEDIAN of recent gaps, not the mean of all of them. A mean is wrecked
+  // by a single outlier, and outliers here are ordinary life rather than rare:
+  // one skipped period (stress, illness, travel) turned a true 28-day rhythm
+  // into 35 — the clamp ceiling — so every prediction was a week late until
+  // enough new data diluted it. Six months of not logging did the same.
+  //
+  // Gaps longer than [_maxPlausibleGapDays] are dropped before the median: a
+  // gap that long is time the user didn't log, not a cycle they lived.
+  //
+  // Only the most recent cycles count, so a genuine change in rhythm shows up
+  // instead of being outvoted by years of old history.
   var avgCycle = defaultCycle;
-  if (starts.length >= 2) {
-    var sum = 0;
-    for (var i = 1; i < starts.length; i++) {
-      sum += starts[i].difference(starts[i - 1]).inDays;
-    }
-    avgCycle = _clamp((sum / (starts.length - 1)).round(), 21, 35);
+  final gaps = <int>[
+    for (var i = 1; i < starts.length; i++) starts[i].difference(starts[i - 1]).inDays,
+  ];
+  final usable = gaps.where((g) => g > 0 && g <= _maxPlausibleGapDays).toList();
+  final recent = usable.length > _recentCyclesConsidered
+      ? usable.sublist(usable.length - _recentCyclesConsidered)
+      : usable;
+  if (recent.isNotEmpty) {
+    recent.sort();
+    final mid = recent.length ~/ 2;
+    final median = recent.length.isOdd
+        ? recent[mid]
+        : ((recent[mid - 1] + recent[mid]) / 2).round();
+    avgCycle = _clamp(median, 21, 35);
   }
 
   // Average period length: consecutive logged days from each start.

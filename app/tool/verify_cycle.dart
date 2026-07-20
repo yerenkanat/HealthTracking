@@ -324,6 +324,50 @@ void main() {
   _chk('symptom logged once', daysWithSymptom(symLogs, Symptom.headache).single.date == '2026-07-01');
   _chk('symptom never logged → empty', daysWithSymptom(symLogs, Symptom.swelling).isEmpty);
 
+  // ---- Cycle-length estimation survives ordinary irregularity ----
+  // Predictions are the feature people open the app for, and real logging is
+  // patchy. Averaging every gap meant a single skipped period pushed a true
+  // 28-day rhythm to 35 — the clamp ceiling — and every prediction after that
+  // was a week late.
+  final anchor = DateTime(2026, 1, 5);
+  Set<DateTime> periodDaysFor(List<int> startOffsets, {int periodLen = 5}) => {
+        for (final off in startOffsets)
+          for (var i = 0; i < periodLen; i++) anchor.add(Duration(days: off + i)),
+      };
+  int estimate(List<int> startOffsets, int todayOffset) =>
+      computeCycle(periodDaysFor(startOffsets), anchor.add(Duration(days: todayOffset)))
+          .avgCycleLength;
+
+  _chk('a regular 28-day rhythm reads as 28', estimate([0, 28, 56], 60) == 28);
+  _chk('a regular 30-day rhythm reads as 30', estimate([0, 30, 60], 65) == 30);
+  _chk('one skipped period does not distort the estimate',
+      estimate([0, 28, 84, 112], 120) == 28);
+  _chk('a six-month break in logging does not distort the estimate',
+      estimate([0, 28, 208, 236, 264], 270) == 28);
+  _chk('two skipped periods still do not distort it',
+      estimate([0, 28, 56, 140, 168, 196], 200) == 28);
+
+  // Only recent cycles count, so a real change of rhythm is not outvoted by
+  // years of history. The window trades responsiveness for stability: three
+  // cycles into a change the estimate is part-way, not jumpy.
+  final changed = [
+    for (var i = 0; i < 6; i++) 35 * i,
+    for (var i = 1; i <= 3; i++) 175 + 26 * i,
+  ];
+  final changedEstimate = estimate(changed, 260);
+  _chk('a changed rhythm moves toward the new length',
+      changedEstimate < 35 && changedEstimate < 32);
+  final settled = [for (var i = 0; i < 6; i++) 26 * i];
+  _chk('once the new rhythm is established it is used', estimate(settled, 160) == 26);
+
+  // Estimates stay inside a physiologically plausible band whatever is logged.
+  _chk('an implausibly short rhythm is clamped up', estimate([0, 5, 10, 15], 20) >= 21);
+  _chk('an implausibly long rhythm is clamped down', estimate([0, 50, 100, 150], 160) <= 35);
+  _chk('a single logged period falls back to the default',
+      estimate([0], 10) == 28);
+  _chk('no logged periods means no prediction at all',
+      !computeCycle(const {}, anchor).hasData);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
