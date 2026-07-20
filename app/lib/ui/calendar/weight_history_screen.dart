@@ -84,9 +84,19 @@ class _WeightRow extends StatelessWidget {
           if (delta != null && delta!.abs() >= 0.05)
             Text('${delta! >= 0 ? '+' : '−'}${delta!.abs().toStringAsFixed(1)}',
                 style: TextStyle(color: delta! >= 0 ? Palette.violet : Palette.blue, fontSize: 12.5, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          Text(date == null ? entry.date : ml.formatMediumDate(date),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+          // Expanded, not Spacer + a rigid Text: a formatted date has no fixed
+          // width — it varies by locale and by month name — and with a Spacer
+          // eating the slack there was nothing left for it to shrink into. The
+          // row overflowed by 72px on the right at 360dp, in every language.
+          Expanded(
+            child: Text(
+              date == null ? entry.date : ml.formatMediumDate(date),
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Palette.textDim, fontSize: 12.5),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.close_rounded, size: 18, color: Palette.textDim),
             tooltip: l.t('act_remove'),

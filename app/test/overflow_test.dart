@@ -36,6 +36,21 @@ import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
 import 'package:fcs_app/ui/profile/profile_screen.dart';
 import 'package:fcs_app/ui/settings/settings_screen.dart';
 import 'package:fcs_app/ui/tracking/alerts_screen.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/domain/child_tracker_state.dart';
+import 'package:fcs_app/ui/advisor/advisor_screen.dart';
+import 'package:fcs_app/ui/calendar/contraction_timer_screen.dart';
+import 'package:fcs_app/ui/calendar/cycle_insights_screen.dart';
+import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
+import 'package:fcs_app/ui/calendar/notes_browser_screen.dart';
+import 'package:fcs_app/ui/calendar/symptom_days_screen.dart';
+import 'package:fcs_app/ui/calendar/weight_history_screen.dart';
+import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
+import 'package:fcs_app/ui/dashboard/metric_detail_screen.dart';
+import 'package:fcs_app/ui/dashboard/water_history_screen.dart';
+import 'package:fcs_app/ui/theme.dart';
+import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
+import 'package:fcs_app/ui/tracking/child_safety_screen.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
 
 /// A small-but-real phone: 360x640 dp.
@@ -98,8 +113,14 @@ void main() {
         MaterialApp(key: UniqueKey(), home: L10nScope(l10n: L10n(locale), child: build())),
       );
       await tester.pumpAndSettle();
-      if (scroll) {
+      if (scroll && find.byType(Scrollable).evaluate().isNotEmpty) {
         // Some overflow only appears once a lower row is laid out.
+        //
+        // Guarded because a screen that fits without scrolling has no
+        // Scrollable to drag, and `.first` on an empty finder throws "Bad
+        // state: No element" — which reads as a failure of the SCREEN when it
+        // is a failure of the harness. Asking to scroll something that does
+        // not scroll is a no-op, not an error.
         await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
         await tester.pumpAndSettle();
       }
@@ -307,6 +328,130 @@ void main() {
       addTearDown(c.dispose);
       return ZonesScreen(controller: c, childId: c.selectedChild!.id);
     }, scroll: true);
+  });
+
+  // ---- The remaining screens ----
+  // Finishing the sweep, so every screen in the app is rendered at 360dp in
+  // all three languages by something.
+
+  AppController seeded() {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    c.updateProfile(const UserProfile(
+      displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233'));
+    c.configureChild(name: 'Sultan', dateOfBirth: DateTime(2024, 3, 4), fences: const []);
+    return c;
+  }
+
+  testWidgets('the advisor screen fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'AdvisorScreen',
+      () => AdvisorScreen(samples: samples, lastNight: nights.first, waterCount: 3, waterGoal: 8),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the cycle insights screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'CycleInsightsScreen',
+        () => CycleInsightsScreen(controller: seeded(), now: () => today), scroll: true);
+  });
+
+  testWidgets("the women's health screen fits every locale", (tester) async {
+    await checkAllLocales(tester, 'WomensHealthScreen',
+        () => WomensHealthScreen(controller: seeded(), now: () => today), scroll: true);
+  });
+
+  testWidgets('the child detail screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'ChildDetailScreen', () {
+      final c = seeded();
+      return ChildDetailScreen(controller: c, childId: c.selectedChild!.id, now: () => today);
+    }, scroll: true);
+  });
+
+  testWidgets('the child safety screen fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'ChildSafetyScreen',
+      () => const ChildSafetyScreen(
+        childName: 'Sultan', ageMonths: 28, currentZone: 'Дом',
+        freshness: Freshness.live, hasLocation: true,
+      ),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the water history screen fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'WaterHistoryScreen',
+      () => WaterHistoryScreen(
+        week: [for (var i = 0; i < 7; i++) (day: today.subtract(Duration(days: 6 - i)), glasses: 5 + i)],
+        goal: 8, streak: 3, now: () => today,
+      ),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the weight history screen fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'WeightHistoryScreen',
+      () => WeightHistoryScreen(
+        entries: const [
+          WeightEntry(date: '2026-07-01', kg: 62.0),
+          WeightEntry(date: '2026-07-15', kg: 63.4),
+        ],
+        onDelete: (_) {},
+      ),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the metric detail screen fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'MetricDetailScreen',
+      () => MetricDetailScreen(
+        metricKey: 'hr', unit: 'bpm', icon: Icons.favorite_rounded,
+        color: Palette.pink, samples: samples,
+      ),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the kick session screen fits every locale', (tester) async {
+    await checkAllLocales(
+        tester, 'KickSessionScreen', () => KickSessionScreen(onSave: (_, __) {}), scroll: true);
+  });
+
+  testWidgets('the contraction timer fits every locale', (tester) async {
+    await checkAllLocales(
+        tester, 'ContractionTimerScreen', () => ContractionTimerScreen(onSave: (_, __, ___) {}),
+        scroll: true);
+  });
+
+  testWidgets('the notes browser fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'NotesBrowserScreen',
+      () => const NotesBrowserScreen(logs: [
+        DayLog(date: '2026-07-15', note: 'Чувствовала себя хорошо, гуляла час.'),
+      ]),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the symptom days screen fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'SymptomDaysScreen',
+      () => const SymptomDaysScreen(
+        logs: [DayLog(date: '2026-07-15', symptoms: {Symptom.cramps})],
+        symptom: Symptom.cramps,
+      ),
+      scroll: true,
+    );
   });
 }
 

@@ -643,8 +643,18 @@ class _ExpectingLink extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.pregnant_woman_rounded, size: 15, color: Palette.violet),
         const SizedBox(width: 4),
-        Text(l.t('cyc_expecting'),
-            style: const TextStyle(color: Palette.violet, fontSize: 12.5, fontWeight: FontWeight.w600)),
+        // Flexible because this label is a sentence, not a word, and it is
+        // longest in Kazakh — where it ran 173px past the row at 360dp. A
+        // MainAxisSize.min row gives a rigid Text no room to shrink into.
+        Flexible(
+          child: Text(
+            l.t('cyc_expecting'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                color: Palette.violet, fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
+        ),
       ]),
     );
   }
