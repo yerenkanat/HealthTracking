@@ -20,6 +20,10 @@ import 'advisor/advisor_screen.dart';
 import 'appointments/appointments_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../data/demo_content.dart';
+import '../domain/timeline_content.dart';
+import 'content/timeline_content_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
 import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
@@ -98,6 +102,18 @@ class _HomeShellState extends State<HomeShell> {
         ),
         waterCount: c.waterFor(DateTime.now()),
         waterGoal: c.waterGoal,
+        timelineStage: _stageFor(c),
+        timelineItems: _contentFor(c),
+        onOpenContent: _openContent,
+        onSeeAllContent: _stageFor(c) == null
+            ? null
+            : () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => TimelineContentScreen(
+                    stage: _stageFor(c)!,
+                    items: _contentFor(c),
+                    onOpen: _openContent,
+                  ),
+                )),
         onLogSleep: () => _logSleep(context, c),
         onAddWater: () => c.addWater(DateTime.now()),
         onRemoveWater: () => c.addWater(DateTime.now(), -1),
@@ -203,6 +219,32 @@ class _HomeShellState extends State<HomeShell> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l.t('vitals_saved')), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  /// The catalogue. Seeded test content for now — swapping this for the
+  /// backend's response is the only change needed when the endpoint exists.
+  static final _catalog = demoContentCatalog();
+
+  /// Where this family is on the timeline: their pregnancy week if there is a
+  /// due date, otherwise the selected child's age in months.
+  TimelineStage? _stageFor(AppController c) => currentStage(
+        gestationWeek: c.isPregnant ? c.gestation?.week : null,
+        childAgeMonths: c.selectedChild?.hasDateOfBirth == true
+            ? c.selectedChild!.ageInMonths(DateTime.now())
+            : null,
+      );
+
+  List<ContentItem> _contentFor(AppController c) {
+    final stage = _stageFor(c);
+    return stage == null ? const [] : _catalog.itemsFor(stage);
+  }
+
+  /// Open a lesson video or a product page in the browser. Items without a URL
+  /// are not tappable, so this is only reached for a real link.
+  Future<void> _openContent(ContentItem item) async {
+    final uri = Uri.tryParse(item.url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   /// Open the sleep sheet and record the night. Unlike band summaries this is

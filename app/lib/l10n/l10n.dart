@@ -372,6 +372,28 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // The compact forms ("мм рт.ст.", not "мм рт. ст.") — this sits beside a
   // 27px number inside a metric tile, where the spaced-out form overflowed.
   'unit_mmhg': {AppLocale.ru: 'мм рт.ст.', AppLocale.kk: 'мм с.б.', AppLocale.en: 'mmHg'},
+  // ---- Timeline content (lessons + products for the current stage) ----
+  'tl_title': {AppLocale.ru: 'Для вас сейчас', AppLocale.kk: 'Сізге қазір', AppLocale.en: 'For you now'},
+  'tl_stage_week': {AppLocale.ru: '{n}-я неделя', AppLocale.kk: '{n}-апта', AppLocale.en: 'Week {n}'},
+  'tl_stage_newborn': {AppLocale.ru: 'Новорождённый', AppLocale.kk: 'Жаңа туған', AppLocale.en: 'Newborn'},
+  'tl_stage_month': {AppLocale.ru: '{n} мес.', AppLocale.kk: '{n} ай', AppLocale.en: '{n} months'},
+  'tl_lessons': {AppLocale.ru: 'Видеоуроки', AppLocale.kk: 'Бейнесабақтар', AppLocale.en: 'Video lessons'},
+  'tl_products': {AppLocale.ru: 'Товары', AppLocale.kk: 'Тауарлар', AppLocale.en: 'Products'},
+  'tl_see_all': {AppLocale.ru: 'Смотреть все', AppLocale.kk: 'Барлығын көру', AppLocale.en: 'See all'},
+  'tl_watch': {AppLocale.ru: 'Смотреть', AppLocale.kk: 'Көру', AppLocale.en: 'Watch'},
+  'tl_buy': {AppLocale.ru: 'Купить', AppLocale.kk: 'Сатып алу', AppLocale.en: 'Buy'},
+  'tl_soon': {AppLocale.ru: 'Скоро', AppLocale.kk: 'Жақында', AppLocale.en: 'Soon'},
+  'tl_minutes': {AppLocale.ru: '{n} мин', AppLocale.kk: '{n} мин', AppLocale.en: '{n} min'},
+  'tl_empty': {
+    AppLocale.ru: 'Укажите срок беременности или дату рождения ребёнка, чтобы видеть материалы для вашего этапа.',
+    AppLocale.kk: 'Өз кезеңіңізге арналған материалдарды көру үшін жүктілік мерзімін немесе баланың туған күнін көрсетіңіз.',
+    AppLocale.en: 'Add your due date or your child\'s date of birth to see material for your stage.',
+  },
+  'tl_none_for_stage': {
+    AppLocale.ru: 'Для этого этапа материалы пока готовятся.',
+    AppLocale.kk: 'Бұл кезеңге арналған материалдар дайындалып жатыр.',
+    AppLocale.en: 'Material for this stage is still being prepared.',
+  },
   'sleep_log_title': {AppLocale.ru: 'Записать сон', AppLocale.kk: 'Ұйқыны жазу', AppLocale.en: 'Log sleep'},
   'sleep_log_sub': {
     AppLocale.ru: 'Укажите, когда легли и когда встали. Стадии сна измеряет только браслет.',

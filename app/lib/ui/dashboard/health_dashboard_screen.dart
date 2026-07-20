@@ -16,6 +16,7 @@ import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
+import '../../domain/timeline_content.dart';
 import '../../domain/weekly_digest.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
@@ -23,6 +24,7 @@ import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/fitted_title.dart';
 import '../widgets/glass.dart';
+import '../content/timeline_content_card.dart';
 import 'health_summary.dart';
 import 'metric_detail_screen.dart';
 import 'sleep_card.dart';
@@ -75,6 +77,11 @@ class HealthDashboardView extends StatelessWidget {
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
+  /// Timeline content: the stage the family is at, and its lessons/products.
+  final TimelineStage? timelineStage;
+  final List<ContentItem> timelineItems;
+  final void Function(ContentItem item)? onOpenContent;
+  final VoidCallback? onSeeAllContent;
   final VoidCallback? onLogSleep;
   final VoidCallback? onAddWater;
   final VoidCallback? onRemoveWater;
@@ -104,6 +111,10 @@ class HealthDashboardView extends StatelessWidget {
     this.onLogVitals,
     this.waterCount = 0,
     this.waterGoal = 8,
+    this.timelineStage,
+    this.timelineItems = const [],
+    this.onOpenContent,
+    this.onSeeAllContent,
     this.onLogSleep,
     this.onAddWater,
     this.onRemoveWater,
@@ -196,6 +207,18 @@ class HealthDashboardView extends StatelessWidget {
                       appt: nextAppointment!,
                       now: nowForAppointment ?? DateTime.now(),
                       onTap: onOpenAppointments,
+                    ),
+                  ],
+                  // Material for wherever the family is on the timeline. Shown
+                  // whenever it's wired up: with no stage yet the card explains
+                  // what to add, which is how a new user discovers it exists.
+                  if (onOpenContent != null || onSeeAllContent != null) ...[
+                    const SizedBox(height: 14),
+                    TimelineContentCard(
+                      stage: timelineStage,
+                      items: timelineItems,
+                      onOpen: onOpenContent,
+                      onSeeAll: onSeeAllContent,
                     ),
                   ],
                   if (weeklyDigest?.hasData ?? false) ...[
@@ -832,7 +855,21 @@ class _DigestStat extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(
         child: Column(
           children: [
-            Text(value, style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 20, fontWeight: FontWeight.w700, color: color)),
+            // One line, scaled to fit. A third of the card is narrow, and the
+            // localized duration is much longer than the English it was laid
+            // out against — "7h 19m" became "7 ч 19 мин" and wrapped mid-value
+            // into "7 ч 19" / "МИН". Wrapping is legal layout, so nothing
+            // failed; it just looked broken.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value,
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: color)),
+            ),
             const SizedBox(height: 3),
             Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11, height: 1.2)),
           ],

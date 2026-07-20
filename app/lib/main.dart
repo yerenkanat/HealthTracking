@@ -82,6 +82,14 @@ void _seedDemo(AppController c) {
       ),
   ]);
 
+  // Demo: a due date 140 days out — 280 - 140 = week 20 of pregnancy, so the
+  // timeline card has a real stage to show. A mother expecting while already
+  // having an older child is an ordinary case, and it exercises the pregnancy
+  // half of the timeline (the child here is 8, past the five-year window).
+  if (c.dueDate == null) {
+    c.updateProfile(c.profile.copyWith(dueDate: now.add(const Duration(days: 140))));
+  }
+
   c.configureChild(
     name: 'Sultan',
     dateOfBirth: DateTime(now.year - 8, now.month, now.day), // ~8 yrs → school-age tips
