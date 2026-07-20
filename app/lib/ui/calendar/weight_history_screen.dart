@@ -78,7 +78,7 @@ class _WeightRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
-          Text('${entry.kg.toStringAsFixed(1)} kg',
+          Text('${entry.kg.toStringAsFixed(1)} ${l.t('unit_kg')}',
               style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 17, fontWeight: FontWeight.w700, color: Palette.text)),
           const SizedBox(width: 12),
           if (delta != null && delta!.abs() >= 0.05)

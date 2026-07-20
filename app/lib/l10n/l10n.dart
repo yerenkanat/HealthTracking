@@ -352,6 +352,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'db_chip_cycle': {AppLocale.ru: 'Цикл · день {n}', AppLocale.kk: 'Цикл · {n}-күн', AppLocale.en: 'Cycle · Day {n}'},
   'db_chip_late': {AppLocale.ru: 'Задержка {n} дн.', AppLocale.kk: '{n} күн кешігу', AppLocale.en: 'Period {n} days late'},
   'vitals_log': {AppLocale.ru: 'Записать показатели', AppLocale.kk: 'Көрсеткіштерді жазу', AppLocale.en: 'Log a reading'},
+  // Bare unit labels shown next to a big number. Everywhere a unit appears
+  // inside a sentence it is already translated ('кг', 'мм рт. ст.'), so these
+  // must match — a Latin 'kg' directly above a Cyrillic 'кг' reads as a bug.
+  'unit_kg': {AppLocale.ru: 'кг', AppLocale.kk: 'кг', AppLocale.en: 'kg'},
+  'unit_mmhg': {AppLocale.ru: 'мм рт. ст.', AppLocale.kk: 'мм с.б.', AppLocale.en: 'mmHg'},
   'sleep_log_title': {AppLocale.ru: 'Записать сон', AppLocale.kk: 'Ұйқыны жазу', AppLocale.en: 'Log sleep'},
   'sleep_log_sub': {
     AppLocale.ru: 'Укажите, когда легли и когда встали. Стадии сна измеряет только браслет.',

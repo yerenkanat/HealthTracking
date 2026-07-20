@@ -61,7 +61,7 @@ class WeightCard extends StatelessWidget {
                 Text(stats.latest.toStringAsFixed(1),
                     style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 30, fontWeight: FontWeight.w700, height: 1, color: Palette.text)),
                 const SizedBox(width: 4),
-                const Text('kg', style: TextStyle(color: Palette.textDim, fontSize: 13)),
+                Text(l.t('unit_kg'), style: const TextStyle(color: Palette.textDim, fontSize: 13)),
                 const SizedBox(width: 10),
                 if (stats.count >= 2) _DeltaBadge(delta: stats.delta),
                 const Spacer(),
@@ -227,7 +227,7 @@ class _WeightTargetSheetState extends State<_WeightTargetSheet> {
           Text(l.t('weight_target_title'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Palette.text)),
           const SizedBox(height: 18),
           Center(
-            child: Text('${_kg.toStringAsFixed(1)} kg',
+            child: Text('${_kg.toStringAsFixed(1)} ${l.t('unit_kg')}',
                 style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 30, fontWeight: FontWeight.w700, color: Palette.text)),
           ),
           Slider(
@@ -291,7 +291,7 @@ class _LogWeightSheetState extends State<_LogWeightSheet> {
               const SizedBox(width: 20),
               SizedBox(
                 width: 130,
-                child: Text('${_kg.toStringAsFixed(1)} kg',
+                child: Text('${_kg.toStringAsFixed(1)} ${l.t('unit_kg')}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 30, fontWeight: FontWeight.w700, color: Palette.text)),
               ),

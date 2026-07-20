@@ -479,7 +479,7 @@ class _BloodPressureCard extends StatelessWidget {
                       fontFamily: 'JetBrainsMono', fontSize: 27, fontWeight: FontWeight.w700, height: 1, color: Palette.text,
                     )),
                 const SizedBox(width: 4),
-                const Text('mmHg', style: TextStyle(color: Palette.textDim, fontSize: 11)),
+                Text(l.t('unit_mmhg'), style: const TextStyle(color: Palette.textDim, fontSize: 11)),
               ],
             ),
             const SizedBox(height: 10),
