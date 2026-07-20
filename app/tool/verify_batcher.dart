@@ -3,6 +3,7 @@
 /// `dart run tool/verify_batcher.dart`
 library;
 
+import 'dart:async';
 import 'dart:io';
 import '../lib/net/telemetry_batcher.dart';
 
@@ -105,6 +106,115 @@ Future<void> main() async {
     b.onConnectivityRestored();
     await _tick();
     _chk('reconnect flushes buffer', flushed.length == 1 && b.pending == 0);
+  }
+
+  // ---- A long spell offline must still sync afterwards ----
+  // The server rejects a batch over 500 items. The whole queue used to be sent
+  // in one request, so once a backlog passed that, every flush came back 400,
+  // requeued and retried forever: sync never recovered and the radio kept
+  // waking for nothing.
+  {
+    const serverCap = 500;
+    var accepted = 0, attempts = 0, oversized = 0;
+    var offline = true;
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 50,
+      maxDelay: const Duration(milliseconds: 5),
+      flush: (items) async {
+        attempts++;
+        if (items.length > serverCap) {
+          oversized++;
+          throw StateError('server rejects a batch this large');
+        }
+        if (offline) throw StateError('offline');
+        accepted += items.length;
+      },
+      persist: (_) async {},
+      restore: () async => [],
+    ));
+    await b.init();
+    for (var i = 0; i < 600; i++) {
+      b.enqueueTelemetry({'i': i});
+    }
+    await _tick();
+    _chk('a long offline stretch keeps everything queued', b.pending == 600);
+
+    offline = false;
+    b.onConnectivityRestored();
+    for (var i = 0; i < 12 && b.pending > 0; i++) {
+      await _tick();
+    }
+    _chk('a 600-item backlog drains once back online', b.pending == 0);
+    _chk('every queued reading is delivered', accepted == 600);
+    _chk('no request ever exceeds the server limit', oversized == 0);
+    _chk('the backlog goes in several requests, not one', attempts >= 3);
+  }
+
+  // ---- Items enqueued DURING a flush are not stranded ----
+  // _scheduleFlush bails while a flush is running and _flushNow returned early,
+  // so anything arriving mid-flush sat with no timer armed — waiting on the
+  // next enqueue to move it. An urgent reading could be delayed indefinitely.
+  {
+    final release = Completer<void>();
+    var flushes = 0;
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 1000, // never trip the size trigger; only the flush matters
+      maxDelay: const Duration(milliseconds: 10),
+      flush: (items) async {
+        flushes++;
+        if (flushes == 1) await release.future; // hold the first one open
+      },
+      persist: (_) async {},
+      restore: () async => [],
+    ));
+    await b.init();
+    b.enqueueTelemetry({'a': 1}, urgent: true); // starts a flush that hangs
+    await _tick();
+    b.enqueueTelemetry({'b': 2}); // arrives mid-flush
+    b.enqueueTelemetry({'c': 3}, urgent: true); // an emergency mid-flush
+    release.complete();
+    for (var i = 0; i < 8 && b.pending > 0; i++) {
+      await _tick();
+    }
+    _chk('items enqueued during a flush are still sent', b.pending == 0);
+    _chk('a second flush runs to carry them', flushes >= 2);
+  }
+
+  // ---- The queue cannot grow without limit ----
+  // Offline indefinitely would otherwise grow both the queue and its disk
+  // mirror forever. Urgent items survive the trim; ordinary ones age out.
+  {
+    var offline = true;
+    final delivered = <QueuedItem>[];
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 100000,
+      maxDelay: const Duration(milliseconds: 5),
+      flush: (items) async {
+        if (offline) throw StateError('offline');
+        delivered.addAll(items);
+      },
+      persist: (_) async {},
+      restore: () async => [],
+      maxQueue: 100,
+    ));
+    await b.init();
+    b.enqueueTelemetry({'sos': true}, urgent: true); // the OLDEST item
+    for (var i = 0; i < 500; i++) {
+      b.enqueueTelemetry({'i': i});
+    }
+    _chk('the queue is capped', b.pending == 100);
+
+    offline = false;
+    b.onConnectivityRestored();
+    for (var i = 0; i < 10 && b.pending > 0; i++) {
+      await _tick();
+    }
+    // The urgent record is the oldest of all, so plain age-based trimming would
+    // have dropped it first — exactly the wrong one to lose.
+    _chk('the urgent record survives the trim',
+        delivered.any((q) => q.urgent && q.payload['sos'] == true));
+    _chk('ordinary records are what gave way',
+        delivered.length == 100 && delivered.where((q) => !q.urgent).length == 99);
   }
 
   print('\n$_pass passed, $_fail failed');
