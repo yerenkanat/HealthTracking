@@ -293,7 +293,7 @@ Future<void> bootstrapRuntime(
       userId: const String.fromEnvironment('USER_ID', defaultValue: 'me'),
       locale: controller.locale.name,
       monitor: monitor,
-      onEmergency: (e) => controller.onChatEmergency(e.message, e.callButtons),
+      onEmergency: (e) => controller.onChatEmergency(e.message, e.callButtons, code: e.code),
     );
     controller.attachChat(ChatController(
       service: chatService,

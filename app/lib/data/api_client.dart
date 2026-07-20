@@ -34,6 +34,12 @@ sealed class ChatOutcome {
       case 'emergency':
         return EmergencyChatOutcome(
           message: j['message'] as String,
+          // The triage code was already on the wire and simply discarded, so a
+          // server-side telemetry emergency arrived as English prose the app
+          // had no way to translate. With the code, l.triageMessage() localizes
+          // it exactly as it does an on-device one — and no medical copy has to
+          // be duplicated in the backend.
+          code: _firstTriageCode(j),
           callButtons: [
             for (final b in (j['callButtons'] as List? ?? const []))
               (label: b['label'] as String, tel: b['tel'] as String),
@@ -56,10 +62,30 @@ class ChatReply extends ChatOutcome {
   const ChatReply({required this.message, required this.grounded});
 }
 
+/// The triage code from a server emergency, if it sent one.
+///
+/// Tolerant by design: a shape change upstream must degrade to "no code" — and
+/// the server's own message — rather than throwing on the emergency path.
+String? _firstTriageCode(Map<String, dynamic> j) {
+  final triage = j['triage'];
+  if (triage is! Map) return null;
+  final findings = triage['findings'];
+  if (findings is! List || findings.isEmpty) return null;
+  final first = findings.first;
+  if (first is! Map) return null;
+  final code = first['code'];
+  return code is String && code.isNotEmpty ? code : null;
+}
+
 class EmergencyChatOutcome extends ChatOutcome {
   final String message;
+
+  /// Triage code when the server sent one, so the app can localize; null for
+  /// a text red flag, where [message] is already in the user's language.
+  final String? code;
+
   final List<({String label, String tel})> callButtons;
-  const EmergencyChatOutcome({required this.message, required this.callButtons});
+  const EmergencyChatOutcome({required this.message, this.code, required this.callButtons});
 }
 
 class BlockedChatOutcome extends ChatOutcome {

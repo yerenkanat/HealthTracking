@@ -1109,8 +1109,17 @@ class AppController {
   }
 
   /// From the AI chat service when the server escalates a message (already localized).
-  void onChatEmergency(String message, List<({String label, String tel})> callButtons) {
+  /// [code] is set when the server escalated on telemetry, whose messages come
+  /// from the shared triage rules and are English. Passing it lets the UI
+  /// localize exactly as it does an on-device emergency. Null for a text red
+  /// flag — the guardrail writes those in her language already.
+  void onChatEmergency(
+    String message,
+    List<({String label, String tel})> callButtons, {
+    String? code,
+  }) {
     _raiseEmergency(EmergencyView(
+      code: code,
       message: message,
       callButtons: callButtons.isEmpty
           ? const [(label: EmergencyLabels.ambulance, tel: EmergencyLabels.ambulanceTel)]

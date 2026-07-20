@@ -44,6 +44,54 @@ export interface GuardrailDeps {
   callLLM: LLMCaller;
 }
 
+// --- What the guardrail itself says ---
+//
+// Every string below used to be an English literal. The app defaults to Russian
+// and displays these verbatim — it cannot translate free text — so a Russian
+// speaker who typed "ребёнок не шевелится" was correctly DETECTED and then
+// answered in a language she may not read. On the emergency path.
+//
+// input.locale was already threaded in for the LLM call; it just was not used
+// for anything the guardrail authored itself.
+type Loc = 'ru' | 'kk' | 'en';
+
+/** Normalise "ru-RU"/"RU"/undefined → a supported locale. Russian is the app default. */
+function toLocale(raw: string | undefined): Loc {
+  const head = (raw ?? '').slice(0, 2).toLowerCase();
+  return head === 'kk' ? 'kk' : head === 'en' ? 'en' : 'ru';
+}
+
+const MESSAGES: Record<string, Record<Loc, string>> = {
+  injection: {
+    ru: 'Я здесь, чтобы помочь с самочувствием во время беременности. Давайте вернёмся к тому, как вы себя чувствуете — о чём хотите поговорить?',
+    kk: 'Мен жүктілік кезіндегі әл-ауқат туралы көмектесемін. Өзіңізді қалай сезінетініңізге оралайық — не туралы сөйлескіңіз келеді?',
+    en: "I'm here to help with pregnancy wellness. Let's keep our chat about how you're feeling — what would you like to talk about?",
+  },
+  llmUnavailable: {
+    ru: 'Сейчас не удаётся связаться с помощником. Если вопрос о самочувствии, обратитесь к врачу. Попробуйте ещё раз через минуту.',
+    kk: 'Қазір көмекшіге қосыла алмай тұрмын. Сұрағыңыз денсаулыққа қатысты болса, дәрігеріңізге хабарласыңыз. Бір минуттан кейін қайталап көріңіз.',
+    en: "I can't reach the assistant right now. If this is about how you feel physically, please contact your clinician. Try me again in a moment.",
+  },
+  unsafeOutput: {
+    ru: 'Я могу рассказать об общем, но не могу сказать, безопасен ли конкретный показатель. С этим — к врачу. Объяснить что-нибудь в общих чертах?',
+    kk: 'Мен жалпы мәліметпен бөлісе аламын, бірақ нақты көрсеткіштің қауіпсіз екенін айта алмаймын. Ол үшін дәрігерге жүгініңіз. Жалпы бірдеңе түсіндірейін бе?',
+    en: "I can share general wellness information, but I can't tell you whether a specific reading is safe. For that, please check with your doctor. Is there something general I can help explain?",
+  },
+  symptomRedFlag: {
+    ru: 'То, что вы описываете, при беременности может быть серьёзным и требует немедленной медицинской помощи.',
+    kk: 'Сіз сипаттаған жағдай жүктілік кезінде қауіпті болуы мүмкін және дереу дәрігерлік көмекті қажет етеді.',
+    en: 'What you describe can be serious in pregnancy and needs medical attention right away.',
+  },
+  genericEmergency: {
+    ru: 'Обнаружен серьёзный признак. Пожалуйста, немедленно обратитесь за медицинской помощью.',
+    kk: 'Күрделі белгі анықталды. Дереу дәрігерлік көмекке жүгініңіз.',
+    en: 'A serious sign was detected. Please seek medical help immediately.',
+  },
+};
+
+const say = (key: keyof typeof MESSAGES | string, locale: Loc): string =>
+  MESSAGES[key][locale];
+
 // --- Red-flag symptom detection on free text (defense-in-depth) ---
 //
 // These MUST cover every language the app ships in. The app defaults to
@@ -126,13 +174,34 @@ function sanitizeUserMessage(text: string): { clean: string; injectionBlocked: b
 // reading (possessive/demonstrative + metric, or a concrete BP number). General
 // education ("a normal resting heart rate is 60–100") lacks that specific anchor
 // and is intentionally NOT blocked.
-function outputViolates(text: string): boolean {
+function outputViolates(text: string, telemetry?: BandTelemetry): boolean {
+  // A BP pair in the text is only "her reading" if it IS her reading.
+  //
+  // This used to treat ANY nn/nn as specific, which blocked the single most
+  // useful thing a pregnancy app can teach: "normal blood pressure is under
+  // 140/90" was refused in all three languages, and she got the "I can't tell
+  // you whether a reading is safe" deflection instead of the threshold. The
+  // code comment already said general education must not be blocked; the rule
+  // just did not match the comment.
+  //
+  // Comparing against the actual telemetry is both narrower AND stricter: if her
+  // reading really is 140/90, calling that fine is still blocked.
+  const quotesHerNumbers = (() => {
+    const sys = telemetry?.systolicMmHg;
+    const dia = telemetry?.diastolicMmHg;
+    if (sys == null && dia == null) return false;
+    for (const m of text.matchAll(/\b(\d{2,3})\/(\d{2,3})\b/g)) {
+      if (sys != null && Number(m[1]) === sys) return true;
+      if (dia != null && Number(m[2]) === dia) return true;
+    }
+    return false;
+  })();
+
   const specificReading =
     /\b(your|that|those|these|this)\s+(blood pressure|bp|spo2|oxygen|heart rate|pulse|temperature|reading|readings|numbers?|vitals?|results?)\b/i.test(text) ||
     /(ваш\p{L}*|эт\p{L}+|такое)\s+(давлени|пульс|сатураци|кислород|температур|показател|значени|результат|цифр)/iu.test(text) ||
     /(қысым|пульс|температура|көрсеткіш|оттег|нәтиже)\p{L}*(ыңыз|іңіз)/iu.test(text) ||
-    // A concrete BP pair reads the same in every language.
-    /\b\d{2,3}\/\d{2,3}\b/.test(text);
+    quotesHerNumbers;
   const reassure =
     /\b(fine|okay|ok|normal|safe|healthy)\b/i.test(text) ||
     /\b(nothing|no need)\s+to\s+worry\b/i.test(text) ||
@@ -151,22 +220,37 @@ function outputViolates(text: string): boolean {
     /\b(take|takes?|taking)\b/i.test(text) ||
     /(приним\p{L}+|прими|выпей\p{L}*|пейте|пить)/iu.test(text) ||
     /(ішіңіз|қабылдаңыз|іш\p{L}*)/iu.test(text);
-  const prescribes = hasDose && tellsToTake;
+
+  // Naming a drug and telling her to take it is prescribing whether or not a
+  // dose is attached — "принимайте аспирин каждый день" carried no number and
+  // sailed through. It matters most in pregnancy, where the specific drug is
+  // the whole question: ibuprofen and aspirin are not casual suggestions.
+  //
+  // A drug list can never be complete, so this is a floor, not a filter. The
+  // system prompt remains the primary control; this catches what leaks past it.
+  const namesADrug =
+    /\b(ibuprofen|aspirin|paracetamol|acetaminophen|naproxen|codeine|antibiotics?|misoprostol|warfarin)\b/i.test(text) ||
+    /(ибупрофен|аспирин|парацетамол|ацетаминофен|напроксен|кодеин|антибиотик|мизопростол|варфарин)/iu.test(text) ||
+    /(ибупрофен|аспирин|парацетамол|антибиотик)\p{L}*/iu.test(text);
+
+  const prescribes = tellsToTake && (hasDose || namesADrug);
   return falseReassurance || prescribes;
 }
 
 function emergencyOutcome(
   triage: TriageResult,
   contacts: Array<{ label: string; tel: string }>,
+  locale: Loc,
 ): GuardrailOutcome {
   return {
     kind: 'emergency',
     action: 'SHOW_EMERGENCY_SCREEN',
     triage,
+    // 'Call ambulance' stays in English deliberately: the app matches this exact
+    // string in EmergencyLabels to pick a localized label. Translating it here
+    // would break that match and ship English to the emergency screen.
     callButtons: contacts.length ? contacts : [{ label: 'Call ambulance', tel: '103' }],
-    message:
-      triage.findings[0]?.message ??
-      'A serious sign was detected. Please seek medical help immediately.',
+    message: triage.findings[0]?.message ?? say('genericEmergency', locale),
   };
 }
 
@@ -174,21 +258,20 @@ export async function processWithGuardrails(
   input: GuardrailInput,
   deps: GuardrailDeps,
 ): Promise<GuardrailOutcome> {
+  const loc = toLocale(input.locale);
+
   // STEP 1 — telemetry triage overrides EVERYTHING.
   if (input.latestTelemetry) {
     const triage = assessTelemetry(input.latestTelemetry);
-    if (triage.forceEmergencyScreen) return emergencyOutcome(triage, input.emergencyContacts);
+    if (triage.forceEmergencyScreen) {
+      return emergencyOutcome(triage, input.emergencyContacts, loc);
+    }
   }
 
   // STEP 2 — sanitise input.
   const { clean, injectionBlocked } = sanitizeUserMessage(input.userMessage);
   if (injectionBlocked) {
-    return {
-      kind: 'blocked',
-      reason: 'prompt_injection',
-      message:
-        "I'm here to help with pregnancy wellness. Let's keep our chat about how you're feeling — what would you like to talk about?",
-    };
+    return { kind: 'blocked', reason: 'prompt_injection', message: say('injection', loc) };
   }
 
   // STEP 3 — red-flag NLU on the user's words.
@@ -201,11 +284,11 @@ export async function processWithGuardrails(
           code: 'SYMPTOM_RED_FLAG',
           severity: 'emergency',
           metric: 'symptom',
-          message: 'What you describe can be serious in pregnancy and needs medical attention right away.',
+          message: say('symptomRedFlag', loc),
         },
       ],
     };
-    return emergencyOutcome(triage, input.emergencyContacts);
+    return emergencyOutcome(triage, input.emergencyContacts, loc);
   }
 
   // STEP 4 — grounded LLM call (injected).
@@ -214,26 +297,16 @@ export async function processWithGuardrails(
   try {
     raw = await deps.callLLM(system, clean, input.locale);
   } catch {
-    return {
-      kind: 'blocked',
-      reason: 'llm_unavailable',
-      message:
-        "I can't reach the assistant right now. If this is about how you feel physically, please contact your clinician. Try me again in a moment.",
-    };
+    return { kind: 'blocked', reason: 'llm_unavailable', message: say('llmUnavailable', loc) };
   }
 
   // STEP 5 — output filter.
-  if (outputViolates(raw)) {
-    return {
-      kind: 'blocked',
-      reason: 'unsafe_output',
-      message:
-        "I can share general wellness information, but I can't tell you whether a specific reading is safe. For that, please check with your doctor. Is there something general I can help explain?",
-    };
+  if (outputViolates(raw, input.latestTelemetry)) {
+    return { kind: 'blocked', reason: 'unsafe_output', message: say('unsafeOutput', loc) };
   }
 
   return { kind: 'chat', message: raw, grounded: input.ragPassages.length > 0 };
 }
 
 // Exported for focused unit tests.
-export const _internal = { textLooksEmergency, sanitizeUserMessage, outputViolates };
+export const _internal = { textLooksEmergency, sanitizeUserMessage, outputViolates, toLocale, MESSAGES };
