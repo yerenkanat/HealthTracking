@@ -52,7 +52,15 @@ const dayLogBody = z.object({
   kicks: z.number().int().min(0).max(999).default(0),
   flow: z.enum(['light', 'medium', 'heavy']).nullable().optional(),
 });
-const dayLogQuery = z.object({ from: z.string(), to: z.string() });
+// Same date shape as dayLogBody.date, which was already validated. Without it
+// an arbitrary string reached the date comparison in the query and surfaced as
+// a 500 instead of an honest 400.
+// Month and day ranges too, not just "three groups of digits" — \d{2} happily
+// accepts 2026-13-45.
+const isoDate = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
+const dayLogQuery = z
+  .object({ from: isoDate, to: isoDate })
+  .refine((q) => q.from <= q.to, { message: 'from must not be after to' });
 const alertBody = z.object({
   childId: z.string().min(1),
   kind: z.enum(['entered', 'left']),

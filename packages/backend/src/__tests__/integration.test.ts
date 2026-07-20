@@ -340,6 +340,12 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
     expect((await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '15-07-2026' } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '2026-07-15', flow: 'gushing' } })).statusCode).toBe(400);
     expect((await get('/cycle/days?from=only-one')).statusCode).toBe(400); // missing `to`
+    // A malformed date is a client error, not something to hand to the database.
+    expect((await get('/cycle/days?from=nonsense&to=2026-07-31')).statusCode).toBe(400);
+    // Ordered correctly, so this can only 400 because the date itself is invalid.
+    expect((await get('/cycle/days?from=2026-01-01&to=2026-13-45')).statusCode).toBe(400);
+    // A backwards range can only be a mistake.
+    expect((await get('/cycle/days?from=2026-07-31&to=2026-07-01')).statusCode).toBe(400);
   });
 
   it('alerts: record enter/exit → list newest-first', async () => {
