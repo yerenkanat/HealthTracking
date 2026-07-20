@@ -94,9 +94,15 @@ _(none open)_
 adb shell pm grant com.fcs.fcs_app android.permission.POST_NOTIFICATIONS
 flutter test integration_test/reminder_delivery_test.dart -d <device>
 ```
-Grant the permission FIRST and re-grant after any reinstall — `flutter test`
-reinstalls the app itself, which resets the runtime grant, and the consent
-dialog then has nobody to tap it and hangs the whole run. If a run stalls with
+Granting once beforehand is NOT enough, and this bit me twice: `flutter test`
+reinstalls the app as part of the run, which resets the runtime grant, so a
+grant issued before the command is already gone by the time the app starts.
+Run a re-granting loop alongside the test instead:
+```
+while :; do adb shell pm grant com.fcs.fcs_app android.permission.POST_NOTIFICATIONS; sleep 3; done &
+```
+Without it the consent dialog appears mid-run with nobody to tap it and hangs
+the whole thing. If a run stalls with
 no output, check `adb shell dumpsys window | grep mCurrentFocus`: a
 GrantPermissionsActivity or an "Application Not Responding" window means the
 emulator is blocking, not the app. A wedged emulator (`ANR: system`) makes
