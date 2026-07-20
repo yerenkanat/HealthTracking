@@ -54,6 +54,10 @@ export interface ContentItemRow {
   currency?: string;
   imageUrl?: string;
   durationMin?: number; // lessons
+  // Targeting; absent means the item is for everyone, which is the usual case.
+  cities?: string[];
+  minAgeYears?: number;
+  maxAgeYears?: number;
 }
 
 /** A whole family, assembled for the back-office drilldown. */

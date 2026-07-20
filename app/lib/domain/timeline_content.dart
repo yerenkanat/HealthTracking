@@ -119,6 +119,17 @@ class ContentItem {
   /// Lesson length in minutes, when known.
   final int? durationMin;
 
+  /// Cities this item is offered in — a product that only ships to Almaty, a
+  /// course held in one place. Empty means everywhere, which is the default and
+  /// what most items should be.
+  final List<String> cities;
+
+  /// Age bounds in years, inclusive. Both null means every age, which again is
+  /// the default: these exist for material that is genuinely age-specific, not
+  /// as a way to slice the audience.
+  final int? minAgeYears;
+  final int? maxAgeYears;
+
   const ContentItem({
     required this.id,
     required this.kind,
@@ -129,7 +140,15 @@ class ContentItem {
     this.currency,
     this.imageUrl = '',
     this.durationMin,
+    this.cities = const [],
+    this.minAgeYears,
+    this.maxAgeYears,
   });
+
+  /// True when this item is offered everywhere and to every age — the common
+  /// case, and the one that never depends on what the profile holds.
+  bool get isForEveryone =>
+      cities.isEmpty && minAgeYears == null && maxAgeYears == null;
 
   bool get isLesson => kind == ContentKind.lesson;
   bool get isProduct => kind == ContentKind.product;
@@ -145,6 +164,9 @@ class ContentItem {
         if (currency != null) 'currency': currency,
         if (imageUrl.isNotEmpty) 'imageUrl': imageUrl,
         if (durationMin != null) 'durationMin': durationMin,
+        if (cities.isNotEmpty) 'cities': cities,
+        if (minAgeYears != null) 'minAgeYears': minAgeYears,
+        if (maxAgeYears != null) 'maxAgeYears': maxAgeYears,
       };
 
   factory ContentItem.fromJson(Map<String, dynamic> j) => ContentItem(
@@ -157,6 +179,12 @@ class ContentItem {
         currency: j['currency'] as String?,
         imageUrl: '${j['imageUrl'] ?? ''}',
         durationMin: (j['durationMin'] as num?)?.toInt(),
+        cities: [
+          for (final c in (j['cities'] is List ? j['cities'] as List : const []))
+            if ('$c'.trim().isNotEmpty) '$c'.trim(),
+        ],
+        minAgeYears: (j['minAgeYears'] as num?)?.toInt(),
+        maxAgeYears: (j['maxAgeYears'] as num?)?.toInt(),
       );
 }
 
@@ -296,3 +324,105 @@ String formatPrice(ContentItem item) {
   };
   return symbol.isEmpty ? buf.toString() : '${buf.toString()} $symbol';
 }
+
+/// Who is looking at the shelf. Both fields are optional because both are
+/// optional in the profile — a woman who skipped them still gets a full shelf,
+/// she just doesn't get the targeted extras.
+class ContentViewer {
+  final String city;
+  final int? ageYears;
+
+  const ContentViewer({this.city = '', this.ageYears});
+
+  static const anonymous = ContentViewer();
+}
+
+/// City spellings that mean the same place.
+///
+/// The profile takes a free-text city in an app used in three languages, so
+/// "Алматы", "Almaty" and "Алма-Ата" all arrive. Without this, targeting would
+/// silently fail for anyone who typed the Latin form — the shelf would look
+/// normal, so nobody would ever notice.
+///
+/// This covers the cities the product actually operates in. Anything else falls
+/// through as itself: an unrecognised spelling matches only an identical one,
+/// which is a miss rather than a wrong hit.
+const _cityAliases = <String, String>{
+  'almaty': 'алматы',
+  'алма-ата': 'алматы',
+  'alma-ata': 'алматы',
+  'astana': 'астана',
+  'nur-sultan': 'астана',
+  'нур-султан': 'астана',
+  'нұр-сұлтан': 'астана',
+  'shymkent': 'шымкент',
+  'чимкент': 'шымкент',
+  'karaganda': 'караганда',
+  'qaraghandy': 'караганда',
+  'қарағанды': 'караганда',
+  'aktobe': 'актобе',
+  'ақтөбе': 'актобе',
+  'atyrau': 'атырау',
+  'атырау': 'атырау',
+  'taraz': 'тараз',
+  'pavlodar': 'павлодар',
+  'oskemen': 'усть-каменогорск',
+  'өскемен': 'усть-каменогорск',
+  'semey': 'семей',
+  'kostanay': 'костанай',
+  'қостанай': 'костанай',
+  'kyzylorda': 'кызылорда',
+  'қызылорда': 'кызылорда',
+  'oral': 'уральск',
+  'орал': 'уральск',
+  'aktau': 'актау',
+  'ақтау': 'актау',
+  'turkestan': 'туркестан',
+  'түркістан': 'туркестан',
+  'taldykorgan': 'талдыкорган',
+  'талдықорған': 'талдыкорган',
+};
+
+/// Reduce a written city to something comparable: case, surrounding space and
+/// the ё/е split, then the alias table.
+String normalizeCity(String raw) {
+  final trimmed = raw.trim().toLowerCase().replaceAll('ё', 'е');
+  if (trimmed.isEmpty) return '';
+  return _cityAliases[trimmed] ?? trimmed;
+}
+
+/// Whether [item] should be shown to [viewer].
+///
+/// An item with no constraints is for everyone, always — that is the overwhelming
+/// majority and it never depends on the profile. A constraint the profile cannot
+/// satisfy excludes the item, and that deliberately includes the case where the
+/// profile simply doesn't say: without a city we cannot claim an Almaty-only
+/// product is relevant, and quietly showing it anyway would be a promise the
+/// delivery can't keep.
+bool suitsViewer(ContentItem item, ContentViewer viewer) {
+  if (item.isForEveryone) return true;
+
+  if (item.cities.isNotEmpty) {
+    final want = normalizeCity(viewer.city);
+    if (want.isEmpty) return false;
+    if (!item.cities.map(normalizeCity).contains(want)) return false;
+  }
+
+  final min = item.minAgeYears;
+  final max = item.maxAgeYears;
+  if (min != null || max != null) {
+    final age = viewer.ageYears;
+    if (age == null) return false;
+    if (min != null && age < min) return false;
+    if (max != null && age > max) return false;
+  }
+
+  return true;
+}
+
+/// The items from [all] that suit [viewer], in the order they were authored.
+///
+/// Never returns fewer than the unconstrained items, so a sparsely-filled
+/// profile can only cost someone the extras — never the baseline shelf.
+List<ContentItem> itemsForViewer(List<ContentItem> all, ContentViewer viewer) =>
+    [for (final i in all) if (suitsViewer(i, viewer)) i];

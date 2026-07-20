@@ -171,6 +171,103 @@ void main() {
   // An unlinked item is offered without an action rather than a dead link.
   _chk('an item with no url reports no link', !priced.hasLink);
 
+  // ---- Targeting by city and age ----
+  // City and birth date are optional in the profile, so the rule that matters
+  // most is what happens when they are missing: the baseline shelf must be
+  // completely unaffected, and nothing we cannot honour may be shown.
+  const plain = ContentItem(
+    id: 'plain', kind: ContentKind.lesson,
+    title: LocalizedText({'ru': 'Everyone'}), summary: LocalizedText({'ru': 'x'}),
+  );
+  const almatyOnly = ContentItem(
+    id: 'almaty', kind: ContentKind.product,
+    title: LocalizedText({'ru': 'Almaty'}), summary: LocalizedText({'ru': 'x'}),
+    cities: ['Алматы'],
+  );
+  const over35 = ContentItem(
+    id: 'over35', kind: ContentKind.lesson,
+    title: LocalizedText({'ru': '35+'}), summary: LocalizedText({'ru': 'x'}),
+    minAgeYears: 35,
+  );
+  const under30 = ContentItem(
+    id: 'under30', kind: ContentKind.lesson,
+    title: LocalizedText({'ru': '-30'}), summary: LocalizedText({'ru': 'x'}),
+    maxAgeYears: 29,
+  );
+  const shelf = [plain, almatyOnly, over35, under30];
+
+  _chk('an unconstrained item is for everyone', plain.isForEveryone);
+  _chk('a city-bound item is not', !almatyOnly.isForEveryone);
+
+  // An empty profile still gets the whole baseline shelf...
+  final anon = itemsForViewer(shelf, ContentViewer.anonymous);
+  _chk('an empty profile keeps every unconstrained item',
+      anon.map((i) => i.id).join(',') == 'plain');
+  // ...and is never shown something we cannot deliver.
+  _chk('an unknown city hides a city-bound product',
+      !suitsViewer(almatyOnly, ContentViewer.anonymous));
+  _chk('an unknown age hides an age-bound lesson',
+      !suitsViewer(over35, ContentViewer.anonymous));
+
+  // City matching survives the ways a user might actually write the place.
+  _chk('the Cyrillic spelling matches',
+      suitsViewer(almatyOnly, const ContentViewer(city: 'Алматы')));
+  _chk('the Latin spelling matches too',
+      suitsViewer(almatyOnly, const ContentViewer(city: 'Almaty')));
+  _chk('the old name matches too',
+      suitsViewer(almatyOnly, const ContentViewer(city: 'Алма-Ата')));
+  _chk('surrounding space and case do not matter',
+      suitsViewer(almatyOnly, const ContentViewer(city: '  ALMATY ')));
+  _chk('a different city does not match',
+      !suitsViewer(almatyOnly, const ContentViewer(city: 'Астана')));
+  // Astana was renamed and renamed back; a match must survive both names.
+  _chk('a renamed city still matches',
+      normalizeCity('Nur-Sultan') == normalizeCity('Астана'));
+  // A spelling we do not know is a miss, never a wrong hit.
+  _chk('an unknown city normalizes to itself', normalizeCity('Kokshetau') == 'kokshetau');
+  _chk('an unknown city matches only itself',
+      !suitsViewer(almatyOnly, const ContentViewer(city: 'Kokshetau')));
+
+  // Age bounds are inclusive at both ends.
+  _chk('exactly the minimum age qualifies',
+      suitsViewer(over35, const ContentViewer(ageYears: 35)));
+  _chk('a year under the minimum does not',
+      !suitsViewer(over35, const ContentViewer(ageYears: 34)));
+  _chk('exactly the maximum age qualifies',
+      suitsViewer(under30, const ContentViewer(ageYears: 29)));
+  _chk('a year over the maximum does not',
+      !suitsViewer(under30, const ContentViewer(ageYears: 30)));
+
+  // A full profile sees the baseline plus what it qualifies for, in order.
+  final full = itemsForViewer(shelf, const ContentViewer(city: 'Almaty', ageYears: 36));
+  _chk('a full profile gains the targeted items',
+      full.map((i) => i.id).join(',') == 'plain,almaty,over35');
+
+  // Constraints combine: both must hold, not either.
+  const both = ContentItem(
+    id: 'both', kind: ContentKind.product,
+    title: LocalizedText({'ru': 'B'}), summary: LocalizedText({'ru': 'x'}),
+    cities: ['Almaty'], minAgeYears: 35,
+  );
+  _chk('meeting only the city is not enough',
+      !suitsViewer(both, const ContentViewer(city: 'Almaty', ageYears: 20)));
+  _chk('meeting only the age is not enough',
+      !suitsViewer(both, const ContentViewer(city: 'Астана', ageYears: 40)));
+  _chk('meeting both is', suitsViewer(both, const ContentViewer(city: 'Almaty', ageYears: 40)));
+
+  // Targeting has to survive the wire, or the back-office cannot set it.
+  final wired =
+      ContentItem.fromJson(jsonDecode(jsonEncode(both.toJson())) as Map<String, dynamic>);
+  _chk('city targeting round-trips through JSON',
+      wired.cities.length == 1 && normalizeCity(wired.cities.single) == 'алматы');
+  _chk('age targeting round-trips through JSON', wired.minAgeYears == 35);
+  _chk('an unconstrained item stays unconstrained through JSON',
+      ContentItem.fromJson(jsonDecode(jsonEncode(plain.toJson())) as Map<String, dynamic>)
+          .isForEveryone);
+  // Junk in the cities list must not become a constraint nobody can satisfy.
+  _chk('blank city entries are dropped',
+      ContentItem.fromJson({'id': 'j', 'kind': 'lesson', 'cities': ['  ', '']}).isForEveryone);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

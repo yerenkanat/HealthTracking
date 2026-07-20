@@ -60,6 +60,17 @@ const contentItem = z.object({
   currency: z.string().max(8).optional(),
   imageUrl: z.string().max(500).optional(),
   durationMin: z.number().int().positive().max(600).optional(),
+  // Targeting. Absent means "everyone", which is what almost every item should
+  // be — these narrow an item to where it can actually be delivered or to
+  // material that is genuinely age-specific.
+  cities: z.array(z.string().min(1).max(60)).max(30).optional(),
+  minAgeYears: z.number().int().min(10).max(80).optional(),
+  maxAgeYears: z.number().int().min(10).max(80).optional(),
+}).refine((i) => i.minAgeYears == null || i.maxAgeYears == null || i.minAgeYears <= i.maxAgeYears, {
+  // An inverted range matches nobody, so the item would vanish with no error
+  // anywhere. Rejecting it at the edge is the only place a person sees why.
+  message: 'minAgeYears must not exceed maxAgeYears',
+  path: ['minAgeYears'],
 });
 const stageContentBody = z.object({ items: z.array(contentItem).max(50) });
 

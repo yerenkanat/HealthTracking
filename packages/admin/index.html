@@ -612,6 +612,18 @@
           <input class="grow" data-f="title.${L}" value="${esc((item.title || {})[L] || "")}" placeholder="заголовок (${L})" aria-label="title ${L}">
           <input class="grow" data-f="summary.${L}" value="${esc((item.summary || {})[L] || "")}" placeholder="описание (${L})" aria-label="summary ${L}">
         </div>`).join("")}
+      <div class="row"><span class="lang">кому</span>
+        <input class="grow" data-f="cities" value="${esc((item.cities || []).join(", "))}"
+               placeholder="города через запятую — пусто: показывать всем"
+               aria-label="города, в которых доступен материал">
+        <input data-f="minAgeYears" type="number" style="width:96px" value="${item.minAgeYears ?? ""}"
+               placeholder="возраст от" aria-label="возраст от">
+        <input data-f="maxAgeYears" type="number" style="width:96px" value="${item.maxAgeYears ?? ""}"
+               placeholder="до" aria-label="возраст до">
+      </div>
+      ${item.cities?.length || item.minAgeYears != null || item.maxAgeYears != null
+        ? `<div class="row sub" style="padding-left:52px">Ограниченный показ: не увидят те, кто не указал город или дату рождения.</div>`
+        : ""}
     </div>`;
   }
 
@@ -659,8 +671,13 @@
           const [group, loc] = f.split(".");
           item[group] = item[group] || {};
           if (v) item[group][loc] = v; else delete item[group][loc];
-        } else if (f === "priceMinor" || f === "durationMin") {
+        } else if (f === "priceMinor" || f === "durationMin" || f === "minAgeYears" || f === "maxAgeYears") {
           if (v) item[f] = Number(v); else delete item[f];
+        } else if (f === "cities") {
+          // Blank means "everyone" — the field must disappear entirely rather
+          // than become an empty list, which the app would read as a filter.
+          const list = v.split(",").map((s) => s.trim()).filter(Boolean);
+          if (list.length) item.cities = list; else delete item.cities;
         } else if (v) {
           item[f] = v;
         } else {

@@ -233,9 +233,19 @@ class _HomeShellState extends State<HomeShell> {
             : null,
       );
 
+  /// This stage's shelf, narrowed to what actually applies to her.
+  ///
+  /// City and birth date are optional, and a profile without them loses nothing
+  /// from the baseline — it only misses the extras that depend on knowing, like
+  /// a product that ships to one city.
   List<ContentItem> _contentFor(AppController c) {
     final stage = _stageFor(c);
-    return stage == null ? const [] : widget.catalog.itemsFor(stage);
+    if (stage == null) return const [];
+    final p = c.profile;
+    return itemsForViewer(
+      widget.catalog.itemsFor(stage),
+      ContentViewer(city: p.city, ageYears: p.ageYears(DateTime.now())),
+    );
   }
 
   /// Open a lesson video or a product page in the browser. Items without a URL
