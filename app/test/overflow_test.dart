@@ -160,6 +160,23 @@ void main() {
         () => HealthDashboardView(samples: const [], onLogVitals: () {}));
   });
 
+  testWidgets('the repeat-reading prompt fits every locale', (tester) async {
+    // The longest body copy on the dashboard, and it appears at the moment a
+    // user is most likely to be anxious — a clipped sentence here reads far
+    // worse than one anywhere else.
+    await checkAllLocales(
+      tester,
+      'HealthDashboardView (awaiting a repeat reading)',
+      () => HealthDashboardView(
+        samples: samples,
+        greetingName: 'Aigerim',
+        awaitingRepeat: 'bp',
+        onLogVitals: () {},
+      ),
+      scroll: true,
+    );
+  });
+
   testWidgets('medications screen fits every locale', (tester) async {
     await checkAllLocales(tester, 'MedicationsScreen', () {
       final c = AppController(now: () => today);
