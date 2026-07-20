@@ -70,7 +70,9 @@ class ProfileScreen extends StatelessWidget {
                       label: Text(l.t('set_edit_profile')),
                       style: FilledButton.styleFrom(
                         backgroundColor: Palette.violet.withValues(alpha: 0.12),
-                        foregroundColor: Palette.violet,
+                        // violetText, not violet: the lighter brand violet on its own
+                        // 12% tint reads at 4.02 contrast, under the 4.5 minimum.
+                        foregroundColor: Palette.violetText,
                         minimumSize: const Size(0, 44),
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                       ),

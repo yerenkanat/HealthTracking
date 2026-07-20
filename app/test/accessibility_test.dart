@@ -26,6 +26,12 @@ import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/dashboard/sleep_card.dart';
 import 'package:fcs_app/ui/dashboard/sleep_detail_screen.dart';
 import 'package:fcs_app/ui/dashboard/water_card.dart';
+import 'package:fcs_app/domain/family.dart';
+import 'package:fcs_app/domain/timeline_content.dart';
+import 'package:fcs_app/ui/content/timeline_content_screen.dart';
+import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
+import 'package:fcs_app/ui/profile/profile_screen.dart';
+import 'package:fcs_app/ui/settings/settings_screen.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(
@@ -181,5 +187,58 @@ void main() {
     final c = AppController(now: () => today);
     addTearDown(c.dispose);
     await audit(tester, screen(JourneyScreen(controller: c)));
+  });
+
+  // ---- Screens the audit had never rendered ----
+
+  testWidgets('the emergency screen meets the guidelines', (tester) async {
+    // The one screen a user may reach while frightened, possibly one-handed,
+    // possibly with a screen reader. Its controls have to be reachable and
+    // named even when nothing else is.
+    await audit(
+      tester,
+      screen(EmergencyRescueScreen(
+        message: 'Обнаружено высокое давление — признак преэклампсии.',
+        details: const ['Ваше давление: 152/96 мм рт. ст.'],
+        callButtons: const [
+          EmergencyCallButton('Вызвать скорую', '103'),
+          EmergencyCallButton('Позвонить врачу', '+77011234567'),
+        ],
+        onCall: (_) async {},
+        onDismissConfirmed: () async {},
+      )),
+    );
+  });
+
+  testWidgets('the settings screen meets the guidelines', (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    await audit(tester, screen(SettingsScreen(controller: c)));
+  });
+
+  testWidgets('the profile screen meets the guidelines', (tester) async {
+    final c = AppController(now: () => today);
+    c.updateProfile(const UserProfile(
+      displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233'));
+    addTearDown(c.dispose);
+    await audit(tester, screen(ProfileScreen(controller: c)));
+  });
+
+  testWidgets('the timeline content screen meets the guidelines', (tester) async {
+    await audit(
+      tester,
+      screen(TimelineContentScreen(
+        stage: TimelineStage.pregnancyWeek(20),
+        items: const [
+          ContentItem(
+            id: 'l1', kind: ContentKind.lesson,
+            title: LocalizedText({'en': 'Week 20: what happens'}),
+            summary: LocalizedText({'en': 'What changes and what to check.'}),
+            durationMin: 12,
+          ),
+        ],
+        onOpen: (_) {},
+      )),
+    );
   });
 }

@@ -193,7 +193,10 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                 TextButton(
                   onPressed: _confirmDismiss,
                   child: Text(l.t('em_not_emergency'),
-                      style: TextStyle(color: _onSurface.withValues(alpha: 0.6), fontSize: 15)),
+                      // 0.6 alpha measured 4.16 against this surface, under the
+                      // 4.5 minimum — on the screen most likely to be read in a
+                      // hurry, in poor light, by someone frightened.
+                      style: TextStyle(color: _onSurface.withValues(alpha: 0.8), fontSize: 15)),
                 ),
               ],
             ),

@@ -127,10 +127,16 @@ class SettingsScreen extends StatelessWidget {
                 leading: Icons.notifications_active_outlined,
                 title: l.t('set_notifications'),
                 subtitle: l.t('set_notifications_sub'),
-                trailing: Switch(
-                  value: c.notificationsEnabled,
-                  activeThumbColor: Palette.violet,
-                  onChanged: c.setNotificationsEnabled,
+                // The switch is its own tappable node, separate from the row's
+                // title — without a label a screen reader announces "switch,
+                // on" and nothing about what it controls.
+                trailing: Semantics(
+                  label: l.t('set_notifications'),
+                  child: Switch(
+                    value: c.notificationsEnabled,
+                    activeThumbColor: Palette.violet,
+                    onChanged: c.setNotificationsEnabled,
+                  ),
                 ),
                 onTap: () => c.setNotificationsEnabled(!c.notificationsEnabled),
               ),
