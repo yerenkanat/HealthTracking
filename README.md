@@ -169,7 +169,7 @@ dart run tool/verify_core.dart        #  36: thresholds, golden vectors, geofenc
 #   onboarding,reminders,safety,setup,sleep,summary,water,weekly_digest,weight}.dart
 
 # Full Dart + widget suites (needs Flutter SDK):
-flutter test                          # 238 widget/unit tests
+flutter test                          # 251 widget/unit tests
 flutter analyze                       # clean
 
 # Node backend (needs npm install):
@@ -183,7 +183,7 @@ docker compose -f infra/docker-compose.yml up -d && node infra/integration_smoke
 | Layer | Result |
 |-------|--------|
 | Dart pure logic (35 `verify_*` runners) | **966 assertions ✅** |
-| Flutter widget + unit tests | **238 ✅** |
+| Flutter widget + unit tests | **251 ✅** |
 | `flutter analyze` | clean ✅ |
 | Node cross-language contract (Dart core ⇄ Node) | 36 ⇄ 20 ✅ |
 

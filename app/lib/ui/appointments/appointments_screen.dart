@@ -243,7 +243,10 @@ class _ApptTabs extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(11),
-            child: Padding(
+            // 9dp of padding left these at 37dp tall — under the 48dp minimum.
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(vertical: 9),
               child: Text('$label ($count)',
                   textAlign: TextAlign.center,

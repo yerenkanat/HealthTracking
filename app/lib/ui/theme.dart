@@ -32,8 +32,20 @@ class Palette {
 
   // Text + lines
   static const text = Color(0xFF1B1D28);
-  static const textDim = Color(0xFF6E7180);
+  // Secondary text. Darkened from 0xFF6E7180, which measured 4.45:1 over the
+  // glass-card background — just under the 4.5:1 WCAG floor, and failing on
+  // every screen that used it for body copy rather than a short label.
+  static const textDim = Color(0xFF656877);
   static const border = Color(0xFFECEDF3);
+  // Darker variants of the accents, for TEXT sitting on a tint of that same
+  // accent. The bright accents above are tuned for icons, fills and borders,
+  // where WCAG's 4.5:1 contrast rule for text doesn't apply — used as label
+  // text over an 8–16% tint of themselves they measured as low as 2.65:1.
+  // Keep the bright colour for the icon and the darker one for the words.
+  static const goodText = Color(0xFF0B6B48);
+  static const violetText = Color(0xFF5040B8);
+  static const pinkText = Color(0xFFB33765);
+
   static const glass = Color(0xFFF2F3F8); // input / subtle fill
 
   static const violetPink = LinearGradient(

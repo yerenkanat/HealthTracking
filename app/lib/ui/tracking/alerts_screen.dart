@@ -139,7 +139,7 @@ class _FilterChips extends StatelessWidget {
       height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: chips.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
@@ -150,9 +150,11 @@ class _FilterChips extends StatelessWidget {
             selected: sel,
             onSelected: (_) => onSelect(f),
             showCheckmark: false,
+            // Keeps the compact 32dp chip look while giving it a 48dp tap area.
+            materialTapTargetSize: MaterialTapTargetSize.padded,
             selectedColor: Palette.violet.withValues(alpha: 0.16),
             side: BorderSide(color: sel ? Palette.violet.withValues(alpha: 0.5) : Palette.border),
-            labelStyle: TextStyle(color: sel ? Palette.violet : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
+            labelStyle: TextStyle(color: sel ? Palette.violetText : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
             backgroundColor: Palette.surface,
           );
         },
@@ -185,7 +187,7 @@ class _AllClearBanner extends StatelessWidget {
         Expanded(
           child: Text(
             l.t('sos_days_clear', {'n': days}),
-            style: const TextStyle(color: Palette.good, fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(color: Palette.goodText, fontWeight: FontWeight.w700, fontSize: 13),
           ),
         ),
       ]),
@@ -261,7 +263,7 @@ class _ChildChips extends StatelessWidget {
       height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
@@ -273,9 +275,11 @@ class _ChildChips extends StatelessWidget {
             selected: sel,
             onSelected: (_) => onSelect(c),
             showCheckmark: false,
+            // Keeps the compact 32dp chip look while giving it a 48dp tap area.
+            materialTapTargetSize: MaterialTapTargetSize.padded,
             selectedColor: Palette.pink.withValues(alpha: 0.16),
             side: BorderSide(color: sel ? Palette.pink.withValues(alpha: 0.5) : Palette.border),
-            labelStyle: TextStyle(color: sel ? Palette.pink : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
+            labelStyle: TextStyle(color: sel ? Palette.pinkText : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
             backgroundColor: Palette.surface,
           );
         },
