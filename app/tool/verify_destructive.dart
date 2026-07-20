@@ -21,6 +21,16 @@ void _chk(String n, bool ok) {
 }
 
 /// Controller methods that destroy user data.
+///
+/// This list is an ALLOWLIST, which is the wrong default for a safety rule:
+/// anything not written down is unguarded, and silently so. importJson —
+/// which replaces the profile, every child, every zone and the whole history in
+/// one call, the most destructive action in the app — was missing from it and
+/// therefore shipped with no confirmation at all.
+///
+/// The sweep below now reads app_controller.dart directly and fails when a
+/// method whose NAME reads destructive is absent here, so the list can no
+/// longer quietly fall behind the code.
 const _destructive = <String>[
   'removeGeofence',
   'removeChild',
@@ -33,7 +43,23 @@ const _destructive = <String>[
   'clearAlerts',
   'removeAlert',
   'resetKicksFor',
+  'importJson', // replaces EVERYTHING
+  'resetApp',
 ];
+
+/// Verbs that make a method a candidate for the list above.
+final _destructiveVerb = RegExp(
+    r'^(remove|delete|clear|reset|wipe|erase|purge|import|replaceAll|forget)',
+    caseSensitive: false);
+
+/// Controller methods whose names match a destructive verb but which do not
+/// destroy USER data, with the reason. Being explicit here is the point: the
+/// alternative is a silent omission, which is the failure this whole check
+/// exists to prevent.
+const _notActuallyDestructive = <String, String>{
+  'clearEmergency': 'dismisses a transient alert view; no stored data is touched',
+  'resetOnboarding': 'test-only helper, not reachable from the UI',
+};
 
 /// Sites that are allowed to mention a destructive method without confirming
 /// beside it, because the confirmation demonstrably lives elsewhere. Each entry
@@ -67,6 +93,27 @@ String _lookback(List<String> lines, int index, {int span = 12}) =>
     lines.sublist((index - span).clamp(0, lines.length), index + 1).join('\n');
 
 void main() {
+  // ---- The list must keep up with the controller ----
+  // Read the controller and flag any public method whose name reads
+  // destructive but which nobody has classified. An allowlist that is only
+  // updated when someone remembers is not a safety guarantee; this makes
+  // forgetting a build failure instead of a silent hole.
+  final controller = File.fromUri(Platform.script.resolve('../lib/app/app_controller.dart'));
+  final declared = <String>{};
+  final methodDecl = RegExp(r'^\s{2}(?:Future<[^>]*>|void|bool|int|String|double)\s+(\w+)\s*\(');
+  for (final line in controller.readAsLinesSync()) {
+    final m = methodDecl.firstMatch(line);
+    if (m == null) continue;
+    final name = m.group(1)!;
+    if (name.startsWith('_')) continue; // private: not reachable from the UI
+    if (_destructiveVerb.hasMatch(name)) declared.add(name);
+  }
+  final unclassified =
+      declared.where((m) => !_destructive.contains(m) && !_notActuallyDestructive.containsKey(m));
+  _chk('every destructive-sounding controller method is classified '
+      '(${declared.length} found${unclassified.isEmpty ? '' : ' — unclassified: ${unclassified.join(", ")}'})',
+      unclassified.isEmpty);
+
   final uiDir = Directory.fromUri(Platform.script.resolve('../lib/ui'));
   final unguarded = <String>[];
   var callSites = 0;
@@ -102,7 +149,29 @@ void main() {
     }
   }
 
-  _chk('destructive call sites were found at all', callSites >= _destructive.length);
+  // Is the scan actually working? The old form of this check was
+  // `callSites >= _destructive.length`, a proxy that assumed exactly one UI
+  // call site per listed method — so adding a method that the UI does not call
+  // made it fail for a reason that had nothing to do with the scan.
+  _chk('the scan found destructive call sites ($callSites)', callSites > 0);
+
+  // Sharper: every listed method should be reachable from the UI, or be
+  // recorded here as not wired up. resetApp is the reason this matters — its
+  // own doc comment describes a "Settings → Reset" flow that does not exist,
+  // and nothing would have told us.
+  const _notWired = <String, String>{
+    'resetApp': 'defined but called from nowhere; the Settings reset flow was never built',
+  };
+  final uiText = uiDir
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((f) => f.path.endsWith('.dart'))
+      .map((f) => f.readAsStringSync())
+      .join('\n');
+  final missing = _destructive
+      .where((m) => !RegExp('[.]$m\\b').hasMatch(uiText) && !_notWired.containsKey(m));
+  _chk('every destructive method is reachable from the UI or recorded as unwired'
+      '${missing.isEmpty ? '' : ' — missing: ${missing.join(", ")}'}', missing.isEmpty);
   if (unguarded.isNotEmpty) {
     print('\n  Destructive actions with no confirmDestructive() beside them:');
     for (final u in unguarded) {

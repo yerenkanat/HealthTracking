@@ -258,6 +258,19 @@ class SettingsScreen extends StatelessWidget {
     );
     if (text == null || text.trim().isEmpty || !context.mounted) return;
     final l = L10nScope.of(context);
+
+    // Import REPLACES everything — profile, children, zones, cycle history —
+    // so it is the most destructive action in the app, not an additive one.
+    // It reached here with no confirmation at all because the guard runner
+    // works from a list of known method names and nobody had added this one.
+    final confirmed = await confirmDestructive(
+      context,
+      title: l.t('set_import_confirm_title'),
+      message: l.t('set_import_confirm_body'),
+      confirmLabel: l.t('set_import_confirm_cta'),
+    );
+    if (!confirmed || !context.mounted) return;
+
     final ok = c.importJson(text.trim());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

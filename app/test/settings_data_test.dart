@@ -48,6 +48,12 @@ void main() {
     await tester.enterText(find.byType(TextField).last, '{"foo":1,"bar":"baz"}');
     await tester.pump(); // let the Import button enable
     await tester.tap(find.text('Import'));
+    await tester.pumpAndSettle();
+
+    // Import replaces everything, so it confirms first — see the guard in
+    // tool/verify_destructive.dart. Confirming here is what reaches the parser.
+    expect(find.text('Replace all your data?'), findsOneWidget);
+    await tester.tap(find.text('Replace'));
     await tester.pump(); // close the dialog
     await tester.pump(const Duration(milliseconds: 400)); // let the snackbar in
 
@@ -98,7 +104,66 @@ void main() {
     await tester.tap(find.text('Import'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Replace'));
+    await tester.pumpAndSettle();
+
     expect(c.appointments.single.title, 'Scan');
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('backing out of the confirmation leaves your data alone', (tester) async {
+    // The whole point of the confirmation: a hesitated import must cost nothing.
+    final src = AppController(now: () => DateTime(2026, 7, 15));
+    src.addAppointment('Scan', DateTime(2026, 8, 2, 10, 0));
+    final backup = src.exportJson();
+    src.dispose();
+
+    final c = AppController(now: () => DateTime(2026, 7, 15));
+    c.addAppointment('Mine', DateTime(2026, 8, 5, 9, 0));
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('Import data'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Import data'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import data'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, backup);
+    await tester.pump();
+    await tester.tap(find.text('Import'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Replace all your data?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(c.appointments.single.title, 'Mine', reason: 'cancelling must change nothing');
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('the export dialog says what is actually in the file', (tester) async {
+    // It carries the child's name and date of birth and the coordinates of home
+    // and school, and it is headed for the clipboard. The old hint said only
+    // what was ABSENT ("band readings are not included"), which is not enough
+    // for someone to judge where it is safe to paste.
+    final c = AppController(now: () => DateTime(2026, 7, 15));
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('Export data'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Export data'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Export data'));
+    await tester.pumpAndSettle();
+
+    // Anchor on the phrase unique to the hint — "child safety" appears in the
+    // app tagline too, which is what an over-loose finder latches onto.
+    final hint = tester.widgetList<Text>(find.byType(Text))
+        .map((t) => (t.data ?? '').toLowerCase())
+        .firstWhere((s) => s.contains('date of birth'), orElse: () => '');
+    expect(hint, isNotEmpty, reason: 'the hint must say the file holds the child’s date of birth');
+    for (final mustName in ['name', 'coordinates', 'zones', 'health history']) {
+      expect(hint, contains(mustName), reason: 'the hint must name what is inside: $mustName');
+    }
     addTearDown(c.dispose);
   });
 }

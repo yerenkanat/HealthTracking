@@ -233,7 +233,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'journey_doses': {AppLocale.ru: 'приёмов витаминов', AppLocale.kk: 'дәрумен қабылдау', AppLocale.en: 'doses taken'},
   'set_export': {AppLocale.ru: 'Экспорт данных', AppLocale.kk: 'Деректерді экспорттау', AppLocale.en: 'Export data'},
   'set_export_sub': {AppLocale.ru: 'Резервная копия в формате JSON', AppLocale.kk: 'JSON форматындағы сақтық көшірме', AppLocale.en: 'A JSON backup of your data'},
-  'set_export_hint': {AppLocale.ru: 'Скопируйте и сохраните в надёжном месте. Показания браслета не включены.', AppLocale.kk: 'Көшіріп, сенімді жерде сақтаңыз. Білезік көрсеткіштері кірмейді.', AppLocale.en: 'Copy and keep it somewhere safe. Band readings are not included.'},
+  // Say what is IN the file, not only what is absent. It carries the child's
+  // name and date of birth and the exact coordinates of home and school — the
+  // most sensitive thing this app holds — and it is about to go on the
+  // clipboard, from where it can be pasted into any messenger. "Keep it
+  // somewhere safe" is not enough for someone to judge where that is.
+  'set_export_hint': {AppLocale.ru: 'В файле — ваш профиль и телефоны, имя и дата рождения ребёнка, координаты ваших зон (дом, школа) и история здоровья. Показания браслета не включены. Храните файл как личный документ и не пересылайте в мессенджерах.', AppLocale.kk: 'Файлда — профиліңіз бен телефондарыңыз, баланың аты мен туған күні, аймақтарыңыздың координаттары (үй, мектеп) және денсаулық тарихы. Білезік көрсеткіштері кірмейді. Файлды жеке құжат ретінде сақтаңыз, мессенджерлерде жібермеңіз.', AppLocale.en: 'This file holds your profile and phone numbers, your child’s name and date of birth, the coordinates of your zones (home, school) and your health history. Band readings are not included. Keep it like a personal document — avoid sending it through messengers.'},
+  'set_import_confirm_title': {AppLocale.ru: 'Заменить все данные?', AppLocale.kk: 'Барлық деректі ауыстыру керек пе?', AppLocale.en: 'Replace all your data?'},
+  'set_import_confirm_body': {AppLocale.ru: 'Импорт заменит всё, что сейчас в приложении: профиль, детей, зоны, календарь и историю. Текущие данные восстановить не получится.', AppLocale.kk: 'Импорт қосымшадағының бәрін ауыстырады: профиль, балалар, аймақтар, күнтізбе және тарих. Ағымдағы деректерді қалпына келтіру мүмкін болмайды.', AppLocale.en: 'Importing replaces everything in the app: your profile, children, zones, calendar and history. What is here now cannot be recovered.'},
+  'set_import_confirm_cta': {AppLocale.ru: 'Заменить', AppLocale.kk: 'Ауыстыру', AppLocale.en: 'Replace'},
   'set_export_copy': {AppLocale.ru: 'Копировать', AppLocale.kk: 'Көшіру', AppLocale.en: 'Copy'},
   'set_export_copied': {AppLocale.ru: 'Резервная копия скопирована', AppLocale.kk: 'Сақтық көшірме көшірілді', AppLocale.en: 'Backup copied to clipboard'},
   'set_import': {AppLocale.ru: 'Импорт данных', AppLocale.kk: 'Деректерді импорттау', AppLocale.en: 'Import data'},
