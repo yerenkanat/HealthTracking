@@ -13,6 +13,15 @@ class UserProfile {
   final String doctorPhone; // emergency contact (E.164 or free-form), optional
   final DateTime? dueDate; // estimated due date (EDD) → drives gestation week
   final String? photoPath; // local file path to the profile photo
+
+  /// The mother's own date of birth. Optional: it tunes age-relevant guidance
+  /// (screening schedules differ either side of 35) and lets the shop avoid
+  /// suggesting things that don't apply. Never required to use the app.
+  final DateTime? birthDate;
+
+  /// City, free text. Drives delivery estimates and which clinics and products
+  /// are actually reachable — a Almaty price list is no use in Aktobe.
+  final String city;
   const UserProfile({
     this.displayName = '',
     this.dialCode = '+7',
@@ -20,6 +29,8 @@ class UserProfile {
     this.doctorPhone = '',
     this.dueDate,
     this.photoPath,
+    this.birthDate,
+    this.city = '',
   });
 
   String get e164 => toE164(dialCode, phoneNumber);
@@ -27,6 +38,18 @@ class UserProfile {
   bool get hasDoctor => doctorPhone.trim().isNotEmpty;
   bool get hasDueDate => dueDate != null;
   bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
+  bool get hasBirthDate => birthDate != null;
+  bool get hasCity => city.trim().isNotEmpty;
+
+  /// Age in whole years at [now], or null when no birth date is recorded.
+  int? ageYears(DateTime now) {
+    final b = birthDate;
+    if (b == null) return null;
+    var years = now.year - b.year;
+    // Birthday not yet reached this year.
+    if (now.month < b.month || (now.month == b.month && now.day < b.day)) years--;
+    return years < 0 ? null : years;
+  }
 
   UserProfile copyWith({
     String? displayName,
@@ -35,8 +58,11 @@ class UserProfile {
     String? doctorPhone,
     DateTime? dueDate,
     String? photoPath,
+    DateTime? birthDate,
+    String? city,
     bool clearDueDate = false,
     bool clearPhoto = false,
+    bool clearBirthDate = false,
   }) =>
       UserProfile(
         displayName: displayName ?? this.displayName,
@@ -45,6 +71,8 @@ class UserProfile {
         doctorPhone: doctorPhone ?? this.doctorPhone,
         dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
         photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
+        birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
+        city: city ?? this.city,
       );
 
   Map<String, dynamic> toJson() => {
@@ -54,6 +82,8 @@ class UserProfile {
         'doctorPhone': doctorPhone,
         if (dueDate != null) 'dueDate': dueDate!.toIso8601String(),
         if (photoPath != null) 'photoPath': photoPath,
+        if (birthDate != null) 'birthDate': birthDate!.toIso8601String(),
+        if (city.isNotEmpty) 'city': city,
       };
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
         displayName: (j['displayName'] as String?) ?? '',
@@ -62,6 +92,8 @@ class UserProfile {
         doctorPhone: (j['doctorPhone'] as String?) ?? '',
         dueDate: j['dueDate'] is String ? DateTime.tryParse(j['dueDate'] as String) : null,
         photoPath: j['photoPath'] as String?,
+        birthDate: j['birthDate'] is String ? DateTime.tryParse(j['birthDate'] as String) : null,
+        city: (j['city'] as String?) ?? '',
       );
 }
 

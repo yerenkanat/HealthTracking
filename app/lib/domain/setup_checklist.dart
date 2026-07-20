@@ -5,7 +5,10 @@
 library;
 
 /// The steps that make the app genuinely useful. Order is the order shown.
-enum SetupStep { profileName, healthMode, child, zone, backup }
+/// Order is the order shown.  sits after the essentials: the app is
+/// fully usable without a birth date or city, and asking for them before the
+/// user has anything working would be asking for data in exchange for nothing.
+enum SetupStep { profileName, healthMode, child, zone, details, backup }
 
 class SetupProgress {
   final List<SetupStep> done;
@@ -29,6 +32,10 @@ SetupProgress computeSetupProgress({
   required bool hasHealthData, // a due date, or any logged period
   required bool hasChild,
   required bool hasZone,
+  /// Birth date AND city — the pair that sharpens age-relevant guidance and
+  /// makes regional availability real. Counted together so a half-answer
+  /// doesn't quietly tick the box.
+  required bool hasDetails,
   required bool hasBackup, // exported at least once
 }) {
   final byStep = <SetupStep, bool>{
@@ -36,6 +43,7 @@ SetupProgress computeSetupProgress({
     SetupStep.healthMode: hasHealthData,
     SetupStep.child: hasChild,
     SetupStep.zone: hasZone,
+    SetupStep.details: hasDetails,
     SetupStep.backup: hasBackup,
   };
   final done = <SetupStep>[];

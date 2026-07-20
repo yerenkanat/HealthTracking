@@ -155,6 +155,16 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     return reply.code(204).send();
   });
 
+  // ---- Timeline content (read-only for the app) ----
+  // The same catalogue the back-office edits. Authenticated because it is part
+  // of the product rather than public marketing, but not per-user: everyone at
+  // week 20 sees the same week 20.
+  app.get('/content', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    return reply.send({ stages: await repo.contentCatalog() });
+  });
+
   // ---- Geofences (per child) ----
   app.get('/children/:id/geofences', async (req, reply) => {
     const { id } = req.params as { id: string };

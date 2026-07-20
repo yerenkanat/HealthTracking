@@ -18,7 +18,9 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
   final nameCtl = TextEditingController(text: p.displayName);
   final phoneCtl = TextEditingController(text: p.phoneNumber);
   final doctorCtl = TextEditingController(text: p.doctorPhone);
+  final cityCtl = TextEditingController(text: p.city);
   var dial = p.dialCode;
+  DateTime? birth = p.birthDate;
   return _sheet(context, (ctx, l) {
     return StatefulBuilder(
       builder: (ctx, setState) => _SheetBody(
@@ -68,6 +70,41 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
               prefixIcon: const Icon(Icons.local_hospital_outlined, size: 20),
             ),
           ),
+          const SizedBox(height: 12),
+          // Birth date and city, with the reason attached. Both are optional
+          // and say so — asking for personal data without explaining what it
+          // changes is how a profile form becomes a chore people abandon.
+          _WhyWeAsk(
+            lines: [l.t('prof_more_why_birth'), l.t('prof_more_why_city')],
+            footnote: l.t('prof_more_optional'),
+          ),
+          const SizedBox(height: 10),
+          _DateField(
+            label: l.t('prof_birthdate'),
+            value: birth,
+            onTap: () async {
+              final now = DateTime.now();
+              final picked = await showDatePicker(
+                context: ctx,
+                initialDate: birth ?? DateTime(now.year - 28),
+                // A mother is an adult; a date outside this is a mis-set
+                // picker rather than a real answer.
+                firstDate: DateTime(now.year - 70),
+                lastDate: DateTime(now.year - 12),
+              );
+              if (picked != null) setState(() => birth = picked);
+            },
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: cityCtl,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: l.t('prof_city'),
+              hintText: l.t('prof_city_hint'),
+              prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
+            ),
+          ),
         ],
         onSave: () {
           if (nameCtl.text.trim().isEmpty) return false;
@@ -76,6 +113,8 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
             dialCode: dial,
             phoneNumber: phoneCtl.text.trim(),
             doctorPhone: doctorCtl.text.trim(),
+            birthDate: birth,
+            city: cityCtl.text.trim(),
           ));
           return true;
         },
@@ -463,6 +502,62 @@ class _KindChip extends StatelessWidget {
               color: selected ? Palette.text : Palette.textDim,
               fontWeight: FontWeight.w600,
             )),
+      ),
+    );
+  }
+}
+
+/// A short, honest explanation of why an optional field is being asked for.
+///
+/// "Complete your profile" is a chore. What the answer actually changes is a
+/// reason to type it — and stating it is also the fair thing to do when the
+/// data is personal.
+class _WhyWeAsk extends StatelessWidget {
+  final List<String> lines;
+  final String footnote;
+  const _WhyWeAsk({required this.lines, required this.footnote});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Palette.violet.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.auto_awesome_rounded, size: 16, color: Palette.violetText),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(l.t('prof_more_title'),
+                  style: const TextStyle(
+                      color: Palette.text, fontSize: 13.5, fontWeight: FontWeight.w700)),
+            ),
+          ]),
+          for (final line in lines) ...[
+            const SizedBox(height: 6),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 5),
+                child: Icon(Icons.circle, size: 5, color: Palette.textDim),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(line,
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+              ),
+            ]),
+          ],
+          const SizedBox(height: 8),
+          Text(footnote,
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 11.5, fontStyle: FontStyle.italic)),
+        ],
       ),
     );
   }

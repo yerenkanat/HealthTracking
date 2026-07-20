@@ -82,6 +82,7 @@ class _HomeShellState extends State<HomeShell> {
           hasHealthData: c.dueDate != null || c.periodDays.isNotEmpty,
           hasChild: c.children.isNotEmpty,
           hasZone: c.children.any((ch) => ch.geofences.isNotEmpty),
+          hasDetails: c.profile.hasBirthDate && c.profile.hasCity,
           hasBackup: c.lastExportAt != null,
         ),
         onOpenSetup: () => setState(() => _index = 3), // profile / settings tab

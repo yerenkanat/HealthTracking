@@ -51,37 +51,37 @@
      101 stages have to be readable at a glance, so each is a small cell
      coloured by state rather than a row in a very long list. */
   .stagemap{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
-  .cell{border:1px solid var(--line);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;
+  .cell{border:1px solid var(--hair);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;
         font-size:11px;font-weight:700;color:var(--muted);background:var(--surface-2);line-height:1.25}
   .cell:hover{border-color:var(--accent)}
   .cell.sel{outline:2px solid var(--accent);outline-offset:1px}
-  .cell .n{display:block;font-size:12px;color:var(--text)}
-  .cell.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+  .cell .n{display:block;font-size:12px;color:var(--ink)}
+  .cell.ok{background:color-mix(in srgb,var(--good) 16%,transparent);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
   .cell.part{background:color-mix(in srgb,var(--warn) 18%,transparent);border-color:color-mix(in srgb,var(--warn) 42%,transparent)}
   .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:12px}
-  .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
-  .legend .sw.ok{background:color-mix(in srgb,var(--ok) 45%,transparent)}
+  .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--hair)}
+  .legend .sw.ok{background:color-mix(in srgb,var(--good) 45%,transparent)}
   .legend .sw.part{background:color-mix(in srgb,var(--warn) 45%,transparent)}
   .legend .sw.none{background:var(--surface-2)}
 
   /* ---- Item editor ---- */
-  .item{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
+  .item{border:1px solid var(--hair);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
   .item .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
-  .item input{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px;
-               color:var(--text);font:inherit;font-size:13px;min-width:0}
+  .item input{background:var(--surface);border:1px solid var(--hair);border-radius:8px;padding:7px 9px;
+               color:var(--ink);font:inherit;font-size:13px;min-width:0}
   .item input.grow{flex:1 1 200px}
   .item .lang{width:34px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase}
   .kindtag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
   .kindtag.lesson{background:var(--accent-soft);color:var(--accent)}
   .kindtag.product{background:color-mix(in srgb,var(--crit) 14%,transparent);color:var(--crit)}
-  .btn{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;
-       color:var(--text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .btn{background:var(--surface-2);border:1px solid var(--hair);border-radius:9px;padding:7px 12px;
+       color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
   .btn:hover:not(:disabled){border-color:var(--accent)}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
   .btn.danger{color:var(--crit)}
   .savebar{margin-top:10px;font-size:13px;font-weight:600;min-height:18px}
-  .savebar.ok{color:var(--ok)} .savebar.err{color:var(--crit)}
+  .savebar.ok{color:var(--good)} .savebar.err{color:var(--crit)}
   .side .foot{margin-top:auto;font-size:11px;color:var(--muted);padding:8px}
 
   /* Main */
@@ -192,35 +192,35 @@
     </div>
     <div class="nav active" data-view="overview">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-      Overview
+      Обзор
     </div>
     <div class="nav" data-view="emergencies">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-      Emergencies <span class="badge" id="navBadge">3</span>
+      Экстренные <span class="badge" id="navBadge">3</span>
     </div>
     <div class="nav" data-view="users">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Users
+      Пользователи
     </div>
     <div class="nav" data-view="content">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
-      Content <span class="badge" id="navContentBadge" style="background:var(--muted)">0</span>
+      Контент <span class="badge" id="navContentBadge" style="background:var(--muted)">0</span>
     </div>
     <div class="nav" data-view="devices">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
-      Devices
+      Устройства
     </div>
     <div class="nav" data-view="safety">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/></svg>
-      Safety
+      Безопасность
     </div>
     <div class="nav" data-view="analytics">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
-      Analytics
+      Аналитика
     </div>
     <div class="nav" data-view="audit">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
-      Audit log
+      Журнал действий
     </div>
     <div class="foot">v0.1.0 · not a medical device</div>
   </aside>
@@ -228,7 +228,7 @@
   <div class="main">
     <div class="top">
       <div>
-        <h1 id="pageTitle">Overview</h1>
+        <h1 id="pageTitle">Обзор</h1>
         <div class="sub" id="pageSub">Live monitoring across pregnancy &amp; child-safety</div>
       </div>
       <div class="spacer"></div>
@@ -264,9 +264,9 @@
       <!-- USERS -->
       <section class="view" id="users">
         <div class="card">
-          <div class="search"><input id="userSearch" placeholder="Search by name or phone…" aria-label="Search users"></div>
+          <div class="search"><input id="userSearch" placeholder="Поиск по имени или телефону…" aria-label="Поиск пользователей"></div>
           <div class="tablewrap">
-            <table><thead><tr><th>Name</th><th>Phone</th><th>Due date</th><th>Last reading</th><th></th></tr></thead>
+            <table><thead><tr><th>Имя</th><th>Телефон</th><th>Срок родов</th><th>Последнее измерение</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody></table>
           </div>
         </div>
@@ -276,32 +276,32 @@
       <section class="view" id="content">
         <div class="card">
           <div class="sec-h">
-            <h3>Timeline coverage</h3>
+            <h3>Покрытие таймлайна</h3>
             <span class="sub" id="covSummary">—</span>
           </div>
           <!-- Every stage as a cell: filled, empty, or unlinked. 101 of them,
                so the map has to be scannable at a glance rather than a list. -->
-          <div class="sub" style="margin-bottom:6px">Pregnancy · weeks 1–40</div>
+          <div class="sub" style="margin-bottom:6px">Беременность · недели 1–40</div>
           <div class="stagemap" id="mapWeeks"></div>
-          <div class="sub" style="margin:12px 0 6px">Child · months 0–60</div>
+          <div class="sub" style="margin:12px 0 6px">Ребёнок · месяцы 0–60</div>
           <div class="stagemap" id="mapMonths"></div>
           <div class="legend">
-            <span><i class="sw ok"></i> published &amp; linked</span>
-            <span><i class="sw part"></i> published, no link yet</span>
-            <span><i class="sw none"></i> empty</span>
+            <span><i class="sw ok"></i> опубликовано и со ссылкой</span>
+            <span><i class="sw part"></i> опубликовано, без ссылки</span>
+            <span><i class="sw none"></i> пусто</span>
           </div>
         </div>
 
         <div class="card" id="stageEditor" style="margin-top:14px">
           <div class="sec-h">
-            <h3 id="stageTitle">Pick a stage</h3>
+            <h3 id="stageTitle">Выберите этап</h3>
             <span>
-              <button class="btn" id="addLesson" disabled>+ Lesson</button>
-              <button class="btn" id="addProduct" disabled>+ Product</button>
-              <button class="btn primary" id="saveStage" disabled>Publish</button>
+              <button class="btn" id="addLesson" disabled>+ Урок</button>
+              <button class="btn" id="addProduct" disabled>+ Товар</button>
+              <button class="btn primary" id="saveStage" disabled>Опубликовать</button>
             </span>
           </div>
-          <div id="stageItems"><div class="sub">Choose a week or month above to edit what it shows.</div></div>
+          <div id="stageItems"><div class="sub">Выберите неделю или месяц выше, чтобы изменить содержимое.</div></div>
           <div class="savebar" id="saveMsg"></div>
         </div>
       </section>
@@ -310,7 +310,7 @@
       <section class="view" id="devices">
         <div class="card">
           <div class="tablewrap">
-            <table><thead><tr><th>Device</th><th>Kind</th><th>Owner</th><th>Child</th><th>Battery</th><th>Last seen</th></tr></thead>
+            <table><thead><tr><th>Устройство</th><th>Тип</th><th>Владелец</th><th>Ребёнок</th><th>Заряд</th><th>Последний сигнал</th></tr></thead>
             <tbody id="devicesBody"></tbody></table>
           </div>
         </div>
@@ -320,7 +320,7 @@
       <section class="view" id="safety">
         <div class="card">
           <div class="tablewrap">
-            <table><thead><tr><th>When</th><th>Family</th><th>Child</th><th>Event</th><th>Zone</th></tr></thead>
+            <table><thead><tr><th>Когда</th><th>Семья</th><th>Ребёнок</th><th>Событие</th><th>Зона</th></tr></thead>
             <tbody id="safetyBody"></tbody></table>
           </div>
         </div>
@@ -330,7 +330,7 @@
       <section class="view" id="analytics">
         <div class="kpis" id="anKpis"></div>
         <div class="card" style="margin-top:14px">
-          <div class="sec-h"><h3>Content reach</h3></div>
+          <div class="sec-h"><h3>Охват контента</h3></div>
           <div id="anContent"></div>
         </div>
       </section>
@@ -339,7 +339,7 @@
       <section class="view" id="audit">
         <div class="card">
           <div class="tablewrap">
-            <table><thead><tr><th>When</th><th>Staff</th><th>Action</th><th>Target</th></tr></thead>
+            <table><thead><tr><th>Когда</th><th>Сотрудник</th><th>Действие</th><th>Объект</th></tr></thead>
             <tbody id="auditBody"></tbody></table>
           </div>
         </div>
@@ -487,14 +487,14 @@
 
   // Navigation
   const titles={
-    overview:["Overview","Live monitoring across pregnancy &amp; child-safety"],
-    emergencies:["Emergencies","Active triage alerts, most severe first"],
-    users:["Users","Search and open a patient record"],
-    content:["Content","Lessons and products for every week of pregnancy and month of childhood"],
-    devices:["Devices","Every band and tracker across all accounts"],
-    safety:["Safety","SOS and geofence events across all families"],
-    analytics:["Analytics","Reach, engagement and catalogue coverage"],
-    audit:["Audit log","Every staff action on protected data"]
+    overview:["Обзор","Мониторинг беременности и безопасности детей"],
+    emergencies:["Экстренные","Активные тревоги, самые серьёзные сверху"],
+    users:["Пользователи","Поиск и карточка пациентки"],
+    content:["Контент","Уроки и товары для каждой недели беременности и месяца жизни ребёнка"],
+    devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
+    safety:["Безопасность","SOS и события зон по всем семьям"],
+    analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
+    audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"]
   };
   function go(v){
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
@@ -565,7 +565,7 @@
   let draft = [];        // working copy; only written on Publish
 
   const stageLabel = (k) =>
-    k[0] === "w" ? `Week ${k.slice(1)}` : (k === "m0" ? "Newborn" : `${k.slice(1)} mo`);
+    k[0] === "w" ? `${k.slice(1)}-я неделя` : (k === "m0" ? "Новорождённый" : `${k.slice(1)} мес.`);
 
   function cellClass(items) {
     if (!items || items.length === 0) return "";
@@ -578,7 +578,7 @@
       el.innerHTML = keys.map((k) => {
         const items = catalog[k] || [];
         return `<div class="cell ${cellClass(items)} ${selected === k ? "sel" : ""}" data-stage="${k}"
-                     title="${esc(stageLabel(k))} — ${items.length} item(s)">
+                     title="${esc(stageLabel(k))} — материалов: ${items.length}">
                   <span class="n">${k[0] === "w" ? k.slice(1) : k.slice(1)}</span>${items.length || ""}
                 </div>`;
       }).join("");
@@ -587,7 +587,7 @@
     const items = Object.values(catalog).reduce((n, l) => n + l.length, 0);
     const linked = Object.values(catalog).flat().filter((i) => (i.url || "").trim()).length;
     const sum = $("#covSummary");
-    if (sum) sum.textContent = `${filled}/101 stages · ${items} items · ${linked} linked`;
+    if (sum) sum.textContent = `${filled}/101 этапов · ${items} материалов · ${linked} со ссылкой`;
     const badge = $("#navContentBadge");
     if (badge) badge.textContent = String(filled);
   }
@@ -597,20 +597,20 @@
     return `<div class="item" data-idx="${idx}">
       <div class="row">
         <span class="kindtag ${item.kind}">${item.kind}</span>
-        <input class="grow" data-f="id" value="${esc(item.id)}" placeholder="unique id" aria-label="id">
+        <input class="grow" data-f="id" value="${esc(item.id)}" placeholder="уникальный id" aria-label="id">
         ${isProduct
-          ? `<input data-f="priceMinor" type="number" style="width:130px" value="${item.priceMinor ?? ""}" placeholder="price (tiyn)" aria-label="price in tiyn">
+          ? `<input data-f="priceMinor" type="number" style="width:130px" value="${item.priceMinor ?? ""}" placeholder="цена (тиын)" aria-label="цена в тиын">
              <input data-f="currency" style="width:80px" value="${esc(item.currency || "KZT")}" aria-label="currency">`
-          : `<input data-f="durationMin" type="number" style="width:110px" value="${item.durationMin ?? ""}" placeholder="minutes" aria-label="minutes">`}
-        <button class="btn danger" data-del="${idx}">Remove</button>
+          : `<input data-f="durationMin" type="number" style="width:110px" value="${item.durationMin ?? ""}" placeholder="минут" aria-label="минут">`}
+        <button class="btn danger" data-del="${idx}">Удалить</button>
       </div>
       <div class="row"><span class="lang">url</span>
-        <input class="grow" data-f="url" value="${esc(item.url || "")}" placeholder="https://… (leave blank → shows as “Скоро”)" aria-label="url"></div>
+        <input class="grow" data-f="url" value="${esc(item.url || "")}" placeholder="https://… (пусто → в приложении «Скоро»)" aria-label="url"></div>
       ${LOCALES.map((L) => `
         <div class="row">
           <span class="lang">${L}</span>
-          <input class="grow" data-f="title.${L}" value="${esc((item.title || {})[L] || "")}" placeholder="title (${L})" aria-label="title ${L}">
-          <input class="grow" data-f="summary.${L}" value="${esc((item.summary || {})[L] || "")}" placeholder="summary (${L})" aria-label="summary ${L}">
+          <input class="grow" data-f="title.${L}" value="${esc((item.title || {})[L] || "")}" placeholder="заголовок (${L})" aria-label="title ${L}">
+          <input class="grow" data-f="summary.${L}" value="${esc((item.summary || {})[L] || "")}" placeholder="описание (${L})" aria-label="summary ${L}">
         </div>`).join("")}
     </div>`;
   }
@@ -623,12 +623,12 @@
       const b = $(id); if (b) b.disabled = !selected;
     }
     if (!selected) {
-      box.innerHTML = `<div class="sub">Choose a week or month above to edit what it shows.</div>`;
+      box.innerHTML = `<div class="sub">Выберите неделю или месяц выше, чтобы изменить содержимое.</div>`;
       return;
     }
     box.innerHTML = draft.length
       ? draft.map(itemHtml).join("")
-      : `<div class="sub">Nothing published for ${esc(stageLabel(selected))} yet — add a lesson or a product.</div>`;
+      : `<div class="sub">Для «${esc(stageLabel(selected))}» пока ничего не опубликовано — добавьте урок или товар.</div>`;
   }
 
   function selectStage(k) {
@@ -680,7 +680,7 @@
       catalog[selected] = JSON.parse(JSON.stringify(draft));
       if (draft.length === 0) delete catalog[selected];
       renderMap();
-      setMsg(`Published ${res.items} item(s) to ${stageLabel(selected)}.`, "ok");
+      setMsg(`Опубликовано: ${res.items} — ${stageLabel(selected)}.`, "ok");
     } catch (e) {
       // Surface the server's reason verbatim — "duplicate id", "unknown stage"
       // are exactly what the author needs to see.
@@ -711,7 +711,7 @@
       catalog = body.stages || {};
     } catch {
       catalog = {};
-      setMsg("Content API unreachable — showing an empty catalogue.", "err");
+      setMsg("API контента недоступен — каталог пуст.", "err");
     }
     renderMap();
     renderEditor();
@@ -725,7 +725,7 @@
       <td>${esc(d.childName || "—")}</td>
       <td>${d.batteryPct == null ? "—" : esc(d.batteryPct) + "%"}</td>
       <td>${esc(d.lastSeen || "—")}</td></tr>`).join(""), 6,
-      "No devices paired yet.");
+      "Устройства ещё не подключены.");
   }
 
   async function loadSafety() {
@@ -734,29 +734,29 @@
     rowsOrEmpty($("#safetyBody"), list.map((e) => `<tr>
       <td>${esc(e.at)}</td><td>${esc(e.displayName)}</td><td>${esc(e.childName)}</td>
       <td>${esc(e.kind)}</td><td>${esc(e.zoneName || "—")}</td></tr>`).join(""), 5,
-      "No safety events recorded.");
+      "Событий безопасности пока нет.");
   }
 
   async function loadAnalytics() {
     let a = null;
     try { a = await api("/admin/analytics"); } catch { /* handled below */ }
     const kpis = $("#anKpis");
-    if (!a) { if (kpis) kpis.innerHTML = `<div class="sub">Analytics API unreachable.</div>`; return; }
+    if (!a) { if (kpis) kpis.innerHTML = `<div class="sub">API аналитики недоступен.</div>`; return; }
     const card = (label, value) =>
       `<div class="card kpi"><div class="lbl">${esc(label)}</div><div class="val">${esc(value)}</div></div>`;
     if (kpis) {
       kpis.innerHTML = [
-        card("Users", a.totalUsers), card("Pregnant", a.pregnant),
-        card("With children", a.withChildren), card("Devices", a.devices),
-        card("Alerts · 7d", a.alerts7d), card("SOS · all time", a.sosAllTime),
+        card("Пользователи", a.totalUsers), card("Беременны", a.pregnant),
+        card("С детьми", a.withChildren), card("Устройства", a.devices),
+        card("Тревоги · 7 дн.", a.alerts7d), card("SOS · всего", a.sosAllTime),
       ].join("");
     }
     const c = $("#anContent");
     if (c) {
       const pct = a.contentItems ? Math.round((a.contentLinked / a.contentItems) * 100) : 0;
       c.innerHTML = `<div class="sub">
-        ${a.contentStages} of 101 stages have content · ${a.contentItems} items ·
-        <b>${a.contentLinked}</b> linked (${pct}%). Unlinked items show as “Скоро” in the app.
+        ${a.contentStages} из 101 этапа с контентом · ${a.contentItems} материалов ·
+        <b>${a.contentLinked}</b> со ссылкой (${pct}%). Без ссылки материал показывается как «Скоро».
       </div>`;
     }
   }

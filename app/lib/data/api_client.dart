@@ -93,6 +93,17 @@ class ApiClient {
     return IngestSummary.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  /// The published timeline catalogue (lessons + products per stage).
+  ///
+  /// Returns the raw JSON so the caller can cache the exact bytes it received
+  /// — re-encoding a parsed catalogue risks the cache and the server drifting
+  /// apart over a field this client doesn't know about yet.
+  Future<String> fetchContentCatalogJson() async {
+    final res = await transport.get('/content');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return res.body;
+  }
+
   /// Guardrailed assistant. `latestTelemetry` lets the server bypass the LLM on
   /// a critical reading and return an emergency outcome.
   Future<ChatOutcome> chat({

@@ -137,7 +137,7 @@ void main() {
       home: HealthDashboardView(
         samples: const [],
         setupProgress: computeSetupProgress(
-          hasName: false, hasHealthData: false, hasChild: false, hasZone: false, hasBackup: false),
+          hasName: false, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
       ),
     ));
     expect(find.text('No readings yet'), findsOneWidget); // still the empty state
@@ -151,7 +151,7 @@ void main() {
       home: HealthDashboardView(
         samples: samples,
         setupProgress: computeSetupProgress(
-          hasName: true, hasHealthData: false, hasChild: false, hasZone: false, hasBackup: false),
+          hasName: true, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
       ),
     ));
     // Visible without scrolling, and above the first metric card.
@@ -168,12 +168,12 @@ void main() {
       home: HealthDashboardView(
         samples: samples,
         setupProgress: computeSetupProgress(
-          hasName: true, hasHealthData: true, hasChild: false, hasZone: false, hasBackup: false),
+          hasName: true, hasHealthData: true, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
         onOpenSetup: () => opened = true,
       ),
     ));
     await tester.scrollUntilVisible(find.text('Finish setting up'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.text('2/5'), findsOneWidget);
+    expect(find.text('2/6'), findsOneWidget); // 6 steps since birth date + city joined
     expect(find.text('Add a child'), findsOneWidget); // the next step
     await tester.tap(find.text('Finish setting up'));
     await tester.pump();
@@ -186,7 +186,7 @@ void main() {
       home: HealthDashboardView(
         samples: samples,
         setupProgress: computeSetupProgress(
-          hasName: true, hasHealthData: true, hasChild: true, hasZone: true, hasBackup: true),
+          hasName: true, hasHealthData: true, hasChild: true, hasZone: true, hasDetails: true, hasBackup: true),
       ),
     ));
     expect(find.text('Finish setting up'), findsNothing);

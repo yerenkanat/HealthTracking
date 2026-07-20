@@ -682,6 +682,7 @@ class _SetupCard extends StatelessWidget {
         SetupStep.healthMode => 'setup_health',
         SetupStep.child => 'setup_child',
         SetupStep.zone => 'setup_zone',
+        SetupStep.details => 'setup_details',
         SetupStep.backup => 'setup_backup',
       };
 

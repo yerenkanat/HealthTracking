@@ -1,71 +1,133 @@
 /// Where timeline content comes from.
 ///
-/// Order of preference:
-///   1. `assets/content/catalog.json` — the authored catalogue. Edit that file
-///      to publish real lessons and products; no code change is needed.
-///   2. the seeded demo catalogue, when the asset is absent or unreadable.
+/// In order of preference:
+///   1. the backend, when reachable — what the back-office published
+///   2. the last response we cached, so an offline launch still shows it
+///   3. `assets/content/catalog.json`, the catalogue shipped with the build
+///   4. the seeded demo catalogue
 ///
-/// Later a third source slots in ahead of both: the backend. Keeping the load
-/// behind this one class is what makes that a small change — [loadCatalog] is
-/// the only thing the app calls.
+/// Every step down is a degradation, not a failure: content is never worth a
+/// crash or an empty screen. Which one was used is reported in [LoadedCatalog]
+/// so a build can say plainly what it is showing.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../domain/timeline_content.dart';
+import 'api_client.dart';
 import 'demo_content.dart';
 
 /// Where the authored catalogue lives, relative to the app bundle.
 const contentCatalogAsset = 'assets/content/catalog.json';
 
-/// How the catalogue currently in use was obtained — surfaced so a build can
-/// say plainly whether it is showing real content or placeholders.
-enum CatalogSource { asset, demo }
+/// Key under which the last good API response is cached.
+const contentCacheKey = 'content_catalog_json';
+
+/// How the catalogue in use was obtained.
+enum CatalogSource { api, cache, asset, demo }
 
 class LoadedCatalog {
   final ContentCatalog catalog;
   final CatalogSource source;
 
-  /// Why the asset was not used, when it wasn't. Null on success.
+  /// Why a lower-priority source was used. Null when the API answered.
   final String? fallbackReason;
 
   const LoadedCatalog(this.catalog, this.source, {this.fallbackReason});
 }
 
-/// Read the authored catalogue, falling back to the demo one.
+/// Somewhere to keep the last good response. A tiny interface rather than a
+/// dependency on shared_preferences, so this stays testable without Flutter.
+abstract class ContentCache {
+  Future<String?> read();
+  Future<void> write(String json);
+}
+
+/// Read the catalogue, preferring fresher sources but never failing outright.
 ///
-/// A missing or malformed asset must never take the app down — content is not
-/// worth a crash — so every failure degrades to the seeded catalogue and
-/// records why. Run `dart run tool/verify_content_catalog.dart` to find out
-/// before shipping; this is the last resort, not the check.
-Future<LoadedCatalog> loadCatalog() async {
-  String raw;
-  try {
-    raw = await rootBundle.loadString(contentCatalogAsset);
-  } catch (_) {
-    return LoadedCatalog(demoContentCatalog(), CatalogSource.demo,
-        fallbackReason: 'no $contentCatalogAsset in the bundle');
+/// [api] is optional: with no backend configured the app still works from the
+/// bundled asset. The network call is bounded by [timeout] because content is
+/// not worth delaying first paint — the caller can refresh later.
+Future<LoadedCatalog> loadCatalog({
+  ApiClient? api,
+  ContentCache? cache,
+  Duration timeout = const Duration(seconds: 4),
+}) async {
+  final reasons = <String>[];
+
+  // 1. The backend.
+  if (api != null) {
+    try {
+      final raw = await api.fetchContentCatalogJson().timeout(timeout);
+      final parsed = _parse(raw);
+      if (parsed != null) {
+        // Cache the exact bytes, not a re-encode, so a field this build does
+        // not understand still survives to the next launch.
+        unawaited(cache?.write(raw));
+        return LoadedCatalog(parsed, CatalogSource.api);
+      }
+      reasons.add('the API returned no usable stages');
+    } catch (e) {
+      reasons.add('the API was unreachable ($e)');
+    }
   }
 
+  // 2. The last good response.
+  if (cache != null) {
+    try {
+      final raw = await cache.read();
+      if (raw != null) {
+        final parsed = _parse(raw);
+        if (parsed != null) {
+          return LoadedCatalog(parsed, CatalogSource.cache,
+              fallbackReason: reasons.join('; '));
+        }
+      }
+    } catch (e) {
+      reasons.add('the cache could not be read ($e)');
+    }
+  }
+
+  // 3. The bundled asset.
+  try {
+    final raw = await rootBundle.loadString(contentCatalogAsset);
+    final parsed = _parse(raw);
+    if (parsed != null) {
+      return LoadedCatalog(parsed, CatalogSource.asset,
+          fallbackReason: reasons.isEmpty ? null : reasons.join('; '));
+    }
+    reasons.add('$contentCatalogAsset contained no usable stages');
+  } catch (_) {
+    reasons.add('no $contentCatalogAsset in the bundle');
+  }
+
+  // 4. Seeded content, so the feature is never simply blank.
+  return LoadedCatalog(demoContentCatalog(), CatalogSource.demo,
+      fallbackReason: reasons.join('; '));
+}
+
+/// Parse a catalogue payload, accepting either the API's `{"stages": {...}}`
+/// envelope or a bare map of stages as the asset file stores it.
+///
+/// Returns null when nothing usable came out — an empty result almost always
+/// means every stage key was unrecognised or the file is a stub, and showing
+/// nothing would look like the feature is broken.
+ContentCatalog? _parse(String raw) {
   try {
     final decoded = jsonDecode(raw);
-    if (decoded is! Map) {
-      return LoadedCatalog(demoContentCatalog(), CatalogSource.demo,
-          fallbackReason: 'the catalogue is not a JSON object');
-    }
-    final catalog = ContentCatalog.fromJson(decoded.cast<String, dynamic>());
-    if (catalog.byStage.isEmpty) {
-      // An empty catalogue is almost certainly a mistake — every stage key was
-      // unrecognised, or the file is a stub. Showing nothing at all would look
-      // like the feature is broken.
-      return LoadedCatalog(demoContentCatalog(), CatalogSource.demo,
-          fallbackReason: 'the catalogue contained no usable stages');
-    }
-    return LoadedCatalog(catalog, CatalogSource.asset);
+    if (decoded is! Map) return null;
+    final map = decoded.cast<String, dynamic>();
+    final stages = map['stages'] is Map
+        ? (map['stages'] as Map).cast<String, dynamic>()
+        : map;
+    final catalog = ContentCatalog.fromJson(stages);
+    return catalog.byStage.isEmpty ? null : catalog;
   } catch (e) {
-    return LoadedCatalog(demoContentCatalog(), CatalogSource.demo,
-        fallbackReason: 'the catalogue could not be parsed: $e');
+    debugPrint('content: could not parse a catalogue payload — $e');
+    return null;
   }
 }

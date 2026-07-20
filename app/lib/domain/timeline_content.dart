@@ -223,6 +223,59 @@ TimelineStage? currentStage({
   return null;
 }
 
+/// The reason to open this card THIS week rather than any week.
+///
+/// A shelf of lessons and products is forgettable; what makes it worth a look
+/// is that it is specific to right now. Everything here is true by
+/// construction — how far along you are, how much is left, what is coming next
+/// — rather than manufactured urgency, which has no place in a pregnancy app.
+class TimelineHighlight {
+  /// 0..1 through the journey being tracked (40 weeks, or 60 months).
+  final double progress;
+
+  /// How many weeks/months remain. Null once the journey has no fixed end.
+  final int? remaining;
+
+  /// True at the halfway point, worth marking.
+  final bool isHalfway;
+
+  /// The next stage, so the card can say what is coming.
+  final TimelineStage? next;
+
+  const TimelineHighlight({
+    required this.progress,
+    required this.remaining,
+    required this.isHalfway,
+    required this.next,
+  });
+}
+
+TimelineHighlight highlightFor(TimelineStage stage) {
+  switch (stage.kind) {
+    case TimelineKind.pregnancyWeek:
+      final remaining = maxPregnancyWeek - stage.index;
+      return TimelineHighlight(
+        progress: stage.index / maxPregnancyWeek,
+        remaining: remaining,
+        // Week 20 of 40 — the midpoint people actually mark.
+        isHalfway: stage.index == maxPregnancyWeek ~/ 2,
+        next: stage.index < maxPregnancyWeek
+            ? TimelineStage.pregnancyWeek(stage.index + 1)
+            : null,
+      );
+    case TimelineKind.childMonth:
+      return TimelineHighlight(
+        progress: stage.index / maxChildMonth,
+        // Childhood doesn't "end", so a countdown would be meaningless.
+        remaining: null,
+        isHalfway: false,
+        next: stage.index < maxChildMonth
+            ? TimelineStage.childMonth(stage.index + 1)
+            : null,
+      );
+  }
+}
+
 /// Formatted price, e.g. 1 290 000 tiyn → "12 900 ₸". Returns empty for a
 /// lesson or an unpriced product.
 String formatPrice(ContentItem item) {
