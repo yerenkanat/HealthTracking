@@ -68,6 +68,10 @@ class HealthDashboardView extends StatelessWidget {
   final bool statusChipLate; // period overdue → amber, not routine rose
   final VoidCallback? onOpenStatus;
   final WeeklyDigest? weeklyDigest; // this-week roll-up (null/no-data = hidden)
+  /// Which measurement is waiting on a confirming reading — 'bp', 'fever',
+  /// 'spo2', 'hr' — or null when nothing is. See emergency_confirmation.dart.
+  final String? awaitingRepeat;
+
   final SetupProgress? setupProgress; // first-run checklist (null/complete = hidden)
   final VoidCallback? onOpenSetup; // where "finish setting up" leads
   final Appointment? nextAppointment; // soonest upcoming (null = hidden)
@@ -109,6 +113,7 @@ class HealthDashboardView extends StatelessWidget {
     this.nowForAppointment,
     this.onOpenAppointments,
     this.onLogVitals,
+    this.awaitingRepeat,
     this.waterCount = 0,
     this.waterGoal = 8,
     this.timelineStage,
@@ -183,6 +188,14 @@ class HealthDashboardView extends StatelessWidget {
                   ],
                   // Setup guidance outranks ambient status: an unfinished app
                   // shouldn't hide "add a child" below a 2x2 grid of metrics.
+                  // Above everything: a reading crossed an emergency threshold
+                  // once and needs confirming. Not an emergency takeover — one
+                  // wrist estimate does not justify that — but the most
+                  // important thing on the screen until it resolves.
+                  if (awaitingRepeat != null) ...[
+                    _RepeatReadingCard(family: awaitingRepeat!, onLog: onLogVitals),
+                    const SizedBox(height: 14),
+                  ],
                   if (setupProgress != null && !setupProgress!.complete) ...[
                     _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
                     const SizedBox(height: 14),
@@ -672,6 +685,61 @@ class _StatusChip extends StatelessWidget {
 /// "Finish setting up" — a progress bar plus the next outstanding step, so a
 /// half-configured app tells you what's missing instead of feeling empty.
 /// Disappears entirely once every step is done.
+/// "That reading was high — take another one."
+///
+/// The deliberate middle ground between saying nothing and taking over the
+/// screen. It has to read as calm and actionable: she is not in an emergency,
+/// and telling her she might be, on one wrist estimate, is the thing this whole
+/// mechanism exists to avoid.
+class _RepeatReadingCard extends StatelessWidget {
+  final String family;
+  final VoidCallback? onLog;
+  const _RepeatReadingCard({required this.family, this.onLog});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Palette.amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Palette.amber.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: Palette.amber.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.replay_rounded, size: 20, color: Palette.amber),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(l.t('repeat_title_$family'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Text(l.t('repeat_body'),
+              style: const TextStyle(fontSize: 13.5, height: 1.4, color: Palette.textDim)),
+          if (onLog != null) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(onPressed: onLog, child: Text(l.t('repeat_cta'))),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _SetupCard extends StatelessWidget {
   final SetupProgress progress;
   final VoidCallback? onTap;

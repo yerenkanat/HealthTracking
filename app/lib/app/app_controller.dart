@@ -20,6 +20,7 @@ import '../data/sample_store.dart';
 import '../data/api_client.dart';
 import '../data/app_store.dart';
 import '../data/persisted_config.dart';
+import '../domain/emergency_confirmation.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
 import '../domain/chat_controller.dart';
@@ -991,7 +992,8 @@ class AppController {
     if (_manualSamples.length > _maxManualSamples) {
       _manualSamples.removeRange(0, _manualSamples.length - _maxManualSamples);
     }
-    onTelemetry(t, assessTelemetry(t));
+    // She measured this herself, off a real cuff. Not an estimate — act on it.
+    onTelemetry(t, assessTelemetry(t), source: ReadingSource.manual);
     _persist();
     return true;
   }
@@ -1003,9 +1005,22 @@ class AppController {
   /// persist across restarts.
   List<HealthSample> get manualSamples => List.unmodifiable(_manualSamples);
 
+  /// Holds a first emergency-level sensor crossing until a second confirms it.
+  /// See emergency_confirmation.dart for why one estimate is not enough.
+  final _confirmation = EmergencyConfirmation();
+
+  /// The measurement a repeat reading has been asked for, if any — 'bp',
+  /// 'fever', 'spo2', 'hr'. Null when nothing is waiting.
+  String? _awaitingRepeat;
+  String? get awaitingRepeat => _awaitingRepeat;
+
   /// From BLEDeviceManager.onTelemetry (via HealthMonitor). Records the reading
   /// and latches emergency if triage says so.
-  void onTelemetry(BandTelemetry t, TriageResult triage) {
+  void onTelemetry(
+    BandTelemetry t,
+    TriageResult triage, {
+    ReadingSource source = ReadingSource.sensor,
+  }) {
     store.addSample(HealthSample(
       at: _now(),
       heartRate: t.heartRateBpm?.toDouble(),
@@ -1015,8 +1030,24 @@ class AppController {
       coreTemp: t.coreTempC,
       duringSleep: t.duringSleep,
     ));
-    if (triage.forceEmergencyScreen) {
-      final f = triage.findings.isNotEmpty ? triage.findings.first : null;
+    final f = triage.findings.isNotEmpty ? triage.findings.first : null;
+    final decision = _confirmation.consider(
+      code: f?.code,
+      isEmergency: triage.forceEmergencyScreen,
+      source: source,
+      at: _now(),
+    );
+
+    if (decision.shouldAskToRepeat) {
+      // One estimate is not enough to take over her screen. Ask for another,
+      // and escalate if the condition is still there a couple of minutes on.
+      _awaitingRepeat = emergencyFamily(decision.code);
+      _notify();
+      return;
+    }
+
+    if (decision.shouldEscalate) {
+      _awaitingRepeat = null;
       _raiseEmergency(EmergencyView(
         code: f?.code, // UI localizes the code
         message: f?.message ?? 'Urgent health alert.',
@@ -1025,9 +1056,10 @@ class AppController {
           const (label: EmergencyLabels.ambulance, tel: EmergencyLabels.ambulanceTel),
         ],
       ));
-    } else {
-      _notify();
+      return;
     }
+
+    _notify();
   }
 
   /// From the AI chat service when the server escalates a message (already localized).

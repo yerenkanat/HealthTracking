@@ -289,4 +289,54 @@ void main() {
       findsOneWidget,
     );
   });
+
+  group('the repeat-reading prompt', () {
+    final samples = [
+      HealthSample(at: t(0), heartRate: 72, spo2: 98, systolic: 152, diastolic: 96, coreTemp: 36.6),
+    ];
+
+    testWidgets('is absent when nothing is awaiting confirmation', (tester) async {
+      await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
+      expect(find.textContaining('Measure again'), findsNothing);
+    });
+
+    testWidgets('asks calmly for another reading, without claiming an emergency',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: HealthDashboardView(
+          samples: samples, awaitingRepeat: 'bp', onLogVitals: () {},
+        ),
+      ));
+      expect(find.text('Higher blood pressure than usual'), findsOneWidget);
+      expect(find.text('Measure again'), findsOneWidget);
+      // The wording is the whole point of the mechanism: one wrist estimate
+      // must never be dressed up as a diagnosis or an emergency.
+      for (final alarming in ['preeclampsia', 'emergency', 'urgent', 'danger']) {
+        expect(
+          find.textContaining(RegExp(alarming, caseSensitive: false)),
+          findsNothing,
+          reason: 'an unconfirmed reading must not say "$alarming"',
+        );
+      }
+    });
+
+    testWidgets('names the measurement it is about', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: HealthDashboardView(samples: samples, awaitingRepeat: 'fever'),
+      ));
+      expect(find.text('Higher temperature than usual'), findsOneWidget);
+      expect(find.text('Higher blood pressure than usual'), findsNothing);
+    });
+
+    testWidgets('still explains itself when there is no way to log by hand',
+        (tester) async {
+      // Without onLogVitals there is no button, but the message must remain —
+      // otherwise a user with no manual entry wired up sees nothing at all.
+      await tester.pumpWidget(MaterialApp(
+        home: HealthDashboardView(samples: samples, awaitingRepeat: 'bp'),
+      ));
+      expect(find.text('Higher blood pressure than usual'), findsOneWidget);
+      expect(find.text('Measure again'), findsNothing);
+    });
+  });
 }

@@ -87,6 +87,7 @@ class _HomeShellState extends State<HomeShell> {
         ),
         onOpenSetup: () => setState(() => _index = 3), // profile / settings tab
         onLogVitals: () => _logVitals(context, c),
+        awaitingRepeat: c.awaitingRepeat,
         nextAppointment: nextAppointment(c.appointments, DateTime.now()),
         nowForAppointment: DateTime.now(),
         onOpenAppointments: () => Navigator.of(context).push(

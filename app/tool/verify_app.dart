@@ -34,7 +34,10 @@ Future<void> main() async {
 
   // ---- AppController: normal telemetry, no emergency ----
   var notifications = 0;
-  final ctl = AppController(store: SampleStore(), now: () => now);
+  // Movable, because escalation now depends on a condition PERSISTING across
+  // readings — a frozen clock cannot express that.
+  var clock = now;
+  final ctl = AppController(store: SampleStore(), now: () => clock);
   final sub = ctl.changes.listen((_) => notifications++);
 
   ctl.onTelemetry(const BandTelemetry(heartRateBpm: 80),
@@ -45,13 +48,26 @@ Future<void> main() async {
   _chk('normal telemetry: emitted a change', notifications == 1);
 
   // ---- Emergency latching from telemetry ----
+  // One sensor estimate no longer takes over her screen. A wrist PPG carries
+  // ±10-15 mmHg of error and blood pressure spikes transiently with movement,
+  // so the first crossing asks for another reading; a condition that persists
+  // escalates. See lib/domain/emergency_confirmation.dart.
   final emT = const BandTelemetry(systolicMmHg: 150, diastolicMmHg: 95);
   ctl.onTelemetry(emT, assessTelemetry(emT));
   await Future<void>.delayed(Duration.zero);
-  _chk('emergency telemetry: route -> emergency', ctl.route == AppRoute.emergency);
+  _chk('one high estimate does NOT take over the screen', ctl.route == AppRoute.home);
+  _chk('one high estimate does not latch the emergency flag', !ctl.emergencyActive);
+  _chk('but it does ask for a repeat reading', ctl.awaitingRepeat == 'bp');
+
+  // Still high two minutes on — that is a condition, not an artifact.
+  clock = clock.add(const Duration(minutes: 2));
+  ctl.onTelemetry(emT, assessTelemetry(emT));
+  await Future<void>.delayed(Duration.zero);
+  _chk('a crossing that persists escalates', ctl.route == AppRoute.emergency);
   _chk('emergency: active flag set', ctl.emergencyActive);
   _chk('emergency: has message + ambulance button',
       (ctl.emergency?.message.isNotEmpty ?? false) && ctl.emergency!.callButtons.first.tel == '103');
+  _chk('escalating clears the repeat prompt', ctl.awaitingRepeat == null);
 
   // ---- Dismissal returns to home ----
   ctl.dismissEmergency();
@@ -78,13 +94,18 @@ Future<void> main() async {
   // sides ever drift the switch falls through and ships English to the
   // emergency screen, so the labels the controller emits must all be known.
   {
-    final em = AppController(now: () => DateTime(2026, 7, 16, 9));
+    var t = DateTime(2026, 7, 16, 9);
+    final em = AppController(now: () => t);
     em.updateProfile(const UserProfile(
       displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233', doctorPhone: '+77011234567'));
-    em.onTelemetry(
-      const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115),
-      assessTelemetry(const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115)),
-    );
+    const severe = BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115);
+    // Severe range is confirmed too. A single PPG estimate of 170 is at least
+    // as likely to be an artifact as a reading, and two minutes is a small
+    // price against telling a healthy woman to seek emergency care.
+    em.onTelemetry(severe, assessTelemetry(severe));
+    _chk('even severe-range needs a second reading', em.emergency == null);
+    t = t.add(const Duration(minutes: 2));
+    em.onTelemetry(severe, assessTelemetry(severe));
     final buttons = em.emergency!.callButtons;
     _chk('an emergency offers a way to call someone', buttons.isNotEmpty);
     _chk('every default label is one app.dart can localize',
@@ -95,11 +116,11 @@ Future<void> main() async {
         buttons.any((b) => b.tel == EmergencyLabels.ambulanceTel));
 
     // With no doctor recorded there is still a way to get help.
-    final noDoc = AppController(now: () => DateTime(2026, 7, 16, 9));
-    noDoc.onTelemetry(
-      const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115),
-      assessTelemetry(const BandTelemetry(systolicMmHg: 170, diastolicMmHg: 115)),
-    );
+    var nd = DateTime(2026, 7, 16, 9);
+    final noDoc = AppController(now: () => nd);
+    noDoc.onTelemetry(severe, assessTelemetry(severe));
+    nd = nd.add(const Duration(minutes: 2));
+    noDoc.onTelemetry(severe, assessTelemetry(severe));
     _chk('without a doctor the ambulance is still offered',
         noDoc.emergency!.callButtons.single.tel == EmergencyLabels.ambulanceTel);
 

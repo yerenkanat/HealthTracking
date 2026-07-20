@@ -261,7 +261,17 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cal_cuff_dia': {AppLocale.ru: 'Диастолическое (тонометр)', AppLocale.kk: 'Диастолалық (тонометр)', AppLocale.en: 'Diastolic (cuff)'},
   'cal_band_reading': {AppLocale.ru: 'Показания браслета: {sys}/{dia}', AppLocale.kk: 'Білезік көрсеткіші: {sys}/{dia}', AppLocale.en: 'Band reading: {sys}/{dia}'},
   'cal_no_band': {AppLocale.ru: 'Нет данных браслета для калибровки. Наденьте браслет и измерьте давление.', AppLocale.kk: 'Калибрлеуге білезік деректері жоқ. Білезікті тағып, қысымды өлшеңіз.', AppLocale.en: 'No band reading yet. Wear your band and measure blood pressure first.'},
-  'cal_too_far': {AppLocale.ru: 'Показания тонометра и браслета слишком расходятся — калибровка не сохранена. Проверьте цифры и измерьте ещё раз в покое.', AppLocale.kk: 'Тонометр мен білезік көрсеткіштері тым алшақ — калибрлеу сақталмады. Сандарды тексеріп, тыныш күйде қайта өлшеңіз.', AppLocale.en: 'Your cuff and band readings are too far apart — nothing was saved. Check the numbers and measure again at rest.'},
+  // A reading crossed an emergency threshold once. Calm and actionable on
+  // purpose: she is not in an emergency, and one wrist estimate does not make
+  // her one. Never say "preeclampsia" here — that word belongs to the confirmed
+  // emergency screen, not to a single unconfirmed number.
+  'repeat_title_bp': {AppLocale.ru: 'Давление выше обычного', AppLocale.kk: 'Қысым әдеттегіден жоғары', AppLocale.en: 'Higher blood pressure than usual'},
+  'repeat_title_fever': {AppLocale.ru: 'Температура выше обычной', AppLocale.kk: 'Дене қызуы әдеттегіден жоғары', AppLocale.en: 'Higher temperature than usual'},
+  'repeat_title_spo2': {AppLocale.ru: 'Кислород ниже обычного', AppLocale.kk: 'Оттегі әдеттегіден төмен', AppLocale.en: 'Lower oxygen than usual'},
+  'repeat_title_hr': {AppLocale.ru: 'Пульс вне обычного диапазона', AppLocale.kk: 'Пульс әдеттегі шектен тыс', AppLocale.en: 'Heart rate outside its usual range'},
+  'repeat_body': {AppLocale.ru: 'Одно измерение с браслета — ещё не повод для тревоги: на него влияют движение, поза и волнение. Отдохните пару минут и измерьте снова. Если покажет то же самое, приложение подскажет, что делать.', AppLocale.kk: 'Білезіктің бір өлшемі әлі алаңдауға себеп емес: оған қозғалыс, дене қалпы және толқу әсер етеді. Бірер минут тынығып, қайта өлшеңіз. Сол көрсеткіш қайталанса, қосымша не істеу керегін айтады.', AppLocale.en: 'One band reading is not a cause for alarm on its own — movement, posture and stress all affect it. Rest a couple of minutes and measure again. If it shows the same, the app will tell you what to do.'},
+  'repeat_cta': {AppLocale.ru: 'Измерить снова', AppLocale.kk: 'Қайта өлшеу', AppLocale.en: 'Measure again'},
+  'cal_too_far':{AppLocale.ru: 'Показания тонометра и браслета слишком расходятся — калибровка не сохранена. Проверьте цифры и измерьте ещё раз в покое.', AppLocale.kk: 'Тонометр мен білезік көрсеткіштері тым алшақ — калибрлеу сақталмады. Сандарды тексеріп, тыныш күйде қайта өлшеңіз.', AppLocale.en: 'Your cuff and band readings are too far apart — nothing was saved. Check the numbers and measure again at rest.'},
   'cal_last': {AppLocale.ru: 'Откалибровано {ago}', AppLocale.kk: '{ago} калибрленген', AppLocale.en: 'Calibrated {ago}'},
   'cal_never': {AppLocale.ru: 'Не откалибровано', AppLocale.kk: 'Калибрленбеген', AppLocale.en: 'Not calibrated'},
   'cal_stale': {AppLocale.ru: 'Рекомендуется повторная калибровка', AppLocale.kk: 'Қайта калибрлеу ұсынылады', AppLocale.en: 'Recalibration recommended'},
