@@ -183,6 +183,42 @@ void main() {
   final overstated = Uint8List.fromList([0xAB, 0x01, 0x00, 0x40, 70]);
   _chk('overstated payload length is refused', !parseBandFrame(overstated).ok);
 
+  // ---- A faulty sensor must not manufacture a reading ----
+  // A disconnected or failing sensor tends to return all-bits-set. 255/254
+  // cleared every bound the parser used to have, and a systolic of 255 is over
+  // BP_SYSTOLIC_SEVERE — so a broken band could raise a preeclampsia emergency
+  // entirely on its own.
+  ParseResult combined(int hr, int spo2, int sys, int dia, int sleep) =>
+      parseBandFrame(Uint8List.fromList([0xCD, 0x51, 0, 5, hr, spo2, sys, dia, sleep]));
+  ParseResult dedicatedBp(int sys, int dia) =>
+      parseBandFrame(Uint8List.fromList([0xCD, 0x22, 0, 2, sys, dia]));
+
+  _chk('a saturated BP reading is refused (dedicated frame)',
+      dedicatedBp(255, 254).frame.systolicMmHg == null);
+  _chk('a saturated BP reading is refused (combined frame)',
+      combined(70, 98, 255, 254, 0).frame.systolicMmHg == null);
+  _chk('an all-0xFF frame yields nothing at all', !combined(255, 255, 255, 255, 255).ok);
+  _chk('an all-zero frame yields nothing at all', !combined(0, 0, 0, 0, 0).ok);
+
+  // Both frame types carry the same quantity, so they must judge it the same
+  // way. They did not: the combined frame skipped the diastolic floor, and the
+  // same device reported 120/0 through one command and nothing through the other.
+  _chk('a zero diastolic is refused in a combined frame',
+      combined(70, 98, 120, 0, 0).frame.diastolicMmHg == null);
+  _chk('a zero diastolic is refused in a dedicated frame too',
+      dedicatedBp(120, 0).frame.diastolicMmHg == null);
+  for (final (sys, dia) in [(255, 254), (120, 0), (250, 245), (60, 40), (300, 100)]) {
+    _chk('both frame types agree on $sys/$dia',
+        (dedicatedBp(sys, dia).frame.systolicMmHg == null) ==
+            (combined(70, 98, sys, dia, 0).frame.systolicMmHg == null));
+  }
+
+  // Rejecting a bad BP must not throw away the good measurements beside it.
+  final mixed = combined(72, 97, 255, 254, 0);
+  _chk('a bad BP does not discard the HR beside it', mixed.frame.heartRateBpm == 72);
+  _chk('a bad BP does not discard the SpO2 beside it', mixed.frame.spo2Pct == 97);
+  _chk('an ordinary reading still parses', combined(72, 97, 118, 76, 0).frame.systolicMmHg == 118);
+
   // ---- Triage boundary invariants ----
   // The golden vectors pin specific readings; these pin the SHAPE of the rules
   // across every value in range, which is where an inverted comparison or a

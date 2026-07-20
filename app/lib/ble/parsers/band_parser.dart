@@ -50,14 +50,19 @@ class BandFrame {
   int? diastolicMmHg;
   bool? duringSleep;
 
+  /// True when the frame carried no MEASUREMENT.
+  ///
+  /// duringSleep is deliberately not counted: it is context for the other
+  /// values, not a reading in its own right. A combined frame whose every
+  /// measurement was rejected as implausible is garbage, and counting its sleep
+  /// flag would let that frame through as a successful parse.
   bool get isEmpty =>
       coreTempC == null &&
       skinTempC == null &&
       heartRateBpm == null &&
       spo2Pct == null &&
       systolicMmHg == null &&
-      diastolicMmHg == null &&
-      duringSleep == null;
+      diastolicMmHg == null;
 }
 
 class ParseResult {
@@ -123,16 +128,15 @@ ParseResult parseBandFrame(Object input, {bool validateChecksum = false}) {
       }
       break;
     case BandCmd.bloodPressure:
-      final sys = p[0], dia = p[1];
-      if (sys >= 60 && sys <= 260 && dia >= 30 && dia < sys) {
-        f.systolicMmHg = sys;
-        f.diastolicMmHg = dia;
+      if (_plausibleBp(p[0], p[1])) {
+        f.systolicMmHg = p[0];
+        f.diastolicMmHg = p[1];
       }
       break;
     case BandCmd.combinedHealth:
       if (_plausibleHr(p[0])) f.heartRateBpm = p[0];
       if (p[1] >= 50 && p[1] <= 100) f.spo2Pct = p[1];
-      if (p[2] >= 60 && p[3] < p[2]) {
+      if (_plausibleBp(p[2], p[3])) {
         f.systolicMmHg = p[2];
         f.diastolicMmHg = p[3];
       }
@@ -146,3 +150,21 @@ ParseResult parseBandFrame(Object input, {bool validateChecksum = false}) {
 }
 
 bool _plausibleHr(int hr) => hr >= 20 && hr <= 250;
+
+/// Whether a systolic/diastolic pair could have come off a person.
+///
+/// One check shared by both frame types. They used to disagree — the combined
+/// frame skipped the diastolic floor entirely, so the same device reported
+/// 120/0 through one command and nothing through the other.
+///
+/// The pulse-pressure floor is what catches a saturated sensor: a disconnected
+/// or faulty reading tends to come back all-bits-set, and 255/254 passed every
+/// bound the old checks had while being physiologically impossible. It also
+/// mattered clinically — a systolic of 255 is over BP_SYSTOLIC_SEVERE, so a
+/// broken sensor could raise a preeclampsia emergency on its own.
+bool _plausibleBp(int systolic, int diastolic) =>
+    systolic >= 70 &&
+    systolic <= 250 &&
+    diastolic >= 40 &&
+    diastolic <= 150 &&
+    systolic - diastolic >= 15;
