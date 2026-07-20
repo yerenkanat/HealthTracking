@@ -137,6 +137,32 @@ void main() {
       expect(store.value.byStage, isNotEmpty);
     });
 
+    test('a partly-published API response fills in, it does not replace', () {
+      // The backend only returns stages someone has published. Early on that
+      // is two of a hundred, and a week-30 shelf that is full offline must not
+      // go empty the moment the API answers.
+      final store = ContentStore(
+        const ContentCatalog({
+          'w20': [ContentItem(id: 'local-20', kind: ContentKind.lesson,
+              title: LocalizedText({'ru': 'Локально'}), summary: LocalizedText({'ru': 'О'}))],
+          'w30': [ContentItem(id: 'local-30', kind: ContentKind.lesson,
+              title: LocalizedText({'ru': 'Локально'}), summary: LocalizedText({'ru': 'О'}))],
+        }),
+        source: CatalogSource.asset,
+      );
+      store.adopt(
+        const ContentCatalog({
+          'w20': [ContentItem(id: 'published-20', kind: ContentKind.lesson,
+              title: LocalizedText({'ru': 'Из админки'}), summary: LocalizedText({'ru': 'О'}))],
+        }),
+        CatalogSource.api,
+      );
+      // The published stage wins where it exists...
+      expect(store.value.itemsFor(TimelineStage.pregnancyWeek(20)).single.id, 'published-20');
+      // ...and every stage it says nothing about keeps what it had.
+      expect(store.value.itemsFor(TimelineStage.pregnancyWeek(30)).single.id, 'local-30');
+    });
+
     test('an empty catalogue never replaces one that has content', () {
       // A backend answering with nothing must not blank a working shelf.
       const populated = ContentCatalog({'w12': [

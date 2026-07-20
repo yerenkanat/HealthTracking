@@ -15,14 +15,30 @@ import 'content_repository.dart';
 
 class ContentStore extends ValueNotifier<ContentCatalog> {
   CatalogSource source;
-  ContentStore(super.initial, {this.source = CatalogSource.demo});
 
-  /// Swap in a newer catalogue. Ignores an empty one: an API that answers with
-  /// nothing should not blank a shelf that currently has content.
+  /// What was loaded locally at startup. Kept so a partly-populated API
+  /// response can be layered over it rather than replacing it — see [adopt].
+  final ContentCatalog _baseline;
+
+  ContentStore(super.initial, {this.source = CatalogSource.demo})
+      : _baseline = initial;
+
+  /// Layer a newer catalogue over the local one, stage by stage.
+  ///
+  /// The backend only returns stages someone has actually published — two of a
+  /// hundred, early on. Replacing outright would leave a woman at week 30
+  /// staring at an empty shelf that would have had content offline, so the
+  /// local catalogue fills every gap the API does not cover.
+  ///
+  /// A consequence worth naming: clearing a stage in the back-office restores
+  /// the bundled entry rather than showing nothing. The wire format cannot
+  /// express "deliberately empty" — an empty list is indistinguishable from an
+  /// unpublished stage — and of the two readings, falling back is the one that
+  /// never leaves a screen blank.
   void adopt(ContentCatalog next, CatalogSource from) {
     if (next.byStage.isEmpty) return;
     source = from;
-    value = next;
+    value = ContentCatalog({..._baseline.byStage, ...next.byStage});
   }
 }
 
