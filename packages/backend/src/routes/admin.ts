@@ -74,6 +74,16 @@ const contentItem = z.object({
 });
 const stageContentBody = z.object({ items: z.array(contentItem).max(50) });
 
+/// A whole catalogue in one request. 101 stages x 50 items is the ceiling the
+/// per-stage route already implies; the record cap keeps a malformed file from
+/// becoming an unbounded loop.
+const bulkContentBody = z.object({
+  stages: z.record(z.string(), z.array(contentItem).max(50)),
+  /// 'merge' (the default) leaves stages absent from the file alone.
+  /// 'replace' clears them — destructive, so it is never the default.
+  mode: z.enum(['merge', 'replace']).default('merge'),
+});
+
 export type StaffRole = 'admin' | 'clinician' | 'support';
 export type AuthAdmin = (req: FastifyRequest) => Promise<{ staffId: string; role: StaffRole } | null>;
 
@@ -216,6 +226,69 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     await repo.putStageContent(stage, parsed.data.items as ContentItemRow[]);
     await repo.writeAudit({ staffId: s.staffId, action: 'edit_content', target: stage });
     return reply.send({ ok: true, stage, items: parsed.data.items.length });
+  });
+
+  // ---- Bulk import (admin only) ----
+  //
+  // Authoring 101 stages one at a time through the panel is the real bottleneck
+  // in getting this catalogue filled, and a spreadsheet exported to JSON is how
+  // the work actually gets done.
+  //
+  // ALL-OR-NOTHING. Everything is validated before anything is written: a
+  // partial apply across a hundred stages leaves the catalogue in a state
+  // nobody can reason about, and the person importing cannot tell how far it
+  // got. One bad stage rejects the whole file, naming the stage.
+  app.put('/admin/content', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+
+    const parsed = bulkContentBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { stages, mode } = parsed.data;
+    const keys = Object.keys(stages);
+
+    // Validate every key and every id BEFORE the first write.
+    for (const key of keys) {
+      if (!isStageKey(key)) {
+        return reply.code(400).send({ error: `"${key}" is not a stage (w1-w40, m0-m60)` });
+      }
+      const ids = new Set<string>();
+      for (const item of stages[key]) {
+        if (ids.has(item.id)) {
+          return reply.code(400).send({ error: `duplicate id "${item.id}" in ${key}` });
+        }
+        ids.add(item.id);
+      }
+    }
+
+    // 'replace' clears every stage absent from the file. It is destructive in a
+    // way 'merge' is not — a file covering ten stages would wipe the other
+    // ninety-one — so it only ever happens when asked for by name.
+    const existing = mode === 'replace' ? await repo.contentCatalog() : {};
+    const toClear = mode === 'replace'
+      ? Object.keys(existing).filter((k) => !(k in stages))
+      : [];
+
+    for (const key of keys) {
+      await repo.putStageContent(key, stages[key] as ContentItemRow[]);
+    }
+    for (const key of toClear) {
+      await repo.putStageContent(key, []);
+    }
+
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: 'bulk_import_content',
+      target: `${mode}:${keys.length} stages`,
+    });
+    return reply.send({
+      ok: true,
+      mode,
+      stagesWritten: keys.length,
+      stagesCleared: toClear.length,
+      items: keys.reduce((n, k) => n + stages[k].length, 0),
+    });
   });
 
   // ---- Audit log (admin only) ----

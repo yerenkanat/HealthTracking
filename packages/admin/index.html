@@ -304,6 +304,33 @@
           <div id="stageItems"><div class="sub">Выберите неделю или месяц выше, чтобы изменить содержимое.</div></div>
           <div class="savebar" id="saveMsg"></div>
         </div>
+
+        <!-- Filling 101 этапов по одному — главное узкое место. Файл целиком
+             решает это; проверка идёт до записи, поэтому плохой файл не меняет
+             ничего. -->
+        <div class="card" id="bulkCard" style="margin-top:14px">
+          <div class="sec-h">
+            <h3>Загрузить каталог файлом</h3>
+            <span>
+              <button class="btn" id="bulkExport">Скачать текущий</button>
+              <button class="btn primary" id="bulkImport">Загрузить</button>
+            </span>
+          </div>
+          <div class="sub" style="margin-bottom:10px">
+            JSON вида <code>{"stages": {"w20": [...], "m4": [...]}}</code>.
+            Этапы, которых нет в файле, останутся без изменений.
+          </div>
+          <textarea id="bulkJson" rows="6" spellcheck="false"
+                    style="width:100%;font-family:ui-monospace,monospace;font-size:12px;
+                           background:var(--surface-2);color:var(--ink);
+                           border:1px solid var(--hair);border-radius:10px;padding:10px"
+                    placeholder='{"stages": {"w20": [{"id":"w20-1","kind":"lesson","title":{"ru":"..."},"summary":{"ru":"..."}}]}}'></textarea>
+          <label class="sub" style="display:block;margin-top:8px">
+            <input type="checkbox" id="bulkReplace">
+            Режим замены — очистить этапы, которых нет в файле (необратимо)
+          </label>
+          <div class="savebar" id="bulkMsg"></div>
+        </div>
       </section>
 
       <!-- DEVICES -->
@@ -798,6 +825,61 @@
   on("#addLesson", () => addItem("lesson"));
   on("#addProduct", () => addItem("product"));
   on("#saveStage", publish);
+
+  // ---- Bulk import / export ----
+  function setBulkMsg(text, kind) {
+    const el = $("#bulkMsg");
+    if (!el) return;
+    el.textContent = text;
+    el.className = "savebar" + (kind ? " " + kind : "");
+  }
+
+  on("#bulkExport", () => {
+    // Round-trippable on purpose: what comes out is exactly what the import
+    // takes, so editing the live catalogue is download → edit → upload.
+    const box = $("#bulkJson");
+    if (box) box.value = JSON.stringify({ stages: catalog }, null, 2);
+    const stages = Object.keys(catalog).length;
+    setBulkMsg(`Выгружено этапов: ${stages}. Отредактируйте и загрузите обратно.`, "ok");
+  });
+
+  on("#bulkImport", async () => {
+    const box = $("#bulkJson");
+    const raw = (box && box.value || "").trim();
+    if (!raw) return setBulkMsg("Вставьте JSON каталога.", "err");
+
+    let body;
+    try {
+      const parsed = JSON.parse(raw);
+      // Accept the envelope or a bare stage map — the same tolerance the app's
+      // own parser has, so a file from either side is usable here.
+      body = parsed.stages ? { stages: parsed.stages } : { stages: parsed };
+    } catch (e) {
+      return setBulkMsg("Это не JSON: " + (e.message || e), "err");
+    }
+
+    const replace = $("#bulkReplace") && $("#bulkReplace").checked;
+    if (replace) {
+      const missing = Object.keys(catalog).filter((k) => !(k in body.stages)).length;
+      if (missing && !confirm(
+            `Режим замены очистит ${missing} этап(ов), которых нет в файле. Это необратимо. Продолжить?`)) {
+        return setBulkMsg("Отменено — ничего не изменилось.");
+      }
+      body.mode = "replace";
+    }
+
+    try {
+      const res = await api("/admin/content", { method: "PUT", body: JSON.stringify(body) });
+      setBulkMsg(
+        `Загружено этапов: ${res.stagesWritten}, материалов: ${res.items}` +
+        (res.stagesCleared ? `, очищено: ${res.stagesCleared}` : "") + ".", "ok");
+      await loadContent(); // the map and the editor must reflect what is live
+    } catch (e) {
+      // The server validates the WHOLE file before writing anything, so this
+      // message means nothing changed — say which stage is at fault verbatim.
+      setBulkMsg(String(e.message || e) + " — ничего не изменено.", "err");
+    }
+  });
 
   loadContent();
 })();
