@@ -254,6 +254,7 @@ Future<void> bootstrapRuntime(
       baseUrl: Uri.parse(
           const String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8080')),
       getToken: () async => null, // TODO: Firebase Auth ID token
+      devUserId: const String.fromEnvironment('DEV_USER_ID'),
     ));
 
     // Pull whatever the back-office has published. The app already showed the

@@ -9,11 +9,21 @@ import 'api_client.dart';
 class HttpApiTransport implements HttpTransport {
   final Uri baseUrl;
   final Future<String?> Function() getToken; // e.g. Firebase Auth ID token
+
+  /// Dev-only identity for the local backend, whose auth stub trusts an
+  /// `x-user-id` header until Firebase token verification is in place.
+  ///
+  /// Set from `--dart-define=DEV_USER_ID=...`, which is empty in any build that
+  /// does not explicitly pass it — so a release build cannot send this. It is
+  /// also only used when there is no real token, so it can never override one.
+  final String devUserId;
+
   final http.Client _client;
 
   HttpApiTransport({
     required this.baseUrl,
     required this.getToken,
+    this.devUserId = '',
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -22,6 +32,7 @@ class HttpApiTransport implements HttpTransport {
     return {
       'content-type': 'application/json',
       if (token != null) 'authorization': 'Bearer $token',
+      if (token == null && devUserId.isNotEmpty) 'x-user-id': devUserId,
     };
   }
 
