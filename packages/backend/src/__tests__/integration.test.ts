@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import type { InjectPayload, Response as InjectResponse } from 'light-my-request';
 import { buildServer } from '../server';
 import type { Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
@@ -152,8 +153,14 @@ beforeEach(async () => {
   await app.ready();
 });
 
-const post = (url: string, payload: unknown) => app.inject({ method: 'POST', url, payload });
-const get = (url: string) => app.inject({ method: 'GET', url });
+// The return type is stated explicitly because inject() also has a
+// callback-style overload, and without it TypeScript resolves these to
+// `void & Promise<Response> & Chain` — every `r.statusCode` in the file then
+// fails to typecheck even though the calls are correct.
+const post = (url: string, payload: InjectPayload): Promise<InjectResponse> =>
+  app.inject({ method: 'POST', url, payload });
+const get = (url: string): Promise<InjectResponse> =>
+  app.inject({ method: 'GET', url });
 
 describe('server wiring (in-process)', () => {
   it('GET /health', async () => {

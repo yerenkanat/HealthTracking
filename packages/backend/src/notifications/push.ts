@@ -107,7 +107,11 @@ export async function sendPush(tokens: string[], msg: PushMessage): Promise<void
       payload: {
         aps: {
           sound: isCritical
-            ? { critical: 1, name: 'emergency.caf', volume: 1.0 }
+            // `critical` is a boolean in the Admin SDK, which serializes it to
+            // the APNs wire value itself. Passing the raw 1 typechecks as a
+            // number and is rejected — on the one path that must break a
+            // medical alert through Do Not Disturb.
+            ? { critical: true, name: 'emergency.caf', volume: 1.0 }
             : 'default',
           // iOS 15+: time-sensitive for arrivals, critical for medical.
           'interruption-level': isCritical ? 'critical' : 'time-sensitive',

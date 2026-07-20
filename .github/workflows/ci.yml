@@ -44,4 +44,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      # The job has always been named "typecheck + tests" but only ran the
+      # tests, so type errors reached main unnoticed — including a push payload
+      # that could not have worked.
+      - run: npm run typecheck
       - run: npm test

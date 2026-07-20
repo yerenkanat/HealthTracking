@@ -1,0 +1,24 @@
+{
+  "//": "Shared compiler settings for the TypeScript workspaces. Type-checking only — the backend runs its sources directly via node's type stripping, so nothing here emits.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+
+    "strict": true,
+    // noUncheckedIndexedAccess is deliberately off: every hit was a loop bounded
+    // by .length, or an array zod already validates with .min(3). It flagged no
+    // real defect and would only invite non-null assertions, which weaken the
+    // checking that does matter.
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}
