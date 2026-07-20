@@ -14,6 +14,7 @@ import 'app/app_controller.dart';
 import 'core/geofence.dart';
 import 'data/notification_service.dart';
 import 'data/content_repository.dart';
+import 'data/content_store.dart';
 import 'data/prefs_app_store.dart';
 import 'domain/geofence_alerts.dart';
 import 'domain/cycle_log.dart';
@@ -37,17 +38,21 @@ Future<void> main() async {
   await controller.restore();
   if (const bool.fromEnvironment('DEMO')) _seedDemo(controller);
 
-  // Authored content if it is bundled, seeded content otherwise. Loading here
-  // keeps first paint free of a file read and means the tree never sees a
-  // half-loaded catalogue.
-  final loaded = await loadCatalog();
-  if (loaded.source == CatalogSource.demo && loaded.fallbackReason != null) {
-    debugPrint('content: using the seeded catalogue — ');
+  // Content from whatever is available WITHOUT the network — the cached
+  // response, the bundled asset, or the seeded catalogue. First paint must not
+  // wait on a request, so the API refresh happens after runApp and swaps in
+  // through the store.
+  final cache = PrefsContentCache();
+  final loaded = await loadCatalogFast(cache: cache);
+  if (loaded.fallbackReason != null) {
+    debugPrint('content: loaded from ${loaded.source.name} — ${loaded.fallbackReason}');
   }
-  runApp(FcsApp(controller: controller, catalog: loaded.catalog));
+  final contentStore = ContentStore(loaded.catalog, source: loaded.source);
+
+  runApp(FcsApp(controller: controller, content: contentStore));
 
   // Kick off device + backend wiring without blocking first paint.
-  unawaited(bootstrapRuntime(controller));
+  unawaited(bootstrapRuntime(controller, content: contentStore, contentCache: cache));
 }
 
 /// Demo seed (only with --dart-define=DEMO=true): realistic band samples + a
@@ -159,7 +164,11 @@ void _seedDemo(AppController c) {
 
 /// Connects the verified spine to live sources. Kept out of the widget tree so
 /// UI is testable and the app still renders if any of this is unavailable.
-Future<void> bootstrapRuntime(AppController controller) async {
+Future<void> bootstrapRuntime(
+  AppController controller, {
+  ContentStore? content,
+  ContentCache? contentCache,
+}) async {
   // On-device notifications for child zone alerts. The controller only emits to
   // newAlerts while the user's notifications preference is on, so this is the sole
   // gate we need here. Best-effort — the app works fine without it.
@@ -246,6 +255,14 @@ Future<void> bootstrapRuntime(AppController controller) async {
           const String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8080')),
       getToken: () async => null, // TODO: Firebase Auth ID token
     ));
+
+    // Pull whatever the back-office has published. The app already showed the
+    // cached or bundled catalogue at first paint, so this only ever upgrades
+    // what is on screen — and a failure quietly leaves that in place.
+    if (content != null) {
+      final fresh = await refreshCatalogFromApi(api: api, cache: contentCache);
+      if (fresh != null) content.adopt(fresh, CatalogSource.api);
+    }
 
     // Offline-first batcher → flushes batches to /ingest/batch.
     final batcher = TelemetryBatcher(BatcherConfig(

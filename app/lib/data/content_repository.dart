@@ -47,6 +47,36 @@ abstract class ContentCache {
   Future<void> write(String json);
 }
 
+/// Everything available WITHOUT the network: the cached response, then the
+/// bundled asset, then the seeded catalogue.
+///
+/// Startup uses this so first paint never waits on a request. The API refresh
+/// happens afterwards and swaps the result in when it lands.
+Future<LoadedCatalog> loadCatalogFast({ContentCache? cache}) =>
+    loadCatalog(cache: cache);
+
+/// Fetch the published catalogue and cache it. Returns null when the API is
+/// unreachable or gave nothing usable — the caller keeps what it already has,
+/// which is the whole point of loading locally first.
+Future<ContentCatalog?> refreshCatalogFromApi({
+  required ApiClient api,
+  ContentCache? cache,
+  Duration timeout = const Duration(seconds: 8),
+}) async {
+  try {
+    final raw = await api.fetchContentCatalogJson().timeout(timeout);
+    final parsed = _parse(raw);
+    if (parsed == null) return null;
+    // Cache the exact bytes, not a re-encode, so a field this build does not
+    // understand still survives to the next launch.
+    unawaited(cache?.write(raw));
+    return parsed;
+  } catch (e) {
+    debugPrint('content: refresh failed, keeping what we have — $e');
+    return null;
+  }
+}
+
 /// Read the catalogue, preferring fresher sources but never failing outright.
 ///
 /// [api] is optional: with no backend configured the app still works from the

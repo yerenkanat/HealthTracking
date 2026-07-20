@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_controller.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
+import '../data/content_store.dart';
 import '../domain/timeline_content.dart';
 import '../ui/theme.dart';
 import '../ui/home_shell.dart';
@@ -23,10 +24,10 @@ import '../ui/emergency/emergency_rescue_screen.dart';
 class FcsApp extends StatelessWidget {
   final AppController controller;
 
-  /// Timeline content in use. Loaded from the authored asset at startup,
-  /// falling back to the seeded catalogue — see [loadCatalog].
-  final ContentCatalog catalog;
-  const FcsApp({super.key, required this.controller, required this.catalog});
+  /// Timeline content in use. Starts from whatever was available locally and
+  /// is swapped for the published catalogue once the API answers.
+  final ContentStore content;
+  const FcsApp({super.key, required this.controller, required this.content});
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +79,12 @@ class FcsApp extends StatelessWidget {
         onDismissConfirmed: () async => controller.dismissEmergency(),
       );
     }
-    return HomeShell(controller: controller, catalog: catalog);
+    // Rebuild when a fresher catalogue arrives, so content published in the
+    // back-office appears without waiting for a cold start.
+    return ValueListenableBuilder<ContentCatalog>(
+      valueListenable: content,
+      builder: (_, catalog, __) => HomeShell(controller: controller, catalog: catalog),
+    );
   }
 
   /// Map the well-known default button labels to localized strings; leave any
