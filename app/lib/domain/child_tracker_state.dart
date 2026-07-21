@@ -30,7 +30,14 @@ class ChildStatus {
 ///
 /// Small skew between a phone and a server is ordinary and must not make every
 /// fix look stale.
-const _clockSkewTolerance = Duration(minutes: 2);
+///
+/// Public because the localization layer composes the same sentence and must
+/// draw the line in the same place; two copies of this number would drift and
+/// the drift would show as a headline that contradicts its own freshness dot.
+const clockSkewTolerance = Duration(minutes: 2);
+
+/// Whether a fix's timestamp is far enough ahead of us to be unusable.
+bool clockDisagrees(Duration age) => age.isNegative && age.abs() > clockSkewTolerance;
 
 /// Freshness from the age of the last fix. A stale fix must never look "live".
 ///
@@ -43,7 +50,7 @@ const _clockSkewTolerance = Duration(minutes: 2);
 /// Not reachable today — updatedAt comes from the device clock — but
 /// ApiClient.lastLocation exists to be wired, and it carries a server timestamp.
 Freshness freshnessOf(Duration age) {
-  if (age.isNegative && age.abs() > _clockSkewTolerance) return Freshness.stale;
+  if (clockDisagrees(age)) return Freshness.stale;
   if (age <= const Duration(minutes: 2)) return Freshness.live;
   if (age <= const Duration(minutes: 15)) return Freshness.recent;
   return Freshness.stale;
@@ -83,7 +90,15 @@ double? distanceFromHomeM(Coordinates coords, List<Geofence> fences) {
 }
 
 /// Warm, human "x ago". Localization layer swaps the words per user.locale.
-String formatAgo(Duration age) {
+///
+/// A timestamp from the future is not "just now". Every bucket below is a
+/// less-than test, so a negative age fell into the first one and a fix the
+/// clocks disagree about was described as having arrived this second — the
+/// single most reassuring phrase available, at the exact moment we know least.
+/// freshnessOf already refuses to call such a fix live; this refuses to
+/// describe it, and the callers turn that into an honest sentence.
+String? formatAgo(Duration age) {
+  if (clockDisagrees(age)) return null;
   if (age.inSeconds < 45) return 'just now';
   if (age.inMinutes < 1) return 'less than a minute ago';
   if (age.inMinutes < 60) return '${age.inMinutes} min ago';
@@ -116,6 +131,10 @@ ChildStatus deriveChildStatus({
   final ago = formatAgo(age);
 
   final headline = switch ((fresh, zone)) {
+    // Clock disagreement first: with no trustworthy age there is no "last
+    // seen", and saying so is the only true thing available.
+    _ when ago == null => "Umay can't tell how old $childName's location is — "
+        'the phone and the tracker disagree about the time',
     (Freshness.stale, _) => "$childName's location is ${_stalePhrase(age)} — last seen $ago",
     (_, final z?) => '$childName is at $z',
     _ => '$childName is on the move — updated $ago',

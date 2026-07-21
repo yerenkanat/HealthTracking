@@ -105,6 +105,27 @@ void main() {
   final waiting = deriveChildStatus(childName: 'Sultan', location: null, updatedAt: null, fences: [school], now: now);
   _chk('ru waiting headline', const L10n(AppLocale.ru).trackingHeadline(waiting, 'Sultan', now).contains('Ожидание'));
 
+  // The clock-disagreement sentence must reach every language, not just the
+  // English reference in child_tracker_state. Russian is the app default, so
+  // "only English got the honest wording" is the failure that matters most.
+  final skewed = deriveChildStatus(
+      childName: 'Sultan', location: school.center, updatedAt: now.add(const Duration(hours: 3)), fences: [school], now: now);
+  for (final loc in AppLocale.values) {
+    final l = L10n(loc);
+    final line = l.trackingHeadline(skewed, 'Sultan', now);
+    // Must be the skew sentence itself. Asserting merely that it avoids
+    // "School" was too weak to fail: with the bug restored the headline fell
+    // through to the stale branch, which also omits the zone — it just ended
+    // "last seen just now". The check has to name the sentence it wants.
+    _chk('${loc.name} headline is the clock-disagreement sentence',
+        line == l.t('tr_clock_skew', {'name': 'Sultan'}) && line != 'tr_clock_skew');
+    _chk('${loc.name} skew line never reads as freshly seen',
+        !line.contains(l.t('ago_just_now')) && !line.contains('{'));
+  }
+  // agoIfKnown is the honest one; ago() is for callers that clamp deliberately.
+  _chk('agoIfKnown refuses a future timestamp', en.agoIfKnown(const Duration(hours: -3)) == null);
+  _chk('ago() still answers for a clamping caller', en.ago(Duration.zero) == 'just now');
+
   // ---- Every key the UI asks for must exist ----
   //
   // L10n.t falls back to the KEY when it finds no row, so a typo or a deleted

@@ -1074,6 +1074,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'tr_on_move': {AppLocale.ru: '{name} в пути — обновлено {ago}', AppLocale.kk: '{name} жолда — {ago} жаңартылды', AppLocale.en: '{name} is on the move — updated {ago}'},
   'tr_stale': {AppLocale.ru: 'Местоположение {name} {phrase} — последний раз {ago}', AppLocale.kk: '{name} орналасуы {phrase} — соңғы рет {ago}', AppLocale.en: "{name}'s location is {phrase} — last seen {ago}"},
   'tr_waiting': {AppLocale.ru: 'Ожидание местоположения {name}…', AppLocale.kk: '{name} орналасуын күту…', AppLocale.en: "Waiting for {name}'s location…"},
+  'tr_clock_skew': {
+    AppLocale.ru: 'Umay не может определить, насколько свежие данные о местоположении {name} — часы телефона и трекера расходятся',
+    AppLocale.kk: 'Umay {name} орналасуының қаншалықты жаңа екенін анықтай алмайды — телефон мен трекердің уақыты сәйкес келмейді',
+    AppLocale.en: "Umay can't tell how old {name}'s location is — the phone and the tracker disagree about the time",
+  },
   'stale_delayed': {AppLocale.ru: 'задерживается', AppLocale.kk: 'кешігуде', AppLocale.en: 'delayed'},
   'stale_outdated': {AppLocale.ru: 'устарело', AppLocale.kk: 'ескірген', AppLocale.en: 'out of date'},
 
@@ -1182,8 +1187,18 @@ class L10n {
         Freshness.stale => t('fresh_stale'),
       };
 
-  /// Localized "x ago" — mirrors the buckets in child_tracker_state.formatAgo.
-  String ago(Duration age) {
+  /// Localized "x ago" for a caller that has already decided what a negative
+  /// age means — the battery strip and the check-in row both clamp to zero,
+  /// treating a slightly-ahead timestamp as "just now" on purpose.
+  ///
+  /// Use [agoIfKnown] anywhere the phrase carries a claim about how current
+  /// the child's position is.
+  String ago(Duration age) => agoIfKnown(age) ?? t('ago_just_now');
+
+  /// Localized "x ago" — mirrors the buckets in child_tracker_state.formatAgo,
+  /// including its refusal to describe a timestamp from the future.
+  String? agoIfKnown(Duration age) {
+    if (clockDisagrees(age)) return null;
     if (age.inSeconds < 45) return t('ago_just_now');
     if (age.inMinutes < 1) return t('ago_lt_minute');
     if (age.inMinutes < 60) return t('ago_min', {'n': age.inMinutes});
@@ -1201,7 +1216,9 @@ class L10n {
       return t('tr_waiting', {'name': childName});
     }
     final age = now.difference(status.updatedAt!);
-    final agoStr = ago(age);
+    final agoStr = agoIfKnown(age);
+    // No trustworthy age means no "last seen" clause to put in the sentence.
+    if (agoStr == null) return t('tr_clock_skew', {'name': childName});
     if (status.freshness == Freshness.stale) {
       final phrase = age.inHours >= 1 ? t('stale_outdated') : t('stale_delayed');
       return t('tr_stale', {'name': childName, 'phrase': phrase, 'ago': agoStr});

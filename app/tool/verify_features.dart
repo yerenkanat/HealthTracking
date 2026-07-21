@@ -92,6 +92,28 @@ void main() {
   _chk('formatAgo minutes', formatAgo(const Duration(minutes: 5)) == '5 min ago');
   _chk('formatAgo hours', formatAgo(const Duration(hours: 2)) == '2 h ago');
 
+  // The freshness dot refused to call a future-dated fix live, but the SENTENCE
+  // beside it did not go through freshnessOf — every bucket in formatAgo is a
+  // less-than test, so a negative age landed in the first one. A fix three
+  // hours ahead of us read "delayed — last seen just now": the reassuring
+  // phrase, printed at the moment we have no idea where the child is.
+  _chk('formatAgo tolerates small skew',
+      formatAgo(const Duration(minutes: -1)) == 'just now');
+  _chk('formatAgo refuses a future timestamp',
+      formatAgo(const Duration(hours: -3)) == null);
+
+  final skewed = deriveChildStatus(
+    childName: 'Sultan',
+    location: home.center,
+    updatedAt: now.add(const Duration(hours: 3)),
+    fences: fences,
+    now: now,
+  );
+  _chk('a future-dated fix never reads "just now"',
+      !skewed.headline.contains('just now'));
+  _chk('a future-dated fix says the clocks disagree',
+      skewed.freshness == Freshness.stale && skewed.headline.contains('disagree'));
+
   // At School, fresh → headline "Sultan is at School"
   final atSchool = deriveChildStatus(
     childName: 'Sultan',
