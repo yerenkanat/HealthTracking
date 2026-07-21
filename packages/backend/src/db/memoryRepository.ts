@@ -87,6 +87,9 @@ export function createMemoryRepository(): Repository {
     ],
   ]);
   const batteryByDevice = new Map<string, number>();
+  /// Set by deleteAccount. Postgres simply has no row after a delete; this fake
+  /// has to remember, or its seeded fallbacks would resurrect erased data.
+  let accountDeleted = false;
 
   return {
     // Health
@@ -183,6 +186,11 @@ export function createMemoryRepository(): Repository {
     /// as long as it existed: hand-entered readings were being rejected
     /// outright, and this view looked healthy throughout.
     adminUserHealth: async (userId) => {
+      // An erased account has no health view at all. Falling through to the
+      // seed below would show a clinician plausible vitals for someone who had
+      // just deleted themselves — making a deletion that worked look like one
+      // that had not.
+      if (accountDeleted) return null;
       const mine = (healthRows as Array<Record<string, unknown>>).filter(
         (r) => r.userId === userId,
       );
@@ -211,7 +219,8 @@ export function createMemoryRepository(): Repository {
     },
 
     adminUserDetail: async (userId) => {
-      if (userId !== DEMO_USER) return null;
+      // Same reasoning as adminUserHealth: an erased account has no drilldown.
+      if (userId !== DEMO_USER || accountDeleted) return null;
       return {
         id: DEMO_USER,
         displayName: profile?.displayName ?? '',
@@ -267,6 +276,26 @@ export function createMemoryRepository(): Repository {
         zoneName: a.zoneName,
         at: a.at,
       })),
+
+    deleteAccount: async (userId) => {
+      if (userId !== DEMO_USER || accountDeleted) return false;
+      accountDeleted = true;
+      // Everything this repository holds for the demo user. Postgres does the
+      // same through ON DELETE CASCADE; here it has to be spelled out, so the
+      // list is kept exhaustive rather than convenient — leaving one behind
+      // would make the fake say "erased" while still holding her data.
+      profile = null;
+      children.length = 0;
+      devices.length = 0;
+      geofences.clear();
+      events.length = 0;
+      healthRows.length = 0;
+      sleep.length = 0;
+      dayLogs.clear();
+      alerts.length = 0;
+      batteryByDevice.clear();
+      return true;
+    },
 
     adminBiMetrics: async () => {
       // The memory repo models one user, which would render the overview as

@@ -116,6 +116,18 @@ function makeDeps(
       const d = devices.find((x) => x.id === id);
       if (d) d.childId = childId;
     },
+    deleteAccount: async (userId) => {
+      if (userId !== USER) return false;
+      profile = null;
+      children.length = 0;
+      devices.length = 0;
+      geofences.clear();
+      sleepRows.length = 0;
+      dayLogs.clear();
+      alertRows.length = 0;
+      healthRows.length = 0;
+      return true;
+    },
     // Admin
     adminStats: async () => ({ activeUsers: 1, devicesOnline: devices.length, alertsToday: pushes.emergency, ingestLastHour: healthRows.length }),
     recentEmergencies: async () => [{ userId: USER, displayName: 'Aigerim', code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }],
@@ -219,6 +231,45 @@ describe('server wiring (in-process)', () => {
     const r = await get('/health');
     expect(r.statusCode).toBe(200);
     expect(r.json().ok).toBe(true);
+  });
+
+  // ---- Erasing the account ----
+  // The app's reset says "all data will be erased" and only cleared the phone;
+  // there was no server-side deletion at all. With telemetry syncing, her
+  // blood-pressure history, her child's name and date of birth and the
+  // coordinates of her home and her child's school outlived the account she
+  // believed she had removed.
+  it('erases the account and everything belonging to it', async () => {
+    await post('/children', { name: 'Sultan' });
+    await post('/ingest/batch', {
+      items: [
+        {
+          type: 'telemetry',
+          payload: {
+            deviceId: '',
+            source: 'manual',
+            recordedAt: new Date().toISOString(),
+            systolicMmHg: 118,
+            diastolicMmHg: 76,
+          },
+        },
+      ],
+    });
+    expect((await get('/children')).json().children).toHaveLength(1);
+
+    const r = await app.inject({ method: 'DELETE', url: '/account' });
+    expect(r.statusCode).toBe(204);
+    expect((await get('/children')).json().children).toHaveLength(0);
+  });
+
+  it('refuses to erase without a session', async () => {
+    // There is no id in the path, so this can never be aimed at another
+    // account — but it must still be impossible to fire unauthenticated.
+    const { server } = makeDeps(async () => null); // nobody signed in
+    await server.ready();
+    const r = await server.inject({ method: 'DELETE', url: '/account' });
+    expect(r.statusCode).toBe(401);
+    await server.close();
   });
 
   it('rejects a malformed batch with 400 (zod)', async () => {

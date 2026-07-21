@@ -145,8 +145,23 @@ class FcsApp extends StatelessWidget {
         _ => label,
       };
 
-  Future<void> _dial(String tel) async {
-    final uri = Uri(scheme: 'tel', path: tel);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  /// Place the call. Returns false if the phone could not be opened.
+  ///
+  /// This used to be `if (await canLaunchUrl(uri)) await launchUrl(uri);` —
+  /// so when the check said no, NOTHING happened. She taps "Call ambulance"
+  /// during a hypertensive emergency, the screen does not move, and there is
+  /// no error, no explanation, and nothing to try instead. She taps it again.
+  ///
+  /// canLaunchUrl says no for reasons that have nothing to do with whether the
+  /// call would work: a device with no dialler (any iPad), an iOS scheme not
+  /// declared in LSApplicationQueriesSchemes, a locked-down work profile. So
+  /// the launch is now attempted regardless and the RESULT is reported, which
+  /// lets the screen fall back to showing her the number to dial by hand.
+  Future<bool> _dial(String tel) async {
+    try {
+      return await launchUrl(Uri(scheme: 'tel', path: tel));
+    } catch (_) {
+      return false;
+    }
   }
 }

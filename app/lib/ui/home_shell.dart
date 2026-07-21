@@ -265,7 +265,28 @@ class _HomeShellState extends State<HomeShell> {
     final target = item.video?.url ?? item.url;
     final uri = Uri.tryParse(target);
     if (uri == null || target.trim().isEmpty) return;
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    // Attempt it and report the result, rather than asking permission first.
+    //
+    // canLaunchUrl answers "is a handler visible to me", which on Android 11+
+    // means "did the manifest declare a <queries> intent for this scheme" —
+    // and it did not for https. So this returned false on every modern Android
+    // device and the tap did nothing: no browser, no error, no explanation.
+    // The manifest is fixed, but gating on that check would leave the same
+    // dead-tap failure mode one packaging mistake away.
+    final l = L10nScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l.t('link_open_failed')), behavior: SnackBarBehavior.floating),
+      );
+    }
   }
 
   /// Open the sleep sheet and record the night. Unlike band summaries this is

@@ -30,7 +30,10 @@ class EmergencyRescueScreen extends StatefulWidget {
   final String message; // top triage finding, localized upstream
   final List<String> details; // optional supporting findings
   final List<EmergencyCallButton> callButtons; // primary first (e.g. ambulance)
-  final Future<void> Function(EmergencyCallButton) onCall;
+
+  /// Place the call. Returns false when the phone could not be opened, so this
+  /// screen can show her the number to dial by hand instead of doing nothing.
+  final Future<bool> Function(EmergencyCallButton) onCall;
   final Future<void> Function() onDismissConfirmed;
 
   const EmergencyRescueScreen({
@@ -166,7 +169,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                           icon: const Icon(Icons.phone_in_talk_rounded, size: 30),
                           label: Text('${primary.label}  (${primary.tel})',
                               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                          onPressed: () => widget.onCall(primary),
+                          onPressed: () => _call(primary),
                         ),
                       ),
                     ),
@@ -185,7 +188,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                         ),
                         icon: const Icon(Icons.phone_rounded),
                         label: Text('${b.label}  (${b.tel})', style: const TextStyle(fontSize: 18)),
-                        onPressed: () => widget.onCall(b),
+                        onPressed: () => _call(b),
                       ),
                     ),
                   ),
@@ -203,6 +206,47 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
           ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Call, and if the phone will not open, put the number in front of her.
+  ///
+  /// The button used to do nothing at all when the dialler could not be
+  /// launched — no error, no explanation, no alternative — on the one screen
+  /// where a dead control is most costly. Now she gets the number, large, and
+  /// can copy it.
+  Future<void> _call(EmergencyCallButton b) async {
+    final ok = await widget.onCall(b);
+    if (ok || !mounted) return;
+    final l = L10nScope.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.t('em_call_failed_title')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.t('em_call_failed_body')),
+            const SizedBox(height: 12),
+            // Big, and selectable: she may be reading it out to someone else.
+            SelectableText(
+              b.tel,
+              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 2),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: b.tel));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: Text(l.t('em_copy_number')),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.t('act_close'))),
+        ],
       ),
     );
   }

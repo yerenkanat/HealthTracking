@@ -64,5 +64,23 @@
             <action android:name="android.intent.action.DIAL"/>
             <data android:scheme="tel"/>
         </intent>
+        <!--
+          Lesson videos and product links (url_launcher https:).
+
+          Android 11 hides other packages unless they are declared here, so
+          canLaunchUrl("https://…") returned FALSE on every modern Android
+          device and the tap did nothing at all. Every lesson and every product
+          in the timeline was a dead control. It went unnoticed because no item
+          in the shipped catalogue carries a URL yet — the day real content
+          lands, all of them would have failed silently.
+        -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
     </queries>
 </manifest>

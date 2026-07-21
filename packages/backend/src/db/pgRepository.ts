@@ -351,6 +351,17 @@ export function createPgRepository(pool: Pool): Repository {
      * exactly — UTC day buckets, windows inclusive of today, day-N retention
      * aggregated across every cohort whose day N has arrived.
      */
+    async deleteAccount(userId) {
+      // One statement is enough: every table that references users(id) is
+      // declared ON DELETE CASCADE in schema.sql, so her readings, children,
+      // their locations and their geofences go with the row. A hand-written
+      // list of tables to clear would fall behind the schema the first time
+      // someone adds one — and the failure would be silent, leaving orphaned
+      // health data behind after she was told it was erased.
+      const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+      return (rowCount ?? 0) > 0;
+    },
+
     async adminBiMetrics() {
       const activity = `
         SELECT user_id, date_trunc('day', recorded_at AT TIME ZONE 'UTC')::date AS day

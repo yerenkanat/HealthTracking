@@ -14,6 +14,9 @@ class _FakeTransport implements HttpTransport {
   Future<HttpResponse> put(String path, Object body) => post(path, body);
 
   @override
+  Future<HttpResponse> delete(String path) async => const HttpResponse(204, "");
+
+  @override
   Future<HttpResponse> post(String path, Object body) async =>
       HttpResponse(200, jsonEncode({'kind': 'chat', 'message': 'Rest and hydrate.', 'grounded': true}));
   @override
@@ -99,6 +102,8 @@ class _FlakyTransport implements HttpTransport {
   bool ok = false;
   @override
   Future<HttpResponse> put(String path, Object body) => post(path, body);
+  @override
+  Future<HttpResponse> delete(String path) async => const HttpResponse(204, '');
   @override
   Future<HttpResponse> post(String path, Object body) async {
     if (!ok) throw Exception('offline');

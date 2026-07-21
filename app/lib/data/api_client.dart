@@ -25,6 +25,10 @@ abstract class HttpTransport {
   /// first version of this comment claimed otherwise and three fakes stopped
   /// compiling.
   Future<HttpResponse> put(String path, Object jsonBody) => post(path, jsonBody);
+
+  /// DELETE. Like [put], a default body here does NOT spare a class that
+  /// `implements` this — only one that `extends` it.
+  Future<HttpResponse> delete(String path) => get(path);
 }
 
 class ApiException implements Exception {
@@ -219,6 +223,21 @@ class ApiClient {
       'measuredAt': measuredAt,
     });
     if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// Erase this account and everything belonging to it.
+  ///
+  /// Returns true when the server confirms. A 404 means there was nothing
+  /// there to erase, which is the same end state and so also counts as done —
+  /// telling her the erase failed because she had never synced would be both
+  /// wrong and alarming.
+  ///
+  /// Identity comes from the session; there is no id to pass, so this can
+  /// never be aimed at another account.
+  Future<bool> deleteAccount() async {
+    final res = await transport.delete('/account');
+    if (res.ok || res.statusCode == 404) return true;
+    throw ApiException(res.statusCode, res.body);
   }
 
   /// Returns null on 404 (no recent fix), throws on other errors.

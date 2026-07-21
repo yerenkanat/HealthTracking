@@ -271,7 +271,7 @@ void main() {
           EmergencyCallButton('Вызвать скорую', '103'),
           EmergencyCallButton('Позвонить врачу', '+77011234567'),
         ],
-        onCall: (_) async {},
+        onCall: (_) async => true,
         onDismissConfirmed: () async {},
       ),
     );
@@ -541,7 +541,7 @@ void main() {
           EmergencyCallButton('Вызвать скорую', '103'),
           EmergencyCallButton('Позвонить врачу', '+77011234567'),
         ],
-        onCall: (_) async {},
+        onCall: (_) async => true,
         onDismissConfirmed: () async {},
       ),
     );

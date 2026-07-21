@@ -44,6 +44,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Assistant chat
   'chat_title': {AppLocale.ru: 'Умай — помощник', AppLocale.kk: 'Умай — көмекші', AppLocale.en: 'Umay — assistant'},
   'chat_hint': {AppLocale.ru: 'Спросите о самочувствии…', AppLocale.kk: 'Хал-жағдайыңызды сұраңыз…', AppLocale.en: 'Ask about how you feel…'},
+  'link_open_failed': {
+    AppLocale.ru: 'Не удалось открыть ссылку',
+    AppLocale.kk: 'Сілтемені ашу мүмкін болмады',
+    AppLocale.en: 'Could not open the link'
+  },
   'chat_retry': {
     AppLocale.ru: 'Отправить ещё раз',
     AppLocale.kk: 'Қайта жіберу',
@@ -282,6 +287,16 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'set_erase_title': {AppLocale.ru: 'Удалить все данные?', AppLocale.kk: 'Барлық дерек жойылсын ба?', AppLocale.en: 'Erase all data?'},
   'set_erase_body': {AppLocale.ru: 'С телефона будут стёрты ваш профиль, дети и их зоны, календарь, вес, лекарства, приёмы и вся история. Восстановить их можно будет только из резервной копии. Приложение вернётся к первому запуску.', AppLocale.kk: 'Телефоннан профиліңіз, балалар мен олардың аймақтары, күнтізбе, салмақ, дәрілер, қабылдаулар және бүкіл тарих өшіріледі. Оларды тек сақтық көшірмеден қалпына келтіруге болады. Қосымша бастапқы күйге оралады.', AppLocale.en: 'Your profile, children and their zones, calendar, weight, medications, appointments and all history will be wiped from this phone. Only a backup can bring them back. The app returns to first-run.'},
   'set_erased': {AppLocale.ru: 'Все данные удалены', AppLocale.kk: 'Барлық дерек жойылды', AppLocale.en: 'All data erased'},
+  // The phone is wiped either way. Saying "all data erased" when the server
+  // copy is still there would be exactly the false promise this replaced.
+  'set_erased_local_only': {
+    AppLocale.ru: 'Данные удалены с телефона. Копию на сервере удалить не удалось — '
+        'повторите, когда появится связь.',
+    AppLocale.kk: 'Деректер телефоннан жойылды. Сервердегі көшірмені жою мүмкін болмады — '
+        'байланыс пайда болғанда қайталаңыз.',
+    AppLocale.en: 'Erased from this phone. The copy on the server could not be removed — '
+        'please try again when you are online.'
+  },
   'set_import_confirm_title': {AppLocale.ru: 'Заменить все данные?', AppLocale.kk: 'Барлық деректі ауыстыру керек пе?', AppLocale.en: 'Replace all your data?'},
   'set_import_confirm_body': {AppLocale.ru: 'Импорт заменит всё, что сейчас в приложении: профиль, детей, зоны, календарь и историю. Текущие данные восстановить не получится.', AppLocale.kk: 'Импорт қосымшадағының бәрін ауыстырады: профиль, балалар, аймақтар, күнтізбе және тарих. Ағымдағы деректерді қалпына келтіру мүмкін болмайды.', AppLocale.en: 'Importing replaces everything in the app: your profile, children, zones, calendar and history. What is here now cannot be recovered.'},
   'set_import_confirm_cta': {AppLocale.ru: 'Заменить', AppLocale.kk: 'Ауыстыру', AppLocale.en: 'Replace'},
@@ -426,6 +441,25 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'em_call_semantics': {AppLocale.ru: 'Экстренный вызов.', AppLocale.kk: 'Шұғыл қоңырау.', AppLocale.en: 'Emergency call.'},
   'em_call_doctor': {AppLocale.ru: 'Позвонить врачу', AppLocale.kk: 'Дәрігерге қоңырау шалу', AppLocale.en: 'Call your doctor'},
   'em_not_emergency': {AppLocale.ru: 'Это не экстренная ситуация', AppLocale.kk: 'Бұл төтенше жағдай емес', AppLocale.en: "This isn't an emergency"},
+  // Shown when the dialler will not open. She still needs the number, so the
+  // copy is about what to do next, not about what went wrong.
+  'em_call_failed_title': {
+    AppLocale.ru: 'Наберите номер вручную',
+    AppLocale.kk: 'Нөмірді қолмен теріңіз',
+    AppLocale.en: 'Dial the number yourself'
+  },
+  'em_call_failed_body': {
+    AppLocale.ru: 'Не удалось открыть телефон на этом устройстве. Позвоните по номеру:',
+    AppLocale.kk: 'Бұл құрылғыда телефонды ашу мүмкін болмады. Мына нөмірге қоңырау шалыңыз:',
+    AppLocale.en: 'The phone app could not be opened on this device. Call this number:'
+  },
+  'em_copy_number': {
+    AppLocale.ru: 'Скопировать номер',
+    AppLocale.kk: 'Нөмірді көшіру',
+    AppLocale.en: 'Copy the number'
+  },
+  'act_close': {AppLocale.ru: 'Закрыть', AppLocale.kk: 'Жабу', AppLocale.en: 'Close'},
+
   'em_dismiss_title': {AppLocale.ru: 'Закрыть предупреждение?', AppLocale.kk: 'Ескертуді жабу керек пе?', AppLocale.en: 'Dismiss this alert?'},
   'em_dismiss_body': {
     AppLocale.ru: 'Мы обнаружили показатель, который может быть опасен при беременности. Закрывайте, только если вы уверены, что вам ничего не угрожает.',

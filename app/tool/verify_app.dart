@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 
+import '../lib/data/api_client.dart';
 import '../lib/data/sample_store.dart';
 import '../lib/app/app_controller.dart';
 import '../lib/core/triage.dart';
@@ -328,6 +329,52 @@ Future<void> main() async {
     await c.dispose();
   }
 
+  // ---- Erasing must reach the server, and say so when it cannot ----
+  // The dialog promises "all data will be erased". Until there was a server
+  // deletion, only the phone was cleared — so her readings, her child's name
+  // and date of birth and the coordinates of her home and her child's school
+  // outlived the account she believed she had removed.
+  {
+    final calls = <String>[];
+    final t = DateTime(2026, 7, 21, 10);
+
+    final okApi = ApiClient(_RecordingTransport(calls, status: 204));
+    final erased = AppController(now: () => t);
+    erased.attachRuntime(api: okApi);
+    erased.debugMarkOnboarded();
+    _chk('erasing reports success when the server confirms', await erased.resetApp());
+    _chk('and it actually asked the server', calls.contains('DELETE /account'));
+    _chk('the phone is cleared too', !erased.onboarded);
+    await erased.dispose();
+
+    // Offline: the phone is still wiped, but she must not be told the server
+    // copy is gone when it is not.
+    calls.clear();
+    final downApi = ApiClient(_RecordingTransport(calls, status: 503));
+    final offline = AppController(now: () => t);
+    offline.attachRuntime(api: downApi);
+    offline.debugMarkOnboarded();
+    _chk('a failed server erase is reported honestly', !await offline.resetApp());
+    _chk('the phone is still cleared', !offline.onboarded);
+    await offline.dispose();
+
+    // Never synced: nothing there to erase is the same end state as erased,
+    // and telling her it failed would be both wrong and alarming.
+    calls.clear();
+    final neverApi = ApiClient(_RecordingTransport(calls, status: 404));
+    final never = AppController(now: () => t);
+    never.attachRuntime(api: neverApi);
+    never.debugMarkOnboarded();
+    _chk('never having synced still counts as erased', await never.resetApp());
+    await never.dispose();
+
+    // With no API attached at all there is nothing to fail.
+    final local = AppController(now: () => t);
+    local.debugMarkOnboarded();
+    _chk('with no backend wired, erasing succeeds', await local.resetApp());
+    await local.dispose();
+  }
+
   // ---- The export carries recent errors, and only when there are any ----
   // This is the whole of the app's crash reporting: no service is wired up, so
   // an error's only route off the device is the backup the user sends support.
@@ -397,4 +444,35 @@ Future<void> main() async {
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
+}
+
+/// Records which requests were made, and answers with a fixed status.
+class _RecordingTransport implements HttpTransport {
+  final List<String> calls;
+  final int status;
+  _RecordingTransport(this.calls, {this.status = 204});
+
+  @override
+  Future<HttpResponse> delete(String path) async {
+    calls.add('DELETE $path');
+    return HttpResponse(status, '');
+  }
+
+  @override
+  Future<HttpResponse> get(String path) async {
+    calls.add('GET $path');
+    return const HttpResponse(404, '');
+  }
+
+  @override
+  Future<HttpResponse> post(String path, Object body) async {
+    calls.add('POST $path');
+    return const HttpResponse(200, '{}');
+  }
+
+  @override
+  Future<HttpResponse> put(String path, Object body) async {
+    calls.add('PUT $path');
+    return const HttpResponse(200, '{}');
+  }
 }

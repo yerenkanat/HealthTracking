@@ -1046,7 +1046,29 @@ class AppController {
   /// by construction: a new one added to PersistedConfig is reset without
   /// anyone remembering to come back here. That is the same lesson as the
   /// destructive-action allowlist — a list maintained by hand falls behind.
-  Future<void> resetApp() async {
+  /// Erase everything, here and on the server.
+  ///
+  /// Returns false when the server copy could NOT be erased — offline, or the
+  /// request failed. The phone is still wiped either way, but the caller must
+  /// be able to tell her the truth: the dialog promises "all data will be
+  /// erased", and until this existed that sentence was false. Nothing on the
+  /// server was ever deleted, so her blood-pressure history, her child's name
+  /// and date of birth, and the coordinates of her home and her child's school
+  /// outlived the account she thought she had removed.
+  Future<bool> resetApp() async {
+    // Server first, while the session is still usable.
+    //
+    // Ordering matters: clearing local state can drop whatever identifies her
+    // to the backend, and then there is nothing left to ask it to delete.
+    var serverErased = true;
+    if (_api != null) {
+      try {
+        serverErased = await _api!.deleteAccount();
+      } catch (_) {
+        serverErased = false;
+      }
+    }
+
     // Before anything is cleared, while the reminder ids are still derivable.
     // Erasing her data and leaving the OS to keep announcing her appointments
     // would make the erase look like it had not worked — and would leak the
@@ -1069,6 +1091,7 @@ class AppController {
     _awaitingRepeat = null;
     await _persistStore?.clear();
     _notify();
+    return serverErased;
   }
 
   // One long-lived onboarding controller so first-run progress survives rebuilds.

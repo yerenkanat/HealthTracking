@@ -22,6 +22,9 @@ class FakeTransport implements HttpTransport {
   @override
   Future<HttpResponse> put(String path, Object body) => post(path, body);
 
+  @override
+  Future<HttpResponse> delete(String path) async => const HttpResponse(204, "");
+
   final Map<String, HttpResponse> responses;
   Object? lastBody;
   String? lastPath;

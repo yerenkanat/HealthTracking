@@ -213,6 +213,18 @@ export interface Repository {
   /// Engagement and growth counters for the analytics view.
   adminAnalytics(): Promise<AdminAnalytics>;
 
+  /// Erase a user and everything belonging to them.
+  ///
+  /// The app's reset told her "all data will be erased" while only clearing the
+  /// phone; nothing on the server was ever deleted. Every table that references
+  /// users(id) cascades, so this single delete removes her profile, her
+  /// readings, her children, their location history and their geofences —
+  /// which is what the sentence already promised.
+  ///
+  /// Returns false when there was no such user, so a caller can tell "erased"
+  /// from "there was nothing to erase" instead of reporting success either way.
+  deleteAccount(userId: string): Promise<boolean>;
+
   /// Product metrics for the overview: DAU/WAU/MAU, growth, retention,
   /// engagement mix. Definitions live in analytics/biMetrics.ts so this
   /// implementation and the in-memory one cannot drift apart on what

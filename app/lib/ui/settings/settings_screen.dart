@@ -330,10 +330,19 @@ class SettingsScreen extends StatelessWidget {
       confirmLabel: l.t('set_erase'),
     );
     if (!ok) return;
-    await c.resetApp();
+    final serverErased = await c.resetApp();
     if (!context.mounted) return;
+    // Say which of the two actually happened.
+    //
+    // The phone is wiped either way, but "All data erased" is a claim about
+    // the server too — and if the request could not be made, repeating it
+    // would be the same false promise this whole change exists to remove.
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.t('set_erased')), behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(l.t(serverErased ? 'set_erased' : 'set_erased_local_only')),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: serverErased ? 4 : 8),
+      ),
     );
   }
 

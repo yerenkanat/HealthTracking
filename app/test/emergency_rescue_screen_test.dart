@@ -8,7 +8,7 @@ import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
 
 void main() {
   Widget harness({
-    required Future<void> Function(EmergencyCallButton) onCall,
+    required Future<bool> Function(EmergencyCallButton) onCall,
     required Future<void> Function() onDismiss,
   }) =>
       MaterialApp(
@@ -26,7 +26,7 @@ void main() {
       );
 
   testWidgets('renders message and both call buttons', (tester) async {
-    await tester.pumpWidget(harness(onCall: (_) async {}, onDismiss: () async {}));
+    await tester.pumpWidget(harness(onCall: (_) async => true, onDismiss: () async {}));
     expect(find.textContaining('preeclampsia'), findsOneWidget);
     expect(find.textContaining('103'), findsOneWidget);
     expect(find.textContaining('+77001234567'), findsOneWidget);
@@ -34,15 +34,45 @@ void main() {
 
   testWidgets('tapping the primary button calls with the ambulance number', (tester) async {
     EmergencyCallButton? called;
-    await tester.pumpWidget(harness(onCall: (b) async => called = b, onDismiss: () async {}));
+    await tester.pumpWidget(harness(
+      onCall: (b) async {
+        called = b;
+        return true;
+      },
+      onDismiss: () async {},
+    ));
     await tester.tap(find.textContaining('Call ambulance'));
     await tester.pump();
     expect(called?.tel, '103');
   });
 
+  testWidgets('when the phone will not open, she is given the number', (tester) async {
+    // The button used to do nothing at all in this case: no error, no
+    // explanation, nothing to try instead — on the one screen where a dead
+    // control costs the most. canLaunchUrl says no for reasons that have
+    // nothing to do with whether the call would work (an iPad has no dialler,
+    // a work profile can block it), so the failure has to be handled, not
+    // assumed away.
+    await tester.pumpWidget(harness(onCall: (_) async => false, onDismiss: () async {}));
+    await tester.tap(find.textContaining('Call ambulance'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dial the number yourself'), findsOneWidget);
+    // The number itself, large enough to read out loud.
+    expect(find.widgetWithText(AlertDialog, '103'), findsOneWidget);
+    expect(find.text('Copy the number'), findsOneWidget);
+  });
+
+  testWidgets('a successful call shows no fallback', (tester) async {
+    await tester.pumpWidget(harness(onCall: (_) async => true, onDismiss: () async {}));
+    await tester.tap(find.textContaining('Call ambulance'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dial the number yourself'), findsNothing);
+  });
+
   testWidgets('dismissal requires confirmation', (tester) async {
     var dismissed = false;
-    await tester.pumpWidget(harness(onCall: (_) async {}, onDismiss: () async => dismissed = true));
+    await tester.pumpWidget(harness(onCall: (_) async => true, onDismiss: () async => dismissed = true));
 
     await tester.tap(find.text("This isn't an emergency"));
     await tester.pumpAndSettle();
@@ -56,7 +86,7 @@ void main() {
   });
 
   testWidgets('back gesture cannot pop the screen', (tester) async {
-    await tester.pumpWidget(harness(onCall: (_) async {}, onDismiss: () async {}));
+    await tester.pumpWidget(harness(onCall: (_) async => true, onDismiss: () async {}));
     final popScope = tester.widget<PopScope>(find.byType(PopScope));
     expect(popScope.canPop, isFalse);
   });

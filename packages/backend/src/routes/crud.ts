@@ -129,6 +129,25 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     return reply.code(201).send(await repo.createChild(u.userId, parsed.data.name));
   });
 
+  // ---- Erase everything ----
+  //
+  // The app's reset dialog says "all data will be erased" and, until now, only
+  // cleared the phone: nothing on the server was ever deleted. With telemetry
+  // syncing, that left her blood-pressure history, her child's name and date
+  // of birth, and the coordinates of her home and her child's school on a
+  // server she believed she had erased herself from.
+  //
+  // Identity comes from authentication only — there is no id in the path, so
+  // this route cannot be pointed at anybody else.
+  app.delete('/account', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const erased = await repo.deleteAccount(u.userId);
+    // 404 when there was nothing to erase, rather than reporting success for a
+    // deletion that did not happen.
+    return erased ? reply.code(204).send() : reply.code(404).send({ error: 'not_found' });
+  });
+
   app.delete('/children/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     if (!(await requireOwned(req, reply, id, repo.childOwner))) return;

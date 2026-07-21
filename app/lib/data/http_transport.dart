@@ -77,4 +77,11 @@ class HttpApiTransport implements HttpTransport {
         await _client.get(baseUrl.resolve(path), headers: await _headers()).timeout(timeout);
     return HttpResponse(res.statusCode, res.body);
   }
+
+  @override
+  Future<HttpResponse> delete(String path) async {
+    final res =
+        await _client.delete(baseUrl.resolve(path), headers: await _headers()).timeout(timeout);
+    return HttpResponse(res.statusCode, res.body);
+  }
 }
