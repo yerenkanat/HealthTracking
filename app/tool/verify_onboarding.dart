@@ -40,7 +40,20 @@ void main() {
   c.next();
   _chk('advanced to child', c.step == OnboardingStep.child);
 
-  _chk('child blocked without name/home', !c.canProceed);
+  // The child step is OPTIONAL and used to be a hard block: it required a name
+  // AND a home zone, behind a single button that stayed greyed out until both
+  // were given, with no skip. A first-time expectant mother — the most likely
+  // person to install a pregnancy app — could not finish setup at all without
+  // inventing a child.
+  _chk('an empty child step can be skipped', c.canProceed);
+  _chk('and reports that there is no child', !c.hasChild);
+
+  // Half a child is still refused: a name with no home zone would create a
+  // child the tracking half cannot do anything with.
+  c.setChildName('Sultan');
+  _chk('naming a child then requires a home zone', !c.canProceed);
+  c.setChildName('');
+  _chk('clearing the name makes it skippable again', c.canProceed);
   c.setChildName('Sultan');
   c.setHome(const ZoneInput('Home', 43.238949, 76.889709, radiusM: 100));
   _chk('child proceeds with name + home', c.canProceed);
@@ -53,10 +66,10 @@ void main() {
   _chk('result profile name', r.profile.displayName == 'Aigerim');
   _chk('result profile e164', r.profile.e164 == '+77001234567');
   _chk('result bandId', r.bandId == 'AA:BB:CC:DD:EE:FF');
-  _chk('result child name', r.child.name == 'Sultan');
-  _chk('result child has Home + School', r.child.geofences.length == 2 &&
-      r.child.geofences.any((f) => f.name == 'Home') && r.child.geofences.any((f) => f.name == 'School'));
-  _chk('Home fence circle at point', r.child.geofences.firstWhere((f) => f.name == 'Home').center?.lat == 43.238949);
+  _chk('result child name', r.child!.name == 'Sultan');
+  _chk('result child has Home + School', r.child!.geofences.length == 2 &&
+      r.child!.geofences.any((f) => f.name == 'Home') && r.child!.geofences.any((f) => f.name == 'School'));
+  _chk('Home fence circle at point', r.child!.geofences.firstWhere((f) => f.name == 'Home').center?.lat == 43.238949);
 
   c.back();
   _chk('back returns to child', c.step == OnboardingStep.child);
@@ -78,8 +91,16 @@ void main() {
   final cg = OnboardingController();
   cg.setChildName('Sultan');
   cg.setChildGender(Gender.boy);
-  _chk('child gender in result', cg.build().child.gender == Gender.boy);
-  _chk('child gender defaults null', OnboardingController().build().child.gender == null);
+  _chk('child gender in result', cg.build().child!.gender == Gender.boy);
+  // A fresh controller now builds NO child rather than a nameless one. That is
+  // the whole point: an empty child would appear in her family list and on the
+  // tracking screen as a blank entry she never created.
+  _chk('a skipped child step produces no child at all',
+      OnboardingController().build().child == null);
+  _chk('a named child still defaults gender to null', () {
+    final c = OnboardingController()..setChildName('Sultan');
+    return c.build().child!.gender == null;
+  }());
 
   // ---- Expecting → due date drives pregnancy mode ----
   final c3 = OnboardingController();
@@ -89,6 +110,30 @@ void main() {
   _chk('expecting + due date → profile.dueDate', c3.build().profile.dueDate == DateTime(2026, 12, 1));
   c3.setExpecting(false);
   _chk('unchecking expecting drops due date', c3.build().profile.dueDate == null);
+
+  // ---- A pregnant woman with no children can finish setup ----
+  //
+  // Walked end to end, because that is the only way the block was visible:
+  // every step passed on its own, and the last one simply could not be left.
+  {
+    final s = OnboardingController();
+    s.setDisplayName('Aigerim');
+    s.setPhoneNumber('7001112233');
+    s.setExpecting(true);
+    s.setDueDate(DateTime(2026, 11, 1));
+    s.next(); // welcome → language
+    s.next(); // language → profile
+    s.next(); // profile → pairBand
+    s.next(); // pairBand → child
+    _chk('she reaches the child step', s.step == OnboardingStep.child);
+    _chk('and can leave it without inventing a child', s.canProceed);
+    s.next();
+    _chk('setup completes', s.isComplete);
+    final r = s.build();
+    _chk('with no child', r.child == null);
+    _chk('her due date intact', r.profile.dueDate == DateTime(2026, 11, 1));
+    _chk('her name intact', r.profile.displayName == 'Aigerim');
+  }
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

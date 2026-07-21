@@ -74,8 +74,8 @@ void main() {
     expect(result, isNotNull);
     expect(result!.profile.displayName, 'Aigerim');
     expect(result!.profile.e164, '+77001234567');
-    expect(result!.child.name, 'Sultan');
-    expect(result!.child.geofences.any((f) => f.name == 'Home'), isTrue);
+    expect(result!.child!.name, 'Sultan');
+    expect(result!.child!.geofences.any((f) => f.name == 'Home'), isTrue);
   });
 
   // The happy-path test above taps "Next" straight past the language page and
@@ -103,6 +103,49 @@ void main() {
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('a woman with no children can finish setup', (tester) async {
+    // The child step used to require a name AND a home zone, behind a single
+    // button that stayed greyed out until both were given, with no skip. A
+    // first-time expectant mother — the most likely person to install a
+    // pregnancy app — could not get past it without inventing a child.
+    OnboardingResult? result;
+    final controller = OnboardingController(initialLocale: AppLocale.en);
+    await tester.pumpWidget(MaterialApp(
+      home: L10nScope(
+        l10n: const L10n(AppLocale.en),
+        child: OnboardingFlow(
+          controller: controller,
+          onComplete: (r) => result = r,
+        ),
+      ),
+    ));
+
+    await tester.tap(find.text('Get started'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next')); // language
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Aigerim');
+    await tester.enterText(find.byType(TextField).last, '7001234567');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next')); // profile
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next')); // band, optional
+    await tester.pumpAndSettle();
+
+    // The child step, untouched. The button says so rather than showing a
+    // "Finish" that cannot be pressed.
+    expect(find.text('Add your child'), findsOneWidget);
+    final skip = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Skip for now'));
+    expect(skip.onPressed, isNotNull);
+    await tester.tap(find.text('Skip for now'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.child, isNull); // no invented child
+    expect(result!.profile.displayName, 'Aigerim');
+  });
 
   testWidgets('picking a language selects it and switches the app live', (tester) async {
     final controller = OnboardingController(initialLocale: AppLocale.en);

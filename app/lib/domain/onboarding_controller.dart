@@ -30,7 +30,8 @@ class OnboardingResult {
   final AppLocale locale;
   final UserProfile profile;
   final String? bandId;
-  final ChildProfile child;
+  /// Null when the child step was skipped — the pregnancy half needs no child.
+  final ChildProfile? child;
   const OnboardingResult({
     required this.locale,
     required this.profile,
@@ -106,7 +107,18 @@ class OnboardingController {
         OnboardingStep.language => true,
         OnboardingStep.profile => _displayName.trim().isNotEmpty && isValidNationalNumber(_phoneNumber),
         OnboardingStep.pairBand => true, // optional — may skip
-        OnboardingStep.child => _childName.trim().isNotEmpty && _home != null,
+        // The child step is OPTIONAL.
+        //
+        // It used to require a name AND a home zone, with a single button that
+        // stayed greyed out until both were given and no way past. So a
+        // pregnant woman with no children — a first-time expectant mother, the
+        // most likely person to install a pregnancy app — could not finish
+        // setup at all. Her only way in was to invent a child.
+        //
+        // Half a child is still refused: once she starts naming one, the home
+        // zone is what makes it trackable, and a child with no zone would sit
+        // in the app doing nothing.
+        OnboardingStep.child => _childName.trim().isEmpty || _home != null,
         OnboardingStep.done => true,
       };
 
@@ -120,8 +132,15 @@ class OnboardingController {
     _set(() => _step = _order[stepIndex - 1]);
   }
 
-  /// Assemble the final config (call once [isComplete]). Home always present given
-  /// the child-step guard; School included when provided.
+  /// Whether a child was actually set up. False when the step was skipped.
+  bool get hasChild => _childName.trim().isNotEmpty;
+
+  /// Assemble the final config (call once [isComplete]).
+  ///
+  /// [OnboardingResult.child] is null when the child step was skipped — the
+  /// pregnancy half of the app needs no child, and inventing an empty one
+  /// would put a nameless entry in her family list and a nameless chip on the
+  /// tracking screen.
   OnboardingResult build() {
     final fences = <Geofence>[
       if (_home != null) _home!.toGeofence('home'),
@@ -136,7 +155,14 @@ class OnboardingController {
         dueDate: _expecting ? _dueDate : null,
       ),
       bandId: _bandId,
-      child: ChildProfile(id: 'child-1', name: _childName.trim(), dateOfBirth: _childDob, gender: _childGender, geofences: fences),
+      child: hasChild
+          ? ChildProfile(
+              id: 'child-1',
+              name: _childName.trim(),
+              dateOfBirth: _childDob,
+              gender: _childGender,
+              geofences: fences)
+          : null,
     );
   }
 

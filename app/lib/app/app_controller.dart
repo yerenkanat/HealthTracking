@@ -1112,10 +1112,17 @@ class AppController {
   void completeOnboarding(OnboardingResult r) {
     _locale = r.locale;
     _profile = r.profile;
-    _children
-      ..clear()
-      ..add(r.child);
-    _selectedChildId = r.child.id;
+    // No child when the step was skipped, which is the ordinary case for a
+    // first-time expectant mother. Adding an empty one would put a nameless
+    // entry in her family list and a nameless chip on the tracking screen.
+    // She can add a child from Settings whenever there is one to add.
+    _children.clear();
+    if (r.child != null) {
+      _children.add(r.child!);
+      _selectedChildId = r.child!.id;
+    } else {
+      _selectedChildId = null;
+    }
     if (r.bandId != null) {
       _devices.add(PairedDevice(id: r.bandId!, name: 'Band', kind: DeviceKind.band));
     }

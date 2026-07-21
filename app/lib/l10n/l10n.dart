@@ -431,6 +431,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'onb_next': {AppLocale.ru: 'Далее', AppLocale.kk: 'Келесі', AppLocale.en: 'Next'},
   'onb_back': {AppLocale.ru: 'Назад', AppLocale.kk: 'Артқа', AppLocale.en: 'Back'},
   'onb_finish': {AppLocale.ru: 'Готово', AppLocale.kk: 'Дайын', AppLocale.en: 'Finish'},
+  // The child step is optional; saying so on the button is the difference
+  // between "I can go on" and a form that looks unfinished.
+  'onb_child_skip': {
+    AppLocale.ru: 'Пропустить — добавлю позже',
+    AppLocale.kk: 'Өткізіп жіберу — кейін қосамын',
+    AppLocale.en: 'Skip for now'
+  },
   'onb_step': {AppLocale.ru: 'Шаг {n} из {total}', AppLocale.kk: '{total} қадамнан {n}', AppLocale.en: 'Step {n} of {total}'},
 
   // Emergency screen

@@ -73,8 +73,13 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               padding: const EdgeInsets.all(16),
               child: FilledButton(
                 onPressed: c.canProceed ? () => _advance(c) : null,
+                // On the child step the label depends on whether she is adding
+                // one. Saying "Finish" over an untouched form reads as though
+                // something is missing; "Skip for now" says plainly that it is
+                // optional, which is the fact that used to be hidden behind a
+                // permanently greyed-out button.
                 child: Text(c.step == OnboardingStep.child
-                    ? l.t('onb_finish')
+                    ? (c.hasChild ? l.t('onb_finish') : l.t('onb_child_skip'))
                     : c.step == OnboardingStep.welcome
                         ? l.t('onb_get_started')
                         : l.t('onb_next')),

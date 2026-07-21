@@ -12,7 +12,15 @@ services:
       POSTGRES_PASSWORD: fcs
       POSTGRES_DB: fcs
     ports:
-      - "5432:5432"
+      # Loopback ONLY. "5432:5432" publishes on every interface, so on a café,
+      # hotel or coworking network this database — with the password `fcs` two
+      # lines above — was reachable by anyone else on it. The backend was bound
+      # to 127.0.0.1 for exactly this reason; the database it fronts was not.
+      #
+      # Does not affect Android emulator work: the emulator reaches the host
+      # through 10.0.2.2, which maps to loopback, and it talks to the backend
+      # rather than to Postgres directly.
+      - "127.0.0.1:5432:5432"
     volumes:
       # Auto-run the schema on first init.
       - ../packages/backend/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
@@ -26,7 +34,11 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # Loopback only, and here it matters more than for Postgres: this Redis
+      # has no password at all. Published on every interface it is an open
+      # command port to anyone on the same network — the classic way a laptop
+      # on a shared network gets used as a foothold.
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
