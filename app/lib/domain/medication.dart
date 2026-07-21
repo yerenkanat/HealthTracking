@@ -110,12 +110,23 @@ int adherenceStreak(List<Medication> meds, MedLog log, DateTime today) {
 
 /// Share of planned doses actually taken over the last [days] ending at [today],
 /// clamped 0..1. Returns null when nothing was planned in the window.
+///
+/// An unfinished TODAY is left out, exactly as [adherenceStreak] leaves it out.
+/// Counting it charged her for doses the day had not yet reached: with three a
+/// day and none taken by nine in the morning, a woman who has never missed one
+/// saw 86% — and it climbed back to 100% only by bedtime. Every single day
+/// opened by telling her she was slipping.
+///
+/// Once today IS complete it counts, so finishing the day is visible
+/// immediately rather than waiting for midnight.
 double? adherenceRate(List<Medication> meds, MedLog log, DateTime today, {int days = 7}) {
   if (meds.isEmpty) return null;
   final t = DateTime(today.year, today.month, today.day);
   var taken = 0, planned = 0;
   for (var i = 0; i < days; i++) {
-    final p = dayProgress(meds, log, t.subtract(Duration(days: i)));
+    final day = t.subtract(Duration(days: i));
+    if (i == 0 && !dayComplete(meds, log, day)) continue;
+    final p = dayProgress(meds, log, day);
     taken += p.taken;
     planned += p.planned;
   }

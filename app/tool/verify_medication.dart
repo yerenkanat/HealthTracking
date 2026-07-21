@@ -69,9 +69,11 @@ void main() {
   _chk('no meds → no streak', adherenceStreak(const [], full, today) == 0);
 
   // ---- Adherence rate ----
-  // 3 complete days out of a 7-day window = 9 of 21 planned doses.
+  // 3 complete days in the window. The denominator is 6 days, not 7: an
+  // unfinished today is left out, exactly as adherenceStreak leaves it out.
+  // Counting it charged her for doses the day had not yet reached.
   final rate = adherenceRate(meds, full, today, days: 7)!;
-  _chk('adherence rate over the window', (rate - (9 / 21)).abs() < 1e-9);
+  _chk('adherence rate over the window', (rate - (9 / 18)).abs() < 1e-9);
   _chk('rate never exceeds 1', adherenceRate(meds, finished, today, days: 1)! <= 1.0);
   _chk('no meds → null rate', adherenceRate(const [], full, today) == null);
 
@@ -91,6 +93,71 @@ void main() {
   _chk('empty log totals zero', totalDosesLogged(const {}) == 0);
   final logRt = medLogFromJson(medLogToJson(full));
   _chk('log round-trips', dosesTaken(logRt, ago(1), 'm2') == 2);
+
+  // ---- An unfinished today must not read as a missed today ----
+  //
+  // The rate counted today's full plan in the denominator from midnight, so at
+  // nine in the morning a woman who has never missed a dose saw 86% — climbing
+  // back to 100% only by bedtime. Every day opened by telling her she was
+  // slipping. adherenceStreak already refused to penalise an unfinished day;
+  // the rate simply did not do the same.
+  {
+    final today = DateTime(2026, 7, 21);
+    DateTime ago(int d) => today.subtract(Duration(days: d));
+    const iron = Medication(id: 'iron', name: 'Iron', perDay: 3);
+    final meds = [iron];
+
+    // Six perfect days behind her, nothing taken yet today.
+    var log = <String, Map<String, int>>{};
+    for (var d = 1; d <= 6; d++) {
+      for (var i = 0; i < 3; i++) {
+        log = takeDose(log, ago(d), iron);
+      }
+    }
+    _chk('a perfect record reads as perfect first thing in the morning',
+        adherenceRate(meds, log, today) == 1.0);
+
+    // Part-way through today — still not counted against her.
+    var partial = takeDose(log, today, iron);
+    _chk('one of three taken today does not lower it',
+        adherenceRate(meds, partial, today) == 1.0);
+
+    // Finishing today counts immediately, rather than waiting for midnight.
+    partial = takeDose(takeDose(partial, today, iron), today, iron);
+    _chk('completing today keeps it perfect', adherenceRate(meds, partial, today) == 1.0);
+
+    // A genuinely missed day still shows. This is the whole point of the
+    // number, and it must not have been softened away.
+    var missed = <String, Map<String, int>>{};
+    for (var d = 1; d <= 6; d++) {
+      if (d == 3) continue; // missed entirely
+      for (var i = 0; i < 3; i++) {
+        missed = takeDose(missed, ago(d), iron);
+      }
+    }
+    final r = adherenceRate(meds, missed, today)!;
+    _chk('a missed day still lowers the rate', r > 0.8 && r < 0.9);
+
+    // A partially missed day counts partially.
+    var half = <String, Map<String, int>>{};
+    for (var d = 1; d <= 6; d++) {
+      final n = d == 2 ? 1 : 3;
+      for (var i = 0; i < n; i++) {
+        half = takeDose(half, ago(d), iron);
+      }
+    }
+    _chk('a partly missed day counts partly',
+        adherenceRate(meds, half, today)! < 1.0);
+
+    // Nothing logged at all. Those past days WERE planned and WERE missed, so
+    // 0% is the honest answer — leaving today out must not soften a real miss
+    // into "no data". (My first draft of this asserted null and was wrong.)
+    _chk('a completely unlogged week reads as 0%, not "no data"',
+        adherenceRate(meds, const {}, today) == 0.0);
+    // Null is reserved for nothing PLANNED, which is a different statement.
+    _chk('no medications at all reports nothing',
+        adherenceRate(const [], const {}, today) == null);
+  }
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
