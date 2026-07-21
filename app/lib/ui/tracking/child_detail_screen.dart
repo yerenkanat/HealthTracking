@@ -14,6 +14,7 @@ import '../../domain/family.dart';
 import '../../domain/geofence_alerts.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import 'child_development_screen.dart';
 import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
 import 'alerts_screen.dart';
@@ -259,6 +260,17 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
+        // The age is exactly where a parent wonders what comes next, so the
+        // development calendar hangs off it. Shown only with a date of birth:
+        // without one the calendar has nothing to place her child on.
+        if (child.hasDateOfBirth)
+          IconButton(
+            icon: const Icon(Icons.timeline_rounded, color: Palette.violet),
+            tooltip: l.t('dev_title'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => ChildDevelopmentScreen(child: child, today: now),
+            )),
+          ),
       ],
     );
   }

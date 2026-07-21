@@ -3,6 +3,7 @@
 library;
 
 import 'dart:io';
+import '../lib/domain/child_development.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -192,6 +193,46 @@ void main() {
     _chk('every runtime-composed key exists (${missingFamily.length} missing'
         '${missingFamily.isEmpty ? '' : ': ${missingFamily.join(", ")}'})',
         missingFamily.isEmpty);
+  }
+
+  // ---- Development milestones carry their own strings ----
+  //
+  // These keys are built from the milestone id at render time — `dev_$id` and
+  // `dev_${id}_note` — so the scan above, which reads literal t('...') calls
+  // out of the source, cannot see them. Without this, adding a milestone and
+  // forgetting its strings ships the raw key to a parent's screen.
+  {
+    final known = allL10nKeys.toSet();
+    final missing = <String>[];
+    for (final m in devMilestones) {
+      for (final key in ['dev_${m.id}', 'dev_${m.id}_note']) {
+        if (!known.contains(key)) missing.add(key);
+      }
+    }
+    _chk('every milestone has a title and a note (${devMilestones.length} checked)',
+        missing.isEmpty);
+    if (missing.isNotEmpty) print('    missing: ${missing.join(', ')}');
+
+    // And every area label, for the same reason.
+    final areaMissing = [
+      for (final a in DevArea.values)
+        if (!known.contains('dev_area_${a.name}')) 'dev_area_${a.name}'
+    ];
+    _chk('every development area has a label', areaMissing.isEmpty);
+
+    // Translated, not just present. A key that exists only in English renders
+    // English to a Russian-speaking mother, which the app's default locale
+    // makes the common case rather than the edge one.
+    var untranslated = 0;
+    for (final m in devMilestones) {
+      for (final key in ['dev_${m.id}', 'dev_${m.id}_note']) {
+        for (final loc in AppLocale.values) {
+          final v = L10n(loc).t(key);
+          if (v == key || v.trim().isEmpty) untranslated++;
+        }
+      }
+    }
+    _chk('and all three languages have real text ($untranslated blanks)', untranslated == 0);
   }
 
   print('\n$_pass passed, $_fail failed');
