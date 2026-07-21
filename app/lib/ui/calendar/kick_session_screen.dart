@@ -138,6 +138,12 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                 // Big central tap target, ringed with progress toward the goal.
                 Builder(builder: (context) {
                   final reached = kickGoalReached(_session.count, defaultKickGoal);
+                  // Reached WITHIN the two-hour reference window. Ten
+                  // movements felt over three hours used to show the same
+                  // "Goal reached {1F389}" as ten in twenty minutes 2014 confetti at the
+                  // exact moment the count-to-ten method exists to notice.
+                  final prompt = kickGoalReachedPromptly(
+                      _session.count, _session.elapsed(DateTime.now()));
                   // MergeSemantics, or the InkWell inside publishes its OWN
                   // unlabelled node beside this labelled one — a screen reader
                   // then finds a bare "button" on the screen whose entire
@@ -214,7 +220,9 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      l.t(reached ? 'kick_goal_reached' : 'kick_session_tap'),
+                                      l.t(reached
+                                          ? (prompt ? 'kick_goal_reached' : 'kick_goal_reached_slow')
+                                          : 'kick_session_tap'),
                                       style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, fontWeight: FontWeight.w600),
                                     ),
                                   ],

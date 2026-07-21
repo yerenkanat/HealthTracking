@@ -734,6 +734,17 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'kick_session_discard_body': {AppLocale.ru: 'Подсчитанные шевеления не сохранятся.', AppLocale.kk: 'Саналған тебінулер сақталмайды.', AppLocale.en: 'The movements you counted won\'t be saved.'},
   'kick_session_discard': {AppLocale.ru: 'Прервать', AppLocale.kk: 'Тоқтату', AppLocale.en: 'Discard'},
   'kick_goal_reached': {AppLocale.ru: 'Цель достигнута 🎉', AppLocale.kk: 'Мақсатқа жетті 🎉', AppLocale.en: 'Goal reached 🎉'},
+  // Ten movements, but it took longer than the two hours the count-to-ten
+  // method references. No confetti and no diagnosis — it states the fact and
+  // defers to her provider, the same voice the 5-1-1 card uses.
+  'kick_goal_reached_slow': {
+    AppLocale.ru: '10 движений записано, но это заняло больше двух часов. '
+        'Многие врачи просят сообщать, если шевеления кажутся реже обычного.',
+    AppLocale.kk: '10 қозғалыс жазылды, бірақ бұл екі сағаттан асты. '
+        'Көптеген дәрігерлер қозғалыс әдеттегіден сирек сезілсе, хабарлауды сұрайды.',
+    AppLocale.en: '10 movements recorded, but it took over two hours. '
+        'Many providers ask to be told if movements feel less frequent than usual.'
+  },
   'kick_history': {AppLocale.ru: 'История сессий', AppLocale.kk: 'Сессиялар тарихы', AppLocale.en: 'Session history'},
   'kick_avg_count': {AppLocale.ru: 'Ср. шевелений', AppLocale.kk: 'Орт. тебіну', AppLocale.en: 'Avg movements'},
   'kick_avg_length': {AppLocale.ru: 'Ср. длительность', AppLocale.kk: 'Орт. ұзақтық', AppLocale.en: 'Avg length'},

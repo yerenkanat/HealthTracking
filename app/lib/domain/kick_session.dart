@@ -71,6 +71,25 @@ double kickGoalFraction(int count, int goal) {
 /// Whether the session reached its goal.
 bool kickGoalReached(int count, int goal) => goal > 0 && count >= goal;
 
+/// The window taught with the "count to ten" method: ten movements within about
+/// two hours. Referenced here the same way the labour timer references 5-1-1 —
+/// as a widely-taught pattern to describe against, never as a diagnosis.
+const Duration kickReferenceWindow = Duration(hours: 2);
+
+/// Whether the goal was reached WITHIN the reference window.
+///
+/// The goal used to be judged on count alone, so ten movements felt over three
+/// hours produced the same "Goal reached 🎉" as ten in twenty minutes. That is a
+/// celebration at the exact moment the count-to-ten method exists to notice:
+/// taking much longer than usual to feel ten movements is the thing a mother is
+/// asked to report, and the app was congratulating her for it.
+///
+/// This does not diagnose anything and does not tell her what to do — it only
+/// decides whether the moment deserves confetti, and lets the UI show a calm,
+/// provider-deferring note instead when it does not.
+bool kickGoalReachedPromptly(int count, Duration elapsed, {int goal = defaultKickGoal}) =>
+    kickGoalReached(count, goal) && elapsed <= kickReferenceWindow;
+
 /// Aggregate stats over recorded kick sessions — for the history header.
 class KickHistorySummary {
   final int sessions;

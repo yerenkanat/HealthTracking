@@ -66,6 +66,36 @@ void main() {
   final emptySum = kickHistorySummary(const <KickSessionRecord>[]);
   _chk('empty summary zeroed', emptySum.sessions == 0 && emptySum.avgCount == 0 && emptySum.goalReached == 0);
 
+  // ---- Ten movements over three hours is not a celebration ----
+  //
+  // The goal was judged on count alone, so ten movements felt over three hours
+  // showed the same "Goal reached 🎉" as ten in twenty minutes — confetti at
+  // the exact moment the count-to-ten method exists to notice. Taking much
+  // longer than usual to feel ten movements is the thing a mother is asked to
+  // report.
+  _chk('ten movements in twenty minutes is a goal reached',
+      kickGoalReachedPromptly(10, const Duration(minutes: 20)));
+  _chk('ten in just under two hours still is',
+      kickGoalReachedPromptly(10, const Duration(minutes: 119)));
+  _chk('ten over three hours is NOT celebrated',
+      !kickGoalReachedPromptly(10, const Duration(hours: 3)));
+  _chk('right on the two-hour reference is still counted',
+      kickGoalReachedPromptly(10, kickReferenceWindow));
+  _chk('a minute past it is not',
+      !kickGoalReachedPromptly(10, kickReferenceWindow + const Duration(minutes: 1)));
+
+  // The goal itself is unchanged — she DID record ten movements, and the
+  // history must still say so. Only the celebration is withheld.
+  _chk('a slow session still counts as reaching the goal',
+      kickGoalReached(10, defaultKickGoal));
+  _chk('an incomplete session is neither',
+      !kickGoalReached(9, defaultKickGoal) &&
+          !kickGoalReachedPromptly(9, const Duration(minutes: 10)));
+
+  // A session that has not started cannot have reached anything.
+  _chk('zero movements is never a goal',
+      !kickGoalReachedPromptly(0, Duration.zero));
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
