@@ -67,6 +67,13 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
                       return Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton.icon(
+                          // A Material 3 TextButton is 40dp tall by default,
+                          // under the 48dp minimum in the UI checklist. Caught
+                          // reviewing my own change against it.
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(64, 48),
+                            tapTargetSize: MaterialTapTargetSize.padded,
+                          ),
                           onPressed: () => c.retryLast(),
                           icon: const Icon(Icons.refresh_rounded, size: 18),
                           label: Text(l.t('chat_retry')),

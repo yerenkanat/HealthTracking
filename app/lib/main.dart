@@ -49,6 +49,14 @@ Future<void> main() async {
   // response, the bundled asset, or the seeded catalogue. First paint must not
   // wait on a request, so the API refresh happens after runApp and swaps in
   // through the store.
+  //
+  // This DOES block first paint on a local parse, which looks like something
+  // to fix until it is measured: the bundled catalogue is 154 KB and 364
+  // items, and decoding plus building it takes 3.3 ms on a desktop — call it
+  // 15-35 ms on a slow phone, against Flutter's own startup of several hundred.
+  // Deferring it would buy nothing measurable and cost a visible flash of
+  // empty content on the home screen. Measured rather than assumed, so the
+  // next person does not refactor it on instinct.
   final cache = PrefsContentCache();
   final loaded = await loadCatalogFast(cache: cache);
   if (loaded.fallbackReason != null) {

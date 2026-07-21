@@ -112,7 +112,12 @@ void main() {
     final c = AppController(now: () => today);
     c.addMedication('Folic acid'); // 1 dose/day
     final id = c.medications.single.id;
-    // Taken on 3 of the last 7 days → ~43% adherence.
+    // Taken on 3 of the 6 COMPLETE days behind her → 50%.
+    //
+    // Today is not counted while it is unfinished: charging her for doses the
+    // day has not yet reached meant every morning opened by telling her she
+    // was slipping. It used to read 43% here — 3 of 7 — with today's dose
+    // counted against her at a moment when she could still take it.
     for (var i = 1; i <= 3; i++) {
       c.takeMedicationDose(id, today.subtract(Duration(days: i)));
     }
@@ -120,7 +125,7 @@ void main() {
 
     await tester.scrollUntilVisible(find.text('DOSE HISTORY'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('DOSE HISTORY'), findsOneWidget);
-    expect(find.text('43% this week'), findsOneWidget); // 3 of 7
+    expect(find.text('50% this week'), findsOneWidget); // 3 of 6 complete days
     expect(find.text('Last 14 days'), findsOneWidget);
     addTearDown(c.dispose);
   });
