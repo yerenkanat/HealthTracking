@@ -226,6 +226,81 @@ describe('server wiring (in-process)', () => {
     expect(r.statusCode).toBe(400);
   });
 
+  // ---- Readings entered by hand ----
+  // The most trustworthy number the product has is a cuff reading the mother
+  // types in — an actual cuff, not a PPG estimate. Attribution went only
+  // through deviceOwner(), so a reading with no device to name was refused at
+  // the edge and dropped by the handler. Her clinician's view never showed
+  // one, and nothing anywhere said so.
+  it('accepts a hand-entered reading and attributes it to the caller', async () => {
+    const r = await post('/ingest/batch', {
+      items: [
+        {
+          type: 'telemetry',
+          payload: {
+            deviceId: '',
+            source: 'manual',
+            recordedAt: new Date().toISOString(),
+            systolicMmHg: 118,
+            diastolicMmHg: 76,
+          },
+        },
+      ],
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().telemetryCount).toBe(1);
+    expect(r.json().rejected).toBe(0);
+  });
+
+  it('runs the server-side emergency backstop on a hand-entered reading', async () => {
+    const r = await post('/ingest/batch', {
+      items: [
+        {
+          type: 'telemetry',
+          payload: {
+            deviceId: '',
+            source: 'manual',
+            recordedAt: new Date().toISOString(),
+            systolicMmHg: 175,
+            diastolicMmHg: 118,
+          },
+        },
+      ],
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().emergencies).toBe(1);
+  });
+
+  it('still refuses a BAND reading with no device', async () => {
+    // The relaxation is for hand-entered readings only. A band reading with no
+    // device cannot be attributed to anyone either, and must keep failing at
+    // the edge rather than being quietly credited to whoever posted it.
+    const r = await post('/ingest/batch', {
+      items: [
+        { type: 'telemetry', payload: { deviceId: '', recordedAt: new Date().toISOString() } },
+      ],
+    });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('still refuses a band reading for a device the caller does not own', async () => {
+    const r = await post('/ingest/batch', {
+      items: [
+        {
+          type: 'telemetry',
+          payload: {
+            deviceId: 'someone-elses-band',
+            recordedAt: new Date().toISOString(),
+            heartRateBpm: 80,
+          },
+        },
+      ],
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().rejected).toBe(1);
+    expect(r.json().telemetryCount).toBe(0);
+  });
+
   it('ingests emergency telemetry + Home enter, dedups, then exit', async () => {
     const home = { lat: 43.238949, lng: 76.889709 };
     const away = { lat: 43.30, lng: 77.0 };

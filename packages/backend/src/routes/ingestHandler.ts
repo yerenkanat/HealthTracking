@@ -78,24 +78,44 @@ async function ingestTelemetry(
   deps: IngestDeps,
   summary: IngestSummary,
 ): Promise<void> {
-  const owner = await deps.repo.deviceOwner(t.deviceId);
-  if (!owner) {
-    summary.rejected++;
-    return;
-  }
-  // Readings for someone else's band are not this caller's to submit.
-  if (deps.callerUserId && owner.userId !== deps.callerUserId) {
-    summary.rejected++;
-    return;
+  // A reading entered by hand has no device to attribute it to.
+  //
+  // These were rejected outright, because attribution went only through
+  // deviceOwner(). That silently dropped the most trustworthy readings the
+  // product has — an actual cuff, typed in by the mother, rather than a PPG
+  // estimate — so her clinician's view never showed them. They are attributed
+  // to the authenticated caller instead, which is exactly as trustworthy as
+  // the session that submitted them.
+  const manual = t.source === 'manual' || !t.deviceId;
+  let userId: string;
+  if (manual) {
+    if (!deps.callerUserId) {
+      // No device AND no session: nothing can say whose reading this is.
+      summary.rejected++;
+      return;
+    }
+    userId = deps.callerUserId;
+  } else {
+    const owner = await deps.repo.deviceOwner(t.deviceId);
+    if (!owner) {
+      summary.rejected++;
+      return;
+    }
+    // Readings for someone else's band are not this caller's to submit.
+    if (deps.callerUserId && owner.userId !== deps.callerUserId) {
+      summary.rejected++;
+      return;
+    }
+    userId = owner.userId;
   }
   // Server-side triage backstop (the device already triaged, but never trust the client).
   const triage = assessTelemetry(t);
-  await deps.repo.insertHealthMetric({ ...t, userId: owner.userId, triageSeverity: triage.severity });
+  await deps.repo.insertHealthMetric({ ...t, userId, triageSeverity: triage.severity });
   summary.telemetryCount++;
 
   if (triage.forceEmergencyScreen) {
     summary.emergencies++;
-    await deps.sendEmergencyPush(owner.userId, triage);
+    await deps.sendEmergencyPush(userId, triage);
   }
 }
 

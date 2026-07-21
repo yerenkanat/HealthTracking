@@ -16,6 +16,7 @@ import '../lib/domain/family.dart';
 import '../lib/domain/health_series.dart';
 import '../lib/domain/geofence_alerts.dart';
 import '../lib/domain/manual_vitals.dart';
+import '../lib/net/telemetry_batcher.dart';
 import '../lib/l10n/l10n.dart';
 
 int _pass = 0, _fail = 0;
@@ -273,6 +274,58 @@ Future<void> main() async {
 
     await sub3.cancel();
     await dst.dispose();
+  }
+
+  // ---- A hand-entered reading is actually SENT ----
+  // The batcher's only feeder was HealthMonitor, and the monitor is fed by the
+  // BLE stream, which is not wired yet. So the one real source of health data
+  // the app has today never left the phone: a mother could record a week of
+  // cuff readings, see them on her dashboard, and her clinician's view would
+  // show nothing.
+  {
+    final sent = <(Map<String, dynamic>, bool)>[];
+    final batcher = TelemetryBatcher(BatcherConfig(
+      maxBatch: 50,
+      maxDelay: const Duration(seconds: 30),
+      flush: (items) async {
+        for (final i in items) {
+          sent.add((i.payload, i.urgent));
+        }
+      },
+      restore: () async => [],
+      persist: (_) async {},
+    ));
+    final c = AppController(now: () => DateTime(2026, 7, 21, 10));
+    c.attachRuntime(batcher: batcher);
+
+    _chk('a manual reading is queued for upload',
+        c.logManualVitals(const ManualVitals(systolic: 118, diastolic: 76)));
+    batcher.onConnectivityRestored();
+    await Future<void>.delayed(Duration.zero);
+    _chk('it reached the transport', sent.length == 1);
+    _chk('it carries the reading', sent.first.$1['systolicMmHg'] == 118);
+    _chk('it is marked as hand-entered', sent.first.$1['source'] == 'manual');
+    _chk('it names no device, because none produced it', sent.first.$1['deviceId'] == '');
+    _chk('an ordinary reading is not urgent', sent.first.$2 == false);
+    _chk('it carries when it was taken', sent.first.$1['recordedAt'] != null);
+
+    // An emergency-level reading must not wait for the batch window.
+    sent.clear();
+    c.logManualVitals(const ManualVitals(systolic: 175, diastolic: 118));
+    batcher.onConnectivityRestored();
+    await Future<void>.delayed(Duration.zero);
+    _chk('a dangerous reading is sent urgently', sent.any((s) => s.$2 == true));
+
+    // An invalid reading is refused, and must not be sent either.
+    sent.clear();
+    _chk('an impossible reading is refused',
+        !c.logManualVitals(const ManualVitals(systolic: 999, diastolic: 5)));
+    batcher.onConnectivityRestored();
+    await Future<void>.delayed(Duration.zero);
+    _chk('and nothing is queued for it', sent.isEmpty);
+
+
+    await c.dispose();
   }
 
   // ---- The export carries recent errors, and only when there are any ----

@@ -174,7 +174,41 @@ export function createMemoryRepository(): Repository {
       total: 1,
       users: [{ id: DEMO_USER, displayName: profile?.displayName ?? '', phone: profile?.phone ?? null, dueDate: profile?.dueDate ?? null }],
     }),
-    adminUserHealth: async () => ({ latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 }, triage: [] }),
+    /// The newest reading actually ingested, falling back to the seed.
+    ///
+    /// This returned a fixed object, so a reading posted to /ingest/batch
+    /// vanished from the one view meant to show it. That made the dev stack
+    /// unable to answer "did my reading arrive?" — the exact question anyone
+    /// wiring the app to the backend is asking — and it hid a real defect for
+    /// as long as it existed: hand-entered readings were being rejected
+    /// outright, and this view looked healthy throughout.
+    adminUserHealth: async (userId) => {
+      const mine = (healthRows as Array<Record<string, unknown>>).filter(
+        (r) => r.userId === userId,
+      );
+      const last = mine[mine.length - 1];
+      if (!last) {
+        return { latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 }, triage: [] };
+      }
+      const num = (v: unknown) => (typeof v === 'number' ? v : null);
+      return {
+        latest: {
+          hr: num(last.heartRateBpm),
+          spo2: num(last.spo2Pct),
+          systolic: num(last.systolicMmHg),
+          diastolic: num(last.diastolicMmHg),
+          temp: num(last.coreTempC),
+        },
+        triage: mine
+          .filter((r) => r.triageSeverity === 'emergency' || r.triageSeverity === 'warning')
+          .slice(-10)
+          .map((r) => ({
+            code: 'SERVER_TRIAGE',
+            severity: String(r.triageSeverity),
+            at: String(r.recordedAt ?? ''),
+          })),
+      };
+    },
 
     adminUserDetail: async (userId) => {
       if (userId !== DEMO_USER) return null;

@@ -41,17 +41,33 @@ export interface ServerDeps {
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
-const telemetrySchema = z.object({
-  deviceId: z.string().min(1),
-  recordedAt: z.string(),
-  coreTempC: z.number().optional(),
-  skinTempC: z.number().optional(),
-  heartRateBpm: z.number().int().optional(),
-  spo2Pct: z.number().int().optional(),
-  systolicMmHg: z.number().int().optional(),
-  diastolicMmHg: z.number().int().optional(),
-  duringSleep: z.boolean().optional(),
+// The plain object is kept separately because .refine() produces a ZodEffects,
+// which has no .partial() — and /ai/chat needs a partial of this shape.
+const telemetryBase = z.object({
+    // Empty is allowed ONLY for a hand-entered reading — see the refine below.
+    // A cuff reading a mother types in has no device to name, and requiring one
+    // rejected the most trustworthy numbers the product has at the edge, before
+    // any handler saw them.
+    deviceId: z.string(),
+    recordedAt: z.string(),
+    source: z.enum(['band', 'manual']).optional(),
+    coreTempC: z.number().optional(),
+    skinTempC: z.number().optional(),
+    heartRateBpm: z.number().int().optional(),
+    spo2Pct: z.number().int().optional(),
+    systolicMmHg: z.number().int().optional(),
+    diastolicMmHg: z.number().int().optional(),
+    duringSleep: z.boolean().optional(),
 });
+const telemetrySchema = telemetryBase.refine(
+  (t) => t.source === 'manual' || t.deviceId.length > 0,
+  {
+    // A band reading with no device still cannot be attributed to anyone, and
+    // must keep failing at the edge rather than being silently dropped later.
+    message: 'deviceId is required unless source is "manual"',
+    path: ['deviceId'],
+  },
+);
 const locationSchema = z.object({
   childId: z.string().uuid(),
   coords: z.object({ lat: z.number(), lng: z.number(), accuracyM: z.number().optional() }),
@@ -72,7 +88,7 @@ const chatSchema = z.object({
   userId: z.string().uuid(),
   locale: z.string().default('ru-KZ'),
   message: z.string().min(1).max(2000),
-  latestTelemetry: telemetrySchema.partial({ deviceId: true, recordedAt: true }).optional(),
+  latestTelemetry: telemetryBase.partial({ deviceId: true, recordedAt: true }).optional(),
 });
 const bpCalSchema = z.object({
   userId: z.string().uuid(),

@@ -36,7 +36,12 @@ class HealthMonitor {
   TriageResult? get latestTriage => _latestTriage;
 
   /// Subscribe to BLEDeviceManager.onTelemetry.
+  ///
+  /// Replaces any existing subscription rather than adding one. Binding twice
+  /// — after a re-pair, say — used to leave the first listener live, so every
+  /// reading was handled twice: enqueued twice, and an emergency raised twice.
   void bind(Stream<(BandTelemetry, TriageResult)> telemetryStream) {
+    unawaited(_sub?.cancel());
     _sub = telemetryStream.listen((rec) => handle(rec.$1, rec.$2));
   }
 

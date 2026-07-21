@@ -27,8 +27,18 @@ export type PositioningSource = 'gps' | 'wifi' | 'lbs' | 'ble';
 // ---------------------------------------------------------------------------
 
 export interface BandTelemetry {
+  /**
+   * The band that produced this reading, or empty for one entered by hand.
+   *
+   * A cuff reading a mother types in has no device to attribute it to, and it
+   * is the most trustworthy number in the system — an actual cuff, not a PPG
+   * estimate. Attribution for those falls back to the authenticated caller;
+   * see ingestTelemetry.
+   */
   deviceId: string;
   recordedAt: ISOTimestamp;
+  /** How the reading was obtained. Absent means a band, the historical case. */
+  source?: 'band' | 'manual';
   /** Estimated CORE body temperature in °C (already calibrated from skin temp). */
   coreTempC?: number;
   /** Raw skin temperature in °C as read from the sensor, kept for auditing. */

@@ -1134,7 +1134,30 @@ class AppController {
       _manualSamples.removeRange(0, _manualSamples.length - _maxManualSamples);
     }
     // She measured this herself, off a real cuff. Not an estimate — act on it.
-    onTelemetry(t, assessTelemetry(t), source: ReadingSource.manual);
+    final triage = assessTelemetry(t);
+    onTelemetry(t, triage, source: ReadingSource.manual);
+
+    // Send it. Nothing did.
+    //
+    // The batcher's only feeder was HealthMonitor, and the monitor is fed by
+    // the BLE stream, which is not wired yet — so the single real source of
+    // health data the app has today never left the phone. A mother could
+    // record a week of cuff readings, watch them appear on her dashboard, and
+    // her clinician's view would show nothing at all. Nothing anywhere said so.
+    //
+    // Sensor readings are deliberately NOT enqueued here: once the band is
+    // paired HealthMonitor enqueues those, and doing both would double-send.
+    _batcher?.enqueueTelemetry(
+      {
+        // No device produced this, so there is none to name. The server
+        // attributes a manual reading to the authenticated caller.
+        'deviceId': '',
+        'source': 'manual',
+        'recordedAt': _now().toUtc().toIso8601String(),
+        ...t.toJson(),
+      },
+      urgent: triage.forceEmergencyScreen,
+    );
     _persist();
     return true;
   }
