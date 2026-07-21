@@ -70,6 +70,36 @@ void main() {
   _chk('gestation daysUntilDue', g.daysUntilDue == 112);
   _chk('gestation progress 0..1', g.progress > 0.5 && g.progress < 0.65);
   _chk('gestation trimester 2', g.trimester == 2);
+
+  // ---- Trimester boundaries ----
+  // Shown to her as "Trimester N", and the milestone notification fires on the
+  // same boundary. The third used to start at week 27 — a week early under
+  // every published convention, NHS and ACOG alike — so for one week of every
+  // pregnancy the app said she had reached the third trimester when she had
+  // not, and congratulated her on it.
+  //
+  // The table below is the NHS split: first to the end of 12, second 13 to the
+  // end of 27, third from 28. Pinned week by week so neither boundary can
+  // drift again without saying so.
+  {
+    int trimesterAtWeek(int w) =>
+        gestationFor(today.add(Duration(days: 280 - w * 7)), today)!.trimester;
+
+    for (final w in [0, 5, 12]) {
+      _chk('week $w is the first trimester', trimesterAtWeek(w) == 1);
+    }
+    for (final w in [13, 20, 26, 27]) {
+      _chk('week $w is the second trimester', trimesterAtWeek(w) == 2);
+    }
+    for (final w in [28, 35, 40]) {
+      _chk('week $w is the third trimester', trimesterAtWeek(w) == 3);
+    }
+    // The two edges, stated as edges.
+    _chk('the second trimester begins at week 13',
+        trimesterAtWeek(12) == 1 && trimesterAtWeek(13) == 2);
+    _chk('the third trimester begins at week 28',
+        trimesterAtWeek(27) == 2 && trimesterAtWeek(28) == 3);
+  }
   // 24w3d → due in 109 days.
   final g2 = gestationFor(today.add(const Duration(days: 109)), today)!;
   _chk('gestation 24w3d', g2.week == 24 && g2.dayOfWeek == 3);

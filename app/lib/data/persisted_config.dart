@@ -199,57 +199,89 @@ class PersistedConfig {
         if (manualSleep.isNotEmpty) 'manualSleep': [for (final n in manualSleep) n.toJson()],
       };
 
-  factory PersistedConfig.fromJson(Map<String, dynamic> j) => PersistedConfig(
+  /// How many entries the last [fromJson] had to discard.
+  ///
+  /// Exposed so the caller can say "two appointments could not be read" rather
+  /// than let them vanish unremarked. Reset on every parse.
+  static int lastDroppedEntries = 0;
+
+  /// Parse one item, or drop it.
+  ///
+  /// WHY EACH ITEM IS ISOLATED
+  ///
+  /// Every list here used to be all-or-nothing: one appointment with an
+  /// unparseable date, or one weight entry whose number arrived as a string,
+  /// threw out of the whole constructor. PrefsAppStore.load catches that and
+  /// returns null, restore() then returns early — and the app shows FIRST-RUN
+  /// ONBOARDING. Her pregnancy, her children, their zones and her entire
+  /// history are still on the disk, unreachable, while the app behaves as
+  /// though she had never used it.
+  ///
+  /// This is her only copy. A single bad field must cost her that field, not
+  /// everything.
+  static List<T> _items<T>(Object? raw, T Function(Map<String, dynamic>) parse) {
+    if (raw is! List) return const [];
+    final out = <T>[];
+    for (final e in raw) {
+      if (e is! Map) {
+        lastDroppedEntries++;
+        continue;
+      }
+      try {
+        out.add(parse(e.cast<String, dynamic>()));
+      } catch (_) {
+        lastDroppedEntries++;
+      }
+    }
+    return out;
+  }
+
+  /// As [_items], for a map of id → int (water log, battery levels).
+  static Map<String, int> _intMap(Object? raw) {
+    if (raw is! Map) return const {};
+    final out = <String, int>{};
+    for (final e in raw.entries) {
+      final v = e.value;
+      if (v is num) {
+        out['${e.key}'] = v.toInt();
+      } else {
+        lastDroppedEntries++;
+      }
+    }
+    return out;
+  }
+
+  factory PersistedConfig.fromJson(Map<String, dynamic> j) {
+    lastDroppedEntries = 0;
+    return _fromJson(j);
+  }
+
+  static PersistedConfig _fromJson(Map<String, dynamic> j) => PersistedConfig(
         onboarded: (j['onboarded'] as bool?) ?? false,
         locale: appLocaleFromCode(j['locale'] as String?) ?? AppLocale.ru,
         profile: j['profile'] is Map
             ? UserProfile.fromJson((j['profile'] as Map).cast<String, dynamic>())
             : const UserProfile(),
-        children: [
-          for (final c in (j['children'] as List? ?? const []))
-            childFromJson((c as Map).cast<String, dynamic>())
-        ],
-        devices: [
-          for (final d in (j['devices'] as List? ?? const []))
-            PairedDevice.fromJson((d as Map).cast<String, dynamic>())
-        ],
+        children: _items(j['children'], childFromJson),
+        devices: _items(j['devices'], PairedDevice.fromJson),
         bpCalibration: j['bpCalibration'] is Map
             ? BpCalibration.fromJson((j['bpCalibration'] as Map).cast<String, dynamic>())
             : null,
         dayLogs: dayLogsFromJson(
             j['dayLogs'] is Map ? (j['dayLogs'] as Map).cast<String, dynamic>() : null),
         notificationsEnabled: (j['notificationsEnabled'] as bool?) ?? true,
-        alerts: [
-          for (final a in (j['alerts'] as List? ?? const []))
-            SafetyAlert.fromJson((a as Map).cast<String, dynamic>())
-        ],
+        alerts: _items(j['alerts'], SafetyAlert.fromJson),
         lastChildZone: j['lastChildZone'] as String?,
         avgCycleLength: (j['avgCycleLength'] as num?)?.toInt(),
         avgPeriodLength: (j['avgPeriodLength'] as num?)?.toInt(),
-        kickSessions: [
-          for (final k in (j['kickSessions'] as List? ?? const []))
-            KickSessionRecord.fromJson((k as Map).cast<String, dynamic>())
-        ],
-        contractionSessions: [
-          for (final s in (j['contractionSessions'] as List? ?? const []))
-            ContractionSessionRecord.fromJson((s as Map).cast<String, dynamic>())
-        ],
-        waterLog: j['waterLog'] is Map
-            ? {for (final e in (j['waterLog'] as Map).entries) '${e.key}': (e.value as num).toInt()}
-            : const {},
+        kickSessions: _items(j['kickSessions'], KickSessionRecord.fromJson),
+        contractionSessions: _items(j['contractionSessions'], ContractionSessionRecord.fromJson),
+        waterLog: _intMap(j['waterLog']),
         waterGoal: (j['waterGoal'] as num?)?.toInt(),
-        appointments: [
-          for (final a in (j['appointments'] as List? ?? const []))
-            Appointment.fromJson((a as Map).cast<String, dynamic>())
-        ],
-        weights: [
-          for (final w in (j['weights'] as List? ?? const []))
-            WeightEntry.fromJson((w as Map).cast<String, dynamic>())
-        ],
+        appointments: _items(j['appointments'], Appointment.fromJson),
+        weights: _items(j['weights'], WeightEntry.fromJson),
         weightGoalKg: (j['weightGoalKg'] as num?)?.toDouble(),
-        childBattery: j['childBattery'] is Map
-            ? {for (final e in (j['childBattery'] as Map).entries) '${e.key}': (e.value as num).toInt()}
-            : const {},
+        childBattery: _intMap(j['childBattery']),
         childBatteryHistory: j['childBatteryHistory'] is Map
             ? {
                 for (final e in (j['childBatteryHistory'] as Map).entries)

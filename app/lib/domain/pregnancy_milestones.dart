@@ -13,7 +13,11 @@ const List<Milestone> pregnancyMilestoneTable = [
   (week: 0, code: 'MS_FIRST_TRIMESTER'),
   (week: 13, code: 'MS_SECOND_TRIMESTER'),
   (week: 20, code: 'MS_HALFWAY'),
-  (week: 27, code: 'MS_THIRD_TRIMESTER'),
+  // Week 28, not 27: the third trimester begins at 28w0d under both the NHS
+  // and ACOG. This fired a week early, and had to move with
+  // GestationInfo.trimester or the milestone and the header would have
+  // disagreed about which trimester she was in.
+  (week: 28, code: 'MS_THIRD_TRIMESTER'),
   (week: 37, code: 'MS_FULL_TERM'),
   (week: 40, code: 'MS_DUE'),
 ];

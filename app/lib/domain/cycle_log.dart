@@ -187,8 +187,22 @@ class GestationInfo {
   /// Progress toward 40 weeks (0..1), for the header ring/bar.
   double get progress => (totalDays / 280.0).clamp(0.0, 1.0);
 
-  /// Roughly which trimester (1..3), for copy/theming.
-  int get trimester => week < 13 ? 1 : (week < 27 ? 2 : 3);
+  /// Which trimester (1..3). Shown to the user as "Trimester N".
+  ///
+  /// Boundaries follow the NHS split — first trimester to the end of week 12,
+  /// second from week 13 to the end of week 27, third from week 28 to birth.
+  /// Written down because the two boundaries have different histories here:
+  ///
+  /// The 13 is deliberate and matches the NHS ("the second trimester is from
+  /// week 13 to week 27"). ACOG puts it a week later; either is defensible and
+  /// churning between them helps nobody.
+  ///
+  /// The 28 is a FIX. This used to read `week < 27`, which started the third
+  /// trimester at week 27 — a week early under every published convention,
+  /// NHS and ACOG alike. For one week of every pregnancy the app told her she
+  /// had reached the third trimester when she had not, and the milestone
+  /// notification fired to match.
+  int get trimester => week < 13 ? 1 : (week < 28 ? 2 : 3);
 }
 
 /// Compute gestation from [dueDate] relative to [today]. Returns null if no due

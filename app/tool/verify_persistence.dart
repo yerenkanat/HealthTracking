@@ -607,6 +607,65 @@ void main() async {
     await c.dispose();
   }
 
+  // ---- One unreadable entry must not cost her everything ----
+  //
+  // Every list here used to be all-or-nothing. One appointment with an
+  // unparseable date threw out of the whole constructor; PrefsAppStore.load
+  // catches that and returns null; restore() then returns early — and the app
+  // shows FIRST-RUN ONBOARDING. Her pregnancy, her children, their zones and
+  // her entire history still on the disk, unreachable, while the app behaves as
+  // though she had never opened it. This is her only copy.
+  {
+    final base = PersistedConfig(
+      onboarded: true,
+      locale: AppLocale.ru,
+      profile: const UserProfile(displayName: 'Aigerim', phoneNumber: '7001112233'),
+      children: const [],
+      devices: const [],
+    ).toJson();
+
+    PersistedConfig parse(Map<String, dynamic> j) => PersistedConfig.fromJson(j);
+
+    // A good appointment and a broken one.
+    final mixed = parse({
+      ...base,
+      'appointments': [
+        {'id': 'a', 'title': 'Приём у врача', 'at': '2026-08-01T10:00:00.000'},
+        {'id': 'b', 'title': 'broken', 'at': 'not-a-date'},
+      ],
+    });
+    _chk('a broken appointment does not take the config with it', mixed.onboarded);
+    _chk('the profile survives', mixed.profile.displayName == 'Aigerim');
+    _chk('the readable appointment is kept', mixed.appointments.length == 1);
+    _chk('and it is the right one', mixed.appointments.single.title == 'Приём у врача');
+    _chk('the loss is counted, not silent', PersistedConfig.lastDroppedEntries == 1);
+
+    // Every other shape that used to throw.
+    for (final (label, bad) in [
+      ('a weight that is not a number', {'weights': [{'date': '2026-07-21', 'kg': 'sixty'}]}),
+      ('a child that is not a map', {'children': ['oops']}),
+      ('a device that is not a map', {'devices': [42]}),
+      ('an alert that is not a map', {'alerts': [null]}),
+      ('a water count that is not a number', {'waterLog': {'2026-07-21': 'eight'}}),
+      ('a battery level that is not a number', {'childBattery': {'c1': 'full'}}),
+      ('a kick session with a bad date', {'kickSessions': [{'endedAt': 'nope', 'count': 3, 'durationSec': 60}]}),
+    ]) {
+      final c = parse({...base, ...bad});
+      _chk('$label: the rest is still restored',
+          c.onboarded && c.profile.displayName == 'Aigerim');
+      _chk('$label: and the loss is counted', PersistedConfig.lastDroppedEntries >= 1);
+    }
+
+    // A clean config drops nothing — otherwise the counter would be noise.
+    parse(base);
+    _chk('a clean config drops nothing', PersistedConfig.lastDroppedEntries == 0);
+
+    // A payload from a newer build, carrying fields this one has never seen.
+    final future = parse({...base, 'version': 99, 'somethingNew': {'a': 1}});
+    _chk('a newer config still restores what this build understands',
+        future.onboarded && future.profile.displayName == 'Aigerim');
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
