@@ -31,6 +31,12 @@ void _chk(String n, bool ok) {
   print('${ok ? 'PASS' : 'FAIL'}  $n');
 }
 
+/// Wait past the persistence debounce. Writes are coalesced so a burst of taps
+/// does not re-encode the whole config each time; these tests are about WHAT
+/// ends up saved, so they wait for it to settle rather than assuming it is
+/// instant.
+Future<void> settled() => Future<void>.delayed(const Duration(milliseconds: 400));
+
 void main() async {
   // ---- PersistedConfig round-trip (profile + 2 children + device) ----
   final cfg = PersistedConfig(
@@ -176,7 +182,7 @@ void main() async {
       Geofence.circle('home', 'Home', const Coordinates(1, 2), 50),
     ]),
   ));
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   final saved = await store3.load();
   _chk('onboarding persisted', saved?.onboarded == true && saved?.children.first.name == 'Kid');
   _chk('onboarding persisted band device', saved?.devices.any((d) => d.id == 'BAND-9') == true);
@@ -184,14 +190,16 @@ void main() async {
 
   // ---- add a second child persists + select ----
   ctl3.addChild(const ChildProfile(id: 'child-2', name: 'Aida'));
-  await Future<void>.delayed(Duration.zero);
+
+  await settled();
   _chk('added child persisted', (await store3.load())?.children.length == 2);
   ctl3.selectChild('child-2');
   _chk('select second child', ctl3.childName == 'Aida');
 
   // ---- setLocale persists ----
   ctl3.setLocale(AppLocale.kk);
-  await Future<void>.delayed(Duration.zero);
+
+  await settled();
   _chk('setLocale persisted', (await store3.load())?.locale == AppLocale.kk);
 
   await ctl3.dispose();
@@ -203,38 +211,38 @@ void main() async {
 
   // ---- add device, then remove ----
   ctl4.addDevice(const PairedDevice(id: 'TAG-1', name: 'Tag', kind: DeviceKind.tag, childId: 'child-1'));
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   _chk('device added', ctl4.devices.any((d) => d.id == 'TAG-1'));
   ctl4.removeDevice('TAG-1');
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   _chk('device removed + persisted', !ctl4.devices.any((d) => d.id == 'TAG-1') &&
       (await store3.load())?.devices.any((d) => d.id == 'TAG-1') == false);
 
   // ---- geofence zones CRUD on a child ----
   ctl4.upsertGeofence('child-2', Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 150));
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   _chk('zone added', ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
   _chk('zone persisted', (await store3.load())!.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
   // upsert same id updates in place (no duplicate)
   ctl4.upsertGeofence('child-2', Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 250));
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   final z = ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.where((f) => f.id == 'z1').toList();
   _chk('zone updated in place', z.length == 1 && z.first.radiusM == 250);
   ctl4.removeGeofence('child-2', 'z1');
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   _chk('zone removed + persisted', !ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1') &&
       !(await store3.load())!.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
 
   // ---- remove a child reselects remaining ----
   ctl4.removeChild('child-1'); // currently selected; child-2 remains
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   _chk('child removed', ctl4.children.length == 1 && ctl4.children.first.id == 'child-2');
   _chk('reselected remaining child', ctl4.childName == 'Aida');
 
   // ---- BP calibration stored + persisted + restored ----
   ctl4.calibrateBp(cuffSystolic: 128, cuffDiastolic: 82, ppgSystolic: 120, ppgDiastolic: 78,
       at: DateTime.parse('2026-07-15T00:00:00Z'));
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   _chk('calibration offsets stored', ctl4.bpCalibration?.systolicOffset == 8 && ctl4.bpCalibration?.diastolicOffset == 4);
   _chk('calibration persisted', (await store3.load())?.bpCalibration?.systolicOffset == 8);
   // restore into a fresh controller
@@ -249,7 +257,7 @@ void main() async {
   ctl4.toggleSymptomFor(day, Symptom.nausea);
   ctl4.addKickFor(day);
   ctl4.addKickFor(day);
-  await Future<void>.delayed(Duration.zero);
+  await settled();
   _chk('day log recorded', ctl4.logFor(day).mood == Mood.calm && ctl4.logFor(day).kicks == 2);
   _chk('day log persisted', (await store3.load())?.dayLogs['2026-07-15']?.kicks == 2);
   final ctl6 = AppController(persistStore: store3, now: () => day);
@@ -411,7 +419,7 @@ void main() async {
   _chk('a valid night is accepted', logged);
   _chk('an impossible night is refused',
       !sleepCtl.logManualSleep(SleepEntry(bedAt: DateTime(2026, 7, 14, 7), wokeAt: DateTime(2026, 7, 14, 1))));
-  await Future<void>.delayed(Duration.zero); // let the async save land
+  await settled(); // let the async save land
 
   final sleepBack = AppController(persistStore: sleepStore);
   await sleepBack.restore();
@@ -557,6 +565,59 @@ void main() async {
     }
   }
 
+  // ---- Saving must not stutter the screen it is saving from ----
+  //
+  // Every mutation snapshotted and re-encoded the WHOLE config synchronously.
+  // For a user with three years of history that is ~158 KB of JSON, measured at
+  // roughly 7ms per tap on a desktop — and the kick counter is a rapid-tap
+  // control on a phone several times slower. The cost grows with her history,
+  // so the users who have relied on the app longest feel it worst.
+  //
+  // Writes are coalesced now. What has to stay true is that they still HAPPEN:
+  // a debounce that quietly drops the last write would be far worse than the
+  // stutter it replaced.
+  {
+    final store = _CountingStore();
+    final c = AppController(now: () => DateTime(2026, 7, 21), persistStore: store);
+
+    for (var i = 0; i < 20; i++) {
+      c.addKickFor(DateTime(2026, 7, 21));
+    }
+    _chk('a burst of taps does not write once per tap', store.saves < 20);
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    _chk('but the burst IS written once it settles', store.saves >= 1);
+
+    // Nothing pending must be lost on shutdown.
+    final before = store.saves;
+    c.addKickFor(DateTime(2026, 7, 21));
+    await c.dispose();
+    _chk('a pending write is flushed on dispose', store.saves > before);
+  }
+
+  {
+    // Irreversible operations do not wait: losing 300ms of a deletion would
+    // resurrect something the user removed on purpose.
+    final store = _CountingStore();
+    final c = AppController(now: () => DateTime(2026, 7, 21), persistStore: store);
+    c.configureChild(name: 'Sultan', fences: const []);
+    final before = store.saves;
+    c.removeChild(c.children.single.id);
+    _chk('a deletion is written immediately', store.saves > before);
+    await c.dispose();
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
+}
+
+/// Counts writes without touching a disk.
+class _CountingStore implements AppStore {
+  int saves = 0;
+  @override
+  Future<PersistedConfig?> load() async => null;
+  @override
+  Future<void> save(PersistedConfig c) async => saves++;
+  @override
+  Future<void> clear() async {}
 }

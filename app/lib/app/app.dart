@@ -21,6 +21,46 @@ import '../ui/home_shell.dart';
 import '../ui/onboarding/onboarding_flow.dart';
 import '../ui/emergency/emergency_rescue_screen.dart';
 
+/// Flushes any debounced save when the app leaves the foreground.
+///
+/// Writes are coalesced so a burst of taps does not re-encode the whole config
+/// each time, which costs at most 300ms of input if the process dies. Android
+/// kills BACKGROUNDED apps, not foreground ones, so writing on the way out
+/// closes the window that actually occurs.
+class _SaveOnPause extends StatefulWidget {
+  final AppController controller;
+  final Widget child;
+  const _SaveOnPause({required this.controller, required this.child});
+
+  @override
+  State<_SaveOnPause> createState() => _SaveOnPauseState();
+}
+
+class _SaveOnPauseState extends State<_SaveOnPause> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final leaving = state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden;
+    if (leaving) widget.controller.flushPendingSave();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 class FcsApp extends StatelessWidget {
   final AppController controller;
 
@@ -35,7 +75,9 @@ class FcsApp extends StatelessWidget {
       stream: controller.changes,
       builder: (context, _) {
         final l = L10n(controller.locale);
-        return L10nScope(
+        return _SaveOnPause(
+          controller: controller,
+          child: L10nScope(
           l10n: l,
           child: MaterialApp(
             title: 'Umay',
@@ -50,6 +92,7 @@ class FcsApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             home: _rootFor(l),
+          ),
           ),
         );
       },
