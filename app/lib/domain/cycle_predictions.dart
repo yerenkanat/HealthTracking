@@ -100,7 +100,14 @@ CycleInfo computeCycle(
   //
   // Only the most recent cycles count, so a genuine change in rhythm shows up
   // instead of being outvoted by years of old history.
-  var avgCycle = defaultCycle;
+  // Clamped, not trusted. The settings slider is bounded 21-35, but this value
+  // also arrives from a RESTORED BACKUP — a hand-editable JSON file we show the
+  // user and encourage her to keep — and from any future caller. Unclamped, a
+  // baseline of 1 predicts her next period today, every day; 999 predicts it in
+  // three years. The derived-median path below already clamps; this is the path
+  // taken when there is not yet enough logged history, which is exactly when a
+  // new user is relying on the baseline.
+  var avgCycle = _clamp(defaultCycle, 21, 35);
   final gaps = <int>[
     for (var i = 1; i < starts.length; i++) starts[i].difference(starts[i - 1]).inDays,
   ];
@@ -132,9 +139,16 @@ CycleInfo computeCycle(
   final lastStart = starts.last;
 
   // Next predicted start: roll forward from the last start until on/after today.
-  var next = lastStart.add(Duration(days: avgCycle));
+  //
+  // The step is asserted positive rather than assumed. avgCycle is clamped
+  // above, but this loop's termination should not depend on a guard several
+  // lines away: with a step of zero or less it never exits, and the failure is
+  // not a wrong prediction — it is the app hanging on the calendar screen.
+  // That is exactly what happened when the clamp was removed to test it.
+  final step = avgCycle < 1 ? 28 : avgCycle;
+  var next = lastStart.add(Duration(days: step));
   while (next.isBefore(t)) {
-    next = next.add(Duration(days: avgCycle));
+    next = next.add(Duration(days: step));
   }
   final ovulation = next.subtract(const Duration(days: 14));
   final fertileStart = ovulation.subtract(const Duration(days: 5));

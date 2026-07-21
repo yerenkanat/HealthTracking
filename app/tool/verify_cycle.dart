@@ -368,6 +368,36 @@ void main() {
   _chk('no logged periods means no prediction at all',
       !computeCycle(const {}, anchor).hasData);
 
+  // ---- The baseline is clamped, not trusted ----
+  // The settings slider is bounded 21-35, but this value also arrives from a
+  // restored backup — a hand-editable JSON file the app shows the user and
+  // tells her to keep — so the domain cannot assume it is sane. Unclamped, a
+  // baseline of 1 predicted her next period today, every day, and 999 put it
+  // three years out. It matters most for a NEW user, who has no logged history
+  // yet and is relying entirely on the baseline.
+  {
+    final today = DateTime(2026, 7, 21);
+    final oneCycle = {
+      for (var i = 0; i < 5; i++) DateTime(2026, 7, 15).add(Duration(days: i)),
+    };
+    for (final absurd in [0, 1, -5, 999, 100000]) {
+      final info = computeCycle(oneCycle, today, defaultCycle: absurd);
+      _chk('a baseline of $absurd is clamped into a plausible cycle',
+          info.avgCycleLength >= 21 && info.avgCycleLength <= 35);
+      _chk('a baseline of $absurd still predicts a future period',
+          info.nextPeriodStart != null && !info.nextPeriodStart!.isBefore(today));
+    }
+    for (final absurd in [0, 1, -3, 60]) {
+      final info = computeCycle(<DateTime>{}, today, defaultPeriod: absurd);
+      _chk('a period length of $absurd is clamped too',
+          info.avgPeriodLength >= 2 && info.avgPeriodLength <= 8);
+    }
+    // A sane baseline is still honoured — the clamp must not flatten everything
+    // to 28 and quietly discard what she set.
+    _chk('a sane baseline is used as given',
+        computeCycle(oneCycle, today, defaultCycle: 31).avgCycleLength == 31);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
