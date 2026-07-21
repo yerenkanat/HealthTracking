@@ -293,6 +293,14 @@ class AppController {
       final decoded = jsonDecode(json);
       if (!looksLikeBackup(decoded)) return false;
       cfg = PersistedConfig.fromJson((decoded as Map).cast<String, dynamic>());
+      // How much of the file could not be read.
+      //
+      // The parse tolerates a bad entry rather than failing wholesale, which is
+      // right for HER OWN saved data — the alternative is losing all of it. But
+      // for a file she deliberately chose to restore, silence would be a lie:
+      // she would be told the backup restored and never learn that three
+      // appointments in it were unreadable and are simply gone.
+      _lastImportDropped = PersistedConfig.lastDroppedEntries;
     } catch (_) {
       return false;
     }
@@ -308,6 +316,10 @@ class AppController {
     _notify();
     return true;
   }
+
+  /// Entries the last [importJson] could not read. Zero after a clean import.
+  int _lastImportDropped = 0;
+  int get lastImportDropped => _lastImportDropped;
 
   PersistedConfig _snapshot() => PersistedConfig(
         onboarded: _onboarded,

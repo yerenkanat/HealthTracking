@@ -323,6 +323,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'set_import_hint': {AppLocale.ru: 'Вставьте JSON резервной копии сюда', AppLocale.kk: 'Мұнда JSON сақтық көшірмесін қойыңыз', AppLocale.en: 'Paste your backup JSON here'},
   'set_import_apply': {AppLocale.ru: 'Импортировать', AppLocale.kk: 'Импорттау', AppLocale.en: 'Import'},
   'set_import_ok': {AppLocale.ru: 'Данные восстановлены', AppLocale.kk: 'Деректер қалпына келтірілді', AppLocale.en: 'Data restored'},
+  // Most of the file came back, some of it could not be read. Saying plain
+  // "restored" would leave her believing entries that are gone were recovered.
+  'set_import_partial': {
+    AppLocale.ru: 'Данные восстановлены, но {n} записей прочитать не удалось',
+    AppLocale.kk: 'Деректер қалпына келтірілді, бірақ {n} жазбаны оқу мүмкін болмады',
+    AppLocale.en: 'Data restored, but {n} entries could not be read'
+  },
   'set_import_fail': {AppLocale.ru: 'Не удалось прочитать резервную копию', AppLocale.kk: 'Сақтық көшірмені оқу мүмкін болмады', AppLocale.en: "Couldn't read that backup"},
   'set_about': {AppLocale.ru: 'О приложении', AppLocale.kk: 'Қолданба туралы', AppLocale.en: 'About'},
   'set_about_body': {

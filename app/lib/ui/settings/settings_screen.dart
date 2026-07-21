@@ -368,11 +368,25 @@ class SettingsScreen extends StatelessWidget {
     if (!confirmed || !context.mounted) return;
 
     final ok = c.importJson(text.trim());
+    // Say when part of the file could not be read.
+    //
+    // The parse skips a bad entry rather than failing wholesale — right for her
+    // own saved data, where the alternative is losing all of it. For a file she
+    // deliberately chose to restore, reporting plain success would be a lie:
+    // she would never learn that three appointments in it were unreadable and
+    // are simply gone.
+    final dropped = c.lastImportDropped;
+    final message = !ok
+        ? l.t('set_import_fail')
+        : dropped == 0
+            ? l.t('set_import_ok')
+            : l.t('set_import_partial', {'n': dropped});
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(l.t(ok ? 'set_import_ok' : 'set_import_fail')),
+        content: Text(message),
         behavior: SnackBarBehavior.floating,
         backgroundColor: ok ? null : Palette.danger,
+        duration: Duration(seconds: ok && dropped == 0 ? 4 : 8),
       ),
     );
   }

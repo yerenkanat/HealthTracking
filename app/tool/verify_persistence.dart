@@ -666,6 +666,68 @@ void main() async {
         future.onboarded && future.profile.displayName == 'Aigerim');
   }
 
+  // ---- Import: what a wrong, hostile or partly-unreadable file does ----
+  {
+    final t = DateTime(2026, 7, 21, 10);
+    AppController seeded() {
+      final c = AppController(now: () => t);
+      c.debugMarkOnboarded();
+      c.updateProfile(const UserProfile(displayName: 'Aigerim'));
+      c.addAppointment('Приём у врача', t.add(const Duration(days: 3)));
+      return c;
+    }
+
+    // Picking the wrong file must not cost her anything. Every field has a
+    // default, so ANY json object would otherwise decode into a valid-but-empty
+    // config and wipe her.
+    for (final (label, payload) in [
+      ('a shopping list', '{"eggs":2,"milk":1}'),
+      ('an empty object', '{}'),
+      ('a bare array', '[1,2,3]'),
+      ('a number', '42'),
+      ('truncated json', '{"app":"Umay","profile":'),
+      ('not json at all', 'hello'),
+      ('an empty string', ''),
+    ]) {
+      final c = seeded();
+      final before = c.appointments.length;
+      _chk('$label is refused', !c.importJson(payload));
+      _chk('$label leaves her data alone',
+          c.appointments.length == before && c.profile.displayName == 'Aigerim');
+      c.dispose();
+    }
+
+    // A real backup restores, and reports nothing dropped.
+    {
+      final src = seeded();
+      final backup = src.exportJson();
+      final dst = AppController(now: () => t);
+      _chk('a real backup is accepted', dst.importJson(backup));
+      _chk('it restores the appointment', dst.appointments.length == 1);
+      _chk('a clean import reports nothing dropped', dst.lastImportDropped == 0);
+      await src.dispose();
+      await dst.dispose();
+    }
+
+    // A backup with unreadable entries restores the rest AND says how much it
+    // could not read. Silence here would tell her the backup came back whole.
+    {
+      final src = seeded();
+      final decoded = jsonDecode(src.exportJson()) as Map<String, dynamic>;
+      decoded['appointments'] = [
+        ...(decoded['appointments'] as List),
+        {'id': 'x', 'title': 'broken', 'at': 'not-a-date'},
+        {'id': 'y', 'title': 'also broken', 'at': 'nope'},
+      ];
+      final dst = AppController(now: () => t);
+      _chk('a partly unreadable backup still restores', dst.importJson(jsonEncode(decoded)));
+      _chk('the readable appointment survives', dst.appointments.length == 1);
+      _chk('and she is told how much did not', dst.lastImportDropped == 2);
+      await src.dispose();
+      await dst.dispose();
+    }
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
