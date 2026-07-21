@@ -224,6 +224,11 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     const s = await requireStaff(req, reply);
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
+    // The fleet view is not a list of hardware: every row carries the
+    // guardian's display name and their child's name. Opening one user's
+    // health record was audited while browsing every family's names in one
+    // request was not — the same personal data, reached a different way.
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_devices' });
     return reply.send({ devices: await repo.adminDevices(limit) });
   });
 
