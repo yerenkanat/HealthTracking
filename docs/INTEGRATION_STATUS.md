@@ -72,3 +72,46 @@ as uncorrected and flags them stale — but it is a real step to redo.
 4. Call `submitBpCalibration` from `AppController.calibrateBp` so a calibration
    survives a device change. The bounds are already enforced on both sides and
    pinned to `packages/contract/triage_thresholds.json`.
+
+## Authentication: what is actually protecting this
+
+Nothing, yet. Both auth functions are development stubs in
+`packages/backend/src/index.ts`:
+
+- `authUser` trusts an `x-user-id` header.
+- `authAdmin` trusts `x-staff-id` plus `x-staff-role`.
+
+So **anyone who can reach the port can type `x-staff-role: admin`** and read
+every family's record, every child's last known location, the audit log, and
+rewrite the timeline catalogue that a hundred thousand phones will show. There
+is no password anywhere in the system.
+
+The ownership checks on top of this are real and worth keeping — they stop one
+signed-in user reaching another's data, and eight IDOR holes were closed to make
+that true. They assume the identity is honest. Right now it is whatever the
+caller typed.
+
+### What now stops that becoming a production incident
+
+1. **The server refuses to start** when `NODE_ENV=production` and the stubs are
+   still in use. It exits 1 with a message naming the problem. A TODO comment
+   does not stop a deploy; this does. Set `REAL_AUTH=1` once token verification
+   is wired.
+2. **It binds to `127.0.0.1` by default.** It bound to `0.0.0.0`, which put a
+   server trusting a forgeable admin header on every network the machine had
+   joined — a café's Wi-Fi was enough. `HOST` still widens it, so the exposure
+   is at least a decision someone made rather than the default.
+3. **It says so at boot**, on every development start, rather than looking like
+   a working system.
+
+The Android emulator reaches the host through `10.0.2.2`, which maps to
+loopback, so the localhost bind does not affect emulator development — checked,
+not assumed.
+
+### What replacing it involves
+
+`buildServer` takes `authUser` and `authAdmin` as injected functions, so the
+change is confined to the composition root: verify a Firebase ID token (users)
+and a staff session with role claims (back-office), return the same shapes, set
+`REAL_AUTH=1`. Every route already goes through `requireCaller` / `requireAdmin`
+and checks ownership, and those checks do not change.

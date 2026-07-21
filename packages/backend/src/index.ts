@@ -123,9 +123,39 @@ async function main(): Promise<void> {
     app.log.warn('admin dashboard html not found; /admin/ui disabled');
   }
 
+  // ---- Refuse to serve real users with fake authentication ----
+  //
+  // authUser and authAdmin are header stubs: `x-user-id`, and `x-staff-id` plus
+  // `x-staff-role`. Anyone who can reach this port can claim to be an admin by
+  // typing a header, and read every family's data, every child's location and
+  // the whole content catalogue. That is fine on a laptop and catastrophic
+  // anywhere else.
+  //
+  // A TODO comment does not stop a deploy. This does.
+  const usingStubAuth = !process.env.REAL_AUTH;
+  if (usingStubAuth && process.env.NODE_ENV === 'production') {
+    app.log.fatal(
+      'Refusing to start: authentication is still the development header stub ' +
+        '(x-user-id / x-staff-role), which anyone can forge. Wire real token ' +
+        'verification and set REAL_AUTH=1.',
+    );
+    process.exit(1);
+  }
+
+  // Localhost by DEFAULT. It bound to 0.0.0.0, which put a server trusting a
+  // forgeable admin header on every network the machine was joined to — a
+  // café's Wi-Fi is enough. Set HOST explicitly to widen it, which at least
+  // makes the exposure a decision someone made.
   const port = Number(process.env.PORT ?? 8080);
-  await app.listen({ port, host: '0.0.0.0' });
-  app.log.info(`FCS backend listening on :${port}`);
+  const host = process.env.HOST ?? '127.0.0.1';
+  await app.listen({ port, host });
+  if (usingStubAuth) {
+    app.log.warn(
+      `Development authentication in use — any caller can claim any identity. ` +
+        `Listening on ${host}:${port}.`,
+    );
+  }
+  app.log.info(`FCS backend listening on ${host}:${port}`);
 }
 
 main().catch((err) => {
