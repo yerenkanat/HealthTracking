@@ -100,8 +100,9 @@ export function createMemoryRepository(): Repository {
     insertGeofenceEvent: async (e) => void events.push(e),
     insertLocation: async () => {},
     // Push / AI / emergency
-    guardianPushTokens: async () => ({ tokens: [], childName: children[0]?.name ?? '' }),
-    guardianPushTokensForUser: async () => [],
+    guardianPushTokens: async () => ({ tokens: [], childName: children[0]?.name ?? '', locale: profile?.locale ?? null }),
+    guardianPushTokensForUser: async () => ({ tokens: [], locale: profile?.locale ?? null }),
+    deletePushToken: async () => {},
     retrieveRagPassages: async () => [],
     emergencyContacts: async () => [{ label: 'Ambulance', tel: '103' }],
     deviceOwner: async (id) => (devices.some((d) => d.id === id) ? { userId: DEMO_USER } : null),

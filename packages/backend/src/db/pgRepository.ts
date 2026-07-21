@@ -79,18 +79,33 @@ export function createPgRepository(pool: Pool): Repository {
 
     async guardianPushTokens(childId) {
       const { rows } = await pool.query(
-        `SELECT pt.token, c.name
+        `SELECT pt.token, c.name, u.locale
          FROM children c
          JOIN push_tokens pt ON pt.user_id = c.guardian_id
+         JOIN users u        ON u.id = c.guardian_id
          WHERE c.id = $1`,
         [childId],
       );
-      return { tokens: rows.map((r) => r.token), childName: rows[0]?.name ?? 'Your child' };
+      return {
+        tokens: rows.map((r) => r.token),
+        childName: rows[0]?.name ?? 'Your child',
+        locale: rows[0]?.locale ?? null,
+      };
     },
 
     async guardianPushTokensForUser(userId) {
-      const { rows } = await pool.query(`SELECT token FROM push_tokens WHERE user_id = $1`, [userId]);
-      return rows.map((r) => r.token);
+      const { rows } = await pool.query(
+        `SELECT pt.token, u.locale
+           FROM push_tokens pt
+           JOIN users u ON u.id = pt.user_id
+          WHERE pt.user_id = $1`,
+        [userId],
+      );
+      return { tokens: rows.map((r) => r.token), locale: rows[0]?.locale ?? null };
+    },
+
+    async deletePushToken(token) {
+      await pool.query('DELETE FROM push_tokens WHERE token = $1', [token]);
     },
 
     async retrieveRagPassages(_query, _locale) {

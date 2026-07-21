@@ -141,8 +141,22 @@ export interface Repository {
   insertLocation(fix: ChildLocationFix): Promise<void>;
 
   // Push
-  guardianPushTokens(childId: string): Promise<{ tokens: string[]; childName: string }>;
-  guardianPushTokensForUser(userId: string): Promise<string[]>;
+  /// Push targets for a child's guardian, WITH the language they read in.
+  ///
+  /// The locale travels with the tokens because the copy is written at the
+  /// moment of sending and there is nowhere else to get it. Without it every
+  /// push went out in English to an app whose default language is Russian.
+  guardianPushTokens(
+    childId: string,
+  ): Promise<{ tokens: string[]; childName: string; locale: string | null }>;
+  guardianPushTokensForUser(userId: string): Promise<{ tokens: string[]; locale: string | null }>;
+
+  /// Forget a token FCM has told us is dead.
+  ///
+  /// Without this a reinstalled app leaves its old token behind for ever, and
+  /// every emergency push is delivered to nothing — silently, because a dead
+  /// token fails per-token inside a multicast that otherwise succeeds.
+  deletePushToken(token: string): Promise<void>;
 
   // AI grounding
   retrieveRagPassages(query: string, locale: string): Promise<string[]>;

@@ -30,51 +30,86 @@ interface PushMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Copy generators — the Nudge Master's voice, localizable.
+// Copy generators — the Nudge Master's voice, in the language she reads.
 // Tone: warm, first-name, reassuring, never alarmist unless it's a real emergency.
+//
+// These used to be English string literals with a comment promising that a
+// "localization layer swaps these by user.locale". There was no such layer. The
+// app defaults to Russian and ships ru/kk/en, so every push — including the
+// medical emergency — arrived in a language most of its users had not chosen.
 // ---------------------------------------------------------------------------
-export function geofenceCopy(evt: GeofenceEvent, childName: string): PushMessage {
-  const arrived = evt.transition === 'enter';
-  // Warm, concrete, low-anxiety. Localization layer swaps these by user.locale.
-  const map: Record<string, PushMessage> = {
-    'enter:School': {
-      title: `${childName} is at school ✅`,
-      body: `${childName} just arrived safely at School. Have a good day!`,
-      category: 'geofence',
-    },
-    'exit:School': {
-      title: `${childName} left school`,
-      body: `${childName} left the School zone a moment ago. We'll let you know where they head next.`,
-      category: 'geofence',
-    },
-    'enter:Home': {
-      title: `${childName} is home 🏡`,
-      body: `${childName} just arrived home safely.`,
-      category: 'geofence',
-    },
-    'exit:Home': {
-      title: `${childName} left home`,
-      body: `${childName} left Home ${'just now'}. Tap to see their live location.`,
-      category: 'geofence',
-    },
-  };
-  const key = `${evt.transition === 'enter' ? 'enter' : 'exit'}:${evt.geofenceName}`;
-  return (
-    map[key] ?? {
-      title: arrived ? `${childName} arrived at ${evt.geofenceName}` : `${childName} left ${evt.geofenceName}`,
-      body: arrived
-        ? `${childName} just reached ${evt.geofenceName} safely.`
-        : `${childName} left ${evt.geofenceName}. Tap for live location.`,
-      category: 'geofence',
-    }
-  );
+
+export type PushLocale = 'ru' | 'kk' | 'en';
+
+/// Narrow a stored locale ("ru-KZ", "kk", null) to one we have copy for.
+/// Russian is the fallback because it is the app's own default, not English.
+export function toPushLocale(raw: string | null | undefined): PushLocale {
+  const s = (raw ?? '').toLowerCase();
+  if (s.startsWith('kk')) return 'kk';
+  if (s.startsWith('en')) return 'en';
+  return 'ru';
 }
 
-export function emergencyCopy(triage: TriageResult): PushMessage {
+type Copy = Record<PushLocale, string>;
+const pick = (c: Copy, l: PushLocale) => c[l];
+
+const ARRIVED_TITLE: Copy = {
+  ru: '{name} на месте: {zone} ✅',
+  kk: '{name} орнында: {zone} ✅',
+  en: '{name} arrived at {zone} ✅',
+};
+const ARRIVED_BODY: Copy = {
+  ru: '{name} только что благополучно добрался(-лась) до места «{zone}».',
+  kk: '{name} «{zone}» орнына аман-есен жетті.',
+  en: '{name} just reached {zone} safely.',
+};
+const LEFT_TITLE: Copy = {
+  ru: '{name} покинул(а) зону «{zone}»',
+  kk: '{name} «{zone}» аймағынан шықты',
+  en: '{name} left {zone}',
+};
+const LEFT_BODY: Copy = {
+  ru: '{name} вышел(-ла) из зоны «{zone}». Нажмите, чтобы посмотреть, где он(а) сейчас.',
+  kk: '{name} «{zone}» аймағынан шықты. Қазір қайда екенін көру үшін басыңыз.',
+  en: '{name} left {zone}. Tap to see their live location.',
+};
+const EMERGENCY_TITLE: Copy = {
+  ru: '🚨 Срочное предупреждение о здоровье',
+  kk: '🚨 Денсаулық туралы шұғыл ескерту',
+  en: '🚨 Urgent health alert',
+};
+const EMERGENCY_BODY: Copy = {
+  ru: 'Обнаружен серьёзный показатель. Пожалуйста, откройте приложение.',
+  kk: 'Елеулі көрсеткіш анықталды. Өтінеміз, қосымшаны ашыңыз.',
+  en: 'A serious health reading was detected. Please open the app now.',
+};
+
+const fill = (tpl: string, vars: Record<string, string>) =>
+  tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+
+export function geofenceCopy(
+  evt: GeofenceEvent,
+  childName: string,
+  locale: PushLocale = 'ru',
+): PushMessage {
+  const arrived = evt.transition === 'enter';
+  const vars = { name: childName, zone: evt.geofenceName };
+  return {
+    title: fill(pick(arrived ? ARRIVED_TITLE : LEFT_TITLE, locale), vars),
+    body: fill(pick(arrived ? ARRIVED_BODY : LEFT_BODY, locale), vars),
+    category: 'geofence',
+  };
+}
+
+export function emergencyCopy(triage: TriageResult, locale: PushLocale = 'ru'): PushMessage {
   const top = triage.findings[0];
   return {
-    title: '🚨 Urgent health alert',
-    body: top?.message ?? 'A serious health reading was detected. Please open the app now.',
+    title: pick(EMERGENCY_TITLE, locale),
+    // The finding's own message is English prose from the shared triage module;
+    // the APP localizes by CODE. So the code travels in `data` and the body
+    // stays a sentence she can read — the phone screen is not the place to
+    // discover that the alert is in the wrong language.
+    body: pick(EMERGENCY_BODY, locale),
     category: 'medical_emergency',
     critical: true,
     data: {
@@ -87,8 +122,31 @@ export function emergencyCopy(triage: TriageResult): PushMessage {
 // ---------------------------------------------------------------------------
 // Delivery
 // ---------------------------------------------------------------------------
-export async function sendPush(tokens: string[], msg: PushMessage): Promise<void> {
-  if (tokens.length === 0) return;
+export interface PushResult {
+  sent: number;
+  failed: number;
+  /** Tokens FCM says are dead; the caller should forget them. */
+  dead: string[];
+  /** Set when the whole send failed rather than individual tokens. */
+  error?: string;
+}
+
+/**
+ * Deliver, and REPORT rather than throw.
+ *
+ * This used to let a failure propagate. The emergency path is
+ * ingestTelemetry → sendEmergencyPush → here, inside handleIngestBatch's
+ * per-item try/catch — so a push that failed marked the reading `rejected`
+ * even though it had already been stored and counted, and the caller received
+ * a summary that contradicted itself. Meanwhile nothing recorded that the most
+ * important notification in the product had not gone out.
+ */
+export async function sendPush(tokens: string[], msg: PushMessage): Promise<PushResult> {
+  if (tokens.length === 0) {
+    // Not an error, but not nothing either: an emergency with nowhere to go is
+    // the difference between "alerted" and "believed she was alerted".
+    return { sent: 0, failed: 0, dead: [], error: 'no_tokens' };
+  }
   const isCritical = msg.category === 'medical_emergency' || msg.critical;
 
   const message: admin.messaging.MulticastMessage = {
@@ -121,20 +179,33 @@ export async function sendPush(tokens: string[], msg: PushMessage): Promise<void
     },
   };
 
-  const res = await admin.messaging().sendEachForMulticast(message);
-  if (res.failureCount > 0) {
-    // Prune dead tokens so we stop paying to retry them (DevOps concern).
-    res.responses.forEach((r, i) => {
-      if (
-        r.error?.code === 'messaging/registration-token-not-registered' ||
-        r.error?.code === 'messaging/invalid-registration-token'
-      ) {
-        void pruneToken(tokens[i]);
-      }
-    });
+  let res: admin.messaging.BatchResponse;
+  try {
+    res = await admin.messaging().sendEachForMulticast(message);
+  } catch (e) {
+    return {
+      sent: 0,
+      failed: tokens.length,
+      dead: [],
+      error: e instanceof Error ? e.message : String(e),
+    };
   }
-}
 
-async function pruneToken(_token: string): Promise<void> {
-  // DELETE FROM push_tokens WHERE token = $1  — wire to your db client.
+  // Tokens FCM has told us are dead — a reinstall, an uninstall, a restore onto
+  // a new phone. They are RETURNED rather than deleted here: this module knows
+  // nothing about the database, and the previous version's pruneToken() was an
+  // empty function with a comment promising it would be wired up. It never was,
+  // so dead tokens accumulated for ever and every push to them failed quietly
+  // inside an otherwise successful multicast.
+  const dead: string[] = [];
+  res.responses.forEach((r, i) => {
+    if (
+      r.error?.code === 'messaging/registration-token-not-registered' ||
+      r.error?.code === 'messaging/invalid-registration-token'
+    ) {
+      dead.push(tokens[i]);
+    }
+  });
+
+  return { sent: res.successCount, failed: res.failureCount, dead };
 }

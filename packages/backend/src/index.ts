@@ -41,9 +41,33 @@ async function productionDeps(): Promise<ServerDeps> {
   const { createPgRepository } = await import('./db/pgRepository');
   const { createAnthropicCaller } = await import('./ai/anthropicClient');
   const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
-  const { emergencyCopy, geofenceCopy, sendPush } = await import('./notifications/push');
+  const { emergencyCopy, geofenceCopy, sendPush, toPushLocale } =
+    await import('./notifications/push');
+  type PushResult = Awaited<ReturnType<typeof sendPush>>;
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const repo = createPgRepository(pool);
+
+  /// Forget dead tokens, and SAY when a push did not land.
+  ///
+  /// sendPush reports instead of throwing, so without this the result would be
+  /// discarded and a failed emergency notification would leave no trace at all
+  /// — the one push in the product where nobody finding out is the whole
+  /// problem.
+  async function afterPush(kind: string, res: PushResult): Promise<void> {
+    for (const token of res.dead) {
+      // pruneToken() used to live in push.ts as an empty function with a
+      // comment saying to wire it to the database. Nobody did, so tokens from
+      // reinstalled apps accumulated and quietly swallowed every push.
+      await repo.deletePushToken(token).catch(() => {});
+    }
+    if (res.error || res.failed > 0) {
+      console.warn(
+        `push(${kind}): ${res.sent} delivered, ${res.failed} failed` +
+          (res.error ? ` — ${res.error}` : '') +
+          (res.dead.length ? `, ${res.dead.length} dead token(s) removed` : ''),
+      );
+    }
+  }
   return {
     repo,
     guardrail: { callLLM: createAnthropicCaller() },
@@ -51,12 +75,14 @@ async function productionDeps(): Promise<ServerDeps> {
       cacheLocation: (fix: ChildLocationFix) => setChildLastLocation(fix),
       resolveTransition: (childId, fenceId, inside) => resolveTransition(childId, fenceId, inside),
       sendEmergencyPush: async (userId, triage) => {
-        const tokens = await repo.guardianPushTokensForUser(userId);
-        await sendPush(tokens, emergencyCopy(triage));
+        const { tokens, locale } = await repo.guardianPushTokensForUser(userId);
+        const res = await sendPush(tokens, emergencyCopy(triage, toPushLocale(locale)));
+        await afterPush('emergency', res);
       },
       sendGeofencePush: async (evt) => {
-        const { tokens, childName } = await repo.guardianPushTokens(evt.childId);
-        await sendPush(tokens, geofenceCopy(evt, childName));
+        const { tokens, childName, locale } = await repo.guardianPushTokens(evt.childId);
+        const res = await sendPush(tokens, geofenceCopy(evt, childName, toPushLocale(locale)));
+        await afterPush('geofence', res);
       },
     },
     authUser,

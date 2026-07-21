@@ -60,8 +60,9 @@ function makeDeps(
       childId === CHILD ? [HOME, ...(geofences.get(childId) ?? [])] : (geofences.get(childId) ?? []),
     insertGeofenceEvent: async (e) => void events.push(e),
     insertLocation: async () => {},
-    guardianPushTokens: async () => ({ tokens: ['t'], childName: 'Sultan' }),
-    guardianPushTokensForUser: async () => ['t'],
+    guardianPushTokens: async () => ({ tokens: ['t'], childName: 'Sultan', locale: 'ru-KZ' }),
+    guardianPushTokensForUser: async () => ({ tokens: ['t'], locale: 'ru-KZ' }),
+    deletePushToken: async () => {},
     retrieveRagPassages: async () => [],
     emergencyContacts: async () => [{ label: 'Doctor', tel: '+7700' }],
     deviceOwner: async (id) =>
