@@ -78,6 +78,74 @@ void main() {
   final waiting = deriveChildStatus(childName: 'Sultan', location: null, updatedAt: null, fences: [school], now: now);
   _chk('ru waiting headline', const L10n(AppLocale.ru).trackingHeadline(waiting, 'Sultan', now).contains('Ожидание'));
 
+  // ---- Every key the UI asks for must exist ----
+  //
+  // L10n.t falls back to the KEY when it finds no row, so a typo or a deleted
+  // entry does not fail — it renders `repeat_title_bp` on screen, in place of a
+  // sentence, to the user. The existing checks all run the other way: they
+  // prove every key in the catalogue is translated. Nothing proved the UI only
+  // asks for keys that are in it.
+  {
+    final known = allL10nKeys.toSet();
+    final uiDir = Directory.fromUri(Platform.script.resolve('../lib'));
+    final missing = <String>[];
+    var literals = 0;
+
+    // t('literal') / t("literal") — the composed ones (t('metric_$k')) are
+    // covered by the family check below, since a regex cannot resolve them.
+    final call = RegExp(r'''\bt\(\s*(['"])([a-z][a-z0-9_]*)\1''');
+
+    for (final f in uiDir.listSync(recursive: true).whereType<File>()) {
+      if (!f.path.endsWith('.dart')) continue;
+      if (f.path.endsWith('l10n.dart')) continue; // the catalogue itself
+      final name = f.path.replaceAll(r'\', '/').split('/').last;
+      for (final line in f.readAsLinesSync()) {
+        if (line.trimLeft().startsWith('//')) continue;
+        for (final m in call.allMatches(line)) {
+          literals++;
+          final key = m.group(2)!;
+          if (!known.contains(key)) missing.add('$name: $key');
+        }
+      }
+    }
+
+    _chk('the scan found real t() calls ($literals)', literals > 100);
+    if (missing.isNotEmpty) {
+      print('\n  Keys the UI asks for that the catalogue does not have:');
+      for (final m in missing) {
+        print('    $m');
+      }
+      print('');
+    }
+    _chk('every key the UI asks for exists (${missing.length} missing)', missing.isEmpty);
+
+    // Families composed at runtime: t('metric_$key'), t('mood_${m.name}') and
+    // friends. A regex cannot resolve those, so each family is listed with the
+    // suffixes the code can actually produce, and every combination checked.
+    // A new enum value without a matching row would otherwise ship the raw key.
+    const families = <String, List<String>>{
+      'metric_': ['hr', 'spo2', 'temp', 'systolic', 'diastolic'],
+      'mood_': ['happy', 'calm', 'anxious', 'tired', 'sad'],
+      'sym_': ['allGood', 'cramps', 'spotting', 'headache', 'nausea', 'swelling'],
+      'flow_': ['light', 'medium', 'heavy'],
+      'gender_': ['boy', 'girl'],
+      'fresh_': ['live', 'recent', 'stale'],
+      'em_reading_': ['bp', 'temp', 'spo2', 'hr'],
+      'repeat_title_': ['bp', 'fever', 'spo2', 'hr'],
+      'zone_loc_': ['denied', 'denied_forever', 'failed'],
+      'lesson_': ['play', 'pause', 'play_failed'],
+    };
+    final missingFamily = <String>[];
+    for (final e in families.entries) {
+      for (final suffix in e.value) {
+        if (!known.contains('${e.key}$suffix')) missingFamily.add('${e.key}$suffix');
+      }
+    }
+    _chk('every runtime-composed key exists (${missingFamily.length} missing'
+        '${missingFamily.isEmpty ? '' : ': ${missingFamily.join(", ")}'})',
+        missingFamily.isEmpty);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
