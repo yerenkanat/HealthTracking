@@ -55,33 +55,49 @@ class HttpApiTransport implements HttpTransport {
     };
   }
 
-  @override
-  Future<HttpResponse> post(String path, Object jsonBody) async {
-    final res = await _client
-        .post(baseUrl.resolve(path), headers: await _headers(), body: jsonEncode(jsonBody))
-        .timeout(timeout);
+  /// Resolve a path against the base URL, KEEPING any prefix the base carries.
+  ///
+  /// Uri.resolve treats a leading slash as absolute, so a base of
+  /// `https://api.umay.kz/v1` and a path of `/children/x` gave
+  /// `https://api.umay.kz/children/x` — the version prefix silently dropped,
+  /// and every request 404ing the moment the backend moved behind one. It
+  /// works today only because API_BASE has no path.
+  Uri uriFor(String path) {
+    final base = baseUrl.path.endsWith('/')
+        ? baseUrl
+        : baseUrl.replace(path: '${baseUrl.path}/');
+    return base.resolve(path.startsWith('/') ? path.substring(1) : path);
+  }
+
+  /// Run one request under [timeout], INCLUDING fetching the auth header.
+  ///
+  /// The timeout used to wrap only the HTTP call, because `await _headers()`
+  /// was evaluated as an argument before the request future existed. getToken
+  /// is a Firebase ID-token fetch, which refreshes over the network and hangs
+  /// on a dead connection exactly like a hung server — so every symptom the
+  /// timeout was added to prevent came straight back through the door beside
+  /// it: a chat spinner that never stops, a location poll that blocks its own
+  /// loop, a batcher that holds its in-flight latch and never uploads again.
+  Future<HttpResponse> _send(Future<http.Response> Function(Map<String, String>) send) async {
+    final res = await Future(() async => send(await _headers())).timeout(timeout);
     return HttpResponse(res.statusCode, res.body);
   }
 
   @override
-  Future<HttpResponse> put(String path, Object jsonBody) async {
-    final res = await _client
-        .put(baseUrl.resolve(path), headers: await _headers(), body: jsonEncode(jsonBody))
-        .timeout(timeout);
-    return HttpResponse(res.statusCode, res.body);
-  }
+  Future<HttpResponse> post(String path, Object jsonBody) =>
+      _send((h) => _client.post(uriFor(path), headers: h, body: jsonEncode(jsonBody)));
 
   @override
-  Future<HttpResponse> get(String path) async {
-    final res =
-        await _client.get(baseUrl.resolve(path), headers: await _headers()).timeout(timeout);
-    return HttpResponse(res.statusCode, res.body);
-  }
+  Future<HttpResponse> put(String path, Object jsonBody) =>
+      _send((h) => _client.put(uriFor(path), headers: h, body: jsonEncode(jsonBody)));
 
   @override
-  Future<HttpResponse> delete(String path) async {
-    final res =
-        await _client.delete(baseUrl.resolve(path), headers: await _headers()).timeout(timeout);
-    return HttpResponse(res.statusCode, res.body);
-  }
+  Future<HttpResponse> get(String path) => _send((h) => _client.get(uriFor(path), headers: h));
+
+  @override
+  Future<HttpResponse> delete(String path) =>
+      _send((h) => _client.delete(uriFor(path), headers: h));
+
+  /// Release the underlying connection pool.
+  void dispose() => _client.close();
 }
