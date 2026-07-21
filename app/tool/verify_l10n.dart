@@ -4,6 +4,7 @@ library;
 
 import 'dart:io';
 import '../lib/domain/child_development.dart';
+import '../lib/domain/vaccination.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -233,6 +234,29 @@ void main() {
       }
     }
     _chk('and all three languages have real text ($untranslated blanks)', untranslated == 0);
+
+    // Same story for vaccines: `vac_$id` and `vac_${id}_note` are composed at
+    // render time, so a vaccine added without strings would put a raw key on
+    // the screen a parent takes to the polyclinic.
+    final vacMissing = <String>[];
+    for (final id in kzSchedule.map((v) => v.id).toSet()) {
+      for (final key in ['vac_$id', 'vac_${id}_note']) {
+        if (!known.contains(key)) vacMissing.add(key);
+      }
+    }
+    _chk('every vaccine has a name and a note', vacMissing.isEmpty);
+    if (vacMissing.isNotEmpty) print('    missing: ${vacMissing.join(', ')}');
+
+    var vacBlank = 0;
+    for (final id in kzSchedule.map((v) => v.id).toSet()) {
+      for (final key in ['vac_$id', 'vac_${id}_note']) {
+        for (final loc in AppLocale.values) {
+          final v = L10n(loc).t(key);
+          if (v == key || v.trim().isEmpty) vacBlank++;
+        }
+      }
+    }
+    _chk('and in all three languages ($vacBlank blanks)', vacBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');
