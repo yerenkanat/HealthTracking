@@ -49,9 +49,22 @@ sealed class ChatOutcome {
         return BlockedChatOutcome(
             message: j['message'] as String, reason: j['reason'] as String? ?? 'blocked');
       case 'chat':
+        final message = (j['message'] as String? ?? '').trim();
+        // An empty reply is a FAILURE, not an answer. Defaulting to '' put a
+        // blank bubble in the conversation — the assistant appearing to say
+        // nothing, which reads as a broken app and offers her nothing to do.
+        // Throwing reaches the caller's existing handling, which shows the
+        // localized "could not reach the assistant" message and lets her retry.
+        if (message.isEmpty) {
+          throw const FormatException('chat reply carried no message');
+        }
+        return ChatReply(message: message, grounded: (j['grounded'] as bool?) ?? false);
       default:
-        return ChatReply(
-            message: j['message'] as String? ?? '', grounded: (j['grounded'] as bool?) ?? false);
+        // A kind this build does not know. Treating it as chat meant a future
+        // server adding an outcome would render whatever happened to be in
+        // `message` — or nothing at all — rather than admitting it could not
+        // understand the reply.
+        throw FormatException('unknown chat outcome "${j['kind']}"');
     }
   }
 }

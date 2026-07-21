@@ -82,4 +82,30 @@ void main() {
       });
     }
   });
+
+  group('a reply the app cannot use is a failure, not an empty answer', () {
+    // Each of these used to become a ChatReply carrying '' — a blank bubble in
+    // the conversation, the assistant appearing to say nothing. That reads as a
+    // broken app and gives her nothing to do. As a thrown error it reaches the
+    // chat controller's existing handling, which shows the localized "could not
+    // reach the assistant" message and lets her try again.
+    final unusable = <String, Map<String, dynamic>>{
+      'no message at all': {'kind': 'chat'},
+      'an empty message': {'kind': 'chat', 'message': ''},
+      'only whitespace': {'kind': 'chat', 'message': '   '},
+      'a kind from a newer server': {'kind': 'referral', 'message': 'see a doctor'},
+      'no kind at all': {'message': 'hello'},
+    };
+    for (final e in unusable.entries) {
+      test('${e.key} is refused', () {
+        expect(() => ChatOutcome.fromJson(e.value), throwsA(isA<FormatException>()));
+      });
+    }
+
+    test('a real reply is still accepted', () {
+      final r = ChatOutcome.fromJson({'kind': 'chat', 'message': 'Rest and hydrate.'});
+      expect(r, isA<ChatReply>());
+      expect((r as ChatReply).message, 'Rest and hydrate.');
+    });
+  });
 }
