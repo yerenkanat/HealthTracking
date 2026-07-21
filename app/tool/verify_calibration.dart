@@ -127,6 +127,47 @@ void main() {
     return after == before && after >= 4.0;
   }());
 
+  // ---- One definition of "stale", not two ----
+  //
+  // The age rule was written out twice: applyBpCalibration's default argument
+  // and, separately, the settings screen's status line. Two loose `8`s that
+  // could disagree — the app telling her the calibration was still good while
+  // the reading it produced was already flagged stale, or the reverse, where
+  // she sees a warning and finds nothing to act on.
+  {
+    final now = DateTime(2026, 7, 21, 12);
+    BpCalibration at(Duration ago) => BpCalibration(5, 3, now.subtract(ago));
+
+    _chk('never calibrated counts as stale', bpCalibrationIsStale(null, now));
+    _chk('a fresh calibration is not stale',
+        !bpCalibrationIsStale(at(const Duration(hours: 1)), now));
+    _chk('a week old is still good',
+        !bpCalibrationIsStale(at(const Duration(days: 7)), now));
+    _chk('exactly at the limit is still good',
+        !bpCalibrationIsStale(at(const Duration(days: bpCalibrationMaxAgeDays)), now));
+    _chk('an hour past the limit is stale',
+        bpCalibrationIsStale(
+            at(const Duration(days: bpCalibrationMaxAgeDays, hours: 1)), now));
+    _chk('months old is stale', bpCalibrationIsStale(at(const Duration(days: 180)), now));
+
+    // The two paths must agree at every age, which is the whole point of
+    // having one function. Walked hour by hour across the boundary.
+    var disagreements = 0;
+    for (var h = 0; h <= bpCalibrationMaxAgeDays * 24 + 48; h++) {
+      final cal = at(Duration(hours: h));
+      final applied = applyBpCalibration(120, 80, cal, now: now).calibrationStale;
+      if (applied != bpCalibrationIsStale(cal, now)) disagreements++;
+    }
+    _chk('the applied reading and the status line never disagree ($disagreements)',
+        disagreements == 0);
+
+    // A stale offset is still APPLIED — raw PPG is worse than an old
+    // correction, and the flag is what tells her to measure again.
+    final old = applyBpCalibration(120, 80, at(const Duration(days: 90)), now: now);
+    _chk('a stale calibration is still applied, not discarded', old.systolic == 125);
+    _chk('and it is flagged', old.calibrationStale);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

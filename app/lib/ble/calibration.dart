@@ -64,12 +64,33 @@ class CalibratedBp {
   const CalibratedBp(this.systolic, this.diastolic, this.calibrationStale);
 }
 
+/// How old a calibration may be before it is treated as stale.
+///
+/// One weekly cuff cycle plus slack. THE one definition: this was written out
+/// separately in applyBpCalibration's default argument and again in the
+/// settings screen's status line, as two independent `8`s. Changing one would
+/// have left the app telling her the calibration was still good while the
+/// reading it produced was already flagged stale — or the reverse, which is
+/// worse, since she would see a warning and find nothing to act on.
+///
+/// The Redis cache TTL in packages/backend/src/cache/redis.ts is deliberately
+/// the same span; it is a separate language and cannot share this constant, so
+/// it carries a comment pointing here.
+const int bpCalibrationMaxAgeDays = 8;
+
+/// Whether [cal] is too old to be trusted. Null (never calibrated) counts as
+/// stale — there is nothing to trust.
+bool bpCalibrationIsStale(BpCalibration? cal, DateTime now) {
+  if (cal == null) return true;
+  return now.difference(cal.calibratedAt).inHours / 24.0 > bpCalibrationMaxAgeDays;
+}
+
 /// Apply the last weekly cuff calibration (offset = cuff - ppg) to a PPG estimate.
 CalibratedBp applyBpCalibration(
   int rawSystolic,
   int rawDiastolic,
   BpCalibration? cal, {
-  int maxAgeDays = 8,
+  int maxAgeDays = bpCalibrationMaxAgeDays,
   DateTime? now,
 }) {
   if (cal == null) {

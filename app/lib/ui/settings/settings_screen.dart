@@ -7,6 +7,7 @@ import 'dart:io' show File;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../app/app_controller.dart';
+import '../../ble/calibration.dart' show bpCalibrationIsStale;
 import '../../domain/backup_file.dart';
 import '../../domain/backup_status.dart';
 import '../../domain/family.dart';
@@ -391,9 +392,12 @@ class SettingsScreen extends StatelessWidget {
   String _calStatus(L10n l, AppController c) {
     final cal = c.bpCalibration;
     if (cal == null) return l.t('cal_never');
-    final age = DateTime.now().difference(cal.calibratedAt);
-    if (age.inDays > 8) return l.t('cal_stale');
-    return l.t('cal_last', {'ago': l.ago(age)});
+    final now = DateTime.now();
+    // The SAME rule the reading itself is judged by. This was a second, loose
+    // `age.inDays > 8` — so the status line and the applied reading could
+    // disagree about whether the calibration was still good.
+    if (bpCalibrationIsStale(cal, now)) return l.t('cal_stale');
+    return l.t('cal_last', {'ago': l.ago(now.difference(cal.calibratedAt))});
   }
 
   String _deviceSubtitle(L10n l, AppController c, PairedDevice d) {
