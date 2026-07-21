@@ -90,6 +90,36 @@ const DEFAULT_HYSTERESIS: HysteresisConfig = {
   maxAccuracyM: 100,
 };
 
+/** Ignore fixes vaguer than this; see HysteresisConfig.maxAccuracyM. */
+export const MAX_USABLE_ACCURACY_M = DEFAULT_HYSTERESIS.maxAccuracyM;
+
+/**
+ * The buffer to apply to one fence — the twin of zone_hysteresis.dart's
+ * _bufferFor, and it must stay in step with it.
+ *
+ * "Inside" means a buffer deep, so a fence that is nowhere a buffer deep can
+ * never be entered and its enter alert is silently impossible. A circle's
+ * deepest point is its centre, at exactly the radius. A polygon has no single
+ * depth, so the distance from its centroid to the nearest edge stands in: not
+ * the true inradius, but never larger, so the buffer it yields is never too
+ * big to enter.
+ */
+export function bufferForFence(fence: Geofence, cfg: HysteresisConfig = DEFAULT_HYSTERESIS): number {
+  if (fence.shape === 'circle') {
+    const r = fence.radiusM ?? 0;
+    return cfg.bufferM < r ? cfg.bufferM : r / 2;
+  }
+  const v = fence.vertices;
+  if (!v || v.length < 3) return cfg.bufferM;
+  const centroid = {
+    lat: v.reduce((s, p) => s + p.lat, 0) / v.length,
+    lng: v.reduce((s, p) => s + p.lng, 0) / v.length,
+  };
+  const depth = -signedDistanceToBoundaryM(centroid, fence);
+  if (Number.isNaN(depth) || depth <= 0) return cfg.bufferM;
+  return cfg.bufferM < depth ? cfg.bufferM : depth / 2;
+}
+
 interface FenceRuntime {
   state: FenceState;
   pendingSide: FenceState | null;
@@ -125,8 +155,10 @@ export class GeofenceTracker {
       const signed = signedDistanceToBoundaryM(coords, fence);
       // Buffered sides: only "definitely inside" / "definitely outside" count.
       let observed: FenceState | null = null;
-      if (signed <= -this.cfg.bufferM) observed = 'inside';
-      else if (signed >= this.cfg.bufferM) observed = 'outside';
+      // Per-fence: a zone smaller than the buffer could never be entered.
+      const buffer = bufferForFence(fence, this.cfg);
+      if (signed <= -buffer) observed = 'inside';
+      else if (signed >= buffer) observed = 'outside';
       // else: within the buffer band → ambiguous, hold current state.
 
       if (observed && observed !== rt.state) {

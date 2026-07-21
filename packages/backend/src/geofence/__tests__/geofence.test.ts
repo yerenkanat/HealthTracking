@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { checkGeofenceBoundary, haversineM, GeofenceTracker } from '../geofence';
-import type { CircleGeofence, Coordinates } from '@fcs/shared';
+import { checkGeofenceBoundary, haversineM, GeofenceTracker, bufferForFence } from '../geofence';
+import type { CircleGeofence, Coordinates, Geofence } from '@fcs/shared';
 
 const school: CircleGeofence = {
   id: 'school',
@@ -48,5 +48,59 @@ describe('hysteresis — no flapping, alert once', () => {
   it('drops low-accuracy fixes (cannot move state)', () => {
     const t2 = new GeofenceTracker([school]);
     expect(t2.update(inside, 500)).toEqual([]); // 500m accuracy → ignored
+  });
+});
+
+describe('a fence too small to be entered', () => {
+  // "Inside" means a buffer deep, so a fence shallower than the buffer could
+  // never be entered at all — the enter alert was silently impossible, even
+  // standing dead centre. The app enforces a minimum radius today, which only
+  // hides this; an imported backup carries any radius at all.
+  it('a 20m circle can still be entered', () => {
+    const yard: Geofence = {
+      id: 'yard', name: 'Yard', shape: 'circle',
+      center: { lat: 43.238949, lng: 76.889709 }, radiusM: 20,
+    };
+    const t = new GeofenceTracker([yard]);
+    const centre = { lat: 43.238949, lng: 76.889709 };
+    expect(t.update(centre, 5)).toHaveLength(0); // first confirmation
+    const hit = t.update(centre, 5);
+    expect(hit.map((h) => h.transition)).toEqual(['enter']);
+  });
+
+  it('shrinks the buffer only for fences smaller than it', () => {
+    const big: Geofence = {
+      id: 'b', name: 'Big', shape: 'circle',
+      center: { lat: 43.238949, lng: 76.889709 }, radiusM: 500,
+    };
+    const small: Geofence = { ...big, id: 's', name: 'Small', radiusM: 20 };
+    expect(bufferForFence(big)).toBe(30);   // unchanged
+    expect(bufferForFence(small)).toBe(10); // half the radius
+  });
+
+  it('a small polygon can be entered too', () => {
+    const d = 30 / 111320;
+    const plot: Geofence = {
+      id: 'p', name: 'Plot', shape: 'polygon',
+      vertices: [
+        { lat: 43.238949 - d, lng: 76.889709 - d },
+        { lat: 43.238949 - d, lng: 76.889709 + d },
+        { lat: 43.238949 + d, lng: 76.889709 + d },
+        { lat: 43.238949 + d, lng: 76.889709 - d },
+      ],
+    };
+    expect(bufferForFence(plot)).toBeLessThan(30);
+    const t = new GeofenceTracker([plot]);
+    const centre = { lat: 43.238949, lng: 76.889709 };
+    t.update(centre, 5);
+    expect(t.update(centre, 5).map((h) => h.transition)).toEqual(['enter']);
+  });
+
+  it('a degenerate polygon keeps the default buffer rather than guessing', () => {
+    const line: Geofence = {
+      id: 'l', name: 'Line', shape: 'polygon',
+      vertices: [{ lat: 43, lng: 76 }, { lat: 43.001, lng: 76 }],
+    };
+    expect(bufferForFence(line)).toBe(30);
   });
 });

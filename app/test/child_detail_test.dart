@@ -48,6 +48,8 @@ void main() {
     final c = seeded();
     c.setChildBattery('child-1', 62);
     c.logChildEvent(AlertKind.checkIn);
+    // Two fixes: a zone change is confirmed, not taken on one reading.
+    c.onChildLocation(home.center!);
     c.onChildLocation(home.center!); // entered Home
     await tester.pumpWidget(wrap(c));
 

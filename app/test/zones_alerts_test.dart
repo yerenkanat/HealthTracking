@@ -15,6 +15,16 @@ import 'package:fcs_app/ui/tracking/zones_screen.dart';
 final _home = Geofence.circle('home', 'Home', const Coordinates(43.238949, 76.889709), 100);
 final _school = Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120);
 
+/// Move the child into [fence] and let the zone change confirm.
+///
+/// A zone change now takes two agreeing fixes: one reading near a boundary is
+/// noise, and treating it as a move produced five false alerts from six jittery
+/// fixes. See lib/domain/zone_hysteresis.dart.
+void _move(AppController c, Geofence fence) {
+  c.onChildLocation(fence.center!);
+  c.onChildLocation(fence.center!);
+}
+
 Widget wrap(Widget child) =>
     MaterialApp(home: L10nScope(l10n: const L10n(AppLocale.en), child: child));
 
@@ -42,10 +52,12 @@ void main() {
       await tester.pumpWidget(wrap(ZonesScreen(controller: c, childId: 'child-1')));
       expect(find.textContaining('visits'), findsNothing);
 
-      // Two entries into Home, one into School.
-      c.onChildLocation(_home.center!);
-      c.onChildLocation(_school.center!);
-      c.onChildLocation(_home.center!);
+      // Two entries into Home, one into School. Each move takes two fixes: a
+      // zone change is confirmed rather than taken on a single reading, so GPS
+      // noise at a boundary cannot manufacture a visit.
+      _move(c, _home);
+      _move(c, _school);
+      _move(c, _home);
       await tester.pumpWidget(wrap(ZonesScreen(controller: c, childId: 'child-1')));
       await tester.pumpAndSettle();
       expect(find.text('2 visits'), findsOneWidget); // Home
@@ -77,8 +89,8 @@ void main() {
     testWidgets('shows zone enter/exit events newest-first with the child name', (tester) async {
       final c = AppController(now: () => DateTime(2026, 7, 16, 9));
       c.configureChild(name: 'Sultan', fences: [_home, _school]);
-      c.onChildLocation(_home.center!); // entered Home
-      c.onChildLocation(_school.center!); // left Home + entered School
+      _move(c, _home); // entered Home
+      _move(c, _school); // left Home + entered School
       await tester.pumpWidget(wrap(AlertsScreen(controller: c)));
       expect(find.text('Entered School'), findsOneWidget);
       expect(find.text('Left Home'), findsOneWidget);
@@ -97,8 +109,8 @@ void main() {
     testWidgets('cancelling "Clear all" keeps every alert', (tester) async {
       final c = AppController(now: () => DateTime(2026, 7, 16, 9));
       c.configureChild(name: 'Sultan', fences: [_home, _school]);
-      c.onChildLocation(_home.center!);
-      c.onChildLocation(_school.center!);
+      _move(c, _home);
+      _move(c, _school);
       await tester.pumpWidget(wrap(AlertsScreen(controller: c)));
 
       await tester.tap(find.text('Clear'));
@@ -113,7 +125,7 @@ void main() {
     testWidgets('filter chips narrow the feed to a category', (tester) async {
       final c = AppController(now: () => DateTime(2026, 7, 16, 9));
       c.configureChild(name: 'Sultan', fences: [_home, _school]);
-      c.onChildLocation(_home.center!); // entered Home (zone)
+      _move(c, _home); // entered Home (zone)
       c.logChildEvent(AlertKind.sos); // an SOS
       await tester.pumpWidget(wrap(AlertsScreen(controller: c)));
 
@@ -138,7 +150,7 @@ void main() {
       final now = DateTime(2026, 7, 16, 9);
       final c = AppController(now: () => now);
       c.configureChild(name: 'Sultan', fences: [_home]);
-      c.onChildLocation(_home.center!); // entered Home
+      _move(c, _home); // entered Home
       c.logChildEvent(AlertKind.checkIn);
       await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => now)));
       expect(c.alerts, hasLength(2));
@@ -156,7 +168,7 @@ void main() {
       final now = DateTime(2026, 7, 16, 9);
       final c = AppController(now: () => now);
       c.configureChild(name: 'Sultan', fences: [_home]);
-      c.onChildLocation(_home.center!);
+      _move(c, _home);
       c.logChildEvent(AlertKind.checkIn); // newest, shown first
       await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => now)));
 
@@ -174,7 +186,7 @@ void main() {
       final now = DateTime(2026, 7, 16, 9);
       final c = AppController(now: () => now);
       c.configureChild(name: 'Sultan', fences: [_home, _school]);
-      c.onChildLocation(_home.center!); // entered Home (a zone event)
+      _move(c, _home); // entered Home (a zone event)
       c.logChildEvent(AlertKind.checkIn); // a check-in
       await tester.pumpWidget(wrap(AlertsScreen(controller: c, now: () => now)));
 
@@ -210,7 +222,7 @@ void main() {
       final c = AppController(now: () => DateTime(2026, 7, 16, 9));
       c.configureChild(name: 'Aisha', fences: [_home, _school]);
       c.addChild(const ChildProfile(id: 'child-2', name: 'Timur'));
-      c.onChildLocation(_home.center!); // Aisha entered Home (child-1 selected)
+      _move(c, _home); // Aisha entered Home (child-1 selected)
       c.selectChild('child-2');
       c.logChildEvent(AlertKind.sos); // Timur SOS
       await tester.pumpWidget(wrap(AlertsScreen(controller: c)));

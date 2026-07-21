@@ -23,6 +23,7 @@ import '../data/persisted_config.dart';
 import '../domain/emergency_confirmation.dart';
 import '../domain/notification_ids.dart';
 import '../domain/error_log.dart';
+import '../domain/zone_hysteresis.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
 import '../domain/chat_controller.dart';
@@ -1252,6 +1253,7 @@ class AppController {
 
   // ---- Child safety alerts (zone enter/exit history) ----
   String? _lastChildZone;
+  ZoneHysteresisState _zoneHysteresis = ZoneHysteresisState.idle;
   final List<SafetyAlert> _alerts = [];
   List<SafetyAlert> get alerts => List.unmodifiable(_alerts);
 
@@ -1338,8 +1340,14 @@ class AppController {
         fences: child.geofences,
         childName: child.name,
         at: _now(),
+        hysteresis: _zoneHysteresis,
       );
       _lastChildZone = r.zone;
+      // Carried across fixes, not persisted: a pending zone change is evidence
+      // gathered over the last minute or two, and after a restart it is stale.
+      // Starting fresh costs one extra confirmation; restoring it could fire a
+      // transition on evidence from before the app was closed.
+      _zoneHysteresis = r.state;
       if (r.alerts.isNotEmpty) {
         // Newest first; the just-entered zone sits at the top.
         _alerts.insertAll(0, r.alerts.reversed);

@@ -7,7 +7,7 @@
  */
 
 import type { ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
-import { checkGeofenceBoundary } from './geofence';
+import { signedDistanceToBoundaryM, bufferForFence, MAX_USABLE_ACCURACY_M } from './geofence';
 import { resolveTransition, setChildLastLocation, redis, keys } from '../cache/redis';
 import { geofenceCopy, sendPush } from '../notifications/push';
 
@@ -19,14 +19,25 @@ interface Deps {
 }
 
 /**
- * Handle one incoming fix. Redis `resolveTransition` is the authoritative
- * de-duplicator: it only returns a transition when the IN/OUT state actually
- * flips, so "arrived at School" fires exactly once — GPS drift while parked
- * inside the fence produces no state change and therefore no alert.
+ * Handle one incoming fix. Redis `resolveTransition` de-duplicates: it only
+ * returns a transition when the IN/OUT state flips, so a fix that agrees with
+ * the last one produces no alert.
  *
- * Note: the on-device GeofenceTracker already applies hysteresis (buffer +
- * confirmations). This server stage is the backstop for multi-device/edge cases
- * and the durable event log.
+ * That is NOT enough on its own, and the note that used to sit here said it
+ * was: "the on-device GeofenceTracker already applies hysteresis". It does not
+ * — that class was wired to nothing, and the app resolved zones with a bare
+ * inside/outside test. So both ends had the same hole, and each one's comment
+ * pointed at the other.
+ *
+ * GPS drift across a boundary IS a state flip: a child standing still at the
+ * edge of the school fence alternates in/out, and every alternation reached
+ * Redis as a genuine change and a parent's phone as an alert. Six jittery
+ * fixes produced five alerts in the on-device equivalent.
+ *
+ * The buffer band below fixes that without any new stored state: a fix too
+ * close to the boundary to call is skipped entirely, so Redis keeps whatever
+ * it had. Confirmation counting stays on the device, where the per-fence
+ * pending state already lives.
  */
 export async function ingestLocationFix(fix: ChildLocationFix, deps: Deps): Promise<GeofenceEvent[]> {
   await Promise.all([setChildLastLocation(fix), deps.persistLocation(fix)]);
@@ -34,8 +45,19 @@ export async function ingestLocationFix(fix: ChildLocationFix, deps: Deps): Prom
   const fences = await deps.loadGeofences(fix.childId);
   const emitted: GeofenceEvent[] = [];
 
+  // A fix too vague to place cannot tell which side of a fence anyone is on.
+  // Acting on one is how a phone reports a child leaving school from inside
+  // the classroom.
+  const accuracyM = fix.coords.accuracyM;
+  if (accuracyM != null && accuracyM > MAX_USABLE_ACCURACY_M) return emitted;
+
   for (const fence of fences) {
-    const { inside } = checkGeofenceBoundary(fix.coords, fence);
+    const signed = signedDistanceToBoundaryM(fix.coords, fence);
+    if (Number.isNaN(signed)) continue; // a malformed fence decides nothing
+    // Within the buffer band the answer is "cannot tell". Skipping leaves the
+    // stored state alone, which is the whole point: silence, not a guess.
+    if (Math.abs(signed) < bufferForFence(fence)) continue;
+    const inside = signed <= 0;
     const transition = await resolveTransition(fix.childId, fence.id, inside);
     if (!transition) continue; // no state change → suppress duplicate
 

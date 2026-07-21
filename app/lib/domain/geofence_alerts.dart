@@ -5,7 +5,7 @@
 library;
 
 import '../core/geofence.dart';
-import 'child_tracker_state.dart' show currentZone;
+import 'zone_hysteresis.dart';
 
 /// entered/left are geofence transitions; checkIn/sos are manual events the
 /// parent (or child) raises from the tracking screen; lowBattery fires when a
@@ -233,17 +233,29 @@ List<({AlertKind kind, String zone})> zoneTransitions(String? prevZone, String? 
 /// Given a new [location] and the child's [fences], compute the resulting alerts
 /// relative to [prevZone], stamped [childName]/[at]. Returns (newZone, alerts) so
 /// the caller can persist the updated zone state.
-({String? zone, List<SafetyAlert> alerts}) alertsForFix({
+({String? zone, List<SafetyAlert> alerts, ZoneHysteresisState state}) alertsForFix({
   required String? prevZone,
   required Coordinates location,
   required List<Geofence> fences,
   required String childName,
   required DateTime at,
+  ZoneHysteresisState hysteresis = ZoneHysteresisState.idle,
 }) {
-  final zone = currentZone(location, fences);
+  // Was: currentZone(location, fences) — a bare "is this point inside", with no
+  // buffer, no confirmation and no accuracy check. A child standing still near
+  // a boundary therefore changed zone on GPS noise, and every flip wrote a
+  // "left School" and an "entered School" to the feed and pushed both to a
+  // parent. The machinery to prevent exactly this already existed in
+  // core/geofence.dart and was wired to nothing.
+  final decision = resolveZone(
+    prevZone: prevZone,
+    location: location,
+    fences: fences,
+    state: hysteresis,
+  );
   final alerts = [
-    for (final t in zoneTransitions(prevZone, zone))
+    for (final t in zoneTransitions(prevZone, decision.zone))
       SafetyAlert(kind: t.kind, childName: childName, zoneName: t.zone, at: at),
   ];
-  return (zone: zone, alerts: alerts);
+  return (zone: decision.zone, alerts: alerts, state: decision.state);
 }

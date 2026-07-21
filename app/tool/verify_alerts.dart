@@ -6,6 +6,7 @@ import 'dart:io';
 import '../lib/app/app_controller.dart';
 import '../lib/core/geofence.dart';
 import '../lib/domain/geofence_alerts.dart';
+import '../lib/domain/zone_hysteresis.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -31,23 +32,51 @@ void main() {
   final school = Geofence.circle('school', 'School', const Coordinates(43.25, 76.95), 120);
   final at = DateTime(2026, 7, 16, 9);
 
-  // First fix inside School, no previous zone → "entered School".
-  final r1 = alertsForFix(prevZone: null, location: school.center!, fences: [home, school], childName: 'Sultan', at: at);
+  // A zone change now has to be CONFIRMED by a second fix before it alerts.
+  //
+  // These four cases used to assert that one fix was enough. That is exactly
+  // what made a child standing at a boundary generate five alerts from six
+  // jittery fixes: every wobble was a zone change, and every zone change was a
+  // push. The alerts still arrive — one poll later, which for "arrived at
+  // school" is a fair price for them meaning something. See
+  // tool/verify_zone_hysteresis.dart.
+  ({String? zone, List<SafetyAlert> alerts}) settle(
+      String? prevZone, Coordinates where, List<Geofence> fences) {
+    var zone = prevZone;
+    var state = ZoneHysteresisState.idle;
+    final all = <SafetyAlert>[];
+    for (var i = 0; i < 2; i++) {
+      final r = alertsForFix(
+          prevZone: zone, location: where, fences: fences, childName: 'Sultan', at: at,
+          hysteresis: state);
+      zone = r.zone;
+      state = r.state;
+      all.addAll(r.alerts);
+    }
+    return (zone: zone, alerts: all);
+  }
+
+  // One fix is not enough on its own.
+  final first = alertsForFix(prevZone: null, location: school.center!, fences: [home, school], childName: 'Sultan', at: at);
+  _chk('a single fix does not raise an alert', first.alerts.isEmpty && first.zone == null);
+
+  // Confirmed, it does.
+  final r1 = settle(null, school.center!, [home, school]);
   _chk('fix in School → zone School', r1.zone == 'School');
   _chk('fix in School → entered alert', r1.alerts.length == 1 && r1.alerts.first.kind == AlertKind.entered &&
       r1.alerts.first.zoneName == 'School' && r1.alerts.first.childName == 'Sultan');
 
   // Move from School to Home → left School + entered Home.
-  final r2 = alertsForFix(prevZone: 'School', location: home.center!, fences: [home, school], childName: 'Sultan', at: at);
+  final r2 = settle('School', home.center!, [home, school]);
   _chk('School → Home = 2 alerts', r2.zone == 'Home' && r2.alerts.length == 2 &&
       r2.alerts[0].kind == AlertKind.left && r2.alerts[1].kind == AlertKind.entered);
 
   // Staying in Home → no alerts.
-  final r3 = alertsForFix(prevZone: 'Home', location: home.center!, fences: [home, school], childName: 'Sultan', at: at);
+  final r3 = settle('Home', home.center!, [home, school]);
   _chk('staying in Home → no alerts', r3.zone == 'Home' && r3.alerts.isEmpty);
 
   // Leaving all zones → left Home.
-  final r4 = alertsForFix(prevZone: 'Home', location: const Coordinates(44.0, 78.0), fences: [home, school], childName: 'Sultan', at: at);
+  final r4 = settle('Home', const Coordinates(44.0, 78.0), [home, school]);
   _chk('leaving to nowhere → left Home', r4.zone == null && r4.alerts.length == 1 && r4.alerts.first.kind == AlertKind.left);
 
   // Round-trip.
@@ -57,12 +86,21 @@ void main() {
   // ---- Controller integration: location updates build the alert history ----
   final ctl = AppController(now: () => at);
   ctl.configureChild(name: 'Sultan', fences: [home, school]);
+  // Two fixes per move: the controller carries the confirmation state between
+  // them, which is what makes a lone noisy fix harmless.
+  ctl.onChildLocation(home.center!);
   ctl.onChildLocation(home.center!); // entered Home
+  _chk('one arrival = one alert', ctl.alerts.length == 1);
+  ctl.onChildLocation(school.center!);
   ctl.onChildLocation(school.center!); // left Home + entered School
   _chk('controller built 3 alerts', ctl.alerts.length == 3);
   _chk('newest alert = entered School', ctl.alerts.first.kind == AlertKind.entered && ctl.alerts.first.zoneName == 'School');
   ctl.onChildLocation(school.center!); // staying → no new alert
+  ctl.onChildLocation(school.center!);
   _chk('no alert when staying', ctl.alerts.length == 3);
+  // A single fix from nowhere near must not eject the child.
+  ctl.onChildLocation(const Coordinates(44.0, 78.0));
+  _chk('one wild fix raises nothing', ctl.alerts.length == 3);
   ctl.clearAlerts();
   _chk('clearAlerts empties feed', ctl.alerts.isEmpty);
 
@@ -247,7 +285,10 @@ void main() {
   // Genuinely leaving a zone still reports, so the fix didn't silence the feature.
   final zoneCtl2 = AppController(now: () => DateTime(2026, 7, 16, 9));
   zoneCtl2.configureChild(name: 'Sultan', fences: [zoneHome, zoneSchool]);
+  // Two fixes per move: a zone change is confirmed, not taken on one reading.
   zoneCtl2.onChildLocation(zoneHome.center!);
+  zoneCtl2.onChildLocation(zoneHome.center!);
+  zoneCtl2.onChildLocation(zoneSchool.center!);
   zoneCtl2.onChildLocation(zoneSchool.center!);
   _chk('really leaving a zone still reports it',
       zoneCtl2.alerts.any((a) => a.kind == AlertKind.left && a.zoneName == 'Home'));
