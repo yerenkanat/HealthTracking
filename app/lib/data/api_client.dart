@@ -45,18 +45,27 @@ sealed class ChatOutcome {
   factory ChatOutcome.fromJson(Map<String, dynamic> j) {
     switch (j['kind']) {
       case 'emergency':
+        // Parsed defensively, and deliberately so.
+        //
+        // Every field here used to be a hard cast, so ONE call button missing
+        // its number threw — and the throw landed in the chat controller's
+        // network handler, which shows "could not reach the assistant" and
+        // invites her to try again. The server had already decided this was an
+        // emergency. The app turned it into a connection problem.
+        //
+        // Nothing malformed in the decoration is worth discarding the
+        // escalation for: the emergency screen localizes its heading from the
+        // triage code, and the controller substitutes the ambulance when no
+        // usable button survives.
         return EmergencyChatOutcome(
-          message: j['message'] as String,
+          message: (j['message'] as String?)?.trim() ?? '',
           // The triage code was already on the wire and simply discarded, so a
           // server-side telemetry emergency arrived as English prose the app
           // had no way to translate. With the code, l.triageMessage() localizes
           // it exactly as it does an on-device one — and no medical copy has to
           // be duplicated in the backend.
           code: _firstTriageCode(j),
-          callButtons: [
-            for (final b in (j['callButtons'] as List? ?? const []))
-              (label: b['label'] as String, tel: b['tel'] as String),
-          ],
+          callButtons: _callButtons(j['callButtons']),
         );
       case 'blocked':
         return BlockedChatOutcome(
@@ -86,6 +95,25 @@ class ChatReply extends ChatOutcome {
   final String message;
   final bool grounded;
   const ChatReply({required this.message, required this.grounded});
+}
+
+/// The call buttons an emergency carries, skipping any that could not be used.
+///
+/// A button with no number is a button that cannot be pressed, so it is
+/// dropped — but it does not take the other buttons, or the emergency itself,
+/// with it.
+List<({String label, String tel})> _callButtons(Object? raw) {
+  if (raw is! List) return const [];
+  final out = <({String label, String tel})>[];
+  for (final b in raw) {
+    if (b is! Map) continue;
+    final label = b['label'];
+    final tel = b['tel'];
+    if (label is! String || tel is! String) continue;
+    if (tel.trim().isEmpty) continue;
+    out.add((label: label, tel: tel));
+  }
+  return out;
 }
 
 /// The triage code from a server emergency, if it sent one.

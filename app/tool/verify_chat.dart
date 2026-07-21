@@ -81,6 +81,66 @@ Future<void> main() async {
   _chk('emergency fired app callback', emergencyFired == 1);
   _chk('emergency message flagged', c4.messages.last.isEmergency);
 
+  // ---- a partly malformed emergency must still be an emergency ----
+  //
+  // Every call button was parsed with `b['tel'] as String`, so ONE button
+  // missing a number threw, and the throw was caught by the controller's
+  // network handler — which shows "could not reach the assistant" and invites
+  // her to try again. The server had decided this was an emergency; the app
+  // silently downgraded it to a connection problem. Same shape as one bad zone
+  // deleting a child, on the path where it matters most.
+  {
+    var fired = 0;
+    final c = build(
+      (_, __) => json({
+        'kind': 'emergency',
+        'message': 'BP dangerous.',
+        'callButtons': [
+          {'label': 'Broken'}, // no tel
+          {'label': 'Ambulance', 'tel': '103'},
+        ],
+      }),
+      onEmergency: () => fired++,
+    );
+    await c.send('is my bp ok?');
+    _chk('a malformed button does not lose the emergency', fired == 1);
+    _chk('and the transcript records it as one', c.messages.last.isEmergency);
+  }
+  {
+    // All of them malformed: still an emergency. The controller substitutes the
+    // ambulance when the list comes back empty, which only helps if parsing
+    // got far enough to return an empty list.
+    var fired = 0;
+    final c = build(
+      (_, __) => json({
+        'kind': 'emergency',
+        'message': 'BP dangerous.',
+        'callButtons': [
+          {'label': 'Broken'},
+          {'tel': 42},
+        ],
+      }),
+      onEmergency: () => fired++,
+    );
+    await c.send('is my bp ok?');
+    _chk('every button malformed still raises the emergency', fired == 1);
+  }
+  {
+    // No message at all. The emergency screen localizes from the triage code,
+    // so a missing sentence is not a reason to drop the emergency.
+    var fired = 0;
+    final c = build(
+      (_, __) => json({
+        'kind': 'emergency',
+        'triage': {'findings': [{'code': 'PREECLAMPSIA_BP_SEVERE'}]},
+        'callButtons': [{'label': 'Ambulance', 'tel': '103'}],
+      }),
+      onEmergency: () => fired++,
+    );
+    await c.send('my head hurts');
+    _chk('a missing message still raises the emergency', fired == 1);
+  }
+
   // ---- network failure -> safe error text, sending resets ----
   final c5 = build((_, __) => throw StateError('down'));
   await c5.send('hello');
