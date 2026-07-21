@@ -69,7 +69,7 @@ class TelemetryBatcher {
   void enqueueTelemetry(Map<String, dynamic> t, {bool urgent = false}) {
     _queue.add(QueuedItem('telemetry', t, urgent: urgent));
     _trim();
-    unawaited(cfg.persist(_queue));
+    unawaited(_persistQuietly());
     if (urgent || _queue.length >= cfg.maxBatch) {
       unawaited(_flushNow());
     } else {
@@ -80,7 +80,7 @@ class TelemetryBatcher {
   void enqueueLocation(Map<String, dynamic> fix) {
     _queue.add(QueuedItem('location', fix));
     _trim();
-    unawaited(cfg.persist(_queue));
+    unawaited(_persistQuietly());
     if (_queue.length >= cfg.maxBatch) {
       unawaited(_flushNow());
     } else {
@@ -112,29 +112,53 @@ class TelemetryBatcher {
     if (_queue.isEmpty) return;
 
     _flushing = true;
-    // Only as much as the server will accept in one request; the rest stays
-    // queued and goes in the next pass.
-    final take = _queue.length < cfg.maxFlushItems ? _queue.length : cfg.maxFlushItems;
-    final batch = _queue.sublist(0, take);
-    _queue = _queue.sublist(take);
+    // try/FINALLY, because _flushing is a latch: anything that escapes this
+    // method leaves it stuck true and no flush ever runs again. It used to be
+    // cleared on each exit path by hand, which held only as long as nothing
+    // unexpected threw — and cfg.persist writes to a disk, which can be full or
+    // revoked. One failed write and telemetry stopped uploading for the rest of
+    // the process, silently, urgent readings included.
     try {
-      await cfg.flush(batch);
-      await cfg.persist(_queue); // mirror what's actually left
-    } catch (_) {
-      // Requeue at the front, back off; nothing lost (offline-first).
-      _queue = [...batch, ..._queue];
-      _trim();
-      await cfg.persist(_queue);
-      _timer = Timer(cfg.maxDelay * 2, () => unawaited(_flushNow()));
+      // Only as much as the server will accept in one request; the rest stays
+      // queued and goes in the next pass.
+      final take = _queue.length < cfg.maxFlushItems ? _queue.length : cfg.maxFlushItems;
+      final batch = _queue.sublist(0, take);
+      _queue = _queue.sublist(take);
+      try {
+        await cfg.flush(batch);
+        await _persistQuietly(); // mirror what's actually left
+      } catch (_) {
+        // Requeue at the front, back off; nothing lost (offline-first).
+        _queue = [...batch, ..._queue];
+        _trim();
+        await _persistQuietly();
+        _timer = Timer(cfg.maxDelay * 2, () => unawaited(_flushNow()));
+        return; // the finally still releases the latch
+      }
+    } finally {
       _flushing = false;
-      return;
     }
-    _flushing = false;
     // Keep going while there is a backlog, and honour any request that arrived
     // while this flush was in flight.
     if (_queue.isNotEmpty || _flushAgain) {
       _flushAgain = false;
       unawaited(_flushNow());
+    }
+  }
+
+  /// Mirror the queue to disk, tolerating a disk that will not take it.
+  ///
+  /// The mirror is a convenience — it lets a restart resume where it left off.
+  /// The NETWORK path is the one that matters, and a full disk must not stop
+  /// it. Callers also fire this without awaiting, where an escaping error
+  /// becomes an unhandled async exception that killed the isolate outright in
+  /// a plain Dart run.
+  Future<void> _persistQuietly() async {
+    try {
+      await cfg.persist(_queue);
+    } catch (_) {
+      // Nothing useful to do: the readings are still in memory and will be
+      // sent. Losing the disk mirror costs a restart's worth of backlog.
     }
   }
 

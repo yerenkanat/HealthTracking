@@ -217,6 +217,89 @@ Future<void> main() async {
         delivered.length == 100 && delivered.where((q) => !q.urgent).length == 99);
   }
 
+  // ---- A disk that will not take the mirror must not stop the uploads ----
+  //
+  // _flushing is a latch. It was cleared on each exit path by hand, which holds
+  // only while nothing unexpected throws — and cfg.persist writes to a disk,
+  // which can be full or have its permission revoked. One failed write left the
+  // latch stuck true and NOTHING was ever uploaded again for the rest of the
+  // process. Urgent readings included, which is the emergency path.
+  //
+  // Measured before the fix: one of three urgent readings delivered.
+  {
+    var delivered = 0;
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 2,
+      maxDelay: const Duration(milliseconds: 10),
+      maxQueue: 100,
+      flush: (items) async => delivered += items.length,
+      persist: (_) async => throw StateError('disk full'),
+      restore: () async => [],
+    ));
+    await b.init();
+    for (final hr in [70, 80, 90]) {
+      b.enqueueTelemetry({'hr': hr}, urgent: true);
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+    }
+    _chk('a failing disk mirror does not stop the network path', delivered == 3);
+    _chk('and nothing is left stranded in the queue', b.pending == 0);
+  }
+
+  // The same, on the RETRY path: persist is also called from the catch block,
+  // where an escape would strand the latch just as surely.
+  {
+    var attempts = 0;
+    var delivered = 0;
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 1,
+      maxDelay: const Duration(milliseconds: 10),
+      maxQueue: 100,
+      flush: (items) async {
+        attempts++;
+        if (attempts == 1) throw StateError('offline');
+        delivered += items.length;
+      },
+      persist: (_) async => throw StateError('disk full'),
+      restore: () async => [],
+    ));
+    await b.init();
+    b.enqueueTelemetry({'hr': 70});
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    _chk('a send that fails while the disk fails too still retries', attempts >= 2);
+    _chk('and the reading is eventually delivered', delivered == 1);
+  }
+
+  // Ordering survives a failure: the batch goes back to the FRONT, so readings
+  // reach the server in the order they were taken. Out-of-order vitals would
+  // make a trend chart lie.
+  {
+    var attempts = 0;
+    final seen = <int>[];
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 10,
+      maxDelay: const Duration(milliseconds: 10),
+      maxQueue: 100,
+      maxFlushItems: 2,
+      flush: (items) async {
+        attempts++;
+        if (attempts == 1) throw StateError('offline');
+        for (final i in items) {
+          seen.add(i.payload['n'] as int);
+        }
+      },
+      persist: (_) async {},
+      restore: () async => [],
+    ));
+    await b.init();
+    for (var n = 1; n <= 6; n++) {
+      b.enqueueTelemetry({'n': n});
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    _chk('every reading arrives after a failed attempt', seen.length == 6);
+    _chk('and they arrive in the order they were taken',
+        seen.join(',') == '1,2,3,4,5,6');
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
