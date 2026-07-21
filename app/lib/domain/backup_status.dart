@@ -4,6 +4,8 @@
 /// IS "last backup".
 library;
 
+import 'cycle_log.dart' show daysBetween;
+
 /// How fresh the last backup is.
 enum BackupFreshness { never, fresh, aging, stale }
 
@@ -15,7 +17,7 @@ const int backupStaleDays = 30;
 /// timestamp (clock skew) is treated as fresh.
 BackupFreshness backupFreshness(DateTime? lastExportAt, DateTime now) {
   if (lastExportAt == null) return BackupFreshness.never;
-  final days = now.difference(lastExportAt).inDays;
+  final days = daysBetween(lastExportAt, now);
   if (days < backupAgingDays) return BackupFreshness.fresh;
   if (days < backupStaleDays) return BackupFreshness.aging;
   return BackupFreshness.stale;

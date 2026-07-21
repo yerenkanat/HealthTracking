@@ -4,7 +4,7 @@
 /// just stores and summarizes the trend.
 library;
 
-import 'cycle_log.dart' show dateKey, dateFromKey;
+import 'cycle_log.dart' show dateKey, dateFromKey, daysBetween;
 
 const double minWeightKg = 30;
 const double maxWeightKg = 200;
@@ -66,7 +66,7 @@ double? weeklyGainRate(List<WeightEntry> entries) {
   if (entries.length < 2) return null;
   final first = entries.first.day, last = entries.last.day;
   if (first == null || last == null) return null;
-  final days = last.difference(first).inDays;
+  final days = daysBetween(first, last);
   if (days <= 0) return null;
   return (entries.last.kg - entries.first.kg) / (days / 7.0);
 }
@@ -76,7 +76,7 @@ int weeksSpanned(List<WeightEntry> entries) {
   if (entries.length < 2) return 0;
   final first = entries.first.day, last = entries.last.day;
   if (first == null || last == null) return 0;
-  return last.difference(first).inDays ~/ 7;
+  return daysBetween(first, last) ~/ 7;
 }
 
 /// Summary over the (assumed sorted) [entries], or null when empty.

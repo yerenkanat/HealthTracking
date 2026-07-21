@@ -40,6 +40,25 @@ Symptom? symptomFromName(String? s) {
   return null;
 }
 
+/// Whole calendar days from [from] to [to] — negative when [to] is earlier.
+///
+/// Not `to.difference(from).inDays`, which is what every date calculation in
+/// this app used to do. That measures ELAPSED TIME and then truncates, and a
+/// calendar day is not always 24 hours: on a daylight-saving change it is 23 or
+/// 25. Two dates spanning one costs a day, and the result is a gestational age,
+/// a cycle day, or a countdown to a period that is quietly wrong by one.
+///
+/// Normalising through UTC removes the ambiguity: UTC has no offset changes, so
+/// every day there is exactly 24 hours and the subtraction is exact.
+///
+/// HONESTLY: this is not reproducible on the machine it was written on, nor in
+/// Kazakhstan, which abolished daylight saving in 2005. It is correct-by-
+/// construction rather than caught in the act, and it matters the moment the
+/// app is used somewhere that still changes its clocks.
+int daysBetween(DateTime from, DateTime to) => DateTime.utc(to.year, to.month, to.day)
+    .difference(DateTime.utc(from.year, from.month, from.day))
+    .inDays;
+
 /// Canonical yyyy-MM-dd key for a day (local calendar date, time-of-day dropped).
 String dateKey(DateTime d) {
   final mm = d.month.toString().padLeft(2, '0');
@@ -179,7 +198,7 @@ GestationInfo? gestationFor(DateTime? dueDate, DateTime today) {
   if (dueDate == null) return null;
   final t = DateTime(today.year, today.month, today.day);
   final d = DateTime(dueDate.year, dueDate.month, dueDate.day);
-  final daysUntilDue = d.difference(t).inDays;
+  final daysUntilDue = daysBetween(t, d);
   final gestDays = (280 - daysUntilDue).clamp(0, 300);
   return GestationInfo(gestDays, gestDays ~/ 7, gestDays % 7, daysUntilDue);
 }

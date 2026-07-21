@@ -4,6 +4,8 @@
 /// or Flutter-specific.
 library;
 
+import 'cycle_log.dart' show daysBetween;
+
 class Appointment {
   final String id;
   final String title;
@@ -63,9 +65,7 @@ Appointment? nextAppointment(List<Appointment> all, DateTime now) {
 
 /// Whole days from [now] to the appointment (0 = today, negative = past).
 int daysUntil(Appointment a, DateTime now) {
-  final d0 = DateTime(now.year, now.month, now.day);
-  final d1 = DateTime(a.at.year, a.at.month, a.at.day);
-  return d1.difference(d0).inDays;
+  return daysBetween(now, a.at);
 }
 
 /// How imminent an appointment is, for copy + accent colour on the countdown

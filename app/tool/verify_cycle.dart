@@ -368,6 +368,32 @@ void main() {
   _chk('no logged periods means no prediction at all',
       !computeCycle(const {}, anchor).hasData);
 
+  // ---- Counting calendar days ----
+  // Every date calculation in the app used to be `b.difference(a).inDays`,
+  // which measures elapsed time and truncates. A calendar day is 23 or 25 hours
+  // across a daylight-saving change, so that loses a day and quietly shifts a
+  // gestational age, a cycle day, or a countdown by one.
+  _chk('one day apart is one day', daysBetween(DateTime(2026, 7, 20), DateTime(2026, 7, 21)) == 1);
+  _chk('the same day is zero', daysBetween(DateTime(2026, 7, 21), DateTime(2026, 7, 21)) == 0);
+  _chk('backwards is negative', daysBetween(DateTime(2026, 7, 21), DateTime(2026, 7, 20)) == -1);
+  _chk('across a month end', daysBetween(DateTime(2026, 7, 31), DateTime(2026, 8, 1)) == 1);
+  _chk('across a year end', daysBetween(DateTime(2026, 12, 31), DateTime(2027, 1, 1)) == 1);
+  _chk('a leap day counts', daysBetween(DateTime(2028, 2, 28), DateTime(2028, 3, 1)) == 2);
+  _chk('a non-leap February does not', daysBetween(DateTime(2027, 2, 28), DateTime(2027, 3, 1)) == 1);
+  _chk('a whole pregnancy is 280 days',
+      daysBetween(DateTime(2026, 1, 1), DateTime(2026, 1, 1).add(const Duration(days: 280))) == 280);
+
+  // Time of day is irrelevant — these are calendar dates, and a caller that
+  // passes "now" rather than midnight must get the same answer.
+  _chk('time of day does not change the count',
+      daysBetween(DateTime(2026, 7, 20, 23, 59), DateTime(2026, 7, 21, 0, 1)) == 1);
+  _chk('nor does an afternoon-to-morning pair',
+      daysBetween(DateTime(2026, 7, 20, 14, 0), DateTime(2026, 7, 22, 9, 0)) == 2);
+  // ...which is precisely where the old form was wrong: 23h59m of elapsed time
+  // between two adjacent calendar days truncates to 0.
+  _chk('the elapsed-time form would have said 0 here',
+      DateTime(2026, 7, 21, 0, 1).difference(DateTime(2026, 7, 20, 23, 59)).inDays == 0);
+
   // ---- The baseline is clamped, not trusted ----
   // The settings slider is bounded 21-35, but this value also arrives from a
   // restored backup — a hand-editable JSON file the app shows the user and

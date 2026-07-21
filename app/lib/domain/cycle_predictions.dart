@@ -7,7 +7,7 @@
 /// approximate and clearly labelled as such in the UI.
 library;
 
-import 'cycle_log.dart' show dateKey;
+import 'cycle_log.dart' show dateKey, daysBetween;
 
 /// How a calendar day relates to the cycle, for colouring the month grid.
 /// Priority (highest first): logged period → ovulation → fertile → predicted period.
@@ -38,7 +38,8 @@ class CycleInfo {
     required this.today,
   });
 
-  int? get daysUntilNextPeriod => nextPeriodStart?.difference(today).inDays;
+  int? get daysUntilNextPeriod =>
+      nextPeriodStart == null ? null : daysBetween(today, nextPeriodStart!);
 
   /// True when the user is currently within a predicted/logged period window.
   bool get isPredictedLate =>
@@ -109,7 +110,7 @@ CycleInfo computeCycle(
   // new user is relying on the baseline.
   var avgCycle = _clamp(defaultCycle, 21, 35);
   final gaps = <int>[
-    for (var i = 1; i < starts.length; i++) starts[i].difference(starts[i - 1]).inDays,
+    for (var i = 1; i < starts.length; i++) daysBetween(starts[i - 1], starts[i]),
   ];
   final usable = gaps.where((g) => g > 0 && g <= _maxPlausibleGapDays).toList();
   final recent = usable.length > _recentCyclesConsidered
@@ -154,7 +155,7 @@ CycleInfo computeCycle(
   final fertileStart = ovulation.subtract(const Duration(days: 5));
   final fertileEnd = ovulation.add(const Duration(days: 1));
 
-  final cycleDay = t.isBefore(lastStart) ? null : t.difference(lastStart).inDays + 1;
+  final cycleDay = t.isBefore(lastStart) ? null : daysBetween(lastStart, t) + 1;
 
   return CycleInfo(
     avgCycleLength: avgCycle,
@@ -206,8 +207,8 @@ FertileCountdown? fertileCountdown(CycleInfo info) {
   if (!info.hasData || fs == null || fe == null || ov == null) return null;
   final t = _dayOnly(info.today);
   final start = _dayOnly(fs), end = _dayOnly(fe), ovul = _dayOnly(ov);
-  final toOv = ovul.difference(t).inDays;
-  if (t.isBefore(start)) return FertileCountdown(FertileWindowState.upcoming, start.difference(t).inDays, toOv);
+  final toOv = daysBetween(t, ovul);
+  if (t.isBefore(start)) return FertileCountdown(FertileWindowState.upcoming, daysBetween(t, start), toOv);
   if (!t.isAfter(end)) return FertileCountdown(FertileWindowState.active, 0, toOv);
   return FertileCountdown(FertileWindowState.passed, 0, toOv);
 }
@@ -223,7 +224,7 @@ CyclePhaseInfo? cyclePhaseFor(CycleInfo info) {
   if (!info.hasData || start == null || day == null || day < 1) return null;
   final t = _dayOnly(info.today);
   final s = _dayOnly(start);
-  int cd(DateTime d) => _dayOnly(d).difference(s).inDays + 1; // 1-based cycle day
+  int cd(DateTime d) => daysBetween(s, d) + 1; // 1-based cycle day
   final p = info.avgPeriodLength;
 
   // Menstrual: the bleeding days at the top of the cycle.

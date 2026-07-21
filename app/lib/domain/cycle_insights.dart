@@ -36,7 +36,7 @@ List<CycleSpan> cycleHistory(Set<DateTime> periodDays) {
   final spans = <CycleSpan>[];
   for (var i = 0; i < starts.length; i++) {
     final next = i + 1 < starts.length ? starts[i + 1] : null;
-    final cycleLen = next?.difference(starts[i]).inDays;
+    final cycleLen = next == null ? null : daysBetween(starts[i], next);
     spans.add(CycleSpan(starts[i], cycleLen, periodLen(starts[i])));
   }
   return spans.reversed.toList(); // newest first
@@ -169,7 +169,7 @@ List<MoodWeek> moodTrend(Iterable<DayLog> logs, DateTime today, {int weeks = 6})
     if (l.mood == null) continue;
     final d = dateFromKey(l.date);
     if (d == null) continue;
-    final diff = t.difference(DateTime(d.year, d.month, d.day)).inDays;
+    final diff = daysBetween(DateTime(d.year, d.month, d.day), t);
     if (diff < 0 || diff >= weeks * 7) continue;
     final b = diff ~/ 7;
     buckets[b][l.mood!] = (buckets[b][l.mood!] ?? 0) + 1;
@@ -233,7 +233,7 @@ CyclePhase? phaseOfLoggedDay(DateTime date, Set<DateTime> periodDays) {
   }
   if (s == null) return null; // date is before any logged period
 
-  final cycleLen = _clampi(next != null ? next.difference(s).inDays : 28, 21, 35);
+  final cycleLen = _clampi(next != null ? daysBetween(s, next) : 28, 21, 35);
   // Bleeding length: consecutive logged days from the start.
   final norm = {for (final pd in periodDays) dateKey(pd)};
   var periodLen = 1;
@@ -249,7 +249,7 @@ CyclePhase? phaseOfLoggedDay(DateTime date, Set<DateTime> periodDays) {
     ovulation: ovulation,
     fertileStart: ovulation.subtract(const Duration(days: 5)),
     fertileEnd: ovulation.add(const Duration(days: 1)),
-    cycleDay: d.difference(s).inDays + 1,
+    cycleDay: daysBetween(s, d) + 1,
     hasData: true,
     today: d,
   );
