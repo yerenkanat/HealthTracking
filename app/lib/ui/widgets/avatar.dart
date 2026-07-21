@@ -5,6 +5,7 @@ library;
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../data/photo_paths.dart';
 import '../theme.dart';
 
 class PhotoAvatar extends StatelessWidget {
@@ -25,21 +26,21 @@ class PhotoAvatar extends StatelessWidget {
     this.shadow,
   });
 
-  bool get _hasPhoto {
-    final p = photoPath;
-    return p != null && p.isNotEmpty && File(p).existsSync();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_hasPhoto) {
+    // Resolved against TODAY's documents directory, not the one the path was
+    // saved under. iOS renames the container on every update, so the stored
+    // absolute path stopped resolving and her child's photo vanished — see
+    // photo_paths.dart.
+    final resolved = resolveStoredPhoto(photoPath);
+    if (resolved != null) {
       return Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           boxShadow: shadow,
-          image: DecorationImage(image: FileImage(File(photoPath!)), fit: BoxFit.cover),
+          image: DecorationImage(image: FileImage(File(resolved)), fit: BoxFit.cover),
         ),
       );
     }

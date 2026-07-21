@@ -14,8 +14,11 @@ import 'package:flutter/material.dart' hide Flow;
 import 'app/app.dart';
 import 'app/app_controller.dart';
 import 'core/geofence.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'data/notification_service.dart';
 import 'data/content_repository.dart';
+import 'data/photo_paths.dart';
 import 'data/content_store.dart';
 import 'data/prefs_app_store.dart';
 import 'domain/geofence_alerts.dart';
@@ -37,6 +40,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // NOTE: initialize Firebase (auth + messaging) here before runApp in production.
+
+  // Where photos live on THIS install. Resolved once, before first paint,
+  // because the avatar needs it during build and iOS renames the application
+  // container on every update — a photo saved as an absolute path stopped
+  // resolving and quietly disappeared. See data/photo_paths.dart.
+  try {
+    photosDocsPath = (await getApplicationDocumentsDirectory()).path;
+  } catch (_) {
+    // No documents directory is not a reason to fail to start; avatars fall
+    // back to initials, exactly as they do for someone who added no photo.
+  }
 
   // Restore a saved session (language, profile, child, zones) BEFORE first paint,
   // so a returning user skips straight past onboarding.
