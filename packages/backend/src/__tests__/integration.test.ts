@@ -32,6 +32,7 @@ function makeDeps(
   authUser: () => Promise<{ userId: string } | null> = async () => ({ userId: USER }),
   authAdmin: () => Promise<{ staffId: string; role: StaffRole } | null> = async () => ({ staffId: 's1', role: 'admin' }),
   chatLimiter?: import('../http/rateLimit').RateLimiter,
+  ingestLimiter?: import('../http/rateLimit').RateLimiter,
 ) {
   const events: GeofenceEvent[] = [];
   const pushes = { emergency: 0, geofence: 0 };
@@ -202,6 +203,7 @@ function makeDeps(
       authUser,
       authAdmin,
       chatLimiter,
+      ingestLimiter,
     },
     { logger: false },
   );
@@ -269,6 +271,97 @@ describe('server wiring (in-process)', () => {
     await server.ready();
     const r = await server.inject({ method: 'DELETE', url: '/account' });
     expect(r.statusCode).toBe(401);
+    await server.close();
+  });
+
+  // ---- Ingest is bounded, but only for a runaway ----
+  it('stops a client that will not stop posting', async () => {
+    // Ingest was unlimited on the reasoning that dropping it would lose health
+    // data. A 429 does not drop anything — the client requeues, exactly as it
+    // does with no signal — so the real choice was between a limit and letting
+    // one authenticated caller write to a timeseries database as fast as it
+    // can post 500-item batches.
+    const { RateLimiter } = await import('../http/rateLimit');
+    const limiter = new RateLimiter({ limit: 3, windowMs: 60_000 });
+    const { server } = makeDeps(undefined, undefined, undefined, limiter);
+    await server.ready();
+
+    const send = () =>
+      server.inject({
+        method: 'POST',
+        url: '/ingest/batch',
+        payload: {
+          items: [
+            {
+              type: 'telemetry',
+              payload: {
+                deviceId: '',
+                source: 'manual',
+                recordedAt: new Date().toISOString(),
+                heartRateBpm: 72,
+              },
+            },
+          ],
+        },
+      });
+
+    for (let i = 0; i < 3; i++) {
+      expect((await send()).statusCode).toBe(200);
+    }
+    const blocked = await send();
+    expect(blocked.statusCode).toBe(429);
+    // Retry-After so the client backs off by the server's clock, not a guess.
+    expect(blocked.headers['retry-after']).toBeTruthy();
+    expect(blocked.json().retryAfterSec).toBeGreaterThan(0);
+    await server.close();
+  });
+
+  it('a legitimate backlog drain never meets the limit', async () => {
+    // The worst legitimate case is a phone coming back after a long spell
+    // offline: a full 5000-item queue leaves in 25 back-to-back requests at
+    // maxFlushItems=200. If the limit bit there it would cost real readings,
+    // because the queue trims its oldest ordinary items once it overflows.
+    const { server } = makeDeps(); // the production default: 120 per 5 min
+    await server.ready();
+    for (let i = 0; i < 25; i++) {
+      const r = await server.inject({
+        method: 'POST',
+        url: '/ingest/batch',
+        payload: {
+          items: [
+            {
+              type: 'telemetry',
+              payload: {
+                deviceId: '',
+                source: 'manual',
+                recordedAt: new Date().toISOString(),
+                heartRateBpm: 70 + i,
+              },
+            },
+          ],
+        },
+      });
+      expect(r.statusCode, `request ${i + 1} of the drain was rejected`).toBe(200);
+    }
+    await server.close();
+  });
+
+  it('an unauthenticated ingest never spends the budget', async () => {
+    // Same reasoning as the chat limiter: taking a token before knowing who is
+    // asking would let anyone exhaust a named user's allowance.
+    const { RateLimiter } = await import('../http/rateLimit');
+    const limiter = new RateLimiter({ limit: 1, windowMs: 60_000 });
+    const { server } = makeDeps(async () => null, undefined, undefined, limiter);
+    await server.ready();
+    for (let i = 0; i < 5; i++) {
+      const r = await server.inject({
+        method: 'POST',
+        url: '/ingest/batch',
+        payload: { items: [] },
+      });
+      expect(r.statusCode).toBe(401);
+    }
+    expect(limiter.size).toBe(0);
     await server.close();
   });
 

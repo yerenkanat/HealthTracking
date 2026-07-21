@@ -10,10 +10,16 @@
  * one carrier NAT shares an IP — limiting by address would throttle strangers
  * for each other's traffic. An unauthenticated request never reaches here.
  *
- * WHAT IT IS FOR: /ai/chat spends money per call and is the one route where a
- * loop — a broken client as easily as an abusive one — is expensive rather than
- * merely noisy. Telemetry ingest is deliberately NOT limited this way: it is
- * high-volume by design, and dropping it would lose health data.
+ * WHAT IT IS FOR: /ai/chat spends money per call, so a loop — a broken client
+ * as easily as an abusive one — is expensive rather than merely noisy. Its
+ * limit is tight, because a real conversation is nowhere near it.
+ *
+ * /ingest/batch is limited too, far more loosely. This note used to say it was
+ * deliberately exempt because "dropping it would lose health data", which
+ * confused a 429 with a drop: the client is offline-first and requeues a failed
+ * flush exactly as it does when the phone has no signal. The limit is sized so
+ * that even a drain of the full 5000-item backlog — 25 back-to-back requests —
+ * clears it several times over, so it only ever bites a runaway.
  */
 
 export interface RateLimitDecision {

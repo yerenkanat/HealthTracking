@@ -32,6 +32,8 @@ export interface ServerDeps {
   /// Injected so tests can drive the boundary without a real clock. Defaults
   /// to 20 messages per 5 minutes per authenticated user.
   chatLimiter?: RateLimiter;
+  /// Same, for /ingest/batch. Defaults to 120 requests per 5 minutes.
+  ingestLimiter?: RateLimiter;
   cacheLastLocation: (childId: string) => Promise<unknown>;
   setBpCalibration: (userId: string, offsets: { systolicOffset: number; diastolicOffset: number; calibratedAt: string }) => Promise<void>;
   /** Resolve the caller's user from the request (verify Firebase token in prod). */
@@ -110,10 +112,17 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // tests can drive the boundary without waiting on a wall clock.
   const chatLimiter = deps.chatLimiter ?? new RateLimiter({ limit: 20, windowMs: 5 * 60_000 });
 
+  // Ingest: see the note on the route. Generous by design — this exists to
+  // bound a runaway, not to shape normal traffic.
+  const ingestLimiter = deps.ingestLimiter ?? new RateLimiter({ limit: 120, windowMs: 5 * 60_000 });
+
   // Expired windows are dropped periodically — otherwise the map keeps one
   // entry per user who ever chatted, which is a leak that only surfaces months
   // into production. unref() so this timer never holds the process open.
-  const sweeper = setInterval(() => chatLimiter.sweep(), 5 * 60_000);
+  const sweeper = setInterval(() => {
+    chatLimiter.sweep();
+    ingestLimiter.sweep();
+  }, 5 * 60_000);
   if (typeof sweeper.unref === 'function') sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
 
@@ -141,6 +150,29 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     // that trigger a false emergency for the mother.
     const caller = await requireCaller(req, reply);
     if (!caller) return;
+
+    // Ingest was left unlimited on the reasoning that it is high-volume by
+    // design and dropping it would lose health data. The first half is true;
+    // the second is not, because a 429 does not drop anything. The client is
+    // offline-first: TelemetryBatcher requeues the whole batch on ANY failed
+    // flush and retries with backoff, which is the same path it already takes
+    // when the phone has no signal. So the choice is not "limit or keep the
+    // data" — it is "limit, or let one authenticated client write to a
+    // timeseries database as fast as it can post 500-item batches".
+    //
+    // Sized around the legitimate worst case, which is a drain after a long
+    // spell offline: a full 5000-item queue leaves in 25 back-to-back requests
+    // at maxFlushItems=200. 120 per five minutes clears that almost five times
+    // over, so real traffic never meets the limit — and a runaway is bounded.
+    const rl = ingestLimiter.take(caller.userId);
+    if (!rl.allowed) {
+      reply.header('retry-after', String(rl.retryAfterSec));
+      return reply.code(429).send({
+        error: 'rate_limited',
+        retryAfterSec: rl.retryAfterSec,
+      });
+    }
+
     const parsed = batchSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const summary = await handleIngestBatch(parsed.data.items, {
