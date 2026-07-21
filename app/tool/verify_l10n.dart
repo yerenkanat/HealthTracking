@@ -25,6 +25,33 @@ void main() {
   _chk('every key translated in ru+kk+en (${allL10nKeys.length} keys)', incomplete.isEmpty);
   if (incomplete.isNotEmpty) print('   missing: $incomplete');
 
+  // ---- Placeholders survive translation ----
+  //
+  // t() substitutes {name}, {n}, {m} into the string. A translation that drops
+  // one loses whatever it carried, silently and only in that language: "мин"
+  // where the number should be, "Привет," with no name. Nothing throws, the
+  // sentence still renders, and it is wrong only for the people reading it in
+  // the language nobody on the team is checking.
+  //
+  // Clean today across all 774 keys; this keeps it that way.
+  Set<String> placeholders(String s) =>
+      RegExp(r'\{(\w+)\}').allMatches(s).map((m) => m.group(1)!).toSet();
+
+  final mismatched = <String>[];
+  for (final key in allL10nKeys) {
+    final ru = placeholders(const L10n(AppLocale.ru).t(key));
+    final kk = placeholders(const L10n(AppLocale.kk).t(key));
+    final en = placeholders(const L10n(AppLocale.en).t(key));
+    if (!_sameSet(ru, kk) || !_sameSet(ru, en)) {
+      mismatched.add('$key (ru=$ru kk=$kk en=$en)');
+    }
+  }
+  _chk('every language carries the same placeholders (${mismatched.length} do not)',
+      mismatched.isEmpty);
+  for (final m in mismatched.take(10)) {
+    print('   $m');
+  }
+
   // ---- Lookups differ per language and are non-empty ----
   for (final key in ['nav_health', 'em_call_ambulance', 'metric_hr']) {
     final ru = const L10n(AppLocale.ru).t(key);
@@ -149,3 +176,6 @@ void main() {
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
+
+bool _sameSet(Set<String> a, Set<String> b) =>
+    a.length == b.length && a.containsAll(b);
