@@ -35,6 +35,7 @@ import 'cycle_summary.dart';
 import 'weight_card.dart';
 import 'logging_drawer.dart';
 import 'pregnancy_hero.dart';
+import 'week_detail_screen.dart';
 
 class WomensHealthScreen extends StatefulWidget {
   final AppController controller;
@@ -410,11 +411,10 @@ class _GestationHeader extends StatelessWidget {
           remainingLabel: g.daysUntilDue >= 0
               ? l.t('gest_days_left', {'n': g.daysUntilDue})
               : l.t('gest_overdue'),
-          // No "Подробнее" button yet: there is no week-detail screen to send
-          // her to, and a control that does nothing is worse than its absence.
-          // The hero renders without it; wire it when the screen exists.
-          detailsLabel: '',
-          onDetails: null,
+          detailsLabel: l.t('gest_details'),
+          onDetails: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => WeekDetailScreen(gestation: g),
+          )),
         ),
         const SizedBox(height: 12),
         Row(
@@ -443,7 +443,7 @@ class _GestationHeader extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        _WeekStrip(today: today, logs: controller.dayLogs),
+        _WeekStrip(today: today, logs: controller.dayLogs, dueDate: controller.dueDate),
       ],
     );
   }
@@ -638,7 +638,16 @@ class _ExpectingLink extends StatelessWidget {
 class _WeekStrip extends StatelessWidget {
   final DateTime today;
   final Map<String, DayLog> logs;
-  const _WeekStrip({required this.today, required this.logs});
+
+  /// Due date, when there is one. Present means each chip also carries the DAY
+  /// OF PREGNANCY — day 77, not just "the 22nd".
+  ///
+  /// That number is the difference between a calendar and a pregnancy
+  /// calendar. "Week 11" is what she tells people; the running day count is
+  /// what makes the strip feel like it is counting toward something.
+  final DateTime? dueDate;
+
+  const _WeekStrip({required this.today, required this.logs, this.dueDate});
 
   @override
   Widget build(BuildContext context) {
@@ -651,11 +660,26 @@ class _WeekStrip extends StatelessWidget {
           _DayChip(
             weekday: ml.narrowWeekdays[d.weekday % 7],
             day: d.day,
+            // Null before conception and past term, where a day number would
+            // be meaningless rather than merely large.
+            gestDay: _gestDayFor(d),
             isToday: isSameDay(d, today),
             logged: (logs[dateKey(d)]?.isNotEmpty) ?? false,
           ),
       ],
     );
+  }
+
+  int? _gestDayFor(DateTime d) {
+    final due = dueDate;
+    if (due == null) return null;
+    final g = gestationFor(due, d);
+    if (g == null) return null;
+    // gestationFor clamps to 0..300; the clamp is what a day outside the
+    // pregnancy looks like, so treat the ends as "no number" rather than
+    // printing the clamp back at her.
+    if (g.totalDays <= 0 || g.totalDays >= 300) return null;
+    return g.totalDays;
   }
 }
 
@@ -664,14 +688,40 @@ class _DayChip extends StatelessWidget {
   final int day;
   final bool isToday;
   final bool logged;
-  const _DayChip({required this.weekday, required this.day, required this.isToday, required this.logged});
+
+  /// Day of pregnancy, or null when there is no due date or the day falls
+  /// outside it.
+  final int? gestDay;
+
+  const _DayChip({
+    required this.weekday,
+    required this.day,
+    required this.isToday,
+    required this.logged,
+    this.gestDay,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Text(weekday, style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
+        // The running day count, above the date. Reserve the line either way
+        // so the seven chips keep a common baseline — without it the strip
+        // shifts vertically the moment one day falls outside the pregnancy.
+        SizedBox(
+          height: 13,
+          child: gestDay == null
+              ? null
+              : Text('$gestDay',
+                  style: TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isToday ? Palette.roseDeep : Palette.textDim.withValues(alpha: 0.7),
+                  )),
+        ),
+        const SizedBox(height: 2),
         Container(
           width: 34, height: 34,
           decoration: BoxDecoration(

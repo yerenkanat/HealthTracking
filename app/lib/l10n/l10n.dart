@@ -718,6 +718,17 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'MS_THIRD_TRIMESTER': {AppLocale.ru: 'Третий триместр', AppLocale.kk: 'Үшінші триместр', AppLocale.en: 'Third trimester'},
   'MS_FULL_TERM': {AppLocale.ru: 'Доношенный срок', AppLocale.kk: 'Толық мерзім', AppLocale.en: 'Full term'},
   'MS_DUE': {AppLocale.ru: 'Срок родов', AppLocale.kk: 'Босану мерзімі', AppLocale.en: 'Due date'},
+  // ---- Week detail ----
+  'gest_details': {AppLocale.ru: 'Подробнее', AppLocale.kk: 'Толығырақ', AppLocale.en: 'More'},
+  'ms_next': {AppLocale.ru: 'Следующий рубеж', AppLocale.kk: 'Келесі кезең', AppLocale.en: 'Next milestone'},
+  'ms_in_weeks': {AppLocale.ru: 'через {n} нед.', AppLocale.kk: '{n} аптадан кейін', AppLocale.en: 'in {n} weeks'},
+  // Every week figure in the app is calendar-derived, not measured. Said once,
+  // plainly, on the screen that goes into the most detail about it.
+  'gest_estimate_note': {
+    AppLocale.ru: 'Все сроки здесь рассчитаны от предполагаемой даты родов. Точные данные о развитии даёт только УЗИ и осмотр врача.',
+    AppLocale.kk: 'Мұндағы барлық мерзім болжамды босану күнінен есептелген. Дамудың нақты көрсеткіштерін тек УДЗ бен дәрігер қарауы береді.',
+    AppLocale.en: 'Every date here is calculated from the estimated due date. Only a scan and your doctor can say how the baby is actually developing.',
+  },
 
   // ---- Child development calendar ----
   //

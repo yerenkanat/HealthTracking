@@ -1,0 +1,79 @@
+/// The week-detail screen: the destination for "Подробнее".
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/domain/baby_size.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/l10n/l10n.dart';
+import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/ui/calendar/week_detail_screen.dart';
+
+final today = DateTime(2026, 7, 22);
+GestationInfo at(int week) => gestationFor(today.add(Duration(days: (40 - week) * 7)), today)!;
+
+Future<void> pump(WidgetTester tester, int week, [AppLocale loc = AppLocale.ru]) async {
+  tester.view.physicalSize = const Size(880, 2200);
+  tester.view.devicePixelRatio = 2.0;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(MaterialApp(
+    home: L10nScope(l10n: L10n(loc), child: WeekDetailScreen(gestation: at(week))),
+  ));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  const ru = L10n(AppLocale.ru);
+
+  testWidgets('shows the size comparison for the week', (tester) async {
+    await pump(tester, 12);
+    final size = babySizeFor(12)!;
+    expect(find.text(ru.t(size.code)), findsOneWidget);
+    expect(find.textContaining(size.lengthCm.toStringAsFixed(1)), findsOneWidget);
+  });
+
+  testWidgets('shows the current trimester milestone and the next one', (tester) async {
+    await pump(tester, 14);
+    expect(find.text(ru.t('MS_SECOND_TRIMESTER')), findsOneWidget);
+    // _Card uppercases its title, so assert what is actually drawn.
+    expect(find.text(ru.t('ms_next').toUpperCase()), findsOneWidget);
+    expect(find.text(ru.t('MS_HALFWAY')), findsOneWidget); // week 20 is next
+  });
+
+  testWidgets('at term there is no next milestone to promise', (tester) async {
+    await pump(tester, 40);
+    expect(find.text(ru.t('ms_next').toUpperCase()), findsNothing);
+  });
+
+  testWidgets('very early weeks have no size comparison, and do not invent one', (tester) async {
+    // The table starts at week 4; before that a fruit comparison would be made
+    // up rather than merely approximate.
+    await pump(tester, 2);
+    expect(babySizeFor(2), isNull);
+    // Uppercased by the card. The first version of this line asserted the
+    // mixed-case form and so passed no matter what the screen did.
+    expect(find.text(ru.t('bsize_title').toUpperCase()), findsNothing);
+  });
+
+  testWidgets('says plainly that every date here is an estimate', (tester) async {
+    await pump(tester, 20);
+    expect(find.text(ru.t('gest_estimate_note')), findsOneWidget);
+  });
+
+  testWidgets('renders in all three languages without a raw key', (tester) async {
+    for (final loc in AppLocale.values) {
+      await pump(tester, 22, loc);
+      expect(find.textContaining('bsize_'), findsNothing, reason: loc.name);
+      expect(find.textContaining('MS_'), findsNothing, reason: loc.name);
+      expect(find.textContaining('gest_'), findsNothing, reason: loc.name);
+    }
+  });
+
+  testWidgets('golden: week 22', (tester) async {
+    await pump(tester, 22);
+    await expectLater(
+      find.byType(WeekDetailScreen),
+      matchesGoldenFile('goldens/week_detail_22.png'),
+    );
+  });
+}

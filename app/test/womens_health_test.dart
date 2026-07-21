@@ -184,6 +184,12 @@ void main() {
 
     await tester.scrollUntilVisible(find.text('SESSION HISTORY'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('5 movements'), findsOneWidget);
+    // scrollUntilVisible stops as soon as the target is barely on screen, so
+    // the header action beside it can still sit below the fold — it did, the
+    // moment the week strip grew by a line. ensureVisible puts the thing being
+    // tapped fully in view, which is what a user does before tapping it.
+    await tester.ensureVisible(find.text('Clear').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Clear').first); // header action
     await tester.pumpAndSettle();
     expect(find.text('Clear session history?'), findsOneWidget);
