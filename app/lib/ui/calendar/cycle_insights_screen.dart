@@ -44,7 +44,7 @@ class CycleInsightsScreen extends StatelessWidget {
             final logs = controller.dayLogs.values;
             final moods = moodFrequency(logs);
             final symptoms = symptomFrequency(logs);
-            final since = _now().subtract(const Duration(days: 7));
+            final since = _now().subtract(const Duration(days: 7)); // elapsed-ok: a cutoff instant, not a keyed date
             final thisWeek = symptomFrequencySince(logs, since);
             final moodsWeek = moodFrequencySince(logs, since);
             final streak = loggingStreak(logs, _now());

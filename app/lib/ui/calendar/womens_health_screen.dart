@@ -339,12 +339,12 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
 
   Future<void> _pickDueDate() async {
     final c = widget.controller;
-    final initial = c.dueDate ?? _today.add(const Duration(days: 140));
+    final initial = c.dueDate ?? _today.add(const Duration(days: 140)); // elapsed-ok: a picker default, adjustable by hand
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: _today.subtract(const Duration(days: 300)),
-      lastDate: _today.add(const Duration(days: 300)),
+      firstDate: _today.subtract(const Duration(days: 300)), // elapsed-ok: a generous picker bound
+      lastDate: _today.add(const Duration(days: 300)), // elapsed-ok: a generous picker bound
       helpText: L10nScope.of(context).t('cal_due_pick'),
     );
     if (picked != null) c.setDueDate(picked);
@@ -672,7 +672,7 @@ class _WeekStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ml = MaterialLocalizations.of(context);
-    final days = [for (var i = -3; i <= 3; i++) today.add(Duration(days: i))];
+    final days = [for (var i = -3; i <= 3; i++) addDays(today, i)];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

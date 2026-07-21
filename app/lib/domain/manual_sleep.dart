@@ -7,6 +7,8 @@
 /// it actually knows — see [SleepSource] and `assessSleep`.
 library;
 
+import 'cycle_log.dart' show addDays;
+
 /// Why an entry can't be validated.
 enum SleepEntryError {
   /// Bed and wake time are the same instant — no night at all.
@@ -75,10 +77,10 @@ SleepEntry sleepEntryFromClockTimes({
   int awakeMin = 0,
 }) {
   var woke = DateTime(now.year, now.month, now.day, wokeHour, wokeMinute);
-  if (woke.isAfter(now)) woke = woke.subtract(const Duration(days: 1));
+  if (woke.isAfter(now)) woke = addDays(woke, -1);
 
   var bed = DateTime(woke.year, woke.month, woke.day, bedHour, bedMinute);
-  if (!bed.isBefore(woke)) bed = bed.subtract(const Duration(days: 1));
+  if (!bed.isBefore(woke)) bed = addDays(bed, -1);
 
   return SleepEntry(bedAt: bed, wokeAt: woke, awakeMin: awakeMin);
 }

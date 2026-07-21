@@ -3,7 +3,7 @@
 /// unit-testable via verify_water.dart.
 library;
 
-import 'cycle_log.dart' show dateKey;
+import 'cycle_log.dart' show addDays, dateKey;
 
 const int defaultWaterGoal = 8; // glasses/day
 const int minWaterGoal = 4;
@@ -33,7 +33,7 @@ List<WaterDay> lastNDays(Map<String, int> log, DateTime today, int n) {
   final t = _dayOnly(today);
   return [
     for (var i = n - 1; i >= 0; i--)
-      (day: t.subtract(Duration(days: i)), glasses: log[dateKey(t.subtract(Duration(days: i)))] ?? 0),
+      (day: addDays(t, -i), glasses: log[dateKey(addDays(t, -i))] ?? 0),
   ];
 }
 
@@ -44,11 +44,11 @@ int waterStreak(Map<String, int> log, DateTime today, int goal) {
   if (goal <= 0) return 0;
   bool met(DateTime d) => (log[dateKey(d)] ?? 0) >= goal;
   final t = _dayOnly(today);
-  var day = met(t) ? t : t.subtract(const Duration(days: 1));
+  var day = met(t) ? t : addDays(t, -1);
   var streak = 0;
   while (met(day)) {
     streak++;
-    day = day.subtract(const Duration(days: 1));
+    day = addDays(day, -1);
   }
   return streak;
 }

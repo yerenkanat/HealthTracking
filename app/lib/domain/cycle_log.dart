@@ -59,6 +59,32 @@ int daysBetween(DateTime from, DateTime to) => DateTime.utc(to.year, to.month, t
     .difference(DateTime.utc(from.year, from.month, from.day))
     .inDays;
 
+/// [n] calendar days from [d], keeping the time of day.
+///
+/// The counterpart to [daysBetween], and needed for the same reason from the
+/// other direction: that one measures across days, this one steps across them.
+/// `d.subtract(Duration(days: n))` moves an exact 24 hours, and a calendar day
+/// is 23 or 25 hours when the clocks change — so a window built by repeated
+/// subtraction can skip a date and reach a day too far back.
+///
+/// Unlike the note on [daysBetween], this one IS reproducible. Santiago moves
+/// its clocks at midnight; anchored on 7 September 2026 and stepping back seven
+/// times:
+///
+///   subtract(Duration): 9-7, 9-5, 9-4, 9-3, 9-2, 9-1, 8-31
+///   this function:      9-7, 9-6, 9-5, 9-4, 9-3, 9-2, 9-1
+///
+/// The 6th vanishes and 31 August takes its place. Every roll-up keyed by date
+/// — the weekly digest, medication adherence, the hydration streak, the sleep
+/// window — silently drops a real day of her data and counts one outside the
+/// week instead.
+///
+/// Constructing the date from its parts asks the calendar rather than the
+/// clock, and DateTime normalises the overflow, so month, year and leap-day
+/// boundaries need no special case.
+DateTime addDays(DateTime d, int n) =>
+    DateTime(d.year, d.month, d.day + n, d.hour, d.minute, d.second, d.millisecond, d.microsecond);
+
 /// Canonical yyyy-MM-dd key for a day (local calendar date, time-of-day dropped).
 String dateKey(DateTime d) {
   final mm = d.month.toString().padLeft(2, '0');

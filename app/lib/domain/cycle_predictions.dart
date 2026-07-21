@@ -7,7 +7,7 @@
 /// approximate and clearly labelled as such in the UI.
 library;
 
-import 'cycle_log.dart' show dateKey, daysBetween;
+import 'cycle_log.dart' show addDays, dateKey, daysBetween;
 
 /// How a calendar day relates to the cycle, for colouring the month grid.
 /// Priority (highest first): logged period → ovulation → fertile → predicted period.
@@ -54,7 +54,7 @@ List<DateTime> periodStarts(Set<DateTime> periodDays) {
   final sorted = periodDays.map(_dayOnly).toSet().toList()..sort();
   final starts = <DateTime>[];
   for (final d in sorted) {
-    if (!norm.contains(dateKey(d.subtract(const Duration(days: 1))))) starts.add(d);
+    if (!norm.contains(dateKey(addDays(d, -1)))) starts.add(d);
   }
   return starts;
 }
@@ -130,7 +130,7 @@ CycleInfo computeCycle(
   var periodSum = 0;
   for (final s in starts) {
     var len = 1;
-    while (norm.contains(dateKey(s.add(Duration(days: len))))) {
+    while (norm.contains(dateKey(addDays(s, len)))) {
       len++;
     }
     periodSum += len;
@@ -147,13 +147,13 @@ CycleInfo computeCycle(
   // not a wrong prediction — it is the app hanging on the calendar screen.
   // That is exactly what happened when the clamp was removed to test it.
   final step = avgCycle < 1 ? 28 : avgCycle;
-  var next = lastStart.add(Duration(days: step));
+  var next = addDays(lastStart, step);
   while (next.isBefore(t)) {
-    next = next.add(Duration(days: step));
+    next = addDays(next, step);
   }
-  final ovulation = next.subtract(const Duration(days: 14));
-  final fertileStart = ovulation.subtract(const Duration(days: 5));
-  final fertileEnd = ovulation.add(const Duration(days: 1));
+  final ovulation = addDays(next, -14);
+  final fertileStart = addDays(ovulation, -5);
+  final fertileEnd = addDays(ovulation, 1);
 
   final cycleDay = t.isBefore(lastStart) ? null : daysBetween(lastStart, t) + 1;
 
@@ -257,7 +257,7 @@ CycleDayType cycleDayType(DateTime day, CycleInfo info, {required bool loggedPer
   if (info.ovulation != null && dateKey(d) == dateKey(info.ovulation!)) return CycleDayType.ovulation;
   if (_inRange(d, info.fertileStart, info.fertileEnd)) return CycleDayType.fertile;
   final next = info.nextPeriodStart;
-  if (next != null && !d.isBefore(next) && d.isBefore(next.add(Duration(days: info.avgPeriodLength)))) {
+  if (next != null && !d.isBefore(next) && d.isBefore(addDays(next, info.avgPeriodLength))) {
     return CycleDayType.predictedPeriod;
   }
   return CycleDayType.none;

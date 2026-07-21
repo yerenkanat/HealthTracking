@@ -37,7 +37,7 @@ WeeklyDigest computeWeeklyDigest(
 }) {
   final t = DateTime(today.year, today.month, today.day);
   final windowKeys = <String>{
-    for (var i = 0; i < days; i++) dateKey(t.subtract(Duration(days: i))),
+    for (var i = 0; i < days; i++) dateKey(addDays(t, -i)),
   };
 
   var logged = 0;

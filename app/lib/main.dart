@@ -137,7 +137,7 @@ void _seedDemo(AppController c) {
   c.debugSeedSleep([
     for (var i = 0; i < nightsData.length; i++)
       SleepSummary(
-        night: today.subtract(Duration(days: i)),
+        night: addDays(today, -i),
         deepMin: nightsData[i][0],
         remMin: nightsData[i][1],
         lightMin: nightsData[i][2],
@@ -150,7 +150,7 @@ void _seedDemo(AppController c) {
   // having an older child is an ordinary case, and it exercises the pregnancy
   // half of the timeline (the child here is 8, past the five-year window).
   if (c.dueDate == null) {
-    c.updateProfile(c.profile.copyWith(dueDate: now.add(const Duration(days: 140))));
+    c.updateProfile(c.profile.copyWith(dueDate: addDays(now, 140)));
   }
 
   c.configureChild(
@@ -163,7 +163,7 @@ void _seedDemo(AppController c) {
   );
   // Demo: a weight entry + target so the weight card shows progress.
   if (c.weights.isEmpty) {
-    c.logWeight(today.subtract(const Duration(days: 14)), 62.0);
+    c.logWeight(addDays(today, -14), 62.0);
     c.logWeight(today, 65.0);
     c.setWeightGoal(72.0);
   }
@@ -178,26 +178,26 @@ void _seedDemo(AppController c) {
   // Demo: an upcoming appointment so the reminders list + calendar dot show data.
   // Guarded so re-running the demo (hot restart) doesn't pile up duplicates.
   if (c.appointments.isEmpty) {
-    c.addAppointment('Приём у гинеколога', today.add(const Duration(days: 5, hours: 10)));
+    c.addAppointment('Приём у гинеколога', addDays(today, 5).add(const Duration(hours: 10)));
   }
   // Demo: a week of water so the weekly trend + streak are populated (addWater
   // accumulates, so only seed when there's no water logged yet).
   if (c.waterLog.isEmpty) {
     const demoWater = [6, 8, 5, 8, 9, 8, 8]; // 6 days ago → today (today meets the goal)
     for (var i = 0; i < demoWater.length; i++) {
-      c.addWater(today.subtract(Duration(days: demoWater.length - 1 - i)), demoWater[i]);
+      c.addWater(addDays(today, -(demoWater.length - 1 - i)), demoWater[i]);
     }
   }
   // Three past menstrual periods (~28-day cycle, 5 days each) so the cycle tracker
   // shows real predictions AND the insights regularity read out of the box: last
   // period ended a few days ago → ~cycle day 7, next period in ~3 weeks.
   for (final start in [
-    today.subtract(const Duration(days: 6)),
-    today.subtract(const Duration(days: 34)),
-    today.subtract(const Duration(days: 62)),
+    addDays(today, -6),
+    addDays(today, -34),
+    addDays(today, -62),
   ]) {
     for (var i = 0; i < 5; i++) {
-      final d = start.add(Duration(days: i));
+      final d = addDays(start, i);
       c.setDayLog(DayLog(date: dateKey(d), flow: i < 2 ? Flow.medium : Flow.light));
     }
   }

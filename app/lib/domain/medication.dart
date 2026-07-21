@@ -7,7 +7,7 @@
 /// user and their provider.
 library;
 
-import 'cycle_log.dart' show dateKey;
+import 'cycle_log.dart' show addDays, dateKey;
 
 const int maxDosesPerDay = 6;
 
@@ -99,11 +99,11 @@ bool dayComplete(List<Medication> meds, MedLog log, DateTime day) {
 int adherenceStreak(List<Medication> meds, MedLog log, DateTime today) {
   if (meds.isEmpty) return 0;
   final t = DateTime(today.year, today.month, today.day);
-  var day = dayComplete(meds, log, t) ? t : t.subtract(const Duration(days: 1));
+  var day = dayComplete(meds, log, t) ? t : addDays(t, -1);
   var streak = 0;
   while (dayComplete(meds, log, day)) {
     streak++;
-    day = day.subtract(const Duration(days: 1));
+    day = addDays(day, -1);
   }
   return streak;
 }
@@ -124,7 +124,7 @@ double? adherenceRate(List<Medication> meds, MedLog log, DateTime today, {int da
   final t = DateTime(today.year, today.month, today.day);
   var taken = 0, planned = 0;
   for (var i = 0; i < days; i++) {
-    final day = t.subtract(Duration(days: i));
+    final day = addDays(t, -i);
     if (i == 0 && !dayComplete(meds, log, day)) continue;
     final p = dayProgress(meds, log, day);
     taken += p.taken;
@@ -146,7 +146,7 @@ List<MedDay> adherenceHistory(List<Medication> meds, MedLog log, DateTime today,
   return [
     for (var i = days - 1; i >= 0; i--)
       () {
-        final d = t.subtract(Duration(days: i));
+        final d = addDays(t, -i);
         final p = dayProgress(meds, log, d);
         return (day: d, taken: p.taken, planned: p.planned);
       }(),

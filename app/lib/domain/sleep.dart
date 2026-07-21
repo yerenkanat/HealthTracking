@@ -7,6 +7,8 @@
 /// night ended), so "last night" is the summary whose [night] is today.
 library;
 
+import 'cycle_log.dart' show addDays;
+
 /// Overall sleep quality, from total sleep + deep proportion + efficiency.
 enum SleepQuality { good, fair, poor }
 
@@ -141,7 +143,7 @@ SleepSummary? latestNight(List<SleepSummary> nights) {
 /// today). Used to average a recent window rather than all history.
 List<SleepSummary> nightsWithin(List<SleepSummary> nights, DateTime now, int days) {
   final end = DateTime(now.year, now.month, now.day);
-  final start = end.subtract(Duration(days: days - 1));
+  final start = addDays(end, -(days - 1));
   return [
     for (final n in nights)
       if (!DateTime(n.night.year, n.night.month, n.night.day).isBefore(start) &&

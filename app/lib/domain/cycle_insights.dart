@@ -27,7 +27,7 @@ List<CycleSpan> cycleHistory(Set<DateTime> periodDays) {
 
   int periodLen(DateTime start) {
     var len = 1;
-    while (normalized.contains(_key(start.add(Duration(days: len))))) {
+    while (normalized.contains(_key(addDays(start, len)))) {
       len++;
     }
     return len;
@@ -134,11 +134,11 @@ int loggingStreak(Iterable<DayLog> logs, DateTime today) {
   final logged = {for (final l in logs) if (l.isNotEmpty) l.date};
   bool has(DateTime d) => logged.contains(dateKey(d));
   final t = DateTime(today.year, today.month, today.day);
-  var day = has(t) ? t : t.subtract(const Duration(days: 1));
+  var day = has(t) ? t : addDays(t, -1);
   var streak = 0;
   while (has(day)) {
     streak++;
-    day = day.subtract(const Duration(days: 1));
+    day = addDays(day, -1);
   }
   return streak;
 }
@@ -202,7 +202,7 @@ List<MoodWeek> moodTrend(Iterable<DayLog> logs, DateTime today, {int weeks = 6})
         top = m;
       }
     }
-    out.add(MoodWeek(t.subtract(Duration(days: 7 * i)), top, topN));
+    out.add(MoodWeek(addDays(t, -7 * i), top, topN));
   }
   return out;
 }
@@ -253,18 +253,18 @@ CyclePhase? phaseOfLoggedDay(DateTime date, Set<DateTime> periodDays) {
   // Bleeding length: consecutive logged days from the start.
   final norm = {for (final pd in periodDays) dateKey(pd)};
   var periodLen = 1;
-  while (norm.contains(dateKey(s.add(Duration(days: periodLen))))) {
+  while (norm.contains(dateKey(addDays(s, periodLen)))) {
     periodLen++;
   }
-  final ovulation = s.add(Duration(days: cycleLen - 14));
+  final ovulation = addDays(s, cycleLen - 14);
   final info = CycleInfo(
     avgCycleLength: cycleLen,
     avgPeriodLength: _clampi(periodLen, 2, 8),
     lastPeriodStart: s,
-    nextPeriodStart: s.add(Duration(days: cycleLen)),
+    nextPeriodStart: addDays(s, cycleLen),
     ovulation: ovulation,
-    fertileStart: ovulation.subtract(const Duration(days: 5)),
-    fertileEnd: ovulation.add(const Duration(days: 1)),
+    fertileStart: addDays(ovulation, -5),
+    fertileEnd: addDays(ovulation, 1),
     cycleDay: daysBetween(s, d) + 1,
     hasData: true,
     today: d,

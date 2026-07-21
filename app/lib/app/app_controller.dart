@@ -993,7 +993,7 @@ class AppController {
     final info = cycle;
     final next = info.nextPeriodStart;
     _scheduleCycleReminder(_periodReminderId, _periodReminderEnabled && info.hasData,
-        next?.subtract(const Duration(days: 2)), 'period_reminder_title', 'period_reminder_body');
+        next == null ? null : addDays(next, -2), 'period_reminder_title', 'period_reminder_body');
     _scheduleCycleReminder(_fertileReminderId, _fertileReminderEnabled && info.hasData,
         info.fertileStart, 'fertile_reminder_title', 'fertile_reminder_body');
   }

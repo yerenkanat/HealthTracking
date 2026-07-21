@@ -285,9 +285,9 @@ class _ExpectingSection extends StatelessWidget {
                 final now = DateTime.now();
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: controller.dueDate ?? now.add(const Duration(days: 140)),
-                  firstDate: now.subtract(const Duration(days: 60)),
-                  lastDate: now.add(const Duration(days: 300)),
+                  initialDate: controller.dueDate ?? now.add(const Duration(days: 140)), // elapsed-ok: a picker default
+                  firstDate: now.subtract(const Duration(days: 60)), // elapsed-ok: a generous picker bound
+                  lastDate: now.add(const Duration(days: 300)), // elapsed-ok: a generous picker bound
                   helpText: l.t('cal_due_pick'),
                 );
                 if (picked != null) controller.setDueDate(picked);

@@ -35,7 +35,7 @@ String buildVisitSummary(
   String name = '',
   String status = '', // pregnancy week / cycle day, for context
 }) {
-  final since = now.subtract(Duration(days: days));
+  final since = now.subtract(Duration(days: days)); // elapsed-ok: a cutoff instant, compared against timestamps
   final windowed = samplesSince(samples, since);
   final b = StringBuffer();
 
