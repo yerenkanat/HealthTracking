@@ -8,6 +8,8 @@
 import { randomUUID } from 'node:crypto';
 import type { ContentItemRow, Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { Geofence, GeofenceEvent } from '@fcs/shared';
+import { computeBiMetrics } from '../analytics/biMetrics.js';
+import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 
 export const DEMO_USER = '11111111-1111-1111-1111-111111111111';
 export const DEMO_CHILD = '33333333-3333-3333-3333-333333333333';
@@ -231,6 +233,26 @@ export function createMemoryRepository(): Repository {
         zoneName: a.zoneName,
         at: a.at,
       })),
+
+    adminBiMetrics: async () => {
+      // The memory repo models one user, which would render the overview as
+      // "1 user, 0% retention" — a dashboard with nothing to check. Real
+      // endpoints are not wired yet, so this is the test data it is developed
+      // against; deterministic, so a chart can be verified twice. With
+      // DATABASE_URL set, pgRepository computes the same shape from real rows.
+      const now = new Date();
+      const pop = buildSyntheticPopulation(now);
+      // The one genuine account this process knows about joins the population,
+      // so a locally exercised flow actually moves the numbers.
+      pop.users.push({ id: DEMO_USER, createdAt: new Date(now.getTime() - 45 * 86400000).toISOString() });
+      for (const a of alerts) {
+        pop.events.push({ userId: DEMO_USER, at: a.at, kind: 'alert' });
+      }
+      for (const h of healthRows as Array<{ userId?: string }>) {
+        pop.events.push({ userId: h.userId ?? DEMO_USER, at: now.toISOString(), kind: 'telemetry' });
+      }
+      return computeBiMetrics({ ...pop, now });
+    },
 
     adminAnalytics: async () => {
       let items = 0, linked = 0;

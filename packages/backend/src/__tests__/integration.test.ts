@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { InjectPayload, Response as InjectResponse } from 'light-my-request';
 import { buildServer } from '../server';
+import { computeBiMetrics } from '../analytics/biMetrics.js';
 import type { Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
@@ -148,6 +149,15 @@ function makeDeps(
       alerts7d: alertRows.length, sosAllTime: 0, stageDistribution: {},
       contentStages: contentRows.size, contentItems: 0, contentLinked: 0,
     }),
+    // Computed rather than hand-written, so the fixture cannot claim a shape
+    // the real metric code does not produce.
+    adminBiMetrics: async () =>
+      computeBiMetrics({
+        users: [{ id: USER, createdAt: '2026-06-01T00:00:00Z' }],
+        events: alertRows.map((a) => ({ userId: USER, at: a.at, kind: 'alert' as const })),
+        devices: { total: devices.length, online: devices.length },
+        now: new Date('2026-07-15T08:00:00Z'),
+      }),
     contentCatalog: async () => Object.fromEntries(contentRows),
     putStageContent: async (stageKey, items) => {
       if (items.length === 0) contentRows.delete(stageKey);

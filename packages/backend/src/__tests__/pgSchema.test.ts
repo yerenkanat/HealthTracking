@@ -38,6 +38,21 @@ function definedTables(): Set<string> {
 }
 
 /**
+ * Names bound by a WITH clause, which are queryable but not tables.
+ *
+ * Matches the CTE head `WITH x AS (` and each `, y AS (` that follows, so a
+ * query that defines its own intermediate relations does not read as three
+ * missing tables. Kept narrow — only names introduced by `AS (` count, so a
+ * genuinely misspelled table still fails.
+ */
+function cteNames(): Set<string> {
+  const out = new Set<string>();
+  for (const m of repo.matchAll(/\bwith\s+([a-z_][a-z0-9_]*)\s+as\s*\(/gi)) out.add(m[1].toLowerCase());
+  for (const m of repo.matchAll(/,\s*([a-z_][a-z0-9_]*)\s+as\s*\(\s*select/gi)) out.add(m[1].toLowerCase());
+  return out;
+}
+
+/**
  * Table names the repository reads or writes.
  *
  * Only the clauses where a table name can appear. UPDATE is deliberately
@@ -64,8 +79,18 @@ function referencedTables(): Set<string> {
 describe('pgRepository against db/schema.sql', () => {
   it('queries only tables the schema creates', () => {
     const defined = definedTables();
-    const missing = [...referencedTables()].filter((t) => !defined.has(t));
+    const ctes = cteNames();
+    const missing = [...referencedTables()].filter((t) => !defined.has(t) && !ctes.has(t));
     expect(missing, `no such table in schema.sql: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('the CTE exemption does not swallow real tables', () => {
+    // The exemption above is the only way a name can pass without existing in
+    // the schema, so it has to stay narrow: if it ever matched a real table
+    // name, a typo in a query against that table would go unreported.
+    const defined = definedTables();
+    const overlap = [...cteNames()].filter((n) => defined.has(n));
+    expect(overlap, `CTE names shadow real tables: ${overlap.join(', ')}`).toEqual([]);
   });
 
   it('the schema actually defines the tables this test relies on', () => {

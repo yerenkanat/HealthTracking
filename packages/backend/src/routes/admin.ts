@@ -205,6 +205,15 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.send(await repo.adminAnalytics());
   });
 
+  // Product metrics for the overview — DAU/WAU/MAU, growth, retention,
+  // engagement mix. Aggregates only: no row here identifies a user, so this
+  // needs staff but not admin, like the other read-only views.
+  app.get('/admin/bi', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    return reply.send(await repo.adminBiMetrics());
+  });
+
   // ---- Timeline content (the CMS) ----
   // Reading the catalogue is open to any staff; CHANGING what every user sees
   // — including what is offered for sale — is an admin action and is audited.

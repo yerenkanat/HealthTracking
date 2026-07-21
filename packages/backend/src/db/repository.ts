@@ -12,6 +12,9 @@ import type {
   GeofenceEvent,
   TriageSeverity,
 } from '@fcs/shared';
+import type { BiMetrics } from '../analytics/biMetrics.js';
+
+export type { BiMetrics };
 
 export interface SleepNight {
   night: string; // ISO date (wake day)
@@ -206,6 +209,12 @@ export interface Repository {
 
   /// Engagement and growth counters for the analytics view.
   adminAnalytics(): Promise<AdminAnalytics>;
+
+  /// Product metrics for the overview: DAU/WAU/MAU, growth, retention,
+  /// engagement mix. Definitions live in analytics/biMetrics.ts so this
+  /// implementation and the in-memory one cannot drift apart on what
+  /// "retention" means.
+  adminBiMetrics(): Promise<BiMetrics>;
 
   // ---- Timeline content (the CMS) ----
   /// The whole catalogue, keyed by stage (`w1`..`w40`, `m0`..`m60`).

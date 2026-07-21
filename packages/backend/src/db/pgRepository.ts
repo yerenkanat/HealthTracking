@@ -337,6 +337,145 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    /**
+     * Product metrics from real rows.
+     *
+     * "Active" is the union of the things a user can actually do: record a
+     * reading, generate a safety alert, or have their child's tracker report a
+     * position. Deliberately not "opened the app" — there is no session table,
+     * and inventing one from request logs would count a background sync as
+     * engagement.
+     *
+     * The heavy lifting stays in SQL (these tables are hypertables and the row
+     * counts get large), but the definitions match analytics/biMetrics.ts
+     * exactly — UTC day buckets, windows inclusive of today, day-N retention
+     * aggregated across every cohort whose day N has arrived.
+     */
+    async adminBiMetrics() {
+      const activity = `
+        SELECT user_id, date_trunc('day', recorded_at AT TIME ZONE 'UTC')::date AS day
+          FROM pregnancy_health_metrics
+        UNION
+        SELECT user_id, date_trunc('day', at AT TIME ZONE 'UTC')::date
+          FROM safety_alerts
+        UNION
+        SELECT c.guardian_id, date_trunc('day', l.observed_at AT TIME ZONE 'UTC')::date
+          FROM location_history l JOIN children c ON c.id = l.child_id`;
+      const today = `(now() AT TIME ZONE 'UTC')::date`;
+
+      const [windows, series, signups, retention, engagement, safety, devices] = await Promise.all([
+        pool.query(`
+          WITH a AS (${activity})
+          SELECT count(DISTINCT user_id) FILTER (WHERE day = ${today}) AS dau,
+                 count(DISTINCT user_id) FILTER (WHERE day > ${today} - 7) AS wau,
+                 count(DISTINCT user_id) FILTER (WHERE day > ${today} - 30) AS mau,
+                 (SELECT count(*) FROM users) AS total_users
+            FROM a`),
+        pool.query(`
+          WITH a AS (${activity}),
+               d AS (SELECT generate_series(${today} - 29, ${today}, interval '1 day')::date AS day)
+          SELECT d.day, count(DISTINCT a.user_id) AS value
+            FROM d LEFT JOIN a ON a.day = d.day
+           GROUP BY d.day ORDER BY d.day`),
+        pool.query(`
+          WITH d AS (SELECT generate_series(${today} - 29, ${today}, interval '1 day')::date AS day)
+          SELECT d.day,
+                 count(u.id) AS value,
+                 (SELECT count(*) FROM users WHERE (created_at AT TIME ZONE 'UTC')::date = ${today}) AS today_count,
+                 (SELECT count(*) FROM users WHERE (created_at AT TIME ZONE 'UTC')::date > ${today} - 7) AS d7,
+                 (SELECT count(*) FROM users WHERE (created_at AT TIME ZONE 'UTC')::date > ${today} - 30) AS d30
+            FROM d LEFT JOIN users u
+              ON (u.created_at AT TIME ZONE 'UTC')::date = d.day
+           GROUP BY d.day ORDER BY d.day`),
+        pool.query(`
+          WITH a AS (${activity}),
+               u AS (SELECT id, (created_at AT TIME ZONE 'UTC')::date AS signup FROM users)
+          SELECT n.n,
+                 count(*) FILTER (WHERE u.signup + n.n <= ${today}) AS cohort,
+                 count(*) FILTER (
+                   WHERE u.signup + n.n <= ${today}
+                     AND EXISTS (SELECT 1 FROM a WHERE a.user_id = u.id AND a.day = u.signup + n.n)
+                 ) AS retained
+            FROM u CROSS JOIN (VALUES (1), (7), (30)) AS n(n)
+           GROUP BY n.n`),
+        pool.query(`
+          WITH a AS (${activity})
+          SELECT (SELECT count(*) FROM pregnancy_health_metrics
+                   WHERE (recorded_at AT TIME ZONE 'UTC')::date > ${today} - 30) AS telemetry,
+                 (SELECT count(*) FROM location_history
+                   WHERE (observed_at AT TIME ZONE 'UTC')::date > ${today} - 30) AS location,
+                 (SELECT count(*) FROM safety_alerts
+                   WHERE (at AT TIME ZONE 'UTC')::date > ${today} - 30) AS alert,
+                 (SELECT count(*) FROM a WHERE day > ${today} - 30) AS active_days`),
+        pool.query(`
+          SELECT count(*) FILTER (WHERE at > now() - interval '7 days') AS alerts_7d,
+                 count(*) FILTER (WHERE kind = 'sos') AS sos_all_time,
+                 count(*) FILTER (WHERE kind = 'sos' AND at > now() - interval '7 days') AS emergencies_7d
+            FROM safety_alerts`),
+        pool.query(`
+          SELECT count(*) AS total,
+                 count(*) FILTER (WHERE last_seen > now() - interval '15 minutes') AS online
+            FROM devices`),
+      ]);
+
+      const w = windows.rows[0] ?? {};
+      const dau = Number(w.dau ?? 0);
+      const mau = Number(w.mau ?? 0);
+      const totalUsers = Number(w.total_users ?? 0);
+      const s = signups.rows[0] ?? {};
+      const e = engagement.rows[0] ?? {};
+      const sf = safety.rows[0] ?? {};
+      const dv = devices.rows[0] ?? {};
+
+      const iso = (d: unknown): string => new Date(d as string).toISOString().slice(0, 10);
+      const div = (a: number, b: number) => (b === 0 ? 0 : Math.round((a / b) * 10000) / 10000);
+
+      const byN = new Map<number, { cohort: number; retained: number }>();
+      for (const r of retention.rows) {
+        byN.set(Number(r.n), { cohort: Number(r.cohort ?? 0), retained: Number(r.retained ?? 0) });
+      }
+      const ret = (n: number) => {
+        const r = byN.get(n) ?? { cohort: 0, retained: 0 };
+        return { rate: div(r.retained, r.cohort), cohort: r.cohort };
+      };
+
+      const telemetry = Number(e.telemetry ?? 0);
+      const location = Number(e.location ?? 0);
+      const alert = Number(e.alert ?? 0);
+
+      return {
+        asOf: new Date().toISOString().slice(0, 10),
+        totalUsers,
+        dau,
+        wau: Number(w.wau ?? 0),
+        mau,
+        stickiness: div(dau, mau),
+        activeRate: div(mau, totalUsers),
+        dauSeries: series.rows.map((r) => ({ date: iso(r.day), value: Number(r.value ?? 0) })),
+        signupSeries: signups.rows.map((r) => ({ date: iso(r.day), value: Number(r.value ?? 0) })),
+        newUsers: {
+          today: Number(s.today_count ?? 0),
+          d7: Number(s.d7 ?? 0),
+          d30: Number(s.d30 ?? 0),
+        },
+        retention: { d1: ret(1), d7: ret(7), d30: ret(30) },
+        engagement: {
+          eventsPerActiveUser: div(telemetry + location + alert, mau),
+          activeDaysPerUser: div(Number(e.active_days ?? 0), mau),
+          // chat/sos/emergency are not persisted as their own rows yet; they
+          // read 0 rather than being omitted, so the mix still sums to what is
+          // actually known rather than implying the categories do not exist.
+          eventMix: { telemetry, location, alert, chat: 0, sos: 0, emergency: 0 },
+        },
+        safety: {
+          alerts7d: Number(sf.alerts_7d ?? 0),
+          sosAllTime: Number(sf.sos_all_time ?? 0),
+          emergencies7d: Number(sf.emergencies_7d ?? 0),
+        },
+        devices: { total: Number(dv.total ?? 0), online: Number(dv.online ?? 0) },
+      };
+    },
+
     async adminAnalytics() {
       const { rows } = await pool.query(`
         SELECT (SELECT count(*) FROM users) AS total_users,

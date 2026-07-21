@@ -46,8 +46,15 @@ CREATE TABLE devices (                     -- Smart bands + child tracker tags
   name           TEXT,
   child_id       UUID REFERENCES children(id) ON DELETE SET NULL,  -- tracker tag → child
   paired_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Fleet telemetry. Both were already SELECTed by adminDevices() and neither
+  -- was ever declared here, so the fleet view worked only against databases
+  -- that had drifted ahead of this file and failed outright on one built from
+  -- it. NULL means never reported, which is distinct from "reported nothing".
+  battery_pct    INT CHECK (battery_pct BETWEEN 0 AND 100),
+  last_seen      TIMESTAMPTZ,
   UNIQUE (user_id, ble_mac)
 );
+CREATE INDEX idx_devices_last_seen ON devices (last_seen DESC NULLS LAST);
 
 CREATE TABLE children (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

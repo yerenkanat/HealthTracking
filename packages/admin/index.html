@@ -245,13 +245,30 @@
         <div class="kpis" id="kpis"></div>
         <div class="grid2">
           <div class="card">
-            <div class="sec-h"><h3>Live emergency feed</h3><span class="link" data-view="emergencies">View all</span></div>
-            <div class="feed" id="feedMini"></div>
+            <div class="sec-h"><h3>Активность · 30 дней</h3><span class="sub" id="biTrendSub">—</span></div>
+            <div class="chartwrap"><canvas id="biTrend" width="600" height="170"></canvas></div>
+            <div class="legend">
+              <span><i style="background:var(--accent)"></i>Активные за день</span>
+              <span><i style="background:var(--good)"></i>Регистрации</span>
+            </div>
           </div>
           <div class="card">
-            <div class="sec-h"><h3>Alerts · last 7 days</h3></div>
-            <div class="chartwrap"><canvas id="spark" width="600" height="150"></canvas></div>
-            <div class="legend"><span><i style="background:var(--crit)"></i>Emergency</span><span><i style="background:var(--warn)"></i>Warning</span></div>
+            <div class="sec-h"><h3>Удержание</h3><span class="sub">доля вернувшихся на N-й день</span></div>
+            <div id="biRetention"></div>
+            <p class="sub" style="margin-top:10px">
+              Считается по всем когортам, у которых N-й день уже наступил. Размер
+              когорты показан рядом: 100% на двух пользователях — это шум.
+            </p>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Вовлечённость · 30 дней</h3></div>
+            <div id="biEngagement"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Экстренные события</h3><span class="link" data-view="emergencies">Все</span></div>
+            <div class="feed" id="feedMini"></div>
           </div>
         </div>
       </section>
@@ -427,6 +444,10 @@
       const s=await api("/admin/stats"); MOCK.stats=s; LIVE=true;
       const m=document.getElementById("modePill"); m.textContent="Live"; m.className="modepill live";
       try{ MOCK.emergencies=(await api("/admin/emergencies")).emergencies||MOCK.emergencies; }catch(e){}
+      // Product metrics are a separate call so a failure here costs the
+      // overview its charts, not the whole panel. BI stays null and every
+      // consumer says so rather than guessing.
+      try{ BI=await api("/admin/bi"); }catch(e){ BI=null; }
     }catch(e){ /* keep demo data */ }
     render();
   }
@@ -436,15 +457,103 @@
   const sevRank={emergency:0,warning:1,good:2};
   function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
 
+  // Product metrics from GET /admin/bi. Null until it answers.
+  let BI=null;
+
+  function pct(x){return (x*100).toFixed(x>=0.1?0:1)+"%"}
+
+  // Trend of a series against the equivalent preceding window.
+  //
+  // Every delta on this dashboard used to be a literal: "+4.2% this week" and
+  // "2 unresolved" were typed into the source and rendered next to real
+  // counts, where they read as measurements. A made-up number on a metrics
+  // screen is worse than no number, because it is acted on.
+  function trend(series){
+    if(!series||series.length<4) return "";
+    const half=Math.floor(series.length/2);
+    const sum=a=>a.reduce((t,p)=>t+p.value,0);
+    const prev=sum(series.slice(0,half)), cur=sum(series.slice(half));
+    if(prev===0) return cur===0?"без изменений":"нет базы для сравнения";
+    const d=(cur-prev)/prev;
+    const cls=d<0?' class="down"':"";
+    return `<b${cls}>${d>=0?"+":""}${(d*100).toFixed(1)}%</b> к прошлым ${half} дн.`;
+  }
+
   function renderKpis(){
     const s=MOCK.stats;
+    if(!BI){
+      // No metrics endpoint: show the operational counters that ARE known and
+      // say the rest is missing, rather than filling the gap with plausible
+      // numbers.
+      const tiles=[
+        {lbl:"Устройств онлайн",dot:"var(--good)",val:s.devicesOnline,delta:"из подключённых"},
+        {lbl:"Тревог сегодня",dot:"var(--crit)",val:s.alertsToday,delta:"за сутки"},
+        {lbl:"Приём данных · час",dot:"var(--warn)",val:s.ingestLastHour,delta:"измерений получено"},
+        {lbl:"Продуктовые метрики",dot:"var(--muted)",val:"—",delta:"эндпоинт недоступен"}
+      ];
+      $("#kpis").innerHTML=tiles.map(kpiTile).join("");
+      return;
+    }
+    const b=BI;
     const tiles=[
-      {lbl:"Active users",dot:"var(--accent)",val:s.activeUsers,delta:'<b>+4.2%</b> this week'},
-      {lbl:"Devices online",dot:"var(--good)",val:s.devicesOnline,delta:Math.round(s.devicesOnline/s.activeUsers*100)+'% of users'},
-      {lbl:"Alerts today",dot:"var(--crit)",val:s.alertsToday,delta:'<b class="down">2 unresolved</b>'},
-      {lbl:"Ingest · last hour",dot:"var(--warn)",val:s.ingestLastHour,delta:'readings received'}
+      {lbl:"DAU · активных сегодня",dot:"var(--accent)",val:b.dau,delta:trend(b.dauSeries)},
+      {lbl:"WAU · за 7 дней",dot:"var(--accent)",val:b.wau,delta:b.mau?pct(b.wau/b.mau)+" от MAU":"—"},
+      {lbl:"MAU · за 30 дней",dot:"var(--accent)",val:b.mau,delta:pct(b.activeRate)+" от всей базы"},
+      {lbl:"Липкость · DAU/MAU",dot:"var(--good)",val:pct(b.stickiness),
+       delta:b.stickiness>=0.2?"здоровый уровень":"ниже ориентира 20%"},
+      {lbl:"Новых за 7 дней",dot:"var(--good)",val:b.newUsers.d7,delta:trend(b.signupSeries)},
+      {lbl:"Всего аккаунтов",dot:"var(--muted)",val:b.totalUsers,delta:`+${fmt(b.newUsers.today)} сегодня`},
+      {lbl:"Устройств онлайн",dot:"var(--good)",val:b.devices.online,
+       delta:b.devices.total?pct(b.devices.online/b.devices.total)+" из "+fmt(b.devices.total):"нет устройств"},
+      {lbl:"Тревог за 7 дней",dot:"var(--crit)",val:b.safety.alerts7d,
+       delta:`SOS всего: ${fmt(b.safety.sosAllTime)}`}
     ];
-    $("#kpis").innerHTML=tiles.map(t=>`<div class="card kpi"><div class="lbl"><span class="dot" style="background:${t.dot}"></span>${t.lbl}</div><div class="val">${fmt(t.val)}</div><div class="delta">${t.delta}</div></div>`).join("");
+    $("#kpis").innerHTML=tiles.map(kpiTile).join("");
+  }
+  function kpiTile(t){
+    return `<div class="card kpi"><div class="lbl"><span class="dot" style="background:${t.dot}"></span>${t.lbl}</div><div class="val">${fmt(t.val)}</div><div class="delta">${t.delta}</div></div>`;
+  }
+
+  function renderRetention(){
+    const el=$("#biRetention"); if(!el) return;
+    if(!BI){ el.innerHTML=`<div class="sub">Эндпоинт метрик недоступен.</div>`; return; }
+    const rows=[["D1",BI.retention.d1],["D7",BI.retention.d7],["D30",BI.retention.d30]];
+    el.innerHTML=rows.map(([lbl,r])=>{
+      // A rate computed from almost nobody is reported as unknown rather than
+      // as a percentage, so nobody plans against it.
+      const thin=r.cohort<20;
+      const bar=Math.round(r.rate*100);
+      return `<div style="margin:10px 0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span><b>${lbl}</b> <span class="sub">когорта ${fmt(r.cohort)}</span></span>
+          <span><b>${r.cohort?pct(r.rate):"—"}</b>${thin&&r.cohort?' <span class="sub">мало данных</span>':""}</span>
+        </div>
+        <div style="height:8px;border-radius:99px;background:var(--hair);overflow:hidden;margin-top:5px">
+          <div style="height:100%;width:${r.cohort?bar:0}%;background:${thin?"var(--muted)":"var(--accent)"}"></div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderEngagement(){
+    const el=$("#biEngagement"); if(!el) return;
+    if(!BI){ el.innerHTML=`<div class="sub">Эндпоинт метрик недоступен.</div>`; return; }
+    const e=BI.engagement;
+    const labels={telemetry:"Измерения",location:"Геолокация",chat:"Ассистент",alert:"Тревоги",emergency:"Экстренные",sos:"SOS"};
+    const mix=Object.entries(e.eventMix).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    const total=mix.reduce((t,[,v])=>t+v,0)||1;
+    el.innerHTML=`
+      <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:12px">
+        <div><div class="sub">Событий на активного</div><div class="val" style="font-size:24px">${e.eventsPerActiveUser.toFixed(1)}</div></div>
+        <div><div class="sub">Активных дней на пользователя</div><div class="val" style="font-size:24px">${e.activeDaysPerUser.toFixed(1)}</div></div>
+      </div>`+
+      (mix.length?mix.map(([k,v])=>`
+        <div style="margin:8px 0">
+          <div style="display:flex;justify-content:space-between"><span>${labels[k]||k}</span><span class="sub">${fmt(v)} · ${pct(v/total)}</span></div>
+          <div style="height:6px;border-radius:99px;background:var(--hair);overflow:hidden;margin-top:4px">
+            <div style="height:100%;width:${Math.round(v/total*100)}%;background:var(--accent)"></div>
+          </div>
+        </div>`).join(""):`<div class="sub">За 30 дней событий не зафиксировано.</div>`);
   }
   function fmt(n){return typeof n==="number"?n.toLocaleString("en-US"):n}
 
@@ -471,24 +580,59 @@
     $("#auditBody").innerHTML=MOCK.audit.map(a=>`<tr style="cursor:default"><td class="num t">${esc(a.at)}</td><td>${esc(a.staffId)}</td><td><code style="font-family:var(--mono)">${esc(a.action)}</code></td><td class="t">${esc(a.target)}</td></tr>`).join("");
   }
 
-  function drawSpark(){
-    const c=$("#spark"), dpr=window.devicePixelRatio||1;
-    const w=c.clientWidth, h=150; c.width=w*dpr; c.height=h*dpr;
+  // Daily actives as a line, signups as bars behind it, on a shared 30-day axis.
+  //
+  // Replaces a canvas that drew two literal arrays — [1,0,2,1,3,2,3] — under the
+  // heading "Alerts · last 7 days", in live mode as well as demo. It was never
+  // anyone's data.
+  function drawBiTrend(){
+    const c=$("#biTrend"); if(!c) return;
+    const dpr=window.devicePixelRatio||1;
+    const w=c.clientWidth||600, h=170; c.width=w*dpr; c.height=h*dpr;
     const ctx=c.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
-    const emg=[1,0,2,1,3,2,3], wrn=[2,3,1,4,2,3,4], max=6;
     const cs=getComputedStyle(document.documentElement);
-    const grid=cs.getPropertyValue("--hair"), crit=cs.getPropertyValue("--crit"), warn=cs.getPropertyValue("--warn");
-    for(let i=0;i<4;i++){const y=h*i/3;ctx.strokeStyle=grid;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-    const line=(data,col)=>{
-      ctx.beginPath();
-      data.forEach((v,i)=>{const x=w*i/(data.length-1),y=h-6-(v/max)*(h-16);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-      const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,col+"33");g.addColorStop(1,col+"00");
-      ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle=g;ctx.fill();
-      ctx.beginPath();data.forEach((v,i)=>{const x=w*i/(data.length-1),y=h-6-(v/max)*(h-16);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-      ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.lineJoin="round";ctx.stroke();
-      const lx=w,ly=h-6-(data[data.length-1]/max)*(h-16);ctx.fillStyle=col;ctx.beginPath();ctx.arc(lx-1,ly,4,0,7);ctx.fill();
-    };
-    line(wrn,warn.trim());line(emg,crit.trim());
+    const grid=cs.getPropertyValue("--hair").trim();
+    const accent=cs.getPropertyValue("--accent").trim();
+    const good=cs.getPropertyValue("--good").trim();
+    const muted=cs.getPropertyValue("--muted").trim();
+
+    const sub=$("#biTrendSub");
+    if(!BI||!BI.dauSeries.length){
+      ctx.fillStyle=muted;ctx.font="13px system-ui,sans-serif";ctx.textAlign="center";
+      ctx.fillText("нет данных",w/2,h/2);
+      if(sub) sub.textContent="—";
+      return;
+    }
+    const dau=BI.dauSeries, sign=BI.signupSeries;
+    // A flat-zero series must not divide by zero, and a single busy day must
+    // not flatten every other day into the axis.
+    const max=Math.max(1,...dau.map(p=>p.value));
+    const smax=Math.max(1,...sign.map(p=>p.value));
+    const padT=10,padB=18;
+    const yOf=(v,m)=>h-padB-(v/m)*(h-padT-padB);
+
+    for(let i=0;i<4;i++){const y=padT+(h-padT-padB)*i/3;ctx.strokeStyle=grid;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+
+    const bw=Math.max(2,w/sign.length*0.55);
+    ctx.fillStyle=good+"66";
+    sign.forEach((p,i)=>{
+      const x=w*i/(sign.length-1), y=yOf(p.value,smax);
+      if(p.value>0) ctx.fillRect(x-bw/2,y,bw,h-padB-y);
+    });
+
+    const pts=dau.map((p,i)=>[w*i/(dau.length-1),yOf(p.value,max)]);
+    ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+    const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,accent+"3D");g.addColorStop(1,accent+"00");
+    ctx.lineTo(w,h-padB);ctx.lineTo(0,h-padB);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+    ctx.strokeStyle=accent;ctx.lineWidth=2.4;ctx.lineJoin="round";ctx.stroke();
+    const last=pts[pts.length-1];
+    ctx.fillStyle=accent;ctx.beginPath();ctx.arc(last[0]-1.5,last[1],4,0,7);ctx.fill();
+
+    ctx.fillStyle=muted;ctx.font="11px system-ui,sans-serif";
+    ctx.textAlign="left";ctx.fillText(dau[0].date.slice(5),2,h-4);
+    ctx.textAlign="right";ctx.fillText(dau[dau.length-1].date.slice(5),w-2,h-4);
+    if(sub) sub.textContent=`пик ${max} · сегодня ${BI.dau}`;
   }
 
   // " · 30 лет" from a date of birth; empty when absent or unparseable.
@@ -571,11 +715,11 @@
     // than throwing and leaving the panel half-switched.
     const t=titles[v]||[v,""];
     $("#pageTitle").textContent=t[0];$("#pageSub").innerHTML=t[1];
-    if(v==="overview")drawSpark();
+    if(v==="overview")drawBiTrend();
     window.scrollTo(0,0);
   }
 
-  function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawSpark();}
+  function render(){renderKpis();renderRetention();renderEngagement();renderFeeds();renderUsers();renderAudit();drawBiTrend();}
 
   // Events
   document.addEventListener("click",e=>{
@@ -586,9 +730,9 @@
   $("#userSearch").addEventListener("input",e=>renderUsers(e.target.value));
   $("#themeBtn").addEventListener("click",()=>{
     const r=document.documentElement, cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
-    r.setAttribute("data-theme",cur==="dark"?"light":"dark");drawSpark();
+    r.setAttribute("data-theme",cur==="dark"?"light":"dark");drawBiTrend();
   });
-  window.addEventListener("resize",()=>{if($("#overview").classList.contains("active"))drawSpark();});
+  window.addEventListener("resize",()=>{if($("#overview").classList.contains("active"))drawBiTrend();});
   $("#staffName").textContent=STAFF.name;$("#staffRole").textContent=STAFF.role;$("#staffAv").textContent=STAFF.name.replace("Dr. ","")[0];
 
   boot();
@@ -860,10 +1004,15 @@
     const card = (label, value) =>
       `<div class="card kpi"><div class="lbl">${esc(label)}</div><div class="val">${esc(value)}</div></div>`;
     if (kpis) {
+      // Состав базы, а не её объём. Пользователи, устройства, тревоги и SOS
+      // теперь живут на «Обзоре» вместе с DAU/MAU и удержанием — держать те же
+      // четыре счётчика на двух экранах значит однажды показать в них разные
+      // числа и заставить читателя гадать, какой из них верный.
+      const share = (n) => (a.totalUsers ? ` · ${Math.round((n / a.totalUsers) * 100)}%` : "");
       kpis.innerHTML = [
-        card("Пользователи", a.totalUsers), card("Беременны", a.pregnant),
-        card("С детьми", a.withChildren), card("Устройства", a.devices),
-        card("Тревоги · 7 дн.", a.alerts7d), card("SOS · всего", a.sosAllTime),
+        card("Беременны", `${a.pregnant}${share(a.pregnant)}`),
+        card("С детьми", `${a.withChildren}${share(a.withChildren)}`),
+        card("Со сцепленным устройством", `${a.devices}${share(a.devices)}`),
       ].join("");
     }
     const c = $("#anContent");
