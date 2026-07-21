@@ -63,7 +63,18 @@ class TelemetryBatcher {
 
   Future<void> init() async {
     _queue = await cfg.restore();
-    if (_queue.isNotEmpty) _scheduleFlush();
+    if (_queue.isEmpty) return;
+    // A restored backlog normally waits for the ordinary window — it is old by
+    // definition and the app has just started, which is the worst moment to
+    // spend battery. An emergency reading in it is different: it was queued
+    // before the app died and has been undelivered ever since, so it goes now.
+    // Waiting the full window would add that delay on top of however long the
+    // app was closed, and the server's push to the guardian waits with it.
+    if (_queue.any((i) => i.urgent)) {
+      unawaited(_flushNow());
+    } else {
+      _scheduleFlush();
+    }
   }
 
   void enqueueTelemetry(Map<String, dynamic> t, {bool urgent = false}) {
@@ -120,10 +131,13 @@ class TelemetryBatcher {
     // the process, silently, urgent readings included.
     try {
       // Only as much as the server will accept in one request; the rest stays
-      // queued and goes in the next pass.
-      final take = _queue.length < cfg.maxFlushItems ? _queue.length : cfg.maxFlushItems;
-      final batch = _queue.sublist(0, take);
-      _queue = _queue.sublist(take);
+      // queued and goes in the next pass. Urgent readings lead.
+      final batch = _selectBatch();
+      final inBatch = Set<QueuedItem>.identity()..addAll(batch);
+      _queue = [
+        for (final item in _queue)
+          if (!inBatch.contains(item)) item
+      ];
       try {
         await cfg.flush(batch);
         await _persistQuietly(); // mirror what's actually left
@@ -144,6 +158,33 @@ class TelemetryBatcher {
       _flushAgain = false;
       unawaited(_flushNow());
     }
+  }
+
+  /// The next batch to send: urgent readings first, then the rest, oldest-first
+  /// within each group.
+  ///
+  /// `urgent` used to mean only "flush now" — it started a flush immediately
+  /// and protected the item from being trimmed, but the batch itself was taken
+  /// oldest-first. So after a spell offline an emergency reading sat behind
+  /// however much routine traffic had piled up and needed one round trip per
+  /// [BatcherConfig.maxFlushItems] to get out. The server raises the guardian's
+  /// emergency push when it INGESTS the reading, so that push waited too. The
+  /// promise that urgent bypasses the batch was true only of the timer.
+  ///
+  /// Routine readings keep their relative order: the queue is a record of when
+  /// things were measured, and shuffling it would misreport a trend.
+  List<QueuedItem> _selectBatch() {
+    final limit = cfg.maxFlushItems;
+    if (_queue.length <= limit) return List.of(_queue);
+    final batch = <QueuedItem>[];
+    for (final item in _queue) {
+      if (item.urgent && batch.length < limit) batch.add(item);
+    }
+    for (final item in _queue) {
+      if (batch.length >= limit) break;
+      if (!item.urgent) batch.add(item);
+    }
+    return batch;
   }
 
   /// Mirror the queue to disk, tolerating a disk that will not take it.

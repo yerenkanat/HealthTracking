@@ -300,6 +300,138 @@ Future<void> main() async {
         seen.join(',') == '1,2,3,4,5,6');
   }
 
+  // ---- An emergency reading does not queue behind the backlog ----
+  //
+  // `urgent` triggered a flush immediately and protected the item from being
+  // trimmed, but the batch was still taken oldest-first. After a spell offline
+  // an emergency reading sat behind thousands of routine ones and needed many
+  // round trips to reach the server — and the server's emergency push fires on
+  // ingest, so the guardian's alert waited with it. "Urgent bypasses the batch"
+  // was only ever true of the timer.
+  {
+    final sent = <List<QueuedItem>>[];
+    var allow = false;
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 100000, // never flush on size; we drive it explicitly
+      maxDelay: const Duration(seconds: 30),
+      maxFlushItems: 10,
+      flush: (items) async {
+        if (!allow) throw StateError('offline');
+        sent.add(items);
+      },
+      persist: (_) async {},
+      restore: () async => [],
+    ));
+    await b.init();
+
+    // A long stretch offline: 50 routine readings, then the emergency.
+    for (var n = 0; n < 50; n++) {
+      b.enqueueTelemetry({'n': n});
+    }
+    b.enqueueTelemetry({'n': 'EMERGENCY'}, urgent: true);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    allow = true;
+    b.onConnectivityRestored();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    _chk('the connection coming back sends everything', b.pending == 0);
+    _chk('the emergency is in the FIRST batch, not the sixth',
+        sent.first.any((i) => i.payload['n'] == 'EMERGENCY'));
+    _chk('and it leads that batch', sent.first.first.payload['n'] == 'EMERGENCY');
+    // Routine readings keep their own order behind it — the queue is a record
+    // of when things were measured, and shuffling it would misreport a trend.
+    final routine = [
+      for (final batch in sent)
+        for (final i in batch)
+          if (i.payload['n'] != 'EMERGENCY') i.payload['n'] as int
+    ];
+    _chk('routine readings stay in the order they were taken',
+        routine.join(',') == List.generate(50, (i) => i).join(','));
+    _chk('nothing is lost or duplicated', routine.length == 50);
+  }
+
+  // Several urgent readings keep their order relative to each other.
+  {
+    final sent = <List<QueuedItem>>[];
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 100000,
+      maxDelay: const Duration(seconds: 30),
+      maxFlushItems: 5,
+      flush: (items) async => sent.add(items),
+      persist: (_) async {},
+      restore: () async => [],
+    ));
+    await b.init();
+    for (var n = 0; n < 8; n++) {
+      b.enqueueTelemetry({'n': n});
+    }
+    b.enqueueTelemetry({'n': 'e1'}, urgent: true);
+    b.enqueueTelemetry({'n': 'e2'}, urgent: true);
+    b.onConnectivityRestored();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final urgentOrder = [
+      for (final batch in sent)
+        for (final i in batch)
+          if (i.urgent) i.payload['n'] as String
+    ];
+    _chk('urgent readings keep their order among themselves',
+        urgentOrder.join(',') == 'e1,e2');
+  }
+
+  // ---- Urgency survives a restart ----
+  // The disk mirror is what lets a backlog resume after the app is killed. If
+  // the urgent flag did not round-trip, an emergency reading queued before a
+  // crash would come back as ordinary — losing both its place at the front of
+  // the batch and its protection from being trimmed away.
+  {
+    final wire = const QueuedItem('telemetry', {'systolicMmHg': 175}, urgent: true).toJson();
+    final back = QueuedItem.fromJson(wire);
+    _chk('urgency round-trips through the disk mirror', back.urgent);
+    _chk('so does the payload', back.payload['systolicMmHg'] == 175);
+    _chk('and the kind', back.type == 'telemetry');
+
+    final sent = <List<QueuedItem>>[];
+    final b = TelemetryBatcher(BatcherConfig(
+      maxBatch: 100000,
+      maxDelay: const Duration(seconds: 30),
+      maxFlushItems: 3,
+      flush: (items) async => sent.add(items),
+      persist: (_) async {},
+      // A backlog from before the restart: routine readings, then an emergency.
+      restore: () async => [
+        const QueuedItem('telemetry', {'n': 0}),
+        const QueuedItem('telemetry', {'n': 1}),
+        const QueuedItem('telemetry', {'n': 2}),
+        const QueuedItem('telemetry', {'n': 3}),
+        const QueuedItem('telemetry', {'n': 'EMERGENCY'}, urgent: true),
+      ],
+    ));
+    await b.init();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    // A restored EMERGENCY goes at once. An ordinary backlog waits for the
+    // normal window — but this one has been undelivered since before the app
+    // died, and waiting the full window again would add that delay on top of
+    // however long the app was closed.
+    _chk('a restored backlog with an emergency is sent at once', b.pending == 0);
+    _chk('and the emergency leads', sent.first.first.payload['n'] == 'EMERGENCY');
+
+    // An ordinary backlog still waits, so a cold start does not spend radio
+    // the moment it opens.
+    final quiet = <List<QueuedItem>>[];
+    final ordinary = TelemetryBatcher(BatcherConfig(
+      maxBatch: 100000,
+      maxDelay: const Duration(seconds: 30),
+      flush: (items) async => quiet.add(items),
+      persist: (_) async {},
+      restore: () async => [const QueuedItem('telemetry', {'n': 1})],
+    ));
+    await ordinary.init();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    _chk('an ordinary backlog still waits for the window',
+        quiet.isEmpty && ordinary.pending == 1);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
