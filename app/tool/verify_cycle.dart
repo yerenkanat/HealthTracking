@@ -166,8 +166,36 @@ void main() {
   _chk('one cycle → building', predictionConfidence(completedCycles: 1, variationDays: 0) == PredictionConfidence.building);
   _chk('two cycles → building', predictionConfidence(completedCycles: 2, variationDays: 2) == PredictionConfidence.building);
   _chk('three steady cycles → good', predictionConfidence(completedCycles: 3, variationDays: 3) == PredictionConfidence.good);
-  _chk('wide spread stays building', predictionConfidence(completedCycles: 5, variationDays: 12) == PredictionConfidence.building);
+  // A wide spread with PLENTY of history is not "building" — it is variable.
+  //
+  // Both mean the date is approximate, but they say opposite things about what
+  // to do next. "Building" tells her to keep logging and it will sharpen; for
+  // cycles running 24 to 42 days that is a promise the app cannot keep,
+  // because the spread is a fact about her body rather than a gap in the data.
+  // She would have seen "уточняется" indefinitely, after a year of diligent
+  // logging. Irregular cycles are common — PCOS alone is around one woman in
+  // ten — so this is not an edge case.
+  _chk('a wide spread with enough history reads as variable, not building',
+      predictionConfidence(completedCycles: 5, variationDays: 12) == PredictionConfidence.variable);
+  _chk('a year of logging does not turn variable into building',
+      predictionConfidence(completedCycles: 13, variationDays: 18) == PredictionConfidence.variable);
+  _chk('too few cycles is still building, which logging really does fix',
+      predictionConfidence(completedCycles: 2, variationDays: 12) == PredictionConfidence.building);
   _chk('boundary spread 8 → good', predictionConfidence(completedCycles: 4, variationDays: 8) == PredictionConfidence.good);
+  _chk('one day past the boundary → variable',
+      predictionConfidence(completedCycles: 4, variationDays: 9) == PredictionConfidence.variable);
+  // The confidence boundary and the regularity boundary are the same number by
+  // design; a prediction called approximate while the insights screen calls
+  // her cycles regular would be two screens disagreeing about the same data.
+  _chk('the spread boundary matches cycleRegularity', () {
+    final steady = cycleRegularity([
+      for (final len in [28, 30, 32, 36]) CycleSpan(DateTime(2026, 1, 1), len, 5),
+    ]);
+    return (steady.variationDays <= 8) ==
+        (predictionConfidence(
+                completedCycles: steady.cyclesConsidered, variationDays: steady.variationDays) ==
+            PredictionConfidence.good);
+  }());
 
   // ---- Symptom by phase ----
   final phaseDays = <DateTime>{

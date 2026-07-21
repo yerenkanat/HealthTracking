@@ -925,6 +925,14 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_usual_title': {AppLocale.ru: 'Обычно в это время вы отмечаете', AppLocale.kk: 'Әдетте осы кезде белгілейсіз', AppLocale.en: 'Around now you often log'},
   'cyc_conf_low': {AppLocale.ru: 'мало данных', AppLocale.kk: 'дерек аз', AppLocale.en: 'low data'},
   'cyc_conf_building': {AppLocale.ru: 'уточняется', AppLocale.kk: 'нақтылануда', AppLocale.en: 'building'},
+  // Not "уточняется" — that promises the estimate will sharpen with more
+  // logging, and for cycles that genuinely vary it never will. This says the
+  // spread is a property of her cycles, not a gap in the data.
+  'cyc_conf_variable': {
+    AppLocale.ru: 'циклы разной длины — дата примерная',
+    AppLocale.kk: 'циклдар ұзақтығы әртүрлі — күні шамамен',
+    AppLocale.en: 'cycles vary — this date is approximate'
+  },
   'cyc_conf_good': {AppLocale.ru: 'надёжный', AppLocale.kk: 'сенімді', AppLocale.en: 'confident'},
   'cyc_conf_tip': {AppLocale.ru: 'Точность прогноза растёт с числом отслеженных циклов.', AppLocale.kk: 'Болжам дәлдігі бақыланған цикл санына қарай артады.', AppLocale.en: 'Forecast accuracy improves as you track more cycles.'},
   'cyc_fertile_in': {AppLocale.ru: 'Фертильное окно через {n} дн.', AppLocale.kk: 'Құнарлы кезең {n} күнде', AppLocale.en: 'Fertile window in {n} days'},

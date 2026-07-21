@@ -1568,6 +1568,9 @@ class _ConfidenceChip extends StatelessWidget {
     final (color, label) = switch (confidence) {
       PredictionConfidence.low => (Palette.textDim, l.t('cyc_conf_low')),
       PredictionConfidence.building => (Palette.amber, l.t('cyc_conf_building')),
+      // Amber like 'building' — the date is equally approximate — but the
+      // words say why, and that logging more will not sharpen it.
+      PredictionConfidence.variable => (Palette.amber, l.t('cyc_conf_variable')),
       PredictionConfidence.good => (Palette.good, l.t('cyc_conf_good')),
     };
     return Tooltip(

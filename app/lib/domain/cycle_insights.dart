@@ -67,7 +67,19 @@ CycleLengthStats? cycleLengthStats(List<CycleSpan> history) {
 }
 
 /// How much to trust the cycle predictions, given how much history backs them.
-enum PredictionConfidence { low, building, good }
+///
+/// [variable] is separate from [building] on purpose. Both mean "this date is
+/// approximate", but they mean opposite things about what to do next:
+/// `building` says keep logging and it will sharpen, `variable` says there is
+/// plenty of history and her cycles genuinely differ from each other.
+///
+/// They were one value, so a woman whose cycles run 24 to 42 days — a year of
+/// diligent logging — was told indefinitely that confidence was still
+/// "building". That reads as a promise the app cannot keep: more logging was
+/// never going to improve it, because the spread is a fact about her body
+/// rather than a gap in the data. Irregular cycles are common enough (PCOS
+/// alone is around one woman in ten) that this is not an edge case.
+enum PredictionConfidence { low, building, variable, good }
 
 /// Confidence from the number of COMPLETED cycles and how much their lengths
 /// vary. No completed cycles → low (predictions use defaults); under three →
@@ -75,8 +87,12 @@ enum PredictionConfidence { low, building, good }
 /// which keeps it at building.
 PredictionConfidence predictionConfidence({required int completedCycles, required int variationDays}) {
   if (completedCycles <= 0) return PredictionConfidence.low;
+  // Too little history yet — this genuinely does improve with logging.
   if (completedCycles < 3) return PredictionConfidence.building;
-  return variationDays > 8 ? PredictionConfidence.building : PredictionConfidence.good;
+  // Enough history, and the cycles disagree with each other. More logging will
+  // not narrow this, so say what it is instead of promising it will improve.
+  // The 8-day spread is the same boundary cycleRegularity() calls irregular.
+  return variationDays > 8 ? PredictionConfidence.variable : PredictionConfidence.good;
 }
 
 enum CycleRegularity { insufficient, regular, variable, irregular }
