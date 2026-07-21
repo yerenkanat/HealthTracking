@@ -22,6 +22,7 @@ import '../data/app_store.dart';
 import '../data/persisted_config.dart';
 import '../domain/emergency_confirmation.dart';
 import '../domain/notification_ids.dart';
+import '../domain/error_log.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
 import '../domain/chat_controller.dart';
@@ -111,6 +112,12 @@ class ReminderCommand {
 
 class AppController {
   final SampleStore store;
+
+  /// Recent errors, for diagnostics. Lives here rather than as a global in
+  /// main.dart so it has an owner and a consumer: the runtime's error handlers
+  /// write to it, and exportJson carries it.
+  final ErrorLog errorLog;
+
   final DateTime Function() _now;
   final _changes = StreamController<void>.broadcast();
   final _alertStream = StreamController<SafetyAlert>.broadcast();
@@ -159,7 +166,9 @@ class AppController {
     DateTime Function()? now,
     AppLocale? locale,
     AppStore? persistStore,
+    ErrorLog? errorLog,
   })  : store = store ?? SampleStore(),
+        errorLog = errorLog ?? ErrorLog(),
         _now = now ?? DateTime.now,
         _persistStore = persistStore,
         _locale = locale ?? resolveInitialLocale(null); // default: Russian
@@ -391,6 +400,14 @@ class AppController {
       'appVersion': appVersion,
       'exportedAt': at.toIso8601String(),
       ..._snapshot().toJson(),
+      // Recent failures travel with the backup.
+      //
+      // There is no crash reporting service and no keys for one, so this is
+      // the only route an error has off the device — and the export is already
+      // the thing support asks a user to send. Omitted entirely when nothing
+      // has gone wrong, so a clean install does not carry an empty key that
+      // reads as "diagnostics unavailable".
+      if (!errorLog.isEmpty) 'diagnostics': errorLog.toJson(),
     };
     // Exporting IS backing up — remember when, so Settings can show freshness.
     _lastExportAt = at;

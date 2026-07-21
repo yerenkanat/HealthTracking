@@ -7,6 +7,8 @@
 library;
 
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart' hide Flow;
 
 import 'app/app.dart';
@@ -18,6 +20,8 @@ import 'data/content_store.dart';
 import 'data/prefs_app_store.dart';
 import 'domain/geofence_alerts.dart';
 import 'domain/notification_ids.dart';
+import 'domain/error_log.dart';
+import 'ui/widgets/error_fallback.dart';
 import 'domain/cycle_log.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
@@ -31,11 +35,13 @@ import 'net/telemetry_batcher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   // NOTE: initialize Firebase (auth + messaging) here before runApp in production.
 
   // Restore a saved session (language, profile, child, zones) BEFORE first paint,
   // so a returning user skips straight past onboarding.
   final controller = AppController(persistStore: PrefsAppStore());
+  _installErrorHandling(controller.errorLog);
   await controller.restore();
   if (const bool.fromEnvironment('DEMO')) _seedDemo(controller);
 
@@ -54,6 +60,40 @@ Future<void> main() async {
 
   // Kick off device + backend wiring without blocking first paint.
   unawaited(bootstrapRuntime(controller, content: contentStore, contentCache: cache));
+}
+
+/// Catch what would otherwise be lost, and put something usable on screen.
+///
+/// Nothing caught errors before this, and in release that failed twice over,
+/// silently: a widget that throws was replaced by a bare grey rectangle with no
+/// text and no way out, and an error thrown off the widget tree — a timer, a
+/// stream, an unawaited future — vanished entirely. On an app someone opens
+/// because they are worried about a reading, neither is acceptable.
+///
+/// [log] is the controller's, so what is caught here reaches the export the
+/// user can send to support. There is no crash reporting service yet; this is
+/// the whole of it.
+void _installErrorHandling(ErrorLog log) {
+  FlutterError.onError = (details) {
+    log.add(
+      source: AppErrorSource.widget,
+      error: details.exception,
+      stack: details.stack,
+      at: DateTime.now(),
+    );
+    FlutterError.presentError(details); // keep the console output in debug
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    log.add(source: AppErrorSource.async, error: error, stack: stack, at: DateTime.now());
+    debugPrint('uncaught async error: $error');
+    return true; // handled — do not take the app down
+  };
+  ErrorWidget.builder = (details) => ErrorFallback(
+        // The exception text is shown only in debug. In release it is recorded
+        // for diagnostics but not put on screen: it is written for us, not for
+        // her, and it can quote the reading that caused it.
+        details: kDebugMode ? details.exceptionAsString() : null,
+      );
 }
 
 /// Demo seed (only with --dart-define=DEMO=true): realistic band samples + a

@@ -205,6 +205,29 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'photo_remove': {AppLocale.ru: 'Удалить фото', AppLocale.kk: 'Суретті жою', AppLocale.en: 'Remove photo'},
   'photo_add': {AppLocale.ru: 'Добавить фото', AppLocale.kk: 'Сурет қосу', AppLocale.en: 'Add photo'},
 
+  // Error fallback — what replaces a screen that failed to build. Plain
+  // language, no apology, and one action that helps.
+  'err_title': {
+    AppLocale.ru: 'Этот экран не открылся',
+    AppLocale.kk: 'Бұл экран ашылмады',
+    AppLocale.en: 'This screen didn’t open'
+  },
+  'err_body': {
+    AppLocale.ru: 'Ваши данные на месте. Вернитесь на главный экран и попробуйте ещё раз.',
+    AppLocale.kk: 'Деректеріңіз сақталған. Басты бетке оралып, қайта көріңіз.',
+    AppLocale.en: 'Your data is safe. Go back to the main screen and try again.'
+  },
+  'err_back': {
+    AppLocale.ru: 'На главный экран',
+    AppLocale.kk: 'Басты бетке',
+    AppLocale.en: 'Back to the main screen'
+  },
+  'err_details': {
+    AppLocale.ru: 'Технические детали',
+    AppLocale.kk: 'Техникалық мәліметтер',
+    AppLocale.en: 'Technical details'
+  },
+
   // Settings
   'settings_title': {AppLocale.ru: 'Настройки', AppLocale.kk: 'Параметрлер', AppLocale.en: 'Settings'},
   'set_profile': {AppLocale.ru: 'Профиль', AppLocale.kk: 'Профиль', AppLocale.en: 'Profile'},
@@ -259,6 +282,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'set_import_confirm_cta': {AppLocale.ru: 'Заменить', AppLocale.kk: 'Ауыстыру', AppLocale.en: 'Replace'},
   'set_export_copy': {AppLocale.ru: 'Копировать', AppLocale.kk: 'Көшіру', AppLocale.en: 'Copy'},
   'set_export_copied': {AppLocale.ru: 'Резервная копия скопирована', AppLocale.kk: 'Сақтық көшірме көшірілді', AppLocale.en: 'Backup copied to clipboard'},
+  'set_export_save': {
+    AppLocale.ru: 'Сохранить файл',
+    AppLocale.kk: 'Файлды сақтау',
+    AppLocale.en: 'Save the file'
+  },
+  'set_export_failed': {
+    AppLocale.ru: 'Не удалось сохранить файл. Попробуйте ещё раз.',
+    AppLocale.kk: 'Файлды сақтау мүмкін болмады. Қайталап көріңіз.',
+    AppLocale.en: 'The file could not be saved. Please try again.'
+  },
+  'set_export_subject': {
+    AppLocale.ru: 'Резервная копия Umay',
+    AppLocale.kk: 'Umay сақтық көшірмесі',
+    AppLocale.en: 'Umay backup'
+  },
   'set_import': {AppLocale.ru: 'Импорт данных', AppLocale.kk: 'Деректерді импорттау', AppLocale.en: 'Import data'},
   'set_import_sub': {AppLocale.ru: 'Восстановить из резервной копии', AppLocale.kk: 'Сақтық көшірмеден қалпына келтіру', AppLocale.en: 'Restore from a backup'},
   'set_import_warn': {AppLocale.ru: 'Импорт заменит все текущие данные.', AppLocale.kk: 'Импорт барлық ағымдағы деректерді ауыстырады.', AppLocale.en: 'Importing replaces all your current data.'},

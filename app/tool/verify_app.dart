@@ -5,11 +5,13 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 
 import '../lib/data/sample_store.dart';
 import '../lib/app/app_controller.dart';
 import '../lib/core/triage.dart';
 import '../lib/core/geofence.dart';
+import '../lib/domain/error_log.dart';
 import '../lib/domain/family.dart';
 import '../lib/domain/health_series.dart';
 import '../lib/domain/geofence_alerts.dart';
@@ -271,6 +273,38 @@ Future<void> main() async {
 
     await sub3.cancel();
     await dst.dispose();
+  }
+
+  // ---- The export carries recent errors, and only when there are any ----
+  // This is the whole of the app's crash reporting: no service is wired up, so
+  // an error's only route off the device is the backup the user sends support.
+  // A log that is written and never read would be the same as no log at all.
+  {
+    final t = DateTime(2026, 7, 20, 9);
+    final clean = AppController(now: () => t);
+    clean.debugMarkOnboarded();
+    _chk('a clean install exports no diagnostics key',
+        !clean.exportJson().contains('diagnostics'));
+    await clean.dispose();
+
+    final broken = AppController(now: () => t);
+    broken.debugMarkOnboarded();
+    broken.errorLog.add(
+        source: AppErrorSource.widget, error: StateError('bad state in build'), at: t);
+    final json = broken.exportJson();
+    _chk('the export carries the error', json.contains('bad state in build'));
+    _chk('the export names the source', json.contains('widget'));
+    final decoded = jsonDecode(json) as Map<String, dynamic>;
+    _chk('diagnostics is a list', decoded['diagnostics'] is List);
+    _chk('one record per error', (decoded['diagnostics'] as List).length == 1);
+    await broken.dispose();
+
+    // A backup written by a build that had errors must still restore into one
+    // that does not know the key.
+    final restored = AppController(now: () => t);
+    restored.importJson(json);
+    _chk('an unknown diagnostics key does not break import', restored.onboarded);
+    await restored.dispose();
   }
 
   // ---- A server-supplied position carries the time it was OBSERVED ----

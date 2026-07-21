@@ -3,8 +3,11 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'dart:io' show File;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../app/app_controller.dart';
+import '../../domain/backup_file.dart';
 import '../../domain/backup_status.dart';
 import '../../domain/family.dart';
 import '../../domain/reminders.dart';
@@ -252,21 +255,65 @@ class SettingsScreen extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogCtx).pop(), child: Text(l.t('act_cancel'))),
           FilledButton.icon(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: json));
-              if (!dialogCtx.mounted) return;
-              Navigator.of(dialogCtx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l.t('set_export_copied')), behavior: SnackBarBehavior.floating),
-              );
-            },
+            // Saves to a file and opens the system share sheet, instead of
+            // putting the backup on the clipboard.
+            //
+            // The clipboard is a shared buffer: keyboards keep a history of it,
+            // clipboard managers persist it, and it survives until something
+            // else overwrites it. This particular payload is her profile and
+            // phone numbers, her child's name and date of birth, the
+            // coordinates of her home and her child's school, and her health
+            // history. The dialog's own warning already says to keep the file
+            // like a personal document and not to send it through messengers —
+            // and the only button offered did the riskiest possible thing with
+            // it.
+            onPressed: () => _saveExport(context, dialogCtx, json),
             style: FilledButton.styleFrom(backgroundColor: Palette.violet),
-            icon: const Icon(Icons.copy_rounded, size: 18),
-            label: Text(l.t('set_export_copy')),
+            icon: const Icon(Icons.save_alt_rounded, size: 18),
+            label: Text(l.t('set_export_save')),
           ),
         ],
       ),
     );
+  }
+
+  /// Write the backup to a file and hand it to the system share sheet.
+  ///
+  /// The file goes to the app's own directory, not to a public folder: it is
+  /// readable by this app alone, and the share sheet is what grants any other
+  /// app access to it — a deliberate act, once, rather than a shared buffer
+  /// anything can poll.
+  ///
+  /// Failure is reported. A silent catch here would leave her believing a
+  /// backup exists, which is worse than knowing none does.
+  Future<void> _saveExport(BuildContext context, BuildContext dialogCtx, String json) async {
+    final l = L10nScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final now = DateTime.now();
+      // Do not overwrite an earlier backup taken the same day. The second
+      // export of a day replacing the first is the wrong behaviour for the only
+      // copy of someone's health record.
+      var seq = 0;
+      var file = File('${dir.path}/${backupFileName(now)}');
+      while (await file.exists()) {
+        seq++;
+        file = File('${dir.path}/${backupFileName(now, seq: seq)}');
+      }
+      await file.writeAsString(json, flush: true);
+
+      if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+      await SharePlus.instance.share(ShareParams(
+        files: [XFile(file.path, mimeType: 'application/json')],
+        subject: l.t('set_export_subject'),
+      ));
+    } catch (_) {
+      if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+      messenger.showSnackBar(
+        SnackBar(content: Text(l.t('set_export_failed')), behavior: SnackBarBehavior.floating),
+      );
+    }
   }
 
   /// Erase everything on this phone.

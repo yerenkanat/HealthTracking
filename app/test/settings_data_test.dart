@@ -75,7 +75,12 @@ void main() {
     await tester.tap(find.text('Export data'));
     await tester.pumpAndSettle(); // throws if the dialog overflows / fails layout
 
-    expect(find.text('Copy'), findsOneWidget);
+    // Saves to a file and hands it to the share sheet. It used to copy the
+    // backup to the clipboard — a shared buffer that keyboards and clipboard
+    // managers retain — while the dialog's own warning told her to keep the
+    // file like a personal document and not send it through messengers.
+    expect(find.text('Save the file'), findsOneWidget);
+    expect(find.text('Copy'), findsNothing);
     expect(find.textContaining('OB visit'), findsOneWidget); // JSON preview
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
