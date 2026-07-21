@@ -21,6 +21,7 @@ import '../data/api_client.dart';
 import '../data/app_store.dart';
 import '../data/persisted_config.dart';
 import '../domain/emergency_confirmation.dart';
+import '../domain/notification_ids.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
 import '../domain/chat_controller.dart';
@@ -147,8 +148,8 @@ class AppController {
   int? _medReminderMinutes; // daily medication reminder time; null = off
   bool _periodReminderEnabled = false;
   bool _fertileReminderEnabled = false;
-  static const _periodReminderId = 800001;
-  static const _fertileReminderId = 800002;
+  static const _periodReminderId = NotifyIds.period;
+  static const _fertileReminderId = NotifyIds.fertile;
 
   AppLocale _locale;
   final AppStore? _persistStore;
@@ -685,10 +686,12 @@ class AppController {
   ///
   /// Appointment-to-appointment collisions remain birthday-bound within the
   /// block; at realistic counts (hundreds) that stays vanishingly small.
-  static const int appointmentIdBase = 1000000;
-  static const int appointmentIdSpan = 1000000; // block: [1_000_000, 1_999_999]
-  static int reminderIdFor(String appointmentId) =>
-      appointmentIdBase + ((appointmentId.hashCode & 0x7fffffff) % appointmentIdSpan);
+  /// Block layout now lives in domain/notification_ids.dart, with every other
+  /// block the app allocates, so a new one landing on this range is a test
+  /// failure rather than a reminder that silently never arrives.
+  static const int appointmentIdBase = NotifyIds.appointmentBase;
+  static const int appointmentIdSpan = NotifyIds.appointmentSpan;
+  static int reminderIdFor(String appointmentId) => NotifyIds.forAppointment(appointmentId);
 
   ReminderCommand _scheduleCommandFor(Appointment a) {
     final l = L10n(_locale);

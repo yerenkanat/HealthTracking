@@ -8,6 +8,8 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../domain/notification_ids.dart';
+
 abstract class NotificationService {
   Future<void> init();
   Future<bool> requestPermission();
@@ -47,13 +49,35 @@ class LocalNotificationService implements NotificationService {
   static const _channelName = 'Safety alerts';
   static const _reminderChannelId = 'reminders';
   static const _reminderChannelName = 'Reminders';
-  int _id = 0;
+  /// Sequence for immediate alerts, seeded from the clock rather than 0.
+  ///
+  /// Starting at 0 every launch meant the first alert after a restart reused
+  /// the id of the first alert of the previous run — and the OS treats a repeat
+  /// id as a replacement. "Aizhan left school", still unread in the tray, was
+  /// silently overwritten by the next alert after the app restarted. Losing a
+  /// safety alert to a counter reset is the worst version of this bug, so the
+  /// seed makes consecutive runs start at different points in the block.
+  int _id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   bool _tzReady = false;
 
   @override
   Future<void> init() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: android);
+    // iOS was never initialized, although ios/ is a build target: with no
+    // Darwin settings the plugin has no iOS configuration, so every show() and
+    // every schedule did nothing there — and requestPermission() below returned
+    // true, because it only ever asked the Android resolver. The app believed
+    // notifications were working on iOS and no alert ever arrived.
+    //
+    // requestAlert/Badge/Sound are false here because permission is asked for
+    // explicitly in requestPermission(), at a point where the app can explain
+    // why — not as a prompt at first launch with no context.
+    const darwin = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const settings = InitializationSettings(android: android, iOS: darwin, macOS: darwin);
     await _plugin.initialize(settings);
     final android13 = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     await android13?.createNotificationChannel(const AndroidNotificationChannel(
@@ -102,9 +126,21 @@ class LocalNotificationService implements NotificationService {
 
   @override
   Future<bool> requestPermission() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    final granted = await android?.requestNotificationsPermission();
-    return granted ?? true;
+    final android =
+        _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) {
+      return await android.requestNotificationsPermission() ?? false;
+    }
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      return await ios.requestPermissions(alert: true, badge: true, sound: true) ?? false;
+    }
+    // No resolver at all. This used to return true — claiming a permission
+    // nobody had asked for, on the strength of the Android resolver being null.
+    // On iOS that meant the app reported alerts were working while none could
+    // ever arrive. Unknown is not granted.
+    return false;
   }
 
   @override
@@ -115,8 +151,9 @@ class LocalNotificationService implements NotificationService {
         importance: Importance.high,
         priority: Priority.high,
       ),
+      iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
-    await _plugin.show(_id++, title, body, details);
+    await _plugin.show(NotifyIds.forAlert(_id++), title, body, details);
   }
 
   @override
@@ -130,6 +167,7 @@ class LocalNotificationService implements NotificationService {
         importance: Importance.high,
         priority: Priority.high,
       ),
+      iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
     // Inexact scheduling avoids needing the SCHEDULE_EXACT_ALARM permission;
     // reminders don't need second-precision.
@@ -152,6 +190,7 @@ class LocalNotificationService implements NotificationService {
         importance: Importance.high,
         priority: Priority.high,
       ),
+      iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
     await _plugin.zonedSchedule(
       id, title, body, when, details,

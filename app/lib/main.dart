@@ -17,6 +17,7 @@ import 'data/content_repository.dart';
 import 'data/content_store.dart';
 import 'data/prefs_app_store.dart';
 import 'domain/geofence_alerts.dart';
+import 'domain/notification_ids.dart';
 import 'domain/cycle_log.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
@@ -201,7 +202,7 @@ Future<void> bootstrapRuntime(
 
     // Daily water reminder: schedule/cancel a repeating notification as the
     // setting changes, then reconcile once on boot.
-    const waterReminderId = 900001;
+    const waterReminderId = NotifyIds.water;
     controller.waterReminderCommands.listen((minutes) {
       if (minutes == null) {
         notifications.cancel(waterReminderId);
@@ -217,7 +218,7 @@ Future<void> bootstrapRuntime(
       }
     });
     // Daily medication reminder — same repeating-notification shape as water.
-    const medReminderId = 900002;
+    const medReminderId = NotifyIds.medication;
     controller.medReminderCommands.listen((minutes) {
       if (minutes == null) {
         notifications.cancel(medReminderId);
