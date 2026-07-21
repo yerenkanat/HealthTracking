@@ -74,10 +74,19 @@ void main() {
     expect(find.text(ru.t('vac_revision', {'d': scheduleRevision})), findsOneWidget);
   });
 
+  testWidgets('the next visit tells the parent a reminder is set', (tester) async {
+    // The app arms an OS reminder for the next visit; the card says so, so the
+    // parent knows they will be nudged rather than having to remember.
+    await pump(tester, childAged(2));
+    expect(find.byIcon(Icons.notifications_active_outlined), findsOneWidget);
+  });
+
   testWidgets('past the last vaccine it says so instead of inventing a next visit', (tester) async {
     await pump(tester, childAged(90));
     expect(find.text(ru.t('vac_complete')), findsOneWidget);
     expect(find.textContaining(ru.t('vac_next')), findsNothing);
+    // And no reminder is promised when there is nothing left to remind about.
+    expect(find.byIcon(Icons.notifications_active_outlined), findsNothing);
   });
 
   testWidgets('without a date of birth it asks for one', (tester) async {

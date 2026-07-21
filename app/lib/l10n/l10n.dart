@@ -802,6 +802,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // The next-visit reminder notification.
   'vac_reminder_title': {AppLocale.ru: 'Скоро прививки', AppLocale.kk: 'Егулердің уақыты жақындады', AppLocale.en: 'Vaccinations coming up'},
   'vac_reminder_body': {AppLocale.ru: 'У {name} по плану визит в поликлинику. Проверьте календарь прививок.', AppLocale.kk: '{name} үшін емханаға бару жоспарланған. Егу күнтізбесін тексеріңіз.', AppLocale.en: "{name} has a clinic visit due. Check the vaccination schedule."},
+  'vac_reminder_on': {AppLocale.ru: 'Напомним {d}', AppLocale.kk: '{d} еске саламыз', AppLocale.en: "We'll remind you on {d}"},
 
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},

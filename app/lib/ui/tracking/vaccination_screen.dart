@@ -43,14 +43,22 @@ class VaccinationScreen extends StatelessWidget {
                     style: const TextStyle(color: Palette.textDim, height: 1.4)),
               ),
             )
-          : _Schedule(ageMonths: ageInMonths(dob, today)),
+          : _Schedule(
+              ageMonths: ageInMonths(dob, today),
+              // The date the OS reminder is armed for, or null when there is no
+              // future visit to remind about. The card promises a reminder only
+              // when one truly exists — the app schedules it the moment a child
+              // with a birth date is added.
+              reminderAt: nextVaccinationReminderAt(dob: dob, now: today),
+            ),
     );
   }
 }
 
 class _Schedule extends StatelessWidget {
   final int ageMonths;
-  const _Schedule({required this.ageMonths});
+  final DateTime? reminderAt;
+  const _Schedule({required this.ageMonths, required this.reminderAt});
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +101,7 @@ class _Schedule extends StatelessWidget {
         if (next.isNotEmpty) ...[
           _Title('${l.t('vac_next')} · ${l.t('vac_in_months', {'n': untilNext})}'),
           for (final v in next) _VaccineRow(v: v, status: VaccineStatus.upcoming),
+          if (reminderAt != null) _ReminderNote(at: reminderAt!),
           const SizedBox(height: 16),
         ],
 
@@ -125,6 +134,33 @@ class _Title extends StatelessWidget {
         child: Text(text,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
       );
+}
+
+/// A quiet line under the next visit telling the parent the app will remind
+/// them. Only shown when a reminder is actually armed, so it never promises
+/// something that will not arrive.
+class _ReminderNote extends StatelessWidget {
+  final DateTime at;
+  const _ReminderNote({required this.at});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final date = MaterialLocalizations.of(context).formatMediumDate(at);
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, top: 2, bottom: 2),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_active_outlined, size: 15, color: Palette.textDim),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(l.t('vac_reminder_on', {'d': date}),
+                style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AgeGroup extends StatelessWidget {
