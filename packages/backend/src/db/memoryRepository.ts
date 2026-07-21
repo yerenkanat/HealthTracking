@@ -5,6 +5,7 @@
  * production: state lives in process memory and is lost on restart.
  */
 
+import { randomUUID } from 'node:crypto';
 import type { ContentItemRow, Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { Geofence, GeofenceEvent } from '@fcs/shared';
 
@@ -20,7 +21,13 @@ export function createMemoryRepository(): Repository {
     radiusM: 100,
   };
 
-  const children: Array<{ id: string; name: string }> = [{ id: DEMO_CHILD, name: 'Sultan' }];
+  // Children carry their OWNER. childOwner used to answer DEMO_USER for any
+  // child that existed, which made ownership fictional in development: an IDOR
+  // regression would pass every dev test, because every caller looked like the
+  // owner. The fake now models the thing the real repository enforces.
+  const children: Array<{ id: string; name: string; userId: string }> = [
+    { id: DEMO_CHILD, name: 'Sultan', userId: DEMO_USER },
+  ];
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, Geofence[]>([[DEMO_CHILD, [home]]]);
   const events: GeofenceEvent[] = [];
@@ -87,15 +94,21 @@ export function createMemoryRepository(): Repository {
     // The in-memory store is single-tenant, so anything that exists belongs to
     // the demo user — but the checks still have to run, or the routes would be
     // exercised unguarded in every test that uses this repository.
-    childOwner: async (id) => (children.some((c) => c.id === id) ? { userId: DEMO_USER } : null),
+    childOwner: async (id) => {
+      const c = children.find((x) => x.id === id);
+      return c ? { userId: c.userId } : null;
+    },
     geofenceOwner: async (id) =>
       [...geofences.values()].flat().some((g) => g.id === id) ? { userId: DEMO_USER } : null,
     // CRUD
     listChildren: async () => children.map((c) => ({ ...c })),
-    createChild: async (_u, name) => {
-      const c = { id: `child-${idSeq++}`, name };
+    createChild: async (userId, name) => {
+      // A UUID, because the ingest schema requires one — the old `child-1` ids
+      // were rejected by this service's OWN /ingest/batch endpoint, so a child
+      // created through the API could never have a location recorded for it.
+      const c = { id: randomUUID(), name, userId };
       children.push(c);
-      return c;
+      return { id: c.id, name: c.name };
     },
     deleteChild: async (id) => {
       const i = children.findIndex((c) => c.id === id);

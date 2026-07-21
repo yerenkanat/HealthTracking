@@ -1252,8 +1252,23 @@ class AppController {
     _notify();
   }
 
-  void onChildLocation(Coordinates coords) {
-    _childLocation = ChildLocationView(coords, _now());
+  /// A new position for the selected child.
+  ///
+  /// [at] is when the fix was OBSERVED, which for a server-supplied one is not
+  /// now: it may have been recorded minutes ago and only just fetched. Passing
+  /// it through is what lets the tracking screen say "8 minutes ago" honestly
+  /// instead of calling a stale position live — see freshnessOf, which refuses
+  /// to call anything live once the clocks disagree.
+  ///
+  /// A fix OLDER than the one already held is ignored. Polling can answer out
+  /// of order, and a late reply carrying an earlier position would walk the
+  /// child backwards on the map and could re-fire a zone alert they already
+  /// left.
+  void onChildLocation(Coordinates coords, {DateTime? at}) {
+    final observedAt = at ?? _now();
+    final current = _childLocation;
+    if (current != null && observedAt.isBefore(current.at)) return;
+    _childLocation = ChildLocationView(coords, observedAt);
     final child = selectedChild;
     if (child != null) {
       final r = alertsForFix(

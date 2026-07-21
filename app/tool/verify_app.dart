@@ -273,6 +273,41 @@ Future<void> main() async {
     await dst.dispose();
   }
 
+  // ---- A server-supplied position carries the time it was OBSERVED ----
+  // The tracking screen decides "live" or "8 minutes ago" from this timestamp,
+  // and a fix fetched now may have been recorded minutes back. Stamping it with
+  // now() would call a stale position live, which is the one thing a child
+  // tracker must not do.
+  {
+    final t = DateTime(2026, 7, 21, 12, 0);
+    final c = AppController(now: () => t);
+    c.configureChild(name: 'Sultan', fences: const []);
+
+    final observed = t.subtract(const Duration(minutes: 8));
+    c.onChildLocation(const Coordinates(43.24, 76.89), at: observed);
+    _chk('a server fix keeps the time it was observed',
+        c.childLocation?.at == observed);
+
+    // Polling can answer out of order. A late reply carrying an EARLIER
+    // position would walk the child backwards on the map, and could re-fire a
+    // zone alert for somewhere they had already left.
+    c.onChildLocation(const Coordinates(43.30, 77.00),
+        at: t.subtract(const Duration(minutes: 20)));
+    _chk('an older fix arriving late is ignored',
+        c.childLocation?.at == observed && c.childLocation?.coords.lat == 43.24);
+
+    // A newer one is taken.
+    final newer = t.subtract(const Duration(minutes: 1));
+    c.onChildLocation(const Coordinates(43.25, 76.95), at: newer);
+    _chk('a newer fix replaces it', c.childLocation?.at == newer);
+
+    // With no timestamp — a local BLE fix — it is happening now.
+    c.onChildLocation(const Coordinates(43.26, 76.96));
+    _chk('a fix with no timestamp is treated as now', c.childLocation?.at == t);
+
+    c.dispose();
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

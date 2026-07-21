@@ -301,6 +301,19 @@ Future<void> bootstrapRuntime(
       emergencyNoteText: () => L10n(controller.locale).t('chat_emergency_note'),
     ));
 
+    // Where the child's position comes from.
+    //
+    // Nothing supplied it before: onChildLocation had exactly two callers, both
+    // in the demo seed, so outside a --dart-define=DEMO build the tracking map
+    // said "waiting for location" for ever. Half the product did not work, and
+    // it looked like it was merely waiting. ApiClient.lastLocation existed for
+    // this and was called from nowhere.
+    //
+    // Polled rather than pushed because there is no socket yet; the interval is
+    // a battery/latency trade, and a geofence alert that arrives a minute late
+    // is still worth having.
+    unawaited(_pollChildLocation(controller, api));
+
     // TODO(once paired): construct BleDeviceManager(config) and:
     //   ble.onTelemetry.listen((rec) {
     //     controller.onTelemetry(rec.$1, rec.$2);   // dashboard + emergency
@@ -312,5 +325,41 @@ Future<void> bootstrapRuntime(
     // TODO(after sign-in): controller.configureChild(name, fences) from the backend.
   } catch (_) {
     // Degrade gracefully — the UI already rendered; retry wiring on next launch.
+  }
+}
+
+/// Ask the backend where the selected child is, forever, gently.
+///
+/// Deliberately tolerant: this runs for the life of the app, so any throw here
+/// would silently end child tracking for the session. Every failure is a skipped
+/// tick rather than the end of the loop — offline, a 404 because no fix has been
+/// recorded yet, a child not yet selected, a malformed payload.
+///
+/// The observed timestamp comes from the SERVER, not from now(). A fix recorded
+/// four minutes ago must read as four minutes old; calling it live is the one
+/// thing a tracking screen must not do.
+Future<void> _pollChildLocation(
+  AppController controller,
+  ApiClient api, {
+  Duration every = const Duration(seconds: 45),
+}) async {
+  while (true) {
+    await Future<void>.delayed(every);
+    final childId = controller.selectedChild?.id;
+    if (childId == null) continue; // nothing to track yet
+    try {
+      final fix = await api.lastLocation(childId);
+      if (fix == null) continue; // 404: no position recorded yet
+      final coords = fix['coords'];
+      if (coords is! Map) continue;
+      final lat = (coords['lat'] as num?)?.toDouble();
+      final lng = (coords['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) continue;
+      final observedAt = DateTime.tryParse('${fix['observedAt'] ?? ''}');
+      controller.onChildLocation(Coordinates(lat, lng), at: observedAt?.toLocal());
+    } catch (_) {
+      // Offline, a server hiccup, a shape we did not expect. Try again next
+      // tick — the alternative is that one bad reply ends tracking silently.
+    }
   }
 }
