@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import '../lib/domain/child_growth.dart';
 
 import '../lib/app/app_controller.dart';
 import '../lib/core/geofence.dart';
@@ -84,6 +85,12 @@ void main() async {
     childBatteryHistory: {
       'child-1': [BatteryReading(DateTime(2026, 7, 15, 8), 80), BatteryReading(DateTime(2026, 7, 15, 12), 62)],
     },
+    childGrowth: {
+      'child-1': [
+        GrowthPoint(at: DateTime(2026, 1, 10), weightKg: 3.6, heightCm: 51),
+        GrowthPoint(at: DateTime(2026, 2, 10), weightKg: 4.6),
+      ],
+    },
     lastExportAt: DateTime(2026, 7, 14, 10, 30),
     medications: const [
       Medication(id: 'med-1', name: 'Folic acid', dose: '400 mcg'),
@@ -107,6 +114,12 @@ void main() async {
   _chk('round-trip child DOB', decoded.children[0].dateOfBirth == DateTime(2019, 3, 8) && !decoded.children[1].hasDateOfBirth);
   _chk('round-trip child photo', decoded.children[0].photoPath == '/docs/photos/c1.jpg' && !decoded.children[1].hasPhoto);
   _chk('round-trip child gender', decoded.children[0].gender == Gender.boy && decoded.children[1].gender == null);
+  {
+    final g = decoded.childGrowth['child-1'] ?? const [];
+    _chk('round-trip growth measurements', g.length == 2);
+    _chk('round-trip growth kept both values', g[0].weightKg == 3.6 && g[0].heightCm == 51);
+    _chk('round-trip growth kept a weight-only visit', g[1].weightKg == 4.6 && g[1].heightCm == null);
+  }
   _chk('round-trip child geofence', decoded.children[0].geofences.first.center?.lat == 43.238949);
   _chk('round-trip device', decoded.devices.length == 1 && decoded.devices.first.kind == DeviceKind.band);
   _chk('round-trip notificationsEnabled', decoded.notificationsEnabled == false);

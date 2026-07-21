@@ -26,6 +26,7 @@ import '../domain/error_log.dart';
 import '../domain/zone_hysteresis.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
+import '../domain/child_growth.dart';
 import '../domain/chat_controller.dart';
 import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
@@ -150,6 +151,7 @@ class AppController {
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
   final Map<String, List<BatteryReading>> _batteryHistory = {}; // childId → readings (oldest-first)
+  final Map<String, List<GrowthPoint>> _childGrowth = {}; // childId → measurements (oldest-first)
   final List<Medication> _medications = [];
   MedLog _medLog = {}; // dateKey → medId → doses taken
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
@@ -245,6 +247,9 @@ class AppController {
     _batteryHistory
       ..clear()
       ..addAll({for (final e in cfg.childBatteryHistory.entries) e.key: List.of(e.value)});
+    _childGrowth
+      ..clear()
+      ..addAll({for (final e in cfg.childGrowth.entries) e.key: List.of(e.value)});
     _waterReminderMinutes = cfg.waterReminderMinutes;
     _medReminderMinutes = cfg.medReminderMinutes;
     _periodReminderEnabled = cfg.periodReminderEnabled;
@@ -343,6 +348,7 @@ class AppController {
         weightGoalKg: _weightGoalKg,
         childBattery: Map.of(_childBattery),
         childBatteryHistory: {for (final e in _batteryHistory.entries) e.key: List.of(e.value)},
+        childGrowth: {for (final e in _childGrowth.entries) e.key: List.of(e.value)},
         waterReminderMinutes: _waterReminderMinutes,
         medReminderMinutes: _medReminderMinutes,
         periodReminderEnabled: _periodReminderEnabled,
@@ -918,6 +924,30 @@ class AppController {
 
   /// The selected child's battery reading history, oldest-first.
   List<BatteryReading> get selectedChildBatteryHistory => batteryHistoryFor(selectedChild?.id);
+
+  /// Growth measurements for [childId], oldest-first (empty if none).
+  List<GrowthPoint> growthFor(String childId) =>
+      List.unmodifiable(_childGrowth[childId] ?? const []);
+
+  /// Record a weight/height measurement for a child. One per day: a correction
+  /// replaces the day's entry rather than adding a second, conflicting one.
+  ///
+  /// A [GrowthPoint] with neither value is ignored — upsertGrowth drops it —
+  /// so there is nothing to guard here.
+  void recordGrowth(String childId, GrowthPoint point) {
+    _childGrowth[childId] = upsertGrowth(_childGrowth[childId] ?? const [], point);
+    _persist();
+    _notify();
+  }
+
+  /// Remove a child's measurement on [day].
+  void removeGrowth(String childId, DateTime day) {
+    final existing = _childGrowth[childId];
+    if (existing == null) return;
+    _childGrowth[childId] = removeGrowthOn(existing, day);
+    _persist();
+    _notify();
+  }
 
   /// Update a child tracker's battery reading (from device telemetry). When the
   /// reading first crosses into the low range, raise a low-battery alert (feed +

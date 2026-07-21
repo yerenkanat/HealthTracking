@@ -179,3 +179,34 @@ took it and stop counting it in the sidebar badge.
 The open question worth settling first is what acknowledgement MEANS: that a
 human has seen it, or that the woman has been contacted. Those are different
 promises, and the second one is the one a reviewer will assume was made.
+
+## The growth chart has no percentile bands
+
+`domain/child_growth.dart` plots what the parent measured and reports the change
+since the previous visit. It does not draw WHO percentile curves, and that is a
+decision rather than an unfinished edge.
+
+Percentiles come from the WHO Child Growth Standards: an LMS table (lambda, mu,
+sigma) per sex per day of age, from which a z-score and then a centile is
+computed. The honest way to have them is to ship that published data file and
+interpolate it. The dishonest way is to type approximate numbers from memory
+into a medical chart, and a band that is 300 g off tells a mother her healthy
+child is underweight.
+
+### What adding them involves
+
+1. The WHO tables for weight-for-age, length/height-for-age and
+   weight-for-length, 0–5 years, both sexes, as an asset. They are published as
+   text and are not large.
+2. `zScore(value, l, m, s)` — the standard LMS formula — plus interpolation
+   between the daily rows.
+3. Sex on the child record. It is optional today, and a percentile without it
+   is meaningless, so the chart must fall back to the plain trend when it is
+   absent rather than guessing.
+4. An editorial decision about what to SHOW. A centile number invites a parent
+   to read it as a grade. Most clinical apps draw the bands and place the child
+   on them without naming a number, which is the same information without the
+   scoring.
+
+Until then the chart shows her child against her child, which is a comparison
+the app can stand behind.

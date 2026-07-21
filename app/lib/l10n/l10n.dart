@@ -718,6 +718,29 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'MS_THIRD_TRIMESTER': {AppLocale.ru: 'Третий триместр', AppLocale.kk: 'Үшінші триместр', AppLocale.en: 'Third trimester'},
   'MS_FULL_TERM': {AppLocale.ru: 'Доношенный срок', AppLocale.kk: 'Толық мерзім', AppLocale.en: 'Full term'},
   'MS_DUE': {AppLocale.ru: 'Срок родов', AppLocale.kk: 'Босану мерзімі', AppLocale.en: 'Due date'},
+  // ---- Child growth ----
+  'grw_title': {AppLocale.ru: 'Рост и вес', AppLocale.kk: 'Бой және салмақ', AppLocale.en: 'Growth'},
+  'grw_weight': {AppLocale.ru: 'Вес', AppLocale.kk: 'Салмақ', AppLocale.en: 'Weight'},
+  'grw_height': {AppLocale.ru: 'Рост', AppLocale.kk: 'Бой', AppLocale.en: 'Height'},
+  'grw_add': {AppLocale.ru: 'Добавить измерение', AppLocale.kk: 'Өлшем қосу', AppLocale.en: 'Add a measurement'},
+  'grw_empty': {AppLocale.ru: 'Запишите вес и рост после приёма — приложение покажет, как они меняются.', AppLocale.kk: 'Қабылдаудан кейін салмақ пен бойды жазыңыз — қосымша олардың өзгерісін көрсетеді.', AppLocale.en: 'Record weight and height after a check-up and the app will show how they change.'},
+  'grw_since': {AppLocale.ru: 'за {n} дн.', AppLocale.kk: '{n} күнде', AppLocale.en: 'in {n} days'},
+  'grw_first': {AppLocale.ru: 'первое измерение', AppLocale.kk: 'алғашқы өлшем', AppLocale.en: 'first measurement'},
+  'grw_kg': {AppLocale.ru: 'кг', AppLocale.kk: 'кг', AppLocale.en: 'kg'},
+  'grw_cm': {AppLocale.ru: 'см', AppLocale.kk: 'см', AppLocale.en: 'cm'},
+  'grw_bad_weight': {AppLocale.ru: 'Проверьте вес — похоже на опечатку.', AppLocale.kk: 'Салмақты тексеріңіз — қате сияқты.', AppLocale.en: 'Check the weight — that looks like a typo.'},
+  'grw_bad_height': {AppLocale.ru: 'Проверьте рост — похоже на опечатку.', AppLocale.kk: 'Бойды тексеріңіз — қате сияқты.', AppLocale.en: 'Check the height — that looks like a typo.'},
+  // Said where it cannot be mistaken for modesty: the app is not comparing her
+  // child to anyone, and should not be read as doing so.
+  'grw_history': {AppLocale.ru: 'История измерений', AppLocale.kk: 'Өлшемдер тарихы', AppLocale.en: 'Measurement history'},
+  'grw_delete_title': {AppLocale.ru: 'Удалить измерение?', AppLocale.kk: 'Өлшемді жою керек пе?', AppLocale.en: 'Delete this measurement?'},
+  'grw_delete_body': {AppLocale.ru: 'Запись за этот день будет удалена. Это действие нельзя отменить.', AppLocale.kk: 'Осы күнгі жазба жойылады. Бұл әрекетті болдырмау мүмкін емес.', AppLocale.en: 'The entry for this day will be removed. This cannot be undone.'},
+  'grw_delete': {AppLocale.ru: 'Удалить', AppLocale.kk: 'Жою', AppLocale.en: 'Delete'},
+  'grw_no_percentiles': {
+    AppLocale.ru: 'Это график вашего ребёнка относительно него самого, без центильных коридоров. Сравнение с нормами ВОЗ делает врач на приёме.',
+    AppLocale.kk: 'Бұл — балаңыздың өз көрсеткіштерінің графигі, центильдік дәліздерсіз. ДДҰ нормаларымен салыстыруды дәрігер қабылдауда жасайды.',
+    AppLocale.en: 'This charts your child against their own history, without percentile bands. Comparing to WHO norms is your doctor’s job at the check-up.',
+  },
   // ---- End of pregnancy ----
   //
   // Two outcomes, two paths, and the wording of each matters more than most
