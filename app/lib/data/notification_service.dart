@@ -9,6 +9,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../domain/notification_ids.dart';
+import '../domain/reminder_schedule.dart';
 
 abstract class NotificationService {
   Future<void> init();
@@ -181,9 +182,11 @@ class LocalNotificationService implements NotificationService {
   @override
   Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute}) async {
     if (!_tzReady) return;
-    final now = tz.TZDateTime.now(tz.local);
-    var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (!when.isAfter(now)) when = when.add(const Duration(days: 1)); // next occurrence
+    // Which instant "every day at this time" means is decided by
+    // nextDailyOccurrence, where it is tested against real DST transitions.
+    // It used to add Duration(days: 1) here, which is an exact 24 hours — and
+    // the day a clock springs forward is 23.
+    final when = nextDailyOccurrence(tz.TZDateTime.now(tz.local), hour, minute);
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         _reminderChannelId, _reminderChannelName,
