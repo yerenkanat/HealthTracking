@@ -201,6 +201,46 @@ void main() {
         !sensor(g, 'PREECLAMPSIA_BP', at(119)).shouldEscalate);
   }
 
+  // ---- What the "take another reading" prompt reads from ----
+  //
+  // One source of truth. The controller used to keep its own copy, set when a
+  // crossing was first seen and cleared only by an escalation or an account
+  // reset — while expiry lived here. A lone artifact therefore left the prompt
+  // on a pregnant woman's dashboard permanently, with nothing wrong with her.
+  {
+    final g = EmergencyConfirmation();
+    _chk('nothing pending to begin with', g.pendingFamilyAt(at(0)) == null);
+
+    sensor(g, 'PREECLAMPSIA_BP', at(0));
+    _chk('a crossing is pending', g.pendingFamilyAt(at(1)) == 'bp');
+
+    // Expiry is a function of time alone: the crossing lapses whether or not
+    // another reading ever arrives. Asking at a later instant is enough.
+    _chk('inside the window it is still pending',
+        g.pendingFamilyAt(at(29 * 60)) == 'bp');
+    _chk('past the window it is gone', g.pendingFamilyAt(at(31 * 60)) == null);
+  }
+  {
+    // Escalating resolves it — the prompt must not survive the emergency it
+    // was asking about.
+    final g = EmergencyConfirmation();
+    sensor(g, 'PREECLAMPSIA_BP', at(0));
+    _chk('escalation clears the prompt',
+        sensor(g, 'PREECLAMPSIA_BP', at(120)).shouldEscalate &&
+            g.pendingFamilyAt(at(121)) == null);
+  }
+  {
+    // Two conditions at once: report the older, which is nearest to resolving
+    // either way.
+    final g = EmergencyConfirmation();
+    sensor(g, 'HYPOXIA', at(0));
+    sensor(g, 'PREECLAMPSIA_BP', at(30));
+    _chk('the oldest pending measurement is the one reported',
+        g.pendingFamilyAt(at(60)) == 'spo2');
+    _chk('and when it expires the other takes over',
+        g.pendingFamilyAt(at(30 * 60 + 20)) == 'bp');
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

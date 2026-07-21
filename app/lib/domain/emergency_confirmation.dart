@@ -147,6 +147,29 @@ class EmergencyConfirmation {
   /// to show "measure again" until it resolves.
   bool isPending(String family) => _pendingSince.containsKey(family);
 
+  /// The measurement waiting on a repeat as of [now], or null.
+  ///
+  /// The single source of truth for the "take another reading" prompt. The
+  /// controller used to keep its own copy of this, set when a crossing was
+  /// first seen and cleared only by an escalation or an account reset —
+  /// so a lone artifact left the prompt on a pregnant woman's dashboard
+  /// permanently, with nothing wrong with her and no way to dismiss it.
+  /// Expiry lived here and the prompt lived there.
+  ///
+  /// Takes [now] because expiry is a function of time, not of anything
+  /// happening: the crossing lapses whether or not another reading arrives.
+  /// The oldest pending family wins when several are waiting — it is the one
+  /// closest to resolving either way.
+  String? pendingFamilyAt(DateTime now) {
+    _dropExpired(now);
+    if (_pendingSince.isEmpty) return null;
+    var oldest = _pendingSince.entries.first;
+    for (final e in _pendingSince.entries) {
+      if (e.value.isBefore(oldest.value)) oldest = e;
+    }
+    return oldest.key;
+  }
+
   /// Drop all pending state, e.g. on sign-out or a band change.
   void clear() => _pendingSince.clear();
 }

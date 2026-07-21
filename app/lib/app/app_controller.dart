@@ -1103,7 +1103,6 @@ class AppController {
     // the in-memory sample ring and whatever is on disk.
     store.clear();
     _confirmation.clear();
-    _awaitingRepeat = null;
     await _persistStore?.clear();
     _notify();
     return serverErased;
@@ -1231,8 +1230,11 @@ class AppController {
 
   /// The measurement a repeat reading has been asked for, if any — 'bp',
   /// 'fever', 'spo2', 'hr'. Null when nothing is waiting.
-  String? _awaitingRepeat;
-  String? get awaitingRepeat => _awaitingRepeat;
+  ///
+  /// Derived, not stored. This used to be a field set alongside the gate's own
+  /// pending state, and only the gate expired: a lone artifact left "Take
+  /// another reading" on her dashboard for good.
+  String? get awaitingRepeat => _confirmation.pendingFamilyAt(_now());
 
   /// From BLEDeviceManager.onTelemetry (via HealthMonitor). Records the reading
   /// and latches emergency if triage says so.
@@ -1261,13 +1263,12 @@ class AppController {
     if (decision.shouldAskToRepeat) {
       // One estimate is not enough to take over her screen. Ask for another,
       // and escalate if the condition is still there a couple of minutes on.
-      _awaitingRepeat = emergencyFamily(decision.code);
+      // The gate already recorded the pending crossing; awaitingRepeat reads it.
       _notify();
       return;
     }
 
     if (decision.shouldEscalate) {
-      _awaitingRepeat = null;
       final reading = _readingFor(f?.metric, t);
       _raiseEmergency(EmergencyView(
         code: f?.code, // UI localizes the code

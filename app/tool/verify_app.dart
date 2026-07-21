@@ -128,6 +128,44 @@ Future<void> main() async {
     _chk('the ambulance is always offered',
         buttons.any((b) => b.tel == EmergencyLabels.ambulanceTel));
 
+    // A one-off spike must stop asking her to measure again.
+    //
+    // The gate expires a lone crossing after 30 minutes — but the controller
+    // kept its OWN copy of "waiting on a repeat", and that copy was cleared
+    // only by an escalation or a full account reset. So a single artifact left
+    // "Take another reading" pinned to the dashboard of a pregnant woman, with
+    // no way to dismiss it and nothing wrong with her.
+    {
+      var s = DateTime(2026, 7, 16, 9);
+      final one = AppController(now: () => s);
+      one.onTelemetry(severe, assessTelemetry(severe));
+      _chk('a first crossing asks for a repeat', one.awaitingRepeat == 'bp');
+
+      s = s.add(const Duration(minutes: 31)); // past the confirmation window
+      const calm = BandTelemetry(systolicMmHg: 118, diastolicMmHg: 74);
+      one.onTelemetry(calm, assessTelemetry(calm));
+      _chk('once the crossing expires the prompt goes away', one.awaitingRepeat == null);
+
+      // And it must not come back on the next quiet reading either.
+      s = s.add(const Duration(minutes: 5));
+      one.onTelemetry(calm, assessTelemetry(calm));
+      _chk('and it stays away', one.awaitingRepeat == null);
+    }
+
+    // A normal reading INSIDE the window must not clear it, though: sensor
+    // noise cuts both ways, and letting one low estimate cancel a real rise
+    // would put the gate's error in the dangerous direction.
+    {
+      var s = DateTime(2026, 7, 16, 9);
+      final still = AppController(now: () => s);
+      still.onTelemetry(severe, assessTelemetry(severe));
+      s = s.add(const Duration(minutes: 1));
+      const calm = BandTelemetry(systolicMmHg: 118, diastolicMmHg: 74);
+      still.onTelemetry(calm, assessTelemetry(calm));
+      _chk('a single calm reading does not cancel a pending crossing',
+          still.awaitingRepeat == 'bp');
+    }
+
     // With no doctor recorded there is still a way to get help.
     var nd = DateTime(2026, 7, 16, 9);
     final noDoc = AppController(now: () => nd);
