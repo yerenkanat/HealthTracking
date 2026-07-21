@@ -12,6 +12,9 @@ import '../../app/app_controller.dart';
 import '../../domain/battery.dart';
 import '../../domain/family.dart';
 import '../../domain/geofence_alerts.dart';
+import '../../domain/child_development.dart';
+import '../../domain/vaccination.dart';
+import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import 'child_development_screen.dart';
@@ -211,6 +214,50 @@ class ChildDetailScreen extends StatelessWidget {
                               const Icon(Icons.chevron_right_rounded, size: 20, color: Palette.textDim),
                             ]),
                           ),
+
+                          // ---- Care hub ----
+                          //
+                          // The development calendar, vaccinations and growth
+                          // chart were reachable only as three small header
+                          // icons — easy to miss, and the header is where the
+                          // eye goes last. As cards with a one-line summary they
+                          // are discoverable, and each says why it is worth
+                          // opening. Only with a date of birth, which all three
+                          // are keyed on.
+                          if (child.hasDateOfBirth) ...[
+                            const SizedBox(height: 22),
+                            Text(l.t('child_care').toUpperCase(),
+                                style: const TextStyle(
+                                    color: Palette.textDim,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.6)),
+                            const SizedBox(height: 10),
+                            _CareCard(
+                              icon: Icons.timeline_rounded,
+                              title: l.t('dev_title'),
+                              summary: _developmentSummary(l, child.ageInMonths(now)),
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => ChildDevelopmentScreen(child: child, today: now),
+                              )),
+                            ),
+                            const SizedBox(height: 12),
+                            _CareCard(
+                              icon: Icons.vaccines_outlined,
+                              title: l.t('vac_title'),
+                              summary: _vaccinationSummary(l, child.ageInMonths(now)),
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => VaccinationScreen(child: child, today: now),
+                              )),
+                            ),
+                            const SizedBox(height: 12),
+                            _CareCard(
+                              icon: Icons.monitor_weight_outlined,
+                              title: l.t('grw_title'),
+                              summary: _growthSummary(l, controller.growthFor(child.id)),
+                              onTap: () => _openGrowth(context, controller, child),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -230,6 +277,75 @@ class ChildDetailScreen extends StatelessWidget {
         BatteryLevel.ok => Palette.textDim,
         BatteryLevel.full => Palette.good,
       };
+}
+
+/// A one-line summary for the development card: what is happening now, or the
+/// soonest thing ahead.
+String _developmentSummary(L10n l, int ageMonths) {
+  final now = milestonesNow(ageMonths);
+  if (now.isNotEmpty) return l.t('dev_${now.first.id}');
+  final next = milestonesAhead(ageMonths, limit: 1);
+  return next.isEmpty ? l.t('dev_sub') : l.t('dev_${next.first.id}');
+}
+
+/// The vaccination card: due now, or the next visit.
+String _vaccinationSummary(L10n l, int ageMonths) {
+  if (vaccinesDue(ageMonths).isNotEmpty) return l.t('vac_due');
+  final months = monthsUntilNextVisit(ageMonths);
+  return months == null ? l.t('vac_complete') : l.t('vac_in_months', {'n': months});
+}
+
+/// The growth card: the latest weight, or an invitation to record one.
+String _growthSummary(L10n l, List<GrowthPoint> points) {
+  final w = weightSeries(points);
+  if (w.isEmpty) return l.t('grw_add');
+  return '${w.last.weightKg!.toStringAsFixed(1)} ${l.t('grw_kg')}';
+}
+
+/// A tappable care-hub card: icon, title, and a one-line summary of why to open
+/// it.
+class _CareCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String summary;
+  final VoidCallback onTap;
+  const _CareCard({
+    required this.icon,
+    required this.title,
+    required this.summary,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+        onTap: onTap,
+        child: Row(children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Palette.violet.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 20, color: Palette.violet),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(summary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, size: 20, color: Palette.textDim),
+        ]),
+      );
 }
 
 /// Open the growth chart, with an add-measurement sheet wired to the controller.
@@ -411,27 +527,10 @@ class _Header extends StatelessWidget {
         // The age is exactly where a parent wonders what comes next, so the
         // development calendar hangs off it. Shown only with a date of birth:
         // without one the calendar has nothing to place her child on.
-        if (child.hasDateOfBirth) ...[
-          IconButton(
-            icon: const Icon(Icons.vaccines_outlined, color: Palette.violet),
-            tooltip: l.t('vac_title'),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => VaccinationScreen(child: child, today: now),
-            )),
-          ),
-          IconButton(
-            icon: const Icon(Icons.monitor_weight_outlined, color: Palette.violet),
-            tooltip: l.t('grw_title'),
-            onPressed: () => _openGrowth(context, controller, child),
-          ),
-          IconButton(
-            icon: const Icon(Icons.timeline_rounded, color: Palette.violet),
-            tooltip: l.t('dev_title'),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => ChildDevelopmentScreen(child: child, today: now),
-            )),
-          ),
-        ],
+        // The development / vaccination / growth entry points live in the care
+        // hub in the body now, not here — two ways to the same screen is the
+        // duplicate-control smell, and the cards carry a summary the icon
+        // never could.
       ],
     );
   }

@@ -732,6 +732,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'grw_bad_height': {AppLocale.ru: 'Проверьте рост — похоже на опечатку.', AppLocale.kk: 'Бойды тексеріңіз — қате сияқты.', AppLocale.en: 'Check the height — that looks like a typo.'},
   // Said where it cannot be mistaken for modesty: the app is not comparing her
   // child to anyone, and should not be read as doing so.
+  'child_care': {AppLocale.ru: 'Здоровье и развитие', AppLocale.kk: 'Денсаулық және даму', AppLocale.en: 'Health & development'},
   'grw_history': {AppLocale.ru: 'История измерений', AppLocale.kk: 'Өлшемдер тарихы', AppLocale.en: 'Measurement history'},
   'grw_delete_title': {AppLocale.ru: 'Удалить измерение?', AppLocale.kk: 'Өлшемді жою керек пе?', AppLocale.en: 'Delete this measurement?'},
   'grw_delete_body': {AppLocale.ru: 'Запись за этот день будет удалена. Это действие нельзя отменить.', AppLocale.kk: 'Осы күнгі жазба жойылады. Бұл әрекетті болдырмау мүмкін емес.', AppLocale.en: 'The entry for this day will be removed. This cannot be undone.'},
