@@ -376,18 +376,38 @@ class AppController {
   /// The trade is explicit: a crash within the window loses at most 300ms of
   /// input. [flushPendingSave] exists for the moments where that is not
   /// acceptable, and destructive operations still write immediately.
+  /// Save, recording a failure rather than discarding it.
+  ///
+  /// `unawaited(save(...))` threw the outcome away. A write that keeps failing
+  /// — a full disk, prefs unavailable after an OS update — meant she carried on
+  /// using an app that was saving nothing, and found out on the next launch,
+  /// back at whatever the last successful write held. There is no crash
+  /// reporting wired up, so the error log is the only place a support
+  /// conversation could ever start from.
+  ///
+  /// Deliberately not surfaced as a dialog: a transient write failure that the
+  /// next debounce fixes is not worth interrupting her for, and the diagnostics
+  /// screen and the export both carry the log.
+  Future<void> _write(AppStore s) async {
+    try {
+      await s.save(_snapshot());
+    } catch (e, st) {
+      errorLog.add(source: AppErrorSource.app, error: e, stack: st, at: _now());
+    }
+  }
+
   void _persist({bool immediate = false}) {
     final s = _persistStore;
     if (s == null) return;
     _persistTimer?.cancel();
     if (immediate) {
       _persistTimer = null;
-      unawaited(s.save(_snapshot()));
+      unawaited(_write(s));
       return;
     }
     _persistTimer = Timer(_persistDebounce, () {
       _persistTimer = null;
-      unawaited(s.save(_snapshot()));
+      unawaited(_write(s));
     });
   }
 
@@ -398,7 +418,10 @@ class AppController {
     _persistTimer!.cancel();
     _persistTimer = null;
     final s = _persistStore;
-    if (s != null) unawaited(s.save(_snapshot()));
+    // Through _write, like the debounced path. This is the save that runs when
+    // the app is being backgrounded — the one most likely to be the last write
+    // of the session, and so the one least affordable to discard silently.
+    if (s != null) unawaited(_write(s));
   }
 
   /// A human-readable, pretty-printed JSON backup of all durable app data
