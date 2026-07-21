@@ -12,6 +12,8 @@
     "typecheck": "tsc -b packages/shared packages/backend"
   },
   "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "jsdom": "^29.1.1",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

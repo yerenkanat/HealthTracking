@@ -51,9 +51,15 @@ describe('admin panel markup and script agree', () => {
     expect(referencedIds().length).toBeGreaterThan(20);
   });
 
-  it('the overview renders the product metrics it fetches', () => {
+  it('the analytics tab renders the product metrics it fetches', () => {
+    // The product metrics live on «Аналитика» now, and the overview keeps the
+    // operational view. What each tab SHOWS is asserted by executing the page
+    // in adminPanelRender.test.ts; this only pins that the elements exist.
     expect(html).toContain('/admin/bi');
-    for (const id of ['kpis', 'biTrend', 'biRetention', 'biEngagement']) {
+    for (const id of ['anKpis', 'anTrend', 'anRetCurve', 'anGrowth', 'anFunnel', 'anAdoption', 'biRetention', 'biEngagement']) {
+      expect(definedIds().has(id), `analytics should contain #${id}`).toBe(true);
+    }
+    for (const id of ['kpis', 'opsTrend', 'feedMini']) {
       expect(definedIds().has(id), `overview should contain #${id}`).toBe(true);
     }
   });
@@ -95,7 +101,12 @@ describe('admin panel markup and script agree', () => {
 
   it('says so when a metric is unavailable instead of rendering a blank', () => {
     // Every consumer of BI has a null branch; an empty card reads as "zero".
-    const consumers = ['renderKpis', 'renderRetention', 'renderEngagement', 'drawBiTrend'];
+    //
+    // renderKpis is no longer on the list: the overview shows operational
+    // counters that do not come from /admin/bi at all, so it renders fully
+    // with BI null and has nothing to guard. Its one BI-derived tile falls
+    // back inline. That it does so is checked by rendering the page.
+    const consumers = ['renderRetention', 'renderEngagement', 'drawBiTrend', 'renderGrowth', 'renderFunnel', 'renderAdoption'];
     for (const fn of consumers) {
       const start = html.indexOf(`function ${fn}`);
       expect(start, `${fn} should exist`).toBeGreaterThan(-1);

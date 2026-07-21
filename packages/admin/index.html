@@ -245,34 +245,28 @@
 
     <div class="content">
       <!-- OVERVIEW -->
+      <!-- OVERVIEW — operational state right now: what is on, what is arriving,
+           what needs a person. Product metrics live on «Аналитика»; keeping the
+           same numbers on both screens means showing two different values for
+           one thing on the day a query changes. -->
       <section class="view active" id="overview">
         <div class="kpis" id="kpis"></div>
         <div class="grid2">
           <div class="card">
-            <div class="sec-h"><h3>Активность · 30 дней</h3><span class="sub" id="biTrendSub">—</span></div>
-            <div class="chartwrap"><canvas id="biTrend" width="600" height="170"></canvas></div>
+            <div class="sec-h"><h3>Экстренные события</h3><span class="link" data-view="emergencies">Все</span></div>
+            <div class="feed" id="feedMini"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Приём данных · 30 дней</h3><span class="sub" id="opsTrendSub">—</span></div>
+            <div class="chartwrap"><canvas id="opsTrend" width="600" height="170"></canvas></div>
             <div class="legend">
               <span><i style="background:var(--accent)"></i>Активные за день</span>
               <span><i style="background:var(--good)"></i>Регистрации</span>
             </div>
-          </div>
-          <div class="card">
-            <div class="sec-h"><h3>Удержание</h3><span class="sub">доля вернувшихся на N-й день</span></div>
-            <div id="biRetention"></div>
             <p class="sub" style="margin-top:10px">
-              Считается по всем когортам, у которых N-й день уже наступил. Размер
-              когорты показан рядом: 100% на двух пользователях — это шум.
+              Продуктовые метрики — удержание, воронка, охват модулей —
+              на вкладке <span class="link" data-view="analytics">Аналитика</span>.
             </p>
-          </div>
-        </div>
-        <div class="grid2">
-          <div class="card">
-            <div class="sec-h"><h3>Вовлечённость · 30 дней</h3></div>
-            <div id="biEngagement"></div>
-          </div>
-          <div class="card">
-            <div class="sec-h"><h3>Экстренные события</h3><span class="link" data-view="emergencies">Все</span></div>
-            <div class="feed" id="feedMini"></div>
           </div>
         </div>
       </section>
@@ -376,11 +370,67 @@
       </section>
 
       <!-- ANALYTICS -->
+      <!-- ANALYTICS — the product BI module: the whole funnel from acquisition
+           to habit, for every part of Umay rather than the device fleet. -->
       <section class="view" id="analytics">
         <div class="kpis" id="anKpis"></div>
-        <div class="card" style="margin-top:14px">
-          <div class="sec-h"><h3>Охват контента</h3></div>
-          <div id="anContent"></div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Активная база · 30 дней</h3><span class="sub" id="anTrendSub">—</span></div>
+            <div class="chartwrap"><canvas id="anTrend" width="600" height="170"></canvas></div>
+            <div class="legend">
+              <span><i style="background:var(--accent)"></i>Активные за день</span>
+              <span><i style="background:var(--warn)"></i>Скользящая неделя</span>
+              <span><i style="background:var(--good)"></i>Регистрации</span>
+            </div>
+            <p class="sub" style="margin-top:10px">
+              Дневная активность пилообразная — по ней не читается направление.
+              Скользящая неделя показывает тренд.
+            </p>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Кривая удержания</h3><span class="sub">день 0 — день 30</span></div>
+            <div class="chartwrap"><canvas id="anRetCurve" width="600" height="170"></canvas></div>
+            <div id="biRetention"></div>
+            <p class="sub" style="margin-top:10px">
+              По всем когортам, у которых N-й день уже наступил. Размер когорты
+              рядом: 100% на двух пользователях — это шум, а не результат.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Динамика базы · 30 дней</h3><span class="sub">откуда взялись активные</span></div>
+            <div id="anGrowth"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Воронка активации</h3><span class="sub">аккаунты старше недели</span></div>
+            <div id="anFunnel"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Охват модулей</h3><span class="sub">пользователей, не событий</span></div>
+            <div id="anAdoption"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Вовлечённость · 30 дней</h3></div>
+            <div id="biEngagement"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Состав аудитории</h3></div>
+            <div id="anComposition"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Охват контента</h3></div>
+            <div id="anContent"></div>
+          </div>
         </div>
       </section>
 
@@ -507,6 +557,24 @@
   // Product metrics from GET /admin/bi. Null until it answers.
   let BI=null;
 
+  // A deploy is not atomic: this page can load against a backend that has not
+  // been updated yet, and an older /admin/bi answers 200 with a payload that
+  // simply lacks the newer fields. Reading through them threw a TypeError and
+  // took the whole tab down — a blank screen for a version skew that lasts a
+  // few minutes. Each block asks for what it needs and reports it as missing
+  // instead.
+  function biHas(){
+    if(!BI) return false;
+    for(const k of arguments){
+      const v=BI[k];
+      if(v===undefined||v===null) return false;
+      if(Array.isArray(v)&&!v.length) return false;
+    }
+    return true;
+  }
+  const NO_METRICS=`<div class="sub">Эндпоинт метрик недоступен.</div>`;
+  const OLD_METRICS=`<div class="sub">Бэкенд отвечает более старой версией метрик — этот блок в ней ещё не считается.</div>`;
+
   function pct(x){return (x*100).toFixed(x>=0.1?0:1)+"%"}
 
   // Trend of a series against the equivalent preceding window.
@@ -526,36 +594,218 @@
     return `<b${cls}>${d>=0?"+":""}${(d*100).toFixed(1)}%</b> к прошлым ${half} дн.`;
   }
 
+  // Обзор answers "what is happening right now" — the fleet, the intake, the
+  // events that need a person. Product metrics moved to «Аналитика» whole:
+  // the same figure computed on two screens eventually shows two values, and
+  // the reader has no way to tell which is right.
   function renderKpis(){
     const s=MOCK.stats;
-    if(!BI){
-      // No metrics endpoint: show the operational counters that ARE known and
-      // say the rest is missing, rather than filling the gap with plausible
-      // numbers.
-      const tiles=[
-        {lbl:"Устройств онлайн",dot:"var(--good)",val:s.devicesOnline,delta:"из подключённых"},
-        {lbl:"Тревог сегодня",dot:"var(--crit)",val:s.alertsToday,delta:"за сутки"},
-        {lbl:"Приём данных · час",dot:"var(--warn)",val:s.ingestLastHour,delta:"измерений получено"},
-        {lbl:"Продуктовые метрики",dot:"var(--muted)",val:"—",delta:"эндпоинт недоступен"}
-      ];
-      $("#kpis").innerHTML=tiles.map(kpiTile).join("");
-      return;
-    }
     const b=BI;
     const tiles=[
+      {lbl:"Устройств онлайн",dot:"var(--good)",
+       val:b?b.devices.online:s.devicesOnline,
+       delta:b&&b.devices.total?pct(b.devices.online/b.devices.total)+" из "+fmt(b.devices.total):"из подключённых"},
+      {lbl:"Тревог сегодня",dot:"var(--crit)",val:s.alertsToday,
+       delta:b?`за 7 дней: ${fmt(b.safety.alerts7d)}`:"за сутки"},
+      {lbl:"Приём данных · час",dot:"var(--warn)",val:s.ingestLastHour,delta:"измерений получено"},
+      {lbl:"Активных сегодня",dot:"var(--accent)",val:b?b.dau:"—",
+       delta:b?trend(b.dauSeries):"эндпоинт метрик недоступен"}
+    ];
+    $("#kpis").innerHTML=tiles.map(kpiTile).join("");
+  }
+
+  // ---- Аналитика: the product BI module ----
+
+  function anKpiTiles(b){
+    // The four windows are the oldest fields and are always present; growth
+    // and funnel arrived later, so their tiles are appended only when the
+    // backend actually sends them.
+    const core=[
       {lbl:"DAU · активных сегодня",dot:"var(--accent)",val:b.dau,delta:trend(b.dauSeries)},
       {lbl:"WAU · за 7 дней",dot:"var(--accent)",val:b.wau,delta:b.mau?pct(b.wau/b.mau)+" от MAU":"—"},
       {lbl:"MAU · за 30 дней",dot:"var(--accent)",val:b.mau,delta:pct(b.activeRate)+" от всей базы"},
       {lbl:"Липкость · DAU/MAU",dot:"var(--good)",val:pct(b.stickiness),
        delta:b.stickiness>=0.2?"здоровый уровень":"ниже ориентира 20%"},
-      {lbl:"Новых за 7 дней",dot:"var(--good)",val:b.newUsers.d7,delta:trend(b.signupSeries)},
-      {lbl:"Всего аккаунтов",dot:"var(--muted)",val:b.totalUsers,delta:`+${fmt(b.newUsers.today)} сегодня`},
-      {lbl:"Устройств онлайн",dot:"var(--good)",val:b.devices.online,
-       delta:b.devices.total?pct(b.devices.online/b.devices.total)+" из "+fmt(b.devices.total):"нет устройств"},
-      {lbl:"Тревог за 7 дней",dot:"var(--crit)",val:b.safety.alerts7d,
-       delta:`SOS всего: ${fmt(b.safety.sosAllTime)}`}
+      {lbl:"Новых за 7 дней",dot:"var(--good)",val:b.newUsers.d7,delta:trend(b.signupSeries)}
     ];
-    $("#kpis").innerHTML=tiles.map(kpiTile).join("");
+    if(biHas("growth")){
+      const g=b.growth;
+      // Net is the number a flat MAU hides: the base can hold steady while it
+      // replaces its users completely.
+      core.push(
+        {lbl:"Чистый прирост · 30 дней",dot:g.net>=0?"var(--good)":"var(--crit)",
+         val:(g.net>0?"+":"")+fmt(g.net),
+         delta:`+${fmt(g.new)} новых · −${fmt(g.churned)} ушли`},
+        {lbl:"Отток · 30 дней",dot:g.churnRate>0.3?"var(--crit)":"var(--warn)",val:pct(g.churnRate),
+         delta:`вернулись: ${fmt(g.resurrected)}`});
+    }
+    if(biHas("funnel")){
+      const habit=b.funnel.find(s=>s.key==="habit");
+      const end=b.funnel[b.funnel.length-1];
+      core.push({lbl:"Доходят до привычки",dot:"var(--accent)",
+        val:habit?pct(habit.ofCohort):"—",
+        delta:end?`активны сейчас: ${fmt(end.users)}`:"—"});
+    }
+    return core;
+  }
+
+  const MODULE_LABELS={telemetry:"Здоровье · измерения",location:"Геолокация ребёнка",
+    chat:"Ассистент",alert:"Тревоги",sos:"SOS",emergency:"Экстренные"};
+
+  function bar(label,right,frac,color){
+    const w=Math.max(0,Math.min(100,Math.round(frac*100)));
+    return `<div style="margin:9px 0">
+      <div style="display:flex;justify-content:space-between;gap:8px"><span>${label}</span><span class="sub">${right}</span></div>
+      <div style="height:7px;border-radius:99px;background:var(--hair);overflow:hidden;margin-top:4px">
+        <div style="height:100%;width:${w}%;background:${color}"></div>
+      </div></div>`;
+  }
+
+  function renderGrowth(){
+    const el=$("#anGrowth"); if(!el) return;
+    if(!BI){ el.innerHTML=NO_METRICS; return; }
+    if(!biHas("growth")){ el.innerHTML=OLD_METRICS; return; }
+    const g=BI.growth;
+    const inbound=g.new+g.returning+g.resurrected;
+    const scale=Math.max(1,inbound,g.churned);
+    el.innerHTML=`
+      <p class="sub" style="margin-bottom:10px">
+        Активные за 30 дней против предыдущих 30. Ровный MAU может означать
+        стабильную базу, а может — что отток целиком закрывается привлечением.
+      </p>
+      ${bar("Новые","+"+fmt(g.new),g.new/scale,"var(--good)")}
+      ${bar("Вернувшиеся","+"+fmt(g.resurrected),g.resurrected/scale,"var(--accent)")}
+      ${bar("Остались","="+fmt(g.returning),g.returning/scale,"var(--muted)")}
+      ${bar("Ушли","−"+fmt(g.churned),g.churned/scale,"var(--crit)")}
+      <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">
+        <span>Чистое изменение</span>
+        <b style="color:${g.net>=0?"var(--good)":"var(--crit)"}">${g.net>0?"+":""}${fmt(g.net)}</b>
+      </div>`;
+  }
+
+  function renderFunnel(){
+    const el=$("#anFunnel"); if(!el) return;
+    if(!BI){ el.innerHTML=NO_METRICS; return; }
+    if(!biHas("funnel")){ el.innerHTML=OLD_METRICS; return; }
+    const labels={signed_up:"Зарегистрировались",activated:"Первое действие",
+      habit:"Три активных дня",retained:"Активны за 7 дней"};
+    const f=BI.funnel, cohort=f[0]?f[0].users:0;
+    if(!cohort){
+      el.innerHTML=`<div class="sub">Пока нет аккаунтов старше недели — воронке не на чем считаться.</div>`;
+      return;
+    }
+    el.innerHTML=f.map((s,i)=>{
+      const drop=i>0?`<span class="sub">${pct(s.ofPrevious)} от предыдущего</span>`:`<span class="sub">когорта</span>`;
+      return bar(`${labels[s.key]||s.key} ${drop}`,`${fmt(s.users)} · ${pct(s.ofCohort)}`,
+                 s.ofCohort,i===0?"var(--muted)":"var(--accent)");
+    }).join("")+`
+      <p class="sub" style="margin-top:10px">
+        Аккаунты младше недели исключены: у них ещё не было недели, чтобы
+        сформировать привычку, и в воронке они читались бы как потери.
+      </p>`;
+  }
+
+  function renderAdoption(){
+    const el=$("#anAdoption"); if(!el) return;
+    if(!BI){ el.innerHTML=NO_METRICS; return; }
+    if(!biHas("adoption")){ el.innerHTML=OLD_METRICS; return; }
+    const rows=Object.entries(BI.adoption).sort((a,b)=>b[1].users-a[1].users);
+    el.innerHTML=`<p class="sub" style="margin-bottom:10px">
+        Доля активных за 30 дней, кто пользовался модулем. Считаются люди, а не
+        события: измерения приходят по таймеру и в событийной разбивке всегда
+        выглядят самым востребованным разделом.
+      </p>`+
+      rows.map(([k,a])=>bar(MODULE_LABELS[k]||k,
+        a.users?`${fmt(a.users)} · ${pct(a.share)}`:"не используется",
+        a.share,a.users?"var(--accent)":"var(--hair)")).join("");
+  }
+
+  function renderComposition(a){
+    const el=$("#anComposition"); if(!el) return;
+    if(!a){ el.innerHTML=`<div class="sub">API аналитики недоступен.</div>`; return; }
+    const share=n=>a.totalUsers?n/a.totalUsers:0;
+    el.innerHTML=`
+      ${bar("Беременны",`${fmt(a.pregnant)} · ${pct(share(a.pregnant))}`,share(a.pregnant),"var(--accent)")}
+      ${bar("С детьми",`${fmt(a.withChildren)} · ${pct(share(a.withChildren))}`,share(a.withChildren),"var(--good)")}
+      ${bar("Со сцепленным устройством",`${fmt(a.devices)} · ${pct(share(a.devices))}`,share(a.devices),"var(--warn)")}
+      <p class="sub" style="margin-top:10px">Всего аккаунтов: <b>${fmt(a.totalUsers)}</b>. Группы пересекаются.</p>`;
+  }
+
+  // The BI module. Two endpoints feed it: /admin/bi for behaviour over time,
+  // /admin/analytics for the composition of the base. Each half renders on its
+  // own, so one failing endpoint leaves the other readable rather than
+  // blanking the screen.
+  async function renderAnalytics(){
+    const kpis=$("#anKpis");
+    if(kpis){
+      kpis.innerHTML=BI
+        ? anKpiTiles(BI).map(kpiTile).join("")
+        : `<div class="sub">Эндпоинт продуктовых метрик недоступен — показывать за период нечего.</div>`;
+    }
+    renderGrowth();
+    renderFunnel();
+    renderAdoption();
+    renderRetention();
+    renderEngagement();
+    drawAn();
+
+    let a=null;
+    try{ a=await api("/admin/analytics"); }catch(e){ /* rendered as unavailable */ }
+    renderComposition(a);
+    const c=$("#anContent");
+    if(c){
+      c.innerHTML=a
+        ? `<div class="sub">${fmt(a.contentStages)} из 101 этапа с контентом · ${fmt(a.contentItems)} материалов ·
+             <b>${fmt(a.contentLinked)}</b> со ссылкой (${a.contentItems?Math.round(a.contentLinked/a.contentItems*100):0}%).
+             Без ссылки материал показывается как «Скоро».</div>`
+        : `<div class="sub">API аналитики недоступен.</div>`;
+    }
+  }
+
+  // The retention curve. A single D7 number says whether users come back; the
+  // shape says whether the product ever stops losing them — a curve that
+  // flattens has a core, one that keeps falling does not.
+  function drawRetentionCurve(){
+    const c=$("#anRetCurve"); if(!c) return;
+    const dpr=window.devicePixelRatio||1;
+    const w=c.clientWidth||600, h=170; c.width=w*dpr; c.height=h*dpr;
+    const ctx=c.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+    const cs=getComputedStyle(document.documentElement);
+    const grid=cs.getPropertyValue("--hair").trim();
+    const accent=cs.getPropertyValue("--accent").trim();
+    const muted=cs.getPropertyValue("--muted").trim();
+    ctx.font="11px system-ui,sans-serif";
+    if(!BI||!BI.retentionCurve||!BI.retentionCurve.length){
+      ctx.fillStyle=muted;ctx.font="13px system-ui,sans-serif";ctx.textAlign="center";
+      ctx.fillText("нет данных",w/2,h/2);return;
+    }
+    const pad={t:10,b:18,l:26};
+    const yOf=r=>pad.t+(1-r)*(h-pad.t-pad.b);
+    const xOf=i=>pad.l+(w-pad.l-4)*i/(BI.retentionCurve.length-1);
+    for(let i=0;i<=4;i++){
+      const y=pad.t+(h-pad.t-pad.b)*i/4;
+      ctx.strokeStyle=grid;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w,y);ctx.stroke();
+      ctx.fillStyle=muted;ctx.textAlign="right";ctx.fillText(`${100-i*25}%`,pad.l-4,y+3);
+    }
+    // A point whose cohort is too small to mean anything is drawn hollow
+    // rather than smoothed into the line, so a spike off three users reads as
+    // what it is.
+    const pts=BI.retentionCurve.map((p,i)=>({x:xOf(i),y:yOf(p.rate),thin:p.cohort<20,day:p.day,cohort:p.cohort}));
+    const solid=pts.filter(p=>!p.thin);
+    if(solid.length>1){
+      ctx.beginPath();solid.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+      const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,accent+"3D");g.addColorStop(1,accent+"00");
+      ctx.lineTo(solid[solid.length-1].x,h-pad.b);ctx.lineTo(solid[0].x,h-pad.b);ctx.closePath();
+      ctx.fillStyle=g;ctx.fill();
+      ctx.beginPath();solid.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+      ctx.strokeStyle=accent;ctx.lineWidth=2.4;ctx.lineJoin="round";ctx.stroke();
+    }
+    pts.filter(p=>p.thin&&p.cohort>0).forEach(p=>{
+      ctx.strokeStyle=muted;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,7);ctx.stroke();
+    });
+    ctx.fillStyle=muted;ctx.font="11px system-ui,sans-serif";
+    ctx.textAlign="left";ctx.fillText("день 0",pad.l,h-4);
+    ctx.textAlign="right";ctx.fillText("день 30",w-2,h-4);
   }
   function kpiTile(t){
     return `<div class="card kpi"><div class="lbl"><span class="dot" style="background:${t.dot}"></span>${t.lbl}</div><div class="val">${fmt(t.val)}</div><div class="delta">${t.delta}</div></div>`;
@@ -563,7 +813,7 @@
 
   function renderRetention(){
     const el=$("#biRetention"); if(!el) return;
-    if(!BI){ el.innerHTML=`<div class="sub">Эндпоинт метрик недоступен.</div>`; return; }
+    if(!BI){ el.innerHTML=NO_METRICS; return; }
     const rows=[["D1",BI.retention.d1],["D7",BI.retention.d7],["D30",BI.retention.d30]];
     el.innerHTML=rows.map(([lbl,r])=>{
       // A rate computed from almost nobody is reported as unknown rather than
@@ -584,7 +834,7 @@
 
   function renderEngagement(){
     const el=$("#biEngagement"); if(!el) return;
-    if(!BI){ el.innerHTML=`<div class="sub">Эндпоинт метрик недоступен.</div>`; return; }
+    if(!BI){ el.innerHTML=NO_METRICS; return; }
     const e=BI.engagement;
     const labels={telemetry:"Измерения",location:"Геолокация",chat:"Ассистент",alert:"Тревоги",emergency:"Экстренные",sos:"SOS"};
     const mix=Object.entries(e.eventMix).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
@@ -632,8 +882,13 @@
   // Replaces a canvas that drew two literal arrays — [1,0,2,1,3,2,3] — under the
   // heading "Alerts · last 7 days", in live mode as well as demo. It was never
   // anyone's data.
-  function drawBiTrend(){
-    const c=$("#biTrend"); if(!c) return;
+  //
+  // Drawn on two screens from one function: Обзор reads it as intake volume,
+  // «Аналитика» adds the rolling week. Two copies of the drawing code would be
+  // two charts that disagree about the same series after the first edit.
+  function drawBiTrend(canvasId,subId,opts){
+    const withWau=!!(opts&&opts.withWau);
+    const c=$(canvasId); if(!c) return;
     const dpr=window.devicePixelRatio||1;
     const w=c.clientWidth||600, h=170; c.width=w*dpr; c.height=h*dpr;
     const ctx=c.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
@@ -643,7 +898,8 @@
     const good=cs.getPropertyValue("--good").trim();
     const muted=cs.getPropertyValue("--muted").trim();
 
-    const sub=$("#biTrendSub");
+    const warn=cs.getPropertyValue("--warn").trim();
+    const sub=$(subId);
     if(!BI||!BI.dauSeries.length){
       ctx.fillStyle=muted;ctx.font="13px system-ui,sans-serif";ctx.textAlign="center";
       ctx.fillText("нет данных",w/2,h/2);
@@ -653,7 +909,10 @@
     const dau=BI.dauSeries, sign=BI.signupSeries;
     // A flat-zero series must not divide by zero, and a single busy day must
     // not flatten every other day into the axis.
-    const max=Math.max(1,...dau.map(p=>p.value));
+    // One scale for both lines. They count the same people over different
+    // windows, so separate scales would draw a crossover that never happened.
+    const wau=(withWau&&BI.wauSeries)?BI.wauSeries:[];
+    const max=Math.max(1,...dau.map(p=>p.value),...wau.map(p=>p.value));
     const smax=Math.max(1,...sign.map(p=>p.value));
     const padT=10,padB=18;
     const yOf=(v,m)=>h-padB-(v/m)*(h-padT-padB);
@@ -675,6 +934,15 @@
     ctx.strokeStyle=accent;ctx.lineWidth=2.4;ctx.lineJoin="round";ctx.stroke();
     const last=pts[pts.length-1];
     ctx.fillStyle=accent;ctx.beginPath();ctx.arc(last[0]-1.5,last[1],4,0,7);ctx.fill();
+
+    // The rolling week, on the same axis as DAU — it is a count of the same
+    // people over a wider window, so a second scale would invite reading a
+    // crossover that does not exist.
+    if(wau.length){
+      const wpts=wau.map((p,i)=>[w*i/(wau.length-1),yOf(p.value,max)]);
+      ctx.beginPath();wpts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+      ctx.strokeStyle=warn;ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
+    }
 
     ctx.fillStyle=muted;ctx.font="11px system-ui,sans-serif";
     ctx.textAlign="left";ctx.fillText(dau[0].date.slice(5),2,h-4);
@@ -762,11 +1030,18 @@
     // than throwing and leaving the panel half-switched.
     const t=titles[v]||[v,""];
     $("#pageTitle").textContent=t[0];$("#pageSub").innerHTML=t[1];
-    if(v==="overview")drawBiTrend();
+    if(v==="overview")drawOps();
+    if(v==="analytics")renderAnalytics();
     window.scrollTo(0,0);
   }
 
-  function render(){renderKpis();renderRetention();renderEngagement();renderFeeds();renderUsers();renderAudit();drawBiTrend();}
+  // Canvases size themselves from their container, which is 0 wide while the
+  // section is hidden — so each chart is drawn when its view becomes visible,
+  // not once at boot.
+  const drawOps=()=>drawBiTrend("#opsTrend","#opsTrendSub",{});
+  const drawAn=()=>{drawBiTrend("#anTrend","#anTrendSub",{withWau:true});drawRetentionCurve();};
+
+  function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawOps();}
 
   // Events
   document.addEventListener("click",e=>{
@@ -777,9 +1052,15 @@
   $("#userSearch").addEventListener("input",e=>renderUsers(e.target.value));
   $("#themeBtn").addEventListener("click",()=>{
     const r=document.documentElement, cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
-    r.setAttribute("data-theme",cur==="dark"?"light":"dark");drawBiTrend();
+    r.setAttribute("data-theme",cur==="dark"?"light":"dark");redrawActive();
   });
-  window.addEventListener("resize",()=>{if($("#overview").classList.contains("active"))drawBiTrend();});
+  // Charts read their colours from the theme and their width from the layout,
+  // so both a theme switch and a resize have to redraw whatever is on screen.
+  function redrawActive(){
+    if($("#overview").classList.contains("active"))drawOps();
+    if($("#analytics").classList.contains("active"))drawAn();
+  }
+  window.addEventListener("resize",redrawActive);
   $("#staffName").textContent=STAFF.name;$("#staffRole").textContent=STAFF.role;$("#staffAv").textContent=STAFF.name.replace("Dr. ","")[0];
 
   boot();
@@ -1166,34 +1447,6 @@
       "Событий безопасности пока нет.");
   }
 
-  async function loadAnalytics() {
-    let a = null;
-    try { a = await api("/admin/analytics"); } catch { /* handled below */ }
-    const kpis = $("#anKpis");
-    if (!a) { if (kpis) kpis.innerHTML = `<div class="sub">API аналитики недоступен.</div>`; return; }
-    const card = (label, value) =>
-      `<div class="card kpi"><div class="lbl">${esc(label)}</div><div class="val">${esc(value)}</div></div>`;
-    if (kpis) {
-      // Состав базы, а не её объём. Пользователи, устройства, тревоги и SOS
-      // теперь живут на «Обзоре» вместе с DAU/MAU и удержанием — держать те же
-      // четыре счётчика на двух экранах значит однажды показать в них разные
-      // числа и заставить читателя гадать, какой из них верный.
-      const share = (n) => (a.totalUsers ? ` · ${Math.round((n / a.totalUsers) * 100)}%` : "");
-      kpis.innerHTML = [
-        card("Беременны", `${a.pregnant}${share(a.pregnant)}`),
-        card("С детьми", `${a.withChildren}${share(a.withChildren)}`),
-        card("Со сцепленным устройством", `${a.devices}${share(a.devices)}`),
-      ].join("");
-    }
-    const c = $("#anContent");
-    if (c) {
-      const pct = a.contentItems ? Math.round((a.contentLinked / a.contentItems) * 100) : 0;
-      c.innerHTML = `<div class="sub">
-        ${a.contentStages} из 101 этапа с контентом · ${a.contentItems} материалов ·
-        <b>${a.contentLinked}</b> со ссылкой (${pct}%). Без ссылки материал показывается как «Скоро».
-      </div>`;
-    }
-  }
 
   // Wire up. The dashboard's own click handler drives nav switching; these
   // listeners only add behaviour, so both coexist.
@@ -1208,7 +1461,9 @@
       if (v === "content") loadContent();
       if (v === "devices") loadDevices();
       if (v === "safety") loadSafety();
-      if (v === "analytics") loadAnalytics();
+      // «Аналитика» is rendered by the dashboard script above, which owns the
+      // BI payload and the chart code. One owner per view: when this file had
+      // two, the tab rendered twice and the second pass overwrote the first.
     }
   });
   const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
