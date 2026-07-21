@@ -890,7 +890,10 @@ class AppController {
   void setChildBattery(String childId, int pct) {
     final next = clampPct(pct);
     final prev = _childBattery[childId];
-    final crossedIntoLow = isLowBattery(next) && (prev == null || !isLowBattery(prev));
+    // Fires on each WORSENING step, so 20%% → 5%% is announced too. It used to
+    // treat low and critical as one bucket, so the tracker going from "low" to
+    // "about to die" was the one transition that said nothing.
+    final crossedIntoLow = batteryWarningWorsened(prev, next);
     _childBattery[childId] = next;
     _batteryHistory[childId] = appendBatteryReading(_batteryHistory[childId] ?? const [], next, _now());
     if (crossedIntoLow) {

@@ -24,6 +24,33 @@ bool isLowBattery(int pct) {
 /// Clamp a raw reading into 0..100.
 int clampPct(int pct) => pct < 0 ? 0 : (pct > 100 ? 100 : pct);
 
+/// How bad a level is, for comparing two of them. Higher is worse.
+int _severity(BatteryLevel l) => switch (l) {
+      BatteryLevel.full => 0,
+      BatteryLevel.ok => 1,
+      BatteryLevel.low => 2,
+      BatteryLevel.critical => 3,
+    };
+
+/// Whether going from [prev] to [next] is worth telling a parent about.
+///
+/// True only when the battery drops INTO a worse warning level — so a tracker
+/// sitting at 20% and reporting every few minutes is announced once, not
+/// forever, and charging back up is silent.
+///
+/// The bug this replaces: the check was `isLowBattery(next) && !isLowBattery(prev)`,
+/// and isLowBattery covers low AND critical as one bucket. So 30% → 20% alerted,
+/// and then 20% → 5% did not: the tracker going from "low" to "about to die"
+/// was the one transition that stayed silent. That is the transition that
+/// matters — it is the last chance to charge it before the child is carrying
+/// something that has stopped reporting.
+bool batteryWarningWorsened(int? prev, int next) {
+  final nextLevel = batteryLevel(next);
+  if (nextLevel != BatteryLevel.low && nextLevel != BatteryLevel.critical) return false;
+  if (prev == null) return true; // first reading, already in a warning state
+  return _severity(nextLevel) > _severity(batteryLevel(prev));
+}
+
 /// A single timestamped battery reading, kept in a per-child history. Pure + JSON.
 class BatteryReading {
   final DateTime at;

@@ -53,6 +53,53 @@ void main() {
   }
   _chk('history capped at 10', capped.length == 10 && capped.last.pct == 61);
 
+  // ---- The tracker dying is the alert that matters most ----
+  //
+  // The check was `isLowBattery(next) && !isLowBattery(prev)`, and isLowBattery
+  // treats low AND critical as one bucket. So 30% → 20% alerted and 20% → 5%
+  // did not: the tracker going from "low" to "about to die" was the one
+  // transition that said nothing — the last chance to charge it before the
+  // child is carrying something that has stopped reporting.
+  _chk('dropping into low warns', batteryWarningWorsened(30, 20));
+  _chk('dropping from low into critical warns too', batteryWarningWorsened(20, 5));
+  _chk('falling straight from full to critical warns',
+      batteryWarningWorsened(90, 4));
+
+  // Suppression within a level: a tracker sitting at 20% reporting every few
+  // minutes is announced once, not forever.
+  _chk('staying low does not repeat', !batteryWarningWorsened(20, 18));
+  _chk('staying critical does not repeat', !batteryWarningWorsened(8, 5));
+  _chk('an ordinary level says nothing', !batteryWarningWorsened(90, 60));
+  _chk('dropping within ok says nothing', !batteryWarningWorsened(80, 30));
+
+  // Charging back up is silent in every direction.
+  _chk('critical → low does not warn', !batteryWarningWorsened(5, 20));
+  _chk('low → ok does not warn', !batteryWarningWorsened(20, 60));
+  _chk('critical → full does not warn', !batteryWarningWorsened(3, 100));
+
+  // A first reading that is already in a warning state should say so.
+  _chk('a first reading already low warns', batteryWarningWorsened(null, 20));
+  _chk('a first reading already critical warns', batteryWarningWorsened(null, 5));
+  _chk('a first reading that is fine says nothing', !batteryWarningWorsened(null, 75));
+
+  // The boundaries themselves.
+  _chk('26 is not yet low', !batteryWarningWorsened(80, 26));
+  _chk('25 is low', batteryWarningWorsened(80, 25));
+  _chk('11 is still only low', !batteryWarningWorsened(20, 11));
+  _chk('10 is critical', batteryWarningWorsened(20, 10));
+
+  // A drain from full to empty announces exactly twice — once entering low,
+  // once entering critical — however many readings arrive in between.
+  {
+    var warnings = 0;
+    int? prev;
+    for (final pct in [100, 90, 74, 60, 45, 30, 26, 25, 22, 18, 14, 11, 10, 7, 4, 1, 0]) {
+      if (batteryWarningWorsened(prev, pct)) warnings++;
+      prev = pct;
+    }
+    _chk('a full drain warns exactly twice', warnings == 2);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
