@@ -148,3 +148,37 @@ int? monthsUntilNextVisit(int ageMonths, [List<Vaccine> schedule = kzSchedule]) 
   final next = nextVisit(ageMonths, schedule);
   return next.isEmpty ? null : next.first.atMonth - ageMonths;
 }
+
+/// When to remind a parent about the next visit.
+///
+/// The morning the child reaches the next scheduled age, since the birthday of
+/// a month is the day the visit becomes due. Null when the schedule is complete
+/// or the date would already be in the past — a reminder that fires in the past
+/// never arrives, so there is nothing to schedule.
+///
+/// [dob] is a date; the reminder is stamped at [hour] local time so it lands
+/// during the day rather than at midnight.
+DateTime? nextVaccinationReminderAt({
+  required DateTime dob,
+  required DateTime now,
+  int hour = 10,
+  List<Vaccine> schedule = kzSchedule,
+}) {
+  final ageMonths = _wholeMonths(dob, now);
+  final next = nextVisit(ageMonths, schedule);
+  if (next.isEmpty) return null;
+
+  // The date the child turns next.first.atMonth months old.
+  final dueDate = DateTime(dob.year, dob.month + next.first.atMonth, dob.day, hour);
+  // A visit whose age has already arrived (a late catch-up) is not scheduled in
+  // the past; the screen already shows it as due.
+  if (!dueDate.isAfter(now)) return null;
+  return dueDate;
+}
+
+/// Completed months between [dob] and [now], by the calendar.
+int _wholeMonths(DateTime dob, DateTime now) {
+  var months = (now.year - dob.year) * 12 + (now.month - dob.month);
+  if (now.day < dob.day) months--;
+  return months < 0 ? 0 : months;
+}

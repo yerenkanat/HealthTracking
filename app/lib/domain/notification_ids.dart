@@ -40,15 +40,25 @@ class NotifyIds {
   static const appointmentBase = 1000000;
   static const appointmentSpan = 1000000;
 
+  /// The next vaccination visit, one reminder per child, keyed by child id.
+  /// Kept above the appointment block, which reaches 1_999_999.
+  static const vaccinationBase = 2000000;
+  static const vaccinationSpan = 1000000;
+
   static const blocks = <NotifyBlock>[
     NotifyBlock('alerts', alertBase, alertBase + alertSpan - 1),
     NotifyBlock('cycle', 800001, 800002),
     NotifyBlock('daily', 900001, 900002),
     NotifyBlock('appointments', appointmentBase, appointmentBase + appointmentSpan - 1),
+    NotifyBlock('vaccination', vaccinationBase, vaccinationBase + vaccinationSpan - 1),
   ];
 
   static int forAppointment(String appointmentId) =>
       appointmentBase + ((appointmentId.hashCode & 0x7fffffff) % appointmentSpan);
+
+  /// Id for a child's next-vaccination reminder.
+  static int forVaccination(String childId) =>
+      vaccinationBase + ((childId.hashCode & 0x7fffffff) % vaccinationSpan);
 
   /// Id for the [seq]-th immediate alert of this run.
   ///

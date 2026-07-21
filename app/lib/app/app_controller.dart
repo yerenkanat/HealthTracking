@@ -40,6 +40,7 @@ import '../domain/hydration.dart';
 import '../domain/kick_session.dart';
 import '../domain/manual_vitals.dart';
 import '../domain/medication.dart';
+import '../domain/vaccination.dart';
 import '../domain/weight.dart';
 import '../domain/manual_sleep.dart';
 import '../domain/sleep.dart';
@@ -503,6 +504,7 @@ class AppController {
   void addChild(ChildProfile child) {
     _children.add(child);
     _selectedChildId ??= child.id;
+    _emitVaccinationReminder(child);
     _persist();
     _notify();
   }
@@ -518,6 +520,9 @@ class AppController {
     final i = _children.indexWhere((c) => c.id == child.id);
     if (i < 0) return;
     _children[i] = child;
+    // The birth date may have changed, moving the next visit; re-emit so the OS
+    // reminder tracks it (or is cancelled if the date was cleared).
+    _emitVaccinationReminder(child);
     _persist();
     _notify();
   }
@@ -564,6 +569,11 @@ class AppController {
     _children.removeWhere((c) => c.id == id);
     // Tags tied to that child go too.
     _devices.removeWhere((d) => d.childId == id);
+    // And the child's vaccination reminder, or the phone goes on announcing a
+    // visit for a child that is no longer in the app.
+    if (!_reminderStream.isClosed) {
+      _reminderStream.add(ReminderCommand.cancel(vaccinationReminderIdFor(id)));
+    }
     if (_selectedChildId == id) {
       _selectedChildId = _children.isNotEmpty ? _children.first.id : null;
     }
@@ -764,6 +774,33 @@ class AppController {
     return ReminderCommand.schedule(reminderIdFor(a.id), a.at, a.title, body);
   }
 
+  // ---- Vaccination next-visit reminder (one per child) ----
+  static int vaccinationReminderIdFor(String childId) =>
+      NotifyIds.forVaccination(childId);
+
+  /// The schedule/cancel command for a child's next vaccination visit.
+  ///
+  /// Cancels — rather than schedules — when the child has no birth date or the
+  /// schedule is complete. Because the id is derived from the child id alone,
+  /// re-emitting for the same child replaces whatever the OS held, so a birth
+  /// date corrected after the fact does not leave a reminder armed for the old
+  /// date.
+  ReminderCommand _vaccinationCommandFor(ChildProfile c) {
+    final id = vaccinationReminderIdFor(c.id);
+    final dob = c.dateOfBirth;
+    if (dob == null) return ReminderCommand.cancel(id);
+    final at = nextVaccinationReminderAt(dob: dob, now: _now());
+    if (at == null) return ReminderCommand.cancel(id);
+    final l = L10n(_locale);
+    return ReminderCommand.schedule(
+        id, at, l.t('vac_reminder_title'), l.t('vac_reminder_body', {'name': c.name}));
+  }
+
+  void _emitVaccinationReminder(ChildProfile c) {
+    if (_reminderStream.isClosed) return;
+    _reminderStream.add(_vaccinationCommandFor(c));
+  }
+
   // ---- Medications & supplements ----
   /// The medicines/supplements the user tracks, in the order they added them.
   List<Medication> get medications => List.unmodifiable(_medications);
@@ -865,6 +902,11 @@ class AppController {
     for (final a in _appointments) {
       if (a.at.isAfter(now)) _reminderStream.add(_scheduleCommandFor(a));
     }
+    // The next vaccination visit per child. _vaccinationCommandFor emits a
+    // cancel for a child with no future visit, which is harmless to re-arm.
+    for (final c in _children) {
+      _reminderStream.add(_vaccinationCommandFor(c));
+    }
   }
 
   /// Cancel every reminder this app has armed with the OS.
@@ -881,6 +923,9 @@ class AppController {
     if (_reminderStream.isClosed) return;
     for (final a in _appointments) {
       _reminderStream.add(ReminderCommand.cancel(reminderIdFor(a.id)));
+    }
+    for (final c in _children) {
+      _reminderStream.add(ReminderCommand.cancel(vaccinationReminderIdFor(c.id)));
     }
     _reminderStream
       ..add(const ReminderCommand.cancel(_periodReminderId))

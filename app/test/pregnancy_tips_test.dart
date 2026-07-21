@@ -9,7 +9,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
-import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/timeline_content.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';

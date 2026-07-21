@@ -8,6 +8,7 @@ library;
 
 import 'dart:io';
 import '../lib/domain/vaccination.dart';
+import '../lib/domain/notification_ids.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -115,6 +116,55 @@ void main() {
     _chk('groups come out in age order',
         byAge.keys.toList().toString() == (byAge.keys.toList()..sort()).toString());
     _chk('the birth visit holds more than one vaccine', (byAge[0] ?? []).length >= 2);
+  }
+
+  // ---- The next-visit reminder ----
+  {
+    // A two-month-old: the next visit is at 3 months, so the reminder is on the
+    // day they turn three months, in the future.
+    final dob = DateTime(2026, 5, 22);
+    final now = DateTime(2026, 7, 22); // 2 months
+    final at = nextVaccinationReminderAt(dob: dob, now: now);
+    _chk('a reminder is scheduled for the next visit', at != null);
+    _chk('on the day the child reaches that age', at!.month == 8 && at.day == 22);
+    _chk('in the daytime, not at midnight', at.hour == 10);
+    _chk('and in the future', at.isAfter(now));
+  }
+  {
+    // Past the last vaccine there is nothing left to remind about.
+    final dob = DateTime(2019, 1, 1);
+    final now = DateTime(2026, 7, 22); // ~7.5 years
+    _chk('no reminder once the schedule is complete',
+        nextVaccinationReminderAt(dob: dob, now: now) == null);
+  }
+  {
+    // A newborn's next visit (2 months) is genuinely ahead.
+    final dob = DateTime(2026, 7, 20);
+    final now = DateTime(2026, 7, 22);
+    final at = nextVaccinationReminderAt(dob: dob, now: now);
+    _chk('a newborn gets a reminder for the two-month visit',
+        at != null && at.month == 9 && at.day == 20);
+  }
+  {
+    // A reminder that would land in the past is not scheduled — it would never
+    // fire. (Child is 2 months and 3 days; the 2-month visit date has passed.)
+    final dob = DateTime(2026, 5, 19);
+    final now = DateTime(2026, 7, 22);
+    final at = nextVaccinationReminderAt(dob: dob, now: now);
+    // The 2-month date (Jul 19) is past, so the reminder is for the 3-month
+    // visit, not scheduled in the past.
+    _chk('a passed visit is not scheduled in the past',
+        at != null && at.isAfter(now));
+  }
+  {
+    // The notification id is stable per child and lands in its own block.
+    final id = NotifyIds.forVaccination('child-1');
+    _chk('the vaccination id is inside its block',
+        id >= NotifyIds.vaccinationBase && id < NotifyIds.vaccinationBase + NotifyIds.vaccinationSpan);
+    _chk('and is stable for the same child',
+        NotifyIds.forVaccination('child-1') == id);
+    _chk('and differs from another child',
+        NotifyIds.forVaccination('child-2') != id);
   }
 
   // ---- The schedule covers the ages the app talks about ----

@@ -799,6 +799,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'This is a schedule, not a medical record: the app does not know which vaccinations have been given. The clinic keeps that record.',
   },
   'vac_revision': {AppLocale.ru: 'Календарь по состоянию на {d}', AppLocale.kk: '{d} жағдайы бойынша күнтізбе', AppLocale.en: 'Schedule as of {d}'},
+  // The next-visit reminder notification.
+  'vac_reminder_title': {AppLocale.ru: 'Скоро прививки', AppLocale.kk: 'Егулердің уақыты жақындады', AppLocale.en: 'Vaccinations coming up'},
+  'vac_reminder_body': {AppLocale.ru: 'У {name} по плану визит в поликлинику. Проверьте календарь прививок.', AppLocale.kk: '{name} үшін емханаға бару жоспарланған. Егу күнтізбесін тексеріңіз.', AppLocale.en: "{name} has a clinic visit due. Check the vaccination schedule."},
 
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},

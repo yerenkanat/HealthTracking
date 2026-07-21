@@ -430,7 +430,6 @@ Future<void> _deleteMeasurement(
 
 Future<void> _addMeasurement(
     BuildContext context, AppController controller, String childId, DateTime today) async {
-  final l = L10nScope.of(context);
   final result = await showModalBottomSheet<GrowthPoint>(
     context: context,
     isScrollControlled: true,
