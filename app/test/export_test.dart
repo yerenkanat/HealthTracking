@@ -42,6 +42,7 @@ void main() {
 
   test('export → import restores the data into a fresh controller', () {
     final a = AppController(now: () => DateTime(2026, 7, 15));
+    a.debugMarkOnboarded(); // a real backup comes from a set-up phone
     a.addAppointment('OB visit', DateTime(2026, 8, 1, 9, 0));
     a.logWeight(DateTime(2026, 7, 15), 65.0);
     a.addWater(DateTime(2026, 7, 15), 3);
@@ -54,6 +55,10 @@ void main() {
     expect(b.appointments.single.title, 'OB visit');
     expect(b.weights.single.kg, 65.0);
     expect(b.waterFor(DateTime(2026, 7, 15)), 3);
+    // Taken FROM THE FILE now, not forced. _applyConfig used to end with a
+    // hardcoded `_onboarded = true`, which looked harmless because restore()
+    // only ever ran on already-onboarded configs — and which quietly meant a
+    // reset could not return anyone to first-run.
     expect(b.onboarded, isTrue);
 
     a.dispose();

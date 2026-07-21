@@ -192,6 +192,18 @@ class SettingsScreen extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
                 onTap: () => _openImport(context, c),
               ),
+              // Erase everything. This app holds a child's name, date of birth
+              // and the coordinates of their home and school, plus a woman's
+              // reproductive history — there has to be a way to remove all of
+              // it from the phone, before selling it or simply on request.
+              // resetApp() existed for this and was wired to nothing.
+              _Row(
+                leading: Icons.delete_forever_outlined,
+                title: l.t('set_erase'),
+                subtitle: l.t('set_erase_sub'),
+                titleColor: Palette.danger,
+                onTap: () => _confirmErase(context, c),
+              ),
             ]),
 
             // ---- About ----
@@ -254,6 +266,27 @@ class SettingsScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// Erase everything on this phone.
+  ///
+  /// The confirmation names what goes and says a backup is the only way back,
+  /// because there is no undo — and the export dialog sits directly above this
+  /// row, so the remedy is one tap away if she wants it first.
+  Future<void> _confirmErase(BuildContext context, AppController c) async {
+    final l = L10nScope.of(context);
+    final ok = await confirmDestructive(
+      context,
+      title: l.t('set_erase_title'),
+      message: l.t('set_erase_body'),
+      confirmLabel: l.t('set_erase'),
+    );
+    if (!ok) return;
+    await c.resetApp();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('set_erased')), behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -517,7 +550,11 @@ class _Row extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
-  const _Row({required this.leading, this.leadingWidget, required this.title, this.subtitle, this.trailing, this.onTap});
+
+  /// Tints the title — used to mark an irreversible action as such before it
+  /// is tapped, not only in the dialog that follows.
+  final Color? titleColor;
+  const _Row({required this.leading, this.leadingWidget, required this.title, this.subtitle, this.trailing, this.onTap, this.titleColor});
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -532,7 +569,7 @@ class _Row extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                  Text(title, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: titleColor)),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(subtitle!, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),

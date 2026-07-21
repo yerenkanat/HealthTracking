@@ -187,8 +187,16 @@ class AppController {
     _notify();
   }
 
-  /// Replace all in-memory state from [cfg]. Shared by restore() and import.
+  /// Replace all in-memory state from [cfg]. Shared by restore(), import and
+  /// reset.
+  ///
+  /// This replaces EVERY persisted field, including [onboarded] — it was the
+  /// one thing left out, because restore() only calls this when the saved
+  /// config was already onboarded and so never noticed. That gap meant a reset
+  /// expressed as "apply an empty config" left the user inside the app instead
+  /// of returning them to first-run.
   void _applyConfig(PersistedConfig cfg) {
+    _onboarded = cfg.onboarded;
     _locale = cfg.locale;
     _profile = cfg.profile;
     _children
@@ -255,7 +263,10 @@ class AppController {
       ..clear()
       ..addAll(cfg.alerts);
     _lastChildZone = cfg.lastChildZone;
-    _onboarded = true;
+    // NOT `_onboarded = true` — that was here because restore() only ever
+    // called this with an already-onboarded config, so forcing it looked
+    // harmless. It silently overrode the value set from cfg at the top, which
+    // made a reset land the user back inside the app rather than at first-run.
   }
 
   /// Restore all durable data from a JSON backup (the [exportJson] format).
@@ -932,17 +943,35 @@ class AppController {
   }
 
   /// Wipe the session and return to onboarding (Settings → "Reset").
+  /// Erase everything and return to onboarding.
+  ///
+  /// Defined as "apply an EMPTY config" rather than as a list of things to
+  /// clear. The hand-written list cleared nine fields and silently left behind
+  /// her weights, medications, appointments, hand-entered vitals, water log,
+  /// kick and contraction sessions, battery history and cycle settings — so a
+  /// reset performed before selling a phone, or to exercise a right to
+  /// erasure, left most of the record in place.
+  ///
+  /// Going through _applyConfig means every field the app persists is covered
+  /// by construction: a new one added to PersistedConfig is reset without
+  /// anyone remembering to come back here. That is the same lesson as the
+  /// destructive-action allowlist — a list maintained by hand falls behind.
   Future<void> resetApp() async {
-    _children.clear();
-    _devices.clear();
-    _selectedChildId = null;
-    _profile = const UserProfile();
-    _bpCalibration = null;
-    _dayLogs.clear();
-    _alerts.clear();
-    _lastChildZone = null;
-    _onboarded = false;
+    _applyConfig(PersistedConfig(
+      onboarded: false,
+      // Her language survives. It is not personal data, it is how she reads
+      // the screen — flipping the UI to Russian under an English speaker in
+      // the middle of erasing her account would be a strange parting gift.
+      locale: _locale,
+      profile: const UserProfile(),
+      children: const [],
+      devices: const [],
+    ));
+    // _applyConfig deliberately restores state, so it does not touch these:
+    // the in-memory sample ring and whatever is on disk.
     store.clear();
+    _confirmation.clear();
+    _awaitingRepeat = null;
     await _persistStore?.clear();
     _notify();
   }

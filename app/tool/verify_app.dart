@@ -12,6 +12,9 @@ import '../lib/core/triage.dart';
 import '../lib/core/geofence.dart';
 import '../lib/domain/family.dart';
 import '../lib/domain/health_series.dart';
+import '../lib/domain/geofence_alerts.dart';
+import '../lib/domain/manual_vitals.dart';
+import '../lib/l10n/l10n.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -167,6 +170,45 @@ Future<void> main() async {
   // for the same appointment — otherwise the notification could never be cleared.
   _chk('a reminder id is reproducible for the same appointment',
       AppController.reminderIdFor('apt-42-0') == AppController.reminderIdFor('apt-42-0'));
+
+  // ---- Reset erases EVERYTHING ----
+  // It used to clear nine fields by hand and leave the rest behind: weights,
+  // medications, appointments, hand-entered vitals, the water log, kick and
+  // contraction sessions, battery history, cycle settings. A reset done before
+  // selling a phone, or to exercise a right to erasure, kept most of the
+  // record. Defining reset as "apply an empty config" makes coverage automatic;
+  // these assertions are what would have caught the old version.
+  {
+    final t = DateTime(2026, 7, 20, 9);
+    final r = AppController(now: () => t);
+    r.updateProfile(const UserProfile(
+        displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233', city: 'Almaty'));
+    r.configureChild(name: 'Sultan', fences: const []);
+    r.logWeight(t, 64.0);
+    r.setWeightGoal(70);
+    r.addMedication('Folic acid');
+    r.addAppointment('OB visit', t.add(const Duration(days: 3)));
+    r.addWater(t, 4);
+    r.logManualVitals(const ManualVitals(systolic: 118, diastolic: 76));
+    r.logChildEvent(AlertKind.checkIn);
+    r.debugMarkOnboarded();
+
+    await r.resetApp();
+
+    _chk('reset clears the profile', r.profile.displayName.isEmpty && r.profile.city.isEmpty);
+    _chk('reset clears children', r.children.isEmpty);
+    _chk('reset clears weights', r.weights.isEmpty);
+    _chk('reset clears the weight goal', r.weightGoalKg == null);
+    _chk('reset clears medications', r.medications.isEmpty);
+    _chk('reset clears appointments', r.appointments.isEmpty);
+    _chk('reset clears the water log', r.waterLog.isEmpty);
+    _chk('reset clears hand-entered vitals', r.manualSamples.isEmpty);
+    _chk('reset clears the alert feed', r.alerts.isEmpty);
+    _chk('reset returns to onboarding', !r.onboarded);
+    // ...but not her language: that is how she reads the screen, not her data.
+    _chk('reset keeps the chosen language', r.locale == AppLocale.ru);
+    r.dispose();
+  }
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

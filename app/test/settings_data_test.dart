@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/settings/settings_screen.dart';
@@ -164,6 +165,49 @@ void main() {
     for (final mustName in ['name', 'coordinates', 'zones', 'health history']) {
       expect(hint, contains(mustName), reason: 'the hint must name what is inside: $mustName');
     }
+    addTearDown(c.dispose);
+  });
+
+  testWidgets('erasing all data confirms first, then really erases', (tester) async {
+    // This app holds a child's name and date of birth and the coordinates of
+    // their home and school. A way to remove all of it has to exist, and it has
+    // to ask first — resetApp() existed for exactly this and was wired to
+    // nothing at all.
+    final c = AppController(now: () => DateTime(2026, 7, 15));
+    c.updateProfile(const UserProfile(
+        displayName: 'Aigerim', dialCode: '+7', phoneNumber: '7001112233'));
+    c.addAppointment('OB visit', DateTime(2026, 8, 1, 9, 0));
+    c.addMedication('Folic acid');
+    c.debugMarkOnboarded();
+    await tester.pumpWidget(wrap(c));
+
+    await tester.scrollUntilVisible(find.text('Erase all data'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Erase all data'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Erase all data'));
+    await tester.pumpAndSettle();
+
+    // Backing out costs nothing.
+    expect(find.text('Erase all data?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(c.appointments, hasLength(1), reason: 'cancelling must change nothing');
+    expect(c.profile.displayName, 'Aigerim');
+
+    // Going through with it takes everything.
+    await tester.tap(find.text('Erase all data'));
+    await tester.pumpAndSettle();
+    // The row and the dialog's confirm button share a label, so target the
+    // one inside the dialog specifically.
+    await tester.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.text('Erase all data')));
+    await tester.pumpAndSettle();
+
+    expect(c.profile.displayName, isEmpty);
+    expect(c.appointments, isEmpty);
+    expect(c.medications, isEmpty);
+    expect(c.onboarded, isFalse, reason: 'erasing returns to first-run');
     addTearDown(c.dispose);
   });
 }
