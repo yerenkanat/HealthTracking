@@ -34,6 +34,7 @@ import 'weight_history_screen.dart';
 import 'cycle_summary.dart';
 import 'weight_card.dart';
 import 'logging_drawer.dart';
+import 'pregnancy_hero.dart';
 
 class WomensHealthScreen extends StatefulWidget {
   final AppController controller;
@@ -396,84 +397,54 @@ class _GestationHeader extends StatelessWidget {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.06)],
+    // The illustrated hero replaces the ring-and-text row this used to be.
+    // Same three facts — how far along, which trimester, how long left — with
+    // room to look at rather than a metric tile. The actions it carried are
+    // kept below it, not lost.
+    return Column(
+      children: [
+        PregnancyHero(
+          gestation: g,
+          weekLabel: l.t('gest_week', {'w': g.week, 'd': g.dayOfWeek}),
+          trimesterLabel: l.t('gest_trimester', {'n': g.trimester}),
+          remainingLabel: g.daysUntilDue >= 0
+              ? l.t('gest_days_left', {'n': g.daysUntilDue})
+              : l.t('gest_overdue'),
+          // No "Подробнее" button yet: there is no week-detail screen to send
+          // her to, and a control that does nothing is worse than its absence.
+          // The hero renders without it; wire it when the screen exists.
+          detailsLabel: '',
+          onDetails: null,
         ),
-        border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              MetricRing(
-                fraction: g.progress,
-                gradient: Palette.roseViolet,
-                size: 72,
-                stroke: 8,
-                center: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('${g.week}',
-                        style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 22, fontWeight: FontWeight.w700, height: 1)),
-                    Text(l.t('gest_wk_short'), style: const TextStyle(color: Palette.textDim, fontSize: 10)),
-                  ],
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            GestureDetector(
+              onTap: onSetDueDate,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.edit_calendar_outlined, size: 15, color: Palette.violet),
+                const SizedBox(width: 5),
+                Text(
+                  controller.dueDate != null
+                      ? l.t('gest_due', {
+                          'date': MaterialLocalizations.of(context).formatMediumDate(controller.dueDate!)
+                        })
+                      : l.t('cal_no_due_title'),
+                  style: const TextStyle(color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l.t('gest_week', {'w': g.week, 'd': g.dayOfWeek}),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 3),
-                    Text(
-                      g.daysUntilDue >= 0
-                          ? l.t('gest_days_left', {'n': g.daysUntilDue})
-                          : l.t('gest_overdue'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 13),
-                    ),
-                    if (controller.dueDate != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        l.t('gest_due', {'date': MaterialLocalizations.of(context).formatMediumDate(controller.dueDate!)}),
-                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5),
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    GestureDetector(
-                      onTap: onSetDueDate,
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.edit_calendar_outlined, size: 14, color: Palette.violet),
-                        const SizedBox(width: 4),
-                        Text(l.t('gest_trimester', {'n': g.trimester}),
-                            style: const TextStyle(color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                      ]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: GestureDetector(
+              ]),
+            ),
+            GestureDetector(
               onTap: () => _confirmEndPregnancy(context),
               child: Text(l.t('cyc_end_pregnancy'),
                   style: const TextStyle(color: Palette.textDim, fontSize: 12, decoration: TextDecoration.underline)),
             ),
-          ),
-          const SizedBox(height: 12),
-          _WeekStrip(today: today, logs: controller.dayLogs),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _WeekStrip(today: today, logs: controller.dayLogs),
+      ],
     );
   }
 
