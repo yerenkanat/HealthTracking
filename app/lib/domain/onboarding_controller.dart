@@ -105,7 +105,8 @@ class OnboardingController {
   bool get canProceed => switch (_step) {
         OnboardingStep.welcome => true,
         OnboardingStep.language => true,
-        OnboardingStep.profile => _displayName.trim().isNotEmpty && isValidNationalNumber(_phoneNumber),
+        OnboardingStep.profile =>
+          _displayName.trim().isNotEmpty && isValidNationalNumber(_phoneNumber, dial: _dialCode),
         OnboardingStep.pairBand => true, // optional — may skip
         // The child step is OPTIONAL.
         //

@@ -34,7 +34,8 @@ class UserProfile {
   });
 
   String get e164 => toE164(dialCode, phoneNumber);
-  bool get hasPhone => isValidNationalNumber(phoneNumber);
+  // With the dial code, so the check runs on the number that would be dialled.
+  bool get hasPhone => isValidNationalNumber(phoneNumber, dial: dialCode);
   bool get hasDoctor => doctorPhone.trim().isNotEmpty;
   bool get hasDueDate => dueDate != null;
   bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;

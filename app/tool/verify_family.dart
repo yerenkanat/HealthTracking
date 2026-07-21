@@ -27,6 +27,45 @@ void main() {
   _chk('too long rejected', !isValidNationalNumber('1234567890123'));
   _chk('format groups digits', formatNational('7001234567') == '700 123 45 67');
 
+  // ---- How people actually write their own number ----
+  //
+  // Nobody in Almaty writes "700 123 45 67". They write "8 700 123 45 67",
+  // because 8 is what you dial domestically, or paste "+7 700 123 45 67" out
+  // of a contact card. Both used to be glued onto the dial code as-is, giving
+  // +787001234567 and +777001234567 — numbers that reach nobody. This is the
+  // phone number of an emergency contact.
+  _chk('the domestic trunk 8 is dropped',
+      toE164('+7', '8 700 123 45 67') == '+77001234567');
+  _chk('a pasted international number is not doubled',
+      toE164('+7', '+7 700 123 45 67') == '+77001234567');
+  _chk('a country code typed without + is still dropped at 11 digits',
+      toE164('+7', '77001234567') == '+77001234567');
+  _chk('the plain national form is unchanged',
+      toE164('+7', '700 123 45 67') == '+77001234567');
+  _chk('a Russian mobile behaves the same',
+      toE164('+7', '8 921 123 45 67') == '+79211234567');
+
+  // Outside the +7 zone: one leading trunk zero.
+  _chk('a UK trunk zero is dropped', toE164('+44', '07700 900000') == '+447700900000');
+  _chk('a German trunk zero is dropped', toE164('+49', '0151 12345678') == '+4915112345678');
+  _chk('a pasted UK international number is not doubled',
+      toE164('+44', '+44 7700 900000') == '+447700900000');
+  // NOT guessed at without a '+': German national numbers beginning 49 exist
+  // (4941 is Otterndorf), so stripping a bare leading 49 would corrupt a real
+  // number. Left alone on purpose.
+  _chk('a bare leading country code is left alone where it is ambiguous',
+      toE164('+49', '4941123456') == '+494941123456');
+
+  // Validation has to see the same number that will be dialled.
+  _chk('the trunk form validates once normalised',
+      isValidNationalNumber('8 700 123 45 67', dial: '+7'));
+  _chk('a +7 number of the wrong length is rejected',
+      !isValidNationalNumber('700 123 45', dial: '+7'));
+  _chk('eleven arbitrary digits are not a +7 number',
+      !isValidNationalNumber('12345678901', dial: '+7'));
+  _chk('without a dial code the old lenient range still applies',
+      isValidNationalNumber('7001234567'));
+
   // ---- UserProfile ----
   const p = UserProfile(displayName: 'Aigerim', dialCode: '+7', phoneNumber: '700 123 45 67');
   _chk('profile e164', p.e164 == '+77001234567');
