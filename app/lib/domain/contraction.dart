@@ -79,16 +79,58 @@ class FivOneOneProgress {
   bool get allMet => intervalMet && durationMet && sustainedMet;
 }
 
-/// Evaluate the 5-1-1 pattern over [list] (earliest-first). Needs ≥2
-/// contractions for the interval/sustained checks; with fewer, those are false.
-FivOneOneProgress fiveOneOneProgress(List<Contraction> list) {
-  final stats = contractionStats(list);
-  final hasPair = list.length >= 2;
-  final spanSec = hasPair ? list.last.start.difference(list.first.start).inSeconds : 0;
+/// The window 5-1-1 is judged over. The pattern is defined as holding "for an
+/// hour", so an hour is what gets measured.
+const Duration fiveOneOneWindow = Duration(hours: 1);
+
+/// Fewest contractions in the window before the pattern is called sustained.
+///
+/// An hour at five-minute intervals is about twelve. Six tolerates an irregular
+/// stretch while still excluding the case this was written for: two
+/// contractions an hour apart, which spanned an hour and so counted as
+/// "sustained" while being the opposite of labour.
+const int _minSustainedCount = 6;
+
+/// Evaluate the 5-1-1 pattern over the LAST HOUR of [list] (earliest-first).
+///
+/// [now] anchors the window; without it the last contraction does, so a stored
+/// session renders as it did when it was timed rather than decaying as the
+/// clock moves on.
+///
+/// WHY A WINDOW
+///
+/// This used to average the whole session, which got both directions wrong.
+///
+/// A woman three hours into early labour at fifteen-minute intervals, now
+/// four minutes apart, IS in the 5-1-1 pattern — but the session average was
+/// dragged up by the early hours and reported nine minutes, so the card stayed
+/// quiet exactly when it should have spoken. Labour only ever moves this way,
+/// so the error was systematic, not incidental.
+///
+/// In the other direction, "sustained" was the span from the first contraction
+/// to the last. Two contractions an hour apart spanned an hour, so the criteria
+/// showed 2/3 met for someone not in labour at all.
+FivOneOneProgress fiveOneOneProgress(List<Contraction> list, {DateTime? now}) {
+  if (list.isEmpty) return const FivOneOneProgress(false, false, false);
+  final anchor = now ?? list.last.start;
+  final from = anchor.subtract(fiveOneOneWindow);
+  final recent = [
+    for (final c in list)
+      if (!c.start.isBefore(from) && !c.start.isAfter(anchor)) c
+  ];
+
+  final stats = contractionStats(recent);
+  final hasPair = recent.length >= 2;
+  final spanSec =
+      hasPair ? recent.last.start.difference(recent.first.start).inSeconds : 0;
+
   return FivOneOneProgress(
     hasPair && stats.avgInterval.inSeconds > 0 && stats.avgInterval.inSeconds <= 300,
-    stats.avgDuration.inSeconds >= 60,
-    hasPair && spanSec >= 3600,
+    recent.isNotEmpty && stats.avgDuration.inSeconds >= 60,
+    // Spanning most of the window AND enough of them to be a pattern. 55
+    // minutes rather than 60 because the first contraction of the hour is
+    // almost never exactly on the boundary.
+    recent.length >= _minSustainedCount && spanSec >= 55 * 60,
   );
 }
 

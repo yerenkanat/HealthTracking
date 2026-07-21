@@ -104,7 +104,15 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
         child: Column(
           children: [
             if (_contractions.isNotEmpty) _StatsBar(stats: stats),
-            if (_contractions.length >= 2) _FiveOneOneCard(progress: fiveOneOneProgress(_contractions)),
+            // The clock is passed so the window is the last hour of HER time,
+            // not the last hour of recorded contractions. Without it, a pattern
+            // that stopped two hours ago would go on claiming to be met — and
+            // contractions that faded are exactly when she should not be told
+            // to set off for hospital.
+            if (_contractions.length >= 2)
+              _FiveOneOneCard(
+                progress: fiveOneOneProgress(_contractions, now: DateTime.now()),
+              ),
             const SizedBox(height: 8),
             _BigButton(active: active, elapsed: elapsed, label: l.t(active ? 'contr_stop' : 'contr_start'), sub: l.t(active ? 'contr_running' : 'contr_hint'), onTap: _toggle),
             const SizedBox(height: 12),

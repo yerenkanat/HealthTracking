@@ -60,6 +60,78 @@ void main() {
   _chk('5-1-1 single contraction → interval/sustained false',
       !fiveOneOneProgress([list.first]).intervalMet && !fiveOneOneProgress([list.first]).sustainedMet);
 
+  // ---- 5-1-1 describes the CURRENT pattern, not the whole session ----
+  //
+  // The card this feeds says "the 5-1-1 pattern is met — many providers suggest
+  // contacting them around now". So both directions of error matter: telling
+  // her it is met when it is not, and staying quiet when it is.
+  {
+    Contraction at(DateTime start, int seconds) =>
+        Contraction(start: start, end: start.add(Duration(seconds: seconds)));
+
+    // Real labour: three hours of early contractions 15 minutes apart, then an
+    // hour of active labour four minutes apart. She IS 5-1-1 right now.
+    final t0 = DateTime(2026, 7, 21, 6);
+    final labour = <Contraction>[
+      for (var i = 0; i < 12; i++) at(t0.add(Duration(minutes: 15 * i)), 45),
+      for (var i = 1; i <= 15; i++)
+        at(t0.add(Duration(minutes: 180 + 4 * i)), 70),
+    ];
+    final now = labour.last.end;
+    final p = fiveOneOneProgress(labour, now: now);
+    _chk('active labour after a long early phase is recognised', p.allMet);
+    _chk('  intervals in the last hour are what count', p.intervalMet);
+    _chk('  and so are durations', p.durationMet);
+    _chk('  and the pattern has held for an hour', p.sustainedMet);
+
+    // Two contractions an hour apart are not labour — they are two
+    // contractions. Spanning an hour must not read as "sustained".
+    final sparse = [
+      at(DateTime(2026, 7, 21, 8), 60),
+      at(DateTime(2026, 7, 21, 9, 5), 60),
+    ];
+    final sp = fiveOneOneProgress(sparse, now: DateTime(2026, 7, 21, 9, 6));
+    _chk('two contractions an hour apart are not "sustained"', !sp.sustainedMet);
+    _chk('and are nowhere near the pattern', sp.metCount <= 1);
+
+    // Early labour must NOT read as met.
+    final early = [
+      for (var i = 0; i < 8; i++) at(t0.add(Duration(minutes: 15 * i)), 40),
+    ];
+    _chk('early labour is not 5-1-1',
+        !fiveOneOneProgress(early, now: early.last.end).allMet);
+
+    // A pattern that qualified an hour ago but has since stopped must not keep
+    // claiming it: contractions that faded are exactly when she should NOT be
+    // told to set off.
+    final faded = [
+      for (var i = 0; i < 13; i++) at(t0.add(Duration(minutes: 5 * i)), 65),
+    ];
+    final twoHoursLater = faded.last.end.add(const Duration(hours: 2));
+    _chk('a pattern that stopped two hours ago no longer counts',
+        !fiveOneOneProgress(faded, now: twoHoursLater).allMet);
+    _chk('but it did count while it was happening',
+        fiveOneOneProgress(faded, now: faded.last.end).allMet);
+
+    // Contractions long enough but too far apart, and vice versa.
+    final longButSparse = [
+      for (var i = 0; i < 13; i++) at(t0.add(Duration(minutes: 8 * i)), 90),
+    ];
+    _chk('long contractions eight minutes apart are not 5-1-1',
+        !fiveOneOneProgress(longButSparse, now: longButSparse.last.end).intervalMet);
+
+    final closeButShort = [
+      for (var i = 0; i < 13; i++) at(t0.add(Duration(minutes: 4 * i)), 30),
+    ];
+    _chk('short contractions four minutes apart are not 5-1-1',
+        !fiveOneOneProgress(closeButShort, now: closeButShort.last.end).durationMet);
+
+    // Without a clock, the last contraction anchors the window, so a stored
+    // session renders the same way it did when it was timed.
+    _chk('with no clock the last contraction anchors the window',
+        fiveOneOneProgress(faded).allMet);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
