@@ -20,7 +20,25 @@ import '../core/geofence.dart';
 /// the whole reason they are separate: a denied permission can be granted, a
 /// permanently-denied one only from system settings, and a failed fix is worth
 /// retrying somewhere with sky.
-enum LocationFailure { denied, deniedForever, unavailable }
+enum LocationFailure { denied, deniedForever, off, unavailable }
+
+/// How long to wait for a fix before giving up.
+///
+/// There was no limit. A cold GPS indoors can take a very long time and, with
+/// location services in an odd state, can simply never answer — and both
+/// callers hold a spinner across this await. On the onboarding step that gates
+/// finishing setup, that is a screen she cannot leave.
+///
+/// Twenty seconds is long enough for a genuine cold start and short enough
+/// that "it isn't working, try outside" arrives while she is still holding the
+/// phone. Timing out maps to [LocationFailure.unavailable], which is precisely
+/// the failure worth retrying somewhere with sky.
+///
+/// Deliberately NOT falling back to getLastKnownPosition, which the plugin
+/// recommends generally: a cached fix could centre "Home" on wherever she was
+/// yesterday, and a zone around the wrong place produces alerts about a
+/// stranger's street. That is the failure this whole file exists to prevent.
+const locationTimeout = Duration(seconds: 20);
 
 class LocationResult {
   final Coordinates? coords;
@@ -35,6 +53,7 @@ class LocationResult {
   String? get messageKey => switch (failure) {
         LocationFailure.denied => 'zone_loc_denied',
         LocationFailure.deniedForever => 'zone_loc_denied_forever',
+        LocationFailure.off => 'zone_loc_off',
         LocationFailure.unavailable => 'zone_loc_failed',
         null => null,
       };
@@ -64,9 +83,16 @@ Future<LocationResult> currentCoordinates() async {
     if (perm == LocationPermission.denied) {
       return const LocationResult.failed(LocationFailure.denied);
     }
-    final p = await Geolocator.getCurrentPosition();
+    final p = await Geolocator.getCurrentPosition(timeLimit: locationTimeout);
     return LocationResult.ok(Coordinates(p.latitude, p.longitude));
+  } on LocationServiceDisabledException {
+    // Granted the permission, but location is switched off device-wide. The
+    // remedy is neither "allow the app" nor "go outside" — it is a different
+    // toggle in a different place, and sending her to the app's permission
+    // screen for it wastes the one thing she is trying to finish.
+    return const LocationResult.failed(LocationFailure.off);
   } catch (_) {
+    // Includes TimeoutException from timeLimit above.
     return const LocationResult.failed(LocationFailure.unavailable);
   }
 }
