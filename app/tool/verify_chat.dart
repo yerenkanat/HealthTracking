@@ -9,6 +9,8 @@ import '../lib/data/api_client.dart';
 import '../lib/domain/ai_chat_service.dart';
 import '../lib/domain/chat_controller.dart';
 import '../lib/domain/health_monitor.dart';
+import '../lib/domain/manual_vitals.dart';
+import '../lib/app/app_controller.dart';
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -28,7 +30,8 @@ class FakeTransport implements HttpTransport {
   Future<HttpResponse> get(String path) async => const HttpResponse(404, '');
 }
 
-ChatController build(HttpResponse Function(String, Object) handler, {void Function()? onEmergency}) {
+ChatController build(HttpResponse Function(String, Object) handler,
+    {void Function()? onEmergency, int maxMessages = 200}) {
   final api = ApiClient(FakeTransport(handler));
   final monitor = HealthMonitor(
     deviceId: 'd', enqueue: (_, {required urgent}) {}, onEmergency: (_, __) {});
@@ -40,6 +43,7 @@ ChatController build(HttpResponse Function(String, Object) handler, {void Functi
     service: service,
     networkErrorText: () => 'NET_ERROR',
     emergencyNoteText: () => 'EMERGENCY_NOTE',
+    maxMessages: maxMessages,
   );
 }
 
@@ -86,6 +90,96 @@ Future<void> main() async {
   final f2 = c6.send('b'); // should be ignored while first is in flight
   await Future.wait([f1, f2]);
   _chk('concurrent send guarded (one exchange)', c6.messages.length == 2);
+
+  // ---- a failed question can be tried again ----
+  // It used to be gone: the user message stayed in the transcript with an
+  // error under it, and she had to remember and retype the question — the one
+  // she typed out during a bad moment of signal.
+  {
+    var fail = true;
+    final c = build((_, __) {
+      if (fail) throw StateError('down');
+      return json({'kind': 'chat', 'message': 'here is an answer', 'grounded': true});
+    });
+    await c.send('is 150/95 dangerous?');
+    _chk('a failure is remembered', c.lastFailed == 'is 150/95 dangerous?');
+    fail = false;
+    await c.retryLast();
+    _chk('retrying gets an answer', c.messages.last.text == 'here is an answer');
+    _chk('and clears the failure', c.lastFailed == null);
+    _chk('without duplicating the question',
+        c.messages.where((m) => m.text == 'is 150/95 dangerous?').length == 1);
+    _chk('and without leaving the error bubble behind',
+        !c.messages.any((m) => m.text == 'NET_ERROR'));
+    _chk('a successful send remembers no failure', c.lastFailed == null);
+    await c.dispose();
+  }
+
+  {
+    final c = build((_, __) => json({'kind': 'chat', 'message': 'ok', 'grounded': false}));
+    await c.retryLast();
+    _chk('retrying with nothing to retry does nothing', c.messages.isEmpty);
+    await c.dispose();
+  }
+
+  // ---- the transcript is bounded ----
+  {
+    final c = build((_, __) => json({'kind': 'chat', 'message': 'ok', 'grounded': false}),
+        maxMessages: 6);
+    for (var i = 0; i < 10; i++) {
+      await c.send('question $i');
+    }
+    _chk('the transcript stops growing', c.messages.length <= 6);
+    // Trimming an odd number would leave an answer at the top with the
+    // question it answered gone — which reads as the assistant volunteering
+    // medical advice nobody asked for.
+    _chk('it never starts mid-exchange', c.messages.first.role == ChatRole.user);
+    _chk('the newest exchange survives', c.messages.last.text == 'ok');
+    _chk('the oldest question is dropped',
+        !c.messages.any((m) => m.text == 'question 0'));
+    await c.dispose();
+  }
+
+  // ---- the assistant is told what she just measured ----
+  //
+  // AiChatService attaches monitor.latest to every message, and the SERVER
+  // uses it to bypass the LLM and escalate when the reading is critical. Only
+  // band readings ever set it, and the band is not wired yet — so a mother
+  // could enter 175/118, ask "I have a headache, is this normal?", and the
+  // request carried no reading at all. The guardrail's most important input
+  // was always null.
+  {
+    Object? lastBody;
+    final api = ApiClient(FakeTransport((path, body) {
+      lastBody = body;
+      return json({'kind': 'chat', 'message': 'ok', 'grounded': true});
+    }));
+    final monitor = HealthMonitor(
+        deviceId: 'd', enqueue: (_, {required urgent}) {}, onEmergency: (_, __) {});
+    final service = AiChatService(
+        api: api, userId: 'u', locale: 'ru-KZ', monitor: monitor, onEmergency: (_) {});
+    final chat = ChatController(
+        service: service,
+        networkErrorText: () => 'NET_ERROR',
+        emergencyNoteText: () => 'EMERGENCY_NOTE');
+
+    await chat.send('is this normal?');
+    _chk('with no reading, none is attached',
+        (lastBody as Map)['latestTelemetry'] == null);
+
+    final ctl = AppController(now: () => DateTime(2026, 7, 21, 10));
+    ctl.attachRuntime(monitor: monitor);
+    ctl.logManualVitals(const ManualVitals(systolic: 175, diastolic: 118));
+
+    _chk('a hand-entered reading becomes the latest', monitor.latest?.systolicMmHg == 175);
+    await chat.send('I have a headache, is this normal?');
+    final attached = (lastBody as Map)['latestTelemetry'] as Map?;
+    _chk('and it reaches the assistant', attached != null);
+    _chk('with the reading that matters', attached?['systolicMmHg'] == 175);
+
+    await ctl.dispose();
+    await chat.dispose();
+  }
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);

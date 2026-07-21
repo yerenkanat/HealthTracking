@@ -1137,6 +1137,17 @@ class AppController {
     final triage = assessTelemetry(t);
     onTelemetry(t, triage, source: ReadingSource.manual);
 
+    // Make it the reading the assistant sees.
+    //
+    // AiChatService attaches monitor.latest to every chat message, and the
+    // server uses it to bypass the LLM and escalate when the reading is
+    // critical. Only band readings ever set it, and the band is not wired yet
+    // — so she could enter 175/118, ask "I have a headache, is that normal?",
+    // and the request carried no reading at all. record() rather than handle()
+    // because this reading is queued and triaged here; handle() would send it
+    // a second time.
+    _monitor?.record(t, triage);
+
     // Send it. Nothing did.
     //
     // The batcher's only feeder was HealthMonitor, and the monitor is fed by

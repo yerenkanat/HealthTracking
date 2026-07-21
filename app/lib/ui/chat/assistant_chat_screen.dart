@@ -53,11 +53,28 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
               stream: c.changes,
               builder: (context, _) {
                 if (c.messages.isEmpty) return _EmptyState();
+                // One extra row for the retry, when the last send failed. A
+                // question that could not be sent used to be simply gone: she
+                // had to remember it and type it again, having typed it during
+                // the bad moment of signal that lost it.
+                final showRetry = c.lastFailed != null && !c.sending;
                 return ListView.builder(
                   controller: _scroll,
                   padding: const EdgeInsets.all(16),
-                  itemCount: c.messages.length,
-                  itemBuilder: (_, i) => _Bubble(message: c.messages[i]),
+                  itemCount: c.messages.length + (showRetry ? 1 : 0),
+                  itemBuilder: (_, i) {
+                    if (i == c.messages.length) {
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () => c.retryLast(),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: Text(l.t('chat_retry')),
+                        ),
+                      );
+                    }
+                    return _Bubble(message: c.messages[i]);
+                  },
                 );
               },
             ),

@@ -44,6 +44,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Assistant chat
   'chat_title': {AppLocale.ru: 'Умай — помощник', AppLocale.kk: 'Умай — көмекші', AppLocale.en: 'Umay — assistant'},
   'chat_hint': {AppLocale.ru: 'Спросите о самочувствии…', AppLocale.kk: 'Хал-жағдайыңызды сұраңыз…', AppLocale.en: 'Ask about how you feel…'},
+  'chat_retry': {
+    AppLocale.ru: 'Отправить ещё раз',
+    AppLocale.kk: 'Қайта жіберу',
+    AppLocale.en: 'Send again'
+  },
   'chat_empty_title': {AppLocale.ru: 'Чем могу помочь?', AppLocale.kk: 'Немен көмектесе аламын?', AppLocale.en: 'How can I help?'},
   'chat_empty_body': {
     AppLocale.ru: 'Задайте вопрос о беременности, самочувствии, сне или питании. Я не заменяю врача.',

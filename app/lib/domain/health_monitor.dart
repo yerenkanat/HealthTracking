@@ -47,11 +47,27 @@ class HealthMonitor {
 
   /// Core decision — exposed directly for testing.
   void handle(BandTelemetry t, TriageResult triage) {
-    _latest = t;
-    _latestTriage = triage;
+    record(t, triage);
     final urgent = triage.forceEmergencyScreen;
     enqueue(_wire(t), urgent: urgent);
     if (urgent) onEmergency(triage, t);
+  }
+
+  /// Remember a reading WITHOUT enqueuing or escalating it.
+  ///
+  /// For readings that reached the app by another route and have already been
+  /// dealt with — a hand-entered cuff reading, which the controller queues and
+  /// triages itself. Calling [handle] for those would send them twice.
+  ///
+  /// This matters because [latest] is what AiChatService attaches to a chat
+  /// message, and the server uses it to bypass the LLM and escalate when the
+  /// reading is critical. Only band readings ever reached here, and the band
+  /// is not wired yet — so a mother could enter 175/118, ask the assistant
+  /// about her headache, and the request carried no reading at all. The
+  /// guardrail's most important input was always null.
+  void record(BandTelemetry t, TriageResult triage) {
+    _latest = t;
+    _latestTriage = triage;
   }
 
   Map<String, dynamic> _wire(BandTelemetry t) => {
