@@ -15,6 +15,23 @@ typedef EnqueueTelemetry = void Function(Map<String, dynamic> telemetry, {requir
 typedef EmergencyHandler = void Function(TriageResult triage, BandTelemetry telemetry);
 typedef Clock = DateTime Function();
 
+/// How long a reading still describes how she is *now*.
+///
+/// [latest] is attached to every assistant message, and the server treats a
+/// critical one as grounds to skip the model and open the Emergency Rescue
+/// screen — see AIGuardrailProcessor step 1, which overrides everything.
+///
+/// Nothing expired it. A reading of 175/118 entered on Monday — acted on,
+/// treated, resolved — was still attached on Friday, so an unrelated question
+/// about a mild headache was answered by throwing the emergency screen at her
+/// again. Repeated false alarms are how an emergency screen stops being read.
+///
+/// Six hours covers "I measured this morning, I'm asking at lunch" and little
+/// more. Past that the guardrail still has her words — the symptom and
+/// combination rules run on the message itself — it just no longer has a
+/// measurement it can pretend is current.
+const latestTelemetryMaxAge = Duration(hours: 6);
+
 class HealthMonitor {
   final String deviceId;
   final EnqueueTelemetry enqueue;
@@ -23,6 +40,7 @@ class HealthMonitor {
 
   BandTelemetry? _latest;
   TriageResult? _latestTriage;
+  DateTime? _latestAt;
   StreamSubscription<(BandTelemetry, TriageResult)>? _sub;
 
   HealthMonitor({
@@ -32,8 +50,20 @@ class HealthMonitor {
     Clock? now,
   }) : _now = now ?? DateTime.now;
 
-  BandTelemetry? get latest => _latest;
-  TriageResult? get latestTriage => _latestTriage;
+  /// The last reading, if it is still recent enough to describe her now.
+  BandTelemetry? get latest => _stale ? null : _latest;
+  TriageResult? get latestTriage => _stale ? null : _latestTriage;
+
+  /// When the remembered reading was taken, regardless of its age. The vitals
+  /// card shows the value with its timestamp, which stays honest as it ages —
+  /// only the assistant's "this is how she is right now" claim expires.
+  DateTime? get latestAt => _latestAt;
+
+  bool get _stale {
+    final at = _latestAt;
+    if (at == null) return true;
+    return _now().difference(at) > latestTelemetryMaxAge;
+  }
 
   /// Subscribe to BLEDeviceManager.onTelemetry.
   ///
@@ -68,6 +98,7 @@ class HealthMonitor {
   void record(BandTelemetry t, TriageResult triage) {
     _latest = t;
     _latestTriage = triage;
+    _latestAt = _now();
   }
 
   Map<String, dynamic> _wire(BandTelemetry t) => {
