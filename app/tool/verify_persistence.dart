@@ -656,6 +656,55 @@ void main() async {
       _chk('$label: and the loss is counted', PersistedConfig.lastDroppedEntries >= 1);
     }
 
+    // ---- One bad zone must not cost her the child ----
+    //
+    // Zones were parsed inline inside childFromJson rather than through the
+    // tolerant list, so a single unreadable zone threw and the outer parser
+    // dropped the WHOLE child — her name, her date of birth, her photo, and
+    // every other zone she had drawn — to save one corrupted circle.
+    {
+      final c = parse({
+        ...base,
+        'children': [
+          {
+            'id': 'c1',
+            'name': 'Sultan',
+            'geofences': [
+              {'id': 'home', 'name': 'Дом', 'shape': 'circle', 'lat': 43.2, 'lng': 76.9, 'radiusM': 120},
+              {'id': 'bad', 'name': 'Broken', 'shape': 'circle', 'lat': 'nope', 'lng': 76.9, 'radiusM': 100},
+            ],
+          },
+        ],
+      });
+      _chk('the child survives a broken zone', c.children.length == 1);
+      _chk('and keeps her name', c.children.single.name == 'Sultan');
+      _chk('the readable zone is kept', c.children.single.geofences.length == 1);
+      _chk('and it is the right one', c.children.single.geofences.single.id == 'home');
+      _chk('the lost zone is counted', PersistedConfig.lastDroppedEntries == 1);
+    }
+
+    // ---- A zone that could never fire is not a zone ----
+    //
+    // These parse cleanly and are geometrically dead: a polygon needs three
+    // points to enclose anything, and a circle of radius zero has no inside.
+    // Kept, they sit in her zone list looking like protection that works.
+    for (final (label, fence) in [
+      ('a two-point polygon', {'id': 'p', 'name': 'P', 'shape': 'polygon', 'vertices': [[43.2, 76.9], [43.3, 76.9]]}),
+      ('an empty polygon', {'id': 'p', 'name': 'P', 'shape': 'polygon', 'vertices': []}),
+      ('a circle with no radius', {'id': 'c', 'name': 'C', 'shape': 'circle', 'lat': 43.2, 'lng': 76.9, 'radiusM': 0}),
+      ('a circle with a negative radius', {'id': 'c', 'name': 'C', 'shape': 'circle', 'lat': 43.2, 'lng': 76.9, 'radiusM': -5}),
+    ]) {
+      final c = parse({
+        ...base,
+        'children': [
+          {'id': 'c1', 'name': 'Sultan', 'geofences': [fence]},
+        ],
+      });
+      _chk('$label is not kept as a working zone',
+          c.children.single.geofences.isEmpty);
+      _chk('$label is counted as lost', PersistedConfig.lastDroppedEntries == 1);
+    }
+
     // A clean config drops nothing — otherwise the counter would be noise.
     parse(base);
     _chk('a clean config drops nothing', PersistedConfig.lastDroppedEntries == 0);

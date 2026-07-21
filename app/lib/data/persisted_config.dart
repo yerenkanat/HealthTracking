@@ -38,20 +38,39 @@ Map<String, dynamic> geofenceToJson(Geofence f) => switch (f.shape) {
         },
     };
 
+/// Read one zone, refusing shapes that could never fire.
+///
+/// A polygon needs three points to enclose anything; a circle of radius zero
+/// has no inside. Both parse cleanly and are geometrically dead — kept, they
+/// sit in her zone list looking like protection that works, and no alert ever
+/// comes. Throwing hands them to the tolerant list parser, which drops the
+/// zone and counts it, so the loss is reported rather than silent.
+///
+/// Reachable because the app exports and imports its own backup as JSON, and
+/// because the zone editor's 50m minimum radius is a UI rule, not a data one.
 Geofence geofenceFromJson(Map<String, dynamic> j) {
+  final id = j['id'] as String;
+  final name = j['name'] as String;
   if (j['shape'] == 'polygon') {
     final verts = [
       for (final p in (j['vertices'] as List))
         Coordinates((p[0] as num).toDouble(), (p[1] as num).toDouble())
     ];
-    return Geofence.polygon(j['id'] as String, j['name'] as String, verts);
+    if (verts.length < 3) {
+      throw FormatException('polygon zone "$id" has ${verts.length} vertices, needs 3');
+    }
+    return Geofence.polygon(id, name, verts);
   }
-  return Geofence.circle(
-    j['id'] as String,
-    j['name'] as String,
-    Coordinates((j['lat'] as num).toDouble(), (j['lng'] as num).toDouble()),
-    (j['radiusM'] as num).toDouble(),
-  );
+  final radius = (j['radiusM'] as num).toDouble();
+  if (!radius.isFinite || radius <= 0) {
+    throw FormatException('circle zone "$id" has no usable radius ($radius)');
+  }
+  final lat = (j['lat'] as num).toDouble();
+  final lng = (j['lng'] as num).toDouble();
+  if (!lat.isFinite || !lng.isFinite || lat.abs() > 90 || lng.abs() > 180) {
+    throw FormatException('circle zone "$id" is not on Earth ($lat, $lng)');
+  }
+  return Geofence.circle(id, name, Coordinates(lat, lng), radius);
 }
 
 Map<String, dynamic> childToJson(ChildProfile c) => {
@@ -71,11 +90,32 @@ ChildProfile childFromJson(Map<String, dynamic> j) => ChildProfile(
       dateOfBirth: j['dateOfBirth'] is String ? DateTime.tryParse(j['dateOfBirth'] as String) : null,
       photoPath: j['photoPath'] as String?,
       gender: genderFromName(j['gender'] as String?),
-      geofences: [
-        for (final f in (j['geofences'] as List? ?? const []))
-          geofenceFromJson((f as Map).cast<String, dynamic>())
-      ],
+      // Tolerantly, and NOT inline.
+      //
+      // These were parsed in place, so one unreadable zone threw and the outer
+      // list dropped the whole child — her name, her date of birth, her photo
+      // and every other zone she had drawn — to save one corrupted circle.
+      // A bad zone should cost that zone.
+      geofences: geofencesFromJson(j['geofences']),
     );
+
+/// Read a list of zones, dropping and counting the ones that cannot be used.
+List<Geofence> geofencesFromJson(Object? raw) {
+  if (raw is! List) return const [];
+  final out = <Geofence>[];
+  for (final f in raw) {
+    if (f is! Map) {
+      PersistedConfig.lastDroppedEntries++;
+      continue;
+    }
+    try {
+      out.add(geofenceFromJson(f.cast<String, dynamic>()));
+    } catch (_) {
+      PersistedConfig.lastDroppedEntries++;
+    }
+  }
+  return out;
+}
 
 /// Does this decoded JSON actually look like an Umay backup?
 ///
