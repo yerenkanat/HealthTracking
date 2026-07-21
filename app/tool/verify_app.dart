@@ -210,6 +210,69 @@ Future<void> main() async {
     r.dispose();
   }
 
+  // ---- Replacing the data must revoke its reminders ----
+  // Scheduling with the OS is one-way: a notification survives until it fires
+  // or is cancelled, and it does not care that the appointment behind it is
+  // gone. Import replaced the data and armed the new reminders WITHOUT
+  // revoking the old ones, and erase did neither — so a wiped phone went on
+  // announcing her gynaecologist appointment from her lock screen.
+  {
+    final t = DateTime(2026, 7, 20, 9);
+    final r = AppController(now: () => t);
+    final cancelled = <int>[];
+    final scheduled = <int>[];
+    final sub2 = r.reminderCommands.listen((cmd) {
+      (cmd.at == null ? cancelled : scheduled).add(cmd.id);
+    });
+
+    r.addAppointment('OB visit', t.add(const Duration(days: 3)));
+    final apptId = r.appointments.single.id;
+    await Future<void>.delayed(Duration.zero);
+    _chk('adding an appointment schedules its reminder',
+        scheduled.contains(AppController.reminderIdFor(apptId)));
+
+    cancelled.clear();
+    scheduled.clear();
+    await r.resetApp();
+    await Future<void>.delayed(Duration.zero);
+    _chk('erasing revokes the appointment reminder',
+        cancelled.contains(AppController.reminderIdFor(apptId)));
+    _chk('erasing revokes the cycle reminders too', cancelled.length >= 3);
+    _chk('erasing schedules nothing new', scheduled.isEmpty);
+
+    await sub2.cancel();
+    await r.dispose();
+  }
+
+  {
+    // Import: the reminders of the data being REPLACED have to go, or the
+    // phone fires for appointments the import just deleted.
+    final t = DateTime(2026, 7, 20, 9);
+    final src = AppController(now: () => t);
+    src.debugMarkOnboarded();
+    src.addAppointment('Scan', t.add(const Duration(days: 5)));
+    final backup = src.exportJson();
+    await src.dispose();
+
+    final dst = AppController(now: () => t);
+    dst.addAppointment('Old visit', t.add(const Duration(days: 2)));
+    final staleId = AppController.reminderIdFor(dst.appointments.single.id);
+
+    final cancelled = <int>[];
+    final sub3 = dst.reminderCommands.listen((cmd) {
+      if (cmd.at == null) cancelled.add(cmd.id);
+    });
+    dst.importJson(backup);
+    await Future<void>.delayed(Duration.zero);
+    _chk('importing revokes the reminder of the appointment it replaced',
+        cancelled.contains(staleId));
+    _chk('and the imported appointment is the one that remains',
+        dst.appointments.single.title == 'Scan');
+
+    await sub3.cancel();
+    await dst.dispose();
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

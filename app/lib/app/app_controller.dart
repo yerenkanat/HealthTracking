@@ -285,9 +285,14 @@ class AppController {
     } catch (_) {
       return false;
     }
+    // Revoke the reminders belonging to the data being REPLACED, while their
+    // ids can still be derived. Without this the phone keeps firing reminders
+    // for appointments the import just deleted.
+    _cancelAllReminders();
     _applyConfig(cfg);
     // Re-arm reminder notifications for the imported appointments.
     rescheduleReminders();
+    _reconcileCycleReminders();
     _persist();
     _notify();
     return true;
@@ -753,6 +758,29 @@ class AppController {
     }
   }
 
+  /// Cancel every reminder this app has armed with the OS.
+  ///
+  /// Scheduling is one-way: the OS keeps a notification until it fires or is
+  /// cancelled, and it does not care that the appointment behind it no longer
+  /// exists. So replacing the data — an import, or an erase — must revoke the
+  /// old notifications first, or the phone goes on announcing appointments the
+  /// user has deleted. After an erase that is worse than untidy: she wiped the
+  /// app and it still tells her about her gynaecologist.
+  ///
+  /// Call BEFORE the lists are replaced, while the ids are still derivable.
+  void _cancelAllReminders() {
+    if (_reminderStream.isClosed) return;
+    for (final a in _appointments) {
+      _reminderStream.add(ReminderCommand.cancel(reminderIdFor(a.id)));
+    }
+    _reminderStream
+      ..add(const ReminderCommand.cancel(_periodReminderId))
+      ..add(const ReminderCommand.cancel(_fertileReminderId));
+    // The recurring daily ones are addressed by "null means off".
+    if (!_waterReminderStream.isClosed) _waterReminderStream.add(null);
+    if (!_medReminderStream.isClosed) _medReminderStream.add(null);
+  }
+
   // ---- Weight log (one entry per day) ----
   List<WeightEntry> get weights => List.unmodifiable(_weights);
   WeightStats? get weightStats => computeWeightStats(_weights);
@@ -957,6 +985,11 @@ class AppController {
   /// anyone remembering to come back here. That is the same lesson as the
   /// destructive-action allowlist — a list maintained by hand falls behind.
   Future<void> resetApp() async {
+    // Before anything is cleared, while the reminder ids are still derivable.
+    // Erasing her data and leaving the OS to keep announcing her appointments
+    // would make the erase look like it had not worked — and would leak the
+    // very thing she asked to remove, onto her lock screen.
+    _cancelAllReminders();
     _applyConfig(PersistedConfig(
       onboarded: false,
       // Her language survives. It is not personal data, it is how she reads
