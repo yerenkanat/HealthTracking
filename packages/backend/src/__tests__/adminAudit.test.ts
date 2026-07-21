@@ -12,13 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-const src = readFileSync(
-  fileURLToPath(new URL('../routes/admin.ts', import.meta.url)),
-  'utf8',
-).split('\n');
+import { adminRoutes, adminSource } from './helpers/adminRoutes.js';
 
 /**
  * Routes that serve ONLY aggregates — counts, rates, series — and name nobody.
@@ -37,24 +31,10 @@ const AGGREGATES_ONLY = new Set([
   // audit log makes the log describe mostly itself
 ]);
 
-interface Route {
-  method: string;
-  path: string;
-  body: string;
-}
-
-function routes(): Route[] {
-  const starts: Array<{ i: number; method: string; path: string }> = [];
-  src.forEach((line, i) => {
-    const m = line.match(/app\.(get|put|post|delete|patch)\('(\/admin[^']*)'/);
-    if (m) starts.push({ i, method: m[1].toUpperCase(), path: m[2] });
-  });
-  return starts.map((s, n) => ({
-    method: s.method,
-    path: s.path,
-    body: src.slice(s.i, n + 1 < starts.length ? starts[n + 1].i : src.length).join('\n'),
-  }));
-}
+// Shared with adminAuthorization.test.ts. Two copies of this parser would be
+// two answers to "which routes exist", and a route could then be checked by
+// one guard while being invisible to the other.
+const routes = adminRoutes;
 
 describe('back-office audit coverage', () => {
   it('found the routes to check', () => {
@@ -100,7 +80,7 @@ describe('back-office audit coverage', () => {
   it('audit actions are distinct per route', () => {
     // Two routes logging the same action makes the log ambiguous about what was
     // actually opened.
-    const actions = [...src.join('\n').matchAll(/action:\s*'([a-z_]+)'/g)].map((m) => m[1]);
+    const actions = [...adminSource().matchAll(/action:\s*'([a-z_]+)'/g)].map((m) => m[1]);
     expect(actions.length).toBeGreaterThan(5);
     expect(new Set(actions).size).toBe(actions.length);
   });
