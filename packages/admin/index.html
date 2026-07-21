@@ -156,6 +156,9 @@
   .mrow.off .mrow-value{color:var(--muted);font-weight:600}
   .mrow.off .mrow-fill{min-width:0}
 
+  /* A table row that is not data: loading, empty, or failed. */
+  .tstate{color:var(--muted);padding:22px 18px;text-align:center}
+
   /* ---- Empty state ----
      A card with nothing in it looks like a card that failed. Say what the
      emptiness means, especially where it is good news. */
@@ -968,7 +971,50 @@
             поэтому их всегда больше всего. Кто чем пользуется — в «Охвате
             модулей».`);
   }
-  function fmt(n){return typeof n==="number"?n.toLocaleString("en-US"):n}
+  /// Group digits the way the rest of the panel is written.
+  ///
+  /// This was pinned to en-US, so a Russian back-office read "5,439" — which in
+  /// Russian convention is five point four three nine. A thousands separator
+  /// that another locale reads as a decimal point is not a cosmetic choice on a
+  /// screen full of counts. ru-RU groups with a narrow no-break space.
+  function fmt(n){return typeof n==="number"?n.toLocaleString("ru-RU"):n}
+
+  /// Dates and ages, in the language the panel is written in.
+  ///
+  /// The demo rows carried English strings — "Nov 2026", "18m ago" — and the
+  /// live rows now carry ISO timestamps, so both needed formatting anyway. A
+  /// Russian back-office reading "Nov" is reading someone else's product.
+  const RU_MONTHS=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+  function monthYear(iso){
+    const d=new Date(iso);
+    return isNaN(d)?"—":`${RU_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  /// Full stamp: a bare "09:41" is unambiguous only until tomorrow exists.
+  function stamp(iso){
+    const d=new Date(iso);
+    if(isNaN(d)) return String(iso??"—");
+    const p=n=>String(n).padStart(2,"0");
+    return `${p(d.getDate())}.${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  function ago(iso){
+    const d=new Date(iso);
+    if(isNaN(d)) return "—";
+    const m=Math.floor((Date.now()-d.getTime())/60000);
+    if(m<0) return "только что";      // a clock ahead of ours is not the future
+    if(m<1) return "только что";
+    if(m<60) return `${m} мин назад`;
+    const h=Math.floor(m/60);
+    if(h<24) return `${h} ч назад`;
+    return `${Math.floor(h/24)} дн назад`;
+  }
+
+  /// Row states for a table body: fetching, and a reason it is empty.
+  ///
+  /// A table that renders nothing while it loads is indistinguishable from a
+  /// table with nothing in it, which is indistinguishable from one whose
+  /// request failed. Three different situations, one blank screen.
+  const tableBusy=(cols)=>`<tr><td colspan="${cols}" class="tstate">Загрузка…</td></tr>`;
+  const tableNote=(cols,text)=>`<tr><td colspan="${cols}" class="tstate">${text}</td></tr>`;
 
   function feedRow(e){
     const warn=e.severity==="warning";
@@ -995,13 +1041,74 @@
     $("#navBadge").textContent=MOCK.emergencies.filter(e=>e.severity==="emergency").length;
   }
 
-  function renderUsers(q=""){
-    const rows=MOCK.users.filter(u=>(u.displayName+u.phone).toLowerCase().includes(q.toLowerCase()));
-    $("#usersBody").innerHTML=rows.map(u=>`<tr data-user="${u.id}"><td><b>${esc(u.displayName)}</b></td><td class="num">${esc(u.phone)}</td><td>${esc(u.dueDate)}</td><td class="t">${esc(u.last)}</td><td style="text-align:right">›</td></tr>`).join("")
-      || `<tr><td colspan="5" style="color:var(--muted)">No users match “${esc(q)}”.</td></tr>`;
+  /// The people this panel is actually about.
+  ///
+  /// GET /admin/users existed, was authorized, audited and paginated — and the
+  /// panel never called it. The tab filtered a hardcoded array of six invented
+  /// women, in Live mode as well as demo, while the pill said Live. Someone
+  /// searching for a patient who had just called would be told she does not
+  /// exist.
+  ///
+  /// The search runs server-side now, which is also where it belongs: filtering
+  /// a page of 25 in the browser silently searches only that page.
+  let usersReq=0;
+  async function renderUsers(q=""){
+    const body=$("#usersBody"); if(!body) return;
+    const mine=++usersReq;
+    body.innerHTML=tableBusy(5);
+    let data=null;
+    try{ data=await api(`/admin/users?q=${encodeURIComponent(q)}&limit=50`); }catch(e){ data=null; }
+    if(mine!==usersReq) return; // a newer keystroke already answered
+    if(!data){
+      body.innerHTML=tableNote(5,"Не удалось загрузить список. Проверьте доступ и соединение.");
+      return;
+    }
+    const rows=data.users||[];
+    body.innerHTML=rows.map(u=>`<tr data-user="${esc(u.id)}">
+        <td><b>${esc(u.displayName||"—")}</b></td>
+        <td class="num">${esc(u.phone||"—")}</td>
+        <td>${u.dueDate?esc(monthYear(u.dueDate)):"—"}</td>
+        <td class="t">${u.lastMetricAt?esc(ago(u.lastMetricAt)):"—"}</td>
+        <td style="text-align:right" aria-hidden="true">›</td></tr>`).join("")
+      || tableNote(5,q?`Никто не найден по запросу «${esc(q)}».`:"Пользователей пока нет.");
   }
-  function renderAudit(){
-    $("#auditBody").innerHTML=MOCK.audit.map(a=>`<tr style="cursor:default"><td class="num t">${esc(a.at)}</td><td>${esc(a.staffId)}</td><td><code style="font-family:var(--mono)">${esc(a.action)}</code></td><td class="t">${esc(a.target)}</td></tr>`).join("");
+
+  /// Who looked at what.
+  ///
+  /// Also never fetched: /admin/audit is the record of which staff member
+  /// opened which patient's data, and the tab showed five invented lines. An
+  /// audit log that is not the audit log is worse than no tab at all.
+  ///
+  /// Rendered for a person: the action as a phrase rather than `view_health`,
+  /// and a full timestamp rather than a bare "09:41" that is ambiguous the
+  /// moment yesterday exists.
+  const AUDIT_ACTIONS={
+    view_health:"Открыл(а) медданные",
+    view_wellness:"Открыл(а) дневник самочувствия",
+    view_detail:"Открыл(а) карточку",
+    list_users:"Просмотр списка пользователей",
+    view_emergencies:"Просмотр экстренных событий",
+    view_devices:"Просмотр устройств",
+    view_safety:"Просмотр событий безопасности",
+    publish_content:"Изменил(а) контент",
+    bulk_content:"Массовая правка контента",
+  };
+  async function renderAudit(){
+    const body=$("#auditBody"); if(!body) return;
+    body.innerHTML=tableBusy(4);
+    let data=null;
+    try{ data=await api("/admin/audit?limit=100"); }catch(e){ data=null; }
+    if(!data){
+      body.innerHTML=tableNote(4,"Не удалось загрузить журнал. Проверьте доступ и соединение.");
+      return;
+    }
+    const rows=data.audit||[];
+    body.innerHTML=rows.map(a=>`<tr style="cursor:default">
+        <td class="num t">${esc(stamp(a.at))}</td>
+        <td>${esc(a.staffId||"—")}</td>
+        <td>${esc(AUDIT_ACTIONS[a.action]||a.action)}</td>
+        <td class="t">${esc(a.target||"—")}</td></tr>`).join("")
+      || tableNote(4,"Действий пока не зафиксировано.");
   }
 
   // Daily actives as a line, signups as bars behind it, on a shared 30-day axis.
@@ -1099,7 +1206,13 @@
   // and stopping there leaves the people who answer support questions blind to
   // it, and the data team unable to see it at all.
   async function openUser(id){
-    let u=MOCK.users.find(x=>x.id===id)||{displayName:"User",phone:""};
+    // Seed from the row that was clicked, so the drawer has a name to show
+    // while the detail request is in flight.
+    const row=document.querySelector(`#usersBody tr[data-user="${CSS.escape(id)}"]`);
+    let u=MOCK.users.find(x=>x.id===id)||{
+      displayName:row?.querySelector("b")?.textContent||"—",
+      phone:row?.querySelector(".num")?.textContent||"",
+    };
     let h=MOCK.health[id]||MOCK.health._default;
     if(LIVE){
       try{
@@ -1135,7 +1248,11 @@
       <div class="disc">Read-only clinical view. All access is written to the audit log.</div>`;
     $("#drawer").classList.add("open");$("#scrim").classList.add("open");
     $("#dClose").onclick=closeDrawer;
-    MOCK.audit.unshift({at:"now",staffId:STAFF.id,action:"view_health",target:u.displayName});renderAudit();
+    // The server writes the audit entry for this view — that is the record
+    // that matters. This used to unshift a locally invented line dated "now"
+    // into the same list the tab displays, so the log showed entries that
+    // existed nowhere but this browser tab. Re-read the real one instead.
+    renderAudit();
   }
   function closeDrawer(){$("#drawer").classList.remove("open");$("#scrim").classList.remove("open");}
 
@@ -1188,7 +1305,16 @@
     const urow=e.target.closest("[data-user]"); if(urow){openUser(urow.dataset.user);return;}
     if(e.target.id==="scrim")closeDrawer();
   });
-  $("#userSearch").addEventListener("input",e=>renderUsers(e.target.value));
+  // Debounced: the search runs on the server now, and one request per keystroke
+  // would put a query and an audit line behind every letter of a name. The
+  // usersReq counter still discards an answer overtaken by a newer one, so a
+  // slow early request cannot repaint the list under a later query.
+  let searchTimer=null;
+  $("#userSearch").addEventListener("input",e=>{
+    const q=e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer=setTimeout(()=>renderUsers(q),250);
+  });
   $("#themeBtn").addEventListener("click",()=>{
     const r=document.documentElement, cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
     const next=cur==="dark"?"light":"dark";
@@ -1606,16 +1732,27 @@
     const del = e.target.closest("[data-del]");
     if (del) { readDraftFromDom(); draft.splice(Number(del.dataset.del), 1); renderEditor(); return; }
     const nav = e.target.closest("[data-view]");
-    if (nav) {
-      const v = nav.dataset.view;
-      if (v === "content") loadContent();
-      if (v === "devices") loadDevices();
-      if (v === "safety") loadSafety();
-      // «Аналитика» is rendered by the dashboard script above, which owns the
-      // BI payload and the chart code. One owner per view: when this file had
-      // two, the tab rendered twice and the second pass overwrote the first.
-    }
+    if (nav) loadFor(nav.dataset.view);
   });
+
+  /// Fetch whatever a view needs.
+  ///
+  /// This used to live inline in the click handler, so a view reached ANY other
+  /// way loaded nothing: opening /admin/ui#devices painted the table header
+  /// with no rows and no empty state — indistinguishable from "no devices" —
+  /// because the loader only ever ran on a click.
+  ///
+  /// «Аналитика» is absent deliberately: the dashboard script above owns the BI
+  /// payload and the chart code. One owner per view — when both files rendered
+  /// it, the second pass overwrote the first.
+  function loadFor(v) {
+    if (v === "content") loadContent();
+    if (v === "devices") loadDevices();
+    if (v === "safety") loadSafety();
+  }
+  // The same views, reached by URL rather than by click.
+  window.addEventListener("hashchange", () => loadFor(location.hash.slice(1)));
+  loadFor(location.hash.slice(1));
   const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
   on("#addLesson", () => addItem("lesson"));
   on("#addProduct", () => addItem("product"));

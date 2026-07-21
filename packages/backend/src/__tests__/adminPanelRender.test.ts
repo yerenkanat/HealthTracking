@@ -27,6 +27,27 @@ const NOW = new Date('2026-07-21T12:00:00Z');
 const pop = buildSyntheticPopulation(NOW);
 const FULL = computeBiMetrics({ ...pop, now: NOW });
 
+/** What GET /admin/users really answers — one real person, not six invented. */
+const USERS = {
+  total: 1,
+  users: [
+    {
+      id: '11111111-1111-1111-1111-111111111111',
+      displayName: 'Айгерим',
+      phone: '+77001112233',
+      dueDate: '2026-11-14T00:00:00.000Z',
+      lastMetricAt: '2026-07-21T11:30:00.000Z',
+    },
+  ],
+};
+
+const AUDIT = {
+  audit: [
+    { staffId: 's1', action: 'view_health', target: 'Айгерим', at: '2026-07-21T09:41:00.000Z' },
+    { staffId: 's2', action: 'list_users', target: null, at: '2026-07-21T09:31:00.000Z' },
+  ],
+};
+
 const ANALYTICS = {
   totalUsers: 261,
   pregnant: 120,
@@ -43,8 +64,13 @@ interface Rendered {
   errors: string[];
 }
 
-/** Load the panel, let it boot, click through to [view], return its text. */
-async function render(bi: unknown, view: string): Promise<Rendered> {
+/**
+ * Load the panel, let it boot, click through to [view], return its text.
+ *
+ * [down] names path fragments whose requests should fail, so a test can take
+ * one endpoint away without taking the whole panel with it.
+ */
+async function render(bi: unknown, view: string, down: string[] = []): Promise<Rendered> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -74,11 +100,18 @@ async function render(bi: unknown, view: string): Promise<Rendered> {
       window.scrollTo = () => {};
       window.fetch = (async (path: string) => {
         const p = String(path);
+        if (down.some((d) => p.includes(d))) {
+          return { ok: false, status: 500, json: async () => ({}) };
+        }
         const body = p.includes('/admin/bi')
           ? bi
           : p.includes('/admin/analytics')
             ? ANALYTICS
-            : {};
+            : p.includes('/admin/users')
+              ? USERS
+              : p.includes('/admin/audit')
+                ? AUDIT
+                : {};
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
       }) as never;
@@ -190,6 +223,57 @@ describe('the overview stays operational', () => {
     expect(t).not.toContain('Липкость');
     expect(t).not.toContain('Отток');
     expect(page.text('#overview')).toContain('Аналитика');
+  });
+});
+
+describe('the tabs that were showing invented data', () => {
+  // GET /admin/users and GET /admin/audit both existed, were authorized and
+  // audited — and the panel called neither. Both tabs rendered hardcoded
+  // arrays, in Live mode as well as demo. Someone searching for a patient who
+  // had just phoned would be told she does not exist, and the audit log — the
+  // record of which staff member opened which woman's data — showed five lines
+  // that existed nowhere but the browser tab.
+  it('the user list comes from the server', async () => {
+    const page = await render(FULL, 'users');
+    expect(page.errors).toEqual([]);
+    const t = page.text('#usersBody');
+    expect(t).toContain('Айгерим');
+    expect(t).toContain('+77001112233');
+    // The six demo names must not appear once a real answer exists.
+    for (const invented of ['Madina', 'Zarina', 'Aruzhan', 'Saltanat']) {
+      expect(t).not.toContain(invented);
+    }
+  });
+
+  it('dates in the user list are in the language the panel is written in', async () => {
+    const page = await render(FULL, 'users');
+    const t = page.text('#usersBody');
+    expect(t).toContain('ноя 2026'); // not "Nov 2026"
+    expect(t).toMatch(/назад|только что/); // not "18m ago"
+    expect(t).not.toMatch(/\b(Nov|Sep|Jan|Oct|Dec|Feb)\b/);
+    expect(t).not.toMatch(/\d+[mh] ago/);
+  });
+
+  it('the audit log is the audit log', async () => {
+    const page = await render(FULL, 'audit');
+    expect(page.errors).toEqual([]);
+    const t = page.text('#auditBody');
+    // A phrase a person reads, not the wire code.
+    expect(t).toContain('Открыл(а) медданные');
+    expect(t).not.toContain('view_health');
+    // A bare "09:41" is unambiguous only until tomorrow exists.
+    expect(t).toMatch(/\d{2}\.\d{2}\s+\d{2}:\d{2}/);
+  });
+
+  it('says when a list could not be loaded, rather than showing it as empty', async () => {
+    // Blank-because-loading, blank-because-empty and blank-because-failed were
+    // one blank screen. A back-office that cannot reach its API must not look
+    // like a product with no users.
+    const page = await render(FULL, 'users', ['/admin/users']);
+    expect(page.errors).toEqual([]);
+    expect(page.text('#usersBody')).toMatch(/Не удалось загрузить/);
+    // And the rest of the panel is untouched by one endpoint being down.
+    expect(page.text('#kpis')).toContain('Устройств онлайн');
   });
 });
 
