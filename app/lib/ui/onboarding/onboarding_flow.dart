@@ -12,6 +12,7 @@ import '../../domain/country_codes.dart';
 import '../../domain/family.dart';
 import '../../domain/onboarding_controller.dart';
 import '../../l10n/l10n.dart';
+import '../../data/device_location.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
@@ -52,7 +53,13 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             leading: c.stepIndex > 0
-                ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: c.back)
+                ? IconButton(
+                    // Unlabelled, a screen reader announced only "button" —
+                    // on every onboarding step after the first.
+                    tooltip: l.t('onb_back'),
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: c.back,
+                  )
                 : null,
             title: Text(l.t('onb_step', {'n': c.stepIndex + 1, 'total': c.totalSteps})),
             elevation: 0,
@@ -331,8 +338,11 @@ class _ChildPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final homeSet = controller.home != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    // ListView, not Column: this page carries a name field, a date row, gender
+    // chips and two zone tiles, and at 360dp in Russian that is 27px taller
+    // than the screen. The profile step already scrolls; this one did not, so
+    // the last step of onboarding clipped its own controls.
+    return ListView(
       children: [
         Text(l.t('onb_child_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
         const SizedBox(height: 20),
@@ -363,7 +373,14 @@ class _ChildPage extends StatelessWidget {
           },
         ),
         const SizedBox(height: 12),
-        Row(children: [
+        // Wrap, not Row: a label plus two chips is wider than 360dp once the
+        // words are Russian — 64px past the edge — and this is the last step of
+        // onboarding, where a clipped control is the difference between
+        // finishing and giving up.
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          runSpacing: 8,
+          children: [
           Text(l.t('child_gender'), style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(width: 12),
           for (final g in Gender.values)
@@ -377,29 +394,129 @@ class _ChildPage extends StatelessWidget {
                 onSelected: (_) => controller.setChildGender(controller.childGender == g ? null : g),
               ),
             ),
-        ]),
-        const SizedBox(height: 12),
-        ListTile(
-          leading: const Icon(Icons.home_outlined),
-          title: Text(l.t('onb_home_label')),
-          trailing: homeSet
-              ? Text(l.t('onb_zone_set'), style: TextStyle(color: Theme.of(context).colorScheme.primary))
-              : TextButton(
-                  onPressed: () => controller.setHome(const ZoneInput('Home', 43.238949, 76.889709, radiusM: 100)),
-                  child: Text(l.t('onb_use_current')),
-                ),
+        ],
         ),
-        ListTile(
-          leading: const Icon(Icons.school_outlined),
-          title: Text(l.t('onb_school_label')),
-          trailing: controller.school != null
-              ? Text(l.t('onb_zone_set'), style: TextStyle(color: Theme.of(context).colorScheme.primary))
-              : TextButton(
-                  onPressed: () => controller.setSchool(const ZoneInput('School', 43.25, 76.95, radiusM: 120)),
-                  child: Text(l.t('onb_use_current')),
-                ),
+        const SizedBox(height: 12),
+        _ZoneTile(
+          icon: Icons.home_outlined,
+          label: l.t('onb_home_label'),
+          isSet: homeSet,
+          radiusM: 100,
+          onPicked: controller.setHome,
+        ),
+        _ZoneTile(
+          icon: Icons.school_outlined,
+          label: l.t('onb_school_label'),
+          isSet: controller.school != null,
+          radiusM: 120,
+          onPicked: controller.setSchool,
         ),
       ],
+    );
+  }
+}
+
+/// "Home" / "School" during onboarding: set this zone to where the phone is.
+///
+/// Two things were wrong here before.
+///
+/// It never asked the device. `setHome(const ZoneInput('Home', 43.238949,
+/// 76.889709))` wrote the SAME Almaty coordinate for every user in the country,
+/// so a family in Astana finished onboarding with a home zone six hundred
+/// kilometres away — and every geofence alert after that was about a street
+/// they had never seen. A hardcoded constant behind a button labelled "use
+/// current location" is the kind of placeholder that survives to production
+/// because nothing looks broken.
+///
+/// And the zone was named in English while the rest of the app names it with
+/// l.t('onb_home_label') — so the same zone was "Home" if created here and
+/// "Дом" if created from the family sheet, which is what broke
+/// distanceFromHomeM for Russian users.
+///
+/// The trailing action is also width-constrained: an unbounded TextButton in a
+/// ListTile's trailing slot threw "Trailing widget consumes the entire tile
+/// width" at 360dp, in every language.
+class _ZoneTile extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool isSet;
+  final double radiusM;
+  final void Function(ZoneInput) onPicked;
+
+  const _ZoneTile({
+    required this.icon,
+    required this.label,
+    required this.isSet,
+    required this.radiusM,
+    required this.onPicked,
+  });
+
+  @override
+  State<_ZoneTile> createState() => _ZoneTileState();
+}
+
+class _ZoneTileState extends State<_ZoneTile> {
+  bool _busy = false;
+
+  Future<void> _use() async {
+    setState(() => _busy = true);
+    final result = await currentCoordinates();
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    if (result.ok) {
+      widget.onPicked(ZoneInput(
+        widget.label, // the localized name, matching the rest of the app
+        result.coords!.lat,
+        result.coords!.lng,
+        radiusM: widget.radiusM,
+      ));
+      return;
+    }
+    // Say what went wrong and what to do instead. Failing silently here would
+    // leave the zone unset with no explanation, on the step that gates
+    // finishing onboarding.
+    final l = L10nScope.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.t(result.messageKey!)),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Palette.danger,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(widget.icon),
+      title: Text(widget.label),
+      trailing: ConstrainedBox(
+        // Bounded, or a long label — "Использовать текущее" — takes the whole
+        // tile and Flutter asserts rather than laying out.
+        constraints: const BoxConstraints(maxWidth: 150),
+        child: widget.isSet
+            ? Text(
+                l.t('onb_zone_set'),
+                textAlign: TextAlign.end,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              )
+            : TextButton(
+                onPressed: _busy ? null : _use,
+                child: _busy
+                    ? const SizedBox(
+                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(
+                        l.t('onb_use_current'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+              ),
+      ),
     );
   }
 }

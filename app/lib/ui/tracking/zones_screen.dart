@@ -4,11 +4,11 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../../app/app_controller.dart';
 import '../../core/geofence.dart';
 import '../../domain/geofence_alerts.dart' show visitsToZone;
+import '../../data/device_location.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
@@ -236,30 +236,17 @@ class _ZoneSheetState extends State<_ZoneSheet> {
   /// is worse than having no zone at all.
   Future<void> _useCurrentLocation() async {
     setState(() => _locating = true);
-    String? failure; // an l10n key, or null when it worked
-    try {
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.deniedForever) {
-        // The system will not ask again; only Settings can undo this, so say so
-        // rather than letting her tap a button that can no longer work.
-        failure = 'zone_loc_denied_forever';
-      } else if (perm == LocationPermission.denied) {
-        failure = 'zone_loc_denied';
-      } else {
-        final p = await Geolocator.getCurrentPosition();
-        _center = Coordinates(p.latitude, p.longitude);
-      }
-    } catch (_) {
-      failure = 'zone_loc_failed'; // no fix: indoors, airplane mode, GPS off
-    }
+    final result = await currentCoordinates();
     if (!mounted) return;
-    setState(() => _locating = false);
-    if (failure != null) {
+    setState(() {
+      _locating = false;
+      if (result.ok) _center = result.coords!;
+    });
+    if (!result.ok) {
       final l = L10nScope.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l.t(failure)),
+          content: Text(l.t(result.messageKey!)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Palette.danger,
         ),

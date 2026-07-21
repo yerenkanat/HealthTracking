@@ -4,12 +4,20 @@
 library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/core/geofence.dart';
+import 'package:fcs_app/data/device_location.dart';
 import 'package:fcs_app/domain/onboarding_controller.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/onboarding/onboarding_flow.dart';
 
 void main() {
+  // The zone tiles now really ask the device where it is. A widget test has no
+  // platform channel, so without a stand-in the button spins forever.
+  setUp(() => debugLocationOverride =
+      () async => const LocationResult.ok(Coordinates(43.238949, 76.889709)));
+  tearDown(() => debugLocationOverride = null);
+
   testWidgets('completes the flow and produces a config', (tester) async {
     OnboardingResult? result;
     final controller = OnboardingController(initialLocale: AppLocale.en);

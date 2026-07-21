@@ -40,6 +40,8 @@ import 'package:fcs_app/ui/calendar/weight_history_screen.dart';
 import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
 import 'package:fcs_app/ui/dashboard/water_history_screen.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
+import 'package:fcs_app/domain/onboarding_controller.dart';
+import 'package:fcs_app/ui/onboarding/onboarding_flow.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
 
 void main() {
@@ -312,4 +314,22 @@ void main() {
     final c = seededA11y();
     await audit(tester, screen(ZonesScreen(controller: c, childId: c.selectedChild!.id)));
   });
+
+  // Onboarding — the first thing every user sees, audited step by step.
+  for (final step in OnboardingStep.values) {
+    if (step == OnboardingStep.done) continue;
+    testWidgets('onboarding "${step.name}" meets the guidelines', (tester) async {
+      final oc = OnboardingController();
+      addTearDown(oc.dispose);
+      oc.setDisplayName('Aigerim');
+      oc.setPhoneNumber('7001112233');
+      oc.setChildName('Sultan');
+      oc.setHome(const ZoneInput('Дом', 43.238949, 76.889709));
+      for (var guard = 0; oc.step != step && guard < 10; guard++) {
+        oc.next();
+      }
+      expect(oc.step, step, reason: 'could not reach $step');
+      await audit(tester, screen(OnboardingFlow(controller: oc, onComplete: (_) {})));
+    });
+  }
 }

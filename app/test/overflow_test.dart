@@ -37,6 +37,8 @@ import 'package:fcs_app/ui/profile/profile_screen.dart';
 import 'package:fcs_app/ui/settings/settings_screen.dart';
 import 'package:fcs_app/ui/tracking/alerts_screen.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/domain/onboarding_controller.dart';
+import 'package:fcs_app/ui/onboarding/onboarding_flow.dart';
 import 'package:fcs_app/domain/child_tracker_state.dart';
 import 'package:fcs_app/ui/advisor/advisor_screen.dart';
 import 'package:fcs_app/ui/calendar/contraction_timer_screen.dart';
@@ -453,6 +455,33 @@ void main() {
       scroll: true,
     );
   });
+
+
+  // ---- Onboarding ----
+  // The first thing every user sees, and it was in neither suite. Each step is
+  // rendered separately: the flow is one widget with five faces, and only the
+  // visible one can overflow.
+  for (final step in OnboardingStep.values) {
+    if (step == OnboardingStep.done) continue; // no UI of its own
+    testWidgets('onboarding "${step.name}" fits every locale', (tester) async {
+      await checkAllLocales(tester, 'OnboardingFlow.${step.name}', () {
+        final oc = OnboardingController();
+        addTearDown(oc.dispose);
+        // Fill what each step REQUIRES before walking past it. next() is a
+        // no-op while canProceed is false, so a bare loop here spins forever —
+        // it did, and took the whole suite past its timeout.
+        oc.setDisplayName('Aigerim');
+        oc.setPhoneNumber('7001112233');
+        oc.setChildName('Sultan');
+        oc.setHome(const ZoneInput('Дом', 43.238949, 76.889709));
+        for (var guard = 0; oc.step != step && guard < 10; guard++) {
+          oc.next();
+        }
+        expect(oc.step, step, reason: 'could not reach ');
+        return OnboardingFlow(controller: oc, onComplete: (_) {});
+      }, scroll: true);
+    });
+  }
 }
 
 final List<String> _overflows = [];
