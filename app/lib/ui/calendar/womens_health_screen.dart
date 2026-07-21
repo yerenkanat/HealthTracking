@@ -35,14 +35,32 @@ import 'weight_history_screen.dart';
 import 'cycle_summary.dart';
 import 'weight_card.dart';
 import 'logging_drawer.dart';
+import '../../domain/timeline_content.dart';
+import '../content/timeline_content_card.dart';
 import 'pregnancy_hero.dart';
 import 'week_detail_screen.dart';
 
 class WomensHealthScreen extends StatefulWidget {
   final AppController controller;
   final DateTime Function() now;
-  const WomensHealthScreen({super.key, required this.controller, DateTime Function()? now})
-      : now = now ?? DateTime.now;
+
+  /// Stage-relevant content for the daily-tips shelf under the pregnancy hero.
+  /// Optional so the screen still builds with no catalogue wired — it simply
+  /// shows no tips, rather than an empty card. Reuses the same
+  /// TimelineContentCard the dashboard uses, so tips are the published
+  /// catalogue, never placeholder copy.
+  final List<ContentItem> tips;
+  final void Function(ContentItem item)? onOpenTip;
+  final VoidCallback? onSeeAllTips;
+
+  const WomensHealthScreen({
+    super.key,
+    required this.controller,
+    DateTime Function()? now,
+    this.tips = const [],
+    this.onOpenTip,
+    this.onSeeAllTips,
+  }) : now = now ?? DateTime.now;
 
   @override
   State<WomensHealthScreen> createState() => _WomensHealthScreenState();
@@ -136,6 +154,23 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _CycleHeader(controller: c, today: _today, onSetDueDate: _pickDueDate)
                 else
                   _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
+
+                // Daily tips, right under the pregnancy hero — the same
+                // published catalogue the dashboard shows, keyed to her week.
+                // Only in pregnancy mode: the cycle calendar has its own
+                // content elsewhere, and showing an empty shelf on it would be
+                // clutter. Hidden entirely when nothing is wired.
+                if (!cycleMode && c.isPregnant && widget.onOpenTip != null) ...[
+                  const SizedBox(height: 14),
+                  TimelineContentCard(
+                    stage: c.gestation == null
+                        ? null
+                        : TimelineStage.pregnancyWeek(c.gestation!.week),
+                    items: widget.tips,
+                    onOpen: widget.onOpenTip,
+                    onSeeAll: widget.onSeeAllTips,
+                  ),
+                ],
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
                   _CyclePhaseCard(info: c.cycle),
@@ -421,21 +456,32 @@ class _GestationHeader extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            GestureDetector(
-              onTap: onSetDueDate,
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.edit_calendar_outlined, size: 15, color: Palette.violet),
-                const SizedBox(width: 5),
-                Text(
-                  controller.dueDate != null
-                      ? l.t('gest_due', {
-                          'date': MaterialLocalizations.of(context).formatMediumDate(controller.dueDate!)
-                        })
-                      : l.t('cal_no_due_title'),
-                  style: const TextStyle(color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600),
-                ),
-              ]),
+            // Both sides flex and ellipsise. A long localized date plus the
+            // end-pregnancy link overflowed a narrow phone by 128px, and a
+            // layout exception blanks everything below it — which is how the
+            // tips shelf under this header stopped rendering in the test.
+            Flexible(
+              child: GestureDetector(
+                onTap: onSetDueDate,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.edit_calendar_outlined, size: 15, color: Palette.violet),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      controller.dueDate != null
+                          ? l.t('gest_due', {
+                              'date': MaterialLocalizations.of(context).formatMediumDate(controller.dueDate!)
+                            })
+                          : l.t('cal_no_due_title'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ]),
+              ),
             ),
+            const SizedBox(width: 12),
             GestureDetector(
               onTap: () => _confirmEndPregnancy(context),
               child: Text(l.t('cyc_end_pregnancy'),

@@ -132,7 +132,15 @@ class _HomeShellState extends State<HomeShell> {
           ),
         )),
       ),
-      WomensHealthScreen(controller: c),
+      WomensHealthScreen(
+        controller: c,
+        // The same published content the dashboard shows, filtered to the
+        // viewer, so the pregnancy calendar carries this week's tips instead of
+        // a bare header.
+        tips: _contentFor(c),
+        onOpenTip: _openContent,
+        onSeeAllTips: () => setState(() => _index = 0), // the dashboard hosts the full shelf
+      ),
       ChildMapScreen(
         childName: c.childName,
         childLocation: loc?.coords,
