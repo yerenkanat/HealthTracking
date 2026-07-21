@@ -170,6 +170,30 @@ describe("a signed-in user cannot reach another family's child", () => {
     });
     expect(r.statusCode).toBe(403);
   });
+
+  it("cannot REGISTER a tracker already pointed at somebody else's child", async () => {
+    // Reassignment checked both ends and said why in a comment. Registration
+    // reaches exactly the same state and checked neither, so the guard was
+    // one POST away from being irrelevant.
+    const r = await post('/devices', {
+      id: 'mallorys-new-band',
+      name: 'band',
+      kind: 'band',
+      childId: ALICE_CHILD,
+    });
+    expect(r.statusCode).toBe(403);
+  });
+
+  it('cannot claim a device id that is already registered to someone else', async () => {
+    const r = await post('/devices', { id: ALICE_DEVICE, name: 'band', kind: 'band' });
+    expect(r.statusCode).toBe(409);
+    expect(r.json()).toMatchObject({ mine: false });
+  });
+
+  it('may still register a device of their own', async () => {
+    const r = await post('/devices', { id: 'fresh-band', name: 'band', kind: 'band' });
+    expect(r.statusCode).toBe(201);
+  });
 });
 
 describe('the location endpoint requires authentication at all', () => {

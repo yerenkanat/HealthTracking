@@ -114,6 +114,16 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     return u;
   }
 
+  /// An id taken from the BODY needs the same check as one taken from the path.
+  ///
+  /// Returns true when the caller may attach things to [childId]. A null child
+  /// is always allowed — it means "not assigned to anyone".
+  async function mayUseChild(userId: string, childId: string | null | undefined): Promise<boolean> {
+    if (!childId) return true;
+    const owner = await repo.childOwner(childId);
+    return !!owner && owner.userId === userId;
+  }
+
   // ---- Children ----
   app.get('/children', async (req, reply) => {
     const u = await requireUser(req, reply);
@@ -167,6 +177,32 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!u) return;
     const parsed = deviceBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    // PATCH /devices/:id checks both ends of a device-to-child link and says
+    // why in a comment. Registration reaches exactly the same state and
+    // checked neither: `childId` came straight out of the body and was written
+    // as given, so any signed-in account could register a tracker of its own
+    // pointed at another family's child.
+    if (!(await mayUseChild(u.userId, parsed.data.childId))) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
+
+    // A device id is a physical identifier, and both repositories ignore an
+    // insert that collides with one already registered — so this answered 201
+    // for a registration that did not happen, and the tracker then never
+    // appeared in her list with nothing on screen to explain it.
+    //
+    // Telling her the id is taken does reveal that it is registered somewhere.
+    // That is unavoidable if the failure is to be reported at all, and the
+    // alternative — a device that silently never works — is worse for the
+    // person holding it.
+    const existing = await repo.deviceOwner(parsed.data.id);
+    if (existing) {
+      return reply
+        .code(409)
+        .send({ error: 'device_already_registered', mine: existing.userId === u.userId });
+    }
+
     await repo.createDevice(u.userId, { ...parsed.data, childId: parsed.data.childId ?? null });
     return reply.code(201).send({ ok: true });
   });
@@ -322,11 +358,8 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const parsed = reassignBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const targetChild = parsed.data.childId;
-    if (targetChild) {
-      const childOwner = await repo.childOwner(targetChild);
-      if (!childOwner || childOwner.userId !== u.userId) {
-        return reply.code(403).send({ error: 'forbidden' });
-      }
+    if (!(await mayUseChild(u.userId, targetChild))) {
+      return reply.code(403).send({ error: 'forbidden' });
     }
     await repo.reassignDevice(id, targetChild);
     return reply.send({ ok: true });
