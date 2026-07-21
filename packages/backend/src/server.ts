@@ -104,8 +104,47 @@ const bpCalSchema = z.object({
   measuredAt: z.string(),
 });
 
+/// Replace id-looking path segments with `:id`.
+///
+/// Request logging is pino's default, which records method and url and — good
+/// — neither headers nor bodies, so no readings, names, phone numbers or chat
+/// messages reach it. What it did record was the URL verbatim, and these URLs
+/// carry identifiers: `/admin/users/{uuid}/health` in an access log states
+/// which staff member opened which patient's record, and `/children/{uuid}/
+/// location` states whose child was looked up and when.
+///
+/// That question already has a deliberate home — the audit log, which is
+/// written on purpose, queryable, and behind admin auth. Access logs are the
+/// thing most likely to be shipped wholesale to a third-party aggregator, so
+/// duplicating it there puts the same fact somewhere with weaker controls and
+/// no retention policy.
+///
+/// The route SHAPE is what debugging actually needs, and that is kept.
+export function redactPathIds(url: string): string {
+  return url
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, ':id')
+    // Query strings can carry a search term — the back-office user search puts
+    // a name or phone number in `?q=`.
+    .replace(/\?.*$/, '?…');
+}
+
 export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): FastifyInstance {
-  const app = Fastify({ logger: opts.logger ?? true });
+  const app = Fastify({
+    logger:
+      opts.logger === false
+        ? false
+        : {
+            serializers: {
+              req(req) {
+                return {
+                  method: req.method,
+                  url: redactPathIds(req.url),
+                  remoteAddress: req.ip,
+                };
+              },
+            },
+          },
+  });
 
   // 20 assistant messages per 5 minutes per user. A real conversation is
   // nowhere near this; a runaway client hits it in seconds. Overridable so the

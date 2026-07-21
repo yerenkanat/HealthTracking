@@ -137,8 +137,18 @@ List<SeriesPoint> downsampleMean(List<SeriesPoint> pts, int maxPoints) {
   }
   final out = <SeriesPoint>[];
   for (var i = 0; i < maxPoints; i++) {
+    // An empty bucket contributes no point, so the chart draws straight from
+    // the last reading to the next. Fine for a sparkline, whose job is the
+    // trend — but it means a gap reads as a smooth line rather than as an
+    // absence. Worth revisiting if these ever become a chart someone reads a
+    // specific value off.
     if (counts[i] == 0) continue;
     out.add(SeriesPoint(
+      // CAUTION: forced to UTC while the inputs are local. Harmless today
+      // because nothing formats these — they position points on an axis, and
+      // every point shifts by the same offset, so the shape is unchanged.
+      // The moment anyone labels that axis, these read hours wrong (+5 or +6
+      // for Kazakhstan). Drop isUtc, or convert back, before doing that.
       DateTime.fromMillisecondsSinceEpoch(firstMs[i], isUtc: true),
       sums[i] / counts[i],
     ));
