@@ -336,3 +336,56 @@ describe('a warning is not reassurance just because it says "normal"', () => {
     }
   });
 });
+
+describe('how a frightened woman actually types', () => {
+  // The pattern list matched textbook phrasing. Probed against the wording
+  // someone would really use, sixteen realistic messages produced sixteen
+  // misses — including reduced fetal movement, a fall onto the bump, and a
+  // cuff reading typed straight into the chat.
+  const CAUGHT: Array<[string, string]> = [
+    ['reduced movement, colloquial (ru)', 'малыш не пинается уже целый день'],
+    ['reduced movement, spelled out (en)', 'the baby has not kicked all day'],
+    ['reduced movement (kk)', 'бала күні бойы теппейді'],
+    ['preeclampsia picture (ru)', 'у меня отеки на лице и руках и болит голова'],
+    ['preeclampsia picture (en)', 'my face and hands are swollen and my head hurts'],
+    ['typed cuff reading (ru)', 'давление 170 на 110'],
+    ['typed cuff reading (en)', 'my blood pressure is 170 over 110'],
+    ['typed cuff reading (kk)', 'қысымым 170 110'],
+    ['abdominal trauma (ru)', 'я упала на живот'],
+    ['abdominal trauma (en)', 'I fell on my stomach'],
+    ['bleeding in progress (ru)', 'кажется у меня отошли воды и идет кровь'],
+  ];
+  for (const [name, text] of CAUGHT) {
+    it(`escalates: ${name}`, () => expect(_internal.textLooksEmergency(text)).toBe(true));
+  }
+
+  // The emergency path TAKES OVER her screen. Firing it on ordinary messages
+  // would teach her to dismiss it, which costs more than the cases it catches.
+  const ORDINARY = [
+    'сдала анализ крови сегодня',
+    'какая у меня группа крови',
+    'у меня немного отекли ноги к вечеру',
+    'болит голова немного, выпила воды',
+    'я вешу 65 кг при росте 170',
+    'приём назначен на 21/07',
+    'ребёнок активно пинается сегодня',
+    'my legs are a bit swollen in the evening',
+    'I had a blood test yesterday',
+    'the baby is kicking a lot today',
+  ];
+  for (const text of ORDINARY) {
+    it(`stays ordinary: ${text}`, () => expect(_internal.textLooksEmergency(text)).toBe(false));
+  }
+
+  it('a normal blood pressure typed out does not escalate', () => {
+    expect(_internal.textLooksEmergency('давление 118 на 76')).toBe(false);
+    expect(_internal.textLooksEmergency('my blood pressure is 118 over 76')).toBe(false);
+  });
+
+  it('swelling alone does not escalate, and a headache alone does not either', () => {
+    // Both are near-universal in pregnancy. Only the COMBINATION is the
+    // preeclampsia picture worth taking over her screen for.
+    expect(_internal.textLooksEmergency('у меня отекли руки')).toBe(false);
+    expect(_internal.textLooksEmergency('немного болит голова')).toBe(false);
+  });
+});

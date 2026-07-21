@@ -13,7 +13,7 @@
  * with no network/SDK. The real Anthropic implementation lives in anthropicClient.ts.
  */
 
-import { assessTelemetry } from '@fcs/shared';
+import { assessTelemetry, TRIAGE_THRESHOLDS } from '@fcs/shared';
 import type { BandTelemetry, TriageResult } from '@fcs/shared';
 import { buildSystemPrompt } from './systemPrompt';
 
@@ -114,7 +114,16 @@ const RED_FLAG_PATTERNS: RegExp[] = [
   /\bvision\s+(is\s+|has\s+)?(blur|loss|lost|spots|chang|going)/i,
   /\b(severe|worst|terrible)\s+headache/i,
   /\b(heavy|severe)\s+(bleeding|blood)/i,
-  /\b(baby|fetus).{0,20}(not moving|stopped moving|no movement|hasn'?t moved)/i,
+  // "kick" belongs here as much as "move": asked how the baby is, a mother
+  // says "he hasn't kicked all day" far more often than "there is no fetal
+  // movement". The list matched the textbook phrasing and missed the human one.
+  // "has not kicked" as well as "hasn't kicked" — the contraction was matched
+  // and the spelled-out form, which is what people type when worried, was not.
+  /\b(baby|fetus).{0,20}(no movement|no kicks?|not (moving|kicking)|(has|have)\s*n'?o?t\s+(moved|kicked|been moving)|stopped (moving|kicking))/i,
+  // Abdominal trauma. Unambiguous in pregnancy, and it was matched by nothing.
+  /\b(fell|fallen)\b.{0,25}\b(on\s+my\s+)?(stomach|belly|bump|abdomen)\b/i,
+  /\b(hit|punched|kicked)\b.{0,20}\b(in\s+the\s+)?(stomach|belly|bump|abdomen)\b/i,
+  /\bcar\s+(crash|accident)\b/i,
   /\b(faint|passed out|blacked out|seizure|convuls)/i,
   /\bsevere\s+(abdominal|belly|stomach)\s+pain/i,
 
@@ -123,11 +132,21 @@ const RED_FLAG_PATTERNS: RegExp[] = [
   /задыха/iu,
   /кровотеч/iu,
   /(много|сильно)\s+кров/iu,
+  // Bleeding that is HAPPENING, without needing a severity word. Any bleeding
+  // in pregnancy warrants urgent contact, and "идёт кровь" is the ordinary way
+  // to say it. The qualifier is still required above so that "сдала анализ
+  // крови" and "группа крови" — a blood test, a blood group — do not escalate.
+  /(идет|идёт|пошла|началось|появилась|течет|течёт)\s+кров/iu,
   /(туман|пелена|мушки|темнеет)/iu,
   /(зрение|вижу).{0,20}(упало|ухудш|плохо|пропа|не\s)/iu,
   /(сильн\p{L}*|невыносим\p{L}*|ужасн\p{L}*|резк\p{L}*)\s+(головная\s+боль|боль\s+в\s+голове)/iu,
   /сильно\s+болит\s+голова/iu,
-  /(ребёнок|ребенок|малыш|плод).{0,25}(не\s+шевел|не\s+двига|не\s+толка)/iu,
+  // "не пинается" is how a mother actually says it; the list had only the
+  // textbook verbs.
+  /(ребёнок|ребенок|малыш|плод).{0,25}(не\s+шевел|не\s+двига|не\s+толка|не\s+пина)/iu,
+  // Abdominal trauma — matched by nothing before.
+  /(упала|падала|ударилась|ударил\p{L}*)\s*(на|в|по)?\s*(живот|животу)/iu,
+  /(попала\s+в\s+аварию|автоавари)/iu,
   /(нет|отсутств\p{L}*)\s+шевелен/iu,
   /(потеряла\s+сознание|теряю\s+сознание|обморок|судорог|припадок)/iu,
   /(сильн\p{L}*|резк\p{L}*|остр\p{L}*)\s+боль\s+в\s+живот/iu,
@@ -139,13 +158,91 @@ const RED_FLAG_PATTERNS: RegExp[] = [
   /(көз\p{L}*\s+(көрмей|тұманд)|көру\s+нашарла|көз\p{L}*\s+алды\s+тұманд)/iu,
   /бас\p{L}*\s+(қатты\s+)?ауыр/iu,
   /қатты\s+бас\s+ауру/iu,
-  /(бала|нәресте).{0,25}(қозғалмай|қимылдамай|тыпырламай)/iu,
+  // "теппейді" (doesn't kick) belongs with the textbook verbs, for the same
+  // reason as the Russian and English lists.
+  /(бала|нәресте).{0,25}(қозғалмай|қимылдамай|тыпырламай|теппей|тепкен\s+жоқ)/iu,
+  /(құлап\s+қал\p{L}*|соғып\s+ал\p{L}*).{0,20}(іш|қарын)/iu,
   /(есінен\s+тан|талып\s+қал|естен\s+тан|құрыс)/iu,
   /іш\p{L}*\s+(қатты\s+)?ауыр/iu,
   /қатты\s+іш\s+ауру/iu,
 ];
+// --- Patterns that only mean something in combination ---
+//
+// Swelling is near-universal in pregnancy, so on its own it would fire for
+// almost everyone and teach her to ignore the screen. Swelling of the FACE or
+// HANDS together with a headache or a visual change is the classic
+// preeclampsia picture, and that combination is worth escalating.
+const SWELLING_FACE_HANDS: RegExp[] = [
+  /\b(swollen|swelling|puffy)\b.{0,30}\b(face|hands?|fingers?)\b/i,
+  /\b(face|hands?|fingers?)\b.{0,30}\b(swollen|swelling|puffy)\b/i,
+  /отек\p{L}*.{0,30}(лиц|рук|пальц)/iu,
+  /(лиц|рук|пальц)\p{L}*.{0,30}отек/iu,
+  /(бет|қол).{0,30}ісі/iu,
+  /ісі\p{L}*.{0,30}(бет|қол)/iu,
+];
+const ANY_HEADACHE: RegExp[] = [
+  /\bheadache\b/i,
+  /\bhead\s+hurts?\b/i,
+  /голов\p{L}*\s+бол/iu,
+  /болит\s+голов/iu,
+  /бас\p{L}*\s+ауыр/iu,
+];
+const ANY_VISION_TROUBLE: RegExp[] = [
+  /\bvision\b/i,
+  /\b(spots|flashes)\b.{0,15}\b(eyes?|vision)\b/i,
+  /(зрени|перед\s+глазами|мушки|пелена)/iu,
+  /(көру|көз)/iu,
+];
+
+const some = (pats: RegExp[], t: string) => pats.some((re) => re.test(t));
+
+/// Blood pressure she TYPED, at or above the emergency threshold.
+///
+/// The telemetry path already escalates a measured reading. Nothing looked at
+/// one she wrote out — so "давление 170 на 110", a cuff result typed straight
+/// into the chat, was answered as ordinary conversation. The numbers come from
+/// the shared contract, so this cannot drift from the sensor path.
+function mentionsCriticalBp(text: string): boolean {
+  const pairs: Array<[number, number]> = [];
+  // "170/110", "170 на 110", "170 over 110", "170-110".
+  for (const m of text.matchAll(/\b(\d{2,3})\s*(?:\/|-|на|over)\s*(\d{2,3})\b/giu)) {
+    pairs.push([Number(m[1]), Number(m[2])]);
+  }
+  // Two bare numbers, but only right after a word meaning blood pressure —
+  // "қысымым 170 110" is how it is written in Kazakh. Without the context word
+  // this would read any two numbers in a sentence as a reading.
+  for (const m of text.matchAll(
+    /(қысым|қан\s*қысым|давлени|pressure)\p{L}*[^\d]{0,12}(\d{2,3})\s+(\d{2,3})\b/giu,
+  )) {
+    pairs.push([Number(m[2]), Number(m[3])]);
+  }
+
+  for (const [sys, dia] of pairs) {
+    // Bounded to readings a cuff can actually produce, so a date ("21/07") or
+    // a count ("2 на 3") cannot be read as blood pressure.
+    if (sys < 60 || sys > 300 || dia < 30 || dia > 200 || dia >= sys) continue;
+    if (
+      sys >= TRIAGE_THRESHOLDS.BP_SYSTOLIC_EMERGENCY ||
+      dia >= TRIAGE_THRESHOLDS.BP_DIASTOLIC_EMERGENCY
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function textLooksEmergency(text: string): boolean {
-  return RED_FLAG_PATTERNS.some((re) => re.test(text));
+  if (RED_FLAG_PATTERNS.some((re) => re.test(text))) return true;
+  if (mentionsCriticalBp(text)) return true;
+  // Preeclampsia picture: facial or hand swelling WITH a headache or a visual
+  // change. Neither half escalates alone.
+  if (
+    some(SWELLING_FACE_HANDS, text) &&
+    (some(ANY_HEADACHE, text) || some(ANY_VISION_TROUBLE, text))
+  ) {
+    return true;
+  }
+  return false;
 }
 
 // --- Prompt-injection hardening ---
