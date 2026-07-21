@@ -80,17 +80,32 @@ void main() {
   final badProduct = <String>[];
   final pricedLesson = <String>[];
   final badUrl = <String>[];
+  final badShare = <String>[];
   var items = 0, linked = 0;
 
-  for (final stage in allTimelineStages()) {
-    for (final item in catalog.itemsFor(stage)) {
+  // Iterate what was AUTHORED, not what is displayed.
+  //
+  // itemsFor() also returns items shared into a stage from elsewhere, so
+  // walking it would count a lesson covering fourteen weeks fourteen times and
+  // report thirteen of them as duplicate ids — a failure describing the exact
+  // reuse the catalogue is supposed to support. Coverage still goes through
+  // itemsFor above, where borrowing SHOULD count.
+  for (final entry in catalog.byStage.entries) {
+    for (final item in entry.value) {
       items++;
-      final where = '${stage.key}/${item.id}';
+      final where = '${entry.key}/${item.id}';
 
       if (ids.containsKey(item.id)) {
         dupes.add('$where (also ${ids[item.id]})');
       } else {
-        ids[item.id] = stage.key;
+        ids[item.id] = entry.key;
+      }
+
+      // A stage an item claims to also serve must be one the app can resolve;
+      // a typo attaches it to nothing and the author sees it published with no
+      // way to tell it never appears anywhere.
+      for (final s in item.alsoStages) {
+        if (TimelineStage.fromKey(s) == null) badShare.add('$where → "$s"');
       }
 
       if (item.title('ru').trim().isEmpty) blankText.add('$where title');
@@ -130,6 +145,7 @@ void main() {
     ('products without a usable price', badProduct),
     ('lessons carrying a price', pricedLesson),
     ('links that are not http(s)', badUrl),
+    ('shared stage keys the app cannot resolve', badShare),
   ]) {
     if (list.isNotEmpty) {
       print('  $label:');
@@ -145,6 +161,21 @@ void main() {
   _chk('every product has a plausible price (${badProduct.length} suspect)', badProduct.isEmpty);
   _chk('no lesson carries a price (${pricedLesson.length} do)', pricedLesson.isEmpty);
   _chk('every link is http(s) (${badUrl.length} are not)', badUrl.isEmpty);
+  _chk('every shared stage key resolves (${badShare.length} do not)', badShare.isEmpty);
+
+  // Coverage counts a stage served only by a shared item, so this reports the
+  // reuse separately — otherwise "101/101 covered" hides whether that came
+  // from 364 items or from 30 items stretched across the whole timeline.
+  final shared = [
+    for (final list in catalog.byStage.values)
+      for (final i in list)
+        if (i.alsoStages.isNotEmpty) i
+  ];
+  if (shared.isNotEmpty) {
+    final appearances = shared.fold<int>(0, (n, i) => n + i.alsoStages.length);
+    print('  ${shared.length} item(s) shared across other stages '
+        '($appearances extra appearance(s))');
+  }
 
   // Reported, not enforced: translations and URLs arrive over time, and
   // failing on them would stop anyone committing work in progress.
