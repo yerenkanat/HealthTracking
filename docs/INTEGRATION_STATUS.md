@@ -149,3 +149,33 @@ guessed at now.
 
 Manual readings carry `deviceId: ''`, so the constraint needs a device
 placeholder or a partial index; worth deciding at the same time.
+
+## Acknowledging an emergency has nowhere to be recorded
+
+The back-office emergency feed carried an "Acknowledge" button. It had no click
+handler, no route behind it, and no column anywhere to write to. Nothing in the
+stack could record that an emergency had been dealt with, or by whom.
+
+It has been removed rather than left in place. On most screens a dead control
+is an annoyance; on this one a staff member presses it, watches it depress,
+and moves on believing a woman's emergency is handled — a hand-off that never
+happened, and the kind of failure nobody discovers until the case is reviewed.
+
+### What restoring it needs
+
+Somewhere to store the acknowledgement, which does not exist yet:
+
+```sql
+ALTER TABLE pregnancy_health_metrics
+  ADD COLUMN acknowledged_by TEXT,
+  ADD COLUMN acknowledged_at TIMESTAMPTZ;
+```
+
+Then a `POST /admin/emergencies/:id/ack` guarded by `requireStaff`, written to
+the audit log like every other action that touches a family's data, and a
+`recentEmergencies` that returns the acknowledgement so the feed can show who
+took it and stop counting it in the sidebar badge.
+
+The open question worth settling first is what acknowledgement MEANS: that a
+human has seen it, or that the woman has been contacted. Those are different
+promises, and the second one is the one a reviewer will assume was made.

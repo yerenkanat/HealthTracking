@@ -265,6 +265,25 @@ describe('the tabs that were showing invented data', () => {
     expect(t).toMatch(/\d{2}\.\d{2}\s+\d{2}:\d{2}/);
   });
 
+  it('every table-backed tab renders SOMETHING, not a bare header', async () => {
+    // The page is two IIFEs that cannot see each other's declarations. Calling
+    // a helper across that boundary throws a ReferenceError inside an async
+    // loader, where nothing surfaces it — the tab simply paints its header and
+    // no rows, which is indistinguishable from "no data". That is exactly how
+    // the Устройства tab looked while it was broken, and no assertion here
+    // noticed, because none of them looked at it.
+    for (const [view, sel] of [
+      ['devices', '#devicesBody'],
+      ['safety', '#safetyBody'],
+      ['users', '#usersBody'],
+      ['audit', '#auditBody'],
+    ] as const) {
+      const page = await render(FULL, view);
+      expect(page.errors, `${view} threw`).toEqual([]);
+      expect(page.text(sel).length, `${view} rendered no row at all`).toBeGreaterThan(0);
+    }
+  });
+
   it('says when a list could not be loaded, rather than showing it as empty', async () => {
     // Blank-because-loading, blank-because-empty and blank-because-failed were
     // one blank screen. A back-office that cannot reach its API must not look

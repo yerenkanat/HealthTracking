@@ -41,10 +41,16 @@
   .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#E85C8A);display:grid;place-items:center;color:#fff;font-weight:800}
   .brand b{font-size:15px;letter-spacing:-.2px}
   .brand span{display:block;font-size:11px;color:var(--muted);font-weight:500}
-  .nav{display:flex;gap:11px;align-items:center;padding:10px 12px;border-radius:11px;color:var(--muted);font-weight:600;cursor:pointer;border:1px solid transparent}
+  /* Real <button>s, not divs. As divs they took no focus and answered no
+     keyboard, so the entire panel could only be navigated with a mouse — and
+     a screen reader announced eight anonymous groups. The rules below undo the
+     browser's button styling; the behaviour they bring is the point. */
+  .nav{display:flex;gap:11px;align-items:center;padding:10px 12px;border-radius:11px;color:var(--muted);font-weight:600;cursor:pointer;border:1px solid transparent;
+       width:100%;text-align:left;background:none;font-family:inherit;font-size:inherit;line-height:inherit}
   .nav:hover{background:var(--surface-2)}
   .nav.active{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 22%,transparent)}
   .nav .ic{width:18px;height:18px;flex:0 0 auto}
+  .nav .badge[hidden]{display:none}
   .nav .badge{margin-left:auto;background:var(--crit);color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700}
 
   /* ---- Timeline coverage map ----
@@ -277,38 +283,38 @@
       <div class="logo">U</div>
       <div><b>Umay</b><span>Back-office</span></div>
     </div>
-    <div class="nav active" data-view="overview">
+    <button type="button" class="nav active" data-view="overview" aria-current="page">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
       Обзор
-    </div>
-    <div class="nav" data-view="emergencies">
+    </button>
+    <button type="button" class="nav" data-view="emergencies">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-      Экстренные <span class="badge" id="navBadge">3</span>
-    </div>
-    <div class="nav" data-view="users">
+      Экстренные <span class="badge" id="navBadge" hidden></span>
+    </button>
+    <button type="button" class="nav" data-view="users">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Пользователи
-    </div>
-    <div class="nav" data-view="content">
+    </button>
+    <button type="button" class="nav" data-view="content">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
-      Контент <span class="badge" id="navContentBadge" style="background:var(--muted)">0</span>
-    </div>
-    <div class="nav" data-view="devices">
+      Контент <span class="badge" id="navContentBadge" style="background:var(--muted)" hidden></span>
+    </button>
+    <button type="button" class="nav" data-view="devices">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
       Устройства
-    </div>
-    <div class="nav" data-view="safety">
+    </button>
+    <button type="button" class="nav" data-view="safety">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/></svg>
       Безопасность
-    </div>
-    <div class="nav" data-view="analytics">
+    </button>
+    <button type="button" class="nav" data-view="analytics">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
       Аналитика
-    </div>
-    <div class="nav" data-view="audit">
+    </button>
+    <button type="button" class="nav" data-view="audit">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
       Журнал действий
-    </div>
+    </button>
     <div class="foot">v0.1.0 · not a medical device</div>
   </aside>
 
@@ -316,11 +322,14 @@
     <div class="top">
       <div>
         <h1 id="pageTitle">Обзор</h1>
-        <div class="sub" id="pageSub">Live monitoring across pregnancy &amp; child-safety</div>
+        <!-- Filled from `titles` on every navigation. Static text here is what
+             the very first paint shows, and it was the one English sentence
+             left on the default screen. -->
+        <div class="sub" id="pageSub">Мониторинг беременности и безопасности детей</div>
       </div>
       <div class="spacer"></div>
-      <span class="modepill mock" id="modePill">Demo data</span>
-      <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+      <span class="modepill mock" id="modePill">Демо-данные</span>
+      <button class="iconbtn" id="themeBtn" title="Светлая или тёмная тема" aria-label="Переключить тему">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
       </button>
       <span class="chip"><span class="role" id="staffRole">clinician</span><span id="staffName">Dr. Nurlan</span><span class="avatar" id="staffAv">N</span></span>
@@ -635,8 +644,10 @@
     }catch(e){ /* keep demo data */ }
     render();
     // Open whatever the URL asked for, now that the data behind it exists.
-    const wanted=viewFromHash();
-    if(wanted&&wanted!=="overview")go(wanted);
+    // Always through go(), including for the default view: it is what fills
+    // the header from `titles`, and skipping it left whatever the static
+    // markup happened to say.
+    go(viewFromHash()||"overview");
   }
 
   // ---- Rendering ----
@@ -1013,15 +1024,48 @@
   /// A table that renders nothing while it loads is indistinguishable from a
   /// table with nothing in it, which is indistinguishable from one whose
   /// request failed. Three different situations, one blank screen.
+  /// A count badge, hidden at zero.
+  ///
+  /// The sidebar carried a red "0" against Экстренные at all times. A red
+  /// count badge means "these need you"; showing it with nothing behind it
+  /// trains the eye to ignore the one place that must never be ignored.
+  function setBadge(el,n){
+    if(!el) return;
+    el.textContent=fmt(n);
+    el.hidden=!n;
+  }
+
   const tableBusy=(cols)=>`<tr><td colspan="${cols}" class="tstate">Загрузка…</td></tr>`;
   const tableNote=(cols,text)=>`<tr><td colspan="${cols}" class="tstate">${text}</td></tr>`;
 
+  /// Shared with the second script block below.
+  ///
+  /// This page is two IIFEs — the dashboard and the content editor — and they
+  /// do not see each other's declarations. Calling these from the wrong one
+  /// throws a ReferenceError inside an async loader, where nothing surfaces
+  /// it: the Устройства tab simply painted a header and no rows, which is
+  /// exactly what it looked like before any of this was fixed. Passing them
+  /// deliberately is better than discovering that again.
+  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF};
+
+  /// One emergency, as a row.
+  ///
+  /// The "Acknowledge" button is GONE, deliberately. It had no click handler,
+  /// no route behind it and no column to write to — nothing anywhere in the
+  /// stack could record that an emergency had been dealt with. A staff member
+  /// pressing it on this screen, watching it depress, and moving on would
+  /// believe a woman's emergency was handled. On every other screen a dead
+  /// control is an annoyance; here it is a hand-off that never happened.
+  ///
+  /// Restoring it needs somewhere to store the acknowledgement — see
+  /// docs/INTEGRATION_STATUS.md. Until then the row offers the thing the panel
+  /// can actually do: open her record.
   function feedRow(e){
     const warn=e.severity==="warning";
     return `<div class="frow"><div class="stripe ${warn?'warn':''}"></div>
-      <div><div class="who">${esc(e.displayName)}</div><div class="meta">${esc(e.detail||e.code)} · <span class="t">${esc(e.at)}</span></div></div>
-      <div class="act"><span class="pill ${warn?'warn':'crit'}">${warn?'Warning':'Emergency'}</span>
-      <button class="btn" data-user="${esc(e.userId)}">View</button><button class="btn primary">Acknowledge</button></div></div>`;
+      <div><div class="who">${esc(e.displayName)}</div><div class="meta">${esc(e.detail||e.code)} · <span class="t">${esc(stamp(e.at))}</span></div></div>
+      <div class="act"><span class="pill ${warn?'warn':'crit'}">${warn?'Внимание':'Экстренно'}</span>
+      <button class="btn primary" data-user="${esc(e.userId)}">Открыть карточку</button></div></div>`;
   }
   /// Nothing to show is good news here, and has to say so.
   ///
@@ -1038,7 +1082,7 @@
     const sorted=[...MOCK.emergencies].sort((a,b)=>sevRank[a.severity]-sevRank[b.severity]);
     $("#feedMini").innerHTML=sorted.length?sorted.slice(0,4).map(feedRow).join(""):feedEmpty;
     $("#feedFull").innerHTML=sorted.length?sorted.map(feedRow).join(""):feedEmpty;
-    $("#navBadge").textContent=MOCK.emergencies.filter(e=>e.severity==="emergency").length;
+    setBadge($("#navBadge"),MOCK.emergencies.filter(e=>e.severity==="emergency").length);
   }
 
   /// The people this panel is actually about.
@@ -1225,7 +1269,7 @@
     const vital=(k,label,unit)=>`<div class="vital ${h.alert.includes(k)?'alert':''}"><div class="k">${label}</div><div class="v">${h.latest[k]}<span style="font-size:12px;color:var(--muted)"> ${unit}</span></div></div>`;
     $("#drawer").innerHTML=`
       <div class="dh"><span class="avatar">${esc(initial)}</span><div><b>${esc(u.displayName)}</b><div class="t num">${esc(u.phone)}</div></div>
-        <button class="iconbtn close" id="dClose" aria-label="Close">✕</button></div>
+        <button class="iconbtn close" id="dClose" aria-label="Закрыть карточку">✕</button></div>
       <div class="dsec">Профиль</div>
       <div class="tl">
         ${[
@@ -1240,12 +1284,12 @@
           v ?? '<span style="color:var(--muted)">не указано</span>'
         }</span></div>`).join("")}
       </div>
-      <div class="dsec">Latest readings</div>
+      <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
-      <div class="dsec">Triage history</div>
+      <div class="dsec">История триажа</div>
       <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>
-      <div class="disc">Read-only clinical view. All access is written to the audit log.</div>`;
+      <div class="disc">Только просмотр. Каждое открытие записывается в журнал действий.</div>`;
     $("#drawer").classList.add("open");$("#scrim").classList.add("open");
     $("#dClose").onclick=closeDrawer;
     // The server writes the audit entry for this view — that is the record
@@ -1269,7 +1313,13 @@
   };
   function go(v){
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
-    $$(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
+    $$(".nav").forEach(n=>{
+      const on=n.dataset.view===v;
+      n.classList.toggle("active",on);
+      // Colour alone said which tab you were on. aria-current says it to a
+      // screen reader, and survives a user stylesheet that drops the tint.
+      if(on) n.setAttribute("aria-current","page"); else n.removeAttribute("aria-current");
+    });
     // A view without a title entry would blank the header; fall back rather
     // than throwing and leaving the panel half-switched.
     const t=titles[v]||[v,""];
@@ -1355,8 +1405,18 @@
 (function () {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  // Deliberately NOT redeclared — see the single STAFF identity above. This
-  // block used to keep its own copy with a different role.
+  // Taken from the dashboard block, which this one cannot see.
+  //
+  // STAFF is here for a reason worth stating: this block's api() referenced it
+  // and it is `const` in the OTHER block, so every request from this file threw
+  // a ReferenceError before it was sent. Each loader caught that and rendered
+  // its empty row, so Устройства, Безопасность and Контент showed "nothing
+  // here yet" — for months, against a server answering 200 with data.
+  //
+  // The comment that used to sit here said STAFF was "deliberately not
+  // redeclared — see the single STAFF identity above". The intent was right and
+  // JavaScript does not work that way.
+  const { tableBusy, tableNote, stamp, ago, fmt, setBadge, STAFF } = window.UI;
 
   async function api(path, opts) {
     const r = await fetch(path, {
@@ -1431,8 +1491,7 @@
       sum.textContent = `${filled}/101 этапов · ${items} материалов · ${linked} со ссылкой` +
         (reused ? ` · ${reused} используются на нескольких этапах` : "");
     }
-    const badge = $("#navContentBadge");
-    if (badge) badge.textContent = String(filled);
+    setBadge($("#navContentBadge"), filled);
   }
 
   // ---- One item, several stages ----
@@ -1686,9 +1745,15 @@
     setMsg("");
   }
 
+  /// Rows, or one line saying why there are none.
+  ///
+  /// Uses the same .tstate cell as the users and audit tables. It used to style
+  /// its own, so "no events yet" sat left-aligned on one tab and centred on
+  /// another — the sort of inconsistency that is invisible in a diff and
+  /// obvious the moment two tabs are opened in a row.
   function rowsOrEmpty(tbody, rows, cols, empty) {
     if (!tbody) return;
-    tbody.innerHTML = rows.length ? rows : `<tr><td colspan="${cols}" class="sub">${esc(empty)}</td></tr>`;
+    tbody.innerHTML = rows.length ? rows : `<tr><td colspan="${cols}" class="tstate">${esc(empty)}</td></tr>`;
   }
 
   async function loadContent() {
@@ -1703,22 +1768,37 @@
     renderEditor();
   }
 
+  /// A failed request is not an empty fleet.
+  ///
+  /// Both this and loadSafety caught the error and fell through to the empty
+  /// row, so a back-office that could not reach its API looked like a product
+  /// nobody had ever connected a tracker to. null now means it broke.
   async function loadDevices() {
-    let list = [];
-    try { list = (await api("/admin/devices")).devices || []; } catch { /* falls through to the empty row */ }
+    let list = null;
+    $("#devicesBody").innerHTML = tableBusy(6);
+    try { list = (await api("/admin/devices")).devices || []; } catch (e) { list = null; }
+    if (!list) {
+      $("#devicesBody").innerHTML = tableNote(6, "Не удалось загрузить устройства.");
+      return;
+    }
     rowsOrEmpty($("#devicesBody"), list.map((d) => `<tr>
       <td>${esc(d.name || d.id)}</td><td>${esc(d.kind)}</td><td>${esc(d.displayName)}</td>
       <td>${esc(d.childName || "—")}</td>
       <td>${d.batteryPct == null ? "—" : esc(d.batteryPct) + "%"}</td>
-      <td>${esc(d.lastSeen || "—")}</td></tr>`).join(""), 6,
+      <td class="t">${d.lastSeen ? esc(ago(d.lastSeen)) : "—"}</td></tr>`).join(""), 6,
       "Устройства ещё не подключены.");
   }
 
   async function loadSafety() {
-    let list = [];
-    try { list = (await api("/admin/safety")).events || []; } catch { /* empty row below */ }
+    let list = null;
+    $("#safetyBody").innerHTML = tableBusy(5);
+    try { list = (await api("/admin/safety")).events || []; } catch (e) { list = null; }
+    if (!list) {
+      $("#safetyBody").innerHTML = tableNote(5, "Не удалось загрузить события безопасности.");
+      return;
+    }
     rowsOrEmpty($("#safetyBody"), list.map((e) => `<tr>
-      <td>${esc(e.at)}</td><td>${esc(e.displayName)}</td><td>${esc(e.childName)}</td>
+      <td class="num t">${esc(stamp(e.at))}</td><td>${esc(e.displayName)}</td><td>${esc(e.childName)}</td>
       <td>${esc(e.kind)}</td><td>${esc(e.zoneName || "—")}</td></tr>`).join(""), 5,
       "Событий безопасности пока нет.");
   }
