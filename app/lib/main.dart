@@ -320,7 +320,13 @@ Future<void> bootstrapRuntime(
     //     monitor.handle(rec.$1, rec.$2);            // sync + batching
     //   });
     //   ble.onBeacon.listen((r) => controller.onChildLocation(resolveFix(r)));
+    //   ble.onStatus.listen(controller.onBandLinkState);  // show "not measuring"
     //   await ble.start();
+    //
+    // onStatus is not decoration: without it a band that has been out of range
+    // since morning is indistinguishable from a quiet one, because the only
+    // evidence is a last reading that keeps getting older. Wire it at the same
+    // time as the telemetry, not after.
     //
     // TODO(after sign-in): controller.configureChild(name, fences) from the backend.
   } catch (_) {
