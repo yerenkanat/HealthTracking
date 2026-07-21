@@ -35,17 +35,48 @@ function coverageOf(catalog: Record<string, ContentItemRow[]>) {
   const empty: string[] = [];
   let items = 0;
   let linked = 0;
+
+  // A stage served only by an item shared in from elsewhere IS covered.
+  // Counting just the stage's own list would have reported it as a hole and
+  // sent someone off to author content that already exists there — the very
+  // duplication sharing was added to stop.
+  const sharedInto = new Map<string, Set<string>>();
+  for (const [home, list] of Object.entries(catalog)) {
+    for (const item of list) {
+      for (const key of item.alsoStages ?? []) {
+        if (key === home) continue;
+        let set = sharedInto.get(key);
+        if (!set) sharedInto.set(key, (set = new Set()));
+        set.add(item.id);
+      }
+    }
+  }
+
   for (const key of allStageKeys()) {
-    const list = catalog[key] ?? [];
-    if (list.length === 0) {
+    const own = catalog[key] ?? [];
+    const shared = sharedInto.get(key)?.size ?? 0;
+    if (own.length === 0 && shared === 0) {
       empty.push(key);
       continue;
     }
     filled.push(key);
-    items += list.length;
-    linked += list.filter((i) => (i.url ?? '').trim().length > 0).length;
+    // Items are counted where they are AUTHORED, so the total stays a count of
+    // things that exist rather than of appearances — a lesson shared across
+    // fourteen weeks must not read as fourteen lessons in the catalogue size.
+    items += own.length;
+    linked += own.filter((i) => (i.url ?? '').trim().length > 0).length;
   }
-  return { total: allStageKeys().length, filled, empty, items, linked };
+  return {
+    total: allStageKeys().length,
+    filled,
+    empty,
+    items,
+    linked,
+    /// Stages that have nothing of their own but are covered by a shared item.
+    /// Surfaced separately so the CMS can show them as covered-by-reuse rather
+    /// than silently identical to a stage with its own content.
+    sharedOnly: [...sharedInto.keys()].filter((k) => (catalog[k] ?? []).length === 0).sort(),
+  };
 }
 
 const localizedText = z.record(z.string(), z.string());
@@ -78,6 +109,13 @@ const contentItem = z.object({
   cities: z.array(z.string().min(1).max(60)).max(30).optional(),
   minAgeYears: z.number().int().min(10).max(80).optional(),
   maxAgeYears: z.number().int().min(10).max(80).optional(),
+  // Other stages this same item also serves. Most guidance is not specific to
+  // one week — a second-trimester lesson is right for fourteen of them — and
+  // filing it one stage at a time meant fourteen copies to keep in step. The
+  // item is stored once, under the stage it is filed in, and listed under each
+  // of these. Capped at the whole timeline, so a bad import cannot make one
+  // item claim an unbounded number of places.
+  alsoStages: z.array(z.string().regex(/^[wm]\d{1,2}$/)).max(101).optional(),
 }).refine((i) => i.minAgeYears == null || i.maxAgeYears == null || i.minAgeYears <= i.maxAgeYears, {
   // An inverted range matches nobody, so the item would vanish with no error
   // anywhere. Rejecting it at the edge is the only place a person sees why.

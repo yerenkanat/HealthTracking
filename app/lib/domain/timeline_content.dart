@@ -137,6 +137,22 @@ class ContentItem {
   /// keeps working — see [video], which falls back to it.
   final VideoSource? videoSource;
 
+  /// Other stages this same item also belongs to.
+  ///
+  /// Most guidance is not specific to one week. A lesson on what to eat in the
+  /// second trimester is right for weeks 14 to 27; a baby carrier suits months
+  /// 3 to 12. Filed under one stage each, that meant fourteen copies with
+  /// fourteen ids — and fourteen places to edit when the video URL changed, of
+  /// which someone would miss one.
+  ///
+  /// The item is authored and STORED once, under its home stage, and listed
+  /// under each of these as well. Editing the original edits every appearance,
+  /// because there is only one.
+  ///
+  /// Empty is the default and stays correct for anything genuinely
+  /// week-specific ("your baby is the size of a lime this week").
+  final List<String> alsoStages;
+
   const ContentItem({
     required this.id,
     required this.kind,
@@ -151,6 +167,7 @@ class ContentItem {
     this.minAgeYears,
     this.maxAgeYears,
     this.videoSource,
+    this.alsoStages = const [],
   });
 
   /// True when this item is offered everywhere and to every age — the common
@@ -191,6 +208,7 @@ class ContentItem {
         if (minAgeYears != null) 'minAgeYears': minAgeYears,
         if (maxAgeYears != null) 'maxAgeYears': maxAgeYears,
         if (videoSource != null) 'video': videoSource!.toJson(),
+        if (alsoStages.isNotEmpty) 'alsoStages': alsoStages,
       };
 
   factory ContentItem.fromJson(Map<String, dynamic> j) => ContentItem(
@@ -210,17 +228,89 @@ class ContentItem {
         minAgeYears: (j['minAgeYears'] as num?)?.toInt(),
         maxAgeYears: (j['maxAgeYears'] as num?)?.toInt(),
         videoSource: VideoSource.fromJson(j['video']),
+        alsoStages: [
+          for (final s in (j['alsoStages'] is List ? j['alsoStages'] as List : const []))
+            if ('$s'.trim().isNotEmpty) '$s'.trim(),
+        ],
       );
+}
+
+/// Every stage [item] should appear under: where it is filed, plus any stage
+/// it declares in [ContentItem.alsoStages].
+///
+/// Unknown or malformed keys are dropped rather than guessed at, matching what
+/// [TimelineStage.fromKey] does with the map's own keys — a typo in the CMS
+/// must not invent a stage.
+Set<String> stagesForItem(ContentItem item, String homeStage) => {
+      homeStage,
+      for (final s in item.alsoStages)
+        if (TimelineStage.fromKey(s) != null) s,
+    };
+
+/// The stage keys from [from] to [to] inclusive, for authoring a range.
+///
+/// Returns empty if the two are different kinds or the order is reversed,
+/// rather than producing something surprising: "weeks 20 to month 4" is a
+/// mistake, and silently returning 40 weeks would hide it.
+List<String> stageRange(String from, String to) {
+  final a = TimelineStage.fromKey(from);
+  final b = TimelineStage.fromKey(to);
+  if (a == null || b == null || a.kind != b.kind || b.index < a.index) return const [];
+  return [
+    for (var i = a.index; i <= b.index; i++)
+      (a.kind == TimelineKind.pregnancyWeek
+              ? TimelineStage.pregnancyWeek(i)
+              : TimelineStage.childMonth(i))
+          .key,
+  ];
 }
 
 /// Everything published, indexed by stage key.
 class ContentCatalog {
+  /// Items as AUTHORED: each filed under its home stage exactly once.
+  ///
+  /// Reads should go through [itemsFor], which also returns items shared into
+  /// a stage from elsewhere. This map stays the authored form so that saving a
+  /// stage in the CMS writes back what was written, not an expanded copy —
+  /// which is what made a shared item editable in one place.
   final Map<String, List<ContentItem>> byStage;
   const ContentCatalog(this.byStage);
 
   static const empty = ContentCatalog({});
 
-  List<ContentItem> itemsFor(TimelineStage stage) => byStage[stage.key] ?? const [];
+  /// Everything shown at [stage]: filed here, plus shared in from other stages.
+  ///
+  /// Deduplicated by id, home stage first. An item that names its own home
+  /// stage in alsoStages would otherwise appear twice, and the person who
+  /// selected a range covering the item's own week has done nothing wrong.
+  List<ContentItem> itemsFor(TimelineStage stage) {
+    final home = byStage[stage.key] ?? const <ContentItem>[];
+    final seen = {for (final i in home) i.id};
+    final shared = <ContentItem>[];
+    for (final entry in byStage.entries) {
+      if (entry.key == stage.key) continue;
+      for (final item in entry.value) {
+        if (item.alsoStages.contains(stage.key) && seen.add(item.id)) {
+          shared.add(item);
+        }
+      }
+    }
+    if (shared.isEmpty) return home;
+    return [...home, ...shared];
+  }
+
+  /// Where [itemId] is authored, or null if nothing owns it.
+  ///
+  /// The CMS needs this to send an editor to the one copy that exists rather
+  /// than letting them edit an appearance.
+  String? homeStageOf(String itemId) {
+    for (final entry in byStage.entries) {
+      for (final item in entry.value) {
+        if (item.id == itemId) return entry.key;
+      }
+    }
+    return null;
+  }
   List<ContentItem> lessonsFor(TimelineStage stage) =>
       [for (final i in itemsFor(stage)) if (i.isLesson) i];
   List<ContentItem> productsFor(TimelineStage stage) =>

@@ -321,6 +321,101 @@ void main() {
   _chk('the poster survives the round trip',
       rewired.video?.posterUrl == 'https://cdn/p.jpg');
 
+  // ---- One item serving several stages ----
+  // Most guidance is not week-specific. Filed one stage at a time, a lesson
+  // covering the second trimester meant fourteen copies with fourteen ids, and
+  // fourteen places to edit when the video URL changed.
+  {
+    ContentItem shared(String id, {List<String> also = const []}) => ContentItem(
+          id: id,
+          kind: ContentKind.lesson,
+          title: const LocalizedText({'ru': 'Питание'}),
+          summary: const LocalizedText({'ru': 'Второй триместр'}),
+          alsoStages: also,
+        );
+
+    final cat = ContentCatalog({
+      'w14': [shared('nutrition', also: ['w15', 'w16'])],
+      'w20': [shared('sleep')],
+    });
+
+    _chk('an item shows at the stage it is filed under',
+        cat.itemsFor(TimelineStage.pregnancyWeek(14)).single.id == 'nutrition');
+    _chk('and at every stage it is shared into',
+        cat.itemsFor(TimelineStage.pregnancyWeek(15)).single.id == 'nutrition' &&
+            cat.itemsFor(TimelineStage.pregnancyWeek(16)).single.id == 'nutrition');
+    _chk('but not at stages it does not name',
+        cat.itemsFor(TimelineStage.pregnancyWeek(17)).isEmpty);
+    _chk('an item with no shares behaves exactly as before',
+        cat.itemsFor(TimelineStage.pregnancyWeek(20)).single.id == 'sleep');
+
+    // There is ONE copy. That is the whole point: editing it edits every
+    // appearance, because every appearance is the same object.
+    final atHome = cat.itemsFor(TimelineStage.pregnancyWeek(14)).single;
+    final atShare = cat.itemsFor(TimelineStage.pregnancyWeek(15)).single;
+    _chk('every appearance is the same item', identical(atHome, atShare));
+
+    _chk('the authored map still holds it exactly once',
+        cat.byStage.values.expand((v) => v).where((i) => i.id == 'nutrition').length == 1);
+    _chk('the CMS can find where it lives', cat.homeStageOf('nutrition') == 'w14');
+    _chk('an unknown id has no home', cat.homeStageOf('nope') == null);
+
+    // Someone selecting a range that includes the item's own week has done
+    // nothing wrong, and must not get it twice.
+    final selfNaming = ContentCatalog({
+      'w14': [shared('n', also: ['w14', 'w15'])],
+    });
+    _chk('an item naming its own stage appears once',
+        selfNaming.itemsFor(TimelineStage.pregnancyWeek(14)).length == 1);
+
+    // Two stages sharing the same id: it belongs to whoever files it, and is
+    // never listed twice at one stage.
+    final dupes = ContentCatalog({
+      'w14': [shared('same', also: ['w16'])],
+      'w15': [shared('same', also: ['w16'])],
+    });
+    _chk('a duplicated id is not listed twice at a shared stage',
+        dupes.itemsFor(TimelineStage.pregnancyWeek(16)).length == 1);
+
+    // Coverage has to count shared stages, or a week fully served by a shared
+    // lesson still reads as a hole in the authoring dashboard.
+    _chk('a stage covered only by a shared item counts as covered',
+        cat.hasContentFor(TimelineStage.pregnancyWeek(15)));
+    _chk('and does not appear in the missing list',
+        !cat.missingStages().any((s) => s.key == 'w15'));
+    _chk('a genuinely empty stage still appears in the missing list',
+        cat.missingStages().any((s) => s.key == 'w17'));
+
+    // A typo in the CMS must not invent a stage.
+    final bad = ContentCatalog({
+      'w14': [shared('x', also: ['w99', 'nonsense', ''])],
+    });
+    _chk('unknown stage keys are ignored',
+        stagesForItem(bad.byStage['w14']!.single, 'w14').length == 1);
+
+    // Round trip.
+    final rt = ContentItem.fromJson(
+        jsonDecode(jsonEncode(shared('r', also: ['w15', 'w16']).toJson())) as Map<String, dynamic>);
+    _chk('shared stages survive JSON', rt.alsoStages.join(',') == 'w15,w16');
+    _chk('an item with no shares writes no key',
+        !shared('r').toJson().containsKey('alsoStages'));
+    final legacy = ContentItem.fromJson({'id': 'old', 'kind': 'lesson'});
+    _chk('a catalogue authored before this field still loads', legacy.alsoStages.isEmpty);
+  }
+
+  // ---- Authoring a range ----
+  {
+    _chk('a range covers both ends', stageRange('w20', 'w23').join(',') == 'w20,w21,w22,w23');
+    _chk('a single-stage range is just that stage', stageRange('w20', 'w20').join(',') == 'w20');
+    _chk('months work too', stageRange('m0', 'm2').join(',') == 'm0,m1,m2');
+    // "weeks 20 to month 4" is a mistake; silently returning 40 weeks of
+    // content assignments would bury it.
+    _chk('a range across kinds is refused', stageRange('w20', 'm4').isEmpty);
+    _chk('a reversed range is refused', stageRange('w23', 'w20').isEmpty);
+    _chk('an unparseable range is refused', stageRange('nonsense', 'w20').isEmpty);
+    _chk('a full pregnancy range is 40 weeks', stageRange('w1', 'w40').length == 40);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

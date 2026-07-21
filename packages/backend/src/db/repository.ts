@@ -72,6 +72,9 @@ export interface ContentItemRow {
   cities?: string[];
   minAgeYears?: number;
   maxAgeYears?: number;
+  /// Other stages this same item also serves; it is stored once, under the
+  /// stage it is filed in. See the zod schema in routes/admin.ts.
+  alsoStages?: string[];
 }
 
 /** A whole family, assembled for the back-office drilldown. */

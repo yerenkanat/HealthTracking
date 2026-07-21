@@ -202,3 +202,80 @@ describe('drilldowns and fleet', () => {
     }
   });
 });
+
+describe('one item serving several stages', () => {
+  beforeEach(async () => {
+    app = makeApp('admin');
+    await app.ready();
+  });
+
+  const shared = {
+    ...lesson,
+    id: 'trimester2-nutrition',
+    alsoStages: ['w15', 'w16', 'w17'],
+  };
+
+  it('accepts and returns the shared stages', async () => {
+    expect((await put('/admin/content/w14', { items: [shared] })).statusCode).toBe(200);
+    const stages = (await get('/admin/content')).json().stages;
+    expect(stages.w14[0].alsoStages).toEqual(['w15', 'w16', 'w17']);
+  });
+
+  it('stores the item exactly once', async () => {
+    // The entire point: one copy, so editing it changes every appearance. If
+    // the server expanded it into each stage on write, the CMS would be back to
+    // fourteen copies with fourteen places to edit.
+    await put('/admin/content/w14', { items: [shared] });
+    const stages = (await get('/admin/content')).json().stages;
+    expect(stages.w15).toBeUndefined();
+    const copies = Object.values(stages as Record<string, Array<{ id: string }>>)
+      .flat()
+      .filter((i) => i.id === 'trimester2-nutrition');
+    expect(copies).toHaveLength(1);
+  });
+
+  it('counts a stage covered only by a shared item as covered', async () => {
+    // Reporting w15 as empty would send someone to author content that is
+    // already there — the duplication this feature exists to stop.
+    await put('/admin/content/w14', { items: [shared] });
+    const cov = (await get('/admin/content')).json().coverage;
+    expect(cov.empty).not.toContain('w15');
+    expect(cov.filled).toContain('w15');
+    expect(cov.sharedOnly).toEqual(['w15', 'w16', 'w17']);
+  });
+
+  it('counts the item once, not once per stage it appears in', async () => {
+    // Relative to whatever the repository already seeds: a lesson shared
+    // across four weeks must add ONE to the catalogue size, not four, or the
+    // count stops meaning "things that exist".
+    const before = (await get('/admin/content')).json().coverage;
+    await put('/admin/content/w14', { items: [shared] });
+    const after = (await get('/admin/content')).json().coverage;
+    expect(after.items - before.items).toBe(1);
+    expect(after.linked - before.linked).toBe(1);
+  });
+
+  it('a stage with its own content is not listed as shared-only', async () => {
+    await put('/admin/content/w14', { items: [shared] });
+    await put('/admin/content/w15', { items: [product] });
+    const cov = (await get('/admin/content')).json().coverage;
+    expect(cov.sharedOnly).not.toContain('w15');
+    expect(cov.filled).toContain('w15');
+  });
+
+  it('refuses a stage key the app cannot resolve', async () => {
+    // A typo here would silently attach the item to nothing, and the author
+    // would see it published with no way to tell it never appears.
+    const r = await put('/admin/content/w14', {
+      items: [{ ...shared, alsoStages: ['w15', 'nonsense'] }],
+    });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('an item with no shared stages still round-trips', async () => {
+    await put('/admin/content/w20', { items: [lesson] });
+    const stages = (await get('/admin/content')).json().stages;
+    expect(stages.w20[0].alsoStages).toBeUndefined();
+    expect((await get('/admin/content')).json().coverage.sharedOnly).toEqual([]);
+  });
+});

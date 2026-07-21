@@ -58,10 +58,14 @@
   .cell .n{display:block;font-size:12px;color:var(--ink)}
   .cell.ok{background:color-mix(in srgb,var(--good) 16%,transparent);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
   .cell.part{background:color-mix(in srgb,var(--warn) 18%,transparent);border-color:color-mix(in srgb,var(--warn) 42%,transparent)}
+  /* Covered only by an item shared in from another stage: as covered as .ok,
+     but a different thing to know when deciding where to author next. */
+  .cell.shared{background:color-mix(in srgb,var(--accent) 13%,transparent);border-color:color-mix(in srgb,var(--accent) 38%,transparent);border-style:dashed}
   .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:12px}
   .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--hair)}
   .legend .sw.ok{background:color-mix(in srgb,var(--good) 45%,transparent)}
   .legend .sw.part{background:color-mix(in srgb,var(--warn) 45%,transparent)}
+  .legend .sw.shared{background:color-mix(in srgb,var(--accent) 40%,transparent);border-style:dashed}
   .legend .sw.none{background:var(--surface-2)}
 
   /* ---- Item editor ---- */
@@ -305,6 +309,7 @@
           <div class="legend">
             <span><i class="sw ok"></i> опубликовано и со ссылкой</span>
             <span><i class="sw part"></i> опубликовано, без ссылки</span>
+            <span><i class="sw shared"></i> с материалом из другого этапа</span>
             <span><i class="sw none"></i> пусто</span>
           </div>
         </div>
@@ -785,23 +790,84 @@
   }
 
   function renderMap() {
+    // A stage served only by an item shared in from elsewhere IS covered.
+    // Showing it as empty would send someone off to author material that is
+    // already there — the duplication sharing exists to prevent.
+    const borrowed = new Map(); // stage → how many items reach it from elsewhere
+    for (const [home, list] of Object.entries(catalog)) {
+      for (const item of list || []) {
+        for (const k of item.alsoStages || []) {
+          if (k !== home) borrowed.set(k, (borrowed.get(k) || 0) + 1);
+        }
+      }
+    }
     for (const [el, keys] of [[$("#mapWeeks"), weeks], [$("#mapMonths"), months]]) {
       if (!el) continue;
       el.innerHTML = keys.map((k) => {
         const items = catalog[k] || [];
-        return `<div class="cell ${cellClass(items)} ${selected === k ? "sel" : ""}" data-stage="${k}"
-                     title="${esc(stageLabel(k))} — материалов: ${items.length}">
-                  <span class="n">${k[0] === "w" ? k.slice(1) : k.slice(1)}</span>${items.length || ""}
+        const extra = borrowed.get(k) || 0;
+        const total = items.length + extra;
+        // Distinguished from a stage with its own content: same coverage, but
+        // a different thing to know when deciding where to author next.
+        const cls = items.length ? cellClass(items) : (extra ? "shared" : cellClass(items));
+        const title = extra
+          ? `${stageLabel(k)} — своих: ${items.length}, из других этапов: ${extra}`
+          : `${stageLabel(k)} — материалов: ${items.length}`;
+        return `<div class="cell ${cls} ${selected === k ? "sel" : ""}" data-stage="${k}"
+                     title="${esc(title)}">
+                  <span class="n">${k.slice(1)}</span>${total || ""}
                 </div>`;
       }).join("");
     }
-    const filled = [...weeks, ...months].filter((k) => (catalog[k] || []).length).length;
+    const filled = [...weeks, ...months].filter(
+      (k) => (catalog[k] || []).length || borrowed.has(k)).length;
+    // Items are counted where they are authored. A lesson shared across
+    // fourteen weeks is one lesson, not fourteen.
     const items = Object.values(catalog).reduce((n, l) => n + l.length, 0);
     const linked = Object.values(catalog).flat().filter((i) => (i.url || "").trim()).length;
+    const reused = Object.values(catalog).flat().filter((i) => (i.alsoStages || []).length).length;
     const sum = $("#covSummary");
-    if (sum) sum.textContent = `${filled}/101 этапов · ${items} материалов · ${linked} со ссылкой`;
+    if (sum) {
+      sum.textContent = `${filled}/101 этапов · ${items} материалов · ${linked} со ссылкой` +
+        (reused ? ` · ${reused} используются на нескольких этапах` : "");
+    }
     const badge = $("#navContentBadge");
     if (badge) badge.textContent = String(filled);
+  }
+
+  // ---- One item, several stages ----
+  //
+  // Most guidance is not week-specific: a second-trimester lesson is right for
+  // fourteen of them. Filed one stage at a time that meant fourteen copies with
+  // fourteen ids, and fourteen places to edit when the video link changed — of
+  // which someone would miss one. An item is now authored ONCE, under its home
+  // stage, and lists the other stages it also serves.
+
+  /** Every stage key of the same kind as `key` ('w' → weeks, 'm' → months). */
+  function stageKeysOfKind(key) {
+    return (key || "").startsWith("m")
+      ? Array.from({ length: 61 }, (_, i) => `m${i}`)
+      : Array.from({ length: 40 }, (_, i) => `w${i + 1}`);
+  }
+
+  /** Inclusive range of stage keys, or [] if the two do not form one. */
+  function stageRange(from, to) {
+    const keys = stageKeysOfKind(from);
+    const a = keys.indexOf(from), b = keys.indexOf(to);
+    if (a < 0 || b < 0 || b < a) return [];
+    return keys.slice(a, b + 1);
+  }
+
+  /** Items shared INTO `key` from other stages, with where each lives. */
+  function sharedInto(key) {
+    const out = [];
+    for (const [home, list] of Object.entries(catalog)) {
+      if (home === key) continue;
+      for (const item of list || []) {
+        if ((item.alsoStages || []).includes(key)) out.push({ item, home });
+      }
+    }
+    return out;
   }
 
   function itemHtml(item, idx) {
@@ -855,7 +921,55 @@
       ${item.cities?.length || item.minAgeYears != null || item.maxAgeYears != null
         ? `<div class="row sub" style="padding-left:52px">Ограниченный показ: не увидят те, кто не указал город или дату рождения.</div>`
         : ""}
+      ${alsoRow(item, idx)}
     </div>`;
+  }
+
+  /// "Also show on" — the range this one item covers beyond its home stage.
+  function alsoRow(item, idx) {
+    const keys = stageKeysOfKind(selected);
+    const also = (item.alsoStages || []).filter((k) => keys.includes(k));
+    // Prefill from what is stored. A non-contiguous set collapses to its span
+    // here, which is shown plainly below rather than silently changing on save.
+    const from = also.length ? also.reduce((a, b) => (keys.indexOf(b) < keys.indexOf(a) ? b : a)) : "";
+    const to = also.length ? also.reduce((a, b) => (keys.indexOf(b) > keys.indexOf(a) ? b : a)) : "";
+    const opts = (sel) =>
+      `<option value=""${sel ? "" : " selected"}>—</option>` +
+      keys.map((k) => `<option value="${k}"${k === sel ? " selected" : ""}>${stageLabel(k)}</option>`).join("");
+    const st = "background:var(--surface-2);color:var(--ink);border:1px solid var(--hair);border-radius:8px;padding:7px";
+    return `
+      <div class="row"><span class="lang">также</span>
+        <select data-f="_alsoFrom" style="${st}" aria-label="показывать также с этапа">${opts(from)}</select>
+        <select data-f="_alsoTo" style="${st}" aria-label="показывать также по этап">${opts(to)}</select>
+        <span class="sub">${
+          also.length
+            ? `+${also.length} ${also.length === 1 ? "этап" : "этапов"} — материал хранится один раз, здесь`
+            : "только этот этап"
+        }</span>
+      </div>`;
+  }
+
+  /// Items another stage shares into this one — shown, but not editable here.
+  ///
+  /// Editing them here would mean two places to change the same material,
+  /// which is exactly what sharing removes. The link goes to the one copy.
+  function sharedIntoHtml(key) {
+    const rows = sharedInto(key);
+    if (!rows.length) return "";
+    return `
+      <div class="card" style="margin-top:12px;background:var(--surface-2)">
+        <div class="sec-h"><h3 style="font-size:14px">Показывается здесь из других этапов</h3></div>
+        ${rows.map(({ item, home }) => `
+          <div class="row" style="justify-content:space-between">
+            <span><span class="kindtag ${item.kind}">${item.kind}</span>
+              ${esc((item.title || {}).ru || item.id)}</span>
+            <span class="sub">хранится в <span class="link" data-stage="${home}">${stageLabel(home)}</span></span>
+          </div>`).join("")}
+        <div class="sub" style="margin-top:6px">
+          Материал один. Чтобы изменить его, откройте этап, в котором он хранится —
+          правка там меняет его на всех этапах сразу.
+        </div>
+      </div>`;
   }
 
   function renderEditor() {
@@ -869,9 +983,10 @@
       box.innerHTML = `<div class="sub">Выберите неделю или месяц выше, чтобы изменить содержимое.</div>`;
       return;
     }
-    box.innerHTML = draft.length
+    const own = draft.length
       ? draft.map(itemHtml).join("")
-      : `<div class="sub">Для «${esc(stageLabel(selected))}» пока ничего не опубликовано — добавьте урок или товар.</div>`;
+      : `<div class="sub">Для «${esc(stageLabel(selected))}» ничего не опубликовано на самом этапе.</div>`;
+    box.innerHTML = own + sharedIntoHtml(selected);
   }
 
   function selectStage(k) {
@@ -920,12 +1035,24 @@
           // than become an empty list, which the app would read as a filter.
           const list = v.split(",").map((s) => s.trim()).filter(Boolean);
           if (list.length) item.cities = list; else delete item.cities;
+        } else if (f === "_alsoFrom" || f === "_alsoTo") {
+          // Handled after the loop: it needs BOTH ends, and the fields are
+          // read in DOM order. Writing it here would set the range from a
+          // half-read pair and drop the second half.
         } else if (v) {
           item[f] = v;
         } else {
           delete item[f];
         }
       });
+
+      // "Also show on" → the stored list. The item's own stage is excluded:
+      // it is already filed there, and including it would list it twice.
+      const from = el.querySelector('[data-f="_alsoFrom"]')?.value || "";
+      const to = el.querySelector('[data-f="_alsoTo"]')?.value || "";
+      const range = stageRange(from, to).filter((k) => k !== selected);
+      if (range.length) item.alsoStages = range;
+      else delete item.alsoStages;
     });
   }
 
