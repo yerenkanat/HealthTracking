@@ -519,7 +519,10 @@ class _Section extends StatelessWidget {
               child: Text(title.toUpperCase(),
                   style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
             ),
-            if (action != null) action!,
+            // Flexible: at large accessibility text the action's label grows
+            // past the row and the header overflowed by 125px. The title is
+            // already Expanded, so without this the button has no give.
+            if (action != null) Flexible(child: action!),
           ]),
         ),
         Container(
@@ -616,7 +619,7 @@ class _AddButton extends StatelessWidget {
     return TextButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.add, size: 18),
-      label: Text(label),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
     );
   }

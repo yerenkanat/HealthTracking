@@ -36,7 +36,16 @@ export function createMemoryRepository(): Repository {
   const sleep: SleepNight[] = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alerts: SafetyAlertRow[] = [];
-  let profile: ProfileRow | null = { displayName: 'Aigerim', phone: '+77001112233', dueDate: null, locale: 'ru-KZ' };
+  let profile: ProfileRow | null = {
+    displayName: 'Aigerim',
+    phone: '+77001112233',
+    dueDate: null,
+    locale: 'ru-KZ',
+    // Seeded as null on purpose: declining these is the common case, and the
+    // back-office has to render "not provided" rather than an empty cell.
+    birthDate: null,
+    city: null,
+  };
   let idSeq = 1;
 
   // Timeline content, edited through /admin/content. Seeded with a couple of
@@ -173,6 +182,8 @@ export function createMemoryRepository(): Repository {
         phone: profile?.phone ?? null,
         dueDate: profile?.dueDate ?? null,
         locale: profile?.locale ?? null,
+        birthDate: profile?.birthDate ?? null,
+        city: profile?.city ?? null,
         children: children.map((c) => ({
           id: c.id,
           name: c.name,

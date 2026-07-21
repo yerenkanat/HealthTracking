@@ -261,7 +261,7 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Back-office drilldowns ----
     async adminUserDetail(userId) {
       const { rows: prof } = await pool.query(
-        `SELECT display_name, phone, due_date, locale FROM users WHERE id = $1`, [userId]);
+        `SELECT display_name, phone, due_date, locale, birth_date, city FROM users WHERE id = $1`, [userId]);
       if (!prof[0]) return null;
       const [kids, devs, alerts, sleepCount, dayCount] = await Promise.all([
         pool.query(
@@ -284,6 +284,8 @@ export function createPgRepository(pool: Pool): Repository {
         phone: prof[0].phone ?? null,
         dueDate: prof[0].due_date ? new Date(prof[0].due_date).toISOString().slice(0, 10) : null,
         locale: prof[0].locale ?? null,
+        birthDate: prof[0].birth_date ? new Date(prof[0].birth_date).toISOString().slice(0, 10) : null,
+        city: prof[0].city ?? null,
         children: kids.rows.map((r) => ({
           id: r.id,
           name: r.name,
@@ -444,7 +446,8 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Profile ----
     async getProfile(userId) {
       const { rows } = await pool.query(
-        `SELECT display_name, phone_e164, due_date, locale FROM users WHERE id = $1`, [userId]);
+        `SELECT display_name, phone_e164, due_date, locale, birth_date, city
+           FROM users WHERE id = $1`, [userId]);
       if (rows.length === 0) return null;
       const r = rows[0];
       return {
@@ -452,15 +455,18 @@ export function createPgRepository(pool: Pool): Repository {
         phone: r.phone_e164,
         dueDate: r.due_date ? new Date(r.due_date).toISOString().slice(0, 10) : null,
         locale: r.locale,
+        birthDate: r.birth_date ? new Date(r.birth_date).toISOString().slice(0, 10) : null,
+        city: r.city ?? null,
       };
     },
     async upsertProfile(userId, p) {
       // The user row exists from signup (email is required); this updates it.
       await pool.query(
         `UPDATE users SET display_name = $2, phone_e164 = $3, due_date = $4,
-                          locale = COALESCE($5, locale), updated_at = now()
+                          locale = COALESCE($5, locale),
+                          birth_date = $6, city = $7, updated_at = now()
          WHERE id = $1`,
-        [userId, p.displayName, p.phone, p.dueDate, p.locale]);
+        [userId, p.displayName, p.phone, p.dueDate, p.locale, p.birthDate, p.city]);
     },
 
     // ---- Device reassignment ----

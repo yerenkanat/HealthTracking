@@ -482,6 +482,108 @@ void main() {
       }, scroll: true);
     });
   }
+
+  // ---- Large accessibility text ----
+  //
+  // Nothing in the app or its tests had ever considered textScaler. Android and
+  // iOS both let a user enlarge every font system-wide, and the people most
+  // likely to do it — anyone whose sight is not perfect — are squarely among
+  // this app's users. A layout tuned at 1.0 has no reason to survive 1.5.
+  //
+  // 1.5 rather than the maximum: past that, essentially every mobile layout
+  // needs a different design, and pretending otherwise would make this a test
+  // nobody can keep passing. This is the setting a real user plausibly picks.
+  Future<void> checkScaled(WidgetTester tester, String name, Widget Function() build,
+      {double scale = 1.5, bool scroll = false}) async {
+    _overflows.clear();
+    tester.view.physicalSize = _smallPhone;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final previous = FlutterError.onError;
+    FlutterError.onError = (details) {
+      final text = details.exceptionAsString();
+      if (text.contains('overflowed')) {
+        _overflows.add(text.split('\n').first);
+      } else {
+        previous?.call(details);
+      }
+    };
+    await tester.pumpWidget(MaterialApp(
+      key: UniqueKey(),
+      home: MediaQuery(
+        data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+        // Russian: the default language AND the longest strings, so this is the
+        // combination a real user is most likely to be in.
+        child: L10nScope(l10n: const L10n(AppLocale.ru), child: build()),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    if (scroll && find.byType(Scrollable).evaluate().isNotEmpty) {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+      await tester.pumpAndSettle();
+    }
+    FlutterError.onError = previous;
+    expect(_overflows, isEmpty,
+        reason: '$name overflowed at ${scale}x text in Russian:\n  ${_overflows.join('\n  ')}');
+  }
+
+  testWidgets('the emergency screen survives large text', (tester) async {
+    // The screen someone with poor sight most needs to read.
+    await checkScaled(
+      tester,
+      'EmergencyRescueScreen',
+      () => EmergencyRescueScreen(
+        message: 'Обнаружено высокое давление — признак преэклампсии. '
+            'Немедленно свяжитесь с врачом.',
+        details: const ['Ваше давление: 152/96 мм рт. ст.'],
+        callButtons: const [
+          EmergencyCallButton('Вызвать скорую', '103'),
+          EmergencyCallButton('Позвонить врачу', '+77011234567'),
+        ],
+        onCall: (_) async {},
+        onDismissConfirmed: () async {},
+      ),
+    );
+  });
+
+  testWidgets('the dashboard survives large text', (tester) async {
+    await checkScaled(
+      tester,
+      'HealthDashboardView',
+      () => HealthDashboardView(
+        samples: samples, sleepNights: nights, greetingName: 'Aigerim',
+        awaitingRepeat: 'bp', onLogVitals: () {}, onLogSleep: () {},
+        onAddWater: () {}, onRemoveWater: () {}, onSetWaterGoal: (_) {},
+      ),
+      scroll: true,
+    );
+  });
+
+  testWidgets('the settings screen survives large text', (tester) async {
+    await checkScaled(tester, 'SettingsScreen', () {
+      final c = AppController(now: () => today);
+      addTearDown(c.dispose);
+      return SettingsScreen(controller: c);
+    }, scroll: true);
+  });
+
+  testWidgets('onboarding survives large text', (tester) async {
+    for (final step in [OnboardingStep.welcome, OnboardingStep.profile, OnboardingStep.child]) {
+      await checkScaled(tester, 'OnboardingFlow.${step.name}', () {
+        final oc = OnboardingController();
+        addTearDown(oc.dispose);
+        oc.setDisplayName('Aigerim');
+        oc.setPhoneNumber('7001112233');
+        oc.setChildName('Sultan');
+        oc.setHome(const ZoneInput('Дом', 43.238949, 76.889709));
+        for (var g = 0; oc.step != step && g < 10; g++) {
+          oc.next();
+        }
+        return OnboardingFlow(controller: oc, onComplete: (_) {});
+      }, scroll: true);
+    }
+  });
 }
 
 final List<String> _overflows = [];

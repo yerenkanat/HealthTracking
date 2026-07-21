@@ -41,6 +41,15 @@ export interface ProfileRow {
   phone: string | null; // E.164
   dueDate: string | null; // yyyy-MM-dd
   locale: string;
+  /**
+   * Optional details the app collects with a stated reason: age-relevant
+   * guidance, and products that can actually be delivered where she lives.
+   *
+   * Null means she declined, which is a supported answer everywhere it is read
+   * — not a missing field to be filled in later.
+   */
+  birthDate: string | null; // yyyy-MM-dd
+  city: string | null;
 }
 
 /** One lesson or product on the timeline. Mirrors the app's ContentItem. */
@@ -69,6 +78,9 @@ export interface AdminUserDetail {
   phone: string | null;
   dueDate: string | null;
   locale: string | null;
+  /** Null when she declined — the panel shows that as "not provided". */
+  birthDate: string | null;
+  city: string | null;
   children: Array<{ id: string; name: string; dateOfBirth: string | null; zones: number }>;
   devices: Array<{ id: string; name: string; kind: string; childId: string | null; batteryPct: number | null }>;
   latest: Record<string, number | null>;

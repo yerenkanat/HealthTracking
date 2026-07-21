@@ -108,7 +108,15 @@ class _Welcome extends StatelessWidget {
   const _Welcome(this.l);
   @override
   Widget build(BuildContext context) {
-    return Column(
+    // Centred but SCROLLABLE. A fixed Column centres nicely at the default font
+    // size and then runs 114px off the bottom once a user enlarges her system
+    // text — on the very first screen of the app, before she has any reason to
+    // trust it. Wrapping in a scroll view keeps the centred look while letting
+    // the words have the room they need.
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height * 0.6),
+        child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -118,6 +126,8 @@ class _Welcome extends StatelessWidget {
         const SizedBox(height: 12),
         Text(l.t('onb_welcome_body'), style: const TextStyle(fontSize: 16, height: 1.4)),
       ],
+        ),
+      ),
     );
   }
 }

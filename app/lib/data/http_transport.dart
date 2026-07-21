@@ -64,6 +64,14 @@ class HttpApiTransport implements HttpTransport {
   }
 
   @override
+  Future<HttpResponse> put(String path, Object jsonBody) async {
+    final res = await _client
+        .put(baseUrl.resolve(path), headers: await _headers(), body: jsonEncode(jsonBody))
+        .timeout(timeout);
+    return HttpResponse(res.statusCode, res.body);
+  }
+
+  @override
   Future<HttpResponse> get(String path) async {
     final res =
         await _client.get(baseUrl.resolve(path), headers: await _headers()).timeout(timeout);

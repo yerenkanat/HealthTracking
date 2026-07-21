@@ -27,6 +27,11 @@ CREATE TABLE users (                       -- Mothers / primary caregivers
   timezone       TEXT NOT NULL DEFAULT 'Asia/Almaty',
   -- Pregnancy context lets the OB-GYN rules adapt (trimester-aware baselines).
   due_date       DATE,
+  -- Collected in-app with a stated reason (see the profile sheet): age-relevant
+  -- guidance, and products that can actually be delivered where she lives.
+  -- Both OPTIONAL — the app works without them and must keep working.
+  birth_date     DATE,
+  city           TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );

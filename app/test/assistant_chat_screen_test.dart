@@ -11,6 +11,9 @@ import 'package:fcs_app/ui/chat/assistant_chat_screen.dart';
 
 class _FakeTransport implements HttpTransport {
   @override
+  Future<HttpResponse> put(String path, Object body) => post(path, body);
+
+  @override
   Future<HttpResponse> post(String path, Object body) async =>
       HttpResponse(200, jsonEncode({'kind': 'chat', 'message': 'Rest and hydrate.', 'grounded': true}));
   @override

@@ -16,6 +16,15 @@ class HttpResponse {
 abstract class HttpTransport {
   Future<HttpResponse> post(String path, Object jsonBody);
   Future<HttpResponse> get(String path);
+
+  /// PUT, for the routes that replace a whole record rather than append.
+  ///
+  /// The body here is a default, but it does NOT spare implementers: a class
+  /// that `implements HttpTransport` must still declare every member, default
+  /// or not. It only spares anyone who `extends`. Written down because the
+  /// first version of this comment claimed otherwise and three fakes stopped
+  /// compiling.
+  Future<HttpResponse> put(String path, Object jsonBody) => post(path, jsonBody);
 }
 
 class ApiException implements Exception {
@@ -159,6 +168,38 @@ class ApiClient {
     });
     if (!res.ok) throw ApiException(res.statusCode, res.body);
     return ChatOutcome.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// Push the profile to the backend.
+  ///
+  /// [birthDate] and [city] are optional in the app and optional here — null
+  /// means she declined, which is a supported answer all the way through to the
+  /// back-office, where it renders as "не указано" rather than a blank.
+  ///
+  /// NOT CALLED YET: profile sync waits on sign-in, like the rest of the CRUD
+  /// surface. It exists so the layers line up — the schema, the route and the
+  /// panel all carry these fields, and this is the last link. See
+  /// docs/INTEGRATION_STATUS.md.
+  Future<void> putProfile({
+    required String displayName,
+    String? phone,
+    DateTime? dueDate,
+    DateTime? birthDate,
+    String? city,
+    String? locale,
+  }) async {
+    String? day(DateTime? d) =>
+        d == null ? null : '${d.year.toString().padLeft(4, '0')}-'
+            '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final res = await transport.put('/profile', {
+      'displayName': displayName,
+      'phone': phone,
+      'dueDate': day(dueDate),
+      'birthDate': day(birthDate),
+      'city': (city ?? '').trim().isEmpty ? null : city!.trim(),
+      if (locale != null) 'locale': locale,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
   Future<void> submitBpCalibration({

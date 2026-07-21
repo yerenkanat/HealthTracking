@@ -19,6 +19,9 @@ void _chk(String n, bool ok) {
 
 /// Fake transport: canned responses keyed by path, records the last body posted.
 class FakeTransport implements HttpTransport {
+  @override
+  Future<HttpResponse> put(String path, Object body) => post(path, body);
+
   final Map<String, HttpResponse> responses;
   Object? lastBody;
   String? lastPath;

@@ -125,6 +125,9 @@ function makeDeps(
       userId === USER
         ? {
             id: USER, displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-11-01', locale: 'ru-KZ',
+            // Given, so the panel's rendering of the populated case is exercised;
+            // the memory repository seeds them null, which covers the other.
+            birthDate: '1996-04-12', city: 'Алматы',
             children: children.map((c) => ({ id: c.id, name: c.name, dateOfBirth: null, zones: 0 })),
             devices: devices.map((d) => ({ ...d, batteryPct: 62 })),
             latest: { hr: 80 }, triage: [], alerts: [], sleepNights: sleepRows.length, loggedDays: dayLogs.size,

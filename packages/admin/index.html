@@ -491,15 +491,56 @@
     line(wrn,warn.trim());line(emg,crit.trim());
   }
 
+  // " · 30 лет" from a date of birth; empty when absent or unparseable.
+  //
+  // The AGE is the point of collecting the birthday — age-relevant guidance,
+  // and cohort analysis. Printing the raw date and leaving a support agent to
+  // do the arithmetic wastes the field.
+  function ageFrom(iso){
+    const d=new Date(iso); if(isNaN(d)) return "";
+    const now=new Date();
+    let a=now.getFullYear()-d.getFullYear();
+    const m=now.getMonth()-d.getMonth();
+    if(m<0||(m===0&&now.getDate()<d.getDate())) a--;
+    return (a>=0&&a<130) ? " · "+a+" лет" : "";
+  }
+
   // Drawer (patient health)
-  function openUser(id){
-    const u=MOCK.users.find(x=>x.id===id)||{displayName:"User",phone:""};
-    const h=MOCK.health[id]||MOCK.health._default;
+  //
+  // Fetches the real record when we are live. It only ever showed mock vitals,
+  // so profile fields the app had been collecting for weeks — her date of birth
+  // and city — appeared nowhere in the back-office. Adding a field to the app
+  // and stopping there leaves the people who answer support questions blind to
+  // it, and the data team unable to see it at all.
+  async function openUser(id){
+    let u=MOCK.users.find(x=>x.id===id)||{displayName:"User",phone:""};
+    let h=MOCK.health[id]||MOCK.health._default;
+    if(LIVE){
+      try{
+        const d=await api(`/admin/users/${id}/detail`);
+        u={...u,...d};
+        if(d.latest) h={latest:d.latest,triage:d.triage||[],alert:[]};
+      }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
+    }
     const initial=u.displayName.trim()[0]||"U";
     const vital=(k,label,unit)=>`<div class="vital ${h.alert.includes(k)?'alert':''}"><div class="k">${label}</div><div class="v">${h.latest[k]}<span style="font-size:12px;color:var(--muted)"> ${unit}</span></div></div>`;
     $("#drawer").innerHTML=`
       <div class="dh"><span class="avatar">${esc(initial)}</span><div><b>${esc(u.displayName)}</b><div class="t num">${esc(u.phone)}</div></div>
         <button class="iconbtn close" id="dClose" aria-label="Close">✕</button></div>
+      <div class="dsec">Профиль</div>
+      <div class="tl">
+        ${[
+          ["Дата рождения", u.birthDate ? `${esc(u.birthDate)}${ageFrom(u.birthDate)}` : null],
+          ["Город", u.city ? esc(u.city) : null],
+          ["Срок родов", u.dueDate ? esc(u.dueDate) : null],
+          ["Язык", u.locale ? esc(u.locale) : null],
+        ].map(([k,v])=>`<div class="tli"><span><b>${k}</b></span><span class="t">${
+          // "Not provided" rather than an empty cell: these are OPTIONAL in the
+          // app, declining is a supported answer, and a blank space reads as a
+          // bug or as missing data to go and chase.
+          v ?? '<span style="color:var(--muted)">не указано</span>'
+        }</span></div>`).join("")}
+      </div>
       <div class="dsec">Latest readings</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>

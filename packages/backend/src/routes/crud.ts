@@ -72,6 +72,10 @@ const profileBody = z.object({
   phone: z.string().max(30).nullable().optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   locale: z.string().max(10).optional(),
+  // Optional profile details, collected in-app with a stated reason. Both
+  // nullable: declining is a supported answer, not a missing field.
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  city: z.string().max(80).nullable().optional(),
 });
 const reassignBody = z.object({ childId: z.string().min(1).nullable() });
 
@@ -281,6 +285,8 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
       phone: parsed.data.phone ?? null,
       dueDate: parsed.data.dueDate ?? null,
       locale: parsed.data.locale ?? 'ru-KZ',
+      birthDate: parsed.data.birthDate ?? null,
+      city: parsed.data.city ?? null,
     });
     return reply.send({ ok: true });
   });
