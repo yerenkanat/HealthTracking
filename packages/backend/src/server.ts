@@ -43,6 +43,17 @@ export interface ServerDeps {
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
+/// An instant, not merely a string.
+///
+/// These were `z.string()`, so "yesterday-ish" was stored verbatim and reached
+/// the app, which subtracts it from now to decide how fresh a reading is. That
+/// parse yields NaN, and every comparison against NaN is false — so the value
+/// came out neither fresh nor stale, and fell through whichever branch happened
+/// to be last.
+///
+/// Offsets are allowed: a phone in Almaty legitimately sends +05:00.
+const isoInstant = z.string().datetime({ offset: true });
+
 // The plain object is kept separately because .refine() produces a ZodEffects,
 // which has no .partial() — and /ai/chat needs a partial of this shape.
 const telemetryBase = z.object({
@@ -51,14 +62,27 @@ const telemetryBase = z.object({
     // rejected the most trustworthy numbers the product has at the edge, before
     // any handler saw them.
     deviceId: z.string(),
-    recordedAt: z.string(),
+    recordedAt: isoInstant,
     source: z.enum(['band', 'manual']).optional(),
-    coreTempC: z.number().optional(),
-    skinTempC: z.number().optional(),
-    heartRateBpm: z.number().int().optional(),
-    spo2Pct: z.number().int().optional(),
-    systolicMmHg: z.number().int().optional(),
-    diastolicMmHg: z.number().int().optional(),
+    // Bounded to what a human body can produce.
+    //
+    // /calibration/bp below already says why unbounded integers are dangerous,
+    // and this — the path that reaches her chart, her clinician's view and the
+    // server-side triage that sends an emergency push — bounded nothing. A
+    // systolic of 999999 was stored and, being over the threshold, sent her a
+    // "seek care now" push for a number no person has ever had.
+    //
+    // WIDER than the calibration bounds on purpose. Calibration is a pair she
+    // types in to offset every later reading, so it can demand a plausible
+    // one; this carries whatever is actually happening, and a woman in shock
+    // reads low. Rejecting a real emergency would be the worse mistake, so
+    // these reject only the impossible.
+    coreTempC: z.number().finite().min(20).max(45).optional(),
+    skinTempC: z.number().finite().min(10).max(45).optional(),
+    heartRateBpm: z.number().int().min(20).max(300).optional(),
+    spo2Pct: z.number().int().min(1).max(100).optional(),
+    systolicMmHg: z.number().int().min(40).max(300).optional(),
+    diastolicMmHg: z.number().int().min(20).max(220).optional(),
     duringSleep: z.boolean().optional(),
 });
 const telemetrySchema = telemetryBase.refine(
@@ -72,9 +96,23 @@ const telemetrySchema = telemetryBase.refine(
 );
 const locationSchema = z.object({
   childId: z.string().uuid(),
-  coords: z.object({ lat: z.number(), lng: z.number(), accuracyM: z.number().optional() }),
+  // A position has to be on Earth.
+  //
+  // A bare z.number() accepts 5000 and, reachable over the wire because
+  // JSON.parse('1e999') is Infinity, accepts Infinity too. Either then flows
+  // into the geofence distance maths, where every comparison against Infinity
+  // is false — so a child at that position is inside no zone, and leaving
+  // none. The map would show them nowhere while every safe-zone alert quietly
+  // stopped working.
+  coords: z.object({
+    lat: z.number().finite().min(-90).max(90),
+    lng: z.number().finite().min(-180).max(180),
+    // A negative radius of uncertainty is not a radius. The upper bound is
+    // half the planet — past that the fix says nothing about where anyone is.
+    accuracyM: z.number().finite().min(0).max(20_000_000).optional(),
+  }),
   source: z.enum(['gps', 'wifi', 'lbs', 'ble']),
-  observedAt: z.string(),
+  observedAt: isoInstant,
 });
 const batchSchema = z.object({
   items: z
@@ -101,7 +139,13 @@ const bpCalSchema = z.object({
   cuffDiastolic: z.number().int().min(30).max(200),
   ppgSystolic: z.number().int().min(60).max(260),
   ppgDiastolic: z.number().int().min(30).max(200),
-  measuredAt: z.string(),
+  // Tightened while nothing calls this yet — the app has a TODO where the POST
+  // will go. A calibration is dated so staleness can be judged against it
+  // (bpCalibrationIsStale), and a string with no zone cannot be. Note for
+  // whoever wires it: Dart's toIso8601String() omits the offset entirely on a
+  // LOCAL DateTime, so send .toUtc().toIso8601String() as the ingest path
+  // already does.
+  measuredAt: isoInstant,
 });
 
 /// Replace id-looking path segments with `:id`.
