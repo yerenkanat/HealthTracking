@@ -115,3 +115,37 @@ change is confined to the composition root: verify a Firebase ID token (users)
 and a staff session with role claims (back-office), return the same shapes, set
 `REAL_AUTH=1`. Every route already goes through `requireCaller` / `requireAdmin`
 and checks ownership, and those checks do not change.
+
+## Telemetry ingest is not idempotent
+
+`TelemetryBatcher` requeues a whole batch whenever a flush fails — including
+the case where the server processed it and the RESPONSE was lost on the way
+back. The same readings then arrive a second time. Nothing on the server
+rejects them, so that produces duplicate rows in her history and a second
+emergency push for a single reading.
+
+`keys.bandFrameDedup` in `cache/redis.ts` was declared for exactly this and is
+wired to nothing.
+
+### Where the fix belongs
+
+Not in Redis. A cache that expires cannot promise idempotency, and the window
+that matters here (a retry minutes later, or after a restart) is longer than
+any TTL worth keeping. The right place is a unique index:
+
+```sql
+ALTER TABLE pregnancy_health_metrics
+  ADD CONSTRAINT phm_unique_reading UNIQUE (user_id, device_id, recorded_at);
+```
+
+with `INSERT ... ON CONFLICT DO NOTHING` in `insertHealthMetric`, so a repeat
+is impossible rather than merely unlikely, and the count the client gets back
+still reflects what was stored.
+
+Deferred rather than done because it changes what `/ingest/batch` reports for a
+duplicate (stored vs. rejected vs. silently accepted), and that answer should
+be settled when the real client is syncing against a real database — not
+guessed at now.
+
+Manual readings carry `deviceId: ''`, so the constraint needs a device
+placeholder or a partial index; worth deciding at the same time.
