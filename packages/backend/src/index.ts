@@ -119,6 +119,16 @@ async function main(): Promise<void> {
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
       `<title>Umay Back-office</title></head><body>${adminBody}</body></html>`;
     app.get('/admin/ui', async (_req, reply) => reply.type('text/html').send(adminHtml));
+    // The page carries the stub staff headers in its own source, so serving it
+    // IS granting admin: anyone who can reach this route can read every
+    // family's data and edit what every user sees. The default bind is
+    // 127.0.0.1 and production refuses to start on stub auth, but neither is
+    // obvious from a log that says nothing.
+    app.log.warn(
+      '/admin/ui is served with NO authentication and the page embeds the ' +
+        'staff header stub — reaching this route is equivalent to admin access. ' +
+        'Local development only.',
+    );
   } catch {
     app.log.warn('admin dashboard html not found; /admin/ui disabled');
   }

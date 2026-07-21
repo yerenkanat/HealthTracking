@@ -72,6 +72,27 @@ describe('admin panel markup and script agree', () => {
     expect(chart).not.toMatch(/=\s*\[\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+/);
   });
 
+  it('has exactly one staff identity', () => {
+    // There were two, in two script blocks: the dashboard half sent role
+    // "clinician" and the CMS half sent "admin". The same person was two
+    // different staff members depending on which button they pressed — reads
+    // authorized as a clinician, content edits as an admin, both audited under
+    // the same id. Whichever was intended, one of them was wrong.
+    const declarations = [...html.matchAll(/const\s+STAFF\s*=/g)];
+    expect(declarations).toHaveLength(1);
+    const roles = [...html.matchAll(/role:\s*"(admin|clinician|support)"/g)].map((m) => m[1]);
+    expect(new Set(roles).size, `panel claims several roles: ${roles.join(', ')}`).toBeLessThanOrEqual(1);
+  });
+
+  it('tells a staff member their access was refused', () => {
+    // 401/403 and "the server did not answer" used to throw the same thing,
+    // and the catch quietly showed demo numbers. Someone whose access had been
+    // revoked got a complete, plausible dashboard of invented figures.
+    expect(html).toMatch(/class AccessDenied/);
+    expect(html).toMatch(/status\s*===\s*401\s*\|\|\s*r\.status\s*===\s*403/);
+    expect(html).toContain('Нет доступа');
+  });
+
   it('says so when a metric is unavailable instead of rendering a blank', () => {
     // Every consumer of BI has a null branch; an empty card reads as "zero".
     const consumers = ['renderKpis', 'renderRetention', 'renderEngagement', 'drawBiTrend'];
