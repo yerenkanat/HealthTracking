@@ -127,16 +127,42 @@ describe('the analytics tab renders the whole product, not the device fleet', ()
 
   it('breaks the base into where its actives came from', () => {
     const t = page.text('#anGrowth');
-    for (const label of ['Новые', 'Вернувшиеся', 'Остались', 'Ушли', 'Чистое изменение']) {
+    for (const label of ['Новые', 'Вернулись', 'Остались', 'Ушли', 'Чистое изменение']) {
       expect(t).toContain(label);
     }
+    // "Остались" is the base that stayed, not a movement, so it carries no
+    // sign. It used to render as "=73", an equation missing a side.
+    expect(t).not.toMatch(/=\s*\d/);
   });
 
-  it('shows the funnel with its conversion between stages', () => {
+  it('shows the funnel loss BETWEEN the stages, not inside a label', () => {
     const t = page.text('#anFunnel');
     expect(t).toContain('Зарегистрировались');
     expect(t).toContain('Три активных дня');
-    expect(t).toMatch(/от предыдущего/);
+    // The drop is its own element between two rows. Concatenated into the
+    // lower stage's label it read "Первое действие 97% от предыдущего" — one
+    // run-on line that hid where users are actually lost.
+    expect(page.count('#anFunnel .fdrop')).toBe(3); // one between each pair
+    expect(t).toMatch(/дошли/);
+    const label = page.text('#anFunnel .mrow-label');
+    expect(label).not.toMatch(/%/);
+  });
+
+  it('puts every figure in a tabular column, not inline with the words', () => {
+    // Values were pasted next to the label as ordinary prose, so nothing lined
+    // up down the card and the numbers could not be compared by eye.
+    expect(page.count('#anGrowth .mrow-value')).toBeGreaterThan(3);
+    expect(page.count('#anAdoption .mrow-value')).toBeGreaterThan(3);
+  });
+
+  it('defers the how-it-is-counted prose behind a disclosure', () => {
+    // Every card carried a paragraph above or below its data. True, and worth
+    // keeping — but read daily by people who learned it once, so it pushed the
+    // numbers down and got skipped. Closed by default, same place every time.
+    for (const sel of ['#anGrowth', '#anFunnel', '#anAdoption']) {
+      expect(page.count(`${sel} details.note`), `${sel} lost its rationale`).toBe(1);
+      expect(page.count(`${sel} details.note[open]`), `${sel} opens it unasked`).toBe(0);
+    }
   });
 
   it('names every module in adoption, including unused ones', () => {

@@ -116,10 +116,90 @@
   .kpi .delta b{color:var(--good)}
   .kpi .delta b.down{color:var(--crit)}
 
-  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:16px}
+  /* align-items:start so a card is as tall as its contents. Grid stretches
+     rows by default, so a short card beside a tall one grew a large empty
+     area under its data — which reads as content that failed to load. */
+  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:16px;align-items:start}
   .sec-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 6px}
   .sec-h h3{margin:0;font-size:15px;letter-spacing:-.2px}
   .sec-h .link{color:var(--accent);font-weight:600;font-size:12.5px;cursor:pointer}
+
+  /* ---- Card body ----
+     .sec-h carries 18px of horizontal padding and the content under it carried
+     none, so every heading sat indented from the text it introduced. Visible on
+     any card with rows in it, and the kind of misalignment that reads as
+     "unfinished" long before anyone can say why. */
+  .cardbody{padding:2px 18px 18px}
+  .cardbody > .sub:first-child{margin-top:0}
+
+  /* ---- Metric row ----
+     One shape for every "label, number, share" line: the label left, the value
+     right in tabular figures so columns line up down the card, and the bar
+     beneath spanning the full width.
+
+     Secondary text — a cohort size, a conversion — is its own element rather
+     than being concatenated into the label, which is what ran a funnel stage
+     and its percentage together into one unreadable sentence. */
+  .mrow{margin:11px 0}
+  .mrow:first-child{margin-top:0}
+  .mrow-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .mrow-label{min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-weight:600}
+  .mrow-note{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.2px;
+             background:var(--surface-2);border:1px solid var(--hair);border-radius:20px;padding:1px 8px;white-space:nowrap}
+  .mrow-value{flex:0 0 auto;font-family:var(--mono);font-variant-numeric:tabular-nums;
+              font-size:13px;font-weight:700;white-space:nowrap}
+  .mrow-value .unit{color:var(--muted);font-weight:600}
+  .mrow-track{height:8px;border-radius:99px;background:var(--hair);overflow:hidden;margin-top:7px}
+  /* A minimum width so a small but real value is still visible: "+6" next to
+     "+118" rendered as an empty track, which reads as zero. */
+  .mrow-fill{height:100%;border-radius:99px;min-width:4px;transition:width .35s ease}
+  .mrow.off .mrow-value{color:var(--muted);font-weight:600}
+  .mrow.off .mrow-fill{min-width:0}
+
+  /* ---- Empty state ----
+     A card with nothing in it looks like a card that failed. Say what the
+     emptiness means, especially where it is good news. */
+  .empty{display:flex;gap:14px;align-items:flex-start;padding:26px 18px 30px;color:var(--muted)}
+  .empty svg{width:26px;height:26px;flex:0 0 auto;color:var(--good);margin-top:1px}
+  .empty b{color:var(--ink);font-size:14px;display:block;margin-bottom:2px}
+
+  /* A pair of headline figures above a breakdown. */
+  .stats{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:16px}
+  .stat{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:24px;
+        font-weight:700;letter-spacing:-.5px;margin-top:2px}
+
+  /* Totals line under a group of rows. */
+  .mtotal{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+          margin-top:14px;padding-top:12px;border-top:1px solid var(--hair);font-weight:700}
+  .mtotal .v{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* ---- Funnel ----
+     The drop belongs BETWEEN two stages, not inside the label of the second
+     one. Read down the left edge and the losses are where they happened. */
+  .fdrop{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11.5px;
+         font-weight:600;margin:2px 0 2px 3px}
+  .fdrop::before{content:"";width:1px;height:14px;background:var(--hair)}
+  .fdrop.bad{color:var(--warn)}
+
+  /* ---- Deferred rationale ----
+     Every one of these cards carried a paragraph explaining how the number is
+     built. True, and worth keeping — but a back-office screen is read daily by
+     people who learned it once, and prose above the data pushes the data down
+     and gets skipped. Native <details>: keyboard-operable, closed by default,
+     in the same place on every card. */
+  .note{border-top:1px solid var(--hair);margin-top:14px}
+  .note summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;
+                padding:10px 0 0;list-style:none;display:flex;align-items:center;gap:7px}
+  .note summary::-webkit-details-marker{display:none}
+  .note summary::after{content:"▾";font-size:10px;transition:transform .18s ease}
+  .note[open] summary::after{transform:rotate(180deg)}
+  .note summary:hover{color:var(--accent)}
+  .note p{margin:8px 0 0;color:var(--muted);font-size:12.5px;line-height:1.55}
+
+  /* Keyboard users need to see where they are. Nothing here had a focus style,
+     so tabbing through the panel was invisible. */
+  :is(.nav,.btn,.cell,.link,.note summary,button,input,summary):focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 
   /* Emergency feed */
   .feed{display:flex;flex-direction:column}
@@ -384,52 +464,56 @@
               <span><i style="background:var(--warn)"></i>Скользящая неделя</span>
               <span><i style="background:var(--good)"></i>Регистрации</span>
             </div>
-            <p class="sub" style="margin-top:10px">
-              Дневная активность пилообразная — по ней не читается направление.
-              Скользящая неделя показывает тренд.
-            </p>
+            <div class="cardbody" style="padding-top:0">
+              <details class="note" style="margin-top:0"><summary>Как это читать</summary>
+                <p>Дневная активность пилообразная — по ней не читается направление.
+                   Скользящая неделя показывает тренд на том же масштабе.</p>
+              </details>
+            </div>
           </div>
           <div class="card">
             <div class="sec-h"><h3>Кривая удержания</h3><span class="sub">день 0 — день 30</span></div>
             <div class="chartwrap"><canvas id="anRetCurve" width="600" height="170"></canvas></div>
-            <div id="biRetention"></div>
-            <p class="sub" style="margin-top:10px">
-              По всем когортам, у которых N-й день уже наступил. Размер когорты
-              рядом: 100% на двух пользователях — это шум, а не результат.
-            </p>
+            <div class="cardbody" id="biRetention"></div>
+            <div class="cardbody" style="padding-top:0">
+              <details class="note" style="margin-top:0"><summary>Как это считается</summary>
+                <p>По всем когортам, у которых N-й день уже наступил. Размер когорты
+                   показан рядом: 100% на двух пользователях — это шум, а не результат.</p>
+              </details>
+            </div>
           </div>
         </div>
 
         <div class="grid2">
           <div class="card">
             <div class="sec-h"><h3>Динамика базы · 30 дней</h3><span class="sub">откуда взялись активные</span></div>
-            <div id="anGrowth"></div>
+            <div class="cardbody" id="anGrowth"></div>
           </div>
           <div class="card">
             <div class="sec-h"><h3>Воронка активации</h3><span class="sub">аккаунты старше недели</span></div>
-            <div id="anFunnel"></div>
+            <div class="cardbody" id="anFunnel"></div>
           </div>
         </div>
 
         <div class="grid2">
           <div class="card">
             <div class="sec-h"><h3>Охват модулей</h3><span class="sub">пользователей, не событий</span></div>
-            <div id="anAdoption"></div>
+            <div class="cardbody" id="anAdoption"></div>
           </div>
           <div class="card">
             <div class="sec-h"><h3>Вовлечённость · 30 дней</h3></div>
-            <div id="biEngagement"></div>
+            <div class="cardbody" id="biEngagement"></div>
           </div>
         </div>
 
         <div class="grid2">
           <div class="card">
             <div class="sec-h"><h3>Состав аудитории</h3></div>
-            <div id="anComposition"></div>
+            <div class="cardbody" id="anComposition"></div>
           </div>
           <div class="card">
             <div class="sec-h"><h3>Охват контента</h3></div>
-            <div id="anContent"></div>
+            <div class="cardbody" id="anContent"></div>
           </div>
         </div>
       </section>
@@ -547,6 +631,9 @@
       try{ BI=await api("/admin/bi"); }catch(e){ BI=null; }
     }catch(e){ /* keep demo data */ }
     render();
+    // Open whatever the URL asked for, now that the data behind it exists.
+    const wanted=viewFromHash();
+    if(wanted&&wanted!=="overview")go(wanted);
   }
 
   // ---- Rendering ----
@@ -652,14 +739,24 @@
   const MODULE_LABELS={telemetry:"Здоровье · измерения",location:"Геолокация ребёнка",
     chat:"Ассистент",alert:"Тревоги",sos:"SOS",emergency:"Экстренные"};
 
-  function bar(label,right,frac,color){
+  /// One metric row: label (with optional chip), value, and a proportional bar.
+  ///
+  /// `note` is its own element rather than being pasted into `label` — doing
+  /// that ran a funnel stage and its conversion together into a single
+  /// unreadable line.
+  function mrow(label,{value,note,frac=0,color='var(--accent)',off=false}={}){
     const w=Math.max(0,Math.min(100,Math.round(frac*100)));
-    return `<div style="margin:9px 0">
-      <div style="display:flex;justify-content:space-between;gap:8px"><span>${label}</span><span class="sub">${right}</span></div>
-      <div style="height:7px;border-radius:99px;background:var(--hair);overflow:hidden;margin-top:4px">
-        <div style="height:100%;width:${w}%;background:${color}"></div>
-      </div></div>`;
+    return `<div class="mrow${off?' off':''}">
+      <div class="mrow-head">
+        <span class="mrow-label">${label}${note?`<span class="mrow-note">${note}</span>`:""}</span>
+        <span class="mrow-value">${value}</span>
+      </div>
+      <div class="mrow-track"><div class="mrow-fill" style="width:${off?0:w}%;background:${color}"></div></div>
+    </div>`;
   }
+
+  /// The collapsed "how this is counted" block every analytics card carries.
+  const note=(text)=>`<details class="note"><summary>Как это считается</summary><p>${text}</p></details>`;
 
   function renderGrowth(){
     const el=$("#anGrowth"); if(!el) return;
@@ -668,19 +765,20 @@
     const g=BI.growth;
     const inbound=g.new+g.returning+g.resurrected;
     const scale=Math.max(1,inbound,g.churned);
-    el.innerHTML=`
-      <p class="sub" style="margin-bottom:10px">
-        Активные за 30 дней против предыдущих 30. Ровный MAU может означать
-        стабильную базу, а может — что отток целиком закрывается привлечением.
-      </p>
-      ${bar("Новые","+"+fmt(g.new),g.new/scale,"var(--good)")}
-      ${bar("Вернувшиеся","+"+fmt(g.resurrected),g.resurrected/scale,"var(--accent)")}
-      ${bar("Остались","="+fmt(g.returning),g.returning/scale,"var(--muted)")}
-      ${bar("Ушли","−"+fmt(g.churned),g.churned/scale,"var(--crit)")}
-      <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">
+    // "Остались" is the base that stayed, not a movement, so it carries no
+    // sign — the old "=73" read as an equation with something missing.
+    el.innerHTML=
+      mrow("Новые",{value:`+${fmt(g.new)}`,frac:g.new/scale,color:"var(--good)"})+
+      mrow("Вернулись",{value:`+${fmt(g.resurrected)}`,frac:g.resurrected/scale,color:"var(--accent)"})+
+      mrow("Остались",{value:fmt(g.returning),frac:g.returning/scale,color:"var(--muted)"})+
+      mrow("Ушли",{value:`−${fmt(g.churned)}`,frac:g.churned/scale,color:"var(--crit)"})+
+      `<div class="mtotal">
         <span>Чистое изменение</span>
-        <b style="color:${g.net>=0?"var(--good)":"var(--crit)"}">${g.net>0?"+":""}${fmt(g.net)}</b>
-      </div>`;
+        <span class="v" style="color:${g.net>=0?"var(--good)":"var(--crit)"}">${g.net>0?"+":""}${fmt(g.net)}</span>
+      </div>`+
+      note(`Активные за 30 дней против предыдущих 30. Ровный MAU может означать
+            стабильную базу, а может — что отток целиком закрывается
+            привлечением; различить их можно только по этой разбивке.`);
   }
 
   function renderFunnel(){
@@ -694,15 +792,24 @@
       el.innerHTML=`<div class="sub">Пока нет аккаунтов старше недели — воронке не на чем считаться.</div>`;
       return;
     }
+    // The loss belongs BETWEEN two stages. Printed inside the lower stage's
+    // label it ran the stage name and its conversion into one sentence —
+    // "Первое действие 97% от предыдущего" — and hid where users are actually
+    // lost, which is the only thing a funnel is for.
     el.innerHTML=f.map((s,i)=>{
-      const drop=i>0?`<span class="sub">${pct(s.ofPrevious)} от предыдущего</span>`:`<span class="sub">когорта</span>`;
-      return bar(`${labels[s.key]||s.key} ${drop}`,`${fmt(s.users)} · ${pct(s.ofCohort)}`,
-                 s.ofCohort,i===0?"var(--muted)":"var(--accent)");
-    }).join("")+`
-      <p class="sub" style="margin-top:10px">
-        Аккаунты младше недели исключены: у них ещё не было недели, чтобы
-        сформировать привычку, и в воронке они читались бы как потери.
-      </p>`;
+      const step=i===0?"":`<div class="fdrop${s.ofPrevious<0.7?" bad":""}">
+        ↓ ${pct(s.ofPrevious)} дошли · −${fmt(f[i-1].users-s.users)}</div>`;
+      return step+mrow(labels[s.key]||s.key,{
+        value:`${fmt(s.users)} <span class="unit">· ${pct(s.ofCohort)}</span>`,
+        note:i===0?"когорта":null,
+        frac:s.ofCohort,
+        color:i===0?"var(--muted)":"var(--accent)",
+      });
+    }).join("")+
+    note(`Каждый этап — подмножество предыдущего, поэтому разрыв между двумя
+          соседними и есть место, где пользователи теряются. Аккаунты младше
+          недели исключены: у них ещё не было недели, чтобы сформировать
+          привычку, и в воронке они читались бы как потери.`);
   }
 
   function renderAdoption(){
@@ -710,25 +817,33 @@
     if(!BI){ el.innerHTML=NO_METRICS; return; }
     if(!biHas("adoption")){ el.innerHTML=OLD_METRICS; return; }
     const rows=Object.entries(BI.adoption).sort((a,b)=>b[1].users-a[1].users);
-    el.innerHTML=`<p class="sub" style="margin-bottom:10px">
-        Доля активных за 30 дней, кто пользовался модулем. Считаются люди, а не
-        события: измерения приходят по таймеру и в событийной разбивке всегда
-        выглядят самым востребованным разделом.
-      </p>`+
-      rows.map(([k,a])=>bar(MODULE_LABELS[k]||k,
-        a.users?`${fmt(a.users)} · ${pct(a.share)}`:"не используется",
-        a.share,a.users?"var(--accent)":"var(--hair)")).join("");
+    el.innerHTML=
+      rows.map(([k,a])=>mrow(MODULE_LABELS[k]||k,{
+        value:a.users?`${fmt(a.users)} <span class="unit">· ${pct(a.share)}</span>`:"не используется",
+        frac:a.share,
+        off:!a.users,
+      })).join("")+
+      note(`Доля активных за 30 дней, кто пользовался модулем. Считаются люди, а
+            не события: измерения приходят по таймеру и в событийной разбивке
+            всегда выглядят самым востребованным разделом.`);
   }
 
   function renderComposition(a){
     const el=$("#anComposition"); if(!el) return;
     if(!a){ el.innerHTML=`<div class="sub">API аналитики недоступен.</div>`; return; }
     const share=n=>a.totalUsers?n/a.totalUsers:0;
-    el.innerHTML=`
-      ${bar("Беременны",`${fmt(a.pregnant)} · ${pct(share(a.pregnant))}`,share(a.pregnant),"var(--accent)")}
-      ${bar("С детьми",`${fmt(a.withChildren)} · ${pct(share(a.withChildren))}`,share(a.withChildren),"var(--good)")}
-      ${bar("Со сцепленным устройством",`${fmt(a.devices)} · ${pct(share(a.devices))}`,share(a.devices),"var(--warn)")}
-      <p class="sub" style="margin-top:10px">Всего аккаунтов: <b>${fmt(a.totalUsers)}</b>. Группы пересекаются.</p>`;
+    const row=(label,n,color)=>mrow(label,{
+      value:`${fmt(n)} <span class="unit">· ${pct(share(n))}</span>`,
+      frac:share(n),
+      color,
+    });
+    el.innerHTML=
+      row("Беременны",a.pregnant,"var(--accent)")+
+      row("С детьми",a.withChildren,"var(--good)")+
+      row("Со сцепленным устройством",a.devices,"var(--warn)")+
+      `<div class="mtotal"><span>Всего аккаунтов</span><span class="v">${fmt(a.totalUsers)}</span></div>`+
+      note(`Группы пересекаются: одна и та же женщина может быть беременна, иметь
+            ребёнка и носить браслет, поэтому доли не складываются в 100%.`);
   }
 
   // The BI module. Two endpoints feed it: /admin/bi for behaviour over time,
@@ -779,7 +894,9 @@
       ctx.fillStyle=muted;ctx.font="13px system-ui,sans-serif";ctx.textAlign="center";
       ctx.fillText("нет данных",w/2,h/2);return;
     }
-    const pad={t:10,b:18,l:26};
+    // Wide enough for "100%". At 26 the first label was clipped to "00%",
+    // which is not a rounding you can shrug at on an axis.
+    const pad={t:10,b:18,l:38};
     const yOf=r=>pad.t+(1-r)*(h-pad.t-pad.b);
     const xOf=i=>pad.l+(w-pad.l-4)*i/(BI.retentionCurve.length-1);
     for(let i=0;i<=4;i++){
@@ -819,16 +936,13 @@
       // A rate computed from almost nobody is reported as unknown rather than
       // as a percentage, so nobody plans against it.
       const thin=r.cohort<20;
-      const bar=Math.round(r.rate*100);
-      return `<div style="margin:10px 0">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
-          <span><b>${lbl}</b> <span class="sub">когорта ${fmt(r.cohort)}</span></span>
-          <span><b>${r.cohort?pct(r.rate):"—"}</b>${thin&&r.cohort?' <span class="sub">мало данных</span>':""}</span>
-        </div>
-        <div style="height:8px;border-radius:99px;background:var(--hair);overflow:hidden;margin-top:5px">
-          <div style="height:100%;width:${r.cohort?bar:0}%;background:${thin?"var(--muted)":"var(--accent)"}"></div>
-        </div>
-      </div>`;
+      return mrow(lbl,{
+        note:r.cohort?`когорта ${fmt(r.cohort)}${thin?" · мало данных":""}`:"нет когорты",
+        value:r.cohort?pct(r.rate):"—",
+        frac:r.rate,
+        color:thin?"var(--muted)":"var(--accent)",
+        off:!r.cohort,
+      });
     }).join("");
   }
 
@@ -840,17 +954,19 @@
     const mix=Object.entries(e.eventMix).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
     const total=mix.reduce((t,[,v])=>t+v,0)||1;
     el.innerHTML=`
-      <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:12px">
-        <div><div class="sub">Событий на активного</div><div class="val" style="font-size:24px">${e.eventsPerActiveUser.toFixed(1)}</div></div>
-        <div><div class="sub">Активных дней на пользователя</div><div class="val" style="font-size:24px">${e.activeDaysPerUser.toFixed(1)}</div></div>
+      <div class="stats">
+        <div><div class="sub">Событий на активного</div><div class="stat">${e.eventsPerActiveUser.toFixed(1)}</div></div>
+        <div><div class="sub">Активных дней на пользователя</div><div class="stat">${e.activeDaysPerUser.toFixed(1)}</div></div>
       </div>`+
-      (mix.length?mix.map(([k,v])=>`
-        <div style="margin:8px 0">
-          <div style="display:flex;justify-content:space-between"><span>${labels[k]||k}</span><span class="sub">${fmt(v)} · ${pct(v/total)}</span></div>
-          <div style="height:6px;border-radius:99px;background:var(--hair);overflow:hidden;margin-top:4px">
-            <div style="height:100%;width:${Math.round(v/total*100)}%;background:var(--accent)"></div>
-          </div>
-        </div>`).join(""):`<div class="sub">За 30 дней событий не зафиксировано.</div>`);
+      (mix.length
+        ? mix.map(([k,v])=>mrow(labels[k]||k,{
+            value:`${fmt(v)} <span class="unit">· ${pct(v/total)}</span>`,
+            frac:v/total,
+          })).join("")
+        : `<div class="sub">За 30 дней событий не зафиксировано.</div>`)+
+      note(`Разбивка по событиям, а не по людям: измерения приходят по таймеру,
+            поэтому их всегда больше всего. Кто чем пользуется — в «Охвате
+            модулей».`);
   }
   function fmt(n){return typeof n==="number"?n.toLocaleString("en-US"):n}
 
@@ -861,10 +977,21 @@
       <div class="act"><span class="pill ${warn?'warn':'crit'}">${warn?'Warning':'Emergency'}</span>
       <button class="btn" data-user="${esc(e.userId)}">View</button><button class="btn primary">Acknowledge</button></div></div>`;
   }
+  /// Nothing to show is good news here, and has to say so.
+  ///
+  /// An empty feed rendered as a tall blank card, which reads as content that
+  /// failed to load — on the panel where "no emergencies" is the thing a
+  /// reader most wants confirmed.
+  const feedEmpty=`<div class="empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+      <path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
+    <div><b>Экстренных событий нет</b><div class="sub">За выбранный период ничего не потребовало вмешательства.</div></div>
+  </div>`;
+
   function renderFeeds(){
     const sorted=[...MOCK.emergencies].sort((a,b)=>sevRank[a.severity]-sevRank[b.severity]);
-    $("#feedMini").innerHTML=sorted.slice(0,4).map(feedRow).join("");
-    $("#feedFull").innerHTML=sorted.map(feedRow).join("");
+    $("#feedMini").innerHTML=sorted.length?sorted.slice(0,4).map(feedRow).join(""):feedEmpty;
+    $("#feedFull").innerHTML=sorted.length?sorted.map(feedRow).join(""):feedEmpty;
     $("#navBadge").textContent=MOCK.emergencies.filter(e=>e.severity==="emergency").length;
   }
 
@@ -1032,8 +1159,20 @@
     $("#pageTitle").textContent=t[0];$("#pageSub").innerHTML=t[1];
     if(v==="overview")drawOps();
     if(v==="analytics")renderAnalytics();
+    // In the URL, so a tab can be bookmarked, shared with a colleague, and
+    // survives a refresh. Reloading used to drop whoever was mid-investigation
+    // back on «Обзор».
+    if(location.hash.slice(1)!==v) history.replaceState(null,"","#"+v);
     window.scrollTo(0,0);
   }
+
+  /// The view named in the URL, when it is one we have.
+  function viewFromHash(){
+    const v=location.hash.slice(1);
+    return document.getElementById(v)&&document.querySelector(`.nav[data-view="${v}"]`)?v:null;
+  }
+  // Back and forward should move between tabs, not out of the panel.
+  window.addEventListener("hashchange",()=>{const v=viewFromHash(); if(v)go(v);});
 
   // Canvases size themselves from their container, which is 0 wide while the
   // section is hidden — so each chart is drawn when its view becomes visible,
@@ -1052,7 +1191,12 @@
   $("#userSearch").addEventListener("input",e=>renderUsers(e.target.value));
   $("#themeBtn").addEventListener("click",()=>{
     const r=document.documentElement, cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
-    r.setAttribute("data-theme",cur==="dark"?"light":"dark");redrawActive();
+    const next=cur==="dark"?"light":"dark";
+    r.setAttribute("data-theme",next);
+    // Remembered. The toggle reset to the system theme on every reload, so
+    // anyone whose OS is light and who prefers dark re-pressed it all day.
+    try{ localStorage.setItem("umay.theme",next); }catch(e){/* private mode */}
+    redrawActive();
   });
   // Charts read their colours from the theme and their width from the layout,
   // so both a theme switch and a resize have to redraw whatever is on screen.
@@ -1061,6 +1205,12 @@
     if($("#analytics").classList.contains("active"))drawAn();
   }
   window.addEventListener("resize",redrawActive);
+  // Restore a remembered theme before anything paints. Absent, the OS
+  // preference still decides, which is the right default for a first visit.
+  try{
+    const saved=localStorage.getItem("umay.theme");
+    if(saved==="dark"||saved==="light") document.documentElement.setAttribute("data-theme",saved);
+  }catch(e){/* private mode */}
   $("#staffName").textContent=STAFF.name;$("#staffRole").textContent=STAFF.role;$("#staffAv").textContent=STAFF.name.replace("Dr. ","")[0];
 
   boot();
