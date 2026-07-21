@@ -462,6 +462,101 @@ void main() async {
       bigBack.dayLogs.length == decadeDays &&
           bigBack.dayLogs['2030-06-15']?.flow == Flow.medium);
 
+  // ---- Every field must be persisted, without anyone remembering ----
+  //
+  // The ninety-odd round-trip assertions above are one per field, written by
+  // hand. They prove what they cover and say nothing about what they do not: a
+  // field added to PersistedConfig and forgotten in toJson simply vanishes on
+  // the next launch, silently, and no existing assertion notices.
+  //
+  // This reads the class instead. It is the same shape as the destructive-action
+  // guard and the pg schema check — the list is DERIVED, so forgetting is a
+  // build failure rather than a hole.
+  {
+    final src = File.fromUri(Platform.script.resolve('../lib/data/persisted_config.dart'))
+        .readAsStringSync();
+
+    // Field declarations on the class: `  final Type name;`
+    final fields = <String>[
+      for (final m in RegExp(r'^  final [\w<>?, ]+ (\w+);', multiLine: true).allMatches(src))
+        m.group(1)!,
+    ];
+    _chk('the field sweep found the config class (${fields.length} fields)', fields.length > 20);
+
+    final toJson = RegExp(r'Map<String, dynamic> toJson\(\)[\s\S]*?\n      \};').stringMatch(src) ?? '';
+    final fromJson = RegExp(r'factory PersistedConfig\.fromJson[\s\S]*?\n      \);').stringMatch(src) ?? '';
+    _chk('the sweep located toJson', toJson.length > 100);
+    _chk('the sweep located fromJson', fromJson.length > 100);
+
+    final notWritten = fields.where((f) => !toJson.contains(f)).toList();
+    final notRead = fields.where((f) => !fromJson.contains(f)).toList();
+    _chk('every field is written by toJson${notWritten.isEmpty ? '' : ' — missing: ${notWritten.join(", ")}'}',
+        notWritten.isEmpty);
+    _chk('every field is read by fromJson${notRead.isEmpty ? '' : ' — missing: ${notRead.join(", ")}'}',
+        notRead.isEmpty);
+  }
+
+  // ---- A damaged file must not take the app down with it ----
+  // The backup is a text file the user is told to keep and can edit. Restoring
+  // one that has been truncated, hand-mangled or written by a newer build has
+  // to degrade, not throw: losing the session is bad, crashing on launch is
+  // worse because there is then no way back in to fix it.
+  {
+    // The contract is NOT that fromJson is total — it is not, deliberately, and
+    // every caller guards. What must hold is that the two entry points a user
+    // can actually reach survive anything: restoring a saved config on launch
+    // (PrefsAppStore.load catches and falls back to first run) and restoring a
+    // backup by hand.
+    //
+    // importJson is the one testable in pure Dart, and it is the one where the
+    // input is genuinely untrusted: the file is text we tell her to keep, and
+    // she can pick the wrong one.
+    final broken = <String, String>{
+      'truncated object': '{"onboarded":true,"locale":"ru"',
+      'not an object': '[1,2,3]',
+      'empty string': '',
+      'null literal': 'null',
+      'plain prose': 'this is not my backup, it is a shopping list',
+      'wrong types throughout': '{"onboarded":"yes","locale":42,"children":"none","devices":{}}',
+      'nested junk': '{"onboarded":true,"locale":"ru","children":[{"id":null}],"devices":[7]}',
+      'a different app entirely': '{"version":3,"records":[{"a":1}]}',
+    };
+    for (final e in broken.entries) {
+      final c = AppController(now: () => DateTime(2026, 7, 21));
+      c.addAppointment('Keep me', DateTime(2026, 8, 1, 9, 0));
+      var threw = false;
+      var accepted = true;
+      try {
+        accepted = c.importJson(e.value);
+      } catch (_) {
+        threw = true;
+      }
+      _chk('importing ${e.key} does not throw', !threw);
+      _chk('importing ${e.key} is refused', !accepted);
+      _chk('importing ${e.key} keeps the existing data',
+          c.appointments.length == 1 && c.appointments.single.title == 'Keep me');
+      c.dispose();
+    }
+
+    // Forward compatibility: a backup written by a LATER build carries keys
+    // this one has never heard of. Dropping them is right; refusing the whole
+    // file because of them would strand a user who upgraded, restored, and
+    // downgraded.
+    {
+      final c = AppController(now: () => DateTime(2026, 7, 21));
+      final withFuture = jsonDecode(c.exportJson()) as Map<String, dynamic>;
+      withFuture['quantumField'] = {'x': 1};
+      withFuture['children'] = [
+        {'id': 'c1', 'name': 'Sultan', 'telepathyLevel': 9},
+      ];
+      _chk('a backup from a newer build is still accepted',
+          c.importJson(jsonEncode(withFuture)));
+      _chk('and the parts this build understands survive',
+          c.children.length == 1 && c.children.single.name == 'Sultan');
+      c.dispose();
+    }
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }
