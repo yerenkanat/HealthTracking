@@ -39,16 +39,17 @@ class _LogSleepSheetState extends State<_LogSleepSheet> {
     super.dispose();
   }
 
-  /// Build the entry from two clock times. A night normally crosses midnight,
-  /// so a wake time at or before the bedtime belongs to the following day —
-  /// without this, every ordinary night would come out negative.
-  SleepEntry get _entry {
-    final n = widget.now;
-    final bed = DateTime(n.year, n.month, n.day, _bed.hour, _bed.minute);
-    var woke = DateTime(n.year, n.month, n.day, _woke.hour, _woke.minute);
-    if (!woke.isAfter(bed)) woke = woke.add(const Duration(days: 1));
-    return SleepEntry(bedAt: bed, wokeAt: woke, awakeMin: int.tryParse(_awake.text.trim()) ?? 0);
-  }
+  /// Build the entry from two clock times. Which day each belongs to is the
+  /// domain's decision — see [sleepEntryFromClockTimes], and why anchoring to
+  /// today filed the night she had just finished under tomorrow.
+  SleepEntry get _entry => sleepEntryFromClockTimes(
+        now: widget.now,
+        bedHour: _bed.hour,
+        bedMinute: _bed.minute,
+        wokeHour: _woke.hour,
+        wokeMinute: _woke.minute,
+        awakeMin: int.tryParse(_awake.text.trim()) ?? 0,
+      );
 
   Future<void> _pick(bool bedtime) async {
     final picked = await showTimePicker(

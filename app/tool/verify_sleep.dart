@@ -94,6 +94,37 @@ void main() {
   _chk('awake time comes off the total', typedNight.asleepMin == 7 * 60 + 30);
   _chk('an entry is filed under the wake date', sleepEntryNight(typedNight) == DateTime(2026, 7, 15));
 
+  // Which day each clock time belongs to. The sheet anchored both to TODAY,
+  // so the commonest case in the app — she wakes at seven and logs the night
+  // over breakfast — put "bed 23:00" tonight, hours in the future, and filed
+  // the night under TOMORROW. It disappeared from "last night" and sat in the
+  // history as a future-dated night dragging the averages around.
+  {
+    final morning = DateTime(2026, 7, 15, 8, 0); // logging at breakfast
+    final e = sleepEntryFromClockTimes(
+        now: morning, bedHour: 23, bedMinute: 0, wokeHour: 7, wokeMinute: 0, awakeMin: 30);
+    _chk('the night just finished is filed under this morning',
+        sleepEntryNight(e) == DateTime(2026, 7, 15));
+    _chk('bedtime lands on the evening before', e.bedAt == DateTime(2026, 7, 14, 23, 0));
+    _chk('and it is never in the future', !e.bedAt.isAfter(morning) && !e.wokeAt.isAfter(morning));
+    _chk('an ordinary night still measures eight hours', e.inBedMin == 8 * 60);
+    _chk('and is valid', sleepEntryIsValid(e));
+
+    // Logging late the same evening still means the night that ended today.
+    final evening = DateTime(2026, 7, 15, 23, 30);
+    final e2 = sleepEntryFromClockTimes(
+        now: evening, bedHour: 23, bedMinute: 0, wokeHour: 7, wokeMinute: 0);
+    _chk('logging at night still files the morning that passed',
+        sleepEntryNight(e2) == DateTime(2026, 7, 15) && e2.inBedMin == 8 * 60);
+
+    // A short night that ended after midnight, logged at 01:00.
+    final small = DateTime(2026, 7, 15, 1, 0);
+    final e3 = sleepEntryFromClockTimes(
+        now: small, bedHour: 23, bedMinute: 0, wokeHour: 0, wokeMinute: 30);
+    _chk('a night ending after midnight is filed under that day',
+        sleepEntryNight(e3) == DateTime(2026, 7, 15) && e3.inBedMin == 90);
+  }
+
   _chk('a zero-length night is rejected',
       validateSleepEntry(SleepEntry(bedAt: at(23, 0), wokeAt: at(23, 0))) == SleepEntryError.empty);
   _chk('a backwards night is rejected',

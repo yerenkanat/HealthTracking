@@ -53,6 +53,36 @@ SleepEntryError? validateSleepEntry(SleepEntry e) {
 
 bool sleepEntryIsValid(SleepEntry e) => validateSleepEntry(e) == null;
 
+/// Turn two clock times into the night they describe.
+///
+/// Bedtime and wake time are clock values — 23:00 and 07:00 — and say nothing
+/// about which day. The sheet anchored both to TODAY and pushed the wake time
+/// forward when it fell before the bedtime, which reads correctly and is wrong
+/// for the ordinary case: she wakes at seven and logs the night at eight.
+/// Anchored to today, "bed 23:00" was tonight, still hours away, and the night
+/// was filed under TOMORROW. Her night vanished from "last night", and a
+/// future-dated night sat in the history skewing the averages.
+///
+/// The fix is to anchor the WAKE time instead: a night has ended, so its
+/// morning is the most recent occurrence of that clock time at or before now.
+/// The bedtime is then the occurrence immediately before that morning.
+SleepEntry sleepEntryFromClockTimes({
+  required DateTime now,
+  required int bedHour,
+  required int bedMinute,
+  required int wokeHour,
+  required int wokeMinute,
+  int awakeMin = 0,
+}) {
+  var woke = DateTime(now.year, now.month, now.day, wokeHour, wokeMinute);
+  if (woke.isAfter(now)) woke = woke.subtract(const Duration(days: 1));
+
+  var bed = DateTime(woke.year, woke.month, woke.day, bedHour, bedMinute);
+  if (!bed.isBefore(woke)) bed = bed.subtract(const Duration(days: 1));
+
+  return SleepEntry(bedAt: bed, wokeAt: woke, awakeMin: awakeMin);
+}
+
 /// The wake date a manual entry belongs to. Summaries are keyed by the morning
 /// the night ended, so an entry is filed under when the user got up — which is
 /// what makes "last night" mean the same thing for band and manual nights.
