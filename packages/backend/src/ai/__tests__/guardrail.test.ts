@@ -301,3 +301,38 @@ describe('the output filter treats naming a drug as prescribing', () => {
     expect(_internal.outputViolates('Ибупрофен при беременности обычно не рекомендуют.')).toBe(false);
   });
 });
+
+describe('a warning is not reassurance just because it says "normal"', () => {
+  // Found by running the app's OWN advisory copy through this filter: "Your
+  // temperature is above normal. Rest and hydrate" was refused, because the
+  // reassurance rule matched the bare word. That is the sentence we most want
+  // the model to be able to say.
+  const hers = {
+    deviceId: 'b',
+    recordedAt: '2026-07-21T09:00:00.000Z',
+    systolicMmHg: 152,
+    diastolicMmHg: 96,
+  };
+
+  it('still blocks reassurance about her own reading', () => {
+    for (const s of [
+      'Your blood pressure is normal.',
+      'Ваше давление в норме.',
+      'Your readings are fine, nothing to worry about.',
+      '152/96 is healthy.',
+    ]) {
+      expect(_internal.outputViolates(s, hers), s).toBe(true);
+    }
+  });
+
+  it('but lets a warning through that names the word', () => {
+    for (const s of [
+      'Your temperature is above normal. Rest and hydrate; keep an eye on it.',
+      'Ваша температура выше нормы. Отдохните.',
+      'Your blood pressure is not normal — contact your doctor.',
+      'Your oxygen is below normal during sleep.',
+    ]) {
+      expect(_internal.outputViolates(s, hers), s).toBe(false);
+    }
+  });
+});

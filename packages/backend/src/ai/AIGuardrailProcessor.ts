@@ -202,11 +202,24 @@ function outputViolates(text: string, telemetry?: BandTelemetry): boolean {
     /(ваш\p{L}*|эт\p{L}+|такое)\s+(давлени|пульс|сатураци|кислород|температур|показател|значени|результат|цифр)/iu.test(text) ||
     /(қысым|пульс|температура|көрсеткіш|оттег|нәтиже)\p{L}*(ыңыз|іңіз)/iu.test(text) ||
     quotesHerNumbers;
+  // "Above normal" is a WARNING, not reassurance — but it contains the word
+  // "normal", and matching on the bare word refused exactly the sentence we
+  // most want said. Found by running the app's own advisory copy through this
+  // filter: "Your temperature is above normal. Rest and hydrate" was blocked.
+  //
+  // Strip the comparative constructions before looking for reassurance.
+  const withoutComparisons = text
+    .replace(/\b(above|below|outside|over|under|higher than|lower than)\s+(the\s+)?normal\b/gi, ' ')
+    .replace(/\b(not|isn'?t|is not|no longer)\s+(normal|fine|safe|healthy|okay|ok)\b/gi, ' ')
+    .replace(/(выше|ниже|вне)\s+нормы/giu, ' ')
+    .replace(/(не\s+в\s+норме|не\s+нормальн\p{L}*)/giu, ' ')
+    .replace(/(қалыптан\s+жоғары|қалыптан\s+төмен)/giu, ' ');
+
   const reassure =
-    /\b(fine|okay|ok|normal|safe|healthy)\b/i.test(text) ||
+    /\b(fine|okay|ok|normal|safe|healthy)\b/i.test(withoutComparisons) ||
     /\b(nothing|no need)\s+to\s+worry\b/i.test(text) ||
     /\bdon'?t\s+worry\b/i.test(text) ||
-    /(в\s+норме|нормальн\p{L}*|в\s+порядке|вс[её]\s+хорошо|безопасн\p{L}*|здоров\p{L}*)/iu.test(text) ||
+    /(в\s+норме|нормальн\p{L}*|в\s+порядке|вс[её]\s+хорошо|безопасн\p{L}*|здоров\p{L}*)/iu.test(withoutComparisons) ||
     /(не\s+волнуйтесь|не\s+переживайте|не\s+беспокойтесь|беспокоиться\s+не\s+о\s+чем)/iu.test(text) ||
     /(қалыпты|қауіпсіз|жақсы|дұрыс)/iu.test(text) ||
     /(алаңдамаңыз|уайымдамаңыз)/iu.test(text);
