@@ -328,6 +328,10 @@ Future<void> bootstrapRuntime(
   }
 }
 
+/// Last HTTP status complained about, so a repeating refusal is logged once
+/// rather than every 45 seconds for the life of the app.
+int? _lastPollComplaint;
+
 /// Ask the backend where the selected child is, forever, gently.
 ///
 /// Deliberately tolerant: this runs for the life of the app, so any throw here
@@ -357,6 +361,22 @@ Future<void> _pollChildLocation(
       if (lat == null || lng == null) continue;
       final observedAt = DateTime.tryParse('${fix['observedAt'] ?? ''}');
       controller.onChildLocation(Coordinates(lat, lng), at: observedAt?.toLocal());
+    } on ApiException catch (e) {
+      // Say WHY, once per reason. A tracking screen that stays empty with no
+      // explanation is how the previous version of this hid: it looked like it
+      // was waiting for a fix when nothing was ever going to arrive.
+      //
+      // 403 here is expected until children are synced with the backend: the
+      // app creates them locally during onboarding with ids like `child-1`,
+      // while the server issues UUIDs and checks ownership, so it refuses an id
+      // it has never seen. See the sign-in TODO above — until then the map
+      // shows only what the device itself observes.
+      if (_lastPollComplaint != e.statusCode) {
+        _lastPollComplaint = e.statusCode;
+        debugPrint('child location: server said ${e.statusCode} for "$childId" — '
+            '${e.statusCode == 403 || e.statusCode == 404 ? 'this child is not one the backend knows; '
+                'local and server children are not reconciled yet' : 'will retry'}');
+      }
     } catch (_) {
       // Offline, a server hiccup, a shape we did not expect. Try again next
       // tick — the alternative is that one bad reply ends tracking silently.
