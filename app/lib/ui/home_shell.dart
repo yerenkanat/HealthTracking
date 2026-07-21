@@ -22,6 +22,7 @@ import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../domain/timeline_content.dart';
+import 'content/lesson_player_screen.dart';
 import 'content/timeline_content_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
 import 'dashboard/log_vitals_sheet.dart';
@@ -252,8 +253,18 @@ class _HomeShellState extends State<HomeShell> {
   /// Open a lesson video or a product page in the browser. Items without a URL
   /// are not tappable, so this is only reached for a real link.
   Future<void> _openContent(ContentItem item) async {
-    final uri = Uri.tryParse(item.url);
-    if (uri == null) return;
+    // A lesson we host plays in OUR player, with our controls and no third
+    // party's branding. Everything else — a shop page, a YouTube link — leaves
+    // the app, which for YouTube is not a limitation but a requirement.
+    if (item.playsInApp) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => LessonPlayerScreen(item: item)),
+      );
+      return;
+    }
+    final target = item.video?.url ?? item.url;
+    final uri = Uri.tryParse(target);
+    if (uri == null || target.trim().isEmpty) return;
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
