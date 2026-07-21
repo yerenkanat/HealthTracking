@@ -163,6 +163,38 @@ void main() {
       expect(store.value.itemsFor(TimelineStage.pregnancyWeek(30)).single.id, 'local-30');
     });
 
+    test('falling back for no reason says no reason, not an empty one', () async {
+      // main.dart logs the fallback whenever fallbackReason != null. Joining an
+      // empty list yields '', which is not null — so a perfectly ordinary
+      // offline launch printed "loaded from cache — " with nothing after the
+      // dash, announcing a degradation it could not name. The asset rung got
+      // this right and the cache rung did not.
+      final cache = _MemCache(catalogJson('w12', 'cached-1'));
+      final loaded = await loadCatalogFast(cache: cache);
+      expect(loaded.source, CatalogSource.cache);
+      expect(loaded.fallbackReason, isNull);
+    });
+
+    test('a cache that will not parse says so', () async {
+      // The chain reports why it stepped down. A cached copy that decodes to
+      // nothing usable fell through in complete silence, so the demo shelf
+      // appeared with the cache never mentioned — the one clue that would tell
+      // anyone where to look.
+      withoutAsset();
+      final cache = _MemCache('{"not-a-stage-key":[]}');
+      final loaded = await loadCatalogFast(cache: cache);
+      expect(loaded.source, CatalogSource.demo);
+      expect(loaded.fallbackReason, contains('cache'));
+    });
+
+    test('a cache that throws is still reported', () async {
+      withoutAsset();
+      final cache = _MemCache()..failReads = true;
+      final loaded = await loadCatalogFast(cache: cache);
+      expect(loaded.source, CatalogSource.demo);
+      expect(loaded.fallbackReason, contains('cache'));
+    });
+
     test('an empty catalogue never replaces one that has content', () {
       // A backend answering with nothing must not blank a working shelf.
       const populated = ContentCatalog({'w12': [

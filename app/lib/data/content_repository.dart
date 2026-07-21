@@ -113,9 +113,17 @@ Future<LoadedCatalog> loadCatalog({
       if (raw != null) {
         final parsed = _parse(raw);
         if (parsed != null) {
+          // Empty means no fallback happened — the API was never asked. Joining
+          // an empty list gives '', which is not null, and main.dart logs
+          // whenever the reason is non-null: an ordinary offline launch
+          // announced a degradation it could not name. The asset rung below
+          // already got this right.
           return LoadedCatalog(parsed, CatalogSource.cache,
-              fallbackReason: reasons.join('; '));
+              fallbackReason: reasons.isEmpty ? null : reasons.join('; '));
         }
+        // Fell through in silence before this, so the demo shelf appeared with
+        // the cache never mentioned — the one clue pointing at where to look.
+        reasons.add('the cached copy contained no usable stages');
       }
     } catch (e) {
       reasons.add('the cache could not be read ($e)');
