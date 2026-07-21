@@ -41,6 +41,7 @@ const _destructive = <String>[
   'removeAppointment',
   'removeWeightEntry',
   'removeGrowth',
+  'removeNewbornEvent',
   'clearAlerts',
   'removeAlert',
   'resetKicksFor',

@@ -20,7 +20,9 @@ import '../theme.dart';
 import 'child_development_screen.dart';
 import 'vaccination_screen.dart';
 import 'child_growth_screen.dart';
+import 'newborn_log_screen.dart';
 import '../../domain/child_growth.dart';
+import '../../domain/newborn_log.dart';
 import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
 import '../widgets/confirm.dart';
@@ -233,6 +235,18 @@ class ChildDetailScreen extends StatelessWidget {
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.6)),
                             const SizedBox(height: 10),
+                            // Only for a baby, not a toddler: a feed-and-nappy
+                            // log stops making sense once they are eating at the
+                            // table. Six months is a generous edge.
+                            if (child.ageInMonths(now) < 6) ...[
+                              _CareCard(
+                                icon: Icons.child_friendly_outlined,
+                                title: l.t('nb_title'),
+                                summary: _newbornSummary(l, controller.newbornLogFor(child.id), now),
+                                onTap: () => _openNewbornLog(context, controller, child, now),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             _CareCard(
                               icon: Icons.timeline_rounded,
                               title: l.t('dev_title'),
@@ -346,6 +360,42 @@ class _CareCard extends StatelessWidget {
           const Icon(Icons.chevron_right_rounded, size: 20, color: Palette.textDim),
         ]),
       );
+}
+
+/// The newborn card summary: today's feed and diaper counts, or an invitation.
+String _newbornSummary(L10n l, List<NewbornEvent> events, DateTime today) {
+  final s = summaryFor(events, today);
+  if (s.isEmpty) return l.t('nb_empty');
+  return '${l.t('nb_feeds')} ${s.feeds} · ${l.t('nb_diapers')} ${s.diapers}';
+}
+
+/// Open the newborn log, wired to the controller.
+void _openNewbornLog(
+    BuildContext context, AppController controller, ChildProfile child, DateTime today) {
+  Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => StreamBuilder<void>(
+      stream: controller.changes,
+      builder: (context, _) => NewbornLogScreen(
+        childName: child.name,
+        events: controller.newbornLogFor(child.id),
+        today: today,
+        onLog: (e) => controller.logNewbornEvent(child.id, e),
+        onDelete: (e) => _confirmDeleteNewborn(context, controller, child.id, e),
+      ),
+    ),
+  ));
+}
+
+Future<void> _confirmDeleteNewborn(
+    BuildContext context, AppController controller, String childId, NewbornEvent event) async {
+  final l = L10nScope.of(context);
+  final ok = await confirmDestructive(
+    context,
+    title: l.t('nb_delete_title'),
+    message: l.t('nb_delete_body'),
+    confirmLabel: l.t('grw_delete'),
+  );
+  if (ok) controller.removeNewbornEvent(childId, event);
 }
 
 /// Open the growth chart, with an add-measurement sheet wired to the controller.

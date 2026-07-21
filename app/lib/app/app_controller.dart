@@ -27,6 +27,7 @@ import '../domain/zone_hysteresis.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
 import '../domain/child_growth.dart';
+import '../domain/newborn_log.dart';
 import '../domain/chat_controller.dart';
 import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
@@ -152,6 +153,7 @@ class AppController {
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
   final Map<String, List<BatteryReading>> _batteryHistory = {}; // childId → readings (oldest-first)
   final Map<String, List<GrowthPoint>> _childGrowth = {}; // childId → measurements (oldest-first)
+  final Map<String, List<NewbornEvent>> _newbornLog = {}; // childId → feeds/diapers/sleep (newest-first)
   final List<Medication> _medications = [];
   MedLog _medLog = {}; // dateKey → medId → doses taken
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
@@ -250,6 +252,9 @@ class AppController {
     _childGrowth
       ..clear()
       ..addAll({for (final e in cfg.childGrowth.entries) e.key: List.of(e.value)});
+    _newbornLog
+      ..clear()
+      ..addAll({for (final e in cfg.newbornLog.entries) e.key: List.of(e.value)});
     _waterReminderMinutes = cfg.waterReminderMinutes;
     _medReminderMinutes = cfg.medReminderMinutes;
     _periodReminderEnabled = cfg.periodReminderEnabled;
@@ -349,6 +354,7 @@ class AppController {
         childBattery: Map.of(_childBattery),
         childBatteryHistory: {for (final e in _batteryHistory.entries) e.key: List.of(e.value)},
         childGrowth: {for (final e in _childGrowth.entries) e.key: List.of(e.value)},
+        newbornLog: {for (final e in _newbornLog.entries) e.key: List.of(e.value)},
         waterReminderMinutes: _waterReminderMinutes,
         medReminderMinutes: _medReminderMinutes,
         periodReminderEnabled: _periodReminderEnabled,
@@ -945,6 +951,26 @@ class AppController {
     final existing = _childGrowth[childId];
     if (existing == null) return;
     _childGrowth[childId] = removeGrowthOn(existing, day);
+    _persist();
+    _notify();
+  }
+
+  /// The newborn log for [childId], newest-first (empty if none).
+  List<NewbornEvent> newbornLogFor(String childId) =>
+      List.unmodifiable(_newbornLog[childId] ?? const []);
+
+  /// Log a feed / diaper / sleep event for a child.
+  void logNewbornEvent(String childId, NewbornEvent event) {
+    _newbornLog[childId] = addNewbornEvent(_newbornLog[childId] ?? const [], event);
+    _persist();
+    _notify();
+  }
+
+  /// Remove a logged event.
+  void removeNewbornEvent(String childId, NewbornEvent event) {
+    final existing = _newbornLog[childId];
+    if (existing == null) return;
+    _newbornLog[childId] = removeNewbornEventFrom(existing, event);
     _persist();
     _notify();
   }

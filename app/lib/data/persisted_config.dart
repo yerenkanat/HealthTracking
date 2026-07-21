@@ -18,6 +18,7 @@ import '../domain/kick_session.dart';
 import '../domain/medication.dart';
 import '../domain/sleep.dart';
 import '../domain/child_growth.dart';
+import '../domain/newborn_log.dart';
 import '../domain/weight.dart';
 import '../l10n/l10n.dart';
 
@@ -155,6 +156,7 @@ class PersistedConfig {
   final Map<String, int> childBattery; // childId → tracker battery % (last known)
   final Map<String, List<BatteryReading>> childBatteryHistory; // childId → readings (oldest-first)
   final Map<String, List<GrowthPoint>> childGrowth; // childId → weight/height measurements (oldest-first)
+  final Map<String, List<NewbornEvent>> newbornLog; // childId → feeds/diapers/sleep (newest-first)
   final int? waterReminderMinutes; // daily reminder time (minutes since midnight); null = off
   final int? medReminderMinutes; // daily medication reminder time; null = off
   final bool periodReminderEnabled; // remind ~2 days before the predicted period
@@ -194,6 +196,7 @@ class PersistedConfig {
     this.childBattery = const {},
     this.childBatteryHistory = const {},
     this.childGrowth = const {},
+    this.newbornLog = const {},
     this.waterReminderMinutes,
     this.medReminderMinutes,
     this.periodReminderEnabled = false,
@@ -230,6 +233,10 @@ class PersistedConfig {
         if (childGrowth.isNotEmpty)
           'childGrowth': {
             for (final e in childGrowth.entries) e.key: [for (final p in e.value) p.toJson()]
+          },
+        if (newbornLog.isNotEmpty)
+          'newbornLog': {
+            for (final e in newbornLog.entries) e.key: [for (final ev in e.value) ev.toJson()]
           },
         if (childBatteryHistory.isNotEmpty)
           'childBatteryHistory': {
@@ -343,6 +350,12 @@ class PersistedConfig {
             ? {
                 for (final e in (j['childGrowth'] as Map).entries)
                   '${e.key}': _items(e.value, GrowthPoint.fromJson)
+              }
+            : const {},
+        newbornLog: j['newbornLog'] is Map
+            ? {
+                for (final e in (j['newbornLog'] as Map).entries)
+                  '${e.key}': _items(e.value, NewbornEvent.fromJson)
               }
             : const {},
         waterReminderMinutes: (j['waterReminderMinutes'] as num?)?.toInt(),

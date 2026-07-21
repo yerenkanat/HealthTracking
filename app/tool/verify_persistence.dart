@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 import '../lib/domain/child_growth.dart';
+import '../lib/domain/newborn_log.dart';
 
 import '../lib/app/app_controller.dart';
 import '../lib/core/geofence.dart';
@@ -91,6 +92,13 @@ void main() async {
         GrowthPoint(at: DateTime(2026, 2, 10), weightKg: 4.6),
       ],
     },
+    newbornLog: {
+      'child-1': [
+        NewbornEvent(at: DateTime(2026, 7, 22, 8), kind: NewbornEventKind.feed, detail: 'left'),
+        NewbornEvent(at: DateTime(2026, 7, 22, 9), kind: NewbornEventKind.diaper, detail: 'both'),
+        NewbornEvent(at: DateTime(2026, 7, 22, 10), kind: NewbornEventKind.sleep, durationMin: 75),
+      ],
+    },
     lastExportAt: DateTime(2026, 7, 14, 10, 30),
     medications: const [
       Medication(id: 'med-1', name: 'Folic acid', dose: '400 mcg'),
@@ -119,6 +127,15 @@ void main() async {
     _chk('round-trip growth measurements', g.length == 2);
     _chk('round-trip growth kept both values', g[0].weightKg == 3.6 && g[0].heightCm == 51);
     _chk('round-trip growth kept a weight-only visit', g[1].weightKg == 4.6 && g[1].heightCm == null);
+  }
+  {
+    final n = decoded.newbornLog['child-1'] ?? const [];
+    _chk('round-trip newborn log', n.length == 3);
+    _chk('round-trip newborn kinds and details',
+        n.any((e) => e.kind == NewbornEventKind.feed && e.detail == 'left') &&
+            n.any((e) => e.kind == NewbornEventKind.diaper && e.detail == 'both'));
+    _chk('round-trip newborn sleep duration',
+        n.any((e) => e.kind == NewbornEventKind.sleep && e.durationMin == 75));
   }
   _chk('round-trip child geofence', decoded.children[0].geofences.first.center?.lat == 43.238949);
   _chk('round-trip device', decoded.devices.length == 1 && decoded.devices.first.kind == DeviceKind.band);
