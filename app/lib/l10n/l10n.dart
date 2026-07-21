@@ -718,6 +718,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'MS_THIRD_TRIMESTER': {AppLocale.ru: 'Третий триместр', AppLocale.kk: 'Үшінші триместр', AppLocale.en: 'Third trimester'},
   'MS_FULL_TERM': {AppLocale.ru: 'Доношенный срок', AppLocale.kk: 'Толық мерзім', AppLocale.en: 'Full term'},
   'MS_DUE': {AppLocale.ru: 'Срок родов', AppLocale.kk: 'Босану мерзімі', AppLocale.en: 'Due date'},
+  // ---- End of pregnancy ----
+  //
+  // Two outcomes, two paths, and the wording of each matters more than most
+  // copy in this app. One door for both meant a woman who had just lost a
+  // pregnancy was offered a cheerful "add your baby" prompt.
+  'birth_which': {AppLocale.ru: 'Что произошло?', AppLocale.kk: 'Не болды?', AppLocale.en: 'What happened?'},
+  'birth_born': {AppLocale.ru: 'Малыш родился', AppLocale.kk: 'Бала дүниеге келді', AppLocale.en: 'The baby is here'},
+  'birth_born_sub': {AppLocale.ru: 'Перенесём дату рождения в календарь развития и прививок', AppLocale.kk: 'Туған күнді даму және егу күнтізбесіне көшіреміз', AppLocale.en: 'We will carry the birth date into the development and vaccination calendars'},
+  'birth_other': {AppLocale.ru: 'Просто выключить отслеживание', AppLocale.kk: 'Бақылауды өшіру', AppLocale.en: 'Just turn tracking off'},
+  'birth_other_sub': {AppLocale.ru: 'Вернётся календарь цикла. Ваши записи останутся.', AppLocale.kk: 'Цикл күнтізбесі қайтады. Жазбаларыңыз сақталады.', AppLocale.en: 'Cycle tracking returns. Your logs are kept.'},
+  'birth_title': {AppLocale.ru: 'Поздравляем!', AppLocale.kk: 'Құттықтаймыз!', AppLocale.en: 'Congratulations'},
+  'birth_date': {AppLocale.ru: 'Дата рождения', AppLocale.kk: 'Туған күні', AppLocale.en: 'Date of birth'},
+  'birth_name': {AppLocale.ru: 'Имя (можно позже)', AppLocale.kk: 'Аты (кейін де болады)', AppLocale.en: 'Name (can wait)'},
+  'birth_save': {AppLocale.ru: 'Готово', AppLocale.kk: 'Дайын', AppLocale.en: 'Done'},
+  'birth_done': {AppLocale.ru: 'Календарь развития и прививок открыт', AppLocale.kk: 'Даму және егу күнтізбесі ашылды', AppLocale.en: 'The development and vaccination calendars are ready'},
   // ---- Vaccination calendar (Kazakhstan national schedule) ----
   'vac_title': {AppLocale.ru: 'Прививки', AppLocale.kk: 'Егулер', AppLocale.en: 'Vaccinations'},
   'vac_sub': {AppLocale.ru: 'Национальный календарь Казахстана', AppLocale.kk: 'Қазақстанның ұлттық күнтізбесі', AppLocale.en: 'Kazakhstan national schedule'},

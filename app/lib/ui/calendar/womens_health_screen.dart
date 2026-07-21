@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeedback;
 import '../../app/app_controller.dart';
+import '../../domain/birth_transition.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/contraction.dart';
 import '../../domain/cycle_insights.dart'
@@ -450,20 +451,105 @@ class _GestationHeader extends StatelessWidget {
 
   /// Gentle, neutral confirmation before switching out of pregnancy mode.
   /// Not styled as destructive — logged data is kept, and the wording is soft.
+  /// End-of-pregnancy fork.
+  ///
+  /// This used to be one yes/no dialog that cleared the due date. Two entirely
+  /// different events came through it: a birth, and a loss.
+  ///
+  /// For the birth it threw away the date the whole second half of the app is
+  /// keyed on — the development calendar, the vaccinations, the growth chart —
+  /// leaving a woman to add a child by hand and retype it days after giving
+  /// birth. For a loss, the same door has to say nothing cheerful at all.
   Future<void> _confirmEndPregnancy(BuildContext context) async {
     final l = L10nScope.of(context);
-    final ok = await showDialog<bool>(
+    final outcome = await showModalBottomSheet<PregnancyOutcome>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.t('cyc_end_pregnancy')),
-        content: Text(l.t('cyc_end_pregnancy_body')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.t('act_cancel'))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.t('onb_finish'))),
-        ],
+      backgroundColor: Palette.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 18),
+            Text(l.t('birth_which'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            ListTile(
+              leading: const Icon(Icons.child_friendly_rounded, color: Palette.rose),
+              title: Text(l.t('birth_born'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(l.t('birth_born_sub'),
+                  style: const TextStyle(fontSize: 12.5, height: 1.35)),
+              onTap: () => Navigator.pop(ctx, PregnancyOutcome.born),
+            ),
+            // Deliberately plain. No icon that celebrates, no colour, no
+            // follow-up — for the woman taking this path the kindest thing the
+            // app can do is get out of the way.
+            ListTile(
+              title: Text(l.t('birth_other'),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(l.t('birth_other_sub'),
+                  style: const TextStyle(fontSize: 12.5, height: 1.35)),
+              onTap: () => Navigator.pop(ctx, PregnancyOutcome.ended),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
-    if (ok == true) controller.setDueDate(null);
+    if (!context.mounted || outcome == null) return;
+
+    if (outcome == PregnancyOutcome.ended) {
+      controller.setDueDate(null);
+      return;
+    }
+    await _recordBirth(context);
+  }
+
+  /// Collect the birth date (and a name, if she has one yet) and create the
+  /// child record the calendars need.
+  Future<void> _recordBirth(BuildContext context) async {
+    final l = L10nScope.of(context);
+    final initial = defaultBirthDate(dueDate: controller.dueDate, today: today);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      // A birth cannot be in the future, and 300 days back covers any
+      // pregnancy the app was tracking.
+      firstDate: addDays(today, -300),
+      lastDate: today,
+      helpText: l.t('birth_date'),
+    );
+    if (!context.mounted || date == null) return;
+
+    // The dialog owns its controller. Creating one here and disposing it after
+    // showDialog returns crashes: the route's exit animation is still running
+    // and the TextField still holds the controller, so the next frame uses a
+    // disposed object.
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _BirthNameDialog(
+        title: l.t('birth_title'),
+        label: l.t('birth_name'),
+        save: l.t('birth_save'),
+      ),
+    );
+    if (!context.mounted || name == null) return;
+
+    final t = birthTransition(
+      childId: 'child-${today.microsecondsSinceEpoch}',
+      name: name,
+      birthDate: date,
+      today: today,
+    );
+    controller.addChild(t.child!);
+    controller.setDueDate(null);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.t('birth_done')), behavior: SnackBarBehavior.floating),
+    );
   }
 }
 
@@ -1685,4 +1771,51 @@ class _LegendDot extends StatelessWidget {
       Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
     ]);
   }
+}
+
+/// The "what is the baby called?" dialog.
+///
+/// A StatefulWidget so the TextEditingController lives and dies with the route.
+/// Created in the calling function and disposed after showDialog returned, it
+/// was disposed while the dialog's exit animation still held it — and the next
+/// frame threw "A TextEditingController was used after being disposed".
+class _BirthNameDialog extends StatefulWidget {
+  final String title;
+  final String label;
+  final String save;
+  const _BirthNameDialog({required this.title, required this.label, required this.save});
+
+  @override
+  State<_BirthNameDialog> createState() => _BirthNameDialogState();
+}
+
+class _BirthNameDialogState extends State<_BirthNameDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text(widget.title),
+        content: TextField(
+          controller: _ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: widget.label),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          // One button, going forward. An empty name is a supported answer, so
+          // there is nothing here to cancel — and a Cancel would throw away the
+          // birth date she just picked.
+          TextButton(
+            onPressed: () => Navigator.pop(context, _ctrl.text),
+            child: Text(widget.save),
+          ),
+        ],
+      );
 }

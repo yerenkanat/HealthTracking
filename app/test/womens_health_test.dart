@@ -219,10 +219,14 @@ void main() {
 
     await tester.tap(find.text('No longer pregnant?'));
     await tester.pumpAndSettle();
-    // Confirm dialog → tap the neutral confirm ("Finish").
-    await tester.tap(find.text('Finish'));
+    // This used to be a yes/no confirm. It is a fork now — a birth carries the
+    // date into a child record, and this path just turns tracking off — so the
+    // test takes the branch it was always about. birth_transition_test covers
+    // the other one.
+    await tester.tap(find.text('Just turn tracking off'));
     await tester.pumpAndSettle();
     expect(c.isPregnant, false);
+    expect(c.children, isEmpty, reason: 'this path creates no child');
     expect(find.text('Track your cycle'), findsOneWidget);
     addTearDown(c.dispose);
   });
