@@ -154,7 +154,16 @@ ContentCatalog? _parse(String raw) {
     final stages = map['stages'] is Map
         ? (map['stages'] as Map).cast<String, dynamic>()
         : map;
-    final catalog = ContentCatalog.fromJson(stages);
+    var dropped = 0;
+    final catalog = ContentCatalog.fromJson(stages, onBadItem: (stage, err) {
+      dropped++;
+      // Only the first few: a systematically broken payload would otherwise
+      // fill the log with the same line hundreds of times.
+      if (dropped <= 3) debugPrint('content: dropped an item in $stage — $err');
+    });
+    if (dropped > 0) {
+      debugPrint('content: $dropped item(s) could not be read and were skipped');
+    }
     return catalog.byStage.isEmpty ? null : catalog;
   } catch (e) {
     debugPrint('content: could not parse a catalogue payload — $e');

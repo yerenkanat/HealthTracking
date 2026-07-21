@@ -403,6 +403,61 @@ void main() {
     _chk('a catalogue authored before this field still loads', legacy.alsoStages.isEmpty);
   }
 
+  // ---- One unreadable item must not take the catalogue with it ----
+  //
+  // ContentItem.fromJson casts, so a price that arrived as "990000" instead of
+  // 990000 threw — and the whole parse was abandoned, the app falling back to
+  // the catalogue bundled with the build. Every published item replaced by
+  // whatever shipped, silently, because of one field.
+  {
+    const good = {'id': 'a', 'kind': 'lesson', 'title': {'ru': 'ok'}, 'summary': {'ru': 'ok'}};
+    const badPrice = {
+      'id': 'b', 'kind': 'product', 'title': {'ru': 'x'}, 'summary': {'ru': 'x'},
+      'priceMinor': '990000', // a string where a number belongs
+    };
+
+    final dropped = <String>[];
+    final cat = ContentCatalog.fromJson(
+      {'w20': [good, badPrice], 'w21': [good]},
+      onBadItem: (stage, _) => dropped.add(stage),
+    );
+    _chk('the good item in the same stage survives',
+        cat.itemsFor(TimelineStage.pregnancyWeek(20)).length == 1);
+    _chk('and every other stage is untouched',
+        cat.itemsFor(TimelineStage.pregnancyWeek(21)).length == 1);
+    _chk('the bad item is dropped, not coerced',
+        cat.itemsFor(TimelineStage.pregnancyWeek(20)).single.id == 'a');
+    _chk('and the caller is told which stage it was', dropped.join() == 'w20');
+
+    // Reported, not silent: a catalogue quietly missing items is how a whole
+    // category of product disappears without anyone noticing.
+    _chk('a clean catalogue reports nothing', () {
+      final none = <String>[];
+      ContentCatalog.fromJson({'w20': [good]}, onBadItem: (s, _) => none.add(s));
+      return none.isEmpty;
+    }());
+
+    // Other shapes of nonsense were already tolerated; they still are.
+    final junk = ContentCatalog.fromJson({
+      'w20': [good, 'not a map', 42, null],
+      'nonsense': [good],
+      'w22': 'not a list',
+    });
+    _chk('non-map entries are skipped',
+        junk.itemsFor(TimelineStage.pregnancyWeek(20)).length == 1);
+    _chk('an unknown stage key is skipped', junk.byStage.containsKey('nonsense') == false);
+    _chk('a stage whose value is not a list is skipped', !junk.byStage.containsKey('w22'));
+
+    // A payload from a newer server carrying fields this build does not know.
+    final future = ContentCatalog.fromJson({
+      'w20': [
+        {...good, 'unknownField': {'deeply': ['nested', 1]}, 'anotherOne': true},
+      ],
+    });
+    _chk('unknown fields from a newer server are ignored, not fatal',
+        future.itemsFor(TimelineStage.pregnancyWeek(20)).single.id == 'a');
+  }
+
   // ---- Authoring a range ----
   {
     _chk('a range covers both ends', stageRange('w20', 'w23').join(',') == 'w20,w21,w22,w23');

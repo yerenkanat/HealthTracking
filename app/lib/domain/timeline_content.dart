@@ -329,16 +329,41 @@ class ContentCatalog {
   /// Build from the backend's shape. Entries under an unrecognised stage key
   /// are DROPPED rather than kept in a bucket nothing can look up, so bad data
   /// fails visibly in the authoring tools instead of silently never showing.
-  factory ContentCatalog.fromJson(Map<String, dynamic> j) {
+  /// Parse a catalogue, discarding only what cannot be read.
+  ///
+  /// [onBadItem] is called for each item that had to be dropped, so the caller
+  /// can say so rather than let it pass unremarked.
+  ///
+  /// An item that throws used to take the WHOLE catalogue with it: one product
+  /// whose price arrived as "990000" instead of 990000 — a serialization slip,
+  /// a hand-edited row — and ContentItem.fromJson's cast threw, the parse
+  /// returned null, and the app fell back to the catalogue bundled with the
+  /// build. Every one of the 364 published items replaced by whatever shipped,
+  /// silently, because of one field.
+  ///
+  /// The item is skipped instead. That matches how the stage keys and non-list
+  /// values above are already treated, and it fails in proportion: one card
+  /// missing rather than the whole timeline reverting.
+  factory ContentCatalog.fromJson(
+    Map<String, dynamic> j, {
+    void Function(String stage, Object error)? onBadItem,
+  }) {
     final out = <String, List<ContentItem>>{};
     for (final e in j.entries) {
       if (TimelineStage.fromKey(e.key) == null) continue;
       final list = e.value;
       if (list is! List) continue;
-      final items = [
-        for (final raw in list)
-          if (raw is Map) ContentItem.fromJson(raw.cast<String, dynamic>()),
-      ];
+      final items = <ContentItem>[];
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        try {
+          items.add(ContentItem.fromJson(raw.cast<String, dynamic>()));
+        } catch (err) {
+          // Deliberately not coerced: a price read wrongly is worse than a
+          // product that does not appear.
+          onBadItem?.call(e.key, err);
+        }
+      }
       if (items.isNotEmpty) out[e.key] = items;
     }
     return ContentCatalog(out);
