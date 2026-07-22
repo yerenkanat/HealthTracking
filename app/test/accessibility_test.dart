@@ -43,6 +43,9 @@ import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/domain/onboarding_controller.dart';
 import 'package:fcs_app/ui/onboarding/onboarding_flow.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
+import 'package:fcs_app/ui/tracking/home_safety_screen.dart';
+import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
+import 'package:fcs_app/ui/settings/legal_screen.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(
@@ -313,6 +316,20 @@ void main() {
   testWidgets('the zones screen meets the guidelines', (tester) async {
     final c = seededA11y();
     await audit(tester, screen(ZonesScreen(controller: c, childId: c.selectedChild!.id)));
+  });
+
+  testWidgets('the privacy & terms screens meet the guidelines', (tester) async {
+    await audit(tester, screen(const LegalScreen(doc: LegalDoc.privacy)));
+    await audit(tester, screen(const LegalScreen(doc: LegalDoc.terms)));
+  });
+
+  testWidgets('the antenatal-plan screen meets the guidelines', (tester) async {
+    await audit(tester, screen(const AntenatalPlanScreen(week: 28)));
+  });
+
+  testWidgets('the home-safety screen meets the guidelines', (tester) async {
+    await audit(tester, screen(HomeSafetyScreen(
+        ageMonths: 12, done: const {'stair_gates'}, onToggle: (_) {})));
   });
 
   // Onboarding — the first thing every user sees, audited step by step.

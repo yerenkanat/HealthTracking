@@ -123,7 +123,12 @@ class _TaskRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        child: ConstrainedBox(
+          // A 48dp minimum so the whole row is a comfortable tap target, not
+          // just the 22dp tick — the accessibility guideline the home-safety
+          // checklist used to miss.
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,6 +153,7 @@ class _TaskRow extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

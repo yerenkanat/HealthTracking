@@ -160,31 +160,17 @@ class _Welcome extends StatelessWidget {
         const SizedBox(height: 12),
         Text(l.t('onb_welcome_body'), style: const TextStyle(fontSize: 16, height: 1.4)),
         const SizedBox(height: 28),
-        // Consent, captured before she can proceed. The checkbox carries the
-        // acceptance; the two documents are one tap away beneath it.
-        InkWell(
-          onTap: () => onConsentChanged(!consented),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Checkbox(
-                  value: consented,
-                  onChanged: (v) => onConsentChanged(v ?? false),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(l.t('onb_consent_label'),
-                        style: const TextStyle(fontSize: 13.5, height: 1.4)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        // Consent, captured before she can proceed. A CheckboxListTile so the
+        // label is part of the tap target and carries the accessible name (a
+        // bare Checkbox is an unlabeled tap target). The two documents are one
+        // tap away beneath it.
+        CheckboxListTile(
+          value: consented,
+          onChanged: (v) => onConsentChanged(v ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          title: Text(l.t('onb_consent_label'),
+              style: const TextStyle(fontSize: 13.5, height: 1.4)),
         ),
         Padding(
           padding: const EdgeInsets.only(left: 48),
