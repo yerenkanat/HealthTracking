@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../domain/antenatal_protocol.dart';
 import '../../domain/appointment.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
@@ -78,6 +79,11 @@ class HealthDashboardView extends StatelessWidget {
   final Appointment? nextAppointment; // soonest upcoming (null = hidden)
   final DateTime? nowForAppointment; // anchor for the countdown
   final VoidCallback? onOpenAppointments;
+  /// Completed gestational week, when pregnant — drives the antenatal-protocol
+  /// card ("the state plan says a visit is due now / at weeks X–Y"). Null when
+  /// not pregnant, which hides the card.
+  final int? pregnancyWeek;
+  final VoidCallback? onOpenAntenatalPlan; // tap → the eight-visit schedule
   final VoidCallback? onLogVitals; // hand-entered reading (no band required)
   /// True when a wearable is wired but not currently delivering readings, so
   /// the numbers on screen may be stale. Shows a quiet "not measuring" chip.
@@ -119,6 +125,8 @@ class HealthDashboardView extends StatelessWidget {
     this.nextAppointment,
     this.nowForAppointment,
     this.onOpenAppointments,
+    this.pregnancyWeek,
+    this.onOpenAntenatalPlan,
     this.onLogVitals,
     this.bandNotMeasuring = false,
     this.wearable,
@@ -239,6 +247,17 @@ class HealthDashboardView extends StatelessWidget {
                       appt: nextAppointment!,
                       now: nowForAppointment ?? DateTime.now(),
                       onTap: onOpenAppointments,
+                    ),
+                  ],
+                  // The state antenatal protocol's own schedule — "a visit is
+                  // due now / at weeks X–Y" — sits right beside her own booked
+                  // appointment so she sees both what she planned and what the
+                  // protocol expects. Only while pregnant.
+                  if (pregnancyWeek != null) ...[
+                    const SizedBox(height: 14),
+                    _AntenatalProtocolCard(
+                      week: pregnancyWeek!,
+                      onTap: onOpenAntenatalPlan,
                     ),
                   ],
                   // Material for wherever the family is on the timeline. Shown
@@ -660,7 +679,9 @@ class _ActivityWellnessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final sleepH = m.sleepMinutes ~/ 60, sleepM = m.sleepMinutes % 60;
+    // Sleep is deliberately NOT shown here — the dedicated Sleep card above
+    // covers it far better (weekly average, quality, and the deep/light/REM/
+    // awake breakdown). A second "Сон N h" tile was the same figure twice.
     final tiles = <Widget>[
       if (m.steps > 0)
         _StatTile(icon: Icons.directions_walk_rounded, colour: Palette.teal, label: l.t('wm_steps'), value: _grouped(m.steps)),
@@ -668,8 +689,6 @@ class _ActivityWellnessCard extends StatelessWidget {
         _StatTile(icon: Icons.straighten_rounded, colour: Palette.blue, label: l.t('wm_distance'), value: _num1(m.km), unit: l.t('wm_unit_km')),
       if (m.kcal > 0)
         _StatTile(icon: Icons.local_fire_department_rounded, colour: _tempA, label: l.t('wm_calories'), value: '${m.kcal}', unit: l.t('wm_unit_kcal')),
-      if (m.sleepMinutes > 0)
-        _StatTile(icon: Icons.bedtime_rounded, colour: Palette.violet, label: l.t('wm_sleep'), value: l.t('wm_sleep_hm', {'h': sleepH, 'm': sleepM})),
       if (m.stress != null)
         _StatTile(icon: Icons.self_improvement_rounded, colour: Palette.pink, label: l.t('wm_stress'), value: '${m.stress}'),
       if (m.breathRate != null)
@@ -1028,6 +1047,104 @@ class _NextAppointmentCard extends StatelessWidget {
             decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
             child: Text(badge, style: TextStyle(color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The state antenatal protocol's own schedule, on the home screen: which of
+/// the eight standard visits is due now or coming up, its gestational-week
+/// window, and — when one is open — that a dated screening window is live right
+/// now. This is the "when the protocol says to see the doctor" surface, sitting
+/// beside her own booked appointment. Taps into the full eight-visit plan.
+class _AntenatalProtocolCard extends StatelessWidget {
+  final int week;
+  final VoidCallback? onTap;
+  const _AntenatalProtocolCard({required this.week, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final lead = currentOrNextVisit(week);
+    final dueNow = visitAtWeek(week) != null;
+    final openWindows = windowsOpenAt(week);
+
+    // Term passed → no scheduled visit; the plan screen still has the 41-week
+    // talk, so keep the card and lead with the "visits complete" line.
+    final line = lead == null
+        ? l.t('an_term_title')
+        : (dueNow ? l.t('an_card_due', {'n': lead.number}) : l.t('an_card_next', {'n': lead.number}));
+    final accent = dueNow ? Palette.roseDeep : Palette.violet;
+    final badge = lead == null ? null : (dueNow ? l.t('an_due_now') : l.t('an_upcoming'));
+    final window = lead == null
+        ? null
+        : l.t('an_weeks_range', {'from': lead.fromWeek, 'to': lead.toWeek});
+
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(13)),
+                child: Icon(Icons.event_note_rounded, color: accent, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.t('an_card_title').toUpperCase(),
+                        style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                    const SizedBox(height: 3),
+                    Text(line, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Palette.text)),
+                    if (window != null) ...[
+                      const SizedBox(height: 2),
+                      Text(window, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                  decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+                  child: Text(badge, style: TextStyle(color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
+                ),
+            ],
+          ),
+          // A dated screening window (dating scan, anomaly scan, OGTT, anti-D)
+          // that is OPEN right now — the part of the protocol that closes if
+          // missed, so it earns a live chip.
+          if (openWindows.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              decoration: BoxDecoration(
+                color: Palette.teal.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 16, color: Palette.teal),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${l.t('an_win_open')}: ${openWindows.map((w) => l.t('an_item_${w.id}')).join(', ')}',
+                      style: const TextStyle(color: Palette.teal, fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

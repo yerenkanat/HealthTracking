@@ -28,7 +28,8 @@ void main() {
     expect(find.text('Steps'), findsOneWidget);
     expect(find.text('8 200'), findsOneWidget); // grouped thousands
     expect(find.text('6.1'), findsOneWidget); // distance km
-    expect(find.text('Sleep'), findsOneWidget);
+    // Sleep is deliberately NOT a tile here — the dedicated Sleep card owns it.
+    expect(find.text('Sleep'), findsNothing);
     expect(find.text('Breathing'), findsOneWidget);
   });
 
@@ -268,6 +269,31 @@ void main() {
     await tester.tap(find.text('Ultrasound'));
     await tester.pump();
     expect(opened, isTrue);
+  });
+
+  testWidgets('antenatal protocol card shows the due visit, its week window and taps through', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    var opened = false;
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: samples,
+        pregnancyWeek: 27, // inside visit 3's window (26–28)
+        onOpenAntenatalPlan: () => opened = true,
+      ),
+    ));
+    await tester.scrollUntilVisible(find.text('Visit 3 is due now'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('ANTENATAL PLAN'), findsOneWidget);
+    expect(find.text('Due now'), findsOneWidget);
+    expect(find.text('26–28 weeks'), findsOneWidget);
+    await tester.tap(find.text('Visit 3 is due now'));
+    await tester.pump();
+    expect(opened, isTrue);
+  });
+
+  testWidgets('antenatal protocol card is hidden when not pregnant', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
+    expect(find.text('ANTENATAL PLAN'), findsNothing);
   });
 
   testWidgets('weekly digest card hidden when there is no data', (tester) async {

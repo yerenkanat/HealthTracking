@@ -20,6 +20,7 @@ import 'advisor/advisor_screen.dart';
 import 'chat/assistant_chat_screen.dart';
 import 'theme.dart';
 import 'appointments/appointments_screen.dart';
+import 'calendar/antenatal_plan_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -98,6 +99,14 @@ class _HomeShellState extends State<HomeShell> {
         onOpenAppointments: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => AppointmentsScreen(controller: c)),
         ),
+        // The state antenatal protocol's due/next visit, shown beside her own
+        // appointment. Only while pregnant (gestation known).
+        pregnancyWeek: c.isPregnant ? c.gestation?.week : null,
+        onOpenAntenatalPlan: c.gestation == null
+            ? null
+            : () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => AntenatalPlanScreen(week: c.gestation!.week),
+                )),
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
         onOpenAdvisor: () => Navigator.of(context).push(

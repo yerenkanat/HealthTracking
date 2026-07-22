@@ -60,13 +60,14 @@ class WearableMetrics {
   /// Blood sugar in mmol/L, or null when unknown.
   double? get bloodSugar => bloodSugarTenths == null ? null : bloodSugarTenths! / 10.0;
 
-  /// True when there is anything worth showing — a watch that has synced nothing
-  /// yet (all zeros, no wellness) should not render an empty activity panel.
+  /// True when there is anything worth showing IN THE ACTIVITY PANEL — a watch
+  /// that has synced nothing yet should not render an empty panel. Sleep is
+  /// excluded on purpose: it is shown by the dedicated Sleep card, not here, so
+  /// a sleep-only sync must not open an otherwise-empty activity panel.
   bool get hasAnything =>
       steps > 0 ||
       kcal > 0 ||
       meters > 0 ||
-      sleepMinutes > 0 ||
       stress != null ||
       breathRate != null ||
       bloodSugarTenths != null;
