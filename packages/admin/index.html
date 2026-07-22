@@ -1067,6 +1067,11 @@
     const d=new Date(iso);
     return isNaN(d)?"—":`${RU_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   }
+  /// Day + short month + year, e.g. "3 авг. 2026" — for a dated appointment.
+  function fmtDate(iso){
+    const d=new Date(iso);
+    return isNaN(d)?"—":`${d.getDate()} ${RU_MONTHS[d.getMonth()].slice(0,3).toLowerCase()}. ${d.getFullYear()}`;
+  }
   /// Full stamp: a bare "09:41" is unambiguous only until tomorrow exists.
   function stamp(iso){
     const d=new Date(iso);
@@ -1363,6 +1368,9 @@
         <div class="tli"><span><b>О малыше</b></span><span class="t" style="max-width:60%;text-align:right">${esc(w.ru.baby)}</span></div>
         <div class="tli"><span><b>О вас</b></span><span class="t" style="max-width:60%;text-align:right">${esc(w.ru.you)}</span></div>
       </div>`:"";})()}
+      ${(()=>{const ap=(u.appointments||[]).filter(a=>a&&a.at).sort((x,y)=>String(x.at).localeCompare(String(y.at))); return ap.length?`
+      <div class="dsec">Ближайшие визиты</div>
+      <div class="tl">${ap.slice(0,6).map(a=>`<div class="tli"><span><b>${esc(a.title||"—")}</b></span><span class="t num">${esc(fmtDate(a.at))}</span></div>`).join("")}</div>`:"";})()}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>

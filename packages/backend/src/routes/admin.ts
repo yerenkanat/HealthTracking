@@ -216,7 +216,10 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     await repo.writeAudit({ staffId: s.staffId, action: 'view_user_detail', target: userId });
     const detail = await repo.adminUserDetail(userId);
     if (!detail) return reply.code(404).send({ error: 'not found' });
-    return reply.send(detail);
+    // Her upcoming visits, so staff can see the antenatal plan she is actually
+    // keeping. Read-only; failure here must not blank the whole card.
+    const appointments = await repo.listAppointments(userId).catch(() => []);
+    return reply.send({ ...detail, appointments });
   });
 
   // ---- Device fleet ----
