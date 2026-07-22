@@ -13,6 +13,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
+import '../widgets/permission_primer.dart';
 import 'map_zone_picker.dart';
 
 /// Google Maps needs a real key to render; the map picker is only offered when
@@ -235,6 +236,14 @@ class _ZoneSheetState extends State<_ZoneSheet> {
   /// never been — and then get "left home" alerts about the wrong place, which
   /// is worse than having no zone at all.
   Future<void> _useCurrentLocation() async {
+    // Explain WHY before the OS prompt, but only when it will actually appear
+    // (permission not yet decided). If she declines the rationale, respect it
+    // and don't fire the one-shot system dialog.
+    if (await locationPermissionUndecided()) {
+      if (!mounted) return;
+      final proceed = await showPermissionPrimer(context, PermissionKind.location);
+      if (!proceed) return;
+    }
     setState(() => _locating = true);
     final result = await currentCoordinates();
     if (!mounted) return;

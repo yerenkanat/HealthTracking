@@ -67,6 +67,22 @@ class LocationResult {
 @visibleForTesting
 Future<LocationResult> Function()? debugLocationOverride;
 
+/// True when the OS location prompt has NOT yet been answered — so the next
+/// [currentCoordinates] call is what pops the system dialog. The UI uses this to
+/// show a plain-language primer first, and ONLY when it will actually matter: if
+/// permission is already granted (or permanently denied), priming again would
+/// just be a pointless extra tap.
+///
+/// Returns false under the test override, where no real OS prompt occurs.
+Future<bool> locationPermissionUndecided() async {
+  if (debugLocationOverride != null) return false;
+  try {
+    return (await Geolocator.checkPermission()) == LocationPermission.denied;
+  } catch (_) {
+    return false;
+  }
+}
+
 /// Ask the OS where we are, requesting permission if it has not been decided.
 ///
 /// Never throws: a caller in the middle of onboarding must not be dropped on an

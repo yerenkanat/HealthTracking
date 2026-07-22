@@ -409,6 +409,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // every locale; through l10n only so no user-facing text bypasses it.
   'help_app_line': {AppLocale.ru: 'Umay · {v}', AppLocale.kk: 'Umay · {v}', AppLocale.en: 'Umay · {v}'},
 
+  // Permission priming — a plain-language "why" shown before the OS prompt, so
+  // a denial (which the OS then remembers for good) is far less likely.
+  'prime_continue': {AppLocale.ru: 'Продолжить', AppLocale.kk: 'Жалғастыру', AppLocale.en: 'Continue'},
+  'prime_not_now': {AppLocale.ru: 'Не сейчас', AppLocale.kk: 'Қазір емес', AppLocale.en: 'Not now'},
+  'prime_loc_title': {AppLocale.ru: 'Доступ к геопозиции', AppLocale.kk: 'Геолокацияға рұқсат', AppLocale.en: 'Location access'},
+  'prime_loc_body': {AppLocale.ru: 'Umay использует геопозицию телефона, чтобы отметить безопасные зоны — дом, школу — и предупредить вас, если ребёнок их покидает. Мы запрашиваем её только для этого. На следующем шаге система спросит разрешение.', AppLocale.kk: 'Umay қауіпсіз аймақтарды — үй, мектеп — белгілеу және бала одан шыққанда сізге хабарлау үшін телефонның геолокациясын пайдаланады. Оны тек осы үшін сұраймыз. Келесі қадамда жүйе рұқсат сұрайды.', AppLocale.en: 'Umay uses your phone’s location to mark safe zones — home, school — and warn you if your child leaves them. That’s the only thing we use it for. Next, the system will ask for permission.'},
+  'prime_notif_title': {AppLocale.ru: 'Уведомления', AppLocale.kk: 'Хабарландырулар', AppLocale.en: 'Notifications'},
+  'prime_notif_body': {AppLocale.ru: 'Чтобы вовремя сообщать о выходе из зоны, сигналах SOS и ваших напоминаниях, Umay нужны уведомления. Экстренные оповещения приходят всегда. Дальше система спросит разрешение.', AppLocale.kk: 'Аймақтан шығу, SOS дабылдары және еске салулар туралы уақтылы хабарлау үшін Umay-ге хабарландырулар қажет. Шұғыл ескертулер әрқашан келеді. Әрі қарай жүйе рұқсат сұрайды.', AppLocale.en: 'To alert you about zone exits, SOS signals and your reminders in time, Umay needs notifications. Emergency alerts always come through. Next, the system will ask for permission.'},
+
   // Force-update gate — shown when this build is below the server's minimum.
   'upd_title': {AppLocale.ru: 'Пора обновить приложение', AppLocale.kk: 'Қолданбаны жаңарту қажет', AppLocale.en: 'Time to update the app'},
   'upd_body': {AppLocale.ru: 'Эта версия Umay больше не поддерживается. Обновите приложение, чтобы продолжить — это займёт минуту и сохранит ваши данные в безопасности.', AppLocale.kk: 'Umay-дің бұл нұсқасы бұдан былай қолдау таппайды. Жалғастыру үшін қолданбаны жаңартыңыз — бұл бір минут алады және деректеріңіз қауіпсіз қалады.', AppLocale.en: 'This version of Umay is no longer supported. Please update to continue — it takes a minute and keeps your data safe.'},
