@@ -284,6 +284,20 @@
   .an-cat{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin:10px 0 4px}
   .an-item{font-size:13px;line-height:1.4;padding:2px 0;color:var(--ink)}
   .an-risk{color:var(--warn);font-size:11px;font-style:italic}
+  /* Pregnancy calendar view */
+  .pw-lang{display:flex;gap:4px}
+  .pw-l{border:1px solid var(--hair);background:var(--surface);color:var(--muted);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+  .pw-l.active{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .pw-weeks{display:flex;flex-wrap:wrap;gap:6px;padding:6px 18px 12px}
+  .pw-wk{width:34px;height:34px;border:1px solid var(--hair);background:var(--surface-2);border-radius:9px;color:var(--ink);font-weight:600;font-size:13px;cursor:pointer;font-variant-numeric:tabular-nums}
+  .pw-wk.active{background:var(--accent);color:#fff;border-color:transparent}
+  .pw-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 18px 10px}
+  .pw-badge{background:var(--accent-soft);color:var(--accent);font-weight:700;border-radius:20px;padding:4px 12px;font-size:13px}
+  .pw-chip{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .pw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:0 18px 18px}
+  .pw-card{border:1px solid var(--hair);border-radius:12px;background:var(--surface-2);padding:14px}
+  .pw-h{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}
+  .pw-t{font-size:13px;line-height:1.5;color:var(--ink)}
 </style>
 
 <div class="app">
@@ -311,6 +325,10 @@
     <button type="button" class="nav" data-view="antenatal">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M9 16l2 2 4-4"/></svg>
       Антенатальный уход
+    </button>
+    <button type="button" class="nav" data-view="pregweeks">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Календарь беременности
     </button>
     <button type="button" class="nav" data-view="devices">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
@@ -560,6 +578,19 @@
             Клинический протокол МЗ РК «Антенатальный уход» (2025). Тот же график, что видит пациентка в приложении —
             единый источник (<code>/antenatal/protocol</code>).</p>
           <div id="anBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+      </section>
+
+      <section class="view" id="pregweeks">
+        <div class="card">
+          <div class="sec-h">
+            <h3>Что происходит на каждой неделе</h3>
+            <div class="pw-lang"><button type="button" class="pw-l active" data-lang="ru">RU</button><button type="button" class="pw-l" data-lang="kk">KZ</button></div>
+          </div>
+          <p style="color:var(--muted);margin:0 0 8px">
+            Тот же контент, что видит пациентка в приложении на своей неделе — единый источник (<code>/pregnancy/weeks</code>).</p>
+          <div id="pwWeeks" class="pw-weeks"></div>
+          <div id="pwBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
         </div>
       </section>
     </div>
@@ -1281,6 +1312,7 @@
       phone:row?.querySelector(".num")?.textContent||"",
     };
     let h=MOCK.health[id]||MOCK.health._default;
+    await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
         const d=await api(`/admin/users/${id}/detail`);
@@ -1312,6 +1344,12 @@
       <div class="tl"><div class="tli"><span><b>Визит ${st.n} из ${st.total}</b> · ${st.wk}</span><span class="t">${
         st.dueNow?'<span style="color:var(--warn);font-weight:600">пора на визит</span>':'предстоит'
       }</span></div></div>`:"";})()}
+      ${(()=>{const wk=gestWeek(u); const w=(PREG&&wk!=null)?PREG.find(x=>x.week===Math.max(1,Math.min(40,wk))):null; return w?`
+      <div class="dsec">Эта неделя (${wk})</div>
+      <div class="tl">
+        <div class="tli"><span><b>О малыше</b></span><span class="t" style="max-width:60%;text-align:right">${esc(w.ru.baby)}</span></div>
+        <div class="tli"><span><b>О вас</b></span><span class="t" style="max-width:60%;text-align:right">${esc(w.ru.you)}</span></div>
+      </div>`:"";})()}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
@@ -1335,6 +1373,7 @@
     users:["Пользователи","Поиск и карточка пациентки"],
     content:["Контент","Уроки и товары для каждой недели беременности и месяца жизни ребёнка"],
     antenatal:["Антенатальный уход","График визитов, обследований и скринингов по протоколу МЗ РК"],
+    pregweeks:["Календарь беременности","Развитие малыша, изменения и рекомендации по неделям (RU/KZ)"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
     safety:["Безопасность","SOS и события зон по всем семьям"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
@@ -1356,6 +1395,7 @@
     if(v==="overview")drawOps();
     if(v==="analytics")renderAnalytics();
     if(v==="antenatal")renderAntenatal();
+    if(v==="pregweeks")renderPregWeeks();
     // In the URL, so a tab can be bookmarked, shared with a colleague, and
     // survives a refresh. Reloading used to drop whoever was mid-investigation
     // back on «Обзор».
@@ -1434,11 +1474,41 @@
       `<div class="sec-h" style="margin-top:18px"><h3>Сроки, которые нельзя пропустить</h3></div><div class="an-visit">${wins}</div>`;
   }
 
+  // ---- Pregnancy week-by-week calendar (same content the app shows) ----
+  let PREG=null, pwWeek=12, pwLang="ru";
+  async function loadPreg(){
+    if(PREG) return PREG;
+    try{ const r=await fetch("/pregnancy/weeks"); if(r.ok){ const d=await r.json(); PREG=d.weeks||[]; } }catch(e){/* offline */}
+    return PREG;
+  }
+  async function renderPregWeeks(){
+    const strip=$("#pwWeeks"), body=$("#pwBody"); if(!strip||!body) return;
+    const weeks=await loadPreg();
+    if(!weeks||!weeks.length){ body.innerHTML=`<div style="color:var(--muted);padding:16px 0">Календарь доступен, когда панель обслуживается сервером (<code>/pregnancy/weeks</code>).</div>`; strip.innerHTML=""; return; }
+    if(!weeks.some(w=>w.week===pwWeek)) pwWeek=weeks[0].week;
+    strip.innerHTML=weeks.map(w=>`<button type="button" class="pw-wk${w.week===pwWeek?' active':''}" data-week="${w.week}">${w.week}</button>`).join("");
+    const w=weeks.find(x=>x.week===pwWeek); const t=w[pwLang]||w.ru;
+    const card=(label,txt)=>`<div class="pw-card"><div class="pw-h">${label}</div><div class="pw-t">${esc(txt)}</div></div>`;
+    body.innerHTML=`
+      <div class="pw-meta">
+        <span class="pw-badge">${pwLang==="kk"?"Апта":"Неделя"} ${w.week}</span>
+        ${w.lengthCm&&w.lengthCm!=="—"?`<span class="pw-chip">${pwLang==="kk"?"Ұзындығы":"Рост"}: ${esc(w.lengthCm)} см</span>`:""}
+        ${w.hcg?`<span class="pw-chip">ХГЧ: ${esc(w.hcg)}</span>`:""}
+      </div>
+      <div class="pw-grid">
+        ${card(pwLang==="kk"?"Нәресте туралы":"О малыше", t.baby)}
+        ${card(pwLang==="kk"?"Сіз туралы":"О вас", t.you)}
+        ${card(pwLang==="kk"?"Ұсынамыз":"Рекомендуем", t.recommend)}
+      </div>`;
+  }
+
   function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawOps();}
 
   // Events
   document.addEventListener("click",e=>{
     const nav=e.target.closest("[data-view]"); if(nav){go(nav.dataset.view);return;}
+    const pwk=e.target.closest("[data-week]"); if(pwk){pwWeek=+pwk.dataset.week;renderPregWeeks();return;}
+    const pwl=e.target.closest("[data-lang]"); if(pwl){pwLang=pwl.dataset.lang;$$(".pw-l").forEach(b=>b.classList.toggle("active",b===pwl));renderPregWeeks();return;}
     const urow=e.target.closest("[data-user]"); if(urow){openUser(urow.dataset.user);return;}
     if(e.target.id==="scrim")closeDrawer();
   });

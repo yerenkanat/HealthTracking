@@ -24,6 +24,7 @@ import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
+import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -216,6 +217,16 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // shared contract. No auth — it is the same clinical schedule the app bundles
   // and the admin panel renders; keeping one served copy stops the three drifting.
   app.get('/antenatal/protocol', async () => antenatalProtocol);
+
+  // Public reference data: the week-by-week pregnancy calendar (ru + kk).
+  app.get('/pregnancy/weeks', async () => pregnancyCalendar);
+  app.get('/pregnancy/weeks/:week', async (req, reply) => {
+    const week = Number((req.params as { week: string }).week);
+    if (!Number.isFinite(week)) return reply.code(400).send({ error: 'bad_week' });
+    const content = weekContent(week);
+    if (!content) return reply.code(404).send({ error: 'not_found' });
+    return reply.send(content);
+  });
 
   // Client CRUD + history routes (require an authUser resolver).
   if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser);
