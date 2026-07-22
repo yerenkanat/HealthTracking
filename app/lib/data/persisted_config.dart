@@ -9,6 +9,7 @@ import '../ble/calibration.dart';
 import '../core/geofence.dart';
 import '../domain/appointment.dart';
 import '../domain/battery.dart';
+import '../domain/child_emergency.dart';
 import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
@@ -182,6 +183,9 @@ class PersistedConfig {
   /// same reasoning as [hospitalBagChecked].
   final List<String> homeSafetyDone;
 
+  /// Emergency medical-ID info per child, keyed by child id.
+  final Map<String, ChildEmergencyInfo> childEmergency;
+
   const PersistedConfig({
     required this.onboarded,
     required this.locale,
@@ -217,6 +221,7 @@ class PersistedConfig {
     this.manualSleep = const [],
     this.hospitalBagChecked = const [],
     this.homeSafetyDone = const [],
+    this.childEmergency = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -264,6 +269,8 @@ class PersistedConfig {
         if (manualSleep.isNotEmpty) 'manualSleep': [for (final n in manualSleep) n.toJson()],
         if (hospitalBagChecked.isNotEmpty) 'hospitalBagChecked': hospitalBagChecked,
         if (homeSafetyDone.isNotEmpty) 'homeSafetyDone': homeSafetyDone,
+        if (childEmergency.isNotEmpty)
+          'childEmergency': {for (final e in childEmergency.entries) e.key: e.value.toJson()},
       };
 
   /// How many entries the last [fromJson] had to discard.
@@ -391,6 +398,13 @@ class PersistedConfig {
         ],
         hospitalBagChecked: _stringList(j['hospitalBagChecked']),
         homeSafetyDone: _stringList(j['homeSafetyDone']),
+        childEmergency: j['childEmergency'] is Map
+            ? {
+                for (final e in (j['childEmergency'] as Map).entries)
+                  if (e.value is Map)
+                    '${e.key}': ChildEmergencyInfo.fromJson((e.value as Map).cast<String, dynamic>())
+              }
+            : const {},
       );
 
   /// A list of strings, dropping anything that is not one. Used for the

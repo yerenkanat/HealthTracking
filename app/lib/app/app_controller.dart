@@ -43,6 +43,7 @@ import '../domain/manual_vitals.dart';
 import '../domain/medication.dart';
 import '../domain/vaccination.dart';
 import '../domain/wearable_metrics.dart';
+import '../domain/child_emergency.dart';
 import '../domain/weight.dart';
 import '../domain/manual_sleep.dart';
 import '../domain/sleep.dart';
@@ -161,6 +162,7 @@ class AppController {
   MedLog _medLog = {}; // dateKey → medId → doses taken
   final Set<String> _hospitalBagChecked = {}; // packed hospital-bag item ids
   final Set<String> _homeSafetyDone = {}; // completed home-safety task ids (household-wide)
+  final Map<String, ChildEmergencyInfo> _childEmergency = {}; // childId → emergency medical-ID info
   BandLinkState? _bandLinkState; // last reported wearable link state (null = no device wired)
   WearableMetrics? _latestWearable; // last activity/sleep/wellness snapshot from the watch
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
@@ -296,6 +298,9 @@ class AppController {
     _homeSafetyDone
       ..clear()
       ..addAll(cfg.homeSafetyDone);
+    _childEmergency
+      ..clear()
+      ..addAll(cfg.childEmergency);
     _lastChildZone = cfg.lastChildZone;
     // NOT `_onboarded = true` — that was here because restore() only ever
     // called this with an already-onboarded config, so forcing it looked
@@ -379,6 +384,7 @@ class AppController {
         manualSleep: List.of(_manualSleep),
         hospitalBagChecked: List.of(_hospitalBagChecked),
         homeSafetyDone: List.of(_homeSafetyDone),
+        childEmergency: Map.of(_childEmergency),
       );
 
   /// How long to wait for the typing to stop before writing to disk.
@@ -1014,6 +1020,22 @@ class AppController {
   /// Tick or untick a hospital-bag item, and persist the change.
   void toggleHospitalBagItem(String id) {
     if (!_hospitalBagChecked.remove(id)) _hospitalBagChecked.add(id);
+    _persist();
+    _notify();
+  }
+
+  // ---- Child emergency medical-ID info ----
+  /// The emergency info for [childId], or an empty one if none is set.
+  ChildEmergencyInfo emergencyInfoFor(String childId) =>
+      _childEmergency[childId] ?? const ChildEmergencyInfo();
+
+  /// Save (or clear, when empty) a child's emergency info, and persist.
+  void setEmergencyInfo(String childId, ChildEmergencyInfo info) {
+    if (info.isEmpty) {
+      _childEmergency.remove(childId);
+    } else {
+      _childEmergency[childId] = info;
+    }
     _persist();
     _notify();
   }

@@ -24,6 +24,7 @@ import 'newborn_log_screen.dart';
 import 'solids_screen.dart';
 import 'child_illness_screen.dart';
 import 'home_safety_screen.dart';
+import 'child_emergency_screen.dart';
 import '../../domain/child_growth.dart';
 import '../../domain/newborn_log.dart';
 import '../../domain/solids_guide.dart';
@@ -100,6 +101,21 @@ class ChildDetailScreen extends StatelessWidget {
                   backgroundColor: Colors.transparent,
                   title: Text(child.name),
                   actions: [
+                    // Emergency medical-ID — one tap in the moment it matters.
+                    IconButton(
+                      icon: const Icon(Icons.medical_information_outlined),
+                      tooltip: l.t('ei_title'),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => StreamBuilder<void>(
+                          stream: controller.changes,
+                          builder: (_, __) => ChildEmergencyScreen(
+                            childName: child.name,
+                            info: controller.emergencyInfoFor(child.id),
+                            onSave: (info) => controller.setEmergencyInfo(child.id, info),
+                          ),
+                        ),
+                      )),
+                    ),
                     // Unwell-child guidance, always a tap away from the child's
                     // screen — fever and red flags, not buried.
                     IconButton(

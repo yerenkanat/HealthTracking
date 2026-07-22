@@ -127,6 +127,22 @@ void main() {
     expect(find.text(ru.t('sol_when_title')), findsOneWidget);
   });
 
+  testWidgets('the emergency medical-ID is a tap from the app bar and persists', (tester) async {
+    final c = withChild(dob: DateTime(2026, 1, 22));
+    addTearDown(c.dispose);
+    await pump(tester, c);
+    await tester.tap(find.byIcon(Icons.medical_information_outlined));
+    await tester.pumpAndSettle();
+    // Empty at first — the invite shows. Fill an allergy and save.
+    expect(find.text(ru.t('ei_empty')), findsOneWidget);
+    await tester.tap(find.text(ru.t('ei_add')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, ru.t('ei_allergies')), 'арахис');
+    await tester.tap(find.text(ru.t('ei_save')));
+    await tester.pumpAndSettle();
+    expect(c.emergencyInfoFor('c1').allergies, 'арахис');
+  });
+
   testWidgets('the home-safety checklist is a care card and persists a tick', (tester) async {
     final c = withChild(dob: DateTime(2026, 1, 22)); // 6 months
     addTearDown(c.dispose);

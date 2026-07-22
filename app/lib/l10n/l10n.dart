@@ -624,6 +624,33 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'teeth_not_high_fever': {AppLocale.ru: 'Высокая температура — прорезывание её не вызывает.', AppLocale.kk: 'Жоғары температура — тіс шығу оны тудырмайды.', AppLocale.en: 'A high fever — teething does not cause one.'},
   'teeth_not_diarrhoea': {AppLocale.ru: 'Понос или рвота.', AppLocale.kk: 'Іш өту немесе құсу.', AppLocale.en: 'Diarrhoea or vomiting.'},
 
+  // ---- Child emergency medical-ID info (ei_*) ----
+  'ei_title': {AppLocale.ru: 'Экстренная информация', AppLocale.kk: 'Шұғыл ақпарат', AppLocale.en: 'Emergency info'},
+  'ei_subtitle': {AppLocale.ru: 'Медданные на случай экстренной ситуации', AppLocale.kk: 'Шұғыл жағдайға арналған медициналық деректер', AppLocale.en: 'Medical details for an emergency'},
+  'ei_empty': {
+    AppLocale.ru: 'Добавьте важное на случай экстренной ситуации: аллергии, диагнозы, группу крови, кого позвать.',
+    AppLocale.kk: 'Шұғыл жағдайға маңыздысын қосыңыз: аллергия, диагноздар, қан тобы, кімге қоңырау шалу керектігі.',
+    AppLocale.en: 'Add what matters in an emergency: allergies, conditions, blood type, who to call.',
+  },
+  'ei_add': {AppLocale.ru: 'Заполнить', AppLocale.kk: 'Толтыру', AppLocale.en: 'Fill in'},
+  'ei_edit': {AppLocale.ru: 'Изменить', AppLocale.kk: 'Өзгерту', AppLocale.en: 'Edit'},
+  'ei_save': {AppLocale.ru: 'Сохранить', AppLocale.kk: 'Сақтау', AppLocale.en: 'Save'},
+  'ei_call': {AppLocale.ru: 'Позвонить', AppLocale.kk: 'Қоңырау шалу', AppLocale.en: 'Call'},
+  'ei_disclaimer': {
+    AppLocale.ru: 'Эти данные вводите вы; приложение их не проверяет.',
+    AppLocale.kk: 'Бұл деректерді сіз енгізесіз; қосымша оларды тексермейді.',
+    AppLocale.en: 'You enter these details; the app does not verify them.',
+  },
+  'ei_blood': {AppLocale.ru: 'Группа крови', AppLocale.kk: 'Қан тобы', AppLocale.en: 'Blood type'},
+  'ei_allergies': {AppLocale.ru: 'Аллергии', AppLocale.kk: 'Аллергиялар', AppLocale.en: 'Allergies'},
+  'ei_conditions': {AppLocale.ru: 'Диагнозы / состояния', AppLocale.kk: 'Диагноздар / жағдайлар', AppLocale.en: 'Conditions'},
+  'ei_medications': {AppLocale.ru: 'Лекарства', AppLocale.kk: 'Дәрілер', AppLocale.en: 'Medications'},
+  'ei_doctor': {AppLocale.ru: 'Врач', AppLocale.kk: 'Дәрігер', AppLocale.en: 'Doctor'},
+  'ei_contact': {AppLocale.ru: 'Экстренный контакт', AppLocale.kk: 'Шұғыл байланыс', AppLocale.en: 'Emergency contact'},
+  'ei_notes': {AppLocale.ru: 'Заметки', AppLocale.kk: 'Ескертпелер', AppLocale.en: 'Notes'},
+  'ei_name_hint': {AppLocale.ru: 'Имя', AppLocale.kk: 'Аты', AppLocale.en: 'Name'},
+  'ei_phone_hint': {AppLocale.ru: 'Телефон', AppLocale.kk: 'Телефон', AppLocale.en: 'Phone'},
+
   'db_not_measuring': {
     AppLocale.ru: 'Устройство не на связи — данные могут быть неактуальны.',
     AppLocale.kk: 'Құрылғы байланыста емес — деректер ескірген болуы мүмкін.',
