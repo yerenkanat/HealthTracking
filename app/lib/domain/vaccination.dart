@@ -126,6 +126,26 @@ Map<int, List<Vaccine>> scheduleByAge([List<Vaccine> schedule = kzSchedule]) {
 List<Vaccine> vaccinesDue(int ageMonths, [List<Vaccine> schedule = kzSchedule]) =>
     [for (final v in schedule) if (vaccineStatus(v, ageMonths) == VaccineStatus.due) v];
 
+/// A stable key for one injection — id plus dose — used to record that a parent
+/// has marked it done. Matches the uniqueness the schedule guards.
+String vaccineKey(Vaccine v) => '${v.id}/${v.dose}';
+
+/// The vaccines whose age has PASSED but the parent has not marked done — the
+/// real "catch up" list. A passed vaccine already recorded is not a gap; one
+/// that is neither due nor recorded is exactly what a parent should ask about.
+///
+/// [done] is the set of [vaccineKey]s she has ticked.
+List<Vaccine> vaccinesToCatchUp(int ageMonths, Set<String> done,
+        [List<Vaccine> schedule = kzSchedule]) =>
+    [
+      for (final v in schedule)
+        if (vaccineStatus(v, ageMonths) == VaccineStatus.passed && !done.contains(vaccineKey(v))) v
+    ];
+
+/// How many of the whole schedule the parent has recorded as done.
+int vaccinesDoneCount(Set<String> done, [List<Vaccine> schedule = kzSchedule]) =>
+    schedule.where((v) => done.contains(vaccineKey(v))).length;
+
 /// The next appointment's worth of vaccines: everything at the soonest age
 /// still ahead of [ageMonths].
 ///

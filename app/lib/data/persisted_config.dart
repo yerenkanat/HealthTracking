@@ -186,6 +186,10 @@ class PersistedConfig {
   /// Emergency medical-ID info per child, keyed by child id.
   final Map<String, ChildEmergencyInfo> childEmergency;
 
+  /// Vaccines a parent has marked done, per child: childId → set of vaccine
+  /// keys (id/dose). Her own record; the app claims nothing about it.
+  final Map<String, List<String>> vaccinesDone;
+
   const PersistedConfig({
     required this.onboarded,
     required this.locale,
@@ -222,6 +226,7 @@ class PersistedConfig {
     this.hospitalBagChecked = const [],
     this.homeSafetyDone = const [],
     this.childEmergency = const {},
+    this.vaccinesDone = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -271,6 +276,7 @@ class PersistedConfig {
         if (homeSafetyDone.isNotEmpty) 'homeSafetyDone': homeSafetyDone,
         if (childEmergency.isNotEmpty)
           'childEmergency': {for (final e in childEmergency.entries) e.key: e.value.toJson()},
+        if (vaccinesDone.isNotEmpty) 'vaccinesDone': vaccinesDone,
       };
 
   /// How many entries the last [fromJson] had to discard.
@@ -403,6 +409,12 @@ class PersistedConfig {
                 for (final e in (j['childEmergency'] as Map).entries)
                   if (e.value is Map)
                     '${e.key}': ChildEmergencyInfo.fromJson((e.value as Map).cast<String, dynamic>())
+              }
+            : const {},
+        vaccinesDone: j['vaccinesDone'] is Map
+            ? {
+                for (final e in (j['vaccinesDone'] as Map).entries)
+                  '${e.key}': _stringList(e.value)
               }
             : const {},
       );

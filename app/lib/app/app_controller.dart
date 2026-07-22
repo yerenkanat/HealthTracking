@@ -163,6 +163,7 @@ class AppController {
   final Set<String> _hospitalBagChecked = {}; // packed hospital-bag item ids
   final Set<String> _homeSafetyDone = {}; // completed home-safety task ids (household-wide)
   final Map<String, ChildEmergencyInfo> _childEmergency = {}; // childId → emergency medical-ID info
+  final Map<String, Set<String>> _vaccinesDone = {}; // childId → done vaccine keys (parent record)
   BandLinkState? _bandLinkState; // last reported wearable link state (null = no device wired)
   WearableMetrics? _latestWearable; // last activity/sleep/wellness snapshot from the watch
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
@@ -301,6 +302,9 @@ class AppController {
     _childEmergency
       ..clear()
       ..addAll(cfg.childEmergency);
+    _vaccinesDone
+      ..clear()
+      ..addAll({for (final e in cfg.vaccinesDone.entries) e.key: e.value.toSet()});
     _lastChildZone = cfg.lastChildZone;
     // NOT `_onboarded = true` — that was here because restore() only ever
     // called this with an already-onboarded config, so forcing it looked
@@ -385,6 +389,7 @@ class AppController {
         hospitalBagChecked: List.of(_hospitalBagChecked),
         homeSafetyDone: List.of(_homeSafetyDone),
         childEmergency: Map.of(_childEmergency),
+        vaccinesDone: {for (final e in _vaccinesDone.entries) e.key: List.of(e.value)},
       );
 
   /// How long to wait for the typing to stop before writing to disk.
@@ -1036,6 +1041,20 @@ class AppController {
     } else {
       _childEmergency[childId] = info;
     }
+    _persist();
+    _notify();
+  }
+
+  // ---- Vaccination record (parent-marked, per child) ----
+  /// The vaccine keys a parent has marked done for [childId].
+  Set<String> vaccinesDoneFor(String childId) =>
+      Set.unmodifiable(_vaccinesDone[childId] ?? const {});
+
+  /// Mark or unmark one vaccine done for [childId], and persist.
+  void toggleVaccineDone(String childId, String vaccineKey) {
+    final set = _vaccinesDone.putIfAbsent(childId, () => {});
+    if (!set.remove(vaccineKey)) set.add(vaccineKey);
+    if (set.isEmpty) _vaccinesDone.remove(childId);
     _persist();
     _notify();
   }

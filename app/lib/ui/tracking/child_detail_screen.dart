@@ -289,9 +289,17 @@ class ChildDetailScreen extends StatelessWidget {
                             _CareCard(
                               icon: Icons.vaccines_outlined,
                               title: l.t('vac_title'),
-                              summary: _vaccinationSummary(l, child.ageInMonths(now)),
+                              summary: _vaccinationSummary(l, child.ageInMonths(now), controller.vaccinesDoneFor(child.id)),
                               onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => VaccinationScreen(child: child, today: now),
+                                builder: (_) => StreamBuilder<void>(
+                                  stream: controller.changes,
+                                  builder: (_, __) => VaccinationScreen(
+                                    child: child,
+                                    today: now,
+                                    doneKeys: controller.vaccinesDoneFor(child.id),
+                                    onToggleDone: (key) => controller.toggleVaccineDone(child.id, key),
+                                  ),
+                                ),
                               )),
                             ),
                             const SizedBox(height: 12),
@@ -363,8 +371,11 @@ String _developmentSummary(L10n l, int ageMonths) {
   return next.isEmpty ? l.t('dev_sub') : l.t('dev_${next.first.id}');
 }
 
-/// The vaccination card: due now, or the next visit.
-String _vaccinationSummary(L10n l, int ageMonths) {
+/// The vaccination card: anything to catch up on, else due now, else the next
+/// visit. Catch-up (past its age and not recorded done) outranks the rest —
+/// it's the one thing that might need action.
+String _vaccinationSummary(L10n l, int ageMonths, Set<String> done) {
+  if (vaccinesToCatchUp(ageMonths, done).isNotEmpty) return l.t('vac_catchup');
   if (vaccinesDue(ageMonths).isNotEmpty) return l.t('vac_due');
   final months = monthsUntilNextVisit(ageMonths);
   return months == null ? l.t('vac_complete') : l.t('vac_in_months', {'n': months});

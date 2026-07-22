@@ -118,6 +118,36 @@ void main() {
     _chk('the birth visit holds more than one vaccine', (byAge[0] ?? []).length >= 2);
   }
 
+  // ---- The parent-marked record (done / catch-up) ----
+  {
+    // A unique key per injection.
+    final keys = kzSchedule.map(vaccineKey).toList();
+    _chk('every vaccine has a unique done-key', keys.toSet().length == keys.length);
+
+    // Nothing recorded → nothing done, and everything past its age is catch-up.
+    _chk('nothing recorded means nothing done', vaccinesDoneCount(const {}) == 0);
+    final catchUpAtBirthPlus = vaccinesToCatchUp(4, const {});
+    _chk('with nothing recorded, passed vaccines are all catch-up',
+        catchUpAtBirthPlus.every((v) => vaccineStatus(v, 4) == VaccineStatus.passed));
+
+    // Record the birth doses; at 4 months they are no longer catch-up.
+    final birthKeys = {for (final v in vaccinesDue(0)) vaccineKey(v)};
+    final remaining = vaccinesToCatchUp(4, birthKeys);
+    _chk('a recorded birth dose drops off the catch-up list',
+        !remaining.any((v) => birthKeys.contains(vaccineKey(v))));
+    _chk('and the done-count reflects it', vaccinesDoneCount(birthKeys) == birthKeys.length);
+
+    // A vaccine still DUE (not yet passed) is not catch-up, recorded or not.
+    final due2 = kzSchedule.firstWhere((v) => v.atMonth == 2);
+    _chk('a still-due vaccine is never on the catch-up list',
+        !vaccinesToCatchUp(2, const {}).contains(due2));
+
+    // Recording everything empties the catch-up list at any age.
+    final allKeys = kzSchedule.map(vaccineKey).toSet();
+    _chk('recording everything clears catch-up', vaccinesToCatchUp(72, allKeys).isEmpty);
+    _chk('and marks the whole schedule done', vaccinesDoneCount(allKeys) == kzSchedule.length);
+  }
+
   // ---- The next-visit reminder ----
   {
     // A two-month-old: the next visit is at 3 months, so the reminder is on the

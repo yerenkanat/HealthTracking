@@ -23,14 +23,17 @@ ChildProfile childAged(int months) => ChildProfile(
     );
 
 Future<void> pump(WidgetTester tester, ChildProfile child,
-    [AppLocale loc = AppLocale.ru]) async {
+    {AppLocale loc = AppLocale.ru, Set<String> done = const {}, ValueChanged<String>? onToggle}) async {
   // Tall: the full schedule is a long list, and a short surface would let a
   // lazy ListView skip the sections these tests are about.
-  tester.view.physicalSize = const Size(880, 5200);
+  tester.view.physicalSize = const Size(880, 6400);
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(
-    home: L10nScope(l10n: L10n(loc), child: VaccinationScreen(child: child, today: today)),
+    home: L10nScope(
+      l10n: L10n(loc),
+      child: VaccinationScreen(child: child, today: today, doneKeys: done, onToggleDone: onToggle),
+    ),
   ));
   await tester.pumpAndSettle();
 }
@@ -96,9 +99,40 @@ void main() {
 
   testWidgets('renders in all three languages without a raw key', (tester) async {
     for (final loc in AppLocale.values) {
-      await pump(tester, childAged(4), loc);
+      await pump(tester, childAged(4), loc: loc);
       expect(find.textContaining('vac_'), findsNothing, reason: loc.name);
     }
+  });
+
+  testWidgets('a parent can tick a vaccine done, and the app records the key', (tester) async {
+    final toggled = <String>[];
+    await pump(tester, childAged(2), onToggle: toggled.add);
+    // With the interactive callback, each row has a done-check; tap the first.
+    await tester.tap(find.byIcon(Icons.radio_button_unchecked_rounded).first);
+    await tester.pumpAndSettle();
+    expect(toggled, isNotEmpty);
+    expect(toggled.first, contains('/')); // an id/dose key
+  });
+
+  testWidgets('a recorded vaccine shows a check, not the syringe icon', (tester) async {
+    // Mark the two-month PCV done.
+    final key = vaccineKey(kzSchedule.firstWhere((v) => v.id == 'pcv' && v.atMonth == 2));
+    await pump(tester, childAged(2), done: {key}, onToggle: (_) {});
+    expect(find.byIcon(Icons.check_circle_rounded), findsWidgets);
+  });
+
+  testWidgets('a passed, unrecorded vaccine is surfaced as catch-up', (tester) async {
+    // Six months, nothing recorded → the birth doses are past and not done.
+    await pump(tester, childAged(6));
+    expect(find.text(ru.t('vac_catchup')), findsOneWidget);
+  });
+
+  testWidgets('recording the passed vaccines clears the catch-up section', (tester) async {
+    final passedKeys = {
+      for (final v in kzSchedule) if (v.atMonth <= 4) vaccineKey(v),
+    };
+    await pump(tester, childAged(6), done: passedKeys, onToggle: (_) {});
+    expect(find.text(ru.t('vac_catchup')), findsNothing);
   });
 
   testWidgets('golden: the calendar at four months', (tester) async {

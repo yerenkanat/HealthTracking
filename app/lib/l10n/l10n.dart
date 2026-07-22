@@ -960,6 +960,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'vac_due': {AppLocale.ru: 'Пора', AppLocale.kk: 'Уақыты келді', AppLocale.en: 'Due now'},
   'vac_next': {AppLocale.ru: 'Следующий визит', AppLocale.kk: 'Келесі бару', AppLocale.en: 'Next visit'},
   'vac_passed': {AppLocale.ru: 'По плану раньше', AppLocale.kk: 'Жоспар бойынша ертерек', AppLocale.en: 'Scheduled earlier'},
+  'vac_catchup': {AppLocale.ru: 'Стоит уточнить или наверстать', AppLocale.kk: 'Тексерген немесе толықтырған жөн', AppLocale.en: 'Worth checking or catching up'},
   'vac_in_months': {AppLocale.ru: 'через {n} мес.', AppLocale.kk: '{n} айдан кейін', AppLocale.en: 'in {n} months'},
   'vac_at_birth': {AppLocale.ru: 'В роддоме', AppLocale.kk: 'Перзентханада', AppLocale.en: 'At the maternity hospital'},
   'vac_at_month': {AppLocale.ru: 'В {n} мес.', AppLocale.kk: '{n} айда', AppLocale.en: 'At {n} months'},

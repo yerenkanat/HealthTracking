@@ -21,7 +21,20 @@ import '../theme.dart';
 class VaccinationScreen extends StatelessWidget {
   final ChildProfile child;
   final DateTime today;
-  const VaccinationScreen({super.key, required this.child, required this.today});
+
+  /// The vaccine keys the parent has marked done, and a callback to toggle one.
+  /// Her own record — see the disclaimer. Optional so the screen still renders
+  /// read-only (e.g. in a preview) without a controller.
+  final Set<String> doneKeys;
+  final ValueChanged<String>? onToggleDone;
+
+  const VaccinationScreen({
+    super.key,
+    required this.child,
+    required this.today,
+    this.doneKeys = const {},
+    this.onToggleDone,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +63,8 @@ class VaccinationScreen extends StatelessWidget {
               // when one truly exists — the app schedules it the moment a child
               // with a birth date is added.
               reminderAt: nextVaccinationReminderAt(dob: dob, now: today),
+              done: doneKeys,
+              onToggle: onToggleDone,
             ),
     );
   }
@@ -58,7 +73,9 @@ class VaccinationScreen extends StatelessWidget {
 class _Schedule extends StatelessWidget {
   final int ageMonths;
   final DateTime? reminderAt;
-  const _Schedule({required this.ageMonths, required this.reminderAt});
+  final Set<String> done;
+  final ValueChanged<String>? onToggle;
+  const _Schedule({required this.ageMonths, required this.reminderAt, required this.done, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +84,8 @@ class _Schedule extends StatelessWidget {
     final next = nextVisit(ageMonths);
     final untilNext = monthsUntilNextVisit(ageMonths);
     final byAge = scheduleByAge();
+    // Passed but not recorded done — the real catch-up list.
+    final catchUp = vaccinesToCatchUp(ageMonths, done);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -92,15 +111,24 @@ class _Schedule extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
+        // Worth catching up: past its age and not recorded done. Warm, because
+        // this is the one thing on the screen that might need action.
+        if (catchUp.isNotEmpty) ...[
+          _Title(l.t('vac_catchup')),
+          for (final v in catchUp)
+            _VaccineRow(v: v, status: VaccineStatus.passed, catchUp: true, done: done.contains(vaccineKey(v)), onToggle: onToggle),
+          const SizedBox(height: 16),
+        ],
+
         if (due.isNotEmpty) ...[
           _Title(l.t('vac_due')),
-          for (final v in due) _VaccineRow(v: v, status: VaccineStatus.due),
+          for (final v in due) _VaccineRow(v: v, status: VaccineStatus.due, done: done.contains(vaccineKey(v)), onToggle: onToggle),
           const SizedBox(height: 16),
         ],
 
         if (next.isNotEmpty) ...[
           _Title('${l.t('vac_next')} · ${l.t('vac_in_months', {'n': untilNext})}'),
-          for (final v in next) _VaccineRow(v: v, status: VaccineStatus.upcoming),
+          for (final v in next) _VaccineRow(v: v, status: VaccineStatus.upcoming, done: done.contains(vaccineKey(v)), onToggle: onToggle),
           if (reminderAt != null) _ReminderNote(at: reminderAt!),
           const SizedBox(height: 16),
         ],
@@ -115,7 +143,7 @@ class _Schedule extends StatelessWidget {
         // The whole calendar, so a parent can look ahead or check what was
         // scheduled when — the question they actually bring to a visit.
         _Title(l.t('vac_sub')),
-        for (final entry in byAge.entries) _AgeGroup(months: entry.key, vaccines: entry.value, ageMonths: ageMonths),
+        for (final entry in byAge.entries) _AgeGroup(months: entry.key, vaccines: entry.value, ageMonths: ageMonths, done: done, onToggle: onToggle),
 
         const SizedBox(height: 8),
         Text(l.t('vac_revision', {'d': scheduleRevision}),
@@ -167,7 +195,9 @@ class _AgeGroup extends StatelessWidget {
   final int months;
   final List<Vaccine> vaccines;
   final int ageMonths;
-  const _AgeGroup({required this.months, required this.vaccines, required this.ageMonths});
+  final Set<String> done;
+  final ValueChanged<String>? onToggle;
+  const _AgeGroup({required this.months, required this.vaccines, required this.ageMonths, required this.done, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +233,7 @@ class _AgeGroup extends StatelessWidget {
             child: Column(
               children: [
                 for (final v in vaccines)
-                  _VaccineRow(v: v, status: vaccineStatus(v, ageMonths), compact: true),
+                  _VaccineRow(v: v, status: vaccineStatus(v, ageMonths), compact: true, done: done.contains(vaccineKey(v)), onToggle: onToggle),
               ],
             ),
           ),
@@ -217,18 +247,39 @@ class _VaccineRow extends StatelessWidget {
   final Vaccine v;
   final VaccineStatus status;
   final bool compact;
-  const _VaccineRow({required this.v, required this.status, this.compact = false});
+  final bool done;
+  final bool catchUp;
+  final ValueChanged<String>? onToggle;
+  const _VaccineRow({
+    required this.v,
+    required this.status,
+    this.compact = false,
+    this.done = false,
+    this.catchUp = false,
+    this.onToggle,
+  });
 
-  Color get _accent => switch (status) {
-        VaccineStatus.due => Palette.watch,
-        VaccineStatus.upcoming => Palette.violet,
-        VaccineStatus.passed => Palette.textDim,
-      };
+  Color get _accent => done
+      ? Palette.teal
+      : switch (status) {
+          VaccineStatus.due => Palette.watch,
+          VaccineStatus.upcoming => Palette.violet,
+          VaccineStatus.passed => Palette.textDim,
+        };
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final dose = v.dose == null ? '' : ' · ${l.t('vac_dose', {'n': v.dose})}';
+    final key = vaccineKey(v);
+
+    final borderColor = done
+        ? Palette.teal.withValues(alpha: 0.35)
+        : catchUp
+            ? Palette.roseDeep.withValues(alpha: 0.35)
+            : status == VaccineStatus.due
+                ? Palette.watch.withValues(alpha: 0.35)
+                : Palette.border;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -236,24 +287,40 @@ class _VaccineRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: status == VaccineStatus.due
-              ? Palette.watch.withValues(alpha: 0.35)
-              : Palette.border,
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.vaccines_outlined, size: compact ? 17 : 19, color: _accent),
-          const SizedBox(width: 10),
+          // Tappable done-mark, when the screen is interactive.
+          if (onToggle != null)
+            GestureDetector(
+              onTap: () => onToggle!(key),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 10, top: 1),
+                child: Icon(
+                  done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  size: compact ? 18 : 21,
+                  color: done ? Palette.teal : Palette.border,
+                ),
+              ),
+            )
+          else ...[
+            Icon(Icons.vaccines_outlined, size: compact ? 17 : 19, color: _accent),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('${l.t('vac_${v.id}')}$dose',
                     style: TextStyle(
-                        fontSize: compact ? 13.5 : 14.5, fontWeight: FontWeight.w700)),
+                        fontSize: compact ? 13.5 : 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: done ? Palette.textDim : Palette.text,
+                        decoration: done ? TextDecoration.lineThrough : null,
+                        decorationColor: Palette.textDim)),
                 if (!compact) ...[
                   const SizedBox(height: 3),
                   Text(l.t('vac_${v.id}_note'),

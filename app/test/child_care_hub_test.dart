@@ -11,6 +11,7 @@ import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/domain/child_growth.dart';
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/newborn_log.dart';
+import 'package:fcs_app/domain/vaccination.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
@@ -83,11 +84,24 @@ void main() {
 
   testWidgets('a vaccination due now is surfaced on the card', (tester) async {
     // At two months the two-month visit is due; the card should say so rather
-    // than counting down to it.
+    // than counting down to it. The birth doses are recorded done first, so
+    // catch-up (which outranks "due") is clear and the due visit surfaces.
     final c = withChild(dob: DateTime(2026, 5, 22)); // 2 months
     addTearDown(c.dispose);
+    for (final v in vaccinesDue(0)) {
+      c.toggleVaccineDone('c1', vaccineKey(v));
+    }
     await pump(tester, c);
     expect(find.text(ru.t('vac_due')), findsWidgets);
+  });
+
+  testWidgets('unrecorded overdue vaccines surface as catch-up on the card', (tester) async {
+    // A two-month-old with nothing recorded: the birth doses are overdue and
+    // unrecorded, so the card leads with catch-up rather than the current visit.
+    final c = withChild(dob: DateTime(2026, 5, 22));
+    addTearDown(c.dispose);
+    await pump(tester, c);
+    expect(find.text(ru.t('vac_catchup')), findsWidgets);
   });
 
   testWidgets('the newborn card leads with time since the last feed', (tester) async {
