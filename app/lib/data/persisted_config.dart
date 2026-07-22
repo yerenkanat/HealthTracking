@@ -14,6 +14,7 @@ import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/phone_auth.dart';
+import '../domain/notification_prefs.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/health_series.dart';
 import '../domain/kick_session.dart';
@@ -152,6 +153,7 @@ class PersistedConfig {
   final AuthSession? authSession;
   final Map<String, DayLog> dayLogs; // dateKey → women's-health day entry
   final bool notificationsEnabled;
+  final NotificationPrefs notificationPrefs;
   final List<SafetyAlert> alerts; // recent zone enter/exit history
   final String? lastChildZone; // last known zone (avoids re-firing on restart)
   final int? avgCycleLength; // user-set baseline until ≥2 cycles are logged
@@ -210,6 +212,7 @@ class PersistedConfig {
     this.authSession,
     this.dayLogs = const {},
     this.notificationsEnabled = true,
+    this.notificationPrefs = const NotificationPrefs(),
     this.alerts = const [],
     this.lastChildZone,
     this.avgCycleLength,
@@ -252,6 +255,7 @@ class PersistedConfig {
         if (authSession != null) 'authSession': authSession!.toJson(),
         if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
         'notificationsEnabled': notificationsEnabled,
+        'notificationPrefs': notificationPrefs.toJson(),
         if (alerts.isNotEmpty) 'alerts': [for (final a in alerts) a.toJson()],
         if (lastChildZone != null) 'lastChildZone': lastChildZone,
         if (avgCycleLength != null) 'avgCycleLength': avgCycleLength,
@@ -367,6 +371,9 @@ class PersistedConfig {
         dayLogs: dayLogsFromJson(
             j['dayLogs'] is Map ? (j['dayLogs'] as Map).cast<String, dynamic>() : null),
         notificationsEnabled: (j['notificationsEnabled'] as bool?) ?? true,
+        notificationPrefs: j['notificationPrefs'] is Map
+            ? NotificationPrefs.fromJson((j['notificationPrefs'] as Map).cast<String, dynamic>())
+            : const NotificationPrefs(),
         alerts: _items(j['alerts'], SafetyAlert.fromJson),
         lastChildZone: j['lastChildZone'] as String?,
         avgCycleLength: (j['avgCycleLength'] as num?)?.toInt(),

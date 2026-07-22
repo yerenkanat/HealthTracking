@@ -38,6 +38,21 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('safety notification categories toggle, and SOS is noted always-on', (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    await tester.scrollUntilVisible(find.text('Zone entry & exit'), 200,
+        scrollable: find.byType(Scrollable).first);
+    expect(c.notificationPrefs.zoneEvents, isTrue); // default on
+    // The safety toggles follow the four reminder switches: index 4 = zone events.
+    await tester.tap(find.byType(Switch).at(4));
+    await tester.pumpAndSettle();
+    expect(c.notificationPrefs.zoneEvents, isFalse);
+    // The always-on SOS guarantee is stated.
+    expect(find.textContaining('SOS'), findsWidgets);
+  });
+
   testWidgets('medication reminder is disabled until something is tracked', (tester) async {
     final c = AppController(now: () => today);
     await tester.pumpWidget(wrap(c));

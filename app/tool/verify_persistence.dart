@@ -12,6 +12,7 @@ import '../lib/core/geofence.dart';
 import '../lib/data/app_store.dart';
 import '../lib/data/persisted_config.dart';
 import '../lib/domain/phone_auth.dart';
+import '../lib/domain/notification_prefs.dart';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/manual_sleep.dart';
 import '../lib/domain/sleep.dart';
@@ -56,6 +57,7 @@ void main() async {
     authSession: AuthSession(userId: 'u_abc', phoneE164: '+77001234567', token: 'stub-token:u_abc', signedInAt: DateTime.utc(2026, 7, 22, 12)),
     acceptedLegalVersion: 1,
     notificationsEnabled: false,
+    notificationPrefs: const NotificationPrefs(zoneEvents: false, lowBattery: false, quietStart: 1320, quietEnd: 420),
     avgCycleLength: 30,
     avgPeriodLength: 6,
     lastChildZone: 'School',
@@ -123,6 +125,7 @@ void main() async {
   _chk('round-trip auth session', decoded.authSession?.userId == 'u_abc' &&
       decoded.authSession?.phoneE164 == '+77001234567' && decoded.authSession?.token == 'stub-token:u_abc');
   _chk('round-trip accepted legal version', decoded.acceptedLegalVersion == 1);
+  _chk('round-trip notification prefs', !decoded.notificationPrefs.zoneEvents && decoded.notificationPrefs.checkIn && !decoded.notificationPrefs.lowBattery && decoded.notificationPrefs.quietStart == 1320 && decoded.notificationPrefs.quietEnd == 420);
   _chk('accepted legal version defaults to 0',
       PersistedConfig.decode('{"onboarded":true,"locale":"en"}').acceptedLegalVersion == 0);
   _chk('round-trip profile phone', decoded.profile.displayName == 'Aigerim' && decoded.profile.e164 == '+77001234567');

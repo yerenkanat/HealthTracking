@@ -15,6 +15,7 @@ import 'dart:convert';
 
 import '../ble/calibration.dart';
 import '../domain/legal.dart';
+import '../domain/notification_prefs.dart';
 import '../domain/phone_auth.dart';
 import '../ble/link_policy.dart' show BandLinkState;
 import '../core/triage.dart';
@@ -146,6 +147,7 @@ class AppController {
   AuthSession? _authSession;
   int _acceptedLegalVersion = 0;
   bool _notificationsEnabled = true;
+  NotificationPrefs _notificationPrefs = const NotificationPrefs();
   int? _avgCycleLength;
   int? _avgPeriodLength;
   final Map<String, DayLog> _dayLogs = {};
@@ -244,6 +246,7 @@ class AppController {
     _authSession = cfg.authSession;
     _acceptedLegalVersion = cfg.acceptedLegalVersion;
     _notificationsEnabled = cfg.notificationsEnabled;
+    _notificationPrefs = cfg.notificationPrefs;
     _avgCycleLength = cfg.avgCycleLength;
     _avgPeriodLength = cfg.avgPeriodLength;
     _dayLogs
@@ -374,6 +377,7 @@ class AppController {
         authSession: _authSession,
         acceptedLegalVersion: _acceptedLegalVersion,
         notificationsEnabled: _notificationsEnabled,
+        notificationPrefs: _notificationPrefs,
         avgCycleLength: _avgCycleLength,
         avgPeriodLength: _avgPeriodLength,
         dayLogs: Map.of(_dayLogs),
@@ -1714,6 +1718,15 @@ class AppController {
   void setNotificationsEnabled(bool v) {
     if (v == _notificationsEnabled) return;
     _notificationsEnabled = v;
+    _persist();
+    _notify();
+  }
+
+  /// Per-category notification preferences + quiet hours. SOS is never gated by
+  /// these — see NotificationPrefs.shouldDeliver.
+  NotificationPrefs get notificationPrefs => _notificationPrefs;
+  void setNotificationPrefs(NotificationPrefs p) {
+    _notificationPrefs = p;
     _persist();
     _notify();
   }

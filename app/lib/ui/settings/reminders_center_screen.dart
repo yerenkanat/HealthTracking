@@ -91,6 +91,70 @@ class RemindersCenterScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 18),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                  child: Text(l.t('notif_safety_section').toUpperCase(),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                ),
+                GlassCard(
+                  child: Column(
+                    children: [
+                      _ReminderTile(
+                        icon: Icons.swap_horiz_rounded,
+                        color: Palette.good,
+                        title: l.t('notif_zone'),
+                        subtitle: l.t('notif_zone_sub'),
+                        value: c.notificationPrefs.zoneEvents,
+                        onChanged: (on) => c.setNotificationPrefs(c.notificationPrefs.copyWith(zoneEvents: on)),
+                      ),
+                      const _ThinDivider(),
+                      _ReminderTile(
+                        icon: Icons.how_to_reg_rounded,
+                        color: Palette.blue,
+                        title: l.t('notif_checkin'),
+                        subtitle: l.t('notif_checkin_sub'),
+                        value: c.notificationPrefs.checkIn,
+                        onChanged: (on) => c.setNotificationPrefs(c.notificationPrefs.copyWith(checkIn: on)),
+                      ),
+                      const _ThinDivider(),
+                      _ReminderTile(
+                        icon: Icons.battery_alert_rounded,
+                        color: Palette.amber,
+                        title: l.t('notif_lowbattery'),
+                        subtitle: l.t('notif_lowbattery_sub'),
+                        value: c.notificationPrefs.lowBattery,
+                        onChanged: (on) => c.setNotificationPrefs(c.notificationPrefs.copyWith(lowBattery: on)),
+                      ),
+                      const _ThinDivider(),
+                      _ReminderTile(
+                        icon: Icons.bedtime_rounded,
+                        color: Palette.violet,
+                        title: l.t('notif_quiet'),
+                        subtitle: c.notificationPrefs.hasQuietHours
+                            ? l.t('notif_quiet_at', {
+                                'from': minutesToHhmm(c.notificationPrefs.quietStart!),
+                                'to': minutesToHhmm(c.notificationPrefs.quietEnd!),
+                              })
+                            : l.t('notif_quiet_off'),
+                        value: c.notificationPrefs.hasQuietHours,
+                        onChanged: (on) => _toggleQuietHours(context, c, on),
+                        onTapBody: c.notificationPrefs.hasQuietHours ? () => _pickQuietHours(context, c) : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(children: [
+                    const Icon(Icons.sos_rounded, size: 15, color: Palette.roseDeep),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(l.t('notif_sos_note'),
+                        style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.4))),
+                  ]),
+                ),
                 const SizedBox(height: 14),
                 Text(l.t('rem_footer'),
                     style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.4)),
@@ -136,6 +200,39 @@ class RemindersCenterScreen extends StatelessWidget {
       initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
     );
     if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
+  }
+
+  Future<void> _toggleQuietHours(BuildContext context, AppController c, bool on) async {
+    if (!on) {
+      c.setNotificationPrefs(c.notificationPrefs.copyWith(clearQuietHours: true));
+      return;
+    }
+    await _pickQuietHours(context, c);
+  }
+
+  /// Pick the quiet-hours window: start, then end. An overnight window
+  /// (e.g. 22:00 → 07:00) is fine — the domain handles the wrap.
+  Future<void> _pickQuietHours(BuildContext context, AppController c) async {
+    final l = L10nScope.of(context);
+    final p = c.notificationPrefs;
+    final s0 = p.quietStart ?? 22 * 60;
+    final start = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: s0 ~/ 60, minute: s0 % 60),
+      helpText: l.t('notif_quiet_from'),
+    );
+    if (start == null || !context.mounted) return;
+    final e0 = p.quietEnd ?? 7 * 60;
+    final end = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: e0 ~/ 60, minute: e0 % 60),
+      helpText: l.t('notif_quiet_to'),
+    );
+    if (end == null) return;
+    c.setNotificationPrefs(p.copyWith(
+      quietStart: start.hour * 60 + start.minute,
+      quietEnd: end.hour * 60 + end.minute,
+    ));
   }
 }
 
