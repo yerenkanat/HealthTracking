@@ -17,6 +17,7 @@ import '../../l10n/l10n_scope.dart';
 import '../calibration/bp_calibration_sheet.dart';
 import '../theme.dart';
 import 'journey_screen.dart';
+import 'legal_screen.dart';
 import 'reminders_center_screen.dart';
 import '../tracking/child_detail_screen.dart';
 import '../tracking/family_sheets.dart';
@@ -213,6 +214,22 @@ class SettingsScreen extends StatelessWidget {
             // ---- About ----
             _Section(title: l.t('set_about'), children: [
               _Row(leading: Icons.info_outline, title: 'Umay', subtitle: l.t('set_about_body')),
+              _Row(
+                leading: Icons.privacy_tip_outlined,
+                title: l.t('set_privacy'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const LegalScreen(doc: LegalDoc.privacy),
+                )),
+              ),
+              _Row(
+                leading: Icons.description_outlined,
+                title: l.t('set_terms'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const LegalScreen(doc: LegalDoc.terms),
+                )),
+              ),
               _Row(leading: Icons.tag, title: l.t('set_version'), trailing: const Text('0.1.0', style: TextStyle(color: Palette.textDim))),
             ]),
           ],

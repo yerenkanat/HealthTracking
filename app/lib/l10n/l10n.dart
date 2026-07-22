@@ -342,6 +342,94 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Umay — pregnancy care and child safety. Not a medical device.'
   },
   'set_version': {AppLocale.ru: 'Версия', AppLocale.kk: 'Нұсқа', AppLocale.en: 'Version'},
+
+  // ---- Legal: privacy policy & terms (legal_*) ----
+  'set_privacy': {AppLocale.ru: 'Политика конфиденциальности', AppLocale.kk: 'Құпиялылық саясаты', AppLocale.en: 'Privacy policy'},
+  'set_terms': {AppLocale.ru: 'Условия использования', AppLocale.kk: 'Пайдалану шарттары', AppLocale.en: 'Terms of use'},
+  'legal_privacy_title': {AppLocale.ru: 'Конфиденциальность', AppLocale.kk: 'Құпиялылық', AppLocale.en: 'Privacy'},
+  'legal_terms_title': {AppLocale.ru: 'Условия использования', AppLocale.kk: 'Пайдалану шарттары', AppLocale.en: 'Terms of use'},
+  'legal_draft_note': {
+    AppLocale.ru: 'Черновик. Текст описывает, как приложение работает сегодня, и ожидает юридической проверки перед публикацией.',
+    AppLocale.kk: 'Жоба. Мәтін қолданбаның бүгінгі жұмысын сипаттайды және жарияланар алдында заңгерлік тексеруден өтеді.',
+    AppLocale.en: 'Draft. This text describes how the app works today and is pending legal review before publication.',
+  },
+  'legal_updated': {AppLocale.ru: 'Обновлено: июль 2026', AppLocale.kk: 'Жаңартылды: шілде 2026', AppLocale.en: 'Updated: July 2026'},
+
+  // Privacy sections.
+  'legal_priv_collect_h': {AppLocale.ru: 'Какие данные мы обрабатываем', AppLocale.kk: 'Қандай деректерді өңдейміз', AppLocale.en: 'What data we handle'},
+  'legal_priv_collect_b': {
+    AppLocale.ru: 'Ваш профиль (имя, телефон), данные о беременности и цикле, имя и дату рождения ребёнка, зоны (дом, школа) и показатели здоровья с подключённого браслета.',
+    AppLocale.kk: 'Профиліңіз (аты, телефоны), жүктілік пен цикл деректері, баланың аты мен туған күні, аймақтар (үй, мектеп) және жалғанған білезіктен келетін денсаулық көрсеткіштері.',
+    AppLocale.en: 'Your profile (name, phone), pregnancy and cycle data, your child’s name and date of birth, zones (home, school), and health readings from a paired band.',
+  },
+  'legal_priv_storage_h': {AppLocale.ru: 'Хранение на устройстве', AppLocale.kk: 'Құрылғыда сақтау', AppLocale.en: 'Stored on your device'},
+  'legal_priv_storage_b': {
+    AppLocale.ru: 'По умолчанию данные хранятся на вашем телефоне. Резервную копию можно выгрузить в файл — он ваш, храните его как личный документ.',
+    AppLocale.kk: 'Әдепкі бойынша деректер телефоныңызда сақталады. Сақтық көшірмені файлға шығаруға болады — ол сіздікі, оны жеке құжат ретінде сақтаңыз.',
+    AppLocale.en: 'By default your data stays on your phone. You can export a backup to a file — it is yours; keep it like a personal document.',
+  },
+  'legal_priv_cloud_h': {AppLocale.ru: 'Что уходит в облако', AppLocale.kk: 'Бұлтқа не жіберіледі', AppLocale.en: 'What goes to the cloud'},
+  'legal_priv_cloud_b': {
+    AppLocale.ru: 'Только когда вы пользуетесь облачными функциями: сообщения ассистенту и показатели браслета для анализа. Мы не продаём ваши данные.',
+    AppLocale.kk: 'Тек бұлттық функцияларды пайдаланғанда: ассистентке жіберілген хабарлар мен талдауға арналған білезік көрсеткіштері. Деректеріңізді сатпаймыз.',
+    AppLocale.en: 'Only when you use cloud features: messages to the assistant and band readings for analysis. We do not sell your data.',
+  },
+  'legal_priv_medical_h': {AppLocale.ru: 'Не медицинский прибор', AppLocale.kk: 'Медициналық құрал емес', AppLocale.en: 'Not a medical device'},
+  'legal_priv_medical_b': {
+    AppLocale.ru: 'Приложение помогает следить за самочувствием, но не ставит диагноз и не заменяет врача. При тревожных признаках обращайтесь к врачу.',
+    AppLocale.kk: 'Қолданба әл-ауқатты қадағалауға көмектеседі, бірақ диагноз қоймайды және дәрігердің орнын баспайды. Қауіпті белгілерде дәрігерге жүгініңіз.',
+    AppLocale.en: 'The app helps you follow your wellbeing but does not diagnose and does not replace a doctor. See a doctor if you have warning signs.',
+  },
+  'legal_priv_controls_h': {AppLocale.ru: 'Ваш контроль', AppLocale.kk: 'Сіздің бақылауыңыз', AppLocale.en: 'Your controls'},
+  'legal_priv_controls_b': {
+    AppLocale.ru: 'В любой момент вы можете выгрузить копию всех данных или полностью стереть их в разделе «Данные».',
+    AppLocale.kk: 'Кез келген уақытта барлық деректердің көшірмесін шығаруға немесе «Деректер» бөлімінде толық жоюға болады.',
+    AppLocale.en: 'At any time you can export a copy of all your data or erase it completely in the “Data” section.',
+  },
+  'legal_priv_contact_h': {AppLocale.ru: 'Связь с нами', AppLocale.kk: 'Бізбен байланыс', AppLocale.en: 'Contact us'},
+  'legal_priv_contact_b': {
+    AppLocale.ru: 'По вопросам о ваших данных напишите нам через раздел поддержки в приложении.',
+    AppLocale.kk: 'Деректеріңіз туралы сұрақтар бойынша қолданбадағы қолдау бөлімі арқылы жазыңыз.',
+    AppLocale.en: 'For questions about your data, contact us through the in-app support section.',
+  },
+
+  // Terms sections.
+  'legal_terms_use_h': {AppLocale.ru: 'Использование приложения', AppLocale.kk: 'Қолданбаны пайдалану', AppLocale.en: 'Using the app'},
+  'legal_terms_use_b': {
+    AppLocale.ru: 'Пользуясь приложением, вы соглашаетесь с этими условиями. Приложение предназначено для личного, некоммерческого использования.',
+    AppLocale.kk: 'Қолданбаны пайдалану арқылы осы шарттармен келісесіз. Қолданба жеке, коммерциялық емес пайдалануға арналған.',
+    AppLocale.en: 'By using the app you agree to these terms. The app is for personal, non-commercial use.',
+  },
+  'legal_terms_medical_h': {AppLocale.ru: 'Не медицинская помощь', AppLocale.kk: 'Медициналық көмек емес', AppLocale.en: 'Not medical advice'},
+  'legal_terms_medical_b': {
+    AppLocale.ru: 'Информация в приложении носит справочный характер и не является медицинской консультацией, диагнозом или назначением.',
+    AppLocale.kk: 'Қолданбадағы ақпарат анықтамалық сипатта және медициналық кеңес, диагноз немесе тағайындау болып табылмайды.',
+    AppLocale.en: 'Information in the app is for reference only and is not medical advice, a diagnosis, or a prescription.',
+  },
+  'legal_terms_emergency_h': {AppLocale.ru: 'В экстренных случаях', AppLocale.kk: 'Төтенше жағдайларда', AppLocale.en: 'In an emergency'},
+  'legal_terms_emergency_b': {
+    AppLocale.ru: 'Приложение не служба экстренной помощи. При угрозе жизни звоните в скорую (103) или единую службу (112).',
+    AppLocale.kk: 'Қолданба — жедел жәрдем қызметі емес. Өмірге қауіп төнгенде жедел жәрдемге (103) немесе бірыңғай қызметке (112) қоңырау шалыңыз.',
+    AppLocale.en: 'The app is not an emergency service. If life is at risk, call an ambulance (103) or the single emergency line (112).',
+  },
+  'legal_terms_responsib_h': {AppLocale.ru: 'Ваша ответственность', AppLocale.kk: 'Сіздің жауапкершілігіңіз', AppLocale.en: 'Your responsibilities'},
+  'legal_terms_responsib_b': {
+    AppLocale.ru: 'Вводите достоверные данные и берегите доступ к телефону — приложение хранит личную информацию о вас и вашем ребёнке.',
+    AppLocale.kk: 'Дұрыс деректер енгізіңіз және телефонға қолжетімділікті сақтаңыз — қолданба сіз бен балаңыз туралы жеке ақпаратты сақтайды.',
+    AppLocale.en: 'Enter accurate data and keep your phone secure — the app holds personal information about you and your child.',
+  },
+  'legal_terms_warranty_h': {AppLocale.ru: 'Без гарантий', AppLocale.kk: 'Кепілдіксіз', AppLocale.en: 'No warranty'},
+  'legal_terms_warranty_b': {
+    AppLocale.ru: 'Приложение предоставляется «как есть». Мы стремимся к точности, но не гарантируем бесперебойную работу и отсутствие ошибок.',
+    AppLocale.kk: 'Қолданба «бар күйінде» ұсынылады. Дәлдікке ұмтыламыз, бірақ үздіксіз жұмысқа және қателердің болмауына кепілдік бермейміз.',
+    AppLocale.en: 'The app is provided “as is”. We aim for accuracy but do not guarantee uninterrupted, error-free operation.',
+  },
+  'legal_terms_law_h': {AppLocale.ru: 'Применимое право', AppLocale.kk: 'Қолданылатын құқық', AppLocale.en: 'Governing law'},
+  'legal_terms_law_b': {
+    AppLocale.ru: 'Условия регулируются законодательством Республики Казахстан.',
+    AppLocale.kk: 'Шарттар Қазақстан Республикасының заңнамасымен реттеледі.',
+    AppLocale.en: 'These terms are governed by the laws of the Republic of Kazakhstan.',
+  },
   'set_bp_calibration': {AppLocale.ru: 'Калибровка давления', AppLocale.kk: 'Қысымды калибрлеу', AppLocale.en: 'Blood pressure'},
   'cal_title': {AppLocale.ru: 'Калибровка давления', AppLocale.kk: 'Қысымды калибрлеу', AppLocale.en: 'Calibrate blood pressure'},
   'cal_intro': {

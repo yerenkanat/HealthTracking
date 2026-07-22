@@ -56,6 +56,7 @@ import 'package:fcs_app/ui/tracking/child_safety_screen.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
 import 'package:fcs_app/ui/calendar/postpartum_screen.dart';
 import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
+import 'package:fcs_app/ui/settings/legal_screen.dart';
 import 'package:fcs_app/ui/calendar/pregnancy_weight_screen.dart';
 import 'package:fcs_app/ui/calendar/pregnancy_warnings.dart';
 import 'package:fcs_app/ui/calendar/labour_signs_screen.dart';
@@ -632,6 +633,13 @@ void main() {
 
   testWidgets('the teething screen fits every locale', (tester) async {
     await checkAllLocales(tester, 'TeethingScreen', () => const TeethingScreen(ageMonths: 7), scroll: true);
+  });
+
+  testWidgets('the legal screens fit every locale', (tester) async {
+    await checkAllLocales(tester, 'LegalScreen_privacy',
+        () => const LegalScreen(doc: LegalDoc.privacy), scroll: true);
+    await checkAllLocales(tester, 'LegalScreen_terms',
+        () => const LegalScreen(doc: LegalDoc.terms), scroll: true);
   });
 
   testWidgets('the antenatal-plan screen fits every locale', (tester) async {
