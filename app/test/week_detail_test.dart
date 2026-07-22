@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/baby_size.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/domain/pregnancy_guide.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/week_detail_screen.dart';
@@ -13,7 +14,10 @@ final today = DateTime(2026, 7, 22);
 GestationInfo at(int week) => gestationFor(today.add(Duration(days: (40 - week) * 7)), today)!;
 
 Future<void> pump(WidgetTester tester, int week, [AppLocale loc = AppLocale.ru]) async {
-  tester.view.physicalSize = const Size(880, 2200);
+  // Tall: the screen now carries the mother-focused notes and the full warning
+  // list, and a short viewport would let the lazy ListView skip the warnings
+  // these tests are about.
+  tester.view.physicalSize = const Size(880, 4400);
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(
@@ -30,6 +34,23 @@ void main() {
     final size = babySizeFor(12)!;
     expect(find.text(ru.t(size.code)), findsOneWidget);
     expect(find.textContaining(size.lengthCm.toStringAsFixed(1)), findsOneWidget);
+  });
+
+  testWidgets('tells her how she may feel this week', (tester) async {
+    await pump(tester, 22);
+    expect(find.text(ru.t('preg_expect_title').toUpperCase()), findsOneWidget);
+    // Week 22 is in the first-movements window.
+    expect(find.text(ru.t('preg_note_first_movements')), findsOneWidget);
+  });
+
+  testWidgets('always shows the when-to-call warnings, at every week', (tester) async {
+    for (final week in [8, 22, 36]) {
+      await pump(tester, week);
+      expect(find.text(ru.t('preg_warn_title')), findsOneWidget, reason: 'week $week');
+      // Reduced movement is the one most often missed — assert it explicitly.
+      expect(find.text(ru.t('preg_warn_movement')), findsOneWidget, reason: 'week $week');
+      expect(find.text(ru.t('preg_warn_bleeding')), findsOneWidget, reason: 'week $week');
+    }
   });
 
   testWidgets('shows the current trimester milestone and the next one', (tester) async {
@@ -66,6 +87,7 @@ void main() {
       expect(find.textContaining('bsize_'), findsNothing, reason: loc.name);
       expect(find.textContaining('MS_'), findsNothing, reason: loc.name);
       expect(find.textContaining('gest_'), findsNothing, reason: loc.name);
+      expect(find.textContaining('preg_'), findsNothing, reason: loc.name);
     }
   });
 

@@ -937,6 +937,119 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Thoughts of harming yourself or the baby — seek help immediately',
   },
 
+  // ---- Pregnancy guide (what she might feel this stage, and when to call) ----
+  'preg_expect_title': {AppLocale.ru: 'Как вы себя чувствуете', AppLocale.kk: 'Өзіңізді қалай сезінесіз', AppLocale.en: 'How you may feel'},
+  'preg_warn_title': {AppLocale.ru: 'Когда обращаться к врачу', AppLocale.kk: 'Қашан дәрігерге қаралу керек', AppLocale.en: 'When to call your doctor'},
+  'preg_warn_intro': {
+    AppLocale.ru: 'Свяжитесь с консультацией или скорой, если появится что-то из этого:',
+    AppLocale.kk: 'Мыналардың бірі пайда болса, консультацияға немесе жедел жәрдемге хабарласыңыз:',
+    AppLocale.en: 'Contact your clinic or emergency services if any of these appear:',
+  },
+
+  'preg_area_body': {AppLocale.ru: 'Тело', AppLocale.kk: 'Дене', AppLocale.en: 'Body'},
+  'preg_area_comfort': {AppLocale.ru: 'Комфорт', AppLocale.kk: 'Жайлылық', AppLocale.en: 'Comfort'},
+  'preg_area_movement': {AppLocale.ru: 'Шевеления', AppLocale.kk: 'Қимылдар', AppLocale.en: 'Movements'},
+  'preg_area_mind': {AppLocale.ru: 'Настроение', AppLocale.kk: 'Көңіл-күй', AppLocale.en: 'Mind'},
+
+  // Stage notes (preg_note_<id>).
+  'preg_note_nausea': {
+    AppLocale.ru: 'Тошнота и утренняя дурнота часто бывают в первом триместре и обычно стихают к 12–14 неделе.',
+    AppLocale.kk: 'Жүрек айну мен таңғы құсу бірінші триместрде жиі болады және әдетте 12–14 аптаға қарай басылады.',
+    AppLocale.en: 'Nausea and morning sickness are common in the first trimester and usually ease by weeks 12–14.',
+  },
+  'preg_note_tired': {
+    AppLocale.ru: 'Сильная усталость в начале — это нормально: тело строит плаценту. Отдыхайте без чувства вины.',
+    AppLocale.kk: 'Басында қатты шаршау — қалыпты жағдай: дене плацента құрып жатыр. Кінәсіз демалыңыз.',
+    AppLocale.en: 'Deep tiredness early on is normal — your body is building the placenta. Rest without guilt.',
+  },
+  'preg_note_eating': {
+    AppLocale.ru: 'Ешьте понемногу и часто, пейте воду. Продолжайте принимать фолиевую кислоту, как советует врач.',
+    AppLocale.kk: 'Аз-аздан жиі жеңіз, су ішіңіз. Дәрігер кеңесі бойынша фолий қышқылын қабылдай беріңіз.',
+    AppLocale.en: 'Eat small amounts often, and drink water. Keep taking folic acid as your doctor advises.',
+  },
+  'preg_note_emotions': {
+    AppLocale.ru: 'Перепады настроения из-за гормонов — обычное дело. Если тревога или подавленность не отпускают, скажите врачу.',
+    AppLocale.kk: 'Гормондардан көңіл-күйдің құбылуы — қалыпты жағдай. Егер мазасыздық не көңілсіздік кетпесе, дәрігерге айтыңыз.',
+    AppLocale.en: 'Mood swings from the hormones are ordinary. If anxiety or low mood does not lift, tell your doctor.',
+  },
+  'preg_note_energy': {
+    AppLocale.ru: 'Во втором триместре многие чувствуют себя лучше: тошнота уходит, возвращается энергия.',
+    AppLocale.kk: 'Екінші триместрде көбі өзін жақсы сезінеді: жүрек айну басылып, күш қайтады.',
+    AppLocale.en: 'In the second trimester many women feel better — the nausea fades and energy returns.',
+  },
+  'preg_note_first_movements': {
+    AppLocale.ru: 'Первые шевеления часто ощущаются примерно на 18–22 неделе, раньше — если беременность не первая. Сначала это лёгкое трепетание.',
+    AppLocale.kk: 'Алғашқы қимылдар көбіне 18–22 апта шамасында сезіледі, бірінші жүктілік болмаса — ертерек. Басында ол жеңіл дірілдей сезіледі.',
+    AppLocale.en: 'First movements are often felt around 18–22 weeks — earlier if this is not your first. At first it feels like fluttering.',
+  },
+  'preg_note_ligament': {
+    AppLocale.ru: 'Резкие покалывания по бокам живота при движении — обычно это растяжение связок, а не тревожный знак.',
+    AppLocale.kk: 'Қозғалғанда іштің бүйірінде пайда болатын өткір шаншу — әдетте байламдардың керілуі, қауіп белгісі емес.',
+    AppLocale.en: 'Sharp twinges at the sides of your belly when you move are usually stretching ligaments, not a warning sign.',
+  },
+  'preg_note_bump': {
+    AppLocale.ru: 'Живот становится заметнее. Коже и спине может понадобиться забота: увлажнение, удобная обувь, поддержка поясницы.',
+    AppLocale.kk: 'Іш байқала бастайды. Тері мен арқаға қамқорлық керек болуы мүмкін: ылғалдандыру, ыңғайлы аяқ киім, бел тірегі.',
+    AppLocale.en: 'The bump becomes visible. Your skin and back may need care — moisturiser, comfortable shoes, support for the lower back.',
+  },
+  'preg_note_braxton': {
+    AppLocale.ru: 'Нерегулярные напряжения живота (схватки Брэкстона-Хикса) — это тренировка. Настоящие роды регулярны и усиливаются.',
+    AppLocale.kk: 'Іштің біркелкі емес қатаюы (Брэкстон-Хикс жиырылуы) — жаттығу. Нағыз босану біркелкі әрі күшейе береді.',
+    AppLocale.en: 'Irregular tightenings (Braxton Hicks) are practice contractions. Real labour is regular and builds in strength.',
+  },
+  'preg_note_swelling': {
+    AppLocale.ru: 'Небольшой отёк стоп и лодыжек к вечеру бывает часто. Поднимайте ноги и отдыхайте. Внезапный сильный отёк — повод обратиться к врачу.',
+    AppLocale.kk: 'Кешке қарай аяқ пен тобықтың сәл ісінуі жиі кездеседі. Аяғыңызды көтеріп демалыңыз. Кенеттен қатты ісіну — дәрігерге қаралуға себеп.',
+    AppLocale.en: 'Mild swelling of the feet and ankles by evening is common. Put your feet up and rest. Sudden severe swelling is a reason to call your doctor.',
+  },
+  'preg_note_movement_pattern': {
+    AppLocale.ru: 'Со временем вы узнаёте ритм малыша. Если движений заметно меньше обычного — сразу сообщите в консультацию, в любое время суток.',
+    AppLocale.kk: 'Уақыт өте нәрестенің ырғағын білесіз. Қимыл әдеттегіден айтарлықтай аз болса — тәуліктің кез келген уақытында дереу консультацияға хабарлаңыз.',
+    AppLocale.en: "Over time you learn your baby's pattern. If movements are noticeably fewer than usual, tell your clinic straight away, at any hour.",
+  },
+  'preg_note_sleep_side': {
+    AppLocale.ru: 'В третьем триместре спите на боку — так лучше кровоток к малышу. Подушка между колен помогает устроиться удобнее.',
+    AppLocale.kk: 'Үшінші триместрде бүйіріңізбен ұйықтаңыз — бұл нәрестеге қан ағымы үшін жақсы. Тізе арасына қойылған жастық ыңғайлы орналасуға көмектеседі.',
+    AppLocale.en: 'In the third trimester, sleep on your side — it is better for blood flow to the baby. A pillow between the knees helps you settle.',
+  },
+  'preg_note_hospital_bag': {
+    AppLocale.ru: 'Ближе к сроку соберите сумку в роддом и запишите номер своей консультации на видном месте.',
+    AppLocale.kk: 'Мерзім жақындағанда перзентханаға сөмке жинап, консультацияңыздың нөмірін көрнекті жерге жазып қойыңыз.',
+    AppLocale.en: "As the date nears, pack your hospital bag and keep your clinic's number somewhere easy to find.",
+  },
+
+  // Pregnancy warning signs (preg_warn_<id>).
+  'preg_warn_bleeding': {
+    AppLocale.ru: 'Кровотечение из влагалища',
+    AppLocale.kk: 'Қынаптан қан кету',
+    AppLocale.en: 'Bleeding from the vagina',
+  },
+  'preg_warn_fluid': {
+    AppLocale.ru: 'Подтекание или излитие вод до начала схваток',
+    AppLocale.kk: 'Жиырылу басталмай тұрып судың ағуы немесе кетуі',
+    AppLocale.en: 'A trickle or gush of waters before contractions begin',
+  },
+  'preg_warn_headache': {
+    AppLocale.ru: 'Сильная головная боль, нарушения зрения или внезапный отёк лица и рук',
+    AppLocale.kk: 'Қатты бас ауыруы, көру бұзылысы немесе беттің, қолдың кенеттен ісінуі',
+    AppLocale.en: 'A severe headache, vision changes, or sudden swelling of the face and hands',
+  },
+  'preg_warn_pain': {
+    AppLocale.ru: 'Сильная или постоянная боль в животе',
+    AppLocale.kk: 'Іштегі қатты немесе тұрақты ауырсыну',
+    AppLocale.en: 'Severe or constant pain in the abdomen',
+  },
+  'preg_warn_movement': {
+    AppLocale.ru: 'Малыш шевелится заметно меньше обычного',
+    AppLocale.kk: 'Нәресте әдеттегіден айтарлықтай аз қимылдайды',
+    AppLocale.en: 'The baby is moving noticeably less than usual',
+  },
+  'preg_warn_fever': {
+    AppLocale.ru: 'Высокая температура или жжение при мочеиспускании',
+    AppLocale.kk: 'Жоғары температура немесе зәр шығарғанда ашып ауыру',
+    AppLocale.en: 'A high fever, or burning when passing urine',
+  },
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},

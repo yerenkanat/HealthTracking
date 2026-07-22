@@ -6,6 +6,7 @@ import 'dart:io';
 import '../lib/domain/child_development.dart';
 import '../lib/domain/vaccination.dart';
 import '../lib/domain/postpartum.dart';
+import '../lib/domain/pregnancy_guide.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -287,6 +288,33 @@ void main() {
       }
     }
     _chk('and postpartum strings are all translated ($ppBlank blanks)', ppBlank == 0);
+
+    // Pregnancy guide: `preg_note_<id>`, `preg_warn_<id>` and `preg_area_<area>`
+    // are composed at render time, same as the postpartum ones.
+    final pregMissing = <String>[
+      for (final n in stageNotes)
+        if (!known.contains('preg_note_${n.id}')) 'preg_note_${n.id}',
+      for (final id in pregnancyWarnings)
+        if (!known.contains('preg_warn_$id')) 'preg_warn_$id',
+      for (final a in PregnancyArea.values)
+        if (!known.contains('preg_area_${a.name}')) 'preg_area_${a.name}',
+    ];
+    _chk('every stage note, warning and area has strings', pregMissing.isEmpty);
+    if (pregMissing.isNotEmpty) print('    missing: ${pregMissing.join(', ')}');
+
+    var pregBlank = 0;
+    final pregKeys = <String>[
+      for (final n in stageNotes) 'preg_note_${n.id}',
+      for (final id in pregnancyWarnings) 'preg_warn_$id',
+      for (final a in PregnancyArea.values) 'preg_area_${a.name}',
+    ];
+    for (final key in pregKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(key);
+        if (v == key || v.trim().isEmpty) pregBlank++;
+      }
+    }
+    _chk('and pregnancy-guide strings are all translated ($pregBlank blanks)', pregBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

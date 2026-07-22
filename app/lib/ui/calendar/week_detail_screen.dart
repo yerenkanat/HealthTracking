@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/baby_size.dart';
 import '../../domain/cycle_log.dart' show GestationInfo;
+import '../../domain/pregnancy_guide.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -160,10 +161,15 @@ class WeekDetailScreen extends StatelessWidget {
               ),
             ),
 
+          // Everything above is about the baby. This is about HER: what she
+          // might be feeling this week, and the signs that mean call now.
+          _ExpectCard(week: g.week),
+          _WarningBlock(),
+
           // The one thing this screen says in its own voice, and it says the
           // same thing every other estimate in the app says.
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: 12),
             child: Text(
               l.t('gest_estimate_note'),
               style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.45),
@@ -203,6 +209,149 @@ class _Card extends StatelessWidget {
           ],
         ),
       );
+}
+
+IconData _areaIcon(PregnancyArea area) => switch (area) {
+      PregnancyArea.body => Icons.self_improvement_outlined,
+      PregnancyArea.comfort => Icons.spa_outlined,
+      PregnancyArea.movement => Icons.child_care_outlined,
+      PregnancyArea.mind => Icons.favorite_outline,
+    };
+
+Color _areaColour(PregnancyArea area) => switch (area) {
+      PregnancyArea.body => Palette.teal,
+      PregnancyArea.comfort => Palette.rose,
+      PregnancyArea.movement => Palette.violet,
+      PregnancyArea.mind => Palette.roseDeep,
+    };
+
+String _areaLabel(dynamic l, PregnancyArea area) => switch (area) {
+      PregnancyArea.body => l.t('preg_area_body'),
+      PregnancyArea.comfort => l.t('preg_area_comfort'),
+      PregnancyArea.movement => l.t('preg_area_movement'),
+      PregnancyArea.mind => l.t('preg_area_mind'),
+    };
+
+/// "How you may feel" — the stage notes for this week, badged by thread.
+class _ExpectCard extends StatelessWidget {
+  final int week;
+  const _ExpectCard({required this.week});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final notes = notesForWeek(week);
+    if (notes.isEmpty) return const SizedBox.shrink();
+    return _Card(
+      title: l.t('preg_expect_title'),
+      child: Column(
+        children: [
+          for (var i = 0; i < notes.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _NoteRow(note: notes[i]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _NoteRow extends StatelessWidget {
+  final StageNote note;
+  const _NoteRow({required this.note});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final colour = _areaColour(note.area);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: colour.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(_areaIcon(note.area), size: 17, color: colour),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_areaLabel(l, note.area),
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.3, color: colour)),
+              const SizedBox(height: 2),
+              Text(l.t('preg_note_${note.id}'),
+                  style: const TextStyle(fontSize: 13, height: 1.42)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "When to call" — the pregnancy warning signs, set apart in a warm frame so
+/// the reassurance above never softens them. Always shown, whatever the week.
+class _WarningBlock extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      decoration: BoxDecoration(
+        color: Palette.roseDeep.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, size: 19, color: Palette.roseDeep),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(l.t('preg_warn_title'),
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Palette.roseDeep)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(l.t('preg_warn_intro'),
+              style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.4)),
+          const SizedBox(height: 10),
+          for (final id in pregnancyWarnings)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(color: Palette.roseDeep, shape: BoxShape.circle),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(l.t('preg_warn_$id'),
+                        style: const TextStyle(fontSize: 13.5, height: 1.4)),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Progress extends StatelessWidget {
