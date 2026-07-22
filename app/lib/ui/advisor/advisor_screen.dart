@@ -18,6 +18,11 @@ class AdvisorScreen extends StatelessWidget {
   final int? waterCount;
   final int waterGoal;
   final int nowHour;
+
+  /// Opens the conversational assistant. Null hides the entry — the advisories
+  /// above stand on their own, and there is nothing to chat with until the
+  /// ChatController is attached.
+  final VoidCallback? onOpenChat;
   const AdvisorScreen({
     super.key,
     required this.samples,
@@ -25,6 +30,7 @@ class AdvisorScreen extends StatelessWidget {
     this.waterCount,
     this.waterGoal = 0,
     this.nowHour = 12,
+    this.onOpenChat,
   });
 
   @override
@@ -35,7 +41,17 @@ class AdvisorScreen extends StatelessWidget {
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: Text(l.t('adv_title'))),
+        appBar: AppBar(
+          title: Text(l.t('adv_title')),
+          actions: [
+            if (onOpenChat != null)
+              IconButton(
+                tooltip: l.t('chat_title'),
+                onPressed: onOpenChat,
+                icon: const Icon(Icons.forum_outlined),
+              ),
+          ],
+        ),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
@@ -52,12 +68,62 @@ class AdvisorScreen extends StatelessWidget {
               _AdvisoryCard(advisory: a),
               const SizedBox(height: 12),
             ],
+            if (onOpenChat != null) ...[
+              _AskCard(onTap: onOpenChat!),
+              const SizedBox(height: 12),
+            ],
             const SizedBox(height: 4),
             Center(
               child: Text(l.t('chat_disclaimer'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Ask Umay" — the entry into the conversational assistant. The advisories
+/// above are read-only findings; this is where she can ask her own question.
+class _AskCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AskCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return GlassCard(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Palette.teal.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: Palette.teal.withValues(alpha: 0.4)),
+              ),
+              child: const Icon(Icons.forum_outlined, color: Palette.teal, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l.t('chat_empty_title'),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Palette.text)),
+                  const SizedBox(height: 3),
+                  Text(l.t('adv_ask_sub'),
+                      style: const TextStyle(color: Palette.textDim, fontSize: 13, height: 1.3)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
           ],
         ),
       ),

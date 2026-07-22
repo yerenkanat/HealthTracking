@@ -17,6 +17,7 @@ import '../domain/weekly_digest.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
+import 'chat/assistant_chat_screen.dart';
 import 'appointments/appointments_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
@@ -105,6 +106,14 @@ class _HomeShellState extends State<HomeShell> {
             waterCount: c.waterFor(DateTime.now()),
             waterGoal: c.waterGoal,
             nowHour: DateTime.now().hour,
+            // The conversational assistant, when its controller is attached
+            // (a network build). Null in offline/test builds hides the entry.
+            onOpenChat: c.chat == null
+                ? null
+                : () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => AssistantChatScreen(controller: c.chat!)),
+                    ),
           )),
         ),
         waterCount: c.waterFor(DateTime.now()),
