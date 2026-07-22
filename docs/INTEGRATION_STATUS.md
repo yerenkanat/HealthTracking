@@ -9,11 +9,34 @@ one investigation: `ApiClient.lastLocation` existed, was called from nowhere,
 and the child tracking map therefore had no source of position at all outside a
 demo build. It looked like it was waiting for a fix that was never coming.
 
-## The one blocker
+## Update — 2026-07-22: sign-in and first sync landed
 
-**There is no sign-in.** `authUser` is a dev stub that trusts an `x-user-id`
-header (`--dart-define=DEV_USER_ID`), and the app has no notion of a server
-identity. Everything below follows from that.
+The "one blocker" below has been substantially addressed with a **provider-agnostic
+phone-OTP sign-in** (`domain/phone_auth.dart`), running today against a
+deterministic stub (test code `123456`) and swapping to Firebase by replacing one
+class. The app now has a server identity:
+
+- A `SignInScreen` (Settings ▸ Account), `AppController.authSession` (persisted),
+  and `HttpApiTransport.getToken` now returns the **session token** — the app
+  sends the signed-in caller on every request (was a hard-null).
+- **Appointments now sync** app↔backend (`GET/POST/DELETE /appointments`,
+  user-scoped, ownership-enforced, idempotent upsert). Local stays the source of
+  truth; the server is a backup pulled on sign-in. The admin patient drawer shows
+  a mother's upcoming visits.
+- New **public reference endpoints**, each from a shared contract the app + admin
+  also read: `GET /antenatal/protocol`, `GET /pregnancy/weeks[/:week]`,
+  `GET /vaccination/schedule`. The admin panel gained tabs for all three.
+
+Still open: replace the stub provider with real Firebase (needs a project +
+credentials); add backend **token verification** (firebase-admin is already a
+dependency); run **Postgres** so sync *persists* (it is per-session against the
+default in-memory backend); and reconcile local vs server **child ids** (below).
+
+## The one blocker (historical — mostly resolved above)
+
+**There was no sign-in.** `authUser` is still a dev stub that trusts an
+`x-user-id` header (`--dart-define=DEV_USER_ID`) until the backend verifies the
+real token, but the app now has a notion of server identity and sends a token.
 
 A second, narrower blocker sits on top of it: **local and server children are
 different things**. The app creates children during onboarding with ids like
@@ -29,6 +52,10 @@ child id is refused until the two are reconciled.
 | `POST /ingest/batch` | Telemetry and location, via TelemetryBatcher. Offline-first with a disk mirror. |
 | `POST /ai/chat` | Assistant, behind the guardrail and a per-user rate limit. |
 | `GET /children/:id/location` | Polled every 45s. **Currently refused (403)** — see the child-id blocker above. Logs the reason once. |
+| `GET /antenatal/protocol` | KZ 8-visit schedule, from `contract/antenatal_protocol.json`. App bundles the same domain; admin renders it. |
+| `GET /pregnancy/weeks[/:week]` | Week-by-week calendar (ru+kk), from `contract/pregnancy_weeks.json`. App week screen + admin tab. |
+| `GET /vaccination/schedule` | Childhood immunisations, from `contract/vaccination_schedule.json`. App + admin. |
+| `GET/POST/DELETE /appointments` | **Now synced** when signed in: push on add/remove, pull on start. User-scoped, ownership-enforced, idempotent on the client id. |
 
 ## Implemented server-side, not called by the app
 
