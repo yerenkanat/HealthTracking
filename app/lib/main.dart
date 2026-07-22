@@ -33,6 +33,7 @@ import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
 import 'domain/appointment.dart';
 import 'domain/chat_controller.dart';
+import 'domain/family.dart' show UserProfile;
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
 import 'data/http_transport.dart';
@@ -395,6 +396,22 @@ Future<void> bootstrapRuntime(
     // truth; a failed sync never blocks a local edit.
     if (controller.isSignedIn) {
       String iso(DateTime at) => at.toUtc().toIso8601String();
+
+      // Profile backup (push-only): send edits, and the current profile once, so
+      // it survives a device change. Only when there is a name to save.
+      Future<void> pushProfile(UserProfile p) => p.displayName.trim().isEmpty
+          ? Future<void>.value()
+          : api.putProfile(
+              displayName: p.displayName,
+              phone: p.hasPhone ? p.e164 : null,
+              dueDate: p.dueDate,
+              birthDate: p.birthDate,
+              city: p.city,
+              locale: controller.locale.name,
+            );
+      controller.attachProfileSync(pushProfile);
+      unawaited(pushProfile(controller.profile));
+
       controller.attachAppointmentSync(
         upsert: (a) => api.putAppointment(id: a.id, title: a.title, at: iso(a.at), note: a.note),
         delete: (id) => api.deleteAppointment(id),

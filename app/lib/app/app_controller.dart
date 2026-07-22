@@ -623,9 +623,15 @@ class AppController {
 
   void updateProfile(UserProfile p) {
     _profile = p;
+    unawaited(_onProfilePush?.call(p) ?? Future<void>.value());
     _persist();
     _notify();
   }
+
+  /// Optional profile backup, wired by main.dart when signed in. Push-only: the
+  /// server is a backup, the device stays the source of truth.
+  Future<void> Function(UserProfile)? _onProfilePush;
+  void attachProfileSync(Future<void> Function(UserProfile) push) => _onProfilePush = push;
 
   // ---- Women's-health day logging (mood / symptoms / fetal kicks) ----
   Map<String, DayLog> get dayLogs => Map.unmodifiable(_dayLogs);
