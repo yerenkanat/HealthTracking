@@ -75,6 +75,24 @@ void main() {
     expect(find.text('The baby is moving noticeably less than usual'), findsOneWidget);
   });
 
+  testWidgets('the weight-gain guide is reachable in pregnancy mode and opens', (tester) async {
+    tester.view.physicalSize = const Size(900, 2600);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => L10nScope(l10n: const L10n(AppLocale.en), child: child!),
+      home: WomensHealthScreen(controller: c, now: () => today),
+    ));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('How much to gain?'));
+    await tester.tap(find.text('How much to gain?'));
+    await tester.pumpAndSettle();
+    // The guide's ranges heading is a reliable landing marker.
+    expect(find.text('Typical range for the whole pregnancy'.toUpperCase()), findsOneWidget);
+  });
+
   testWidgets('a recent birth surfaces the postpartum recovery card', (tester) async {
     // Cycle mode after a birth 30 days ago: her body is still recovering, and
     // the app should say so.

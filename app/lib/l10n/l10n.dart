@@ -1220,6 +1220,48 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'No added sugar and no sweet drinks.',
   },
 
+  // ---- Pregnancy weight-gain guide (pwg_*) ----
+  'pwg_title': {AppLocale.ru: 'Прибавка в весе', AppLocale.kk: 'Салмақ қосу', AppLocale.en: 'Weight gain'},
+  'pwg_link': {AppLocale.ru: 'Сколько набирать?', AppLocale.kk: 'Қанша қосу керек?', AppLocale.en: 'How much to gain?'},
+  'pwg_intro': {
+    AppLocale.ru: 'Сколько прибавить — зависит от веса до беременности. Ниже — общие ориентиры; личную цель определяет врач.',
+    AppLocale.kk: 'Қанша қосу керектігі жүктілікке дейінгі салмаққа байланысты. Төменде — жалпы бағдар; жеке мақсатты дәрігер белгілейді.',
+    AppLocale.en: 'How much to gain depends on your pre-pregnancy weight. Below are general guides; your doctor sets your personal goal.',
+  },
+  'pwg_ranges_title': {AppLocale.ru: 'Ориентировочные диапазоны за всю беременность', AppLocale.kk: 'Бүкіл жүктілікке шамамен диапазондар', AppLocale.en: 'Typical range for the whole pregnancy'},
+  'pwg_range_value': {AppLocale.ru: '{low}–{high} кг', AppLocale.kk: '{low}–{high} кг', AppLocale.en: '{low}–{high} kg'},
+  'pwg_band_underweight': {AppLocale.ru: 'Недостаточный вес (ИМТ < 18,5)', AppLocale.kk: 'Салмақ жеткіліксіз (ДСИ < 18,5)', AppLocale.en: 'Underweight (BMI < 18.5)'},
+  'pwg_band_normal': {AppLocale.ru: 'Нормальный вес (ИМТ 18,5–24,9)', AppLocale.kk: 'Қалыпты салмақ (ДСИ 18,5–24,9)', AppLocale.en: 'Normal (BMI 18.5–24.9)'},
+  'pwg_band_overweight': {AppLocale.ru: 'Избыточный вес (ИМТ 25–29,9)', AppLocale.kk: 'Артық салмақ (ДСИ 25–29,9)', AppLocale.en: 'Overweight (BMI 25–29.9)'},
+  'pwg_band_obese': {AppLocale.ru: 'Ожирение (ИМТ ≥ 30)', AppLocale.kk: 'Семіздік (ДСИ ≥ 30)', AppLocale.en: 'Obese (BMI ≥ 30)'},
+
+  'pwg_weekly_title': {AppLocale.ru: 'Скорость набора', AppLocale.kk: 'Қосу жылдамдығы', AppLocale.en: 'Rate of gain'},
+  'pwg_weekly_body': {
+    AppLocale.ru: 'Во 2–3 триместре обычно около {low}–{high} кг в неделю (при нормальном весе до беременности). В 1 триместре прибавка небольшая — примерно {t1low}–{t1high} кг за весь триместр.',
+    AppLocale.kk: '2–3 триместрде әдетте аптасына шамамен {low}–{high} кг (жүктілікке дейінгі салмақ қалыпты болса). 1 триместрде қосу аз — бүкіл триместрге шамамен {t1low}–{t1high} кг.',
+    AppLocale.en: 'In the 2nd–3rd trimester, typically about {low}–{high} kg a week (for a normal pre-pregnancy weight). The 1st trimester adds little — around {t1low}–{t1high} kg over the whole trimester.',
+  },
+
+  'pwg_your_pace_title': {AppLocale.ru: 'Ваш темп', AppLocale.kk: 'Сіздің қарқыныңыз', AppLocale.en: 'Your pace'},
+  'pwg_your_avg': {AppLocale.ru: 'Ваша средняя прибавка: {n} кг/нед', AppLocale.kk: 'Орташа қосуыңыз: {n} кг/апта', AppLocale.en: 'Your average gain: {n} kg/week'},
+  'pwg_no_data': {AppLocale.ru: 'Отметьте вес несколько раз, чтобы увидеть свой темп.', AppLocale.kk: 'Қарқыныңызды көру үшін салмағыңызды бірнеше рет белгілеңіз.', AppLocale.en: 'Log your weight a few times to see your pace.'},
+  'pwg_pace_onTrack': {AppLocale.ru: 'В пределах типичного диапазона.', AppLocale.kk: 'Типтік диапазон шегінде.', AppLocale.en: 'Within the typical range.'},
+  'pwg_pace_slow': {
+    AppLocale.ru: 'Ниже типичного диапазона. Это не всегда проблема — обсудите с врачом.',
+    AppLocale.kk: 'Типтік диапазоннан төмен. Бұл әрқашан мәселе емес — дәрігермен талқылаңыз.',
+    AppLocale.en: 'Below the typical range. Not always a problem — discuss it with your doctor.',
+  },
+  'pwg_pace_fast': {
+    AppLocale.ru: 'Выше типичного диапазона. Это не всегда проблема — обсудите с врачом.',
+    AppLocale.kk: 'Типтік диапазоннан жоғары. Бұл әрқашан мәселе емес — дәрігермен талқылаңыз.',
+    AppLocale.en: 'Above the typical range. Not always a problem — discuss it with your doctor.',
+  },
+  'pwg_disclaimer': {
+    AppLocale.ru: 'Это общие ориентиры, а не медицинская консультация. Диапазоны зависят от веса до беременности и здоровья; вашу цель определяет врач.',
+    AppLocale.kk: 'Бұл — жалпы бағдар, медициналық кеңес емес. Диапазондар жүктілікке дейінгі салмақ пен денсаулыққа байланысты; мақсатыңызды дәрігер белгілейді.',
+    AppLocale.en: 'These are general guides, not medical advice. Ranges depend on your pre-pregnancy weight and health; your doctor sets your goal.',
+  },
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},

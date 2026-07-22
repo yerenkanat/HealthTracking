@@ -32,6 +32,8 @@ import 'baby_size_disc.dart';
 import 'contraction_timer_screen.dart';
 import 'postpartum_screen.dart';
 import 'pregnancy_warnings.dart';
+import 'pregnancy_weight_screen.dart';
+import '../../domain/weight.dart';
 import 'cycle_insights_screen.dart';
 import 'day_log_sheet.dart';
 import 'medications_screen.dart';
@@ -261,6 +263,11 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     onSetGoal: c.setWeightGoal,
                     onOpenHistory: c.weights.isEmpty ? null : () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => WeightHistoryScreen(entries: c.weights, onDelete: c.removeWeightEntry),
+                    )),
+                    // Pregnancy only: how much is healthy to gain, and how her
+                    // logged pace compares.
+                    onOpenGuide: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => PregnancyWeightScreen(weeklyRateKg: weeklyGainRate(c.weights)),
                     )),
                   ),
                 ],

@@ -10,6 +10,7 @@ import '../lib/domain/pregnancy_guide.dart';
 import '../lib/domain/fetal_development.dart';
 import '../lib/domain/safe_sleep.dart';
 import '../lib/domain/solids_guide.dart';
+import '../lib/domain/pregnancy_weight_guide.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -380,6 +381,25 @@ void main() {
       }
     }
     _chk('and every solids string is translated ($solBlank blanks)', solBlank == 0);
+
+    // Pregnancy weight guide: `pwg_band_<band>` and `pwg_pace_<pace>` are
+    // composed from the enums at render time.
+    final pwgKeys = <String>[
+      for (final b in BmiBand.values) 'pwg_band_${b.name}',
+      for (final p in GainPace.values) 'pwg_pace_${p.name}',
+    ];
+    final pwgMissing = [for (final k in pwgKeys) if (!known.contains(k)) k];
+    _chk('every weight-guide band and pace has a string', pwgMissing.isEmpty);
+    if (pwgMissing.isNotEmpty) print('    missing: ${pwgMissing.join(', ')}');
+
+    var pwgBlank = 0;
+    for (final k in pwgKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) pwgBlank++;
+      }
+    }
+    _chk('and every weight-guide string is translated ($pwgBlank blanks)', pwgBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

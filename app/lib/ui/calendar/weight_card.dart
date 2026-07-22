@@ -19,7 +19,11 @@ class WeightCard extends StatelessWidget {
   final double? goalKg;
   final ValueChanged<double?> onSetGoal;
   final VoidCallback? onOpenHistory;
-  const WeightCard({super.key, required this.entries, required this.onLog, this.goalKg, required this.onSetGoal, this.onOpenHistory});
+
+  /// Opens the "how much should I gain?" guide. Provided only in pregnancy mode
+  /// — weight-gain ranges are a pregnancy question, not a cycle-tracking one.
+  final VoidCallback? onOpenGuide;
+  const WeightCard({super.key, required this.entries, required this.onLog, this.goalKg, required this.onSetGoal, this.onOpenHistory, this.onOpenGuide});
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +120,22 @@ class WeightCard extends StatelessWidget {
             ],
             const SizedBox(height: 10),
             _TargetRow(latest: stats.latest, goalKg: goalKg, onTap: () => _openTarget(context, l, stats.latest)),
+          ],
+          if (onOpenGuide != null) ...[
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: onOpenGuide,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.info_outline_rounded, size: 15, color: Palette.violet),
+                  const SizedBox(width: 6),
+                  Text(l.t('pwg_link'),
+                      style: const TextStyle(color: Palette.violet, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
           ],
         ],
       ),
