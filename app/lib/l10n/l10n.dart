@@ -1395,6 +1395,41 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'A high fever that will not come down, or lasts',
   },
 
+  // ---- Home-safety / babyproofing checklist (hs_*) ----
+  'hs_title': {AppLocale.ru: 'Безопасность дома', AppLocale.kk: 'Үйдегі қауіпсіздік', AppLocale.en: 'Home safety'},
+  'hs_card_title': {AppLocale.ru: 'Безопасность дома', AppLocale.kk: 'Үйдегі қауіпсіздік', AppLocale.en: 'Home safety'},
+  'hs_progress': {AppLocale.ru: 'Сделано {n} из {total}', AppLocale.kk: '{total} ішінен {n} орындалды', AppLocale.en: '{n} of {total} done'},
+  'hs_all_done': {AppLocale.ru: 'Всё готово!', AppLocale.kk: 'Бәрі дайын!', AppLocale.en: 'All done!'},
+  'hs_intro': {
+    AppLocale.ru: 'Безопасность дома растёт вместе с малышом: список пополняется по мере взросления. Это общие подсказки, а не гарантия.',
+    AppLocale.kk: 'Үйдегі қауіпсіздік нәрестемен бірге өседі: тізім балаңыз есейген сайын толығады. Бұл — жалпы кеңестер, кепілдік емес.',
+    AppLocale.en: 'Home safety grows with your child — the list fills out as they get older. General prompts, not a guarantee.',
+  },
+  'hs_stage_birth': {AppLocale.ru: 'С рождения', AppLocale.kk: 'Туғаннан бастап', AppLocale.en: 'From birth'},
+  'hs_stage_rolling': {AppLocale.ru: 'Когда начинает тянуться и переворачиваться', AppLocale.kk: 'Аунап, қол созғаннан бастап', AppLocale.en: 'Once they roll and reach'},
+  'hs_stage_crawling': {AppLocale.ru: 'Когда ползает', AppLocale.kk: 'Еңбектегеннен бастап', AppLocale.en: 'Once they crawl'},
+  'hs_stage_standing': {AppLocale.ru: 'Когда встаёт и лезет', AppLocale.kk: 'Тұрып, өрмелегеннен бастап', AppLocale.en: 'Once they pull up and climb'},
+
+  'hs_safe_sleep_space': {AppLocale.ru: 'Безопасное место для сна: жёсткий матрас, без подушек и мягких игрушек.', AppLocale.kk: 'Қауіпсіз ұйқы орны: қатты матрас, жастықсыз және жұмсақ ойыншықсыз.', AppLocale.en: 'A safe sleep space: firm mattress, no pillows or soft toys.'},
+  'hs_smoke_alarm': {AppLocale.ru: 'Рабочий датчик дыма в доме.', AppLocale.kk: 'Үйде істейтін түтін датчигі.', AppLocale.en: 'A working smoke alarm in the home.'},
+  'hs_water_temp': {AppLocale.ru: 'Вода из-под крана не горячее ~50 °C.', AppLocale.kk: 'Судан келетін су ~50 °C-тан ыстық емес.', AppLocale.en: 'Tap water no hotter than ~50 °C.'},
+  'hs_never_alone_high': {AppLocale.ru: 'Не оставляйте малыша одного на высоте — на пеленальном столике, на кровати.', AppLocale.kk: 'Нәрестені биікте — жөргек үстелінде, төсекте жалғыз қалдырмаңыз.', AppLocale.en: 'Never leave the baby alone up high — on a changing table or bed.'},
+
+  'hs_small_objects': {AppLocale.ru: 'Мелкие предметы — вне досягаемости (риск подавиться).', AppLocale.kk: 'Ұсақ заттар — қол жетпейтін жерде (тұншығу қаупі).', AppLocale.en: 'Small objects out of reach (choking risk).'},
+  'hs_blind_cords': {AppLocale.ru: 'Шнуры от штор и жалюзи подняты и закреплены.', AppLocale.kk: 'Перде мен жалюзи баулары жоғары көтеріліп бекітілген.', AppLocale.en: 'Blind and curtain cords tied up out of reach.'},
+  'hs_hot_drinks': {AppLocale.ru: 'Горячие напитки — подальше от края стола и от малыша.', AppLocale.kk: 'Ыстық сусындар — үстел шетінен және нәрестеден алыс.', AppLocale.en: 'Hot drinks away from table edges and the baby.'},
+
+  'hs_outlet_covers': {AppLocale.ru: 'Заглушки на электрические розетки.', AppLocale.kk: 'Электр розеткаларына тығындар.', AppLocale.en: 'Covers on electrical outlets.'},
+  'hs_cupboard_locks': {AppLocale.ru: 'Замки на шкафы и ящики.', AppLocale.kk: 'Шкаф пен тартпаларға құлыптар.', AppLocale.en: 'Locks on cupboards and drawers.'},
+  'hs_stair_gates': {AppLocale.ru: 'Ворота безопасности на лестнице — сверху и снизу.', AppLocale.kk: 'Баспалдаққа қауіпсіздік қақпалары — жоғарыда және төменде.', AppLocale.en: 'Safety gates on stairs — top and bottom.'},
+  'hs_sharp_corners': {AppLocale.ru: 'Накладки на острые углы мебели.', AppLocale.kk: 'Жиһаздың өткір бұрыштарына қаптамалар.', AppLocale.en: 'Guards on sharp furniture corners.'},
+  'hs_chemicals_high': {AppLocale.ru: 'Бытовая химия — высоко и под замком.', AppLocale.kk: 'Тұрмыстық химия — биікте және құлыпта.', AppLocale.en: 'Cleaning products high up and locked away.'},
+  'hs_medicines_locked': {AppLocale.ru: 'Лекарства — под замком, вне досягаемости.', AppLocale.kk: 'Дәрілер — құлыпта, қол жетпейтін жерде.', AppLocale.en: 'Medicines locked away, out of reach.'},
+
+  'hs_furniture_anchored': {AppLocale.ru: 'Высокая мебель и телевизор закреплены к стене.', AppLocale.kk: 'Биік жиһаз бен теледидар қабырғаға бекітілген.', AppLocale.en: 'Tall furniture and the TV anchored to the wall.'},
+  'hs_window_locks': {AppLocale.ru: 'Ограничители или замки на окнах.', AppLocale.kk: 'Терезелерге шектегіштер немесе құлыптар.', AppLocale.en: 'Restrictors or locks on windows.'},
+  'hs_water_supervision': {AppLocale.ru: 'Никогда не оставляйте у воды без присмотра — ванна, ведро, бассейн.', AppLocale.kk: 'Су маңында қараусыз қалдырмаңыз — ванна, шелек, бассейн.', AppLocale.en: 'Never leave them near water unsupervised — bath, bucket, pool.'},
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},

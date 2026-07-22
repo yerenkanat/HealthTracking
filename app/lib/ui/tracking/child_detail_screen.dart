@@ -23,9 +23,11 @@ import 'child_growth_screen.dart';
 import 'newborn_log_screen.dart';
 import 'solids_screen.dart';
 import 'child_illness_screen.dart';
+import 'home_safety_screen.dart';
 import '../../domain/child_growth.dart';
 import '../../domain/newborn_log.dart';
 import '../../domain/solids_guide.dart';
+import '../../domain/home_safety.dart';
 import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
 import '../widgets/confirm.dart';
@@ -296,6 +298,24 @@ class ChildDetailScreen extends StatelessWidget {
                                 )),
                               ),
                             ],
+                            // Home safety: relevant from birth and growing with
+                            // the child. Persisted household-wide.
+                            const SizedBox(height: 12),
+                            _CareCard(
+                              icon: Icons.shield_outlined,
+                              title: l.t('hs_card_title'),
+                              summary: _homeSafetySummary(l, controller.homeSafetyDone, child.ageInMonths(now)),
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => StreamBuilder<void>(
+                                  stream: controller.changes,
+                                  builder: (_, __) => HomeSafetyScreen(
+                                    ageMonths: child.ageInMonths(now),
+                                    done: controller.homeSafetyDone,
+                                    onToggle: controller.toggleHomeSafetyTask,
+                                  ),
+                                ),
+                              )),
+                            ),
                           ],
                         ],
                       ),
@@ -388,6 +408,12 @@ class _CareCard extends StatelessWidget {
 }
 
 /// The newborn card summary: today's feed and diaper counts, or an invitation.
+String _homeSafetySummary(L10n l, Set<String> done, int ageMonths) {
+  final count = homeSafetyDoneCount(done, ageMonths);
+  final total = homeSafetyRelevantTotal(ageMonths);
+  return count == total && total > 0 ? l.t('hs_all_done') : l.t('hs_progress', {'n': count, 'total': total});
+}
+
 String _solidsSummary(L10n l, int ageMonths) {
   final until = monthsUntilSolids(ageMonths);
   // Before the start age it counts down; once weaning is underway it names the

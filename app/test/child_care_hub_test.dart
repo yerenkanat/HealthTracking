@@ -127,6 +127,19 @@ void main() {
     expect(find.text(ru.t('sol_when_title')), findsOneWidget);
   });
 
+  testWidgets('the home-safety checklist is a care card and persists a tick', (tester) async {
+    final c = withChild(dob: DateTime(2026, 1, 22)); // 6 months
+    addTearDown(c.dispose);
+    await pump(tester, c);
+    expect(find.text(ru.t('hs_card_title')), findsOneWidget);
+    await tester.tap(find.text(ru.t('hs_card_title')));
+    await tester.pumpAndSettle();
+    // Tick a from-birth task and confirm the controller remembers it.
+    await tester.tap(find.text(ru.t('hs_safe_sleep_space')));
+    await tester.pumpAndSettle();
+    expect(c.homeSafetyDone.contains('safe_sleep_space'), isTrue);
+  });
+
   testWidgets('the unwell-child guide is a tap from the app bar', (tester) async {
     final c = withChild(dob: DateTime(2026, 6, 22)); // 1 month → shows the age banner
     addTearDown(c.dispose);

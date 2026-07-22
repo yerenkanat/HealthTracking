@@ -159,6 +159,7 @@ class AppController {
   final List<Medication> _medications = [];
   MedLog _medLog = {}; // dateKey → medId → doses taken
   final Set<String> _hospitalBagChecked = {}; // packed hospital-bag item ids
+  final Set<String> _homeSafetyDone = {}; // completed home-safety task ids (household-wide)
   BandLinkState? _bandLinkState; // last reported wearable link state (null = no device wired)
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
   int? _medReminderMinutes; // daily medication reminder time; null = off
@@ -290,6 +291,9 @@ class AppController {
     _hospitalBagChecked
       ..clear()
       ..addAll(cfg.hospitalBagChecked);
+    _homeSafetyDone
+      ..clear()
+      ..addAll(cfg.homeSafetyDone);
     _lastChildZone = cfg.lastChildZone;
     // NOT `_onboarded = true` — that was here because restore() only ever
     // called this with an already-onboarded config, so forcing it looked
@@ -372,6 +376,7 @@ class AppController {
         manualSamples: List.of(_manualSamples),
         manualSleep: List.of(_manualSleep),
         hospitalBagChecked: List.of(_hospitalBagChecked),
+        homeSafetyDone: List.of(_homeSafetyDone),
       );
 
   /// How long to wait for the typing to stop before writing to disk.
@@ -996,6 +1001,16 @@ class AppController {
   /// Tick or untick a hospital-bag item, and persist the change.
   void toggleHospitalBagItem(String id) {
     if (!_hospitalBagChecked.remove(id)) _hospitalBagChecked.add(id);
+    _persist();
+    _notify();
+  }
+
+  // ---- Home safety checklist (household-wide) ----
+  Set<String> get homeSafetyDone => Set.unmodifiable(_homeSafetyDone);
+
+  /// Tick or untick a home-safety task, and persist.
+  void toggleHomeSafetyTask(String id) {
+    if (!_homeSafetyDone.remove(id)) _homeSafetyDone.add(id);
     _persist();
     _notify();
   }

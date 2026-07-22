@@ -178,6 +178,10 @@ class PersistedConfig {
   /// her ticks — an id no longer in the list simply does nothing.
   final List<String> hospitalBagChecked;
 
+  /// The home-safety tasks done, household-wide (home_safety.dart). Ids only,
+  /// same reasoning as [hospitalBagChecked].
+  final List<String> homeSafetyDone;
+
   const PersistedConfig({
     required this.onboarded,
     required this.locale,
@@ -212,6 +216,7 @@ class PersistedConfig {
     this.manualSamples = const [],
     this.manualSleep = const [],
     this.hospitalBagChecked = const [],
+    this.homeSafetyDone = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -258,6 +263,7 @@ class PersistedConfig {
         if (manualSamples.isNotEmpty) 'manualSamples': [for (final s in manualSamples) s.toJson()],
         if (manualSleep.isNotEmpty) 'manualSleep': [for (final n in manualSleep) n.toJson()],
         if (hospitalBagChecked.isNotEmpty) 'hospitalBagChecked': hospitalBagChecked,
+        if (homeSafetyDone.isNotEmpty) 'homeSafetyDone': homeSafetyDone,
       };
 
   /// How many entries the last [fromJson] had to discard.
@@ -384,6 +390,7 @@ class PersistedConfig {
             SleepSummary.fromJson((n as Map).cast<String, dynamic>())
         ],
         hospitalBagChecked: _stringList(j['hospitalBagChecked']),
+        homeSafetyDone: _stringList(j['homeSafetyDone']),
       );
 
   /// A list of strings, dropping anything that is not one. Used for the

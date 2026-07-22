@@ -13,6 +13,7 @@ import '../lib/domain/solids_guide.dart';
 import '../lib/domain/pregnancy_weight_guide.dart';
 import '../lib/domain/hospital_bag.dart';
 import '../lib/domain/child_illness.dart';
+import '../lib/domain/home_safety.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -438,6 +439,24 @@ void main() {
       }
     }
     _chk('and every illness string is translated ($illBlank blanks)', illBlank == 0);
+
+    // Home safety: `hs_<id>` and `hs_stage_<stage>` are composed at render.
+    final hsKeys = <String>[
+      for (final t in homeSafetyTasks) 'hs_${t.id}',
+      for (final s in SafetyStage.values) 'hs_stage_${s.name}',
+    ];
+    final hsMissing = [for (final k in hsKeys) if (!known.contains(k)) k];
+    _chk('every home-safety task and stage has a string', hsMissing.isEmpty);
+    if (hsMissing.isNotEmpty) print('    missing: ${hsMissing.join(', ')}');
+
+    var hsBlank = 0;
+    for (final k in hsKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) hsBlank++;
+      }
+    }
+    _chk('and every home-safety string is translated ($hsBlank blanks)', hsBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');
