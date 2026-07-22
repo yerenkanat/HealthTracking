@@ -394,6 +394,9 @@ Future<void> bootstrapRuntime(
         controller.onTelemetry(rec.$1, rec.$2); // dashboard + emergency
         monitor.handle(rec.$1, rec.$2); // sync + batching
       });
+      // The full activity/sleep/wellness snapshot → the dashboard's activity
+      // panel. Everything the watch tracks beyond the four triage vitals.
+      watch.onSnapshot.listen(controller.onWearableMetrics);
       // Link state (connecting / connected / lost) drives the dashboard's "not
       // measuring" chip, so a watch out of range since morning is not mistaken
       // for a quiet one — the only other evidence would be a last reading that

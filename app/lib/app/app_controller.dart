@@ -42,6 +42,7 @@ import '../domain/kick_session.dart';
 import '../domain/manual_vitals.dart';
 import '../domain/medication.dart';
 import '../domain/vaccination.dart';
+import '../domain/wearable_metrics.dart';
 import '../domain/weight.dart';
 import '../domain/manual_sleep.dart';
 import '../domain/sleep.dart';
@@ -161,6 +162,7 @@ class AppController {
   final Set<String> _hospitalBagChecked = {}; // packed hospital-bag item ids
   final Set<String> _homeSafetyDone = {}; // completed home-safety task ids (household-wide)
   BandLinkState? _bandLinkState; // last reported wearable link state (null = no device wired)
+  WearableMetrics? _latestWearable; // last activity/sleep/wellness snapshot from the watch
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
   int? _medReminderMinutes; // daily medication reminder time; null = off
   bool _periodReminderEnabled = false;
@@ -989,6 +991,17 @@ class AppController {
   void onBandLinkState(BandLinkState state) {
     if (state == _bandLinkState) return;
     _bandLinkState = state;
+    _notify();
+  }
+
+  /// The watch's latest activity/sleep/wellness snapshot (steps, calories,
+  /// distance, sleep, stress, breathing rate…), or null when none has arrived.
+  /// Not persisted — the watch re-sends it on the next poll.
+  WearableMetrics? get latestWearable => _latestWearable;
+
+  /// From the wearable manager's onSnapshot stream.
+  void onWearableMetrics(WearableMetrics metrics) {
+    _latestWearable = metrics;
     _notify();
   }
 

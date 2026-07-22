@@ -11,11 +11,40 @@ import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/widgets/glass.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/ble/link_policy.dart';
+import 'package:fcs_app/domain/wearable_metrics.dart';
 
 const _notMeasuring = 'Device not connected — these readings may be out of date.';
 
 void main() {
   DateTime t(int m) => DateTime.utc(2026, 7, 15, 8, m);
+
+  testWidgets('shows the activity & wellness panel with the watch metrics', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
+    final w = WearableMetrics(
+      at: t(0), steps: 8200, meters: 6100, kcal: 420, sleepMinutes: 465, stress: 34, breathRate: 15, worn: true,
+    );
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples, wearable: w)));
+    await tester.scrollUntilVisible(find.text('ACTIVITY & WELLNESS'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Steps'), findsOneWidget);
+    expect(find.text('8 200'), findsOneWidget); // grouped thousands
+    expect(find.text('6.1'), findsOneWidget); // distance km
+    expect(find.text('Sleep'), findsOneWidget);
+    expect(find.text('Breathing'), findsOneWidget);
+  });
+
+  testWidgets('the activity panel is hidden with no watch data', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
+    expect(find.text('ACTIVITY & WELLNESS'), findsNothing);
+  });
+
+  testWidgets('an off-wrist watch is flagged in the panel', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
+    final w = WearableMetrics(at: t(0), steps: 500, worn: false);
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples, wearable: w)));
+    await tester.scrollUntilVisible(find.text('ACTIVITY & WELLNESS'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Watch is off the wrist — data may be incomplete.'), findsOneWidget);
+  });
 
   testWidgets('shows a not-measuring chip when the wearable is not delivering', (tester) async {
     final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];

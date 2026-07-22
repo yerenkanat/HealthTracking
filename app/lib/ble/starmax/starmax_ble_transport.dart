@@ -18,6 +18,7 @@ import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../../core/triage.dart';
+import '../../domain/wearable_metrics.dart';
 import '../link_policy.dart';
 import 'starmax_client.dart';
 import 'starmax_health_bridge.dart';
@@ -90,10 +91,15 @@ class StarmaxBandManager {
   final _telemetry = StreamController<(BandTelemetry, TriageResult)>.broadcast();
   final _emergency = StreamController<(BandTelemetry, TriageResult)>.broadcast();
   final _status = StreamController<BandLinkState>.broadcast();
+  final _snapshot = StreamController<WearableMetrics>.broadcast();
 
   Stream<(BandTelemetry, TriageResult)> get onTelemetry => _telemetry.stream;
   Stream<(BandTelemetry, TriageResult)> get onEmergency => _emergency.stream;
   Stream<BandLinkState> get onStatus => _status.stream;
+
+  /// The full activity/sleep/wellness snapshot each poll, for the dashboard —
+  /// everything the triage path (onTelemetry) drops.
+  Stream<WearableMetrics> get onSnapshot => _snapshot.stream;
 
   BandLinkState _statusValue = BandLinkState.idle;
   BandLinkState get status => _statusValue;
@@ -250,7 +256,13 @@ class StarmaxBandManager {
     if (_disposed || client == null) return;
     try {
       final snap = await client.readHealth();
-      if (!snapshotHasVitals(snap)) return; // idle / not worn — nothing to report
+      if (_disposed) return;
+      // The full activity/wellness snapshot goes out regardless of vitals — a
+      // step count is worth showing even when no heart rate was measured.
+      final metrics = wearableMetricsFromSnapshot(snap, DateTime.now());
+      if (metrics.hasAnything) _snapshot.add(metrics);
+      // The triage path only runs when there is a vital to assess.
+      if (!snapshotHasVitals(snap)) return;
       final telemetry = bandTelemetryFromSnapshot(snap);
       final triage = assessTelemetry(telemetry);
       if (_disposed) return;
@@ -293,5 +305,6 @@ class StarmaxBandManager {
     await _telemetry.close();
     await _emergency.close();
     await _status.close();
+    await _snapshot.close();
   }
 }

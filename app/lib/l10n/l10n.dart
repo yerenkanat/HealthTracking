@@ -490,6 +490,23 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'db_title': {AppLocale.ru: 'Ваше здоровье', AppLocale.kk: 'Сіздің денсаулығыңыз', AppLocale.en: 'Your health'},
   'db_greeting': {AppLocale.ru: '{name}', AppLocale.kk: '{name}', AppLocale.en: '{name}'},
   'db_share': {AppLocale.ru: 'Поделиться сводкой', AppLocale.kk: 'Қорытындымен бөлісу', AppLocale.en: 'Share summary'},
+  // ---- Watch activity & wellness metrics (wm_*) ----
+  'wm_title': {AppLocale.ru: 'Активность и самочувствие', AppLocale.kk: 'Белсенділік және көңіл-күй', AppLocale.en: 'Activity & wellness'},
+  'wm_steps': {AppLocale.ru: 'Шаги', AppLocale.kk: 'Қадамдар', AppLocale.en: 'Steps'},
+  'wm_distance': {AppLocale.ru: 'Дистанция', AppLocale.kk: 'Қашықтық', AppLocale.en: 'Distance'},
+  'wm_calories': {AppLocale.ru: 'Калории', AppLocale.kk: 'Калория', AppLocale.en: 'Calories'},
+  'wm_sleep': {AppLocale.ru: 'Сон', AppLocale.kk: 'Ұйқы', AppLocale.en: 'Sleep'},
+  'wm_stress': {AppLocale.ru: 'Стресс', AppLocale.kk: 'Стресс', AppLocale.en: 'Stress'},
+  'wm_breath': {AppLocale.ru: 'Дыхание', AppLocale.kk: 'Тыныс алу', AppLocale.en: 'Breathing'},
+  'wm_sugar': {AppLocale.ru: 'Глюкоза', AppLocale.kk: 'Глюкоза', AppLocale.en: 'Glucose'},
+  'wm_unit_km': {AppLocale.ru: 'км', AppLocale.kk: 'км', AppLocale.en: 'km'},
+  'wm_unit_kcal': {AppLocale.ru: 'ккал', AppLocale.kk: 'ккал', AppLocale.en: 'kcal'},
+  'wm_unit_brpm': {AppLocale.ru: 'вд/мин', AppLocale.kk: 'дем/мин', AppLocale.en: 'br/min'},
+  'wm_unit_mmol': {AppLocale.ru: 'ммоль/л', AppLocale.kk: 'ммоль/л', AppLocale.en: 'mmol/L'},
+  'wm_sleep_hm': {AppLocale.ru: '{h} ч {m} мин', AppLocale.kk: '{h} сағ {m} мин', AppLocale.en: '{h}h {m}m'},
+  'wm_deep_light': {AppLocale.ru: 'глубокий {d} мин · лёгкий {l} мин', AppLocale.kk: 'терең {d} мин · жеңіл {l} мин', AppLocale.en: 'deep {d}m · light {l}m'},
+  'wm_off_wrist': {AppLocale.ru: 'Часы сняты — данные могут быть неполными.', AppLocale.kk: 'Сағат шешілген — деректер толық болмауы мүмкін.', AppLocale.en: 'Watch is off the wrist — data may be incomplete.'},
+
   'db_not_measuring': {
     AppLocale.ru: 'Устройство не на связи — данные могут быть неактуальны.',
     AppLocale.kk: 'Құрылғы байланыста емес — деректер ескірген болуы мүмкін.',

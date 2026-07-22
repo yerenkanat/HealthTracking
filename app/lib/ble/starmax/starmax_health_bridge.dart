@@ -10,9 +10,29 @@
 library;
 
 import '../../core/triage.dart';
+import '../../domain/wearable_metrics.dart';
 import 'starmax_frames.dart';
 
 int? _nz(int v) => v == 0 ? null : v;
+
+/// Map a snapshot to the app-level [WearableMetrics] — the activity, sleep and
+/// wellness fields the triage path drops. [at] is stamped by the caller (the
+/// clock is not reachable from a pure function).
+WearableMetrics wearableMetricsFromSnapshot(StarmaxHealthSnapshot s, DateTime at) {
+  return WearableMetrics(
+    at: at,
+    steps: s.totalSteps,
+    kcal: s.totalKcal,
+    meters: s.totalMeters,
+    sleepMinutes: s.totalSleepMin,
+    deepSleepMinutes: s.deepSleepMin,
+    lightSleepMinutes: s.lightSleepMin,
+    stress: _nz(s.stress),
+    breathRate: _nz(s.breathRate),
+    bloodSugarTenths: _nz(s.bloodSugar),
+    worn: s.isWorn,
+  );
+}
 
 /// Map a snapshot to telemetry. Blood pressure is included but, like the band's,
 /// is watch-estimated; triage treats it accordingly.

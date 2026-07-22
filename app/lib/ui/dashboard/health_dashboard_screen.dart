@@ -18,6 +18,7 @@ import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
 import '../../domain/timeline_content.dart';
 import '../../domain/weekly_digest.dart';
+import '../../domain/wearable_metrics.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -81,6 +82,9 @@ class HealthDashboardView extends StatelessWidget {
   /// True when a wearable is wired but not currently delivering readings, so
   /// the numbers on screen may be stale. Shows a quiet "not measuring" chip.
   final bool bandNotMeasuring;
+  /// The watch's latest activity/sleep/wellness snapshot (null = none). Drives
+  /// the activity panel below the vitals.
+  final WearableMetrics? wearable;
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -117,6 +121,7 @@ class HealthDashboardView extends StatelessWidget {
     this.onOpenAppointments,
     this.onLogVitals,
     this.bandNotMeasuring = false,
+    this.wearable,
     this.awaitingRepeat,
     this.waterCount = 0,
     this.waterGoal = 8,
@@ -222,6 +227,12 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
+                  // Everything the watch tracks beyond the four vitals: steps,
+                  // distance, calories, sleep, stress, breathing, glucose.
+                  if (wearable case final w? when w.hasAnything) ...[
+                    const SizedBox(height: 14),
+                    _ActivityWellnessCard(m: w),
+                  ],
                   if (nextAppointment != null) ...[
                     const SizedBox(height: 14),
                     _NextAppointmentCard(
@@ -639,6 +650,117 @@ class _AdvisorEntry extends StatelessWidget {
 
 /// A compact, tappable pill showing the current cycle day or pregnancy week,
 /// opening the women's-health tab. Rose for cycle, violet for pregnancy.
+/// Everything the watch tracks beyond the four triage vitals, as a soft grid of
+/// stat tiles. Each tile is shown only when it has a value — an unmeasured
+/// stress or an untracked glucose does not leave an empty box.
+class _ActivityWellnessCard extends StatelessWidget {
+  final WearableMetrics m;
+  const _ActivityWellnessCard({required this.m});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final sleepH = m.sleepMinutes ~/ 60, sleepM = m.sleepMinutes % 60;
+    final tiles = <Widget>[
+      if (m.steps > 0)
+        _StatTile(icon: Icons.directions_walk_rounded, colour: Palette.teal, label: l.t('wm_steps'), value: _grouped(m.steps)),
+      if (m.meters > 0)
+        _StatTile(icon: Icons.straighten_rounded, colour: Palette.blue, label: l.t('wm_distance'), value: _num1(m.km), unit: l.t('wm_unit_km')),
+      if (m.kcal > 0)
+        _StatTile(icon: Icons.local_fire_department_rounded, colour: _tempA, label: l.t('wm_calories'), value: '${m.kcal}', unit: l.t('wm_unit_kcal')),
+      if (m.sleepMinutes > 0)
+        _StatTile(icon: Icons.bedtime_rounded, colour: Palette.violet, label: l.t('wm_sleep'), value: l.t('wm_sleep_hm', {'h': sleepH, 'm': sleepM})),
+      if (m.stress != null)
+        _StatTile(icon: Icons.self_improvement_rounded, colour: Palette.pink, label: l.t('wm_stress'), value: '${m.stress}'),
+      if (m.breathRate != null)
+        _StatTile(icon: Icons.air_rounded, colour: Palette.teal, label: l.t('wm_breath'), value: '${m.breathRate}', unit: l.t('wm_unit_brpm')),
+      if (m.bloodSugar != null)
+        _StatTile(icon: Icons.water_drop_rounded, colour: _hrColor, label: l.t('wm_sugar'), value: _num1(m.bloodSugar!), unit: l.t('wm_unit_mmol')),
+    ];
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('wm_title').toUpperCase(),
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 12),
+          Wrap(spacing: 10, runSpacing: 10, children: tiles),
+          if (!m.worn) ...[
+            const SizedBox(height: 12),
+            Row(children: [
+              const Icon(Icons.watch_off_outlined, size: 14, color: Palette.textDim),
+              const SizedBox(width: 6),
+              Expanded(child: Text(l.t('wm_off_wrist'), style: const TextStyle(color: Palette.textDim, fontSize: 11.5))),
+            ]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _num1(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+  static String _grouped(int n) {
+    final s = n.toString();
+    final b = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) b.write(' ');
+      b.write(s[i]);
+    }
+    return b.toString();
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color colour;
+  final String label;
+  final String value;
+  final String? unit;
+  const _StatTile({required this.icon, required this.colour, required this.label, required this.value, this.unit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 148,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: colour.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colour.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, size: 15, color: colour),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700)),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(value,
+                  style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700)),
+              if (unit != null) ...[
+                const SizedBox(width: 3),
+                Text(unit!, style: const TextStyle(color: Palette.textDim, fontSize: 11)),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A quiet amber line telling her the wearable is not delivering readings right
 /// now, so the numbers below may be stale — not an error, just honesty.
 class _NotMeasuringChip extends StatelessWidget {
