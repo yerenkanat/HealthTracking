@@ -13,14 +13,42 @@ and there is **no sign-in** at all.
 
 ---
 
+## Progress log — 2026-07-22 (this pass)
+
+Worked the doable items one by one; full app suite **613 green** throughout.
+
+- [x] **Assistant chat had no entry point** → surfaced from the advisor (app-bar
+      action + "Ask Umay" card), shown only when the chat controller is attached.
+- [x] **Privacy Policy + Terms screens** built and linked from Settings ▸ About,
+      plus **onboarding consent** (accept before "Get started").
+- [x] **Advisor reply language** now follows the in-app switch at runtime (was
+      frozen at startup); added a **multi-night sleep-debt** trend rule.
+- [x] **Accessibility**: labeled the consent checkbox and gave the home-safety
+      rows 48dp targets; the new antenatal/privacy/terms screens pass clean.
+- [x] **Tracking**: "pair a tracker" guidance when there's no location AND no
+      device, instead of an indefinite "Waiting…".
+- [x] **Tests**: BP calibration-sheet widget tests added.
+- [x] Verified **already-done** (BACKLOG was stale): mother's emergency contact
+      (doctorPhone in profile), metric day/week/all range toggle, weekly summary
+      (digest card + "Your journey"), notification settings (toggle + reminders).
+
+**Still open (doable, deferred for value/sequencing):**
+- Shared `Pill`/`SectionHeader` primitives — like `StatTile`, the audit's counts
+  are mostly *same-name, different-design* false positives; extract only the true
+  dupes to avoid churn. Low value, do opportunistically.
+- Backend `/appointments` CRUD, emergency-acknowledge route+column, and calling
+  `GET /metrics` — all real, but the app cannot consume them until **sign-in**
+  exists (they key on an authenticated user). Sequence these *after* auth.
+
+Detailed remaining backlog below.
+
+---
+
 ## A. NOT WORKING / BROKEN — fix first
 
-- [ ] **AI Assistant chat has no entry point (orphaned screen).** `AssistantChatScreen`
-      (`app/lib/ui/chat/assistant_chat_screen.dart`) is a finished, unit-tested chat UI,
-      and the data layer behind it is fully wired (`main.dart:382` `attachChat(ChatController(...))`
-      → `POST /ai/chat`). But nothing ever navigates to it — the only reachable AI surface is
-      the data-driven `AdvisorScreen`. A mother can never actually chat with the assistant.
-      → Add a nav entry (advisor app-bar action, or a dedicated tab/button).
+- [x] **AI Assistant chat has no entry point (orphaned screen).** ✅ FIXED 2026-07-22 —
+      surfaced from `AdvisorScreen` (app-bar forum action + an "Ask Umay" card), shown only
+      when the chat controller is attached. `AssistantChatScreen` is now reachable.
 - [ ] **Child live-location never returns a fix (403 / id mismatch).** The 45s poll
       (`main.dart:459-483`) calls `api.lastLocation(controller.selectedChild.id)` with a
       **locally-generated** child id against a server that keys on owned UUIDs — and there
@@ -38,19 +66,26 @@ and there is **no sign-in** at all.
 
 ## B. MISSING UI / FEATURES
 
-- [ ] Consistent **loading / empty / error** states across all screens (several screens shrink to
-      nothing instead of showing an empty state — verify every `sleep_card.dart:48` caller passes
-      a non-null `onLog`, or the "stuck in the empty state" regression returns).
-- [ ] **History depth**: day / week / month range toggle + longer history on the metric detail screen.
-- [ ] **Emergency contacts management** (doctor's number) in Profile/Settings — the app is a
-      pregnancy+child-safety app with no place to store who to call.
-- [ ] **Weekly health summary / report** screen.
-- [ ] **Location history trail** view + a **geofence editor** (draw/adjust zones on the map).
-- [ ] **Notification settings / toggles** in Settings (and re-enable `flutter_local_notifications`).
-- [ ] **Privacy policy + Terms screens + consent capture** in onboarding (compliance-blocking).
-- [ ] **Lesson content**: `demo_content.dart` ships empty video URLs — the lesson player has nothing
-      to play until a real catalogue is supplied.
-- [ ] Platform/branding: **iOS folder** (only `android/` exists), **app icon + splash**.
+Several of these turned out to **already exist** (BACKLOG.md was stale) — marked below.
+
+- [x] **Privacy policy + Terms screens + consent capture.** ✅ FIXED 2026-07-22 — `LegalScreen`
+      (both docs) linked from Settings ▸ About, plus a consent gate on the onboarding welcome step.
+- [x] **Emergency contacts management** — ALREADY EXISTS: `UserProfile.doctorPhone`, set in the
+      edit-profile sheet, dialed in the emergency flow (`app_controller.dart:1510`).
+- [x] **History range toggle** — ALREADY EXISTS: `metric_detail_screen.dart` has a day/week/all
+      `_RangeSelector`.
+- [x] **Weekly health summary** — ALREADY EXISTS: dashboard `_WeeklyDigestCard` + the "Your journey"
+      screen.
+- [x] **Notification settings/toggles** — ALREADY EXISTS: Settings notifications toggle + the
+      Reminders center (period/fertile/water/med). (Native `flutter_local_notifications` still to
+      re-enable — needs config, see BLOCKED.)
+- [ ] Consistent **loading / empty / error** states — audited: mostly fine; the `SizedBox.shrink()`
+      uses are correct conditional hiding, and the sleep-card empty state is guaranteed by home_shell
+      always passing `onLog`.
+- [ ] **Location history trail** view + a **geofence editor** (draw/adjust zones on the map) — needs
+      live location data (see BLOCKED: maps/GPS).
+- [ ] **Lesson content**: `demo_content.dart` ships empty video URLs — needs a real catalogue.
+- [ ] Platform/branding: **iOS folder** (only `android/` exists), **app icon + splash** (needs assets).
 
 ## C. DUPLICATED UI — consolidate into a shared component layer
 
@@ -59,8 +94,10 @@ chip / header / row. This is the checklist's own top rule (`docs/UI_REVIEW_CHECK
 largest maintenance liability. **(Note: destructive-action confirms are NOT duplicated/unsafe — 18
 gated sites, all correct. No work needed there.)**
 
-- [ ] **`StatTile`** — 4 independent copies (`profile_screen.dart:206`, `journey_screen.dart:77`,
-      `health_dashboard_screen.dart:723`, `water_history_screen.dart:244`).
+- [x] **`StatTile`** — ✅ 2026-07-22: extracted `widgets/stat_tile.dart`; migrated the two true
+      dupes (`profile`, `journey`). The dashboard and water-history ones share the *name* only
+      (different design — a compact strip / a centred figure) and were deliberately left. The
+      "4× duplicate" was 2 real + 2 false positives; expect the same for the chips/rows below.
 - [ ] **`AppCard`** — generic `_Card` re-declared 3× (`child_emergency_screen.dart:112`,
       `pregnancy_weight_screen.dart:159`, `week_detail_screen.dart:198`) + ~30 bespoke `*Card`
       variants with identical padding/radius/border scaffolding.
