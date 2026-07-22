@@ -18,7 +18,7 @@
 /// tapping a button at 3am does not need the app to have an opinion.
 library;
 
-import 'cycle_log.dart' show dateKey;
+import 'cycle_log.dart' show dateKey, addDays;
 
 /// What was logged.
 enum NewbornEventKind {
@@ -157,4 +157,71 @@ NewbornEvent? lastOfKind(List<NewbornEvent> events, NewbornEventKind kind) {
     if (e.kind == kind) return e; // events are newest-first
   }
   return null;
+}
+
+/// A single day in the recent-history view: its date and its rollup.
+class NewbornDay {
+  final DateTime day;
+  final NewbornDaySummary summary;
+  const NewbornDay({required this.day, required this.summary});
+}
+
+/// The last [days] calendar days ending at [today], most-recent-first, each
+/// with its rollup.
+///
+/// Empty days are kept, not skipped: the shape of a week — a night of no sleep,
+/// a day with two feeds — is itself the information a clinic asks about, and a
+/// compressed list of only the busy days would hide a worrying gap.
+List<NewbornDay> recentDays(List<NewbornEvent> events, DateTime today, {int days = 7}) {
+  return [
+    for (var i = 0; i < days; i++)
+      () {
+        final d = addDays(today, -i);
+        return NewbornDay(day: d, summary: summaryFor(events, d));
+      }(),
+  ];
+}
+
+/// The averages a clinic actually asks for: feeds and wet nappies "per day".
+///
+/// Averaged over the days that have ANY activity, not a fixed 7 — a log two
+/// days old must not read as "one feed a day" because the five empty days
+/// before it were divided in. With no activity at all every average is zero.
+class NewbornWeekAverages {
+  /// How many of the days in the window had any logged activity — the divisor,
+  /// surfaced so the UI can say "over 3 days" rather than imply a full week.
+  final int activeDays;
+  final double feedsPerDay;
+  final double wetDiapersPerDay;
+  final double sleepMinutesPerDay;
+
+  const NewbornWeekAverages({
+    required this.activeDays,
+    required this.feedsPerDay,
+    required this.wetDiapersPerDay,
+    required this.sleepMinutesPerDay,
+  });
+
+  bool get isEmpty => activeDays == 0;
+}
+
+NewbornWeekAverages weekAverages(List<NewbornEvent> events, DateTime today, {int days = 7}) {
+  final active = [for (final d in recentDays(events, today, days: days)) if (!d.summary.isEmpty) d];
+  if (active.isEmpty) {
+    return const NewbornWeekAverages(
+        activeDays: 0, feedsPerDay: 0, wetDiapersPerDay: 0, sleepMinutesPerDay: 0);
+  }
+  var feeds = 0, wet = 0, sleepMin = 0;
+  for (final d in active) {
+    feeds += d.summary.feeds;
+    wet += d.summary.wetDiapers;
+    sleepMin += d.summary.sleepMinutes;
+  }
+  final n = active.length;
+  return NewbornWeekAverages(
+    activeDays: n,
+    feedsPerDay: feeds / n,
+    wetDiapersPerDay: wet / n,
+    sleepMinutesPerDay: sleepMin / n,
+  );
 }

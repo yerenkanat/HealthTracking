@@ -92,6 +92,40 @@ void main() {
     _chk('an empty log yields null', lastOfKind(const [], NewbornEventKind.feed) == null);
   }
 
+  // ---- Recent-days history ----
+  {
+    // Feeds today and two days back; nothing yesterday.
+    final twoBack = DateTime(2026, 7, 20, 9);
+    final log = [feed(t8), feed(t9), diaper(t10, 'wet'), feed(twoBack), diaper(twoBack, 'both')];
+    final week = recentDays(log, t8);
+    _chk('a week is seven days', week.length == 7);
+    _chk('most recent first', week.first.day.day == 22 && week.last.day.day == 16);
+    _chk("today's row rolls up today", week.first.summary.feeds == 2);
+    _chk('an empty day is kept, not skipped', week[1].summary.isEmpty); // yesterday
+    _chk('a day two back keeps its own tally', week[2].summary.feeds == 1 && week[2].summary.wetDiapers == 1);
+  }
+  {
+    // Averages divide by ACTIVE days, not a flat 7.
+    final twoBack = DateTime(2026, 7, 20, 9);
+    // Today: 2 feeds, 1 wet. Two days back: 1 feed, 1 wet. Yesterday: nothing.
+    final log = [feed(t8), feed(t9), diaper(t10, 'wet'), feed(twoBack), diaper(twoBack, 'both')];
+    final avg = weekAverages(log, t8);
+    _chk('two active days, not seven', avg.activeDays == 2);
+    _chk('feeds per active day is (2+1)/2', avg.feedsPerDay == 1.5);
+    _chk('wet nappies per active day is (1+1)/2', avg.wetDiapersPerDay == 1.0);
+    _chk('a two-day-old log does not read as one-a-day', avg.feedsPerDay > 1.0);
+  }
+  {
+    final avg = weekAverages(const [], t8);
+    _chk('no activity: averages are zero, not NaN', avg.isEmpty && avg.feedsPerDay == 0);
+  }
+  {
+    // Sleep minutes average over active days too.
+    final log = [sleep(t8, 120), sleep(t9, 60)]; // one active day, 180 min
+    final avg = weekAverages(log, t8);
+    _chk('sleep minutes per active day', avg.activeDays == 1 && avg.sleepMinutesPerDay == 180);
+  }
+
   // ---- JSON round-trip ----
   {
     final events = [

@@ -14,6 +14,8 @@ NewbornEvent feed(int hour, [String? side]) =>
     NewbornEvent(at: DateTime(2026, 7, 22, hour), kind: NewbornEventKind.feed, detail: side);
 NewbornEvent diaper(int hour, String kind) =>
     NewbornEvent(at: DateTime(2026, 7, 22, hour), kind: NewbornEventKind.diaper, detail: kind);
+NewbornEvent feedOn(int day, int hour, [String? side]) =>
+    NewbornEvent(at: DateTime(2026, 7, day, hour), kind: NewbornEventKind.feed, detail: side);
 
 Future<void> pump(WidgetTester tester, List<NewbornEvent> events,
     {void Function(NewbornEvent)? onLog, void Function(NewbornEvent)? onDelete}) async {
@@ -91,6 +93,27 @@ void main() {
     expect(deleted?.kind, NewbornEventKind.feed);
   });
 
+  testWidgets('the week recall shows the check-up averages and expands to a per-day breakdown', (tester) async {
+    // Today: 2 feeds. Two days ago: 1 feed. So the average is 1.5 feeds over
+    // 2 active days — the number a clinic asks for, that a parent forgets.
+    await pump(tester, [feed(8), feed(11), feedOn(20, 9)]);
+    expect(find.text(ru.t('nb_week_title')), findsOneWidget);
+    // Collapsed header carries the feeds-per-day figure.
+    expect(find.textContaining(ru.t('nb_week_feeds_avg', {'n': '1.5'})), findsOneWidget);
+
+    // Expanding reveals the per-day rows and the "over N days" qualifier.
+    await tester.tap(find.text(ru.t('nb_week_title')));
+    await tester.pumpAndSettle();
+    expect(find.text(ru.t('nb_week_over', {'n': 2})), findsOneWidget);
+    // An empty day in the window shows "none", not a blank.
+    expect(find.text(ru.t('nb_week_none')), findsWidgets);
+  });
+
+  testWidgets('no week recall until something is logged', (tester) async {
+    await pump(tester, const []);
+    expect(find.text(ru.t('nb_week_title')), findsNothing);
+  });
+
   testWidgets('renders in all three languages without a raw key', (tester) async {
     for (final loc in AppLocale.values) {
       await tester.pumpWidget(MaterialApp(
@@ -106,5 +129,28 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('nb_'), findsNothing, reason: loc.name);
     }
+  });
+
+  testWidgets('golden: the log with the week recall expanded', (tester) async {
+    tester.view.physicalSize = const Size(1000, 2600);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => L10nScope(l10n: const L10n(AppLocale.ru), child: child!),
+      home: NewbornLogScreen(
+        childName: 'Сұлтан',
+        events: [feed(8, 'left'), feed(11, 'right'), diaper(9, 'both'), feedOn(20, 9), feedOn(20, 15)],
+        today: today,
+        onLog: (_) {},
+        onDelete: (_) {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(const L10n(AppLocale.ru).t('nb_week_title')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(NewbornLogScreen),
+      matchesGoldenFile('goldens/newborn_week_recall.png'),
+    );
   });
 }

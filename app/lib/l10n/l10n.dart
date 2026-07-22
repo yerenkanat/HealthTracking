@@ -755,6 +755,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'nb_last': {AppLocale.ru: 'Последнее: {ago}', AppLocale.kk: 'Соңғы: {ago}', AppLocale.en: 'Last: {ago}'},
   'nb_wet_count': {AppLocale.ru: 'мокрых: {n}', AppLocale.kk: 'дымқыл: {n}', AppLocale.en: '{n} wet'},
   'nb_empty': {AppLocale.ru: 'Отмечайте кормления, подгузники и сон — это то, о чём спросят на приёме.', AppLocale.kk: 'Тамақтандыру, жаялық пен ұйқыны белгілеңіз — қабылдауда осыны сұрайды.', AppLocale.en: 'Tap to log feeds, diapers and sleep — the things the clinic will ask about.'},
+  // The 7-day recall — the numbers a clinic asks for at a check-up, which a
+  // sleep-deprived parent cannot hold in their head.
+  'nb_week_title': {AppLocale.ru: 'Последние 7 дней', AppLocale.kk: 'Соңғы 7 күн', AppLocale.en: 'Last 7 days'},
+  'nb_week_feeds_avg': {AppLocale.ru: 'Кормлений в день: {n}', AppLocale.kk: 'Күніне тамақтандыру: {n}', AppLocale.en: 'Feeds per day: {n}'},
+  'nb_week_wet_avg': {AppLocale.ru: 'Мокрых подгузников в день: {n}', AppLocale.kk: 'Күніне дымқыл жаялық: {n}', AppLocale.en: 'Wet diapers per day: {n}'},
+  'nb_week_over': {AppLocale.ru: 'В среднем по {n} дн. с записями', AppLocale.kk: 'Жазбасы бар {n} күн бойынша орташа', AppLocale.en: 'Averaged over {n} days with entries'},
+  'nb_week_none': {AppLocale.ru: 'нет', AppLocale.kk: 'жоқ', AppLocale.en: 'none'},
   'nb_delete_title': {AppLocale.ru: 'Удалить запись?', AppLocale.kk: 'Жазбаны жою керек пе?', AppLocale.en: 'Delete this entry?'},
   'nb_delete_body': {AppLocale.ru: 'Эту отметку нельзя будет вернуть.', AppLocale.kk: 'Бұл белгіні қайтару мүмкін болмайды.', AppLocale.en: 'This entry cannot be restored.'},
   'grw_history': {AppLocale.ru: 'История измерений', AppLocale.kk: 'Өлшемдер тарихы', AppLocale.en: 'Measurement history'},

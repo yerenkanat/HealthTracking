@@ -89,6 +89,13 @@ class NewbornLogScreen extends StatelessWidget {
           ]),
           const SizedBox(height: 22),
 
+          // The week at a glance — the check-up numbers, collapsed so it never
+          // gets between a tired parent and the log buttons above.
+          if (!weekAverages(events, today).isEmpty) ...[
+            _WeekRecall(events: events, today: today),
+            const SizedBox(height: 12),
+          ],
+
           if (events.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
@@ -164,6 +171,126 @@ class NewbornLogScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A number rounded for a parent, not a spreadsheet: whole where it is whole,
+/// one decimal otherwise. "1.5 feeds a day" reads true; "1.5000001" does not.
+String _avgNum(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+
+/// The last seven days, collapsed. The header carries the two numbers a clinic
+/// asks for; expanding shows the per-day shape behind them.
+class _WeekRecall extends StatelessWidget {
+  final List<NewbornEvent> events;
+  final DateTime today;
+  const _WeekRecall({required this.events, required this.today});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final avg = weekAverages(events, today);
+    final days = recentDays(events, today);
+    final ml = MaterialLocalizations.of(context);
+
+    return Theme(
+      // ExpansionTile draws its own divider lines; the card already has a
+      // border, so silence them.
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      // The fill lives on a Material, not a coloured Container: ExpansionTile is
+      // a ListTile and paints its ink on the nearest Material, which a coloured
+      // DecoratedBox would hide.
+      child: Material(
+        color: Palette.surface,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Palette.border),
+          ),
+          child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          iconColor: Palette.textDim,
+          collapsedIconColor: Palette.textDim,
+          title: Text(l.t('nb_week_title'),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '${l.t('nb_week_feeds_avg', {'n': _avgNum(avg.feedsPerDay)})}   ·   '
+              '${l.t('nb_week_wet_avg', {'n': _avgNum(avg.wetDiapersPerDay)})}',
+              style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.4),
+            ),
+          ),
+          children: [
+            for (final d in days)
+              _DayRow(
+                label: ml.formatMediumDate(d.day),
+                summary: d.summary,
+                emptyLabel: l.t('nb_week_none'),
+              ),
+            const SizedBox(height: 6),
+            Text(l.t('nb_week_over', {'n': avg.activeDays}),
+                style: const TextStyle(color: Palette.textDim, fontSize: 11)),
+          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One day in the week breakdown: a date and its three counts.
+class _DayRow extends StatelessWidget {
+  final String label;
+  final NewbornDaySummary summary;
+  final String emptyLabel;
+  const _DayRow({required this.label, required this.summary, required this.emptyLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(fontSize: 12.5, color: Palette.textDim)),
+          ),
+          if (summary.isEmpty)
+            Text(emptyLabel,
+                style: const TextStyle(fontSize: 12, color: Palette.textDim))
+          else ...[
+            _Count(icon: Icons.local_drink_outlined, n: summary.feeds, colour: Palette.rose),
+            const SizedBox(width: 14),
+            _Count(icon: Icons.water_drop_outlined, n: summary.wetDiapers, colour: Palette.teal),
+            const SizedBox(width: 14),
+            _Count(icon: Icons.nightlight_outlined, n: summary.sleepStretches, colour: Palette.violet),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Count extends StatelessWidget {
+  final IconData icon;
+  final int n;
+  final Color colour;
+  const _Count({required this.icon, required this.n, required this.colour});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: colour),
+          const SizedBox(width: 4),
+          Text('$n',
+              style: const TextStyle(
+                  fontFamily: 'JetBrainsMono', fontSize: 13, fontWeight: FontWeight.w700)),
+        ],
+      );
 }
 
 class _Tally extends StatelessWidget {
