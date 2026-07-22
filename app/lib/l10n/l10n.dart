@@ -104,6 +104,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Onboarding
   'onb_welcome_title': {AppLocale.ru: 'Добро пожаловать в Умай', AppLocale.kk: 'Умайға қош келдіңіз', AppLocale.en: 'Welcome to Umay'},
   'onb_welcome_body': {AppLocale.ru: 'Спокойный уход за беременностью и безопасность ребёнка в одном приложении.', AppLocale.kk: 'Жүктілікке қамқорлық пен бала қауіпсіздігі бір қолданбада.', AppLocale.en: 'Calm pregnancy care and child safety in one app.'},
+  'offline_banner': {AppLocale.ru: 'Нет подключения к интернету', AppLocale.kk: 'Интернет байланысы жоқ', AppLocale.en: 'No internet connection'},
   'onb_consent_label': {
     AppLocale.ru: 'Я принимаю политику конфиденциальности и условия использования.',
     AppLocale.kk: 'Құпиялылық саясаты мен пайдалану шарттарын қабылдаймын.',

@@ -1288,6 +1288,19 @@ class AppController {
     _notify();
   }
 
+  // ---- Connectivity (drives the offline banner) ----
+  bool _online = true;
+  bool get isOnline => _online;
+  bool get isOffline => !_online;
+
+  /// Set from the connectivity service in main.dart. Not persisted — it is a
+  /// live state, re-read at launch.
+  void setOnline(bool online) {
+    if (online == _online) return;
+    _online = online;
+    _notify();
+  }
+
   // ---- Legal consent (privacy policy + terms) ----
   int get acceptedLegalVersion => _acceptedLegalVersion;
 

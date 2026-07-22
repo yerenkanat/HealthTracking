@@ -18,6 +18,7 @@ import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'chat/assistant_chat_screen.dart';
+import 'theme.dart';
 import 'appointments/appointments_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
@@ -189,7 +190,30 @@ class _HomeShellState extends State<HomeShell> {
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: pages),
+      body: Column(
+        children: [
+          // A quiet offline strip across the top of the app — so a stale reading
+          // or a not-yet-synced entry reads as "waiting for the network", not as
+          // broken. Driven by the connectivity service wired in main.dart.
+          if (c.isOffline)
+            Material(
+              color: Palette.amber.withValues(alpha: 0.16),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.wifi_off_rounded, size: 15, color: Palette.amber),
+                    const SizedBox(width: 8),
+                    Text(l.t('offline_banner'),
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Palette.text)),
+                  ]),
+                ),
+              ),
+            ),
+          Expanded(child: IndexedStack(index: _index, children: pages)),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),

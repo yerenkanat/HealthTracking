@@ -31,6 +31,7 @@ import 'domain/sleep.dart';
 import 'domain/wearable_metrics.dart';
 import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
+import 'data/connectivity.dart';
 import 'domain/appointment.dart';
 import 'domain/chat_controller.dart';
 import 'domain/family.dart' show UserProfile;
@@ -373,6 +374,21 @@ Future<void> bootstrapRuntime(
     );
 
     controller.attachRuntime(monitor: monitor, batcher: batcher, api: api);
+
+    // Connectivity: drive the offline banner, and flush the batcher the moment
+    // the network returns — the onConnectivityRestored hook that nothing called,
+    // so a backlog built up offline used to wait for the next timer tick.
+    try {
+      final connectivity = PlatformConnectivity();
+      controller.setOnline(await connectivity.isOnline());
+      connectivity.onlineChanges.listen((online) {
+        final wasOnline = controller.isOnline;
+        controller.setOnline(online);
+        if (online && !wasOnline) batcher.onConnectivityRestored();
+      });
+    } catch (_) {
+      // Connectivity plugin unavailable (e.g. a headless run) — assume online.
+    }
 
     // Assistant: guardrailed chat. Emergencies escalate into the app-wide
     // Emergency Rescue screen via the controller.
