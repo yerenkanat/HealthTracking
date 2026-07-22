@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import '../../domain/newborn_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import 'safe_sleep_screen.dart';
 
 /// A sleep length, in the reader's language. Localized because the hour/minute
 /// units differ per language — the ui-strings guard rejects a hand-written "h".
@@ -50,7 +51,20 @@ class NewbornLogScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Palette.bg,
-      appBar: AppBar(backgroundColor: Palette.bg, title: Text(l.t('nb_title'))),
+      appBar: AppBar(
+        backgroundColor: Palette.bg,
+        title: Text(l.t('nb_title')),
+        actions: [
+          // Safe-sleep guidance, one tap from where sleep is logged.
+          IconButton(
+            icon: const Icon(Icons.shield_moon_outlined),
+            tooltip: l.t('ss_title'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SafeSleepScreen()),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [

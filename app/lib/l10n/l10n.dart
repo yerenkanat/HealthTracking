@@ -1075,6 +1075,68 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'fet_term': {AppLocale.ru: 'Совсем скоро малыш будет считаться доношенным.', AppLocale.kk: 'Жақында нәресте толық жетілген болып саналады.', AppLocale.en: 'Very soon the baby will be considered full term.'},
   'fet_ready': {AppLocale.ru: 'Малыш готов встретиться с вами.', AppLocale.kk: 'Нәресте сізбен кездесуге дайын.', AppLocale.en: 'The baby is ready to meet you.'},
 
+  // ---- Safe infant sleep (ss_<id>) ----
+  'ss_title': {AppLocale.ru: 'Безопасный сон', AppLocale.kk: 'Қауіпсіз ұйқы', AppLocale.en: 'Safe sleep'},
+  'ss_intro': {
+    AppLocale.ru: 'Каждый сон — малыш один, на спине, в своей кроватке. Эти простые правила заметно снижают риски.',
+    AppLocale.kk: 'Әр ұйқыда нәресте жалғыз, шалқасынан, өз бесігінде. Осы қарапайым ережелер қауіпті айтарлықтай азайтады.',
+    AppLocale.en: 'Every sleep — baby alone, on the back, in their own cot. These simple rules lower the risk markedly.',
+  },
+  'ss_do_title': {AppLocale.ru: 'Как безопасно', AppLocale.kk: 'Қалай қауіпсіз', AppLocale.en: 'What helps'},
+  'ss_avoid_title': {AppLocale.ru: 'Чего избегать', AppLocale.kk: 'Неден аулақ болу керек', AppLocale.en: 'What to avoid'},
+  'ss_disclaimer': {
+    AppLocale.ru: 'Это общие рекомендации по безопасному сну, а не медицинская консультация. Вопросы о конкретном ребёнке обсудите с педиатром.',
+    AppLocale.kk: 'Бұл — қауіпсіз ұйқы бойынша жалпы ұсыныстар, медициналық кеңес емес. Нақты бала туралы сұрақтарды педиатрмен талқылаңыз.',
+    AppLocale.en: 'This is general safe-sleep guidance, not medical advice. Ask your paediatrician about your own child.',
+  },
+
+  'ss_back': {
+    AppLocale.ru: 'Кладите малыша спать на спину — на дневной и ночной сон.',
+    AppLocale.kk: 'Нәрестені шалқасынан ұйықтатыңыз — күндіз де, түнде де.',
+    AppLocale.en: 'Put the baby to sleep on the back — for naps and at night.',
+  },
+  'ss_firm': {
+    AppLocale.ru: 'Твёрдый ровный матрас и натянутая простыня, без наклона.',
+    AppLocale.kk: 'Қатты тегіс матрас пен тартылған төсеніш, еңкейтусіз.',
+    AppLocale.en: 'A firm, flat mattress with a fitted sheet, no incline.',
+  },
+  'ss_own_bed': {
+    AppLocale.ru: 'Своя кроватка в вашей комнате — первые 6 месяцев рядом с вами.',
+    AppLocale.kk: 'Өз бесігі сіздің бөлмеңізде — алғашқы 6 айда қасыңызда.',
+    AppLocale.en: 'Their own cot in your room — beside you for the first 6 months.',
+  },
+  'ss_clear': {
+    AppLocale.ru: 'В кроватке ничего лишнего: без подушек, одеял, бортиков и игрушек.',
+    AppLocale.kk: 'Бесікте артық ешнәрсе жоқ: жастық, көрпе, борт пен ойыншықсыз.',
+    AppLocale.en: 'Nothing else in the cot — no pillows, duvets, bumpers or toys.',
+  },
+  'ss_pacifier': {
+    AppLocale.ru: 'Можно предложить пустышку на сон, когда наладится кормление.',
+    AppLocale.kk: 'Емізу ретке келгенде ұйқыға емізік ұсынуға болады.',
+    AppLocale.en: 'A dummy at sleep can help, once feeding is established.',
+  },
+
+  'ss_bedshare': {
+    AppLocale.ru: 'Не спите на одной поверхности с малышом, особенно на диване или в кресле.',
+    AppLocale.kk: 'Нәрестемен бір бетте ұйықтамаңыз, әсіресе диванда немесе креслода.',
+    AppLocale.en: 'Do not sleep on the same surface as the baby, especially a sofa or armchair.',
+  },
+  'ss_soft': {
+    AppLocale.ru: 'Без мягких бортиков, подушек, объёмных одеял и мягких игрушек.',
+    AppLocale.kk: 'Жұмсақ борт, жастық, көлемді көрпе мен жұмсақ ойыншықсыз.',
+    AppLocale.en: 'No soft bumpers, pillows, thick duvets or soft toys.',
+  },
+  'ss_overheat': {
+    AppLocale.ru: 'Не перегревайте: лёгкая одежда, голова открыта, комнатная температура.',
+    AppLocale.kk: 'Қыздырып жібермеңіз: жеңіл киім, бас ашық, бөлме температурасы.',
+    AppLocale.en: 'Do not overheat — light clothing, head uncovered, a comfortable room.',
+  },
+  'ss_smoke': {
+    AppLocale.ru: 'Никакого табачного дыма рядом с малышом — ни дома, ни в машине.',
+    AppLocale.kk: 'Нәресте маңында темекі түтіні болмасын — үйде де, көлікте де.',
+    AppLocale.en: 'No tobacco smoke near the baby — not at home, not in the car.',
+  },
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},

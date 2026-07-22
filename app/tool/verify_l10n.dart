@@ -8,6 +8,7 @@ import '../lib/domain/vaccination.dart';
 import '../lib/domain/postpartum.dart';
 import '../lib/domain/pregnancy_guide.dart';
 import '../lib/domain/fetal_development.dart';
+import '../lib/domain/safe_sleep.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -334,6 +335,23 @@ void main() {
       }
     }
     _chk('and every fetal highlight is translated ($fetBlank blanks)', fetBlank == 0);
+
+    // Safe sleep: `ss_<id>` is composed from the rule id at render time.
+    final ssMissing = [
+      for (final r in safeSleepRules)
+        if (!known.contains('ss_${r.id}')) 'ss_${r.id}'
+    ];
+    _chk('every safe-sleep rule has a string', ssMissing.isEmpty);
+    if (ssMissing.isNotEmpty) print('    missing: ${ssMissing.join(', ')}');
+
+    var ssBlank = 0;
+    for (final r in safeSleepRules) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t('ss_${r.id}');
+        if (v == 'ss_${r.id}' || v.trim().isEmpty) ssBlank++;
+      }
+    }
+    _chk('and every safe-sleep rule is translated ($ssBlank blanks)', ssBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

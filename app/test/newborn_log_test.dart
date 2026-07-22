@@ -114,6 +114,14 @@ void main() {
     expect(find.text(ru.t('nb_week_title')), findsNothing);
   });
 
+  testWidgets('the safe-sleep guidance is one tap from the log', (tester) async {
+    await pump(tester, const []);
+    await tester.tap(find.byIcon(Icons.shield_moon_outlined));
+    await tester.pumpAndSettle();
+    // The safe-sleep screen's back-to-sleep rule is a reliable landing marker.
+    expect(find.text(ru.t('ss_back')), findsOneWidget);
+  });
+
   testWidgets('renders in all three languages without a raw key', (tester) async {
     for (final loc in AppLocale.values) {
       await tester.pumpWidget(MaterialApp(
