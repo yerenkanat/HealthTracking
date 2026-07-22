@@ -210,3 +210,40 @@ child is underweight.
 
 Until then the chart shows her child against her child, which is a comparison
 the app can stand behind.
+
+## The Starmax / RunmeFit smartwatch (in progress)
+
+The vendor shipped a uniapp (JavaScript) SDK — `docs/sdk-demo/`. Their code is
+not ours to run: we are Flutter. So the wire protocol was reversed from it and
+re-implemented in Dart under `app/lib/ble/starmax/`, as a PURE layer with no BLE
+or I/O so it is fully testable offline (`tool/verify_starmax.dart`, 47 checks).
+
+**Done — the protocol core.**
+- `starmax_protocol.dart` — the frame (`[0xDA, cmd, len16LE, payload, crc16LE]`),
+  CRC-16/ARC (pinned to the published `0xBB3D` check value), the command builders
+  the app needs (pair, get-health-snapshot, set-time, set-user-info, start/stop a
+  live measurement, history-by-day), and a frame parser. A reply's cmd is the
+  request's + 0x80; a reply carries a status byte at index 4.
+- `starmax_frames.dart` — typed decoders for the snapshot (frame 141: steps,
+  kcal, distance, sleep totals, HR, SpO₂, stress, temperature, worn-flag,
+  breath rate), the live-measurement result (194), battery (134) and version
+  (135). "Current" fields of 0 mean *unknown*, surfaced as null/dash, never as a
+  real zero.
+
+**The transport is the Nordic UART Service.** Service `6E400001-…`, write char
+`…0002`, notify char `…0003`. Scan filter: advertising data contains the bytes
+`0x00 0x01` (device name usually includes `GTS`). MTU negotiated to 512, frames
+chunked at 244 bytes.
+
+**Not done — needs a device and two decisions.**
+1. **A BLE plugin.** Flutter has no BLE in core; this needs a dependency
+   (`flutter_blue_plus` is the obvious pick) plus Android/iOS scan + connect
+   permissions. That is a real dependency choice, so it is left for a human.
+2. **What the watch is FOR.** The SDK is a full health wearable (HR/SpO₂/temp/
+   steps/sleep) *and* carries SOS/contacts. The health data maps onto the
+   existing `HealthMonitor` → triage → telemetry pipeline; the SOS side maps onto
+   child safety. Which pipeline it feeds decides where the adapter wires in at
+   the `TODO(once paired)` hook in `main.dart`.
+
+The protocol core above does not depend on either decision — it is the same
+bytes regardless — so it was safe to build and test now.

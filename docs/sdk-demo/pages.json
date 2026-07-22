@@ -1,0 +1,76 @@
+{
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "首页"
+			}
+		},
+		{
+			"path": "pages/demos/demos",
+			"style": {
+				"navigationBarTitleText": "Demo用例"
+			}
+		},
+		{
+			"path": "pages/file/file",
+			"style": {
+				"navigationBarTitleText": "文件传输"
+			}
+		},
+		{
+			"path": "pages/diff/diff",
+			"style": {
+				"navigationBarTitleText": "差分升级"
+			}
+		},
+		{
+			"path": "pages/dial/dial",
+			"style": {
+				"navigationBarTitleText": "表盘"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#7a7e83",
+		"selectedColor": "#007aff",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [{
+				"pagePath": "pages/index/index",
+				"iconPath": "/static/logo.png",
+				"selectedIconPath": "/static/logo.png",
+				"text": "首页"
+			}, {
+				"pagePath": "pages/demos/demos",
+				"iconPath": "/static/logo.png",
+				"selectedIconPath": "/static/logo.png",
+				"text": "Demo"
+			}, {
+				"pagePath": "pages/file/file",
+				"iconPath": "/static/logo.png",
+				"selectedIconPath": "/static/logo.png",
+				"text": "文件传输"
+			},
+			{
+				"pagePath": "pages/diff/diff",
+				"iconPath": "/static/logo.png",
+				"selectedIconPath": "/static/logo.png",
+				"text": "差分升级"
+			},
+			{
+				"pagePath": "pages/dial/dial",
+				"iconPath": "/static/logo.png",
+				"selectedIconPath": "/static/logo.png",
+				"text": "表盘"
+			}
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	},
+	"uniIdRouter": {}
+}
