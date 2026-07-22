@@ -377,9 +377,9 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                height: 190,
+                height: 204,
                 child: AnimatedBuilder(
-                  animation: _loop,
+                  animation: Listenable.merge([_loop, _entry]),
                   builder: (context, _) {
                     // One controller pass covers every breath, so `t` counts
                     // whole cycles and lands back at rest when it finishes.
@@ -389,17 +389,31 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
                     // mid-rise.
                     final settle = 1 - Curves.easeInCubic.transform(_loop.value);
                     final dy = math.sin(t * 2 * math.pi) * 5 * settle;
+                    // The ring fills once, on entry, toward the due date.
+                    final ringFraction = g.progress * Curves.easeOutCubic.transform(_entry.value);
                     return Stack(
                       alignment: Alignment.center,
                       children: [
                         Positioned.fill(
                           child: CustomPaint(painter: _GlowPainter(pal.glow, t)),
                         ),
+                        // The due-date ring: a frame around the figure that fills
+                        // toward term. Static — it does not breathe with the
+                        // figure — so it reads as the clock the figure sits in,
+                        // and it replaces the old linear bar rather than joining
+                        // it (progress shown twice is a duplicate control).
+                        SizedBox(
+                          width: 198,
+                          height: 198,
+                          child: CustomPaint(
+                            painter: _RingPainter(fraction: ringFraction, colour: pal.glow),
+                          ),
+                        ),
                         Transform.translate(
                           offset: Offset(0, dy),
                           child: SizedBox(
-                            width: 190,
-                            height: 190,
+                            width: 166,
+                            height: 166,
                             child: CustomPaint(
                               painter: BabyPainter(
                                 week: g.week,
@@ -415,7 +429,7 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
                   },
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
                 widget.weekLabel,
                 textAlign: TextAlign.center,
@@ -426,14 +440,11 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
                 widget.trimesterLabel,
                 style: TextStyle(color: Palette.text.withValues(alpha: 0.55), fontSize: 13, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 14),
-              AnimatedBuilder(
-                animation: _entry,
-                builder: (context, _) => _ProgressBar(
-                  fraction: g.progress * Curves.easeOutCubic.transform(_entry.value),
-                  colour: pal.glow,
-                  label: widget.remainingLabel,
-                ),
+              const SizedBox(height: 6),
+              Text(
+                widget.remainingLabel,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Palette.text.withValues(alpha: 0.62), fontSize: 12.5, fontWeight: FontWeight.w600),
               ),
               if (widget.onDetails != null) ...[
                 const SizedBox(height: 14),
@@ -447,44 +458,47 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
   }
 }
 
-class _ProgressBar extends StatelessWidget {
-  final double fraction;
+/// The due-date progress ring drawn around the figure: a full pale track with a
+/// coloured arc sweeping clockwise from the top to [fraction] of the way to
+/// term, rounded at its leading end.
+class _RingPainter extends CustomPainter {
+  final double fraction; // 0..1
   final Color colour;
-  final String label;
-  const _ProgressBar({required this.fraction, required this.colour, required this.label});
+  const _RingPainter({required this.fraction, required this.colour});
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: SizedBox(
-            height: 8,
-            child: Stack(
-              children: [
-                Container(color: Colors.white.withValues(alpha: 0.6)),
-                FractionallySizedBox(
-                  widthFactor: fraction.clamp(0.0, 1.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: colour,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          label,
-          style: TextStyle(color: Palette.text.withValues(alpha: 0.6), fontSize: 12.5, fontWeight: FontWeight.w600),
-        ),
-      ],
+  void paint(Canvas canvas, Size size) {
+    final centre = Offset(size.width / 2, size.height / 2);
+    final r = math.min(size.width, size.height) / 2 - 5;
+    const stroke = 6.0;
+
+    canvas.drawCircle(
+      centre,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = Colors.white.withValues(alpha: 0.55),
     );
+
+    final swept = 2 * math.pi * fraction.clamp(0.0, 1.0);
+    if (swept > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: centre, radius: r),
+        -math.pi / 2, // from the top
+        swept,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.round
+          ..color = colour,
+      );
+    }
   }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.fraction != fraction || old.colour != colour;
 }
 
 class _DetailsButton extends StatelessWidget {
