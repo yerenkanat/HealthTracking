@@ -137,6 +137,10 @@ bool looksLikeBackup(Object? decoded) {
 
 class PersistedConfig {
   final bool onboarded;
+
+  /// The legal-document version the user last accepted (0 = never). Drives the
+  /// re-consent gate when the terms change. See domain/legal.dart.
+  final int acceptedLegalVersion;
   final AppLocale locale;
   final UserProfile profile;
   final List<ChildProfile> children;
@@ -197,6 +201,7 @@ class PersistedConfig {
 
   const PersistedConfig({
     required this.onboarded,
+    this.acceptedLegalVersion = 0,
     required this.locale,
     required this.profile,
     required this.children,
@@ -238,6 +243,7 @@ class PersistedConfig {
   Map<String, dynamic> toJson() => {
         'version': 4,
         'onboarded': onboarded,
+        'acceptedLegalVersion': acceptedLegalVersion,
         'locale': locale.name,
         'profile': profile.toJson(),
         'children': [for (final c in children) childToJson(c)],
@@ -345,6 +351,7 @@ class PersistedConfig {
 
   static PersistedConfig _fromJson(Map<String, dynamic> j) => PersistedConfig(
         onboarded: (j['onboarded'] as bool?) ?? false,
+        acceptedLegalVersion: (j['acceptedLegalVersion'] as num?)?.toInt() ?? 0,
         locale: appLocaleFromCode(j['locale'] as String?) ?? AppLocale.ru,
         profile: j['profile'] is Map
             ? UserProfile.fromJson((j['profile'] as Map).cast<String, dynamic>())

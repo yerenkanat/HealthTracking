@@ -14,6 +14,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../ble/calibration.dart';
+import '../domain/legal.dart';
 import '../domain/phone_auth.dart';
 import '../ble/link_policy.dart' show BandLinkState;
 import '../core/triage.dart';
@@ -143,6 +144,7 @@ class AppController {
   final List<PairedDevice> _devices = [];
   BpCalibration? _bpCalibration;
   AuthSession? _authSession;
+  int _acceptedLegalVersion = 0;
   bool _notificationsEnabled = true;
   int? _avgCycleLength;
   int? _avgPeriodLength;
@@ -240,6 +242,7 @@ class AppController {
       ..addAll(cfg.devices);
     _bpCalibration = cfg.bpCalibration;
     _authSession = cfg.authSession;
+    _acceptedLegalVersion = cfg.acceptedLegalVersion;
     _notificationsEnabled = cfg.notificationsEnabled;
     _avgCycleLength = cfg.avgCycleLength;
     _avgPeriodLength = cfg.avgPeriodLength;
@@ -369,6 +372,7 @@ class AppController {
         devices: List.of(_devices),
         bpCalibration: _bpCalibration,
         authSession: _authSession,
+        acceptedLegalVersion: _acceptedLegalVersion,
         notificationsEnabled: _notificationsEnabled,
         avgCycleLength: _avgCycleLength,
         avgPeriodLength: _avgPeriodLength,
@@ -1284,6 +1288,22 @@ class AppController {
     _notify();
   }
 
+  // ---- Legal consent (privacy policy + terms) ----
+  int get acceptedLegalVersion => _acceptedLegalVersion;
+
+  /// True when the user is in the app but has not accepted the CURRENT legal
+  /// version — either a returning user from before the terms changed. The app
+  /// gate shows a re-consent screen. First-run consent is captured in onboarding.
+  bool get needsLegalConsent => onboarded && legalConsentNeeded(_acceptedLegalVersion);
+
+  /// Record acceptance of the current legal version, and persist it.
+  void acceptLegal() {
+    if (_acceptedLegalVersion == currentLegalVersion) return;
+    _acceptedLegalVersion = currentLegalVersion;
+    _persist(immediate: true);
+    _notify();
+  }
+
   // ---- Sign-in session (phone-OTP) ----
   /// The signed-in session, or null when signed out.
   AuthSession? get authSession => _authSession;
@@ -1430,6 +1450,7 @@ class AppController {
       _devices.add(PairedDevice(id: r.bandId!, name: 'Band', kind: DeviceKind.band));
     }
     _onboarded = true;
+    _acceptedLegalVersion = currentLegalVersion; // consent captured (onboarding / demo)
     _onboarding?.dispose();
     _onboarding = null;
     _persist(immediate: true); // irreversible — do not risk the debounce window
@@ -1754,6 +1775,13 @@ class AppController {
   /// Debug/demo only: skip onboarding so the seeded demo shows the app directly.
   void debugMarkOnboarded() {
     _onboarded = true;
+    _acceptedLegalVersion = currentLegalVersion; // consent captured (onboarding / demo)
+    _notify();
+  }
+
+  /// Test seam: simulate a returning user who accepted an older legal version.
+  void debugSetAcceptedLegalVersion(int v) {
+    _acceptedLegalVersion = v;
     _notify();
   }
 

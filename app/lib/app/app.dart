@@ -19,6 +19,7 @@ import '../domain/timeline_content.dart';
 import '../ui/theme.dart';
 import '../ui/home_shell.dart';
 import '../ui/onboarding/onboarding_flow.dart';
+import '../ui/settings/legal_consent_screen.dart';
 import '../ui/emergency/emergency_rescue_screen.dart';
 
 /// Flushes any debounced save when the app leaves the foreground.
@@ -107,6 +108,11 @@ class FcsApp extends StatelessWidget {
         onLocaleChange: controller.setLocale,
         onComplete: controller.completeOnboarding,
       );
+    }
+    // Returning user, but the privacy policy / terms changed since they last
+    // accepted: re-consent before letting them back in.
+    if (controller.needsLegalConsent) {
+      return LegalConsentScreen(onAccept: controller.acceptLegal);
     }
     if (controller.route == AppRoute.emergency && controller.emergency != null) {
       final e = controller.emergency!;

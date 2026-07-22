@@ -391,6 +391,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Draft. This text describes how the app works today and is pending legal review before publication.',
   },
   'legal_updated': {AppLocale.ru: 'Обновлено: июль 2026', AppLocale.kk: 'Жаңартылды: шілде 2026', AppLocale.en: 'Updated: July 2026'},
+  'legal_update_title': {AppLocale.ru: 'Мы обновили документы', AppLocale.kk: 'Құжаттарды жаңарттық', AppLocale.en: 'We’ve updated our documents'},
+  'legal_update_body': {
+    AppLocale.ru: 'Политика конфиденциальности и условия использования изменились. Пожалуйста, ознакомьтесь и примите их, чтобы продолжить.',
+    AppLocale.kk: 'Құпиялылық саясаты мен пайдалану шарттары өзгерді. Жалғастыру үшін оларды оқып, қабылдаңыз.',
+    AppLocale.en: 'Our privacy policy and terms of use have changed. Please review and accept them to continue.',
+  },
+  'legal_update_accept': {AppLocale.ru: 'Принять и продолжить', AppLocale.kk: 'Қабылдап, жалғастыру', AppLocale.en: 'Accept and continue'},
 
   // Privacy sections.
   'legal_priv_collect_h': {AppLocale.ru: 'Какие данные мы обрабатываем', AppLocale.kk: 'Қандай деректерді өңдейміз', AppLocale.en: 'What data we handle'},

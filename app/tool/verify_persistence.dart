@@ -54,6 +54,7 @@ void main() async {
     ],
     devices: const [PairedDevice(id: 'AA:BB', name: 'Band', kind: DeviceKind.band)],
     authSession: AuthSession(userId: 'u_abc', phoneE164: '+77001234567', token: 'stub-token:u_abc', signedInAt: DateTime.utc(2026, 7, 22, 12)),
+    acceptedLegalVersion: 1,
     notificationsEnabled: false,
     avgCycleLength: 30,
     avgPeriodLength: 6,
@@ -121,6 +122,9 @@ void main() async {
   _chk('round-trip onboarded + locale', decoded.onboarded && decoded.locale == AppLocale.kk);
   _chk('round-trip auth session', decoded.authSession?.userId == 'u_abc' &&
       decoded.authSession?.phoneE164 == '+77001234567' && decoded.authSession?.token == 'stub-token:u_abc');
+  _chk('round-trip accepted legal version', decoded.acceptedLegalVersion == 1);
+  _chk('accepted legal version defaults to 0',
+      PersistedConfig.decode('{"onboarded":true,"locale":"en"}').acceptedLegalVersion == 0);
   _chk('round-trip profile phone', decoded.profile.displayName == 'Aigerim' && decoded.profile.e164 == '+77001234567');
   _chk('round-trip 2 children', decoded.children.length == 2 && decoded.children[1].name == 'Aida');
   _chk('round-trip child DOB', decoded.children[0].dateOfBirth == DateTime(2019, 3, 8) && !decoded.children[1].hasDateOfBirth);
