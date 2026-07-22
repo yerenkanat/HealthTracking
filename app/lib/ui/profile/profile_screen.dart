@@ -15,6 +15,7 @@ import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
 import '../widgets/photo_picker_sheet.dart';
+import '../widgets/stat_tile.dart';
 
 class ProfileScreen extends StatelessWidget {
   final AppController controller;
@@ -84,14 +85,14 @@ class ProfileScreen extends StatelessWidget {
               // Summary tiles: children + devices
               Row(
                 children: [
-                  Expanded(child: _StatTile(
+                  Expanded(child: StatTile(
                     icon: Icons.child_care,
                     gradient: Palette.violetPink,
                     value: '${c.children.length}',
                     label: l.t('prof_children_count'),
                   )),
                   const SizedBox(width: 14),
-                  Expanded(child: _StatTile(
+                  Expanded(child: StatTile(
                     icon: Icons.watch,
                     gradient: Palette.tealBlue,
                     value: '${c.devices.length}',
@@ -203,30 +204,3 @@ Future<void> _editProfilePhoto(BuildContext context, AppController c) async {
   if (old != null && old != c.profile.photoPath) await PhotoStore().delete(old);
 }
 
-class _StatTile extends StatelessWidget {
-  final IconData icon;
-  final Gradient gradient;
-  final String value;
-  final String label;
-  const _StatTile({required this.icon, required this.gradient, required this.value, required this.label});
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(11)),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-          const SizedBox(height: 14),
-          Text(value, style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 26, fontWeight: FontWeight.w700, height: 1)),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-}

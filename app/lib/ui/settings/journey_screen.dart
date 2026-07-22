@@ -10,6 +10,7 @@ import '../../domain/medication.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import '../widgets/stat_tile.dart';
 
 class JourneyScreen extends StatelessWidget {
   final AppController controller;
@@ -64,7 +65,7 @@ class JourneyScreen extends StatelessWidget {
               childAspectRatio: 1.35,
               children: [
                 for (final (icon, color, value, label) in tiles)
-                  if (value > 0) _StatTile(icon: icon, color: color, value: value, label: label),
+                  if (value > 0) StatTile(icon: icon, color: color, value: '$value', label: label),
               ],
             );
           },
@@ -74,36 +75,3 @@ class JourneyScreen extends StatelessWidget {
   }
 }
 
-class _StatTile extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final int value;
-  final String label;
-  const _StatTile({required this.icon, required this.color, required this.value, required this.label});
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$value',
-                  style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 26, fontWeight: FontWeight.w700, color: Palette.text, height: 1)),
-              const SizedBox(height: 2),
-              Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
