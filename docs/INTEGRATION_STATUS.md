@@ -260,11 +260,13 @@ batching path, unchanged.
 it feeds `HealthMonitor`. Its SOS/contacts commands exist in the protocol for a
 future child-safety use but are not wired.
 
+**Link state is wired.** `AppController.onBandLinkState` consumes the manager's
+`onStatus`, and the dashboard shows a "not measuring" chip when a wired device
+is not delivering — so a watch out of range since morning is explained, not
+mistaken for a quiet one.
+
 **Left for when a device is in hand.**
 - Verify scan/connect/handshake against real hardware — the transport is the one
   layer no fake could exercise. The scan filter (service UUID / name / adv
   marker) in particular may need tuning to the exact model's advertising.
-- A link-state sink on `AppController` + a "not measuring" chip: the manager
-  already exposes `onStatus`; the controller has no consumer yet, so `main.dart`
-  only logs it in debug for now.
 - Pairing UX (choosing the watch during onboarding) and persisting `STARMAX_ID`.
