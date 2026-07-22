@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
@@ -42,6 +43,45 @@ void main() {
     expect(find.text('Track your cycle'), findsOneWidget);
     expect(find.textContaining('Week 20'), findsNothing);
     addTearDown(c.dispose);
+  });
+
+  testWidgets('a recent birth surfaces the postpartum recovery card', (tester) async {
+    // Cycle mode after a birth 30 days ago: her body is still recovering, and
+    // the app should say so.
+    final c = controllerFor();
+    c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 30))));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Recovery after birth'), findsOneWidget);
+  });
+
+  testWidgets('no recovery card once the postpartum window has passed', (tester) async {
+    // A child born long ago is not a postpartum context.
+    final c = controllerFor();
+    c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: DateTime(2024, 1, 1)));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Recovery after birth'), findsNothing);
+  });
+
+  testWidgets('opening the recovery card reaches the guide', (tester) async {
+    final c = controllerFor();
+    c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 10))));
+    addTearDown(c.dispose);
+    // L10nScope ABOVE the Navigator (via builder), so the pushed recovery
+    // screen has a scope ancestor. wrap() nests it inside home, which is fine
+    // until a route is pushed.
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => L10nScope(l10n: const L10n(AppLocale.en), child: child!),
+      home: WomensHealthScreen(controller: c, now: () => today),
+    ));
+
+    await tester.tap(find.text('Recovery after birth'));
+    await tester.pumpAndSettle();
+    // The recovery screen's app-bar title is a reliable landing marker that
+    // sits at the top, above the fold on the default test viewport.
+    expect(find.text('After birth'), findsOneWidget);
+    expect(find.textContaining('not medical advice'), findsOneWidget);
   });
 
   testWidgets('cycle mode shows the current phase card', (tester) async {

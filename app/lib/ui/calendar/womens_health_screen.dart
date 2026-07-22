@@ -20,6 +20,7 @@ import '../../domain/cycle_insights.dart'
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
 import '../../domain/baby_size.dart';
+import '../../domain/postpartum.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
@@ -28,6 +29,7 @@ import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 import 'baby_size_disc.dart';
 import 'contraction_timer_screen.dart';
+import 'postpartum_screen.dart';
 import 'cycle_insights_screen.dart';
 import 'day_log_sheet.dart';
 import 'medications_screen.dart';
@@ -79,6 +81,20 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
   }
 
   DateTime _dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// The most recent birth still inside the postpartum window, or null. Drives
+  /// whether the recovery card appears — an older child (birth long past) does
+  /// not, so the card follows a birth and then quietly retires.
+  DateTime? _recentBirth(AppController c) {
+    DateTime? newest;
+    for (final child in c.children) {
+      final dob = child.dateOfBirth;
+      if (dob == null) continue;
+      if (!isPostpartumWindow(daysSinceBirth(dob, _today))) continue;
+      if (newest == null || dob.isAfter(newest)) newest = dob;
+    }
+    return newest;
+  }
 
   void _shiftMonth(int by) => setState(() => _month = DateTime(_month.year, _month.month + by, 1));
 
@@ -155,6 +171,23 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _CycleHeader(controller: c, today: _today, onSetDueDate: _pickDueDate)
                 else
                   _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
+
+                // After a recent birth the app is in cycle mode but her body is
+                // still recovering. Surface the recovery guide until the window
+                // passes — the one place the app speaks to the mother, not the
+                // baby, in these weeks.
+                if (cycleMode) ...[
+                  if (_recentBirth(c) case final birth?) ...[
+                    const SizedBox(height: 14),
+                    _PostpartumCard(
+                      birthDate: birth,
+                      today: _today,
+                      onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PostpartumScreen(birthDate: birth, today: _today),
+                      )),
+                    ),
+                  ],
+                ],
 
                 // Daily tips, right under the pregnancy hero — the same
                 // published catalogue the dashboard shows, keyed to her week.
@@ -1069,6 +1102,69 @@ class _MonthCalendar extends StatelessWidget {
 /// Weekly "baby is about the size of a …" card — an approximate length and a
 /// friendly everyday comparison for the current pregnancy week. Illustrative,
 /// not medical.
+/// The entry to the postpartum recovery guide, shown in cycle mode after a
+/// recent birth. Leads with the six-week countdown when there is one, since
+/// that is the actionable date.
+class _PostpartumCard extends StatelessWidget {
+  final DateTime birthDate;
+  final DateTime today;
+  final VoidCallback onOpen;
+  const _PostpartumCard({required this.birthDate, required this.today, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final until = daysUntilCheck(daysSinceBirth(birthDate, today));
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Palette.violet.withValues(alpha: 0.14), Palette.rose.withValues(alpha: 0.06)],
+            ),
+            border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: Palette.violet.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(Icons.spa_outlined, color: Palette.violet, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.t('pp_card_title'),
+                        style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                      until != null ? l.t('pp_check_in', {'n': until}) : l.t('pp_card_sub'),
+                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BabySizeCard extends StatelessWidget {
   final int week;
   const _BabySizeCard({required this.week});

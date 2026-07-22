@@ -5,6 +5,7 @@ library;
 import 'dart:io';
 import '../lib/domain/child_development.dart';
 import '../lib/domain/vaccination.dart';
+import '../lib/domain/postpartum.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -257,6 +258,35 @@ void main() {
       }
     }
     _chk('and in all three languages ($vacBlank blanks)', vacBlank == 0);
+
+    // Postpartum: `pp_note_<id>`, `pp_warn_<id>` and `pp_area_<area>` are all
+    // composed at render time. A recovery note or a warning sign added without
+    // strings would put a raw key on the recovery screen — and the warning list
+    // is the last place that can be allowed to happen.
+    final ppMissing = <String>[
+      for (final n in recoveryNotes)
+        if (!known.contains('pp_note_${n.id}')) 'pp_note_${n.id}',
+      for (final id in warningSigns)
+        if (!known.contains('pp_warn_$id')) 'pp_warn_$id',
+      for (final a in RecoveryArea.values)
+        if (!known.contains('pp_area_${a.name}')) 'pp_area_${a.name}',
+    ];
+    _chk('every recovery note, warning and area has strings', ppMissing.isEmpty);
+    if (ppMissing.isNotEmpty) print('    missing: ${ppMissing.join(', ')}');
+
+    var ppBlank = 0;
+    final ppKeys = <String>[
+      for (final n in recoveryNotes) 'pp_note_${n.id}',
+      for (final id in warningSigns) 'pp_warn_$id',
+      for (final a in RecoveryArea.values) 'pp_area_${a.name}',
+    ];
+    for (final key in ppKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(key);
+        if (v == key || v.trim().isEmpty) ppBlank++;
+      }
+    }
+    _chk('and postpartum strings are all translated ($ppBlank blanks)', ppBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

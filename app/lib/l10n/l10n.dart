@@ -811,6 +811,132 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'vac_reminder_body': {AppLocale.ru: 'У {name} по плану визит в поликлинику. Проверьте календарь прививок.', AppLocale.kk: '{name} үшін емханаға бару жоспарланған. Егу күнтізбесін тексеріңіз.', AppLocale.en: "{name} has a clinic visit due. Check the vaccination schedule."},
   'vac_reminder_on': {AppLocale.ru: 'Напомним {d}', AppLocale.kk: '{d} еске саламыз', AppLocale.en: "We'll remind you on {d}"},
 
+  // ---- Postpartum recovery (the mother's own recovery after birth) ----
+  'pp_title': {AppLocale.ru: 'После родов', AppLocale.kk: 'Босанғаннан кейін', AppLocale.en: 'After birth'},
+  'pp_card_title': {AppLocale.ru: 'Восстановление после родов', AppLocale.kk: 'Босанғаннан кейінгі қалпына келу', AppLocale.en: 'Recovery after birth'},
+  'pp_card_sub': {AppLocale.ru: 'Что нормально сейчас и когда звонить врачу', AppLocale.kk: 'Қазір не қалыпты және қашан дәрігерге қоңырау шалу керек', AppLocale.en: 'What is normal now, and when to call a doctor'},
+  'pp_disclaimer': {
+    AppLocale.ru: 'Это общие сведения, а не медицинская консультация. При любых сомнениях звоните в свою поликлинику. При признаках ниже не ждите.',
+    AppLocale.kk: 'Бұл — жалпы мәлімет, медициналық кеңес емес. Кез келген күмәнда өз емханаңызға қоңырау шалыңыз. Төмендегі белгілерде күтпеңіз.',
+    AppLocale.en: 'This is general information, not medical advice. When in doubt, call your clinic. For the signs below, do not wait.',
+  },
+  'pp_now_title': {AppLocale.ru: 'Сейчас важно', AppLocale.kk: 'Қазір маңызды', AppLocale.en: 'Right now'},
+
+  'pp_area_bleeding': {AppLocale.ru: 'Выделения', AppLocale.kk: 'Бөліністер', AppLocale.en: 'Bleeding'},
+  'pp_area_body': {AppLocale.ru: 'Тело', AppLocale.kk: 'Дене', AppLocale.en: 'Body'},
+  'pp_area_emotional': {AppLocale.ru: 'Настроение', AppLocale.kk: 'Көңіл-күй', AppLocale.en: 'Mood'},
+  'pp_area_care': {AppLocale.ru: 'Забота о себе', AppLocale.kk: 'Өзіңе қамқорлық', AppLocale.en: 'Looking after yourself'},
+
+  'pp_check_title': {AppLocale.ru: 'Осмотр после родов', AppLocale.kk: 'Босанғаннан кейінгі тексеру', AppLocale.en: 'Postnatal check'},
+  'pp_check_in': {AppLocale.ru: 'примерно через {n} дн.', AppLocale.kk: 'шамамен {n} күннен кейін', AppLocale.en: 'in about {n} days'},
+  'pp_check_past': {AppLocale.ru: 'Пройдите его, если ещё не были', AppLocale.kk: 'Әлі болмасаңыз, барыңыз', AppLocale.en: "Have it if you haven't yet"},
+  'pp_check_body': {
+    AppLocale.ru: 'На 6-й неделе врач проверит восстановление и настроение и поможет с контрацепцией.',
+    AppLocale.kk: '6-шы аптада дәрігер қалпына келуіңіз бен көңіл-күйіңізді тексеріп, контрацепцияға көмектеседі.',
+    AppLocale.en: 'Around six weeks, a clinician checks your recovery and mood, and helps with contraception.',
+  },
+
+  'pp_warn_title': {AppLocale.ru: 'Когда обращаться за помощью', AppLocale.kk: 'Қашан көмекке жүгіну керек', AppLocale.en: 'When to get help'},
+  'pp_warn_intro': {
+    AppLocale.ru: 'Свяжитесь с поликлиникой или скорой, если появится что-то из этого:',
+    AppLocale.kk: 'Мыналардың бірі пайда болса, емханаға немесе жедел жәрдемге хабарласыңыз:',
+    AppLocale.en: 'Contact your clinic or emergency services if any of these appear:',
+  },
+
+  // Recovery notes (pp_note_<id>).
+  'pp_note_lochia_early': {
+    AppLocale.ru: 'Кровянистые выделения (лохии) в первые дни обильные и ярко-красные — это нормально. Пользуйтесь послеродовыми прокладками, не тампонами.',
+    AppLocale.kk: 'Алғашқы күндері қанды бөліністер (лохия) мол әрі ашық қызыл болады — бұл қалыпты. Тампон емес, босанғаннан кейінгі прокладка қолданыңыз.',
+    AppLocale.en: 'Bleeding (lochia) is heavy and bright red in the first days — this is normal. Use maternity pads, not tampons.',
+  },
+  'pp_note_rest': {
+    AppLocale.ru: 'Отдыхайте, когда спит малыш. Тело заживает, и сон — часть восстановления, а не роскошь.',
+    AppLocale.kk: 'Нәресте ұйықтағанда сіз де демалыңыз. Дене жазылып жатыр, ал ұйқы — сәнділік емес, қалпына келудің бөлігі.',
+    AppLocale.en: 'Rest when the baby sleeps. Your body is healing, and sleep is part of recovery, not a luxury.',
+  },
+  'pp_note_soreness': {
+    AppLocale.ru: 'Боль в промежности или в области шва обычна в первые недели. Помогают прохладные компрессы и разрешённое врачом обезболивающее.',
+    AppLocale.kk: 'Алғашқы апталарда шат аймағындағы немесе тігіс маңындағы ауырсыну — қалыпты. Салқын компресс пен дәрігер рұқсат еткен ауырсынуды басатын дәрі көмектеседі.',
+    AppLocale.en: 'Soreness around the perineum or a stitch is common in the first weeks. Cool packs and pain relief your doctor approves can help.',
+  },
+  'pp_note_blues': {
+    AppLocale.ru: 'Слёзы, тревога и перепады настроения в первые дни — «бэби-блюз», через это проходят большинство женщин. Обычно проходит к концу второй недели.',
+    AppLocale.kk: 'Алғашқы күндердегі көз жасы, мазасыздық пен көңіл-күйдің құбылуы — «бэби-блюз», мұны әйелдердің көбі бастан кешіреді. Әдетте екінші аптаның соңына қарай басылады.',
+    AppLocale.en: "Tears, anxiety and mood swings in the first days — the 'baby blues' — happen to most women. They usually ease by the end of the second week.",
+  },
+  'pp_note_hydrate': {
+    AppLocale.ru: 'Пейте воду и ешьте регулярно, особенно при грудном вскармливании. О себе легко забыть — держите воду рядом с местом кормления.',
+    AppLocale.kk: 'Су ішіп, тұрақты тамақтаныңыз, әсіресе емізіп жүрсеңіз. Өзіңізді ұмыту оңай — емізетін жеріңізге су қойыңыз.',
+    AppLocale.en: 'Drink water and eat regularly, especially if you are breastfeeding. It is easy to forget yourself — keep water where you feed.',
+  },
+  'pp_note_lochia_fading': {
+    AppLocale.ru: 'Выделения светлеют: розовые, затем коричневые, затем кремовые. Внезапный возврат ярко-красной крови — повод отдохнуть и понаблюдать.',
+    AppLocale.kk: 'Бөліністер ашылады: қызғылт, содан қоңыр, кейін кремді түске енеді. Ашық қызыл қанның кенеттен қайта пайда болуы — демалып, бақылауға белгі.',
+    AppLocale.en: 'The bleeding lightens — pink, then brown, then creamy. A sudden return to bright red is a sign to rest and keep an eye on it.',
+  },
+  'pp_note_pelvic_floor': {
+    AppLocale.ru: 'Мягкие упражнения для тазового дна (Кегеля) можно начинать, когда будете готовы. Они помогают вернуть контроль и поддержку.',
+    AppLocale.kk: 'Жамбас түбіне арналған жеңіл жаттығуларды (Кегель) дайын болғанда бастауға болады. Олар бақылау мен тіректі қалпына келтіреді.',
+    AppLocale.en: 'Gentle pelvic-floor (Kegel) exercises can begin when you feel ready. They help rebuild control and support.',
+  },
+  'pp_note_gentle_moving': {
+    AppLocale.ru: 'Короткие прогулки полезны, но не поднимайте тяжелее малыша и не спешите с нагрузками — швам и связкам нужно время.',
+    AppLocale.kk: 'Қысқа серуендер пайдалы, бірақ нәрестеден ауыр нәрсе көтермеңіз және жаттығуға асықпаңыз — тігіс пен байламдарға уақыт керек.',
+    AppLocale.en: 'Short walks are good, but avoid lifting anything heavier than the baby and do not rush back to exercise — stitches and ligaments need time.',
+  },
+  'pp_note_mood_check': {
+    AppLocale.ru: 'Если грусть, тревога или пустота держатся дольше двух недель или мешают заботиться о себе и малыше — это не слабость. Скажите врачу: послеродовая депрессия хорошо лечится.',
+    AppLocale.kk: 'Егер қайғы, мазасыздық немесе бос сезім екі аптадан артық сақталса не өзіңізге, нәрестеге қамқор болуға кедергі болса — бұл әлсіздік емес. Дәрігерге айтыңыз: босанғаннан кейінгі депрессия жақсы емделеді.',
+    AppLocale.en: 'If sadness, anxiety or numbness lasts more than two weeks or gets in the way of caring for yourself or the baby, it is not weakness. Tell your doctor — postnatal depression responds well to treatment.',
+  },
+  'pp_note_clearance': {
+    AppLocale.ru: 'Возвращение к спорту и близости — после осмотра и с одобрения врача. Единого срока нет; ориентируйтесь на своё тело и совет специалиста.',
+    AppLocale.kk: 'Спортқа және жақындыққа оралу — тексеруден кейін және дәрігердің рұқсатымен. Бірыңғай мерзім жоқ; денеңізге және маман кеңесіне сүйеніңіз.',
+    AppLocale.en: "Returning to exercise and intimacy comes after the check and with your doctor's go-ahead. There is no one date — follow your body and your clinician's advice.",
+  },
+  'pp_note_contraception': {
+    AppLocale.ru: 'Зачатие возможно ещё до первой менструации. Если сейчас не планируете беременность, обсудите контрацепцию на осмотре.',
+    AppLocale.kk: 'Жүктілік алғашқы етеккірге дейін де мүмкін. Қазір жүктілікті жоспарламасаңыз, тексеруде контрацепцияны талқылаңыз.',
+    AppLocale.en: 'Pregnancy is possible again before your first period returns. If you are not planning another pregnancy now, discuss contraception at your check.',
+  },
+
+  // Warning signs (pp_warn_<id>).
+  'pp_warn_bleeding': {
+    AppLocale.ru: 'Кровотечение, при котором прокладка полностью промокает за час, или крупные сгустки',
+    AppLocale.kk: 'Бір сағатта прокладканы толық суландыратын қан кету немесе ірі ұйындылар',
+    AppLocale.en: 'Bleeding that soaks a pad in an hour, or large clots',
+  },
+  'pp_warn_fever': {
+    AppLocale.ru: 'Температура 38 °C или выше, озноб',
+    AppLocale.kk: 'Дене қызуы 38 °C немесе жоғары, қалтырау',
+    AppLocale.en: 'A temperature of 38°C or higher, or chills',
+  },
+  'pp_warn_discharge': {
+    AppLocale.ru: 'Выделения с неприятным запахом',
+    AppLocale.kk: 'Жағымсыз иісі бар бөліністер',
+    AppLocale.en: 'Discharge with a bad smell',
+  },
+  'pp_warn_headache': {
+    AppLocale.ru: 'Сильная головная боль или нарушения зрения',
+    AppLocale.kk: 'Қатты бас ауыруы немесе көру бұзылысы',
+    AppLocale.en: 'A severe headache, or changes in your vision',
+  },
+  'pp_warn_calf': {
+    AppLocale.ru: 'Покраснение, отёк и боль в одной ноге',
+    AppLocale.kk: 'Бір аяқтың қызаруы, ісінуі және ауыруы',
+    AppLocale.en: 'One leg red, swollen and painful',
+  },
+  'pp_warn_wound': {
+    AppLocale.ru: 'Шов или рана после кесарева — горячие, опухшие или сочатся',
+    AppLocale.kk: 'Тігіс немесе кесар тілігінен кейінгі жара — ыстық, ісінген немесе сұйықтық ағып тұр',
+    AppLocale.en: 'A tear or caesarean wound that is hot, swollen or leaking',
+  },
+  'pp_warn_harm': {
+    AppLocale.ru: 'Мысли навредить себе или малышу — обратитесь за помощью немедленно',
+    AppLocale.kk: 'Өзіңізге немесе нәрестеге зиян келтіру ойлары — дереу көмекке жүгініңіз',
+    AppLocale.en: 'Thoughts of harming yourself or the baby — seek help immediately',
+  },
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},
