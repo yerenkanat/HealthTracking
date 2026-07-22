@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/domain/child_growth.dart';
 import 'package:fcs_app/domain/family.dart';
+import 'package:fcs_app/domain/newborn_log.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
@@ -87,6 +88,19 @@ void main() {
     addTearDown(c.dispose);
     await pump(tester, c);
     expect(find.text(ru.t('vac_due')), findsWidgets);
+  });
+
+  testWidgets('the newborn card leads with time since the last feed', (tester) async {
+    // For a young baby the card answers the 3am question straight from the
+    // hub — no need to open the log.
+    final c = withChild(dob: DateTime(2026, 6, 22)); // 1 month → newborn card shown
+    addTearDown(c.dispose);
+    // A feed earlier today (today is midnight, so 8:00 is the same calendar day).
+    c.logNewbornEvent('c1', NewbornEvent(
+        at: DateTime(2026, 7, 22, 8), kind: NewbornEventKind.feed, detail: 'left'));
+    await pump(tester, c);
+    // "Последнее: ..." — the last-feed line leads the summary.
+    expect(find.textContaining(ru.t('nb_last', {'ago': ''}).trim()), findsWidgets);
   });
 
   testWidgets('opening a card reaches its screen', (tester) async {

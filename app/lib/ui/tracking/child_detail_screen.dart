@@ -366,7 +366,13 @@ class _CareCard extends StatelessWidget {
 String _newbornSummary(L10n l, List<NewbornEvent> events, DateTime today) {
   final s = summaryFor(events, today);
   if (s.isEmpty) return l.t('nb_empty');
-  return '${l.t('nb_feeds')} ${s.feeds} · ${l.t('nb_diapers')} ${s.diapers}';
+  final counts = '${l.t('nb_feeds')} ${s.feeds} · ${l.t('nb_diapers')} ${s.diapers}';
+  // Lead with the 3am question — "when was the last feed" — so a parent can
+  // answer it from the card without opening the log. Only when a feed exists.
+  final lastFeed = lastOfKind(events, NewbornEventKind.feed);
+  if (lastFeed == null) return counts;
+  final ago = l.t('nb_last', {'ago': l.ago(today.difference(lastFeed.at).abs())});
+  return '$ago · $counts';
 }
 
 /// Open the newborn log, wired to the controller.
