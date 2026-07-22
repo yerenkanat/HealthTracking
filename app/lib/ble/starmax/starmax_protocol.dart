@@ -144,21 +144,24 @@ Uint8List cmdSetTime(DateTime t) {
   ]);
 }
 
-/// Set the wearer's profile. Payload: sex (0=female,1=male), age, height LE16,
-/// weight LE16 — the numbers the watch uses to compute calories and distance.
+/// Set the wearer's profile. Payload: sex (0=female,1=male), age, height LE16
+/// in cm, weight LE16 — the numbers the watch uses to compute calories and
+/// distance. Weight is sent in TENTHS of a kilo, per the vendor's "0.1 KG"
+/// unit, so 60.5 kg → 605.
 Uint8List cmdSetUserInfo({
   required bool male,
   required int age,
   required int heightCm,
-  required int weightKg,
+  required double weightKg,
 }) {
+  final w = (weightKg * 10).round();
   return buildFrame(StarmaxCmd.userInfo, [
     male ? 1 : 0,
     age & 0xFF,
     heightCm & 0xFF,
     (heightCm >> 8) & 0xFF,
-    weightKg & 0xFF,
-    (weightKg >> 8) & 0xFF,
+    w & 0xFF,
+    (w >> 8) & 0xFF,
   ]);
 }
 

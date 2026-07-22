@@ -61,10 +61,12 @@ void main() {
     _chk('history date is (year-2000, month, day)',
         hist[4] == 26 && hist[5] == 7 && hist[6] == 22);
 
-    final ui = cmdSetUserInfo(male: false, age: 30, heightCm: 165, weightKg: 60);
+    final ui = cmdSetUserInfo(male: false, age: 30, heightCm: 165, weightKg: 60.5);
     _chk('user-info sex byte: female is 0', ui[4] == 0);
     _chk('user-info carries age', ui[5] == 30);
     _chk('user-info height is little-endian 16-bit', ui[6] == (165 & 0xFF) && ui[7] == (165 >> 8));
+    // Weight is sent in tenths of a kilo: 60.5 kg → 605.
+    _chk('user-info weight is sent in 0.1 kg units', ui[8] == (605 & 0xFF) && ui[9] == (605 >> 8));
   }
 
   // ---- Parse round-trip and the reply bit ----
@@ -119,7 +121,7 @@ void main() {
     fields[21] = 98; // SpO2
     fields[22] = 35; // stress
     fields[23] = 5; // met
-    u16(25, 3650); // temp ×100 = 36.50 °C
+    u16(25, 365); // temp in tenths = 36.5 °C
     fields[28] = 1; // worn
     fields[29] = 16; // breath rate
 

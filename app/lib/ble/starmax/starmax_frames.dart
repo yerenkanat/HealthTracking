@@ -41,13 +41,14 @@ class StarmaxHealthSnapshot {
   final int stress; // "pressure" 0-100, 0 = unknown
   final int met;
 
-  /// The vendor's unlabelled blood-pressure pair (`fz`/`ss`). Names are a best
-  /// reading — treat as approximate and do not surface without a clinician's
-  /// framing. 0 = unknown.
+  /// Blood pressure, from the vendor's `fz` (diastolic) / `ss` (systolic)
+  /// fields — confirmed by the official docs. 0 = unknown. Watch-estimated, so
+  /// surface only with a clinician's framing, never as a diagnosis.
   final int bpDiastolic; // fz
   final int bpSystolic; // ss
 
-  /// Body temperature ×100 (3650 = 36.50 °C), 0 = unknown. Use [tempCelsius].
+  /// Body temperature in tenths of a degree (365 = 36.5 °C), per the vendor's
+  /// "0.1摄氏度" unit. 0 = unknown. Use [tempCelsius].
   final int tempRaw;
   final int bloodSugar;
   final bool isWorn;
@@ -72,8 +73,8 @@ class StarmaxHealthSnapshot {
     required this.breathRate,
   });
 
-  /// Temperature in °C, or null when unknown.
-  double? get tempCelsius => tempRaw == 0 ? null : tempRaw / 100.0;
+  /// Temperature in °C, or null when unknown. The device sends tenths.
+  double? get tempCelsius => tempRaw == 0 ? null : tempRaw / 10.0;
 }
 
 /// Decode a frame-141 payload. Later firmware appends fields; every one past
@@ -95,7 +96,8 @@ StarmaxHealthSnapshot parseHealthDetail(List<int> e) {
     met: e[23] & 0xFF,
     tempRaw: e.length >= 27 ? _u16(e, 25) : 0,
     bloodSugar: e.length >= 28 ? e[27] & 0xFF : 0,
-    isWorn: e.length >= 29 ? e[28] != 0 : false,
+    // isWear: 1 = worn; 0 = off-wrist; 255/-1 = invalid. Only 1 is "worn".
+    isWorn: e.length >= 29 && (e[28] & 0xFF) == 1,
     breathRate: e.length >= 30 ? e[29] & 0xFF : 0,
   );
 }
