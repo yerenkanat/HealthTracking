@@ -23,6 +23,7 @@ import { computeBpOffsets } from './health/bpCalibration';
 import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { RateLimiter } from './http/rateLimit';
+import { antenatalProtocol } from './antenatal/protocol';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -210,6 +211,11 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   app.addHook('onClose', async () => clearInterval(sweeper));
 
   app.get('/health', async () => ({ ok: true }));
+
+  // Public reference data: the Kazakhstan antenatal 8-visit schedule, from the
+  // shared contract. No auth — it is the same clinical schedule the app bundles
+  // and the admin panel renders; keeping one served copy stops the three drifting.
+  app.get('/antenatal/protocol', async () => antenatalProtocol);
 
   // Client CRUD + history routes (require an authUser resolver).
   if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser);

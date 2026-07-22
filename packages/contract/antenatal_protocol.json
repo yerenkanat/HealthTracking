@@ -1,0 +1,617 @@
+{
+  "_comment": "CANONICAL Kazakhstan antenatal-care schedule (MOH Clinical Protocol No.248, 2025), the single source of truth shared by the Dart app, the Node backend (GET /antenatal/protocol) and the admin panel. Structure is asserted against the app domain by app/tool/verify_antenatal_contract.dart. Russian labels mirror the app l10n.",
+  "version": 1,
+  "categories": {
+    "counsel": "Консультирование",
+    "exam": "Обследование",
+    "lab": "Анализы",
+    "imaging": "Инструментальные",
+    "prophylaxis": "Профилактика"
+  },
+  "visits": [
+    {
+      "number": 1,
+      "fromWeek": 10,
+      "toWeek": 12,
+      "items": [
+        {
+          "id": "history_risk",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Сбор анамнеза и оценка факторов риска"
+        },
+        {
+          "id": "danger_signs",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Обучение тревожным признакам и действиям при них"
+        },
+        {
+          "id": "schedule_plan",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Индивидуальный график наблюдения"
+        },
+        {
+          "id": "bmi",
+          "category": "exam",
+          "risk": false,
+          "ru": "Рост, вес и расчёт ИМТ"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "breast_exam",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр молочных желёз"
+        },
+        {
+          "id": "gyn_exam",
+          "category": "exam",
+          "risk": false,
+          "ru": "Гинекологический осмотр"
+        },
+        {
+          "id": "us_dating",
+          "category": "imaging",
+          "risk": false,
+          "ru": "УЗИ 11–13 нед.: срок, двойня, скрининг"
+        },
+        {
+          "id": "ecg",
+          "category": "imaging",
+          "risk": true,
+          "ru": "ЭКГ по показаниям"
+        },
+        {
+          "id": "cbc",
+          "category": "lab",
+          "risk": false,
+          "ru": "Общий анализ крови"
+        },
+        {
+          "id": "blood_glucose",
+          "category": "lab",
+          "risk": false,
+          "ru": "Глюкоза венозной крови"
+        },
+        {
+          "id": "urinalysis",
+          "category": "lab",
+          "risk": false,
+          "ru": "Общий анализ мочи"
+        },
+        {
+          "id": "blood_type_rh",
+          "category": "lab",
+          "risk": false,
+          "ru": "Группа крови и резус-фактор"
+        },
+        {
+          "id": "urine_culture",
+          "category": "lab",
+          "risk": false,
+          "ru": "Посев мочи (до 16 нед.)"
+        },
+        {
+          "id": "cervical_cytology",
+          "category": "lab",
+          "risk": false,
+          "ru": "Мазок на онкоцитологию"
+        },
+        {
+          "id": "hiv",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ на ВИЧ"
+        },
+        {
+          "id": "syphilis",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ на сифилис"
+        },
+        {
+          "id": "hep_b",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ на гепатит B"
+        },
+        {
+          "id": "serum_markers",
+          "category": "lab",
+          "risk": false,
+          "ru": "Сывороточные маркёры (11–13 нед.)"
+        },
+        {
+          "id": "therapist",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Осмотр терапевта / ВОП"
+        },
+        {
+          "id": "folic_acid",
+          "category": "prophylaxis",
+          "risk": false,
+          "ru": "Фолиевая кислота 400 мкг в день"
+        },
+        {
+          "id": "aspirin",
+          "category": "prophylaxis",
+          "risk": true,
+          "ru": "Аспирин с 12 до 36 нед. при риске преэклампсии"
+        },
+        {
+          "id": "calcium",
+          "category": "prophylaxis",
+          "risk": true,
+          "ru": "Кальций с 12 нед. при низком его потреблении"
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "fromWeek": 16,
+      "toWeek": 20,
+      "items": [
+        {
+          "id": "screening_review",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Обзор результатов всех скринингов"
+        },
+        {
+          "id": "birth_school",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Школа подготовки к родам"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "fundal_height",
+          "category": "exam",
+          "risk": false,
+          "ru": "Высота дна матки (гравидограмма)"
+        },
+        {
+          "id": "urine_protein",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ мочи на белок"
+        },
+        {
+          "id": "us_anomaly",
+          "category": "imaging",
+          "risk": false,
+          "ru": "УЗИ 19–21 нед.: скрининг аномалий"
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "fromWeek": 26,
+      "toWeek": 28,
+      "items": [
+        {
+          "id": "risk_review",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Повторная оценка факторов риска"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "fundal_height",
+          "category": "exam",
+          "risk": false,
+          "ru": "Высота дна матки (гравидограмма)"
+        },
+        {
+          "id": "fetal_heartbeat",
+          "category": "exam",
+          "risk": false,
+          "ru": "Выслушивание сердцебиения плода"
+        },
+        {
+          "id": "urine_protein",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ мочи на белок"
+        },
+        {
+          "id": "ogtt",
+          "category": "lab",
+          "risk": true,
+          "ru": "Тест на толерантность к глюкозе (24–28 нед.)"
+        },
+        {
+          "id": "anti_d",
+          "category": "prophylaxis",
+          "risk": true,
+          "ru": "Анти-D иммуноглобулин в 28–30 нед. при резус-отрицательной крови"
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "fromWeek": 30,
+      "toWeek": 30,
+      "items": [
+        {
+          "id": "risk_review",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Повторная оценка факторов риска"
+        },
+        {
+          "id": "therapist",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Осмотр терапевта / ВОП"
+        },
+        {
+          "id": "weight_recheck",
+          "category": "exam",
+          "risk": true,
+          "ru": "Контроль веса при низком ИМТ"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "fundal_height",
+          "category": "exam",
+          "risk": false,
+          "ru": "Высота дна матки (гравидограмма)"
+        },
+        {
+          "id": "fetal_heartbeat",
+          "category": "exam",
+          "risk": false,
+          "ru": "Выслушивание сердцебиения плода"
+        },
+        {
+          "id": "us_growth",
+          "category": "imaging",
+          "risk": false,
+          "ru": "УЗИ 30–32 нед.: рост плода"
+        },
+        {
+          "id": "cbc",
+          "category": "lab",
+          "risk": false,
+          "ru": "Общий анализ крови"
+        },
+        {
+          "id": "syphilis",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ на сифилис"
+        },
+        {
+          "id": "hiv",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ на ВИЧ"
+        },
+        {
+          "id": "urine_protein",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ мочи на белок"
+        },
+        {
+          "id": "maternity_leave",
+          "category": "prophylaxis",
+          "risk": false,
+          "ru": "Оформление дородового отпуска (30 нед.)"
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "fromWeek": 34,
+      "toWeek": 34,
+      "items": [
+        {
+          "id": "risk_review",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Повторная оценка факторов риска"
+        },
+        {
+          "id": "birth_school",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Школа подготовки к родам"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "fundal_height",
+          "category": "exam",
+          "risk": false,
+          "ru": "Высота дна матки (гравидограмма)"
+        },
+        {
+          "id": "fetal_heartbeat",
+          "category": "exam",
+          "risk": false,
+          "ru": "Выслушивание сердцебиения плода"
+        },
+        {
+          "id": "urine_protein",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ мочи на белок"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "fromWeek": 36,
+      "toWeek": 36,
+      "items": [
+        {
+          "id": "risk_review",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Повторная оценка факторов риска"
+        },
+        {
+          "id": "breastfeeding_contraception",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Беседа о грудном вскармливании и контрацепции"
+        },
+        {
+          "id": "fetal_position",
+          "category": "exam",
+          "risk": false,
+          "ru": "Определение положения и предлежания плода"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "fundal_height",
+          "category": "exam",
+          "risk": false,
+          "ru": "Высота дна матки (гравидограмма)"
+        },
+        {
+          "id": "fetal_heartbeat",
+          "category": "exam",
+          "risk": false,
+          "ru": "Выслушивание сердцебиения плода"
+        },
+        {
+          "id": "urine_protein",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ мочи на белок"
+        },
+        {
+          "id": "syphilis",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ на сифилис"
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "fromWeek": 38,
+      "toWeek": 38,
+      "items": [
+        {
+          "id": "risk_review",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Повторная оценка факторов риска"
+        },
+        {
+          "id": "postterm_talk",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Беседа о переношенной беременности"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "fetal_position",
+          "category": "exam",
+          "risk": false,
+          "ru": "Определение положения и предлежания плода"
+        },
+        {
+          "id": "fundal_height",
+          "category": "exam",
+          "risk": false,
+          "ru": "Высота дна матки (гравидограмма)"
+        },
+        {
+          "id": "fetal_heartbeat",
+          "category": "exam",
+          "risk": false,
+          "ru": "Выслушивание сердцебиения плода"
+        },
+        {
+          "id": "urine_protein",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ мочи на белок"
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "fromWeek": 40,
+      "toWeek": 40,
+      "items": [
+        {
+          "id": "risk_review",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Повторная оценка факторов риска"
+        },
+        {
+          "id": "hospital_41w",
+          "category": "counsel",
+          "risk": false,
+          "ru": "Обсуждение госпитализации на 41 неделе"
+        },
+        {
+          "id": "bp_pulse",
+          "category": "exam",
+          "risk": false,
+          "ru": "Измерение давления и пульса"
+        },
+        {
+          "id": "legs_varicose",
+          "category": "exam",
+          "risk": false,
+          "ru": "Осмотр ног на варикозные вены"
+        },
+        {
+          "id": "fetal_position",
+          "category": "exam",
+          "risk": false,
+          "ru": "Определение положения и предлежания плода"
+        },
+        {
+          "id": "fundal_height",
+          "category": "exam",
+          "risk": false,
+          "ru": "Высота дна матки (гравидограмма)"
+        },
+        {
+          "id": "fetal_heartbeat",
+          "category": "exam",
+          "risk": false,
+          "ru": "Выслушивание сердцебиения плода"
+        },
+        {
+          "id": "urine_protein",
+          "category": "lab",
+          "risk": false,
+          "ru": "Анализ мочи на белок"
+        }
+      ]
+    }
+  ],
+  "windows": [
+    {
+      "id": "us_dating",
+      "fromWeek": 11,
+      "toWeek": 13,
+      "risk": false,
+      "ru": "УЗИ 11–13 нед.: срок, двойня, скрининг"
+    },
+    {
+      "id": "serum_markers",
+      "fromWeek": 11,
+      "toWeek": 13,
+      "risk": false,
+      "ru": "Сывороточные маркёры (11–13 нед.)"
+    },
+    {
+      "id": "us_anomaly",
+      "fromWeek": 19,
+      "toWeek": 21,
+      "risk": false,
+      "ru": "УЗИ 19–21 нед.: скрининг аномалий"
+    },
+    {
+      "id": "ogtt",
+      "fromWeek": 24,
+      "toWeek": 28,
+      "risk": true,
+      "ru": "Тест на толерантность к глюкозе (24–28 нед.)"
+    },
+    {
+      "id": "anti_d",
+      "fromWeek": 28,
+      "toWeek": 30,
+      "risk": true,
+      "ru": "Анти-D иммуноглобулин в 28–30 нед. при резус-отрицательной крови"
+    },
+    {
+      "id": "us_growth",
+      "fromWeek": 30,
+      "toWeek": 32,
+      "risk": false,
+      "ru": "УЗИ 30–32 нед.: рост плода"
+    }
+  ]
+}

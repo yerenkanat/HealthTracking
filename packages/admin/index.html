@@ -275,6 +275,15 @@
     .kpis{grid-template-columns:1fr 1fr}
     .grid2{grid-template-columns:1fr}
   }
+  /* Antenatal protocol view */
+  .an-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:6px 18px 18px}
+  .an-visit{border:1px solid var(--hair);border-radius:12px;background:var(--surface-2);padding:14px}
+  .an-vh{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .an-vn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px}
+  .an-wk{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .an-cat{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin:10px 0 4px}
+  .an-item{font-size:13px;line-height:1.4;padding:2px 0;color:var(--ink)}
+  .an-risk{color:var(--warn);font-size:11px;font-style:italic}
 </style>
 
 <div class="app">
@@ -298,6 +307,10 @@
     <button type="button" class="nav" data-view="content">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
       Контент <span class="badge" id="navContentBadge" style="background:var(--muted)" hidden></span>
+    </button>
+    <button type="button" class="nav" data-view="antenatal">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M9 16l2 2 4-4"/></svg>
+      Антенатальный уход
     </button>
     <button type="button" class="nav" data-view="devices">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
@@ -539,6 +552,16 @@
           </div>
         </div>
       </section>
+
+      <section class="view" id="antenatal">
+        <div class="card">
+          <div class="sec-h"><h3>Стандартный план — не менее 8 визитов</h3></div>
+          <p style="color:var(--muted);margin:0 0 4px">
+            Клинический протокол МЗ РК «Антенатальный уход» (2025). Тот же график, что видит пациентка в приложении —
+            единый источник (<code>/antenatal/protocol</code>).</p>
+          <div id="anBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -560,12 +583,12 @@
       {userId:"u5",displayName:"Aruzhan M.",code:"PREECLAMPSIA_BP",severity:"warning",at:"2h ago",detail:"BP 141/91 mmHg"}
     ],
     users:[
-      {id:"u1",displayName:"Aigerim S.",phone:"+7 707 345 22 44",dueDate:"Nov 2026",last:"2m ago"},
-      {id:"u2",displayName:"Madina K.",phone:"+7 701 118 90 12",dueDate:"Sep 2026",last:"18m ago"},
-      {id:"u3",displayName:"Zarina B.",phone:"+7 705 900 77 31",dueDate:"Jan 2027",last:"41m ago"},
-      {id:"u4",displayName:"Dana T.",phone:"+998 90 123 45 67",dueDate:"Oct 2026",last:"1h ago"},
-      {id:"u5",displayName:"Aruzhan M.",phone:"+996 700 220 118",dueDate:"Dec 2026",last:"2h ago"},
-      {id:"u6",displayName:"Saltanat R.",phone:"+7 702 554 09 80",dueDate:"Feb 2027",last:"3h ago"}
+      {id:"u1",displayName:"Aigerim S.",phone:"+7 707 345 22 44",dueDate:"Nov 2026",weeks:28,last:"2m ago"},
+      {id:"u2",displayName:"Madina K.",phone:"+7 701 118 90 12",dueDate:"Sep 2026",weeks:34,last:"18m ago"},
+      {id:"u3",displayName:"Zarina B.",phone:"+7 705 900 77 31",dueDate:"Jan 2027",weeks:12,last:"41m ago"},
+      {id:"u4",displayName:"Dana T.",phone:"+998 90 123 45 67",dueDate:"Oct 2026",weeks:30,last:"1h ago"},
+      {id:"u5",displayName:"Aruzhan M.",phone:"+996 700 220 118",dueDate:"Dec 2026",weeks:22,last:"2h ago"},
+      {id:"u6",displayName:"Saltanat R.",phone:"+7 702 554 09 80",dueDate:"Feb 2027",weeks:8,last:"3h ago"}
     ],
     health:{
       u1:{latest:{hr:96,spo2:96,systolic:162,diastolic:108,temp:37.1},alert:["systolic","diastolic"],
@@ -1284,6 +1307,11 @@
           v ?? '<span style="color:var(--muted)">не указано</span>'
         }</span></div>`).join("")}
       </div>
+      ${(()=>{const st=anStatus(gestWeek(u)); return st?`
+      <div class="dsec">Антенатальный план</div>
+      <div class="tl"><div class="tli"><span><b>Визит ${st.n} из ${st.total}</b> · ${st.wk}</span><span class="t">${
+        st.dueNow?'<span style="color:var(--warn);font-weight:600">пора на визит</span>':'предстоит'
+      }</span></div></div>`:"";})()}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
@@ -1306,6 +1334,7 @@
     emergencies:["Экстренные","Активные тревоги, самые серьёзные сверху"],
     users:["Пользователи","Поиск и карточка пациентки"],
     content:["Контент","Уроки и товары для каждой недели беременности и месяца жизни ребёнка"],
+    antenatal:["Антенатальный уход","График визитов, обследований и скринингов по протоколу МЗ РК"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
     safety:["Безопасность","SOS и события зон по всем семьям"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
@@ -1326,6 +1355,7 @@
     $("#pageTitle").textContent=t[0];$("#pageSub").innerHTML=t[1];
     if(v==="overview")drawOps();
     if(v==="analytics")renderAnalytics();
+    if(v==="antenatal")renderAntenatal();
     // In the URL, so a tab can be bookmarked, shared with a colleague, and
     // survives a refresh. Reloading used to drop whoever was mid-investigation
     // back on «Обзор».
@@ -1346,6 +1376,63 @@
   // not once at boot.
   const drawOps=()=>drawBiTrend("#opsTrend","#opsTrendSub",{});
   const drawAn=()=>{drawBiTrend("#anTrend","#anTrendSub",{withWau:true});drawRetentionCurve();};
+
+  // ---- Antenatal protocol (the same schedule the app shows the mother) ----
+  // Visit windows in completed weeks, for the per-patient status in the drawer.
+  // Full contents come from GET /antenatal/protocol (the shared source of truth).
+  const AN_VISITS=[[1,10,12],[2,16,20],[3,26,28],[4,30,30],[5,34,34],[6,36,36],[7,38,38],[8,40,40]];
+  const AN_CAT_ORDER=["counsel","exam","lab","imaging","prophylaxis"];
+  let PROTOCOL=null;
+
+  /// Gestational week from a full due date (EDD = 40 weeks): 40 − weeks-to-go.
+  /// Null for a missing or month-only date we cannot place precisely.
+  function weeksFromDue(due){
+    if(!due) return null;
+    const d=new Date(due); if(isNaN(d)) return null;
+    const wksToGo=Math.round((d-new Date())/(7*864e5));
+    const w=40-wksToGo;
+    return (w>=0&&w<=45)?w:null;
+  }
+  /// A mother's gestational week from whatever the record carries.
+  function gestWeek(u){ return (u&&u.weeks!=null)?u.weeks:weeksFromDue(u&&u.dueDate); }
+
+  /// Which of the 8 visits is due now (window contains week) or next. Null once
+  /// week is unknown. Mirrors antenatalStatusForWeek on the server.
+  function anStatus(week){
+    if(week==null||week<0) return null;
+    const due=AN_VISITS.find(([,a,b])=>week>=a&&week<=b);
+    const next=AN_VISITS.find(([,a])=>a>week);
+    const lead=due||next;
+    if(!lead) return {n:8,total:8,dueNow:false,wk:week+" нед."};
+    const wk=lead[1]===lead[2]?`${lead[1]} нед.`:`${lead[1]}–${lead[2]} нед.`;
+    return {n:lead[0],total:8,dueNow:!!due,wk};
+  }
+
+  async function renderAntenatal(){
+    const box=$("#anBody"); if(!box) return;
+    if(!PROTOCOL){
+      try{ const r=await fetch("/antenatal/protocol"); if(r.ok) PROTOCOL=await r.json(); }catch(e){/* offline/mock */}
+    }
+    if(!PROTOCOL){
+      box.innerHTML=`<div style="color:var(--muted);padding:16px 0">Протокол доступен, когда панель обслуживается сервером (<code>/antenatal/protocol</code>).</div>`;
+      return;
+    }
+    const cats=PROTOCOL.categories||{};
+    const visitCard=v=>{
+      const groups=AN_CAT_ORDER.map(cat=>{
+        const items=v.items.filter(it=>it.category===cat);
+        if(!items.length) return "";
+        return `<div class="an-cat">${esc(cats[cat]||cat)}</div>`+
+          items.map(it=>`<div class="an-item">${esc(it.ru)}${it.risk?` <span class="an-risk">по показаниям</span>`:""}</div>`).join("");
+      }).join("");
+      const wk=v.fromWeek===v.toWeek?`${v.fromWeek} нед.`:`${v.fromWeek}–${v.toWeek} нед.`;
+      return `<div class="an-visit"><div class="an-vh"><span class="an-vn">${v.number}</span><b>Визит ${v.number}</b><span class="an-wk">${wk}</span></div>${groups}</div>`;
+    };
+    const wins=(PROTOCOL.windows||[]).map(w=>
+      `<div class="an-item">${esc(w.ru)} <span class="an-wk">${w.fromWeek}–${w.toWeek} нед.</span>${w.risk?` <span class="an-risk">по показаниям</span>`:""}</div>`).join("");
+    box.innerHTML=`<div class="an-grid">${PROTOCOL.visits.map(visitCard).join("")}</div>`+
+      `<div class="sec-h" style="margin-top:18px"><h3>Сроки, которые нельзя пропустить</h3></div><div class="an-visit">${wins}</div>`;
+  }
 
   function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawOps();}
 
