@@ -57,8 +57,11 @@ class HomeSafetyScreen extends StatelessWidget {
                   Icon(allDone ? Icons.verified_rounded : Icons.shield_outlined,
                       size: 20, color: allDone ? Palette.teal : Palette.violet),
                   const SizedBox(width: 10),
-                  Text(allDone ? l.t('hs_all_done') : l.t('hs_progress', {'n': count, 'total': total}),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  Expanded(
+                    child: Text(allDone ? l.t('hs_all_done') : l.t('hs_progress', {'n': count, 'total': total}),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  ),
                 ]),
                 const SizedBox(height: 12),
                 ClipRRect(

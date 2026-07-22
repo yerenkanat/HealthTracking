@@ -685,7 +685,16 @@ class _ActivityWellnessCard extends StatelessWidget {
           Text(l.t('wm_title').toUpperCase(),
               style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
           const SizedBox(height: 12),
-          Wrap(spacing: 10, runSpacing: 10, children: tiles),
+          // Two tiles per row, sized to the space so long localized values
+          // (a Kazakh "7 сағ 45 мин") never push a fixed-width tile off-screen.
+          LayoutBuilder(builder: (context, c) {
+            final tileW = (c.maxWidth - 10) / 2;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [for (final t in tiles) SizedBox(width: tileW, child: t)],
+            );
+          }),
           if (!m.worn) ...[
             const SizedBox(height: 12),
             Row(children: [
@@ -722,7 +731,6 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 148,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: colour.withValues(alpha: 0.08),
@@ -747,8 +755,11 @@ class _StatTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(value,
-                  style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700)),
+              Flexible(
+                child: Text(value,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700)),
+              ),
               if (unit != null) ...[
                 const SizedBox(width: 3),
                 Text(unit!, style: const TextStyle(color: Palette.textDim, fontSize: 11)),

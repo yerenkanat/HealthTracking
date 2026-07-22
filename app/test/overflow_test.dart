@@ -54,6 +54,18 @@ import 'package:fcs_app/ui/theme.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_safety_screen.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
+import 'package:fcs_app/ui/calendar/postpartum_screen.dart';
+import 'package:fcs_app/ui/calendar/pregnancy_weight_screen.dart';
+import 'package:fcs_app/ui/calendar/pregnancy_warnings.dart';
+import 'package:fcs_app/ui/calendar/labour_signs_screen.dart';
+import 'package:fcs_app/ui/tracking/safe_sleep_screen.dart';
+import 'package:fcs_app/ui/tracking/solids_screen.dart';
+import 'package:fcs_app/ui/tracking/child_illness_screen.dart';
+import 'package:fcs_app/ui/tracking/teething_screen.dart';
+import 'package:fcs_app/ui/tracking/home_safety_screen.dart';
+import 'package:fcs_app/ui/tracking/child_emergency_screen.dart';
+import 'package:fcs_app/domain/child_emergency.dart';
+import 'package:fcs_app/domain/wearable_metrics.dart';
 
 /// A small-but-real phone: 360x640 dp.
 const _smallPhone = Size(360, 640);
@@ -583,6 +595,79 @@ void main() {
         return OnboardingFlow(controller: oc, onComplete: (_) {});
       }, scroll: true);
     }
+  });
+
+  // ---- The guides and records added this session ----
+  testWidgets('the postpartum screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'PostpartumScreen',
+        () => PostpartumScreen(birthDate: DateTime(2026, 6, 20), today: today), scroll: true);
+  });
+
+  testWidgets('the pregnancy weight guide fits every locale', (tester) async {
+    await checkAllLocales(tester, 'PregnancyWeightScreen',
+        () => const PregnancyWeightScreen(weeklyRateKg: 0.42), scroll: true);
+  });
+
+  testWidgets('the pregnancy warnings screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'PregnancyWarningsScreen', () => const PregnancyWarningsScreen(), scroll: true);
+  });
+
+  testWidgets('the signs-of-labour screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'LabourSignsScreen', () => const LabourSignsScreen(), scroll: true);
+  });
+
+  testWidgets('the safe-sleep screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'SafeSleepScreen', () => const SafeSleepScreen(), scroll: true);
+  });
+
+  testWidgets('the solids screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'SolidsScreen', () => const SolidsScreen(ageMonths: 8), scroll: true);
+  });
+
+  testWidgets('the child-illness screen fits every locale', (tester) async {
+    // Age 1 so the under-3-months fever banner renders too.
+    await checkAllLocales(tester, 'ChildIllnessScreen', () => const ChildIllnessScreen(ageMonths: 1), scroll: true);
+  });
+
+  testWidgets('the teething screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'TeethingScreen', () => const TeethingScreen(ageMonths: 7), scroll: true);
+  });
+
+  testWidgets('the home-safety screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'HomeSafetyScreen',
+        () => HomeSafetyScreen(ageMonths: 12, done: const {'stair_gates'}, onToggle: (_) {}), scroll: true);
+  });
+
+  testWidgets('the emergency-info screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'ChildEmergencyScreen',
+        () => ChildEmergencyScreen(
+              childName: 'Сұлтан',
+              info: const ChildEmergencyInfo(
+                allergies: 'Арахис, пенициллин', conditions: 'Астма', bloodType: 'A+',
+                doctorName: 'Др. Алиева', doctorPhone: '+7 700 000 0000',
+                contactName: 'Бабушка', contactPhone: '+7 700 111 1111',
+              ),
+              onSave: (_) {},
+            ),
+        scroll: true);
+  });
+
+  testWidgets('the emergency-info edit form fits every locale', (tester) async {
+    // Open the edit form (the invite → form path) and check it too.
+    await checkAllLocales(tester, 'ChildEmergencyScreen (empty invite)',
+        () => ChildEmergencyScreen(childName: 'Сұлтан', info: const ChildEmergencyInfo(), onSave: (_) {}), scroll: true);
+  });
+
+  testWidgets('the activity & wellness dashboard panel fits every locale', (tester) async {
+    await checkAllLocales(tester, 'Dashboard (activity panel)', () {
+      return HealthDashboardView(
+        samples: samples,
+        wearable: WearableMetrics(
+          at: today, steps: 12345, meters: 8200, kcal: 640, sleepMinutes: 465,
+          stress: 34, breathRate: 15, bloodSugarTenths: 55, worn: false,
+        ),
+      );
+    }, scroll: true);
   });
 }
 
