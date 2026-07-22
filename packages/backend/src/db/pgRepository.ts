@@ -172,6 +172,28 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(`DELETE FROM devices WHERE id = $1`, [deviceId]);
     },
 
+    async listAppointments(userId) {
+      const { rows } = await pool.query(
+        `SELECT id, title, at, note FROM appointments WHERE user_id = $1 ORDER BY at`, [userId]);
+      return rows.map((r) => ({
+        id: r.id, title: r.title, at: new Date(r.at).toISOString(), note: r.note ?? '',
+      }));
+    },
+    async upsertAppointment(userId, a) {
+      await pool.query(
+        `INSERT INTO appointments (id, user_id, title, at, note)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, at = EXCLUDED.at, note = EXCLUDED.note`,
+        [a.id, userId, a.title, a.at, a.note ?? '']);
+    },
+    async appointmentOwner(id) {
+      const { rows } = await pool.query(`SELECT user_id FROM appointments WHERE id = $1`, [id]);
+      return rows[0] ? { userId: rows[0].user_id } : null;
+    },
+    async deleteAppointment(id) {
+      await pool.query(`DELETE FROM appointments WHERE id = $1`, [id]);
+    },
+
     async createGeofence(childId, g) {
       if (g.shape === 'circle') {
         const { rows } = await pool.query(

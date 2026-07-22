@@ -32,6 +32,7 @@ export function createMemoryRepository(): Repository {
   ];
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, Geofence[]>([[DEMO_CHILD, [home]]]);
+  const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const events: GeofenceEvent[] = [];
   const healthRows: unknown[] = [];
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -128,6 +129,25 @@ export function createMemoryRepository(): Repository {
     deleteChild: async (id) => {
       const i = children.findIndex((c) => c.id === id);
       if (i >= 0) children.splice(i, 1);
+    },
+    // Appointments
+    listAppointments: async (userId) =>
+      appointments
+        .filter((a) => a.userId === userId)
+        .sort((x, y) => x.at.localeCompare(y.at))
+        .map(({ id, title, at, note }) => ({ id, title, at, note })),
+    upsertAppointment: async (userId, a) => {
+      const i = appointments.findIndex((x) => x.id === a.id);
+      const row = { ...a, note: a.note ?? '', userId };
+      if (i >= 0) appointments[i] = row; else appointments.push(row);
+    },
+    appointmentOwner: async (id) => {
+      const a = appointments.find((x) => x.id === id);
+      return a ? { userId: a.userId } : null;
+    },
+    deleteAppointment: async (id) => {
+      const i = appointments.findIndex((a) => a.id === id);
+      if (i >= 0) appointments.splice(i, 1);
     },
     listDevices: async () => devices.map((d) => ({ ...d })),
     createDevice: async (_u, d) => void devices.push({ ...d, childId: d.childId ?? null }),
@@ -289,6 +309,7 @@ export function createMemoryRepository(): Repository {
       children.length = 0;
       devices.length = 0;
       geofences.clear();
+      appointments.length = 0;
       events.length = 0;
       healthRows.length = 0;
       sleep.length = 0;

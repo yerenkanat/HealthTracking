@@ -154,6 +154,11 @@ class AppController {
   int? _waterGoal;
   final List<Appointment> _appointments = [];
   int _apptSeq = 0; // disambiguates ids created within the same microsecond
+  // Optional backend sync, wired by main.dart when signed in. Fire-and-forget:
+  // local is the source of truth, the server is a backup, so a failed push must
+  // never break a local edit.
+  Future<void> Function(Appointment)? _onApptUpsert;
+  Future<void> Function(String id)? _onApptDelete;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -895,6 +900,7 @@ class AppController {
     if (at.isAfter(_now()) && !_reminderStream.isClosed) {
       _reminderStream.add(_scheduleCommandFor(appt));
     }
+    unawaited(_onApptUpsert?.call(appt) ?? Future<void>.value());
     _persist();
     _notify();
   }
@@ -902,7 +908,29 @@ class AppController {
   void removeAppointment(String id) {
     _appointments.removeWhere((a) => a.id == id);
     if (!_reminderStream.isClosed) _reminderStream.add(ReminderCommand.cancel(reminderIdFor(id)));
+    unawaited(_onApptDelete?.call(id) ?? Future<void>.value());
     _persist(immediate: true); // irreversible — do not risk the debounce window
+    _notify();
+  }
+
+  /// Wire backend sync for appointments (called by main.dart when signed in).
+  void attachAppointmentSync({
+    required Future<void> Function(Appointment) upsert,
+    required Future<void> Function(String id) delete,
+  }) {
+    _onApptUpsert = upsert;
+    _onApptDelete = delete;
+  }
+
+  /// Merge appointments pulled from the server into the local list: anything the
+  /// server has that we do not is added (a sign-in on a new phone gets her
+  /// visits back). Local entries are kept — local is the source of truth.
+  void mergeRemoteAppointments(List<Appointment> remote) {
+    final have = _appointments.map((a) => a.id).toSet();
+    final added = [for (final a in remote) if (!have.contains(a.id)) a];
+    if (added.isEmpty) return;
+    _appointments.addAll(added);
+    _persist();
     _notify();
   }
 

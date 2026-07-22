@@ -253,6 +253,39 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  // ---- Appointments (user-scoped; the id is client-supplied) ----
+  /// The caller's appointments, as raw maps ({id, title, at, note}).
+  Future<List<Map<String, dynamic>>> getAppointments() async {
+    final res = await transport.get('/appointments');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['appointments'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// Create or update an appointment. Idempotent on the id, so re-syncing the
+  /// same appointment updates rather than duplicates.
+  Future<void> putAppointment({
+    required String id,
+    required String title,
+    required String at,
+    String note = '',
+  }) async {
+    final res = await transport.post('/appointments', {
+      'id': id,
+      'title': title,
+      'at': at,
+      if (note.isNotEmpty) 'note': note,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// Delete an appointment. A 404 counts as done (already gone).
+  Future<void> deleteAppointment(String id) async {
+    final res = await transport.delete('/appointments/$id');
+    if (res.ok || res.statusCode == 404) return;
+    throw ApiException(res.statusCode, res.body);
+  }
+
   /// Erase this account and everything belonging to it.
   ///
   /// Returns true when the server confirms. A 404 means there was nothing

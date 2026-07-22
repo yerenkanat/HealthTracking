@@ -43,6 +43,7 @@ function makeDeps(
 
   // In-memory CRUD state
   const children: Array<{ id: string; name: string }> = [];
+  const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -83,6 +84,21 @@ function makeDeps(
     deleteChild: async (id) => {
       const i = children.findIndex((c) => c.id === id);
       if (i >= 0) children.splice(i, 1);
+    },
+    listAppointments: async (uid) =>
+      appointments.filter((a) => a.userId === uid).map(({ userId: _drop, ...a }) => a),
+    upsertAppointment: async (uid, a) => {
+      const i = appointments.findIndex((x) => x.id === a.id);
+      const row = { ...a, note: a.note ?? '', userId: uid };
+      if (i >= 0) appointments[i] = row; else appointments.push(row);
+    },
+    appointmentOwner: async (id) => {
+      const a = appointments.find((x) => x.id === id);
+      return a ? { userId: a.userId } : null;
+    },
+    deleteAppointment: async (id) => {
+      const i = appointments.findIndex((a) => a.id === id);
+      if (i >= 0) appointments.splice(i, 1);
     },
     listDevices: async () => devices.map((d) => ({ ...d })),
     createDevice: async (_u, d) => void devices.push({ ...d, childId: d.childId ?? null }),

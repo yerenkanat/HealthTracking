@@ -31,6 +31,7 @@ import 'domain/sleep.dart';
 import 'domain/wearable_metrics.dart';
 import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
+import 'domain/appointment.dart';
 import 'domain/chat_controller.dart';
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
@@ -387,6 +388,36 @@ Future<void> bootstrapRuntime(
       networkErrorText: () => L10n(controller.locale).t('chat_error'),
       emergencyNoteText: () => L10n(controller.locale).t('chat_emergency_note'),
     ));
+
+    // Appointment sync — only once she is signed in (the routes are user-scoped).
+    // Push local edits to the server as a backup, and pull on start so a fresh
+    // sign-in on a new phone restores her visits. Local stays the source of
+    // truth; a failed sync never blocks a local edit.
+    if (controller.isSignedIn) {
+      String iso(DateTime at) => at.toUtc().toIso8601String();
+      controller.attachAppointmentSync(
+        upsert: (a) => api.putAppointment(id: a.id, title: a.title, at: iso(a.at), note: a.note),
+        delete: (id) => api.deleteAppointment(id),
+      );
+      try {
+        final remote = await api.getAppointments();
+        controller.mergeRemoteAppointments([
+          for (final m in remote)
+            Appointment(
+              id: m['id'] as String,
+              title: (m['title'] as String?) ?? '',
+              at: DateTime.parse(m['at'] as String),
+              note: (m['note'] as String?) ?? '',
+            ),
+        ]);
+        // First-sync push: send anything local the server does not have yet.
+        for (final a in controller.appointments) {
+          unawaited(api.putAppointment(id: a.id, title: a.title, at: iso(a.at), note: a.note));
+        }
+      } catch (_) {
+        // Offline or backend down — local data is intact; retry on next launch.
+      }
+    }
 
     // Where the child's position comes from.
     //

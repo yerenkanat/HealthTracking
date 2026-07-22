@@ -55,6 +55,14 @@ export interface ProfileRow {
   city: string | null;
 }
 
+/** A dated appointment/reminder. Mirrors the app's Appointment (domain/appointment.dart). */
+export interface Appointment {
+  id: string;
+  title: string;
+  at: string; // ISO 8601
+  note: string;
+}
+
 /** One lesson or product on the timeline. Mirrors the app's ContentItem. */
 export interface ContentItemRow {
   id: string;
@@ -180,6 +188,13 @@ export interface Repository {
   listDevices(userId: string): Promise<Array<{ id: string; name: string; kind: string; childId: string | null }>>;
   createDevice(userId: string, d: { id: string; name: string; kind: string; childId?: string | null }): Promise<void>;
   deleteDevice(deviceId: string): Promise<void>;
+
+  // Appointments (prenatal visits, ultrasounds, lab work). User-scoped; the
+  // client keeps the id so an offline-created appointment keeps its identity.
+  listAppointments(userId: string): Promise<Appointment[]>;
+  upsertAppointment(userId: string, a: Appointment): Promise<void>;
+  appointmentOwner(id: string): Promise<{ userId: string } | null>;
+  deleteAppointment(id: string): Promise<void>;
 
   createGeofence(childId: string, g: Geofence): Promise<Geofence>;
   deleteGeofence(geofenceId: string): Promise<void>;

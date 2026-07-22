@@ -21,6 +21,12 @@ const deviceBody = z.object({
   kind: z.enum(['band', 'tag']),
   childId: z.string().uuid().nullable().optional(),
 });
+const appointmentBody = z.object({
+  id: z.string().min(1).max(64),
+  title: z.string().min(1).max(200),
+  at: z.string().datetime({ offset: true }),
+  note: z.string().max(2000).optional(),
+});
 const circleGeofence = z.object({
   name: z.string().min(1),
   shape: z.literal('circle'),
@@ -162,6 +168,32 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const { id } = req.params as { id: string };
     if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
     await repo.deleteChild(id);
+    return reply.code(204).send();
+  });
+
+  // ---- Appointments ----
+  app.get('/appointments', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    return reply.send({ appointments: await repo.listAppointments(u.userId) });
+  });
+
+  app.post('/appointments', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = appointmentBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    // The id comes from the client so an appointment created offline keeps its
+    // identity when it syncs; upsert makes the push idempotent (re-syncing the
+    // same appointment updates rather than duplicates).
+    await repo.upsertAppointment(u.userId, { ...parsed.data, note: parsed.data.note ?? '' });
+    return reply.code(201).send({ ok: true });
+  });
+
+  app.delete('/appointments/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.appointmentOwner))) return;
+    await repo.deleteAppointment(id);
     return reply.code(204).send();
   });
 

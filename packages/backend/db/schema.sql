@@ -71,6 +71,19 @@ CREATE TABLE children (
 CREATE INDEX idx_children_guardian ON children(guardian_id);
 CREATE INDEX idx_children_beacon    ON children(beacon_uuid, beacon_major, beacon_minor);
 
+-- Appointments / reminders (prenatal visits, ultrasounds, lab work). The id is
+-- CLIENT-supplied so an appointment created offline keeps its identity when it
+-- syncs; upsert on that id makes re-syncing idempotent.
+CREATE TABLE appointments (
+  id        TEXT PRIMARY KEY,
+  user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title     TEXT NOT NULL,
+  at        TIMESTAMPTZ NOT NULL,
+  note      TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_appointments_user ON appointments(user_id, at);
+
 -- -----------------------------------------------------------------------------
 -- Pregnancy health metrics — TIMESERIES (TimescaleDB hypertable)
 -- -----------------------------------------------------------------------------
