@@ -1,0 +1,13 @@
+# Датасет (качается download_data.py) и обученная модель — в репозиторий не кладём.
+data/
+model.pkl
+*.wav
+*.m4a
+*.aac
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

@@ -1,0 +1,22 @@
+services:
+  cry-api:
+    build: .
+    image: umay-cry-classifier:latest
+    container_name: umay-cry-api
+    ports:
+      - "8000:8000"
+    # Модель монтируется извне (read-only): переобучаете train.py — просто
+    # перезапускаете контейнер, пересборка образа не нужна.
+    volumes:
+      - ./model.pkl:/app/model.pkl:ro
+    environment:
+      MODEL_PATH: /app/model.pkl
+    restart: unless-stopped
+    # Держим сервис в рамках бюджетного VPS.
+    mem_limit: 1500m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health').status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
