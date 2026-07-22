@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/baby_size.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/fetal_development.dart';
-import 'package:fcs_app/domain/pregnancy_guide.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/week_detail_screen.dart';

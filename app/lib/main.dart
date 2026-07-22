@@ -28,6 +28,7 @@ import 'ui/widgets/error_fallback.dart';
 import 'domain/cycle_log.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
+import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
 import 'domain/chat_controller.dart';
 import 'domain/health_monitor.dart';
@@ -377,19 +378,36 @@ Future<void> bootstrapRuntime(
     // is still worth having.
     unawaited(_pollChildLocation(controller, api));
 
-    // TODO(once paired): construct BleDeviceManager(config) and:
-    //   ble.onTelemetry.listen((rec) {
-    //     controller.onTelemetry(rec.$1, rec.$2);   // dashboard + emergency
-    //     monitor.handle(rec.$1, rec.$2);            // sync + batching
-    //   });
+    // The Starmax / RunmeFit health watch. Opt-in via a build define so a user
+    // without one never pays a scan: --dart-define=STARMAX_WATCH=true, and
+    // optionally --dart-define=STARMAX_ID=<remoteId> to reconnect a known
+    // device rather than scan. Its health snapshots become the SAME
+    // (BandTelemetry, TriageResult) records the OEM band produces, so the
+    // dashboard, on-device triage and batching downstream are unchanged.
+    const watchEnabled = bool.fromEnvironment('STARMAX_WATCH', defaultValue: false);
+    if (watchEnabled) {
+      const knownId = String.fromEnvironment('STARMAX_ID', defaultValue: '');
+      final watch = StarmaxBandManager(StarmaxBandConfig(
+        knownRemoteId: knownId.isEmpty ? null : knownId,
+      ));
+      watch.onTelemetry.listen((rec) {
+        controller.onTelemetry(rec.$1, rec.$2); // dashboard + emergency
+        monitor.handle(rec.$1, rec.$2); // sync + batching
+      });
+      // The manager also exposes onStatus (connecting / connected / lost) so a
+      // watch out of range since morning need not look like a quiet one. The
+      // controller has no link-state sink yet, so it is not consumed here —
+      // wiring it (and the "not measuring" chip) is the follow-up. Logged for
+      // now so the state is at least observable in a diagnostic build.
+      watch.onStatus.listen((s) {
+        if (kDebugMode) debugPrint('[starmax] link: $s');
+      });
+      await watch.start();
+    }
+
+    // TODO(once paired): the OEM band + child beacon still await pairing/config:
     //   ble.onBeacon.listen((r) => controller.onChildLocation(resolveFix(r)));
-    //   ble.onStatus.listen(controller.onBandLinkState);  // show "not measuring"
     //   await ble.start();
-    //
-    // onStatus is not decoration: without it a band that has been out of range
-    // since morning is indistinguishable from a quiet one, because the only
-    // evidence is a last reading that keeps getting older. Wire it at the same
-    // time as the telemetry, not after.
     //
     // TODO(after sign-in): controller.configureChild(name, fences) from the backend.
   } catch (_) {

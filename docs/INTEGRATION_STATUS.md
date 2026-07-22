@@ -235,15 +235,36 @@ or I/O so it is fully testable offline (`tool/verify_starmax.dart`, 47 checks).
 `0x00 0x01` (device name usually includes `GTS`). MTU negotiated to 512, frames
 chunked at 244 bytes.
 
-**Not done — needs a device and two decisions.**
-1. **A BLE plugin.** Flutter has no BLE in core; this needs a dependency
-   (`flutter_blue_plus` is the obvious pick) plus Android/iOS scan + connect
-   permissions. That is a real dependency choice, so it is left for a human.
-2. **What the watch is FOR.** The SDK is a full health wearable (HR/SpO₂/temp/
-   steps/sleep) *and* carries SOS/contacts. The health data maps onto the
-   existing `HealthMonitor` → triage → telemetry pipeline; the SOS side maps onto
-   child safety. Which pipeline it feeds decides where the adapter wires in at
-   the `TODO(once paired)` hook in `main.dart`.
+**Done — the client and the transport.**
+- `starmax_client.dart` — a transport-agnostic client (typed async calls,
+  request↔reply matching, timeouts, error surfacing, live-measurement fan-out),
+  fully tested over a fake transport (`test/starmax_client_test.dart`).
+- `starmax_health_bridge.dart` — maps a snapshot to the app's `BandTelemetry`,
+  with the safety-critical "0 = unknown → null" rule so an unmeasured metric
+  never reaches triage as a false zero.
+- `starmax_ble_transport.dart` — the concrete flutter_blue_plus transport
+  (`flutter_blue_plus` was already a dependency) and `StarmaxBandManager`: scan
+  for the NUS service / name / `0x00 0x01` marker, connect, discover, subscribe,
+  run the pair+clock handshake, then poll `readHealth` on an interval and emit
+  the same `(BandTelemetry, TriageResult)` records the OEM band does. Mirrors
+  BleDeviceManager's lifecycle (single connect, capped-backoff reconnect, held
+  subscriptions, link-state stream).
 
-The protocol core above does not depend on either decision — it is the same
-bytes regardless — so it was safe to build and test now.
+**Wiring.** `main.dart` starts the watch when `--dart-define=STARMAX_WATCH=true`
+(opt-in so a user without one never pays a scan; `--dart-define=STARMAX_ID=<id>`
+reconnects a known device instead of scanning). Telemetry flows to
+`controller.onTelemetry` + `monitor.handle` — the existing dashboard/triage/
+batching path, unchanged.
+
+**The health decision was made:** the watch is the mother's health wearable, so
+it feeds `HealthMonitor`. Its SOS/contacts commands exist in the protocol for a
+future child-safety use but are not wired.
+
+**Left for when a device is in hand.**
+- Verify scan/connect/handshake against real hardware — the transport is the one
+  layer no fake could exercise. The scan filter (service UUID / name / adv
+  marker) in particular may need tuning to the exact model's advertising.
+- A link-state sink on `AppController` + a "not measuring" chip: the manager
+  already exposes `onStatus`; the controller has no consumer yet, so `main.dart`
+  only logs it in debug for now.
+- Pairing UX (choosing the watch during onboarding) and persisting `STARMAX_ID`.

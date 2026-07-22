@@ -12,6 +12,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/ble/starmax/starmax_client.dart';
 import 'package:fcs_app/ble/starmax/starmax_frames.dart';
 import 'package:fcs_app/ble/starmax/starmax_protocol.dart';
+import 'package:fcs_app/ble/starmax/starmax_health_bridge.dart';
+
+StarmaxHealthSnapshot snap({int hr = 0, int spo2 = 0, int tempTenths = 0, int sys = 0, int dia = 0}) =>
+    StarmaxHealthSnapshot(
+      totalSteps: 0, totalKcal: 0, totalMeters: 0, totalSleepMin: 0,
+      deepSleepMin: 0, lightSleepMin: 0, heartRate: hr, bloodOxygen: spo2,
+      stress: 0, met: 0, bpDiastolic: dia, bpSystolic: sys,
+      tempRaw: tempTenths, bloodSugar: 0, isWorn: true, breathRate: 0,
+    );
 
 class FakeTransport implements StarmaxTransport {
   final _in = StreamController<List<int>>.broadcast();
@@ -124,6 +133,28 @@ void main() {
     t.push(buildFrame(StarmaxReply.healthMeasure, [0, 99, 71]));
     await Future<void>.delayed(const Duration(milliseconds: 10));
     expect(readings, containsAll(<int>[68, 71]));
+  });
+
+  test('the health bridge maps a real reading into telemetry', () {
+    final t = bandTelemetryFromSnapshot(snap(hr: 78, spo2: 96, tempTenths: 368, sys: 118, dia: 76));
+    expect(t.heartRateBpm, 78);
+    expect(t.spo2Pct, 96);
+    expect(t.coreTempC, 36.8);
+    expect(t.systolicMmHg, 118);
+    expect(t.diastolicMmHg, 76);
+  });
+
+  test('the bridge turns unmeasured zeros into null, not a false zero reading', () {
+    // A watch that has not measured recently reports 0 for every current field.
+    // Pushed into triage a 0 heart rate would read as a lethal bradycardia — the
+    // bridge must yield null instead.
+    final t = bandTelemetryFromSnapshot(snap());
+    expect(t.heartRateBpm, isNull);
+    expect(t.spo2Pct, isNull);
+    expect(t.coreTempC, isNull);
+    expect(t.systolicMmHg, isNull);
+    expect(snapshotHasVitals(snap()), isFalse); // nothing worth emitting
+    expect(snapshotHasVitals(snap(hr: 70)), isTrue);
   });
 
   test('connect pairs then sets the clock', () async {
