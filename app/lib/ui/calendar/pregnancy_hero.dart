@@ -149,9 +149,20 @@ class BabyPainter extends CustomPainter {
     // alive, small enough that it never reads as a glitch.
     final breath = 1 + 0.012 * math.sin(phase * 2 * math.pi);
 
+    // Depth, not a flat cutout: the fill is a soft radial gradient lit from the
+    // upper-left, lighter at the light and deeper at the far edge, so the figure
+    // reads as a rounded body rather than a sticker. Both variants are derived
+    // from the one [body] colour so the caller still passes a single tint.
+    final lighter = Color.lerp(body, Colors.white, 0.34)!;
+    final deeper = Color.lerp(body, Colors.black, 0.16)!.withValues(alpha: body.a);
     final fill = Paint()
-      ..color = body
-      ..isAntiAlias = true;
+      ..isAntiAlias = true
+      ..shader = RadialGradient(
+        center: const Alignment(-0.5, -0.6),
+        radius: 1.1,
+        colors: [lighter, body, deeper],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(const Rect.fromLTWH(20, 20, 62, 66));
     final shading = Paint()
       ..color = shade
       ..isAntiAlias = true;
@@ -168,6 +179,22 @@ class BabyPainter extends CustomPainter {
 
     final headR = 15.0 + 9.0 * ((headShare - 0.28) / 0.22).clamp(0.0, 1.0);
     const headC = Offset(34, 30);
+
+    // A soft contact shadow beneath the whole figure, so it sits ON the warm
+    // backdrop rather than floating over it. Drawn once, from the union of body
+    // and head, offset down and out and blurred — the shadow does not need the
+    // crown notch, so a filled blob is right here.
+    final silhouette = Path.combine(
+      PathOperation.union,
+      bodyOnly(headShare),
+      Path()..addOval(Rect.fromCircle(center: headC, radius: headR)),
+    );
+    canvas.drawPath(
+      silhouette.shift(const Offset(2.4, 3.6)),
+      Paint()
+        ..color = const Color(0x22000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
+    );
 
     // On its own layer, so the notch below erases only the figure and lets the
     // backdrop show through. Cleared straight onto the canvas it punched a
@@ -186,9 +213,14 @@ class BabyPainter extends CustomPainter {
     canvas.drawCircle(headC, headR + 2.2, Paint()..blendMode = BlendMode.clear);
     canvas.drawCircle(headC, headR, fill);
 
-    // One soft highlight on the crown — the only shading, and enough to keep
-    // the head reading as a sphere rather than a disc.
-    canvas.drawCircle(headC + Offset(-headR * 0.30, -headR * 0.32), headR * 0.50, shading);
+    // One soft highlight on the crown — enough to keep the head reading as a
+    // sphere, and a second, tighter specular glint for a little life.
+    canvas.drawCircle(headC + Offset(-headR * 0.30, -headR * 0.32), headR * 0.52, shading);
+    canvas.drawCircle(
+      headC + Offset(-headR * 0.38, -headR * 0.42),
+      headR * 0.16,
+      Paint()..color = Colors.white.withValues(alpha: 0.45),
+    );
 
     canvas.restore(); // the notch layer
 
@@ -210,6 +242,7 @@ class _GlowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final centre = Offset(size.width / 2, size.height * 0.52);
     final r = math.min(size.width, size.height) * (0.52 + 0.015 * math.sin(phase * 2 * math.pi));
+    // The amniotic wash: a soft coloured halo the figure sits inside.
     canvas.drawCircle(
       centre,
       r,
@@ -218,6 +251,18 @@ class _GlowPainter extends CustomPainter {
           colors: [colour.withValues(alpha: 0.30), colour.withValues(alpha: 0.0)],
           stops: const [0.25, 1.0],
         ).createShader(Rect.fromCircle(center: centre, radius: r)),
+    );
+    // A brighter, tighter core lifted toward the light, so the environment has a
+    // warm centre rather than one even tint — depth behind the figure to match
+    // the depth on it.
+    final core = centre + Offset(-r * 0.12, -r * 0.14);
+    canvas.drawCircle(
+      core,
+      r * 0.42,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [Colors.white.withValues(alpha: 0.35), Colors.white.withValues(alpha: 0.0)],
+        ).createShader(Rect.fromCircle(center: core, radius: r * 0.42)),
     );
   }
 
