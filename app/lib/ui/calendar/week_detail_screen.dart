@@ -22,6 +22,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import 'baby_size_disc.dart';
 import 'pregnancy_hero.dart' show BabyPainter, trimesterPalette;
+import 'pregnancy_warnings.dart';
 
 class WeekDetailScreen extends StatelessWidget {
   final GestationInfo gestation;
@@ -164,7 +165,10 @@ class WeekDetailScreen extends StatelessWidget {
           // Everything above is about the baby. This is about HER: what she
           // might be feeling this week, and the signs that mean call now.
           _ExpectCard(week: g.week),
-          _WarningBlock(),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 4),
+            child: PregnancyWarningsCard(),
+          ),
 
           // The one thing this screen says in its own voice, and it says the
           // same thing every other estimate in the app says.
@@ -291,65 +295,6 @@ class _NoteRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// "When to call" — the pregnancy warning signs, set apart in a warm frame so
-/// the reassurance above never softens them. Always shown, whatever the week.
-class _WarningBlock extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final l = L10nScope.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-      decoration: BoxDecoration(
-        color: Palette.roseDeep.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, size: 19, color: Palette.roseDeep),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(l.t('preg_warn_title'),
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Palette.roseDeep)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(l.t('preg_warn_intro'),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.4)),
-          const SizedBox(height: 10),
-          for (final id in pregnancyWarnings)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(color: Palette.roseDeep, shape: BoxShape.circle),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(l.t('preg_warn_$id'),
-                        style: const TextStyle(fontSize: 13.5, height: 1.4)),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
     );
   }
 }

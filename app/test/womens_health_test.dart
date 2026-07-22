@@ -45,6 +45,36 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('pregnancy mode has an always-reachable when-to-call action', (tester) async {
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    expect(find.byIcon(Icons.health_and_safety_outlined), findsOneWidget);
+  });
+
+  testWidgets('the when-to-call action is not shown in cycle mode', (tester) async {
+    final c = controllerFor(); // cycle mode
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    expect(find.byIcon(Icons.health_and_safety_outlined), findsNothing);
+  });
+
+  testWidgets('the when-to-call action opens the warning list', (tester) async {
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+    addTearDown(c.dispose);
+    // L10nScope above the Navigator so the pushed warnings screen has a scope.
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => L10nScope(l10n: const L10n(AppLocale.en), child: child!),
+      home: WomensHealthScreen(controller: c, now: () => today),
+    ));
+
+    await tester.tap(find.byIcon(Icons.health_and_safety_outlined));
+    await tester.pumpAndSettle();
+    // The reduced-movement sign is the one most often missed; its presence is a
+    // reliable marker that the list rendered.
+    expect(find.text('The baby is moving noticeably less than usual'), findsOneWidget);
+  });
+
   testWidgets('a recent birth surfaces the postpartum recovery card', (tester) async {
     // Cycle mode after a birth 30 days ago: her body is still recovering, and
     // the app should say so.

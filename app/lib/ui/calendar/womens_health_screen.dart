@@ -30,6 +30,7 @@ import '../widgets/glass.dart';
 import 'baby_size_disc.dart';
 import 'contraction_timer_screen.dart';
 import 'postpartum_screen.dart';
+import 'pregnancy_warnings.dart';
 import 'cycle_insights_screen.dart';
 import 'day_log_sheet.dart';
 import 'medications_screen.dart';
@@ -121,6 +122,17 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                       MaterialPageRoute(builder: (_) => ContractionTimerScreen(
                         onSave: (count, dur, interval) => c.logContractionSession(count, dur, interval),
                       )),
+                    ),
+                  ),
+                // Safety content, always one tap from the main pregnancy view —
+                // not buried inside a week's detail. Same card, shown here on
+                // its own screen.
+                if (!cycleMode)
+                  IconButton(
+                    icon: const Icon(Icons.health_and_safety_outlined),
+                    tooltip: l.t('preg_warn_title'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PregnancyWarningsScreen()),
                     ),
                   ),
                 if (cycleMode && c.cycle.hasData)
