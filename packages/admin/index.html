@@ -330,6 +330,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       Календарь беременности
     </button>
+    <button type="button" class="nav" data-view="vaccines">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2l4 4M17 3l4 4-8.5 8.5-4-4zM9.5 10.5l4 4M3 21l5-1 9-9-4-4-9 9z"/></svg>
+      Вакцинация
+    </button>
     <button type="button" class="nav" data-view="devices">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
       Устройства
@@ -591,6 +595,15 @@
             Тот же контент, что видит пациентка в приложении на своей неделе — единый источник (<code>/pregnancy/weeks</code>).</p>
           <div id="pwWeeks" class="pw-weeks"></div>
           <div id="pwBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+      </section>
+
+      <section class="view" id="vaccines">
+        <div class="card">
+          <div class="sec-h"><h3>Национальный календарь прививок</h3></div>
+          <p style="color:var(--muted);margin:0 0 4px">
+            Тот же график, что видит родитель в приложении по возрасту ребёнка — единый источник (<code>/vaccination/schedule</code>).</p>
+          <div id="vacBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
         </div>
       </section>
     </div>
@@ -1374,6 +1387,7 @@
     content:["Контент","Уроки и товары для каждой недели беременности и месяца жизни ребёнка"],
     antenatal:["Антенатальный уход","График визитов, обследований и скринингов по протоколу МЗ РК"],
     pregweeks:["Календарь беременности","Развитие малыша, изменения и рекомендации по неделям (RU/KZ)"],
+    vaccines:["Вакцинация","Национальный календарь прививок по возрасту ребёнка"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
     safety:["Безопасность","SOS и события зон по всем семьям"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
@@ -1396,6 +1410,7 @@
     if(v==="analytics")renderAnalytics();
     if(v==="antenatal")renderAntenatal();
     if(v==="pregweeks")renderPregWeeks();
+    if(v==="vaccines")renderVaccines();
     // In the URL, so a tab can be bookmarked, shared with a colleague, and
     // survives a refresh. Reloading used to drop whoever was mid-investigation
     // back on «Обзор».
@@ -1500,6 +1515,27 @@
         ${card(pwLang==="kk"?"Сіз туралы":"О вас", t.you)}
         ${card(pwLang==="kk"?"Ұсынамыз":"Рекомендуем", t.recommend)}
       </div>`;
+  }
+
+  // ---- Vaccination schedule (same calendar the app shows by child age) ----
+  let VACC=null;
+  function ageLabel(m){
+    if(m===0) return "При рождении";
+    if(m<12) return `${m} мес.`;
+    if(m%12===0) return `${m/12} ${m/12===1?"год":m/12<5?"года":"лет"}`;
+    return `${Math.floor(m/12)} г ${m%12} мес.`;
+  }
+  async function renderVaccines(){
+    const box=$("#vacBody"); if(!box) return;
+    if(!VACC){ try{ const r=await fetch("/vaccination/schedule"); if(r.ok){ VACC=(await r.json()).vaccines||[]; } }catch(e){} }
+    if(!VACC||!VACC.length){ box.innerHTML=`<div style="color:var(--muted);padding:16px 0">График доступен, когда панель обслуживается сервером (<code>/vaccination/schedule</code>).</div>`; return; }
+    const byAge={}; VACC.forEach(v=>{ (byAge[v.atMonth]=byAge[v.atMonth]||[]).push(v); });
+    const ages=Object.keys(byAge).map(Number).sort((a,b)=>a-b);
+    box.innerHTML=`<div class="an-grid">`+ages.map(m=>`
+      <div class="an-visit">
+        <div class="an-vh"><span class="an-vn" style="width:auto;padding:0 8px;border-radius:12px">${esc(ageLabel(m))}</span></div>
+        ${byAge[m].map(v=>`<div class="an-item">${esc(v.ru)}${v.dose?` <span class="an-wk">доза ${v.dose}</span>`:""}</div>`).join("")}
+      </div>`).join("")+`</div>`;
   }
 
   function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawOps();}

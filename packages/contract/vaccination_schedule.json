@@ -1,0 +1,101 @@
+{
+  "_comment": "CANONICAL Kazakhstan childhood immunisation schedule, the single source of truth shared by the Dart app, the Node backend (GET /vaccination/schedule) and the admin panel. Structure is asserted against the app domain by app/tool/verify_vaccination_contract.dart. Russian labels mirror the app l10n.",
+  "version": 1,
+  "dueWindowMonths": 1,
+  "vaccines": [
+    {
+      "id": "hepb",
+      "atMonth": 0,
+      "dose": 1,
+      "ru": "Гепатит B"
+    },
+    {
+      "id": "bcg",
+      "atMonth": 0,
+      "ru": "БЦЖ"
+    },
+    {
+      "id": "pentavalent",
+      "atMonth": 2,
+      "dose": 1,
+      "ru": "Пятивалентная (АКДС + гепатит B + Hib)"
+    },
+    {
+      "id": "opv",
+      "atMonth": 2,
+      "dose": 1,
+      "ru": "Полиомиелит"
+    },
+    {
+      "id": "pcv",
+      "atMonth": 2,
+      "dose": 1,
+      "ru": "Пневмококковая"
+    },
+    {
+      "id": "pentavalent",
+      "atMonth": 3,
+      "dose": 2,
+      "ru": "Пятивалентная (АКДС + гепатит B + Hib)"
+    },
+    {
+      "id": "opv",
+      "atMonth": 3,
+      "dose": 2,
+      "ru": "Полиомиелит"
+    },
+    {
+      "id": "pentavalent",
+      "atMonth": 4,
+      "dose": 3,
+      "ru": "Пятивалентная (АКДС + гепатит B + Hib)"
+    },
+    {
+      "id": "opv",
+      "atMonth": 4,
+      "dose": 3,
+      "ru": "Полиомиелит"
+    },
+    {
+      "id": "pcv",
+      "atMonth": 4,
+      "dose": 2,
+      "ru": "Пневмококковая"
+    },
+    {
+      "id": "mmr",
+      "atMonth": 12,
+      "dose": 1,
+      "ru": "Корь, паротит, краснуха (ККП)"
+    },
+    {
+      "id": "dtp",
+      "atMonth": 18,
+      "dose": 4,
+      "ru": "АКДС (ревакцинация)"
+    },
+    {
+      "id": "opv",
+      "atMonth": 18,
+      "dose": 4,
+      "ru": "Полиомиелит"
+    },
+    {
+      "id": "hib",
+      "atMonth": 18,
+      "dose": 4,
+      "ru": "Гемофильная инфекция (ревакцинация)"
+    },
+    {
+      "id": "mmr",
+      "atMonth": 72,
+      "dose": 2,
+      "ru": "Корь, паротит, краснуха (ККП)"
+    },
+    {
+      "id": "adt",
+      "atMonth": 72,
+      "ru": "АДС-М"
+    }
+  ]
+}

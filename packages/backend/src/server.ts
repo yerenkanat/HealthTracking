@@ -25,6 +25,7 @@ import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
 import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
+import { vaccinationSchedule } from './vaccination/schedule';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -217,6 +218,9 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // shared contract. No auth — it is the same clinical schedule the app bundles
   // and the admin panel renders; keeping one served copy stops the three drifting.
   app.get('/antenatal/protocol', async () => antenatalProtocol);
+
+  // Public reference data: the childhood immunisation schedule.
+  app.get('/vaccination/schedule', async () => vaccinationSchedule);
 
   // Public reference data: the week-by-week pregnancy calendar (ru + kk).
   app.get('/pregnancy/weeks', async () => pregnancyCalendar);
