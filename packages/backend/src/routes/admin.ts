@@ -172,6 +172,17 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.send({ emergencies: await repo.recentEmergencies(limit) });
   });
 
+  // Acknowledge an emergency — admin-only (an accountable write), audited.
+  // Idempotent: a second ack reports 409 rather than pretending it was first.
+  app.post('/admin/emergencies/:id/ack', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const id = (req.params as { id: string }).id;
+    const first = await repo.acknowledgeEmergency(id, s.staffId, new Date().toISOString());
+    await repo.writeAudit({ staffId: s.staffId, action: 'ack_emergency', target: id });
+    return first ? reply.send({ ok: true }) : reply.code(409).send({ error: 'already_acknowledged' });
+  });
+
   // ---- User list (admin only) ----
   app.get('/admin/users', async (req, reply) => {
     const s = await requireAdmin(req, reply);

@@ -620,11 +620,11 @@
   const MOCK = {
     stats:{activeUsers:1284,devicesOnline:power(1071),alertsToday:3,ingestLastHour:power(9420)},
     emergencies:[
-      {userId:"u1",displayName:"Aigerim S.",code:"PREECLAMPSIA_BP",severity:"emergency",at:"2m ago",detail:"BP 162/108 mmHg"},
-      {userId:"u2",displayName:"Madina K.",code:"HYPOXIA_SEVERE",severity:"emergency",at:"18m ago",detail:"SpO₂ 88% during sleep"},
-      {userId:"u3",displayName:"Zarina B.",code:"HIGH_FEVER",severity:"emergency",at:"41m ago",detail:"Core temp 38.9°C"},
-      {userId:"u4",displayName:"Dana T.",code:"TACHYCARDIA",severity:"warning",at:"1h ago",detail:"Resting HR 122 bpm"},
-      {userId:"u5",displayName:"Aruzhan M.",code:"PREECLAMPSIA_BP",severity:"warning",at:"2h ago",detail:"BP 141/91 mmHg"}
+      {id:"u1|e1",userId:"u1",displayName:"Aigerim S.",code:"PREECLAMPSIA_BP",severity:"emergency",at:"2m ago",detail:"BP 162/108 mmHg",acknowledgedAt:null},
+      {id:"u2|e2",userId:"u2",displayName:"Madina K.",code:"HYPOXIA_SEVERE",severity:"emergency",at:"18m ago",detail:"SpO₂ 88% during sleep",acknowledgedAt:null},
+      {id:"u3|e3",userId:"u3",displayName:"Zarina B.",code:"HIGH_FEVER",severity:"emergency",at:"41m ago",detail:"Core temp 38.9°C",acknowledgedAt:null},
+      {id:"u4|e4",userId:"u4",displayName:"Dana T.",code:"TACHYCARDIA",severity:"warning",at:"1h ago",detail:"Resting HR 122 bpm",acknowledgedAt:null},
+      {id:"u5|e5",userId:"u5",displayName:"Aruzhan M.",code:"PREECLAMPSIA_BP",severity:"warning",at:"2h ago",detail:"BP 141/91 mmHg",acknowledgedAt:null}
     ],
     users:[
       {id:"u1",displayName:"Aigerim S.",phone:"+7 707 345 22 44",dueDate:"Nov 2026",weeks:28,last:"2m ago"},
@@ -1129,15 +1129,29 @@
   /// believe a woman's emergency was handled. On every other screen a dead
   /// control is an annoyance; here it is a hand-off that never happened.
   ///
-  /// Restoring it needs somewhere to store the acknowledgement — see
-  /// docs/INTEGRATION_STATUS.md. Until then the row offers the thing the panel
-  /// can actually do: open her record.
+  /// The acknowledge action is back now that the backend stores it
+  /// (POST /admin/emergencies/:id/ack → emergency_acks). An acknowledged event
+  /// shows who cleared it and when, instead of the button.
   function feedRow(e){
     const warn=e.severity==="warning";
+    const ack=e.acknowledgedAt
+      ? `<span class="pill" title="${esc(e.acknowledgedBy||'')}">✓ Подтверждено</span>`
+      : (e.id?`<button class="btn" data-ack="${esc(e.id)}">Подтвердить</button>`:"");
     return `<div class="frow"><div class="stripe ${warn?'warn':''}"></div>
       <div><div class="who">${esc(e.displayName)}</div><div class="meta">${esc(e.detail||e.code)} · <span class="t">${esc(stamp(e.at))}</span></div></div>
       <div class="act"><span class="pill ${warn?'warn':'crit'}">${warn?'Внимание':'Экстренно'}</span>
+      ${ack}
       <button class="btn primary" data-user="${esc(e.userId)}">Открыть карточку</button></div></div>`;
+  }
+  /// Acknowledge an emergency, then refresh the feed so the row updates.
+  async function ackEmergency(id){
+    try{
+      const r=await fetch("/admin/emergencies/"+encodeURIComponent(id)+"/ack",{method:"POST",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
+      if(r.ok||r.status===409){
+        try{ MOCK.emergencies=(await api("/admin/emergencies")).emergencies||MOCK.emergencies; }catch(e){}
+        renderFeeds();
+      }
+    }catch(e){/* offline — leave the row as is */}
   }
   /// Nothing to show is good news here, and has to say so.
   ///
@@ -1551,6 +1565,7 @@
   // Events
   document.addEventListener("click",e=>{
     const nav=e.target.closest("[data-view]"); if(nav){go(nav.dataset.view);return;}
+    const ackb=e.target.closest("[data-ack]"); if(ackb){ackEmergency(ackb.dataset.ack);return;}
     const pwk=e.target.closest("[data-week]"); if(pwk){pwWeek=+pwk.dataset.week;renderPregWeeks();return;}
     const pwl=e.target.closest("[data-lang]"); if(pwl){pwLang=pwl.dataset.lang;$$(".pw-l").forEach(b=>b.classList.toggle("active",b===pwl));renderPregWeeks();return;}
     const urow=e.target.closest("[data-user]"); if(urow){openUser(urow.dataset.user);return;}

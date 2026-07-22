@@ -223,7 +223,11 @@ export interface Repository {
 
   // ---- Admin / back-office ----
   adminStats(): Promise<{ activeUsers: number; devicesOnline: number; alertsToday: number; ingestLastHour: number }>;
-  recentEmergencies(limit: number): Promise<Array<{ userId: string; displayName: string; code: string; severity: string; at: string }>>;
+  recentEmergencies(limit: number): Promise<Array<{ id: string; userId: string; displayName: string; code: string; severity: string; at: string; acknowledgedAt: string | null; acknowledgedBy: string | null }>>;
+  // Acknowledge an emergency (staff). Idempotent; returns false if it was
+  // already acknowledged. The id is the underlying metric row id, so an ack
+  // needs no change to the safety/ingest path — it is an overlay.
+  acknowledgeEmergency(id: string, staffId: string, at: string): Promise<boolean>;
   adminListUsers(q: string, limit: number, offset: number): Promise<{ total: number; users: Array<{ id: string; displayName: string; phone: string | null; dueDate: string | null }> }>;
   adminUserHealth(userId: string): Promise<{ latest: Record<string, number | null>; triage: Array<{ code: string; severity: string; at: string }> } | null>;
   /// Everything the back-office needs about one family in a single call. The

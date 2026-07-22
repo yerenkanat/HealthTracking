@@ -255,10 +255,38 @@ export function createPgRepository(pool: Pool): Repository {
         `SELECT m.user_id, u.display_name, m.triage_severity, m.recorded_at
          FROM pregnancy_health_metrics m JOIN users u ON u.id = m.user_id
          WHERE m.triage_severity = 'emergency' ORDER BY m.recorded_at DESC LIMIT $1`, [limit]);
-      return rows.map((r) => ({
-        userId: r.user_id, displayName: r.display_name, code: 'EMERGENCY',
-        severity: r.triage_severity, at: new Date(r.recorded_at).toISOString(),
+      // The hypertable has no single-column id, so an emergency's identity is
+      // (user, time). Compute it here so it matches between the list and the ack.
+      const emergencies = rows.map((r) => ({
+        id: `${r.user_id}|${new Date(r.recorded_at).toISOString()}`,
+        userId: r.user_id as string,
+        displayName: r.display_name as string,
+        code: 'EMERGENCY',
+        severity: r.triage_severity as string,
+        at: new Date(r.recorded_at).toISOString(),
       }));
+      const ids = emergencies.map((e) => e.id);
+      const acks = ids.length
+        ? (await pool.query(
+            `SELECT emergency_id, staff_id, acknowledged_at FROM emergency_acks WHERE emergency_id = ANY($1)`,
+            [ids])).rows
+        : [];
+      const byId = new Map(acks.map((a) => [a.emergency_id as string, a]));
+      return emergencies.map((e) => {
+        const a = byId.get(e.id);
+        return {
+          ...e,
+          acknowledgedAt: a ? new Date(a.acknowledged_at).toISOString() : null,
+          acknowledgedBy: a ? (a.staff_id as string) : null,
+        };
+      });
+    },
+    async acknowledgeEmergency(id, staffId, at) {
+      const { rowCount } = await pool.query(
+        `INSERT INTO emergency_acks (emergency_id, staff_id, acknowledged_at)
+         VALUES ($1,$2,$3) ON CONFLICT (emergency_id) DO NOTHING`,
+        [id, staffId, at]);
+      return (rowCount ?? 0) > 0;
     },
     async adminListUsers(q, limit, offset) {
       const like = `%${q}%`;

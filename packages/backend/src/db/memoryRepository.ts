@@ -35,6 +35,10 @@ export function createMemoryRepository(): Repository {
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const events: GeofenceEvent[] = [];
   const healthRows: unknown[] = [];
+  // Emergency acknowledgements, keyed by the derived emergency id. An overlay —
+  // the emergencies themselves are still derived from the health rows, so
+  // acknowledging one needs no change to the ingest/triage path.
+  const emergencyAcks = new Map<string, { staffId: string; at: string }>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
   const dayLogs = new Map<string, DayLogRow>();
@@ -193,7 +197,33 @@ export function createMemoryRepository(): Repository {
       alertsToday: alerts.length,
       ingestLastHour: healthRows.length,
     }),
-    recentEmergencies: async () => [],
+    recentEmergencies: async (limit) => {
+      const rows = (healthRows as Array<Record<string, unknown>>)
+        .filter((r) => r.triageSeverity === 'emergency')
+        .slice(-limit)
+        .reverse();
+      return rows.map((r) => {
+        const userId = String(r.userId ?? DEMO_USER);
+        const at = String(r.recordedAt ?? '');
+        const id = `${userId}|${at}`; // stable per emergency metric
+        const ack = emergencyAcks.get(id);
+        return {
+          id,
+          userId,
+          displayName: profile?.displayName ?? 'Umay user',
+          code: 'EMERGENCY',
+          severity: 'emergency',
+          at,
+          acknowledgedAt: ack?.at ?? null,
+          acknowledgedBy: ack?.staffId ?? null,
+        };
+      });
+    },
+    acknowledgeEmergency: async (id, staffId, at) => {
+      if (emergencyAcks.has(id)) return false; // already acknowledged
+      emergencyAcks.set(id, { staffId, at });
+      return true;
+    },
     adminListUsers: async () => ({
       total: 1,
       users: [{ id: DEMO_USER, displayName: profile?.displayName ?? '', phone: profile?.phone ?? null, dueDate: profile?.dueDate ?? null }],
@@ -311,6 +341,7 @@ export function createMemoryRepository(): Repository {
       geofences.clear();
       appointments.length = 0;
       events.length = 0;
+      emergencyAcks.clear();
       healthRows.length = 0;
       sleep.length = 0;
       dayLogs.clear();

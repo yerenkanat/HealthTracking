@@ -109,6 +109,16 @@ SELECT create_hypertable('pregnancy_health_metrics', 'recorded_at',
                          chunk_time_interval => INTERVAL '7 days');
 CREATE INDEX idx_phm_user_time ON pregnancy_health_metrics (user_id, recorded_at DESC);
 
+-- Emergency acknowledgements — a back-office overlay on the (derived) emergency
+-- feed. The emergency itself stays a health-metric row on the safety path; this
+-- only records that a staff member has seen and acted on it. The id is the
+-- composite "<user_id>|<recorded_at ISO>" the API computes for each emergency.
+CREATE TABLE emergency_acks (
+  emergency_id    TEXT PRIMARY KEY,
+  staff_id        TEXT NOT NULL,
+  acknowledged_at TIMESTAMPTZ NOT NULL
+);
+
 -- Compress chunks older than 14 days (Timescale native columnar compression).
 ALTER TABLE pregnancy_health_metrics SET (
   timescaledb.compress,
