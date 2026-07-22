@@ -507,6 +507,78 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'wm_deep_light': {AppLocale.ru: 'глубокий {d} мин · лёгкий {l} мин', AppLocale.kk: 'терең {d} мин · жеңіл {l} мин', AppLocale.en: 'deep {d}m · light {l}m'},
   'wm_off_wrist': {AppLocale.ru: 'Часы сняты — данные могут быть неполными.', AppLocale.kk: 'Сағат шешілген — деректер толық болмауы мүмкін.', AppLocale.en: 'Watch is off the wrist — data may be incomplete.'},
 
+  // ---- Signs of labour (lab_*) ----
+  'lab_title': {AppLocale.ru: 'Признаки родов', AppLocale.kk: 'Босану белгілері', AppLocale.en: 'Signs of labour'},
+  'lab_intro': {
+    AppLocale.ru: 'Что подсказывает, что роды близко, и когда пора ехать. При любых сомнениях звоните.',
+    AppLocale.kk: 'Босанудың жақындағанын не білдіреді және қашан баруға болатыны. Кез келген күмәнда қоңырау шалыңыз.',
+    AppLocale.en: "What tells you labour is near, and when it's time to go. When in doubt, call.",
+  },
+  'lab_signs_title': {AppLocale.ru: 'Роды могут начинаться', AppLocale.kk: 'Босану басталуы мүмкін', AppLocale.en: 'Labour may be starting'},
+  'lab_go_title': {AppLocale.ru: 'Когда ехать или звонить', AppLocale.kk: 'Қашан бару немесе қоңырау шалу', AppLocale.en: 'When to go in or call'},
+  'lab_go_intro': {
+    AppLocale.ru: 'Свяжитесь с роддомом или поезжайте, если появится что-то из этого:',
+    AppLocale.kk: 'Мыналардың бірі болса, перзентханаға хабарласыңыз немесе барыңыз:',
+    AppLocale.en: 'Contact or head to your maternity unit if any of these happen:',
+  },
+  'lab_disclaimer': {
+    AppLocale.ru: 'Это общие сведения, а не медицинская консультация. Точные указания даёт ваш роддом.',
+    AppLocale.kk: 'Бұл — жалпы мәлімет, медициналық кеңес емес. Нақты нұсқауларды перзентханаңыз береді.',
+    AppLocale.en: 'General information, not medical advice. Your maternity unit gives the exact guidance.',
+  },
+
+  'lab_sign_contractions': {
+    AppLocale.ru: 'Схватки становятся регулярными, сильнее и чаще.',
+    AppLocale.kk: 'Толғақ реттелген, күшейіп, жиілей түседі.',
+    AppLocale.en: 'Contractions become regular, stronger and closer together.',
+  },
+  'lab_sign_show': {
+    AppLocale.ru: 'Отходит слизистая пробка — розоватые или кровянистые выделения.',
+    AppLocale.kk: 'Шырышты тығын кетеді — қызғылт немесе қанды бөліністер.',
+    AppLocale.en: "A 'show' — the mucus plug comes away, pink or blood-streaked.",
+  },
+  'lab_sign_backache': {
+    AppLocale.ru: 'Тупая боль в пояснице или спазмы, как при месячных.',
+    AppLocale.kk: 'Белдегі күңгірт ауырсыну немесе етеккірдегідей құрысу.',
+    AppLocale.en: 'A dull lower-back ache, or period-like cramps.',
+  },
+  'lab_sign_waters': {
+    AppLocale.ru: 'Отходят воды — струйкой или потоком.',
+    AppLocale.kk: 'Су кетеді — тамшылап немесе ағып.',
+    AppLocale.en: 'Your waters break — a trickle or a gush.',
+  },
+
+  'lab_go_waters_broke': {
+    AppLocale.ru: 'Отошли воды — срочно, если они зелёные, коричневые или с кровью.',
+    AppLocale.kk: 'Су кетті — жасыл, қоңыр немесе қанды болса, шұғыл.',
+    AppLocale.en: 'Your waters have broken — urgent if they are green, brown or bloody.',
+  },
+  'lab_go_five_one_one': {
+    AppLocale.ru: 'Схватки примерно каждые 5 минут по ~1 минуте в течение часа (правило 5-1-1).',
+    AppLocale.kk: 'Толғақ шамамен әр 5 минут сайын, ~1 минуттан, бір сағат бойы (5-1-1 ережесі).',
+    AppLocale.en: 'Contractions about every 5 minutes, ~1 minute long, for an hour (the 5-1-1 rule).',
+  },
+  'lab_go_bleeding': {
+    AppLocale.ru: 'Любое кровотечение из влагалища.',
+    AppLocale.kk: 'Қынаптан кез келген қан кету.',
+    AppLocale.en: 'Any vaginal bleeding.',
+  },
+  'lab_go_reduced_movements': {
+    AppLocale.ru: 'Малыш стал заметно меньше шевелиться.',
+    AppLocale.kk: 'Нәресте айтарлықтай аз қимылдай бастады.',
+    AppLocale.en: 'The baby is moving noticeably less.',
+  },
+  'lab_go_preterm': {
+    AppLocale.ru: 'Любые признаки родов до 37 недель.',
+    AppLocale.kk: '37 аптаға дейінгі кез келген босану белгілері.',
+    AppLocale.en: 'Any signs of labour before 37 weeks.',
+  },
+  'lab_go_unsure': {
+    AppLocale.ru: 'Сомневаетесь — позвоните в консультацию, вам подскажут.',
+    AppLocale.kk: 'Күмәндансаңыз — консультацияға қоңырау шалыңыз, олар айтады.',
+    AppLocale.en: 'When in doubt, call your clinic — they will guide you.',
+  },
+
   'db_not_measuring': {
     AppLocale.ru: 'Устройство не на связи — данные могут быть неактуальны.',
     AppLocale.kk: 'Құрылғы байланыста емес — деректер ескірген болуы мүмкін.',

@@ -14,6 +14,7 @@ import '../lib/domain/pregnancy_weight_guide.dart';
 import '../lib/domain/hospital_bag.dart';
 import '../lib/domain/child_illness.dart';
 import '../lib/domain/home_safety.dart';
+import '../lib/domain/labour_signs.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -457,6 +458,24 @@ void main() {
       }
     }
     _chk('and every home-safety string is translated ($hsBlank blanks)', hsBlank == 0);
+
+    // Signs of labour: `lab_sign_<id>` and `lab_go_<id>` are composed at render.
+    final labKeys = <String>[
+      for (final id in labourSigns) 'lab_sign_$id',
+      for (final id in labourGoIn) 'lab_go_$id',
+    ];
+    final labMissing = [for (final k in labKeys) if (!known.contains(k)) k];
+    _chk('every labour sign and go-in reason has a string', labMissing.isEmpty);
+    if (labMissing.isNotEmpty) print('    missing: ${labMissing.join(', ')}');
+
+    var labBlank = 0;
+    for (final k in labKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) labBlank++;
+      }
+    }
+    _chk('and every labour-signs string is translated ($labBlank blanks)', labBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

@@ -260,6 +260,13 @@ batching path, unchanged.
 it feeds `HealthMonitor`. Its SOS/contacts commands exist in the protocol for a
 future child-safety use but are not wired.
 
+**Every parameter is surfaced, not only the four vitals.** HR/SpO₂/BP/temp go
+through triage (`BandTelemetry`); everything else the snapshot carries — steps,
+distance, calories, total/deep/light sleep, stress, breathing rate, blood sugar,
+worn-state — flows as `WearableMetrics` on the manager's `onSnapshot` stream to
+`AppController.latestWearable`, and the dashboard's "Activity & wellness" panel
+renders each metric that has a value.
+
 **Link state is wired.** `AppController.onBandLinkState` consumes the manager's
 `onStatus`, and the dashboard shows a "not measuring" chip when a wired device
 is not delivering — so a watch out of range since morning is explained, not

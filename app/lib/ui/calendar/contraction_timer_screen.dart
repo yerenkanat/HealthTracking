@@ -17,6 +17,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
+import 'labour_signs_screen.dart';
 
 class ContractionTimerScreen extends StatefulWidget {
   /// Called with the session summary when the screen closes (if any contractions
@@ -92,6 +93,15 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
         backgroundColor: Colors.transparent,
         title: Text(l.t('contr_title')),
         actions: [
+          // "Am I in labour / should I go in?" — the question this screen exists
+          // to help answer, one tap away.
+          IconButton(
+            icon: const Icon(Icons.info_outline_rounded, color: Palette.textDim),
+            tooltip: l.t('lab_title'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LabourSignsScreen()),
+            ),
+          ),
           if (_contractions.isNotEmpty || active)
             IconButton(
               icon: const Icon(Icons.restart_alt_rounded, color: Palette.textDim),
