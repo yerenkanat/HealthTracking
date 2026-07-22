@@ -210,6 +210,26 @@ class PhoneAuthController {
     }
   }
 
+  /// Re-request a code for the same number (the SMS never arrived). Stays on the
+  /// code step; a new challenge replaces the old.
+  Future<void> resendCode() async {
+    final ch = _challenge;
+    if (busy || ch == null) return;
+    errorCode = null;
+    busy = true;
+    _emit();
+    try {
+      _challenge = await provider.requestCode(ch.phoneE164);
+    } on AuthException catch (e) {
+      errorCode = e.code;
+    } catch (_) {
+      errorCode = 'network';
+    } finally {
+      busy = false;
+      _emit();
+    }
+  }
+
   /// Go back to editing the phone (e.g. wrong number), discarding the challenge.
   void editPhone() {
     _challenge = null;

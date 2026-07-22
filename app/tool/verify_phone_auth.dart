@@ -89,6 +89,11 @@ Future<void> main() async {
     _chk('a wrong code stays on the code step with an error',
         c.step == AuthStep.code && c.errorCode == 'invalid-code' && !c.isSignedIn);
 
+    // Resend keeps her on the code step and re-issues a challenge she can use.
+    await c.resendCode();
+    _chk('resend stays on the code step with no error',
+        c.step == AuthStep.code && c.errorCode == null);
+
     await c.submitCode('123456');
     _chk('the right code signs in and finishes',
         c.step == AuthStep.done && c.isSignedIn && c.session!.phoneE164 == '+77001234567');

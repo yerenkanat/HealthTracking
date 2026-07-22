@@ -7,6 +7,8 @@
 /// session; the caller stores and persists it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -29,6 +31,18 @@ class _SignInScreenState extends State<SignInScreen> {
   final _code = TextEditingController();
   late final PhoneAuthController controller;
   bool _notified = false;
+  Timer? _resendTimer;
+  int _resendIn = 0; // seconds until "resend code" is allowed again
+
+  void _startCooldown() {
+    _resendTimer?.cancel();
+    setState(() => _resendIn = 30);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return t.cancel();
+      setState(() => _resendIn = _resendIn > 0 ? _resendIn - 1 : 0);
+      if (_resendIn == 0) t.cancel();
+    });
+  }
 
   @override
   void initState() {
@@ -48,6 +62,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _phone.dispose();
     _code.dispose();
     super.dispose();
@@ -111,6 +126,18 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               onSubmitted: (_) => _submitCode(),
             ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(l.t('auth_no_code'), style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+                TextButton(
+                  onPressed: (_resendIn == 0 && !c.busy) ? _resend : null,
+                  child: Text(_resendIn == 0
+                      ? l.t('auth_resend')
+                      : l.t('auth_resend_in', {'sec': _resendIn})),
+                ),
+              ],
+            ),
           ],
           if (_errorText(l) != null) ...[
             const SizedBox(height: 8),
@@ -132,8 +159,17 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  void _submitPhone() => controller.submitPhone(_phone.text);
+  Future<void> _submitPhone() async {
+    await controller.submitPhone(_phone.text);
+    if (mounted && controller.step == AuthStep.code) _startCooldown();
+  }
+
   void _submitCode() => controller.submitCode(_code.text);
+
+  Future<void> _resend() async {
+    await controller.resendCode();
+    if (mounted && controller.errorCode == null) _startCooldown();
+  }
 }
 
 /// Minimal structural type so `_errorText` reads without importing the full L10n.

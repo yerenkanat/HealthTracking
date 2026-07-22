@@ -47,6 +47,21 @@ void main() {
     expect(s.userId, isNotEmpty);
   });
 
+  testWidgets('offers to resend the code, on a cooldown', (tester) async {
+    await pump(tester);
+    await tester.enterText(find.byType(TextField), '+77001234567');
+    await tester.tap(find.widgetWithText(FilledButton, ru.t('auth_send_code')));
+    // pump (not pumpAndSettle) so the 1s cooldown timer does not run to zero.
+    await tester.pump();
+    await tester.pump();
+    // On the code step the resend affordance is present but on cooldown.
+    expect(find.text(ru.t('auth_no_code')), findsOneWidget);
+    final resend = tester.widget<TextButton>(find.byType(TextButton).first);
+    expect(resend.onPressed, isNull); // disabled during cooldown
+    // Let the cooldown expire so no timer outlives the test.
+    await tester.pump(const Duration(seconds: 31));
+  });
+
   testWidgets('a wrong code shows an error and does not sign in', (tester) async {
     await pump(tester);
     await tester.enterText(find.byType(TextField), '+77001234567');
