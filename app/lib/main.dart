@@ -28,6 +28,7 @@ import 'ui/widgets/error_fallback.dart';
 import 'domain/cycle_log.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
+import 'domain/wearable_metrics.dart';
 import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
 import 'domain/chat_controller.dart';
@@ -159,6 +160,25 @@ void _seedDemo(AppController c) {
         awakeMin: nightsData[i][3],
       ),
   ]);
+
+  // Demo: a full watch snapshot so the dashboard's Activity & Wellness panel
+  // shows every parameter the health wearable tracks — steps, distance,
+  // calories, sleep (deep/light), stress, breathing rate, blood sugar — without
+  // a paired device. On a real build this arrives from the watch over BLE
+  // (STARMAX_WATCH=true); here it is representative test data.
+  c.onWearableMetrics(WearableMetrics(
+    at: now,
+    steps: 6480,
+    kcal: 320,
+    meters: 4600, // 4.6 km
+    sleepMinutes: 445, // 7h 25m
+    deepSleepMinutes: 95,
+    lightSleepMinutes: 280,
+    stress: 42, // 0–100
+    breathRate: 16, // breaths / min
+    bloodSugarTenths: 54, // 5.4 mmol/L
+    worn: true,
+  ));
 
   // Demo: a due date 140 days out — 280 - 140 = week 20 of pregnancy, so the
   // timeline card has a real stage to show. A mother expecting while already
