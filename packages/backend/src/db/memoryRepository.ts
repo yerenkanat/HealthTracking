@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import type { ContentItemRow, Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
+import { computeChildrenStats } from '../analytics/childStats.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 
 export const DEMO_USER = '11111111-1111-1111-1111-111111111111';
@@ -27,8 +28,16 @@ export function createMemoryRepository(): Repository {
   // child that existed, which made ownership fictional in development: an IDOR
   // regression would pass every dev test, because every caller looked like the
   // owner. The fake now models the thing the real repository enforces.
-  const children: Array<{ id: string; name: string; userId: string }> = [
-    { id: DEMO_CHILD, name: 'Sultan', userId: DEMO_USER },
+  const children: Array<{ id: string; name: string; userId: string; gender?: string | null; dateOfBirth?: string | null }> = [
+    { id: DEMO_CHILD, name: 'Sultan', userId: DEMO_USER, gender: 'boy', dateOfBirth: '2019-03-08' },
+    // A small demo cohort so the admin "Дети" dashboard has a distribution to
+    // show in memory mode (real child sync from the app is the follow-up).
+    { id: 'demo-c2', name: 'Aruzhan', userId: DEMO_USER, gender: 'girl', dateOfBirth: '2024-09-01' },
+    { id: 'demo-c3', name: 'Alikhan', userId: DEMO_USER, gender: 'boy', dateOfBirth: '2023-02-15' },
+    { id: 'demo-c4', name: 'Madina', userId: DEMO_USER, gender: 'girl', dateOfBirth: '2021-06-20' },
+    { id: 'demo-c5', name: 'Nurai', userId: DEMO_USER, gender: 'girl', dateOfBirth: '2025-11-10' },
+    { id: 'demo-c6', name: 'Yerlan', userId: DEMO_USER, gender: 'boy', dateOfBirth: '2017-01-05' },
+    { id: 'demo-c7', name: 'Baby', userId: DEMO_USER, gender: null, dateOfBirth: null },
   ];
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, Geofence[]>([[DEMO_CHILD, [home]]]);
@@ -197,6 +206,11 @@ export function createMemoryRepository(): Repository {
       alertsToday: alerts.length,
       ingestLastHour: healthRows.length,
     }),
+    childrenStats: async (asOf) =>
+      computeChildrenStats(
+        children.map((c) => ({ gender: c.gender ?? null, dateOfBirth: c.dateOfBirth ?? null })),
+        asOf,
+      ),
     recentEmergencies: async (limit) => {
       const rows = (healthRows as Array<Record<string, unknown>>)
         .filter((r) => r.triageSeverity === 'emergency')

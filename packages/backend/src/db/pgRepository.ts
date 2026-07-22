@@ -6,6 +6,7 @@
  */
 
 import { Pool } from 'pg';
+import { computeChildrenStats } from '../analytics/childStats.js';
 import type { ContentItemRow } from './repository';
 import type {
   BandTelemetry,
@@ -249,6 +250,14 @@ export function createPgRepository(pool: Pool): Repository {
         pool.query(`SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE recorded_at > now() - interval '1 hour'`),
       ]);
       return { activeUsers: users.rows[0].n, devicesOnline: devices.rows[0].n, alertsToday: alerts.rows[0].n, ingestLastHour: ingest.rows[0].n };
+    },
+    async childrenStats(asOf) {
+      const { rows } = await pool.query(
+        `SELECT gender, date_of_birth FROM children`);
+      return computeChildrenStats(
+        rows.map((r) => ({ gender: r.gender ?? null, dateOfBirth: r.date_of_birth ? new Date(r.date_of_birth).toISOString() : null })),
+        asOf,
+      );
     },
     async recentEmergencies(limit) {
       const { rows } = await pool.query(

@@ -43,6 +43,10 @@ export interface ServerDeps {
   authUser?: AuthUser;
   /** Resolve the caller's staff identity + role for /admin routes. */
   authAdmin?: AuthAdmin;
+  /** Readiness: pings the real dependencies (DB, Redis). Omitted = always ready
+   * (in-memory dev). /ready reports 503 with the per-dependency breakdown when
+   * any is down, so a load balancer can pull the instance before it serves errors. */
+  checkReady?: () => Promise<{ ready: boolean; deps?: Record<string, boolean> }>;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -212,7 +216,21 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   if (typeof sweeper.unref === 'function') sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
 
+  // Liveness: the process is up. Kept trivial so it never fails for a reason a
+  // restart would not fix.
   app.get('/health', async () => ({ ok: true }));
+
+  // Readiness: the process can actually serve — its dependencies answer. A load
+  // balancer routes on this, not liveness. 200 ready / 503 not-ready + breakdown.
+  app.get('/ready', async (_req, reply) => {
+    if (!deps.checkReady) return reply.send({ ready: true }); // in-memory dev
+    try {
+      const r = await deps.checkReady();
+      return reply.code(r.ready ? 200 : 503).send(r);
+    } catch {
+      return reply.code(503).send({ ready: false });
+    }
+  });
 
   // Public reference data: the Kazakhstan antenatal 8-visit schedule, from the
   // shared contract. No auth — it is the same clinical schedule the app bundles

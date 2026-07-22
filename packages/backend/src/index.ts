@@ -102,6 +102,16 @@ async function productionDeps(): Promise<ServerDeps> {
     },
     authUser,
     authAdmin,
+    // Readiness: the DB answers a trivial query. (Redis failure degrades to the
+    // DB path rather than taking the service down, so it is not gated here.)
+    checkReady: async () => {
+      try {
+        await pool.query('SELECT 1');
+        return { ready: true, deps: { postgres: true } };
+      } catch {
+        return { ready: false, deps: { postgres: false } };
+      }
+    },
     cacheLastLocation: (childId) => getChildLastLocation(childId),
     setBpCalibration: (userId, offsets) =>
       setBpCalibration(userId, {

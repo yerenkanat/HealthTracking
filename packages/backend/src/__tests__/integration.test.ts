@@ -148,6 +148,7 @@ function makeDeps(
     },
     // Admin
     adminStats: async () => ({ activeUsers: 1, devicesOnline: devices.length, alertsToday: pushes.emergency, ingestLastHour: healthRows.length }),
+    childrenStats: async () => ({ total: 0, boys: 0, girls: 0, unknown: 0, withDob: 0, byAge: [] }),
     recentEmergencies: async () => [{ id: `${USER}|2026-07-15T08:00:00Z`, userId: USER, displayName: 'Aigerim', code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z', acknowledgedAt: null, acknowledgedBy: null }],
     acknowledgeEmergency: async () => true,
     adminListUsers: async () => ({ total: 1, users: [{ id: USER, displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-11-01' }] }),

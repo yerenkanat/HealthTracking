@@ -183,6 +183,14 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return first ? reply.send({ ok: true }) : reply.code(409).send({ error: 'already_acknowledged' });
   });
 
+  // ---- Children demographics (admin only) ----
+  app.get('/admin/children/stats', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_children_stats' });
+    return reply.send(await repo.childrenStats(new Date().toISOString()));
+  });
+
   // ---- User list (admin only) ----
   app.get('/admin/users', async (req, reply) => {
     const s = await requireAdmin(req, reply);

@@ -55,6 +55,17 @@ export interface ProfileRow {
   city: string | null;
 }
 
+/** Aggregate demographics of the tracked children, for the admin dashboard. */
+export interface ChildrenStats {
+  total: number;
+  boys: number;
+  girls: number;
+  unknown: number; // gender not provided
+  /** Age buckets in order, each with a label and a count. */
+  byAge: Array<{ bucket: string; count: number }>;
+  withDob: number; // how many have a date of birth (age buckets are over these)
+}
+
 /** A dated appointment/reminder. Mirrors the app's Appointment (domain/appointment.dart). */
 export interface Appointment {
   id: string;
@@ -223,6 +234,8 @@ export interface Repository {
 
   // ---- Admin / back-office ----
   adminStats(): Promise<{ activeUsers: number; devicesOnline: number; alertsToday: number; ingestLastHour: number }>;
+  /** Aggregate child demographics (count, gender split, age buckets) as of [asOf] (ISO). */
+  childrenStats(asOf: string): Promise<ChildrenStats>;
   recentEmergencies(limit: number): Promise<Array<{ id: string; userId: string; displayName: string; code: string; severity: string; at: string; acknowledgedAt: string | null; acknowledgedBy: string | null }>>;
   // Acknowledge an emergency (staff). Idempotent; returns false if it was
   // already acknowledged. The id is the underlying metric row id, so an ack

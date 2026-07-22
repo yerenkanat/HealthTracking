@@ -60,6 +60,8 @@ CREATE TABLE children (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   guardian_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name           TEXT NOT NULL,            -- e.g. "Sultan"
+  gender         TEXT CHECK (gender IN ('boy','girl')),  -- null = not provided
+  date_of_birth  DATE,                     -- null = not provided; drives age stats
   -- Beacon identity: iBeacon triple, or a Tuya/LBS tag id for non-iBeacon tags.
   beacon_uuid    TEXT,
   beacon_major   INT,
