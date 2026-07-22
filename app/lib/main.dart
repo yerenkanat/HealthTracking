@@ -375,7 +375,8 @@ Future<void> bootstrapRuntime(
     final chatService = AiChatService(
       api: api,
       userId: const String.fromEnvironment('USER_ID', defaultValue: 'me'),
-      locale: controller.locale.name,
+      locale: () => controller.locale.name, // follows the in-app language switch
+
       monitor: monitor,
       onEmergency: (e) => controller.onChatEmergency(e.message, e.callButtons, code: e.code),
     );

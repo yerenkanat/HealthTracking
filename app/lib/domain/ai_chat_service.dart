@@ -11,7 +11,11 @@ import 'health_monitor.dart';
 class AiChatService {
   final ApiClient api;
   final String userId;
-  final String locale;
+
+  /// The assistant's reply language, read fresh on every send so it follows the
+  /// in-app language switch at runtime — not frozen to whatever it was when the
+  /// service was constructed at startup.
+  final String Function() locale;
   final HealthMonitor monitor;
 
   /// Called when the assistant response is an emergency — app shows the rescue screen.
@@ -30,7 +34,7 @@ class AiChatService {
   Future<ChatOutcome> send(String message) async {
     final outcome = await api.chat(
       userId: userId,
-      locale: locale,
+      locale: locale(),
       message: message,
       latestTelemetry: monitor.latest?.toJson(),
     );

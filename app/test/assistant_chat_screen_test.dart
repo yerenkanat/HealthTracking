@@ -28,7 +28,7 @@ ChatController buildController() {
   final service = AiChatService(
     api: ApiClient(_FakeTransport()),
     userId: 'u',
-    locale: 'en',
+    locale: () => 'en',
     monitor: monitor,
     onEmergency: (_) {},
   );
@@ -51,7 +51,7 @@ void main() {
       service: AiChatService(
         api: ApiClient(transport),
         userId: 'u',
-        locale: 'en',
+        locale: () => 'en',
         monitor: monitor,
         onEmergency: (_) {},
       ),
