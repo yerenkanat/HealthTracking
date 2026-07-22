@@ -14,12 +14,14 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../data/pregnancy_weeks_repository.dart';
 import '../../domain/antenatal_protocol.dart';
 import '../../domain/baby_size.dart';
 import '../../domain/cycle_log.dart' show GestationInfo;
 import '../../domain/fetal_development.dart';
 import '../../domain/pregnancy_guide.dart';
 import '../../domain/pregnancy_milestones.dart';
+import '../../domain/pregnancy_week_content.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import 'antenatal_plan_screen.dart';
@@ -114,6 +116,10 @@ class WeekDetailScreen extends StatelessWidget {
 
           // The one line Flo leads with: what baby is developing this week.
           _FetalCard(week: g.week, colour: pal.glow),
+
+          // The fuller week narrative from the MoH calendar (ru/kk): what to do
+          // this week, and what is happening for her and the baby.
+          _WeekCalendarCard(week: g.week, colour: pal.glow),
 
           _Card(
             title: l.t('gest_trimester', {'n': g.trimester}),
@@ -245,6 +251,83 @@ String _areaLabel(dynamic l, PregnancyArea area) => switch (area) {
       PregnancyArea.movement => l.t('preg_area_movement'),
       PregnancyArea.mind => l.t('preg_area_mind'),
     };
+
+/// The MoH week-by-week calendar entry: a per-week recommendation plus what is
+/// happening for her and the baby, in her language (kk or ru; en falls back to
+/// ru). Loaded from the bundled asset; the card is simply absent if there is no
+/// entry for the week.
+class _WeekCalendarCard extends StatelessWidget {
+  final int week;
+  final Color colour;
+  const _WeekCalendarCard({required this.week, required this.colour});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return FutureBuilder<List<PregnancyWeekContent>>(
+      future: loadPregnancyWeeks(),
+      builder: (context, snap) {
+        final weeks = snap.data;
+        if (weeks == null || weeks.isEmpty) return const SizedBox.shrink();
+        final w = weekContentFor(weeks, week);
+        if (w == null) return const SizedBox.shrink();
+        final t = w.textFor(l.locale.name);
+        if (t.recommend.isEmpty && t.you.isEmpty && t.baby.isEmpty) return const SizedBox.shrink();
+        return _Card(
+          title: l.t('pw_week_title'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (t.recommend.isNotEmpty)
+                _CalendarRow(icon: Icons.check_circle_outline, colour: colour, label: l.t('pw_recommend'), text: t.recommend),
+              if (t.you.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _CalendarRow(icon: Icons.favorite_outline, colour: Palette.rose, label: l.t('pw_you'), text: t.you),
+              ],
+              if (t.baby.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _CalendarRow(icon: Icons.child_friendly_outlined, colour: Palette.violet, label: l.t('pw_baby'), text: t.baby),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CalendarRow extends StatelessWidget {
+  final IconData icon;
+  final Color colour;
+  final String label;
+  final String text;
+  const _CalendarRow({required this.icon, required this.colour, required this.label, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: colour.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 16, color: colour),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label.toUpperCase(),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.4, color: colour)),
+                const SizedBox(height: 2),
+                Text(text, style: const TextStyle(fontSize: 13, height: 1.45)),
+              ],
+            ),
+          ),
+        ],
+      );
+}
 
 /// "Baby this week" — the single fetal-development highlight for the week.
 class _FetalCard extends StatelessWidget {

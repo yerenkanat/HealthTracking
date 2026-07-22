@@ -45,6 +45,10 @@ flutter:
     # Authored timeline content. Edit this file to publish real lessons and
     # products; the app falls back to the seeded catalogue if it is absent.
     - assets/content/catalog.json
+    # Week-by-week pregnancy calendar (ru + kk). A copy of the shared contract
+    # packages/contract/pregnancy_weeks.json; kept in sync by
+    # tool/verify_pregnancy_weeks_contract.dart.
+    - assets/data/pregnancy_weeks.json
   fonts:
     - family: Outfit
       fonts:

@@ -1416,6 +1416,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
 
   // ---- Fetal development, week by week (fet_<id>) ----
   'fet_title': {AppLocale.ru: 'Развитие малыша', AppLocale.kk: 'Нәрестенің дамуы', AppLocale.en: 'Baby this week'},
+  // Week-by-week pregnancy calendar (pw_*), from the MoH calendar contract.
+  'pw_week_title': {AppLocale.ru: 'Ваша неделя', AppLocale.kk: 'Сіздің аптаңыз', AppLocale.en: 'Your week'},
+  'pw_recommend': {AppLocale.ru: 'Рекомендуем', AppLocale.kk: 'Ұсынамыз', AppLocale.en: 'We recommend'},
+  'pw_you': {AppLocale.ru: 'О вас', AppLocale.kk: 'Сіз туралы', AppLocale.en: 'About you'},
+  'pw_baby': {AppLocale.ru: 'О малыше', AppLocale.kk: 'Нәресте туралы', AppLocale.en: 'About the baby'},
   'fet_heartbeat': {AppLocale.ru: 'Начинает биться крошечное сердце.', AppLocale.kk: 'Кішкентай жүрек соға бастайды.', AppLocale.en: 'The tiny heart begins to beat.'},
   'fet_neural': {AppLocale.ru: 'Формируются головной и спинной мозг.', AppLocale.kk: 'Ми мен жұлын қалыптасады.', AppLocale.en: 'The brain and spinal cord are taking shape.'},
   'fet_limb_buds': {AppLocale.ru: 'Появляются зачатки ручек и ножек.', AppLocale.kk: 'Қол мен аяқтың бүршіктері пайда болады.', AppLocale.en: 'Tiny arm and leg buds appear.'},

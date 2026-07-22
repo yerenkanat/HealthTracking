@@ -3,9 +3,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/data/pregnancy_weeks_repository.dart';
 import 'package:fcs_app/domain/baby_size.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/fetal_development.dart';
+import 'package:fcs_app/domain/pregnancy_week_content.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/week_detail_screen.dart';
@@ -42,6 +44,23 @@ void main() {
     // Week 20 resolves to the "can hear your voice" highlight.
     expect(fetalHighlightFor(20)!.id, 'voice');
     expect(find.text(ru.t('fet_voice')), findsOneWidget);
+  });
+
+  testWidgets('shows the MoH week calendar (recommend / you / baby)', (tester) async {
+    debugSetPregnancyWeeks(const [
+      PregnancyWeekContent(
+        week: 22,
+        lengthCm: '19',
+        hcg: '—',
+        ru: PregnancyWeekText(baby: 'Малыш активно шевелится.', you: 'Вы чувствуете толчки.', recommend: 'Считайте шевеления.'),
+        kk: PregnancyWeekText(baby: 'Нәресте қозғалады.', you: 'Тепкенін сезесіз.', recommend: 'Қимылды санаңыз.'),
+      ),
+    ]);
+    addTearDown(() => debugSetPregnancyWeeks(const []));
+    await pump(tester, 22);
+    expect(find.text(ru.t('pw_recommend').toUpperCase()), findsOneWidget);
+    expect(find.text('Считайте шевеления.'), findsOneWidget);
+    expect(find.text('Вы чувствуете толчки.'), findsOneWidget);
   });
 
   testWidgets('tells her how she may feel this week', (tester) async {
@@ -101,6 +120,21 @@ void main() {
   });
 
   testWidgets('golden: week 22', (tester) async {
+    // Seed a fixed calendar entry so the golden does not depend on the bundled
+    // asset (or on test order, since the loader caches globally).
+    debugSetPregnancyWeeks(const [
+      PregnancyWeekContent(
+        week: 22,
+        lengthCm: '19',
+        hcg: '—',
+        ru: PregnancyWeekText(
+            baby: 'Малыш активно шевелится и реагирует на звуки.',
+            you: 'Вы отчётливо чувствуете толчки.',
+            recommend: 'Считайте шевеления и следите за их регулярностью.'),
+        kk: PregnancyWeekText(baby: '—', you: '—', recommend: '—'),
+      ),
+    ]);
+    addTearDown(() => debugSetPregnancyWeeks(const []));
     await pump(tester, 22);
     await expectLater(
       find.byType(WeekDetailScreen),
