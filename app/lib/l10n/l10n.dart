@@ -2103,6 +2103,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'dur_m': {AppLocale.ru: '{m} мин', AppLocale.kk: '{m} мин', AppLocale.en: '{m}m'},
   'ADV_SLEEP_SHORT': {AppLocale.ru: 'Недосып', AppLocale.kk: 'Ұйқы жетіспеді', AppLocale.en: 'Short on sleep'},
   'ADV_SLEEP_SHORT_b': {AppLocale.ru: 'Прошлой ночью вы спали меньше 6 часов. Постарайтесь отдохнуть днём.', AppLocale.kk: 'Өткен түні 6 сағаттан аз ұйықтадыңыз. Күндіз демалуға тырысыңыз.', AppLocale.en: 'You slept under 6 hours last night. Try to rest during the day.'},
+  'ADV_SLEEP_DEBT': {AppLocale.ru: 'Несколько коротких ночей', AppLocale.kk: 'Бірнеше қысқа түн', AppLocale.en: 'Several short nights'},
+  'ADV_SLEEP_DEBT_b': {AppLocale.ru: 'Три ночи подряд вы спали мало. Во время беременности отдых особенно важен — по возможности планируйте ранний отход ко сну и дневной отдых.', AppLocale.kk: 'Қатарынан үш түн аз ұйықтадыңыз. Жүктілік кезінде демалу аса маңызды — мүмкіндігінше ерте жатып, күндіз демалыңыз.', AppLocale.en: 'You’ve slept little three nights running. Rest matters especially in pregnancy — try an earlier bedtime and a daytime rest when you can.'},
   'ADV_SLEEP_GOOD': {AppLocale.ru: 'Хороший сон', AppLocale.kk: 'Жақсы ұйқы', AppLocale.en: 'Good sleep'},
   'ADV_SLEEP_GOOD_b': {AppLocale.ru: 'Прошлой ночью вы хорошо выспались с достаточным глубоким сном.', AppLocale.kk: 'Өткен түні терең ұйқымен жақсы дем алдыңыз.', AppLocale.en: 'You slept well last night with enough deep sleep.'},
 

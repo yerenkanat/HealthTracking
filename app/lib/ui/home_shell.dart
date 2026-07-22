@@ -103,6 +103,7 @@ class _HomeShellState extends State<HomeShell> {
           MaterialPageRoute(builder: (_) => AdvisorScreen(
             samples: c.samples,
             lastNight: c.lastNight,
+            recentNights: c.sleepNights,
             waterCount: c.waterFor(DateTime.now()),
             waterGoal: c.waterGoal,
             nowHour: DateTime.now().hour,

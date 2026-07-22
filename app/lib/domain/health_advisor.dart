@@ -32,6 +32,7 @@ List<Advisory> generateAdvisories(
   int? waterCount, // today's water glasses (null = not tracked)
   int waterGoal = 0,
   int hour = 12, // local hour of day, for time-aware hydration nudges
+  List<SleepSummary> recentNights = const [], // last several nights, for a trend
 }) {
   if (samples.length < minSamples) {
     return const [Advisory('ADV_GATHERING', AdviceTone.info, 'general')];
@@ -90,8 +91,14 @@ List<Advisory> generateAdvisories(
     positive.add(Advisory('ADV_SPO2_STEADY', AdviceTone.positive, 'spo2', value: spo2Stats.latest));
   }
 
+  // ---- Sleep: a multi-night trend takes precedence over a single night ----
+  // Three short nights in a row is worth naming as a pattern — rest matters more
+  // in pregnancy, and one short night is ordinary where a run of them is not.
+  final threeShortNights = _lastNShort(recentNights, 3);
   // ---- Sleep last night (nightly summary from the band, when available) ----
-  if (lastNight != null) {
+  if (threeShortNights) {
+    watch.add(const Advisory('ADV_SLEEP_DEBT', AdviceTone.watch, 'general'));
+  } else if (lastNight != null) {
     if (lastNight.asleepMin < SleepThresholds.fairAsleepMin) {
       watch.add(const Advisory('ADV_SLEEP_SHORT', AdviceTone.watch, 'general'));
     } else if (lastNight.quality == SleepQuality.good) {
@@ -128,6 +135,15 @@ List<Advisory> generateAdvisories(
 /// [generateAdvisories], which always returns at least one card. The banner reads
 /// green for a positive tone, warm amber for a watch tone, neutral while gathering.
 Advisory overallStatus(List<HealthSample> samples) => generateAdvisories(samples).first;
+
+/// True when the most recent [n] nights all fell below the "fair" sleep floor.
+/// Defensive about order — sorts by date descending — and needs at least [n]
+/// nights before it will call a trend.
+bool _lastNShort(List<SleepSummary> nights, int n) {
+  if (nights.length < n) return false;
+  final sorted = [...nights]..sort((a, b) => b.night.compareTo(a.night));
+  return sorted.take(n).every((s) => s.asleepMin < SleepThresholds.fairAsleepMin);
+}
 
 double _mean(Iterable<double> xs) {
   var sum = 0.0, n = 0;

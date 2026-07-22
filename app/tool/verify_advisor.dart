@@ -83,6 +83,23 @@ void main() {
   _chk('good sleep → ADV_SLEEP_GOOD', _has(generateAdvisories(steady, lastNight: goodNight), 'ADV_SLEEP_GOOD'));
   _chk('no lastNight → no ADV_SLEEP_SHORT', !_has(generateAdvisories(steady), 'ADV_SLEEP_SHORT'));
 
+  // ---- Multi-night sleep trend ----
+  SleepSummary short(int day) =>
+      SleepSummary(night: DateTime(2026, 7, day), deepMin: 30, remMin: 40, lightMin: 160, awakeMin: 60); // ~3h50
+  SleepSummary ok(int day) =>
+      SleepSummary(night: DateTime(2026, 7, day), deepMin: 90, remMin: 100, lightMin: 270, awakeMin: 30); // 7h40
+  final threeShort = [short(15), short(14), short(13)];
+  _chk('three short nights → ADV_SLEEP_DEBT',
+      _has(generateAdvisories(steady, lastNight: shortNight, recentNights: threeShort), 'ADV_SLEEP_DEBT'));
+  _chk('the debt trend replaces the single-night short note',
+      !_has(generateAdvisories(steady, lastNight: shortNight, recentNights: threeShort), 'ADV_SLEEP_SHORT'));
+  _chk('two short nights is not yet a trend',
+      !_has(generateAdvisories(steady, recentNights: [short(15), short(14)]), 'ADV_SLEEP_DEBT'));
+  _chk('a good night in the run breaks the trend',
+      !_has(generateAdvisories(steady, recentNights: [short(15), ok(14), short(13)]), 'ADV_SLEEP_DEBT'));
+  _chk('order does not matter — newest three are taken',
+      _has(generateAdvisories(steady, recentNights: [short(13), short(15), short(14), ok(10)]), 'ADV_SLEEP_DEBT'));
+
   // ---- Hydration ----
   _chk('goal met → ADV_HYDRATED', _has(generateAdvisories(steady, waterCount: 8, waterGoal: 8), 'ADV_HYDRATED'));
   _chk('evening + behind → ADV_HYDRATE_LOW (watch)',
