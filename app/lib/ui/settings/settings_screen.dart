@@ -19,6 +19,8 @@ import '../theme.dart';
 import 'journey_screen.dart';
 import 'legal_screen.dart';
 import 'reminders_center_screen.dart';
+import '../../domain/phone_auth.dart';
+import '../auth/sign_in_screen.dart';
 import '../tracking/child_detail_screen.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
@@ -40,6 +42,41 @@ class SettingsScreen extends StatelessWidget {
         builder: (context, _) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
+            // ---- Account (phone-OTP sign-in) ----
+            _Section(title: l.t('auth_title'), children: [
+              if (c.isSignedIn)
+                _Row(
+                  leading: Icons.verified_user_outlined,
+                  title: l.t('auth_signed_in_as', {'phone': c.authSession!.phoneE164}),
+                  subtitle: l.t('auth_sign_out'),
+                  titleColor: Palette.teal,
+                  onTap: () async {
+                    final ok = await confirmDestructive(
+                      context,
+                      title: l.t('auth_sign_out'),
+                      message: l.t('auth_signed_in_as', {'phone': c.authSession!.phoneE164}),
+                      confirmLabel: l.t('auth_sign_out'),
+                    );
+                    if (ok) c.signOut();
+                  },
+                )
+              else
+                _Row(
+                  leading: Icons.login_rounded,
+                  title: l.t('auth_sign_in_cta'),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => SignInScreen(
+                      provider: const StubPhoneAuthProvider(now: DateTime.now),
+                      onSignedIn: (session) {
+                        c.signIn(session);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  )),
+                ),
+            ]),
+
             // ---- Language (distinct code badge per language) ----
             _Section(title: l.t('set_language'), children: [
               for (final (loc, name, code) in const [

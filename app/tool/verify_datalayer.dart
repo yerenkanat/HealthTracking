@@ -119,7 +119,7 @@ Future<void> main() async {
   final svc = AiChatService(
     api: ApiClient(fake),
     userId: 'u',
-    locale: 'ru-KZ',
+    locale: () => 'ru-KZ',
     monitor: monitor, // latest is the emergency BP reading
     onEmergency: (_) => svcEmergency++,
   );

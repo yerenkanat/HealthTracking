@@ -13,6 +13,7 @@ import '../domain/child_emergency.dart';
 import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
+import '../domain/phone_auth.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/health_series.dart';
 import '../domain/kick_session.dart';
@@ -141,6 +142,10 @@ class PersistedConfig {
   final List<ChildProfile> children;
   final List<PairedDevice> devices;
   final BpCalibration? bpCalibration;
+
+  /// The signed-in session (phone-OTP), or null when signed out. Persisted so a
+  /// sign-in survives a restart.
+  final AuthSession? authSession;
   final Map<String, DayLog> dayLogs; // dateKey → women's-health day entry
   final bool notificationsEnabled;
   final List<SafetyAlert> alerts; // recent zone enter/exit history
@@ -197,6 +202,7 @@ class PersistedConfig {
     required this.children,
     required this.devices,
     this.bpCalibration,
+    this.authSession,
     this.dayLogs = const {},
     this.notificationsEnabled = true,
     this.alerts = const [],
@@ -237,6 +243,7 @@ class PersistedConfig {
         'children': [for (final c in children) childToJson(c)],
         'devices': [for (final d in devices) d.toJson()],
         if (bpCalibration != null) 'bpCalibration': bpCalibration!.toJson(),
+        if (authSession != null) 'authSession': authSession!.toJson(),
         if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
         'notificationsEnabled': notificationsEnabled,
         if (alerts.isNotEmpty) 'alerts': [for (final a in alerts) a.toJson()],
@@ -346,6 +353,9 @@ class PersistedConfig {
         devices: _items(j['devices'], PairedDevice.fromJson),
         bpCalibration: j['bpCalibration'] is Map
             ? BpCalibration.fromJson((j['bpCalibration'] as Map).cast<String, dynamic>())
+            : null,
+        authSession: j['authSession'] is Map
+            ? AuthSession.fromJson((j['authSession'] as Map).cast<String, dynamic>())
             : null,
         dayLogs: dayLogsFromJson(
             j['dayLogs'] is Map ? (j['dayLogs'] as Map).cast<String, dynamic>() : null),

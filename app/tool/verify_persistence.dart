@@ -11,6 +11,7 @@ import '../lib/app/app_controller.dart';
 import '../lib/core/geofence.dart';
 import '../lib/data/app_store.dart';
 import '../lib/data/persisted_config.dart';
+import '../lib/domain/phone_auth.dart';
 import '../lib/domain/cycle_log.dart';
 import '../lib/domain/manual_sleep.dart';
 import '../lib/domain/sleep.dart';
@@ -52,6 +53,7 @@ void main() async {
       const ChildProfile(id: 'child-2', name: 'Aida'),
     ],
     devices: const [PairedDevice(id: 'AA:BB', name: 'Band', kind: DeviceKind.band)],
+    authSession: AuthSession(userId: 'u_abc', phoneE164: '+77001234567', token: 'stub-token:u_abc', signedInAt: DateTime.utc(2026, 7, 22, 12)),
     notificationsEnabled: false,
     avgCycleLength: 30,
     avgPeriodLength: 6,
@@ -117,6 +119,8 @@ void main() async {
   );
   final decoded = PersistedConfig.decode(cfg.encode());
   _chk('round-trip onboarded + locale', decoded.onboarded && decoded.locale == AppLocale.kk);
+  _chk('round-trip auth session', decoded.authSession?.userId == 'u_abc' &&
+      decoded.authSession?.phoneE164 == '+77001234567' && decoded.authSession?.token == 'stub-token:u_abc');
   _chk('round-trip profile phone', decoded.profile.displayName == 'Aigerim' && decoded.profile.e164 == '+77001234567');
   _chk('round-trip 2 children', decoded.children.length == 2 && decoded.children[1].name == 'Aida');
   _chk('round-trip child DOB', decoded.children[0].dateOfBirth == DateTime(2019, 3, 8) && !decoded.children[1].hasDateOfBirth);

@@ -14,6 +14,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../ble/calibration.dart';
+import '../domain/phone_auth.dart';
 import '../ble/link_policy.dart' show BandLinkState;
 import '../core/triage.dart';
 import '../core/geofence.dart';
@@ -141,6 +142,7 @@ class AppController {
   String? _selectedChildId;
   final List<PairedDevice> _devices = [];
   BpCalibration? _bpCalibration;
+  AuthSession? _authSession;
   bool _notificationsEnabled = true;
   int? _avgCycleLength;
   int? _avgPeriodLength;
@@ -232,6 +234,7 @@ class AppController {
       ..clear()
       ..addAll(cfg.devices);
     _bpCalibration = cfg.bpCalibration;
+    _authSession = cfg.authSession;
     _notificationsEnabled = cfg.notificationsEnabled;
     _avgCycleLength = cfg.avgCycleLength;
     _avgPeriodLength = cfg.avgPeriodLength;
@@ -360,6 +363,7 @@ class AppController {
         children: List.of(_children),
         devices: List.of(_devices),
         bpCalibration: _bpCalibration,
+        authSession: _authSession,
         notificationsEnabled: _notificationsEnabled,
         avgCycleLength: _avgCycleLength,
         avgPeriodLength: _avgPeriodLength,
@@ -1243,6 +1247,26 @@ class AppController {
   void setDueDate(DateTime? date) {
     _profile = _profile.copyWith(dueDate: date, clearDueDate: date == null);
     _persist();
+    _notify();
+  }
+
+  // ---- Sign-in session (phone-OTP) ----
+  /// The signed-in session, or null when signed out.
+  AuthSession? get authSession => _authSession;
+  bool get isSignedIn => _authSession != null;
+
+  /// Store a session after a successful sign-in, and persist it.
+  void signIn(AuthSession session) {
+    _authSession = session;
+    _persist(immediate: true);
+    _notify();
+  }
+
+  /// Clear the session. Keeps local data — signing out is not erasing.
+  void signOut() {
+    if (_authSession == null) return;
+    _authSession = null;
+    _persist(immediate: true);
     _notify();
   }
 

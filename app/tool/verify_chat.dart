@@ -39,7 +39,7 @@ ChatController build(HttpResponse Function(String, Object) handler,
   final monitor = HealthMonitor(
     deviceId: 'd', enqueue: (_, {required urgent}) {}, onEmergency: (_, __) {});
   final service = AiChatService(
-    api: api, userId: 'u', locale: 'ru-KZ', monitor: monitor,
+    api: api, userId: 'u', locale: () => 'ru-KZ', monitor: monitor,
     onEmergency: (_) => onEmergency?.call(),
   );
   return ChatController(
@@ -220,7 +220,7 @@ Future<void> main() async {
     final monitor = HealthMonitor(
         deviceId: 'd', enqueue: (_, {required urgent}) {}, onEmergency: (_, __) {});
     final service = AiChatService(
-        api: api, userId: 'u', locale: 'ru-KZ', monitor: monitor, onEmergency: (_) {});
+        api: api, userId: 'u', locale: () => 'ru-KZ', monitor: monitor, onEmergency: (_) {});
     final chat = ChatController(
         service: service,
         networkErrorText: () => 'NET_ERROR',

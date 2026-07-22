@@ -337,7 +337,9 @@ Future<void> bootstrapRuntime(
     final api = ApiClient(HttpApiTransport(
       baseUrl: Uri.parse(
           const String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8080')),
-      getToken: () async => null, // TODO: Firebase Auth ID token
+      // The signed-in session's token (stub today, Firebase ID token once
+      // wired). Read fresh each request so sign-in/out takes effect immediately.
+      getToken: () async => controller.authSession?.token,
       devUserId: const String.fromEnvironment('DEV_USER_ID'),
     ));
 
