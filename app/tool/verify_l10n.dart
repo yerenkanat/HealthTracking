@@ -7,6 +7,7 @@ import '../lib/domain/child_development.dart';
 import '../lib/domain/vaccination.dart';
 import '../lib/domain/postpartum.dart';
 import '../lib/domain/pregnancy_guide.dart';
+import '../lib/domain/fetal_development.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -315,6 +316,24 @@ void main() {
       }
     }
     _chk('and pregnancy-guide strings are all translated ($pregBlank blanks)', pregBlank == 0);
+
+    // Fetal development: `fet_<id>` is composed at render time from the
+    // highlight id, so a highlight added without strings would show a raw key.
+    final fetMissing = [
+      for (final h in fetalHighlights)
+        if (!known.contains('fet_${h.id}')) 'fet_${h.id}'
+    ];
+    _chk('every fetal highlight has a string', fetMissing.isEmpty);
+    if (fetMissing.isNotEmpty) print('    missing: ${fetMissing.join(', ')}');
+
+    var fetBlank = 0;
+    for (final h in fetalHighlights) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t('fet_${h.id}');
+        if (v == 'fet_${h.id}' || v.trim().isEmpty) fetBlank++;
+      }
+    }
+    _chk('and every fetal highlight is translated ($fetBlank blanks)', fetBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

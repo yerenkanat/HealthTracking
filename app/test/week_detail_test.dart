@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/baby_size.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/domain/fetal_development.dart';
 import 'package:fcs_app/domain/pregnancy_guide.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
@@ -34,6 +35,14 @@ void main() {
     final size = babySizeFor(12)!;
     expect(find.text(ru.t(size.code)), findsOneWidget);
     expect(find.textContaining(size.lengthCm.toStringAsFixed(1)), findsOneWidget);
+  });
+
+  testWidgets('leads with what baby is developing this week', (tester) async {
+    await pump(tester, 20);
+    expect(find.text(ru.t('fet_title').toUpperCase()), findsOneWidget);
+    // Week 20 resolves to the "can hear your voice" highlight.
+    expect(fetalHighlightFor(20)!.id, 'voice');
+    expect(find.text(ru.t('fet_voice')), findsOneWidget);
   });
 
   testWidgets('tells her how she may feel this week', (tester) async {
@@ -88,6 +97,7 @@ void main() {
       expect(find.textContaining('MS_'), findsNothing, reason: loc.name);
       expect(find.textContaining('gest_'), findsNothing, reason: loc.name);
       expect(find.textContaining('preg_'), findsNothing, reason: loc.name);
+      expect(find.textContaining('fet_'), findsNothing, reason: loc.name);
     }
   });
 

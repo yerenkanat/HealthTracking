@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/baby_size.dart';
 import '../../domain/cycle_log.dart' show GestationInfo;
+import '../../domain/fetal_development.dart';
 import '../../domain/pregnancy_guide.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n_scope.dart';
@@ -108,6 +109,9 @@ class WeekDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
+
+          // The one line Flo leads with: what baby is developing this week.
+          _FetalCard(week: g.week, colour: pal.glow),
 
           _Card(
             title: l.t('gest_trimester', {'n': g.trimester}),
@@ -235,6 +239,45 @@ String _areaLabel(dynamic l, PregnancyArea area) => switch (area) {
       PregnancyArea.movement => l.t('preg_area_movement'),
       PregnancyArea.mind => l.t('preg_area_mind'),
     };
+
+/// "Baby this week" — the single fetal-development highlight for the week.
+class _FetalCard extends StatelessWidget {
+  final int week;
+  final Color colour;
+  const _FetalCard({required this.week, required this.colour});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final h = fetalHighlightFor(week);
+    if (h == null) return const SizedBox.shrink();
+    return _Card(
+      title: l.t('fet_title'),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: colour.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(Icons.auto_awesome_outlined, size: 19, color: colour),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(l.t('fet_${h.id}'),
+                  style: const TextStyle(fontSize: 14, height: 1.42, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// "How you may feel" — the stage notes for this week, badged by thread.
 class _ExpectCard extends StatelessWidget {
