@@ -11,19 +11,34 @@ import type { FastifyRequest } from 'fastify';
 import { buildServer } from './server';
 import type { ServerDeps } from './server';
 import { createMemoryRepository } from './db/memoryRepository';
+import { makeAuthUser } from './http/auth';
 import type { BandTelemetry, ChildLocationFix } from '@fcs/shared';
 import { assessTelemetry } from '@fcs/shared';
+
+const REAL_AUTH = process.env.REAL_AUTH === '1';
+
+/** Verifies a Firebase ID token → uid. Null until wired in production (needs a
+ * service account); firebase-admin is loaded lazily so dev never touches it. */
+let verifyIdToken: ((token: string) => Promise<string | null>) | undefined;
+async function initFirebaseAuth(): Promise<void> {
+  if (!REAL_AUTH || verifyIdToken) return;
+  const admin = await import('firebase-admin');
+  if (!admin.apps.length) admin.initializeApp();
+  verifyIdToken = async (t) => {
+    const decoded = await admin.auth().verifyIdToken(t);
+    return decoded.uid;
+  };
+}
 
 // NOTE: pg / Redis / Anthropic / push are imported *dynamically* inside
 // productionDeps() so memory mode (npm run dev) never loads them — importing the
 // Redis module eagerly connects a client, which we must avoid without a stack.
 
-// TODO(auth): verify a Firebase ID token from the Authorization header.
-// Dev stub: trust an x-user-id header. DO NOT ship this to production.
-const authUser = async (req: FastifyRequest) => {
-  const id = req.headers['x-user-id'];
-  return typeof id === 'string' && id.length > 0 ? { userId: id } : null;
-};
+// Verifies a Bearer token (Firebase in prod) and, in dev, honours the app's
+// stub session token so real sign-in works against the in-memory backend. Falls
+// back to the x-user-id dev header. See http/auth.ts.
+const authUser = (req: FastifyRequest) =>
+  makeAuthUser({ verifyIdToken, allowStubToken: !REAL_AUTH })(req);
 // TODO(auth): verify a staff session/JWT with RBAC claims.
 // Dev stub: trust x-staff-id + x-staff-role headers. DO NOT ship this.
 const authAdmin = async (req: FastifyRequest) => {
@@ -127,6 +142,7 @@ function memoryDeps(): ServerDeps {
 }
 
 async function main(): Promise<void> {
+  await initFirebaseAuth(); // wires real token verification when REAL_AUTH=1
   const memoryMode = process.env.USE_MEMORY_DB === 'true' || !process.env.DATABASE_URL;
   const app = buildServer(memoryMode ? memoryDeps() : await productionDeps());
   if (memoryMode) {
