@@ -31,6 +31,8 @@ void main() {
         child: OnboardingFlow(controller: controller, onComplete: (_) {}),
       ),
     ));
+    await tester.tap(find.byType(Checkbox)); // accept privacy + terms
+    await tester.pump();
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next')); // language
