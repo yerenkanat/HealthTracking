@@ -9,9 +9,38 @@ import 'package:fcs_app/domain/setup_checklist.dart';
 import 'package:fcs_app/domain/weekly_digest.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/widgets/glass.dart';
+import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/ble/link_policy.dart';
+
+const _notMeasuring = 'Device not connected — these readings may be out of date.';
 
 void main() {
   DateTime t(int m) => DateTime.utc(2026, 7, 15, 8, m);
+
+  testWidgets('shows a not-measuring chip when the wearable is not delivering', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples, bandNotMeasuring: true)));
+    expect(find.text(_notMeasuring), findsOneWidget);
+  });
+
+  testWidgets('no chip when the wearable is measuring (the default)', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
+    expect(find.text(_notMeasuring), findsNothing);
+  });
+
+  test('band link state drives the not-measuring flag', () {
+    final c = AppController(now: () => DateTime(2026, 7, 15));
+    addTearDown(c.dispose);
+    // No device wired this run → nothing to report.
+    expect(c.isBandNotMeasuring, isFalse);
+    c.onBandLinkState(BandLinkState.connecting);
+    expect(c.isBandNotMeasuring, isTrue);
+    c.onBandLinkState(BandLinkState.connected);
+    expect(c.isBandNotMeasuring, isFalse);
+    c.onBandLinkState(BandLinkState.lost);
+    expect(c.isBandNotMeasuring, isTrue);
+  });
 
   testWidgets('renders empty state with no samples', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: HealthDashboardView(samples: [])));

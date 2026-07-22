@@ -78,6 +78,9 @@ class HealthDashboardView extends StatelessWidget {
   final DateTime? nowForAppointment; // anchor for the countdown
   final VoidCallback? onOpenAppointments;
   final VoidCallback? onLogVitals; // hand-entered reading (no band required)
+  /// True when a wearable is wired but not currently delivering readings, so
+  /// the numbers on screen may be stale. Shows a quiet "not measuring" chip.
+  final bool bandNotMeasuring;
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -113,6 +116,7 @@ class HealthDashboardView extends StatelessWidget {
     this.nowForAppointment,
     this.onOpenAppointments,
     this.onLogVitals,
+    this.bandNotMeasuring = false,
     this.awaitingRepeat,
     this.waterCount = 0,
     this.waterGoal = 8,
@@ -202,6 +206,10 @@ class HealthDashboardView extends StatelessWidget {
                   ],
                   _PeaceOfMindBanner(samples: samples, name: greetingName),
                   const SizedBox(height: 16),
+                  if (bandNotMeasuring) ...[
+                    const _NotMeasuringChip(),
+                    const SizedBox(height: 12),
+                  ],
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -631,6 +639,35 @@ class _AdvisorEntry extends StatelessWidget {
 
 /// A compact, tappable pill showing the current cycle day or pregnancy week,
 /// opening the women's-health tab. Rose for cycle, violet for pregnancy.
+/// A quiet amber line telling her the wearable is not delivering readings right
+/// now, so the numbers below may be stale — not an error, just honesty.
+class _NotMeasuringChip extends StatelessWidget {
+  const _NotMeasuringChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: _tempA.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _tempA.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.bluetooth_searching_rounded, size: 17, color: _tempA),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(l.t('db_not_measuring'),
+                style: const TextStyle(fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusChip extends StatelessWidget {
   final String label;
   final bool pregnancy;

@@ -14,6 +14,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../ble/calibration.dart';
+import '../ble/link_policy.dart' show BandLinkState;
 import '../core/triage.dart';
 import '../core/geofence.dart';
 import '../data/sample_store.dart';
@@ -158,6 +159,7 @@ class AppController {
   final List<Medication> _medications = [];
   MedLog _medLog = {}; // dateKey → medId → doses taken
   final Set<String> _hospitalBagChecked = {}; // packed hospital-bag item ids
+  BandLinkState? _bandLinkState; // last reported wearable link state (null = no device wired)
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
   int? _medReminderMinutes; // daily medication reminder time; null = off
   bool _periodReminderEnabled = false;
@@ -964,6 +966,24 @@ class AppController {
   void setWeightGoal(double? kg) {
     _weightGoalKg = kg;
     _persist();
+    _notify();
+  }
+
+  // ---- Wearable link state ----
+  /// The last reported link state of the health wearable, or null when no
+  /// device is wired this run. Drives the dashboard's "not measuring" chip so a
+  /// watch out of range since morning is not mistaken for a quiet one.
+  BandLinkState? get bandLinkState => _bandLinkState;
+
+  /// True when a device is wired but not currently delivering readings — the
+  /// signal the dashboard shows so stale numbers are explained, not silent.
+  bool get isBandNotMeasuring =>
+      _bandLinkState != null && _bandLinkState != BandLinkState.connected;
+
+  /// From the wearable manager's onStatus stream.
+  void onBandLinkState(BandLinkState state) {
+    if (state == _bandLinkState) return;
+    _bandLinkState = state;
     _notify();
   }
 

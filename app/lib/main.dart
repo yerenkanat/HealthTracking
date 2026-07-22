@@ -394,14 +394,11 @@ Future<void> bootstrapRuntime(
         controller.onTelemetry(rec.$1, rec.$2); // dashboard + emergency
         monitor.handle(rec.$1, rec.$2); // sync + batching
       });
-      // The manager also exposes onStatus (connecting / connected / lost) so a
-      // watch out of range since morning need not look like a quiet one. The
-      // controller has no link-state sink yet, so it is not consumed here —
-      // wiring it (and the "not measuring" chip) is the follow-up. Logged for
-      // now so the state is at least observable in a diagnostic build.
-      watch.onStatus.listen((s) {
-        if (kDebugMode) debugPrint('[starmax] link: $s');
-      });
+      // Link state (connecting / connected / lost) drives the dashboard's "not
+      // measuring" chip, so a watch out of range since morning is not mistaken
+      // for a quiet one — the only other evidence would be a last reading that
+      // keeps getting older.
+      watch.onStatus.listen(controller.onBandLinkState);
       await watch.start();
     }
 

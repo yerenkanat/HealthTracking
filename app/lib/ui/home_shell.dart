@@ -73,6 +73,7 @@ class _HomeShellState extends State<HomeShell> {
         statusChip: _statusChip(c, l),
         statusChipPregnancy: c.isPregnant,
         statusChipLate: _statusChipLate(c),
+        bandNotMeasuring: c.isBandNotMeasuring,
         onOpenStatus: () => setState(() => _index = 1),
         weeklyDigest: computeWeeklyDigest(
           c.dayLogs, c.waterLog, c.sleepNights, DateTime.now(),

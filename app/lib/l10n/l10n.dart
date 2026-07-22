@@ -490,6 +490,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'db_title': {AppLocale.ru: 'Ваше здоровье', AppLocale.kk: 'Сіздің денсаулығыңыз', AppLocale.en: 'Your health'},
   'db_greeting': {AppLocale.ru: '{name}', AppLocale.kk: '{name}', AppLocale.en: '{name}'},
   'db_share': {AppLocale.ru: 'Поделиться сводкой', AppLocale.kk: 'Қорытындымен бөлісу', AppLocale.en: 'Share summary'},
+  'db_not_measuring': {
+    AppLocale.ru: 'Устройство не на связи — данные могут быть неактуальны.',
+    AppLocale.kk: 'Құрылғы байланыста емес — деректер ескірген болуы мүмкін.',
+    AppLocale.en: 'Device not connected — these readings may be out of date.',
+  },
   'db_share_copied': {AppLocale.ru: 'Сводка скопирована', AppLocale.kk: 'Қорытынды көшірілді', AppLocale.en: 'Summary copied to clipboard'},
   'share_summary_title': {AppLocale.ru: 'Сводка здоровья · Umay', AppLocale.kk: 'Денсаулық қорытындысы · Umay', AppLocale.en: 'Health summary · Umay'},
   'share_summary_notes': {AppLocale.ru: 'Заметки', AppLocale.kk: 'Ескертпелер', AppLocale.en: 'Notes'},
