@@ -1392,6 +1392,7 @@
       phone:row?.querySelector(".num")?.textContent||"",
     };
     let h=MOCK.health[id]||MOCK.health._default;
+    let sleep=[]; // her recent nights, from the wellness endpoint
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1399,7 +1400,18 @@
         u={...u,...d};
         if(d.latest) h={latest:d.latest,triage:d.triage||[],alert:[]};
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
+      // Her sleep — the same nights the app's Sleep card shows. Read-only and
+      // best-effort: a failure here must not blank the rest of the card.
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; }catch(e){ sleep=[]; }
     }
+    // "Nч Mмин" from total asleep minutes.
+    const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
+    const sleepSection=sleep.length?`
+      <div class="dsec">Сон (последние ночи)</div>
+      <div class="tl">${sleep.slice(0,7).map(n=>{
+        const asleep=(n.deepMin||0)+(n.remMin||0)+(n.lightMin||0);
+        return `<div class="tli"><span><b>${esc(fmtDate(n.night))}</b> <span class="t">глуб. ${hm(n.deepMin||0)} · быстр. ${hm(n.remMin||0)}</span></span><span class="t num">${hm(asleep)}</span></div>`;
+      }).join("")}</div>`:"";
     const initial=u.displayName.trim()[0]||"U";
     const vital=(k,label,unit)=>`<div class="vital ${h.alert.includes(k)?'alert':''}"><div class="k">${label}</div><div class="v">${h.latest[k]}<span style="font-size:12px;color:var(--muted)"> ${unit}</span></div></div>`;
     $("#drawer").innerHTML=`
@@ -1433,6 +1445,7 @@
       ${(()=>{const ap=(u.appointments||[]).filter(a=>a&&a.at).sort((x,y)=>String(x.at).localeCompare(String(y.at))); return ap.length?`
       <div class="dsec">Ближайшие визиты</div>
       <div class="tl">${ap.slice(0,6).map(a=>`<div class="tli"><span><b>${esc(a.title||"—")}</b></span><span class="t num">${esc(fmtDate(a.at))}</span></div>`).join("")}</div>`:"";})()}
+      ${sleepSection}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>

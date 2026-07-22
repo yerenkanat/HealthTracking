@@ -412,6 +412,18 @@ Future<void> bootstrapRuntime(
     // truth; a failed sync never blocks a local edit.
     if (controller.isSignedIn) {
       String iso(DateTime at) => at.toUtc().toIso8601String();
+      // Wake-day as a plain yyyy-MM-dd, the shape the /sleep endpoint expects.
+      String isoDay(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+          '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      // One night → the /sleep body. A manual night has no stage split, so its
+      // whole asleep total goes in as light sleep, keeping the admin total right.
+      Future<void> pushSleep(SleepSummary s) => api.putSleep(
+            night: isoDay(s.night),
+            deepMin: s.deepMin,
+            remMin: s.remMin,
+            lightMin: s.asleepMin - s.deepMin - s.remMin,
+            awakeMin: s.awakeMin,
+          );
 
       // Profile backup (push-only): send edits, and the current profile once, so
       // it survives a device change. Only when there is a name to save.
@@ -432,6 +444,14 @@ Future<void> bootstrapRuntime(
         upsert: (a) => api.putAppointment(id: a.id, title: a.title, at: iso(a.at), note: a.note),
         delete: (id) => api.deleteAppointment(id),
       );
+
+      // Push-only sleep sync, so the admin wellness view mirrors her nights.
+      controller.attachSleepSync(upsert: pushSleep);
+      // First-sync push: send the nights we already have so a fresh sign-in
+      // does not start the wellness view empty.
+      for (final s in controller.sleepNights) {
+        unawaited(pushSleep(s));
+      }
       try {
         final remote = await api.getAppointments();
         controller.mergeRemoteAppointments([

@@ -279,6 +279,26 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push one night of sleep so staff see the same sleep the mother does (the
+  /// admin wellness view). Push-only, like the profile: the watch/app is the
+  /// source of truth, the server just mirrors it. Minutes are per stage.
+  Future<void> putSleep({
+    required String night, // ISO date of the wake day
+    required int deepMin,
+    required int remMin,
+    required int lightMin,
+    required int awakeMin,
+  }) async {
+    final res = await transport.post('/sleep', {
+      'night': night,
+      'deepMin': deepMin,
+      'remMin': remMin,
+      'lightMin': lightMin,
+      'awakeMin': awakeMin,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// Delete an appointment. A 404 counts as done (already gone).
   Future<void> deleteAppointment(String id) async {
     final res = await transport.delete('/appointments/$id');

@@ -163,6 +163,10 @@ class AppController {
   // never break a local edit.
   Future<void> Function(Appointment)? _onApptUpsert;
   Future<void> Function(String id)? _onApptDelete;
+  // Push-only sleep sync: fires when a night is recorded, so staff see the same
+  // sleep the mother does (the admin wellness view). Local stays the source of
+  // truth; a failed push never breaks recording a night.
+  Future<void> Function(SleepSummary)? _onSleepUpsert;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -1829,7 +1833,16 @@ class AppController {
     _sleep.removeWhere((n) =>
         n.night.year == s.night.year && n.night.month == s.night.month && n.night.day == s.night.day);
     _sleep.add(s);
+    // Mirror to the server (push-only). A manual night has no stage split, so
+    // its whole asleep total is sent as light sleep — this keeps the admin's
+    // total-sleep figure right rather than reading a manual night as zero.
+    unawaited(_onSleepUpsert?.call(s) ?? Future<void>.value());
     _notify();
+  }
+
+  /// Wire backend sync for sleep (called by main.dart when signed in).
+  void attachSleepSync({required Future<void> Function(SleepSummary) upsert}) {
+    _onSleepUpsert = upsert;
   }
 
   /// Debug/demo only: seed a run of nightly sleep summaries.

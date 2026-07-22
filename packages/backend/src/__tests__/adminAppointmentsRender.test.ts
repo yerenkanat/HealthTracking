@@ -23,6 +23,14 @@ const DETAIL = {
     { id: 'a2', title: 'УЗИ второго триместра', at: '2026-08-20T10:00:00.000Z', note: '' },
   ],
 };
+const WELLNESS = {
+  sleep: [
+    { night: '2026-07-21', deepMin: 95, remMin: 105, lightMin: 280, awakeMin: 25 },
+    { night: '2026-07-20', deepMin: 70, remMin: 90, lightMin: 250, awakeMin: 35 },
+  ],
+  days: [],
+  alerts: [],
+};
 
 async function boot() {
   const html = readFileSync(PANEL, 'utf8');
@@ -48,6 +56,7 @@ async function boot() {
         // Only the endpoints this test needs answer; the rest degrade (the panel
         // keeps BI null and falls back rather than crashing on a malformed body).
         const body = p.includes('/admin/users/u1/detail') ? DETAIL
+          : p.includes('/admin/users/u1/wellness') ? WELLNESS
           : p.includes('/admin/users') ? USERS
           : p.includes('/admin/stats') ? STATS
           : p.includes('/pregnancy/weeks') ? { weeks: [] }
@@ -80,5 +89,18 @@ describe('admin patient drawer — upcoming visits', () => {
     expect(drawer).toContain('УЗИ второго триместра');
     // Soonest first (Aug 3 before Aug 20).
     expect(drawer.indexOf('гинеколога')).toBeLessThan(drawer.indexOf('УЗИ второго'));
+  });
+
+  it('shows her recent sleep — the same nights the app Sleep card shows', async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    const drawer = page.text('#drawer');
+    expect(page.errors).toEqual([]);
+    expect(drawer).toContain('Сон (последние ночи)');
+    // Night 1 total asleep = 95 + 105 + 280 = 480 min = 8ч 0мин.
+    expect(drawer).toContain('8ч 0мин');
+    // The deep/REM breakdown is shown too.
+    expect(drawer).toContain('глуб.');
   });
 });
