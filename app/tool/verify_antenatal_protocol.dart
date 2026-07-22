@@ -13,6 +13,7 @@ library;
 
 import 'dart:io';
 import '../lib/domain/antenatal_protocol.dart';
+import '../lib/domain/cycle_log.dart' show gestationFor;
 
 int _pass = 0, _fail = 0;
 void _chk(String n, bool ok) {
@@ -166,6 +167,22 @@ void main() {
     _chk('no visits are counted complete before week 12', visitsCompletedBy(11) == 0);
     _chk('two visits are complete by week 20', visitsCompletedBy(20) == 2);
     _chk('all eight are complete by week 40', visitsCompletedBy(40) == 8);
+  }
+
+  // visitOpensOn: a visit's window opens (40 − fromWeek) weeks before the EDD.
+  {
+    final due = DateTime(2026, 12, 31);
+    final v1 = antenatalVisits.firstWhere((v) => v.number == 1); // fromWeek 10
+    final v3 = antenatalVisits.firstWhere((v) => v.number == 3); // fromWeek 26
+    final v8 = antenatalVisits.firstWhere((v) => v.number == 8); // fromWeek 40
+    _chk('visit 1 (wk 10) opens 30 weeks before the due date',
+        visitOpensOn(v1, due) == due.subtract(const Duration(days: 30 * 7)));
+    _chk('visit 3 (wk 26) opens 14 weeks before the due date',
+        visitOpensOn(v3, due) == due.subtract(const Duration(days: 14 * 7)));
+    _chk('visit 8 (wk 40) opens on the due date',
+        visitOpensOn(v8, due) == DateTime(due.year, due.month, due.day));
+    _chk('the booked date lands on the visit\'s own gestational week',
+        gestationFor(due, visitOpensOn(v3, due))!.week == v3.fromWeek);
   }
 
   print('\n$_pass passed, $_fail failed');

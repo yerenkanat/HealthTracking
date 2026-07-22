@@ -22,7 +22,17 @@ class AntenatalPlanScreen extends StatefulWidget {
   /// Completed gestational weeks. Drives which visit leads and which windows
   /// are open.
   final int week;
-  const AntenatalPlanScreen({super.key, required this.week});
+
+  /// The estimated due date, when known — lets each visit be turned into a real
+  /// appointment on the date its window opens. Null hides the booking action.
+  final DateTime? dueDate;
+
+  /// Books a protocol visit as an appointment at [at]. Wired by the caller to
+  /// AppController.addAppointment, so the booking flows to the backend/DB like
+  /// any other appointment. Null (with no dueDate) hides the booking action.
+  final void Function(AntenatalVisit visit, DateTime at)? onBook;
+
+  const AntenatalPlanScreen({super.key, required this.week, this.dueDate, this.onBook});
 
   @override
   State<AntenatalPlanScreen> createState() => _AntenatalPlanScreenState();
@@ -39,6 +49,19 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
     _expanded = {if (lead != null) lead.number};
   }
 
+  /// Book [visit] as an appointment on the day its window opens, at a sensible
+  /// clinic hour (10:00). Flows through the caller's onBook → addAppointment, so
+  /// it reaches the backend/DB like any hand-entered appointment.
+  void _book(AntenatalVisit visit) {
+    final due = widget.dueDate;
+    final book = widget.onBook;
+    if (due == null || book == null) return;
+    final l = L10nScope.of(context);
+    final day = visitOpensOn(visit, due);
+    book(visit, DateTime(day.year, day.month, day.day, 10, 0));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.t('an_booked'))));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -46,6 +69,7 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
     final lead = currentOrNextVisit(week);
     final dueNow = visitAtWeek(week) != null;
     final openWindows = windowsOpenAt(week);
+    final canBook = widget.dueDate != null && widget.onBook != null;
 
     return Scaffold(
       backgroundColor: Palette.bg,
@@ -60,7 +84,7 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
           // What now: the visit due (or next), or a gentle "you're through the
           // plan" once term has come.
           if (lead != null)
-            _LeadCard(visit: lead, dueNow: dueNow)
+            _LeadCard(visit: lead, dueNow: dueNow, onBook: canBook ? () => _book(lead) : null)
           else
             _TermCard(),
 
@@ -81,6 +105,7 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
               visit: v,
               current: v.number == lead?.number,
               expanded: _expanded.contains(v.number),
+              onBook: canBook ? () => _book(v) : null,
               onToggle: () => setState(() {
                 _expanded.contains(v.number)
                     ? _expanded.remove(v.number)
@@ -108,7 +133,8 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
 class _LeadCard extends StatelessWidget {
   final AntenatalVisit visit;
   final bool dueNow;
-  const _LeadCard({required this.visit, required this.dueNow});
+  final VoidCallback? onBook;
+  const _LeadCard({required this.visit, required this.dueNow, this.onBook});
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +180,37 @@ class _LeadCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _GroupedItems(visit: visit),
+          if (onBook != null) ...[
+            const SizedBox(height: 14),
+            _BookButton(accent: accent, onBook: onBook!),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// "Add to my appointments" — turns this visit into a real, dated appointment.
+class _BookButton extends StatelessWidget {
+  final Color accent;
+  final VoidCallback onBook;
+  const _BookButton({required this.accent, required this.onBook});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onBook,
+        icon: const Icon(Icons.event_available_outlined, size: 18),
+        label: Text(l.t('an_book_cta')),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: accent,
+          side: BorderSide(color: accent.withValues(alpha: 0.5)),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }
@@ -290,11 +346,13 @@ class _VisitTile extends StatelessWidget {
   final bool current;
   final bool expanded;
   final VoidCallback onToggle;
+  final VoidCallback? onBook;
   const _VisitTile({
     required this.visit,
     required this.current,
     required this.expanded,
     required this.onToggle,
+    this.onBook,
   });
 
   @override
@@ -357,7 +415,16 @@ class _VisitTile extends StatelessWidget {
           if (expanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-              child: _GroupedItems(visit: visit),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _GroupedItems(visit: visit),
+                  if (onBook != null) ...[
+                    const SizedBox(height: 12),
+                    _BookButton(accent: current ? Palette.violet : Palette.textDim, onBook: onBook!),
+                  ],
+                ],
+              ),
             ),
         ],
       ),

@@ -659,6 +659,12 @@ void main() {
     await checkAllLocales(
         tester, 'AntenatalPlanScreen_w28', () => const AntenatalPlanScreen(week: 28),
         scroll: true);
+    // With a due date + booking callback, every visit grows an "Add to my
+    // appointments" button — the longest of these labels must still fit.
+    await checkAllLocales(
+        tester, 'AntenatalPlanScreen_booking',
+        () => AntenatalPlanScreen(week: 28, dueDate: DateTime(2026, 12, 31), onBook: (_, __) {}),
+        scroll: true);
   });
 
   testWidgets('the home-safety screen fits every locale', (tester) async {

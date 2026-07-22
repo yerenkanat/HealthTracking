@@ -521,7 +521,12 @@ class _GestationHeader extends StatelessWidget {
               : l.t('gest_overdue'),
           detailsLabel: l.t('gest_details'),
           onDetails: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => WeekDetailScreen(gestation: g),
+            builder: (_) => WeekDetailScreen(
+              gestation: g,
+              dueDate: controller.dueDate,
+              onBookAntenatal: (visit, at) =>
+                  controller.addAppointment(l.t('an_book_title', {'n': visit.number}), at),
+            ),
           )),
         ),
         const SizedBox(height: 12),

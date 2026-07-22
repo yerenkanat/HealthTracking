@@ -291,3 +291,17 @@ List<AntenatalWindow> windowsOpenAt(int week) =>
 /// eight-visit plan, for a "visit 3 of 8" style summary.
 int visitsCompletedBy(int week) =>
     antenatalVisits.where((v) => v.toWeek <= week).length;
+
+/// The calendar date a visit's window OPENS, given the estimated due date.
+///
+/// The due date is 40 completed weeks of gestation, so the start of completed
+/// week W is (40 − W) weeks before it. We target the opening of the window
+/// ([AntenatalVisit.fromWeek]) — the earliest the visit is due — as the default
+/// date to book; the mother can always move it. Time-of-day is left to the
+/// caller (the booking sets a sensible clinic hour).
+///
+/// This is what makes the protocol actionable: it turns "visit 3 is due at
+/// 26–28 weeks" into a real date she can put in her own appointments.
+DateTime visitOpensOn(AntenatalVisit visit, DateTime dueDate) =>
+    DateTime(dueDate.year, dueDate.month, dueDate.day)
+        .subtract(Duration(days: (40 - visit.fromWeek) * 7));

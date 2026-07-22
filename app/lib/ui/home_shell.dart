@@ -105,7 +105,12 @@ class _HomeShellState extends State<HomeShell> {
         onOpenAntenatalPlan: c.gestation == null
             ? null
             : () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => AntenatalPlanScreen(week: c.gestation!.week),
+                  builder: (_) => AntenatalPlanScreen(
+                    week: c.gestation!.week,
+                    dueDate: c.dueDate,
+                    onBook: (visit, at) => c.addAppointment(
+                      l.t('an_book_title', {'n': visit.number}), at),
+                  ),
                 )),
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),

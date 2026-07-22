@@ -31,7 +31,19 @@ import 'pregnancy_warnings.dart';
 
 class WeekDetailScreen extends StatelessWidget {
   final GestationInfo gestation;
-  const WeekDetailScreen({super.key, required this.gestation});
+
+  /// The estimated due date and a booking callback, when the caller has the
+  /// controller — lets the antenatal card turn a protocol visit into a real
+  /// appointment. Both null keeps the card view-only.
+  final DateTime? dueDate;
+  final void Function(AntenatalVisit visit, DateTime at)? onBookAntenatal;
+
+  const WeekDetailScreen({
+    super.key,
+    required this.gestation,
+    this.dueDate,
+    this.onBookAntenatal,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +192,7 @@ class WeekDetailScreen extends StatelessWidget {
 
           // Her care schedule this week — which antenatal visit is due or next,
           // straight from the state protocol.
-          _AntenatalCard(week: g.week),
+          _AntenatalCard(week: g.week, dueDate: dueDate, onBook: onBookAntenatal),
           const Padding(
             padding: EdgeInsets.only(bottom: 4),
             child: PregnancyWarningsCard(),
@@ -372,7 +384,9 @@ class _FetalCard extends StatelessWidget {
 /// up this week, and a tap into the full schedule.
 class _AntenatalCard extends StatelessWidget {
   final int week;
-  const _AntenatalCard({required this.week});
+  final DateTime? dueDate;
+  final void Function(AntenatalVisit visit, DateTime at)? onBook;
+  const _AntenatalCard({required this.week, this.dueDate, this.onBook});
 
   @override
   Widget build(BuildContext context) {
@@ -396,7 +410,9 @@ class _AntenatalCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => AntenatalPlanScreen(week: week)),
+            MaterialPageRoute(
+              builder: (_) => AntenatalPlanScreen(week: week, dueDate: dueDate, onBook: onBook),
+            ),
           ),
           child: Container(
             padding: const EdgeInsets.all(16),
