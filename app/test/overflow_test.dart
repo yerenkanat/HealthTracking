@@ -61,6 +61,7 @@ import 'package:fcs_app/ui/settings/help_support_screen.dart';
 import 'package:fcs_app/ui/calendar/pregnancy_weight_screen.dart';
 import 'package:fcs_app/ui/calendar/pregnancy_warnings.dart';
 import 'package:fcs_app/ui/calendar/labour_signs_screen.dart';
+import 'package:fcs_app/ui/force_update_screen.dart';
 import 'package:fcs_app/ui/tracking/safe_sleep_screen.dart';
 import 'package:fcs_app/ui/tracking/solids_screen.dart';
 import 'package:fcs_app/ui/tracking/child_illness_screen.dart';
@@ -621,6 +622,10 @@ void main() {
 
   testWidgets('the safe-sleep screen fits every locale', (tester) async {
     await checkAllLocales(tester, 'SafeSleepScreen', () => const SafeSleepScreen(), scroll: true);
+  });
+
+  testWidgets('the force-update screen fits every locale', (tester) async {
+    await checkAllLocales(tester, 'ForceUpdateScreen', () => ForceUpdateScreen(onUpdate: () {}), scroll: true);
   });
 
   testWidgets('the solids screen fits every locale', (tester) async {

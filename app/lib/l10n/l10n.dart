@@ -409,6 +409,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // every locale; through l10n only so no user-facing text bypasses it.
   'help_app_line': {AppLocale.ru: 'Umay · {v}', AppLocale.kk: 'Umay · {v}', AppLocale.en: 'Umay · {v}'},
 
+  // Force-update gate — shown when this build is below the server's minimum.
+  'upd_title': {AppLocale.ru: 'Пора обновить приложение', AppLocale.kk: 'Қолданбаны жаңарту қажет', AppLocale.en: 'Time to update the app'},
+  'upd_body': {AppLocale.ru: 'Эта версия Umay больше не поддерживается. Обновите приложение, чтобы продолжить — это займёт минуту и сохранит ваши данные в безопасности.', AppLocale.kk: 'Umay-дің бұл нұсқасы бұдан былай қолдау таппайды. Жалғастыру үшін қолданбаны жаңартыңыз — бұл бір минут алады және деректеріңіз қауіпсіз қалады.', AppLocale.en: 'This version of Umay is no longer supported. Please update to continue — it takes a minute and keeps your data safe.'},
+  'upd_cta': {AppLocale.ru: 'Обновить', AppLocale.kk: 'Жаңарту', AppLocale.en: 'Update'},
+
   'set_privacy': {AppLocale.ru: 'Политика конфиденциальности', AppLocale.kk: 'Құпиялылық саясаты', AppLocale.en: 'Privacy policy'},
   'set_terms': {AppLocale.ru: 'Условия использования', AppLocale.kk: 'Пайдалану шарттары', AppLocale.en: 'Terms of use'},
   'legal_privacy_title': {AppLocale.ru: 'Конфиденциальность', AppLocale.kk: 'Құпиялылық', AppLocale.en: 'Privacy'},

@@ -253,6 +253,17 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  // ---- App version policy (public; checked on launch) ----
+  /// The server's minimum/latest build. Returns (minBuild, latestBuild); a
+  /// missing or malformed field reads as 0, which blocks nobody.
+  Future<({int minBuild, int latestBuild})> getAppVersion() async {
+    final res = await transport.get('/app/version');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    int asInt(Object? v) => v is num ? v.toInt() : 0;
+    return (minBuild: asInt(j['minBuild']), latestBuild: asInt(j['latestBuild']));
+  }
+
   // ---- Appointments (user-scoped; the id is client-supplied) ----
   /// The caller's appointments, as raw maps ({id, title, at, note}).
   Future<List<Map<String, dynamic>>> getAppointments() async {

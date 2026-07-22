@@ -346,6 +346,18 @@ Future<void> bootstrapRuntime(
       devUserId: const String.fromEnvironment('DEV_USER_ID'),
     ));
 
+    // Ask the server whether this build is still supported. A raised floor
+    // blocks the app behind the force-update screen; offline or a failure here
+    // leaves the gate open (never strand a user who cannot reach the server).
+    unawaited(() async {
+      try {
+        final v = await api.getAppVersion();
+        controller.applyMinBuild(v.minBuild);
+      } catch (_) {
+        // Offline / backend down — do not block.
+      }
+    }());
+
     // Pull whatever the back-office has published. The app already showed the
     // cached or bundled catalogue at first paint, so this only ever upgrades
     // what is on screen — and a failure quietly leaves that in place.

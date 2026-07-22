@@ -35,6 +35,8 @@
 /// plus the monitoring, screening and prophylaxis sections that surround it.
 library;
 
+import 'cycle_log.dart' show addDays;
+
 /// The kind of thing a visit item is, so the screen can group and badge it the
 /// way the protocol itself is organised (Консультирование / Обследование /
 /// Лабораторные / Инструментальные / Лечебно-профилактические).
@@ -303,5 +305,4 @@ int visitsCompletedBy(int week) =>
 /// This is what makes the protocol actionable: it turns "visit 3 is due at
 /// 26–28 weeks" into a real date she can put in her own appointments.
 DateTime visitOpensOn(AntenatalVisit visit, DateTime dueDate) =>
-    DateTime(dueDate.year, dueDate.month, dueDate.day)
-        .subtract(Duration(days: (40 - visit.fromWeek) * 7));
+    addDays(DateTime(dueDate.year, dueDate.month, dueDate.day), -(40 - visit.fromWeek) * 7);

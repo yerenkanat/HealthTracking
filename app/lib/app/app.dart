@@ -21,6 +21,7 @@ import '../ui/home_shell.dart';
 import '../ui/onboarding/onboarding_flow.dart';
 import '../ui/settings/legal_consent_screen.dart';
 import '../ui/emergency/emergency_rescue_screen.dart';
+import '../ui/force_update_screen.dart';
 
 /// Flushes any debounced save when the app leaves the foreground.
 ///
@@ -101,6 +102,13 @@ class FcsApp extends StatelessWidget {
   }
 
   Widget _rootFor(L10n l) {
+    // Before anything else: a build the server has retired is blocked outright.
+    // It may be talking to an API it no longer matches or missing a safety fix,
+    // so it must not run — not even onboarding or the emergency screen, since a
+    // stale client cannot be trusted to render those correctly either.
+    if (controller.mustUpdate) {
+      return const ForceUpdateScreen();
+    }
     // First run: gate the whole app behind onboarding.
     if (!controller.onboarded) {
       return OnboardingFlow(

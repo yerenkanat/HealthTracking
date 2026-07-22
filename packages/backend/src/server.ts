@@ -26,6 +26,7 @@ import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
 import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
 import { childDevCalendar, devWeekContent } from './child/development';
+import { appVersionInfo } from './app/version';
 import { vaccinationSchedule } from './vaccination/schedule';
 import type { Repository } from './db/repository';
 
@@ -237,6 +238,10 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // shared contract. No auth — it is the same clinical schedule the app bundles
   // and the admin panel renders; keeping one served copy stops the three drifting.
   app.get('/antenatal/protocol', async () => antenatalProtocol);
+
+  // Public app-version policy: the app checks this on launch to force or nudge
+  // an update. No auth — a too-old client must be able to learn it is too old.
+  app.get('/app/version', async () => appVersionInfo());
 
   // Public reference data: the childhood immunisation schedule.
   app.get('/vaccination/schedule', async () => vaccinationSchedule);

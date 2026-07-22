@@ -29,6 +29,7 @@ import '../domain/notification_ids.dart';
 import '../domain/error_log.dart';
 import '../domain/zone_hysteresis.dart';
 import '../domain/appointment.dart';
+import '../domain/app_version.dart';
 import '../domain/battery.dart';
 import '../domain/child_growth.dart';
 import '../domain/newborn_log.dart';
@@ -1843,6 +1844,23 @@ class AppController {
   /// Wire backend sync for sleep (called by main.dart when signed in).
   void attachSleepSync({required Future<void> Function(SleepSummary) upsert}) {
     _onSleepUpsert = upsert;
+  }
+
+  // ---- Force-update gate ----
+  bool _mustUpdate = false;
+
+  /// True when the server's minimum build is newer than this one — the app is
+  /// blocked behind the force-update screen. See [applyMinBuild].
+  bool get mustUpdate => _mustUpdate;
+
+  /// Apply the server's minimum build to the gate. Called on launch with the
+  /// result of GET /app/version; a raised floor above [currentAppBuild] blocks
+  /// the app. Never throws and never blocks on a missing floor (minBuild 0).
+  void applyMinBuild(int minBuild) {
+    final req = appUpdateRequired(currentAppBuild, minBuild);
+    if (req == _mustUpdate) return;
+    _mustUpdate = req;
+    _notify();
   }
 
   /// Debug/demo only: seed a run of nightly sleep summaries.
