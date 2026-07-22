@@ -26,6 +26,7 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
+import 'baby_size_disc.dart';
 import 'contraction_timer_screen.dart';
 import 'cycle_insights_screen.dart';
 import 'day_log_sheet.dart';
@@ -1091,11 +1092,9 @@ class _BabySizeCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 52, height: 52,
-            decoration: const BoxDecoration(gradient: Palette.roseViolet, shape: BoxShape.circle),
-            child: const Icon(Icons.spa_rounded, color: Colors.white, size: 26),
-          ),
+          // The growing size disc, not a fixed icon: on the main view too, the
+          // picture should show how big baby is this week, against newborn size.
+          BabySizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: Palette.roseDeep, size: 52),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

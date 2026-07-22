@@ -19,6 +19,7 @@ import '../../domain/cycle_log.dart' show GestationInfo;
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import 'baby_size_disc.dart';
 import 'pregnancy_hero.dart' show BabyPainter, trimesterPalette;
 
 class WeekDetailScreen extends StatelessWidget {
@@ -80,7 +81,7 @@ class WeekDetailScreen extends StatelessWidget {
                   // A disc that grows week to week against a faint ring at
                   // newborn size — the visceral "how big now" the fruit name
                   // alone can't give, and a picture of the journey's progress.
-                  _SizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: pal.glow),
+                  BabySizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: pal.glow),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -202,53 +203,6 @@ class _Card extends StatelessWidget {
           ],
         ),
       );
-}
-
-/// The proportional size disc: a filled circle at this week's [fraction] of
-/// term size, inside a faint ring drawn at full term. Together they read as
-/// "this is how big baby is now, and how big at birth".
-class _SizeDisc extends StatelessWidget {
-  final double fraction; // 0..1
-  final Color colour;
-  const _SizeDisc({required this.fraction, required this.colour});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 60,
-        height: 60,
-        child: CustomPaint(painter: _SizeDiscPainter(fraction: fraction, colour: colour)),
-      );
-}
-
-class _SizeDiscPainter extends CustomPainter {
-  final double fraction;
-  final Color colour;
-  _SizeDiscPainter({required this.fraction, required this.colour});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final centre = size.center(Offset.zero);
-    final maxR = size.shortestSide / 2 - 1;
-    // The term-size reference ring.
-    canvas.drawCircle(
-      centre,
-      maxR,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = colour.withValues(alpha: 0.30),
-    );
-    // This week, filled.
-    canvas.drawCircle(
-      centre,
-      maxR * fraction.clamp(0.0, 1.0),
-      Paint()..color = colour.withValues(alpha: 0.90),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_SizeDiscPainter old) =>
-      old.fraction != fraction || old.colour != colour;
 }
 
 class _Progress extends StatelessWidget {
