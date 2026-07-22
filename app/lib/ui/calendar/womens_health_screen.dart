@@ -20,6 +20,7 @@ import '../../domain/cycle_insights.dart'
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
 import '../../domain/baby_size.dart';
+import '../../domain/fetal_development.dart';
 import '../../domain/postpartum.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n.dart';
@@ -1187,6 +1188,7 @@ class _BabySizeCard extends StatelessWidget {
     final size = babySizeFor(week);
     if (size == null) return const SizedBox.shrink();
     final cm = size.lengthCm % 1 == 0 ? size.lengthCm.toStringAsFixed(0) : size.lengthCm.toStringAsFixed(1);
+    final highlight = fetalHighlightFor(week);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1198,27 +1200,53 @@ class _BabySizeCard extends StatelessWidget {
         ),
         border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // The growing size disc, not a fixed icon: on the main view too, the
-          // picture should show how big baby is this week, against newborn size.
-          BabySizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: Palette.roseDeep, size: 52),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
+          Row(
+            children: [
+              // The growing size disc, not a fixed icon: on the main view too,
+              // the picture should show how big baby is this week, against
+              // newborn size.
+              BabySizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: Palette.roseDeep, size: 52),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.t('bsize_title').toUpperCase(),
+                        style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                    const SizedBox(height: 3),
+                    Text(l.t('bsize_about', {'food': l.t(size.code)}),
+                        style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: Palette.text, height: 1.2)),
+                    const SizedBox(height: 2),
+                    Text(l.t('bsize_length', {'cm': cm}),
+                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          // "Baby this week" — the same development highlight the week-detail
+          // screen shows, brought onto the overview so the wonder of the week is
+          // here too, not a tap away.
+          if (highlight != null) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1, color: Palette.border),
+            ),
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l.t('bsize_title').toUpperCase(),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
-                const SizedBox(height: 3),
-                Text(l.t('bsize_about', {'food': l.t(size.code)}),
-                    style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: Palette.text, height: 1.2)),
-                const SizedBox(height: 2),
-                Text(l.t('bsize_length', {'cm': cm}),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                const Icon(Icons.auto_awesome_outlined, size: 17, color: Palette.roseDeep),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(l.t('fet_${highlight.id}'),
+                      style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );

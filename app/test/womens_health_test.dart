@@ -230,6 +230,9 @@ void main() {
     await tester.pumpWidget(wrap(c));
     expect(find.text('BABY SIZE'), findsOneWidget);
     expect(find.textContaining('About the size of a'), findsOneWidget);
+    // The card also carries this week's development highlight — week 20 is the
+    // hear-your-voice one — so the overview shows the wonder of the week too.
+    expect(find.text('The baby can begin to hear your voice.'), findsOneWidget);
     addTearDown(c.dispose);
   });
 
