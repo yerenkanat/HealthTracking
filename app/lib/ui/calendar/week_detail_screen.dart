@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../domain/antenatal_protocol.dart';
 import '../../domain/baby_size.dart';
 import '../../domain/cycle_log.dart' show GestationInfo;
 import '../../domain/fetal_development.dart';
@@ -21,6 +22,7 @@ import '../../domain/pregnancy_guide.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import 'antenatal_plan_screen.dart';
 import 'baby_size_disc.dart';
 import 'pregnancy_hero.dart' show BabyPainter, trimesterPalette;
 import 'pregnancy_warnings.dart';
@@ -169,6 +171,10 @@ class WeekDetailScreen extends StatelessWidget {
           // Everything above is about the baby. This is about HER: what she
           // might be feeling this week, and the signs that mean call now.
           _ExpectCard(week: g.week),
+
+          // Her care schedule this week — which antenatal visit is due or next,
+          // straight from the state protocol.
+          _AntenatalCard(week: g.week),
           const Padding(
             padding: EdgeInsets.only(bottom: 4),
             child: PregnancyWarningsCard(),
@@ -274,6 +280,81 @@ class _FetalCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Your antenatal plan" — which of the eight state visits is due now or coming
+/// up this week, and a tap into the full schedule.
+class _AntenatalCard extends StatelessWidget {
+  final int week;
+  const _AntenatalCard({required this.week});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final lead = currentOrNextVisit(week);
+    final dueNow = visitAtWeek(week) != null;
+    // Once term has passed there is no scheduled visit — the plan screen still
+    // has value (the 41-week talk), so lead the card with the plan title.
+    final line = lead == null
+        ? l.t('an_term_title')
+        : (dueNow
+            ? l.t('an_card_due', {'n': lead.number})
+            : l.t('an_card_next', {'n': lead.number}));
+    final accent = dueNow ? Palette.violet : Palette.teal;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => AntenatalPlanScreen(week: week)),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Palette.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(Icons.event_note_outlined, size: 19, color: accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l.t('an_card_title').toUpperCase(),
+                          style: const TextStyle(
+                              color: Palette.textDim,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6)),
+                      const SizedBox(height: 3),
+                      Text(line,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, height: 1.3)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -55,6 +55,7 @@ import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_safety_screen.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
 import 'package:fcs_app/ui/calendar/postpartum_screen.dart';
+import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
 import 'package:fcs_app/ui/calendar/pregnancy_weight_screen.dart';
 import 'package:fcs_app/ui/calendar/pregnancy_warnings.dart';
 import 'package:fcs_app/ui/calendar/labour_signs_screen.dart';
@@ -631,6 +632,19 @@ void main() {
 
   testWidgets('the teething screen fits every locale', (tester) async {
     await checkAllLocales(tester, 'TeethingScreen', () => const TeethingScreen(ageMonths: 7), scroll: true);
+  });
+
+  testWidgets('the antenatal-plan screen fits every locale', (tester) async {
+    // Week 11: visit 1 leads and is expanded by default — its 24 items include
+    // the longest labels (aspirin, anti-D). The widest content on the screen.
+    await checkAllLocales(
+        tester, 'AntenatalPlanScreen_w11', () => const AntenatalPlanScreen(week: 11),
+        scroll: true);
+    // Week 28: the OGTT and anti-D windows are open, exercising the rose
+    // windows block and the risk tags.
+    await checkAllLocales(
+        tester, 'AntenatalPlanScreen_w28', () => const AntenatalPlanScreen(week: 28),
+        scroll: true);
   });
 
   testWidgets('the home-safety screen fits every locale', (tester) async {

@@ -16,6 +16,7 @@ import '../lib/domain/child_illness.dart';
 import '../lib/domain/home_safety.dart';
 import '../lib/domain/labour_signs.dart';
 import '../lib/domain/teething.dart';
+import '../lib/domain/antenatal_protocol.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -498,6 +499,27 @@ void main() {
       }
     }
     _chk('and every teething string is translated ($teethBlank blanks)', teethBlank == 0);
+
+    // Antenatal protocol: `an_item_<id>` (every visit item) and `an_cat_<cat>`
+    // (the five categories) are composed at render time. A visit item added to
+    // the schedule without strings would show a raw key on the plan screen.
+    final anKeys = <String>[
+      for (final v in antenatalVisits)
+        for (final it in v.items) 'an_item_${it.id}',
+      for (final c in AntenatalCategory.values) 'an_cat_${c.name}',
+    ].toSet().toList();
+    final anMissing = [for (final k in anKeys) if (!known.contains(k)) k];
+    _chk('every antenatal visit item and category has a string', anMissing.isEmpty);
+    if (anMissing.isNotEmpty) print('    missing: ${anMissing.join(', ')}');
+
+    var anBlank = 0;
+    for (final k in anKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) anBlank++;
+      }
+    }
+    _chk('and every antenatal string is translated ($anBlank blanks)', anBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');
