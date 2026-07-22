@@ -21,8 +21,10 @@ import 'child_development_screen.dart';
 import 'vaccination_screen.dart';
 import 'child_growth_screen.dart';
 import 'newborn_log_screen.dart';
+import 'solids_screen.dart';
 import '../../domain/child_growth.dart';
 import '../../domain/newborn_log.dart';
+import '../../domain/solids_guide.dart';
 import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
 import '../widgets/confirm.dart';
@@ -271,6 +273,19 @@ class ChildDetailScreen extends StatelessWidget {
                               summary: _growthSummary(l, controller.growthFor(child.id)),
                               onTap: () => _openGrowth(context, controller, child),
                             ),
+                            // Weaning: shown across the window when solids matter
+                            // (about four months to just past the first birthday).
+                            if (isSolidsWindow(child.ageInMonths(now))) ...[
+                              const SizedBox(height: 12),
+                              _CareCard(
+                                icon: Icons.restaurant_outlined,
+                                title: l.t('sol_card_title'),
+                                summary: _solidsSummary(l, child.ageInMonths(now)),
+                                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => SolidsScreen(ageMonths: child.ageInMonths(now)),
+                                )),
+                              ),
+                            ],
                           ],
                         ],
                       ),
@@ -363,6 +378,13 @@ class _CareCard extends StatelessWidget {
 }
 
 /// The newborn card summary: today's feed and diaper counts, or an invitation.
+String _solidsSummary(L10n l, int ageMonths) {
+  final until = monthsUntilSolids(ageMonths);
+  // Before the start age it counts down; once weaning is underway it names the
+  // card's job rather than a number.
+  return until != null ? l.t('sol_until', {'n': until}) : l.t('sol_card_sub');
+}
+
 String _newbornSummary(L10n l, List<NewbornEvent> events, DateTime today) {
   final s = summaryFor(events, today);
   if (s.isEmpty) return l.t('nb_empty');

@@ -1137,6 +1137,89 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'No tobacco smoke near the baby — not at home, not in the car.',
   },
 
+  // ---- Starting solids (sol_*) ----
+  'sol_title': {AppLocale.ru: 'Прикорм', AppLocale.kk: 'Қосымша тамақ', AppLocale.en: 'Starting solids'},
+  'sol_card_title': {AppLocale.ru: 'Прикорм', AppLocale.kk: 'Қосымша тамақ', AppLocale.en: 'Starting solids'},
+  'sol_card_sub': {AppLocale.ru: 'Когда и с чего начинать', AppLocale.kk: 'Қашан және неден бастау', AppLocale.en: 'When and how to begin'},
+  'sol_until': {AppLocale.ru: 'примерно через {n} мес.', AppLocale.kk: 'шамамен {n} айдан кейін', AppLocale.en: 'in about {n} months'},
+  'sol_when_title': {AppLocale.ru: 'Когда начинать', AppLocale.kk: 'Қашан бастау керек', AppLocale.en: 'When to begin'},
+  'sol_when_body': {
+    AppLocale.ru: 'Обычно около 6 месяцев и не раньше 4. Ориентируйтесь на готовность малыша и совет педиатра.',
+    AppLocale.kk: 'Әдетте 6 ай шамасында және 4 айдан ерте емес. Нәрестенің дайындығы мен педиатр кеңесіне сүйеніңіз.',
+    AppLocale.en: 'Usually around 6 months, and not before 4. Follow your baby’s readiness and your paediatrician’s advice.',
+  },
+  'sol_ready_title': {AppLocale.ru: 'Признаки готовности', AppLocale.kk: 'Дайындық белгілері', AppLocale.en: 'Signs of readiness'},
+  'sol_stage_title': {AppLocale.ru: 'Что предлагать сейчас', AppLocale.kk: 'Қазір нені ұсыну', AppLocale.en: 'What to offer now'},
+  'sol_avoid_title': {AppLocale.ru: 'Пока не стоит', AppLocale.kk: 'Әзірше болмайды', AppLocale.en: 'Not yet'},
+  'sol_disclaimer': {
+    AppLocale.ru: 'Это общие сведения, а не медицинская консультация. Питание конкретного ребёнка обсуждайте с педиатром.',
+    AppLocale.kk: 'Бұл — жалпы мәлімет, медициналық кеңес емес. Нақты баланың тамағын педиатрмен талқылаңыз.',
+    AppLocale.en: 'This is general information, not medical advice. Discuss your own child’s diet with your paediatrician.',
+  },
+
+  'sol_ready_sits': {
+    AppLocale.ru: 'Уверенно сидит с поддержкой и хорошо держит голову.',
+    AppLocale.kk: 'Демеумен сенімді отырады және басын жақсы ұстайды.',
+    AppLocale.en: 'Sits steadily with support and holds the head well.',
+  },
+  'sol_ready_interest': {
+    AppLocale.ru: 'Проявляет интерес к еде: смотрит и тянется к тому, что вы едите.',
+    AppLocale.kk: 'Тамаққа қызығушылық танытады: сіз жегенге қарап, қолын созады.',
+    AppLocale.en: 'Shows interest in food — watches and reaches for what you eat.',
+  },
+  'sol_ready_mouth': {
+    AppLocale.ru: 'Может взять предмет и поднести его ко рту.',
+    AppLocale.kk: 'Затты алып, аузына апара алады.',
+    AppLocale.en: 'Can pick things up and bring them to the mouth.',
+  },
+  'sol_ready_reflex': {
+    AppLocale.ru: 'Больше не выталкивает пищу языком автоматически.',
+    AppLocale.kk: 'Тамақты тілімен автоматты түрде итеріп шығармайды.',
+    AppLocale.en: 'No longer pushes food back out with the tongue automatically.',
+  },
+
+  'sol_stage_first_foods': {
+    AppLocale.ru: 'Начинайте с мягких пюре и хорошо размятых продуктов — по одному новому за раз.',
+    AppLocale.kk: 'Жұмсақ пюре мен жақсы езілген тағамнан бастаңыз — бір ретте бір жаңа өнім.',
+    AppLocale.en: 'Start with smooth purées and well-mashed food — one new food at a time.',
+  },
+  'sol_stage_allergens': {
+    AppLocale.ru: 'Знакомьте с типичными аллергенами (яйцо, арахисовая паста) рано, по одному, наблюдая за реакцией.',
+    AppLocale.kk: 'Кең тараған аллергендермен (жұмыртқа, жержаңғақ пастасы) ерте таныстырыңыз — бір-бірлеп, реакцияны бақылап.',
+    AppLocale.en: 'Introduce common allergens (egg, smooth peanut) early, one at a time, watching for a reaction.',
+  },
+  'sol_stage_textures': {
+    AppLocale.ru: 'Постепенно делайте пищу гуще и с мягкими кусочками; предлагайте кусочки в руку.',
+    AppLocale.kk: 'Тағамды біртіндеп қоюлатып, жұмсақ түйіршіктер қосыңыз; қолға ұстайтын кесектер ұсыныңыз.',
+    AppLocale.en: 'Gradually make food thicker and lumpier; offer soft pieces to hold.',
+  },
+  'sol_stage_family': {
+    AppLocale.ru: 'Переходите к измельчённой семейной еде; малыш ест руками и учится ложке.',
+    AppLocale.kk: 'Ұсақталған отбасылық тамаққа көшіңіз; нәресте қолымен жеп, қасық ұстауды үйренеді.',
+    AppLocale.en: 'Move to chopped family food; the baby eats with their hands and learns the spoon.',
+  },
+
+  'sol_avoid_honey': {
+    AppLocale.ru: 'Мёд — нельзя до 1 года (риск ботулизма).',
+    AppLocale.kk: 'Бал — 1 жасқа дейін болмайды (ботулизм қаупі).',
+    AppLocale.en: 'No honey before 1 year (risk of botulism).',
+  },
+  'sol_avoid_choking': {
+    AppLocale.ru: 'Цельные орехи, виноград целиком, твёрдые кусочки — режьте мелко, риск подавиться.',
+    AppLocale.kk: 'Бүтін жаңғақ, бүтін жүзім, қатты кесектер — ұсақтап тураңыз, тұншығу қаупі бар.',
+    AppLocale.en: 'Whole nuts, whole grapes, hard chunks — cut small; they are choking hazards.',
+  },
+  'sol_avoid_salt': {
+    AppLocale.ru: 'Без добавленной соли — почки малыша ещё незрелы.',
+    AppLocale.kk: 'Қосымша тұзсыз — нәрестенің бүйрегі әлі жетілмеген.',
+    AppLocale.en: 'No added salt — the baby’s kidneys are still immature.',
+  },
+  'sol_avoid_sugar': {
+    AppLocale.ru: 'Без добавленного сахара и сладких напитков.',
+    AppLocale.kk: 'Қосымша қантсыз және тәтті сусынсыз.',
+    AppLocale.en: 'No added sugar and no sweet drinks.',
+  },
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},

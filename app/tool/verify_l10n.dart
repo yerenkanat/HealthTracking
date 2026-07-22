@@ -9,6 +9,7 @@ import '../lib/domain/postpartum.dart';
 import '../lib/domain/pregnancy_guide.dart';
 import '../lib/domain/fetal_development.dart';
 import '../lib/domain/safe_sleep.dart';
+import '../lib/domain/solids_guide.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -352,6 +353,33 @@ void main() {
       }
     }
     _chk('and every safe-sleep rule is translated ($ssBlank blanks)', ssBlank == 0);
+
+    // Starting solids: readiness `sol_ready_<id>`, stages `sol_stage_<id>` and
+    // avoid `sol_avoid_<id>` are all composed at render time.
+    final solMissing = <String>[
+      for (final id in readinessSigns)
+        if (!known.contains('sol_ready_$id')) 'sol_ready_$id',
+      for (final s in solidsStages)
+        if (!known.contains('sol_stage_${s.id}')) 'sol_stage_${s.id}',
+      for (final id in avoidFoods)
+        if (!known.contains('sol_avoid_$id')) 'sol_avoid_$id',
+    ];
+    _chk('every solids readiness, stage and avoid has a string', solMissing.isEmpty);
+    if (solMissing.isNotEmpty) print('    missing: ${solMissing.join(', ')}');
+
+    var solBlank = 0;
+    final solKeys = <String>[
+      for (final id in readinessSigns) 'sol_ready_$id',
+      for (final s in solidsStages) 'sol_stage_${s.id}',
+      for (final id in avoidFoods) 'sol_avoid_$id',
+    ];
+    for (final key in solKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(key);
+        if (v == key || v.trim().isEmpty) solBlank++;
+      }
+    }
+    _chk('and every solids string is translated ($solBlank blanks)', solBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

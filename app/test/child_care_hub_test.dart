@@ -103,6 +103,30 @@ void main() {
     expect(find.textContaining(ru.t('nb_last', {'ago': ''}).trim()), findsWidgets);
   });
 
+  testWidgets('the solids card appears in the weaning window', (tester) async {
+    final c = withChild(dob: DateTime(2026, 1, 22)); // 6 months
+    addTearDown(c.dispose);
+    await pump(tester, c);
+    expect(find.text(ru.t('sol_card_title')), findsOneWidget);
+  });
+
+  testWidgets('no solids card for a very young baby', (tester) async {
+    final c = withChild(dob: DateTime(2026, 5, 22)); // 2 months
+    addTearDown(c.dispose);
+    await pump(tester, c);
+    expect(find.text(ru.t('sol_card_title')), findsNothing);
+  });
+
+  testWidgets('opening the solids card reaches the guide', (tester) async {
+    final c = withChild(dob: DateTime(2026, 1, 22)); // 6 months
+    addTearDown(c.dispose);
+    await pump(tester, c);
+    await tester.tap(find.text(ru.t('sol_card_title')));
+    await tester.pumpAndSettle();
+    // The when-to-begin heading is a reliable landing marker.
+    expect(find.text(ru.t('sol_when_title')), findsOneWidget);
+  });
+
   testWidgets('opening a card reaches its screen', (tester) async {
     final c = withChild(dob: DateTime(2026, 1, 22));
     addTearDown(c.dispose);
