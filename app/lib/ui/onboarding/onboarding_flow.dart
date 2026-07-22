@@ -14,6 +14,7 @@ import '../../domain/onboarding_controller.dart';
 import '../../l10n/l10n.dart';
 import '../../data/device_location.dart';
 import '../../l10n/l10n_scope.dart';
+import '../settings/legal_screen.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
@@ -40,10 +41,22 @@ class OnboardingFlow extends StatefulWidget {
 }
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
+  // Consent to the privacy policy and terms, captured on the welcome screen.
+  // Kept in the UI layer (not the OnboardingController) so the step state
+  // machine and its verify suite are untouched — it only gates the first
+  // "Get started" tap.
+  bool _consented = false;
+
+  void _openLegal(BuildContext context, LegalDoc doc) => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => LegalScreen(doc: doc)),
+      );
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final c = widget.controller;
+    // On the welcome step she must accept the policy before continuing.
+    final blockedForConsent = c.step == OnboardingStep.welcome && !_consented;
 
     return StreamBuilder<void>(
       stream: c.changes,
@@ -72,7 +85,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: FilledButton(
-                onPressed: c.canProceed ? () => _advance(c) : null,
+                onPressed: (c.canProceed && !blockedForConsent) ? () => _advance(c) : null,
                 // On the child step the label depends on whether she is adding
                 // one. Saying "Finish" over an untouched form reads as though
                 // something is missing; "Skip for now" says plainly that it is
@@ -99,7 +112,13 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }
 
   Widget _pageFor(OnboardingStep step, L10n l) => switch (step) {
-        OnboardingStep.welcome => _Welcome(l),
+        OnboardingStep.welcome => _Welcome(
+            l,
+            consented: _consented,
+            onConsentChanged: (v) => setState(() => _consented = v),
+            onOpenPrivacy: () => _openLegal(context, LegalDoc.privacy),
+            onOpenTerms: () => _openLegal(context, LegalDoc.terms),
+          ),
         OnboardingStep.language => _LanguagePage(controller: widget.controller, onLocaleChange: widget.onLocaleChange),
         OnboardingStep.profile => _ProfilePage(controller: widget.controller),
         OnboardingStep.pairBand => _PairBandPage(controller: widget.controller, scanBands: widget.scanBands),
@@ -110,7 +129,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
 class _Welcome extends StatelessWidget {
   final L10n l;
-  const _Welcome(this.l);
+  final bool consented;
+  final ValueChanged<bool> onConsentChanged;
+  final VoidCallback onOpenPrivacy;
+  final VoidCallback onOpenTerms;
+  const _Welcome(
+    this.l, {
+    required this.consented,
+    required this.onConsentChanged,
+    required this.onOpenPrivacy,
+    required this.onOpenTerms,
+  });
   @override
   Widget build(BuildContext context) {
     // Centred but SCROLLABLE. A fixed Column centres nicely at the default font
@@ -130,6 +159,55 @@ class _Welcome extends StatelessWidget {
         Text(l.t('onb_welcome_title'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
         Text(l.t('onb_welcome_body'), style: const TextStyle(fontSize: 16, height: 1.4)),
+        const SizedBox(height: 28),
+        // Consent, captured before she can proceed. The checkbox carries the
+        // acceptance; the two documents are one tap away beneath it.
+        InkWell(
+          onTap: () => onConsentChanged(!consented),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: consented,
+                  onChanged: (v) => onConsentChanged(v ?? false),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(l.t('onb_consent_label'),
+                        style: const TextStyle(fontSize: 13.5, height: 1.4)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 48),
+          child: Wrap(
+            spacing: 4,
+            children: [
+              TextButton(
+                onPressed: onOpenPrivacy,
+                style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 8)),
+                child: Text(l.t('set_privacy')),
+              ),
+              TextButton(
+                onPressed: onOpenTerms,
+                style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 8)),
+                child: Text(l.t('set_terms')),
+              ),
+            ],
+          ),
+        ),
       ],
         ),
       ),

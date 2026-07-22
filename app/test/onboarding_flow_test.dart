@@ -34,6 +34,8 @@ void main() {
 
     // Welcome → Get started.
     expect(find.text('Welcome to Umay'), findsOneWidget);
+    await tester.tap(find.byType(Checkbox)); // accept privacy + terms
+    await tester.pump();
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
 
@@ -100,9 +102,31 @@ void main() {
       );
 
   Future<void> toLanguage(WidgetTester tester) async {
+    await tester.tap(find.byType(Checkbox)); // accept privacy + terms
+    await tester.pump();
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('the welcome step gates on accepting privacy + terms', (tester) async {
+    await tester.pumpWidget(flow(OnboardingController(initialLocale: AppLocale.en)));
+    await tester.pumpAndSettle();
+    // Before consent, "Get started" is disabled and we stay on welcome.
+    FilledButton start() =>
+        tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Get started'));
+    expect(start().onPressed, isNull);
+    await tester.tap(find.text('Get started'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to Umay'), findsOneWidget); // did not advance
+
+    // Ticking the box (or its label) enables it.
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
+    expect(start().onPressed, isNotNull);
+    await tester.tap(find.text('Get started'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose your language'), findsOneWidget);
+  });
 
   testWidgets('a woman with no children can finish setup', (tester) async {
     // The child step used to require a name AND a home zone, behind a single
@@ -121,6 +145,8 @@ void main() {
       ),
     ));
 
+    await tester.tap(find.byType(Checkbox)); // accept privacy + terms
+    await tester.pump();
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next')); // language
