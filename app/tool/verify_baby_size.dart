@@ -32,6 +32,31 @@ void main() {
   _chk('weeks & lengths strictly increasing', okOrder);
   _chk('all codes unique', codes.length == babySizeTable.length);
 
+  // ---- The proportional size visual ----
+  _chk('term length is the week-40 entry', termLengthCm == babySizeTable.last.lengthCm);
+  _chk('term maps to a full disc', sizeVisualFraction(termLengthCm) == 1.0);
+  _chk('the tiniest week is not sub-pixel (floored)',
+      sizeVisualFraction(babySizeTable.first.lengthCm) >= 0.14);
+  _chk('a mid week sits between floor and full',
+      () {
+        final f = sizeVisualFraction(babySizeFor(20)!.lengthCm);
+        return f > 0.14 && f < 1.0;
+      }());
+  // Monotonic: a later, longer week never draws a smaller disc.
+  var monotonic = true;
+  for (var i = 1; i < babySizeTable.length; i++) {
+    if (sizeVisualFraction(babySizeTable[i].lengthCm) <
+        sizeVisualFraction(babySizeTable[i - 1].lengthCm)) {
+      monotonic = false;
+    }
+  }
+  _chk('the disc never shrinks as the weeks pass', monotonic);
+  _chk('area tracks length (radius is its root)',
+      // half the length → radius fraction of 1/sqrt(2), not 1/2.
+      (sizeVisualFraction(termLengthCm / 2) - (1 / 1.4142135623730951)).abs() < 1e-9);
+  _chk('over-term clamps, never exceeds a full disc',
+      sizeVisualFraction(termLengthCm * 2) == 1.0);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

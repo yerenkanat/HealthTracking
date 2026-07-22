@@ -76,21 +76,31 @@ class WeekDetailScreen extends StatelessWidget {
             _Card(
               title: l.t('bsize_title'),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  // A disc that grows week to week against a faint ring at
+                  // newborn size — the visceral "how big now" the fruit name
+                  // alone can't give, and a picture of the journey's progress.
+                  _SizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: pal.glow),
+                  const SizedBox(width: 16),
                   Expanded(
-                    child: Text(
-                      l.t(size.code),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l.t(size.code),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          l.t('bsize_length', {'cm': size.lengthCm.toStringAsFixed(1)}),
+                          style: const TextStyle(
+                              fontFamily: 'JetBrainsMono',
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Palette.violet),
+                        ),
+                      ],
                     ),
-                  ),
-                  Text(
-                    l.t('bsize_length', {'cm': size.lengthCm.toStringAsFixed(1)}),
-                    style: const TextStyle(
-                        fontFamily: 'JetBrainsMono',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Palette.violet),
                   ),
                 ],
               ),
@@ -192,6 +202,53 @@ class _Card extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// The proportional size disc: a filled circle at this week's [fraction] of
+/// term size, inside a faint ring drawn at full term. Together they read as
+/// "this is how big baby is now, and how big at birth".
+class _SizeDisc extends StatelessWidget {
+  final double fraction; // 0..1
+  final Color colour;
+  const _SizeDisc({required this.fraction, required this.colour});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 60,
+        height: 60,
+        child: CustomPaint(painter: _SizeDiscPainter(fraction: fraction, colour: colour)),
+      );
+}
+
+class _SizeDiscPainter extends CustomPainter {
+  final double fraction;
+  final Color colour;
+  _SizeDiscPainter({required this.fraction, required this.colour});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = size.center(Offset.zero);
+    final maxR = size.shortestSide / 2 - 1;
+    // The term-size reference ring.
+    canvas.drawCircle(
+      centre,
+      maxR,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = colour.withValues(alpha: 0.30),
+    );
+    // This week, filled.
+    canvas.drawCircle(
+      centre,
+      maxR * fraction.clamp(0.0, 1.0),
+      Paint()..color = colour.withValues(alpha: 0.90),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SizeDiscPainter old) =>
+      old.fraction != fraction || old.colour != colour;
 }
 
 class _Progress extends StatelessWidget {

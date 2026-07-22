@@ -5,6 +5,8 @@
 /// a CODE the UI localizes (bsize_*). Weeks are 0-based completed weeks.
 library;
 
+import 'dart:math' as math;
+
 typedef BabySize = ({int week, String code, double lengthCm});
 
 /// Curated comparisons from week 4 to term. `babySizeFor` snaps any week to the
@@ -46,4 +48,23 @@ BabySize? babySizeFor(int week) {
     current = s;
   }
   return current;
+}
+
+/// The term (week-40) length, the reference for the proportional size visual so
+/// that a week reads as a fraction of newborn size.
+double get termLengthCm => babySizeTable.last.lengthCm;
+
+/// The radius fraction (0..1) for the growing size disc drawn beside the
+/// comparison.
+///
+/// The DISC AREA tracks length, so its radius tracks the square root — a linear
+/// radius would make the first-trimester weeks sub-pixel dots and hide exactly
+/// the growth the picture is there to show. A small [floor] keeps the earliest
+/// weeks visible; term maps to a full 1.0.
+double sizeVisualFraction(double lengthCm, {double floor = 0.14}) {
+  final t = termLengthCm;
+  if (t <= 0) return floor;
+  final ratio = (lengthCm / t).clamp(0.0, 1.0).toDouble();
+  final f = math.sqrt(ratio);
+  return f < floor ? floor : f;
 }
