@@ -1302,6 +1302,99 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'bag_swaddle_blanket': {AppLocale.ru: 'Пелёнка / одеяльце', AppLocale.kk: 'Жөргек / көрпеше', AppLocale.en: 'Swaddle / blanket'},
   'bag_car_seat': {AppLocale.ru: 'Автокресло', AppLocale.kk: 'Автокөлік орындығы', AppLocale.en: 'Car seat'},
 
+  // ---- When a child is unwell (ill_*) ----
+  'ill_title': {AppLocale.ru: 'Если малыш заболел', AppLocale.kk: 'Егер нәресте ауырса', AppLocale.en: 'When your child is unwell'},
+  'ill_intro': {
+    AppLocale.ru: 'Короткая памятка на случай болезни. Это не диагноз — при любых сомнениях звоните врачу.',
+    AppLocale.kk: 'Ауырған жағдайға арналған қысқаша жаднама. Бұл диагноз емес — кез келген күмәнда дәрігерге қоңырау шалыңыз.',
+    AppLocale.en: 'A short reminder for when they are ill. Not a diagnosis — when in doubt, call your doctor.',
+  },
+  'ill_young_title': {AppLocale.ru: 'Малышам до 3 месяцев', AppLocale.kk: '3 айға дейінгі нәрестелерге', AppLocale.en: 'Babies under 3 months'},
+  'ill_young_body': {
+    AppLocale.ru: 'В этом возрасте любая температура 38 °C и выше — повод срочно показать ребёнка врачу.',
+    AppLocale.kk: 'Бұл жаста 38 °C және одан жоғары кез келген температура — баланы дереу дәрігерге көрсету себебі.',
+    AppLocale.en: 'At this age, any temperature of 38 °C or higher needs prompt medical review.',
+  },
+  'ill_care_title': {AppLocale.ru: 'Что помогает дома', AppLocale.kk: 'Үйде не көмектеседі', AppLocale.en: 'What helps at home'},
+  'ill_warn_title': {AppLocale.ru: 'Когда срочно к врачу', AppLocale.kk: 'Қашан дереу дәрігерге', AppLocale.en: 'When to get help now'},
+  'ill_warn_intro': {
+    AppLocale.ru: 'Позвоните в поликлинику или скорую, если появится что-то из этого:',
+    AppLocale.kk: 'Мыналардың бірі пайда болса, емханаға немесе жедел жәрдемге қоңырау шалыңыз:',
+    AppLocale.en: 'Call your clinic or emergency services if any of these appear:',
+  },
+  'ill_disclaimer': {
+    AppLocale.ru: 'Это общие сведения, а не медицинская консультация. Дозы лекарств и лечение подбирает врач или фармацевт по весу и возрасту.',
+    AppLocale.kk: 'Бұл — жалпы мәлімет, медициналық кеңес емес. Дәрі мөлшері мен емдеуді дәрігер немесе фармацевт салмақ пен жасқа қарай таңдайды.',
+    AppLocale.en: 'General information, not medical advice. Medicine doses and treatment are set by a doctor or pharmacist, by weight and age.',
+  },
+
+  'ill_care_fluids': {
+    AppLocale.ru: 'Чаще предлагайте грудь, смесь или воду (по возрасту) — обезвоживание опаснее самой температуры.',
+    AppLocale.kk: 'Кеудені, қоспаны немесе суды (жасына қарай) жиі ұсыныңыз — сусыздану температураның өзінен қауіптірек.',
+    AppLocale.en: 'Offer the breast, formula or water (as age-appropriate) often — dehydration is the real risk, more than the fever itself.',
+  },
+  'ill_care_rest': {
+    AppLocale.ru: 'Дайте отдохнуть и не кутайте — перегрев не помогает.',
+    AppLocale.kk: 'Демалуға мүмкіндік беріңіз, қатты орамаңыз — қызып кету көмектеспейді.',
+    AppLocale.en: 'Let them rest, and do not overwrap — overheating does not help.',
+  },
+  'ill_care_light_clothing': {
+    AppLocale.ru: 'Лёгкая одежда и комфортная температура в комнате.',
+    AppLocale.kk: 'Жеңіл киім және бөлмедегі жайлы температура.',
+    AppLocale.en: 'Light clothing and a comfortable room temperature.',
+  },
+  'ill_care_medicine': {
+    AppLocale.ru: 'Жаропонижающее — только по возрасту и по совету врача или инструкции; не давайте аспирин детям.',
+    AppLocale.kk: 'Температура түсіретін дәрі — тек жасына қарай және дәрігер кеңесімен не нұсқаулықпен; балаларға аспирин бермеңіз.',
+    AppLocale.en: "Fever medicine only by age and your doctor's or the label's guidance; never give a child aspirin.",
+  },
+  'ill_care_watch': {
+    AppLocale.ru: 'Следите за самочувствием и признаками ниже; доверяйте себе — вы знаете своего малыша.',
+    AppLocale.kk: 'Жағдайын және төмендегі белгілерді бақылаңыз; өзіңізге сеніңіз — нәрестеңізді өзіңіз жақсы білесіз.',
+    AppLocale.en: 'Watch how they seem and the signs below; trust yourself — you know your child.',
+  },
+
+  'ill_warn_breathing': {
+    AppLocale.ru: 'Тяжёлое, частое дыхание или кряхтение при дыхании',
+    AppLocale.kk: 'Ауыр, жиі тыныс алу немесе тыныс алғанда ыңқылдау',
+    AppLocale.en: 'Fast, laboured or grunting breathing',
+  },
+  'ill_warn_colour': {
+    AppLocale.ru: 'Очень бледная, синюшная или серая кожа или губы',
+    AppLocale.kk: 'Өте бозарған, көгілдір немесе сұр тері не ерін',
+    AppLocale.en: 'Very pale, blue or grey skin or lips',
+  },
+  'ill_warn_rash': {
+    AppLocale.ru: 'Сыпь, которая не бледнеет при надавливании (проверьте стеклянным стаканом)',
+    AppLocale.kk: 'Басқанда бозармайтын бөртпе (шыны стақанмен тексеріңіз)',
+    AppLocale.en: 'A rash that does not fade when you press a glass on it',
+  },
+  'ill_warn_stiff_neck': {
+    AppLocale.ru: 'Ригидность шеи, выбухание родничка или светобоязнь',
+    AppLocale.kk: 'Мойынның қатаюы, еңбектің томпаюы немесе жарықтан қорқу',
+    AppLocale.en: 'A stiff neck, a bulging soft spot, or dislike of bright light',
+  },
+  'ill_warn_seizure': {
+    AppLocale.ru: 'Судороги (припадок)',
+    AppLocale.kk: 'Құрысу (талма)',
+    AppLocale.en: 'A fit or convulsion',
+  },
+  'ill_warn_unrousable': {
+    AppLocale.ru: 'Вялость, необычная сонливость, трудно разбудить',
+    AppLocale.kk: 'Босаңдық, әдеттен тыс ұйқышылдық, оятудың қиындығы',
+    AppLocale.en: 'Floppy, unusually drowsy, or hard to wake',
+  },
+  'ill_warn_dehydration': {
+    AppLocale.ru: 'Нет мокрых подгузников, плач без слёз, запавшие глаза',
+    AppLocale.kk: 'Дымқыл жаялық жоқ, жансыз жылау, көздің шүңірейуі',
+    AppLocale.en: 'No wet nappies, crying without tears, or sunken eyes',
+  },
+  'ill_warn_persistent': {
+    AppLocale.ru: 'Высокая температура, которая не спадает или держится долго',
+    AppLocale.kk: 'Түспейтін немесе ұзаққа созылатын жоғары температура',
+    AppLocale.en: 'A high fever that will not come down, or lasts',
+  },
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},

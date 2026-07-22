@@ -22,6 +22,7 @@ import 'vaccination_screen.dart';
 import 'child_growth_screen.dart';
 import 'newborn_log_screen.dart';
 import 'solids_screen.dart';
+import 'child_illness_screen.dart';
 import '../../domain/child_growth.dart';
 import '../../domain/newborn_log.dart';
 import '../../domain/solids_guide.dart';
@@ -97,6 +98,15 @@ class ChildDetailScreen extends StatelessWidget {
                   backgroundColor: Colors.transparent,
                   title: Text(child.name),
                   actions: [
+                    // Unwell-child guidance, always a tap away from the child's
+                    // screen — fever and red flags, not buried.
+                    IconButton(
+                      icon: const Icon(Icons.sick_outlined),
+                      tooltip: l.t('ill_title'),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ChildIllnessScreen(ageMonths: child.ageInMonths(now)),
+                      )),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
                       tooltip: l.t('set_edit_profile'),

@@ -12,6 +12,7 @@ import '../lib/domain/safe_sleep.dart';
 import '../lib/domain/solids_guide.dart';
 import '../lib/domain/pregnancy_weight_guide.dart';
 import '../lib/domain/hospital_bag.dart';
+import '../lib/domain/child_illness.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -419,6 +420,24 @@ void main() {
       }
     }
     _chk('and every hospital-bag string is translated ($bagBlank blanks)', bagBlank == 0);
+
+    // Child illness: `ill_care_<id>` and `ill_warn_<id>` are composed at render.
+    final illKeys = <String>[
+      for (final id in illnessCare) 'ill_care_$id',
+      for (final id in illnessWarnings) 'ill_warn_$id',
+    ];
+    final illMissing = [for (final k in illKeys) if (!known.contains(k)) k];
+    _chk('every illness care note and warning has a string', illMissing.isEmpty);
+    if (illMissing.isNotEmpty) print('    missing: ${illMissing.join(', ')}');
+
+    var illBlank = 0;
+    for (final k in illKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) illBlank++;
+      }
+    }
+    _chk('and every illness string is translated ($illBlank blanks)', illBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

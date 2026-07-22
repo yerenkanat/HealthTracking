@@ -127,6 +127,18 @@ void main() {
     expect(find.text(ru.t('sol_when_title')), findsOneWidget);
   });
 
+  testWidgets('the unwell-child guide is a tap from the app bar', (tester) async {
+    final c = withChild(dob: DateTime(2026, 6, 22)); // 1 month → shows the age banner
+    addTearDown(c.dispose);
+    await pump(tester, c);
+    await tester.tap(find.byIcon(Icons.sick_outlined));
+    await tester.pumpAndSettle();
+    // The warning heading is a reliable landing marker; the young-baby banner
+    // should also be present for a one-month-old.
+    expect(find.text(ru.t('ill_warn_title')), findsOneWidget);
+    expect(find.text(ru.t('ill_young_title')), findsOneWidget);
+  });
+
   testWidgets('opening a card reaches its screen', (tester) async {
     final c = withChild(dob: DateTime(2026, 1, 22));
     addTearDown(c.dispose);
