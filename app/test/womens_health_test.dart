@@ -75,6 +75,38 @@ void main() {
     expect(find.text('The baby is moving noticeably less than usual'), findsOneWidget);
   });
 
+  testWidgets('the hospital bag appears in the third trimester and persists a tick', (tester) async {
+    tester.view.physicalSize = const Size(900, 3000);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    // Due in 42 days → week 34, third trimester.
+    final c = controllerFor(dueDate: today.add(const Duration(days: 42)));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => L10nScope(l10n: const L10n(AppLocale.en), child: child!),
+      home: WomensHealthScreen(controller: c, now: () => today),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Hospital bag'));
+    await tester.tap(find.text('Hospital bag'));
+    await tester.pumpAndSettle();
+
+    // Tick the car seat; the controller should remember it.
+    await tester.ensureVisible(find.text('Car seat'));
+    await tester.tap(find.text('Car seat'));
+    await tester.pumpAndSettle();
+    expect(c.isHospitalBagItemPacked('car_seat'), isTrue);
+  });
+
+  testWidgets('no hospital-bag card before the third trimester', (tester) async {
+    // Week 20 — too early.
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Hospital bag'), findsNothing);
+  });
+
   testWidgets('the weight-gain guide is reachable in pregnancy mode and opens', (tester) async {
     tester.view.physicalSize = const Size(900, 2600);
     tester.view.devicePixelRatio = 2.0;

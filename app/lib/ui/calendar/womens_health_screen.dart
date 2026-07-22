@@ -33,7 +33,9 @@ import 'contraction_timer_screen.dart';
 import 'postpartum_screen.dart';
 import 'pregnancy_warnings.dart';
 import 'pregnancy_weight_screen.dart';
+import 'hospital_bag_screen.dart';
 import '../../domain/weight.dart';
+import '../../domain/hospital_bag.dart';
 import 'cycle_insights_screen.dart';
 import 'day_log_sheet.dart';
 import 'medications_screen.dart';
@@ -253,6 +255,22 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _BabySizeCard(week: c.gestation!.week),
                   const SizedBox(height: 14),
                   _PregnancyMilestones(week: c.gestation!.week),
+                  // Third trimester: the hospital bag becomes worth packing.
+                  if (c.gestation!.week >= hospitalBagFromWeek) ...[
+                    const SizedBox(height: 14),
+                    _HospitalBagCard(
+                      checked: c.hospitalBagChecked,
+                      onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => StreamBuilder<void>(
+                          stream: c.changes,
+                          builder: (_, __) => HospitalBagScreen(
+                            checked: c.hospitalBagChecked,
+                            onToggle: c.toggleHospitalBagItem,
+                          ),
+                        ),
+                      )),
+                    ),
+                  ],
                 ],
                 if (!cycleMode) ...[
                   const SizedBox(height: 14),
@@ -1171,6 +1189,68 @@ class _PostpartumCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       until != null ? l.t('pp_check_in', {'n': until}) : l.t('pp_card_sub'),
+                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The third-trimester hospital-bag entry: how much is packed, and a tap to the
+/// checklist.
+class _HospitalBagCard extends StatelessWidget {
+  final Set<String> checked;
+  final VoidCallback onOpen;
+  const _HospitalBagCard({required this.checked, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final done = isFullyPacked(checked);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.05)],
+            ),
+            border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: Palette.roseDeep.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(done ? Icons.check_circle_rounded : Icons.luggage_outlined,
+                    color: done ? Palette.teal : Palette.roseDeep, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.t('bag_card_title'),
+                        style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                      done ? l.t('bag_done') : l.t('bag_packed', {'n': packedCount(checked), 'total': hospitalBagTotal}),
                       style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600),
                     ),
                   ],

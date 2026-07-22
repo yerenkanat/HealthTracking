@@ -11,6 +11,7 @@ import '../lib/domain/fetal_development.dart';
 import '../lib/domain/safe_sleep.dart';
 import '../lib/domain/solids_guide.dart';
 import '../lib/domain/pregnancy_weight_guide.dart';
+import '../lib/domain/hospital_bag.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -400,6 +401,24 @@ void main() {
       }
     }
     _chk('and every weight-guide string is translated ($pwgBlank blanks)', pwgBlank == 0);
+
+    // Hospital bag: `bag_<id>` and `bag_cat_<category>` are composed at render.
+    final bagKeys = <String>[
+      for (final i in hospitalBagItems) 'bag_${i.id}',
+      for (final c in BagCategory.values) 'bag_cat_${c.name}',
+    ];
+    final bagMissing = [for (final k in bagKeys) if (!known.contains(k)) k];
+    _chk('every hospital-bag item and category has a string', bagMissing.isEmpty);
+    if (bagMissing.isNotEmpty) print('    missing: ${bagMissing.join(', ')}');
+
+    var bagBlank = 0;
+    for (final k in bagKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) bagBlank++;
+      }
+    }
+    _chk('and every hospital-bag string is translated ($bagBlank blanks)', bagBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

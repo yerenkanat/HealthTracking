@@ -173,6 +173,11 @@ class PersistedConfig {
   /// night the user typed in themselves.
   final List<SleepSummary> manualSleep;
 
+  /// The hospital-bag items she has ticked off. Ids only; the item set itself
+  /// is code (hospital_bag.dart), so a shipped change to the list never orphans
+  /// her ticks — an id no longer in the list simply does nothing.
+  final List<String> hospitalBagChecked;
+
   const PersistedConfig({
     required this.onboarded,
     required this.locale,
@@ -206,6 +211,7 @@ class PersistedConfig {
     this.medLog = const {},
     this.manualSamples = const [],
     this.manualSleep = const [],
+    this.hospitalBagChecked = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -251,6 +257,7 @@ class PersistedConfig {
         if (medLog.isNotEmpty) 'medLog': medLogToJson(medLog),
         if (manualSamples.isNotEmpty) 'manualSamples': [for (final s in manualSamples) s.toJson()],
         if (manualSleep.isNotEmpty) 'manualSleep': [for (final n in manualSleep) n.toJson()],
+        if (hospitalBagChecked.isNotEmpty) 'hospitalBagChecked': hospitalBagChecked,
       };
 
   /// How many entries the last [fromJson] had to discard.
@@ -376,7 +383,15 @@ class PersistedConfig {
           for (final n in (j['manualSleep'] as List? ?? const []))
             SleepSummary.fromJson((n as Map).cast<String, dynamic>())
         ],
+        hospitalBagChecked: _stringList(j['hospitalBagChecked']),
       );
+
+  /// A list of strings, dropping anything that is not one. Used for the
+  /// hospital-bag ticks — a corrupt entry costs that tick, not the whole config.
+  static List<String> _stringList(Object? raw) {
+    if (raw is! List) return const [];
+    return [for (final e in raw) if (e is String) e];
+  }
 
   String encode() => jsonEncode(toJson());
   static PersistedConfig decode(String s) =>

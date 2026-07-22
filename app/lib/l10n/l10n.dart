@@ -1262,6 +1262,41 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'These are general guides, not medical advice. Ranges depend on your pre-pregnancy weight and health; your doctor sets your goal.',
   },
 
+  // ---- Hospital-bag checklist (bag_*) ----
+  'bag_title': {AppLocale.ru: 'Сумка в роддом', AppLocale.kk: 'Перзентханаға сөмке', AppLocale.en: 'Hospital bag'},
+  'bag_card_title': {AppLocale.ru: 'Сумка в роддом', AppLocale.kk: 'Перзентханаға сөмке', AppLocale.en: 'Hospital bag'},
+  'bag_packed': {AppLocale.ru: 'Собрано {n} из {total}', AppLocale.kk: '{total} ішінен {n} жиналды', AppLocale.en: '{n} of {total} packed'},
+  'bag_done': {AppLocale.ru: 'Всё собрано!', AppLocale.kk: 'Бәрі жиналды!', AppLocale.en: 'All packed!'},
+  'bag_intro': {
+    AppLocale.ru: 'Отмечайте, что уже собрали. В роддоме могут дать свой список — это отправная точка.',
+    AppLocale.kk: 'Жиналған нәрсені белгілеңіз. Перзентхана өз тізімін беруі мүмкін — бұл бастама.',
+    AppLocale.en: "Tick off what you've packed. Your hospital may give its own list — this is a starting point.",
+  },
+  'bag_cat_documents': {AppLocale.ru: 'Документы', AppLocale.kk: 'Құжаттар', AppLocale.en: 'Documents'},
+  'bag_cat_mother': {AppLocale.ru: 'Для мамы', AppLocale.kk: 'Ана үшін', AppLocale.en: 'For you'},
+  'bag_cat_baby': {AppLocale.ru: 'Для малыша', AppLocale.kk: 'Нәресте үшін', AppLocale.en: 'For the baby'},
+
+  'bag_id_documents': {AppLocale.ru: 'Паспорт / удостоверение', AppLocale.kk: 'Төлқұжат / жеке куәлік', AppLocale.en: 'ID / passport'},
+  'bag_exchange_card': {AppLocale.ru: 'Обменная карта', AppLocale.kk: 'Алмасу картасы', AppLocale.en: 'Maternity notes (exchange card)'},
+  'bag_insurance': {AppLocale.ru: 'Полис / страховка', AppLocale.kk: 'Полис / сақтандыру', AppLocale.en: 'Insurance'},
+  'bag_birth_plan': {AppLocale.ru: 'План родов (если есть)', AppLocale.kk: 'Босану жоспары (болса)', AppLocale.en: 'Birth plan (if you have one)'},
+
+  'bag_nightgown': {AppLocale.ru: 'Ночная рубашка', AppLocale.kk: 'Түнгі көйлек', AppLocale.en: 'Nightgown'},
+  'bag_robe_slippers': {AppLocale.ru: 'Халат и тапочки', AppLocale.kk: 'Халат пен тәпішке', AppLocale.en: 'Robe and slippers'},
+  'bag_toiletries': {AppLocale.ru: 'Средства гигиены', AppLocale.kk: 'Гигиена құралдары', AppLocale.en: 'Toiletries'},
+  'bag_maternity_pads': {AppLocale.ru: 'Послеродовые прокладки', AppLocale.kk: 'Босанғаннан кейінгі прокладкалар', AppLocale.en: 'Maternity pads'},
+  'bag_nursing_bra': {AppLocale.ru: 'Бюстгальтер для кормления', AppLocale.kk: 'Емізуге арналған бюстгальтер', AppLocale.en: 'Nursing bra'},
+  'bag_phone_charger': {AppLocale.ru: 'Телефон и зарядка', AppLocale.kk: 'Телефон және зарядтағыш', AppLocale.en: 'Phone and charger'},
+  'bag_snacks_water': {AppLocale.ru: 'Вода и перекусы', AppLocale.kk: 'Су және жеңіл тағам', AppLocale.en: 'Water and snacks'},
+  'bag_going_home_clothes': {AppLocale.ru: 'Одежда на выписку', AppLocale.kk: 'Шығуға арналған киім', AppLocale.en: 'Going-home clothes'},
+
+  'bag_bodysuits': {AppLocale.ru: 'Боди', AppLocale.kk: 'Боди', AppLocale.en: 'Bodysuits'},
+  'bag_sleepsuits': {AppLocale.ru: 'Слипы / комбинезоны', AppLocale.kk: 'Слиптер / комбинезондар', AppLocale.en: 'Sleepsuits'},
+  'bag_hat_socks': {AppLocale.ru: 'Шапочка и носочки', AppLocale.kk: 'Телпек пен шұлық', AppLocale.en: 'Hat and socks'},
+  'bag_nappies': {AppLocale.ru: 'Подгузники для новорождённых', AppLocale.kk: 'Жаңа туған нәрестеге жаялықтар', AppLocale.en: 'Newborn nappies'},
+  'bag_swaddle_blanket': {AppLocale.ru: 'Пелёнка / одеяльце', AppLocale.kk: 'Жөргек / көрпеше', AppLocale.en: 'Swaddle / blanket'},
+  'bag_car_seat': {AppLocale.ru: 'Автокресло', AppLocale.kk: 'Автокөлік орындығы', AppLocale.en: 'Car seat'},
+
   'vac_hepb': {AppLocale.ru: 'Гепатит B', AppLocale.kk: 'В гепатиті', AppLocale.en: 'Hepatitis B'},
   'vac_hepb_note': {AppLocale.ru: 'Защищает печень от вирусного гепатита B.', AppLocale.kk: 'Бауырды В вирусты гепатитінен қорғайды.', AppLocale.en: 'Protects the liver against hepatitis B.'},
   'vac_bcg': {AppLocale.ru: 'БЦЖ', AppLocale.kk: 'БЦЖ', AppLocale.en: 'BCG'},

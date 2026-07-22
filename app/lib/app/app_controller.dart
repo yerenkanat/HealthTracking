@@ -157,6 +157,7 @@ class AppController {
   final Map<String, List<NewbornEvent>> _newbornLog = {}; // childId → feeds/diapers/sleep (newest-first)
   final List<Medication> _medications = [];
   MedLog _medLog = {}; // dateKey → medId → doses taken
+  final Set<String> _hospitalBagChecked = {}; // packed hospital-bag item ids
   int? _waterReminderMinutes; // daily water reminder time (minutes of day); null = off
   int? _medReminderMinutes; // daily medication reminder time; null = off
   bool _periodReminderEnabled = false;
@@ -284,6 +285,9 @@ class AppController {
     _alerts
       ..clear()
       ..addAll(cfg.alerts);
+    _hospitalBagChecked
+      ..clear()
+      ..addAll(cfg.hospitalBagChecked);
     _lastChildZone = cfg.lastChildZone;
     // NOT `_onboarded = true` — that was here because restore() only ever
     // called this with an already-onboarded config, so forcing it looked
@@ -365,6 +369,7 @@ class AppController {
         medLog: {for (final e in _medLog.entries) e.key: Map<String, int>.from(e.value)},
         manualSamples: List.of(_manualSamples),
         manualSleep: List.of(_manualSleep),
+        hospitalBagChecked: List.of(_hospitalBagChecked),
       );
 
   /// How long to wait for the typing to stop before writing to disk.
@@ -958,6 +963,19 @@ class AppController {
   /// Set (or clear, with null) the target weight.
   void setWeightGoal(double? kg) {
     _weightGoalKg = kg;
+    _persist();
+    _notify();
+  }
+
+  // ---- Hospital bag checklist ----
+  /// The item ids she has ticked off.
+  Set<String> get hospitalBagChecked => Set.unmodifiable(_hospitalBagChecked);
+
+  bool isHospitalBagItemPacked(String id) => _hospitalBagChecked.contains(id);
+
+  /// Tick or untick a hospital-bag item, and persist the change.
+  void toggleHospitalBagItem(String id) {
+    if (!_hospitalBagChecked.remove(id)) _hospitalBagChecked.add(id);
     _persist();
     _notify();
   }
