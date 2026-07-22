@@ -49,6 +49,10 @@ flutter:
     # packages/contract/pregnancy_weeks.json; kept in sync by
     # tool/verify_pregnancy_weeks_contract.dart.
     - assets/data/pregnancy_weeks.json
+    # Week-by-week baby-development calendar (ru + kk). A copy of the shared
+    # contract packages/contract/baby_development.json; kept in sync by
+    # tool/verify_baby_development_contract.dart.
+    - assets/data/baby_development.json
   fonts:
     - family: Outfit
       fonts:

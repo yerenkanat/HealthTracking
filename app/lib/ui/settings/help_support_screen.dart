@@ -91,8 +91,8 @@ class HelpSupportScreen extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 16),
-          const Center(child: Text('Umay · $_appVersion',
-              style: TextStyle(color: Palette.textDim, fontSize: 12))),
+          Center(child: Text(l.t('help_app_line', {'v': _appVersion}),
+              style: const TextStyle(color: Palette.textDim, fontSize: 12))),
         ],
       ),
     );

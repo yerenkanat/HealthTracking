@@ -13,6 +13,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../data/baby_development_repository.dart';
+import '../../domain/baby_development_content.dart';
 import '../../domain/child_development.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
@@ -47,7 +49,11 @@ class ChildDevelopmentScreen extends StatelessWidget {
       ),
       body: dob == null
           ? _NoBirthdate(message: l.t('dev_no_birthdate'))
-          : _Timeline(ageMonths: ageInMonths(dob, today), childName: child.name),
+          : _Timeline(
+              ageMonths: ageInMonths(dob, today),
+              ageWeeks: childAgeWeeks(dob, today),
+              childName: child.name,
+            ),
     );
   }
 }
@@ -71,8 +77,9 @@ class _NoBirthdate extends StatelessWidget {
 
 class _Timeline extends StatelessWidget {
   final int ageMonths;
+  final int ageWeeks;
   final String childName;
-  const _Timeline({required this.ageMonths, required this.childName});
+  const _Timeline({required this.ageMonths, required this.ageWeeks, required this.childName});
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +93,14 @@ class _Timeline extends StatelessWidget {
       children: [
         _AgeHeader(ageMonths: ageMonths, name: childName),
         const SizedBox(height: 12),
+
+        // WHO weight/height range + this-week motor/speech/cognition, from the
+        // shared baby-development calendar (GET /child/development). Only within
+        // the first year, which is what the calendar covers.
+        if (ageMonths < 13) ...[
+          _GrowthWeekCard(week: ageWeeks),
+          const SizedBox(height: 12),
+        ],
 
         // Before the data, not after it. This sentence is how the whole screen
         // is meant to be read — that the ranges are where most children land
@@ -154,7 +169,7 @@ class _AgeHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [Palette.lilac, Palette.blush],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -188,6 +203,146 @@ class _AgeHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Your baby this week" — the WHO weight/height range for the child's current
+/// week plus that week's motor / speech / cognition milestones, from the shared
+/// baby-development calendar. The exact figures a parent sees in the admin panel
+/// and the backend serves, so all three agree. Silently absent if the asset is
+/// missing (offline-first: never blocks the milestone timeline below).
+class _GrowthWeekCard extends StatelessWidget {
+  final int week;
+  const _GrowthWeekCard({required this.week});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return FutureBuilder<ChildDevCalendar>(
+      future: loadBabyDevelopment(),
+      builder: (context, snap) {
+        final cal = snap.data;
+        if (cal == null || cal.isEmpty) return const SizedBox.shrink();
+        final w = cal.weekContentFor(week);
+        if (w == null) return const SizedBox.shrink();
+        final s = w.skillsFor(l.locale.name);
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Palette.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Palette.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(l.t('cdw_title'),
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                        color: Palette.violet.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                    child: Text(l.t('cdw_week', {'n': w.week}),
+                        style: const TextStyle(color: Palette.violet, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (w.weightKg.isNotEmpty)
+                    Expanded(child: _GrowthStat(icon: Icons.monitor_weight_outlined, label: l.t('cdw_weight'), value: '${w.weightKg} ${l.t('grw_kg')}')),
+                  if (w.heightCm.isNotEmpty)
+                    Expanded(child: _GrowthStat(icon: Icons.straighten_rounded, label: l.t('cdw_height'), value: '${w.heightCm} ${l.t('grw_cm')}')),
+                ],
+              ),
+              if (s.motor.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                _CalendarRow(icon: Icons.directions_run_rounded, colour: Palette.violet, label: l.t('cdw_motor'), text: s.motor),
+              ],
+              if (s.speech.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _CalendarRow(icon: Icons.chat_bubble_outline_rounded, colour: Palette.rose, label: l.t('cdw_speech'), text: s.speech),
+              ],
+              if (s.cognition.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _CalendarRow(icon: Icons.lightbulb_outline_rounded, colour: Palette.teal, label: l.t('cdw_cognition'), text: s.cognition),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// One weight/height stat inside the growth card.
+class _GrowthStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _GrowthStat({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Icon(icon, size: 18, color: Palette.textDim),
+          const SizedBox(width: 8),
+          // Flexible so a long range ("6,1–9,3 кг") ellipsises instead of
+          // overflowing the narrow half-width Expanded it sits in.
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label.toUpperCase(),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.4, color: Palette.textDim)),
+                const SizedBox(height: 1),
+                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ],
+      );
+}
+
+/// A labelled paragraph row — icon, uppercase label, body — reused from the
+/// pregnancy week card's visual language.
+class _CalendarRow extends StatelessWidget {
+  final IconData icon;
+  final Color colour;
+  final String label;
+  final String text;
+  const _CalendarRow({required this.icon, required this.colour, required this.label, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: colour.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 16, color: colour),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label.toUpperCase(),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.4, color: colour)),
+                const SizedBox(height: 2),
+                Text(text, style: const TextStyle(fontSize: 13, height: 1.45)),
+              ],
+            ),
+          ),
+        ],
+      );
 }
 
 class _SectionTitle extends StatelessWidget {

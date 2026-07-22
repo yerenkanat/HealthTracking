@@ -405,6 +405,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'help_share_sub': {AppLocale.ru: 'Расскажите близким', AppLocale.kk: 'Жақындарыңызға айтыңыз', AppLocale.en: 'Tell someone close to you'},
   'help_share_text': {AppLocale.ru: 'Umay — спокойный уход за беременностью и безопасность ребёнка в одном приложении.', AppLocale.kk: 'Umay — жүктілікке қамқорлық пен бала қауіпсіздігі бір қолданбада.', AppLocale.en: 'Umay — calm pregnancy care and child safety in one app.'},
   'help_emergency_note': {AppLocale.ru: 'Поддержка — не служба экстренной помощи. При угрозе жизни звоните 103 или 112.', AppLocale.kk: 'Қолдау — жедел жәрдем қызметі емес. Өмірге қауіп төнгенде 103 немесе 112-ге қоңырау шалыңыз.', AppLocale.en: 'Support is not an emergency service. If life is at risk, call 103 or 112.'},
+  // Brand line at the foot of Help — the name is a proper noun, identical in
+  // every locale; through l10n only so no user-facing text bypasses it.
+  'help_app_line': {AppLocale.ru: 'Umay · {v}', AppLocale.kk: 'Umay · {v}', AppLocale.en: 'Umay · {v}'},
 
   'set_privacy': {AppLocale.ru: 'Политика конфиденциальности', AppLocale.kk: 'Құпиялылық саясаты', AppLocale.en: 'Privacy policy'},
   'set_terms': {AppLocale.ru: 'Условия использования', AppLocale.kk: 'Пайдалану шарттары', AppLocale.en: 'Terms of use'},
@@ -1907,6 +1910,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Children develop at very different rates. These ranges are where most land — not a schedule.',
   },
   'dev_no_birthdate': {AppLocale.ru: 'Добавьте дату рождения ребёнка, чтобы увидеть его календарь развития.', AppLocale.kk: 'Даму күнтізбесін көру үшін баланың туған күнін қосыңыз.', AppLocale.en: 'Add your child’s date of birth to see their development calendar.'},
+
+  // Week-by-week growth & skills card (baby_development calendar, first year)
+  'cdw_title': {AppLocale.ru: 'Ваш малыш на этой неделе', AppLocale.kk: 'Балаңыз осы аптада', AppLocale.en: 'Your baby this week'},
+  'cdw_week': {AppLocale.ru: '{n}-я неделя', AppLocale.kk: '{n}-апта', AppLocale.en: 'Week {n}'},
+  'cdw_weight': {AppLocale.ru: 'Вес', AppLocale.kk: 'Салмағы', AppLocale.en: 'Weight'},
+  'cdw_height': {AppLocale.ru: 'Рост', AppLocale.kk: 'Бойы', AppLocale.en: 'Height'},
+  'cdw_motor': {AppLocale.ru: 'Двигательные навыки', AppLocale.kk: 'Қимыл-қозғалыс дағдылары', AppLocale.en: 'Motor skills'},
+  'cdw_speech': {AppLocale.ru: 'Речевые навыки', AppLocale.kk: 'Сөйлеу дағдылары', AppLocale.en: 'Speech skills'},
+  'cdw_cognition': {AppLocale.ru: 'Познание', AppLocale.kk: 'Таным', AppLocale.en: 'Cognition'},
 
   // Areas
   'dev_area_motor': {AppLocale.ru: 'Движение', AppLocale.kk: 'Қозғалыс', AppLocale.en: 'Movement'},

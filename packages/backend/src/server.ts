@@ -25,6 +25,7 @@ import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
 import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
+import { childDevCalendar, devWeekContent } from './child/development';
 import { vaccinationSchedule } from './vaccination/schedule';
 import type { Repository } from './db/repository';
 
@@ -246,6 +247,16 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     const week = Number((req.params as { week: string }).week);
     if (!Number.isFinite(week)) return reply.code(400).send({ error: 'bad_week' });
     const content = weekContent(week);
+    if (!content) return reply.code(404).send({ error: 'not_found' });
+    return reply.send(content);
+  });
+
+  // Public reference data: the week-by-week baby-development calendar (ru + kk).
+  app.get('/child/development', async () => childDevCalendar);
+  app.get('/child/development/:week', async (req, reply) => {
+    const week = Number((req.params as { week: string }).week);
+    if (!Number.isFinite(week)) return reply.code(400).send({ error: 'bad_week' });
+    const content = devWeekContent(week);
     if (!content) return reply.code(404).send({ error: 'not_found' });
     return reply.send(content);
   });
