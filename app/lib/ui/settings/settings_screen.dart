@@ -17,6 +17,7 @@ import '../../l10n/l10n_scope.dart';
 import '../calibration/bp_calibration_sheet.dart';
 import '../theme.dart';
 import 'journey_screen.dart';
+import 'help_support_screen.dart';
 import 'legal_screen.dart';
 import 'reminders_center_screen.dart';
 import '../../domain/phone_auth.dart';
@@ -251,6 +252,14 @@ class SettingsScreen extends StatelessWidget {
             // ---- About ----
             _Section(title: l.t('set_about'), children: [
               _Row(leading: Icons.info_outline, title: 'Umay', subtitle: l.t('set_about_body')),
+              _Row(
+                leading: Icons.help_outline_rounded,
+                title: l.t('set_help'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => HelpSupportScreen(diagnostics: 'locale ${c.locale.name}'),
+                )),
+              ),
               _Row(
                 leading: Icons.privacy_tip_outlined,
                 title: l.t('set_privacy'),
