@@ -21,6 +21,7 @@ void main() {
     List<BatteryReading> batteryHistory = const [],
     DateTime? zoneEnteredAt,
     DateTime? lastCheckInAt,
+    bool hasPairedTracker = true,
   }) =>
       MaterialApp(
         home: ChildMapScreen(
@@ -36,6 +37,7 @@ void main() {
           batteryHistory: batteryHistory,
           zoneEnteredAt: zoneEnteredAt,
           lastCheckInAt: lastCheckInAt,
+          hasPairedTracker: hasPairedTracker,
         ),
       );
 
@@ -56,6 +58,17 @@ void main() {
   testWidgets('shows waiting state when no location', (tester) async {
     await tester.pumpWidget(harness(loc: null, updated: null));
     expect(find.textContaining('Waiting for'), findsOneWidget);
+  });
+
+  testWidgets('with no location AND no tracker, guides her to pair one', (tester) async {
+    await tester.pumpWidget(harness(loc: null, updated: null, hasPairedTracker: false));
+    expect(find.textContaining('Waiting for'), findsOneWidget);
+    expect(find.textContaining('No tracker linked yet'), findsOneWidget);
+  });
+
+  testWidgets('no pair-a-tracker hint once a tracker is linked', (tester) async {
+    await tester.pumpWidget(harness(loc: null, updated: null, hasPairedTracker: true));
+    expect(find.textContaining('No tracker linked yet'), findsNothing);
   });
 
   testWidgets('check-in fires immediately and confirms', (tester) async {

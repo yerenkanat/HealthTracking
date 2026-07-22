@@ -165,6 +165,7 @@ class _HomeShellState extends State<HomeShell> {
         childAgeMonths: c.selectedChild?.hasDateOfBirth == true
             ? c.selectedChild!.ageInMonths(DateTime.now())
             : null,
+        hasPairedTracker: (c.selectedChild?.tagId ?? '').isNotEmpty,
         onSelectChild: c.selectChild,
         onAddChild: () => showAddChildSheet(context, c),
         onAddDevice: () => showAddDeviceSheet(context, c),

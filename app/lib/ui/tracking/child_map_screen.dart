@@ -49,6 +49,11 @@ class ChildMapScreen extends StatelessWidget {
   final VoidCallback? onCheckIn; // manual "arrived / all good" event
   final VoidCallback? onSos; // manual emergency signal (confirmed first)
 
+  /// Whether a tracker is linked to this child. When false and there is no
+  /// location, the status bar guides her to pair one instead of implying a
+  /// fix is on its way. Defaults true so existing callers/tests are unchanged.
+  final bool hasPairedTracker;
+
   const ChildMapScreen({
     super.key,
     required this.childName,
@@ -72,6 +77,7 @@ class ChildMapScreen extends StatelessWidget {
     this.lastCheckInAt,
     this.onCheckIn,
     this.onSos,
+    this.hasPairedTracker = true,
   });
 
   @override
@@ -204,6 +210,11 @@ class ChildMapScreen extends StatelessWidget {
                   now: now,
                   zoneEnteredAt: zoneEnteredAt,
                   lastCheckInAt: lastCheckInAt,
+                  // No location AND no tracker linked → guide her to pair one,
+                  // rather than "Waiting…" that would never resolve on its own.
+                  hint: (childLocation == null && !hasPairedTracker)
+                      ? l.t('tr_no_tracker_hint')
+                      : null,
                 ),
               ],
             ),
@@ -329,6 +340,11 @@ class MinimalTrackingStatusBar extends StatelessWidget {
   final DateTime? zoneEnteredAt; // when the child entered the current zone
   final DateTime? lastCheckInAt; // when the child last checked in
 
+  /// A gentle guidance line under the headline — e.g. "pair a tracker" when
+  /// there is no location because no device is linked, so "Waiting…" does not
+  /// read as an arrival that is merely late. Null hides it.
+  final String? hint;
+
   const MinimalTrackingStatusBar({
     super.key,
     required this.freshness,
@@ -341,6 +357,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
     this.now,
     this.zoneEnteredAt,
     this.lastCheckInAt,
+    this.hint,
   });
 
   // Warm, low-anxiety palette: live = calm green, recent = calm blue, delayed =
@@ -403,6 +420,14 @@ class MinimalTrackingStatusBar extends StatelessWidget {
             child: Text(headline,
                 style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, height: 1.25)),
           ),
+          if (hint != null) ...[
+            const SizedBox(height: 6),
+            Row(children: [
+              const Icon(Icons.info_outline_rounded, size: 15, color: Palette.textDim),
+              const SizedBox(width: 6),
+              Expanded(child: Text(hint!, style: const TextStyle(color: Palette.textDim, fontSize: 13, height: 1.35))),
+            ]),
+          ],
           if (zoneLabel != null) ...[
             const SizedBox(height: 6),
             Row(children: [

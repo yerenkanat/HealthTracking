@@ -131,6 +131,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'onb_country': {AppLocale.ru: 'Страна', AppLocale.kk: 'Ел', AppLocale.en: 'Country'},
   'tr_add_child': {AppLocale.ru: 'Добавить ребёнка', AppLocale.kk: 'Бала қосу', AppLocale.en: 'Add child'},
   'tr_add_device': {AppLocale.ru: 'Добавить устройство', AppLocale.kk: 'Құрылғы қосу', AppLocale.en: 'Add device'},
+  'tr_no_tracker_hint': {
+    AppLocale.ru: 'Трекер ещё не привязан. Добавьте устройство, чтобы видеть местоположение на карте.',
+    AppLocale.kk: 'Трекер әлі байланбаған. Картадан орналасуын көру үшін құрылғы қосыңыз.',
+    AppLocale.en: 'No tracker linked yet. Add a device to see the location on the map.',
+  },
   'tr_manage_zones': {AppLocale.ru: 'Зоны безопасности', AppLocale.kk: 'Қауіпсіздік аймақтары', AppLocale.en: 'Safe zones'},
 
   // Safety alerts (zone enter/exit feed)
