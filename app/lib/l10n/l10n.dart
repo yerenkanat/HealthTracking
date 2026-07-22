@@ -579,6 +579,51 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'When in doubt, call your clinic — they will guide you.',
   },
 
+  // ---- Teething (teeth_*) ----
+  'teeth_title': {AppLocale.ru: 'Прорезывание зубов', AppLocale.kk: 'Тіс шығу', AppLocale.en: 'Teething'},
+  'teeth_intro': {
+    AppLocale.ru: 'Зубы прорезываются по-своему у каждого малыша — возраст указан ориентировочно.',
+    AppLocale.kk: 'Тістер әр нәрестеде өзінше шығады — жас шамамен көрсетілген.',
+    AppLocale.en: 'Teeth arrive on their own schedule — the ages are a rough guide.',
+  },
+  'teeth_timeline_title': {AppLocale.ru: 'Примерный порядок', AppLocale.kk: 'Шамамен реті', AppLocale.en: 'The usual order'},
+  'teeth_signs_title': {AppLocale.ru: 'Признаки', AppLocale.kk: 'Белгілері', AppLocale.en: 'Signs'},
+  'teeth_soothe_title': {AppLocale.ru: 'Что помогает', AppLocale.kk: 'Не көмектеседі', AppLocale.en: 'What helps'},
+  'teeth_not_title': {AppLocale.ru: 'Это не от зубов', AppLocale.kk: 'Бұл тістен емес', AppLocale.en: "This isn't teething"},
+  'teeth_not_intro': {
+    AppLocale.ru: 'Если появилось это, дело не в зубах — покажите ребёнка врачу:',
+    AppLocale.kk: 'Мыналар пайда болса, бұл тістен емес — баланы дәрігерге көрсетіңіз:',
+    AppLocale.en: "If these appear, it isn't the teeth — see a doctor:",
+  },
+  'teeth_age_range': {AppLocale.ru: '{from}–{to} мес.', AppLocale.kk: '{from}–{to} ай', AppLocale.en: '{from}–{to} mo'},
+  'teeth_disclaimer': {
+    AppLocale.ru: 'Это общие сведения, а не медицинская консультация. Вопросы о зубах ребёнка обсудите с педиатром или стоматологом.',
+    AppLocale.kk: 'Бұл — жалпы мәлімет, медициналық кеңес емес. Бала тістері туралы педиатр немесе стоматологпен ақылдасыңыз.',
+    AppLocale.en: "General information, not medical advice. Ask your paediatrician or dentist about your child's teeth.",
+  },
+
+  'teeth_lower_central': {AppLocale.ru: 'Нижние центральные резцы', AppLocale.kk: 'Төменгі ортаңғы күрек тістер', AppLocale.en: 'Lower central incisors'},
+  'teeth_upper_central': {AppLocale.ru: 'Верхние центральные резцы', AppLocale.kk: 'Жоғарғы ортаңғы күрек тістер', AppLocale.en: 'Upper central incisors'},
+  'teeth_upper_lateral': {AppLocale.ru: 'Верхние боковые резцы', AppLocale.kk: 'Жоғарғы бүйір күрек тістер', AppLocale.en: 'Upper lateral incisors'},
+  'teeth_lower_lateral': {AppLocale.ru: 'Нижние боковые резцы', AppLocale.kk: 'Төменгі бүйір күрек тістер', AppLocale.en: 'Lower lateral incisors'},
+  'teeth_first_molars': {AppLocale.ru: 'Первые моляры', AppLocale.kk: 'Бірінші азу тістер', AppLocale.en: 'First molars'},
+  'teeth_canines': {AppLocale.ru: 'Клыки', AppLocale.kk: 'Азу тістер (сүйір)', AppLocale.en: 'Canines'},
+  'teeth_second_molars': {AppLocale.ru: 'Вторые моляры', AppLocale.kk: 'Екінші азу тістер', AppLocale.en: 'Second molars'},
+
+  'teeth_sign_drool': {AppLocale.ru: 'Обильное слюнотечение', AppLocale.kk: 'Мол сілекей ағу', AppLocale.en: 'Lots of drooling'},
+  'teeth_sign_chewing': {AppLocale.ru: 'Тянет всё в рот и грызёт', AppLocale.kk: 'Бәрін аузына салып кеміреді', AppLocale.en: 'Chewing on everything'},
+  'teeth_sign_irritable': {AppLocale.ru: 'Капризность и беспокойство', AppLocale.kk: 'Ерке мінез бен мазасыздық', AppLocale.en: 'Fussiness and irritability'},
+  'teeth_sign_sore_gums': {AppLocale.ru: 'Покрасневшие, припухшие дёсны', AppLocale.kk: 'Қызарған, ісінген қызыл иек', AppLocale.en: 'Red, swollen gums'},
+  'teeth_sign_sleep': {AppLocale.ru: 'Беспокойный сон', AppLocale.kk: 'Мазасыз ұйқы', AppLocale.en: 'Disturbed sleep'},
+
+  'teeth_soothe_teething_ring': {AppLocale.ru: 'Прохладный (не замороженный) прорезыватель.', AppLocale.kk: 'Салқын (мұздатылмаған) тіс шығарғыш.', AppLocale.en: 'A cool (not frozen) teething ring.'},
+  'teeth_soothe_gum_massage': {AppLocale.ru: 'Аккуратно помассируйте дёсны чистым пальцем.', AppLocale.kk: 'Қызыл иекті таза саусақпен ақырын уқалаңыз.', AppLocale.en: 'Gently rub the gums with a clean finger.'},
+  'teeth_soothe_cool_food': {AppLocale.ru: 'Прохладная еда или питьё по возрасту.', AppLocale.kk: 'Жасына сай салқын тағам немесе сусын.', AppLocale.en: 'Cool food or drink, age-appropriate.'},
+  'teeth_soothe_wipe_drool': {AppLocale.ru: 'Вытирайте слюну, чтобы не раздражать кожу.', AppLocale.kk: 'Теріні тітіркендірмеу үшін сілекейді сүртіп тұрыңыз.', AppLocale.en: 'Wipe away drool to protect the skin.'},
+
+  'teeth_not_high_fever': {AppLocale.ru: 'Высокая температура — прорезывание её не вызывает.', AppLocale.kk: 'Жоғары температура — тіс шығу оны тудырмайды.', AppLocale.en: 'A high fever — teething does not cause one.'},
+  'teeth_not_diarrhoea': {AppLocale.ru: 'Понос или рвота.', AppLocale.kk: 'Іш өту немесе құсу.', AppLocale.en: 'Diarrhoea or vomiting.'},
+
   'db_not_measuring': {
     AppLocale.ru: 'Устройство не на связи — данные могут быть неактуальны.',
     AppLocale.kk: 'Құрылғы байланыста емес — деректер ескірген болуы мүмкін.',

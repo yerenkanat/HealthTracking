@@ -15,6 +15,7 @@ import '../lib/domain/hospital_bag.dart';
 import '../lib/domain/child_illness.dart';
 import '../lib/domain/home_safety.dart';
 import '../lib/domain/labour_signs.dart';
+import '../lib/domain/teething.dart';
 import '../lib/l10n/l10n.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
@@ -476,6 +477,27 @@ void main() {
       }
     }
     _chk('and every labour-signs string is translated ($labBlank blanks)', labBlank == 0);
+
+    // Teething: `teeth_<id>`, `teeth_sign_<id>`, `teeth_soothe_<id>` and
+    // `teeth_not_<id>` are composed at render.
+    final teethKeys = <String>[
+      for (final g in teethingTimeline) 'teeth_${g.id}',
+      for (final id in teethingSigns) 'teeth_sign_$id',
+      for (final id in teethingSoothe) 'teeth_soothe_$id',
+      for (final id in teethingNot) 'teeth_not_$id',
+    ];
+    final teethMissing = [for (final k in teethKeys) if (!known.contains(k)) k];
+    _chk('every teething string exists', teethMissing.isEmpty);
+    if (teethMissing.isNotEmpty) print('    missing: ${teethMissing.join(', ')}');
+
+    var teethBlank = 0;
+    for (final k in teethKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) teethBlank++;
+      }
+    }
+    _chk('and every teething string is translated ($teethBlank blanks)', teethBlank == 0);
   }
 
   print('\n$_pass passed, $_fail failed');

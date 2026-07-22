@@ -17,6 +17,7 @@ import '../../domain/child_development.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import 'teething_screen.dart';
 
 class ChildDevelopmentScreen extends StatelessWidget {
   final ChildProfile child;
@@ -33,6 +34,16 @@ class ChildDevelopmentScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Palette.bg,
         title: Text(l.t('dev_title')),
+        actions: [
+          if (dob != null)
+            IconButton(
+              icon: const Icon(Icons.sentiment_satisfied_outlined),
+              tooltip: l.t('teeth_title'),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => TeethingScreen(ageMonths: ageInMonths(dob, today)),
+              )),
+            ),
+        ],
       ),
       body: dob == null
           ? _NoBirthdate(message: l.t('dev_no_birthdate'))
