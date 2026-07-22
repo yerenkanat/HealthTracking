@@ -13,6 +13,40 @@ and there is **no sign-in** at all.
 
 ---
 
+## Full-stack pass — 2026-07-22 (part 2)
+
+After the note "nothing changed in the admin panel", switched to **full-stack per
+feature** (app + contract + backend + admin), never app-only. Every item below
+spans all layers from one source of truth, with tests at each. App suite **620**,
+backend **401**, verify_all **75 runners / 2856 assertions** — all green.
+
+- **Antenatal protocol** → `contract/antenatal_protocol.json` (generated from the
+  app domain), `GET /antenatal/protocol`, admin **Антенатальный уход** tab + the
+  mother's "Визит N/8" in the patient drawer. App contract-match verify.
+- **Pregnancy calendar** (user-supplied xlsx, ru+kk, 40 weeks) →
+  `contract/pregnancy_weeks.json`, `GET /pregnancy/weeks[/:week]`, admin
+  **Календарь беременности** tab (week chips + RU/KZ toggle) + "Эта неделя" in
+  the drawer, and a **"Ваша неделя" card on the app's week screen** (bundled
+  asset, drift-guarded).
+- **Vaccination schedule** → `contract/vaccination_schedule.json`,
+  `GET /vaccination/schedule`, admin **Вакцинация** tab. App already had the UI;
+  now contract-matched.
+- **Phone-OTP sign-in (root blocker)** → `domain/phone_auth.dart` (provider-agnostic,
+  stub now / Firebase later), `SignInScreen`, `AppController.authSession` persisted,
+  `getToken` now sends the session token (was hard-null), Settings ▸ Account.
+  The admin panel already has staff auth + a users view; the app can now identify
+  the caller.
+
+Admin render tests execute the real page in jsdom (not structural grep), per the
+"render the admin panel" rule.
+
+**Still open (mostly need keys/Docker/hardware):** wiring appointments/cycle/
+sleep/metrics sync now that a token is sent (needs the backend on a real DB to
+persist), real Firebase to replace the stub provider, maps key, FCM, and the
+emergency-acknowledge action (needs emergencies to become first-class event rows).
+
+---
+
 ## Progress log — 2026-07-22 (this pass)
 
 Worked the doable items one by one; full app suite **613 green** throughout.
