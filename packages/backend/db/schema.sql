@@ -238,6 +238,18 @@ CREATE TABLE sleep_nights (
   PRIMARY KEY (user_id, night)
 );
 
+-- Newborn care log — feeds, nappy changes, sleeps. One row per event, per
+-- child, keyed by (child, instant, kind). Gives a clinician the feeding /
+-- hydration pattern of the first weeks.
+CREATE TABLE newborn_events (
+  child_id     UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  at           TIMESTAMPTZ NOT NULL,
+  kind         TEXT NOT NULL CHECK (kind IN ('feed','diaper','sleep')),
+  detail       TEXT,
+  duration_min INTEGER,
+  PRIMARY KEY (child_id, at, kind)
+);
+
 -- Completed fetal-movement (kick) counting sessions. One row per session,
 -- keyed by when it ended. Reduced movement is a safety signal, so a clinician
 -- seeing the trend matters.

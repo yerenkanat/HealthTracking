@@ -249,6 +249,25 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(`DELETE FROM geofences WHERE id = $1`, [geofenceId]);
     },
 
+    async recordNewbornEvent(childId, e) {
+      await pool.query(
+        `INSERT INTO newborn_events (child_id, at, kind, detail, duration_min)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (child_id, at, kind) DO UPDATE
+           SET detail = EXCLUDED.detail, duration_min = EXCLUDED.duration_min`,
+        [childId, e.at, e.kind, e.detail, e.durationMin]);
+    },
+    async listNewbornEvents(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT c.id AS child_id, c.name AS child_name, e.at, e.kind, e.detail, e.duration_min
+         FROM children c JOIN newborn_events e ON e.child_id = c.id
+         WHERE c.guardian_id = $1 ORDER BY e.at DESC LIMIT $2`, [userId, limit]);
+      return rows.map((r) => ({
+        childId: r.child_id, childName: r.child_name, at: new Date(r.at).toISOString(),
+        kind: r.kind, detail: r.detail, durationMin: r.duration_min,
+      }));
+    },
+
     async upsertChildEmergency(childId, m) {
       await pool.query(
         `INSERT INTO child_emergency (child_id, blood_type, allergies, conditions, medications,

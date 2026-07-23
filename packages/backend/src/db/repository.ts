@@ -36,6 +36,13 @@ export interface MedicationRow {
   perDay: number;
 }
 
+export interface NewbornEventRow {
+  at: string; // ISO instant
+  kind: 'feed' | 'diaper' | 'sleep';
+  detail: string | null;
+  durationMin: number | null;
+}
+
 export interface KickSessionRow {
   endedAt: string; // ISO instant
   count: number;
@@ -267,6 +274,11 @@ export interface Repository {
   // the caller's children so the admin drawer can show each child's card.
   upsertChildEmergency(childId: string, m: MedicalIdRow): Promise<void>;
   listMedicalIds(userId: string): Promise<Array<{ childId: string; childName: string } & MedicalIdRow>>;
+
+  // Newborn care events (feed/diaper/sleep), push-only upsert on (child, at, kind).
+  // listNewbornEvents joins the caller's children for the admin drawer.
+  recordNewbornEvent(childId: string, e: NewbornEventRow): Promise<void>;
+  listNewbornEvents(userId: string, limit: number): Promise<Array<{ childId: string; childName: string } & NewbornEventRow>>;
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
   listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;

@@ -1401,6 +1401,7 @@
     let medids=[]; // children's emergency medical-ID cards
     let kicks=[]; // fetal-movement counting sessions
     let contractions=[]; // labour-timing sessions
+    let newborn=[]; // newborn care events (feed/diaper/sleep)
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1410,7 +1411,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1468,6 +1469,16 @@
     const contractionsSection=contractions.length?`
       <div class="dsec">Схватки (тайминг)</div>
       <div class="tl">${contractions.slice(0,7).map(c=>`<div class="tli"><span><b>${esc(fmtDate(c.endedAt))}</b> <span class="t">длит. ${mmss(c.avgDurationSec||0)}</span></span><span class="t num">${c.count} · интервал ${mmss(c.avgIntervalSec||0)}</span></div>`).join("")}</div>`:"";
+    // Newborn care log — feeds / nappies / sleeps, newest first. Feeding and
+    // wet-nappy frequency is a hydration signal for the first weeks.
+    const nbKind={feed:"кормление",diaper:"подгузник",sleep:"сон"};
+    const newbornSection=newborn.length?`
+      <div class="dsec">Журнал малыша</div>
+      <div class="tl">${newborn.slice(0,8).map(e=>{
+        const k=nbKind[e.kind]||esc(e.kind);
+        const det=e.detail?` · ${esc(e.detail)}`:(e.durationMin?` · ${e.durationMin} мин`:"");
+        return `<div class="tli"><span><b>${k}</b>${det}</span><span class="t num">${esc(fmtDate(e.at))}</span></div>`;
+      }).join("")}</div>`:"";
     // Children's emergency medical-ID — the few things a responder needs fast.
     // Critical fields (allergies / conditions / blood type) lead.
     const medidSection=medids.length?medids.map(m=>{
@@ -1529,6 +1540,7 @@
       ${diarySection}
       ${kicksSection}
       ${contractionsSection}
+      ${newbornSection}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>

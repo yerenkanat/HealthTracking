@@ -366,6 +366,13 @@ class ApiClient {
     throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a newborn care event (feed / diaper / sleep) for [childId], so the
+  /// admin sees the feeding + hydration pattern. Push-only, upsert on (at, kind).
+  Future<void> putNewbornEvent(String childId, Map<String, dynamic> body) async {
+    final res = await transport.post('/children/$childId/newborn-events', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// Push a child's emergency medical-ID (blood type / allergies / conditions /
   /// doctor / contact) so a clinician or responder can see it. Upsert per child.
   Future<void> putChildEmergency(String childId, Map<String, dynamic> body) async {

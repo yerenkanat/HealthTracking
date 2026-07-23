@@ -46,6 +46,7 @@ function makeDeps(
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const medRows: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
   const medicalIds = new Map<string, Record<string, string>>();
+  const newbornRows = new Map<string, Array<{ at: string; kind: string; detail: string | null; durationMin: number | null }>>();
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -133,6 +134,22 @@ function makeDeps(
     },
     deleteGeofence: async (id) => {
       for (const [k, list] of geofences) geofences.set(k, list.filter((g) => g.id !== id));
+    },
+    recordNewbornEvent: async (childId, e) => {
+      const list = newbornRows.get(childId) ?? [];
+      const i = list.findIndex((x) => x.at === e.at && x.kind === e.kind);
+      if (i >= 0) list[i] = e; else list.push(e);
+      newbornRows.set(childId, list);
+    },
+    listNewbornEvents: async (userId, limit) => {
+      if (userId !== USER) return [];
+      const out: Array<Record<string, unknown>> = [];
+      for (const [childId, list] of newbornRows) {
+        const c = children.find((x) => x.id === childId);
+        for (const e of list) out.push({ childId, childName: c?.name ?? 'Sultan', ...e });
+      }
+      out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+      return out.slice(0, limit) as never;
     },
     upsertChildEmergency: async (childId, m) => void medicalIds.set(childId, { ...m } as Record<string, string>),
     listMedicalIds: async (userId) => {
@@ -715,6 +732,23 @@ describe('CRUD + history routes (in-process)', () => {
     const r = await post(`/children/${CHILD}/geofences`, {
       id: 'zone-1', name: 'Park', shape: 'circle', center: { lat: 43.24, lng: 76.9 }, radiusM: 80,
     });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('newborn events: record for a child, read back via admin wellness (newest first)', async () => {
+    expect((await app.inject({ method: 'POST', url: `/children/${CHILD}/newborn-events`,
+      payload: { at: '2026-07-21T08:00:00.000Z', kind: 'feed', detail: 'left' } })).statusCode).toBe(201);
+    await app.inject({ method: 'POST', url: `/children/${CHILD}/newborn-events`,
+      payload: { at: '2026-07-21T10:00:00.000Z', kind: 'diaper', detail: 'wet' } });
+    const evs = (await get(`/admin/users/${USER}/wellness`)).json().newbornEvents;
+    expect(evs.length).toBeGreaterThanOrEqual(2);
+    expect(evs[0].kind).toBe('diaper'); // newest first
+    expect(evs[0].childName).toBeTruthy();
+  });
+
+  it('newborn events: rejects a bad kind (zod 400)', async () => {
+    const r = await app.inject({ method: 'POST', url: `/children/${CHILD}/newborn-events`,
+      payload: { at: '2026-07-21T08:00:00.000Z', kind: 'burp' } });
     expect(r.statusCode).toBe(400);
   });
 

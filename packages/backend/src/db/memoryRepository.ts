@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
+import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -55,6 +55,7 @@ export function createMemoryRepository(): Repository {
   const kickSessions: KickSessionRow[] = [];
   const contractionSessions: ContractionSessionRow[] = [];
   const childEmergency = new Map<string, MedicalIdRow>();
+  const newbornEvents = new Map<string, NewbornEventRow[]>();
   const dayLogs = new Map<string, DayLogRow>();
   const alerts: SafetyAlertRow[] = [];
   let profile: ProfileRow | null = {
@@ -209,6 +210,21 @@ export function createMemoryRepository(): Repository {
     },
     deleteGeofence: async (id) => {
       for (const [k, list] of geofences) geofences.set(k, list.filter((g) => g.id !== id));
+    },
+    recordNewbornEvent: async (childId, e) => {
+      const list = newbornEvents.get(childId) ?? [];
+      const i = list.findIndex((x) => x.at === e.at && x.kind === e.kind);
+      if (i >= 0) list[i] = e; else list.push(e);
+      newbornEvents.set(childId, list);
+    },
+    listNewbornEvents: async (userId, limit) => {
+      const out: Array<{ childId: string; childName: string } & NewbornEventRow> = [];
+      for (const c of children) {
+        if (c.userId !== userId) continue;
+        for (const e of newbornEvents.get(c.id) ?? []) out.push({ childId: c.id, childName: c.name, ...e });
+      }
+      out.sort((a, b) => b.at.localeCompare(a.at));
+      return out.slice(0, limit);
     },
     upsertChildEmergency: async (childId, m) => void childEmergency.set(childId, m),
     listMedicalIds: async (userId) => {
@@ -422,6 +438,7 @@ export function createMemoryRepository(): Repository {
       kickSessions.length = 0;
       contractionSessions.length = 0;
       childEmergency.clear();
+      newbornEvents.clear();
       healthRows.length = 0;
       sleep.length = 0;
       dayLogs.clear();

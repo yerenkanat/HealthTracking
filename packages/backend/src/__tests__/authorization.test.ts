@@ -50,6 +50,8 @@ function makeApp(callerId: string) {
     upsertGeofence: async (_c: string, _g: Geofence) => {},
     upsertChildEmergency: async () => {},
     listMedicalIds: async () => [],
+    recordNewbornEvent: async () => {},
+    listNewbornEvents: async () => [],
     deleteGeofence: async (id: string) => void deleted.push(`fence:${id}`),
     deleteChild: async (id: string) => void deleted.push(`child:${id}`),
     deleteDevice: async (id: string) => void deleted.push(`device:${id}`),

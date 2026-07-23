@@ -517,6 +517,16 @@ Future<void> bootstrapRuntime(
         }
       }
 
+      // Newborn care sync (feed/diaper/sleep), so the admin sees the pattern.
+      controller.attachNewbornSync(
+        upsert: (childId, e) => api.putNewbornEvent(childId, e.toJson()),
+      );
+      for (final ch in controller.children) {
+        for (final e in controller.newbornLogFor(ch.id)) {
+          unawaited(api.putNewbornEvent(ch.id, e.toJson()));
+        }
+      }
+
       // Child emergency medical-ID sync. Send ALL fields (not just non-empty) so
       // clearing one syncs; the server bounds each.
       Map<String, dynamic> medicalIdBody(ChildEmergencyInfo e) => {

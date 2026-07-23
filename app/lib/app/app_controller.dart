@@ -197,6 +197,9 @@ class AppController {
   // pregnancy-safety trends.
   Future<void> Function(KickSessionRecord)? _onKickSession;
   Future<void> Function(ContractionSessionRecord)? _onContractionSession;
+  // Newborn care sync: fires when a feed/diaper/sleep is logged, so the admin
+  // sees the newborn's care pattern.
+  Future<void> Function(String childId, NewbornEvent)? _onNewbornEvent;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final List<CryResult> _cryHistory = []; // recent cry analyses, newest first
@@ -1295,8 +1298,14 @@ class AppController {
       List.unmodifiable(_newbornLog[childId] ?? const []);
 
   /// Log a feed / diaper / sleep event for a child.
+  /// Wire backend sync for newborn care events (called by main.dart on sign-in).
+  void attachNewbornSync({required Future<void> Function(String childId, NewbornEvent) upsert}) {
+    _onNewbornEvent = upsert;
+  }
+
   void logNewbornEvent(String childId, NewbornEvent event) {
     _newbornLog[childId] = addNewbornEvent(_newbornLog[childId] ?? const [], event);
+    unawaited(_onNewbornEvent?.call(childId, event) ?? Future<void>.value());
     _persist();
     _notify();
   }

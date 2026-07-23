@@ -50,6 +50,10 @@ const WELLNESS = {
   contractionSessions: [
     { endedAt: '2026-07-22T02:00:00.000Z', count: 6, avgDurationSec: 55, avgIntervalSec: 300 },
   ],
+  newbornEvents: [
+    { childId: 'c1', childName: 'Aisha', at: '2026-07-21T10:00:00.000Z', kind: 'diaper', detail: 'wet', durationMin: null },
+    { childId: 'c1', childName: 'Aisha', at: '2026-07-21T08:00:00.000Z', kind: 'feed', detail: 'left', durationMin: null },
+  ],
   alerts: [],
 };
 
@@ -188,5 +192,15 @@ describe('admin patient drawer — upcoming visits', () => {
     expect(drawer).toContain('10 движ.'); // count
     expect(drawer).toContain('Схватки (тайминг)');
     expect(drawer).toContain('интервал 5:00'); // 300s avg interval — the 5-1-1 cue
+  });
+
+  it('shows the newborn care log (feeds / nappies)', async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    const drawer = page.text('#drawer');
+    expect(drawer).toContain('Журнал малыша');
+    expect(drawer).toContain('подгузник'); // diaper
+    expect(drawer).toContain('кормление'); // feed
   });
 });

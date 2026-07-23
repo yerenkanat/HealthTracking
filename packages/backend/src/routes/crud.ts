@@ -40,6 +40,12 @@ const medicationBody = z.object({
   dose: z.string().max(120).default(''),
   perDay: z.number().int().min(1).max(24).default(1),
 });
+const newbornEventBody = z.object({
+  at: z.string().datetime({ offset: true }),
+  kind: z.enum(['feed', 'diaper', 'sleep']),
+  detail: z.string().max(40).nullable().optional(),
+  durationMin: z.number().int().min(0).max(1440).nullable().optional(),
+});
 const _med = z.string().max(500).default(''); // free-text, bounded
 const medicalIdBody = z.object({
   bloodType: _med, allergies: _med, conditions: _med, medications: _med,
@@ -344,6 +350,19 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!(await requireOwned(req, reply, id, repo.geofenceOwner))) return;
     await repo.deleteGeofence(id);
     return reply.code(204).send();
+  });
+
+  // ---- Newborn care events (feed/diaper/sleep, per child, push-only) ----
+  app.post('/children/:id/newborn-events', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    const parsed = newbornEventBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.recordNewbornEvent(id, {
+      at: parsed.data.at, kind: parsed.data.kind,
+      detail: parsed.data.detail ?? null, durationMin: parsed.data.durationMin ?? null,
+    });
+    return reply.code(201).send({ ok: true });
   });
 
   // ---- Child emergency medical-ID (per child, upsert) ----
