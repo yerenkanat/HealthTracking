@@ -51,6 +51,39 @@ void main() {
   _chk('alerts reach the notification service', main_.contains('newAlerts.listen'));
   _chk('reminders are reconciled on boot', main_.contains('rescheduleReminders()'));
 
+  // ---- wearable → controller ----
+  // The watch's snapshots must reach the controller, or the whole activity
+  // panel goes dark and — since onWearableMetrics is what folds the band's
+  // nightly sleep into the history — the sleep card silently shows only
+  // hand-logged nights. This edge being deleted presents as "no watch data",
+  // indistinguishable from an unpaired watch.
+  _chk('watch snapshots reach the controller',
+      main_.contains('watch.onSnapshot.listen(controller.onWearableMetrics)'));
+
+  // ---- backend sync hooks ----
+  // Each attach*Sync is the edge that mirrors a data type to the server (and so
+  // to the clinician's view). BP calibration in particular had a `// TODO` here
+  // for a whole release, so its offsets never left the phone. If any of these
+  // is dropped, that data type silently stops syncing while the app looks fine.
+  for (final hook in [
+    'attachSleepSync(',
+    'attachMedicationSync(',
+    'attachGeofenceSync(',
+    'attachNewbornSync(',
+    'attachEmergencySync(',
+    'attachSessionSync(',
+    'attachBpCalibrationSync(',
+  ]) {
+    _chk('sync hook wired: $hook', main_.contains(hook));
+  }
+
+  // ---- new-device restore ----
+  // A reinstall must not be an empty app. The restore runs each pull under
+  // _restore() inside a Future.wait; if that block is removed, the app still
+  // runs, still syncs going forward, and silently never brings her history back.
+  _chk('the new-device restore runs', main_.contains('_restore(') && main_.contains('Future.wait('));
+  _chk('BP calibration is restored on a new device', main_.contains('api.getBpCalibration()'));
+
   // ---- the guard's own premise ----
   // If the file could not be read, or were empty, every check above would pass
   // vacuously.
