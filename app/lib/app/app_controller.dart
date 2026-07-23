@@ -1307,7 +1307,41 @@ class AppController {
   /// From the wearable manager's onSnapshot stream.
   void onWearableMetrics(WearableMetrics metrics) {
     _latestWearable = metrics;
+    _recordBandSleep(metrics);
     _notify();
+  }
+
+  /// Fold the band's nightly sleep into the sleep HISTORY, not just the live
+  /// "Activity & Wellness" snapshot. Before this, `onWearableMetrics` stored the
+  /// latest snapshot and stopped — so the band's deep/light sleep reached that
+  /// one panel and nowhere else, and the sleep card, its trend, the backend
+  /// sync and the clinician's view showed only nights she had typed in by hand.
+  /// A band user who never opened the manual log saw an empty sleep history the
+  /// watch had been recording all along.
+  void _recordBandSleep(WearableMetrics m) {
+    if (m.sleepMinutes <= 0) return; // a snapshot with no sleep carries no night
+    final night = DateTime(m.at.year, m.at.month, m.at.day);
+    // A night she typed in herself wins: the band re-sends every sync and would
+    // otherwise overwrite her correction on the next snapshot.
+    if (_manualSleep.any((n) => _sameNight(n.night, night))) return;
+    final deep = m.deepSleepMinutes;
+    final light = m.lightSleepMinutes;
+    // Preserve the band's reported TOTAL — whatever it didn't split into
+    // deep/light is the remainder, carried as REM so deep+rem+light equals the
+    // total asleep the card shows.
+    final rem = (m.sleepMinutes - deep - light).clamp(0, m.sleepMinutes);
+    final idx = _sleep.indexWhere((n) => _sameNight(n.night, night));
+    final existing = idx >= 0 ? _sleep[idx] : null;
+    // Nothing changed since the last snapshot for this night → don't re-push an
+    // identical summary to the server on every tick.
+    if (existing != null &&
+        existing.source == SleepSource.band &&
+        existing.deepMin == deep &&
+        existing.remMin == rem &&
+        existing.lightMin == light) {
+      return;
+    }
+    addSleepSummary(SleepSummary(night: night, deepMin: deep, remMin: rem, lightMin: light));
   }
 
   // ---- Hospital bag checklist ----
