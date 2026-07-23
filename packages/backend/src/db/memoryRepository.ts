@@ -129,8 +129,16 @@ export function createMemoryRepository(): Repository {
       const c = children.find((x) => x.id === id);
       return c ? { userId: c.userId } : null;
     },
-    geofenceOwner: async (id) =>
-      [...geofences.values()].flat().some((g) => g.id === id) ? { userId: DEMO_USER } : null,
+    geofenceOwner: async (id) => {
+      // Find the child that carries this geofence, then that child's guardian.
+      for (const [childId, list] of geofences) {
+        if (list.some((g) => g.id === id)) {
+          const child = children.find((c) => c.id === childId);
+          return child ? { userId: child.userId } : null;
+        }
+      }
+      return null;
+    },
     // CRUD
     listChildren: async () => children.map((c) => ({ ...c })),
     upsertChild: async (userId, c) => {
@@ -190,10 +198,11 @@ export function createMemoryRepository(): Repository {
       const i = devices.findIndex((d) => d.id === id);
       if (i >= 0) devices.splice(i, 1);
     },
-    createGeofence: async (childId, g) => {
-      const withId = { ...g, id: `gf-${idSeq++}` };
-      geofences.set(childId, [...(geofences.get(childId) ?? []), withId]);
-      return withId;
+    upsertGeofence: async (childId, g) => {
+      const list = geofences.get(childId) ?? [];
+      const i = list.findIndex((x) => x.id === g.id);
+      if (i >= 0) list[i] = g; else list.push(g);
+      geofences.set(childId, list);
     },
     deleteGeofence: async (id) => {
       for (const [k, list] of geofences) geofences.set(k, list.filter((g) => g.id !== id));

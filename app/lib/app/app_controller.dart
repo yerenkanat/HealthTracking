@@ -181,6 +181,10 @@ class AppController {
   // mother is taking (a pregnancy safety concern).
   Future<void> Function(Medication)? _onMedUpsert;
   Future<void> Function(String id)? _onMedDelete;
+  // Geofence (safe-zone) sync: upsert on add/edit, delete on remove, so the
+  // back-office sees real zones and the server can raise enter/exit alerts.
+  Future<void> Function(String childId, Geofence)? _onGeofenceUpsert;
+  Future<void> Function(String fenceId)? _onGeofenceDelete;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -595,6 +599,15 @@ class AppController {
   }
 
   // ---- Geofence zones (per child) ----
+  /// Wire backend sync for safe zones (called by main.dart on sign-in).
+  void attachGeofenceSync({
+    required Future<void> Function(String childId, Geofence) upsert,
+    required Future<void> Function(String fenceId) delete,
+  }) {
+    _onGeofenceUpsert = upsert;
+    _onGeofenceDelete = delete;
+  }
+
   /// Add or replace a zone on [childId] (matched by geofence id).
   void upsertGeofence(String childId, Geofence fence) {
     final i = _children.indexWhere((c) => c.id == childId);
@@ -607,6 +620,7 @@ class AppController {
       zones.add(fence);
     }
     _children[i] = _children[i].copyWith(geofences: zones);
+    unawaited(_onGeofenceUpsert?.call(childId, fence) ?? Future<void>.value());
     _persist();
     _notify();
   }
@@ -628,6 +642,7 @@ class AppController {
         !zones.any((f) => f.name == removed.name)) {
       _lastChildZone = null;
     }
+    unawaited(_onGeofenceDelete?.call(fenceId) ?? Future<void>.value());
     _persist(immediate: true); // irreversible — do not risk the debounce window
     _notify();
   }

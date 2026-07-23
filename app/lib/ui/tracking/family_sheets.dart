@@ -222,7 +222,9 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
               photoPath: photoPath,
               gender: gender,
               geofences: [
-                Geofence.circle('home', l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
+                // A UUID so the zone can sync to the backend (its id column is a
+                // UUID); a literal 'home' also collided across children.
+                Geofence.circle(uuidV4(), l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
               ],
             ));
           }

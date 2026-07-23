@@ -122,12 +122,15 @@ function makeDeps(
       const i = devices.findIndex((d) => d.id === id);
       if (i >= 0) devices.splice(i, 1);
     },
-    createGeofence: async (childId, g) => {
-      const withId = { ...g, id: `gf-${idSeq++}` };
-      geofences.set(childId, [...(geofences.get(childId) ?? []), withId]);
-      return withId;
+    upsertGeofence: async (childId, g) => {
+      const list = geofences.get(childId) ?? [];
+      const i = list.findIndex((x) => x.id === g.id);
+      if (i >= 0) list[i] = g; else list.push(g);
+      geofences.set(childId, list);
     },
-    deleteGeofence: async () => {},
+    deleteGeofence: async (id) => {
+      for (const [k, list] of geofences) geofences.set(k, list.filter((g) => g.id !== id));
+    },
     queryMetrics: async () => [{ t: '2026-07-15T08:00:00Z', value: 72 }, { t: '2026-07-15T08:05:00Z', value: 80 }],
     listGeofenceEvents: async () => events.filter((e) => e.transition),
     // Sleep
@@ -669,14 +672,27 @@ describe('CRUD + history routes (in-process)', () => {
     expect((await get('/devices')).json().devices).toHaveLength(0);
   });
 
-  it('geofences: create a circle for a child, then list', async () => {
+  it('geofences: upsert a circle for a child (client id), then list', async () => {
+    const gid = 'aaaaaaaa-0000-4000-8000-000000000001';
     const r = await post(`/children/${CHILD}/geofences`, {
-      name: 'Park', shape: 'circle', center: { lat: 43.24, lng: 76.9 }, radiusM: 80,
+      id: gid, name: 'Park', shape: 'circle', center: { lat: 43.24, lng: 76.9 }, radiusM: 80,
     });
     expect(r.statusCode).toBe(201);
-    expect(r.json().name).toBe('Park');
+    // Re-sync the same id with a new radius → updates, not duplicates.
+    await post(`/children/${CHILD}/geofences`, {
+      id: gid, name: 'Park', shape: 'circle', center: { lat: 43.24, lng: 76.9 }, radiusM: 120,
+    });
     const list = (await get(`/children/${CHILD}/geofences`)).json().geofences;
-    expect(list.some((g: { name: string }) => g.name === 'Park')).toBe(true);
+    const parks = list.filter((g: { name: string }) => g.name === 'Park');
+    expect(parks).toHaveLength(1);
+    expect(parks[0].radiusM).toBe(120);
+  });
+
+  it('geofences: rejects a non-UUID id (zod 400)', async () => {
+    const r = await post(`/children/${CHILD}/geofences`, {
+      id: 'zone-1', name: 'Park', shape: 'circle', center: { lat: 43.24, lng: 76.9 }, radiusM: 80,
+    });
+    expect(r.statusCode).toBe(400);
   });
 
   it('metrics history query validates + returns points', async () => {

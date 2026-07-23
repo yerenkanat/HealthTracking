@@ -233,7 +233,9 @@ export interface Repository {
   medicationOwner(id: string): Promise<{ userId: string } | null>;
   deleteMedication(id: string): Promise<void>;
 
-  createGeofence(childId: string, g: Geofence): Promise<Geofence>;
+  // Client keeps the geofence id (a UUID) so a zone created offline keeps its
+  // identity and re-syncing upserts rather than duplicates.
+  upsertGeofence(childId: string, g: Geofence): Promise<void>;
   deleteGeofence(geofenceId: string): Promise<void>;
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;

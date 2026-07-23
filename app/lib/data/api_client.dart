@@ -332,6 +332,20 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a safe zone for [childId] (upsert on the client id) so the back-office
+  /// sees real zones and the server can raise enter/exit alerts.
+  Future<void> putGeofence(String childId, Map<String, dynamic> body) async {
+    final res = await transport.post('/children/$childId/geofences', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// Delete a safe zone. A 404 counts as done (already gone).
+  Future<void> deleteGeofence(String id) async {
+    final res = await transport.delete('/geofences/$id');
+    if (res.ok || res.statusCode == 404) return;
+    throw ApiException(res.statusCode, res.body);
+  }
+
   /// Push a child (id / name / gender / dateOfBirth) so the family the mother
   /// manages appears in the back-office — the kids demographics dashboard is
   /// built from these. Upsert on the client id; idempotent.

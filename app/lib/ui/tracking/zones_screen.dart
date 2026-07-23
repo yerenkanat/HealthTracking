@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_controller.dart';
 import '../../core/geofence.dart';
+import '../../core/uuid.dart';
 import '../../domain/geofence_alerts.dart' show visitsToZone;
 import '../../data/device_location.dart';
 import '../../l10n/l10n_scope.dart';
@@ -363,7 +364,7 @@ class _ZoneSheetState extends State<_ZoneSheet> {
                 onPressed: () {
                   final name = _nameCtl.text.trim();
                   if (name.isEmpty) return;
-                  final id = widget.existing?.id ?? 'zone-${DateTime.now().microsecondsSinceEpoch}';
+                  final id = widget.existing?.id ?? uuidV4();
                   widget.onSave(Geofence.circle(id, name, _center, _radius));
                   Navigator.pop(context);
                 },

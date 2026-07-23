@@ -47,7 +47,7 @@ function makeApp(callerId: string) {
     geofenceOwner: async (fenceId: string) =>
       fenceId === ALICE_FENCE ? { userId: ALICE } : null,
     loadGeofences: async () => [HOME],
-    createGeofence: async (_c: string, g: Geofence) => ({ ...g, id: 'new' }),
+    upsertGeofence: async (_c: string, _g: Geofence) => {},
     deleteGeofence: async (id: string) => void deleted.push(`fence:${id}`),
     deleteChild: async (id: string) => void deleted.push(`child:${id}`),
     deleteDevice: async (id: string) => void deleted.push(`device:${id}`),

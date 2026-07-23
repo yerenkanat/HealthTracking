@@ -494,6 +494,28 @@ Future<void> bootstrapRuntime(
         unawaited(api.putChild(childBody(ch)));
       }
 
+      // Safe-zone (geofence) sync. The server groups zones under the child's id,
+      // so a zone can only sync once its child has (both use UUID ids now).
+      Map<String, dynamic> geofenceBody(Geofence g) => {
+            'id': g.id,
+            'name': g.name,
+            'shape': g.shape.name,
+            if (g.shape == GeofenceShape.circle) ...{
+              'center': {'lat': g.center!.lat, 'lng': g.center!.lng},
+              'radiusM': g.radiusM,
+            } else
+              'vertices': [for (final v in g.vertices!) {'lat': v.lat, 'lng': v.lng}],
+          };
+      controller.attachGeofenceSync(
+        upsert: (childId, g) => api.putGeofence(childId, geofenceBody(g)),
+        delete: (id) => api.deleteGeofence(id),
+      );
+      for (final ch in controller.children) {
+        for (final g in ch.geofences) {
+          unawaited(api.putGeofence(ch.id, geofenceBody(g)));
+        }
+      }
+
       // Push-only weight sync, so the admin wellness view mirrors her trend.
       controller.attachWeightSync(upsert: (w) => api.putWeight(date: w.date, kg: w.kg));
       for (final w in controller.weights) {

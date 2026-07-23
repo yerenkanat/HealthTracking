@@ -41,12 +41,14 @@ const medicationBody = z.object({
   perDay: z.number().int().min(1).max(24).default(1),
 });
 const circleGeofence = z.object({
+  id: z.string().uuid(),
   name: z.string().min(1),
   shape: z.literal('circle'),
   center: z.object({ lat: z.number(), lng: z.number() }),
   radiusM: z.number().positive(),
 });
 const polygonGeofence = z.object({
+  id: z.string().uuid(),
   name: z.string().min(1),
   shape: z.literal('polygon'),
   vertices: z.array(z.object({ lat: z.number(), lng: z.number() })).min(3),
@@ -316,8 +318,8 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
     const parsed = geofenceBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    const g = { id: '', ...parsed.data } as unknown as Geofence;
-    return reply.code(201).send(await repo.createGeofence(id, g));
+    await repo.upsertGeofence(id, parsed.data as unknown as Geofence);
+    return reply.code(201).send({ ok: true });
   });
 
   app.delete('/geofences/:id', async (req, reply) => {
