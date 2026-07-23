@@ -548,6 +548,15 @@ describe('server wiring (in-process)', () => {
     expect(ctx.pushes.emergency).toBe(1);
     expect(s1.geofenceEvents.some((e: GeofenceEvent) => e.geofenceName === 'Home' && e.transition === 'enter')).toBe(true);
 
+    // The crossing now reaches the safety_alerts feed the back-office reads. It
+    // used to land only in geofence_events, so GET /admin/safety — the
+    // operational child-safety view — was permanently empty.
+    const safety = (await get('/admin/safety')).json().events;
+    expect(safety.some((e: { kind: string; zoneName: string }) => e.kind === 'entered' && e.zoneName === 'Home')).toBe(true);
+    // ...and the guardian can read her own alert feed too.
+    const mine = (await get('/alerts')).json().alerts;
+    expect(mine.some((a: { kind: string; zoneName: string }) => a.kind === 'entered' && a.zoneName === 'Home')).toBe(true);
+
     // Duplicate Home fix → no second alert (real dedup).
     const r2 = await post('/ingest/batch', {
       items: [{ type: 'location', payload: { childId: CHILD, coords: home, source: 'gps', observedAt: new Date().toISOString() } }],

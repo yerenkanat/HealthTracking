@@ -137,6 +137,11 @@ async function ingestLocation(
   summary.locationCount++;
 
   const fences = await deps.repo.loadGeofences(fix.childId);
+  // The guardian who owns this child, resolved at most once and only if a
+  // transition actually fires — needed to attribute the safety alert. In the
+  // authenticated path the caller is already verified as the owner above, so no
+  // extra lookup is done.
+  let ownerUserId: string | null = deps.callerUserId ?? null;
   for (const fence of fences) {
     const inside = deps.checkInside(fix.coords, fence);
     const transition = await deps.resolveTransition(fix.childId, fence.id, inside);
@@ -152,6 +157,22 @@ async function ingestLocation(
     };
     await deps.repo.insertGeofenceEvent(evt);
     await deps.sendGeofencePush(evt);
+
+    // Also record it as a safety alert. The admin's cross-family safety feed
+    // (GET /admin/safety) reads the safety_alerts table, and NOTHING wrote it:
+    // the app never POSTs /alerts and this ingest path only stored crossings in
+    // geofence_events. So every detection landed somewhere the operational feed
+    // never looks, and the back-office safety view was permanently empty — for
+    // a child-safety product, the one screen that must not be.
+    ownerUserId ??= (await deps.repo.childOwner(fix.childId))?.userId ?? null;
+    if (ownerUserId) {
+      await deps.repo.recordAlert(ownerUserId, {
+        childId: fix.childId,
+        kind: transition === 'enter' ? 'entered' : 'left',
+        zoneName: fence.name,
+        at: fix.observedAt,
+      });
+    }
     summary.geofenceEvents.push(evt);
   }
 }
