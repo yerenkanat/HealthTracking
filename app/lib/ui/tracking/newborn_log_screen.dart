@@ -11,10 +11,18 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../data/cry_classifier_client.dart';
+import '../../data/cry_recorder.dart';
 import '../../domain/newborn_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import 'cry_insight_screen.dart';
 import 'safe_sleep_screen.dart';
+
+/// Base URL of the cry-classifier service (packages/cry-classifier). Defaults to
+/// the Android-emulator loopback; override at build with
+/// --dart-define=CRY_API_BASE=https://…
+const _cryApiBase = String.fromEnvironment('CRY_API_BASE', defaultValue: 'http://10.0.2.2:8000');
 
 /// A sleep length, in the reader's language. Localized because the hour/minute
 /// units differ per language — the ui-strings guard rejects a hand-written "h".
@@ -55,6 +63,19 @@ class NewbornLogScreen extends StatelessWidget {
         backgroundColor: Palette.bg,
         title: Text(l.t('nb_title')),
         actions: [
+          // "Why is baby crying" — record a short clip, get a likely reason.
+          IconButton(
+            icon: const Icon(Icons.graphic_eq_rounded),
+            tooltip: l.t('cry_title'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => CryInsightScreen(
+                  recorder: RecordCryRecorder(),
+                  client: CryClassifierClient(baseUrl: Uri.parse(_cryApiBase)),
+                ),
+              ),
+            ),
+          ),
           // Safe-sleep guidance, one tap from where sleep is logged.
           IconButton(
             icon: const Icon(Icons.shield_moon_outlined),

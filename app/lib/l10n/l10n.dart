@@ -409,6 +409,25 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // every locale; through l10n only so no user-facing text bypasses it.
   'help_app_line': {AppLocale.ru: 'Umay · {v}', AppLocale.kk: 'Umay · {v}', AppLocale.en: 'Umay · {v}'},
 
+  // Cry analysis — record a short clip, get the likely reason + advice.
+  'cry_title': {AppLocale.ru: 'Почему малыш плачет', AppLocale.kk: 'Бала неге жылайды', AppLocale.en: 'Why is baby crying'},
+  'cry_intro': {AppLocale.ru: 'Запишите 5 секунд плача — приложение подскажет наиболее вероятную причину. Это подсказка, а не диагноз.', AppLocale.kk: 'Жылаудың 5 секундын жазыңыз — қолданба ықтимал себебін ұсынады. Бұл кеңес, диагноз емес.', AppLocale.en: 'Record 5 seconds of crying and the app will suggest the most likely reason. It’s a hint, not a diagnosis.'},
+  'cry_record': {AppLocale.ru: 'Записать плач', AppLocale.kk: 'Жылауды жазу', AppLocale.en: 'Record the cry'},
+  'cry_recording': {AppLocale.ru: 'Слушаю…', AppLocale.kk: 'Тыңдап тұрмын…', AppLocale.en: 'Listening…'},
+  'cry_analyzing': {AppLocale.ru: 'Анализирую…', AppLocale.kk: 'Талдап жатырмын…', AppLocale.en: 'Analysing…'},
+  'cry_again': {AppLocale.ru: 'Записать ещё раз', AppLocale.kk: 'Қайта жазу', AppLocale.en: 'Record again'},
+  'cry_result_title': {AppLocale.ru: 'Вероятная причина', AppLocale.kk: 'Ықтимал себеп', AppLocale.en: 'Likely reason'},
+  'cry_confidence': {AppLocale.ru: 'Уверенность {n}%', AppLocale.kk: 'Сенімділік {n}%', AppLocale.en: 'Confidence {n}%'},
+  'cry_mic_denied': {AppLocale.ru: 'Нет доступа к микрофону. Разрешите запись в настройках, чтобы услышать подсказку.', AppLocale.kk: 'Микрофонға рұқсат жоқ. Кеңес алу үшін жазуды баптауларда рұқсат етіңіз.', AppLocale.en: 'No microphone access. Allow recording in settings to get a hint.'},
+  'cry_error': {AppLocale.ru: 'Не удалось разобрать запись. Попробуйте ещё раз в тишине.', AppLocale.kk: 'Жазбаны тану мүмкін болмады. Тыныштықта қайта көріңіз.', AppLocale.en: 'Couldn’t make sense of the recording. Try again somewhere quiet.'},
+  'cry_reason_hungry': {AppLocale.ru: 'Голод', AppLocale.kk: 'Аштық', AppLocale.en: 'Hunger'},
+  'cry_reason_tired': {AppLocale.ru: 'Усталость', AppLocale.kk: 'Шаршау', AppLocale.en: 'Tiredness'},
+  'cry_reason_belly_pain': {AppLocale.ru: 'Боль в животе', AppLocale.kk: 'Іш ауруы', AppLocale.en: 'Belly pain'},
+  'cry_reason_discomfort': {AppLocale.ru: 'Дискомфорт', AppLocale.kk: 'Ыңғайсыздық', AppLocale.en: 'Discomfort'},
+  'cry_reason_burping': {AppLocale.ru: 'Газы / срыгивание', AppLocale.kk: 'Газдар / кекіру', AppLocale.en: 'Burping / gas'},
+  'cry_reason_unknown': {AppLocale.ru: 'Не определено', AppLocale.kk: 'Анықталмады', AppLocale.en: 'Undetermined'},
+  'cry_disclaimer': {AppLocale.ru: 'Подсказка носит справочный характер и не заменяет консультацию педиатра.', AppLocale.kk: 'Кеңес анықтамалық сипатта және педиатр кеңесін алмастырмайды.', AppLocale.en: 'This hint is for reference only and does not replace a paediatrician.'},
+
   // Permission priming — a plain-language "why" shown before the OS prompt, so
   // a denial (which the OS then remembers for good) is far less likely.
   'prime_continue': {AppLocale.ru: 'Продолжить', AppLocale.kk: 'Жалғастыру', AppLocale.en: 'Continue'},

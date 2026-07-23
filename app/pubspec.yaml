@@ -29,6 +29,7 @@ dependencies:
   flutter_timezone: ^5.1.0
   video_player: ^2.13.0
   share_plus: ^13.2.1
+  record: ^5.1.2                # short mic recording for cry analysis
   # mmkv: ^2.0.0                  # fast disk mirror for offline-first batcher
 
 dev_dependencies:
