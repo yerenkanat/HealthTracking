@@ -185,6 +185,10 @@ class AppController {
   // back-office sees real zones and the server can raise enter/exit alerts.
   Future<void> Function(String childId, Geofence)? _onGeofenceUpsert;
   Future<void> Function(String fenceId)? _onGeofenceDelete;
+  // Device sync: register on pair, unregister on remove, so the admin device
+  // fleet shows real paired bands/tags.
+  Future<void> Function(PairedDevice)? _onDeviceUpsert;
+  Future<void> Function(String id)? _onDeviceDelete;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -579,8 +583,18 @@ class AppController {
     _onChildUpsert = upsert;
   }
 
+  /// Wire backend sync for devices (called by main.dart on sign-in).
+  void attachDeviceSync({
+    required Future<void> Function(PairedDevice) upsert,
+    required Future<void> Function(String id) delete,
+  }) {
+    _onDeviceUpsert = upsert;
+    _onDeviceDelete = delete;
+  }
+
   void addDevice(PairedDevice device) {
     _devices.add(device);
+    unawaited(_onDeviceUpsert?.call(device) ?? Future<void>.value());
     _persist();
     _notify();
   }
@@ -665,6 +679,7 @@ class AppController {
 
   void removeDevice(String id) {
     _devices.removeWhere((d) => d.id == id);
+    unawaited(_onDeviceDelete?.call(id) ?? Future<void>.value());
     _persist(immediate: true); // irreversible — do not risk the debounce window
     _notify();
   }

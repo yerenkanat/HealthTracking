@@ -522,6 +522,16 @@ Future<void> bootstrapRuntime(
         unawaited(api.putWeight(date: w.date, kg: w.kg));
       }
 
+      // Device sync (register + unregister), so the admin fleet shows real
+      // paired bands/tags. childId is a UUID for tags; null for a band.
+      controller.attachDeviceSync(
+        upsert: (d) => api.putDevice(d.toJson()),
+        delete: (id) => api.deleteDevice(id),
+      );
+      for (final d in controller.devices) {
+        unawaited(api.putDevice(d.toJson()));
+      }
+
       // Medication sync (upsert + delete), so staff see what she is taking.
       Map<String, dynamic> medBody(Medication m) =>
           {'id': m.id, 'name': m.name, 'dose': m.dose, 'perDay': m.perDay};

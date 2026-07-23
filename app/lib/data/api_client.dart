@@ -332,6 +332,27 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Register a paired device (band/tag) so it appears in the back-office fleet.
+  /// Create-once server-side: a 409 that is "mine" means it is already synced, so
+  /// that counts as done; a 409 that is someone else's is a real conflict.
+  Future<void> putDevice(Map<String, dynamic> body) async {
+    final res = await transport.post('/devices', body);
+    if (res.ok) return;
+    if (res.statusCode == 409) {
+      try {
+        if (jsonDecode(res.body)['mine'] == true) return; // already registered to me
+      } catch (_) {/* fall through to throw */}
+    }
+    throw ApiException(res.statusCode, res.body);
+  }
+
+  /// Unregister a device. A 404 counts as done (already gone).
+  Future<void> deleteDevice(String id) async {
+    final res = await transport.delete('/devices/$id');
+    if (res.ok || res.statusCode == 404) return;
+    throw ApiException(res.statusCode, res.body);
+  }
+
   /// Push a safe zone for [childId] (upsert on the client id) so the back-office
   /// sees real zones and the server can raise enter/exit alerts.
   Future<void> putGeofence(String childId, Map<String, dynamic> body) async {
