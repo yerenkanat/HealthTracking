@@ -86,6 +86,7 @@ async function boot() {
   await wait(150);
   return {
     text: (sel: string) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    count: (sel: string) => window.document.querySelectorAll(sel).length,
     errors,
     window,
     click: async (sel: string) => { window.document.querySelector(sel)!.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); await wait(150); },
@@ -162,5 +163,13 @@ describe('admin patient drawer — upcoming visits', () => {
     expect(drawer).toContain('O+'); // blood type
     expect(drawer).toContain('пенициллин'); // allergy — the critical field
     expect(drawer).toContain('Др. Алиева'); // doctor
+  });
+
+  it('draws trend sparklines for weight and sleep (2+ points)', async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    // Two sparkline SVGs in the drawer: weight (2 points) and sleep (2 nights).
+    expect(page.count('#drawer .spark polyline')).toBe(2);
   });
 });

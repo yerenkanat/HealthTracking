@@ -286,6 +286,8 @@
   .an-risk{color:var(--warn);font-size:11px;font-style:italic}
   /* Pregnancy calendar view */
   .pw-lang{display:flex;gap:4px}
+  .sparkrow{padding:4px 0 8px}
+  .spark{display:block}
   .pw-l,.cd-l{border:1px solid var(--hair);background:var(--surface);color:var(--muted);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
   .pw-l.active,.cd-l.active{background:var(--accent-soft);color:var(--accent);border-color:transparent}
   .pw-weeks{display:flex;flex-wrap:wrap;gap:6px;padding:6px 18px 12px}
@@ -1410,8 +1412,18 @@
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
+    // A tiny inline-SVG trend line, values oldest→newest. Empty for <2 points.
+    const sparkline=(vals,w=150,h=30)=>{
+      if(!vals||vals.length<2) return "";
+      const min=Math.min(...vals), max=Math.max(...vals), span=(max-min)||1;
+      const step=(w-4)/(vals.length-1);
+      const pts=vals.map((v,i)=>`${(2+i*step).toFixed(1)},${(h-2-((v-min)/span)*(h-4)).toFixed(1)}`).join(" ");
+      return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/></svg>`;
+    };
+    const sleepSpark=sparkline([...sleep].reverse().map(n=>(n.deepMin||0)+(n.remMin||0)+(n.lightMin||0)));
     const sleepSection=sleep.length?`
       <div class="dsec">Сон (последние ночи)</div>
+      ${sleepSpark?`<div class="sparkrow">${sleepSpark}</div>`:""}
       <div class="tl">${sleep.slice(0,7).map(n=>{
         const asleep=(n.deepMin||0)+(n.remMin||0)+(n.lightMin||0);
         return `<div class="tli"><span><b>${esc(fmtDate(n.night))}</b> <span class="t">глуб. ${hm(n.deepMin||0)} · быстр. ${hm(n.remMin||0)}</span></span><span class="t num">${hm(asleep)}</span></div>`;
@@ -1434,8 +1446,10 @@
       }).join("")}</div>`:"";
     // Weight trend: newest first, with the change since the previous entry.
     const wsorted=[...weight].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const weightSpark=sparkline([...wsorted].reverse().map(w=>Number(w.kg))); // oldest→newest
     const weightSection=wsorted.length?`
       <div class="dsec">Вес</div>
+      ${weightSpark?`<div class="sparkrow">${weightSpark}</div>`:""}
       <div class="tl">${wsorted.slice(0,7).map((w,i)=>{
         const prev=wsorted[i+1];
         const d=prev?(w.kg-prev.kg):0;
