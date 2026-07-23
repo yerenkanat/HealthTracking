@@ -6,6 +6,7 @@ import 'package:fcs_app/domain/weight.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/weight_history_screen.dart';
+import 'package:fcs_app/ui/dashboard/sparkline.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(
@@ -42,5 +43,14 @@ void main() {
   testWidgets('empty entries show the prompt', (tester) async {
     await tester.pumpWidget(wrap(WeightHistoryScreen(entries: const [], onDelete: (_) {})));
     expect(find.textContaining('Log your weight'), findsOneWidget);
+  });
+
+  testWidgets('a trend chart is shown with 2+ entries, hidden below that', (tester) async {
+    await tester.pumpWidget(wrap(WeightHistoryScreen(entries: entries, onDelete: (_) {})));
+    expect(find.byType(Sparkline), findsOneWidget);
+
+    await tester.pumpWidget(wrap(WeightHistoryScreen(
+      entries: const [WeightEntry(date: '2026-07-01', kg: 62.0)], onDelete: (_) {})));
+    expect(find.byType(Sparkline), findsNothing); // one point → no line
   });
 }

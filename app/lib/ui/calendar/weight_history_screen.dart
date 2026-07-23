@@ -4,8 +4,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../domain/health_series.dart';
 import '../../domain/weight.dart';
 import '../../l10n/l10n_scope.dart';
+import '../dashboard/sparkline.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -34,18 +36,47 @@ class WeightHistoryScreen extends StatelessWidget {
                       textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)),
                 ),
               )
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: ordered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, i) {
-                  final e = ordered[i];
-                  // Delta vs the previous (older) chronological entry.
-                  final idx = chrono.indexWhere((x) => x.date == e.date);
-                  final prev = idx > 0 ? chrono[idx - 1] : null;
-                  final delta = prev == null ? null : e.kg - prev.kg;
-                  return _WeightRow(entry: e, delta: delta, onDelete: () => _confirmDelete(context, e));
-                },
+            : Column(
+                children: [
+                  // A trend line above the log — the same at-a-glance the admin
+                  // drawer shows, so she reads direction before numbers.
+                  if (chrono.length >= 2)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: GlassCard(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(l.t('weight_history_title').toUpperCase(),
+                                style: const TextStyle(
+                                    color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+                            const SizedBox(height: 10),
+                            Sparkline(
+                              points: [for (final e in chrono) SeriesPoint(e.day ?? DateTime(2000), e.kg)],
+                              band: const MetricBand(), // weight has no danger band
+                              color: Palette.violet,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: ordered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 6),
+                      itemBuilder: (context, i) {
+                        final e = ordered[i];
+                        // Delta vs the previous (older) chronological entry.
+                        final idx = chrono.indexWhere((x) => x.date == e.date);
+                        final prev = idx > 0 ? chrono[idx - 1] : null;
+                        final delta = prev == null ? null : e.kg - prev.kg;
+                        return _WeightRow(entry: e, delta: delta, onDelete: () => _confirmDelete(context, e));
+                      },
+                    ),
+                  ),
+                ],
               ),
       ),
     );
