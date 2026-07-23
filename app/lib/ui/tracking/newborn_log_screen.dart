@@ -19,11 +19,6 @@ import '../theme.dart';
 import 'cry_insight_screen.dart';
 import 'safe_sleep_screen.dart';
 
-/// Base URL of the cry-classifier service (packages/cry-classifier). Defaults to
-/// the Android-emulator loopback; override at build with
-/// --dart-define=CRY_API_BASE=https://…
-const _cryApiBase = String.fromEnvironment('CRY_API_BASE', defaultValue: 'http://10.0.2.2:8000');
-
 /// A sleep length, in the reader's language. Localized because the hour/minute
 /// units differ per language — the ui-strings guard rejects a hand-written "h".
 String _formatDuration(dynamic l, int minutes) {
@@ -42,6 +37,10 @@ class NewbornLogScreen extends StatelessWidget {
   /// Remove an event (after the caller confirms).
   final void Function(NewbornEvent event) onDelete;
 
+  /// The cry-analysis client (already pointed at the API + carrying the auth
+  /// token). Null hides the "why is baby crying" action — e.g. signed out.
+  final CryClassifierClient? cryClient;
+
   const NewbornLogScreen({
     super.key,
     required this.childName,
@@ -49,6 +48,7 @@ class NewbornLogScreen extends StatelessWidget {
     required this.today,
     required this.onLog,
     required this.onDelete,
+    this.cryClient,
   });
 
   @override
@@ -64,18 +64,20 @@ class NewbornLogScreen extends StatelessWidget {
         title: Text(l.t('nb_title')),
         actions: [
           // "Why is baby crying" — record a short clip, get a likely reason.
-          IconButton(
-            icon: const Icon(Icons.graphic_eq_rounded),
-            tooltip: l.t('cry_title'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => CryInsightScreen(
-                  recorder: RecordCryRecorder(),
-                  client: CryClassifierClient(baseUrl: Uri.parse(_cryApiBase)),
+          // Shown only when a client is wired (signed in).
+          if (cryClient != null)
+            IconButton(
+              icon: const Icon(Icons.graphic_eq_rounded),
+              tooltip: l.t('cry_title'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CryInsightScreen(
+                    recorder: RecordCryRecorder(),
+                    client: cryClient!,
+                  ),
                 ),
               ),
             ),
-          ),
           // Safe-sleep guidance, one tap from where sleep is logged.
           IconButton(
             icon: const Icon(Icons.shield_moon_outlined),

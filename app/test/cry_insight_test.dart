@@ -18,9 +18,12 @@ const _okBody = '''
  "recommendation_ru":"Покормите малыша."}
 ''';
 
-CryClassifierClient _client({String body = _okBody, bool throwing = false}) => CryClassifierClient(
+CryClassifierClient _client({String body = _okBody, bool throwing = false, void Function(Map<String, String>)? onHeaders}) =>
+    CryClassifierClient(
       baseUrl: Uri.parse('http://test.local'),
-      uploader: (url, bytes, name) async {
+      authToken: () async => 'tok-123',
+      uploader: (url, bytes, name, headers) async {
+        onHeaders?.call(headers);
         if (throwing) throw const CryClassifierException('boom');
         return body;
       },
@@ -56,6 +59,37 @@ void main() {
 
     test('a non-JSON body throws', () async {
       expect(() => _client(body: 'not json').analyze([1]), throwsA(isA<CryClassifierException>()));
+    });
+
+    test('attaches the bearer token and posts to the proxy path', () async {
+      Uri? url;
+      Map<String, String>? headers;
+      final client = CryClassifierClient(
+        baseUrl: Uri.parse('http://backend.local'),
+        authToken: () async => 'tok-123',
+        uploader: (u, bytes, name, h) async {
+          url = u;
+          headers = h;
+          return _okBody;
+        },
+      );
+      await client.analyze([1, 2, 3]);
+      expect(url.toString(), 'http://backend.local/cry/analyze'); // Node proxy route
+      expect(headers?['Authorization'], 'Bearer tok-123');
+    });
+
+    test('omits the auth header when signed out', () async {
+      Map<String, String>? headers;
+      final client = CryClassifierClient(
+        baseUrl: Uri.parse('http://backend.local'),
+        authToken: () async => null,
+        uploader: (u, bytes, name, h) async {
+          headers = h;
+          return _okBody;
+        },
+      );
+      await client.analyze([1]);
+      expect(headers!.containsKey('Authorization'), isFalse);
     });
   });
 

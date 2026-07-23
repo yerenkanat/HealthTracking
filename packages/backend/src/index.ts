@@ -119,7 +119,21 @@ async function productionDeps(): Promise<ServerDeps> {
         diastolicOffset: offsets.diastolicOffset,
         calibratedAt: offsets.calibratedAt,
       }),
+    cryAnalyze: forwardCry,
   };
+}
+
+/** Forward a recorded cry clip to the internal cry-classifier service
+ * (CRY_API_URL) verbatim and return its JSON. Used by POST /cry/analyze. */
+async function forwardCry(audio: Buffer, contentType: string): Promise<unknown> {
+  const base = process.env.CRY_API_URL ?? 'http://localhost:8000';
+  const res = await fetch(`${base}/api/v1/predict-cry`, {
+    method: 'POST',
+    headers: { 'content-type': contentType },
+    body: audio,
+  });
+  if (!res.ok) throw new Error(`cry-classifier ${res.status}`);
+  return res.json();
 }
 
 /** In-memory deps: no external services — for `npm run dev` on test data. */
@@ -148,6 +162,7 @@ function memoryDeps(): ServerDeps {
     authAdmin,
     cacheLastLocation: async (childId) => lastLoc.get(childId) ?? null,
     setBpCalibration: async () => {},
+    cryAnalyze: forwardCry, // works in dev too if a CRY_API_URL is reachable
   };
 }
 

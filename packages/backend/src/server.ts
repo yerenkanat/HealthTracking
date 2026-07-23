@@ -49,6 +49,10 @@ export interface ServerDeps {
    * (in-memory dev). /ready reports 503 with the per-dependency breakdown when
    * any is down, so a load balancer can pull the instance before it serves errors. */
   checkReady?: () => Promise<{ ready: boolean; deps?: Record<string, boolean> }>;
+  /** Forward a recorded cry clip to the (separate, internal) cry-classifier
+   * service and return its JSON. Injected so the route is testable without the
+   * Python service; omitted = the feature is unavailable (route 503s). */
+  cryAnalyze?: (audio: Buffer, contentType: string) => Promise<unknown>;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -199,6 +203,16 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
           },
   });
 
+  // The cry-analysis proxy forwards the raw multipart body straight through to
+  // the classifier service, so buffer multipart/form-data verbatim rather than
+  // parsing fields here. Only /cry/analyze sends this content-type; everything
+  // else is JSON and untouched. Capped at 6 MB — a 5-second clip is well under.
+  app.addContentTypeParser(
+    /^multipart\/form-data/,
+    { parseAs: 'buffer', bodyLimit: 6 * 1024 * 1024 },
+    (_req, body, done) => done(null, body),
+  );
+
   // 20 assistant messages per 5 minutes per user. A real conversation is
   // nowhere near this; a runaway client hits it in seconds. Overridable so the
   // tests can drive the boundary without waiting on a wall clock.
@@ -281,6 +295,27 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     }
     return user;
   }
+
+  // Authenticated proxy to the cry-classifier service, so the app talks to one
+  // API surface (with the session token) instead of a second service directly.
+  // The raw multipart body is forwarded verbatim; the classifier extracts the
+  // `file` field itself.
+  app.post('/cry/analyze', async (req, reply) => {
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
+    if (!deps.cryAnalyze) return reply.code(503).send({ error: 'cry_service_unavailable' });
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      return reply.code(400).send({ error: 'empty_audio' });
+    }
+    try {
+      const result = await deps.cryAnalyze(body, String(req.headers['content-type'] ?? 'application/octet-stream'));
+      return reply.send(result);
+    } catch {
+      // Upstream (the classifier) is down or errored — a clean 502, not a 500.
+      return reply.code(502).send({ error: 'cry_upstream_unavailable' });
+    }
+  });
 
   app.post('/ingest/batch', async (req, reply) => {
     // Unauthenticated ingest let anyone fabricate a child's position — forging

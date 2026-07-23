@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
+import '../../data/cry_classifier_client.dart';
 import '../../domain/battery.dart';
 import '../../domain/family.dart';
 import '../../domain/geofence_alerts.dart';
@@ -35,6 +36,10 @@ import '../widgets/confirm.dart';
 import 'alerts_screen.dart';
 import 'family_sheets.dart';
 import 'zones_screen.dart';
+
+/// The backend API base — same default as the transport in main.dart. The cry
+/// client talks to this (the Node proxy), not the classifier directly.
+const _apiBase = String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8080');
 
 class ChildDetailScreen extends StatelessWidget {
   final AppController controller;
@@ -472,6 +477,14 @@ void _openNewbornLog(
         today: today,
         onLog: (e) => controller.logNewbornEvent(child.id, e),
         onDelete: (e) => _confirmDeleteNewborn(context, controller, child.id, e),
+        // Cry analysis goes through the Node backend (one authenticated surface),
+        // which proxies to the classifier. Only when signed in.
+        cryClient: controller.isSignedIn
+            ? CryClassifierClient(
+                baseUrl: Uri.parse(_apiBase),
+                authToken: () async => controller.authSession?.token,
+              )
+            : null,
       ),
     ),
   ));
