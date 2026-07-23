@@ -34,6 +34,12 @@ const appointmentBody = z.object({
   at: z.string().datetime({ offset: true }),
   note: z.string().max(2000).optional(),
 });
+const medicationBody = z.object({
+  id: z.string().min(1).max(64),
+  name: z.string().min(1).max(120),
+  dose: z.string().max(120).default(''),
+  perDay: z.number().int().min(1).max(24).default(1),
+});
 const circleGeofence = z.object({
   name: z.string().min(1),
   shape: z.literal('circle'),
@@ -213,6 +219,29 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const { id } = req.params as { id: string };
     if (!(await requireOwned(req, reply, id, repo.appointmentOwner))) return;
     await repo.deleteAppointment(id);
+    return reply.code(204).send();
+  });
+
+  // ---- Medications / supplements (client keeps the id) ----
+  app.get('/medications', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    return reply.send({ medications: await repo.listMedications(u.userId) });
+  });
+
+  app.post('/medications', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = medicationBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.upsertMedication(u.userId, parsed.data);
+    return reply.code(201).send({ ok: true });
+  });
+
+  app.delete('/medications/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.medicationOwner))) return;
+    await repo.deleteMedication(id);
     return reply.code(204).send();
   });
 

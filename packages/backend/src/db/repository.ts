@@ -29,6 +29,13 @@ export interface WeightRow {
   kg: number;
 }
 
+export interface MedicationRow {
+  id: string;
+  name: string;
+  dose: string;
+  perDay: number;
+}
+
 export interface DayLogRow {
   date: string; // yyyy-MM-dd
   mood: string | null;
@@ -218,6 +225,13 @@ export interface Repository {
   upsertAppointment(userId: string, a: Appointment): Promise<void>;
   appointmentOwner(id: string): Promise<{ userId: string } | null>;
   deleteAppointment(id: string): Promise<void>;
+
+  // Medications / supplements (client keeps the id). Gives staff visibility of
+  // what the mother is taking — a real safety concern in pregnancy.
+  listMedications(userId: string): Promise<MedicationRow[]>;
+  upsertMedication(userId: string, m: MedicationRow): Promise<void>;
+  medicationOwner(id: string): Promise<{ userId: string } | null>;
+  deleteMedication(id: string): Promise<void>;
 
   createGeofence(childId: string, g: Geofence): Promise<Geofence>;
   deleteGeofence(geofenceId: string): Promise<void>;

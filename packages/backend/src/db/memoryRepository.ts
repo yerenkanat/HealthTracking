@@ -42,6 +42,7 @@ export function createMemoryRepository(): Repository {
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, Geofence[]>([[DEMO_CHILD, [home]]]);
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
+  const medications: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
   const events: GeofenceEvent[] = [];
   const healthRows: unknown[] = [];
   // Emergency acknowledgements, keyed by the derived emergency id. An overlay —
@@ -166,6 +167,22 @@ export function createMemoryRepository(): Repository {
     deleteAppointment: async (id) => {
       const i = appointments.findIndex((a) => a.id === id);
       if (i >= 0) appointments.splice(i, 1);
+    },
+    // Medications
+    listMedications: async (userId) =>
+      medications.filter((m) => m.userId === userId).map(({ id, name, dose, perDay }) => ({ id, name, dose, perDay })),
+    upsertMedication: async (userId, m) => {
+      const i = medications.findIndex((x) => x.id === m.id);
+      const row = { ...m, userId };
+      if (i >= 0) medications[i] = row; else medications.push(row);
+    },
+    medicationOwner: async (id) => {
+      const m = medications.find((x) => x.id === id);
+      return m ? { userId: m.userId } : null;
+    },
+    deleteMedication: async (id) => {
+      const i = medications.findIndex((m) => m.id === id);
+      if (i >= 0) medications.splice(i, 1);
     },
     listDevices: async () => devices.map((d) => ({ ...d })),
     createDevice: async (_u, d) => void devices.push({ ...d, childId: d.childId ?? null }),
@@ -365,6 +382,7 @@ export function createMemoryRepository(): Repository {
       devices.length = 0;
       geofences.clear();
       appointments.length = 0;
+      medications.length = 0;
       events.length = 0;
       emergencyAcks.clear();
       weights.length = 0;

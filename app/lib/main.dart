@@ -33,6 +33,7 @@ import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
 import 'data/connectivity.dart';
 import 'domain/appointment.dart';
+import 'domain/medication.dart' show Medication;
 import 'domain/chat_controller.dart';
 import 'domain/family.dart' show UserProfile, ChildProfile;
 import 'domain/health_monitor.dart';
@@ -497,6 +498,17 @@ Future<void> bootstrapRuntime(
       controller.attachWeightSync(upsert: (w) => api.putWeight(date: w.date, kg: w.kg));
       for (final w in controller.weights) {
         unawaited(api.putWeight(date: w.date, kg: w.kg));
+      }
+
+      // Medication sync (upsert + delete), so staff see what she is taking.
+      Map<String, dynamic> medBody(Medication m) =>
+          {'id': m.id, 'name': m.name, 'dose': m.dose, 'perDay': m.perDay};
+      controller.attachMedicationSync(
+        upsert: (m) => api.putMedication(medBody(m)),
+        delete: (id) => api.deleteMedication(id),
+      );
+      for (final m in controller.medications) {
+        unawaited(api.putMedication(medBody(m)));
       }
       try {
         final remote = await api.getAppointments();

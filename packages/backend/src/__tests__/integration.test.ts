@@ -44,6 +44,7 @@ function makeDeps(
   // In-memory CRUD state
   const children: Array<{ id: string; name: string }> = [];
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
+  const medRows: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -100,6 +101,20 @@ function makeDeps(
     deleteAppointment: async (id) => {
       const i = appointments.findIndex((a) => a.id === id);
       if (i >= 0) appointments.splice(i, 1);
+    },
+    listMedications: async (uid) => medRows.filter((m) => m.userId === uid).map(({ userId: _d, ...m }) => m),
+    upsertMedication: async (uid, m) => {
+      const i = medRows.findIndex((x) => x.id === m.id);
+      const row = { ...m, userId: uid };
+      if (i >= 0) medRows[i] = row; else medRows.push(row);
+    },
+    medicationOwner: async (id) => {
+      const m = medRows.find((x) => x.id === id);
+      return m ? { userId: m.userId } : null;
+    },
+    deleteMedication: async (id) => {
+      const i = medRows.findIndex((m) => m.id === id);
+      if (i >= 0) medRows.splice(i, 1);
     },
     listDevices: async () => devices.map((d) => ({ ...d })),
     createDevice: async (_u, d) => void devices.push({ ...d, childId: d.childId ?? null }),
@@ -710,6 +725,23 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
     expect((await post('/weight', { date: '2026-07-15', kg: 3.5 })).statusCode).toBe(400); // grams, not kg
     expect((await post('/weight', { date: '2026-07-15', kg: 3500 })).statusCode).toBe(400);
     expect((await post('/weight', { date: 'nope', kg: 64 })).statusCode).toBe(400);
+  });
+
+  it('medications: upsert on the client id → list → delete', async () => {
+    expect((await get('/medications')).json().medications).toHaveLength(0);
+    expect((await post('/medications', { id: 'med-1', name: 'Фолиевая кислота', dose: '400 мкг', perDay: 1 })).statusCode).toBe(201);
+    await post('/medications', { id: 'med-1', name: 'Фолиевая кислота', dose: '800 мкг', perDay: 2 }); // same id → updates
+    const meds = (await get('/medications')).json().medications;
+    expect(meds).toHaveLength(1); // upserted, not duplicated
+    expect(meds[0].dose).toBe('800 мкг');
+    expect(meds[0].perDay).toBe(2);
+    const del = await app.inject({ method: 'DELETE', url: '/medications/med-1' });
+    expect(del.statusCode).toBe(204);
+    expect((await get('/medications')).json().medications).toHaveLength(0);
+  });
+
+  it('medications: rejects an empty name (zod 400)', async () => {
+    expect((await post('/medications', { id: 'med-x', name: '' })).statusCode).toBe(400);
   });
 
   it('cycle day logs: upsert (PUT) + range query', async () => {

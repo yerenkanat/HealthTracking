@@ -310,6 +310,21 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a medication/supplement (id / name / dose / perDay) so staff can see
+  /// what the mother is taking — a real safety concern in pregnancy. Upsert on
+  /// the client id.
+  Future<void> putMedication(Map<String, dynamic> body) async {
+    final res = await transport.post('/medications', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// Delete a medication. A 404 counts as done (already gone).
+  Future<void> deleteMedication(String id) async {
+    final res = await transport.delete('/medications/$id');
+    if (res.ok || res.statusCode == 404) return;
+    throw ApiException(res.statusCode, res.body);
+  }
+
   /// Push one day's weight (date / kg) so staff see the same weight trend the
   /// mother tracks. Push-only, upsert by date.
   Future<void> putWeight({required String date, required double kg}) async {

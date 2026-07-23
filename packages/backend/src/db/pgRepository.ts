@@ -201,6 +201,26 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(`DELETE FROM appointments WHERE id = $1`, [id]);
     },
 
+    async listMedications(userId) {
+      const { rows } = await pool.query(
+        `SELECT id, name, dose, per_day FROM medications WHERE user_id = $1 ORDER BY name`, [userId]);
+      return rows.map((r) => ({ id: r.id, name: r.name, dose: r.dose ?? '', perDay: r.per_day }));
+    },
+    async upsertMedication(userId, m) {
+      await pool.query(
+        `INSERT INTO medications (id, user_id, name, dose, per_day)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, dose = EXCLUDED.dose, per_day = EXCLUDED.per_day`,
+        [m.id, userId, m.name, m.dose, m.perDay]);
+    },
+    async medicationOwner(id) {
+      const { rows } = await pool.query(`SELECT user_id FROM medications WHERE id = $1`, [id]);
+      return rows[0] ? { userId: rows[0].user_id } : null;
+    },
+    async deleteMedication(id) {
+      await pool.query(`DELETE FROM medications WHERE id = $1`, [id]);
+    },
+
     async createGeofence(childId, g) {
       if (g.shape === 'circle') {
         const { rows } = await pool.query(

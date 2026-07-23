@@ -130,7 +130,7 @@ async function forwardCry(audio: Buffer, contentType: string): Promise<unknown> 
   const res = await fetch(`${base}/api/v1/predict-cry`, {
     method: 'POST',
     headers: { 'content-type': contentType },
-    body: audio,
+    body: new Uint8Array(audio), // fetch's BodyInit doesn't accept Buffer directly
   });
   if (!res.ok) throw new Error(`cry-classifier ${res.status}`);
   return res.json();

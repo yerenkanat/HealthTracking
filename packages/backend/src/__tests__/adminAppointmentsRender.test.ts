@@ -36,6 +36,10 @@ const WELLNESS = {
     { date: '2026-07-21', kg: 64.8 },
     { date: '2026-07-14', kg: 64.2 },
   ],
+  medications: [
+    { id: 'med-1', name: 'Фолиевая кислота', dose: '400 мкг', perDay: 1 },
+    { id: 'med-2', name: 'Железо', dose: '30 мг', perDay: 2 },
+  ],
   alerts: [],
 };
 
@@ -132,5 +136,16 @@ describe('admin patient drawer — upcoming visits', () => {
     expect(drawer).toContain('Вес');
     expect(drawer).toContain('64.8 кг'); // latest
     expect(drawer).toContain('+0.6 кг'); // 64.8 - 64.2 since the previous entry
+  });
+
+  it('shows the medications she is taking — a pregnancy safety concern', async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    const drawer = page.text('#drawer');
+    expect(drawer).toContain('Лекарства и добавки');
+    expect(drawer).toContain('Фолиевая кислота');
+    expect(drawer).toContain('400 мкг');
+    expect(drawer).toContain('2×/день'); // iron, twice daily
   });
 });

@@ -177,6 +177,10 @@ class AppController {
   // Push-only weight sync: fires when a weight is logged, so the admin wellness
   // view mirrors her weight trend.
   Future<void> Function(WeightEntry)? _onWeightUpsert;
+  // Medication sync: upsert on add/edit, delete on remove, so staff see what the
+  // mother is taking (a pregnancy safety concern).
+  Future<void> Function(Medication)? _onMedUpsert;
+  Future<void> Function(String id)? _onMedDelete;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -891,15 +895,26 @@ class AppController {
 
   int _medSeq = 0;
 
+  /// Wire backend sync for medications (called by main.dart on sign-in).
+  void attachMedicationSync({
+    required Future<void> Function(Medication) upsert,
+    required Future<void> Function(String id) delete,
+  }) {
+    _onMedUpsert = upsert;
+    _onMedDelete = delete;
+  }
+
   void addMedication(String name, {String dose = '', int perDay = 1}) {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
-    _medications.add(Medication(
+    final med = Medication(
       id: 'med-${_now().microsecondsSinceEpoch}-${_medSeq++}',
       name: trimmed,
       dose: dose.trim(),
       perDay: Medication.clampPerDay(perDay),
-    ));
+    );
+    _medications.add(med);
+    unawaited(_onMedUpsert?.call(med) ?? Future<void>.value());
     _persist();
     _notify();
   }
@@ -908,6 +923,7 @@ class AppController {
     final i = _medications.indexWhere((m) => m.id == id);
     if (i < 0) return;
     _medications[i] = _medications[i].copyWith(name: name?.trim(), dose: dose?.trim(), perDay: perDay);
+    unawaited(_onMedUpsert?.call(_medications[i]) ?? Future<void>.value());
     _persist();
     _notify();
   }
@@ -922,6 +938,7 @@ class AppController {
       if (day.isNotEmpty) pruned[e.key] = day;
     }
     _medLog = pruned;
+    unawaited(_onMedDelete?.call(id) ?? Future<void>.value());
     _persist(immediate: true); // irreversible — do not risk the debounce window
     _notify();
   }

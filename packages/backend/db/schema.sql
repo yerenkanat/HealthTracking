@@ -86,6 +86,16 @@ CREATE TABLE appointments (
 );
 CREATE INDEX idx_appointments_user ON appointments(user_id, at);
 
+-- Medications / supplements the mother is taking (client keeps the id).
+CREATE TABLE medications (
+  id        TEXT PRIMARY KEY,
+  user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name      TEXT NOT NULL,
+  dose      TEXT NOT NULL DEFAULT '',
+  per_day   INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX idx_medications_user ON medications(user_id);
+
 -- -----------------------------------------------------------------------------
 -- Pregnancy health metrics — TIMESERIES (TimescaleDB hypertable)
 -- -----------------------------------------------------------------------------
