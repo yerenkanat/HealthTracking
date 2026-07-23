@@ -1402,6 +1402,7 @@
     let kicks=[]; // fetal-movement counting sessions
     let contractions=[]; // labour-timing sessions
     let newborn=[]; // newborn care events (feed/diaper/sleep)
+    let bpcal=null; // latest BP calibration (offsets + when), qualifies the BP vitals
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1411,7 +1412,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1493,6 +1494,26 @@
       return `<div class="dsec">Медкарта · ${esc(m.childName||"ребёнок")}</div>
         <div class="tl">${rows.map(([k,v])=>`<div class="tli"><span><b>${esc(k)}</b></span><span class="t" style="max-width:62%;text-align:right">${esc(v)}</span></div>`).join("")}</div>`;
     }).join(""):"";
+    // BP calibration — the weekly manual-cuff reading the band's PPG blood
+    // pressure is corrected against. It qualifies the systolic/diastolic vitals
+    // below: an old calibration means those numbers drifted, and BP is a
+    // preeclampsia-screening input, so staleness is clinically worth flagging.
+    const bpCalSection=(()=>{
+      if(!bpcal) return `<div class="dsec">Калибровка давления</div>
+        <div class="tl"><div class="tli"><span class="t" style="color:var(--muted)">Не откалибровано — показания давления с браслета не скорректированы вручную</span></div></div>`;
+      const days=Math.floor((Date.now()-new Date(bpcal.calibratedAt).getTime())/86400000);
+      const stale=days>8; // matches the app's bpCalibrationMaxAgeDays
+      const sgn=(n)=>`${n>0?"+":""}${Math.round(n)}`;
+      const when=stale
+        ? `<span style="color:var(--warn);font-weight:600">${days} дн. назад · рекомендуется повторная</span>`
+        : `<span class="t num">${esc(fmtDate(bpcal.calibratedAt))}</span>`;
+      return `<div class="dsec">Калибровка давления</div>
+        <div class="tl">
+          <div class="tli"><span><b>Когда</b></span><span>${when}</span></div>
+          <div class="tli"><span><b>Поправка (манжета − браслет)</b></span><span class="t num">${sgn(bpcal.systolicOffset)}/${sgn(bpcal.diastolicOffset)} mmHg</span></div>
+          <div class="tli"><span><b>Манжета при калибровке</b></span><span class="t num">${bpcal.cuffSystolic}/${bpcal.cuffDiastolic}</span></div>
+        </div>`;
+    })();
     // Medications she is taking — a real safety concern in pregnancy.
     const medsSection=meds.length?`
       <div class="dsec">Лекарства и добавки</div>
@@ -1544,6 +1565,7 @@
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
+      ${bpCalSection}
       <div class="dsec">История триажа</div>
       <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>
       <div class="disc">Только просмотр. Каждое открытие записывается в журнал действий.</div>`;

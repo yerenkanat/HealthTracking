@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
-import type { Geofence, GeofenceEvent } from '@fcs/shared';
+import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
@@ -56,6 +56,8 @@ export function createMemoryRepository(): Repository {
   const contractionSessions: ContractionSessionRow[] = [];
   const childEmergency = new Map<string, MedicalIdRow>();
   const newbornEvents = new Map<string, NewbornEventRow[]>();
+  type BpCalRow = BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number };
+  const bpCalibrations: Array<BpCalRow & { userId: string }> = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alerts: SafetyAlertRow[] = [];
   let profile: ProfileRow | null = {
@@ -114,7 +116,15 @@ export function createMemoryRepository(): Repository {
   return {
     // Health
     insertHealthMetric: async (m) => void healthRows.push(m),
-    insertBpCalibration: async () => {},
+    insertBpCalibration: async (userId, cal) => void bpCalibrations.push({ ...cal, userId }),
+    latestBpCalibration: async (userId) => {
+      const mine = bpCalibrations.filter((c) => c.userId === userId);
+      if (!mine.length) return null;
+      // Newest by calibratedAt — the same "latest wins" the pg ORDER BY gives.
+      const latest = mine.reduce((a, b) => (a.calibratedAt >= b.calibratedAt ? a : b));
+      const { userId: _omit, ...row } = latest;
+      return row;
+    },
     // Child / geofence
     loadGeofences: async (childId) => geofences.get(childId) ?? [],
     insertGeofenceEvent: async (e) => void events.push(e),

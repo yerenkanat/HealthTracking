@@ -34,6 +34,7 @@ import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
 import 'data/connectivity.dart';
 import 'domain/appointment.dart';
+import 'ble/calibration.dart' show BpCalibration;
 import 'domain/child_emergency.dart' show ChildEmergencyInfo;
 import 'domain/contraction.dart' show ContractionSessionRecord;
 import 'domain/kick_session.dart' show KickSessionRecord;
@@ -556,6 +557,21 @@ Future<void> bootstrapRuntime(
         }
       }
 
+      // BP-calibration sync. No first-sync push: an existing local calibration
+      // stores only the offset, and the server needs the raw cuff+ppg the offset
+      // can't be split back into — so only NEW calibrations (which carry the raw
+      // values) sync. The next one she records reaches the clinician in full.
+      controller.attachBpCalibrationSync(
+        upsert: ({required cuffSystolic, required cuffDiastolic, required ppgSystolic, required ppgDiastolic, required at}) =>
+            api.submitBpCalibration(
+              cuffSystolic: cuffSystolic,
+              cuffDiastolic: cuffDiastolic,
+              ppgSystolic: ppgSystolic,
+              ppgDiastolic: ppgDiastolic,
+              measuredAt: iso(at),
+            ),
+      );
+
       // Newborn care sync (feed/diaper/sleep), so the admin sees the pattern.
       controller.attachNewbornSync(
         upsert: (childId, e) => api.putNewbornEvent(childId, e.toJson()),
@@ -728,6 +744,14 @@ Future<void> bootstrapRuntime(
             if (_tryNewborn(e) case final ev?) (byChild[childId] ??= []).add(ev);
           }
           controller.mergeRemoteNewborn(byChild);
+        }),
+
+        // The weekly BP calibration, so a new phone keeps correcting the band's
+        // blood-pressure readings instead of reporting raw PPG until she
+        // re-calibrates.
+        _restore(() async {
+          final cal = await api.getBpCalibration();
+          if (cal != null) controller.mergeRemoteBpCalibration(BpCalibration.fromJson(cal));
         }),
       ]);
     }

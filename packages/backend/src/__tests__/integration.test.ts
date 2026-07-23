@@ -63,6 +63,8 @@ function makeDeps(
   const repo: Repository = {
     insertHealthMetric: async (m) => void healthRows.push(m),
     insertBpCalibration: async (_u, c) => void calRows.push(c),
+    latestBpCalibration: async () =>
+      (calRows.length ? calRows[calRows.length - 1] : null) as never,
     loadGeofences: async (childId) =>
       childId === CHILD ? [HOME, ...(geofences.get(childId) ?? [])] : (geofences.get(childId) ?? []),
     insertGeofenceEvent: async (e) => void events.push(e),
@@ -585,6 +587,31 @@ describe('server wiring (in-process)', () => {
     expect(r.statusCode).toBe(200);
     expect(r.json().systolicOffset).toBe(8);
     expect(r.json().diastolicOffset).toBe(4);
+  });
+
+  it('accepts a BP calibration with no body userId (identity from the session)', async () => {
+    const r = await post('/calibration/bp', {
+      cuffSystolic: 130, cuffDiastolic: 85, ppgSystolic: 122, ppgDiastolic: 80,
+      measuredAt: '2026-07-22T09:00:00.000Z',
+    });
+    expect(r.statusCode).toBe(200);
+    // ...and the owner can pull the latest back for a new-device restore.
+    const got = (await get('/calibration/bp')).json().calibration;
+    expect(got.systolicOffset).toBe(8); // 130 − 122
+    expect(got.diastolicOffset).toBe(5); // 85 − 80
+    expect(got.cuffSystolic).toBe(130);
+    // ...and it surfaces in the clinician's wellness view.
+    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    expect(wellness.bpCalibration.diastolicOffset).toBe(5);
+  });
+
+  it('rejects a BP calibration whose body userId is not the caller', async () => {
+    const r = await post('/calibration/bp', {
+      userId: '99999999-9999-9999-9999-999999999999',
+      cuffSystolic: 128, cuffDiastolic: 82, ppgSystolic: 120, ppgDiastolic: 78,
+      measuredAt: '2026-07-22T09:00:00.000Z',
+    });
+    expect(r.statusCode).toBe(403);
   });
 
   it('AI chat with a critical reading forces the emergency screen (LLM bypassed)', async () => {

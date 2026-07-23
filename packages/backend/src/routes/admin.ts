@@ -219,7 +219,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     if (!s) return;
     const userId = (req.params as { id: string }).id;
     await repo.writeAudit({ staffId: s.staffId, action: 'view_wellness', target: userId });
-    const [sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents] = await Promise.all([
+    const [sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration] = await Promise.all([
       repo.listSleep(userId, 14),
       repo.listDayLogs(userId, '1970-01-01', '2999-12-31'),
       repo.listAlerts(userId, 50),
@@ -229,8 +229,9 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       repo.listKickSessions(userId, 14),
       repo.listContractionSessions(userId, 14),
       repo.listNewbornEvents(userId, 20),
+      repo.latestBpCalibration(userId),
     ]);
-    return reply.send({ sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents });
+    return reply.send({ sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration });
   });
 
   // ---- One family, assembled (clinician/admin) — audited PHI access ----

@@ -197,6 +197,9 @@ export interface Repository {
   // Health
   insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<void>;
   insertBpCalibration(userId: string, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }): Promise<void>;
+  // The caller's most recent calibration, or null. Powers the admin drawer
+  // (is her BP calibrated, and how recently?) and the new-device restore.
+  latestBpCalibration(userId: string): Promise<(BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }) | null>;
 
   // Child / geofence
   loadGeofences(childId: string): Promise<Geofence[]>;

@@ -45,6 +45,24 @@ export function createPgRepository(pool: Pool): Repository {
          cal.ppgDiastolic, cal.systolicOffset, cal.diastolicOffset],
       );
     },
+    async latestBpCalibration(userId) {
+      // idx_bpcal_user_time makes this an index scan of one row.
+      const { rows } = await pool.query(
+        `SELECT measured_at, cuff_systolic, cuff_diastolic, ppg_systolic, ppg_diastolic,
+                systolic_offset, diastolic_offset
+         FROM bp_calibration WHERE user_id = $1 ORDER BY measured_at DESC LIMIT 1`, [userId]);
+      const r = rows[0];
+      if (!r) return null;
+      return {
+        systolicOffset: Number(r.systolic_offset),
+        diastolicOffset: Number(r.diastolic_offset),
+        calibratedAt: new Date(r.measured_at).toISOString(),
+        cuffSystolic: Number(r.cuff_systolic),
+        cuffDiastolic: Number(r.cuff_diastolic),
+        ppgSystolic: Number(r.ppg_systolic),
+        ppgDiastolic: Number(r.ppg_diastolic),
+      };
+    },
 
     async loadGeofences(childId): Promise<Geofence[]> {
       const { rows } = await pool.query(

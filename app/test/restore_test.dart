@@ -6,6 +6,7 @@ library;
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/ble/calibration.dart';
 import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/core/uuid.dart';
 import 'package:fcs_app/data/api_client.dart';
@@ -179,7 +180,7 @@ void main() {
       final c = make();
       addTearDown(c.dispose);
       c.mergeRemoteDayLogs([
-        DayLog(date: '2026-07-05', flow: Flow.medium),
+        const DayLog(date: '2026-07-05', flow: Flow.medium),
         const DayLog(date: '2026-07-06'), // empty → skipped
       ]);
       expect(c.dayLogs.containsKey('2026-07-05'), isTrue);
@@ -277,6 +278,46 @@ void main() {
 
       expect(snapshot(reversed), snapshot(forward));
       expect(reversed.emergencyInfoFor(childId).bloodType, 'A+'); // and not vacuously empty
+    });
+
+    test('calibrateBp fires the sync hook with the raw cuff+ppg (not just the offset)', () {
+      final c = make();
+      addTearDown(c.dispose);
+      Map<String, Object>? sent;
+      c.attachBpCalibrationSync(upsert: ({
+        required cuffSystolic,
+        required cuffDiastolic,
+        required ppgSystolic,
+        required ppgDiastolic,
+        required at,
+      }) async {
+        sent = {'cs': cuffSystolic, 'cd': cuffDiastolic, 'ps': ppgSystolic, 'pd': ppgDiastolic};
+      });
+      final ok = c.calibrateBp(cuffSystolic: 128, cuffDiastolic: 82, ppgSystolic: 120, ppgDiastolic: 78);
+      expect(ok, isTrue);
+      expect(sent, {'cs': 128, 'cd': 82, 'ps': 120, 'pd': 78}); // raw values, so the server can store them
+      expect(c.bpCalibration!.systolicOffset, 8); // and the local offset is set
+    });
+
+    test('a rejected calibration (cuff and sensor disagree wildly) fires nothing', () {
+      final c = make();
+      addTearDown(c.dispose);
+      var fired = false;
+      c.attachBpCalibrationSync(upsert: ({required cuffSystolic, required cuffDiastolic, required ppgSystolic, required ppgDiastolic, required at}) async => fired = true);
+      final ok = c.calibrateBp(cuffSystolic: 200, cuffDiastolic: 60, ppgSystolic: 100, ppgDiastolic: 120);
+      expect(ok, isFalse);
+      expect(fired, isFalse); // nothing accepted → nothing synced
+      expect(c.bpCalibration, isNull);
+    });
+
+    test('mergeRemoteBpCalibration restores when local is empty, keeps local otherwise', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.mergeRemoteBpCalibration(BpCalibration(6, 3, DateTime.utc(2026, 7, 1)));
+      expect(c.bpCalibration!.systolicOffset, 6);
+      // A later restore must not clobber the local calibration.
+      c.mergeRemoteBpCalibration(BpCalibration(99, 99, DateTime.utc(2026, 7, 20)));
+      expect(c.bpCalibration!.systolicOffset, 6);
     });
 
     test('mergeRemoteNewborn restores per child, dedups on (at, kind)', () {

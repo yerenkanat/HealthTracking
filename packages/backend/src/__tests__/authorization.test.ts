@@ -63,6 +63,7 @@ function makeApp(callerId: string) {
     createDevice: async () => {},
     insertHealthMetric: async () => {},
     insertBpCalibration: async () => {},
+    latestBpCalibration: async () => null,
     insertGeofenceEvent: async () => {},
     insertLocation: async () => {},
     guardianPushTokens: async () => ({ tokens: [], childName: '' }),

@@ -148,7 +148,12 @@ const chatSchema = z.object({
   latestTelemetry: telemetryBase.partial({ deviceId: true, recordedAt: true }).optional(),
 });
 const bpCalSchema = z.object({
-  userId: z.string().uuid(),
+  // OPTIONAL, and checked only if sent. Identity comes from the session — every
+  // other user-scoped write derives it from the caller and takes no body userId.
+  // Requiring it here made the route unimplementable: the app holds a session
+  // token, not its own internal DB uuid, so it could never echo a matching id.
+  // The app now omits it, and the offsets are written for `caller.userId`.
+  userId: z.string().uuid().optional(),
   // Bounded to physiologically possible readings. Unbounded integers here let a
   // typo — or a hostile client — write an offset that silently distorts every
   // later blood-pressure reading for this user.
@@ -156,12 +161,10 @@ const bpCalSchema = z.object({
   cuffDiastolic: z.number().int().min(30).max(200),
   ppgSystolic: z.number().int().min(60).max(260),
   ppgDiastolic: z.number().int().min(30).max(200),
-  // Tightened while nothing calls this yet — the app has a TODO where the POST
-  // will go. A calibration is dated so staleness can be judged against it
-  // (bpCalibrationIsStale), and a string with no zone cannot be. Note for
-  // whoever wires it: Dart's toIso8601String() omits the offset entirely on a
-  // LOCAL DateTime, so send .toUtc().toIso8601String() as the ingest path
-  // already does.
+  // A calibration is dated so staleness can be judged against it
+  // (bpCalibrationIsStale), and a string with no zone cannot be. Note for the
+  // app: Dart's toIso8601String() omits the offset entirely on a LOCAL DateTime,
+  // so it sends .toUtc().toIso8601String() as the ingest path already does.
   measuredAt: isoInstant,
 });
 
@@ -436,9 +439,13 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     if (!caller) return;
     const parsed = bpCalSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    if (parsed.data.userId !== caller.userId) {
+    // If a userId is sent it must be the caller's — a client may not write another
+    // account's calibration. When omitted (the app's path), identity is the
+    // session's alone.
+    if (parsed.data.userId && parsed.data.userId !== caller.userId) {
       return reply.code(403).send({ error: 'forbidden' });
     }
+    const userId = caller.userId;
     const d = parsed.data;
     const { rejectedBecause, ...offsets } = computeBpOffsets(
       d.cuffSystolic, d.cuffDiastolic, d.ppgSystolic, d.ppgDiastolic,
@@ -447,7 +454,7 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     // shift every later reading, and a large negative offset can hide exactly
     // the hypertension this app exists to catch.
     if (rejectedBecause) return reply.code(422).send({ error: rejectedBecause });
-    await deps.repo.insertBpCalibration(d.userId, {
+    await deps.repo.insertBpCalibration(userId, {
       ...offsets,
       calibratedAt: d.measuredAt,
       cuffSystolic: d.cuffSystolic,
@@ -455,8 +462,17 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
       ppgSystolic: d.ppgSystolic,
       ppgDiastolic: d.ppgDiastolic,
     });
-    await deps.setBpCalibration(d.userId, { ...offsets, calibratedAt: d.measuredAt });
+    await deps.setBpCalibration(userId, { ...offsets, calibratedAt: d.measuredAt });
     return reply.send({ ok: true, ...offsets });
+  });
+
+  // Her latest calibration, for the new-device restore. The app keeps only the
+  // offset locally; this returns it (with the raw cuff+ppg) so a fresh install
+  // resumes correcting the band's BP instead of reporting raw PPG.
+  app.get('/calibration/bp', async (req, reply) => {
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
+    return reply.send({ calibration: await deps.repo.latestBpCalibration(caller.userId) });
   });
 
   // "Where is this child right now" — the most sensitive answer this service

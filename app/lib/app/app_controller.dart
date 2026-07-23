@@ -200,6 +200,17 @@ class AppController {
   // Newborn care sync: fires when a feed/diaper/sleep is logged, so the admin
   // sees the newborn's care pattern.
   Future<void> Function(String childId, NewbornEvent)? _onNewbornEvent;
+  // BP-calibration sync: fires when she records a weekly cuff reading. The raw
+  // cuff+ppg go up (not just the offset) so a clinician can see how far the
+  // band drifted and how recently it was corrected — a preeclampsia-screening
+  // input. Carries the raw values because the offset alone can't reconstruct them.
+  Future<void> Function({
+    required int cuffSystolic,
+    required int cuffDiastolic,
+    required int ppgSystolic,
+    required int ppgDiastolic,
+    required DateTime at,
+  })? _onBpCalibration;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final List<CryResult> _cryHistory = []; // recent cry analyses, newest first
@@ -1651,11 +1662,47 @@ class AppController {
   }) {
     final o = computeBpOffsets(cuffSystolic, cuffDiastolic, ppgSystolic, ppgDiastolic);
     if (!o.accepted) return false;
-    _bpCalibration = BpCalibration(o.systolicOffset, o.diastolicOffset, at ?? _now());
-    // TODO(auth): POST to /calibration/bp once we have a signed-in userId.
+    final when = at ?? _now();
+    _bpCalibration = BpCalibration(o.systolicOffset, o.diastolicOffset, when);
+    // Mirror to the server (append-only history; the latest wins). Push the raw
+    // cuff+ppg, not just the stored offset — the clinician's view needs them and
+    // the offset alone can't reconstruct them. Fire-and-forget, like every other
+    // sync hook: a failed push must not fail the calibration she just made.
+    unawaited(_onBpCalibration?.call(
+          cuffSystolic: cuffSystolic,
+          cuffDiastolic: cuffDiastolic,
+          ppgSystolic: ppgSystolic,
+          ppgDiastolic: ppgDiastolic,
+          at: when,
+        ) ??
+        Future<void>.value());
     _persist(immediate: true); // irreversible — do not risk the debounce window
     _notify();
     return true;
+  }
+
+  /// Wire backend sync for BP calibration (called by main.dart on sign-in).
+  void attachBpCalibrationSync({
+    required Future<void> Function({
+      required int cuffSystolic,
+      required int cuffDiastolic,
+      required int ppgSystolic,
+      required int ppgDiastolic,
+      required DateTime at,
+    }) upsert,
+  }) {
+    _onBpCalibration = upsert;
+  }
+
+  /// Restore the last BP calibration on a new device. Only adopts the server's
+  /// when this install has none — a local calibration is at least as recent and
+  /// always wins. Fires no sync hook, so a restore can't echo back the server's
+  /// own copy.
+  void mergeRemoteBpCalibration(BpCalibration remote) {
+    if (_bpCalibration != null) return; // local wins
+    _bpCalibration = remote;
+    _persist();
+    _notify();
   }
 
   /// Wipe the session and return to onboarding (Settings → "Reset").

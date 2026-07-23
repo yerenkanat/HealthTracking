@@ -234,8 +234,10 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a weekly BP calibration (manual cuff vs the band's PPG). Identity comes
+  /// from the session, so there is no userId to pass and it can never be aimed at
+  /// another account. The server derives the offsets (cuff − ppg) itself.
   Future<void> submitBpCalibration({
-    required String userId,
     required int cuffSystolic,
     required int cuffDiastolic,
     required int ppgSystolic,
@@ -243,7 +245,6 @@ class ApiClient {
     required String measuredAt,
   }) async {
     final res = await transport.post('/calibration/bp', {
-      'userId': userId,
       'cuffSystolic': cuffSystolic,
       'cuffDiastolic': cuffDiastolic,
       'ppgSystolic': ppgSystolic,
@@ -251,6 +252,15 @@ class ApiClient {
       'measuredAt': measuredAt,
     });
     if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// The caller's latest BP calibration ({systolicOffset, diastolicOffset,
+  /// calibratedAt, ...}), or null. For restoring it on a new device.
+  Future<Map<String, dynamic>?> getBpCalibration() async {
+    final res = await transport.get('/calibration/bp');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return j['calibration'] as Map<String, dynamic>?;
   }
 
   // ---- App version policy (public; checked on launch) ----
