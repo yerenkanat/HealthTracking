@@ -365,6 +365,15 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     return reply.code(201).send({ ok: true });
   });
 
+  // All the caller's newborn-care events (across her children), each tagged with
+  // its childId, so a new device can restore the log grouped per child.
+  app.get('/newborn-events', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(2000, Number((req.query as { limit?: string }).limit ?? 1000) || 1000);
+    return reply.send({ events: await repo.listNewbornEvents(u.userId, limit) });
+  });
+
   // ---- Child emergency medical-ID (per child, upsert) ----
   app.put('/children/:id/emergency', async (req, reply) => {
     const { id } = req.params as { id: string };

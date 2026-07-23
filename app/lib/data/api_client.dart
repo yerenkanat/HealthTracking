@@ -470,6 +470,42 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// The caller's registered devices ({id, name, kind, childId}). For bringing
+  /// paired trackers/bands back on a new phone.
+  Future<List<Map<String, dynamic>>> getDevices() async {
+    final res = await transport.get('/devices');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['devices'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// The caller's completed fetal-movement sessions ({endedAt, count, durationSec}).
+  Future<List<Map<String, dynamic>>> getKickSessions() async {
+    final res = await transport.get('/kick-sessions?limit=200');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['sessions'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// The caller's completed contraction-timing sessions
+  /// ({endedAt, count, avgDurationSec, avgIntervalSec}).
+  Future<List<Map<String, dynamic>>> getContractionSessions() async {
+    final res = await transport.get('/contraction-sessions?limit=200');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['sessions'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// The caller's newborn-care events across all her children, each tagged with
+  /// its childId ({childId, at, kind, detail, durationMin}). For restoring the
+  /// baby log on a new device.
+  Future<List<Map<String, dynamic>>> getNewbornEvents() async {
+    final res = await transport.get('/newborn-events');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['events'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   /// Delete an appointment. A 404 counts as done (already gone).
   Future<void> deleteAppointment(String id) async {
     final res = await transport.delete('/appointments/$id');

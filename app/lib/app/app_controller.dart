@@ -1119,6 +1119,50 @@ class AppController {
     _notify();
   }
 
+  /// Restore registered devices on a new phone: add any this install doesn't
+  /// already have (by id). Local wins, and no sync hook fires — a restore can't
+  /// re-push what it just pulled.
+  void mergeRemoteDevices(List<PairedDevice> remote) {
+    final have = _devices.map((d) => d.id).toSet();
+    final added = [for (final d in remote) if (have.add(d.id)) d]; // add() also drops in-batch dupes
+    if (added.isEmpty) return;
+    _devices.addAll(added);
+    _persist();
+    _notify();
+  }
+
+  /// Restore fetal-movement session history: add sessions (by endedAt) this
+  /// install lacks, keep the list oldest→newest, and re-apply the cap.
+  void mergeRemoteKickSessions(List<KickSessionRecord> remote) {
+    final have = _kickSessions.map((s) => s.endedAt).toSet();
+    final added = [for (final s in remote) if (have.add(s.endedAt)) s]; // drops in-batch dupes too
+    if (added.isEmpty) return;
+    _kickSessions
+      ..addAll(added)
+      ..sort((a, b) => a.endedAt.compareTo(b.endedAt));
+    if (_kickSessions.length > _maxKickSessions) {
+      _kickSessions.removeRange(0, _kickSessions.length - _maxKickSessions);
+    }
+    _persist();
+    _notify();
+  }
+
+  /// Restore contraction-timing history: add sessions (by endedAt) this install
+  /// lacks, keep oldest→newest, and re-apply the cap of 50.
+  void mergeRemoteContractionSessions(List<ContractionSessionRecord> remote) {
+    final have = _contractionSessions.map((s) => s.endedAt).toSet();
+    final added = [for (final s in remote) if (have.add(s.endedAt)) s]; // drops in-batch dupes too
+    if (added.isEmpty) return;
+    _contractionSessions
+      ..addAll(added)
+      ..sort((a, b) => a.endedAt.compareTo(b.endedAt));
+    if (_contractionSessions.length > 50) {
+      _contractionSessions.removeRange(0, _contractionSessions.length - 50);
+    }
+    _persist();
+    _notify();
+  }
+
   /// Edit an existing appointment in place (keeping its id). Reschedules its
   /// reminder for the new time, or cancels it if the new time is in the past.
   void updateAppointment(String id, String title, DateTime at, {String note = ''}) {
@@ -1380,6 +1424,27 @@ class AppController {
   void logNewbornEvent(String childId, NewbornEvent event) {
     _newbornLog[childId] = addNewbornEvent(_newbornLog[childId] ?? const [], event);
     unawaited(_onNewbornEvent?.call(childId, event) ?? Future<void>.value());
+    _persist();
+    _notify();
+  }
+
+  /// Restore newborn-care events on a new device: for each child add any event
+  /// this install lacks, matched on (at, kind) so a re-pull can't duplicate the
+  /// log. Local wins and no sync hook fires. [byChild] is childId → its events.
+  void mergeRemoteNewborn(Map<String, List<NewbornEvent>> byChild) {
+    var changed = false;
+    byChild.forEach((childId, remote) {
+      var list = _newbornLog[childId] ?? const <NewbornEvent>[];
+      final have = {for (final e in list) '${e.at.toIso8601String()}|${e.kind.name}'};
+      for (final e in remote) {
+        if (have.add('${e.at.toIso8601String()}|${e.kind.name}')) {
+          list = addNewbornEvent(list, e);
+          changed = true;
+        }
+      }
+      if (list.isNotEmpty) _newbornLog[childId] = list;
+    });
+    if (!changed) return;
     _persist();
     _notify();
   }

@@ -10,9 +10,12 @@ import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/core/uuid.dart';
 import 'package:fcs_app/data/api_client.dart';
 import 'package:fcs_app/domain/child_emergency.dart';
+import 'package:fcs_app/domain/contraction.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/family.dart';
+import 'package:fcs_app/domain/kick_session.dart';
 import 'package:fcs_app/domain/medication.dart';
+import 'package:fcs_app/domain/newborn_log.dart';
 import 'package:fcs_app/domain/sleep.dart';
 import 'package:fcs_app/domain/weight.dart';
 import 'package:fcs_app/l10n/l10n.dart';
@@ -99,6 +102,19 @@ void main() {
         ..bodies['/children/c2/emergency'] = {'medicalId': null};
       expect((await ApiClient(t).getChildEmergency('c1'))!['bloodType'], 'O+');
       expect(await ApiClient(t).getChildEmergency('c2'), isNull);
+    });
+
+    test('getDevices / getKickSessions / getContractionSessions / getNewbornEvents parse', () async {
+      final t = _FakeTransport()
+        ..bodies['/devices'] = {'devices': [{'id': 'd1', 'name': 'Tag', 'kind': 'tag', 'childId': 'c1'}]}
+        ..bodies['/kick-sessions?limit=200'] = {'sessions': [{'endedAt': '2026-07-20T10:00:00.000Z', 'count': 10, 'durationSec': 600}]}
+        ..bodies['/contraction-sessions?limit=200'] = {'sessions': [{'endedAt': '2026-07-21T02:00:00.000Z', 'count': 6, 'avgDurationSec': 55, 'avgIntervalSec': 300}]}
+        ..bodies['/newborn-events'] = {'events': [{'childId': 'c1', 'at': '2026-07-22T08:00:00.000Z', 'kind': 'feed', 'detail': 'left', 'durationMin': null}]};
+      final api = ApiClient(t);
+      expect((await api.getDevices()).single['kind'], 'tag');
+      expect((await api.getKickSessions()).single['count'], 10);
+      expect((await api.getContractionSessions()).single['avgIntervalSec'], 300);
+      expect((await api.getNewbornEvents()).single['childId'], 'c1');
     });
   });
 
@@ -188,6 +204,57 @@ void main() {
       final id2 = uuidV4();
       c.mergeRemoteEmergency(id2, const ChildEmergencyInfo());
       expect(c.emergencyInfoFor(id2).isEmpty, isTrue);
+    });
+
+    test('mergeRemoteDevices adds missing by id, keeps local', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.addDevice(const PairedDevice(id: 'local', name: 'Band', kind: DeviceKind.band));
+      c.mergeRemoteDevices(const [
+        PairedDevice(id: 'remote', name: 'Tag', kind: DeviceKind.tag, childId: 'c1'),
+        PairedDevice(id: 'local', name: 'dupe', kind: DeviceKind.band), // skipped
+      ]);
+      expect(c.devices.map((d) => d.id), containsAll(['local', 'remote']));
+      expect(c.devices, hasLength(2));
+    });
+
+    test('mergeRemoteKickSessions adds missing by endedAt, keeps sorted', () {
+      final c = make();
+      addTearDown(c.dispose);
+      final t1 = DateTime.utc(2026, 7, 20, 10);
+      c.mergeRemoteKickSessions([
+        KickSessionRecord(endedAt: t1, count: 10, durationSec: 600),
+        KickSessionRecord(endedAt: DateTime.utc(2026, 7, 19, 9), count: 8, durationSec: 500),
+        KickSessionRecord(endedAt: t1, count: 99, durationSec: 1), // dupe endedAt → skipped
+      ]);
+      expect(c.kickSessions, hasLength(2)); // newest-first accessor
+      expect(c.kickSessions.first.endedAt, t1);
+      expect(c.kickSessions.first.count, 10); // first-seen kept, not the dupe
+    });
+
+    test('mergeRemoteContractionSessions adds missing by endedAt', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.mergeRemoteContractionSessions([
+        ContractionSessionRecord(endedAt: DateTime.utc(2026, 7, 21, 2), count: 6, avgDurationSec: 55, avgIntervalSec: 300),
+      ]);
+      expect(c.contractionSessions.single.avgIntervalSec, 300);
+    });
+
+    test('mergeRemoteNewborn restores per child, dedups on (at, kind)', () {
+      final c = make();
+      addTearDown(c.dispose);
+      final at = DateTime.utc(2026, 7, 22, 8);
+      c.logNewbornEvent('c1', NewbornEvent(at: at, kind: NewbornEventKind.feed, detail: 'left'));
+      c.mergeRemoteNewborn({
+        'c1': [
+          NewbornEvent(at: at, kind: NewbornEventKind.feed), // dupe (same at+kind) → skipped
+          NewbornEvent(at: DateTime.utc(2026, 7, 22, 11), kind: NewbornEventKind.diaper), // new
+        ],
+        'c2': [NewbornEvent(at: DateTime.utc(2026, 7, 22, 9), kind: NewbornEventKind.sleep, durationMin: 60)],
+      });
+      expect(c.newbornLogFor('c1'), hasLength(2));
+      expect(c.newbornLogFor('c2'), hasLength(1));
     });
   });
 }

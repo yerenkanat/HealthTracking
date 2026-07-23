@@ -35,9 +35,12 @@ import 'domain/ai_chat_service.dart';
 import 'data/connectivity.dart';
 import 'domain/appointment.dart';
 import 'domain/child_emergency.dart' show ChildEmergencyInfo;
+import 'domain/contraction.dart' show ContractionSessionRecord;
+import 'domain/kick_session.dart' show KickSessionRecord;
 import 'domain/medication.dart' show Medication;
+import 'domain/newborn_log.dart' show NewbornEvent;
 import 'domain/chat_controller.dart';
-import 'domain/family.dart' show UserProfile, ChildProfile, genderFromName;
+import 'domain/family.dart' show UserProfile, ChildProfile, PairedDevice, genderFromName;
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
 import 'data/http_transport.dart';
@@ -49,6 +52,17 @@ import 'net/telemetry_batcher.dart';
 Geofence? _tryGeofence(Map<String, dynamic> j) {
   try {
     return Geofence.fromJson(j);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Parse a newborn event from the server's shape, or null if the row is unusable
+/// (unknown kind / implausible duration) — so one bad row drops itself rather
+/// than the whole child's log. (Used on sign-in restore.)
+NewbornEvent? _tryNewborn(Map<String, dynamic> j) {
+  try {
+    return NewbornEvent.fromJson(j);
   } catch (_) {
     return null;
   }
@@ -666,6 +680,30 @@ Future<void> bootstrapRuntime(
       try {
         final days = await api.getDayLogs(from: '1970-01-01', to: '2999-12-31');
         controller.mergeRemoteDayLogs([for (final d in days) DayLog.fromJson(d)]);
+      } catch (_) {/* offline / bad row */}
+
+      // Restore paired trackers/bands and the pregnancy timing history (fetal
+      // movements + contractions) so a new phone shows the same devices and the
+      // logs she built up. Best-effort + independent.
+      try {
+        controller.mergeRemoteDevices([for (final d in await api.getDevices()) PairedDevice.fromJson(d)]);
+      } catch (_) {/* offline / bad row */}
+      try {
+        controller.mergeRemoteKickSessions(
+            [for (final s in await api.getKickSessions()) KickSessionRecord.fromJson(s)]);
+      } catch (_) {/* offline / bad row */}
+      try {
+        controller.mergeRemoteContractionSessions(
+            [for (final s in await api.getContractionSessions()) ContractionSessionRecord.fromJson(s)]);
+      } catch (_) {/* offline / bad row */}
+      try {
+        final byChild = <String, List<NewbornEvent>>{};
+        for (final e in await api.getNewbornEvents()) {
+          final childId = e['childId'] as String?;
+          if (childId == null) continue;
+          if (_tryNewborn(e) case final ev?) (byChild[childId] ??= []).add(ev);
+        }
+        controller.mergeRemoteNewborn(byChild);
       } catch (_) {/* offline / bad row */}
     }
 

@@ -748,6 +748,13 @@ describe('CRUD + history routes (in-process)', () => {
     expect(evs.length).toBeGreaterThanOrEqual(2);
     expect(evs[0].kind).toBe('diaper'); // newest first
     expect(evs[0].childName).toBeTruthy();
+
+    // ...and the owner can pull the same events (tagged with childId) to restore
+    // the baby log on a new device.
+    const restore = (await get('/newborn-events')).json().events;
+    expect(restore.length).toBeGreaterThanOrEqual(2);
+    expect(restore[0].childId).toBe(CHILD);
+    expect(restore.some((e: { kind: string }) => e.kind === 'feed')).toBe(true);
   });
 
   it('newborn events: rejects a bad kind (zod 400)', async () => {
