@@ -135,5 +135,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(_en.t('cry_error')), findsOneWidget);
     });
+
+    testWidgets('the record control is exposed to screen readers as a button', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(_wrap(CryInsightScreen(recorder: _FakeRecorder(), client: _client())));
+      // The bare GestureDetector is wrapped in Semantics(button, label), so a
+      // screen reader announces it rather than skipping a decorative icon.
+      expect(find.bySemanticsLabel(_en.t('cry_record')), findsOneWidget);
+      handle.dispose();
+    });
   });
 }

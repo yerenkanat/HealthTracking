@@ -142,11 +142,16 @@ class _MicButton extends StatelessWidget {
       _Phase.analyzing => l.t('cry_analyzing'),
       _ => l.t('cry_again'),
     };
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        children: [
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label, // a screen reader announces "Record the cry, button" etc.
+      excludeSemantics: true, // the icon + text below are decorative once labelled
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
           Container(
             width: 116, height: 116,
             decoration: BoxDecoration(
@@ -164,6 +169,7 @@ class _MicButton extends StatelessWidget {
           const SizedBox(height: 12),
           Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         ],
+        ),
       ),
     );
   }
