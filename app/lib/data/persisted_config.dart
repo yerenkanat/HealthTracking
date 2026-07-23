@@ -11,6 +11,7 @@ import '../domain/appointment.dart';
 import '../domain/battery.dart';
 import '../domain/child_emergency.dart';
 import '../domain/contraction.dart';
+import '../domain/cry_analysis.dart';
 import '../domain/cycle_log.dart';
 import '../domain/family.dart';
 import '../domain/phone_auth.dart';
@@ -165,6 +166,7 @@ class PersistedConfig {
   final List<Appointment> appointments; // the mother's dated reminders
   final List<WeightEntry> weights; // weight log (one per day)
   final double? weightGoalKg; // user-set target weight (null = none)
+  final List<CryResult> cryHistory; // recent cry-analysis results (newest first)
   final Map<String, int> childBattery; // childId → tracker battery % (last known)
   final Map<String, List<BatteryReading>> childBatteryHistory; // childId → readings (oldest-first)
   final Map<String, List<GrowthPoint>> childGrowth; // childId → weight/height measurements (oldest-first)
@@ -223,6 +225,7 @@ class PersistedConfig {
     this.waterGoal,
     this.appointments = const [],
     this.weights = const [],
+    this.cryHistory = const [],
     this.weightGoalKg,
     this.childBattery = const {},
     this.childBatteryHistory = const {},
@@ -266,6 +269,7 @@ class PersistedConfig {
         if (waterGoal != null) 'waterGoal': waterGoal,
         if (appointments.isNotEmpty) 'appointments': [for (final a in appointments) a.toJson()],
         if (weights.isNotEmpty) 'weights': [for (final w in weights) w.toJson()],
+        if (cryHistory.isNotEmpty) 'cryHistory': [for (final c in cryHistory) c.toJson()],
         if (weightGoalKg != null) 'weightGoalKg': weightGoalKg,
         if (childBattery.isNotEmpty) 'childBattery': childBattery,
         if (childGrowth.isNotEmpty)
@@ -384,6 +388,7 @@ class PersistedConfig {
         waterGoal: (j['waterGoal'] as num?)?.toInt(),
         appointments: _items(j['appointments'], Appointment.fromJson),
         weights: _items(j['weights'], WeightEntry.fromJson),
+        cryHistory: _items(j['cryHistory'], CryResult.fromJson),
         weightGoalKg: (j['weightGoalKg'] as num?)?.toDouble(),
         childBattery: _intMap(j['childBattery']),
         childBatteryHistory: j['childBatteryHistory'] is Map

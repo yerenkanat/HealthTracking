@@ -25,7 +25,21 @@ enum _Phase { idle, recording, analyzing, done, micDenied, error }
 class CryInsightScreen extends StatefulWidget {
   final CryRecorder recorder;
   final CryClassifierClient client;
-  const CryInsightScreen({super.key, required this.recorder, required this.client});
+
+  /// Called with each successful analysis, so the caller can save it to history.
+  final void Function(CryAnalysis)? onResult;
+
+  /// Recent past results to show below the recorder (newest first). Empty hides
+  /// the history section.
+  final List<CryResult> history;
+
+  const CryInsightScreen({
+    super.key,
+    required this.recorder,
+    required this.client,
+    this.onResult,
+    this.history = const [],
+  });
 
   @override
   State<CryInsightScreen> createState() => _CryInsightScreenState();
@@ -70,6 +84,7 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
     try {
       final result = await widget.client.analyze(bytes);
       if (!mounted) return;
+      widget.onResult?.call(result); // save to history
       setState(() {
         _result = result;
         _phase = _Phase.done;
@@ -101,6 +116,10 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
               if (_phase == _Phase.done && _result != null) ...[
                 const SizedBox(height: 20),
                 _ResultCard(analysis: _result!),
+              ],
+              if (widget.history.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                _HistoryCard(history: widget.history),
               ],
               const SizedBox(height: 24),
               Text(l.t('cry_disclaimer'),
@@ -232,6 +251,53 @@ class _ResultCard extends StatelessWidget {
                   Expanded(child: Text(analysis.recommendationRu, style: const TextStyle(fontSize: 13.5, height: 1.5))),
                 ],
               ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The "recent checks" list — past results, newest first, so a parent can see
+/// what the last few cries came back as.
+class _HistoryCard extends StatelessWidget {
+  final List<CryResult> history;
+  const _HistoryCard({required this.history});
+
+  String _reasonLabel(L10n l, String code) {
+    final known = CryReason.fromCode(code);
+    return known == null ? l.t('cry_reason_unknown') : l.t('cry_reason_$code');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final ml = MaterialLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('cry_history_title').toUpperCase(),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: Palette.textDim)),
+          const SizedBox(height: 8),
+          for (var i = 0; i < history.length; i++) ...[
+            if (i > 0) const Divider(height: 14, color: Palette.border),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(_reasonLabel(l, history[i].reason),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                ),
+                Text('${history[i].confidencePct}%  ·  ${ml.formatMediumDate(history[i].at)}',
+                    style: const TextStyle(fontSize: 12, color: Palette.textDim)),
+              ],
             ),
           ],
         ],

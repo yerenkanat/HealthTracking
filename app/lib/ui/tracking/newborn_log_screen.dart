@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/cry_classifier_client.dart';
 import '../../data/cry_recorder.dart';
+import '../../domain/cry_analysis.dart';
 import '../../domain/newborn_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
@@ -41,6 +42,10 @@ class NewbornLogScreen extends StatelessWidget {
   /// token). Null hides the "why is baby crying" action — e.g. signed out.
   final CryClassifierClient? cryClient;
 
+  /// Save a cry result to history, and the recent history to show.
+  final void Function(CryAnalysis)? onCryResult;
+  final List<CryResult> cryHistory;
+
   const NewbornLogScreen({
     super.key,
     required this.childName,
@@ -49,6 +54,8 @@ class NewbornLogScreen extends StatelessWidget {
     required this.onLog,
     required this.onDelete,
     this.cryClient,
+    this.onCryResult,
+    this.cryHistory = const [],
   });
 
   @override
@@ -74,6 +81,8 @@ class NewbornLogScreen extends StatelessWidget {
                   builder: (_) => CryInsightScreen(
                     recorder: RecordCryRecorder(),
                     client: cryClient!,
+                    onResult: onCryResult,
+                    history: cryHistory,
                   ),
                 ),
               ),

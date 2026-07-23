@@ -30,6 +30,7 @@ import '../domain/error_log.dart';
 import '../domain/zone_hysteresis.dart';
 import '../domain/appointment.dart';
 import '../domain/app_version.dart';
+import '../domain/cry_analysis.dart';
 import '../domain/battery.dart';
 import '../domain/child_growth.dart';
 import '../domain/newborn_log.dart';
@@ -191,6 +192,8 @@ class AppController {
   Future<void> Function(String id)? _onDeviceDelete;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
+  final List<CryResult> _cryHistory = []; // recent cry analyses, newest first
+  static const _maxCryHistory = 20;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
   final Map<String, List<BatteryReading>> _batteryHistory = {}; // childId → readings (oldest-first)
   final Map<String, List<GrowthPoint>> _childGrowth = {}; // childId → measurements (oldest-first)
@@ -292,6 +295,9 @@ class AppController {
       ..clear()
       ..addAll(cfg.appointments);
     _weights = List.of(cfg.weights);
+    _cryHistory
+      ..clear()
+      ..addAll(cfg.cryHistory);
     _weightGoalKg = cfg.weightGoalKg;
     _childBattery
       ..clear()
@@ -415,6 +421,7 @@ class AppController {
         waterGoal: _waterGoal,
         appointments: List.of(_appointments),
         weights: List.of(_weights),
+        cryHistory: List.of(_cryHistory),
         weightGoalKg: _weightGoalKg,
         childBattery: Map.of(_childBattery),
         childBatteryHistory: {for (final e in _batteryHistory.entries) e.key: List.of(e.value)},
@@ -1089,6 +1096,19 @@ class AppController {
   // ---- Weight log (one entry per day) ----
   List<WeightEntry> get weights => List.unmodifiable(_weights);
   WeightStats? get weightStats => computeWeightStats(_weights);
+
+  /// Recent cry-analysis results, newest first (capped).
+  List<CryResult> get cryHistory => List.unmodifiable(_cryHistory);
+
+  /// Save the outcome of a cry analysis to the history (newest first, capped).
+  void recordCry(CryAnalysis analysis) {
+    _cryHistory.insert(0, CryResult.from(analysis, _now()));
+    if (_cryHistory.length > _maxCryHistory) {
+      _cryHistory.removeRange(_maxCryHistory, _cryHistory.length);
+    }
+    _persist();
+    _notify();
+  }
 
   /// Record [kg] for [day] (replaces any existing same-day entry).
   void logWeight(DateTime day, double kg) {

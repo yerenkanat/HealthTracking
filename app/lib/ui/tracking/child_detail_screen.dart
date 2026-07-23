@@ -485,6 +485,8 @@ void _openNewbornLog(
                 authToken: () async => controller.authSession?.token,
               )
             : null,
+        onCryResult: controller.recordCry,
+        cryHistory: controller.cryHistory,
       ),
     ),
   ));

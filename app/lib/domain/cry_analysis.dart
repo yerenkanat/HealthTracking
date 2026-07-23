@@ -78,3 +78,39 @@ class CryAnalysis {
     );
   }
 }
+
+/// One saved cry-analysis result, for the "recent analyses" history. Compact on
+/// purpose — the reason + confidence + when — so persisting a run of them is
+/// cheap; the full probability spread and recommendation are re-derivable and
+/// not worth storing.
+class CryResult {
+  final String reason; // the wire code, e.g. 'hungry'
+  final double confidence; // 0..1
+  final DateTime at;
+
+  const CryResult({required this.reason, required this.confidence, required this.at});
+
+  /// Save the primary outcome of an [analysis], stamped at [at].
+  factory CryResult.from(CryAnalysis a, DateTime at) =>
+      CryResult(reason: a.primaryReason, confidence: a.confidence, at: at);
+
+  /// The reason as an enum, or null when it is a code the app doesn't know.
+  CryReason? get reasonEnum => CryReason.fromCode(reason);
+  int get confidencePct => (confidence * 100).round().clamp(0, 100);
+
+  Map<String, dynamic> toJson() => {
+        'reason': reason,
+        'confidence': confidence,
+        'at': at.toIso8601String(),
+      };
+
+  factory CryResult.fromJson(Map<String, dynamic> j) {
+    final conf = j['confidence'];
+    final at = j['at'];
+    return CryResult(
+      reason: (j['reason'] as String?) ?? '',
+      confidence: conf is num ? conf.toDouble() : 0.0, // tolerate a non-numeric value
+      at: at is String ? (DateTime.tryParse(at) ?? DateTime.fromMillisecondsSinceEpoch(0)) : DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
+}

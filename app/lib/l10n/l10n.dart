@@ -427,6 +427,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cry_reason_burping': {AppLocale.ru: 'Газы / срыгивание', AppLocale.kk: 'Газдар / кекіру', AppLocale.en: 'Burping / gas'},
   'cry_reason_unknown': {AppLocale.ru: 'Не определено', AppLocale.kk: 'Анықталмады', AppLocale.en: 'Undetermined'},
   'cry_disclaimer': {AppLocale.ru: 'Подсказка носит справочный характер и не заменяет консультацию педиатра.', AppLocale.kk: 'Кеңес анықтамалық сипатта және педиатр кеңесін алмастырмайды.', AppLocale.en: 'This hint is for reference only and does not replace a paediatrician.'},
+  'cry_history_title': {AppLocale.ru: 'Недавние проверки', AppLocale.kk: 'Соңғы тексерулер', AppLocale.en: 'Recent checks'},
 
   // Permission priming — a plain-language "why" shown before the OS prompt, so
   // a denial (which the OS then remembers for good) is far less likely.

@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/data/cry_classifier_client.dart';
+import 'package:fcs_app/domain/cry_analysis.dart';
 import 'package:fcs_app/data/cry_recorder.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
@@ -143,6 +144,33 @@ void main() {
       // screen reader announces it rather than skipping a decorative icon.
       expect(find.bySemanticsLabel(_en.t('cry_record')), findsOneWidget);
       handle.dispose();
+    });
+
+    testWidgets('a successful analysis is reported to onResult (for history)', (tester) async {
+      CryAnalysis? saved;
+      await tester.pumpWidget(_wrap(CryInsightScreen(
+        recorder: _FakeRecorder(), client: _client(), onResult: (a) => saved = a)));
+      await tester.tap(find.text(_en.t('cry_record')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: cryRecordSeconds));
+      await tester.pumpAndSettle();
+      expect(saved, isNotNull);
+      expect(saved!.primaryReason, 'hungry');
+    });
+
+    testWidgets('recent history is listed', (tester) async {
+      await tester.pumpWidget(_wrap(CryInsightScreen(
+        recorder: _FakeRecorder(),
+        client: _client(),
+        history: [
+          CryResult(reason: 'tired', confidence: 0.7, at: DateTime(2026, 7, 20)),
+          CryResult(reason: 'hungry', confidence: 0.9, at: DateTime(2026, 7, 19)),
+        ],
+      )));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.t('cry_history_title').toUpperCase()), findsOneWidget);
+      expect(find.text(_en.t('cry_reason_tired')), findsOneWidget);
+      expect(find.text(_en.t('cry_reason_hungry')), findsOneWidget);
     });
   });
 }
