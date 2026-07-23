@@ -119,6 +119,53 @@ void main() {
     }
   });
 
+  // The stepper's own buttons — scoped to IconButton so the antenatal card's
+  // bare chevron icon isn't matched.
+  final stepperNext = find.widgetWithIcon(IconButton, Icons.chevron_right_rounded);
+  final stepperPrev = find.widgetWithIcon(IconButton, Icons.chevron_left_rounded);
+
+  testWidgets('browses forward a week and returns to the current one', (tester) async {
+    await pump(tester, 20);
+    // On her own week: the "current" chip is shown, no "back to current".
+    expect(find.text(ru.t('wk_current')), findsOneWidget);
+    expect(find.text(ru.t('wk_to_current')), findsNothing);
+
+    // Next → week 21 content; now she is browsing away.
+    await tester.tap(stepperNext);
+    await tester.pumpAndSettle();
+    expect(find.text(ru.t('wk_label', {'w': 21})), findsWidgets); // appbar + stepper
+    expect(find.text(ru.t('wk_to_current')), findsOneWidget);
+    expect(find.text(ru.t('wk_current')), findsNothing);
+
+    // Back to current → week 20 again.
+    await tester.tap(find.text(ru.t('wk_to_current')));
+    await tester.pumpAndSettle();
+    expect(find.text(ru.t('wk_current')), findsOneWidget);
+  });
+
+  testWidgets('the week never steps below 1', (tester) async {
+    await pump(tester, 3);
+    // Keep tapping prev; it must stop at week 1, never 0 or negative.
+    for (var i = 0; i < 6; i++) {
+      final disabled = tester.widget<IconButton>(stepperPrev).onPressed == null;
+      if (disabled) break;
+      await tester.tap(stepperPrev);
+      await tester.pumpAndSettle();
+    }
+    expect(find.text(ru.t('wk_label', {'w': 1})), findsWidgets);
+    expect(find.text(ru.t('wk_label', {'w': 0})), findsNothing);
+    expect(tester.widget<IconButton>(stepperPrev).onPressed, isNull); // clamped
+  });
+
+  testWidgets('progress and days-left show only on her own week', (tester) async {
+    await pump(tester, 20);
+    expect(find.textContaining(ru.t('gest_days_left', {'n': 140})), findsOneWidget); // 20 wks left
+    await tester.tap(stepperNext); // browse to 21
+    await tester.pumpAndSettle();
+    // Days-left is about HER pregnancy, so it's hidden when reading ahead.
+    expect(find.textContaining(ru.t('gest_days_left', {'n': 140})), findsNothing);
+  });
+
   testWidgets('golden: week 22', (tester) async {
     // Seed a fixed calendar entry so the golden does not depend on the bundled
     // asset (or on test order, since the loader caches globally).

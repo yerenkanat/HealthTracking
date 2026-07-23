@@ -1038,6 +1038,12 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   'cal_due_pick': {AppLocale.ru: 'Дата родов', AppLocale.kk: 'Босану күні', AppLocale.en: 'Due date'},
   'gest_week': {AppLocale.ru: 'Неделя {w}, день {d}', AppLocale.kk: '{w}-апта, {d}-күн', AppLocale.en: 'Week {w}, Day {d}'},
+  // Week browser (prev/next weeks on the week-detail screen)
+  'wk_label': {AppLocale.ru: 'Неделя {w}', AppLocale.kk: '{w}-апта', AppLocale.en: 'Week {w}'},
+  'wk_current': {AppLocale.ru: 'Текущая', AppLocale.kk: 'Қазіргі', AppLocale.en: 'Current'},
+  'wk_to_current': {AppLocale.ru: 'К текущей неделе', AppLocale.kk: 'Ағымдағы аптаға', AppLocale.en: 'Back to current week'},
+  'wk_prev': {AppLocale.ru: 'Предыдущая неделя', AppLocale.kk: 'Алдыңғы апта', AppLocale.en: 'Previous week'},
+  'wk_next': {AppLocale.ru: 'Следующая неделя', AppLocale.kk: 'Келесі апта', AppLocale.en: 'Next week'},
   'bsize_title': {AppLocale.ru: 'Размер малыша', AppLocale.kk: 'Нәресте өлшемі', AppLocale.en: 'Baby size'},
   'bsize_about': {AppLocale.ru: 'Примерно как {food}', AppLocale.kk: 'Шамамен {food} көлемінде', AppLocale.en: 'About the size of a {food}'},
   'bsize_length': {AppLocale.ru: '≈ {cm} см в длину', AppLocale.kk: '≈ {cm} см ұзындық', AppLocale.en: '≈ {cm} cm long'},

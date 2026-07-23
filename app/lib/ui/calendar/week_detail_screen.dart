@@ -29,7 +29,7 @@ import 'baby_size_disc.dart';
 import 'pregnancy_hero.dart' show BabyPainter, trimesterPalette;
 import 'pregnancy_warnings.dart';
 
-class WeekDetailScreen extends StatelessWidget {
+class WeekDetailScreen extends StatefulWidget {
   final GestationInfo gestation;
 
   /// The estimated due date and a booking callback, when the caller has the
@@ -46,23 +46,59 @@ class WeekDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<WeekDetailScreen> createState() => _WeekDetailScreenState();
+}
+
+class _WeekDetailScreenState extends State<WeekDetailScreen> {
+  /// The week being viewed — starts at the mother's real week, then the arrows
+  /// browse anywhere in 1..40 so she can read ahead or look back.
+  late int _week = widget.gestation.week;
+
+  static const _minWeek = 1;
+  static const _maxWeek = 40;
+
+  void _go(int delta) {
+    final next = (_week + delta).clamp(_minWeek, _maxWeek);
+    if (next != _week) setState(() => _week = next);
+  }
+
+  void _toCurrent() {
+    if (_week != widget.gestation.week) setState(() => _week = widget.gestation.week);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final g = gestation;
-    final pal = trimesterPalette(g.trimester);
-    final size = babySizeFor(g.week);
-    final current = currentMilestone(g.week);
-    final next = nextMilestone(g.week);
+    final g = widget.gestation;
+    final week = _week;
+    final browsing = week != g.week; // viewing a week other than her own
+    // Trimester is a pure function of the week, so the palette follows wherever
+    // she browses; progress / days-left below stay tied to her real gestation.
+    final trimester = week < 13 ? 1 : (week < 28 ? 2 : 3);
+    final pal = trimesterPalette(trimester);
+    final size = babySizeFor(week);
+    final current = currentMilestone(week);
+    final next = nextMilestone(week);
 
     return Scaffold(
       backgroundColor: Palette.bg,
       appBar: AppBar(
         backgroundColor: Palette.bg,
-        title: Text(l.t('gest_week', {'w': g.week, 'd': g.dayOfWeek})),
+        title: Text(l.t('wk_label', {'w': week})),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          _WeekStepper(
+            week: week,
+            atStart: week <= _minWeek,
+            atEnd: week >= _maxWeek,
+            isCurrent: !browsing,
+            onPrev: () => _go(-1),
+            onNext: () => _go(1),
+            onToCurrent: _toCurrent,
+          ),
+          const SizedBox(height: 12),
           // The same figure as the hero, at rest. Repeating it is deliberate:
           // it is how she knows this screen is about the same thing she tapped.
           Container(
@@ -81,7 +117,7 @@ class WeekDetailScreen extends StatelessWidget {
                 height: 150,
                 child: CustomPaint(
                   painter: BabyPainter(
-                    week: g.week,
+                    week: week,
                     phase: 0,
                     body: pal.glow.withValues(alpha: 0.92),
                     shade: Colors.white.withValues(alpha: 0.22),
@@ -127,28 +163,32 @@ class WeekDetailScreen extends StatelessWidget {
             ),
 
           // The one line Flo leads with: what baby is developing this week.
-          _FetalCard(week: g.week, colour: pal.glow),
+          _FetalCard(week: week, colour: pal.glow),
 
           // The fuller week narrative from the MoH calendar (ru/kk): what to do
           // this week, and what is happening for her and the baby.
-          _WeekCalendarCard(week: g.week, colour: pal.glow),
+          _WeekCalendarCard(week: week, colour: pal.glow),
 
           _Card(
-            title: l.t('gest_trimester', {'n': g.trimester}),
+            title: l.t('gest_trimester', {'n': trimester}),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t(current.code),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                _Progress(fraction: g.progress, colour: pal.glow),
-                const SizedBox(height: 8),
-                Text(
-                  g.daysUntilDue >= 0
-                      ? l.t('gest_days_left', {'n': g.daysUntilDue})
-                      : l.t('gest_overdue'),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 13),
-                ),
+                // Progress and days-left describe HER real pregnancy, so they
+                // show only on her own week — meaningless when reading ahead.
+                if (!browsing) ...[
+                  const SizedBox(height: 10),
+                  _Progress(fraction: g.progress, colour: pal.glow),
+                  const SizedBox(height: 8),
+                  Text(
+                    g.daysUntilDue >= 0
+                        ? l.t('gest_days_left', {'n': g.daysUntilDue})
+                        : l.t('gest_overdue'),
+                    style: const TextStyle(color: Palette.textDim, fontSize: 13),
+                  ),
+                ],
               ],
             ),
           ),
@@ -176,7 +216,7 @@ class WeekDetailScreen extends StatelessWidget {
                             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(
-                          l.t('ms_in_weeks', {'n': weeksUntil(g.week, next)}),
+                          l.t('ms_in_weeks', {'n': weeksUntil(week, next)}),
                           style: const TextStyle(color: Palette.textDim, fontSize: 12.5),
                         ),
                       ],
@@ -188,11 +228,11 @@ class WeekDetailScreen extends StatelessWidget {
 
           // Everything above is about the baby. This is about HER: what she
           // might be feeling this week, and the signs that mean call now.
-          _ExpectCard(week: g.week),
+          _ExpectCard(week: week),
 
           // Her care schedule this week — which antenatal visit is due or next,
           // straight from the state protocol.
-          _AntenatalCard(week: g.week, dueDate: dueDate, onBook: onBookAntenatal),
+          _AntenatalCard(week: week, dueDate: widget.dueDate, onBook: widget.onBookAntenatal),
           const Padding(
             padding: EdgeInsets.only(bottom: 4),
             child: PregnancyWarningsCard(),
@@ -209,6 +249,80 @@ class WeekDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The week browser: ◀ Week N ▶, with a "current" chip on her own week and a
+/// one-tap way back to it when she has browsed away.
+class _WeekStepper extends StatelessWidget {
+  final int week;
+  final bool atStart;
+  final bool atEnd;
+  final bool isCurrent;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onToCurrent;
+  const _WeekStepper({
+    required this.week,
+    required this.atStart,
+    required this.atEnd,
+    required this.isCurrent,
+    required this.onPrev,
+    required this.onNext,
+    required this.onToCurrent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: Palette.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Palette.border),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded),
+                tooltip: l.t('wk_prev'),
+                onPressed: atStart ? null : onPrev,
+              ),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(l.t('wk_label', {'w': week}),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    if (isCurrent)
+                      Text(l.t('wk_current'),
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Palette.violet)),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded),
+                tooltip: l.t('wk_next'),
+                onPressed: atEnd ? null : onNext,
+              ),
+            ],
+          ),
+        ),
+        if (!isCurrent)
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: onToCurrent,
+              icon: const Icon(Icons.today_rounded, size: 16),
+              label: Text(l.t('wk_to_current')),
+              style: TextButton.styleFrom(foregroundColor: Palette.violet),
+            ),
+          ),
+      ],
     );
   }
 }
