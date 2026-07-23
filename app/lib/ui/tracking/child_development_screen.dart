@@ -210,9 +210,25 @@ class _AgeHeader extends StatelessWidget {
 /// baby-development calendar. The exact figures a parent sees in the admin panel
 /// and the backend serves, so all three agree. Silently absent if the asset is
 /// missing (offline-first: never blocks the milestone timeline below).
-class _GrowthWeekCard extends StatelessWidget {
+class _GrowthWeekCard extends StatefulWidget {
   final int week;
   const _GrowthWeekCard({required this.week});
+
+  @override
+  State<_GrowthWeekCard> createState() => _GrowthWeekCardState();
+}
+
+class _GrowthWeekCardState extends State<_GrowthWeekCard> {
+  // The week being viewed — starts at the child's real week, then the arrows
+  // browse the whole first year (1..52) to read ahead or look back.
+  late int _week = widget.week;
+  static const _minWeek = 1;
+  static const _maxWeek = 52;
+
+  void _go(int delta) {
+    final next = (_week + delta).clamp(_minWeek, _maxWeek);
+    if (next != _week) setState(() => _week = next);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -222,9 +238,10 @@ class _GrowthWeekCard extends StatelessWidget {
       builder: (context, snap) {
         final cal = snap.data;
         if (cal == null || cal.isEmpty) return const SizedBox.shrink();
-        final w = cal.weekContentFor(week);
+        final w = cal.weekContentFor(_week);
         if (w == null) return const SizedBox.shrink();
         final s = w.skillsFor(l.locale.name);
+        final browsing = w.week != widget.week;
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -241,6 +258,12 @@ class _GrowthWeekCard extends StatelessWidget {
                     child: Text(l.t('cdw_title'),
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                   ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    tooltip: l.t('wk_prev'),
+                    onPressed: _week <= _minWeek ? null : () => _go(-1),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -248,9 +271,25 @@ class _GrowthWeekCard extends StatelessWidget {
                     child: Text(l.t('cdw_week', {'n': w.week}),
                         style: const TextStyle(color: Palette.violet, fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    tooltip: l.t('wk_next'),
+                    onPressed: _week >= _maxWeek ? null : () => _go(1),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
+              if (browsing)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _week = widget.week),
+                    icon: const Icon(Icons.today_rounded, size: 15),
+                    label: Text(l.t('wk_to_current')),
+                    style: TextButton.styleFrom(foregroundColor: Palette.violet, visualDensity: VisualDensity.compact),
+                  ),
+                ),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   if (w.weightKg.isNotEmpty)

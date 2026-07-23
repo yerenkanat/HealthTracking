@@ -20,6 +20,13 @@ ChildDevCalendar _calendar() => const ChildDevCalendar(
           ru: ChildDevSkills(motor: 'Учится переворачиваться.', speech: 'Тянется на руки.', cognition: 'Пробует всё на вкус.'),
           kk: ChildDevSkills(motor: 'Аунауды үйренуде.', speech: 'Қолын созады.', cognition: 'Бәрін дәмін татады.'),
         ),
+        ChildDevWeek(
+          week: 25,
+          weightKg: '6,3–9,5',
+          heightCm: '62,3–70,6',
+          ru: ChildDevSkills(motor: 'Сидит с опорой.', speech: 'Лепечет слоги.', cognition: 'Ищет спрятанное.'),
+          kk: ChildDevSkills(motor: 'Тіреумен отырады.', speech: 'Буындарды айтады.', cognition: 'Жасырынды іздейді.'),
+        ),
       ],
       noteRu: 'Справочно.',
       noteKk: 'Анықтамалық.',
@@ -48,6 +55,30 @@ void main() {
     expect(find.textContaining('6,1–9,3'), findsOneWidget); // WHO weight range
     expect(find.textContaining('61,8–70,1'), findsOneWidget); // WHO height range
     expect(find.text('Учится переворачиваться.'), findsOneWidget); // en → ru fallback for skills
+  });
+
+  testWidgets('the growth card browses to the next week and back', (tester) async {
+    debugSetBabyDevelopment(_calendar());
+    final today = DateTime(2026, 7, 23);
+    final child = ChildProfile(id: 'c1', name: 'Alia', dateOfBirth: today.subtract(const Duration(days: 24 * 7)));
+
+    await tester.pumpWidget(MaterialApp(home: _wrap(ChildDevelopmentScreen(child: child, today: today))));
+    await tester.pumpAndSettle();
+    expect(find.text('Week 24'), findsOneWidget);
+    expect(find.text('Back to current week'), findsNothing);
+
+    // Next → week 25 content.
+    await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Week 25'), findsOneWidget);
+    expect(find.text('Сидит с опорой.'), findsOneWidget);
+    expect(find.text('Back to current week'), findsOneWidget);
+
+    // Back to current → week 24.
+    await tester.tap(find.text('Back to current week'));
+    await tester.pumpAndSettle();
+    expect(find.text('Week 24'), findsOneWidget);
+    expect(find.text('Back to current week'), findsNothing);
   });
 
   testWidgets('growth card is absent past the first year', (tester) async {
