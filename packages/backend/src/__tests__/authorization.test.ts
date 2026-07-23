@@ -66,6 +66,8 @@ function makeApp(callerId: string) {
     emergencyContacts: async () => [],
     queryMetrics: async () => [],
     recordSleep: async () => {},
+    recordWeight: async () => {},
+    listWeight: async () => [],
     listSleep: async () => [],
     upsertDayLog: async () => {},
     listDayLogs: async () => [],

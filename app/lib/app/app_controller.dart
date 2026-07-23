@@ -174,6 +174,9 @@ class AppController {
   // Push-only child sync: fires when a child is added/edited, so the back-office
   // kids demographics dashboard is built from real children.
   Future<void> Function(ChildProfile)? _onChildUpsert;
+  // Push-only weight sync: fires when a weight is logged, so the admin wellness
+  // view mirrors her weight trend.
+  Future<void> Function(WeightEntry)? _onWeightUpsert;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -1043,8 +1046,17 @@ class AppController {
   /// Record [kg] for [day] (replaces any existing same-day entry).
   void logWeight(DateTime day, double kg) {
     _weights = upsertWeight(_weights, day, kg);
+    // Mirror the just-recorded (clamped) entry to the server, push-only.
+    final entry = _weights.firstWhere((e) => e.date == dateKey(day),
+        orElse: () => WeightEntry(date: dateKey(day), kg: kg));
+    unawaited(_onWeightUpsert?.call(entry) ?? Future<void>.value());
     _persist();
     _notify();
+  }
+
+  /// Wire backend sync for weight (called by main.dart on sign-in).
+  void attachWeightSync({required Future<void> Function(WeightEntry) upsert}) {
+    _onWeightUpsert = upsert;
   }
 
   void removeWeightEntry(String dateKeyToRemove) {

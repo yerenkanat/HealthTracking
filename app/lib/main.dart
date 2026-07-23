@@ -492,6 +492,12 @@ Future<void> bootstrapRuntime(
       for (final ch in controller.children) {
         unawaited(api.putChild(childBody(ch)));
       }
+
+      // Push-only weight sync, so the admin wellness view mirrors her trend.
+      controller.attachWeightSync(upsert: (w) => api.putWeight(date: w.date, kg: w.kg));
+      for (final w in controller.weights) {
+        unawaited(api.putWeight(date: w.date, kg: w.kg));
+      }
       try {
         final remote = await api.getAppointments();
         controller.mergeRemoteAppointments([

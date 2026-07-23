@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
+import type { ContentItemRow, Repository, SleepNight, WeightRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -50,6 +50,7 @@ export function createMemoryRepository(): Repository {
   const emergencyAcks = new Map<string, { staffId: string; at: string }>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
+  const weights: WeightRow[] = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alerts: SafetyAlertRow[] = [];
   let profile: ProfileRow | null = {
@@ -189,6 +190,12 @@ export function createMemoryRepository(): Repository {
       if (i >= 0) sleep[i] = s; else sleep.push(s);
     },
     listSleep: async (_u, limit) => [...sleep].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    // Weight (upsert on the date)
+    recordWeight: async (_u, w) => {
+      const i = weights.findIndex((x) => x.date === w.date);
+      if (i >= 0) weights[i] = w; else weights.push(w);
+    },
+    listWeight: async (_u, limit) => [...weights].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit),
     // Day logs
     upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
     listDayLogs: async (_u, from, to) =>
@@ -360,6 +367,7 @@ export function createMemoryRepository(): Repository {
       appointments.length = 0;
       events.length = 0;
       emergencyAcks.clear();
+      weights.length = 0;
       healthRows.length = 0;
       sleep.length = 0;
       dayLogs.clear();

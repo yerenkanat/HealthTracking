@@ -24,6 +24,11 @@ export interface SleepNight {
   awakeMin: number;
 }
 
+export interface WeightRow {
+  date: string; // yyyy-MM-dd
+  kg: number;
+}
+
 export interface DayLogRow {
   date: string; // yyyy-MM-dd
   mood: string | null;
@@ -223,6 +228,10 @@ export interface Repository {
   // ---- Sleep (nightly summaries) ----
   recordSleep(userId: string, s: SleepNight): Promise<void>;
   listSleep(userId: string, limit: number): Promise<SleepNight[]>;
+
+  // ---- Maternal weight log (one row per day, upsert on the date) ----
+  recordWeight(userId: string, w: WeightRow): Promise<void>;
+  listWeight(userId: string, limit: number): Promise<WeightRow[]>;
 
   // ---- Women's-health day logs (mood / symptoms / kicks / flow) ----
   upsertDayLog(userId: string, log: DayLogRow): Promise<void>;

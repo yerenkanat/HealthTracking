@@ -32,6 +32,10 @@ const WELLNESS = {
     { date: '2026-07-21', mood: 'calm', symptoms: ['cramps'], kicks: 12, flow: 'medium' },
     { date: '2026-07-19', mood: null, symptoms: [], kicks: 0, flow: null }, // empty → not shown
   ],
+  weight: [
+    { date: '2026-07-21', kg: 64.8 },
+    { date: '2026-07-14', kg: 64.2 },
+  ],
   alerts: [],
 };
 
@@ -118,5 +122,15 @@ describe('admin patient drawer — upcoming visits', () => {
     expect(drawer).toContain('шевелений: 12'); // kicks
     // The all-empty day (Jul 19) carries nothing, so it is not listed.
     expect(drawer).not.toContain('19.07');
+  });
+
+  it('shows her weight trend with the change since the previous entry', async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    const drawer = page.text('#drawer');
+    expect(drawer).toContain('Вес');
+    expect(drawer).toContain('64.8 кг'); // latest
+    expect(drawer).toContain('+0.6 кг'); // 64.8 - 64.2 since the previous entry
   });
 });

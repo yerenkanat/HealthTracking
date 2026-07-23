@@ -58,6 +58,10 @@ const sleepBody = z.object({
   lightMin: z.number().int().min(0).max(1440),
   awakeMin: z.number().int().min(0).max(1440),
 });
+const weightBody = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kg: z.number().min(20).max(400), // sane human range; rejects a fat-fingered 3.5 or 3500
+});
 const dayLogBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   mood: z.enum(['happy', 'calm', 'anxious', 'tired', 'sad']).nullable().optional(),
@@ -324,6 +328,23 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const parsed = sleepBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     await repo.recordSleep(u.userId, parsed.data);
+    return reply.code(201).send({ ok: true });
+  });
+
+  // ---- Maternal weight (upsert on the date) ----
+  app.get('/weight', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(365, Number((req.query as { limit?: string }).limit ?? 90) || 90);
+    return reply.send({ entries: await repo.listWeight(u.userId, limit) });
+  });
+
+  app.post('/weight', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = weightBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.recordWeight(u.userId, parsed.data);
     return reply.code(201).send({ ok: true });
   });
 

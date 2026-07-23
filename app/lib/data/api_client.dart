@@ -310,6 +310,13 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push one day's weight (date / kg) so staff see the same weight trend the
+  /// mother tracks. Push-only, upsert by date.
+  Future<void> putWeight({required String date, required double kg}) async {
+    final res = await transport.post('/weight', {'date': date, 'kg': kg});
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// Push a child (id / name / gender / dateOfBirth) so the family the mother
   /// manages appears in the back-office — the kids demographics dashboard is
   /// built from these. Upsert on the client id; idempotent.

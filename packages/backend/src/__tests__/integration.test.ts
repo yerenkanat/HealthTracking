@@ -48,6 +48,7 @@ function makeDeps(
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleepRows: SleepNight[] = [];
+  const weightRows: Array<{ date: string; kg: number }> = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alertRows: SafetyAlertRow[] = [];
   const contentRows = new Map<string, import('../db/repository').ContentItemRow[]>();
@@ -120,6 +121,11 @@ function makeDeps(
       if (i >= 0) sleepRows[i] = s; else sleepRows.push(s);
     },
     listSleep: async (_u, limit) => [...sleepRows].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    recordWeight: async (_u, w) => {
+      const i = weightRows.findIndex((x) => x.date === w.date);
+      if (i >= 0) weightRows[i] = w; else weightRows.push(w);
+    },
+    listWeight: async (_u, limit) => [...weightRows].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit),
     // Day logs
     upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
     listDayLogs: async (_u, from, to) =>
@@ -687,6 +693,23 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
   it('sleep: rejects out-of-range minutes (zod 400)', async () => {
     expect((await post('/sleep', { night: '2026-07-15', deepMin: -1, remMin: 0, lightMin: 0, awakeMin: 0 })).statusCode).toBe(400);
     expect((await post('/sleep', { night: '2026-07-15', deepMin: 0, remMin: 0, lightMin: 9999, awakeMin: 0 })).statusCode).toBe(400);
+  });
+
+  it('weight: record → list newest-first, upsert on the date', async () => {
+    expect((await get('/weight')).json().entries).toHaveLength(0);
+    expect((await post('/weight', { date: '2026-07-14', kg: 64.2 })).statusCode).toBe(201);
+    await post('/weight', { date: '2026-07-15', kg: 64.5 });
+    await post('/weight', { date: '2026-07-15', kg: 64.8 }); // same day → updates
+    const entries = (await get('/weight')).json().entries;
+    expect(entries).toHaveLength(2); // not 3 — the 15th was upserted
+    expect(entries[0].date).toBe('2026-07-15'); // newest first
+    expect(entries[0].kg).toBe(64.8);
+  });
+
+  it('weight: rejects an out-of-range or misfingered value (zod 400)', async () => {
+    expect((await post('/weight', { date: '2026-07-15', kg: 3.5 })).statusCode).toBe(400); // grams, not kg
+    expect((await post('/weight', { date: '2026-07-15', kg: 3500 })).statusCode).toBe(400);
+    expect((await post('/weight', { date: 'nope', kg: 64 })).statusCode).toBe(400);
   });
 
   it('cycle day logs: upsert (PUT) + range query', async () => {

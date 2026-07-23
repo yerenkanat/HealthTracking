@@ -1394,6 +1394,7 @@
     let h=MOCK.health[id]||MOCK.health._default;
     let sleep=[]; // her recent nights, from the wellness endpoint
     let days=[]; // her recent women's-health day logs
+    let weight=[]; // her recent weight entries
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1403,7 +1404,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; }catch(e){ sleep=[]; days=[]; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1428,6 +1429,16 @@
         if(d.kicks>0) bits.push(`шевелений: ${d.kicks}`);
         if(d.symptoms&&d.symptoms.length) bits.push(`симптомы: ${d.symptoms.length}`);
         return `<div class="tli"><span><b>${esc(fmtDate(d.date))}</b></span><span class="t" style="max-width:62%;text-align:right">${esc(bits.join(" · "))}</span></div>`;
+      }).join("")}</div>`:"";
+    // Weight trend: newest first, with the change since the previous entry.
+    const wsorted=[...weight].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const weightSection=wsorted.length?`
+      <div class="dsec">Вес</div>
+      <div class="tl">${wsorted.slice(0,7).map((w,i)=>{
+        const prev=wsorted[i+1];
+        const d=prev?(w.kg-prev.kg):0;
+        const delta=prev?` <span class="t">${d>0?"+":""}${d.toFixed(1)} кг</span>`:"";
+        return `<div class="tli"><span><b>${esc(fmtDate(w.date))}</b>${delta}</span><span class="t num">${Number(w.kg).toFixed(1)} кг</span></div>`;
       }).join("")}</div>`:"";
     const initial=u.displayName.trim()[0]||"U";
     const vital=(k,label,unit)=>`<div class="vital ${h.alert.includes(k)?'alert':''}"><div class="k">${label}</div><div class="v">${h.latest[k]}<span style="font-size:12px;color:var(--muted)"> ${unit}</span></div></div>`;
@@ -1463,6 +1474,7 @@
       <div class="dsec">Ближайшие визиты</div>
       <div class="tl">${ap.slice(0,6).map(a=>`<div class="tli"><span><b>${esc(a.title||"—")}</b></span><span class="t num">${esc(fmtDate(a.at))}</span></div>`).join("")}</div>`:"";})()}
       ${sleepSection}
+      ${weightSection}
       ${diarySection}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>

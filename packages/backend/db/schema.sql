@@ -228,6 +228,14 @@ CREATE TABLE sleep_nights (
   PRIMARY KEY (user_id, night)
 );
 
+-- Maternal weight log (one row per day per user).
+CREATE TABLE weight_entries (
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  log_date    DATE NOT NULL,
+  kg          NUMERIC(5,2) NOT NULL,
+  PRIMARY KEY (user_id, log_date)
+);
+
 -- Women's-health day logs (mood / symptoms / fetal kicks / menstrual flow).
 CREATE TABLE cycle_day_logs (
   user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

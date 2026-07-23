@@ -578,6 +578,22 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    // ---- Maternal weight log ----
+    async recordWeight(userId, w) {
+      await pool.query(
+        `INSERT INTO weight_entries (user_id, log_date, kg)
+         VALUES ($1,$2,$3)
+         ON CONFLICT (user_id, log_date) DO UPDATE SET kg = EXCLUDED.kg`,
+        [userId, w.date, w.kg]);
+    },
+    async listWeight(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT log_date, kg FROM weight_entries
+         WHERE user_id = $1 ORDER BY log_date DESC LIMIT $2`, [userId, limit]);
+      // NUMERIC comes back as a string; the date as a Date — normalise both.
+      return rows.map((r) => ({ date: new Date(r.log_date).toISOString().slice(0, 10), kg: Number(r.kg) }));
+    },
+
     // ---- Women's-health day logs ----
     async upsertDayLog(userId, log) {
       await pool.query(
