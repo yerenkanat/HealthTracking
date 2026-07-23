@@ -353,6 +353,13 @@ class ApiClient {
     throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a child's emergency medical-ID (blood type / allergies / conditions /
+  /// doctor / contact) so a clinician or responder can see it. Upsert per child.
+  Future<void> putChildEmergency(String childId, Map<String, dynamic> body) async {
+    final res = await transport.put('/children/$childId/emergency', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// Push a safe zone for [childId] (upsert on the client id) so the back-office
   /// sees real zones and the server can raise enter/exit alerts.
   Future<void> putGeofence(String childId, Map<String, dynamic> body) async {

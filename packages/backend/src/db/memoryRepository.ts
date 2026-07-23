@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, WeightRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
+import type { ContentItemRow, Repository, SleepNight, WeightRow, MedicalIdRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -52,6 +52,7 @@ export function createMemoryRepository(): Repository {
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
   const weights: WeightRow[] = [];
+  const childEmergency = new Map<string, MedicalIdRow>();
   const dayLogs = new Map<string, DayLogRow>();
   const alerts: SafetyAlertRow[] = [];
   let profile: ProfileRow | null = {
@@ -206,6 +207,16 @@ export function createMemoryRepository(): Repository {
     },
     deleteGeofence: async (id) => {
       for (const [k, list] of geofences) geofences.set(k, list.filter((g) => g.id !== id));
+    },
+    upsertChildEmergency: async (childId, m) => void childEmergency.set(childId, m),
+    listMedicalIds: async (userId) => {
+      const out: Array<{ childId: string; childName: string } & MedicalIdRow> = [];
+      for (const c of children) {
+        if (c.userId !== userId) continue;
+        const m = childEmergency.get(c.id);
+        if (m) out.push({ childId: c.id, childName: c.name, ...m });
+      }
+      return out;
     },
     queryMetrics: async () => [],
     listGeofenceEvents: async (childId, limit) =>
@@ -395,6 +406,7 @@ export function createMemoryRepository(): Repository {
       events.length = 0;
       emergencyAcks.clear();
       weights.length = 0;
+      childEmergency.clear();
       healthRows.length = 0;
       sleep.length = 0;
       dayLogs.clear();

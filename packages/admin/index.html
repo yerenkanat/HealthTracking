@@ -1396,6 +1396,7 @@
     let days=[]; // her recent women's-health day logs
     let weight=[]; // her recent weight entries
     let meds=[]; // medications / supplements she is taking
+    let medids=[]; // children's emergency medical-ID cards
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1405,7 +1406,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1441,6 +1442,20 @@
         const delta=prev?` <span class="t">${d>0?"+":""}${d.toFixed(1)} кг</span>`:"";
         return `<div class="tli"><span><b>${esc(fmtDate(w.date))}</b>${delta}</span><span class="t num">${Number(w.kg).toFixed(1)} кг</span></div>`;
       }).join("")}</div>`:"";
+    // Children's emergency medical-ID — the few things a responder needs fast.
+    // Critical fields (allergies / conditions / blood type) lead.
+    const medidSection=medids.length?medids.map(m=>{
+      const rows=[];
+      if(m.bloodType) rows.push(["Группа крови",m.bloodType]);
+      if(m.allergies) rows.push(["Аллергии",m.allergies]);
+      if(m.conditions) rows.push(["Состояния",m.conditions]);
+      if(m.medications) rows.push(["Лекарства",m.medications]);
+      if(m.doctorName||m.doctorPhone) rows.push(["Врач",[m.doctorName,m.doctorPhone].filter(Boolean).join(" · ")]);
+      if(m.contactName||m.contactPhone) rows.push(["Контакт",[m.contactName,m.contactPhone].filter(Boolean).join(" · ")]);
+      if(!rows.length) return "";
+      return `<div class="dsec">Медкарта · ${esc(m.childName||"ребёнок")}</div>
+        <div class="tl">${rows.map(([k,v])=>`<div class="tli"><span><b>${esc(k)}</b></span><span class="t" style="max-width:62%;text-align:right">${esc(v)}</span></div>`).join("")}</div>`;
+    }).join(""):"";
     // Medications she is taking — a real safety concern in pregnancy.
     const medsSection=meds.length?`
       <div class="dsec">Лекарства и добавки</div>
@@ -1481,6 +1496,7 @@
       ${(()=>{const ap=(u.appointments||[]).filter(a=>a&&a.at).sort((x,y)=>String(x.at).localeCompare(String(y.at))); return ap.length?`
       <div class="dsec">Ближайшие визиты</div>
       <div class="tl">${ap.slice(0,6).map(a=>`<div class="tli"><span><b>${esc(a.title||"—")}</b></span><span class="t num">${esc(fmtDate(a.at))}</span></div>`).join("")}</div>`:"";})()}
+      ${medidSection}
       ${sleepSection}
       ${weightSection}
       ${medsSection}

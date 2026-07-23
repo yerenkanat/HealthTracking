@@ -40,6 +40,10 @@ const WELLNESS = {
     { id: 'med-1', name: 'Фолиевая кислота', dose: '400 мкг', perDay: 1 },
     { id: 'med-2', name: 'Железо', dose: '30 мг', perDay: 2 },
   ],
+  medicalIds: [
+    { childId: 'c1', childName: 'Aisha', bloodType: 'O+', allergies: 'пенициллин', conditions: '',
+      medications: '', doctorName: 'Др. Алиева', doctorPhone: '+7700', contactName: 'Бабушка', contactPhone: '+7701', notes: '' },
+  ],
   alerts: [],
 };
 
@@ -147,5 +151,16 @@ describe('admin patient drawer — upcoming visits', () => {
     expect(drawer).toContain('Фолиевая кислота');
     expect(drawer).toContain('400 мкг');
     expect(drawer).toContain('2×/день'); // iron, twice daily
+  });
+
+  it("shows the child's emergency medical-ID — what a responder needs fast", async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    const drawer = page.text('#drawer');
+    expect(drawer).toContain('Медкарта · Aisha');
+    expect(drawer).toContain('O+'); // blood type
+    expect(drawer).toContain('пенициллин'); // allergy — the critical field
+    expect(drawer).toContain('Др. Алиева'); // doctor
   });
 });

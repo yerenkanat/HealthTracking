@@ -249,6 +249,34 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(`DELETE FROM geofences WHERE id = $1`, [geofenceId]);
     },
 
+    async upsertChildEmergency(childId, m) {
+      await pool.query(
+        `INSERT INTO child_emergency (child_id, blood_type, allergies, conditions, medications,
+                                      doctor_name, doctor_phone, contact_name, contact_phone, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (child_id) DO UPDATE SET
+           blood_type = EXCLUDED.blood_type, allergies = EXCLUDED.allergies,
+           conditions = EXCLUDED.conditions, medications = EXCLUDED.medications,
+           doctor_name = EXCLUDED.doctor_name, doctor_phone = EXCLUDED.doctor_phone,
+           contact_name = EXCLUDED.contact_name, contact_phone = EXCLUDED.contact_phone,
+           notes = EXCLUDED.notes`,
+        [childId, m.bloodType, m.allergies, m.conditions, m.medications,
+          m.doctorName, m.doctorPhone, m.contactName, m.contactPhone, m.notes]);
+    },
+    async listMedicalIds(userId) {
+      const { rows } = await pool.query(
+        `SELECT c.id AS child_id, c.name AS child_name, e.blood_type, e.allergies, e.conditions,
+                e.medications, e.doctor_name, e.doctor_phone, e.contact_name, e.contact_phone, e.notes
+         FROM children c JOIN child_emergency e ON e.child_id = c.id
+         WHERE c.guardian_id = $1 ORDER BY c.name`, [userId]);
+      return rows.map((r) => ({
+        childId: r.child_id, childName: r.child_name,
+        bloodType: r.blood_type ?? '', allergies: r.allergies ?? '', conditions: r.conditions ?? '',
+        medications: r.medications ?? '', doctorName: r.doctor_name ?? '', doctorPhone: r.doctor_phone ?? '',
+        contactName: r.contact_name ?? '', contactPhone: r.contact_phone ?? '', notes: r.notes ?? '',
+      }));
+    },
+
     async queryMetrics(userId, { from, to, metric }) {
       const col = {
         hr: 'heart_rate_bpm', spo2: 'spo2_pct', systolic: 'systolic_mmhg',

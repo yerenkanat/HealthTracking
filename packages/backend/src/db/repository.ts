@@ -36,6 +36,18 @@ export interface MedicationRow {
   perDay: number;
 }
 
+export interface MedicalIdRow {
+  bloodType: string;
+  allergies: string;
+  conditions: string;
+  medications: string;
+  doctorName: string;
+  doctorPhone: string;
+  contactName: string;
+  contactPhone: string;
+  notes: string;
+}
+
 export interface DayLogRow {
   date: string; // yyyy-MM-dd
   mood: string | null;
@@ -237,6 +249,11 @@ export interface Repository {
   // identity and re-syncing upserts rather than duplicates.
   upsertGeofence(childId: string, g: Geofence): Promise<void>;
   deleteGeofence(geofenceId: string): Promise<void>;
+
+  // Child emergency medical-ID (one row per child, upsert). listMedicalIds joins
+  // the caller's children so the admin drawer can show each child's card.
+  upsertChildEmergency(childId: string, m: MedicalIdRow): Promise<void>;
+  listMedicalIds(userId: string): Promise<Array<{ childId: string; childName: string } & MedicalIdRow>>;
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
   listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;

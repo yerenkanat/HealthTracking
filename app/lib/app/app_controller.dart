@@ -190,6 +190,9 @@ class AppController {
   // fleet shows real paired bands/tags.
   Future<void> Function(PairedDevice)? _onDeviceUpsert;
   Future<void> Function(String id)? _onDeviceDelete;
+  // Child emergency medical-ID sync: fires when a child's info changes, so a
+  // clinician/responder sees the same medical-ID the parent recorded.
+  Future<void> Function(String childId, ChildEmergencyInfo)? _onEmergencyUpsert;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final List<CryResult> _cryHistory = []; // recent cry analyses, newest first
@@ -1189,6 +1192,11 @@ class AppController {
   ChildEmergencyInfo emergencyInfoFor(String childId) =>
       _childEmergency[childId] ?? const ChildEmergencyInfo();
 
+  /// Wire backend sync for child emergency info (called by main.dart on sign-in).
+  void attachEmergencySync({required Future<void> Function(String childId, ChildEmergencyInfo) upsert}) {
+    _onEmergencyUpsert = upsert;
+  }
+
   /// Save (or clear, when empty) a child's emergency info, and persist.
   void setEmergencyInfo(String childId, ChildEmergencyInfo info) {
     if (info.isEmpty) {
@@ -1196,6 +1204,9 @@ class AppController {
     } else {
       _childEmergency[childId] = info;
     }
+    // Mirror to the server (upsert per child). An emptied card pushes all-blank
+    // fields — the closest to clearing it there.
+    unawaited(_onEmergencyUpsert?.call(childId, info) ?? Future<void>.value());
     _persist();
     _notify();
   }

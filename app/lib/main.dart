@@ -33,6 +33,7 @@ import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
 import 'data/connectivity.dart';
 import 'domain/appointment.dart';
+import 'domain/child_emergency.dart' show ChildEmergencyInfo;
 import 'domain/medication.dart' show Medication;
 import 'domain/chat_controller.dart';
 import 'domain/family.dart' show UserProfile, ChildProfile;
@@ -514,6 +515,21 @@ Future<void> bootstrapRuntime(
         for (final g in ch.geofences) {
           unawaited(api.putGeofence(ch.id, geofenceBody(g)));
         }
+      }
+
+      // Child emergency medical-ID sync. Send ALL fields (not just non-empty) so
+      // clearing one syncs; the server bounds each.
+      Map<String, dynamic> medicalIdBody(ChildEmergencyInfo e) => {
+            'bloodType': e.bloodType, 'allergies': e.allergies, 'conditions': e.conditions,
+            'medications': e.medications, 'doctorName': e.doctorName, 'doctorPhone': e.doctorPhone,
+            'contactName': e.contactName, 'contactPhone': e.contactPhone, 'notes': e.notes,
+          };
+      controller.attachEmergencySync(
+        upsert: (childId, e) => api.putChildEmergency(childId, medicalIdBody(e)),
+      );
+      for (final ch in controller.children) {
+        final e = controller.emergencyInfoFor(ch.id);
+        if (!e.isEmpty) unawaited(api.putChildEmergency(ch.id, medicalIdBody(e)));
       }
 
       // Push-only weight sync, so the admin wellness view mirrors her trend.

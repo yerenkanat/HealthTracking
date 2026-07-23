@@ -238,6 +238,21 @@ CREATE TABLE sleep_nights (
   PRIMARY KEY (user_id, night)
 );
 
+-- A child's emergency medical-ID (what a parent hands a paramedic). One row per
+-- child; all free text, all optional.
+CREATE TABLE child_emergency (
+  child_id      UUID PRIMARY KEY REFERENCES children(id) ON DELETE CASCADE,
+  blood_type    TEXT NOT NULL DEFAULT '',
+  allergies     TEXT NOT NULL DEFAULT '',
+  conditions    TEXT NOT NULL DEFAULT '',
+  medications   TEXT NOT NULL DEFAULT '',
+  doctor_name   TEXT NOT NULL DEFAULT '',
+  doctor_phone  TEXT NOT NULL DEFAULT '',
+  contact_name  TEXT NOT NULL DEFAULT '',
+  contact_phone TEXT NOT NULL DEFAULT '',
+  notes         TEXT NOT NULL DEFAULT ''
+);
+
 -- Maternal weight log (one row per day per user).
 CREATE TABLE weight_entries (
   user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

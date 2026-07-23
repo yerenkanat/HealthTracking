@@ -45,6 +45,7 @@ function makeDeps(
   const children: Array<{ id: string; name: string }> = [];
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const medRows: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
+  const medicalIds = new Map<string, Record<string, string>>();
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -130,6 +131,16 @@ function makeDeps(
     },
     deleteGeofence: async (id) => {
       for (const [k, list] of geofences) geofences.set(k, list.filter((g) => g.id !== id));
+    },
+    upsertChildEmergency: async (childId, m) => void medicalIds.set(childId, { ...m } as Record<string, string>),
+    listMedicalIds: async (userId) => {
+      const out: Array<Record<string, unknown>> = [];
+      if (userId !== USER) return out as never;
+      for (const [childId, m] of medicalIds) {
+        const c = children.find((x) => x.id === childId);
+        out.push({ childId, childName: c?.name ?? 'Sultan', ...m });
+      }
+      return out as never;
     },
     queryMetrics: async () => [{ t: '2026-07-15T08:00:00Z', value: 72 }, { t: '2026-07-15T08:05:00Z', value: 80 }],
     listGeofenceEvents: async () => events.filter((e) => e.transition),
@@ -693,6 +704,21 @@ describe('CRUD + history routes (in-process)', () => {
       id: 'zone-1', name: 'Park', shape: 'circle', center: { lat: 43.24, lng: 76.9 }, radiusM: 80,
     });
     expect(r.statusCode).toBe(400);
+  });
+
+  it('emergency: upsert a child medical-ID, then read it via the admin wellness view', async () => {
+    const r = await app.inject({
+      method: 'PUT', url: `/children/${CHILD}/emergency`,
+      payload: { bloodType: 'O+', allergies: 'penicillin', conditions: '', medications: '',
+        doctorName: 'Dr Aliyeva', doctorPhone: '+7700', contactName: 'Gran', contactPhone: '+7701', notes: '' },
+    });
+    expect(r.statusCode).toBe(200);
+    // The admin drawer reads it back joined with the child's name.
+    const ids = (await get(`/admin/users/${USER}/wellness`)).json().medicalIds;
+    const card = ids.find((m: { childId: string }) => m.childId === CHILD);
+    expect(card.bloodType).toBe('O+');
+    expect(card.allergies).toBe('penicillin');
+    expect(card.childName).toBeTruthy();
   });
 
   it('metrics history query validates + returns points', async () => {
