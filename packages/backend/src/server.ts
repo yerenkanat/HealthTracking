@@ -39,6 +39,10 @@ export interface ServerDeps {
   chatLimiter?: RateLimiter;
   /// Same, for /ingest/batch. Defaults to 120 requests per 5 minutes.
   ingestLimiter?: RateLimiter;
+  /// Backstop for all other authenticated writes (sync endpoints). Defaults to
+  /// 1000 per 5 minutes per identity — far above any real client, so it only
+  /// ever bounds a runaway/abusive one. /ingest and /ai/chat keep their own.
+  writeLimiter?: RateLimiter;
   cacheLastLocation: (childId: string) => Promise<unknown>;
   setBpCalibration: (userId: string, offsets: { systolicOffset: number; diastolicOffset: number; calibratedAt: string }) => Promise<void>;
   /** Resolve the caller's user from the request (verify Firebase token in prod). */
@@ -222,12 +226,32 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // bound a runaway, not to shape normal traffic.
   const ingestLimiter = deps.ingestLimiter ?? new RateLimiter({ limit: 120, windowMs: 5 * 60_000 });
 
+  // Every OTHER authenticated write (the sync endpoints) shares one generous
+  // per-identity budget, so no single route needs its own limiter and a runaway
+  // client is bounded whichever endpoint it hammers. Applied via a preHandler
+  // below. Keyed by a cheap identity (the auth header) — a throttle bucket, not
+  // a security check; real auth still runs in each route.
+  const writeLimiter = deps.writeLimiter ?? new RateLimiter({ limit: 1000, windowMs: 5 * 60_000 });
+  app.addHook('preHandler', async (req, reply) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
+    const url = req.url;
+    // These carry their own limiter, or are staff/public and not user writes.
+    if (url.startsWith('/ingest') || url.startsWith('/ai/') || url.startsWith('/admin')) return;
+    const key = String(req.headers['authorization'] ?? req.headers['x-user-id'] ?? req.ip);
+    const rl = writeLimiter.take(key);
+    if (!rl.allowed) {
+      reply.header('retry-after', String(rl.retryAfterSec));
+      return reply.code(429).send({ error: 'rate_limited', retryAfterSec: rl.retryAfterSec });
+    }
+  });
+
   // Expired windows are dropped periodically — otherwise the map keeps one
   // entry per user who ever chatted, which is a leak that only surfaces months
   // into production. unref() so this timer never holds the process open.
   const sweeper = setInterval(() => {
     chatLimiter.sweep();
     ingestLimiter.sweep();
+    writeLimiter.sweep();
   }, 5 * 60_000);
   if (typeof sweeper.unref === 'function') sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
