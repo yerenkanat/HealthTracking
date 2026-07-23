@@ -109,6 +109,46 @@ describe('pgRepository against db/schema.sql', () => {
     expect(referencedTables().size).toBeGreaterThan(5);
   });
 
+  it('the index migration and schema.sql do not drift apart', () => {
+    // schema.sql builds a fresh database; db/migrations/ brings an existing one
+    // to the same state. They are two files that must describe one index set,
+    // which is exactly the pair that silently diverges — a new index added to
+    // only one of them means either fresh installs or upgraded installs run
+    // without it, and nothing fails loudly enough to notice.
+    const migration = readFileSync(`${root}db/migrations/001_performance_indexes.sql`, 'utf8')
+      .replace(/^\s*--.*$/gm, ' '); // comments name indexes that are deliberately absent
+    const names = (sql: string) =>
+      new Set([...sql.matchAll(/create\s+index\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)]
+        .map((m) => m[1].toLowerCase()));
+
+    const inMigration = names(migration);
+    expect(inMigration.size).toBeGreaterThan(3); // the regex actually matched
+    const missingFromSchema = [...inMigration].filter((n) => !names(schema).has(n));
+    expect(missingFromSchema, `in the migration but not schema.sql: ${missingFromSchema.join(', ')}`)
+      .toEqual([]);
+  });
+
+  it('the hot filter columns the repository queries by are indexed', () => {
+    // Each of these is a `WHERE <col> = $1` (or a range/sort on it) that runs on
+    // a user-facing path, against a table that grows without bound. They were
+    // picked by reading the queries, not guessed — see the migration for what
+    // each one serves, and for the list of filters deliberately left to a
+    // composite PRIMARY KEY or UNIQUE constraint.
+    const indexed = schema.toLowerCase();
+    for (const [what, needle] of [
+      ['zones by child', 'idx_geofences_child'],
+      ['the cross-user emergency feed', 'idx_phm_emergency'],
+      ['the cross-user alert feed', 'idx_safety_alerts_at'],
+      ['dead push tokens, deleted by token', 'idx_push_tokens_token'],
+      ['admin user search (unanchored ILIKE)', 'idx_users_name_trgm'],
+    ] as const) {
+      expect(indexed.includes(needle), `schema.sql should index ${what} (${needle})`).toBe(true);
+    }
+    // The trigram indexes are useless without the extension that provides the
+    // operator class, and CREATE INDEX would fail outright at build time.
+    expect(indexed).toContain('create extension if not exists pg_trgm');
+  });
+
   it('every repository method the interface declares is implemented', () => {
     // A method missing from the pg implementation is a runtime failure the
     // moment production reaches it, and TypeScript will not always catch it

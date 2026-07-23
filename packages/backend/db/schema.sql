@@ -14,6 +14,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;    -- substring search on the admin user list
 
 -- -----------------------------------------------------------------------------
 -- Identity
@@ -35,6 +36,12 @@ CREATE TABLE users (                       -- Mothers / primary caregivers
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- The admin user list searches with `ILIKE '%term%'`. A leading wildcard makes
+-- the btree on email useless and display_name has none at all, so every search
+-- keystroke was a full scan of users plus a per-row pattern match. Trigram GIN
+-- indexes are the one index type that can serve an unanchored ILIKE.
+CREATE INDEX idx_users_name_trgm  ON users USING GIN (display_name gin_trgm_ops);
+CREATE INDEX idx_users_email_trgm ON users USING GIN ((email::TEXT) gin_trgm_ops);
 
 CREATE TABLE devices (                     -- Smart bands + child tracker tags
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -120,6 +127,13 @@ CREATE TABLE pregnancy_health_metrics (
 SELECT create_hypertable('pregnancy_health_metrics', 'recorded_at',
                          chunk_time_interval => INTERVAL '7 days');
 CREATE INDEX idx_phm_user_time ON pregnancy_health_metrics (user_id, recorded_at DESC);
+-- The admin emergency feed reads the newest emergencies across ALL users.
+-- idx_phm_user_time leads with user_id and so cannot serve it: the feed fell
+-- back to scanning every chunk of the largest table in the database. PARTIAL,
+-- because emergencies are a tiny fraction of rows — the index stays small and
+-- only pays maintenance cost on the rare row that qualifies.
+CREATE INDEX idx_phm_emergency ON pregnancy_health_metrics (recorded_at DESC)
+  WHERE triage_severity = 'emergency';
 
 -- Emergency acknowledgements — a back-office overlay on the (derived) emergency
 -- feed. The emergency itself stays a health-metric row on the safety path; this
@@ -191,6 +205,12 @@ CREATE TABLE geofences (
 );
 CREATE INDEX idx_geofences_center ON geofences USING GIST (center);
 CREATE INDEX idx_geofences_area   ON geofences USING GIST (area);
+-- Zones are read BY CHILD constantly: the map, the new-device restore, the
+-- per-child zone count in the admin drawer, and the inside-any-zone check
+-- documented at the foot of this file. Only the two shape indexes existed, and
+-- neither can serve `WHERE child_id = $1` — every one of those reads was a
+-- sequential scan over every family's zones.
+CREATE INDEX idx_geofences_child ON geofences(child_id);
 
 CREATE TABLE location_history (                    -- TIMESERIES hypertable
   child_id     UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
@@ -315,6 +335,10 @@ CREATE TABLE safety_alerts (
   at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_safety_alerts_user_at ON safety_alerts (user_id, at DESC);
+-- The admin alert feed and the 7-day / SOS dashboard counters read across ALL
+-- users; the index above leads with user_id and cannot serve them.
+CREATE INDEX idx_safety_alerts_at  ON safety_alerts (at DESC);
+CREATE INDEX idx_safety_alerts_sos ON safety_alerts (at DESC) WHERE kind = 'sos';
 
 -- Push tokens for FCM/APNS delivery.
 CREATE TABLE push_tokens (
@@ -325,6 +349,10 @@ CREATE TABLE push_tokens (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, token)
 );
+-- FCM/APNS reports a dead token and the push layer deletes it BY TOKEN alone.
+-- UNIQUE(user_id, token) leads with user_id, so that delete scanned the whole
+-- table — on the push path, for every unregistered device.
+CREATE INDEX idx_push_tokens_token ON push_tokens(token);
 
 -- =============================================================================
 -- Example geospatial queries (Geofencing Specialist)

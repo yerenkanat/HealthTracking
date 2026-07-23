@@ -57,6 +57,20 @@ Geofence? _tryGeofence(Map<String, dynamic> j) {
   }
 }
 
+/// Run one unit of the new-device restore, keeping its failure to itself.
+///
+/// Every pull is best-effort: offline, a backend that is down, or one malformed
+/// row must leave the local data intact and let the next launch try again. It
+/// must ALSO not take the other pulls down with it — the restores run under
+/// Future.wait, which abandons its whole batch the moment any future throws.
+Future<void> _restore(Future<void> Function() pull) async {
+  try {
+    await pull();
+  } catch (_) {
+    // Offline, backend down, or an unusable row — local data is intact.
+  }
+}
+
 /// Parse a newborn event from the server's shape, or null if the row is unusable
 /// (unknown kind / implausible duration) — so one bad row drops itself rather
 /// than the whole child's log. (Used on sign-in restore.)
@@ -605,106 +619,117 @@ Future<void> bootstrapRuntime(
       for (final m in controller.medications) {
         unawaited(api.putMedication(medBody(m)));
       }
-      try {
-        final remote = await api.getAppointments();
-        controller.mergeRemoteAppointments([
-          for (final m in remote)
-            Appointment(
-              id: m['id'] as String,
-              title: (m['title'] as String?) ?? '',
-              at: DateTime.parse(m['at'] as String),
-              note: (m['note'] as String?) ?? '',
-            ),
-        ]);
-        // First-sync push: send anything local the server does not have yet.
-        for (final a in controller.appointments) {
-          unawaited(api.putAppointment(id: a.id, title: a.title, at: iso(a.at), note: a.note));
-        }
-      } catch (_) {
-        // Offline or backend down — local data is intact; retry on next launch.
-      }
+      // New-device restore: pull back everything the server has that this
+      // install doesn't, so a reinstall or a new phone is not an empty app.
+      //
+      // These run CONCURRENTLY. Written as a serial chain of awaits it was ten
+      // round trips plus two more per child, each one waiting on the last — on
+      // mobile data that is several seconds of a blank app before her own data
+      // appears, and it grew every time another data type was added. Nothing
+      // here depends on anything else here: each pull owns a different part of
+      // the controller, and every merge is add-missing-by-key with local
+      // winning, so order cannot change the result.
+      //
+      // _restore() keeps each unit's failure to itself. Future.wait aborts its
+      // whole batch on the first error, so without it one endpoint being down
+      // would silently discard every restore that had not finished yet.
+      await Future.wait([
+        _restore(() async {
+          final remote = await api.getAppointments();
+          controller.mergeRemoteAppointments([
+            for (final m in remote)
+              Appointment(
+                id: m['id'] as String,
+                title: (m['title'] as String?) ?? '',
+                at: DateTime.parse(m['at'] as String),
+                note: (m['note'] as String?) ?? '',
+              ),
+          ]);
+          // First-sync push: send anything local the server does not have yet.
+          for (final a in controller.appointments) {
+            unawaited(api.putAppointment(id: a.id, title: a.title, at: iso(a.at), note: a.note));
+          }
+        }),
 
-      // New-device restore: pull children (with their zones) + medications the
-      // server has that this install doesn't, so a reinstall gets them back.
-      try {
-        final remoteKids = await api.getChildren();
-        final restored = <ChildProfile>[];
-        final medicalIds = <String, ChildEmergencyInfo>{};
-        for (final m in remoteKids) {
-          final id = m['id'] as String;
-          List<Geofence> zones = const [];
-          try {
-            zones = [
-              for (final g in await api.getChildGeofences(id))
-                if (_tryGeofence(g) case final z?) z,
-            ];
-          } catch (_) {/* zones are best-effort */}
-          try {
-            final card = await api.getChildEmergency(id);
-            if (card != null) medicalIds[id] = ChildEmergencyInfo.fromJson(card);
-          } catch (_) {/* the medical-ID is best-effort too */}
-          restored.add(ChildProfile(
-            id: id,
-            name: (m['name'] as String?) ?? '',
-            gender: genderFromName(m['gender'] as String?),
-            dateOfBirth: m['dateOfBirth'] is String ? DateTime.tryParse(m['dateOfBirth'] as String) : null,
-            geofences: zones,
-          ));
-        }
-        controller.mergeRemoteChildren(restored);
-        // After the children exist, restore each child's medical-ID (local wins).
-        medicalIds.forEach(controller.mergeRemoteEmergency);
-      } catch (_) {/* offline — local intact */}
+        // Children, with each child's zones and medical-ID fanned out in
+        // parallel rather than two more sequential trips per child.
+        _restore(() async {
+          final remoteKids = await api.getChildren();
+          final zones = <String, List<Geofence>>{};
+          final medicalIds = <String, ChildEmergencyInfo>{};
+          await Future.wait([
+            for (final m in remoteKids)
+              for (final pull in [
+                () async {
+                  final id = m['id'] as String;
+                  zones[id] = [
+                    for (final g in await api.getChildGeofences(id))
+                      if (_tryGeofence(g) case final z?) z,
+                  ];
+                },
+                () async {
+                  final id = m['id'] as String;
+                  final card = await api.getChildEmergency(id);
+                  if (card != null) medicalIds[id] = ChildEmergencyInfo.fromJson(card);
+                },
+              ])
+                _restore(pull), // one child's zones failing must not lose the rest
+          ]);
+          controller.mergeRemoteChildren([
+            for (final m in remoteKids)
+              ChildProfile(
+                id: m['id'] as String,
+                name: (m['name'] as String?) ?? '',
+                gender: genderFromName(m['gender'] as String?),
+                dateOfBirth:
+                    m['dateOfBirth'] is String ? DateTime.tryParse(m['dateOfBirth'] as String) : null,
+                geofences: zones[m['id'] as String] ?? const [],
+              ),
+          ]);
+          // After the children exist, restore each child's medical-ID (local wins).
+          medicalIds.forEach(controller.mergeRemoteEmergency);
+        }),
 
-      try {
-        final remoteMeds = await api.getMedications();
-        controller.mergeRemoteMedications([
-          for (final m in remoteMeds)
-            Medication(
-              id: m['id'] as String,
-              name: (m['name'] as String?) ?? '',
-              dose: (m['dose'] as String?) ?? '',
-              perDay: (m['perDay'] as num?)?.toInt() ?? 1,
-            ),
-        ]);
-      } catch (_) {/* offline — local intact */}
+        _restore(() async {
+          controller.mergeRemoteMedications([
+            for (final m in await api.getMedications())
+              Medication(
+                id: m['id'] as String,
+                name: (m['name'] as String?) ?? '',
+                dose: (m['dose'] as String?) ?? '',
+                perDay: (m['perDay'] as num?)?.toInt() ?? 1,
+              ),
+          ]);
+        }),
 
-      // Restore health history so a reinstall keeps her weight/sleep trends and
-      // the cycle log that drives predictions. Each is best-effort + independent.
-      try {
-        controller.mergeRemoteWeights([for (final w in await api.getWeight()) WeightEntry.fromJson(w)]);
-      } catch (_) {/* offline / bad row */}
-      try {
-        controller.mergeRemoteSleep([for (final n in await api.getSleep()) SleepSummary.fromJson(n)]);
-      } catch (_) {/* offline / bad row */}
-      try {
-        final days = await api.getDayLogs(from: '1970-01-01', to: '2999-12-31');
-        controller.mergeRemoteDayLogs([for (final d in days) DayLog.fromJson(d)]);
-      } catch (_) {/* offline / bad row */}
+        // Health history: her weight/sleep trends and the cycle log that drives
+        // the predictions.
+        _restore(() async => controller
+            .mergeRemoteWeights([for (final w in await api.getWeight()) WeightEntry.fromJson(w)])),
+        _restore(() async => controller
+            .mergeRemoteSleep([for (final n in await api.getSleep()) SleepSummary.fromJson(n)])),
+        _restore(() async {
+          final days = await api.getDayLogs(from: '1970-01-01', to: '2999-12-31');
+          controller.mergeRemoteDayLogs([for (final d in days) DayLog.fromJson(d)]);
+        }),
 
-      // Restore paired trackers/bands and the pregnancy timing history (fetal
-      // movements + contractions) so a new phone shows the same devices and the
-      // logs she built up. Best-effort + independent.
-      try {
-        controller.mergeRemoteDevices([for (final d in await api.getDevices()) PairedDevice.fromJson(d)]);
-      } catch (_) {/* offline / bad row */}
-      try {
-        controller.mergeRemoteKickSessions(
-            [for (final s in await api.getKickSessions()) KickSessionRecord.fromJson(s)]);
-      } catch (_) {/* offline / bad row */}
-      try {
-        controller.mergeRemoteContractionSessions(
-            [for (final s in await api.getContractionSessions()) ContractionSessionRecord.fromJson(s)]);
-      } catch (_) {/* offline / bad row */}
-      try {
-        final byChild = <String, List<NewbornEvent>>{};
-        for (final e in await api.getNewbornEvents()) {
-          final childId = e['childId'] as String?;
-          if (childId == null) continue;
-          if (_tryNewborn(e) case final ev?) (byChild[childId] ??= []).add(ev);
-        }
-        controller.mergeRemoteNewborn(byChild);
-      } catch (_) {/* offline / bad row */}
+        // Paired trackers/bands, the pregnancy timing history, and the baby log.
+        _restore(() async => controller
+            .mergeRemoteDevices([for (final d in await api.getDevices()) PairedDevice.fromJson(d)])),
+        _restore(() async => controller.mergeRemoteKickSessions(
+            [for (final s in await api.getKickSessions()) KickSessionRecord.fromJson(s)])),
+        _restore(() async => controller.mergeRemoteContractionSessions(
+            [for (final s in await api.getContractionSessions()) ContractionSessionRecord.fromJson(s)])),
+        _restore(() async {
+          final byChild = <String, List<NewbornEvent>>{};
+          for (final e in await api.getNewbornEvents()) {
+            final childId = e['childId'] as String?;
+            if (childId == null) continue;
+            if (_tryNewborn(e) case final ev?) (byChild[childId] ??= []).add(ev);
+          }
+          controller.mergeRemoteNewborn(byChild);
+        }),
+      ]);
     }
 
     // Where the child's position comes from.

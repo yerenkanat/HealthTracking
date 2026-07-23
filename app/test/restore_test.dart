@@ -241,6 +241,44 @@ void main() {
       expect(c.contractionSessions.single.avgIntervalSec, 300);
     });
 
+    test('the merges are order-independent (the restore runs them concurrently)', () {
+      // main() pulls every restore under a single Future.wait, so the order the
+      // merges land in is whatever order the network returns — it is not the
+      // order they are written in. That is only safe while no merge depends on
+      // another having run first. Applying two orders and demanding the same
+      // result is what keeps it that way.
+      final childId = uuidV4();
+      final at = DateTime.utc(2026, 7, 22, 8);
+
+      List<Object> snapshot(AppController c) => [
+            c.children.map((x) => x.id).toList(),
+            c.emergencyInfoFor(childId).bloodType,
+            c.weights.map((w) => w.date).toList(),
+            c.newbornLogFor(childId).length,
+          ];
+
+      void children(AppController c) => c.mergeRemoteChildren([ChildProfile(id: childId, name: 'Aisha')]);
+      void emergency(AppController c) => c.mergeRemoteEmergency(childId, const ChildEmergencyInfo(bloodType: 'A+'));
+      void weights(AppController c) => c.mergeRemoteWeights(const [WeightEntry(date: '2026-07-01', kg: 62.0)]);
+      void newborn(AppController c) =>
+          c.mergeRemoteNewborn({childId: [NewbornEvent(at: at, kind: NewbornEventKind.feed)]});
+
+      final forward = make();
+      addTearDown(forward.dispose);
+      for (final m in [children, emergency, weights, newborn]) {
+        m(forward);
+      }
+
+      final reversed = make();
+      addTearDown(reversed.dispose);
+      for (final m in [newborn, weights, emergency, children]) {
+        m(reversed);
+      }
+
+      expect(snapshot(reversed), snapshot(forward));
+      expect(reversed.emergencyInfoFor(childId).bloodType, 'A+'); // and not vacuously empty
+    });
+
     test('mergeRemoteNewborn restores per child, dedups on (at, kind)', () {
       final c = make();
       addTearDown(c.dispose);
