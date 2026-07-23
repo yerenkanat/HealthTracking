@@ -262,7 +262,13 @@ Future<void> bootstrapRuntime(
   try {
     final notifications = LocalNotificationService();
     await notifications.init();
-    await notifications.requestPermission();
+    // Do NOT request permission blindly at launch. Instead let the UI ask at a
+    // moment it can explain why (the reminders centre / adding a safe zone),
+    // which is what the notification service's init comment intends.
+    controller.attachNotificationPermission(
+      request: notifications.requestPermission,
+      granted: notifications.hasPermission,
+    );
     controller.newAlerts.listen((alert) {
       final l = L10n(controller.locale);
       final title = switch (alert.kind) {

@@ -1846,6 +1846,35 @@ class AppController {
     _onSleepUpsert = upsert;
   }
 
+  // ---- Notification permission (primed by the UI, not blindly at launch) ----
+  Future<bool> Function()? _requestNotif;
+  Future<bool> Function()? _notifGranted;
+  bool _notifAsked = false; // this session only — never nag more than once a run
+
+  /// Wire the notification service so the UI can request permission at a moment
+  /// it can explain (main.dart). Absent under tests / no-op builds.
+  void attachNotificationPermission({
+    required Future<bool> Function() request,
+    required Future<bool> Function() granted,
+  }) {
+    _requestNotif = request;
+    _notifGranted = granted;
+  }
+
+  /// True when a notification service is wired at all (false in tests).
+  bool get notificationsSupported => _requestNotif != null;
+
+  /// True once we've shown the primer this run — so a second reminder toggle
+  /// doesn't ask again.
+  bool get notificationsAsked => _notifAsked;
+  void markNotificationsAsked() => _notifAsked = true;
+
+  /// Whether the OS already grants notifications (skip the primer if so).
+  Future<bool> notificationsGranted() async => await _notifGranted?.call() ?? false;
+
+  /// Fire the OS permission request (after the primer). Returns whether granted.
+  Future<bool> requestNotifications() async => await _requestNotif?.call() ?? false;
+
   // ---- Force-update gate ----
   bool _mustUpdate = false;
 

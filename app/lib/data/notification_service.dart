@@ -14,6 +14,10 @@ import '../domain/reminder_schedule.dart';
 abstract class NotificationService {
   Future<void> init();
   Future<bool> requestPermission();
+
+  /// Whether notifications are already permitted — so the UI can skip the primer
+  /// (and the OS prompt) when there is nothing left to ask for.
+  Future<bool> hasPermission();
   Future<void> show({required String title, required String body});
 
   /// Schedule a one-off notification for [at] (a wall-clock local time). A past
@@ -34,6 +38,8 @@ class NoopNotificationService implements NotificationService {
   Future<void> init() async {}
   @override
   Future<bool> requestPermission() async => false;
+  @override
+  Future<bool> hasPermission() async => false;
   @override
   Future<void> show({required String title, required String body}) async {}
   @override
@@ -141,6 +147,16 @@ class LocalNotificationService implements NotificationService {
     // nobody had asked for, on the strength of the Android resolver being null.
     // On iOS that meant the app reported alerts were working while none could
     // ever arrive. Unknown is not granted.
+    return false;
+  }
+
+  @override
+  Future<bool> hasPermission() async {
+    final android =
+        _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) return await android.areNotificationsEnabled() ?? false;
+    // No Android resolver (iOS/other): treat as not-yet-granted so the primer
+    // still runs. There is no iOS build target here, so this is the safe default.
     return false;
   }
 

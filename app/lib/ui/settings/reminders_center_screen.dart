@@ -10,6 +10,7 @@ import '../../domain/reminders.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import '../widgets/permission_primer.dart';
 
 class RemindersCenterScreen extends StatelessWidget {
   final AppController controller;
@@ -50,7 +51,7 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('period_reminder'),
                         subtitle: hasCycle ? l.t('period_reminder_sub') : l.t('rem_needs_cycle'),
                         value: c.periodReminderEnabled,
-                        onChanged: hasCycle ? c.setPeriodReminder : null,
+                        onChanged: hasCycle ? (on) => _enable(context, c, on, () => c.setPeriodReminder(on)) : null,
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -59,7 +60,7 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('fertile_reminder'),
                         subtitle: hasCycle ? l.t('fertile_reminder_sub') : l.t('rem_needs_cycle'),
                         value: c.fertileReminderEnabled,
-                        onChanged: hasCycle ? c.setFertileReminder : null,
+                        onChanged: hasCycle ? (on) => _enable(context, c, on, () => c.setFertileReminder(on)) : null,
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -70,7 +71,7 @@ class RemindersCenterScreen extends StatelessWidget {
                             ? l.t('water_reminder_off')
                             : l.t('water_reminder_at', {'time': minutesToHhmm(c.waterReminderMinutes!)}),
                         value: c.waterReminderMinutes != null,
-                        onChanged: (on) => _toggleWater(context, c, on),
+                        onChanged: (on) => _enable(context, c, on, () => _toggleWater(context, c, on)),
                         onTapBody: c.waterReminderMinutes == null ? null : () => _pickWaterTime(context, c),
                       ),
                       const _ThinDivider(),
@@ -85,7 +86,7 @@ class RemindersCenterScreen extends StatelessWidget {
                                 : l.t('med_reminder_at', {'time': minutesToHhmm(c.medReminderMinutes!)}),
                         value: c.medReminderMinutes != null,
                         // Nothing to be reminded about until something's tracked.
-                        onChanged: c.medications.isEmpty ? null : (on) => _toggleMed(context, c, on),
+                        onChanged: c.medications.isEmpty ? null : (on) => _enable(context, c, on, () => _toggleMed(context, c, on)),
                         onTapBody: c.medReminderMinutes == null ? null : () => _pickMedTime(context, c),
                       ),
                     ],
@@ -107,7 +108,7 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('notif_zone'),
                         subtitle: l.t('notif_zone_sub'),
                         value: c.notificationPrefs.zoneEvents,
-                        onChanged: (on) => c.setNotificationPrefs(c.notificationPrefs.copyWith(zoneEvents: on)),
+                        onChanged: (on) => _enable(context, c, on, () => c.setNotificationPrefs(c.notificationPrefs.copyWith(zoneEvents: on))),
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -116,7 +117,7 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('notif_checkin'),
                         subtitle: l.t('notif_checkin_sub'),
                         value: c.notificationPrefs.checkIn,
-                        onChanged: (on) => c.setNotificationPrefs(c.notificationPrefs.copyWith(checkIn: on)),
+                        onChanged: (on) => _enable(context, c, on, () => c.setNotificationPrefs(c.notificationPrefs.copyWith(checkIn: on))),
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -125,7 +126,7 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('notif_lowbattery'),
                         subtitle: l.t('notif_lowbattery_sub'),
                         value: c.notificationPrefs.lowBattery,
-                        onChanged: (on) => c.setNotificationPrefs(c.notificationPrefs.copyWith(lowBattery: on)),
+                        onChanged: (on) => _enable(context, c, on, () => c.setNotificationPrefs(c.notificationPrefs.copyWith(lowBattery: on))),
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -164,6 +165,28 @@ class RemindersCenterScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Turn a reminder on/off, priming notification permission first when turning
+  /// ON. This is the moment the user has just said they want to be notified — so
+  /// it's exactly where explaining, then asking, belongs.
+  Future<void> _enable(BuildContext context, AppController c, bool on, VoidCallback apply) async {
+    if (on) await _ensureNotifications(context, c);
+    apply();
+  }
+
+  /// Show the notifications primer once per run, only when a service is wired and
+  /// permission isn't already granted; on Continue, fire the OS request.
+  Future<void> _ensureNotifications(BuildContext context, AppController c) async {
+    if (!c.notificationsSupported || c.notificationsAsked) return;
+    if (await c.notificationsGranted()) {
+      c.markNotificationsAsked();
+      return;
+    }
+    if (!context.mounted) return;
+    final proceed = await showPermissionPrimer(context, PermissionKind.notifications);
+    c.markNotificationsAsked();
+    if (proceed) await c.requestNotifications();
   }
 
   Future<void> _toggleWater(BuildContext context, AppController c, bool on) async {
