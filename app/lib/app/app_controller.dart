@@ -193,6 +193,10 @@ class AppController {
   // Child emergency medical-ID sync: fires when a child's info changes, so a
   // clinician/responder sees the same medical-ID the parent recorded.
   Future<void> Function(String childId, ChildEmergencyInfo)? _onEmergencyUpsert;
+  // Timed-session sync: fetal movement + labour timing, so the clinician sees the
+  // pregnancy-safety trends.
+  Future<void> Function(KickSessionRecord)? _onKickSession;
+  Future<void> Function(ContractionSessionRecord)? _onContractionSession;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final List<CryResult> _cryHistory = []; // recent cry analyses, newest first
@@ -756,15 +760,26 @@ class AppController {
   /// trimmed past [_maxKickSessions].
   void logKickSession(DateTime day, int count, Duration elapsed) {
     if (count <= 0) return;
-    _kickSessions.add(KickSessionRecord(endedAt: _now(), count: count, durationSec: elapsed.inSeconds));
+    final session = KickSessionRecord(endedAt: _now(), count: count, durationSec: elapsed.inSeconds);
+    _kickSessions.add(session);
     if (_kickSessions.length > _maxKickSessions) {
       _kickSessions.removeRange(0, _kickSessions.length - _maxKickSessions);
     }
     final updated = logFor(day).addKick(count);
     _dayLogs[dateKey(day)] = updated;
     unawaited(_onDayLogUpsert?.call(updated) ?? Future<void>.value()); // mirror kick totals too
+    unawaited(_onKickSession?.call(session) ?? Future<void>.value());
     _persist();
     _notify();
+  }
+
+  /// Wire backend sync for timed sessions (called by main.dart on sign-in).
+  void attachSessionSync({
+    required Future<void> Function(KickSessionRecord) kick,
+    required Future<void> Function(ContractionSessionRecord) contraction,
+  }) {
+    _onKickSession = kick;
+    _onContractionSession = contraction;
   }
 
   // ---- Contraction sessions (labour-timing history) ----
@@ -783,15 +798,17 @@ class AppController {
   /// Record a finished contraction session summary. Trimmed past 50.
   void logContractionSession(int count, Duration avgDuration, Duration avgInterval) {
     if (count <= 0) return;
-    _contractionSessions.add(ContractionSessionRecord(
+    final session = ContractionSessionRecord(
       endedAt: _now(),
       count: count,
       avgDurationSec: avgDuration.inSeconds,
       avgIntervalSec: avgInterval.inSeconds,
-    ));
+    );
+    _contractionSessions.add(session);
     if (_contractionSessions.length > 50) {
       _contractionSessions.removeRange(0, _contractionSessions.length - 50);
     }
+    unawaited(_onContractionSession?.call(session) ?? Future<void>.value());
     _persist();
     _notify();
   }

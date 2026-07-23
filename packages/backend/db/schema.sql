@@ -238,6 +238,27 @@ CREATE TABLE sleep_nights (
   PRIMARY KEY (user_id, night)
 );
 
+-- Completed fetal-movement (kick) counting sessions. One row per session,
+-- keyed by when it ended. Reduced movement is a safety signal, so a clinician
+-- seeing the trend matters.
+CREATE TABLE kick_sessions (
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ended_at     TIMESTAMPTZ NOT NULL,
+  count        INTEGER NOT NULL,
+  duration_sec INTEGER NOT NULL,
+  PRIMARY KEY (user_id, ended_at)
+);
+
+-- Completed labour-timing (contraction) sessions — the 5-1-1 signal.
+CREATE TABLE contraction_sessions (
+  user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ended_at         TIMESTAMPTZ NOT NULL,
+  count            INTEGER NOT NULL,
+  avg_duration_sec INTEGER NOT NULL,
+  avg_interval_sec INTEGER NOT NULL,
+  PRIMARY KEY (user_id, ended_at)
+);
+
 -- A child's emergency medical-ID (what a parent hands a paramedic). One row per
 -- child; all free text, all optional.
 CREATE TABLE child_emergency (

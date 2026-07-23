@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, WeightRow, MedicalIdRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
+import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -52,6 +52,8 @@ export function createMemoryRepository(): Repository {
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
   const weights: WeightRow[] = [];
+  const kickSessions: KickSessionRow[] = [];
+  const contractionSessions: ContractionSessionRow[] = [];
   const childEmergency = new Map<string, MedicalIdRow>();
   const dayLogs = new Map<string, DayLogRow>();
   const alerts: SafetyAlertRow[] = [];
@@ -233,6 +235,17 @@ export function createMemoryRepository(): Repository {
       if (i >= 0) weights[i] = w; else weights.push(w);
     },
     listWeight: async (_u, limit) => [...weights].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit),
+    // Timed sessions (upsert on ended_at, newest-first out)
+    recordKickSession: async (_u, s) => {
+      const i = kickSessions.findIndex((x) => x.endedAt === s.endedAt);
+      if (i >= 0) kickSessions[i] = s; else kickSessions.push(s);
+    },
+    listKickSessions: async (_u, limit) => [...kickSessions].sort((a, b) => b.endedAt.localeCompare(a.endedAt)).slice(0, limit),
+    recordContractionSession: async (_u, s) => {
+      const i = contractionSessions.findIndex((x) => x.endedAt === s.endedAt);
+      if (i >= 0) contractionSessions[i] = s; else contractionSessions.push(s);
+    },
+    listContractionSessions: async (_u, limit) => [...contractionSessions].sort((a, b) => b.endedAt.localeCompare(a.endedAt)).slice(0, limit),
     // Day logs
     upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
     listDayLogs: async (_u, from, to) =>
@@ -406,6 +419,8 @@ export function createMemoryRepository(): Repository {
       events.length = 0;
       emergencyAcks.clear();
       weights.length = 0;
+      kickSessions.length = 0;
+      contractionSessions.length = 0;
       childEmergency.clear();
       healthRows.length = 0;
       sleep.length = 0;

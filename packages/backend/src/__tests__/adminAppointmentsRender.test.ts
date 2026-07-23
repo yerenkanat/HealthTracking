@@ -44,6 +44,12 @@ const WELLNESS = {
     { childId: 'c1', childName: 'Aisha', bloodType: 'O+', allergies: 'пенициллин', conditions: '',
       medications: '', doctorName: 'Др. Алиева', doctorPhone: '+7700', contactName: 'Бабушка', contactPhone: '+7701', notes: '' },
   ],
+  kickSessions: [
+    { endedAt: '2026-07-21T10:00:00.000Z', count: 10, durationSec: 600 },
+  ],
+  contractionSessions: [
+    { endedAt: '2026-07-22T02:00:00.000Z', count: 6, avgDurationSec: 55, avgIntervalSec: 300 },
+  ],
   alerts: [],
 };
 
@@ -171,5 +177,16 @@ describe('admin patient drawer — upcoming visits', () => {
     await page.click('#usersBody tr[data-user="u1"]');
     // Two sparkline SVGs in the drawer: weight (2 points) and sleep (2 nights).
     expect(page.count('#drawer .spark polyline')).toBe(2);
+  });
+
+  it('shows fetal-movement and contraction sessions', async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    const drawer = page.text('#drawer');
+    expect(drawer).toContain('Шевеления плода');
+    expect(drawer).toContain('10 движ.'); // count
+    expect(drawer).toContain('Схватки (тайминг)');
+    expect(drawer).toContain('интервал 5:00'); // 300s avg interval — the 5-1-1 cue
   });
 });

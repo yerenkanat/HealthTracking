@@ -1399,6 +1399,8 @@
     let weight=[]; // her recent weight entries
     let meds=[]; // medications / supplements she is taking
     let medids=[]; // children's emergency medical-ID cards
+    let kicks=[]; // fetal-movement counting sessions
+    let contractions=[]; // labour-timing sessions
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1408,7 +1410,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1456,6 +1458,16 @@
         const delta=prev?` <span class="t">${d>0?"+":""}${d.toFixed(1)} кг</span>`:"";
         return `<div class="tli"><span><b>${esc(fmtDate(w.date))}</b>${delta}</span><span class="t num">${Number(w.kg).toFixed(1)} кг</span></div>`;
       }).join("")}</div>`:"";
+    // Fetal movement (kick) sessions — count + how long it took. Reduced
+    // movement is a safety signal, so the recent runs are worth a glance.
+    const mmss=(sec)=>{ const m=Math.floor(sec/60), s=sec%60; return `${m}:${String(s).padStart(2,"0")}`; };
+    const kicksSection=kicks.length?`
+      <div class="dsec">Шевеления плода</div>
+      <div class="tl">${kicks.slice(0,7).map(k=>`<div class="tli"><span><b>${esc(fmtDate(k.endedAt))}</b> <span class="t">за ${mmss(k.durationSec||0)}</span></span><span class="t num">${k.count} движ.</span></div>`).join("")}</div>`:"";
+    // Labour-timing (contraction) sessions — count + avg interval (the 5-1-1 cue).
+    const contractionsSection=contractions.length?`
+      <div class="dsec">Схватки (тайминг)</div>
+      <div class="tl">${contractions.slice(0,7).map(c=>`<div class="tli"><span><b>${esc(fmtDate(c.endedAt))}</b> <span class="t">длит. ${mmss(c.avgDurationSec||0)}</span></span><span class="t num">${c.count} · интервал ${mmss(c.avgIntervalSec||0)}</span></div>`).join("")}</div>`:"";
     // Children's emergency medical-ID — the few things a responder needs fast.
     // Critical fields (allergies / conditions / blood type) lead.
     const medidSection=medids.length?medids.map(m=>{
@@ -1515,6 +1527,8 @@
       ${weightSection}
       ${medsSection}
       ${diarySection}
+      ${kicksSection}
+      ${contractionsSection}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>

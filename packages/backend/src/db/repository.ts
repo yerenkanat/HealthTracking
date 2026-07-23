@@ -36,6 +36,19 @@ export interface MedicationRow {
   perDay: number;
 }
 
+export interface KickSessionRow {
+  endedAt: string; // ISO instant
+  count: number;
+  durationSec: number;
+}
+
+export interface ContractionSessionRow {
+  endedAt: string; // ISO instant
+  count: number;
+  avgDurationSec: number;
+  avgIntervalSec: number;
+}
+
 export interface MedicalIdRow {
   bloodType: string;
   allergies: string;
@@ -265,6 +278,12 @@ export interface Repository {
   // ---- Maternal weight log (one row per day, upsert on the date) ----
   recordWeight(userId: string, w: WeightRow): Promise<void>;
   listWeight(userId: string, limit: number): Promise<WeightRow[]>;
+
+  // ---- Pregnancy timed sessions (append-only, upsert on ended_at) ----
+  recordKickSession(userId: string, s: KickSessionRow): Promise<void>;
+  listKickSessions(userId: string, limit: number): Promise<KickSessionRow[]>;
+  recordContractionSession(userId: string, s: ContractionSessionRow): Promise<void>;
+  listContractionSessions(userId: string, limit: number): Promise<ContractionSessionRow[]>;
 
   // ---- Women's-health day logs (mood / symptoms / kicks / flow) ----
   upsertDayLog(userId: string, log: DayLogRow): Promise<void>;

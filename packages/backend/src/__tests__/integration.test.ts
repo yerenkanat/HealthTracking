@@ -51,6 +51,8 @@ function makeDeps(
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleepRows: SleepNight[] = [];
   const weightRows: Array<{ date: string; kg: number }> = [];
+  const kickRows: Array<{ endedAt: string; count: number; durationSec: number }> = [];
+  const contractionRows: Array<{ endedAt: string; count: number; avgDurationSec: number; avgIntervalSec: number }> = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alertRows: SafetyAlertRow[] = [];
   const contentRows = new Map<string, import('../db/repository').ContentItemRow[]>();
@@ -155,6 +157,16 @@ function makeDeps(
       if (i >= 0) weightRows[i] = w; else weightRows.push(w);
     },
     listWeight: async (_u, limit) => [...weightRows].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit),
+    recordKickSession: async (_u, s) => {
+      const i = kickRows.findIndex((x) => x.endedAt === s.endedAt);
+      if (i >= 0) kickRows[i] = s; else kickRows.push(s);
+    },
+    listKickSessions: async (_u, limit) => [...kickRows].sort((a, b) => b.endedAt.localeCompare(a.endedAt)).slice(0, limit),
+    recordContractionSession: async (_u, s) => {
+      const i = contractionRows.findIndex((x) => x.endedAt === s.endedAt);
+      if (i >= 0) contractionRows[i] = s; else contractionRows.push(s);
+    },
+    listContractionSessions: async (_u, limit) => [...contractionRows].sort((a, b) => b.endedAt.localeCompare(a.endedAt)).slice(0, limit),
     // Day logs
     upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
     listDayLogs: async (_u, from, to) =>
@@ -767,6 +779,23 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
     expect((await post('/weight', { date: '2026-07-15', kg: 3.5 })).statusCode).toBe(400); // grams, not kg
     expect((await post('/weight', { date: '2026-07-15', kg: 3500 })).statusCode).toBe(400);
     expect((await post('/weight', { date: 'nope', kg: 64 })).statusCode).toBe(400);
+  });
+
+  it('kick sessions: record → list newest-first, upsert on endedAt', async () => {
+    expect((await get('/kick-sessions')).json().sessions).toHaveLength(0);
+    expect((await post('/kick-sessions', { endedAt: '2026-07-20T10:00:00.000Z', count: 10, durationSec: 600 })).statusCode).toBe(201);
+    await post('/kick-sessions', { endedAt: '2026-07-21T10:00:00.000Z', count: 8, durationSec: 900 });
+    await post('/kick-sessions', { endedAt: '2026-07-21T10:00:00.000Z', count: 9, durationSec: 800 }); // same instant → updates
+    const s = (await get('/kick-sessions')).json().sessions;
+    expect(s).toHaveLength(2);
+    expect(s[0].count).toBe(9); // newest, upserted
+  });
+
+  it('contraction sessions: record → list, and reject a bad body', async () => {
+    expect((await post('/contraction-sessions', { endedAt: '2026-07-22T02:00:00.000Z', count: 6, avgDurationSec: 55, avgIntervalSec: 300 })).statusCode).toBe(201);
+    const s = (await get('/contraction-sessions')).json().sessions;
+    expect(s[0].avgIntervalSec).toBe(300);
+    expect((await post('/contraction-sessions', { endedAt: 'nope', count: 1, avgDurationSec: 1, avgIntervalSec: 1 })).statusCode).toBe(400);
   });
 
   it('medications: upsert on the client id → list → delete', async () => {

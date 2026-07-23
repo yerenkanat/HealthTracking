@@ -548,6 +548,18 @@ Future<void> bootstrapRuntime(
         unawaited(api.putDevice(d.toJson()));
       }
 
+      // Timed-session sync: fetal movement + labour timing → clinician trend.
+      controller.attachSessionSync(
+        kick: (s) => api.putKickSession(s.toJson()),
+        contraction: (s) => api.putContractionSession(s.toJson()),
+      );
+      for (final s in controller.kickSessions) {
+        unawaited(api.putKickSession(s.toJson()));
+      }
+      for (final s in controller.contractionSessions) {
+        unawaited(api.putContractionSession(s.toJson()));
+      }
+
       // Medication sync (upsert + delete), so staff see what she is taking.
       Map<String, dynamic> medBody(Medication m) =>
           {'id': m.id, 'name': m.name, 'dose': m.dose, 'perDay': m.perDay};

@@ -646,6 +646,38 @@ export function createPgRepository(pool: Pool): Repository {
       return rows.map((r) => ({ date: new Date(r.log_date).toISOString().slice(0, 10), kg: Number(r.kg) }));
     },
 
+    // ---- Pregnancy timed sessions (upsert on ended_at) ----
+    async recordKickSession(userId, s) {
+      await pool.query(
+        `INSERT INTO kick_sessions (user_id, ended_at, count, duration_sec)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (user_id, ended_at) DO UPDATE SET count = EXCLUDED.count, duration_sec = EXCLUDED.duration_sec`,
+        [userId, s.endedAt, s.count, s.durationSec]);
+    },
+    async listKickSessions(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT ended_at, count, duration_sec FROM kick_sessions
+         WHERE user_id = $1 ORDER BY ended_at DESC LIMIT $2`, [userId, limit]);
+      return rows.map((r) => ({ endedAt: new Date(r.ended_at).toISOString(), count: r.count, durationSec: r.duration_sec }));
+    },
+    async recordContractionSession(userId, s) {
+      await pool.query(
+        `INSERT INTO contraction_sessions (user_id, ended_at, count, avg_duration_sec, avg_interval_sec)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (user_id, ended_at) DO UPDATE
+           SET count = EXCLUDED.count, avg_duration_sec = EXCLUDED.avg_duration_sec, avg_interval_sec = EXCLUDED.avg_interval_sec`,
+        [userId, s.endedAt, s.count, s.avgDurationSec, s.avgIntervalSec]);
+    },
+    async listContractionSessions(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT ended_at, count, avg_duration_sec, avg_interval_sec FROM contraction_sessions
+         WHERE user_id = $1 ORDER BY ended_at DESC LIMIT $2`, [userId, limit]);
+      return rows.map((r) => ({
+        endedAt: new Date(r.ended_at).toISOString(), count: r.count,
+        avgDurationSec: r.avg_duration_sec, avgIntervalSec: r.avg_interval_sec,
+      }));
+    },
+
     // ---- Women's-health day logs ----
     async upsertDayLog(userId, log) {
       await pool.query(

@@ -75,6 +75,18 @@ const weightBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   kg: z.number().min(20).max(400), // sane human range; rejects a fat-fingered 3.5 or 3500
 });
+const iso = z.string().datetime({ offset: true });
+const kickSessionBody = z.object({
+  endedAt: iso,
+  count: z.number().int().min(0).max(999),
+  durationSec: z.number().int().min(0).max(86400),
+});
+const contractionSessionBody = z.object({
+  endedAt: iso,
+  count: z.number().int().min(0).max(999),
+  avgDurationSec: z.number().int().min(0).max(86400),
+  avgIntervalSec: z.number().int().min(0).max(86400),
+});
 const dayLogBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   mood: z.enum(['happy', 'calm', 'anxious', 'tired', 'sad']).nullable().optional(),
@@ -391,6 +403,37 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const parsed = weightBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     await repo.recordWeight(u.userId, parsed.data);
+    return reply.code(201).send({ ok: true });
+  });
+
+  // ---- Pregnancy timed sessions (fetal movement + labour timing) ----
+  app.get('/kick-sessions', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
+    return reply.send({ sessions: await repo.listKickSessions(u.userId, limit) });
+  });
+  app.post('/kick-sessions', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = kickSessionBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.recordKickSession(u.userId, parsed.data);
+    return reply.code(201).send({ ok: true });
+  });
+
+  app.get('/contraction-sessions', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
+    return reply.send({ sessions: await repo.listContractionSessions(u.userId, limit) });
+  });
+  app.post('/contraction-sessions', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = contractionSessionBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.recordContractionSession(u.userId, parsed.data);
     return reply.code(201).send({ ok: true });
   });
 

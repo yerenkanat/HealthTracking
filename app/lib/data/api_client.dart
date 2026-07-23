@@ -332,6 +332,19 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a completed fetal-movement session, so the clinician sees the trend
+  /// (reduced movement is a safety signal). Upsert by endedAt.
+  Future<void> putKickSession(Map<String, dynamic> body) async {
+    final res = await transport.post('/kick-sessions', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// Push a completed labour-timing session (the 5-1-1 signal). Upsert by endedAt.
+  Future<void> putContractionSession(Map<String, dynamic> body) async {
+    final res = await transport.post('/contraction-sessions', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// Register a paired device (band/tag) so it appears in the back-office fleet.
   /// Create-once server-side: a 409 that is "mine" means it is already synced, so
   /// that counts as done; a 409 that is someone else's is a real conflict.
