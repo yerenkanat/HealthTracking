@@ -1081,6 +1081,44 @@ class AppController {
     _notify();
   }
 
+  /// Merge weight entries pulled from the server (new-device restore): add any
+  /// date this install doesn't already have. Local always wins on a conflict.
+  void mergeRemoteWeights(List<WeightEntry> remote) {
+    final have = _weights.map((w) => w.date).toSet();
+    final added = [for (final w in remote) if (!have.contains(w.date)) w];
+    if (added.isEmpty) return;
+    _weights = [..._weights, ...added]..sort((a, b) => a.date.compareTo(b.date));
+    _persist();
+    _notify();
+  }
+
+  /// Merge sleep nights pulled from the server. Add nights (by wake-date) this
+  /// install lacks; local wins.
+  void mergeRemoteSleep(List<SleepSummary> remote) {
+    final have = _sleep.map((n) => dateKey(n.night)).toSet();
+    final added = [for (final n in remote) if (!have.contains(dateKey(n.night))) n];
+    if (added.isEmpty) return;
+    _sleep.addAll(added);
+    _notify();
+  }
+
+  /// Merge women's-health day logs pulled from the server: add any date this
+  /// install doesn't have (local wins), so the cycle history that drives
+  /// predictions survives a reinstall.
+  void mergeRemoteDayLogs(List<DayLog> remote) {
+    var changed = false;
+    for (final d in remote) {
+      if (d.isNotEmpty && !_dayLogs.containsKey(d.date)) {
+        _dayLogs[d.date] = d;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    _reconcileCycleReminders(); // restored periods move the prediction
+    _persist();
+    _notify();
+  }
+
   /// Edit an existing appointment in place (keeping its id). Reschedules its
   /// reminder for the new time, or cancels it if the new time is in the past.
   void updateAppointment(String id, String title, DateTime at, {String note = ''}) {

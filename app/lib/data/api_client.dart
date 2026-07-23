@@ -290,6 +290,31 @@ class ApiClient {
     return ((j['medications'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  /// The caller's weight log ({date, kg}). For restoring the trend on a reinstall.
+  Future<List<Map<String, dynamic>>> getWeight() async {
+    final res = await transport.get('/weight?limit=365');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['entries'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// The caller's sleep nights ({night, deepMin, ...}).
+  Future<List<Map<String, dynamic>>> getSleep() async {
+    final res = await transport.get('/sleep?limit=90');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['nights'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// The caller's women's-health day logs in [from]..[to] (yyyy-MM-dd). For
+  /// restoring the cycle history that drives predictions.
+  Future<List<Map<String, dynamic>>> getDayLogs({required String from, required String to}) async {
+    final res = await transport.get('/cycle/days?from=$from&to=$to');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['days'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   // ---- Appointments (user-scoped; the id is client-supplied) ----
   /// The caller's appointments, as raw maps ({id, title, at, note}).
   Future<List<Map<String, dynamic>>> getAppointments() async {

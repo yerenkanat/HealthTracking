@@ -9,8 +9,11 @@ import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/core/uuid.dart';
 import 'package:fcs_app/data/api_client.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/medication.dart';
+import 'package:fcs_app/domain/sleep.dart';
+import 'package:fcs_app/domain/weight.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 
 class _FakeTransport implements HttpTransport {
@@ -64,6 +67,30 @@ void main() {
       final zones = await ApiClient(t).getChildGeofences('c1');
       expect(zones.first['name'], 'Дом');
     });
+
+    test('getWeight parses the entries list', () async {
+      final t = _FakeTransport()..bodies['/weight?limit=365'] = {'entries': [
+        {'date': '2026-07-01', 'kg': 62.0},
+      ]};
+      final rows = await ApiClient(t).getWeight();
+      expect(rows.first['kg'], 62.0);
+    });
+
+    test('getSleep parses the nights list', () async {
+      final t = _FakeTransport()..bodies['/sleep?limit=90'] = {'nights': [
+        {'night': '2026-07-20T00:00:00.000Z', 'deepMin': 90, 'remMin': 80, 'lightMin': 200, 'awakeMin': 20},
+      ]};
+      final rows = await ApiClient(t).getSleep();
+      expect(rows.first['deepMin'], 90);
+    });
+
+    test('getDayLogs passes the from/to window', () async {
+      final t = _FakeTransport()..bodies['/cycle/days?from=2026-07-01&to=2026-07-31'] = {'days': [
+        {'date': '2026-07-05', 'flow': 'medium', 'symptoms': ['cramps'], 'kicks': 0},
+      ]};
+      final rows = await ApiClient(t).getDayLogs(from: '2026-07-01', to: '2026-07-31');
+      expect(rows.single['flow'], 'medium');
+    });
   });
 
   group('controller merges', () {
@@ -97,6 +124,41 @@ void main() {
       ]);
       expect(c.medications.map((m) => m.id), containsAll([localMedId, 'remote-1']));
       expect(c.medications, hasLength(2));
+    });
+
+    test('mergeRemoteWeights adds missing dates, keeps local, stays sorted', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.logWeight(DateTime.utc(2026, 7, 15), 63.4); // local
+      c.mergeRemoteWeights(const [
+        WeightEntry(date: '2026-07-01', kg: 62.0), // restored (older)
+        WeightEntry(date: '2026-07-15', kg: 99.9), // dupe date → local wins
+      ]);
+      expect(c.weights.map((w) => w.date), ['2026-07-01', '2026-07-15']);
+      expect(c.weights.last.kg, 63.4); // local value survived the conflict
+    });
+
+    test('mergeRemoteSleep adds nights by wake-date, keeps local', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.addSleepSummary(SleepSummary(night: DateTime.utc(2026, 7, 20), deepMin: 10, remMin: 10, lightMin: 10, awakeMin: 0));
+      c.mergeRemoteSleep([
+        SleepSummary(night: DateTime.utc(2026, 7, 19), deepMin: 90, remMin: 80, lightMin: 200, awakeMin: 20), // restored
+        SleepSummary(night: DateTime.utc(2026, 7, 20), deepMin: 999, remMin: 0, lightMin: 0, awakeMin: 0), // dupe → skipped
+      ]);
+      expect(c.sleepNights, hasLength(2));
+      expect(c.sleepNights.firstWhere((n) => n.night.day == 20).deepMin, 10); // local kept
+    });
+
+    test('mergeRemoteDayLogs restores logs and moves the cycle prediction', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.mergeRemoteDayLogs([
+        DayLog(date: '2026-07-05', flow: Flow.medium),
+        const DayLog(date: '2026-07-06'), // empty → skipped
+      ]);
+      expect(c.dayLogs.containsKey('2026-07-05'), isTrue);
+      expect(c.dayLogs.containsKey('2026-07-06'), isFalse);
     });
   });
 }

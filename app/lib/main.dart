@@ -28,6 +28,7 @@ import 'ui/widgets/error_fallback.dart';
 import 'domain/cycle_log.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
+import 'domain/weight.dart';
 import 'domain/wearable_metrics.dart';
 import 'ble/starmax/starmax_ble_transport.dart';
 import 'domain/ai_chat_service.dart';
@@ -646,6 +647,19 @@ Future<void> bootstrapRuntime(
             ),
         ]);
       } catch (_) {/* offline — local intact */}
+
+      // Restore health history so a reinstall keeps her weight/sleep trends and
+      // the cycle log that drives predictions. Each is best-effort + independent.
+      try {
+        controller.mergeRemoteWeights([for (final w in await api.getWeight()) WeightEntry.fromJson(w)]);
+      } catch (_) {/* offline / bad row */}
+      try {
+        controller.mergeRemoteSleep([for (final n in await api.getSleep()) SleepSummary.fromJson(n)]);
+      } catch (_) {/* offline / bad row */}
+      try {
+        final days = await api.getDayLogs(from: '1970-01-01', to: '2999-12-31');
+        controller.mergeRemoteDayLogs([for (final d in days) DayLog.fromJson(d)]);
+      } catch (_) {/* offline / bad row */}
     }
 
     // Where the child's position comes from.
