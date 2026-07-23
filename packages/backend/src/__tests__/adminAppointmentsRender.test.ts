@@ -28,7 +28,10 @@ const WELLNESS = {
     { night: '2026-07-21', deepMin: 95, remMin: 105, lightMin: 280, awakeMin: 25 },
     { night: '2026-07-20', deepMin: 70, remMin: 90, lightMin: 250, awakeMin: 35 },
   ],
-  days: [],
+  days: [
+    { date: '2026-07-21', mood: 'calm', symptoms: ['cramps'], kicks: 12, flow: 'medium' },
+    { date: '2026-07-19', mood: null, symptoms: [], kicks: 0, flow: null }, // empty → not shown
+  ],
   alerts: [],
 };
 
@@ -102,5 +105,18 @@ describe('admin patient drawer — upcoming visits', () => {
     expect(drawer).toContain('8ч 0мин');
     // The deep/REM breakdown is shown too.
     expect(drawer).toContain('глуб.');
+  });
+
+  it('shows her women’s-health diary — the same day logs the app keeps', async () => {
+    const page = await boot();
+    await page.click('[data-view="users"]');
+    await page.click('#usersBody tr[data-user="u1"]');
+    const drawer = page.text('#drawer');
+    expect(drawer).toContain('Дневник (женское здоровье)');
+    expect(drawer).toContain('менструация: умеренные'); // flow=medium
+    expect(drawer).toContain('спокойствие'); // mood=calm
+    expect(drawer).toContain('шевелений: 12'); // kicks
+    // The all-empty day (Jul 19) carries nothing, so it is not listed.
+    expect(drawer).not.toContain('19.07');
   });
 });

@@ -470,6 +470,13 @@ Future<void> bootstrapRuntime(
       for (final s in controller.sleepNights) {
         unawaited(pushSleep(s));
       }
+
+      // Push-only women's-health day-log sync (flow / mood / symptoms / kicks),
+      // so the admin wellness diary mirrors hers.
+      controller.attachCycleSync(upsert: (log) => api.putDayLog(log.toJson()));
+      for (final log in controller.dayLogs.values) {
+        if (log.isNotEmpty) unawaited(api.putDayLog(log.toJson()));
+      }
       try {
         final remote = await api.getAppointments();
         controller.mergeRemoteAppointments([

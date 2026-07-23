@@ -310,6 +310,14 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push one day's women's-health log (flow / mood / symptoms / kicks) so staff
+  /// see the same diary the mother keeps (admin wellness view). Push-only and
+  /// idempotent on the date; the note stays local (the server schema drops it).
+  Future<void> putDayLog(Map<String, dynamic> body) async {
+    final res = await transport.put('/cycle/days', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// Delete an appointment. A 404 counts as done (already gone).
   Future<void> deleteAppointment(String id) async {
     final res = await transport.delete('/appointments/$id');

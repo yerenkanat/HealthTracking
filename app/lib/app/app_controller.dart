@@ -168,6 +168,9 @@ class AppController {
   // sleep the mother does (the admin wellness view). Local stays the source of
   // truth; a failed push never breaks recording a night.
   Future<void> Function(SleepSummary)? _onSleepUpsert;
+  // Push-only women's-health day-log sync: fires when a day changes, so the
+  // admin wellness diary mirrors the mother's (flow / mood / symptoms / kicks).
+  Future<void> Function(DayLog)? _onDayLogUpsert;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -661,8 +664,18 @@ class AppController {
       _dayLogs[log.date] = log;
     }
     _reconcileCycleReminders(); // a period change moves the prediction
+    // Mirror to the server (push-only, upsert by date). A cleared day still
+    // pushes an empty upsert — the wellness endpoint has no per-day delete, so
+    // this is the closest to clearing it there.
+    unawaited(_onDayLogUpsert?.call(log) ?? Future<void>.value());
     _persist();
     _notify();
+  }
+
+  /// Wire backend sync for women's-health day logs (called by main.dart on
+  /// sign-in).
+  void attachCycleSync({required Future<void> Function(DayLog) upsert}) {
+    _onDayLogUpsert = upsert;
   }
 
   void toggleMoodFor(DateTime day, Mood m) => setDayLog(logFor(day).withMoodToggled(m));
@@ -690,7 +703,9 @@ class AppController {
     if (_kickSessions.length > _maxKickSessions) {
       _kickSessions.removeRange(0, _kickSessions.length - _maxKickSessions);
     }
-    _dayLogs[dateKey(day)] = logFor(day).addKick(count);
+    final updated = logFor(day).addKick(count);
+    _dayLogs[dateKey(day)] = updated;
+    unawaited(_onDayLogUpsert?.call(updated) ?? Future<void>.value()); // mirror kick totals too
     _persist();
     _notify();
   }
