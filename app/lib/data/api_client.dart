@@ -264,6 +264,32 @@ class ApiClient {
     return (minBuild: asInt(j['minBuild']), latestBuild: asInt(j['latestBuild']));
   }
 
+  // ---- Restore on a new device (pull what was pushed) ----
+  /// The caller's children ({id, name, gender, dateOfBirth}). For restoring the
+  /// family after a reinstall.
+  Future<List<Map<String, dynamic>>> getChildren() async {
+    final res = await transport.get('/children');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['children'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// A child's safe zones, as raw geofence maps (id/name/shape/center/radiusM).
+  Future<List<Map<String, dynamic>>> getChildGeofences(String childId) async {
+    final res = await transport.get('/children/$childId/geofences');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['geofences'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// The caller's medications ({id, name, dose, perDay}).
+  Future<List<Map<String, dynamic>>> getMedications() async {
+    final res = await transport.get('/medications');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['medications'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   // ---- Appointments (user-scoped; the id is client-supplied) ----
   /// The caller's appointments, as raw maps ({id, title, at, note}).
   Future<List<Map<String, dynamic>>> getAppointments() async {

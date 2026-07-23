@@ -36,6 +36,26 @@ class Geofence {
       Geofence(id: id, name: name, shape: GeofenceShape.circle, center: c, radiusM: r);
   factory Geofence.polygon(String id, String name, List<Coordinates> v) =>
       Geofence(id: id, name: name, shape: GeofenceShape.polygon, vertices: v);
+
+  /// Parse the backend's geofence shape (GET /children/:id/geofences) so zones
+  /// can be restored on a new device. Throws on an unusable row so the caller's
+  /// tolerant loop drops it rather than the whole family.
+  factory Geofence.fromJson(Map<String, dynamic> j) {
+    final id = j['id'] as String;
+    final name = (j['name'] as String?) ?? '';
+    if (j['shape'] == 'polygon') {
+      final verts = [
+        for (final v in (j['vertices'] as List? ?? const []))
+          Coordinates((v['lat'] as num).toDouble(), (v['lng'] as num).toDouble()),
+      ];
+      if (verts.length < 3) throw const FormatException('polygon needs 3+ vertices');
+      return Geofence.polygon(id, name, verts);
+    }
+    final c = j['center'] as Map?;
+    if (c == null || j['radiusM'] == null) throw const FormatException('circle needs center + radiusM');
+    return Geofence.circle(id, name,
+        Coordinates((c['lat'] as num).toDouble(), (c['lng'] as num).toDouble()), (j['radiusM'] as num).toDouble());
+  }
 }
 
 enum GeofenceTransition { enter, exit }

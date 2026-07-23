@@ -36,12 +36,22 @@ import 'domain/appointment.dart';
 import 'domain/child_emergency.dart' show ChildEmergencyInfo;
 import 'domain/medication.dart' show Medication;
 import 'domain/chat_controller.dart';
-import 'domain/family.dart' show UserProfile, ChildProfile;
+import 'domain/family.dart' show UserProfile, ChildProfile, genderFromName;
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
 import 'data/http_transport.dart';
 import 'l10n/l10n.dart';
 import 'net/telemetry_batcher.dart';
+
+/// Parse a geofence from the server's shape, or null if the row is unusable —
+/// so a bad zone drops itself rather than the whole restore. (Used on sign-in.)
+Geofence? _tryGeofence(Map<String, dynamic> j) {
+  try {
+    return Geofence.fromJson(j);
+  } catch (_) {
+    return null;
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -598,6 +608,44 @@ Future<void> bootstrapRuntime(
       } catch (_) {
         // Offline or backend down — local data is intact; retry on next launch.
       }
+
+      // New-device restore: pull children (with their zones) + medications the
+      // server has that this install doesn't, so a reinstall gets them back.
+      try {
+        final remoteKids = await api.getChildren();
+        final restored = <ChildProfile>[];
+        for (final m in remoteKids) {
+          final id = m['id'] as String;
+          List<Geofence> zones = const [];
+          try {
+            zones = [
+              for (final g in await api.getChildGeofences(id))
+                if (_tryGeofence(g) case final z?) z,
+            ];
+          } catch (_) {/* zones are best-effort */}
+          restored.add(ChildProfile(
+            id: id,
+            name: (m['name'] as String?) ?? '',
+            gender: genderFromName(m['gender'] as String?),
+            dateOfBirth: m['dateOfBirth'] is String ? DateTime.tryParse(m['dateOfBirth'] as String) : null,
+            geofences: zones,
+          ));
+        }
+        controller.mergeRemoteChildren(restored);
+      } catch (_) {/* offline — local intact */}
+
+      try {
+        final remoteMeds = await api.getMedications();
+        controller.mergeRemoteMedications([
+          for (final m in remoteMeds)
+            Medication(
+              id: m['id'] as String,
+              name: (m['name'] as String?) ?? '',
+              dose: (m['dose'] as String?) ?? '',
+              perDay: (m['perDay'] as num?)?.toInt() ?? 1,
+            ),
+        ]);
+      } catch (_) {/* offline — local intact */}
     }
 
     // Where the child's position comes from.

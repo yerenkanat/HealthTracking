@@ -144,7 +144,10 @@ export function createMemoryRepository(): Repository {
       return null;
     },
     // CRUD
-    listChildren: async () => children.map((c) => ({ ...c })),
+    listChildren: async (userId) =>
+      children.filter((c) => c.userId === userId).map((c) => ({
+        id: c.id, name: c.name, gender: (c.gender as 'boy' | 'girl' | null) ?? null, dateOfBirth: c.dateOfBirth ?? null,
+      })),
     upsertChild: async (userId, c) => {
       const row = {
         id: c.id,

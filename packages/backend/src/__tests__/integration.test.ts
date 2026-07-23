@@ -42,7 +42,7 @@ function makeDeps(
   const fenceState = new Map<string, 'in' | 'out'>(); // real Redis-like dedup
 
   // In-memory CRUD state
-  const children: Array<{ id: string; name: string }> = [];
+  const children: Array<{ id: string; name: string; gender?: 'boy' | 'girl' | null; dateOfBirth?: string | null }> = [];
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const medRows: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
   const medicalIds = new Map<string, Record<string, string>>();
@@ -81,11 +81,11 @@ function makeDeps(
     geofenceOwner: async (id) =>
       [...geofences.values()].flat().some((g) => g.id === id) ? { userId: USER } : null,
     // CRUD
-    listChildren: async () => children.map((c) => ({ ...c })),
+    listChildren: async () => children.map((c) => ({ id: c.id, name: c.name, gender: c.gender ?? null, dateOfBirth: c.dateOfBirth ?? null })),
     upsertChild: async (_u, c) => {
+      const row = { id: c.id, name: c.name, gender: c.gender ?? null, dateOfBirth: c.dateOfBirth ?? null };
       const i = children.findIndex((x) => x.id === c.id);
-      if (i >= 0) children[i] = { id: c.id, name: c.name };
-      else children.push({ id: c.id, name: c.name });
+      if (i >= 0) children[i] = row; else children.push(row);
     },
     deleteChild: async (id) => {
       const i = children.findIndex((c) => c.id === id);
@@ -700,6 +700,9 @@ describe('CRUD + history routes (in-process)', () => {
     const kids = (await get('/children')).json().children;
     expect(kids).toHaveLength(1); // updated, not duplicated
     expect(kids[0].name).toBe('Aruzhan B.');
+    // GET returns gender + DOB so a new device can restore the full child.
+    expect(kids[0].gender).toBe('girl');
+    expect(kids[0].dateOfBirth).toBe('2024-03-01');
   });
 
   it('devices: create → list → delete', async () => {

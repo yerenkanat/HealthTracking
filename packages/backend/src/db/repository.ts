@@ -236,7 +236,8 @@ export interface Repository {
   geofenceOwner(geofenceId: string): Promise<{ userId: string } | null>;
 
   // ---- CRUD + history (client API) ----
-  listChildren(userId: string): Promise<Array<{ id: string; name: string }>>;
+  // Enough to restore the family on a new device: id, name, gender, DOB.
+  listChildren(userId: string): Promise<Array<{ id: string; name: string; gender: 'boy' | 'girl' | null; dateOfBirth: string | null }>>;
   // Client keeps the id (like appointments), so an offline-created child keeps
   // its identity when it syncs and its geofences can reference it without a
   // server round-trip. Carries gender + DOB so the demographics dashboard is

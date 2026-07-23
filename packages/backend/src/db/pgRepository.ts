@@ -144,8 +144,12 @@ export function createPgRepository(pool: Pool): Repository {
 
     // ---- CRUD + history ----
     async listChildren(userId) {
-      const { rows } = await pool.query(`SELECT id, name FROM children WHERE guardian_id = $1 ORDER BY created_at`, [userId]);
-      return rows.map((r) => ({ id: r.id, name: r.name }));
+      const { rows } = await pool.query(
+        `SELECT id, name, gender, date_of_birth FROM children WHERE guardian_id = $1 ORDER BY created_at`, [userId]);
+      return rows.map((r) => ({
+        id: r.id, name: r.name, gender: r.gender ?? null,
+        dateOfBirth: r.date_of_birth ? new Date(r.date_of_birth).toISOString().slice(0, 10) : null,
+      }));
     },
     async upsertChild(userId, c) {
       // Client-supplied id (a UUID, which the ingest schema also requires) so an

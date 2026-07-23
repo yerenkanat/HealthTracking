@@ -1058,6 +1058,29 @@ class AppController {
     _notify();
   }
 
+  /// Merge children pulled from the server (a new-device restore): anything the
+  /// server has that we do not is added, so the family + safe zones come back.
+  /// Local children are kept untouched — local is the source of truth.
+  void mergeRemoteChildren(List<ChildProfile> remote) {
+    final have = _children.map((c) => c.id).toSet();
+    final added = [for (final c in remote) if (!have.contains(c.id)) c];
+    if (added.isEmpty) return;
+    _children.addAll(added);
+    _selectedChildId ??= _children.isNotEmpty ? _children.first.id : null;
+    _persist();
+    _notify();
+  }
+
+  /// Merge medications pulled from the server (new-device restore). Local wins.
+  void mergeRemoteMedications(List<Medication> remote) {
+    final have = _medications.map((m) => m.id).toSet();
+    final added = [for (final m in remote) if (!have.contains(m.id)) m];
+    if (added.isEmpty) return;
+    _medications.addAll(added);
+    _persist();
+    _notify();
+  }
+
   /// Edit an existing appointment in place (keeping its id). Reschedules its
   /// reminder for the new time, or cancels it if the new time is in the past.
   void updateAppointment(String id, String title, DateTime at, {String note = ''}) {
