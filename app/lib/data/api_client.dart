@@ -310,6 +310,14 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a child (id / name / gender / dateOfBirth) so the family the mother
+  /// manages appears in the back-office — the kids demographics dashboard is
+  /// built from these. Upsert on the client id; idempotent.
+  Future<void> putChild(Map<String, dynamic> body) async {
+    final res = await transport.post('/children', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// Push one day's women's-health log (flow / mood / symptoms / kicks) so staff
   /// see the same diary the mother keeps (admin wellness view). Push-only and
   /// idempotent on the date; the note stays local (the server schema drops it).

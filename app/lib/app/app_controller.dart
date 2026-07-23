@@ -171,6 +171,9 @@ class AppController {
   // Push-only women's-health day-log sync: fires when a day changes, so the
   // admin wellness diary mirrors the mother's (flow / mood / symptoms / kicks).
   Future<void> Function(DayLog)? _onDayLogUpsert;
+  // Push-only child sync: fires when a child is added/edited, so the back-office
+  // kids demographics dashboard is built from real children.
+  Future<void> Function(ChildProfile)? _onChildUpsert;
   List<WeightEntry> _weights = [];
   double? _weightGoalKg;
   final Map<String, int> _childBattery = {}; // childId → tracker battery %
@@ -555,8 +558,14 @@ class AppController {
     _children.add(child);
     _selectedChildId ??= child.id;
     _emitVaccinationReminder(child);
+    unawaited(_onChildUpsert?.call(child) ?? Future<void>.value());
     _persist();
     _notify();
+  }
+
+  /// Wire backend sync for children (called by main.dart on sign-in).
+  void attachChildSync({required Future<void> Function(ChildProfile) upsert}) {
+    _onChildUpsert = upsert;
   }
 
   void addDevice(PairedDevice device) {
@@ -573,6 +582,7 @@ class AppController {
     // The birth date may have changed, moving the next visit; re-emit so the OS
     // reminder tracks it (or is cancelled if the date was cleared).
     _emitVaccinationReminder(child);
+    unawaited(_onChildUpsert?.call(child) ?? Future<void>.value());
     _persist();
     _notify();
   }

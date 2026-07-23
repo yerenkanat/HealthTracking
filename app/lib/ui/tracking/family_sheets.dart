@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../core/geofence.dart';
+import '../../core/uuid.dart';
 import '../../data/photo_store.dart';
 import '../../domain/country_codes.dart';
 import '../../domain/family.dart';
@@ -213,7 +214,9 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
           } else {
             // Default Home zone; the user can refine zones later.
             controller.addChild(ChildProfile(
-              id: 'child-${DateTime.now().microsecondsSinceEpoch}',
+              // A real UUID: the backend child upsert and /ingest/batch both
+              // require one, so this is what lets the child sync and be located.
+              id: uuidV4(),
               name: name,
               dateOfBirth: dob,
               photoPath: photoPath,

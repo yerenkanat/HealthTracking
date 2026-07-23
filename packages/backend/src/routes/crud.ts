@@ -14,7 +14,14 @@ import type { Geofence } from '@fcs/shared';
 
 export type AuthUser = (req: FastifyRequest) => Promise<{ userId: string } | null>;
 
-const childBody = z.object({ name: z.string().min(1).max(80) });
+const childBody = z.object({
+  // Client-supplied UUID (same shape ingest requires), so the app's local id is
+  // authoritative and its geofences reference it directly.
+  id: z.string().uuid(),
+  name: z.string().min(1).max(80),
+  gender: z.enum(['boy', 'girl']).nullable().optional(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+});
 const deviceBody = z.object({
   id: z.string().min(1),
   name: z.string().max(80).default(''),
@@ -142,7 +149,15 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!u) return;
     const parsed = childBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    return reply.code(201).send(await repo.createChild(u.userId, parsed.data.name));
+    // Upsert on the client id so re-syncing the same child updates rather than
+    // duplicates (offline-first, like appointments).
+    await repo.upsertChild(u.userId, {
+      id: parsed.data.id,
+      name: parsed.data.name,
+      gender: parsed.data.gender ?? null,
+      dateOfBirth: parsed.data.dateOfBirth ?? null,
+    });
+    return reply.code(201).send({ ok: true });
   });
 
   // ---- Erase everything ----

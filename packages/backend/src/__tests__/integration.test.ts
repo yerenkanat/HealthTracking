@@ -76,10 +76,10 @@ function makeDeps(
       [...geofences.values()].flat().some((g) => g.id === id) ? { userId: USER } : null,
     // CRUD
     listChildren: async () => children.map((c) => ({ ...c })),
-    createChild: async (_u, name) => {
-      const c = { id: `child-${idSeq++}`, name };
-      children.push(c);
-      return c;
+    upsertChild: async (_u, c) => {
+      const i = children.findIndex((x) => x.id === c.id);
+      if (i >= 0) children[i] = { id: c.id, name: c.name };
+      else children.push({ id: c.id, name: c.name });
     },
     deleteChild: async (id) => {
       const i = children.findIndex((c) => c.id === id);
@@ -261,7 +261,7 @@ describe('server wiring (in-process)', () => {
   // coordinates of her home and her child's school outlived the account she
   // believed she had removed.
   it('erases the account and everything belonging to it', async () => {
-    await post('/children', { name: 'Sultan' });
+    await post('/children', { id: '55555555-5555-5555-5555-555555555555', name: 'Sultan' });
     await post('/ingest/batch', {
       items: [
         {
@@ -612,9 +612,9 @@ describe('/ai/chat rate limiting', () => {
 describe('CRUD + history routes (in-process)', () => {
   it('children: create → list → delete', async () => {
     expect((await get('/children')).json().children).toHaveLength(0);
-    const created = await post('/children', { name: 'Sultan' });
+    const id = '66666666-6666-6666-6666-666666666666';
+    const created = await post('/children', { id, name: 'Sultan' });
     expect(created.statusCode).toBe(201);
-    const id = created.json().id;
     expect((await get('/children')).json().children).toHaveLength(1);
     const del = await app.inject({ method: 'DELETE', url: `/children/${id}` });
     expect(del.statusCode).toBe(204);
@@ -622,7 +622,20 @@ describe('CRUD + history routes (in-process)', () => {
   });
 
   it('children: rejects empty name (zod 400)', async () => {
-    expect((await post('/children', { name: '' })).statusCode).toBe(400);
+    expect((await post('/children', { id: '66666666-6666-6666-6666-666666666666', name: '' })).statusCode).toBe(400);
+  });
+
+  it('children: rejects a non-UUID id (zod 400)', async () => {
+    expect((await post('/children', { id: 'child-1', name: 'Sultan' })).statusCode).toBe(400);
+  });
+
+  it('children: upsert is idempotent on the id and carries gender + DOB', async () => {
+    const id = '77777777-7777-7777-7777-777777777777';
+    await post('/children', { id, name: 'Aruzhan', gender: 'girl', dateOfBirth: '2024-03-01' });
+    await post('/children', { id, name: 'Aruzhan B.', gender: 'girl', dateOfBirth: '2024-03-01' });
+    const kids = (await get('/children')).json().children;
+    expect(kids).toHaveLength(1); // updated, not duplicated
+    expect(kids[0].name).toBe('Aruzhan B.');
   });
 
   it('devices: create → list → delete', async () => {
@@ -747,7 +760,8 @@ describe('profile + device reassignment routes (in-process)', () => {
     // Reassign to a second child the SAME user owns. Reassignment now checks
     // both ends, so an arbitrary child id is correctly refused (see
     // authorization.test.ts) — this test needs a real sibling.
-    const other = (await post('/children', { name: 'Aida' })).json().id as string;
+    const other = '88888888-8888-8888-8888-888888888888';
+    await post('/children', { id: other, name: 'Aida' });
     expect((await app.inject({ method: 'PATCH', url: '/devices/TAG-1', payload: { childId: other } })).statusCode).toBe(200);
     expect((await find()).childId).toBe(other);
 

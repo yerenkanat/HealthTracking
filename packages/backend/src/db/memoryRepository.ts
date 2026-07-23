@@ -131,13 +131,17 @@ export function createMemoryRepository(): Repository {
       [...geofences.values()].flat().some((g) => g.id === id) ? { userId: DEMO_USER } : null,
     // CRUD
     listChildren: async () => children.map((c) => ({ ...c })),
-    createChild: async (userId, name) => {
-      // A UUID, because the ingest schema requires one — the old `child-1` ids
-      // were rejected by this service's OWN /ingest/batch endpoint, so a child
-      // created through the API could never have a location recorded for it.
-      const c = { id: randomUUID(), name, userId };
-      children.push(c);
-      return { id: c.id, name: c.name };
+    upsertChild: async (userId, c) => {
+      const row = {
+        id: c.id,
+        name: c.name,
+        userId,
+        gender: c.gender ?? null,
+        dateOfBirth: c.dateOfBirth ?? null,
+      };
+      const i = children.findIndex((x) => x.id === c.id);
+      if (i >= 0) children[i] = row;
+      else children.push(row);
     },
     deleteChild: async (id) => {
       const i = children.findIndex((c) => c.id === id);

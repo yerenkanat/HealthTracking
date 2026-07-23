@@ -147,10 +147,16 @@ export function createPgRepository(pool: Pool): Repository {
       const { rows } = await pool.query(`SELECT id, name FROM children WHERE guardian_id = $1 ORDER BY created_at`, [userId]);
       return rows.map((r) => ({ id: r.id, name: r.name }));
     },
-    async createChild(userId, name) {
-      const { rows } = await pool.query(
-        `INSERT INTO children (guardian_id, name) VALUES ($1,$2) RETURNING id, name`, [userId, name]);
-      return { id: rows[0].id, name: rows[0].name };
+    async upsertChild(userId, c) {
+      // Client-supplied id (a UUID, which the ingest schema also requires) so an
+      // offline-created child keeps its identity and its geofences can point at
+      // it. Idempotent on the id.
+      await pool.query(
+        `INSERT INTO children (id, guardian_id, name, gender, date_of_birth)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (id) DO UPDATE
+           SET name = EXCLUDED.name, gender = EXCLUDED.gender, date_of_birth = EXCLUDED.date_of_birth`,
+        [c.id, userId, c.name, c.gender ?? null, c.dateOfBirth ?? null]);
     },
     async deleteChild(childId) {
       await pool.query(`DELETE FROM children WHERE id = $1`, [childId]);

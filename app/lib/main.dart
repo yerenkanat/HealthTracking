@@ -34,7 +34,7 @@ import 'domain/ai_chat_service.dart';
 import 'data/connectivity.dart';
 import 'domain/appointment.dart';
 import 'domain/chat_controller.dart';
-import 'domain/family.dart' show UserProfile;
+import 'domain/family.dart' show UserProfile, ChildProfile;
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
 import 'data/http_transport.dart';
@@ -476,6 +476,21 @@ Future<void> bootstrapRuntime(
       controller.attachCycleSync(upsert: (log) => api.putDayLog(log.toJson()));
       for (final log in controller.dayLogs.values) {
         if (log.isNotEmpty) unawaited(api.putDayLog(log.toJson()));
+      }
+
+      // Push-only child sync, so the back-office kids dashboard is built from
+      // real children (name / gender / DOB). Children created before UUID ids
+      // (legacy 'child-…') fail the server's UUID check and are skipped — the
+      // push is fire-and-forget, so that never surfaces to the user.
+      Map<String, dynamic> childBody(ChildProfile ch) => {
+            'id': ch.id,
+            'name': ch.name,
+            if (ch.gender != null) 'gender': ch.gender!.name,
+            if (ch.dateOfBirth != null) 'dateOfBirth': isoDay(ch.dateOfBirth!),
+          };
+      controller.attachChildSync(upsert: (ch) => api.putChild(childBody(ch)));
+      for (final ch in controller.children) {
+        unawaited(api.putChild(childBody(ch)));
       }
       try {
         final remote = await api.getAppointments();

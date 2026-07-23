@@ -54,7 +54,7 @@ function makeApp(callerId: string) {
     listGeofenceEvents: async () => [{ childName: 'Sultan', transition: 'enter' }],
     listChildren: async () => [],
     listDevices: async () => [],
-    createChild: async () => ({ id: 'c', name: 'n' }),
+    upsertChild: async () => {},
     createDevice: async () => {},
     insertHealthMetric: async () => {},
     insertBpCalibration: async () => {},

@@ -193,7 +193,14 @@ export interface Repository {
 
   // ---- CRUD + history (client API) ----
   listChildren(userId: string): Promise<Array<{ id: string; name: string }>>;
-  createChild(userId: string, name: string): Promise<{ id: string; name: string }>;
+  // Client keeps the id (like appointments), so an offline-created child keeps
+  // its identity when it syncs and its geofences can reference it without a
+  // server round-trip. Carries gender + DOB so the demographics dashboard is
+  // built from real children, not just a name.
+  upsertChild(
+    userId: string,
+    c: { id: string; name: string; gender?: 'boy' | 'girl' | null; dateOfBirth?: string | null },
+  ): Promise<void>;
   deleteChild(childId: string): Promise<void>;
 
   listDevices(userId: string): Promise<Array<{ id: string; name: string; kind: string; childId: string | null }>>;
