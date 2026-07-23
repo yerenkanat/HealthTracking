@@ -49,3 +49,21 @@ jobs:
       # that could not have worked.
       - run: npm run typecheck
       - run: npm test
+
+  cry-classifier:
+    name: Cry classifier (smoke tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      # ffmpeg/libsndfile for pydub + soundfile, same as the Docker image.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libsndfile1
+      - run: pip install -r requirements.txt pytest
+        working-directory: packages/cry-classifier
+      # Smoke tests only — no dataset or trained model needed. They pin the
+      # feature-extraction invariants (fixed vector length, determinism) that the
+      # train/serve contract depends on.
+      - run: pytest -q
+        working-directory: packages/cry-classifier
