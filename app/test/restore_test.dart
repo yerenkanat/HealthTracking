@@ -9,6 +9,7 @@ import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/core/uuid.dart';
 import 'package:fcs_app/data/api_client.dart';
+import 'package:fcs_app/domain/child_emergency.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/medication.dart';
@@ -91,6 +92,14 @@ void main() {
       final rows = await ApiClient(t).getDayLogs(from: '2026-07-01', to: '2026-07-31');
       expect(rows.single['flow'], 'medium');
     });
+
+    test('getChildEmergency parses the card, null when absent', () async {
+      final t = _FakeTransport()
+        ..bodies['/children/c1/emergency'] = {'medicalId': {'bloodType': 'O+', 'allergies': 'penicillin'}}
+        ..bodies['/children/c2/emergency'] = {'medicalId': null};
+      expect((await ApiClient(t).getChildEmergency('c1'))!['bloodType'], 'O+');
+      expect(await ApiClient(t).getChildEmergency('c2'), isNull);
+    });
   });
 
   group('controller merges', () {
@@ -159,6 +168,26 @@ void main() {
       ]);
       expect(c.dayLogs.containsKey('2026-07-05'), isTrue);
       expect(c.dayLogs.containsKey('2026-07-06'), isFalse);
+    });
+
+    test('mergeRemoteEmergency restores a card but never clobbers a local one', () {
+      final c = make();
+      addTearDown(c.dispose);
+      final id = uuidV4();
+      c.addChild(ChildProfile(id: id, name: 'Aisha'));
+
+      // No local card yet → restored from the server.
+      c.mergeRemoteEmergency(id, const ChildEmergencyInfo(bloodType: 'A+', allergies: 'nuts'));
+      expect(c.emergencyInfoFor(id).bloodType, 'A+');
+
+      // A later restore must not overwrite what's now local.
+      c.mergeRemoteEmergency(id, const ChildEmergencyInfo(bloodType: 'O−'));
+      expect(c.emergencyInfoFor(id).bloodType, 'A+');
+
+      // An all-blank server card is ignored for a child with nothing local.
+      final id2 = uuidV4();
+      c.mergeRemoteEmergency(id2, const ChildEmergencyInfo());
+      expect(c.emergencyInfoFor(id2).isEmpty, isTrue);
     });
   });
 }

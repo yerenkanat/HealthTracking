@@ -230,6 +230,7 @@ export function createMemoryRepository(): Repository {
       return out.slice(0, limit);
     },
     upsertChildEmergency: async (childId, m) => void childEmergency.set(childId, m),
+    getChildEmergency: async (childId) => childEmergency.get(childId) ?? null,
     listMedicalIds: async (userId) => {
       const out: Array<{ childId: string; childName: string } & MedicalIdRow> = [];
       for (const c of children) {

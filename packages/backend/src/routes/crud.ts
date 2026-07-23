@@ -375,6 +375,12 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     return reply.code(200).send({ ok: true });
   });
 
+  app.get('/children/:id/emergency', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    return reply.send({ medicalId: await repo.getChildEmergency(id) });
+  });
+
   // ---- History ----
   app.get('/metrics', async (req, reply) => {
     const u = await requireUser(req, reply);

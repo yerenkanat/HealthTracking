@@ -161,6 +161,7 @@ function makeDeps(
       }
       return out as never;
     },
+    getChildEmergency: async (childId) => (medicalIds.get(childId) ?? null) as never,
     queryMetrics: async () => [{ t: '2026-07-15T08:00:00Z', value: 72 }, { t: '2026-07-15T08:05:00Z', value: 80 }],
     listGeofenceEvents: async () => events.filter((e) => e.transition),
     // Sleep
@@ -768,6 +769,20 @@ describe('CRUD + history routes (in-process)', () => {
     expect(card.bloodType).toBe('O+');
     expect(card.allergies).toBe('penicillin');
     expect(card.childName).toBeTruthy();
+
+    // ...and the owner can pull it back for a new-device restore.
+    const restore = await get(`/children/${CHILD}/emergency`);
+    expect(restore.statusCode).toBe(200);
+    expect(restore.json().medicalId.bloodType).toBe('O+');
+    expect(restore.json().medicalId.contactPhone).toBe('+7701');
+  });
+
+  it('emergency: GET returns null when a child has no medical-ID', async () => {
+    const fresh = '44444444-4444-4444-4444-444444444444';
+    await post('/children', { id: fresh, name: 'Nsurlan', gender: 'boy', dateOfBirth: null });
+    const r = await get(`/children/${fresh}/emergency`);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().medicalId).toBeNull();
   });
 
   it('metrics history query validates + returns points', async () => {

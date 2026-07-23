@@ -275,6 +275,8 @@ export interface Repository {
   // the caller's children so the admin drawer can show each child's card.
   upsertChildEmergency(childId: string, m: MedicalIdRow): Promise<void>;
   listMedicalIds(userId: string): Promise<Array<{ childId: string; childName: string } & MedicalIdRow>>;
+  // One child's medical-ID, or null if none saved — for restoring it on a new device.
+  getChildEmergency(childId: string): Promise<MedicalIdRow | null>;
 
   // Newborn care events (feed/diaper/sleep), push-only upsert on (child, at, kind).
   // listNewbornEvents joins the caller's children for the admin drawer.

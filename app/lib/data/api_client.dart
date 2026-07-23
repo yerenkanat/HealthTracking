@@ -431,6 +431,15 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// A child's emergency medical-ID, or null if none was saved. For restoring
+  /// the card on a new device.
+  Future<Map<String, dynamic>?> getChildEmergency(String childId) async {
+    final res = await transport.get('/children/$childId/emergency');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return j['medicalId'] as Map<String, dynamic>?;
+  }
+
   /// Push a safe zone for [childId] (upsert on the client id) so the back-office
   /// sees real zones and the server can raise enter/exit alerts.
   Future<void> putGeofence(String childId, Map<String, dynamic> body) async {

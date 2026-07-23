@@ -299,6 +299,19 @@ export function createPgRepository(pool: Pool): Repository {
         contactName: r.contact_name ?? '', contactPhone: r.contact_phone ?? '', notes: r.notes ?? '',
       }));
     },
+    async getChildEmergency(childId) {
+      const { rows } = await pool.query(
+        `SELECT blood_type, allergies, conditions, medications, doctor_name, doctor_phone,
+                contact_name, contact_phone, notes
+         FROM child_emergency WHERE child_id = $1`, [childId]);
+      const r = rows[0];
+      if (!r) return null;
+      return {
+        bloodType: r.blood_type ?? '', allergies: r.allergies ?? '', conditions: r.conditions ?? '',
+        medications: r.medications ?? '', doctorName: r.doctor_name ?? '', doctorPhone: r.doctor_phone ?? '',
+        contactName: r.contact_name ?? '', contactPhone: r.contact_phone ?? '', notes: r.notes ?? '',
+      };
+    },
 
     async queryMetrics(userId, { from, to, metric }) {
       const col = {

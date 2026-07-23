@@ -1278,6 +1278,19 @@ class AppController {
     _onEmergencyUpsert = upsert;
   }
 
+  /// Restore a child's emergency medical-ID from the server on a new device.
+  /// Only fills a card this install doesn't already have — a local card the
+  /// parent has been editing always wins, and it never pushes back (no sync
+  /// hook fired), so a restore can't echo the server's copy over a newer local
+  /// edit. Safety data a paramedic reads must survive a reinstall.
+  void mergeRemoteEmergency(String childId, ChildEmergencyInfo info) {
+    if (info.isEmpty) return;
+    if (_childEmergency.containsKey(childId)) return; // local wins
+    _childEmergency[childId] = info;
+    _persist();
+    _notify();
+  }
+
   /// Save (or clear, when empty) a child's emergency info, and persist.
   void setEmergencyInfo(String childId, ChildEmergencyInfo info) {
     if (info.isEmpty) {

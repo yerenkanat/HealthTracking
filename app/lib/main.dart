@@ -615,6 +615,7 @@ Future<void> bootstrapRuntime(
       try {
         final remoteKids = await api.getChildren();
         final restored = <ChildProfile>[];
+        final medicalIds = <String, ChildEmergencyInfo>{};
         for (final m in remoteKids) {
           final id = m['id'] as String;
           List<Geofence> zones = const [];
@@ -624,6 +625,10 @@ Future<void> bootstrapRuntime(
                 if (_tryGeofence(g) case final z?) z,
             ];
           } catch (_) {/* zones are best-effort */}
+          try {
+            final card = await api.getChildEmergency(id);
+            if (card != null) medicalIds[id] = ChildEmergencyInfo.fromJson(card);
+          } catch (_) {/* the medical-ID is best-effort too */}
           restored.add(ChildProfile(
             id: id,
             name: (m['name'] as String?) ?? '',
@@ -633,6 +638,8 @@ Future<void> bootstrapRuntime(
           ));
         }
         controller.mergeRemoteChildren(restored);
+        // After the children exist, restore each child's medical-ID (local wins).
+        medicalIds.forEach(controller.mergeRemoteEmergency);
       } catch (_) {/* offline — local intact */}
 
       try {
