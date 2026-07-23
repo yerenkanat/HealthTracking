@@ -754,6 +754,27 @@ Future<void> bootstrapRuntime(
           if (cal != null) controller.mergeRemoteBpCalibration(BpCalibration.fromJson(cal));
         }),
       ]);
+
+      // Server-detected safety alerts — a tracker-tag crossing the phone never
+      // saw, or one detected while the app was closed. Runs AFTER the batch, not
+      // inside it: the alerts carry a childId the server assigned, and mapping it
+      // back to a name needs the children the batch above just restored. Without
+      // that ordering a fresh install would drop every alert as "unknown child".
+      await _restore(() async {
+        final nameById = {for (final ch in controller.children) ch.id: ch.name};
+        final alerts = <SafetyAlert>[];
+        for (final a in await api.getAlerts()) {
+          final name = nameById[a['childId'] as String?];
+          if (name == null) continue; // can't attribute → don't invent a child
+          alerts.add(SafetyAlert(
+            kind: alertKindFromName(a['kind'] as String?),
+            childName: name,
+            zoneName: (a['zoneName'] as String?) ?? '',
+            at: DateTime.parse(a['at'] as String),
+          ));
+        }
+        controller.mergeRemoteAlerts(alerts);
+      });
     }
 
     // Where the child's position comes from.

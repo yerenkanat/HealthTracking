@@ -2058,6 +2058,41 @@ class AppController {
     _notify();
   }
 
+  /// Merge safety alerts pulled from the server into the feed — a tracker-tag
+  /// crossing the phone never saw, or a crossing detected while the app was
+  /// closed. Adds only alerts with no local counterpart, so one the phone ALSO
+  /// detected isn't shown twice.
+  ///
+  /// Dedup is deliberately TIGHT: same child, kind and zone within two minutes.
+  /// The bias is to NEVER suppress a real alert — zone hysteresis makes two
+  /// crossings of one zone in the same direction within two minutes impossible,
+  /// so a tight window can't hide a genuine second event, whereas a loose one
+  /// could. A rare duplicate is cosmetic; a missed "child left school" is not.
+  ///
+  /// These already happened, so they are NOT pushed back and do NOT fire the
+  /// notification stream — buzzing for old events on every sign-in would be
+  /// worse than useless. Local alerts always win and are never removed.
+  void mergeRemoteAlerts(List<SafetyAlert> remote) {
+    const tol = Duration(minutes: 2);
+    bool matches(SafetyAlert a, SafetyAlert s) =>
+        a.kind == s.kind &&
+        a.childName == s.childName &&
+        a.zoneName == s.zoneName &&
+        a.at.difference(s.at).abs() <= tol;
+    final added = <SafetyAlert>[];
+    for (final s in remote) {
+      final dup = _alerts.any((a) => matches(a, s)) || added.any((a) => matches(a, s));
+      if (!dup) added.add(s);
+    }
+    if (added.isEmpty) return;
+    _alerts
+      ..addAll(added)
+      ..sort((a, b) => b.at.compareTo(a.at)); // keep the feed newest-first
+    _trimAlerts();
+    _persist();
+    _notify();
+  }
+
   /// Record a manual child event (check-in or SOS) for the selected child. It
   /// lands at the top of the safety feed and, when notifications are on, is
   /// emitted for an OS notification — the same path geofence alerts take.

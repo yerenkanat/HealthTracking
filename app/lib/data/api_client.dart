@@ -506,6 +506,16 @@ class ApiClient {
     return ((j['sessions'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  /// The caller's safety alerts ({childId, kind, zoneName, at}) — zone crossings
+  /// the server detected, including ones from a tracker tag while the phone
+  /// wasn't the device that saw them.
+  Future<List<Map<String, dynamic>>> getAlerts() async {
+    final res = await transport.get('/alerts?limit=100');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['alerts'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   /// The caller's newborn-care events across all her children, each tagged with
   /// its childId ({childId, at, kind, detail, durationMin}). For restoring the
   /// baby log on a new device.

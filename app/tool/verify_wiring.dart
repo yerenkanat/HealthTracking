@@ -83,6 +83,10 @@ void main() {
   // runs, still syncs going forward, and silently never brings her history back.
   _chk('the new-device restore runs', main_.contains('_restore(') && main_.contains('Future.wait('));
   _chk('BP calibration is restored on a new device', main_.contains('api.getBpCalibration()'));
+  // Server-detected safety alerts (tracker-tag crossings the phone never saw)
+  // must be pulled into the feed, or they exist only in the back-office.
+  _chk('server safety alerts are pulled into the app',
+      main_.contains('api.getAlerts()') && main_.contains('mergeRemoteAlerts('));
 
   // ---- the guard's own premise ----
   // If the file could not be read, or were empty, every check above would pass

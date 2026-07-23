@@ -14,6 +14,7 @@ import 'package:fcs_app/domain/child_emergency.dart';
 import 'package:fcs_app/domain/contraction.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/family.dart';
+import 'package:fcs_app/domain/geofence_alerts.dart';
 import 'package:fcs_app/domain/kick_session.dart';
 import 'package:fcs_app/domain/medication.dart';
 import 'package:fcs_app/domain/newborn_log.dart';
@@ -95,6 +96,14 @@ void main() {
       ]};
       final rows = await ApiClient(t).getDayLogs(from: '2026-07-01', to: '2026-07-31');
       expect(rows.single['flow'], 'medium');
+    });
+
+    test('getAlerts parses the alert list', () async {
+      final t = _FakeTransport()..bodies['/alerts?limit=100'] = {'alerts': [
+        {'childId': 'c1', 'kind': 'left', 'zoneName': 'School', 'at': '2026-07-22T08:00:00.000Z'},
+      ]};
+      final rows = await ApiClient(t).getAlerts();
+      expect(rows.single['zoneName'], 'School');
     });
 
     test('getChildEmergency parses the card, null when absent', () async {
@@ -318,6 +327,40 @@ void main() {
       // A later restore must not clobber the local calibration.
       c.mergeRemoteBpCalibration(BpCalibration(99, 99, DateTime.utc(2026, 7, 20)));
       expect(c.bpCalibration!.systolicOffset, 6);
+    });
+
+    test('mergeRemoteAlerts adds server crossings and dedups against the local feed', () {
+      final c = make();
+      addTearDown(c.dispose);
+      SafetyAlert alert(AlertKind k, String zone, DateTime at) =>
+          SafetyAlert(kind: k, childName: 'Aisha', zoneName: zone, at: at);
+      final t = DateTime.utc(2026, 7, 22, 8);
+
+      // A tag crossing the phone never saw → shown.
+      c.mergeRemoteAlerts([alert(AlertKind.left, 'School', t)]);
+      expect(c.alerts, hasLength(1));
+
+      // The same crossing pulled again (within the 2-min window) → not doubled.
+      c.mergeRemoteAlerts([alert(AlertKind.left, 'School', t.add(const Duration(seconds: 30)))]);
+      expect(c.alerts, hasLength(1));
+
+      // A genuinely distinct later crossing of the same zone is NOT suppressed.
+      c.mergeRemoteAlerts([alert(AlertKind.left, 'School', t.add(const Duration(minutes: 10)))]);
+      expect(c.alerts, hasLength(2));
+
+      // A different kind or zone is its own event.
+      c.mergeRemoteAlerts([alert(AlertKind.entered, 'School', t), alert(AlertKind.left, 'Home', t)]);
+      expect(c.alerts, hasLength(4));
+      expect(c.alerts.first.at.isAfter(c.alerts.last.at), isTrue); // newest-first
+    });
+
+    test('mergeRemoteAlerts dedups identical entries within one batch', () {
+      final c = make();
+      addTearDown(c.dispose);
+      final t = DateTime.utc(2026, 7, 22, 8);
+      final a = SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'School', at: t);
+      c.mergeRemoteAlerts([a, a]);
+      expect(c.alerts, hasLength(1));
     });
 
     test('mergeRemoteNewborn restores per child, dedups on (at, kind)', () {
