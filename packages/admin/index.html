@@ -378,6 +378,12 @@
   .stockin{width:74px;padding:6px 8px;border-radius:8px;border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;font-variant-numeric:tabular-nums}
   .stockbtn{padding:6px 11px;min-width:38px}
   .stockbtn.okflash{border-color:var(--good);color:var(--good)}
+  .addvar{border-top:1px dashed var(--hair);margin-top:2px}
+  .addfields{display:inline-flex;gap:7px;align-items:center;min-width:0}
+  .av-hex{width:30px;height:30px;padding:0;border:1px solid var(--hair);border-radius:7px;background:none;cursor:pointer;flex:0 0 auto}
+  .av-name{width:150px;max-width:100%;min-width:0;padding:6px 9px;border-radius:8px;border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px}
+  .addbtn{padding:6px 11px;min-width:38px}
+  .addbtn.okflash{border-color:var(--good);color:var(--good)}
   .ordercard{border:1px solid var(--hair);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--surface-2)}
   .ordertop{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .ostatus{font:inherit;font-size:12.5px;font-weight:600;padding:5px 8px;border-radius:8px;border:1px solid var(--hair);background:var(--surface);color:var(--ink)}
@@ -2120,15 +2126,19 @@
     const vwrap=document.getElementById("shopVariants");
     try{
       const {variants}=await api("/admin/shop/variants");
-      const byProd=new Map();
-      for(const v of variants){ if(!byProd.has(v.productName)) byProd.set(v.productName,[]); byProd.get(v.productName).push(v); }
+      const byProd=new Map(); // productId -> {name, vs}
+      for(const v of variants){ if(!byProd.has(v.productId)) byProd.set(v.productId,{name:v.productName,vs:[]}); byProd.get(v.productId).vs.push(v); }
       let html="";
-      for(const [name,vs] of byProd){
-        html+=`<div class="dsec">${esc(name)}</div><div class="tl">`;
-        for(const v of vs){
+      for(const [pid,grp] of byProd){
+        html+=`<div class="dsec">${esc(grp.name)}</div><div class="tl">`;
+        for(const v of grp.vs){
           html+=`<div class="tli"><span><span class="swatch" style="background:${esc(v.colorHex)}"></span>${esc(v.color)}</span>`+
             `<span class="stockrow"><input type="number" min="0" class="stockin" data-vid="${esc(v.id)}" value="${v.stock}" aria-label="Остаток"><button class="btn stockbtn" data-vid="${esc(v.id)}">✓</button></span></div>`;
         }
+        // Add a new colour for this product (POST /admin/shop/variants).
+        html+=`<div class="tli addvar" data-pid="${esc(pid)}">`+
+          `<span class="addfields"><input type="color" class="av-hex" value="#6D5AE6" aria-label="Цвет"><input type="text" class="av-name" placeholder="Новый цвет" maxlength="60" aria-label="Название цвета"></span>`+
+          `<span class="stockrow"><input type="number" min="0" class="av-stock" value="0" aria-label="Остаток на старте"><button class="btn addbtn" title="Добавить цвет">＋</button></span></div>`;
         html+=`</div>`;
       }
       vwrap.innerHTML=html||`<div style="color:var(--muted);padding:12px 0">Нет товаров</div>`;
@@ -2137,6 +2147,18 @@
         const stock=Math.max(0,parseInt(inp.value||"0",10)); b.textContent="…";
         try{ await apiSend("/admin/shop/variants/"+encodeURIComponent(vid),"PATCH",{stock}); b.textContent="✓"; b.classList.add("okflash"); setTimeout(()=>b.classList.remove("okflash"),1200); }
         catch(e){ b.textContent="✕"; }
+      });
+      vwrap.querySelectorAll(".addvar").forEach(row=>{
+        const btn=row.querySelector(".addbtn"), nameEl=row.querySelector(".av-name");
+        btn.onclick=async()=>{
+          const color=(nameEl.value||"").trim();
+          if(!color){ nameEl.focus(); return; }
+          const colorHex=row.querySelector(".av-hex").value;
+          const stock=Math.max(0,parseInt(row.querySelector(".av-stock").value||"0",10));
+          btn.textContent="…";
+          try{ await apiSend("/admin/shop/variants","POST",{productId:row.dataset.pid,color,colorHex,stock}); renderShop(); }
+          catch(e){ btn.textContent="✕"; }
+        };
       });
     }catch(e){ vwrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить склад</div>`; }
 
