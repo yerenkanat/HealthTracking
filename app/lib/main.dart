@@ -695,6 +695,25 @@ Future<void> bootstrapRuntime(
       // whole batch on the first error, so without it one endpoint being down
       // would silently discard every restore that had not finished yet.
       await Future.wait([
+        // Her profile backup — name, city, birth date, and the DUE DATE that
+        // drives the whole pregnancy timeline. Adopted only onto an empty
+        // profile (see mergeRemoteProfile); a device already in use keeps its own.
+        _restore(() async {
+          final p = await api.getProfile();
+          if (p == null) return;
+          DateTime? day(Object? v) => v is String ? DateTime.tryParse(v) : null;
+          // Server stores the phone as E.164; only a clean +7 (CIS) number splits
+          // back unambiguously into the app's dial-code + national parts.
+          final phone = (p['phone'] as String?) ?? '';
+          final m = RegExp(r'^\+7(\d{10})$').firstMatch(phone);
+          controller.mergeRemoteProfile(UserProfile(
+            displayName: (p['displayName'] as String?) ?? '',
+            phoneNumber: m != null ? m.group(1)! : '', // dialCode defaults to +7
+            dueDate: day(p['dueDate']),
+            birthDate: day(p['birthDate']),
+            city: (p['city'] as String?) ?? '',
+          ));
+        }),
         _restore(() async {
           final remote = await api.getAppointments();
           controller.mergeRemoteAppointments([

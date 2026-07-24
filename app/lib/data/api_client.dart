@@ -212,6 +212,17 @@ class ApiClient {
   /// surface. It exists so the layers line up — the schema, the route and the
   /// panel all carry these fields, and this is the last link. See
   /// docs/INTEGRATION_STATUS.md.
+  /// The caller's saved profile ({displayName, phone, dueDate, birthDate, city,
+  /// locale}), or null if the server has none (404). For restoring it on a new
+  /// device — the push-only backup was never readable before.
+  Future<Map<String, dynamic>?> getProfile() async {
+    final res = await transport.get('/profile');
+    if (res.statusCode == 404) return null;
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return j['profile'] as Map<String, dynamic>?;
+  }
+
   Future<void> putProfile({
     required String displayName,
     String? phone,

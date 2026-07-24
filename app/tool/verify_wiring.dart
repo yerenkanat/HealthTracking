@@ -86,6 +86,10 @@ void main() {
   // runs, still syncs going forward, and silently never brings her history back.
   _chk('the new-device restore runs', main_.contains('_restore(') && main_.contains('Future.wait('));
   _chk('BP calibration is restored on a new device', main_.contains('api.getBpCalibration()'));
+  // The profile backup was push-only and unrecoverable — the due date drives the
+  // whole timeline, so restoring it on a new device matters.
+  _chk('the profile backup is restored on a new device',
+      main_.contains('api.getProfile()') && main_.contains('mergeRemoteProfile('));
   // Server-detected safety alerts (tracker-tag crossings the phone never saw)
   // must be pulled into the feed, or they exist only in the back-office.
   _chk('server safety alerts are pulled into the app',

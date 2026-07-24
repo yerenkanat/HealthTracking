@@ -25,8 +25,12 @@ import 'package:fcs_app/l10n/l10n.dart';
 
 class _FakeTransport implements HttpTransport {
   Map<String, Object?> bodies = {};
+  Map<String, int> statusFor = {}; // override the status for a path (e.g. 404)
   @override
-  Future<HttpResponse> get(String path) async => HttpResponse(200, jsonEncode(bodies[path] ?? {}));
+  Future<HttpResponse> get(String path) async {
+    final code = statusFor[path] ?? 200;
+    return HttpResponse(code, code == 200 ? jsonEncode(bodies[path] ?? {}) : '{}');
+  }
   @override
   Future<HttpResponse> post(String path, Object body) async => const HttpResponse(201, '{}');
   @override
@@ -105,6 +109,15 @@ void main() {
       ]};
       final rows = await ApiClient(t).getAlerts();
       expect(rows.single['zoneName'], 'School');
+    });
+
+    test('getProfile parses the profile, null on 404', () async {
+      final t = _FakeTransport()..bodies['/profile'] = {'profile': {'displayName': 'Aigerim', 'dueDate': '2026-11-01', 'city': 'Almaty'}};
+      final p = await ApiClient(t).getProfile();
+      expect(p!['displayName'], 'Aigerim');
+      // 404 → null (a fresh account the server has nothing for).
+      final t2 = _FakeTransport()..statusFor['/profile'] = 404;
+      expect(await ApiClient(t2).getProfile(), isNull);
     });
 
     test('getVaccines parses the record list', () async {
@@ -386,6 +399,30 @@ void main() {
       final a = SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'School', at: t);
       c.mergeRemoteAlerts([a, a]);
       expect(c.alerts, hasLength(1));
+    });
+
+    test('mergeRemoteProfile fills an empty profile but never overwrites a live one', () {
+      final c = make();
+      addTearDown(c.dispose);
+      expect(c.profile.displayName, isEmpty); // fresh install
+
+      c.mergeRemoteProfile(UserProfile(displayName: 'Aigerim', dueDate: DateTime.utc(2026, 11, 1), city: 'Almaty'));
+      expect(c.profile.displayName, 'Aigerim');
+      expect(c.profile.dueDate, DateTime.utc(2026, 11, 1)); // the timeline anchor is back
+      expect(c.profile.city, 'Almaty');
+
+      // A device already carrying a profile is the source of truth — a later
+      // restore must not clobber it.
+      c.mergeRemoteProfile(const UserProfile(displayName: 'Someone Else', city: 'Aktobe'));
+      expect(c.profile.displayName, 'Aigerim');
+      expect(c.profile.city, 'Almaty');
+    });
+
+    test('mergeRemoteProfile ignores an empty server profile', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.mergeRemoteProfile(const UserProfile()); // nothing worth adopting
+      expect(c.profile.displayName, isEmpty);
     });
 
     test('toggling a vaccine fires the sync hook with the new done state', () async {

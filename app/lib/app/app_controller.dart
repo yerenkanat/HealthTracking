@@ -733,6 +733,24 @@ class AppController {
   Future<void> Function(UserProfile)? _onProfilePush;
   void attachProfileSync(Future<void> Function(UserProfile) push) => _onProfilePush = push;
 
+  /// Restore the profile backup on a NEW device (or a reinstall): adopt the
+  /// server's saved profile only when this install has none yet. A device that
+  /// already carries a profile is the source of truth and is never overwritten —
+  /// so this can only ever fill an empty profile, never clobber her live edits.
+  /// It fires no push (a restore must not echo the server's copy back).
+  ///
+  /// The backup was push-only and so unrecoverable: `pushProfile` saved it "so it
+  /// survives a device change", but nothing read it back, and her name and — more
+  /// importantly — her due date (which drives the whole pregnancy timeline) were
+  /// gone on a new phone until she re-entered them.
+  void mergeRemoteProfile(UserProfile remote) {
+    if (_profile.displayName.trim().isNotEmpty) return; // local wins
+    if (remote.displayName.trim().isEmpty) return; // nothing worth adopting
+    _profile = remote;
+    _persist();
+    _notify();
+  }
+
   // ---- Women's-health day logging (mood / symptoms / fetal kicks) ----
   Map<String, DayLog> get dayLogs => Map.unmodifiable(_dayLogs);
 
