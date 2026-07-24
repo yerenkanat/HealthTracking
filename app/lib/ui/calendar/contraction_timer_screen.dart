@@ -124,8 +124,6 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
                 progress: fiveOneOneProgress(_contractions, now: DateTime.now()),
               ),
             const SizedBox(height: 8),
-            _BigButton(active: active, elapsed: elapsed, label: l.t(active ? 'contr_stop' : 'contr_start'), sub: l.t(active ? 'contr_running' : 'contr_hint'), onTap: _toggle),
-            const SizedBox(height: 12),
             Expanded(
               child: _contractions.isEmpty
                   ? Center(child: Text(l.t('contr_empty'), textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)))
@@ -146,6 +144,12 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
                       },
                     ),
             ),
+            // Primary action in the thumb zone. Through labour she taps this over
+            // and over, one-handed — a top-anchored button forces a phone re-grip
+            // each time, so it lives at the bottom, under the resting thumb.
+            const SizedBox(height: 12),
+            _BigButton(active: active, elapsed: elapsed, label: l.t(active ? 'contr_stop' : 'contr_start'), sub: l.t(active ? 'contr_running' : 'contr_hint'), onTap: _toggle),
+            const SizedBox(height: 4),
           ],
         ),
       ),
