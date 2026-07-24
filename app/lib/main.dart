@@ -21,6 +21,7 @@ import 'data/content_repository.dart';
 import 'data/photo_paths.dart';
 import 'data/content_store.dart';
 import 'data/prefs_app_store.dart';
+import 'data/prefs_telemetry_queue.dart';
 import 'domain/geofence_alerts.dart';
 import 'domain/notification_ids.dart';
 import 'domain/error_log.dart';
@@ -426,13 +427,17 @@ Future<void> bootstrapRuntime(
       if (fresh != null) content.adopt(fresh, CatalogSource.api);
     }
 
-    // Offline-first batcher → flushes batches to /ingest/batch.
+    // Offline-first batcher → flushes batches to /ingest/batch. The queue is
+    // mirrored to disk (shared_preferences) so telemetry buffered while offline —
+    // an emergency reading queued the instant before a crash included — survives
+    // an app kill and is delivered on the next launch, instead of being lost.
+    final telemetryQueue = PrefsTelemetryQueue();
     final batcher = TelemetryBatcher(BatcherConfig(
       maxBatch: 25,
       maxDelay: const Duration(seconds: 30),
       flush: (items) => api.ingestBatch(items.map((i) => i.toJson()).toList()),
-      persist: (_) async {}, // TODO: MMKV disk mirror
-      restore: () async => [],
+      persist: telemetryQueue.save,
+      restore: telemetryQueue.load,
     ));
     await batcher.init();
 

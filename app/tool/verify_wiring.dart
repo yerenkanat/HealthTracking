@@ -60,6 +60,15 @@ void main() {
   _chk('watch snapshots reach the controller',
       main_.contains('watch.onSnapshot.listen(controller.onWearableMetrics)'));
 
+  // ---- offline telemetry survives an app kill ----
+  // The batcher's persist/restore were `(_) async {}` / `() async => []`, so the
+  // queue was memory-only: telemetry buffered offline — an emergency reading
+  // queued the instant before a crash included — was lost on the next launch.
+  // Reverting to the no-op presents as "her clinician just never saw it", which
+  // nothing else would surface. The mirror must be a real store.
+  _chk('the telemetry queue is mirrored to disk (persist is not a no-op)',
+      main_.contains('persist: telemetryQueue.save') && main_.contains('restore: telemetryQueue.load'));
+
   // ---- backend sync hooks ----
   // Each attach*Sync is the edge that mirrors a data type to the server (and so
   // to the clinician's view). BP calibration in particular had a `// TODO` here
