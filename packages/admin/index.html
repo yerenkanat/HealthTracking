@@ -1575,7 +1575,8 @@
       ${sleepSpark?`<div class="sparkrow">${sleepSpark}</div>`:""}
       <div class="tl">${sleep.slice(0,7).map(n=>{
         const asleep=(n.deepMin||0)+(n.remMin||0)+(n.lightMin||0);
-        return `<div class="tli"><span><b>${esc(fmtDate(n.night))}</b> <span class="t">глуб. ${hm(n.deepMin||0)} · быстр. ${hm(n.remMin||0)}</span></span><span class="t num">${hm(asleep)}</span></div>`;
+        const awake=n.awakeMin?` · бодр. ${hm(n.awakeMin)}`:"";
+        return `<div class="tli"><span><b>${esc(fmtDate(n.night))}</b> <span class="t">глуб. ${hm(n.deepMin||0)} · быстр. ${hm(n.remMin||0)}${awake}</span></span><span class="t num">${hm(asleep)}</span></div>`;
       }).join("")}</div>`:"";
     // Women's-health diary: flow / mood / kicks / symptoms, newest first, only
     // days that actually carry something.
@@ -1682,6 +1683,11 @@
       if(m.medications) rows.push(["Лекарства",m.medications]);
       if(m.doctorName||m.doctorPhone) rows.push(["Врач",[m.doctorName,m.doctorPhone].filter(Boolean).join(" · ")]);
       if(m.contactName||m.contactPhone) rows.push(["Контакт",[m.contactName,m.contactPhone].filter(Boolean).join(" · ")]);
+      // Free-text the parent added to the emergency card (e.g. "carries an
+      // EpiPen", care instructions). It was stored and, in the back-office,
+      // dropped — the one field most likely to carry something a first
+      // responder needs and nothing else records.
+      if(m.notes) rows.push(["Заметки",m.notes]);
       if(!rows.length) return "";
       return `<div class="dsec">Медкарта · ${esc(m.childName||"ребёнок")}</div>
         <div class="tl">${rows.map(([k,v])=>`<div class="tli"><span><b>${esc(k)}</b></span><span class="t" style="max-width:62%;text-align:right">${esc(v)}</span></div>`).join("")}</div>`;
@@ -1822,6 +1828,7 @@
           ["Язык", u.locale ? esc(u.locale) : null],
           ["Контакт врача", u.doctorPhone ? esc(u.doctorPhone) : null],
           ["Цикл (база)", u.avgCycleLength ? `${u.avgCycleLength} дн. · менстр. ${u.avgPeriodLength||"—"} дн.` : null],
+          ["История данных", (u.sleepNights||u.loggedDays) ? `${u.sleepNights||0} ${ruPlural(u.sleepNights||0,"ночь сна","ночи сна","ночей сна")} · ${u.loggedDays||0} ${ruPlural(u.loggedDays||0,"день дневника","дня дневника","дней дневника")}` : null],
         ].map(([k,v])=>`<div class="tli"><span><b>${k}</b></span><span class="t">${
           // "Not provided" rather than an empty cell: these are OPTIONAL in the
           // app, declining is a supported answer, and a blank space reads as a

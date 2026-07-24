@@ -37,11 +37,11 @@ function detail(extra: Record<string, unknown>) {
   };
 }
 
-function wellness() {
-  return { sleep: [], days: [], alerts: [], weight: [], medications: [], medicalIds: [], kickSessions: [], contractionSessions: [], newbornEvents: [], bpCalibration: null, growth: [], doses: [], vaccines: [] };
+function wellness(extra: Record<string, unknown> = {}) {
+  return { sleep: [], days: [], alerts: [], weight: [], medications: [], medicalIds: [], kickSessions: [], contractionSessions: [], newbornEvents: [], bpCalibration: null, growth: [], doses: [], vaccines: [], ...extra };
 }
 
-async function openDrawer(detailExtra: Record<string, unknown>): Promise<{ drawer: string; errors: string[] }> {
+async function openDrawer(detailExtra: Record<string, unknown>, wellnessExtra: Record<string, unknown> = {}): Promise<{ drawer: string; errors: string[] }> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -69,7 +69,7 @@ async function openDrawer(detailExtra: Record<string, unknown>): Promise<{ drawe
           return { ok: false, status: 503, json: async () => ({}), text: async () => '' };
         }
         const body = p.includes('/wellness')
-          ? wellness()
+          ? wellness(wellnessExtra)
           : p.includes('/detail')
             ? detail(detailExtra)
             : p.includes('/admin/users')
@@ -144,6 +144,33 @@ describe('the family sections in the user drawer', () => {
       expect(errors).toEqual([]);
       expect(drawer).not.toContain('Дети ·');
       expect(drawer).not.toContain('Устройства ·');
+    });
+  });
+
+  describe('wellness fields that were returned but never rendered', () => {
+    it("shows the emergency medical-ID free-text notes", async () => {
+      const { drawer, errors } = await openDrawer({}, {
+        medicalIds: [{ childName: 'Алия', bloodType: 'O+', allergies: '', conditions: '', medications: '', doctorName: '', doctorPhone: '', contactName: '', contactPhone: '', notes: 'носит с собой EpiPen' }],
+      });
+      expect(errors).toEqual([]);
+      expect(drawer).toContain('Заметки');
+      expect(drawer).toContain('носит с собой EpiPen');
+    });
+
+    it('shows awake time in the sleep breakdown', async () => {
+      const { drawer, errors } = await openDrawer({}, {
+        sleep: [{ night: '2026-07-20', deepMin: 90, remMin: 80, lightMin: 200, awakeMin: 35 }],
+      });
+      expect(errors).toEqual([]);
+      expect(drawer).toContain('бодр.'); // awake minutes now surfaced
+    });
+
+    it('shows how much history exists (nights + diary days)', async () => {
+      const { drawer, errors } = await openDrawer({ sleepNights: 23, loggedDays: 8 });
+      expect(errors).toEqual([]);
+      expect(drawer).toContain('История данных');
+      expect(drawer).toContain('23');
+      expect(drawer).toContain('8');
     });
   });
 });
