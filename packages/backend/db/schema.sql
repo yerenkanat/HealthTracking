@@ -284,6 +284,15 @@ CREATE TABLE newborn_events (
   PRIMARY KEY (child_id, at, kind)
 );
 
+-- Child vaccination record (parent-marked). One row per (child, vaccine key)
+-- that the parent has ticked done — presence IS "done", absence is "not yet".
+-- The clinician reads which shots are recorded; a child with none is a flag.
+CREATE TABLE child_vaccines (
+  child_id     UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  vaccine_key  TEXT NOT NULL,   -- app's "<id>/<dose>", e.g. "bcg/1"
+  PRIMARY KEY (child_id, vaccine_key)
+);
+
 -- Child growth measurements (weight / height), one row per child per day — the
 -- pediatric growth curve a clinician reads for faltering. Mirrors the mother's
 -- weight_entries; keyed by (child, day) so a same-day correction replaces.

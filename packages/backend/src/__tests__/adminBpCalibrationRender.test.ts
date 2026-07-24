@@ -168,3 +168,24 @@ describe('the medication-adherence section in the user drawer', () => {
     expect(drawer).not.toContain('Приём ·');
   });
 });
+
+describe('the vaccination-record section in the user drawer', () => {
+  const VACCINES = [
+    { childId: 'c1', childName: 'Айша', vaccineKey: 'bcg/1' },
+    { childId: 'c1', childName: 'Айша', vaccineKey: 'dtp/1' },
+  ];
+
+  it('renders the recorded count and keys per child', async () => {
+    const { drawer, errors } = await openDrawer(null, { vaccines: VACCINES });
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('Прививки · Айша');
+    expect(drawer).toContain('bcg/1');
+    expect(drawer).toContain('dtp/1');
+  });
+
+  it('shows nothing when there is no vaccination record', async () => {
+    const { drawer, errors } = await openDrawer(null, { vaccines: [] });
+    expect(errors).toEqual([]);
+    expect(drawer).not.toContain('Прививки ·');
+  });
+});

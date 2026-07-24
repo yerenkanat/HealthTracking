@@ -605,6 +605,17 @@ Future<void> bootstrapRuntime(
         }
       }
 
+      // Vaccination-record sync (parent-marked), so the clinician sees which
+      // shots are recorded. Push-only + first-sync.
+      controller.attachVaccineSync(
+        upsert: (childId, key, done) => api.putVaccine(childId, key, done: done),
+      );
+      for (final ch in controller.children) {
+        for (final key in controller.vaccinesDoneFor(ch.id)) {
+          unawaited(api.putVaccine(ch.id, key, done: true));
+        }
+      }
+
       // Child emergency medical-ID sync. Send ALL fields (not just non-empty) so
       // clearing one syncs; the server bounds each.
       Map<String, dynamic> medicalIdBody(ChildEmergencyInfo e) => {
@@ -814,6 +825,18 @@ Future<void> bootstrapRuntime(
             rows.add((medId: medId, day: day, count: count));
           }
           controller.mergeRemoteDoses(rows);
+        }),
+
+        // The vaccination record (parent-marked), keyed by the server childId.
+        _restore(() async {
+          final byChild = <String, Set<String>>{};
+          for (final v in await api.getVaccines()) {
+            final childId = v['childId'] as String?;
+            final key = v['vaccineKey'] as String?;
+            if (childId == null || key == null) continue;
+            (byChild[childId] ??= {}).add(key);
+          }
+          controller.mergeRemoteVaccines(byChild);
         }),
       ]);
 

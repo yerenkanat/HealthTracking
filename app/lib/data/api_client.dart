@@ -465,6 +465,22 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Mark a vaccine done/undone for a child ({vaccineKey, done}), so the
+  /// clinician sees the immunization record.
+  Future<void> putVaccine(String childId, String vaccineKey, {required bool done}) async {
+    final res = await transport.put('/children/$childId/vaccines', {'vaccineKey': vaccineKey, 'done': done});
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// The caller's child vaccination record ({childId, vaccineKey}). For restoring
+  /// it on a new device.
+  Future<List<Map<String, dynamic>>> getVaccines() async {
+    final res = await transport.get('/vaccines');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['vaccines'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   /// The caller's child growth measurements across all children, each tagged with
   /// its childId ({childId, at, weightKg, heightCm}). For restoring the curve on
   /// a new device.

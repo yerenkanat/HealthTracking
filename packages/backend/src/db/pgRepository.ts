@@ -327,6 +327,24 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    async setVaccine(childId, vaccineKey, done) {
+      if (done) {
+        await pool.query(
+          `INSERT INTO child_vaccines (child_id, vaccine_key) VALUES ($1,$2)
+           ON CONFLICT (child_id, vaccine_key) DO NOTHING`, [childId, vaccineKey]);
+      } else {
+        await pool.query(
+          `DELETE FROM child_vaccines WHERE child_id = $1 AND vaccine_key = $2`, [childId, vaccineKey]);
+      }
+    },
+    async listVaccines(userId) {
+      const { rows } = await pool.query(
+        `SELECT c.id AS child_id, c.name AS child_name, v.vaccine_key
+         FROM children c JOIN child_vaccines v ON v.child_id = c.id
+         WHERE c.guardian_id = $1 ORDER BY c.name, v.vaccine_key`, [userId]);
+      return rows.map((r) => ({ childId: r.child_id, childName: r.child_name, vaccineKey: r.vaccine_key }));
+    },
+
     async upsertChildEmergency(childId, m) {
       await pool.query(
         `INSERT INTO child_emergency (child_id, blood_type, allergies, conditions, medications,

@@ -310,6 +310,12 @@ export interface Repository {
   upsertDose(userId: string, d: DoseRow): Promise<void>;
   listDoses(userId: string): Promise<DoseRow[]>;
 
+  // Child vaccination record (parent-marked). setVaccine adds/removes one
+  // (child, key); listVaccines returns the caller's whole record (joined with
+  // children) for the admin drawer and the new-device restore.
+  setVaccine(childId: string, vaccineKey: string, done: boolean): Promise<void>;
+  listVaccines(userId: string): Promise<Array<{ childId: string; childName: string; vaccineKey: string }>>;
+
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
   listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;
 

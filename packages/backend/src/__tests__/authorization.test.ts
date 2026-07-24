@@ -57,6 +57,8 @@ function makeApp(callerId: string) {
     listGrowth: async () => [],
     upsertDose: async () => {},
     listDoses: async () => [],
+    setVaccine: async () => {},
+    listVaccines: async () => [],
     deleteGeofence: async (id: string) => void deleted.push(`fence:${id}`),
     deleteChild: async (id: string) => void deleted.push(`child:${id}`),
     deleteDevice: async (id: string) => void deleted.push(`device:${id}`),

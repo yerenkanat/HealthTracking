@@ -206,6 +206,9 @@ class AppController {
   // Child growth sync: fires when a weight/height measurement is recorded, so a
   // clinician sees the pediatric growth curve (faltering is a key signal).
   Future<void> Function(String childId, GrowthPoint)? _onGrowthUpsert;
+  // Vaccination-record sync: fires when a vaccine is ticked/unticked, so a
+  // clinician sees which shots are recorded (an immunization gap is a flag).
+  Future<void> Function(String childId, String vaccineKey, bool done)? _onVaccineToggle;
   // BP-calibration sync: fires when she records a weekly cuff reading. The raw
   // cuff+ppg go up (not just the offset) so a clinician can see how far the
   // band drifted and how recently it was corrected — a preeclampsia-screening
@@ -1439,11 +1442,36 @@ class AppController {
   Set<String> vaccinesDoneFor(String childId) =>
       Set.unmodifiable(_vaccinesDone[childId] ?? const {});
 
+  /// Wire backend sync for the vaccination record (called by main.dart on sign-in).
+  void attachVaccineSync({required Future<void> Function(String childId, String vaccineKey, bool done) upsert}) {
+    _onVaccineToggle = upsert;
+  }
+
   /// Mark or unmark one vaccine done for [childId], and persist.
   void toggleVaccineDone(String childId, String vaccineKey) {
     final set = _vaccinesDone.putIfAbsent(childId, () => {});
-    if (!set.remove(vaccineKey)) set.add(vaccineKey);
+    final done = !set.remove(vaccineKey); // remove returned false → it wasn't there → now adding
+    if (done) set.add(vaccineKey);
     if (set.isEmpty) _vaccinesDone.remove(childId);
+    // Mirror the new state to the server (push-only).
+    unawaited(_onVaccineToggle?.call(childId, vaccineKey, done) ?? Future<void>.value());
+    _persist();
+    _notify();
+  }
+
+  /// Restore the vaccination record on a new device: add any (child, key) the
+  /// server has that this install lacks. Presence is "done"; local wins (a key
+  /// this install already tracks is kept), and it fires no sync hook.
+  void mergeRemoteVaccines(Map<String, Set<String>> byChild) {
+    var changed = false;
+    byChild.forEach((childId, keys) {
+      final set = _vaccinesDone.putIfAbsent(childId, () => {});
+      for (final k in keys) {
+        if (set.add(k)) changed = true;
+      }
+      if (set.isEmpty) _vaccinesDone.remove(childId);
+    });
+    if (!changed) return;
     _persist();
     _notify();
   }

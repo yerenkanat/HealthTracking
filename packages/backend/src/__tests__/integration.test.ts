@@ -49,6 +49,7 @@ function makeDeps(
   const newbornRows = new Map<string, Array<{ at: string; kind: string; detail: string | null; durationMin: number | null }>>();
   const growthRows = new Map<string, Array<{ at: string; weightKg: number | null; heightCm: number | null }>>();
   const doseRows: Array<{ medId: string; date: string; count: number; userId: string }> = [];
+  const vaccineRows = new Map<string, Set<string>>(); // childId → keys
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -177,6 +178,20 @@ function makeDeps(
     listDoses: async (userId) =>
       doseRows.filter((d) => d.userId === userId).map(({ userId: _o, ...d }) => d)
         .sort((a, b) => b.date.localeCompare(a.date)) as never,
+    setVaccine: async (childId, key, done) => {
+      const set = vaccineRows.get(childId) ?? new Set<string>();
+      if (done) set.add(key); else set.delete(key);
+      vaccineRows.set(childId, set);
+    },
+    listVaccines: async (userId) => {
+      if (userId !== USER) return [];
+      const out: Array<Record<string, unknown>> = [];
+      for (const [childId, keys] of vaccineRows) {
+        const c = children.find((x) => x.id === childId);
+        for (const key of keys) out.push({ childId, childName: c?.name ?? 'Sultan', vaccineKey: key });
+      }
+      return out as never;
+    },
     upsertChildEmergency: async (childId, m) => void medicalIds.set(childId, { ...m } as Record<string, string>),
     listMedicalIds: async (userId) => {
       const out: Array<Record<string, unknown>> = [];
@@ -886,6 +901,32 @@ describe('CRUD + history routes (in-process)', () => {
     await post('/medications', { id: MED, name: 'Folate', dose: '400mcg', perDay: 1 });
     const r = await app.inject({ method: 'PUT', url: `/medications/${MED}/doses`,
       payload: { date: '22-07-2026', count: 1 } }); // wrong date shape
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('vaccines: mark done, unmark, read back + admin wellness', async () => {
+    expect((await app.inject({ method: 'PUT', url: `/children/${CHILD}/vaccines`,
+      payload: { vaccineKey: 'bcg/1', done: true } })).statusCode).toBe(200);
+    await app.inject({ method: 'PUT', url: `/children/${CHILD}/vaccines`, payload: { vaccineKey: 'dtp/1', done: true } });
+    await app.inject({ method: 'PUT', url: `/children/${CHILD}/vaccines`, payload: { vaccineKey: 'dtp/1', done: true } }); // idempotent
+
+    let recorded = (await get('/vaccines')).json().vaccines.filter((v: { childId: string }) => v.childId === CHILD);
+    expect(recorded.map((v: { vaccineKey: string }) => v.vaccineKey).sort()).toEqual(['bcg/1', 'dtp/1']);
+    expect(recorded[0].childName).toBeTruthy();
+
+    // Unmark one → it disappears (presence is "done").
+    await app.inject({ method: 'PUT', url: `/children/${CHILD}/vaccines`, payload: { vaccineKey: 'bcg/1', done: false } });
+    recorded = (await get('/vaccines')).json().vaccines.filter((v: { childId: string }) => v.childId === CHILD);
+    expect(recorded.map((v: { vaccineKey: string }) => v.vaccineKey)).toEqual(['dtp/1']);
+
+    // ...and it reaches the clinician's wellness view.
+    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    expect(wellness.vaccines.some((v: { vaccineKey: string }) => v.vaccineKey === 'dtp/1')).toBe(true);
+  });
+
+  it('vaccines: rejects a body with no key (400)', async () => {
+    const r = await app.inject({ method: 'PUT', url: `/children/${CHILD}/vaccines`,
+      payload: { done: true } });
     expect(r.statusCode).toBe(400);
   });
 

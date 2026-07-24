@@ -62,6 +62,12 @@ const doseBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   count: z.number().int().min(0).max(50),
 });
+// One vaccination toggle. The key is the app's "<id>/<dose>" — opaque here, so
+// just a bounded string; `done` decides insert vs delete.
+const vaccineBody = z.object({
+  vaccineKey: z.string().min(1).max(64),
+  done: z.boolean(),
+});
 const _med = z.string().max(500).default(''); // free-text, bounded
 const medicalIdBody = z.object({
   bloodType: _med, allergies: _med, conditions: _med, medications: _med,
@@ -427,6 +433,22 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const u = await requireUser(req, reply);
     if (!u) return;
     return reply.send({ growth: await repo.listGrowth(u.userId) });
+  });
+
+  // ---- Child vaccination record (parent-marked) ----
+  app.put('/children/:id/vaccines', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    const parsed = vaccineBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.setVaccine(id, parsed.data.vaccineKey, parsed.data.done);
+    return reply.code(200).send({ ok: true });
+  });
+
+  app.get('/vaccines', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    return reply.send({ vaccines: await repo.listVaccines(u.userId) });
   });
 
   // ---- Child emergency medical-ID (per child, upsert) ----

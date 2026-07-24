@@ -107,6 +107,14 @@ void main() {
       expect(rows.single['zoneName'], 'School');
     });
 
+    test('getVaccines parses the record list', () async {
+      final t = _FakeTransport()..bodies['/vaccines'] = {'vaccines': [
+        {'childId': 'c1', 'vaccineKey': 'bcg/1'},
+      ]};
+      final rows = await ApiClient(t).getVaccines();
+      expect(rows.single['vaccineKey'], 'bcg/1');
+    });
+
     test('getDoses parses the adherence list', () async {
       final t = _FakeTransport()..bodies['/doses'] = {'doses': [
         {'medId': 'm1', 'date': '2026-07-22', 'count': 2},
@@ -378,6 +386,30 @@ void main() {
       final a = SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'School', at: t);
       c.mergeRemoteAlerts([a, a]);
       expect(c.alerts, hasLength(1));
+    });
+
+    test('toggling a vaccine fires the sync hook with the new done state', () async {
+      final c = make();
+      addTearDown(c.dispose);
+      final events = <(String, bool)>[];
+      c.attachVaccineSync(upsert: (childId, key, done) async => events.add((key, done)));
+      c.toggleVaccineDone('kid-1', 'bcg/1'); // mark
+      c.toggleVaccineDone('kid-1', 'bcg/1'); // unmark
+      await Future<void>.delayed(Duration.zero);
+      expect(events, [('bcg/1', true), ('bcg/1', false)]);
+      expect(c.vaccinesDoneFor('kid-1'), isEmpty);
+    });
+
+    test('mergeRemoteVaccines restores the record, keeping local keys', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.toggleVaccineDone('kid-1', 'bcg/1'); // local
+      c.mergeRemoteVaccines({
+        'kid-1': {'bcg/1', 'dtp/1'}, // bcg already local (kept), dtp added
+        'kid-2': {'polio/1'},
+      });
+      expect(c.vaccinesDoneFor('kid-1'), {'bcg/1', 'dtp/1'});
+      expect(c.vaccinesDoneFor('kid-2'), {'polio/1'});
     });
 
     test('taking a dose fires the sync hook with the running count', () async {

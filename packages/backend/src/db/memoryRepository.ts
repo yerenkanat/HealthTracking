@@ -58,6 +58,7 @@ export function createMemoryRepository(): Repository {
   const newbornEvents = new Map<string, NewbornEventRow[]>();
   const growth = new Map<string, GrowthRow[]>();
   const doses: Array<DoseRow & { userId: string }> = [];
+  const vaccines = new Map<string, Set<string>>(); // childId → done vaccine keys
   type BpCalRow = BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number };
   const bpCalibrations: Array<BpCalRow & { userId: string }> = [];
   const dayLogs = new Map<string, DayLogRow>();
@@ -264,6 +265,19 @@ export function createMemoryRepository(): Repository {
       doses.filter((d) => d.userId === userId)
         .map(({ userId: _o, ...d }) => d)
         .sort((a, b) => b.date.localeCompare(a.date)),
+    setVaccine: async (childId, vaccineKey, done) => {
+      const set = vaccines.get(childId) ?? new Set<string>();
+      if (done) set.add(vaccineKey); else set.delete(vaccineKey);
+      if (set.size) vaccines.set(childId, set); else vaccines.delete(childId);
+    },
+    listVaccines: async (userId) => {
+      const out: Array<{ childId: string; childName: string; vaccineKey: string }> = [];
+      for (const c of children) {
+        if (c.userId !== userId) continue;
+        for (const key of vaccines.get(c.id) ?? []) out.push({ childId: c.id, childName: c.name, vaccineKey: key });
+      }
+      return out;
+    },
     upsertChildEmergency: async (childId, m) => void childEmergency.set(childId, m),
     getChildEmergency: async (childId) => childEmergency.get(childId) ?? null,
     listMedicalIds: async (userId) => {

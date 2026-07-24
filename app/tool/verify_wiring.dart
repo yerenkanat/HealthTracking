@@ -75,6 +75,7 @@ void main() {
     'attachBpCalibrationSync(',
     'attachGrowthSync(',
     'attachDoseSync(',
+    'attachVaccineSync(',
   ]) {
     _chk('sync hook wired: $hook', main_.contains(hook));
   }

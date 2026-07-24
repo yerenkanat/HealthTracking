@@ -1405,6 +1405,7 @@
     let bpcal=null; // latest BP calibration (offsets + when), qualifies the BP vitals
     let growth=[]; // child growth measurements (weight/height), across her children
     let doses=[]; // medication adherence (doses taken per med per day)
+    let vaccines=[]; // child vaccination record (parent-marked keys), per child
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1414,7 +1415,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; vaccines=(w&&w.vaccines)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; vaccines=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1507,6 +1508,24 @@
               if(p.heightCm!=null) parts.push(`${Number(p.heightCm).toFixed(0)} см`);
               return `<div class="tli"><span class="t">${esc(fmtDate(p.at))}</span><span class="t num">${parts.join(" · ")}</span></div>`;
             }).join("")}
+          </div>`;
+      }
+      return out;
+    })();
+    // Child vaccination record (parent-marked) — which shots are recorded, per
+    // child. The keys are the app's opaque "<id>/<dose>"; the count is the
+    // clinically useful bit (a child with none recorded is worth a look).
+    const vaccinesSection=(()=>{
+      if(!vaccines.length) return "";
+      const byChild=new Map();
+      for(const v of vaccines){ const k=v.childName||"ребёнок"; if(!byChild.has(k)) byChild.set(k,[]); byChild.get(k).push(v.vaccineKey); }
+      let out="";
+      for(const [name,keys] of byChild){
+        const sorted=[...keys].sort();
+        out+=`<div class="dsec">Прививки · ${esc(name)}</div>
+          <div class="tl">
+            <div class="tli"><span><b>Отмечено</b></span><span class="t num">${sorted.length}</span></div>
+            <div class="tli"><span class="t" style="max-width:70%;text-align:right;word-break:break-word">${sorted.map(esc).join(" · ")}</span></div>
           </div>`;
       }
       return out;
@@ -1618,6 +1637,7 @@
       ${contractionsSection}
       ${newbornSection}
       ${growthSection}
+      ${vaccinesSection}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
