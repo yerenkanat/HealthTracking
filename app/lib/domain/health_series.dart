@@ -234,6 +234,16 @@ MetricStatus metricStatus(String metric, double v) {
       if (v >= GlucoseThresholds.highMmol || v < GlucoseThresholds.severeLowMmol) return MetricStatus.danger;
       if (v >= GlucoseThresholds.elevatedMmol || v < GlucoseThresholds.lowMmol) return MetricStatus.watch;
       return MetricStatus.normal;
+    case 'stress':
+      // Proprietary 0–100 band index; ~66+ is the "relaxation recommended" zone
+      // on the OEM bands. A soft wellness cue, so it never escalates to danger.
+      if (v >= 66) return MetricStatus.watch;
+      return MetricStatus.normal;
+    case 'breathRate':
+      // Resting respiratory rate (breaths/min). Pregnancy runs a little higher;
+      // flag clearly out-of-range as watch only — a wrist estimate, never triaged.
+      if (v < 10 || v > 22) return MetricStatus.watch;
+      return MetricStatus.normal;
     default:
       return MetricStatus.normal;
   }

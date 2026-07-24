@@ -826,9 +826,20 @@ class _ActivityWellnessCard extends StatelessWidget {
     ];
     final wellbeing = <Widget>[
       if (m.stress != null)
-        _StatTile(icon: Icons.self_improvement_rounded, colour: Palette.pink, label: l.t('wm_stress'), value: '${m.stress}'),
+        _StatTile(
+            icon: Icons.self_improvement_rounded,
+            colour: Palette.pink,
+            label: l.t('wm_stress'),
+            value: '${m.stress}',
+            valueColor: _statusColor(metricStatus('stress', m.stress!.toDouble()))),
       if (m.breathRate != null)
-        _StatTile(icon: Icons.air_rounded, colour: Palette.blue, label: l.t('wm_breath'), value: '${m.breathRate}', unit: l.t('wm_unit_brpm')),
+        _StatTile(
+            icon: Icons.air_rounded,
+            colour: Palette.blue,
+            label: l.t('wm_breath'),
+            value: '${m.breathRate}',
+            unit: l.t('wm_unit_brpm'),
+            valueColor: _statusColor(metricStatus('breathRate', m.breathRate!.toDouble()))),
       if (m.bloodSugar != null)
         _StatTile(
             icon: Icons.water_drop_rounded,

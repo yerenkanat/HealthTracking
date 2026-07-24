@@ -45,6 +45,17 @@ void main() {
     test('danger when severely low', () => expect(metricStatus('glucose', 2.8), MetricStatus.danger));
   });
 
+  group('metricStatus — watch wellness metrics (watch-tier only)', () {
+    test('calm stress is normal', () => expect(metricStatus('stress', 40), MetricStatus.normal));
+    test('high stress is a soft watch, never danger', () {
+      expect(metricStatus('stress', 72), MetricStatus.watch);
+      expect(metricStatus('stress', 100), isNot(MetricStatus.danger));
+    });
+    test('normal breathing is normal', () => expect(metricStatus('breathRate', 16), MetricStatus.normal));
+    test('fast breathing is a watch', () => expect(metricStatus('breathRate', 26), MetricStatus.watch));
+    test('slow breathing is a watch', () => expect(metricStatus('breathRate', 8), MetricStatus.watch));
+  });
+
   group('worstStatus', () {
     test('empty is normal', () => expect(worstStatus(const []), MetricStatus.normal));
     test('picks the most severe', () {
