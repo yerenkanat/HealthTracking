@@ -218,7 +218,14 @@ class HealthDashboardView extends StatelessWidget {
                     const SizedBox(height: 14),
                   ],
                   _PeaceOfMindBanner(samples: samples, name: greetingName),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
+                  // A section label so the vitals read as one named group, in
+                  // parallel with the Activity & Wellness header below — the
+                  // dashboard is scanned by zone, not as one undifferentiated run
+                  // of cards. The not-measuring note sits under it, since it is
+                  // about these readings.
+                  _SectionLabel(L10nScope.of(context).t('db_vitals_section')),
+                  const SizedBox(height: 10),
                   if (bandNotMeasuring) ...[
                     const _NotMeasuringChip(),
                     const SizedBox(height: 12),
@@ -710,8 +717,7 @@ class _ActivityWellnessCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l.t('wm_title').toUpperCase(),
-              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          _SectionLabel(l.t('wm_title')),
           const SizedBox(height: 14),
           _Group(label: l.t('wm_group_activity'), tiles: activity),
           if (activity.isNotEmpty && wellbeing.isNotEmpty) const SizedBox(height: 16),
@@ -739,6 +745,19 @@ class _ActivityWellnessCard extends StatelessWidget {
     }
     return b.toString();
   }
+}
+
+/// A dashboard section label — one uppercase, tracked, dim caption used for
+/// every zone header (vitals, activity & wellness, …) so the screen reads as
+/// named groups in a single consistent voice.
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Text(
+        text.toUpperCase(),
+        style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+      );
 }
 
 /// One labelled category inside the Activity & Wellness card — a small header
