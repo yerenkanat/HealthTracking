@@ -6,7 +6,11 @@
   "//start": "tsx, not node --experimental-strip-types: node's ESM resolver needs an explicit extension on every relative import, and this codebase imports './server' rather than './server.ts'. `npm start` failed on the first import. A production deployment should compile ahead of time rather than rely on a dev runner.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:apply": "node db/apply.mjs",
+    "db:reset": "docker compose down -v && docker compose up -d --wait && node db/apply.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

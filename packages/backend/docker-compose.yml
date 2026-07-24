@@ -1,0 +1,32 @@
+# Local Postgres for the backend, with the extensions schema.sql needs.
+#
+# schema.sql declares timescaledb (health-metric hypertable + continuous
+# aggregates) and postgis (geofence geography columns, used at RUNTIME by
+# pgRepository's ST_* queries). A plain Postgres cannot run this app, so this
+# uses the Timescale HA image, which bundles TimescaleDB *and* PostGIS.
+#
+# Port 5433 on the host, deliberately: a stock Postgres install already listens
+# on 5432, and this must not fight it.
+#
+#   docker compose up -d
+#   DATABASE_URL=postgres://umay:umay@127.0.0.1:5433/umay npm run db:apply
+#   DATABASE_URL=postgres://umay:umay@127.0.0.1:5433/umay npm run dev
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: umay
+      POSTGRES_PASSWORD: umay
+      POSTGRES_DB: umay
+    ports:
+      - "5433:5432"
+    volumes:
+      - umay_pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umay -d umay"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  umay_pgdata:
