@@ -469,12 +469,26 @@ export function createPgRepository(pool: Pool): Repository {
       const total = await pool.query(
         `SELECT count(*)::int AS n FROM users WHERE display_name ILIKE $1 OR email ILIKE $1`, [like]);
       const { rows } = await pool.query(
-        `SELECT id, display_name, phone_e164, due_date FROM users
-         WHERE display_name ILIKE $1 OR email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+        // The LATERAL pulls each user's most recent reading — its time (the
+        // "last measurement" column, which returned nothing before) and its
+        // triage severity (so a warning/emergency shows in the LIST, not only
+        // after opening the drawer). idx_phm_user_time makes it a one-row scan.
+        `SELECT u.id, u.display_name, u.phone_e164, u.due_date, m.triage_severity, m.recorded_at
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT triage_severity, recorded_at FROM pregnancy_health_metrics
+           WHERE user_id = u.id ORDER BY recorded_at DESC LIMIT 1
+         ) m ON true
+         WHERE u.display_name ILIKE $1 OR u.email ILIKE $1
+         ORDER BY u.created_at DESC LIMIT $2 OFFSET $3`,
         [like, limit, offset]);
       return {
         total: total.rows[0].n,
-        users: rows.map((r) => ({ id: r.id, displayName: r.display_name, phone: r.phone_e164, dueDate: r.due_date })),
+        users: rows.map((r) => ({
+          id: r.id, displayName: r.display_name, phone: r.phone_e164, dueDate: r.due_date,
+          lastMetricAt: r.recorded_at ? new Date(r.recorded_at).toISOString() : null,
+          latestSeverity: r.triage_severity ?? null,
+        })),
       };
     },
     async adminUserHealth(userId) {

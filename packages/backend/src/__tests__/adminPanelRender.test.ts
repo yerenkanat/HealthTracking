@@ -37,6 +37,7 @@ const USERS = {
       phone: '+77001112233',
       dueDate: '2026-11-14T00:00:00.000Z',
       lastMetricAt: '2026-07-21T11:30:00.000Z',
+      latestSeverity: 'warning',
     },
   ],
 };
@@ -243,6 +244,13 @@ describe('the tabs that were showing invented data', () => {
     for (const invented of ['Madina', 'Zarina', 'Aruzhan', 'Saltanat']) {
       expect(t).not.toContain(invented);
     }
+  });
+
+  it('marks a warning/emergency patient in the list, so a caseload can be triaged', async () => {
+    const page = await render(FULL, 'users');
+    // The row for a patient whose latest reading was a warning carries an
+    // exception dot — visible before opening the drawer.
+    expect(page.count('#usersBody .tld')).toBe(1);
   });
 
   it('dates in the user list are in the language the panel is written in', async () => {

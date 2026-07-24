@@ -360,7 +360,7 @@ export interface Repository {
   // already acknowledged. The id is the underlying metric row id, so an ack
   // needs no change to the safety/ingest path — it is an overlay.
   acknowledgeEmergency(id: string, staffId: string, at: string): Promise<boolean>;
-  adminListUsers(q: string, limit: number, offset: number): Promise<{ total: number; users: Array<{ id: string; displayName: string; phone: string | null; dueDate: string | null }> }>;
+  adminListUsers(q: string, limit: number, offset: number): Promise<{ total: number; users: Array<{ id: string; displayName: string; phone: string | null; dueDate: string | null; lastMetricAt: string | null; latestSeverity: string | null }> }>;
   adminUserHealth(userId: string): Promise<{ latest: Record<string, number | null>; triage: Array<{ code: string; severity: string; at: string }> } | null>;
   /// Everything the back-office needs about one family in a single call. The
   /// dashboard used to show a name and some vitals; support answering "what is

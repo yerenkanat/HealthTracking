@@ -1244,8 +1244,14 @@
       return;
     }
     const rows=data.users||[];
+    // Exception dot: only a warning/emergency latest reading marks the row, so a
+    // clinician scans the whole caseload and sees who needs attention without
+    // opening each drawer. Healthy patients stay unmarked (no clutter).
+    const sevDot=s=>(s==='emergency'||s==='warning')
+      ? `<span class="tld" title="${s==='emergency'?'Экстренно':'Предупреждение'}" style="display:inline-block;margin-right:7px;vertical-align:middle;background:var(--${s==='emergency'?'crit':'warn'})"></span>`
+      : "";
     body.innerHTML=rows.map(u=>`<tr data-user="${esc(u.id)}">
-        <td><b>${esc(u.displayName||"—")}</b></td>
+        <td>${sevDot(u.latestSeverity)}<b>${esc(u.displayName||"—")}</b></td>
         <td class="num">${esc(u.phone||"—")}</td>
         <td>${u.dueDate?esc(monthYear(u.dueDate)):"—"}</td>
         <td class="t">${u.lastMetricAt?esc(ago(u.lastMetricAt)):"—"}</td>

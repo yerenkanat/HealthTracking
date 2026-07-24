@@ -371,10 +371,20 @@ export function createMemoryRepository(): Repository {
       emergencyAcks.set(id, { staffId, at });
       return true;
     },
-    adminListUsers: async () => ({
-      total: 1,
-      users: [{ id: DEMO_USER, displayName: profile?.displayName ?? '', phone: profile?.phone ?? null, dueDate: profile?.dueDate ?? null }],
-    }),
+    adminListUsers: async () => {
+      // Surface each user's latest reading in the list, like the pg LATERAL:
+      // the time (the "last measurement" column) and its triage severity.
+      const mine = (healthRows as Array<Record<string, unknown>>).filter((r) => r.userId === DEMO_USER);
+      const last = mine[mine.length - 1];
+      return {
+        total: 1,
+        users: [{
+          id: DEMO_USER, displayName: profile?.displayName ?? '', phone: profile?.phone ?? null, dueDate: profile?.dueDate ?? null,
+          lastMetricAt: last ? String(last.recordedAt) : null,
+          latestSeverity: last ? (last.triageSeverity as string) : null,
+        }],
+      };
+    },
     /// The newest reading actually ingested, falling back to the seed.
     ///
     /// This returned a fixed object, so a reading posted to /ingest/batch
