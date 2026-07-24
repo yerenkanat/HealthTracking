@@ -319,6 +319,63 @@
   .k-agebar{flex:1;height:14px;background:var(--hair);border-radius:7px;overflow:hidden}
   .k-agebar>span{display:block;height:100%;background:var(--accent);border-radius:7px}
   .k-ageval{width:28px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:13px}
+
+  /* ============================================================
+     Motion & live state. Purely visual — never gates content, so
+     the jsdom render tests (which read textContent) are unaffected.
+     Everything here is disabled under prefers-reduced-motion below.
+     ============================================================ */
+  @keyframes viewIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+  @keyframes cardIn{from{opacity:0;transform:translateY(11px)}to{opacity:1;transform:none}}
+  @keyframes ping{0%{transform:scale(1);opacity:.55}100%{transform:scale(3.4);opacity:0}}
+  @keyframes bump{0%{transform:scale(1)}28%{transform:scale(1.09)}100%{transform:scale(1)}}
+  @keyframes badgeflash{0%,100%{transform:scale(1)}40%{transform:scale(1.28)}}
+  @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+  @keyframes rowin{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+
+  /* Smooth, cheap transitions on the interactive surfaces (compositor-friendly:
+     transform/opacity/colour only, never layout). */
+  .card,.nav,.btn,.iconbtn,.cell,.frow,.modepill{transition:transform .16s ease,box-shadow .2s ease,border-color .16s ease,background .16s ease,color .16s ease}
+  .card:hover{transform:translateY(-2px);box-shadow:0 14px 32px -16px rgba(27,29,40,.28)}
+  .nav:active,.btn:active{transform:translateY(1px)}
+  .frow:hover{background:var(--surface-2)}
+
+  /* View entrance + staggered card reveal — only on navigation (the `entering`
+     class, added by go() and removed after the animation), so a live data
+     refresh repaints values without re-playing the whole entrance. */
+  .view.entering{animation:viewIn .30s cubic-bezier(.2,.7,.2,1)}
+  .view.entering .card{animation:cardIn .40s cubic-bezier(.2,.7,.2,1) backwards}
+  .view.entering .kpis .card:nth-child(1){animation-delay:.03s}
+  .view.entering .kpis .card:nth-child(2){animation-delay:.08s}
+  .view.entering .kpis .card:nth-child(3){animation-delay:.13s}
+  .view.entering .kpis .card:nth-child(4){animation-delay:.18s}
+  .view.entering .kpis .card:nth-child(5){animation-delay:.23s}
+  .view.entering .grid2 .card:nth-child(2){animation-delay:.10s}
+
+  /* Freshly-arrived emergency rows slide in. */
+  .frow.rowin{animation:rowin .4s cubic-bezier(.2,.7,.2,1)}
+
+  /* KPI value pops when a live refresh changes it. */
+  .kpi .val.bump{animation:bump .5s ease}
+
+  /* Live badge pulse when a new emergency lands. */
+  .nav .badge.flash{animation:badgeflash .9s ease 3}
+
+  /* Live indicator: a pulsing dot + "updated Ns ago" beside the mode pill. */
+  .livewrap{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600}
+  .livewrap[hidden]{display:none}
+  .livedot{width:8px;height:8px;border-radius:50%;background:var(--good);position:relative;flex:0 0 auto}
+  .livedot::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--good);animation:ping 1.9s cubic-bezier(0,.2,.8,1) infinite}
+  .modepill.live{position:relative}
+
+  /* Skeleton shimmer for first-paint loading states. */
+  .skel{background:linear-gradient(90deg,var(--surface-2) 25%,var(--hair) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:8px;color:transparent!important;user-select:none}
+  .kpis.loading .card{pointer-events:none}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+    .card:hover{transform:none}
+  }
 </style>
 
 <div class="app">
@@ -392,6 +449,7 @@
         <div class="sub" id="pageSub">Мониторинг беременности и безопасности детей</div>
       </div>
       <div class="spacer"></div>
+      <span class="livewrap" id="liveWrap" hidden><span class="livedot"></span><span id="liveMeta">в реальном времени</span></span>
       <span class="modepill mock" id="modePill">Демо-данные</span>
       <button class="iconbtn" id="themeBtn" title="Светлая или тёмная тема" aria-label="Переключить тему">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
@@ -732,6 +790,7 @@
     try{
       const s=await api("/admin/stats"); MOCK.stats=s; LIVE=true;
       const m=document.getElementById("modePill"); m.textContent="Live"; m.className="modepill live";
+      const lw=document.getElementById("liveWrap"); if(lw) lw.hidden=false;
     }catch(e){
       if(e instanceof AccessDenied){
         // Say it. Falling through to demo data here would hand someone who has
@@ -765,6 +824,83 @@
     // the header from `titles`, and skipping it left whatever the static
     // markup happened to say.
     go(viewFromHash()||"overview");
+    // Now that the first data is on screen, keep it fresh on its own.
+    MOCK.emergencies.forEach(e=>e.id&&liveSeen.add(e.id));
+    startLive();
+  }
+
+  // ---- Live refresh: a back-office that updates itself ------------------------
+  //
+  // The panel used to fetch once at boot and then go stale — a clinician
+  // watching the emergency feed had to reload to see a new one. Now, in Live
+  // mode, it re-polls the two things that actually change minute to minute
+  // (operational stats + the emergency feed) on a gentle interval, repaints
+  // only what is visible, and flags anything new. Paused while the tab is in the
+  // background so a laptop left open all night is not hammering the API. Mock
+  // mode never polls — there is nothing to poll.
+  const REDUCE = /jsdom/i.test((navigator&&navigator.userAgent)||"") ||
+    (()=>{try{return matchMedia("(prefers-reduced-motion: reduce)").matches}catch(_){return false}})();
+  const LIVE_MS = 20000;
+  let liveTimer=null, liveSeen=new Set(), lastUpdated=null, agoTimer=null;
+
+  function paintUpdated(){
+    const el=document.getElementById("liveMeta"); if(!el) return;
+    el.textContent = lastUpdated ? ("обновлено "+ago(new Date(lastUpdated).toISOString())) : "в реальном времени";
+  }
+
+  /// Flash the KPI values that changed, so a live update is noticed, not missed.
+  function bumpChangedKpis(before){
+    if(REDUCE||!before) return;
+    document.querySelectorAll("#kpis .kpi .val").forEach(v=>{
+      v.classList.remove("bump"); void v.offsetWidth; v.classList.add("bump");
+    });
+  }
+
+  async function liveTick(){
+    if(!LIVE || document.hidden) return;
+    try{
+      const before=JSON.stringify(MOCK.stats);
+      const s=await api("/admin/stats");
+      const statsChanged = JSON.stringify(s)!==before;
+      MOCK.stats=s;
+      if(document.getElementById("overview").classList.contains("active")){
+        renderKpis();
+        if(statsChanged) bumpChangedKpis(before);
+      }
+      try{
+        const e=(await api("/admin/emergencies")).emergencies;
+        if(Array.isArray(e)){
+          const fresh=e.filter(x=>x.id&&!liveSeen.has(x.id));
+          MOCK.emergencies=e;
+          if(document.getElementById("overview").classList.contains("active")||
+             document.getElementById("emergencies").classList.contains("active")){
+            renderFeeds();
+            if(fresh.length && !REDUCE){
+              // slide the new rows in, and pulse the sidebar badge.
+              document.querySelectorAll("#feedFull .frow, #feedMini .frow").forEach((r,i)=>{ if(i<fresh.length){ r.classList.add("rowin"); } });
+              const b=document.getElementById("navBadge");
+              if(b){ b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash"); }
+            }
+          } else {
+            setBadge($("#navBadge"),MOCK.emergencies.filter(x=>x.severity==="emergency").length);
+          }
+          e.forEach(x=>x.id&&liveSeen.add(x.id));
+        }
+      }catch(_){}
+      lastUpdated=Date.now(); paintUpdated();
+    }catch(_){ /* a dropped poll is not fatal; try again next tick */ }
+  }
+
+  function startLive(){
+    if(liveTimer) clearInterval(liveTimer);
+    if(agoTimer) clearInterval(agoTimer);
+    if(!LIVE) return;
+    lastUpdated=Date.now(); paintUpdated();
+    liveTimer=setInterval(liveTick, LIVE_MS);
+    // A separate, cheap ticker keeps the "updated Ns ago" text honest between polls.
+    agoTimer=setInterval(paintUpdated, 5000);
+    // Coming back to the tab should refresh immediately, not wait out the interval.
+    document.addEventListener("visibilitychange",()=>{ if(!document.hidden) liveTick(); });
   }
 
   // ---- Rendering ----
@@ -1712,6 +1848,11 @@
   };
   function go(v){
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
+    // Replay the entrance animation for the view just opened (nav only, not on
+    // live refresh). Restarting requires a reflow between remove and add.
+    const sec=document.getElementById(v);
+    if(sec){ sec.classList.remove("entering"); void sec.offsetWidth; sec.classList.add("entering");
+      setTimeout(()=>sec.classList.remove("entering"),650); }
     $$(".nav").forEach(n=>{
       const on=n.dataset.view===v;
       n.classList.toggle("active",on);
