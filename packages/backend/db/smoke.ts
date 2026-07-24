@@ -60,6 +60,29 @@ async function main() {
   const mcnt = await pool.query('SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE user_id=$1 AND device_id IS NULL', [U]);
   ok(mcnt.rows[0].n === 1, 'exactly one manual row despite two sends');
 
+  console.log('sync writes + reads round-trip:');
+  await repo.upsertProfile(U, { displayName: 'Aigerim', phone: '+7700', dueDate: '2026-11-14', locale: 'ru-KZ', birthDate: null, city: 'Almaty', doctorPhone: null, avgCycleLength: 28, avgPeriodLength: 5 } as never);
+  const prof = await repo.getProfile(U);
+  ok(prof?.displayName === 'Aigerim' && prof?.city === 'Almaty', 'profile upsert + read');
+
+  await repo.recordSleep(U, { night: '2026-07-20', deepMin: 90, remMin: 70, lightMin: 260, awakeMin: 20 } as never);
+  const sleep = await repo.listSleep(U, 7);
+  ok(sleep.length >= 1 && sleep[0].deepMin === 90, 'sleep record + list');
+
+  await repo.upsertAppointment(U, { id: 'aaaaaaaa-0000-0000-0000-000000000010', title: 'Ultrasound', at: '2026-08-01T09:00:00.000Z', note: '' } as never);
+  const appts = await repo.listAppointments(U);
+  ok(appts.some((a) => a.title === 'Ultrasound'), 'appointment upsert + list');
+
+  await repo.insertBpCalibration(U, { systolicOffset: 8, diastolicOffset: 5, calibratedAt: '2026-07-22T10:00:00.000Z', cuffSystolic: 130, cuffDiastolic: 85, ppgSystolic: 122, ppgDiastolic: 80 } as never);
+  const cal = await repo.latestBpCalibration(U);
+  ok(cal?.systolicOffset === 8, 'BP calibration insert + read');
+
+  console.log('admin reads (complex SQL, first run against real pg):');
+  const list = await repo.adminListUsers('', 50, 0);
+  ok(list.users.some((u) => u.id === U), 'adminListUsers returns the user');
+  const detail = await repo.adminUserDetail(U);
+  ok(!!detail && detail.children.some((c) => c.id === C), 'adminUserDetail assembles children');
+
   // Clean up so the smoke test is repeatable.
   await pool.query('DELETE FROM users WHERE id=$1', [U]);
   await pool.end();
