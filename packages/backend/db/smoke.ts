@@ -60,6 +60,11 @@ async function main() {
   const mcnt = await pool.query('SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE user_id=$1 AND device_id IS NULL', [U]);
   ok(mcnt.rows[0].n === 1, 'exactly one manual row despite two sends');
 
+  console.log('restore: listManualVitals (device-less rows only):');
+  const manualVitals = await repo.listManualVitals(U);
+  ok(manualVitals.length === 1, 'returns only the hand-entered reading, not the band one');
+  ok(manualVitals[0].glucoseMmol === 8.2 && manualVitals[0].systolicMmHg === 130, 'the manual reading carries its glucose + BP');
+
   console.log('sync writes + reads round-trip:');
   await repo.upsertProfile(U, { displayName: 'Aigerim', phone: '+7700', dueDate: '2026-11-14', locale: 'ru-KZ', birthDate: null, city: 'Almaty', doctorPhone: null, avgCycleLength: 28, avgPeriodLength: 5 } as never);
   const prof = await repo.getProfile(U);

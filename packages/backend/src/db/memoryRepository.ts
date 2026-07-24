@@ -131,6 +131,18 @@ export function createMemoryRepository(): Repository {
       healthRows.push(m);
       return false;
     },
+    listManualVitals: async (userId) => {
+      const num = (v: unknown) => (typeof v === 'number' ? v : null);
+      return (healthRows as Array<Record<string, unknown>>)
+        .filter((r) => r.userId === userId && !r.deviceId) // device-less = hand-entered
+        .slice(-200)
+        .reverse()
+        .map((r) => ({
+          recordedAt: String(r.recordedAt),
+          heartRateBpm: num(r.heartRateBpm), spo2Pct: num(r.spo2Pct), systolicMmHg: num(r.systolicMmHg),
+          diastolicMmHg: num(r.diastolicMmHg), coreTempC: num(r.coreTempC), glucoseMmol: num(r.glucoseMmol),
+        }));
+    },
     insertBpCalibration: async (userId, cal) => void bpCalibrations.push({ ...cal, userId }),
     latestBpCalibration: async (userId) => {
       const mine = bpCalibrations.filter((c) => c.userId === userId);

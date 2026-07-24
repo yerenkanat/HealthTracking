@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/data/app_store.dart';
 import 'package:fcs_app/domain/manual_vitals.dart';
+import 'package:fcs_app/domain/health_series.dart';
 
 void main() {
   test('a valid reading is stored and charted', () async {
@@ -31,6 +32,22 @@ void main() {
     expect(c.route, isNot(AppRoute.emergency));
     // Out-of-range glucose is rejected like any other implausible vital.
     expect(c.logManualVitals(const ManualVitals(glucose: 60)), isFalse);
+    await c.dispose();
+  });
+
+  test('remote hand-entered readings restore on a new device (dedup, local wins, reach the store)', () async {
+    final c = AppController(now: () => DateTime(2026, 7, 16, 9));
+    // A reading this device already typed.
+    c.logManualVitals(const ManualVitals(systolic: 118, diastolic: 76));
+    final t1 = c.samples.single.at;
+    // The server returns that same reading (must NOT duplicate) plus an older
+    // glucose reading this device never had (must be restored).
+    c.mergeRemoteManualVitals([
+      HealthSample(at: t1, systolic: 118, diastolic: 76),
+      HealthSample(at: DateTime(2026, 7, 10, 8), glucose: 8.5),
+    ]);
+    expect(c.samples.length, 2, reason: 'the older glucose reading is restored; the duplicate is skipped');
+    expect(c.samples.any((s) => s.glucose == 8.5), isTrue, reason: 'restored readings reach the live store');
     await c.dispose();
   });
 

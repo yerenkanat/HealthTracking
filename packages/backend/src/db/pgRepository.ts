@@ -44,6 +44,21 @@ export function createPgRepository(pool: Pool): Repository {
       return (res.rowCount ?? 0) === 0; // true = duplicate (nothing inserted)
     },
 
+    async listManualVitals(userId) {
+      const { rows } = await pool.query(
+        `SELECT recorded_at, heart_rate_bpm, spo2_pct, systolic_mmhg, diastolic_mmhg, core_temp_c, glucose_mmol
+         FROM pregnancy_health_metrics
+         WHERE user_id = $1 AND device_id IS NULL
+         ORDER BY recorded_at DESC LIMIT 200`,
+        [userId],
+      );
+      return rows.map((r) => ({
+        recordedAt: new Date(r.recorded_at).toISOString(),
+        heartRateBpm: r.heart_rate_bpm, spo2Pct: r.spo2_pct, systolicMmHg: r.systolic_mmhg,
+        diastolicMmHg: r.diastolic_mmhg, coreTempC: r.core_temp_c, glucoseMmol: r.glucose_mmol,
+      }));
+    },
+
     async insertBpCalibration(userId, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }) {
       await pool.query(
         `INSERT INTO bp_calibration

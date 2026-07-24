@@ -806,6 +806,10 @@ Future<void> bootstrapRuntime(
             .mergeRemoteWeights([for (final w in await api.getWeight()) WeightEntry.fromJson(w)])),
         _restore(() async => controller
             .mergeRemoteSleep([for (final n in await api.getSleep()) SleepSummary.fromJson(n)])),
+        // Her hand-entered vitals/glucose (device-less rows only), so a typed
+        // cuff/glucometer history is not lost on a new phone.
+        _restore(() async => controller
+            .mergeRemoteManualVitals([for (final r in await api.getManualVitals()) HealthSample.fromJson(r)])),
         _restore(() async {
           final days = await api.getDayLogs(from: '1970-01-01', to: '2999-12-31');
           controller.mergeRemoteDayLogs([for (final d in days) DayLog.fromJson(d)]);

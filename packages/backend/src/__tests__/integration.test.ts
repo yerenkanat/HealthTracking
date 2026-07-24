@@ -65,6 +65,7 @@ function makeDeps(
 
   const repo: Repository = {
     insertHealthMetric: async (m) => { healthRows.push(m); return false; },
+    listManualVitals: async () => [],
     insertBpCalibration: async (_u, c) => void calRows.push(c),
     latestBpCalibration: async () =>
       (calRows.length ? calRows[calRows.length - 1] : null) as never,

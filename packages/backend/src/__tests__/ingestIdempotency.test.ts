@@ -76,6 +76,16 @@ describe('POST /ingest/batch is idempotent per reading', () => {
     expect(feed).toHaveLength(1);
   });
 
+  it('a hand-entered reading comes back from GET /vitals/manual (device-less restore)', async () => {
+    const a = app();
+    await post(a, EMERGENCY_BATCH); // source:'manual', deviceId:'' → a device-less row
+    const r = await a.inject({ method: 'GET', url: '/vitals/manual' });
+    expect(r.statusCode).toBe(200);
+    const readings = (r.json() as { readings: Array<{ systolicMmHg: number }> }).readings;
+    expect(readings).toHaveLength(1);
+    expect(readings[0].systolicMmHg).toBe(168); // the reading she typed, ready to restore
+  });
+
   it('a genuinely different reading (new instant) is stored and pushed on its own', async () => {
     const a = app();
     await post(a, EMERGENCY_BATCH);

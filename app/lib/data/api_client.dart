@@ -349,6 +349,16 @@ class ApiClient {
     return ((j['nights'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  /// The caller's own hand-entered readings (HealthSample wire shape). For
+  /// restoring a typed vitals/glucose history on a new device — the server only
+  /// returns device-less rows, so band readings are never pulled back.
+  Future<List<Map<String, dynamic>>> getManualVitals() async {
+    final res = await transport.get('/vitals/manual');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['readings'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   /// The caller's women's-health day logs in [from]..[to] (yyyy-MM-dd). For
   /// restoring the cycle history that drives predictions.
   Future<List<Map<String, dynamic>>> getDayLogs({required String from, required String to}) async {

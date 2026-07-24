@@ -222,6 +222,15 @@ export interface Repository {
    * SUPPRESSED real emergency.
    */
   insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<boolean>;
+  /**
+   * The caller's own HAND-ENTERED readings (device_id NULL): typed cuff/glucose
+   * values. For restoring a typed vitals history on a new device — band readings
+   * are re-supplied by the device, so they are deliberately excluded.
+   */
+  listManualVitals(userId: string): Promise<Array<{
+    recordedAt: string; heartRateBpm: number | null; spo2Pct: number | null;
+    systolicMmHg: number | null; diastolicMmHg: number | null; coreTempC: number | null; glucoseMmol: number | null;
+  }>>;
   insertBpCalibration(userId: string, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }): Promise<void>;
   // The caller's most recent calibration, or null. Powers the admin drawer
   // (is her BP calibrated, and how recently?) and the new-device restore.

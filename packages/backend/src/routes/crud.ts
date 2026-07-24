@@ -479,6 +479,15 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     return reply.send({ points: await repo.queryMetrics(u.userId, parsed.data) });
   });
 
+  // Her own hand-entered readings, to restore a typed vitals/glucose history on a
+  // new device. Only device-less (manual) rows — band readings are re-supplied by
+  // the device, so pulling them back would duplicate stale data.
+  app.get('/vitals/manual', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    return reply.send({ readings: await repo.listManualVitals(u.userId) });
+  });
+
   app.get('/children/:id/events', async (req, reply) => {
     const { id } = req.params as { id: string };
     if (!(await requireOwned(req, reply, id, repo.childOwner))) return;

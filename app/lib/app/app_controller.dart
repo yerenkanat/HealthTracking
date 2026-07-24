@@ -1164,6 +1164,28 @@ class AppController {
     _notify();
   }
 
+  /// Merge hand-entered vitals/glucose pulled from the server on a new device.
+  /// A typed cuff/glucometer reading has no other source — nothing re-supplies it
+  /// — so without this a reinstall lost her whole manual history (the clinician
+  /// kept it, she did not). Dedup by instant; local wins. Restored readings join
+  /// both the persisted manual list AND the live store, so charts and the advisor
+  /// see them immediately.
+  void mergeRemoteManualVitals(List<HealthSample> remote) {
+    final have = _manualSamples.map((s) => s.at).toSet();
+    final added = [for (final s in remote) if (!have.contains(s.at)) s];
+    if (added.isEmpty) return;
+    _manualSamples.addAll(added);
+    _manualSamples.sort((a, b) => a.at.compareTo(b.at));
+    if (_manualSamples.length > _maxManualSamples) {
+      _manualSamples.removeRange(0, _manualSamples.length - _maxManualSamples);
+    }
+    for (final s in added) {
+      store.addSample(s);
+    }
+    _persist();
+    _notify();
+  }
+
   /// Merge sleep nights pulled from the server. Add nights (by wake-date) this
   /// install lacks; local wins.
   void mergeRemoteSleep(List<SleepSummary> remote) {
