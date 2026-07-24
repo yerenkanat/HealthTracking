@@ -83,6 +83,44 @@ async function main() {
   const detail = await repo.adminUserDetail(U);
   ok(!!detail && detail.children.some((c) => c.id === C), 'adminUserDetail assembles children');
 
+  console.log('remaining sync methods (first run against real pg):');
+  await repo.recordWeight(U, { date: '2026-07-20', kg: 68.5 } as never);
+  ok((await repo.listWeight(U, 30)).some((w) => w.kg === 68.5), 'weight record + list');
+
+  const MED = 'aaaaaaaa-0000-0000-0000-000000000020';
+  await repo.upsertMedication(U, { id: MED, name: 'Iron', dose: '30mg', perDay: 1 } as never);
+  ok((await repo.listMedications(U)).some((m) => m.id === MED), 'medication upsert + list');
+  await repo.upsertDose(U, { medId: MED, date: '2026-07-20', count: 1 } as never);
+  ok((await repo.listDoses(U)).some((d) => d.medId === MED && d.count === 1), 'dose upsert + list');
+
+  await repo.upsertGrowth(C, { at: '2026-07-20', weightKg: 3.4, heightCm: 51 } as never);
+  ok((await repo.listGrowth(U)).some((g) => g.childId === C && g.heightCm === 51), 'child growth upsert + list');
+
+  await repo.setVaccine(C, 'bcg', true);
+  ok((await repo.listVaccines(U)).some((v) => v.childId === C && v.vaccineKey === 'bcg'), 'vaccine set + list');
+
+  await repo.upsertChildEmergency(C, { bloodType: 'O+', allergies: 'penicillin', conditions: '', medications: '', doctorName: '', doctorPhone: '', contactName: '', contactPhone: '', notes: 'EpiPen' } as never);
+  ok((await repo.listMedicalIds(U)).some((m) => m.childId === C && m.notes === 'EpiPen'), 'medical-ID upsert + list (with notes)');
+
+  await repo.recordNewbornEvent(C, { at: '2026-07-20T06:00:00.000Z', kind: 'feed', detail: null, durationMin: 15 } as never);
+  ok((await repo.listNewbornEvents(U, 20)).some((e) => e.childId === C && e.kind === 'feed'), 'newborn event record + list');
+
+  await repo.upsertDayLog(U, { date: '2026-07-20', mood: 'good', symptoms: ['nausea'], kicks: 5, flow: null } as never);
+  ok((await repo.listDayLogs(U, '2026-07-01', '2026-07-31')).some((d) => d.mood === 'good' && d.symptoms.includes('nausea')), 'cycle day-log upsert + list (array column)');
+
+  await repo.recordKickSession(U, { endedAt: '2026-07-20T10:00:00.000Z', count: 10, durationSec: 1200 } as never);
+  ok((await repo.listKickSessions(U, 14)).some((s) => s.count === 10), 'kick session record + list');
+  await repo.recordContractionSession(U, { endedAt: '2026-07-20T11:00:00.000Z', count: 6, avgDurationSec: 45, avgIntervalSec: 300 } as never);
+  ok((await repo.listContractionSessions(U, 14)).some((s) => s.count === 6), 'contraction session record + list');
+
+  await repo.recordAlert(U, { childId: C, kind: 'left', zoneName: 'Home', at: '2026-07-20T12:00:00.000Z' } as never);
+  ok((await repo.listAlerts(U, 50)).some((a) => a.zoneName === 'Home'), 'safety alert record + list');
+
+  console.log('admin aggregate reads:');
+  ok((await repo.adminDevices(100)).some((d) => d.id === D), 'adminDevices returns the fleet row');
+  const stats = await repo.childrenStats(new Date('2026-07-24').toISOString());
+  ok(typeof stats.total === 'number' && stats.total >= 1, 'childrenStats aggregates');
+
   // Clean up so the smoke test is repeatable.
   await pool.query('DELETE FROM users WHERE id=$1', [U]);
   await pool.end();
