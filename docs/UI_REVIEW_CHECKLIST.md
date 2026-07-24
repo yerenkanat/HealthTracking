@@ -41,6 +41,14 @@ the issue fixed, before saying a screen is done.
 - [ ] Every icon-only button has a semantics label / tooltip.
 - [ ] Text contrast is legible for tired eyes; no gray-on-gray body text.
 - [ ] Live/critical status regions use Semantics(liveRegion: true).
+- [ ] **A primary or repeated action sits in the thumb zone (bottom of the
+      screen), not the top.** She holds the phone in one hand and taps with the
+      other's thumb; a top-anchored button forces a re-grip every time. Put the
+      list/content up top and pin the action at the bottom (Expanded fills the
+      middle, button last) — as the Contractions timer and the emergency call
+      button already do. _This is the mistake that added this rule: the
+      Contractions "Start" button, tapped every contraction through labour, was
+      pinned to the top of the screen._
 
 ## 5. State coverage
 - [ ] Empty, loading, and error states designed — not just the happy path.
