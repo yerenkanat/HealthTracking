@@ -103,6 +103,20 @@ CREATE TABLE medications (
 );
 CREATE INDEX idx_medications_user ON medications(user_id);
 
+-- Medication adherence: doses of a medication actually taken on a day. One row
+-- per (medication, day); count is capped app-side at the med's perDay target.
+-- The clinician reads this against the perDay to see if she is keeping to, say,
+-- her aspirin or iron. med_id is globally unique (medications PK), so it keys
+-- the row; user_id carries the owner for the per-user list + cascade.
+CREATE TABLE med_doses (
+  med_id    TEXT NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+  user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  log_date  DATE NOT NULL,
+  count     SMALLINT NOT NULL CHECK (count >= 0),
+  PRIMARY KEY (med_id, log_date)
+);
+CREATE INDEX idx_med_doses_user ON med_doses (user_id, log_date DESC);
+
 -- -----------------------------------------------------------------------------
 -- Pregnancy health metrics — TIMESERIES (TimescaleDB hypertable)
 -- -----------------------------------------------------------------------------

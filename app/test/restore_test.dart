@@ -107,6 +107,14 @@ void main() {
       expect(rows.single['zoneName'], 'School');
     });
 
+    test('getDoses parses the adherence list', () async {
+      final t = _FakeTransport()..bodies['/doses'] = {'doses': [
+        {'medId': 'm1', 'date': '2026-07-22', 'count': 2},
+      ]};
+      final rows = await ApiClient(t).getDoses();
+      expect(rows.single['count'], 2);
+    });
+
     test('getGrowth parses the measurement list', () async {
       final t = _FakeTransport()..bodies['/growth'] = {'growth': [
         {'childId': 'c1', 'at': '2026-07-01', 'weightKg': 7.4, 'heightCm': 66.0},
@@ -370,6 +378,37 @@ void main() {
       final a = SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'School', at: t);
       c.mergeRemoteAlerts([a, a]);
       expect(c.alerts, hasLength(1));
+    });
+
+    test('taking a dose fires the sync hook with the running count', () async {
+      final c = make();
+      addTearDown(c.dispose);
+      c.addMedication('Iron', dose: '30mg', perDay: 2);
+      final id = c.medications.single.id;
+      final counts = <int>[];
+      c.attachDoseSync(upsert: (medId, day, count) async => counts.add(count));
+      final day = DateTime.utc(2026, 7, 22);
+      c.takeMedicationDose(id, day);
+      c.takeMedicationDose(id, day); // caps at perDay=2
+      c.takeMedicationDose(id, day); // no-op at the cap, but still reports 2
+      c.undoMedicationDose(id, day);
+      await Future<void>.delayed(Duration.zero);
+      expect(counts, [1, 2, 2, 1]); // running count, incl. the walk-back
+    });
+
+    test('mergeRemoteDoses restores adherence, local wins on a same-day med', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.addMedication('Iron', dose: '30mg', perDay: 3);
+      final id = c.medications.single.id;
+      final day = DateTime.utc(2026, 7, 22);
+      c.takeMedicationDose(id, day); // local: count 1 on the 22nd
+      c.mergeRemoteDoses([
+        (medId: id, day: day, count: 3), // same med+day → local (1) wins
+        (medId: id, day: DateTime.utc(2026, 7, 20), count: 2), // new day → adopted
+      ]);
+      expect(dosesTaken(c.medLog, day, id), 1); // local kept
+      expect(dosesTaken(c.medLog, DateTime.utc(2026, 7, 20), id), 2); // restored
     });
 
     test('recordGrowth fires the sync hook with the measurement', () async {

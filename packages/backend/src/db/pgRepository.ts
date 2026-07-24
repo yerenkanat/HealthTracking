@@ -311,6 +311,22 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    async upsertDose(userId, d) {
+      await pool.query(
+        `INSERT INTO med_doses (med_id, user_id, log_date, count)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (med_id, log_date) DO UPDATE SET count = EXCLUDED.count`,
+        [d.medId, userId, d.date, d.count]);
+    },
+    async listDoses(userId) {
+      const { rows } = await pool.query(
+        `SELECT med_id, log_date, count FROM med_doses
+         WHERE user_id = $1 ORDER BY log_date DESC`, [userId]);
+      return rows.map((r) => ({
+        medId: r.med_id, date: new Date(r.log_date).toISOString().slice(0, 10), count: Number(r.count),
+      }));
+    },
+
     async upsertChildEmergency(childId, m) {
       await pool.query(
         `INSERT INTO child_emergency (child_id, blood_type, allergies, conditions, medications,

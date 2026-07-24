@@ -182,6 +182,9 @@ class AppController {
   // mother is taking (a pregnancy safety concern).
   Future<void> Function(Medication)? _onMedUpsert;
   Future<void> Function(String id)? _onMedDelete;
+  // Medication adherence sync: fires when a dose is ticked/unticked, with the
+  // new count for that (med, day), so a clinician sees adherence vs the target.
+  Future<void> Function(String medId, DateTime day, int count)? _onDoseUpsert;
   // Geofence (safe-zone) sync: upsert on add/edit, delete on remove, so the
   // back-office sees real zones and the server can raise enter/exit alerts.
   Future<void> Function(String childId, Geofence)? _onGeofenceUpsert;
@@ -1017,16 +1020,50 @@ class AppController {
     _notify();
   }
 
+  /// Wire backend sync for medication adherence (called by main.dart on sign-in).
+  void attachDoseSync({required Future<void> Function(String medId, DateTime day, int count) upsert}) {
+    _onDoseUpsert = upsert;
+  }
+
   void takeMedicationDose(String id, [DateTime? day]) {
     final med = _medications.where((m) => m.id == id).firstOrNull;
     if (med == null) return;
-    _medLog = takeDose(_medLog, day ?? _now(), med);
+    final when = day ?? _now();
+    _medLog = takeDose(_medLog, when, med);
+    // Mirror the new count for that day (push-only). A failed push never blocks
+    // the tick she just made.
+    unawaited(_onDoseUpsert?.call(id, when, dosesTaken(_medLog, when, id)) ?? Future<void>.value());
     _persist();
     _notify();
   }
 
   void undoMedicationDose(String id, [DateTime? day]) {
-    _medLog = undoDose(_medLog, day ?? _now(), id);
+    final when = day ?? _now();
+    _medLog = undoDose(_medLog, when, id);
+    // Push the decremented count (0 when the day's entry is cleared), so an undo
+    // walks adherence back down on the server too.
+    unawaited(_onDoseUpsert?.call(id, when, dosesTaken(_medLog, when, id)) ?? Future<void>.value());
+    _persist();
+    _notify();
+  }
+
+  /// Restore medication adherence on a new device: for each (med, day) the
+  /// server has that this install lacks, adopt its count. Local wins on a
+  /// same-day conflict (a tick made offline), and it fires no sync hook, so a
+  /// restore can't echo the server's count back over a newer local one.
+  void mergeRemoteDoses(List<({String medId, DateTime day, int count})> remote) {
+    var changed = false;
+    for (final d in remote) {
+      if (d.count <= 0) continue;
+      final key = dateKey(d.day);
+      final forDay = _medLog[key];
+      if (forDay != null && forDay.containsKey(d.medId)) continue; // local wins
+      final next = Map<String, int>.from(forDay ?? const {});
+      next[d.medId] = d.count;
+      _medLog = {..._medLog, key: next};
+      changed = true;
+    }
+    if (!changed) return;
     _persist();
     _notify();
   }

@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
+import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -57,6 +57,7 @@ export function createMemoryRepository(): Repository {
   const childEmergency = new Map<string, MedicalIdRow>();
   const newbornEvents = new Map<string, NewbornEventRow[]>();
   const growth = new Map<string, GrowthRow[]>();
+  const doses: Array<DoseRow & { userId: string }> = [];
   type BpCalRow = BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number };
   const bpCalibrations: Array<BpCalRow & { userId: string }> = [];
   const dayLogs = new Map<string, DayLogRow>();
@@ -255,6 +256,14 @@ export function createMemoryRepository(): Repository {
       out.sort((a, b) => a.at.localeCompare(b.at)); // oldest-first, like the app
       return out;
     },
+    upsertDose: async (userId, d) => {
+      const i = doses.findIndex((x) => x.medId === d.medId && x.date === d.date);
+      if (i >= 0) doses[i] = { ...d, userId }; else doses.push({ ...d, userId });
+    },
+    listDoses: async (userId) =>
+      doses.filter((d) => d.userId === userId)
+        .map(({ userId: _o, ...d }) => d)
+        .sort((a, b) => b.date.localeCompare(a.date)),
     upsertChildEmergency: async (childId, m) => void childEmergency.set(childId, m),
     getChildEmergency: async (childId) => childEmergency.get(childId) ?? null,
     listMedicalIds: async (userId) => {

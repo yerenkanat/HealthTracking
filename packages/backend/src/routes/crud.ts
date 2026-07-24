@@ -56,6 +56,12 @@ const growthBody = z.object({
 }).refine((g) => g.weightKg != null || g.heightCm != null, {
   message: 'a growth measurement needs a weight or a height',
 });
+// Doses of a medication taken on a day. count is bounded to something sane; the
+// app already caps it at the med's perDay, this is only a typo/abuse guard.
+const doseBody = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  count: z.number().int().min(0).max(50),
+});
 const _med = z.string().max(500).default(''); // free-text, bounded
 const medicalIdBody = z.object({
   bloodType: _med, allergies: _med, conditions: _med, medications: _med,
@@ -278,6 +284,23 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!(await requireOwned(req, reply, id, repo.medicationOwner))) return;
     await repo.deleteMedication(id);
     return reply.code(204).send();
+  });
+
+  // ---- Medication adherence (doses taken per day) ----
+  app.put('/medications/:id/doses', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const owner = await requireOwned(req, reply, id, repo.medicationOwner);
+    if (!owner) return;
+    const parsed = doseBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.upsertDose(owner.userId, { medId: id, date: parsed.data.date, count: parsed.data.count });
+    return reply.code(200).send({ ok: true });
+  });
+
+  app.get('/doses', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    return reply.send({ doses: await repo.listDoses(u.userId) });
   });
 
   // ---- Devices ----

@@ -48,6 +48,7 @@ function makeDeps(
   const medicalIds = new Map<string, Record<string, string>>();
   const newbornRows = new Map<string, Array<{ at: string; kind: string; detail: string | null; durationMin: number | null }>>();
   const growthRows = new Map<string, Array<{ at: string; weightKg: number | null; heightCm: number | null }>>();
+  const doseRows: Array<{ medId: string; date: string; count: number; userId: string }> = [];
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -169,6 +170,13 @@ function makeDeps(
       }
       return out.sort((a, b) => String(a.at).localeCompare(String(b.at))) as never;
     },
+    upsertDose: async (userId, d) => {
+      const i = doseRows.findIndex((x) => x.medId === d.medId && x.date === d.date);
+      if (i >= 0) doseRows[i] = { ...d, userId }; else doseRows.push({ ...d, userId });
+    },
+    listDoses: async (userId) =>
+      doseRows.filter((d) => d.userId === userId).map(({ userId: _o, ...d }) => d)
+        .sort((a, b) => b.date.localeCompare(a.date)) as never,
     upsertChildEmergency: async (childId, m) => void medicalIds.set(childId, { ...m } as Record<string, string>),
     listMedicalIds: async (userId) => {
       const out: Array<Record<string, unknown>> = [];
@@ -845,6 +853,39 @@ describe('CRUD + history routes (in-process)', () => {
   it('growth: rejects an implausible weight (typo filter, 400)', async () => {
     const r = await app.inject({ method: 'POST', url: `/children/${CHILD}/growth`,
       payload: { at: '2026-07-20', weightKg: 720 } }); // slipped decimal
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('adherence: record doses per day, latest count wins, read back + admin wellness', async () => {
+    const MED = 'med-iron-1';
+    await post('/medications', { id: MED, name: 'Iron', dose: '30mg', perDay: 2 });
+
+    expect((await app.inject({ method: 'PUT', url: `/medications/${MED}/doses`,
+      payload: { date: '2026-07-22', count: 1 } })).statusCode).toBe(200);
+    // Second dose the same day → the count is replaced, not summed to a new row.
+    await app.inject({ method: 'PUT', url: `/medications/${MED}/doses`, payload: { date: '2026-07-22', count: 2 } });
+    await app.inject({ method: 'PUT', url: `/medications/${MED}/doses`, payload: { date: '2026-07-23', count: 1 } });
+
+    const doses = (await get('/doses')).json().doses;
+    expect(doses).toHaveLength(2); // two distinct days
+    expect(doses.find((d: { date: string }) => d.date === '2026-07-22').count).toBe(2);
+
+    // ...and adherence reaches the clinician's wellness view.
+    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    expect(wellness.doses.some((d: { medId: string; count: number }) => d.medId === MED && d.count === 2)).toBe(true);
+  });
+
+  it('adherence: logging against an unknown medication is refused (403 owner guard)', async () => {
+    const r = await app.inject({ method: 'PUT', url: '/medications/no-such-med/doses',
+      payload: { date: '2026-07-22', count: 1 } });
+    expect(r.statusCode).toBe(403); // requireOwned: no owner → not yours
+  });
+
+  it('adherence: rejects a malformed dose body (400)', async () => {
+    const MED = 'med-folate-1';
+    await post('/medications', { id: MED, name: 'Folate', dose: '400mcg', perDay: 1 });
+    const r = await app.inject({ method: 'PUT', url: `/medications/${MED}/doses`,
+      payload: { date: '22-07-2026', count: 1 } }); // wrong date shape
     expect(r.statusCode).toBe(400);
   });
 

@@ -146,3 +146,25 @@ describe('the child-growth section in the user drawer', () => {
     expect(drawer).not.toContain('Рост и вес');
   });
 });
+
+describe('the medication-adherence section in the user drawer', () => {
+  const MEDS = [{ id: 'm1', name: 'Железо', dose: '30mg', perDay: 2 }];
+  const DOSES = [
+    { medId: 'm1', date: '2026-07-23', count: 2 }, // target met
+    { medId: 'm1', date: '2026-07-22', count: 1 }, // missed
+  ];
+
+  it('renders doses taken against the target, per medication', async () => {
+    const { drawer, errors } = await openDrawer(null, { medications: MEDS, doses: DOSES });
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('Приём · Железо');
+    expect(drawer).toContain('2/2'); // met
+    expect(drawer).toContain('1/2'); // missed
+  });
+
+  it('shows nothing when there is no adherence data', async () => {
+    const { drawer, errors } = await openDrawer(null, { medications: MEDS, doses: [] });
+    expect(errors).toEqual([]);
+    expect(drawer).not.toContain('Приём ·');
+  });
+});

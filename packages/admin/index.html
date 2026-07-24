@@ -1404,6 +1404,7 @@
     let newborn=[]; // newborn care events (feed/diaper/sleep)
     let bpcal=null; // latest BP calibration (offsets + when), qualifies the BP vitals
     let growth=[]; // child growth measurements (weight/height), across her children
+    let doses=[]; // medication adherence (doses taken per med per day)
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1413,7 +1414,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1544,6 +1545,29 @@
           <div class="tli"><span><b>Манжета при калибровке</b></span><span class="t num">${bpcal.cuffSystolic}/${bpcal.cuffDiastolic}</span></div>
         </div>`;
     })();
+    // Medication adherence — doses actually taken per day against each med's
+    // target. A clinician reads this to see if she is keeping to, say, her
+    // aspirin or iron; a run of misses is the signal worth surfacing.
+    const doseAdherence=(()=>{
+      if(!doses.length) return "";
+      const medById=new Map(meds.map(m=>[m.id,m]));
+      const byMed=new Map();
+      for(const d of doses){ if(!byMed.has(d.medId)) byMed.set(d.medId,[]); byMed.get(d.medId).push(d); }
+      let out="";
+      for(const [medId,list] of byMed){
+        const m=medById.get(medId);
+        const name=m?m.name:"—";
+        const target=(m&&m.perDay>1)?m.perDay:1;
+        const recent=[...list].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,7);
+        const rows=recent.map(d=>{
+          const taken=Number(d.count)||0, met=taken>=target;
+          return `<div class="tli"><span class="t">${esc(fmtDate(d.date))}</span>`+
+                 `<span class="t num" style="color:${met?'var(--good)':'var(--warn)'}">${taken}/${target}</span></div>`;
+        }).join("");
+        out+=`<div class="dsec">Приём · ${esc(name)}</div><div class="tl">${rows}</div>`;
+      }
+      return out;
+    })();
     // Medications she is taking — a real safety concern in pregnancy.
     const medsSection=meds.length?`
       <div class="dsec">Лекарства и добавки</div>
@@ -1588,6 +1612,7 @@
       ${sleepSection}
       ${weightSection}
       ${medsSection}
+      ${doseAdherence}
       ${diarySection}
       ${kicksSection}
       ${contractionsSection}

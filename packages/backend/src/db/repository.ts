@@ -49,6 +49,12 @@ export interface GrowthRow {
   heightCm: number | null;
 }
 
+export interface DoseRow {
+  medId: string;
+  date: string; // yyyy-MM-dd
+  count: number; // doses taken that day (0..med.perDay)
+}
+
 export interface KickSessionRow {
   endedAt: string; // ISO instant
   count: number;
@@ -297,6 +303,12 @@ export interface Repository {
   // per child) and the new-device restore (group by childId).
   upsertGrowth(childId: string, g: GrowthRow): Promise<void>;
   listGrowth(userId: string): Promise<Array<{ childId: string; childName: string } & GrowthRow>>;
+
+  // Medication adherence — doses taken per (medication, day). upsertDose keys on
+  // (medId, date); listDoses returns the caller's whole log for the admin
+  // adherence view and the new-device restore.
+  upsertDose(userId: string, d: DoseRow): Promise<void>;
+  listDoses(userId: string): Promise<DoseRow[]>;
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
   listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;

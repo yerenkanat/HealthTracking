@@ -300,6 +300,22 @@ class ApiClient {
     return ((j['medications'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  /// Push the doses of [medId] taken on a day ({date, count}), so a clinician
+  /// sees adherence against the med's target. Upsert per medication per day.
+  Future<void> putDose(String medId, Map<String, dynamic> body) async {
+    final res = await transport.put('/medications/$medId/doses', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// The caller's medication adherence log ({medId, date, count}). For restoring
+  /// it on a new device.
+  Future<List<Map<String, dynamic>>> getDoses() async {
+    final res = await transport.get('/doses');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['doses'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   /// The caller's weight log ({date, kg}). For restoring the trend on a reinstall.
   Future<List<Map<String, dynamic>>> getWeight() async {
     final res = await transport.get('/weight?limit=365');

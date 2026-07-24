@@ -658,6 +658,17 @@ Future<void> bootstrapRuntime(
       for (final m in controller.medications) {
         unawaited(api.putMedication(medBody(m)));
       }
+
+      // Medication adherence sync (doses taken per day), so the clinician sees
+      // whether she is keeping to each medication. Push-only + first-sync.
+      controller.attachDoseSync(
+        upsert: (medId, day, count) => api.putDose(medId, {'date': isoDay(day), 'count': count}),
+      );
+      controller.medLog.forEach((day, perMed) {
+        perMed.forEach((medId, count) {
+          if (count > 0) unawaited(api.putDose(medId, {'date': day, 'count': count}));
+        });
+      });
       // New-device restore: pull back everything the server has that this
       // install doesn't, so a reinstall or a new phone is not an empty app.
       //
@@ -787,6 +798,22 @@ Future<void> bootstrapRuntime(
             if (_tryGrowth(g) case final p?) (byChild[childId] ??= []).add(p);
           }
           controller.mergeRemoteGrowth(byChild);
+        }),
+
+        // Medication adherence, so a new phone keeps the doses-taken history the
+        // clinician reads against each target.
+        _restore(() async {
+          final rows = <({String medId, DateTime day, int count})>[];
+          for (final d in await api.getDoses()) {
+            final medId = d['medId'] as String?;
+            final date = d['date'] as String?;
+            final count = (d['count'] as num?)?.toInt() ?? 0;
+            if (medId == null || date == null) continue;
+            final day = DateTime.tryParse(date);
+            if (day == null) continue;
+            rows.add((medId: medId, day: day, count: count));
+          }
+          controller.mergeRemoteDoses(rows);
         }),
       ]);
 
