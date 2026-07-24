@@ -18,32 +18,39 @@ const _notMeasuring = 'Device not connected — these readings may be out of dat
 void main() {
   DateTime t(int m) => DateTime.utc(2026, 7, 15, 8, m);
 
-  testWidgets('shows the activity & wellness panel with the watch metrics', (tester) async {
+  testWidgets('the wearable summary opens a detail screen with the watch metrics', (tester) async {
     final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
     final w = WearableMetrics(
       at: t(0), steps: 8200, meters: 6100, kcal: 420, sleepMinutes: 465, stress: 34, breathRate: 15, worn: true,
     );
     await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples, wearable: w)));
-    await tester.scrollUntilVisible(find.text('ACTIVITY & WELLNESS'), 200, scrollable: find.byType(Scrollable).first);
+    // The home page shows a COMPACT summary card, not the full panel.
+    await tester.scrollUntilVisible(find.text('Activity & wellness'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Steps'), findsNothing); // detail isn't on the home page
+    // Tap through to the dedicated wearable-detail screen.
+    await tester.tap(find.text('Activity & wellness'));
+    await tester.pumpAndSettle();
     expect(find.text('Steps'), findsOneWidget);
     expect(find.text('8 200'), findsOneWidget); // grouped thousands
     expect(find.text('6.1'), findsOneWidget); // distance km
-    // Sleep is deliberately NOT a tile here — the dedicated Sleep card owns it.
+    // Sleep is deliberately NOT a tile — the dedicated Sleep card owns it.
     expect(find.text('Sleep'), findsNothing);
     expect(find.text('Breathing'), findsOneWidget);
   });
 
-  testWidgets('the activity panel is hidden with no watch data', (tester) async {
+  testWidgets('the wearable summary is hidden with no watch or sleep data', (tester) async {
     final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
     await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
-    expect(find.text('ACTIVITY & WELLNESS'), findsNothing);
+    expect(find.text('Activity & wellness'), findsNothing);
   });
 
-  testWidgets('an off-wrist watch is flagged in the panel', (tester) async {
+  testWidgets('an off-wrist watch is flagged in the wearable detail', (tester) async {
     final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
     final w = WearableMetrics(at: t(0), steps: 500, worn: false);
     await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples, wearable: w)));
-    await tester.scrollUntilVisible(find.text('ACTIVITY & WELLNESS'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.text('Activity & wellness'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Activity & wellness'));
+    await tester.pumpAndSettle();
     expect(find.text('Watch is off the wrist — data may be incomplete.'), findsOneWidget);
   });
 

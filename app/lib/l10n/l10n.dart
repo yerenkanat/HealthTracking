@@ -688,6 +688,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // ---- Watch activity & wellness metrics (wm_*) ----
   'wm_title': {AppLocale.ru: 'Активность и самочувствие', AppLocale.kk: 'Белсенділік және көңіл-күй', AppLocale.en: 'Activity & wellness'},
   'db_vitals_section': {AppLocale.ru: 'Показатели', AppLocale.kk: 'Көрсеткіштер', AppLocale.en: 'Vital signs'},
+  'db_zone_tools': {AppLocale.ru: 'Инструменты', AppLocale.kk: 'Құралдар', AppLocale.en: 'Tools'},
   'wm_group_activity': {AppLocale.ru: 'Активность', AppLocale.kk: 'Белсенділік', AppLocale.en: 'Activity'},
   'wm_group_wellbeing': {AppLocale.ru: 'Самочувствие', AppLocale.kk: 'Көңіл-күй', AppLocale.en: 'Wellbeing'},
   'wm_steps': {AppLocale.ru: 'Шаги', AppLocale.kk: 'Қадамдар', AppLocale.en: 'Steps'},

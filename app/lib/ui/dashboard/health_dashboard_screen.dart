@@ -26,7 +26,6 @@ import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/fitted_title.dart';
 import '../widgets/glass.dart';
-import '../content/timeline_content_card.dart';
 import 'health_summary.dart';
 import 'metric_detail_screen.dart';
 import 'sleep_card.dart';
@@ -242,21 +241,30 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
-                  // Everything the watch tracks beyond the four vitals: steps,
-                  // distance, calories, stress, breathing, glucose — grouped into
-                  // Activity vs Wellbeing.
-                  if (wearable case final w? when w.hasAnything) ...[
+                  // The watch's activity / wellbeing / sleep, as ONE compact
+                  // summary card. The full breakdown lives on its own screen
+                  // (WearableDetailScreen) — keeping the detail there is what lets
+                  // this page stay a glance (safety vitals + a preview) instead of
+                  // a wall of watch numbers. Shown when there's any wearable data
+                  // or a sleep night to open into.
+                  if ((wearable?.hasAnything ?? false) || latestNight(sleepNights) != null || onLogSleep != null) ...[
                     const SizedBox(height: 14),
-                    _ActivityWellnessCard(m: w),
+                    _WearableSummaryCard(
+                      m: wearable,
+                      sleepNights: sleepNights,
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => WearableDetailScreen(
+                          metrics: wearable,
+                          sleepNights: sleepNights,
+                          onLogSleep: onLogSleep,
+                        ),
+                      )),
+                    ),
                   ],
-                  // Sleep sits directly under Activity & Wellness — it IS wellness
-                  // data, and kept them contiguous rather than orphaned at the
-                  // foot of the screen. Shown even with no nights when hand-entry
-                  // is available (the card renders its own empty state).
-                  if (latestNight(sleepNights) != null || onLogSleep != null) ...[
-                    const SizedBox(height: 14),
-                    SleepCard(nights: sleepNights, onLog: onLogSleep),
-                  ],
+                  // Her next visit — a single glanceable nudge. The antenatal
+                  // schedule and the week's material used to sit here too, but they
+                  // duplicate the Календарь tab, which owns the pregnancy journey;
+                  // that duplication was half of what made this page feel busy.
                   if (nextAppointment != null) ...[
                     const SizedBox(height: 14),
                     _NextAppointmentCard(
@@ -265,47 +273,41 @@ class HealthDashboardView extends StatelessWidget {
                       onTap: onOpenAppointments,
                     ),
                   ],
-                  // The state antenatal protocol's own schedule — "a visit is
-                  // due now / at weeks X–Y" — sits right beside her own booked
-                  // appointment so she sees both what she planned and what the
-                  // protocol expects. Only while pregnant.
-                  if (pregnancyWeek != null) ...[
+                  // The antenatal-protocol nudge, but ONLY when it is actionable —
+                  // a standard visit is due at this week, or a dated screening
+                  // window (dating/anomaly scan, OGTT, anti-D) is open right now.
+                  // Routine weeks show nothing; the full eight-visit plan lives on
+                  // the Календарь tab. A live screening window closes if missed,
+                  // so that one prompt is too important to bury behind a tab.
+                  if (pregnancyWeek case final wk? when visitAtWeek(wk) != null || windowsOpenAt(wk).isNotEmpty) ...[
                     const SizedBox(height: 14),
-                    _AntenatalProtocolCard(
-                      week: pregnancyWeek!,
-                      onTap: onOpenAntenatalPlan,
-                    ),
+                    _AntenatalProtocolCard(week: wk, onTap: onOpenAntenatalPlan),
                   ],
-                  // Material for wherever the family is on the timeline. Shown
-                  // whenever it's wired up: with no stage yet the card explains
-                  // what to add, which is how a new user discovers it exists.
-                  if (onOpenContent != null || onSeeAllContent != null) ...[
-                    const SizedBox(height: 14),
-                    TimelineContentCard(
-                      stage: timelineStage,
-                      items: timelineItems,
-                      onOpen: onOpenContent,
-                      onSeeAll: onSeeAllContent,
-                    ),
-                  ],
-                  if (weeklyDigest?.hasData ?? false) ...[
-                    const SizedBox(height: 14),
-                    _WeeklyDigestCard(digest: weeklyDigest!),
-                  ],
-                  if (onAddWater != null) ...[
-                    const SizedBox(height: 14),
-                    WaterCard(
-                      count: waterCount,
-                      goal: waterGoal,
-                      onAdd: onAddWater!,
-                      onRemove: onRemoveWater ?? () {},
-                      onSetGoal: onSetWaterGoal ?? (_) {},
-                      onOpenHistory: onOpenWaterHistory,
-                    ),
-                  ],
-                  if (onOpenAdvisor != null) ...[
-                    const SizedBox(height: 18),
-                    _AdvisorEntry(onTap: onOpenAdvisor!),
+                  // ---- Tools zone --------------------------------------------
+                  // Her weekly digest, the water tracker and the assistant — the
+                  // things she opens and acts on, gathered under one header.
+                  if ((weeklyDigest?.hasData ?? false) || onAddWater != null || onOpenAdvisor != null) ...[
+                    const SizedBox(height: 22),
+                    _SectionLabel(l.t('db_zone_tools')),
+                    if (weeklyDigest?.hasData ?? false) ...[
+                      const SizedBox(height: 12),
+                      _WeeklyDigestCard(digest: weeklyDigest!),
+                    ],
+                    if (onAddWater != null) ...[
+                      const SizedBox(height: 12),
+                      WaterCard(
+                        count: waterCount,
+                        goal: waterGoal,
+                        onAdd: onAddWater!,
+                        onRemove: onRemoveWater ?? () {},
+                        onSetGoal: onSetWaterGoal ?? (_) {},
+                        onOpenHistory: onOpenWaterHistory,
+                      ),
+                    ],
+                    if (onOpenAdvisor != null) ...[
+                      const SizedBox(height: 12),
+                      _AdvisorEntry(onTap: onOpenAdvisor!),
+                    ],
                   ],
                 ],
               ),
@@ -678,6 +680,99 @@ class _AdvisorEntry extends StatelessWidget {
 
 /// A compact, tappable pill showing the current cycle day or pregnancy week,
 /// opening the women's-health tab. Rose for cycle, violet for pregnancy.
+/// The full wearable breakdown — activity, wellbeing and sleep — on its own
+/// screen, reached from the compact summary on the health home. Moving the
+/// detail here is what lets the home page stay a glanceable summary (safety
+/// vitals + a preview) rather than a wall of watch numbers.
+class WearableDetailScreen extends StatelessWidget {
+  final WearableMetrics? metrics;
+  final List<SleepSummary> sleepNights;
+  final VoidCallback? onLogSleep;
+  const WearableDetailScreen({super.key, this.metrics, this.sleepNights = const [], this.onLogSleep});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return AuroraBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: Text(l.t('wm_title'))),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+          children: [
+            if (metrics case final m? when m.hasAnything) ...[
+              _ActivityWellnessCard(m: m),
+              const SizedBox(height: 14),
+            ],
+            if (latestNight(sleepNights) != null || onLogSleep != null)
+              SleepCard(nights: sleepNights, onLog: onLogSleep),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The compact stand-in for the wearable detail on the health home: the module
+/// name, a couple of headline figures, and a chevron into [WearableDetailScreen].
+/// It replaces the full activity/wellbeing/sleep cards on the main page so that
+/// page stays a summary — the detail is one tap away, not gone.
+class _WearableSummaryCard extends StatelessWidget {
+  final WearableMetrics? m;
+  final List<SleepSummary> sleepNights;
+  final VoidCallback onTap;
+  const _WearableSummaryCard({required this.m, required this.sleepNights, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final bits = <String>[];
+    final w = m;
+    if (w != null) {
+      if (w.steps > 0) {
+        bits.add('${_ActivityWellnessCard._grouped(w.steps)} ${l.t('wm_steps').toLowerCase()}');
+      } else if (w.kcal > 0) {
+        bits.add('${w.kcal} ${l.t('wm_unit_kcal')}');
+      }
+    }
+    final night = latestNight(sleepNights);
+    if (night != null) {
+      bits.add('${l.t('wm_sleep')} ${l.t('wm_sleep_hm', {'h': '${night.asleepMin ~/ 60}', 'm': '${night.asleepMin % 60}'})}');
+    } else if (w?.stress != null) {
+      bits.add('${l.t('wm_stress')} ${w!.stress}');
+    }
+    final preview = bits.take(2).join(' · ');
+
+    return GlassCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          const _IconBadge(Icons.monitor_heart_rounded, Palette.tealBlue),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('wm_title'),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Palette.text)),
+                if (preview.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(preview,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12.5, color: Palette.textDim)),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        ],
+      ),
+    );
+  }
+}
+
 /// Everything the watch tracks beyond the four triage vitals, as a soft grid of
 /// stat tiles. Each tile is shown only when it has a value — an unmeasured
 /// stress or an untracked glucose does not leave an empty box.
@@ -717,8 +812,9 @@ class _ActivityWellnessCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionLabel(l.t('wm_title')),
-          const SizedBox(height: 14),
+          // No "Activity & Wellness" title over these two groups — it just
+          // repeated the group names below it ("Активность" / "Самочувствие").
+          // The two labelled halves carry the module's identity on their own.
           _Group(label: l.t('wm_group_activity'), tiles: activity),
           if (activity.isNotEmpty && wellbeing.isNotEmpty) const SizedBox(height: 16),
           _Group(label: l.t('wm_group_wellbeing'), tiles: wellbeing),
