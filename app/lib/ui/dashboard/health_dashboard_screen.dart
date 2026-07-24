@@ -146,6 +146,11 @@ class HealthDashboardView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    // The antenatal nudge is shown only when it's actionable — a visit is due
+    // this week, or a dated screening window is open. Computed here so the "Care"
+    // zone can decide whether it has anything to show.
+    final pregWeek = pregnancyWeek;
+    final showAntenatal = pregWeek != null && (visitAtWeek(pregWeek) != null || windowsOpenAt(pregWeek).isNotEmpty);
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -261,27 +266,29 @@ class HealthDashboardView extends StatelessWidget {
                       )),
                     ),
                   ],
-                  // Her next visit — a single glanceable nudge. The antenatal
-                  // schedule and the week's material used to sit here too, but they
-                  // duplicate the Календарь tab, which owns the pregnancy journey;
-                  // that duplication was half of what made this page feel busy.
-                  if (nextAppointment != null) ...[
-                    const SizedBox(height: 14),
-                    _NextAppointmentCard(
-                      appt: nextAppointment!,
-                      now: nowForAppointment ?? DateTime.now(),
-                      onTap: onOpenAppointments,
-                    ),
-                  ],
-                  // The antenatal-protocol nudge, but ONLY when it is actionable —
-                  // a standard visit is due at this week, or a dated screening
-                  // window (dating/anomaly scan, OGTT, anti-D) is open right now.
-                  // Routine weeks show nothing; the full eight-visit plan lives on
-                  // the Календарь tab. A live screening window closes if missed,
-                  // so that one prompt is too important to bury behind a tab.
-                  if (pregnancyWeek case final wk? when visitAtWeek(wk) != null || windowsOpenAt(wk).isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    _AntenatalProtocolCard(week: wk, onTap: onOpenAntenatalPlan),
+                  // ---- Care zone ---------------------------------------------
+                  // Her next visit and — only when it's actionable — the antenatal
+                  // nudge, under one label so these medical-care cards read as a
+                  // category distinct from the watch-data summary above them,
+                  // rather than a look-alike run of buttons. The full journey
+                  // (schedule + week's material) lives on the Календарь tab.
+                  if (nextAppointment != null || showAntenatal) ...[
+                    const SizedBox(height: 22),
+                    _SectionLabel(l.t('db_zone_care')),
+                    if (nextAppointment != null) ...[
+                      const SizedBox(height: 12),
+                      _NextAppointmentCard(
+                        appt: nextAppointment!,
+                        now: nowForAppointment ?? DateTime.now(),
+                        onTap: onOpenAppointments,
+                      ),
+                    ],
+                    // A live screening window closes if missed, so that prompt is
+                    // too important to bury behind a tab.
+                    if (showAntenatal) ...[
+                      const SizedBox(height: 12),
+                      _AntenatalProtocolCard(week: pregWeek, onTap: onOpenAntenatalPlan),
+                    ],
                   ],
                   // ---- Tools zone --------------------------------------------
                   // Her weekly digest, the water tracker and the assistant — the
