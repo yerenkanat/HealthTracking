@@ -201,6 +201,20 @@ async function main(): Promise<void> {
     app.log.warn('admin dashboard html not found; /admin/ui disabled');
   }
 
+  // Public storefront at /shop. Served same-origin with the shop API, so its
+  // checkout POSTs real orders to /shop/orders and reads live stock from
+  // /shop/products (unlike an off-site page, which CSP would block).
+  try {
+    const shopBody = readFileSync(fileURLToPath(new URL('../shop/index.html', import.meta.url)), 'utf8');
+    const shopHtml =
+      `<!doctype html><html lang="ru"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<title>Umay — умные часы и детский трекер</title></head><body>${shopBody}</body></html>`;
+    app.get('/shop', async (_req, reply) => reply.type('text/html').send(shopHtml));
+  } catch {
+    app.log.warn('shop storefront html not found; /shop page disabled');
+  }
+
   // ---- Refuse to serve real users with fake authentication ----
   //
   // authUser and authAdmin are header stubs: `x-user-id`, and `x-staff-id` plus
