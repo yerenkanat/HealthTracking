@@ -46,6 +46,16 @@ const newbornEventBody = z.object({
   detail: z.string().max(40).nullable().optional(),
   durationMin: z.number().int().min(0).max(1440).nullable().optional(),
 });
+// A child growth measurement. `at` accepts a date or a full timestamp (the app
+// sends a local ISO); only the calendar day is kept, one row per day. Bounds are
+// the app's typo-filter, not a medical judgement (see child_growth.dart).
+const growthBody = z.object({
+  at: z.string().regex(/^\d{4}-\d{2}-\d{2}/),
+  weightKg: z.number().min(0.3).max(60).nullable().optional(),
+  heightCm: z.number().min(20).max(160).nullable().optional(),
+}).refine((g) => g.weightKg != null || g.heightCm != null, {
+  message: 'a growth measurement needs a weight or a height',
+});
 const _med = z.string().max(500).default(''); // free-text, bounded
 const medicalIdBody = z.object({
   bloodType: _med, allergies: _med, conditions: _med, medications: _med,
@@ -372,6 +382,28 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     if (!u) return;
     const limit = Math.min(2000, Number((req.query as { limit?: string }).limit ?? 1000) || 1000);
     return reply.send({ events: await repo.listNewbornEvents(u.userId, limit) });
+  });
+
+  // ---- Child growth (weight/height), one measurement per child per day ----
+  app.post('/children/:id/growth', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    const parsed = growthBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.upsertGrowth(id, {
+      at: parsed.data.at.slice(0, 10), // keep the calendar day only
+      weightKg: parsed.data.weightKg ?? null,
+      heightCm: parsed.data.heightCm ?? null,
+    });
+    return reply.code(201).send({ ok: true });
+  });
+
+  // All the caller's growth measurements, tagged with childId, for the admin
+  // drawer and the new-device restore (grouped per child).
+  app.get('/growth', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    return reply.send({ growth: await repo.listGrowth(u.userId) });
   });
 
   // ---- Child emergency medical-ID (per child, upsert) ----

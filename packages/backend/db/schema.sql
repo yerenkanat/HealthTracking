@@ -270,6 +270,18 @@ CREATE TABLE newborn_events (
   PRIMARY KEY (child_id, at, kind)
 );
 
+-- Child growth measurements (weight / height), one row per child per day — the
+-- pediatric growth curve a clinician reads for faltering. Mirrors the mother's
+-- weight_entries; keyed by (child, day) so a same-day correction replaces.
+CREATE TABLE child_growth (
+  child_id   UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  at         DATE NOT NULL,
+  weight_kg  NUMERIC(5,2),   -- typo-filter bounds enforced app + route side
+  height_cm  NUMERIC(5,1),
+  PRIMARY KEY (child_id, at),
+  CHECK (weight_kg IS NOT NULL OR height_cm IS NOT NULL)
+);
+
 -- Completed fetal-movement (kick) counting sessions. One row per session,
 -- keyed by when it ended. Reduced movement is a safety signal, so a clinician
 -- seeing the trend matters.

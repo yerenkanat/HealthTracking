@@ -30,12 +30,12 @@ const DETAIL = {
   appointments: [],
 };
 
-/** A wellness payload carrying one bpCalibration (or null). */
-function wellness(bpCalibration: unknown) {
-  return { sleep: [], days: [], alerts: [], weight: [], medications: [], medicalIds: [], kickSessions: [], contractionSessions: [], newbornEvents: [], bpCalibration };
+/** A wellness payload carrying one bpCalibration (or null), plus any extra keys. */
+function wellness(bpCalibration: unknown, extra: Record<string, unknown> = {}) {
+  return { sleep: [], days: [], alerts: [], weight: [], medications: [], medicalIds: [], kickSessions: [], contractionSessions: [], newbornEvents: [], bpCalibration, growth: [], ...extra };
 }
 
-async function openDrawer(bpCalibration: unknown): Promise<{ drawer: string; errors: string[] }> {
+async function openDrawer(bpCalibration: unknown, extra: Record<string, unknown> = {}): Promise<{ drawer: string; errors: string[] }> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -69,7 +69,7 @@ async function openDrawer(bpCalibration: unknown): Promise<{ drawer: string; err
         // Order matters: the more specific per-user paths must be tested before
         // the bare /admin/users prefix they share.
         const body = p.includes('/wellness')
-          ? wellness(bpCalibration)
+          ? wellness(bpCalibration, extra)
           : p.includes('/detail')
             ? DETAIL
             : p.includes('/admin/users')
@@ -123,5 +123,26 @@ describe('the BP-calibration section in the user drawer', () => {
     expect(errors).toEqual([]);
     expect(drawer).toContain('Калибровка давления');
     expect(drawer).toMatch(/Не откалибровано/);
+  });
+});
+
+describe('the child-growth section in the user drawer', () => {
+  const GROWTH = [
+    { childId: 'c1', childName: 'Айша', at: '2026-06-01', weightKg: 6.8, heightCm: 63 },
+    { childId: 'c1', childName: 'Айша', at: '2026-07-01', weightKg: 7.4, heightCm: 66 },
+  ];
+
+  it('renders a per-child weight/height curve', async () => {
+    const { drawer, errors } = await openDrawer(null, { growth: GROWTH });
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('Рост и вес · Айша');
+    expect(drawer).toContain('7.4 кг'); // latest weight
+    expect(drawer).toContain('66 см'); // latest height
+  });
+
+  it('shows nothing when there is no growth data', async () => {
+    const { drawer, errors } = await openDrawer(null, { growth: [] });
+    expect(errors).toEqual([]);
+    expect(drawer).not.toContain('Рост и вес');
   });
 });

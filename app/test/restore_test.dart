@@ -11,6 +11,7 @@ import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/core/uuid.dart';
 import 'package:fcs_app/data/api_client.dart';
 import 'package:fcs_app/domain/child_emergency.dart';
+import 'package:fcs_app/domain/child_growth.dart';
 import 'package:fcs_app/domain/contraction.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/family.dart';
@@ -104,6 +105,14 @@ void main() {
       ]};
       final rows = await ApiClient(t).getAlerts();
       expect(rows.single['zoneName'], 'School');
+    });
+
+    test('getGrowth parses the measurement list', () async {
+      final t = _FakeTransport()..bodies['/growth'] = {'growth': [
+        {'childId': 'c1', 'at': '2026-07-01', 'weightKg': 7.4, 'heightCm': 66.0},
+      ]};
+      final rows = await ApiClient(t).getGrowth();
+      expect(rows.single['weightKg'], 7.4);
     });
 
     test('getChildEmergency parses the card, null when absent', () async {
@@ -361,6 +370,35 @@ void main() {
       final a = SafetyAlert(kind: AlertKind.left, childName: 'Aisha', zoneName: 'School', at: t);
       c.mergeRemoteAlerts([a, a]);
       expect(c.alerts, hasLength(1));
+    });
+
+    test('recordGrowth fires the sync hook with the measurement', () async {
+      final c = make();
+      addTearDown(c.dispose);
+      final pushed = <(String, GrowthPoint)>[];
+      c.attachGrowthSync(upsert: (childId, p) async => pushed.add((childId, p)));
+      c.recordGrowth('kid-1', GrowthPoint(at: DateTime.utc(2026, 7, 1), weightKg: 7.4, heightCm: 66));
+      await Future<void>.delayed(Duration.zero);
+      expect(pushed, hasLength(1));
+      expect(pushed.first.$1, 'kid-1');
+      expect(pushed.first.$2.weightKg, 7.4);
+    });
+
+    test('mergeRemoteGrowth restores per child, local wins on a same-day conflict', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.recordGrowth('kid-1', GrowthPoint(at: DateTime.utc(2026, 7, 1), weightKg: 7.4));
+      c.mergeRemoteGrowth({
+        'kid-1': [
+          GrowthPoint(at: DateTime.utc(2026, 7, 1), weightKg: 99), // same day → local wins
+          GrowthPoint(at: DateTime.utc(2026, 6, 1), weightKg: 6.8), // new (earlier) day
+        ],
+        'kid-2': [GrowthPoint(at: DateTime.utc(2026, 7, 2), heightCm: 70)],
+      });
+      final kid1 = c.growthFor('kid-1');
+      expect(kid1, hasLength(2));
+      expect(kid1.firstWhere((p) => p.key == '2026-07-01').weightKg, 7.4); // local kept
+      expect(c.growthFor('kid-2'), hasLength(1));
     });
 
     test('mergeRemoteNewborn restores per child, dedups on (at, kind)', () {

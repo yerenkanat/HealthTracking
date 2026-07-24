@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
+import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
 import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -56,6 +56,7 @@ export function createMemoryRepository(): Repository {
   const contractionSessions: ContractionSessionRow[] = [];
   const childEmergency = new Map<string, MedicalIdRow>();
   const newbornEvents = new Map<string, NewbornEventRow[]>();
+  const growth = new Map<string, GrowthRow[]>();
   type BpCalRow = BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number };
   const bpCalibrations: Array<BpCalRow & { userId: string }> = [];
   const dayLogs = new Map<string, DayLogRow>();
@@ -238,6 +239,21 @@ export function createMemoryRepository(): Repository {
       }
       out.sort((a, b) => b.at.localeCompare(a.at));
       return out.slice(0, limit);
+    },
+    upsertGrowth: async (childId, g) => {
+      const list = growth.get(childId) ?? [];
+      const i = list.findIndex((x) => x.at === g.at); // one per day → replace
+      if (i >= 0) list[i] = g; else list.push(g);
+      growth.set(childId, list);
+    },
+    listGrowth: async (userId) => {
+      const out: Array<{ childId: string; childName: string } & GrowthRow> = [];
+      for (const c of children) {
+        if (c.userId !== userId) continue;
+        for (const g of growth.get(c.id) ?? []) out.push({ childId: c.id, childName: c.name, ...g });
+      }
+      out.sort((a, b) => a.at.localeCompare(b.at)); // oldest-first, like the app
+      return out;
     },
     upsertChildEmergency: async (childId, m) => void childEmergency.set(childId, m),
     getChildEmergency: async (childId) => childEmergency.get(childId) ?? null,

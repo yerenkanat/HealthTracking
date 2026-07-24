@@ -43,6 +43,12 @@ export interface NewbornEventRow {
   durationMin: number | null;
 }
 
+export interface GrowthRow {
+  at: string; // yyyy-MM-dd (one measurement per day)
+  weightKg: number | null;
+  heightCm: number | null;
+}
+
 export interface KickSessionRow {
   endedAt: string; // ISO instant
   count: number;
@@ -285,6 +291,12 @@ export interface Repository {
   // listNewbornEvents joins the caller's children for the admin drawer.
   recordNewbornEvent(childId: string, e: NewbornEventRow): Promise<void>;
   listNewbornEvents(userId: string, limit: number): Promise<Array<{ childId: string; childName: string } & NewbornEventRow>>;
+
+  // Child growth measurements (weight/height), upsert on (child, day). listGrowth
+  // joins the caller's children so one call serves both the admin drawer (render
+  // per child) and the new-device restore (group by childId).
+  upsertGrowth(childId: string, g: GrowthRow): Promise<void>;
+  listGrowth(userId: string): Promise<Array<{ childId: string; childName: string } & GrowthRow>>;
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
   listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;

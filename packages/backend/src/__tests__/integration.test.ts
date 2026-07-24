@@ -47,6 +47,7 @@ function makeDeps(
   const medRows: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
   const medicalIds = new Map<string, Record<string, string>>();
   const newbornRows = new Map<string, Array<{ at: string; kind: string; detail: string | null; durationMin: number | null }>>();
+  const growthRows = new Map<string, Array<{ at: string; weightKg: number | null; heightCm: number | null }>>();
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
@@ -152,6 +153,21 @@ function makeDeps(
       }
       out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
       return out.slice(0, limit) as never;
+    },
+    upsertGrowth: async (childId, g) => {
+      const list = growthRows.get(childId) ?? [];
+      const i = list.findIndex((x) => x.at === g.at);
+      if (i >= 0) list[i] = g; else list.push(g);
+      growthRows.set(childId, list);
+    },
+    listGrowth: async (userId) => {
+      if (userId !== USER) return [];
+      const out: Array<Record<string, unknown>> = [];
+      for (const [childId, list] of growthRows) {
+        const c = children.find((x) => x.id === childId);
+        for (const g of list) out.push({ childId, childName: c?.name ?? 'Sultan', ...g });
+      }
+      return out.sort((a, b) => String(a.at).localeCompare(String(b.at))) as never;
     },
     upsertChildEmergency: async (childId, m) => void medicalIds.set(childId, { ...m } as Record<string, string>),
     listMedicalIds: async (userId) => {
@@ -796,6 +812,39 @@ describe('CRUD + history routes (in-process)', () => {
   it('newborn events: rejects a bad kind (zod 400)', async () => {
     const r = await app.inject({ method: 'POST', url: `/children/${CHILD}/newborn-events`,
       payload: { at: '2026-07-21T08:00:00.000Z', kind: 'burp' } });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('growth: record a measurement, keep one per day, read it back + admin wellness', async () => {
+    expect((await app.inject({ method: 'POST', url: `/children/${CHILD}/growth`,
+      payload: { at: '2026-07-20T00:00:00.000', weightKg: 7.2, heightCm: 66 } })).statusCode).toBe(201);
+    // Same day again → replaces, not a second row.
+    await app.inject({ method: 'POST', url: `/children/${CHILD}/growth`,
+      payload: { at: '2026-07-20', weightKg: 7.4 } });
+    await app.inject({ method: 'POST', url: `/children/${CHILD}/growth`,
+      payload: { at: '2026-07-27', weightKg: 7.6, heightCm: 67 } });
+
+    const rows = (await get('/growth')).json().growth;
+    const mine = rows.filter((g: { childId: string }) => g.childId === CHILD);
+    expect(mine).toHaveLength(2); // two distinct days
+    const d20 = mine.find((g: { at: string }) => g.at === '2026-07-20');
+    expect(d20.weightKg).toBe(7.4); // the correction won
+    expect(d20.childName).toBeTruthy();
+
+    // ...and it reaches the clinician's wellness view.
+    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    expect(wellness.growth.some((g: { at: string; heightCm: number }) => g.at === '2026-07-27' && g.heightCm === 67)).toBe(true);
+  });
+
+  it('growth: rejects a measurement with neither weight nor height (zod 400)', async () => {
+    const r = await app.inject({ method: 'POST', url: `/children/${CHILD}/growth`,
+      payload: { at: '2026-07-20' } });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('growth: rejects an implausible weight (typo filter, 400)', async () => {
+    const r = await app.inject({ method: 'POST', url: `/children/${CHILD}/growth`,
+      payload: { at: '2026-07-20', weightKg: 720 } }); // slipped decimal
     expect(r.statusCode).toBe(400);
   });
 

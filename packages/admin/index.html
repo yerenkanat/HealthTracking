@@ -1403,6 +1403,7 @@
     let contractions=[]; // labour-timing sessions
     let newborn=[]; // newborn care events (feed/diaper/sleep)
     let bpcal=null; // latest BP calibration (offsets + when), qualifies the BP vitals
+    let growth=[]; // child growth measurements (weight/height), across her children
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       try{
@@ -1412,7 +1413,7 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; }
+      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -1480,6 +1481,35 @@
         const det=e.detail?` · ${esc(e.detail)}`:(e.durationMin?` · ${e.durationMin} мин`:"");
         return `<div class="tli"><span><b>${k}</b>${det}</span><span class="t num">${esc(fmtDate(e.at))}</span></div>`;
       }).join("")}</div>`:"";
+    // Child growth (weight/height) per child — the pediatric curve a clinician
+    // reads for faltering, the child's counterpart to the mother's weight card.
+    const growthSection=(()=>{
+      if(!growth.length) return "";
+      const byChild=new Map();
+      for(const g of growth){ const k=g.childName||"ребёнок"; if(!byChild.has(k)) byChild.set(k,[]); byChild.get(k).push(g); }
+      let out="";
+      for(const [name,pts] of byChild){
+        const sorted=[...pts].sort((a,b)=>String(a.at).localeCompare(String(b.at))); // oldest→newest
+        const wpts=sorted.filter(p=>p.weightKg!=null);
+        const hpts=sorted.filter(p=>p.heightCm!=null);
+        const spark=sparkline(wpts.map(p=>Number(p.weightKg)));
+        const lastW=wpts.length?`${Number(wpts[wpts.length-1].weightKg).toFixed(1)} кг`:"—";
+        const lastH=hpts.length?`${Number(hpts[hpts.length-1].heightCm).toFixed(0)} см`:"—";
+        out+=`<div class="dsec">Рост и вес · ${esc(name)}</div>
+          ${spark?`<div class="sparkrow">${spark}</div>`:""}
+          <div class="tl">
+            <div class="tli"><span><b>Последний вес</b></span><span class="t num">${lastW}</span></div>
+            <div class="tli"><span><b>Последний рост</b></span><span class="t num">${lastH}</span></div>
+            ${sorted.slice(-5).reverse().map(p=>{
+              const parts=[];
+              if(p.weightKg!=null) parts.push(`${Number(p.weightKg).toFixed(1)} кг`);
+              if(p.heightCm!=null) parts.push(`${Number(p.heightCm).toFixed(0)} см`);
+              return `<div class="tli"><span class="t">${esc(fmtDate(p.at))}</span><span class="t num">${parts.join(" · ")}</span></div>`;
+            }).join("")}
+          </div>`;
+      }
+      return out;
+    })();
     // Children's emergency medical-ID — the few things a responder needs fast.
     // Critical fields (allergies / conditions / blood type) lead.
     const medidSection=medids.length?medids.map(m=>{
@@ -1562,6 +1592,7 @@
       ${kicksSection}
       ${contractionsSection}
       ${newbornSection}
+      ${growthSection}
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
       <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>

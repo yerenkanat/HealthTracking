@@ -200,6 +200,9 @@ class AppController {
   // Newborn care sync: fires when a feed/diaper/sleep is logged, so the admin
   // sees the newborn's care pattern.
   Future<void> Function(String childId, NewbornEvent)? _onNewbornEvent;
+  // Child growth sync: fires when a weight/height measurement is recorded, so a
+  // clinician sees the pediatric growth curve (faltering is a key signal).
+  Future<void> Function(String childId, GrowthPoint)? _onGrowthUpsert;
   // BP-calibration sync: fires when she records a weekly cuff reading. The raw
   // cuff+ppg go up (not just the offset) so a clinician can see how far the
   // band drifted and how recently it was corrected — a preeclampsia-screening
@@ -1442,7 +1445,39 @@ class AppController {
   /// A [GrowthPoint] with neither value is ignored — upsertGrowth drops it —
   /// so there is nothing to guard here.
   void recordGrowth(String childId, GrowthPoint point) {
-    _childGrowth[childId] = upsertGrowth(_childGrowth[childId] ?? const [], point);
+    final updated = upsertGrowth(_childGrowth[childId] ?? const [], point);
+    _childGrowth[childId] = updated;
+    // Mirror to the server (push-only, per child per day). An empty point is
+    // dropped by upsertGrowth, so only a real measurement is ever pushed.
+    if (!point.isEmpty) {
+      unawaited(_onGrowthUpsert?.call(childId, point) ?? Future<void>.value());
+    }
+    _persist();
+    _notify();
+  }
+
+  /// Wire backend sync for child growth (called by main.dart on sign-in).
+  void attachGrowthSync({required Future<void> Function(String childId, GrowthPoint) upsert}) {
+    _onGrowthUpsert = upsert;
+  }
+
+  /// Restore child growth measurements on a new device: for each child add any
+  /// day this install lacks (local wins on a same-day conflict), so the
+  /// pediatric growth curve survives a reinstall. [byChild] is childId → points.
+  void mergeRemoteGrowth(Map<String, List<GrowthPoint>> byChild) {
+    var changed = false;
+    byChild.forEach((childId, remote) {
+      var list = _childGrowth[childId] ?? const <GrowthPoint>[];
+      final have = {for (final p in list) p.key};
+      for (final p in remote) {
+        if (p.isEmpty || have.contains(p.key)) continue; // local wins
+        list = upsertGrowth(list, p);
+        have.add(p.key);
+        changed = true;
+      }
+      if (list.isNotEmpty) _childGrowth[childId] = list;
+    });
+    if (!changed) return;
     _persist();
     _notify();
   }

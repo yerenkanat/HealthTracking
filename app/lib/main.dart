@@ -36,6 +36,7 @@ import 'data/connectivity.dart';
 import 'domain/appointment.dart';
 import 'ble/calibration.dart' show BpCalibration;
 import 'domain/child_emergency.dart' show ChildEmergencyInfo;
+import 'domain/child_growth.dart' show GrowthPoint;
 import 'domain/contraction.dart' show ContractionSessionRecord;
 import 'domain/kick_session.dart' show KickSessionRecord;
 import 'domain/medication.dart' show Medication;
@@ -78,6 +79,17 @@ Future<void> _restore(Future<void> Function() pull) async {
 NewbornEvent? _tryNewborn(Map<String, dynamic> j) {
   try {
     return NewbornEvent.fromJson(j);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Parse a growth measurement from the server's shape, or null if the row is
+/// unusable (no measurement / implausible value) — so one bad row drops itself
+/// rather than the whole child's curve. (Used on sign-in restore.)
+GrowthPoint? _tryGrowth(Map<String, dynamic> j) {
+  try {
+    return GrowthPoint.fromJson(j);
   } catch (_) {
     return null;
   }
@@ -582,6 +594,17 @@ Future<void> bootstrapRuntime(
         }
       }
 
+      // Child growth sync (weight/height), so the pediatric growth curve reaches
+      // the clinician like the mother's weight does.
+      controller.attachGrowthSync(
+        upsert: (childId, p) => api.putGrowth(childId, p.toJson()),
+      );
+      for (final ch in controller.children) {
+        for (final p in controller.growthFor(ch.id)) {
+          unawaited(api.putGrowth(ch.id, p.toJson()));
+        }
+      }
+
       // Child emergency medical-ID sync. Send ALL fields (not just non-empty) so
       // clearing one syncs; the server bounds each.
       Map<String, dynamic> medicalIdBody(ChildEmergencyInfo e) => {
@@ -752,6 +775,18 @@ Future<void> bootstrapRuntime(
         _restore(() async {
           final cal = await api.getBpCalibration();
           if (cal != null) controller.mergeRemoteBpCalibration(BpCalibration.fromJson(cal));
+        }),
+
+        // Each child's growth curve (weight/height), keyed by the server childId
+        // — no name mapping needed, so it belongs in the batch.
+        _restore(() async {
+          final byChild = <String, List<GrowthPoint>>{};
+          for (final g in await api.getGrowth()) {
+            final childId = g['childId'] as String?;
+            if (childId == null) continue;
+            if (_tryGrowth(g) case final p?) (byChild[childId] ??= []).add(p);
+          }
+          controller.mergeRemoteGrowth(byChild);
         }),
       ]);
 

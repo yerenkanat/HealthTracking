@@ -441,6 +441,24 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push a child growth measurement ({at, weightKg?, heightCm?}), so the child's
+  /// growth curve reaches the clinician like the mother's weight does. Upsert per
+  /// child per day.
+  Future<void> putGrowth(String childId, Map<String, dynamic> body) async {
+    final res = await transport.post('/children/$childId/growth', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// The caller's child growth measurements across all children, each tagged with
+  /// its childId ({childId, at, weightKg, heightCm}). For restoring the curve on
+  /// a new device.
+  Future<List<Map<String, dynamic>>> getGrowth() async {
+    final res = await transport.get('/growth');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['growth'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   /// A child's emergency medical-ID, or null if none was saved. For restoring
   /// the card on a new device.
   Future<Map<String, dynamic>?> getChildEmergency(String childId) async {

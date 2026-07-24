@@ -73,6 +73,7 @@ void main() {
     'attachEmergencySync(',
     'attachSessionSync(',
     'attachBpCalibrationSync(',
+    'attachGrowthSync(',
   ]) {
     _chk('sync hook wired: $hook', main_.contains(hook));
   }

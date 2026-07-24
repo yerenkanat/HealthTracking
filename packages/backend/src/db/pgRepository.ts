@@ -290,6 +290,27 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    async upsertGrowth(childId, g) {
+      await pool.query(
+        `INSERT INTO child_growth (child_id, at, weight_kg, height_cm)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (child_id, at) DO UPDATE
+           SET weight_kg = EXCLUDED.weight_kg, height_cm = EXCLUDED.height_cm`,
+        [childId, g.at, g.weightKg, g.heightCm]);
+    },
+    async listGrowth(userId) {
+      const { rows } = await pool.query(
+        `SELECT c.id AS child_id, c.name AS child_name, g.at, g.weight_kg, g.height_cm
+         FROM children c JOIN child_growth g ON g.child_id = c.id
+         WHERE c.guardian_id = $1 ORDER BY g.at`, [userId]);
+      return rows.map((r) => ({
+        childId: r.child_id, childName: r.child_name,
+        at: new Date(r.at).toISOString().slice(0, 10), // yyyy-MM-dd
+        weightKg: r.weight_kg === null ? null : Number(r.weight_kg),
+        heightCm: r.height_cm === null ? null : Number(r.height_cm),
+      }));
+    },
+
     async upsertChildEmergency(childId, m) {
       await pool.query(
         `INSERT INTO child_emergency (child_id, blood_type, allergies, conditions, medications,
