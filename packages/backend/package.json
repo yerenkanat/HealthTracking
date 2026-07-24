@@ -10,6 +10,7 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:apply": "node db/apply.mjs",
+    "db:smoke": "tsx db/smoke.ts",
     "db:reset": "docker compose down -v && docker compose up -d --wait && node db/apply.mjs"
   },
   "dependencies": {

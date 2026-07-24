@@ -73,8 +73,7 @@ export function createPgRepository(pool: Pool): Repository {
     async loadGeofences(childId): Promise<Geofence[]> {
       const { rows } = await pool.query(
         `SELECT id, name, shape, radius_m,
-                ST_Y(center::geometry) AS clat, ST_X(center::geometry) AS clng,
-                ST_AsGeoJSON(area) AS area_geojson
+                center_lat AS clat, center_lng AS clng, area_geojson
          FROM geofences WHERE child_id = $1`,
         [childId],
       );
@@ -82,7 +81,8 @@ export function createPgRepository(pool: Pool): Repository {
         if (r.shape === 'circle') {
           return { id: r.id, name: r.name, shape: 'circle', center: { lat: r.clat, lng: r.clng }, radiusM: r.radius_m };
         }
-        const ring = JSON.parse(r.area_geojson).coordinates[0] as [number, number][];
+        // area_geojson is jsonb → the driver returns it already parsed.
+        const ring = (r.area_geojson as { coordinates: [number, number][][] }).coordinates[0];
         return { id: r.id, name: r.name, shape: 'polygon', vertices: ring.map(([lng, lat]) => ({ lat, lng })) };
       });
     },
@@ -97,8 +97,8 @@ export function createPgRepository(pool: Pool): Repository {
 
     async insertLocation(fix: ChildLocationFix) {
       await pool.query(
-        `INSERT INTO location_history (child_id, observed_at, geog, source, accuracy_m)
-         VALUES ($1,$2, ST_MakePoint($4,$3)::geography, $5, $6)`,
+        `INSERT INTO location_history (child_id, observed_at, lat, lng, source, accuracy_m)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
         [fix.childId, fix.observedAt, fix.coords.lat, fix.coords.lng, fix.source, fix.coords.accuracyM ?? null],
       );
     },
@@ -253,25 +253,26 @@ export function createPgRepository(pool: Pool): Repository {
       // Client-supplied id; idempotent on it.
       if (g.shape === 'circle') {
         await pool.query(
-          `INSERT INTO geofences (id, guardian_id, child_id, name, shape, center, radius_m)
-           VALUES ($6, (SELECT guardian_id FROM children WHERE id=$1), $1, $2, 'circle',
-                   ST_MakePoint($4,$3)::geography, $5)
+          `INSERT INTO geofences (id, guardian_id, child_id, name, shape, center_lat, center_lng, radius_m)
+           VALUES ($6, (SELECT guardian_id FROM children WHERE id=$1), $1, $2, 'circle', $3, $4, $5)
            ON CONFLICT (id) DO UPDATE
              SET name = EXCLUDED.name, shape = EXCLUDED.shape,
-                 center = EXCLUDED.center, radius_m = EXCLUDED.radius_m, area = NULL`,
+                 center_lat = EXCLUDED.center_lat, center_lng = EXCLUDED.center_lng,
+                 radius_m = EXCLUDED.radius_m, area_geojson = NULL`,
           [childId, g.name, g.center!.lat, g.center!.lng, g.radiusM, g.id]);
         return;
       }
-      const ring = g.vertices!.map((v) => `${v.lng} ${v.lat}`).join(',');
-      const first = g.vertices![0];
+      // Store a closed-ring GeoJSON Polygon ([lng,lat] pairs), the shape loadGeofences reads.
+      const ring = g.vertices!.map((v) => [v.lng, v.lat]);
+      ring.push([g.vertices![0].lng, g.vertices![0].lat]); // close the ring
+      const areaGeojson = JSON.stringify({ type: 'Polygon', coordinates: [ring] });
       await pool.query(
-        `INSERT INTO geofences (id, guardian_id, child_id, name, shape, area)
-         VALUES ($3, (SELECT guardian_id FROM children WHERE id=$1), $1, $2, 'polygon',
-                 ST_GeogFromText('POLYGON((${ring},${first.lng} ${first.lat}))'))
+        `INSERT INTO geofences (id, guardian_id, child_id, name, shape, area_geojson)
+         VALUES ($4, (SELECT guardian_id FROM children WHERE id=$1), $1, $2, 'polygon', $3::jsonb)
          ON CONFLICT (id) DO UPDATE
-           SET name = EXCLUDED.name, shape = EXCLUDED.shape, area = EXCLUDED.area,
-               center = NULL, radius_m = NULL`,
-        [childId, g.name, g.id]);
+           SET name = EXCLUDED.name, shape = EXCLUDED.shape, area_geojson = EXCLUDED.area_geojson,
+               center_lat = NULL, center_lng = NULL, radius_m = NULL`,
+        [childId, g.name, areaGeojson, g.id]);
     },
     async deleteGeofence(geofenceId) {
       await pool.query(`DELETE FROM geofences WHERE id = $1`, [geofenceId]);

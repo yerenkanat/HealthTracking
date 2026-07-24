@@ -1,20 +1,28 @@
 -- =============================================================================
--- FemTech & Child Safety Consortium — Relational + Timeseries + Geospatial schema
--- Target: PostgreSQL 15+ with TimescaleDB and PostGIS extensions.
+-- FemTech & Child Safety Consortium — Relational schema
+-- Target: PostgreSQL 15+ (plain — runs on any managed Postgres or a local install).
 -- Specialists: Senior Backend Engineer, OB-GYN (metric columns/constraints),
---              Geofencing Specialist (PostGIS), Data Privacy Officer (encryption notes).
+--              Geofencing Specialist, Data Privacy Officer (encryption notes).
+--
+-- Portability note: this was TimescaleDB + PostGIS, but the app never used either
+-- at QUERY time — geofence math is done in TypeScript (haversine), and the
+-- hypertables/continuous-aggregate were storage optimisation nothing read. So they
+-- were a hard dependency the app didn't leverage, and one that forced a special
+-- host. Geometry is now plain lat/lng (+ GeoJSON) columns; the timeseries tables
+-- are ordinary tables. If write-scale ever needs it, TimescaleDB can be re-added
+-- as an opt-in migration (SELECT create_hypertable + compression) — the row shape
+-- is unchanged.
 --
 -- Privacy: health + child-location data are special-category (GDPR Art.9) / PHI (HIPAA).
 --   * Column-level: `bp_calibration.*_offset` and any free-text are stored under
 --     application-layer envelope encryption (see backend/src/crypto). DB stores ciphertext.
 --   * At-rest: enable cluster-level TDE / encrypted EBS volumes.
---   * Retention: location_history is auto-dropped after 90d via a Timescale policy.
+--   * Retention: prune location_history > 90d (a cron DELETE; was a Timescale policy).
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS timescaledb;
-CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;    -- substring search on the admin user list
+CREATE EXTENSION IF NOT EXISTS citext;     -- case-insensitive email uniqueness
 
 -- -----------------------------------------------------------------------------
 -- Identity
@@ -57,7 +65,10 @@ CREATE TABLE devices (                     -- Smart bands + child tracker tags
   firmware       TEXT,
   kind           TEXT NOT NULL DEFAULT 'band' CHECK (kind IN ('band','tag')),
   name           TEXT,
-  child_id       UUID REFERENCES children(id) ON DELETE SET NULL,  -- tracker tag → child
+  -- tracker tag → child. The FK is added AFTER `children` is created (below):
+  -- `children` is defined after this table, so an inline REFERENCES here was a
+  -- forward reference that failed on any freshly-built database.
+  child_id       UUID,
   paired_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   -- Fleet telemetry. Both were already SELECTed by adminDevices() and neither
   -- was ever declared here, so the fleet view worked only against databases
@@ -80,11 +91,18 @@ CREATE TABLE children (
   beacon_major   INT,
   beacon_minor   INT,
   tag_serial     TEXT,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK (beacon_uuid IS NOT NULL OR tag_serial IS NOT NULL)
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  -- No "must have a beacon/tag" CHECK: a child is added first (name/DOB) and a
+  -- tracker is paired later, so requiring a beacon identity at creation rejected
+  -- every child the app creates. Beacon fields are optional until a tag is paired.
 );
 CREATE INDEX idx_children_guardian ON children(guardian_id);
 CREATE INDEX idx_children_beacon    ON children(beacon_uuid, beacon_major, beacon_minor);
+
+-- devices.child_id → children(id), added now that `children` exists (see the note
+-- on devices.child_id above). SET NULL: unpairing a tag must not delete the band.
+ALTER TABLE devices
+  ADD CONSTRAINT devices_child_fk FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE SET NULL;
 
 -- Appointments / reminders (prenatal visits, ultrasounds, lab work). The id is
 -- CLIENT-supplied so an appointment created offline keeps its identity when it
@@ -150,8 +168,9 @@ CREATE TABLE pregnancy_health_metrics (
   -- hypertable partition column, as Timescale requires of a unique constraint.
   CONSTRAINT phm_unique_reading UNIQUE (user_id, device_id, recorded_at)
 );
-SELECT create_hypertable('pregnancy_health_metrics', 'recorded_at',
-                         chunk_time_interval => INTERVAL '7 days');
+-- (Was a TimescaleDB hypertable partitioned on recorded_at. A plain table with the
+-- same indexes is functionally identical; re-add create_hypertable in a migration
+-- if write volume ever calls for it.)
 CREATE INDEX idx_phm_user_time ON pregnancy_health_metrics (user_id, recorded_at DESC);
 -- The admin emergency feed reads the newest emergencies across ALL users.
 -- idx_phm_user_time leads with user_id and so cannot serve it: the feed fell
@@ -171,32 +190,9 @@ CREATE TABLE emergency_acks (
   acknowledged_at TIMESTAMPTZ NOT NULL
 );
 
--- Compress chunks older than 14 days (Timescale native columnar compression).
-ALTER TABLE pregnancy_health_metrics SET (
-  timescaledb.compress,
-  timescaledb.compress_segmentby = 'user_id',
-  timescaledb.compress_orderby   = 'recorded_at DESC'
-);
-SELECT add_compression_policy('pregnancy_health_metrics', INTERVAL '14 days');
-
--- Continuous aggregate: hourly rollups powering charts without scanning raw rows.
-CREATE MATERIALIZED VIEW phm_hourly
-  WITH (timescaledb.continuous) AS
-SELECT
-  user_id,
-  time_bucket('1 hour', recorded_at) AS bucket,
-  avg(heart_rate_bpm)::REAL AS avg_hr,
-  min(spo2_pct)             AS min_spo2,
-  max(systolic_mmhg)        AS max_systolic,
-  max(diastolic_mmhg)       AS max_diastolic,
-  max(core_temp_c)          AS max_temp
-FROM pregnancy_health_metrics
-GROUP BY user_id, bucket
-WITH NO DATA;
-SELECT add_continuous_aggregate_policy('phm_hourly',
-  start_offset => INTERVAL '3 days',
-  end_offset   => INTERVAL '1 hour',
-  schedule_interval => INTERVAL '1 hour');
+-- (Was Timescale columnar compression + a `phm_hourly` continuous aggregate for
+-- hourly chart rollups. Nothing in the app ever read the aggregate, so it was
+-- dropped rather than ported; charts read the raw rows through idx_phm_user_time.)
 
 -- Weekly manual tonometer calibration inputs (drives the PPG BP offset).
 CREATE TABLE bp_calibration (
@@ -221,16 +217,17 @@ CREATE TABLE geofences (
   child_id     UUID REFERENCES children(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,                     -- "Home", "School"
   shape        TEXT NOT NULL CHECK (shape IN ('circle','polygon')),
-  -- Circles: center + radius. Polygons: `area`. Exactly one is populated.
-  center       GEOGRAPHY(POINT, 4326),
+  -- Circles: center_lat/lng + radius. Polygons: area_geojson (a GeoJSON Polygon,
+  -- ring closed). Exactly one shape is populated. Plain columns rather than PostGIS
+  -- geography: containment/distance is computed in TS (haversine), never in SQL.
+  center_lat   DOUBLE PRECISION,
+  center_lng   DOUBLE PRECISION,
   radius_m     REAL,
-  area         GEOGRAPHY(POLYGON, 4326),
+  area_geojson JSONB,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK ( (shape = 'circle'  AND center IS NOT NULL AND radius_m IS NOT NULL)
-       OR (shape = 'polygon' AND area  IS NOT NULL) )
+  CHECK ( (shape = 'circle'  AND center_lat IS NOT NULL AND center_lng IS NOT NULL AND radius_m IS NOT NULL)
+       OR (shape = 'polygon' AND area_geojson IS NOT NULL) )
 );
-CREATE INDEX idx_geofences_center ON geofences USING GIST (center);
-CREATE INDEX idx_geofences_area   ON geofences USING GIST (area);
 -- Zones are read BY CHILD constantly: the map, the new-device restore, the
 -- per-child zone count in the admin drawer, and the inside-any-zone check
 -- documented at the foot of this file. Only the two shape indexes existed, and
@@ -238,19 +235,21 @@ CREATE INDEX idx_geofences_area   ON geofences USING GIST (area);
 -- sequential scan over every family's zones.
 CREATE INDEX idx_geofences_child ON geofences(child_id);
 
-CREATE TABLE location_history (                    -- TIMESERIES hypertable
+CREATE TABLE location_history (                    -- child location timeseries
   child_id     UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
   observed_at  TIMESTAMPTZ NOT NULL,
-  geog         GEOGRAPHY(POINT, 4326) NOT NULL,
+  lat          DOUBLE PRECISION NOT NULL,
+  lng          DOUBLE PRECISION NOT NULL,
   source       TEXT NOT NULL CHECK (source IN ('gps','wifi','lbs','ble')),
   accuracy_m   REAL
 );
-SELECT create_hypertable('location_history', 'observed_at',
-                         chunk_time_interval => INTERVAL '7 days');
+-- (Was a Timescale hypertable on observed_at; a plain table with the same index
+-- is equivalent. Prune > 90d with a scheduled DELETE rather than a drop policy.)
 CREATE INDEX idx_loc_child_time ON location_history (child_id, observed_at DESC);
-CREATE INDEX idx_loc_geog       ON location_history USING GIST (geog);
--- Privacy retention: drop location trails older than 90 days automatically.
-SELECT add_retention_policy('location_history', INTERVAL '90 days');
+-- Privacy retention: prune location trails older than 90 days. This was a
+-- Timescale retention policy; on plain Postgres run the equivalent as a scheduled
+-- job (pg_cron, or an app cron):
+--   DELETE FROM location_history WHERE observed_at < now() - INTERVAL '90 days';
 
 -- Debounced geofence crossing log (written only on real state transitions).
 CREATE TABLE geofence_events (
