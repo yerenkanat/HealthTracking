@@ -112,9 +112,11 @@ void main() {
     });
 
     test('getProfile parses the profile, null on 404', () async {
-      final t = _FakeTransport()..bodies['/profile'] = {'profile': {'displayName': 'Aigerim', 'dueDate': '2026-11-01', 'city': 'Almaty'}};
+      final t = _FakeTransport()..bodies['/profile'] = {'profile': {'displayName': 'Aigerim', 'dueDate': '2026-11-01', 'city': 'Almaty', 'doctorPhone': '+77007654321', 'avgCycleLength': 30}};
       final p = await ApiClient(t).getProfile();
       expect(p!['displayName'], 'Aigerim');
+      expect(p['doctorPhone'], '+77007654321');
+      expect(p['avgCycleLength'], 30);
       // 404 → null (a fresh account the server has nothing for).
       final t2 = _FakeTransport()..statusFor['/profile'] = 404;
       expect(await ApiClient(t2).getProfile(), isNull);
@@ -406,10 +408,11 @@ void main() {
       addTearDown(c.dispose);
       expect(c.profile.displayName, isEmpty); // fresh install
 
-      c.mergeRemoteProfile(UserProfile(displayName: 'Aigerim', dueDate: DateTime.utc(2026, 11, 1), city: 'Almaty'));
+      c.mergeRemoteProfile(UserProfile(displayName: 'Aigerim', dueDate: DateTime.utc(2026, 11, 1), city: 'Almaty', doctorPhone: '+77007654321'));
       expect(c.profile.displayName, 'Aigerim');
       expect(c.profile.dueDate, DateTime.utc(2026, 11, 1)); // the timeline anchor is back
       expect(c.profile.city, 'Almaty');
+      expect(c.profile.doctorPhone, '+77007654321'); // emergency contact restored
 
       // A device already carrying a profile is the source of truth — a later
       // restore must not clobber it.
@@ -423,6 +426,21 @@ void main() {
       addTearDown(c.dispose);
       c.mergeRemoteProfile(const UserProfile()); // nothing worth adopting
       expect(c.profile.displayName, isEmpty);
+    });
+
+    test('mergeRemoteCycleBaseline restores an unset baseline, keeps a local one', () {
+      final c = make();
+      addTearDown(c.dispose);
+      expect(c.cycleBaselineDays, isNull); // unset → using defaults
+
+      c.mergeRemoteCycleBaseline(cycle: 30, period: 6);
+      expect(c.cycleBaselineDays, 30);
+      expect(c.periodBaselineDays, 6);
+      expect(c.avgCycleLength, 30); // the prediction now uses her real cycle, not 28
+
+      // A later restore must not overwrite the local baseline.
+      c.mergeRemoteCycleBaseline(cycle: 99, period: 1);
+      expect(c.cycleBaselineDays, 30);
     });
 
     test('toggling a vaccine fires the sync hook with the new done state', () async {

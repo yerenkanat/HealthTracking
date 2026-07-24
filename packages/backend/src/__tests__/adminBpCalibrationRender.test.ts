@@ -25,6 +25,7 @@ const USERS = {
 const DETAIL = {
   id: UID, displayName: 'Айгерим', phone: '+77001112233', dueDate: '2026-11-14',
   locale: 'ru-KZ', birthDate: null, city: null,
+  doctorPhone: '+77007654321', avgCycleLength: 30, avgPeriodLength: 6,
   latest: { hr: 78, spo2: 98, systolic: 118, diastolic: 76, temp: 36.6 },
   triage: [], children: [], devices: [], alerts: [], sleepNights: 0, loggedDays: 0,
   appointments: [],
@@ -123,6 +124,15 @@ describe('the BP-calibration section in the user drawer', () => {
     expect(errors).toEqual([]);
     expect(drawer).toContain('Калибровка давления');
     expect(drawer).toMatch(/Не откалибровано/);
+  });
+
+  it('renders the emergency contact and cycle baselines in the profile block', async () => {
+    const { drawer, errors } = await openDrawer(null);
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('Контакт врача');
+    expect(drawer).toContain('+77007654321');
+    expect(drawer).toContain('Цикл (база)');
+    expect(drawer).toContain('30 дн.');
   });
 });
 

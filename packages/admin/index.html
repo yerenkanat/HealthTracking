@@ -1606,6 +1606,8 @@
           ["Город", u.city ? esc(u.city) : null],
           ["Срок родов", u.dueDate ? esc(u.dueDate) : null],
           ["Язык", u.locale ? esc(u.locale) : null],
+          ["Контакт врача", u.doctorPhone ? esc(u.doctorPhone) : null],
+          ["Цикл (база)", u.avgCycleLength ? `${u.avgCycleLength} дн. · менстр. ${u.avgPeriodLength||"—"} дн.` : null],
         ].map(([k,v])=>`<div class="tli"><span><b>${k}</b></span><span class="t">${
           // "Not provided" rather than an empty cell: these are OPTIONAL in the
           // app, declining is a supported answer, and a blank space reads as a

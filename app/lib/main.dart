@@ -508,6 +508,12 @@ Future<void> bootstrapRuntime(
               birthDate: p.birthDate,
               city: p.city,
               locale: controller.locale.name,
+              doctorPhone: p.doctorPhone,
+              // Baselines are user-level settings that ride the profile backup;
+              // read the raw (nullable) values so an unset default isn't sent as
+              // a chosen one.
+              avgCycleLength: controller.cycleBaselineDays,
+              avgPeriodLength: controller.periodBaselineDays,
             );
       controller.attachProfileSync(pushProfile);
       unawaited(pushProfile(controller.profile));
@@ -712,7 +718,14 @@ Future<void> bootstrapRuntime(
             dueDate: day(p['dueDate']),
             birthDate: day(p['birthDate']),
             city: (p['city'] as String?) ?? '',
+            doctorPhone: (p['doctorPhone'] as String?) ?? '',
           ));
+          // The women's-health baselines ride the same backup but live outside
+          // the profile object, so restore them separately (local still wins).
+          controller.mergeRemoteCycleBaseline(
+            cycle: (p['avgCycleLength'] as num?)?.toInt(),
+            period: (p['avgPeriodLength'] as num?)?.toInt(),
+          );
         }),
         _restore(() async {
           final remote = await api.getAppointments();

@@ -230,6 +230,9 @@ class ApiClient {
     DateTime? birthDate,
     String? city,
     String? locale,
+    String? doctorPhone,
+    int? avgCycleLength,
+    int? avgPeriodLength,
   }) async {
     String? day(DateTime? d) =>
         d == null ? null : '${d.year.toString().padLeft(4, '0')}-'
@@ -241,6 +244,9 @@ class ApiClient {
       'birthDate': day(birthDate),
       'city': (city ?? '').trim().isEmpty ? null : city!.trim(),
       if (locale != null) 'locale': locale,
+      'doctorPhone': (doctorPhone ?? '').trim().isEmpty ? null : doctorPhone!.trim(),
+      'avgCycleLength': avgCycleLength,
+      'avgPeriodLength': avgPeriodLength,
     });
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }

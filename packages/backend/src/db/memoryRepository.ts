@@ -72,6 +72,9 @@ export function createMemoryRepository(): Repository {
     // back-office has to render "not provided" rather than an empty cell.
     birthDate: null,
     city: null,
+    doctorPhone: null,
+    avgCycleLength: null,
+    avgPeriodLength: null,
   };
   let idSeq = 1;
 

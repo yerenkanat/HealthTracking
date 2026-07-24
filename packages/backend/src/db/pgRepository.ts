@@ -503,7 +503,11 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Back-office drilldowns ----
     async adminUserDetail(userId) {
       const { rows: prof } = await pool.query(
-        `SELECT display_name, phone, due_date, locale, birth_date, city FROM users WHERE id = $1`, [userId]);
+        // phone_e164 AS phone: the column is phone_e164, and the bare `phone`
+        // this used would throw "column does not exist" on real Postgres —
+        // the whole detail card failed against pg while passing the in-memory tests.
+        `SELECT display_name, phone_e164 AS phone, due_date, locale, birth_date, city,
+                doctor_phone, avg_cycle_length, avg_period_length FROM users WHERE id = $1`, [userId]);
       if (!prof[0]) return null;
       const [kids, devs, alerts, sleepCount, dayCount] = await Promise.all([
         pool.query(
@@ -528,6 +532,9 @@ export function createPgRepository(pool: Pool): Repository {
         locale: prof[0].locale ?? null,
         birthDate: prof[0].birth_date ? new Date(prof[0].birth_date).toISOString().slice(0, 10) : null,
         city: prof[0].city ?? null,
+        doctorPhone: prof[0].doctor_phone ?? null,
+        avgCycleLength: prof[0].avg_cycle_length === null ? null : Number(prof[0].avg_cycle_length),
+        avgPeriodLength: prof[0].avg_period_length === null ? null : Number(prof[0].avg_period_length),
         children: kids.rows.map((r) => ({
           id: r.id,
           name: r.name,
@@ -824,7 +831,8 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Profile ----
     async getProfile(userId) {
       const { rows } = await pool.query(
-        `SELECT display_name, phone_e164, due_date, locale, birth_date, city
+        `SELECT display_name, phone_e164, due_date, locale, birth_date, city,
+                doctor_phone, avg_cycle_length, avg_period_length
            FROM users WHERE id = $1`, [userId]);
       if (rows.length === 0) return null;
       const r = rows[0];
@@ -835,6 +843,9 @@ export function createPgRepository(pool: Pool): Repository {
         locale: r.locale,
         birthDate: r.birth_date ? new Date(r.birth_date).toISOString().slice(0, 10) : null,
         city: r.city ?? null,
+        doctorPhone: r.doctor_phone ?? null,
+        avgCycleLength: r.avg_cycle_length === null ? null : Number(r.avg_cycle_length),
+        avgPeriodLength: r.avg_period_length === null ? null : Number(r.avg_period_length),
       };
     },
     async upsertProfile(userId, p) {
@@ -842,9 +853,11 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(
         `UPDATE users SET display_name = $2, phone_e164 = $3, due_date = $4,
                           locale = COALESCE($5, locale),
-                          birth_date = $6, city = $7, updated_at = now()
+                          birth_date = $6, city = $7, doctor_phone = $8,
+                          avg_cycle_length = $9, avg_period_length = $10, updated_at = now()
          WHERE id = $1`,
-        [userId, p.displayName, p.phone, p.dueDate, p.locale, p.birthDate, p.city]);
+        [userId, p.displayName, p.phone, p.dueDate, p.locale, p.birthDate, p.city,
+         p.doctorPhone, p.avgCycleLength, p.avgPeriodLength]);
     },
 
     // ---- Device reassignment ----

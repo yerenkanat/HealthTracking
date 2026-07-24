@@ -1671,10 +1671,36 @@ class AppController {
   /// User-set cycle baseline (used until ≥2 cycles are logged and derived).
   int get avgCycleLength => _avgCycleLength ?? 28;
   int get avgPeriodLength => _avgPeriodLength ?? 5;
+  // Raw (nullable) baselines — null means "not set, using the default". The
+  // profile sync needs to distinguish a chosen 28 from an unset default.
+  int? get cycleBaselineDays => _avgCycleLength;
+  int? get periodBaselineDays => _avgPeriodLength;
+
   void setCycleBaseline({int? cycle, int? period}) {
     if (cycle != null) _avgCycleLength = cycle;
     if (period != null) _avgPeriodLength = period;
     _reconcileCycleReminders(); // baseline shifts the prediction
+    // The baselines ride the profile backup (they are user-level settings), so a
+    // change to them re-pushes the profile — that is what carries them up.
+    unawaited(_onProfilePush?.call(_profile) ?? Future<void>.value());
+    _persist();
+    _notify();
+  }
+
+  /// Restore the women's-health baselines on a new device: adopt the server's
+  /// only for a value this install hasn't set (local wins). Fires no push.
+  void mergeRemoteCycleBaseline({int? cycle, int? period}) {
+    var changed = false;
+    if (_avgCycleLength == null && cycle != null) {
+      _avgCycleLength = cycle;
+      changed = true;
+    }
+    if (_avgPeriodLength == null && period != null) {
+      _avgPeriodLength = period;
+      changed = true;
+    }
+    if (!changed) return;
+    _reconcileCycleReminders(); // a restored baseline moves the prediction
     _persist();
     _notify();
   }

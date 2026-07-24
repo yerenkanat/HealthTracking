@@ -146,6 +146,9 @@ const profileBody = z.object({
   // nullable: declining is a supported answer, not a missing field.
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   city: z.string().max(80).nullable().optional(),
+  doctorPhone: z.string().max(30).nullable().optional(),
+  avgCycleLength: z.number().int().min(15).max(60).nullable().optional(),
+  avgPeriodLength: z.number().int().min(1).max(14).nullable().optional(),
 });
 const reassignBody = z.object({ childId: z.string().min(1).nullable() });
 
@@ -610,6 +613,9 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
       locale: parsed.data.locale ?? 'ru-KZ',
       birthDate: parsed.data.birthDate ?? null,
       city: parsed.data.city ?? null,
+      doctorPhone: parsed.data.doctorPhone ?? null,
+      avgCycleLength: parsed.data.avgCycleLength ?? null,
+      avgPeriodLength: parsed.data.avgPeriodLength ?? null,
     });
     return reply.send({ ok: true });
   });

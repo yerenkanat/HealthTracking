@@ -33,6 +33,12 @@ CREATE TABLE users (                       -- Mothers / primary caregivers
   -- Both OPTIONAL — the app works without them and must keep working.
   birth_date     DATE,
   city           TEXT,
+  -- Her own emergency contact (a doctor/clinic number), free text. Optional.
+  doctor_phone   TEXT,
+  -- Women's-health baselines she can set until two cycles are logged; they drive
+  -- the period/fertility predictions. NULL = fall back to the 28/5 defaults.
+  avg_cycle_length  SMALLINT CHECK (avg_cycle_length IS NULL OR avg_cycle_length BETWEEN 15 AND 60),
+  avg_period_length SMALLINT CHECK (avg_period_length IS NULL OR avg_period_length BETWEEN 1 AND 14),
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -1091,12 +1091,25 @@ describe('profile + device reassignment routes (in-process)', () => {
     expect((await get('/profile')).statusCode).toBe(404);
     const put = await app.inject({
       method: 'PUT', url: '/profile',
-      payload: { displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-12-01', locale: 'ru-KZ' },
+      payload: {
+        displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-12-01', locale: 'ru-KZ',
+        doctorPhone: '+77007654321', avgCycleLength: 30, avgPeriodLength: 6,
+      },
     });
     expect(put.statusCode).toBe(200);
     const p = (await get('/profile')).json().profile;
     expect(p.displayName).toBe('Aigerim');
     expect(p.dueDate).toBe('2026-12-01');
+    // The emergency contact + cycle baselines round-trip so they survive a device change.
+    expect(p.doctorPhone).toBe('+77007654321');
+    expect(p.avgCycleLength).toBe(30);
+    expect(p.avgPeriodLength).toBe(6);
+  });
+
+  it('profile: rejects an out-of-range cycle baseline (zod 400)', async () => {
+    const r = await app.inject({ method: 'PUT', url: '/profile',
+      payload: { displayName: 'A', avgCycleLength: 400 } });
+    expect(r.statusCode).toBe(400);
   });
 
   it('profile: rejects empty name + malformed due date (zod 400)', async () => {

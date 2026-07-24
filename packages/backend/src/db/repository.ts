@@ -109,6 +109,9 @@ export interface ProfileRow {
    */
   birthDate: string | null; // yyyy-MM-dd
   city: string | null;
+  doctorPhone: string | null; // her own emergency contact
+  avgCycleLength: number | null; // women's-health baselines (null = app defaults)
+  avgPeriodLength: number | null;
 }
 
 /** Aggregate demographics of the tracked children, for the admin dashboard. */
