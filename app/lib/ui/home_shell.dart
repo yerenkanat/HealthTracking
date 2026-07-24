@@ -91,7 +91,23 @@ class _HomeShellState extends State<HomeShell> {
           hasDetails: c.profile.hasBirthDate && c.profile.hasCity,
           hasBackup: c.lastExportAt != null,
         ),
-        onOpenSetup: () => setState(() => _index = 3), // profile / settings tab
+        // Each unfinished step lands on the screen that COMPLETES it, not a
+        // catch-all Profile tab (tapping "add a child" used to open Profile).
+        onOpenSetup: (step) {
+          switch (step) {
+            case SetupStep.profileName:
+            case SetupStep.details: // birth date + city live in the same editor
+              showEditProfileSheet(context, c);
+            case SetupStep.healthMode: // due date / first period → women's health
+              setState(() => _index = 1);
+            case SetupStep.child:
+              showAddChildSheet(context, c);
+            case SetupStep.zone: // safe zones are added on the child map
+              setState(() => _index = 2);
+            case SetupStep.backup: // export lives on the profile tab
+              setState(() => _index = 3);
+          }
+        },
         onLogVitals: () => _logVitals(context, c),
         awaitingRepeat: c.awaitingRepeat,
         nextAppointment: nextAppointment(c.appointments, DateTime.now()),
@@ -200,7 +216,13 @@ class _HomeShellState extends State<HomeShell> {
         onCheckIn: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.checkIn),
         onSos: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.sos),
       ),
-      ProfileScreen(controller: c),
+      ProfileScreen(
+        controller: c,
+        // Both summary tiles lead to the family hub (Child tab), where children
+        // and trackers are actually managed — previously they were dead cards.
+        onOpenChildren: () => setState(() => _index = 2),
+        onOpenDevices: () => setState(() => _index = 2),
+      ),
     ];
 
     return Scaffold(

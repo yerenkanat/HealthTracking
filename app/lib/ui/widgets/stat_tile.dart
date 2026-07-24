@@ -29,6 +29,10 @@ class StatTile extends StatelessWidget {
   /// Filled-gradient chip with a white glyph. Takes precedence over [color].
   final Gradient? gradient;
 
+  /// When set, the tile becomes a button (and shows a chevron so it reads as
+  /// tappable). A tile with no [onTap] is a plain readout.
+  final VoidCallback? onTap;
+
   const StatTile({
     super.key,
     required this.icon,
@@ -36,6 +40,7 @@ class StatTile extends StatelessWidget {
     required this.label,
     this.color,
     this.gradient,
+    this.onTap,
   });
 
   @override
@@ -43,18 +48,25 @@ class StatTile extends StatelessWidget {
     final chipColor = color ?? Palette.violet;
     return GlassCard(
       padding: const EdgeInsets.all(16),
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: gradient,
-              color: gradient == null ? chipColor.withValues(alpha: 0.14) : null,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, color: gradient != null ? Colors.white : chipColor, size: 20),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: gradient,
+                  color: gradient == null ? chipColor.withValues(alpha: 0.14) : null,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, color: gradient != null ? Colors.white : chipColor, size: 20),
+              ),
+              const Spacer(),
+              if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Palette.textDim, size: 20),
+            ],
           ),
           const SizedBox(height: 14),
           Text(value,

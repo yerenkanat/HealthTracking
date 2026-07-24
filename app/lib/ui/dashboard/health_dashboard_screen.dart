@@ -74,7 +74,8 @@ class HealthDashboardView extends StatelessWidget {
   final String? awaitingRepeat;
 
   final SetupProgress? setupProgress; // first-run checklist (null/complete = hidden)
-  final VoidCallback? onOpenSetup; // where "finish setting up" leads
+  // Routed with the step being nudged, so each lands on the right screen.
+  final void Function(SetupStep step)? onOpenSetup;
   final Appointment? nextAppointment; // soonest upcoming (null = hidden)
   final DateTime? nowForAppointment; // anchor for the countdown
   final VoidCallback? onOpenAppointments;
@@ -418,6 +419,14 @@ class _PeaceOfMindBanner extends StatelessWidget {
   }
 }
 
+/// Green / amber / red for a metric's three-tier [MetricStatus], matching the
+/// advisor's tone colours so a "watch" value reads the same on every surface.
+Color _statusColor(MetricStatus s) => switch (s) {
+      MetricStatus.normal => Palette.teal,
+      MetricStatus.watch => Palette.watch,
+      MetricStatus.danger => Palette.danger,
+    };
+
 class _MetricCard extends StatelessWidget {
   final MetricSpec spec;
   final List<HealthSample> samples;
@@ -429,13 +438,15 @@ class _MetricCard extends StatelessWidget {
     final label = l.metricLabel(spec.key);
     final series = downsampleMean(buildSeries(samples, spec.key), 40);
     final stats = statsFor(series);
-    final danger = latestInDanger(spec.key, stats);
+    final status = stats == null ? MetricStatus.normal : metricStatus(spec.key, stats.latest);
+    final danger = status == MetricStatus.danger;
+    final abnormal = status != MetricStatus.normal;
     final value = stats == null ? '—' : _fmt(spec.key, stats.latest);
 
     return Semantics(
-      label: '$label: $value ${spec.unit}${danger ? l.t('db_outside_range') : ''}',
+      label: '$label: $value ${spec.unit}${abnormal ? l.t('db_outside_range') : ''}',
       child: GlassCard(
-        glow: danger ? Palette.danger : spec.color,
+        glow: abnormal ? _statusColor(status) : spec.color,
         padding: const EdgeInsets.all(16),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MetricDetailScreen(
@@ -479,7 +490,7 @@ class _MetricCard extends StatelessWidget {
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         height: 1,
-                        color: danger ? Palette.danger : Palette.text,
+                        color: stats == null ? Palette.textDim : _statusColor(status),
                       )),
                   const SizedBox(width: 4),
                   Text(spec.unit, style: const TextStyle(color: Palette.textDim, fontSize: 12)),
@@ -528,7 +539,13 @@ class _BloodPressureCard extends StatelessWidget {
     final diaSeries = downsampleMean(buildSeries(samples, 'diastolic'), 40);
     final sys = statsFor(sysSeries);
     final dia = statsFor(diaSeries);
-    final danger = latestInDanger('systolic', sys) || latestInDanger('diastolic', dia);
+    // Each number carries its own grade, so "138 / 77" can show the systolic in
+    // amber while the diastolic stays green — the reader sees which one is off.
+    final sysStatus = sys == null ? MetricStatus.normal : metricStatus('systolic', sys.latest);
+    final diaStatus = dia == null ? MetricStatus.normal : metricStatus('diastolic', dia.latest);
+    final status = worstStatus([sysStatus, diaStatus]);
+    final danger = status == MetricStatus.danger;
+    final abnormal = status != MetricStatus.normal;
     final sysV = sys == null ? '—' : sys.latest.round().toString();
     final diaV = dia == null ? '—' : dia.latest.round().toString();
 
@@ -536,9 +553,9 @@ class _BloodPressureCard extends StatelessWidget {
       // The unit goes through l10n here too — a screen reader would otherwise
       // announce "mmHg" in the middle of a Russian sentence.
       label: '${l.t('metric_bp')}: $sysV / $diaV ${l.t('unit_mmhg')}'
-          '${danger ? l.t('db_outside_range') : ''}',
+          '${abnormal ? l.t('db_outside_range') : ''}',
       child: GlassCard(
-        glow: danger ? Palette.danger : Palette.violet,
+        glow: abnormal ? _statusColor(status) : Palette.violet,
         padding: const EdgeInsets.all(16),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MetricDetailScreen(
@@ -578,15 +595,16 @@ class _BloodPressureCard extends StatelessWidget {
                 Text(sysV,
                     style: TextStyle(
                       fontFamily: 'JetBrainsMono', fontSize: 27, fontWeight: FontWeight.w700, height: 1,
-                      color: danger ? Palette.danger : Palette.text,
+                      color: sys == null ? Palette.textDim : _statusColor(sysStatus),
                     )),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 3),
                   child: Text('/', style: TextStyle(color: Palette.textDim, fontSize: 22, fontWeight: FontWeight.w400)),
                 ),
                 Text(diaV,
-                    style: const TextStyle(
-                      fontFamily: 'JetBrainsMono', fontSize: 27, fontWeight: FontWeight.w700, height: 1, color: Palette.text,
+                    style: TextStyle(
+                      fontFamily: 'JetBrainsMono', fontSize: 27, fontWeight: FontWeight.w700, height: 1,
+                      color: dia == null ? Palette.textDim : _statusColor(diaStatus),
                     )),
                 const SizedBox(width: 4),
                 Text(l.t('unit_mmhg'), style: const TextStyle(color: Palette.textDim, fontSize: 11)),
@@ -1097,7 +1115,10 @@ class _RepeatReadingCard extends StatelessWidget {
 
 class _SetupCard extends StatelessWidget {
   final SetupProgress progress;
-  final VoidCallback? onTap;
+  // Routed with the step it is nudging, so the tap lands on THAT step's screen
+  // (add-a-child sheet, the map for a zone, the profile editor for a name) —
+  // not a single catch-all destination.
+  final void Function(SetupStep step)? onTap;
   const _SetupCard({required this.progress, this.onTap});
 
   static String _key(SetupStep s) => switch (s) {
@@ -1115,7 +1136,7 @@ class _SetupCard extends StatelessWidget {
     final next = progress.next!;
     return GlassCard(
       padding: const EdgeInsets.all(16),
-      onTap: onTap,
+      onTap: onTap == null ? null : () => onTap!(next),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

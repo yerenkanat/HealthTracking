@@ -235,7 +235,7 @@ void main() {
         samples: samples,
         setupProgress: computeSetupProgress(
           hasName: true, hasHealthData: true, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
-        onOpenSetup: () => opened = true,
+        onOpenSetup: (step) => opened = (step == SetupStep.child),
       ),
     ));
     await tester.scrollUntilVisible(find.text('Finish setting up'), 200, scrollable: find.byType(Scrollable).first);
@@ -243,6 +243,7 @@ void main() {
     expect(find.text('Add a child'), findsOneWidget); // the next step
     await tester.tap(find.text('Finish setting up'));
     await tester.pump();
+    // The tap routes to the exact outstanding step, not a generic profile page.
     expect(opened, isTrue);
   });
 

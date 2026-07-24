@@ -178,3 +178,51 @@ bool latestInDanger(String metric, SeriesStats? stats) {
   if (b.warnBelow != null && stats.latest < b.warnBelow!) return true;
   return false;
 }
+
+/// Three-tier health grade for a single reading, so the UI can render a value in
+/// green (normal), amber (worth watching), or red (needs attention) at a glance.
+/// Thresholds mirror the advisor and triage layers so every surface agrees:
+/// "watch" is the below-emergency band the advisor nudges on; "danger" is the
+/// triage cutoff that forces the Emergency screen. NOT a diagnosis.
+enum MetricStatus { normal, watch, danger }
+
+MetricStatus metricStatus(String metric, double v) {
+  switch (metric) {
+    case 'systolic':
+      if (v >= TriageThresholds.bpSystolicEmergency) return MetricStatus.danger;
+      if (v >= 135) return MetricStatus.watch;
+      return MetricStatus.normal;
+    case 'diastolic':
+      if (v >= TriageThresholds.bpDiastolicEmergency) return MetricStatus.danger;
+      if (v >= 85) return MetricStatus.watch;
+      return MetricStatus.normal;
+    case 'hr':
+      if (v >= TriageThresholds.hrTachyEmergency || v <= TriageThresholds.hrBradyEmergency) {
+        return MetricStatus.danger;
+      }
+      if (v >= TriageThresholds.hrTachyWarning || v <= TriageThresholds.hrBradyWarning) {
+        return MetricStatus.watch;
+      }
+      return MetricStatus.normal;
+    case 'spo2':
+      if (v < TriageThresholds.spo2Emergency) return MetricStatus.danger;
+      if (v < TriageThresholds.spo2Warning) return MetricStatus.watch;
+      return MetricStatus.normal;
+    case 'temp':
+      if (v >= TriageThresholds.feverEmergencyC) return MetricStatus.danger;
+      if (v >= TriageThresholds.feverWarningC) return MetricStatus.watch;
+      return MetricStatus.normal;
+    default:
+      return MetricStatus.normal;
+  }
+}
+
+/// The most severe status across several readings — for a combined card like
+/// blood pressure, where systolic and diastolic each carry their own grade.
+MetricStatus worstStatus(Iterable<MetricStatus> xs) {
+  var worst = MetricStatus.normal;
+  for (final s in xs) {
+    if (s.index > worst.index) worst = s;
+  }
+  return worst;
+}

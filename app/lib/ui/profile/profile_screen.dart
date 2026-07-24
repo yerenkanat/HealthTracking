@@ -19,7 +19,12 @@ import '../widgets/stat_tile.dart';
 
 class ProfileScreen extends StatelessWidget {
   final AppController controller;
-  const ProfileScreen({super.key, required this.controller});
+
+  /// Open the family hub (Child tab) where children and trackers are managed.
+  /// Null in tests/standalone use leaves the summary tiles as plain readouts.
+  final VoidCallback? onOpenChildren;
+  final VoidCallback? onOpenDevices;
+  const ProfileScreen({super.key, required this.controller, this.onOpenChildren, this.onOpenDevices});
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +95,7 @@ class ProfileScreen extends StatelessWidget {
                     gradient: Palette.violetPink,
                     value: '${c.children.length}',
                     label: l.t('prof_children_count'),
+                    onTap: onOpenChildren,
                   )),
                   const SizedBox(width: 14),
                   Expanded(child: StatTile(
@@ -97,6 +103,7 @@ class ProfileScreen extends StatelessWidget {
                     gradient: Palette.tealBlue,
                     value: '${c.devices.length}',
                     label: l.t('prof_devices_count'),
+                    onTap: onOpenDevices,
                   )),
                 ],
               ),
