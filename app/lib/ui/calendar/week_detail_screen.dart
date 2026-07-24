@@ -38,11 +38,16 @@ class WeekDetailScreen extends StatefulWidget {
   final DateTime? dueDate;
   final void Function(AntenatalVisit visit, DateTime at)? onBookAntenatal;
 
+  /// Week to open on (1..40). Null starts on the mother's real week; the hero's
+  /// prev/next chevrons pass week±1 so tapping one lands directly on that week.
+  final int? initialWeek;
+
   const WeekDetailScreen({
     super.key,
     required this.gestation,
     this.dueDate,
     this.onBookAntenatal,
+    this.initialWeek,
   });
 
   @override
@@ -52,7 +57,7 @@ class WeekDetailScreen extends StatefulWidget {
 class _WeekDetailScreenState extends State<WeekDetailScreen> {
   /// The week being viewed — starts at the mother's real week, then the arrows
   /// browse anywhere in 1..40 so she can read ahead or look back.
-  late int _week = widget.gestation.week;
+  late int _week = (widget.initialWeek ?? widget.gestation.week).clamp(_minWeek, _maxWeek);
 
   static const _minWeek = 1;
   static const _maxWeek = 40;

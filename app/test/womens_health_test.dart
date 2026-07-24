@@ -37,6 +37,19 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  testWidgets('the pregnancy hero has prev/next week chevrons that open the browser on the adjacent week', (tester) async {
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // week 20
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    // Discoverable right on the hero — no hunting for "More" first.
+    expect(find.byTooltip('Next week'), findsOneWidget);
+    expect(find.byTooltip('Previous week'), findsOneWidget);
+    await tester.tap(find.byTooltip('Next week'));
+    await tester.pumpAndSettle();
+    // Opened directly on week+1 (both the app-bar title and the stepper show it).
+    expect(find.text('Week 21'), findsWidgets);
+  });
+
   testWidgets('cycle mode (no due date) invites tracking the cycle', (tester) async {
     final c = controllerFor(); // no due date → cycle mode
     await tester.pumpWidget(wrap(c));

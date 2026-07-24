@@ -471,6 +471,21 @@ class _GestationHeader extends StatelessWidget {
   final VoidCallback onSetDueDate;
   const _GestationHeader({required this.controller, required this.today, required this.onSetDueDate});
 
+  /// Open the week browser. [week] null starts on her real week (the "More"
+  /// button); the hero's chevrons pass the adjacent week to land there directly.
+  void _openWeek(BuildContext context, GestationInfo g, int? week) {
+    final l = L10nScope.of(context);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => WeekDetailScreen(
+        gestation: g,
+        dueDate: controller.dueDate,
+        initialWeek: week,
+        onBookAntenatal: (visit, at) =>
+            controller.addAppointment(l.t('an_book_title', {'n': visit.number}), at),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -520,14 +535,10 @@ class _GestationHeader extends StatelessWidget {
               ? l.t('gest_days_left', {'n': g.daysUntilDue})
               : l.t('gest_overdue'),
           detailsLabel: l.t('gest_details'),
-          onDetails: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => WeekDetailScreen(
-              gestation: g,
-              dueDate: controller.dueDate,
-              onBookAntenatal: (visit, at) =>
-                  controller.addAppointment(l.t('an_book_title', {'n': visit.number}), at),
-            ),
-          )),
+          onDetails: () => _openWeek(context, g, null),
+          // Prev/next chevrons on the hero open the week browser directly on the
+          // adjacent week — "last / next week" without hunting for it.
+          onOpenWeek: (week) => _openWeek(context, g, week),
         ),
         const SizedBox(height: 12),
         Row(

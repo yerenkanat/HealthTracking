@@ -30,6 +30,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../domain/cycle_log.dart' show GestationInfo;
+import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 
 /// How the palette warms as the pregnancy progresses.
@@ -285,6 +286,11 @@ class PregnancyHero extends StatefulWidget {
   final String detailsLabel; // "Подробнее"
   final VoidCallback? onDetails;
 
+  /// Open the week browser on a specific week (1..40). When set, the hero shows
+  /// prev/next chevrons flanking the week label, so "last / next week" is one tap
+  /// away right here instead of hidden behind the details screen.
+  final void Function(int week)? onOpenWeek;
+
   const PregnancyHero({
     super.key,
     required this.gestation,
@@ -293,6 +299,7 @@ class PregnancyHero extends StatefulWidget {
     required this.trimesterLabel,
     required this.detailsLabel,
     this.onDetails,
+    this.onOpenWeek,
   });
 
   @override
@@ -430,11 +437,39 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
                 ),
               ),
               const SizedBox(height: 10),
-              Text(
-                widget.weekLabel,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
-              ),
+              // Week label, flanked by prev/next chevrons when week browsing is
+              // wired — the affordance that makes "last / next week" discoverable
+              // without first opening the details screen. Chevrons disable at the
+              // 1 and 40 bounds.
+              Builder(builder: (context) {
+                final label = Text(
+                  widget.weekLabel,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                );
+                if (widget.onOpenWeek == null) return label;
+                // Only reached when week browsing is wired (never in the bare
+                // golden test), so the hero stays language-free unless it's used
+                // with navigation — where an L10nScope is always in context.
+                final l = L10nScope.of(context);
+                final wk = widget.gestation.week;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _WeekChevron(
+                      icon: Icons.chevron_left_rounded,
+                      tooltip: l.t('wk_prev'),
+                      onTap: wk > 1 ? () => widget.onOpenWeek!(wk - 1) : null,
+                    ),
+                    Flexible(child: label),
+                    _WeekChevron(
+                      icon: Icons.chevron_right_rounded,
+                      tooltip: l.t('wk_next'),
+                      onTap: wk < 40 ? () => widget.onOpenWeek!(wk + 1) : null,
+                    ),
+                  ],
+                );
+              }),
               const SizedBox(height: 4),
               Text(
                 widget.trimesterLabel,
@@ -526,6 +561,29 @@ class _DetailsButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A prev/next week chevron beside the hero's week label. Disabled (dimmed, no
+/// tap) at the 1 / 40 bounds. IconButton gives the 48dp touch target and the
+/// tooltip/semantics label for free.
+class _WeekChevron extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  const _WeekChevron({required this.icon, required this.tooltip, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return IconButton(
+      icon: Icon(icon, size: 26),
+      color: Palette.text.withValues(alpha: enabled ? 0.75 : 0.22),
+      tooltip: tooltip,
+      onPressed: onTap,
+      splashRadius: 22,
+      visualDensity: VisualDensity.compact,
     );
   }
 }
