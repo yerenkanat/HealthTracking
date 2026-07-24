@@ -67,6 +67,43 @@ describe('the device shop', () => {
     expect(orders[0].items[0].qty).toBe(1);
   });
 
+  it('applies the family-bundle discount when a watch and a tracker are bought together', async () => {
+    const a = app();
+    const products = (await a.inject({ method: 'GET', url: '/shop/products' })).json().products;
+    const watch = products.find((p: { id: string }) => p.id === 'watch').variants[0].id;
+    const tracker = products.find((p: { id: string }) => p.id === 'tracker').variants[0].id;
+    await a.inject({ method: 'PATCH', url: `/admin/shop/variants/${watch}`, payload: { stock: 2 } });
+    await a.inject({ method: 'PATCH', url: `/admin/shop/variants/${tracker}`, payload: { stock: 2 } });
+
+    const placed = await a.inject({
+      method: 'POST', url: '/shop/orders',
+      payload: { customerName: 'Данияр', phone: '+77007778899', city: 'Астана', address: 'пр. Кабанбай 1',
+        items: [{ variantId: watch, qty: 1 }, { variantId: tracker, qty: 1 }] },
+    });
+    expect(placed.statusCode).toBe(201);
+    // 19 900 + 9 900 − 2 900 = 26 900 ₸, with 2 900 ₸ recorded as the saving.
+    expect(placed.json().totalMinor).toBe(2690000);
+    expect(placed.json().discountMinor).toBe(290000);
+
+    const orders = (await a.inject({ method: 'GET', url: '/admin/shop/orders' })).json().orders;
+    expect(orders[0].totalMinor).toBe(2690000);
+    expect(orders[0].discountMinor).toBe(290000);
+    expect(orders[0].items).toHaveLength(2);
+  });
+
+  it('does not discount a lone watch — the saving needs both devices', async () => {
+    const a = app();
+    const products = (await a.inject({ method: 'GET', url: '/shop/products' })).json().products;
+    const watch = products.find((p: { id: string }) => p.id === 'watch').variants[0].id;
+    await a.inject({ method: 'PATCH', url: `/admin/shop/variants/${watch}`, payload: { stock: 1 } });
+    const placed = await a.inject({
+      method: 'POST', url: '/shop/orders',
+      payload: { customerName: 'Сауле', phone: '+77006665544', city: 'Алматы', address: 'ул. Сатпаева 3', items: [{ variantId: watch, qty: 1 }] },
+    });
+    expect(placed.json().totalMinor).toBe(1990000);
+    expect(placed.json().discountMinor).toBe(0);
+  });
+
   it('rejects a malformed order (missing address) with 400', async () => {
     const a = app();
     const r = await a.inject({ method: 'POST', url: '/shop/orders', payload: { customerName: 'X', phone: '+77000000000', city: 'Алматы', items: [] } });

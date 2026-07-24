@@ -142,8 +142,18 @@ async function main() {
   const orders = await repo.adminShopOrders(10);
   ok(orders.length >= 1 && orders[0].items[0].color === variant.color && orders[0].address === 'ул. Абая 1', 'order shows in admin with address + item snapshot');
 
+  // Bundle: a watch + a tracker together take 2 900 ₸ off, recomputed server-side.
+  const tracker = products.find((p) => p.id === 'tracker')!;
+  const tVariant = tracker.variants[0];
+  await repo.setShopVariantStock(variant.id, 1);
+  await repo.setShopVariantStock(tVariant.id, 1);
+  const rB = await repo.placeShopOrder({ customerName: 'Комплект', phone: '+77000000001', city: 'Астана', address: 'пр. Кабанбай 1', items: [{ variantId: variant.id, qty: 1 }, { variantId: tVariant.id, qty: 1 }] });
+  ok(rB.ok && rB.discountMinor === 290000 && rB.totalMinor === watch.priceMinor + tracker.priceMinor - 290000, 'bundle order discounted by 2 900 ₸');
+  const bOrder = (await repo.adminShopOrders(10)).find((o) => o.customerName === 'Комплект');
+  ok(!!bOrder && bOrder.discountMinor === 290000 && bOrder.items.length === 2, 'bundle order shows in admin with its discount + both items');
+
   // Clean up so the smoke test is repeatable.
-  await pool.query('DELETE FROM shop_orders WHERE customer_name IN ($1,$2)', ['Тест', 'Т']);
+  await pool.query('DELETE FROM shop_orders WHERE customer_name IN ($1,$2,$3)', ['Тест', 'Т', 'Комплект']);
   await pool.query('DELETE FROM users WHERE id=$1', [U]);
   await pool.end();
   console.log(process.exitCode ? '\nSMOKE FAILED' : '\n✓ all pgRepository checks passed against real Postgres');

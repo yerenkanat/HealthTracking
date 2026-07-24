@@ -7,6 +7,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus } from './repository';
+import { bundleDiscountMinor } from './repository';
 import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -135,7 +136,7 @@ export function createMemoryRepository(): Repository {
     { id: 'v-t-blue', productId: 'tracker', color: 'Синий', colorHex: '#3B82F6', stock: 0, sort: 2 },
     { id: 'v-t-pink', productId: 'tracker', color: 'Розовый', colorHex: '#E85C8A', stock: 0, sort: 3 },
   ];
-  type ShopOrderRow = { id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
+  type ShopOrderRow = { id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
   const shopOrders: ShopOrderRow[] = [];
 
   return {
@@ -621,23 +622,27 @@ export function createMemoryRepository(): Repository {
       // Two-pass: validate all, then commit — the memory store cannot roll back a
       // partial write, so nothing changes until every line is known good.
       const snap: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number; variant: (typeof shopVars)[number] }> = [];
-      let total = 0;
+      const lines: Array<{ productId: string; qty: number }> = [];
+      let subtotal = 0;
       for (const it of o.items) {
         const v = shopVars.find((x) => x.id === it.variantId);
         if (!v) return { ok: false as const, error: 'not_found' as const, variantId: it.variantId };
         if (v.stock < it.qty) return { ok: false as const, error: 'out_of_stock' as const, variantId: it.variantId };
         const p = shopProds.find((x) => x.id === v.productId)!;
-        total += p.priceMinor * it.qty;
+        subtotal += p.priceMinor * it.qty;
+        lines.push({ productId: v.productId, qty: it.qty });
         snap.push({ productName: p.name, color: v.color, qty: it.qty, unitPriceMinor: p.priceMinor, variant: v });
       }
+      const discount = bundleDiscountMinor(lines);
+      const total = subtotal - discount;
       for (const s of snap) s.variant.stock -= s.qty;
       const id = randomUUID();
       shopOrders.push({
         id, customerName: o.customerName, phone: o.phone, city: o.city, address: o.address,
-        note: o.note ?? null, totalMinor: total, status: 'new', createdAt: new Date().toISOString(),
+        note: o.note ?? null, totalMinor: total, discountMinor: discount, status: 'new', createdAt: new Date().toISOString(),
         items: snap.map((s) => ({ productName: s.productName, color: s.color, qty: s.qty, unitPriceMinor: s.unitPriceMinor })),
       });
-      return { ok: true as const, id, totalMinor: total };
+      return { ok: true as const, id, totalMinor: total, discountMinor: discount };
     },
     adminShopVariants: async () => shopVars.map((v) => ({
       id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock,

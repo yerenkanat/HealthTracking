@@ -459,6 +459,7 @@ CREATE TABLE IF NOT EXISTS shop_orders (
   address       TEXT NOT NULL,
   note          TEXT,
   total_minor   INTEGER NOT NULL CHECK (total_minor >= 0),
+  discount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_minor >= 0),
   status        TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','confirmed','shipped','delivered','cancelled')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -452,9 +452,19 @@ export interface ShopOrderInput {
 export type ShopOrderStatus = 'new' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
 export interface ShopOrder {
   id: string; customerName: string; phone: string; city: string; address: string;
-  note: string | null; totalMinor: number; status: ShopOrderStatus; createdAt: string;
+  note: string | null; totalMinor: number; discountMinor: number; status: ShopOrderStatus; createdAt: string;
   items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }>;
 }
 export type ShopOrderResult =
-  | { ok: true; id: string; totalMinor: number }
+  | { ok: true; id: string; totalMinor: number; discountMinor: number }
   | { ok: false; error: 'empty' | 'not_found' | 'out_of_stock'; variantId?: string };
+
+/// The family bundle: a watch and a tracker bought together take this much off,
+/// per matched pair (2 buys of each = 2× off). Recomputed server-side from the
+/// order's own contents at placement — the client never sends a price — so the
+/// saving advertised on the storefront is exactly the saving that is charged.
+export const BUNDLE_DISCOUNT_MINOR = 290000; // 2 900 ₸
+export function bundleDiscountMinor(lines: Array<{ productId: string; qty: number }>): number {
+  const qtyOf = (id: string) => lines.filter((l) => l.productId === id).reduce((n, l) => n + l.qty, 0);
+  return Math.min(qtyOf('watch'), qtyOf('tracker')) * BUNDLE_DISCOUNT_MINOR;
+}

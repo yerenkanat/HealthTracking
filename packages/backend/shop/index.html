@@ -8,6 +8,7 @@
   }
   @media (prefers-color-scheme:dark){:root{--ink:#EEEDF6;--muted:#A2A3B4;--bg:#0F0E17;--surface:#181722;--surface-2:#201E2E;--hair:#2A2740;--grad-soft:linear-gradient(135deg,#221C3C,#301B2C);--shadow:0 20px 50px -22px rgba(0,0,0,.7);--shadow-sm:0 10px 26px -16px rgba(0,0,0,.65)}}
   *{box-sizing:border-box}
+  [hidden]{display:none!important} /* our display:flex/grid rules below would otherwise beat the UA hidden rule */
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
   h1,h2,h3{margin:0;line-height:1.14;letter-spacing:-.02em;text-wrap:balance}
   .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
@@ -72,8 +73,16 @@
   input,select{font:inherit;font-size:15px;padding:13px 14px;border-radius:12px;border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);min-height:50px;width:100%}
   input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--violet) 55%,transparent);border-color:transparent}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .summary{background:var(--surface-2);border:1px solid var(--hair);border-radius:12px;padding:12px 14px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
-  .summary b{font-family:var(--mono)}
+  .summary{background:var(--surface-2);border:1px solid var(--hair);border-radius:12px;padding:12px 14px;font-size:14px;display:grid;gap:6px}
+  .summary .line{display:flex;justify-content:space-between;align-items:center}
+  .summary .line b,.summary .line span.num{font-family:var(--mono)}
+  .summary .disc{color:var(--good);font-weight:700}
+  .summary .grand{border-top:1px solid var(--hair);padding-top:8px;font-size:15px}
+  .summary .grand b{font-size:17px}
+  .modeBanner{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;background:var(--grad-soft);border:1px solid var(--hair);border-radius:12px;padding:11px 14px;font-weight:700;font-size:13.5px;color:var(--violet-deep)}
+  .linkbtn{background:none;border:0;color:var(--violet);font:inherit;font-weight:700;font-size:13px;text-decoration:underline;cursor:pointer;padding:0}
+  .bundle .btn.ghost{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4);color:#fff;box-shadow:none}
+  .bundle .btn.ghost:hover{background:rgba(255,255,255,.26)}
   .msg{border-radius:12px;padding:13px 15px;font-size:14px;font-weight:600;display:none}
   .msg.ok{display:block;background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
   .msg.err{display:block;background:color-mix(in srgb,var(--crit) 12%,transparent);color:var(--crit)}
@@ -117,7 +126,10 @@
     <div><div style="font-weight:800;font-size:13px;opacity:.9">🎁 Экономия 2 900 ₸</div>
       <h2 style="color:#fff;margin-top:8px">Полный комплект для семьи</h2>
       <div style="opacity:.9;margin-top:6px">Часы + трекер вместе</div></div>
-    <div style="text-align:right"><div class="was num">29 800 ₸</div><div class="now">26 900 ₸</div></div>
+    <div style="text-align:right;display:grid;gap:10px;justify-items:end">
+      <div><div class="was num">29 800 ₸</div><div class="now">26 900 ₸</div></div>
+      <button class="btn ghost" id="bundleBtn" type="button">Заказать комплект</button>
+    </div>
   </div>
 </div></section>
 
@@ -126,18 +138,27 @@
     <div class="pitch">
       <div class="kicker">Оформление заказа</div><h2 style="font-size:28px">Доставим по адресу</h2>
       <p>Оплата при получении. Курьер привезёт устройство — вы платите, только когда всё у вас в руках. Гарантия 1 год, возврат 14 дней.</p>
-      <div class="summary" style="margin-top:16px"><span id="sumLabel">Выберите товар</span><b id="sumTotal">—</b></div>
+      <div class="summary" style="margin-top:16px">
+        <div class="line"><span id="sumLabel">Выберите товар</span><span class="num" id="sumSub">—</span></div>
+        <div class="line disc" id="sumDiscRow" hidden><span>Скидка за комплект</span><span class="num" id="sumDisc">—</span></div>
+        <div class="line grand"><span>Итого</span><b id="sumTotal">—</b></div>
+      </div>
     </div>
     <form id="orderForm" novalidate>
-      <div class="row2">
-        <label>Товар<select id="fProduct"></select></label>
-        <label>Цвет<select id="fColor"></select></label>
+      <div class="modeBanner" id="modeBanner" hidden>
+        <span>🎁 Комплект: часы + трекер — экономия 2 900 ₸</span>
+        <button type="button" class="linkbtn" id="modeSingle">обычный заказ</button>
       </div>
       <div class="row2">
-        <label>Количество<input id="fQty" type="number" min="1" max="20" value="1"></label>
+        <label id="lblProduct">Товар<select id="fProduct"></select></label>
+        <label id="lblColor"><span class="lt">Цвет</span><select id="fColor"></select></label>
+        <label id="lblColor2" hidden>Цвет трекера<select id="fColor2"></select></label>
+        <label id="lblQty">Количество<input id="fQty" type="number" min="1" max="20" value="1"></label>
+      </div>
+      <div class="row2">
+        <label>Ваше имя<input id="fName" type="text" placeholder="Айгерим" autocomplete="name"></label>
         <label>Город<input id="fCity" type="text" placeholder="Алматы" autocomplete="address-level2"></label>
       </div>
-      <label>Ваше имя<input id="fName" type="text" placeholder="Айгерим" autocomplete="name"></label>
       <label>Телефон<input id="fPhone" type="tel" inputmode="tel" placeholder="+7 (7__) ___-__-__" autocomplete="tel"></label>
       <label>Адрес доставки<input id="fAddr" type="text" placeholder="Улица, дом, квартира" autocomplete="street-address"></label>
       <div class="msg" id="orderMsg"></div>
@@ -169,6 +190,9 @@
   const fmt=n=>Number(n).toLocaleString("ru-RU");
   const tng=minor=>fmt(Math.round(minor/100))+" ₸";
   let PRODUCTS=[];
+  let MODE="single"; // "single" — one product+colour · "bundle" — watch + tracker together
+  const BUNDLE_DISCOUNT=290000; // 2 900 ₸ — mirrors BUNDLE_DISCOUNT_MINOR on the server, which is authoritative
+  const prod=id=>PRODUCTS.find(x=>x.id===id);
 
   const watchSvg=`<svg viewBox="0 0 200 240"><rect x="66" y="6" width="68" height="42" rx="15" fill="#c9c2ea"/><rect x="66" y="192" width="68" height="42" rx="15" fill="#c9c2ea"/><rect x="38" y="42" width="124" height="158" rx="36" fill="#1C1E2A"/><rect x="50" y="54" width="100" height="134" rx="26" fill="url(#g1)"/><path d="M72 118c6 0 8-16 14-16s8 26 14 26 6-18 12-18 6 8 12 8" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="96" text-anchor="middle" fill="#fff" font-family="monospace" font-weight="800" font-size="22">118/76</text><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6D5AE6"/><stop offset="1" stop-color="#E85C8A"/></linearGradient></defs></svg>`;
   const trackSvg=`<svg viewBox="0 0 200 240"><rect x="66" y="6" width="68" height="40" rx="14" fill="#bfe6df"/><rect x="66" y="194" width="68" height="40" rx="14" fill="#bfe6df"/><rect x="38" y="42" width="124" height="158" rx="36" fill="#12333A"/><rect x="50" y="54" width="100" height="134" rx="26" fill="url(#g2)"/><path d="M100 82c-16 0-29 13-29 29 0 21 29 47 29 47s29-26 29-47c0-16-13-29-29-29Z" fill="#fff"/><circle cx="100" cy="110" r="11" fill="#12B3A6"/><defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#12B3A6"/><stop offset="1" stop-color="#6D5AE6"/></linearGradient></defs></svg>`;
@@ -196,23 +220,51 @@
     grid.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ selectProduct(b.dataset.pick); location.hash="#order"; });
   }
 
-  function fillColors(){
-    const p=PRODUCTS.find(x=>x.id===$("fProduct").value); const sel=$("fColor"); sel.innerHTML="";
-    if(!p) return;
+  // Populate a colour <select> from a product's variants; out-of-stock colours
+  // stay listed but disabled, and the first in-stock one is preselected.
+  function fillSelect(sel,p){
+    sel.innerHTML="";
+    if(!p) return false;
     for(const v of p.variants){
       const o=document.createElement("option"); o.value=v.id;
       o.textContent=v.color+(v.stock<=0?" — нет в наличии":"");
       o.disabled=v.stock<=0; sel.appendChild(o);
     }
-    // select first in-stock
-    const firstIn=p.variants.find(v=>v.stock>0); if(firstIn) sel.value=firstIn.id;
+    const firstIn=p.variants.find(v=>v.stock>0);
+    if(firstIn){ sel.value=firstIn.id; return true; }
+    return false;
+  }
+
+  // Reflect the current MODE into the form: single shows product+colour+qty;
+  // bundle swaps in a second colour picker (watch + tracker) and fixes qty at 1.
+  function applyMode(){
+    const bundle=MODE==="bundle";
+    $("modeBanner").hidden=!bundle;
+    $("lblProduct").hidden=bundle;
+    $("lblQty").hidden=bundle;
+    $("lblColor2").hidden=!bundle;
+    $("lblColor").querySelector(".lt").textContent=bundle?"Цвет часов":"Цвет";
+    if(bundle){ fillSelect($("fColor"),prod("watch")); fillSelect($("fColor2"),prod("tracker")); }
+    else { fillSelect($("fColor"),prod($("fProduct").value)); }
     updateSummary();
   }
-  function selectProduct(id){ $("fProduct").value=id; fillColors(); }
+  function setMode(m){ MODE=m; applyMode(); }
+  function selectProduct(id){ $("fProduct").value=id; setMode("single"); }
+
   function updateSummary(){
-    const p=PRODUCTS.find(x=>x.id===$("fProduct").value); const qty=Math.max(1,parseInt($("fQty").value||"1",10));
-    if(!p){$("sumLabel").textContent="Выберите товар";$("sumTotal").textContent="—";return;}
-    $("sumLabel").textContent=p.name+" ×"+qty; $("sumTotal").textContent=tng(p.priceMinor*qty);
+    const lbl=$("sumLabel"),sub=$("sumSub"),discRow=$("sumDiscRow"),disc=$("sumDisc"),tot=$("sumTotal");
+    if(MODE==="bundle"){
+      const w=prod("watch"),t=prod("tracker");
+      if(!w||!t){ lbl.textContent="Комплект недоступен"; sub.textContent="—"; discRow.hidden=true; tot.textContent="—"; return; }
+      const s=w.priceMinor+t.priceMinor;
+      lbl.textContent="Часы + трекер"; sub.textContent=tng(s);
+      discRow.hidden=false; disc.textContent="−"+tng(BUNDLE_DISCOUNT);
+      tot.textContent=tng(s-BUNDLE_DISCOUNT); return;
+    }
+    const p=prod($("fProduct").value); const qty=Math.max(1,parseInt($("fQty").value||"1",10));
+    discRow.hidden=true;
+    if(!p){ lbl.textContent="Выберите товар"; sub.textContent="—"; tot.textContent="—"; return; }
+    lbl.textContent=p.name+" ×"+qty; sub.textContent=tng(p.priceMinor*qty); tot.textContent=tng(p.priceMinor*qty);
   }
 
   async function load(){
@@ -222,29 +274,43 @@
     if(!PRODUCTS.length){ $("productGrid").innerHTML='<div style="color:var(--muted);padding:20px 0">Товары временно недоступны</div>'; return; }
     renderProducts();
     const psel=$("fProduct"); psel.innerHTML=PRODUCTS.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
-    fillColors();
-    psel.onchange=fillColors; $("fColor").onchange=updateSummary; $("fQty").oninput=updateSummary;
+    applyMode();
+    psel.onchange=()=>{ if(MODE==="single"){ fillSelect($("fColor"),prod(psel.value)); updateSummary(); } };
+    $("fColor").onchange=updateSummary; $("fColor2").onchange=updateSummary; $("fQty").oninput=updateSummary;
   }
+  $("bundleBtn").onclick=()=>{ setMode("bundle"); location.hash="#order"; };
+  $("modeSingle").onclick=()=>setMode("single");
 
   $("orderForm").addEventListener("submit",async e=>{
     e.preventDefault();
     const msg=$("orderMsg"); msg.className="msg"; msg.textContent="";
     const g=id=>($(id).value||"").trim();
-    const name=g("fName"),phone=g("fPhone"),city=g("fCity"),addr=g("fAddr"),variantId=$("fColor").value;
-    const qty=Math.max(1,parseInt($("fQty").value||"1",10));
+    const name=g("fName"),phone=g("fPhone"),city=g("fCity"),addr=g("fAddr");
     const fail=(t,id)=>{msg.className="msg err";msg.textContent=t;if(id)$(id).focus();};
     if(!name) return fail("Укажите имя","fName");
     if(phone.replace(/\D/g,"").length<10) return fail("Укажите корректный телефон","fPhone");
     if(!city) return fail("Укажите город","fCity");
     if(!addr) return fail("Укажите адрес доставки","fAddr");
-    if(!variantId) return fail("Выберите цвет — этот товар сейчас недоступен","fColor");
+    let items;
+    if(MODE==="bundle"){
+      const w=$("fColor").value,t=$("fColor2").value;
+      if(!w) return fail("Выберите цвет часов","fColor");
+      if(!t) return fail("Выберите цвет трекера","fColor2");
+      items=[{variantId:w,qty:1},{variantId:t,qty:1}];
+    } else {
+      const variantId=$("fColor").value; const qty=Math.max(1,parseInt($("fQty").value||"1",10));
+      if(!variantId) return fail("Выберите цвет — этот товар сейчас недоступен","fColor");
+      items=[{variantId,qty}];
+    }
     const btn=$("submitBtn"); btn.disabled=true; btn.textContent="Оформляем…";
     try{
       const r=await fetch("/shop/orders",{method:"POST",headers:{"content-type":"application/json"},
-        body:JSON.stringify({customerName:name,phone,city,address:addr,items:[{variantId,qty}]})});
+        body:JSON.stringify({customerName:name,phone,city,address:addr,items})});
       if(r.status===201){
-        msg.className="msg ok"; msg.textContent="Спасибо! Заказ принят — мы скоро перезвоним для подтверждения.";
-        $("orderForm").reset(); await load();
+        const d=await r.json().catch(()=>({}));
+        const saved=(d&&d.discountMinor>0)?" Вы сэкономили "+tng(d.discountMinor)+".":"";
+        msg.className="msg ok"; msg.textContent="Спасибо! Заказ принят — мы скоро перезвоним для подтверждения."+saved;
+        $("orderForm").reset(); MODE="single"; await load();
       } else if(r.status===409){
         msg.className="msg err"; msg.textContent="К сожалению, выбранный цвет только что закончился. Выберите другой.";
         await load();

@@ -17,6 +17,7 @@ import type {
   TriageSeverity,
 } from '@fcs/shared';
 import type { Repository } from './repository';
+import { bundleDiscountMinor } from './repository';
 import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
 
 export function createPgRepository(pool: Pool): Repository {
@@ -928,26 +929,30 @@ export function createPgRepository(pool: Pool): Repository {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        let total = 0;
+        let subtotal = 0;
+        const lines: Array<{ productId: string; qty: number }> = [];
         const snap: Array<{ variantId: string; productName: string; color: string; qty: number; unit: number }> = [];
         for (const it of o.items) {
           // FOR UPDATE locks the row for the transaction — two buyers racing for
           // the last unit serialise here instead of both succeeding.
           const { rows } = await client.query(
-            `SELECT v.id, v.color, v.stock, p.name, p.price_minor
+            `SELECT v.id, v.color, v.stock, v.product_id, p.name, p.price_minor
              FROM shop_variants v JOIN shop_products p ON p.id = v.product_id
              WHERE v.id = $1 FOR UPDATE`, [it.variantId]);
           if (!rows.length) { await client.query('ROLLBACK'); return { ok: false, error: 'not_found', variantId: it.variantId }; }
           const v = rows[0];
           if (v.stock < it.qty) { await client.query('ROLLBACK'); return { ok: false, error: 'out_of_stock', variantId: it.variantId }; }
           await client.query('UPDATE shop_variants SET stock = stock - $2 WHERE id = $1', [it.variantId, it.qty]);
-          total += v.price_minor * it.qty;
+          subtotal += v.price_minor * it.qty;
+          lines.push({ productId: v.product_id, qty: it.qty });
           snap.push({ variantId: v.id, productName: v.name, color: v.color, qty: it.qty, unit: v.price_minor });
         }
+        const discount = bundleDiscountMinor(lines);
+        const total = subtotal - discount;
         const { rows: orows } = await client.query(
-          `INSERT INTO shop_orders (customer_name, phone, city, address, note, total_minor)
-           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-          [o.customerName, o.phone, o.city, o.address, o.note ?? null, total]);
+          `INSERT INTO shop_orders (customer_name, phone, city, address, note, total_minor, discount_minor)
+           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+          [o.customerName, o.phone, o.city, o.address, o.note ?? null, total, discount]);
         const orderId = orows[0].id as string;
         for (const s of snap) {
           await client.query(
@@ -956,7 +961,7 @@ export function createPgRepository(pool: Pool): Repository {
             [orderId, s.variantId, s.productName, s.color, s.qty, s.unit]);
         }
         await client.query('COMMIT');
-        return { ok: true, id: orderId, totalMinor: total };
+        return { ok: true, id: orderId, totalMinor: total, discountMinor: discount };
       } catch (e) {
         await client.query('ROLLBACK').catch(() => {});
         throw e;
@@ -984,7 +989,7 @@ export function createPgRepository(pool: Pool): Repository {
     },
     async adminShopOrders(limit) {
       const { rows } = await pool.query(
-        `SELECT id, customer_name, phone, city, address, note, total_minor, status, created_at
+        `SELECT id, customer_name, phone, city, address, note, total_minor, discount_minor, status, created_at
          FROM shop_orders ORDER BY created_at DESC LIMIT $1`, [limit]);
       if (!rows.length) return [];
       const ids = rows.map((r) => r.id);
@@ -999,7 +1004,7 @@ export function createPgRepository(pool: Pool): Repository {
       }
       return rows.map((r) => ({
         id: r.id, customerName: r.customer_name, phone: r.phone, city: r.city, address: r.address,
-        note: r.note, totalMinor: r.total_minor, status: r.status,
+        note: r.note, totalMinor: r.total_minor, discountMinor: r.discount_minor, status: r.status,
         createdAt: new Date(r.created_at).toISOString(), items: byOrder.get(r.id) ?? [],
       }));
     },

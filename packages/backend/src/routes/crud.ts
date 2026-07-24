@@ -506,7 +506,7 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
       // out_of_stock → 409 (the client re-reads stock and re-picks); the rest → 400.
       return reply.code(res.error === 'out_of_stock' ? 409 : 400).send({ error: res.error, variantId: res.variantId });
     }
-    return reply.code(201).send({ id: res.id, totalMinor: res.totalMinor });
+    return reply.code(201).send({ id: res.id, totalMinor: res.totalMinor, discountMinor: res.discountMinor });
   });
 
   app.get('/children/:id/events', async (req, reply) => {

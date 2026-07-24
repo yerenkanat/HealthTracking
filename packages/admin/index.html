@@ -2107,8 +2107,9 @@
     const money=fmt(Math.round(o.totalMinor/100))+" ₸";
     const items=o.items.map(i=>`${esc(i.productName)} · ${esc(i.color)} ×${i.qty}`).join("<br>");
     const opts=Object.keys(orderStatusLbl).map(s=>`<option value="${s}"${s===o.status?" selected":""}>${orderStatusLbl[s]}</option>`).join("");
+    const disc=o.discountMinor>0?` <span class="t" style="color:var(--good)">комплект −${fmt(Math.round(o.discountMinor/100))} ₸</span>`:"";
     return `<div class="ordercard">
-      <div class="ordertop"><b>${esc(o.customerName)}</b><span class="num">${money}</span></div>
+      <div class="ordertop"><b>${esc(o.customerName)}</b><span class="num">${money}${disc}</span></div>
       <div class="t">${esc(o.phone)} · ${esc(o.city)}, ${esc(o.address)}</div>
       <div class="t" style="margin:6px 0">${items}</div>
       <div class="ordertop"><span class="t">${stamp(o.createdAt)}</span>
