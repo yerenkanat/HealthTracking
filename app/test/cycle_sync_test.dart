@@ -2,7 +2,6 @@
 /// hook that mirrors each changed day to the server (the admin wellness diary).
 library;
 
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/data/api_client.dart';

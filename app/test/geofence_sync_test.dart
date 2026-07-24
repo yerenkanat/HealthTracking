@@ -3,7 +3,6 @@
 /// real zones and the server can raise enter/exit alerts.
 library;
 
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';

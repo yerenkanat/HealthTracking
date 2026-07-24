@@ -32,6 +32,36 @@ credentials); add backend **token verification** (firebase-admin is already a
 dependency); run **Postgres** so sync *persists* (it is per-session against the
 default in-memory backend); and reconcile local vs server **child ids** (below).
 
+## Update — 2026-07-24: sync + restore now cover most data types
+
+The tables further down ("Implemented server-side, not called by the app" and
+"all of a user's data lives on one device") are **out of date** — read them as
+history, not current state. Since 2026-07-22 the local-first store gained a
+push-on-change hook AND a pull-on-sign-in restore for nearly everything:
+
+- **Push** (`AppController.attach*Sync`, all 16 wired in `main.dart`):
+  profile, children, devices, geofences, sleep, cycle days, appointments,
+  medications + doses, growth, weight, vaccines, newborn log, BP calibration,
+  emergency medical-ID, contraction/kick sessions, auth session.
+- **Restore** (`mergeRemote*`, driven by `_restore()` on sign-in, local-wins,
+  order-independent, concurrent): the same set. A new phone now rehydrates from
+  the backend instead of starting empty. Covered by `test/restore_test.dart`
+  and the per-type `*_sync_test.dart` suites.
+
+So `submitBpCalibration` (step 4 below) and the profile/children sync (step 3)
+are **done**. What remains genuinely open: real token verification (auth stub),
+Postgres so it *persists* across sessions, and the two defects below.
+
+Two items in the tables below are still accurate and still matter:
+
+1. **The `/ingest/batch` "disk mirror" is not real.** `main.dart` passes
+   `persist: (_) async {}` / `restore: () async => []` to `TelemetryBatcher`
+   (`// TODO: MMKV disk mirror`). The offline queue is memory-only, so telemetry
+   queued while offline is **lost if the app is killed before it flushes**. The
+   "Offline-first with a disk mirror" note below is aspirational — correct the
+   claim or finish the mirror.
+2. **Ingest is still not idempotent** (own section below) — unchanged.
+
 ## The one blocker (historical — mostly resolved above)
 
 **There was no sign-in.** `authUser` is still a dev stub that trusts an
