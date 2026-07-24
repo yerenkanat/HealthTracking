@@ -2016,6 +2016,7 @@ class AppController {
       systolicMmHg: v.systolic,
       diastolicMmHg: v.diastolic,
       coreTempC: v.temperature,
+      glucoseMmol: v.glucose,
     );
     // Remember it durably. Band telemetry is transient because the band
     // re-supplies it on the next connection; a reading someone typed by hand
@@ -2027,6 +2028,7 @@ class AppController {
       systolic: v.systolic?.toDouble(),
       diastolic: v.diastolic?.toDouble(),
       coreTemp: v.temperature,
+      glucose: v.glucose,
     ));
     if (_manualSamples.length > _maxManualSamples) {
       _manualSamples.removeRange(0, _manualSamples.length - _maxManualSamples);
@@ -2104,6 +2106,7 @@ class AppController {
       systolic: t.systolicMmHg?.toDouble(),
       diastolic: t.diastolicMmHg?.toDouble(),
       coreTemp: t.coreTempC,
+      glucose: t.glucoseMmol,
       duringSleep: t.duringSleep,
     ));
     final f = triage.findings.isNotEmpty ? triage.findings.first : null;

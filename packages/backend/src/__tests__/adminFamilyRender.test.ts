@@ -147,6 +147,21 @@ describe('the family sections in the user drawer', () => {
     });
   });
 
+  describe('blood glucose in the vitals block', () => {
+    it('shows a graded glucose reading when she has one', async () => {
+      const { drawer, errors } = await openDrawer({ latest: { hr: 78, spo2: 98, systolic: 118, diastolic: 76, temp: 36.6, glucose: 8.2 } });
+      expect(errors).toEqual([]);
+      expect(drawer).toContain('Glucose');
+      expect(drawer).toContain('8.2');
+      expect(drawer).toContain('mmol/L');
+    });
+    it('omits glucose when there is no reading', async () => {
+      const { drawer, errors } = await openDrawer({ latest: { hr: 78, spo2: 98, systolic: 118, diastolic: 76, temp: 36.6 } });
+      expect(errors).toEqual([]);
+      expect(drawer).not.toContain('Glucose');
+    });
+  });
+
   describe('wellness fields that were returned but never rendered', () => {
     it("shows the emergency medical-ID free-text notes", async () => {
       const { drawer, errors } = await openDrawer({}, {

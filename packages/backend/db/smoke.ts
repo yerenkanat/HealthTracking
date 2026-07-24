@@ -52,7 +52,7 @@ async function main() {
   ok(cnt.rows[0].n === 1, 'exactly one row stored despite two sends');
 
   console.log('manual reading (no device — the typed cuff path):');
-  const manual = { deviceId: '', userId: U, recordedAt: '2026-07-24T12:00:00.000Z', systolicMmHg: 130, diastolicMmHg: 85, triageSeverity: 'ok' };
+  const manual = { deviceId: '', userId: U, recordedAt: '2026-07-24T12:00:00.000Z', systolicMmHg: 130, diastolicMmHg: 85, glucoseMmol: 8.2, triageSeverity: 'ok' };
   const m1 = await repo.insertHealthMetric(manual as never);
   const m2 = await repo.insertHealthMetric(manual as never);
   ok(m1 === false, 'a hand-typed reading (device_id NULL) is stored, not rejected by the uuid cast');
@@ -82,6 +82,7 @@ async function main() {
   ok(list.users.some((u) => u.id === U), 'adminListUsers returns the user');
   const detail = await repo.adminUserDetail(U);
   ok(!!detail && detail.children.some((c) => c.id === C), 'adminUserDetail assembles children');
+  ok(!!detail && detail.latest.glucose === 8.2, 'adminUserDetail latest carries the manual glucose reading');
 
   console.log('remaining sync methods (first run against real pg):');
   await repo.recordWeight(U, { date: '2026-07-20', kg: 68.5 } as never);

@@ -29,8 +29,8 @@ export function createPgRepository(pool: Pool): Repository {
       const res = await pool.query(
         `INSERT INTO pregnancy_health_metrics
            (device_id, user_id, recorded_at, core_temp_c, skin_temp_c, heart_rate_bpm,
-            spo2_pct, systolic_mmhg, diastolic_mmhg, during_sleep, triage_severity)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            spo2_pct, systolic_mmhg, diastolic_mmhg, glucose_mmol, during_sleep, triage_severity)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          ON CONFLICT (user_id, device_id, recorded_at) DO NOTHING`,
         [
           // A manual reading carries deviceId '' (no device); store it as NULL so
@@ -38,7 +38,7 @@ export function createPgRepository(pool: Pool): Repository {
           // uuid cast.
           m.deviceId || null, m.userId, m.recordedAt, m.coreTempC ?? null, m.skinTempC ?? null,
           m.heartRateBpm ?? null, m.spo2Pct ?? null, m.systolicMmHg ?? null,
-          m.diastolicMmHg ?? null, m.duringSleep ?? false, m.triageSeverity,
+          m.diastolicMmHg ?? null, m.glucoseMmol ?? null, m.duringSleep ?? false, m.triageSeverity,
         ],
       );
       return (res.rowCount ?? 0) === 0; // true = duplicate (nothing inserted)
@@ -503,7 +503,7 @@ export function createPgRepository(pool: Pool): Repository {
     },
     async adminUserHealth(userId) {
       const latest = await pool.query(
-        `SELECT heart_rate_bpm, spo2_pct, systolic_mmhg, diastolic_mmhg, core_temp_c
+        `SELECT heart_rate_bpm, spo2_pct, systolic_mmhg, diastolic_mmhg, core_temp_c, glucose_mmol
          FROM pregnancy_health_metrics WHERE user_id = $1 ORDER BY recorded_at DESC LIMIT 1`, [userId]);
       if (latest.rows.length === 0) return null;
       const r = latest.rows[0];
@@ -511,7 +511,7 @@ export function createPgRepository(pool: Pool): Repository {
         `SELECT triage_severity, recorded_at FROM pregnancy_health_metrics
          WHERE user_id = $1 AND triage_severity IN ('warning','emergency') ORDER BY recorded_at DESC LIMIT 20`, [userId]);
       return {
-        latest: { hr: r.heart_rate_bpm, spo2: r.spo2_pct, systolic: r.systolic_mmhg, diastolic: r.diastolic_mmhg, temp: r.core_temp_c },
+        latest: { hr: r.heart_rate_bpm, spo2: r.spo2_pct, systolic: r.systolic_mmhg, diastolic: r.diastolic_mmhg, temp: r.core_temp_c, glucose: r.glucose_mmol },
         triage: triage.rows.map((t) => ({ code: t.triage_severity, severity: t.triage_severity, at: new Date(t.recorded_at).toISOString() })),
       };
     },

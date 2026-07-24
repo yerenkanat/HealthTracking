@@ -54,6 +54,10 @@ class BandTelemetry {
   final int? spo2Pct;
   final int? systolicMmHg;
   final int? diastolicMmHg;
+  // Blood glucose in mmol/L. A WELLNESS reading (typed glucometer / band estimate).
+  // Carried so it syncs to the backend, but assessTelemetry never reads it — it is
+  // not a triage vital and must never force the Emergency screen.
+  final double? glucoseMmol;
   final bool duringSleep;
 
   const BandTelemetry({
@@ -63,6 +67,7 @@ class BandTelemetry {
     this.spo2Pct,
     this.systolicMmHg,
     this.diastolicMmHg,
+    this.glucoseMmol,
     this.duringSleep = false,
   });
 
@@ -73,6 +78,7 @@ class BandTelemetry {
         spo2Pct: (j['spo2Pct'] as num?)?.toInt(),
         systolicMmHg: (j['systolicMmHg'] as num?)?.toInt(),
         diastolicMmHg: (j['diastolicMmHg'] as num?)?.toInt(),
+        glucoseMmol: (j['glucoseMmol'] as num?)?.toDouble(),
         duringSleep: (j['duringSleep'] as bool?) ?? false,
       );
 
@@ -84,6 +90,7 @@ class BandTelemetry {
         if (spo2Pct != null) 'spo2Pct': spo2Pct,
         if (systolicMmHg != null) 'systolicMmHg': systolicMmHg,
         if (diastolicMmHg != null) 'diastolicMmHg': diastolicMmHg,
+        if (glucoseMmol != null) 'glucoseMmol': glucoseMmol,
         'duringSleep': duringSleep,
       };
 }

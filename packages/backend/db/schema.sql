@@ -157,6 +157,7 @@ CREATE TABLE pregnancy_health_metrics (
   spo2_pct       SMALLINT,
   systolic_mmhg  SMALLINT,      -- PPG screening estimate (calibrated)
   diastolic_mmhg SMALLINT,      -- PPG screening estimate (calibrated)
+  glucose_mmol   REAL,          -- blood glucose (typed glucometer or band estimate); wellness, not triaged
   during_sleep   BOOLEAN NOT NULL DEFAULT FALSE,
   -- Highest triage severity computed at ingest, for fast dashboard filtering.
   triage_severity TEXT NOT NULL DEFAULT 'ok'

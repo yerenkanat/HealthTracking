@@ -1772,10 +1772,16 @@
     // The acute clinical picture — latest vitals, how trustworthy the BP is
     // (calibration), and the triage history. A clinician reads these first, so
     // they lead the drawer right after identity, ahead of the care logs.
+    // Blood glucose (mmol/L), graded green/amber/red on the same pregnancy-aware
+    // thresholds the app uses. Shown only when she has a reading (typed or band).
+    const glucoseColor=(v)=> v==null ? 'var(--ink)' : (v>=11.1||v<3.0) ? 'var(--crit)' : (v>=7.8||v<3.9) ? 'var(--warn)' : 'var(--good)';
+    const glucoseVital = h.latest.glucose!=null
+      ? `<div class="vital"><div class="k">Glucose</div><div class="v" style="color:${glucoseColor(h.latest.glucose)}">${h.latest.glucose}<span style="font-size:12px;color:var(--muted)"> mmol/L</span></div></div>`
+      : '';
     const acuteBlock=`
       <div class="dsec">Последние измерения</div>
       <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
-      <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
+      <div class="vitals" style="grid-template-columns:${glucoseVital?'1fr 1fr':'1fr'}">${vital("temp","Temperature","°C")}${glucoseVital}</div>
       ${bpCalSection}
       <div class="dsec">История триажа</div>
       <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>`;

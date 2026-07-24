@@ -48,6 +48,12 @@ export interface BandTelemetry {
   /** PPG-estimated blood pressure. SCREENING ONLY — must be confirmed by a cuff. */
   systolicMmHg?: number;
   diastolicMmHg?: number;
+  /**
+   * Blood glucose in mmol/L. A WELLNESS reading (a typed glucometer value, or the
+   * band's optical estimate) — stored and shown, but NOT run through triage: an
+   * estimate must never force the Emergency screen. assessTelemetry ignores it.
+   */
+  glucoseMmol?: number;
   /** True when the sample was captured while the wearer was detected asleep. */
   duringSleep?: boolean;
   battery?: number;

@@ -33,10 +33,11 @@ class _LogVitalsSheetState extends State<_LogVitalsSheet> {
   final _sys = TextEditingController();
   final _dia = TextEditingController();
   final _temp = TextEditingController();
+  final _glucose = TextEditingController();
 
   @override
   void dispose() {
-    for (final c in [_hr, _spo2, _sys, _dia, _temp]) {
+    for (final c in [_hr, _spo2, _sys, _dia, _temp, _glucose]) {
       c.dispose();
     }
     super.dispose();
@@ -48,6 +49,7 @@ class _LogVitalsSheetState extends State<_LogVitalsSheet> {
         systolic: int.tryParse(_sys.text.trim()),
         diastolic: int.tryParse(_dia.text.trim()),
         temperature: double.tryParse(_temp.text.trim().replaceAll(',', '.')),
+        glucose: double.tryParse(_glucose.text.trim().replaceAll(',', '.')),
       );
 
   @override
@@ -88,7 +90,11 @@ class _LogVitalsSheetState extends State<_LogVitalsSheet> {
               Expanded(child: _Field(controller: _spo2, label: l.t('vitals_spo2'), onChanged: _rebuild)),
             ]),
             const SizedBox(height: 12),
-            _Field(controller: _temp, label: l.t('vitals_temp'), decimal: true, onChanged: _rebuild),
+            Row(children: [
+              Expanded(child: _Field(controller: _temp, label: l.t('vitals_temp'), decimal: true, onChanged: _rebuild)),
+              const SizedBox(width: 10),
+              Expanded(child: _Field(controller: _glucose, label: l.t('vitals_glucose'), decimal: true, onChanged: _rebuild)),
+            ]),
             if (showError) ...[
               const SizedBox(height: 12),
               Row(children: [

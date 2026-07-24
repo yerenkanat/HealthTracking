@@ -994,6 +994,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'vitals_hr': {AppLocale.ru: 'Пульс (уд/мин)', AppLocale.kk: 'Тамыр соғуы (соқ/мин)', AppLocale.en: 'Heart rate (bpm)'},
   'vitals_spo2': {AppLocale.ru: 'Сатурация (%)', AppLocale.kk: 'Қанықтық (%)', AppLocale.en: 'Blood oxygen (%)'},
   'vitals_temp': {AppLocale.ru: 'Температура (°C)', AppLocale.kk: 'Температура (°C)', AppLocale.en: 'Temperature (°C)'},
+  'vitals_glucose': {AppLocale.ru: 'Глюкоза (ммоль/л)', AppLocale.kk: 'Глюкоза (ммоль/л)', AppLocale.en: 'Glucose (mmol/L)'},
   'vitals_err_range': {AppLocale.ru: 'Одно из значений вне допустимого диапазона — проверьте ввод.', AppLocale.kk: 'Мәндердің бірі рұқсат етілген ауқымнан тыс — тексеріңіз.', AppLocale.en: 'One of the values is outside the plausible range — please check it.'},
   'vitals_err_bp_pair': {AppLocale.ru: 'Укажите оба значения давления — верхнее и нижнее.', AppLocale.kk: 'Қысымның екі мәнін де көрсетіңіз.', AppLocale.en: 'Enter both blood-pressure values, upper and lower.'},
   'vitals_err_bp_order': {AppLocale.ru: 'Нижнее давление должно быть меньше верхнего — возможно, они переставлены.', AppLocale.kk: 'Төменгі қысым жоғарғыдан кіші болуы керек — орындары ауысып кеткен шығар.', AppLocale.en: 'The lower value must be below the upper one — they may be swapped.'},

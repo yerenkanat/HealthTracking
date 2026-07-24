@@ -100,6 +100,9 @@ const telemetryBase = z.object({
     spo2Pct: z.number().int().min(1).max(100).optional(),
     systolicMmHg: z.number().int().min(40).max(300).optional(),
     diastolicMmHg: z.number().int().min(20).max(220).optional(),
+    // Blood glucose in mmol/L. A wide, physiologically-possible band — reject the
+    // impossible, not the alarming (a real hypo/hyper must get through).
+    glucoseMmol: z.number().finite().min(1).max(40).optional(),
     duringSleep: z.boolean().optional(),
 });
 const telemetrySchema = telemetryBase.refine(

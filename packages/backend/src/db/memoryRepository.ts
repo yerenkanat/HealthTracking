@@ -413,7 +413,7 @@ export function createMemoryRepository(): Repository {
       );
       const last = mine[mine.length - 1];
       if (!last) {
-        return { latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 }, triage: [] };
+        return { latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7, glucose: 5.4 }, triage: [] };
       }
       const num = (v: unknown) => (typeof v === 'number' ? v : null);
       return {
@@ -423,6 +423,7 @@ export function createMemoryRepository(): Repository {
           systolic: num(last.systolicMmHg),
           diastolic: num(last.diastolicMmHg),
           temp: num(last.coreTempC),
+          glucose: num(last.glucoseMmol),
         },
         triage: mine
           .filter((r) => r.triageSeverity === 'emergency' || r.triageSeverity === 'warning')
@@ -459,7 +460,7 @@ export function createMemoryRepository(): Repository {
           childId: d.childId,
           batteryPct: batteryByDevice.get(d.id) ?? null,
         })),
-        latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 },
+        latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7, glucose: 5.4 },
         triage: [],
         alerts: alerts.slice(0, 20).map((a) => ({
           kind: a.kind,

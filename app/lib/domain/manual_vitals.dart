@@ -10,7 +10,7 @@
 library;
 
 /// Which vital a validation message refers to.
-enum VitalField { heartRate, spo2, systolic, diastolic, temperature }
+enum VitalField { heartRate, spo2, systolic, diastolic, temperature, glucose }
 
 /// Plausible input ranges. Deliberately wide — anything a real person could
 /// actually measure is accepted, including clearly dangerous values.
@@ -20,6 +20,7 @@ const vitalRanges = <VitalField, ({num min, num max})>{
   VitalField.systolic: (min: 50, max: 260),
   VitalField.diastolic: (min: 30, max: 200),
   VitalField.temperature: (min: 30.0, max: 45.0),
+  VitalField.glucose: (min: 1.0, max: 40.0), // mmol/L — physiologically possible span
 };
 
 bool inVitalRange(VitalField f, num v) {
@@ -35,10 +36,11 @@ class ManualVitals {
   final int? systolic;
   final int? diastolic;
   final double? temperature;
-  const ManualVitals({this.heartRate, this.spo2, this.systolic, this.diastolic, this.temperature});
+  final double? glucose; // mmol/L — a typed glucometer reading (wellness, not triaged)
+  const ManualVitals({this.heartRate, this.spo2, this.systolic, this.diastolic, this.temperature, this.glucose});
 
   bool get isEmpty =>
-      heartRate == null && spo2 == null && systolic == null && diastolic == null && temperature == null;
+      heartRate == null && spo2 == null && systolic == null && diastolic == null && temperature == null && glucose == null;
 }
 
 /// Why a reading can't be saved. Empty when it's good to go.
@@ -59,6 +61,7 @@ List<VitalsError> validateVitals(ManualVitals v) {
     (VitalField.systolic, v.systolic),
     (VitalField.diastolic, v.diastolic),
     (VitalField.temperature, v.temperature),
+    (VitalField.glucose, v.glucose),
   ];
   for (final (field, value) in checks) {
     if (value != null && !inVitalRange(field, value)) {

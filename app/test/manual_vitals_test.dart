@@ -20,6 +20,20 @@ void main() {
     await c.dispose();
   });
 
+  test('a manual glucose reading is stored + evaluated, but never triaged', () async {
+    final c = AppController(now: () => DateTime(2026, 7, 16, 9));
+    // A hand-typed glucometer value in the gestational-diabetes range.
+    final ok = c.logManualVitals(const ManualVitals(glucose: 8.5));
+    expect(ok, isTrue);
+    expect(c.samples.single.glucose, 8.5);
+    // Wellness, not triage: an elevated glucose must NOT force the Emergency screen.
+    expect(c.emergencyActive, isFalse);
+    expect(c.route, isNot(AppRoute.emergency));
+    // Out-of-range glucose is rejected like any other implausible vital.
+    expect(c.logManualVitals(const ManualVitals(glucose: 60)), isFalse);
+    await c.dispose();
+  });
+
   test('an invalid reading changes nothing', () async {
     final c = AppController(now: () => DateTime(2026, 7, 16, 9));
     // Transposed blood pressure — a typo, not a reading.
