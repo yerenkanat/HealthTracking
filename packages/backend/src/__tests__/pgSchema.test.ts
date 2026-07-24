@@ -38,6 +38,26 @@ function definedTables(): Set<string> {
 }
 
 /**
+ * table -> its column names, parsed from each CREATE TABLE body. A line is a
+ * column definition when it starts with an identifier that isn't a table
+ * constraint keyword (PRIMARY / FOREIGN / CONSTRAINT / CHECK / UNIQUE).
+ */
+function tableColumns(): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const re = /create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)\s*\(([\s\S]*?)\n\s*\);/gi;
+  for (const m of schema.matchAll(re)) {
+    const cols = new Set<string>();
+    for (const raw of m[2].split('\n')) {
+      const line = raw.trim();
+      const c = line.match(/^([a-z_][a-z0-9_]*)\s/i);
+      if (c && !/^(primary|foreign|constraint|check|unique)\b/i.test(line)) cols.add(c[1].toLowerCase());
+    }
+    out.set(m[1].toLowerCase(), cols);
+  }
+  return out;
+}
+
+/**
  * Names bound by a WITH clause, which are queryable but not tables.
  *
  * Matches the CTE head `WITH x AS (` and each `, y AS (` that follows, so a
@@ -147,6 +167,48 @@ describe('pgRepository against db/schema.sql', () => {
     // The trigram indexes are useless without the extension that provides the
     // operator class, and CREATE INDEX would fail outright at build time.
     expect(indexed).toContain('create extension if not exists pg_trgm');
+  });
+
+  it('every INSERT / UPDATE column the repository writes exists in that table', () => {
+    // The table-name sweep above catches a wrong TABLE; it can't catch a wrong
+    // COLUMN. adminUserDetail SELECTed a bare `phone` when the column is
+    // phone_e164 — the whole detail card threw on real Postgres while every
+    // in-memory test passed. SELECT columns are ambiguous to parse (aliases,
+    // joins, functions), but INSERT column lists and `col = $n` assignments are
+    // unambiguous and single-table, so those we CAN verify without a live DB.
+    const cols = tableColumns();
+    const problems: string[] = [];
+
+    // INSERT INTO <table> (a, b, c) — the first paren group is the column list.
+    for (const m of repo.matchAll(/insert\s+into\s+([a-z_][a-z0-9_]*)\s*\(([^)]+)\)/gi)) {
+      const table = m[1].toLowerCase();
+      const known = cols.get(table);
+      if (!known) continue; // unknown table is the other test's job
+      for (const col of m[2].split(',').map((c) => c.trim().toLowerCase()).filter(Boolean)) {
+        if (!known.has(col)) problems.push(`INSERT ${table}.${col}`);
+      }
+    }
+
+    // UPDATE <table> SET ... — the `col = $n` assignments (skips COALESCE(...)
+    // forms, which is fine: a false miss, never a false alarm).
+    for (const m of repo.matchAll(/update\s+([a-z_][a-z0-9_]*)\s+set\s+([\s\S]*?)\s+where/gi)) {
+      const table = m[1].toLowerCase();
+      const known = cols.get(table);
+      if (!known) continue;
+      for (const a of m[2].matchAll(/([a-z_][a-z0-9_]*)\s*=\s*\$/gi)) {
+        if (!known.has(a[1].toLowerCase())) problems.push(`UPDATE ${table}.${a[1]}`);
+      }
+    }
+
+    expect(problems, `column not in schema: ${problems.join(', ')}`).toEqual([]);
+  });
+
+  it('the column parser actually found columns (guards the guard)', () => {
+    const cols = tableColumns();
+    expect(cols.get('users')?.has('phone_e164')).toBe(true);
+    expect(cols.get('users')?.has('phone')).toBe(false); // the bug column must NOT exist
+    expect(cols.get('med_doses')?.has('count')).toBe(true);
+    expect((cols.get('children')?.size ?? 0)).toBeGreaterThan(3);
   });
 
   it('every repository method the interface declares is implemented', () => {
