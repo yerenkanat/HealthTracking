@@ -172,6 +172,22 @@ describe('the exception-first flags summary', () => {
     expect(drawer).toContain('Требует внимания');
     expect(drawer).toMatch(/не откалибровано/);
   });
+
+  it('leads with the acute clinical picture, ahead of the care logs', async () => {
+    // Flags → profile → vitals/triage (acute) → then the logs. A clinician reads
+    // the numbers before scrolling the diaries.
+    const growth = [{ childId: 'c1', childName: 'Айша', at: '2026-07-01', weightKg: 7 }];
+    const { drawer, errors } = await openDrawer(null, { growth });
+    expect(errors).toEqual([]);
+    const attention = drawer.indexOf('Требует внимания');
+    const vitals = drawer.indexOf('Последние измерения');
+    const triage = drawer.indexOf('История триажа');
+    const careLog = drawer.indexOf('Рост и вес'); // a care-log section
+    expect(attention).toBeGreaterThanOrEqual(0);
+    expect(vitals).toBeGreaterThan(attention); // flags first
+    expect(careLog).toBeGreaterThan(triage); // logs after the acute block
+    expect(triage).toBeGreaterThan(vitals);
+  });
 });
 
 describe('the child-growth section in the user drawer', () => {

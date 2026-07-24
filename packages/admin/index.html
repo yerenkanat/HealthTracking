@@ -1621,6 +1621,16 @@
       :`<div class="dsec">Требует внимания</div><div class="tl"><div class="tli"><span class="t" style="color:var(--muted)">Флагов нет — ничего не требует внимания сейчас</span></div></div>`;
     const initial=u.displayName.trim()[0]||"U";
     const vital=(k,label,unit)=>`<div class="vital ${h.alert.includes(k)?'alert':''}"><div class="k">${label}</div><div class="v">${h.latest[k]}<span style="font-size:12px;color:var(--muted)"> ${unit}</span></div></div>`;
+    // The acute clinical picture — latest vitals, how trustworthy the BP is
+    // (calibration), and the triage history. A clinician reads these first, so
+    // they lead the drawer right after identity, ahead of the care logs.
+    const acuteBlock=`
+      <div class="dsec">Последние измерения</div>
+      <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
+      <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
+      ${bpCalSection}
+      <div class="dsec">История триажа</div>
+      <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>`;
     $("#drawer").innerHTML=`
       <div class="dh"><span class="avatar">${esc(initial)}</span><div><b>${esc(u.displayName)}</b><div class="t num">${esc(u.phone)}</div></div>
         <button class="iconbtn close" id="dClose" aria-label="Закрыть карточку">✕</button></div>
@@ -1641,6 +1651,7 @@
           v ?? '<span style="color:var(--muted)">не указано</span>'
         }</span></div>`).join("")}
       </div>
+      ${acuteBlock}
       ${(()=>{const st=anStatus(gestWeek(u)); return st?`
       <div class="dsec">Антенатальный план</div>
       <div class="tl"><div class="tli"><span><b>Визит ${st.n} из ${st.total}</b> · ${st.wk}</span><span class="t">${
@@ -1666,12 +1677,6 @@
       ${newbornSection}
       ${growthSection}
       ${vaccinesSection}
-      <div class="dsec">Последние измерения</div>
-      <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
-      <div class="vitals" style="grid-template-columns:1fr">${vital("temp","Temperature","°C")}</div>
-      ${bpCalSection}
-      <div class="dsec">История триажа</div>
-      <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>
       <div class="disc">Только просмотр. Каждое открытие записывается в журнал действий.</div>`;
     $("#drawer").classList.add("open");$("#scrim").classList.add("open");
     $("#dClose").onclick=closeDrawer;
