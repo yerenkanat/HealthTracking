@@ -12,6 +12,7 @@ import 'package:fcs_app/ui/widgets/glass.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/ble/link_policy.dart';
 import 'package:fcs_app/domain/wearable_metrics.dart';
+import 'package:fcs_app/domain/sleep.dart';
 
 const _notMeasuring = 'Device not connected — these readings may be out of date.';
 
@@ -36,6 +37,18 @@ void main() {
     // Sleep is deliberately NOT a tile — the dedicated Sleep card owns it.
     expect(find.text('Sleep'), findsNothing);
     expect(find.text('Breathing'), findsOneWidget);
+  });
+
+  testWidgets('the sleep card sits on the home page, under the vital signs (not behind the watch detail)', (tester) async {
+    final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
+    final nights = [
+      SleepSummary(night: DateTime(2026, 7, 15), deepMin: 95, remMin: 70, lightMin: 280, awakeMin: 0),
+    ];
+    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples, sleepNights: nights)));
+    // Visible on the home page directly — no tap into the wearable detail needed.
+    await tester.scrollUntilVisible(find.text('Sleep'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Sleep'), findsOneWidget);
+    expect(find.text('Last night'), findsOneWidget);
   });
 
   testWidgets('the wearable summary is hidden with no watch or sleep data', (tester) async {

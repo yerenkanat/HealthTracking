@@ -247,23 +247,24 @@ class HealthDashboardView extends StatelessWidget {
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
-                  // The watch's activity / wellbeing / sleep, as ONE compact
-                  // summary card. The full breakdown lives on its own screen
-                  // (WearableDetailScreen) — keeping the detail there is what lets
-                  // this page stay a glance (safety vitals + a preview) instead of
-                  // a wall of watch numbers. Shown when there's any wearable data
-                  // or a sleep night to open into.
-                  if ((wearable?.hasAnything ?? false) || latestNight(sleepNights) != null || onLogSleep != null) ...[
+                  // Sleep sits directly under the vital signs — it is one of her
+                  // core health readings, not something to bury in the watch
+                  // detail. Shown when there's a night to show or a way to log one.
+                  if (latestNight(sleepNights) != null || onLogSleep != null) ...[
+                    const SizedBox(height: 14),
+                    SleepCard(nights: sleepNights, onLog: onLogSleep),
+                  ],
+                  // The watch's activity / wellbeing, as ONE compact summary card.
+                  // The full breakdown lives on its own screen (WearableDetailScreen)
+                  // — keeping the detail there is what lets this page stay a glance
+                  // (safety vitals + sleep + a preview) instead of a wall of watch
+                  // numbers. Shown when there's any wearable data to open into.
+                  if (wearable?.hasAnything ?? false) ...[
                     const SizedBox(height: 14),
                     _WearableSummaryCard(
                       m: wearable,
-                      sleepNights: sleepNights,
                       onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => WearableDetailScreen(
-                          metrics: wearable,
-                          sleepNights: sleepNights,
-                          onLogSleep: onLogSleep,
-                        ),
+                        builder: (_) => WearableDetailScreen(metrics: wearable),
                       )),
                     ),
                   ],
@@ -711,9 +712,7 @@ class _AdvisorEntry extends StatelessWidget {
 /// vitals + a preview) rather than a wall of watch numbers.
 class WearableDetailScreen extends StatelessWidget {
   final WearableMetrics? metrics;
-  final List<SleepSummary> sleepNights;
-  final VoidCallback? onLogSleep;
-  const WearableDetailScreen({super.key, this.metrics, this.sleepNights = const [], this.onLogSleep});
+  const WearableDetailScreen({super.key, this.metrics});
 
   @override
   Widget build(BuildContext context) {
@@ -725,12 +724,9 @@ class WearableDetailScreen extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
           children: [
-            if (metrics case final m? when m.hasAnything) ...[
-              _ActivityWellnessCard(m: m),
-              const SizedBox(height: 14),
-            ],
-            if (latestNight(sleepNights) != null || onLogSleep != null)
-              SleepCard(nights: sleepNights, onLog: onLogSleep),
+            // Sleep now lives on the health home under the vital signs; this
+            // screen is the watch's activity + wellbeing breakdown.
+            if (metrics case final m? when m.hasAnything) _ActivityWellnessCard(m: m),
           ],
         ),
       ),
@@ -744,9 +740,8 @@ class WearableDetailScreen extends StatelessWidget {
 /// page stays a summary — the detail is one tap away, not gone.
 class _WearableSummaryCard extends StatelessWidget {
   final WearableMetrics? m;
-  final List<SleepSummary> sleepNights;
   final VoidCallback onTap;
-  const _WearableSummaryCard({required this.m, required this.sleepNights, required this.onTap});
+  const _WearableSummaryCard({required this.m, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -759,12 +754,7 @@ class _WearableSummaryCard extends StatelessWidget {
       } else if (w.kcal > 0) {
         bits.add('${w.kcal} ${l.t('wm_unit_kcal')}');
       }
-    }
-    final night = latestNight(sleepNights);
-    if (night != null) {
-      bits.add('${l.t('wm_sleep')} ${l.t('wm_sleep_hm', {'h': '${night.asleepMin ~/ 60}', 'm': '${night.asleepMin % 60}'})}');
-    } else if (w?.stress != null) {
-      bits.add('${l.t('wm_stress')} ${w!.stress}');
+      if (w.stress != null) bits.add('${l.t('wm_stress')} ${w.stress}');
     }
     final preview = bits.take(2).join(' · ');
 
