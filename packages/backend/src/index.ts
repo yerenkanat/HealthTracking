@@ -206,11 +206,48 @@ async function main(): Promise<void> {
   // /shop/products (unlike an off-site page, which CSP would block).
   try {
     const shopBody = readFileSync(fileURLToPath(new URL('../shop/index.html', import.meta.url)), 'utf8');
-    const shopHtml =
+    const TITLE = 'Umay — умные часы и детский GPS-трекер · Казахстан';
+    const DESC =
+      'Смарт-часы следят за самочувствием мамы, детский GPS-трекер показывает, ' +
+      'где ребёнок. Часы 19 900 ₸, трекер 9 900 ₸. Оплата при получении, ' +
+      'доставка по Казахстану, гарантия 1 год.';
+    // Preview image (WhatsApp/Instagram/Telegram cards) is generated from the
+    // same brand art and served below; its URL is built from the request host
+    // so the tags are correct in dev and in production without a hardcoded domain.
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const head = (base: string) =>
       `<!doctype html><html lang="ru"><head><meta charset="utf-8">` +
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>Umay — умные часы и детский трекер</title></head><body>${shopBody}</body></html>`;
-    app.get('/shop', async (_req, reply) => reply.type('text/html').send(shopHtml));
+      `<title>${esc(TITLE)}</title>` +
+      `<meta name="description" content="${esc(DESC)}">` +
+      `<meta name="theme-color" content="#6D5AE6">` +
+      `<meta property="og:type" content="website">` +
+      `<meta property="og:site_name" content="Umay">` +
+      `<meta property="og:locale" content="ru_KZ">` +
+      `<meta property="og:title" content="${esc(TITLE)}">` +
+      `<meta property="og:description" content="${esc(DESC)}">` +
+      `<meta property="og:url" content="${esc(base)}/shop">` +
+      `<meta property="og:image" content="${esc(base)}/shop/og.png">` +
+      `<meta property="og:image:width" content="1200">` +
+      `<meta property="og:image:height" content="630">` +
+      `<meta name="twitter:card" content="summary_large_image">` +
+      `<meta name="twitter:title" content="${esc(TITLE)}">` +
+      `<meta name="twitter:description" content="${esc(DESC)}">` +
+      `<meta name="twitter:image" content="${esc(base)}/shop/og.png">` +
+      `</head><body>${shopBody}</body></html>`;
+    const requestBase = (req: { headers: Record<string, string | string[] | undefined>; protocol?: string }) => {
+      const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || 'umay.kz';
+      const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
+      return `${proto}://${host}`;
+    };
+    app.get('/shop', async (req, reply) => reply.type('text/html').send(head(requestBase(req))));
+
+    // The social-preview card — a real PNG crawlers can fetch (data: URIs and
+    // relative paths are unreliable across scrapers), cached hard since it only
+    // changes when the art does.
+    const ogPng = readFileSync(fileURLToPath(new URL('../shop/og.png', import.meta.url)));
+    app.get('/shop/og.png', async (_req, reply) =>
+      reply.type('image/png').header('cache-control', 'public, max-age=86400').send(ogPng));
   } catch {
     app.log.warn('shop storefront html not found; /shop page disabled');
   }
