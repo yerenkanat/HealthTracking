@@ -67,7 +67,7 @@ function makeApp(callerId: string) {
     listDevices: async () => [],
     upsertChild: async () => {},
     createDevice: async () => {},
-    insertHealthMetric: async () => {},
+    insertHealthMetric: async () => false,
     insertBpCalibration: async () => {},
     latestBpCalibration: async () => null,
     insertGeofenceEvent: async () => {},

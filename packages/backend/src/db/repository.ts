@@ -210,7 +210,18 @@ export interface AdminAnalytics {
 
 export interface Repository {
   // Health
-  insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<void>;
+  /**
+   * Store one reading. Idempotent on (userId, deviceId, recordedAt): the batcher
+   * re-sends a whole batch when a flush's RESPONSE is lost even though the server
+   * stored it, so the same reading can arrive twice.
+   *
+   * Returns `true` when this reading was a DUPLICATE of one already stored (so the
+   * caller skips the emergency push and counts it separately), `false` when it was
+   * freshly inserted. Fail-safe: an implementation that does not dedup returns
+   * `false`, so the worst case is a repeated push (today's behaviour), never a
+   * SUPPRESSED real emergency.
+   */
+  insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<boolean>;
   insertBpCalibration(userId: string, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }): Promise<void>;
   // The caller's most recent calibration, or null. Powers the admin drawer
   // (is her BP calibrated, and how recently?) and the new-device restore.

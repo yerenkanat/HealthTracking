@@ -60,7 +60,8 @@ Two items in the tables below are still accurate and still matter:
    queued while offline is **lost if the app is killed before it flushes**. The
    "Offline-first with a disk mirror" note below is aspirational — correct the
    claim or finish the mirror.
-2. **Ingest is still not idempotent** (own section below) — unchanged.
+2. ~~**Ingest is still not idempotent**~~ — **fixed 2026-07-24.** See the section
+   below, now marked resolved.
 
 ## The one blocker (historical — mostly resolved above)
 
@@ -173,39 +174,38 @@ and a staff session with role claims (back-office), return the same shapes, set
 `REAL_AUTH=1`. Every route already goes through `requireCaller` / `requireAdmin`
 and checks ownership, and those checks do not change.
 
-## Telemetry ingest is not idempotent
+## Telemetry ingest is idempotent — RESOLVED 2026-07-24
 
-`TelemetryBatcher` requeues a whole batch whenever a flush fails — including
-the case where the server processed it and the RESPONSE was lost on the way
-back. The same readings then arrive a second time. Nothing on the server
-rejects them, so that produces duplicate rows in her history and a second
-emergency push for a single reading.
+`TelemetryBatcher` requeues a whole batch whenever a flush fails — including the
+case where the server processed it and the RESPONSE was lost on the way back.
+The same readings then arrived a second time, producing duplicate rows in her
+history **and a second emergency push for a single reading** — one critical-BP
+reading, two "your blood pressure is critical" notifications.
 
-`keys.bandFrameDedup` in `cache/redis.ts` was declared for exactly this and is
-wired to nothing.
+### The fix (as shipped)
 
-### Where the fix belongs
-
-Not in Redis. A cache that expires cannot promise idempotency, and the window
-that matters here (a retry minutes later, or after a restart) is longer than
-any TTL worth keeping. The right place is a unique index:
+A unique constraint makes the duplicate impossible in the database, and the
+insert reports back whether it stored anything so the caller can skip the push:
 
 ```sql
+-- schema.sql + migrations/006_phm_idempotent.sql
 ALTER TABLE pregnancy_health_metrics
   ADD CONSTRAINT phm_unique_reading UNIQUE (user_id, device_id, recorded_at);
 ```
 
-with `INSERT ... ON CONFLICT DO NOTHING` in `insertHealthMetric`, so a repeat
-is impossible rather than merely unlikely, and the count the client gets back
-still reflects what was stored.
+- `insertHealthMetric` uses `INSERT ... ON CONFLICT (user_id, device_id,
+  recorded_at) DO NOTHING` and returns `true` when the row was already there
+  (`rowCount === 0`). The in-memory repo mirrors it with a seen-key set.
+- `ingestTelemetry` skips the emergency push and the store count on a duplicate,
+  and reports it in a new `duplicates` field of the ingest summary. **Fail-safe:**
+  a repo that does not dedup returns `false`, so the worst case is the old
+  behaviour (a repeated push), never a *suppressed* real emergency.
+- Manual cuff readings carry `deviceId: ''` but distinct `recorded_at`, so they
+  never false-collide; the constraint only ever rejects a true resend.
 
-Deferred rather than done because it changes what `/ingest/batch` reports for a
-duplicate (stored vs. rejected vs. silently accepted), and that answer should
-be settled when the real client is syncing against a real database — not
-guessed at now.
-
-Manual readings carry `deviceId: ''`, so the constraint needs a device
-placeholder or a partial index; worth deciding at the same time.
+Locked by `ingestIdempotency.test.ts` (resend an emergency batch → one row, one
+push, `duplicates: 1`). `keys.bandFrameDedup` in `cache/redis.ts` is now obsolete
+— the DB constraint, not a TTL cache, provides the guarantee.
 
 ## Acknowledging an emergency has nowhere to be recorded
 

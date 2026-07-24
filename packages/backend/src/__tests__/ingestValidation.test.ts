@@ -33,7 +33,7 @@ function build() {
   emergencyPushes = 0;
 
   const repo = {
-    insertHealthMetric: async (m: Record<string, unknown>) => void healthRows.push(m),
+    insertHealthMetric: async (m: Record<string, unknown>) => { healthRows.push(m); return false; },
     insertLocation: async (f: Record<string, unknown>) => void locations.push(f),
     deviceOwner: async (id: string) => (id === DEVICE ? { userId: USER } : null),
     childOwner: async (id: string) => (id === CHILD ? { userId: USER } : null),

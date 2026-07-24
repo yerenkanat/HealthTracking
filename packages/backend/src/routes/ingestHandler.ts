@@ -42,6 +42,9 @@ export interface IngestSummary {
   emergencies: number;
   geofenceEvents: GeofenceEvent[];
   rejected: number;
+  /** Readings that were already stored (a resend of a batch whose response was
+   *  lost). Counted, not stored again, and NOT re-pushed as an emergency. */
+  duplicates: number;
 }
 
 export async function handleIngestBatch(
@@ -54,6 +57,7 @@ export async function handleIngestBatch(
     emergencies: 0,
     geofenceEvents: [],
     rejected: 0,
+    duplicates: 0,
   };
 
   for (const item of items) {
@@ -110,7 +114,14 @@ async function ingestTelemetry(
   }
   // Server-side triage backstop (the device already triaged, but never trust the client).
   const triage = assessTelemetry(t);
-  await deps.repo.insertHealthMetric({ ...t, userId, triageSeverity: triage.severity });
+  const duplicate = await deps.repo.insertHealthMetric({ ...t, userId, triageSeverity: triage.severity });
+  // A resend of a reading already stored: the batcher requeues a whole batch
+  // when a flush's response is lost, so this same emergency would otherwise push
+  // a second time. Count it, store nothing, push nothing.
+  if (duplicate) {
+    summary.duplicates++;
+    return;
+  }
   summary.telemetryCount++;
 
   if (triage.forceEmergencyScreen) {

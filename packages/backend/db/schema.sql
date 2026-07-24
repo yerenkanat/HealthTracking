@@ -142,7 +142,13 @@ CREATE TABLE pregnancy_health_metrics (
     CHECK (triage_severity IN ('ok','info','warning','emergency')),
   CONSTRAINT sane_hr   CHECK (heart_rate_bpm IS NULL OR heart_rate_bpm BETWEEN 20 AND 250),
   CONSTRAINT sane_spo2 CHECK (spo2_pct IS NULL OR spo2_pct BETWEEN 50 AND 100),
-  CONSTRAINT sane_bp   CHECK (systolic_mmhg IS NULL OR systolic_mmhg BETWEEN 60 AND 260)
+  CONSTRAINT sane_bp   CHECK (systolic_mmhg IS NULL OR systolic_mmhg BETWEEN 60 AND 260),
+  -- Idempotent ingest: the batcher re-sends a whole batch when a flush's RESPONSE
+  -- is lost even though the row was stored, so the same reading can arrive twice.
+  -- One reading per (user, device, instant) makes the resend a no-op instead of a
+  -- duplicate history row and a second emergency push. Includes recorded_at, the
+  -- hypertable partition column, as Timescale requires of a unique constraint.
+  CONSTRAINT phm_unique_reading UNIQUE (user_id, device_id, recorded_at)
 );
 SELECT create_hypertable('pregnancy_health_metrics', 'recorded_at',
                          chunk_time_interval => INTERVAL '7 days');

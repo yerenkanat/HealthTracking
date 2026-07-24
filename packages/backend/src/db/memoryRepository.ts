@@ -45,6 +45,9 @@ export function createMemoryRepository(): Repository {
   const medications: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
   const events: GeofenceEvent[] = [];
   const healthRows: unknown[] = [];
+  // Idempotency for telemetry ingest, mirroring the pg phm_unique_reading
+  // constraint: (userId, deviceId, recordedAt) seen before → duplicate resend.
+  const seenReadings = new Set<string>();
   // Emergency acknowledgements, keyed by the derived emergency id. An overlay —
   // the emergencies themselves are still derived from the health rows, so
   // acknowledging one needs no change to the ingest/triage path.
@@ -121,7 +124,13 @@ export function createMemoryRepository(): Repository {
 
   return {
     // Health
-    insertHealthMetric: async (m) => void healthRows.push(m),
+    insertHealthMetric: async (m) => {
+      const key = `${m.userId}|${m.deviceId}|${m.recordedAt}`;
+      if (seenReadings.has(key)) return true; // duplicate resend — do not store again
+      seenReadings.add(key);
+      healthRows.push(m);
+      return false;
+    },
     insertBpCalibration: async (userId, cal) => void bpCalibrations.push({ ...cal, userId }),
     latestBpCalibration: async (userId) => {
       const mine = bpCalibrations.filter((c) => c.userId === userId);
@@ -506,6 +515,7 @@ export function createMemoryRepository(): Repository {
       childEmergency.clear();
       newbornEvents.clear();
       healthRows.length = 0;
+      seenReadings.clear();
       sleep.length = 0;
       dayLogs.clear();
       alerts.length = 0;

@@ -22,17 +22,23 @@ import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
 export function createPgRepository(pool: Pool): Repository {
   return {
     async insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }) {
-      await pool.query(
+      // ON CONFLICT DO NOTHING against the phm_unique_reading constraint makes a
+      // resend a no-op instead of a duplicate row. rowCount is 0 when the row was
+      // already there, which is how the caller learns not to push the emergency
+      // (or count the reading) a second time.
+      const res = await pool.query(
         `INSERT INTO pregnancy_health_metrics
            (device_id, user_id, recorded_at, core_temp_c, skin_temp_c, heart_rate_bpm,
             spo2_pct, systolic_mmhg, diastolic_mmhg, during_sleep, triage_severity)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         ON CONFLICT (user_id, device_id, recorded_at) DO NOTHING`,
         [
           m.deviceId, m.userId, m.recordedAt, m.coreTempC ?? null, m.skinTempC ?? null,
           m.heartRateBpm ?? null, m.spo2Pct ?? null, m.systolicMmHg ?? null,
           m.diastolicMmHg ?? null, m.duringSleep ?? false, m.triageSeverity,
         ],
       );
+      return (res.rowCount ?? 0) === 0; // true = duplicate (nothing inserted)
     },
 
     async insertBpCalibration(userId, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }) {

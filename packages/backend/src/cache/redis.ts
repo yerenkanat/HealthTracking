@@ -29,18 +29,14 @@ export const keys = {
   bpCalibration: (userId: string) => `bpcal:${userId}:latest`,
   geofenceState: (childId: string) => `geofence:${childId}:state`, // hash: fenceId -> 'in'|'out'
 
-  /// NOT WIRED UP. Declared for idempotent telemetry ingest and used by
-  /// nothing, so band frames are not deduplicated at all.
+  /// OBSOLETE — kept only so an old key name is not silently reused.
   ///
-  /// That matters because TelemetryBatcher requeues a whole batch whenever a
-  /// flush fails — including when the server processed it and the RESPONSE was
-  /// lost. The same readings then arrive twice: duplicate rows in the history,
-  /// and a second emergency push for one reading.
-  ///
-  /// Left declared rather than deleted because the fix belongs in the database,
-  /// not here: a unique index on (user_id, device_id, recorded_at) makes the
-  /// duplicate impossible instead of merely unlikely, and a cache that expires
-  /// cannot promise idempotency anyway. Tracked in docs/INTEGRATION_STATUS.md.
+  /// Telemetry-ingest idempotency now lives in the database, where it belongs: a
+  /// unique constraint `phm_unique_reading (user_id, device_id, recorded_at)` with
+  /// `INSERT ... ON CONFLICT DO NOTHING` makes a resend impossible instead of
+  /// merely unlikely, and the insert reports the duplicate back so the emergency
+  /// push is skipped. A cache that expires could never have promised that. Safe to
+  /// delete once nothing references it. See docs/INTEGRATION_STATUS.md.
   bandFrameDedup: (deviceId: string) => `band:${deviceId}:lastframe`,
 } as const;
 
