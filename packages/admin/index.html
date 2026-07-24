@@ -1773,6 +1773,41 @@
       ${bpCalSection}
       <div class="dsec">История триажа</div>
       <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>`;
+
+    // ---- Family: her children and the devices tracking them. ----
+    // The backend has returned children[] and devices[] all along; the drawer
+    // simply never rendered them, so "how many kids, which watch/tracker, what
+    // battery" was invisible in the back-office. Both are shown now.
+    const ruPlural=(n,one,few,many)=>{const a=n%10,b=n%100;return (a===1&&b!==11)?one:(a>=2&&a<=4&&(b<10||b>=20))?few:many;};
+    const childAge=(iso)=>{
+      if(!iso) return "";
+      const d=new Date(iso); if(isNaN(d)) return "";
+      const now=new Date();
+      let mo=(now.getFullYear()-d.getFullYear())*12+(now.getMonth()-d.getMonth());
+      if(now.getDate()<d.getDate()) mo--;
+      if(mo<0) return "";
+      if(mo<24) return mo+" "+ruPlural(mo,"месяц","месяца","месяцев");
+      const y=Math.floor(mo/12); return y+" "+ruPlural(y,"год","года","лет");
+    };
+    const kids=u.children||[];
+    const childrenSection=kids.length?`
+      <div class="dsec">Дети · ${kids.length}</div>
+      <div class="tl">${kids.map(c=>{
+        const age=childAge(c.dateOfBirth);
+        const z=c.zones?` · ${c.zones} ${ruPlural(c.zones,"зона","зоны","зон")}`:"";
+        return `<div class="tli"><span><b>${esc(c.name||"—")}</b></span><span class="t">${age?esc(age):'<span style="color:var(--muted)">возраст не указан</span>'}${z}</span></div>`;
+      }).join("")}</div>`:"";
+    // Watch / band / tracker → a Russian label, with battery and which child it
+    // follows. Falls back to the raw kind rather than hiding an unknown device.
+    const devKind=(k)=>{const m={band:"Браслет",watch:"Часы",tracker:"Трекер",tag:"Трекер",beacon:"Маячок",phone:"Телефон"};return m[String(k||"").toLowerCase()]||esc(k||"Устройство");};
+    const devs=u.devices||[];
+    const devicesSection=devs.length?`
+      <div class="dsec">Устройства · ${devs.length}</div>
+      <div class="tl">${devs.map(d=>{
+        const child=d.childId?((kids.find(c=>c.id===d.childId)||{}).name||""):"";
+        const meta=[d.batteryPct!=null?`${d.batteryPct}%`:null,child?esc(child):null].filter(Boolean).join(" · ");
+        return `<div class="tli"><span><b>${devKind(d.kind)}</b>${d.name?` <span class="t">${esc(d.name)}</span>`:""}</span><span class="t num">${meta||"—"}</span></div>`;
+      }).join("")}</div>`:"";
     $("#drawer").innerHTML=`
       <div class="dh"><span class="avatar">${esc(initial)}</span><div><b>${esc(u.displayName)}</b><div class="t num">${esc(u.phone)}</div></div>
         <button class="iconbtn close" id="dClose" aria-label="Закрыть карточку">✕</button></div>
@@ -1783,6 +1818,7 @@
           ["Дата рождения", u.birthDate ? `${esc(u.birthDate)}${ageFrom(u.birthDate)}` : null],
           ["Город", u.city ? esc(u.city) : null],
           ["Срок родов", u.dueDate ? esc(u.dueDate) : null],
+          ["Срок беременности", (()=>{const wk=gestWeek(u); return wk!=null ? `${wk}-я неделя` : null;})()],
           ["Язык", u.locale ? esc(u.locale) : null],
           ["Контакт врача", u.doctorPhone ? esc(u.doctorPhone) : null],
           ["Цикл (база)", u.avgCycleLength ? `${u.avgCycleLength} дн. · менстр. ${u.avgPeriodLength||"—"} дн.` : null],
@@ -1793,6 +1829,8 @@
           v ?? '<span style="color:var(--muted)">не указано</span>'
         }</span></div>`).join("")}
       </div>
+      ${childrenSection}
+      ${devicesSection}
       ${acuteBlock}
       ${(()=>{const st=anStatus(gestWeek(u)); return st?`
       <div class="dsec">Антенатальный план</div>
