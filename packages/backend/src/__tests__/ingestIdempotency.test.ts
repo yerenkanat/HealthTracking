@@ -47,9 +47,9 @@ const EMERGENCY_BATCH = {
   items: [{ type: 'telemetry', payload: { source: 'manual', deviceId: '', recordedAt: AT, systolicMmHg: 168, diastolicMmHg: 116 } }],
 };
 
-async function post(a: FastifyInstance, body: unknown) {
+async function post(a: FastifyInstance, body: object) {
   const r = await a.inject({ method: 'POST', url: '/ingest/batch', payload: body });
-  return { status: r.statusCode, body: r.json() };
+  return { status: r.statusCode, body: r.json() as Record<string, number> };
 }
 
 describe('POST /ingest/batch is idempotent per reading', () => {

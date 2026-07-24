@@ -133,28 +133,33 @@ as uncorrected and flags them stale — but it is a real step to redo.
 
 ## Authentication: what is actually protecting this
 
-Nothing, yet. Both auth functions are development stubs in
-`packages/backend/src/index.ts`:
+**User auth is wired; staff/admin auth is not.** As of 2026-07-24:
 
-- `authUser` trusts an `x-user-id` header.
-- `authAdmin` trusts `x-staff-id` plus `x-staff-role`.
-
-So **anyone who can reach the port can type `x-staff-role: admin`** and read
-every family's record, every child's last known location, the audit log, and
-rewrite the timeline catalogue that a hundred thousand phones will show. There
-is no password anywhere in the system.
+- `authUser` — real. `initFirebaseAuth()` lazily loads `firebase-admin` and
+  verifies a Firebase ID token → uid when `REAL_AUTH=1` (a service account is
+  needed to activate it). In dev it also honours the app's stub session token and
+  the `x-user-id` header. So the USER path is code-complete; it needs credentials,
+  not code.
+- `authAdmin` — **still a development stub.** It trusts `x-staff-id` plus
+  `x-staff-role` outright; there is no real staff/RBAC verifier yet. **`REAL_AUTH`
+  does NOT cover it.** So anyone who can reach the port can type
+  `x-staff-role: admin` and read every family's record, every child's last known
+  location, the audit log, and rewrite the timeline catalogue.
 
 The ownership checks on top of this are real and worth keeping — they stop one
 signed-in user reaching another's data, and eight IDOR holes were closed to make
-that true. They assume the identity is honest. Right now it is whatever the
-caller typed.
+that true. They assume the identity is honest.
 
 ### What now stops that becoming a production incident
 
-1. **The server refuses to start** when `NODE_ENV=production` and the stubs are
-   still in use. It exits 1 with a message naming the problem. A TODO comment
-   does not stop a deploy; this does. Set `REAL_AUTH=1` once token verification
-   is wired.
+1. **The server refuses to start** when `NODE_ENV=production` and *either* path is
+   still a stub — decided by the pure `authPosture(env)` (tested in
+   `authPosture.test.ts`). The earlier guard checked only `!REAL_AUTH`, so a
+   `REAL_AUTH=1` deploy — enabling the now-real USER auth — would have shipped the
+   back-office **still trusting a forged `x-staff-role`**, while the log claimed
+   auth was real. Now `REAL_AUTH=1` alone is not enough: staff auth must be wired
+   too (which flips `adminStub` in `authPosture.ts` — deliberately a code change,
+   not an env flag, so a stub can never be waved through).
 2. **It binds to `127.0.0.1` by default.** It bound to `0.0.0.0`, which put a
    server trusting a forgeable admin header on every network the machine had
    joined — a café's Wi-Fi was enough. `HOST` still widens it, so the exposure

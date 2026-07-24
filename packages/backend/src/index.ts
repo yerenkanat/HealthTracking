@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import type { FastifyRequest } from 'fastify';
 import { buildServer } from './server';
 import type { ServerDeps } from './server';
+import { authPosture } from './authPosture';
 import { createMemoryRepository } from './db/memoryRepository';
 import { makeAuthUser } from './http/auth';
 import type { BandTelemetry, ChildLocationFix } from '@fcs/shared';
@@ -209,12 +210,25 @@ async function main(): Promise<void> {
   // anywhere else.
   //
   // A TODO comment does not stop a deploy. This does.
-  const usingStubAuth = !process.env.REAL_AUTH;
+  //
+  // REAL_AUTH secures only the USER path; authAdmin is a separate header stub that
+  // it does NOT cover. Guarding on `!REAL_AUTH` alone let a REAL_AUTH=1 deploy ship
+  // a back-office anyone could enter with a forged x-staff-role header, while the
+  // log said authentication was real. The guard now refuses whenever EITHER path
+  // is still a stub.
+  const posture = authPosture(process.env);
+  const usingStubAuth = posture.userStub || posture.adminStub;
   if (usingStubAuth && process.env.NODE_ENV === 'production') {
     app.log.fatal(
-      'Refusing to start: authentication is still the development header stub ' +
-        '(x-user-id / x-staff-role), which anyone can forge. Wire real token ' +
-        'verification and set REAL_AUTH=1.',
+      'Refusing to start: authentication is still a development stub, which anyone ' +
+        'who can reach the port can forge. ' +
+        (posture.userStub
+          ? 'User auth: set REAL_AUTH=1 with a Firebase service account. '
+          : '') +
+        (posture.adminStub
+          ? 'Staff/back-office auth still trusts x-staff-id / x-staff-role — no real ' +
+            'verifier is wired, and REAL_AUTH does not cover it. '
+          : ''),
     );
     process.exit(1);
   }
