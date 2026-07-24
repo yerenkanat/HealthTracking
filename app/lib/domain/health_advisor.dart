@@ -85,6 +85,18 @@ List<Advisory> generateAdvisories(
     positive.add(Advisory('ADV_TEMP_STEADY', AdviceTone.positive, 'temp', value: temp.latest));
   }
 
+  // ---- Blood glucose (a wellness estimate — graded here, never triaged) ----
+  final glucose = statsFor(buildSeries(samples, 'glucose'));
+  if (glucose != null) {
+    if (glucose.latest >= GlucoseThresholds.elevatedMmol) {
+      watch.add(Advisory('ADV_GLUCOSE_HIGH', AdviceTone.watch, 'glucose', value: glucose.latest));
+    } else if (glucose.latest < GlucoseThresholds.lowMmol) {
+      watch.add(Advisory('ADV_GLUCOSE_LOW', AdviceTone.watch, 'glucose', value: glucose.latest));
+    } else {
+      positive.add(Advisory('ADV_GLUCOSE_STEADY', AdviceTone.positive, 'glucose', value: glucose.latest));
+    }
+  }
+
   // ---- SpO2 steady (healthy oxygen, no sleep dips) ----
   final spo2Stats = statsFor(buildSeries(samples, 'spo2'));
   if (spo2Stats != null && spo2Stats.min >= 96 && sleepDips.isEmpty) {

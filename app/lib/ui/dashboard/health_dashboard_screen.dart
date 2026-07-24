@@ -830,7 +830,13 @@ class _ActivityWellnessCard extends StatelessWidget {
       if (m.breathRate != null)
         _StatTile(icon: Icons.air_rounded, colour: Palette.blue, label: l.t('wm_breath'), value: '${m.breathRate}', unit: l.t('wm_unit_brpm')),
       if (m.bloodSugar != null)
-        _StatTile(icon: Icons.water_drop_rounded, colour: Palette.violet, label: l.t('wm_sugar'), value: _num1(m.bloodSugar!), unit: l.t('wm_unit_mmol')),
+        _StatTile(
+            icon: Icons.water_drop_rounded,
+            colour: Palette.violet,
+            label: l.t('wm_sugar'),
+            value: _num1(m.bloodSugar!),
+            unit: l.t('wm_unit_mmol'),
+            valueColor: _statusColor(metricStatus('glucose', m.bloodSugar!))),
     ];
 
     return GlassCard(
@@ -923,7 +929,10 @@ class _StatTile extends StatelessWidget {
   final String label;
   final String value;
   final String? unit;
-  const _StatTile({required this.icon, required this.colour, required this.label, required this.value, this.unit});
+  /// Colours the value when the reading carries a health grade (e.g. glucose).
+  /// Null for neutral metrics like steps, where a colour would imply a judgement.
+  final Color? valueColor;
+  const _StatTile({required this.icon, required this.colour, required this.label, required this.value, this.unit, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
@@ -956,7 +965,12 @@ class _StatTile extends StatelessWidget {
               children: [
                 Text(value,
                     maxLines: 1,
-                    style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700, height: 1)),
+                    style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        color: valueColor ?? Palette.text)),
                 if (unit != null) ...[
                   const SizedBox(width: 3),
                   Text(unit!, style: const TextStyle(color: Palette.textDim, fontSize: 10.5)),

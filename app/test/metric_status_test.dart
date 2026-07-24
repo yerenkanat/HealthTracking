@@ -37,6 +37,14 @@ void main() {
     test('danger at high fever', () => expect(metricStatus('temp', 38.6), MetricStatus.danger));
   });
 
+  group('metricStatus — glucose (mmol/L, two-sided)', () {
+    test('normal casual reading', () => expect(metricStatus('glucose', 5.4), MetricStatus.normal));
+    test('watch when elevated (GDM screening band)', () => expect(metricStatus('glucose', 8.2), MetricStatus.watch));
+    test('watch when mildly low', () => expect(metricStatus('glucose', 3.6), MetricStatus.watch));
+    test('danger when diabetes-range high', () => expect(metricStatus('glucose', 12.0), MetricStatus.danger));
+    test('danger when severely low', () => expect(metricStatus('glucose', 2.8), MetricStatus.danger));
+  });
+
   group('worstStatus', () {
     test('empty is normal', () => expect(worstStatus(const []), MetricStatus.normal));
     test('picks the most severe', () {
@@ -45,5 +53,5 @@ void main() {
     });
   });
 
-  test('unknown metric is treated as normal', () => expect(metricStatus('glucose', 999), MetricStatus.normal));
+  test('unknown metric is treated as normal', () => expect(metricStatus('cortisol', 999), MetricStatus.normal));
 }

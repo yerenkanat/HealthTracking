@@ -204,6 +204,7 @@ class _AdvisoryCard extends StatelessWidget {
     return switch (a.metric) {
       'temp' => '${v.toStringAsFixed(1)}°',
       'spo2' => '${v.round()}%',
+      'glucose' => v.toStringAsFixed(1),
       'systolic' => '${v.round()}',
       _ => '${v.round()}',
     };

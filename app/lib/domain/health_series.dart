@@ -16,6 +16,8 @@ class HealthSample {
   final double? systolic;
   final double? diastolic;
   final double? coreTemp;
+  final double? glucose; // mmol/L. A wellness estimate (band optical / manual),
+  // graded by the advisor — deliberately NOT a triage/emergency vital.
   final bool duringSleep;
   const HealthSample({
     required this.at,
@@ -24,6 +26,7 @@ class HealthSample {
     this.systolic,
     this.diastolic,
     this.coreTemp,
+    this.glucose,
     this.duringSleep = false,
   });
 
@@ -36,6 +39,7 @@ class HealthSample {
         if (systolic != null) 'systolicMmHg': systolic,
         if (diastolic != null) 'diastolicMmHg': diastolic,
         if (coreTemp != null) 'coreTempC': coreTemp,
+        if (glucose != null) 'glucoseMmol': glucose,
         if (duringSleep) 'duringSleep': true,
       };
 
@@ -46,6 +50,7 @@ class HealthSample {
         systolic: (j['systolicMmHg'] as num?)?.toDouble(),
         diastolic: (j['diastolicMmHg'] as num?)?.toDouble(),
         coreTemp: (j['coreTempC'] as num?)?.toDouble(),
+        glucose: (j['glucoseMmol'] as num?)?.toDouble(),
         duringSleep: (j['duringSleep'] as bool?) ?? false,
       );
 }
@@ -78,6 +83,16 @@ class MetricBand {
 
 const metricKeys = ['hr', 'spo2', 'systolic', 'diastolic', 'temp'];
 
+/// Casual (non-fasting) blood-glucose bands in mmol/L, pregnancy-aware. These
+/// grade a wellness estimate (band optical sensor or a typed glucometer value) —
+/// they are NOT diagnostic and deliberately never trigger the emergency triage.
+class GlucoseThresholds {
+  static const elevatedMmol = 7.8; // GDM screening flag for a random / 2-hour reading
+  static const highMmol = 11.1; // diabetes-range random reading
+  static const lowMmol = 3.9; // hypoglycaemia
+  static const severeLowMmol = 3.0; // severe hypoglycaemia
+}
+
 MetricBand bandFor(String metric) {
   switch (metric) {
     case 'hr':
@@ -90,6 +105,8 @@ MetricBand bandFor(String metric) {
       return MetricBand(warnAbove: TriageThresholds.bpDiastolicEmergency.toDouble());
     case 'temp':
       return const MetricBand(warnAbove: TriageThresholds.feverWarningC);
+    case 'glucose':
+      return const MetricBand(warnAbove: GlucoseThresholds.elevatedMmol, warnBelow: GlucoseThresholds.lowMmol);
     default:
       return const MetricBand();
   }
@@ -101,6 +118,7 @@ double? _pick(HealthSample s, String metric) => switch (metric) {
       'systolic' => s.systolic,
       'diastolic' => s.diastolic,
       'temp' => s.coreTemp,
+      'glucose' => s.glucose,
       _ => null,
     };
 
@@ -211,6 +229,10 @@ MetricStatus metricStatus(String metric, double v) {
     case 'temp':
       if (v >= TriageThresholds.feverEmergencyC) return MetricStatus.danger;
       if (v >= TriageThresholds.feverWarningC) return MetricStatus.watch;
+      return MetricStatus.normal;
+    case 'glucose':
+      if (v >= GlucoseThresholds.highMmol || v < GlucoseThresholds.severeLowMmol) return MetricStatus.danger;
+      if (v >= GlucoseThresholds.elevatedMmol || v < GlucoseThresholds.lowMmol) return MetricStatus.watch;
       return MetricStatus.normal;
     default:
       return MetricStatus.normal;

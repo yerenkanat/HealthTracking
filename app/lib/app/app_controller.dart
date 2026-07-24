@@ -1369,7 +1369,24 @@ class AppController {
   void onWearableMetrics(WearableMetrics metrics) {
     _latestWearable = metrics;
     _recordBandSleep(metrics);
+    _recordBandGlucose(metrics);
     _notify();
+  }
+
+  double? _lastBandGlucose;
+
+  /// Fold the band's blood-sugar estimate into the health series so the advisor
+  /// (and the glucose sparkline) can actually reason over it. Before this the
+  /// number reached the wellness tile and nowhere else — displayed, never judged.
+  /// De-duplicated: the band re-sends the same snapshot every sync, and one
+  /// unchanged reading is not a new data point. A wellness estimate only — it is
+  /// never routed through the emergency triage.
+  void _recordBandGlucose(WearableMetrics m) {
+    final g = m.bloodSugar;
+    if (g == null || g <= 0) return;
+    if (_lastBandGlucose != null && (g - _lastBandGlucose!).abs() < 0.05) return;
+    _lastBandGlucose = g;
+    store.addSample(HealthSample(at: m.at, glucose: g));
   }
 
   /// Fold the band's nightly sleep into the sleep HISTORY, not just the live
