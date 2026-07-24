@@ -33,7 +33,10 @@ export function createPgRepository(pool: Pool): Repository {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          ON CONFLICT (user_id, device_id, recorded_at) DO NOTHING`,
         [
-          m.deviceId, m.userId, m.recordedAt, m.coreTempC ?? null, m.skinTempC ?? null,
+          // A manual reading carries deviceId '' (no device); store it as NULL so
+          // it satisfies the FK and the nullable column, instead of failing the
+          // uuid cast.
+          m.deviceId || null, m.userId, m.recordedAt, m.coreTempC ?? null, m.skinTempC ?? null,
           m.heartRateBpm ?? null, m.spo2Pct ?? null, m.systolicMmHg ?? null,
           m.diastolicMmHg ?? null, m.duringSleep ?? false, m.triageSeverity,
         ],

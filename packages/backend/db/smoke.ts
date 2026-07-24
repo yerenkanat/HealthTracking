@@ -48,8 +48,17 @@ async function main() {
   const second = await repo.insertHealthMetric(reading as never);
   ok(first === false, 'first insert stores the reading (not a duplicate)');
   ok(second === true, 'identical resend is reported as a duplicate (ON CONFLICT DO NOTHING)');
-  const cnt = await pool.query('SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE user_id=$1', [U]);
+  const cnt = await pool.query('SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE user_id=$1 AND device_id IS NOT NULL', [U]);
   ok(cnt.rows[0].n === 1, 'exactly one row stored despite two sends');
+
+  console.log('manual reading (no device — the typed cuff path):');
+  const manual = { deviceId: '', userId: U, recordedAt: '2026-07-24T12:00:00.000Z', systolicMmHg: 130, diastolicMmHg: 85, triageSeverity: 'ok' };
+  const m1 = await repo.insertHealthMetric(manual as never);
+  const m2 = await repo.insertHealthMetric(manual as never);
+  ok(m1 === false, 'a hand-typed reading (device_id NULL) is stored, not rejected by the uuid cast');
+  ok(m2 === true, 'a resent manual reading dedups too (NULLS NOT DISTINCT)');
+  const mcnt = await pool.query('SELECT count(*)::int AS n FROM pregnancy_health_metrics WHERE user_id=$1 AND device_id IS NULL', [U]);
+  ok(mcnt.rows[0].n === 1, 'exactly one manual row despite two sends');
 
   // Clean up so the smoke test is repeatable.
   await pool.query('DELETE FROM users WHERE id=$1', [U]);

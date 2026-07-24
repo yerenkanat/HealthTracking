@@ -145,7 +145,10 @@ CREATE INDEX idx_med_doses_user ON med_doses (user_id, log_date DESC);
 -- Pregnancy health metrics — TIMESERIES (TimescaleDB hypertable)
 -- -----------------------------------------------------------------------------
 CREATE TABLE pregnancy_health_metrics (
-  device_id      UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  -- NULL = a manual (hand-typed cuff) reading: it has no device. Requiring a
+  -- device_id here rejected the app's most trustworthy readings outright, so a
+  -- mother's typed cuff numbers never reached her clinician on a real database.
+  device_id      UUID REFERENCES devices(id) ON DELETE CASCADE,
   user_id        UUID NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
   recorded_at    TIMESTAMPTZ NOT NULL,
   core_temp_c    REAL,
@@ -164,9 +167,10 @@ CREATE TABLE pregnancy_health_metrics (
   -- Idempotent ingest: the batcher re-sends a whole batch when a flush's RESPONSE
   -- is lost even though the row was stored, so the same reading can arrive twice.
   -- One reading per (user, device, instant) makes the resend a no-op instead of a
-  -- duplicate history row and a second emergency push. Includes recorded_at, the
-  -- hypertable partition column, as Timescale requires of a unique constraint.
-  CONSTRAINT phm_unique_reading UNIQUE (user_id, device_id, recorded_at)
+  -- duplicate history row and a second emergency push. NULLS NOT DISTINCT so that
+  -- manual readings (device_id NULL) dedup too — otherwise every NULL counts as
+  -- distinct and a resent hand-typed reading would slip through.
+  CONSTRAINT phm_unique_reading UNIQUE NULLS NOT DISTINCT (user_id, device_id, recorded_at)
 );
 -- (Was a TimescaleDB hypertable partitioned on recorded_at. A plain table with the
 -- same indexes is functionally identical; re-add create_hypertable in a migration
