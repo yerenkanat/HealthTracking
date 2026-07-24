@@ -1594,11 +1594,37 @@
         const per=m.perDay>1?` <span class="t">${m.perDay}×/день</span>`:"";
         return `<div class="tli"><span><b>${esc(m.name||"—")}</b>${per}</span><span class="t num">${esc(m.dose||"")}</span></div>`;
       }).join("")}</div>`:"";
+    // Exception-first summary. The drawer has ~18 sections; a clinician opening a
+    // patient should see what NEEDS attention before scrolling all of them. Every
+    // flag is computed from data already loaded here — no extra request.
+    const flags=[]; // {sev:'crit'|'warn'|'info', text}
+    const triageHist=(h.triage)||[];
+    if(triageHist.some(t=>t.severity==='emergency')) flags.push({sev:'crit',text:'Экстренная тревога в истории триажа'});
+    else if(triageHist.some(t=>t.severity==='warning')) flags.push({sev:'warn',text:'Предупреждение в истории триажа'});
+    if(!bpcal) flags.push({sev:'info',text:'Давление с браслета не откалибровано'});
+    else { const cd=Math.floor((Date.now()-new Date(bpcal.calibratedAt).getTime())/86400000);
+      if(cd>8) flags.push({sev:'warn',text:`Калибровка давления устарела (${cd} дн.)`}); }
+    // Medication adherence: a med missed on ≥2 of its recent days is worth a flag.
+    (()=>{ const medById=new Map(meds.map(m=>[m.id,m])); const byMed=new Map();
+      for(const d of doses){ if(!byMed.has(d.medId)) byMed.set(d.medId,[]); byMed.get(d.medId).push(d); }
+      for(const [medId,list] of byMed){ const m=medById.get(medId); const target=(m&&m.perDay>1)?m.perDay:1;
+        const recent=[...list].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,7);
+        const missed=recent.filter(d=>(Number(d.count)||0)<target).length;
+        if(missed>=2) flags.push({sev:'warn',text:`Пропуски приёма: ${m?esc(m.name):esc(medId)} (${missed} из ${recent.length} дн.)`}); } })();
+    // Recent safety crossings (child left a zone), from the detail payload.
+    const exits=((u.alerts)||[]).filter(a=>a.kind==='left'||a.kind==='entered').slice(0,3);
+    if(exits.some(a=>a.kind==='left')) flags.push({sev:'info',text:`Выход из зоны: ${exits.filter(a=>a.kind==='left').map(a=>esc(a.zoneName)).join(', ')}`});
+    const flagDot=s=>`var(--${s==='crit'?'crit':s==='warn'?'warn':'good'})`;
+    const flagsSection=flags.length?`
+      <div class="dsec">Требует внимания</div>
+      <div class="tl">${flags.map(f=>`<div class="tli"><span class="tld" style="background:${flagDot(f.sev)}"></span><span>${f.text}</span></div>`).join("")}</div>`
+      :`<div class="dsec">Требует внимания</div><div class="tl"><div class="tli"><span class="t" style="color:var(--muted)">Флагов нет — ничего не требует внимания сейчас</span></div></div>`;
     const initial=u.displayName.trim()[0]||"U";
     const vital=(k,label,unit)=>`<div class="vital ${h.alert.includes(k)?'alert':''}"><div class="k">${label}</div><div class="v">${h.latest[k]}<span style="font-size:12px;color:var(--muted)"> ${unit}</span></div></div>`;
     $("#drawer").innerHTML=`
       <div class="dh"><span class="avatar">${esc(initial)}</span><div><b>${esc(u.displayName)}</b><div class="t num">${esc(u.phone)}</div></div>
         <button class="iconbtn close" id="dClose" aria-label="Закрыть карточку">✕</button></div>
+      ${flagsSection}
       <div class="dsec">Профиль</div>
       <div class="tl">
         ${[

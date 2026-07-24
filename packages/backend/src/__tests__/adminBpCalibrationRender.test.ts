@@ -136,6 +136,44 @@ describe('the BP-calibration section in the user drawer', () => {
   });
 });
 
+describe('the exception-first flags summary', () => {
+  const freshCal = (daysAgo: number) => ({
+    systolicOffset: 8, diastolicOffset: 5, calibratedAt: new Date(Date.now() - daysAgo * 86400000).toISOString(),
+    cuffSystolic: 130, cuffDiastolic: 85, ppgSystolic: 122, ppgDiastolic: 80,
+  });
+
+  it('surfaces a stale calibration and a run of missed doses', async () => {
+    const meds = [{ id: 'm1', name: 'Аспирин', dose: '100mg', perDay: 1 }];
+    const doses = [
+      { medId: 'm1', date: '2026-07-23', count: 0 }, // missed
+      { medId: 'm1', date: '2026-07-22', count: 0 }, // missed
+      { medId: 'm1', date: '2026-07-21', count: 1 },
+    ];
+    const { drawer, errors } = await openDrawer(freshCal(20), { medications: meds, doses });
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('Требует внимания');
+    expect(drawer).toMatch(/Калибровка давления устарела/);
+    expect(drawer).toMatch(/Пропуски приёма: Аспирин/);
+  });
+
+  it('says nothing needs attention when everything is current', async () => {
+    const meds = [{ id: 'm1', name: 'Железо', dose: '30mg', perDay: 1 }];
+    const doses = [{ medId: 'm1', date: '2026-07-23', count: 1 }];
+    const { drawer, errors } = await openDrawer(freshCal(2), { medications: meds, doses });
+    expect(errors).toEqual([]);
+    expect(drawer).toMatch(/Флагов нет/);
+    expect(drawer).not.toMatch(/устарела/);
+    expect(drawer).not.toMatch(/Пропуски приёма/);
+  });
+
+  it('flags an uncalibrated band as info', async () => {
+    const { drawer, errors } = await openDrawer(null);
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('Требует внимания');
+    expect(drawer).toMatch(/не откалибровано/);
+  });
+});
+
 describe('the child-growth section in the user drawer', () => {
   const GROWTH = [
     { childId: 'c1', childName: 'Айша', at: '2026-06-01', weightKg: 6.8, heightCm: 63 },
