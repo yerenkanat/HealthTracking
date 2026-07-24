@@ -236,10 +236,19 @@ class HealthDashboardView extends StatelessWidget {
                     ],
                   ),
                   // Everything the watch tracks beyond the four vitals: steps,
-                  // distance, calories, sleep, stress, breathing, glucose.
+                  // distance, calories, stress, breathing, glucose — grouped into
+                  // Activity vs Wellbeing.
                   if (wearable case final w? when w.hasAnything) ...[
                     const SizedBox(height: 14),
                     _ActivityWellnessCard(m: w),
+                  ],
+                  // Sleep sits directly under Activity & Wellness — it IS wellness
+                  // data, and kept them contiguous rather than orphaned at the
+                  // foot of the screen. Shown even with no nights when hand-entry
+                  // is available (the card renders its own empty state).
+                  if (latestNight(sleepNights) != null || onLogSleep != null) ...[
+                    const SizedBox(height: 14),
+                    SleepCard(nights: sleepNights, onLog: onLogSleep),
                   ],
                   if (nextAppointment != null) ...[
                     const SizedBox(height: 14),
@@ -286,13 +295,6 @@ class HealthDashboardView extends StatelessWidget {
                       onSetGoal: onSetWaterGoal ?? (_) {},
                       onOpenHistory: onOpenWaterHistory,
                     ),
-                  ],
-                  // Shown even with no nights when hand-entry is available, so a
-                  // user without a band still has a way in (the card renders its
-                  // own empty state).
-                  if (latestNight(sleepNights) != null || onLogSleep != null) ...[
-                    const SizedBox(height: 14),
-                    SleepCard(nights: sleepNights, onLog: onLogSleep),
                   ],
                   if (onOpenAdvisor != null) ...[
                     const SizedBox(height: 18),
@@ -679,22 +681,29 @@ class _ActivityWellnessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    // Sleep is deliberately NOT shown here — the dedicated Sleep card above
-    // covers it far better (weekly average, quality, and the deep/light/REM/
-    // awake breakdown). A second "Сон N h" tile was the same figure twice.
-    final tiles = <Widget>[
+    // Sleep is deliberately NOT tiled here — the dedicated Sleep card, now placed
+    // immediately below this one, covers it far better (weekly average, quality,
+    // and the deep/light/REM/awake breakdown). A "Сон N h" tile was the same
+    // figure twice. The two cards form one contiguous wellness zone.
+
+    // Two clear categories rather than one undifferentiated grid: what she DID
+    // (movement) and how her body IS (physiological wellbeing). Each metric shows
+    // only when measured — an untracked glucose leaves no empty tile.
+    final activity = <Widget>[
       if (m.steps > 0)
         _StatTile(icon: Icons.directions_walk_rounded, colour: Palette.teal, label: l.t('wm_steps'), value: _grouped(m.steps)),
       if (m.meters > 0)
         _StatTile(icon: Icons.straighten_rounded, colour: Palette.blue, label: l.t('wm_distance'), value: _num1(m.km), unit: l.t('wm_unit_km')),
       if (m.kcal > 0)
-        _StatTile(icon: Icons.local_fire_department_rounded, colour: _tempA, label: l.t('wm_calories'), value: '${m.kcal}', unit: l.t('wm_unit_kcal')),
+        _StatTile(icon: Icons.local_fire_department_rounded, colour: Palette.watch, label: l.t('wm_calories'), value: '${m.kcal}', unit: l.t('wm_unit_kcal')),
+    ];
+    final wellbeing = <Widget>[
       if (m.stress != null)
         _StatTile(icon: Icons.self_improvement_rounded, colour: Palette.pink, label: l.t('wm_stress'), value: '${m.stress}'),
       if (m.breathRate != null)
-        _StatTile(icon: Icons.air_rounded, colour: Palette.teal, label: l.t('wm_breath'), value: '${m.breathRate}', unit: l.t('wm_unit_brpm')),
+        _StatTile(icon: Icons.air_rounded, colour: Palette.blue, label: l.t('wm_breath'), value: '${m.breathRate}', unit: l.t('wm_unit_brpm')),
       if (m.bloodSugar != null)
-        _StatTile(icon: Icons.water_drop_rounded, colour: _hrColor, label: l.t('wm_sugar'), value: _num1(m.bloodSugar!), unit: l.t('wm_unit_mmol')),
+        _StatTile(icon: Icons.water_drop_rounded, colour: Palette.violet, label: l.t('wm_sugar'), value: _num1(m.bloodSugar!), unit: l.t('wm_unit_mmol')),
     ];
 
     return GlassCard(
@@ -703,19 +712,12 @@ class _ActivityWellnessCard extends StatelessWidget {
         children: [
           Text(l.t('wm_title').toUpperCase(),
               style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
-          const SizedBox(height: 12),
-          // Two tiles per row, sized to the space so long localized values
-          // (a Kazakh "7 сағ 45 мин") never push a fixed-width tile off-screen.
-          LayoutBuilder(builder: (context, c) {
-            final tileW = (c.maxWidth - 10) / 2;
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [for (final t in tiles) SizedBox(width: tileW, child: t)],
-            );
-          }),
+          const SizedBox(height: 14),
+          _Group(label: l.t('wm_group_activity'), tiles: activity),
+          if (activity.isNotEmpty && wellbeing.isNotEmpty) const SizedBox(height: 16),
+          _Group(label: l.t('wm_group_wellbeing'), tiles: wellbeing),
           if (!m.worn) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Row(children: [
               const Icon(Icons.watch_off_outlined, size: 14, color: Palette.textDim),
               const SizedBox(width: 6),
@@ -739,6 +741,42 @@ class _ActivityWellnessCard extends StatelessWidget {
   }
 }
 
+/// One labelled category inside the Activity & Wellness card — a small header
+/// and its tiles laid three to a row, sized to the space so a long localized
+/// value never pushes a fixed-width tile off screen.
+class _Group extends StatelessWidget {
+  final String label;
+  final List<Widget> tiles;
+  const _Group({required this.label, required this.tiles});
+
+  @override
+  Widget build(BuildContext context) {
+    if (tiles.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(color: Palette.text, fontSize: 12.5, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 9),
+        LayoutBuilder(builder: (context, c) {
+          const gap = 9.0;
+          final tileW = (c.maxWidth - gap * 2) / 3;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [for (final t in tiles) SizedBox(width: tileW, child: t)],
+          );
+        }),
+      ],
+    );
+  }
+}
+
+/// A single metric tile. One unified design across every metric — a neutral
+/// surface with the metric's colour carried only in a small icon chip. The old
+/// tiles each flooded their whole box with a different pastel, so six of them
+/// read as noise; this reads as one set, and sits in the same visual family as
+/// the vitals cards above (their gradient _IconBadge, tinted down a tier).
 class _StatTile extends StatelessWidget {
   final IconData icon;
   final Color colour;
@@ -750,41 +788,47 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      padding: const EdgeInsets.fromLTRB(11, 11, 11, 12),
       decoration: BoxDecoration(
-        color: colour.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colour.withValues(alpha: 0.20)),
+        color: Palette.bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Icon(icon, size: 15, color: colour),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700)),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Flexible(
-                child: Text(value,
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700)),
-              ),
-              if (unit != null) ...[
-                const SizedBox(width: 3),
-                Text(unit!, style: const TextStyle(color: Palette.textDim, fontSize: 11)),
-              ],
-            ],
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(color: colour.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(9)),
+            child: Icon(icon, size: 16, color: colour),
           ),
+          const SizedBox(height: 10),
+          // scaleDown only when it has to: a long value ("12 345", or a Kazakh
+          // unit) shrinks to fit the narrow tile instead of overflowing; roomy
+          // values render at full size. Same guard the vitals cards use.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(value,
+                    maxLines: 1,
+                    style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700, height: 1)),
+                if (unit != null) ...[
+                  const SizedBox(width: 3),
+                  Text(unit!, style: const TextStyle(color: Palette.textDim, fontSize: 10.5)),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w600)),
         ],
       ),
     );
