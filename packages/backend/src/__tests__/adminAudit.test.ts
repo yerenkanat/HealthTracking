@@ -29,6 +29,7 @@ const AGGREGATES_ONLY = new Set([
   'GET /admin/content', // the published catalogue; about content, not people
   'GET /admin/audit', // the log itself; admin-only, and auditing reads of the
   // audit log makes the log describe mostly itself
+  'GET /admin/shop/variants', // product inventory (colours + stock) — names nobody
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

@@ -903,5 +903,108 @@ export function createPgRepository(pool: Pool): Repository {
     async reassignDevice(deviceId, childId) {
       await pool.query(`UPDATE devices SET child_id = $2 WHERE id = $1`, [deviceId, childId]);
     },
+
+    // ---- Shop ----
+    async shopProducts() {
+      const { rows } = await pool.query(
+        `SELECT p.id, p.name, p.price_minor,
+                v.id AS vid, v.color, v.color_hex, v.stock
+         FROM shop_products p
+         LEFT JOIN shop_variants v ON v.product_id = p.id
+         WHERE p.active = TRUE
+         ORDER BY p.sort, v.sort, v.color`,
+      );
+      const byId = new Map<string, { id: string; name: string; priceMinor: number; variants: Array<{ id: string; color: string; colorHex: string; stock: number }> }>();
+      for (const r of rows) {
+        let p = byId.get(r.id);
+        if (!p) { p = { id: r.id, name: r.name, priceMinor: r.price_minor, variants: [] }; byId.set(r.id, p); }
+        if (r.vid) p.variants.push({ id: r.vid, color: r.color, colorHex: r.color_hex, stock: r.stock });
+      }
+      return [...byId.values()];
+    },
+
+    async placeShopOrder(o) {
+      if (!o.items.length) return { ok: false, error: 'empty' };
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        let total = 0;
+        const snap: Array<{ variantId: string; productName: string; color: string; qty: number; unit: number }> = [];
+        for (const it of o.items) {
+          // FOR UPDATE locks the row for the transaction — two buyers racing for
+          // the last unit serialise here instead of both succeeding.
+          const { rows } = await client.query(
+            `SELECT v.id, v.color, v.stock, p.name, p.price_minor
+             FROM shop_variants v JOIN shop_products p ON p.id = v.product_id
+             WHERE v.id = $1 FOR UPDATE`, [it.variantId]);
+          if (!rows.length) { await client.query('ROLLBACK'); return { ok: false, error: 'not_found', variantId: it.variantId }; }
+          const v = rows[0];
+          if (v.stock < it.qty) { await client.query('ROLLBACK'); return { ok: false, error: 'out_of_stock', variantId: it.variantId }; }
+          await client.query('UPDATE shop_variants SET stock = stock - $2 WHERE id = $1', [it.variantId, it.qty]);
+          total += v.price_minor * it.qty;
+          snap.push({ variantId: v.id, productName: v.name, color: v.color, qty: it.qty, unit: v.price_minor });
+        }
+        const { rows: orows } = await client.query(
+          `INSERT INTO shop_orders (customer_name, phone, city, address, note, total_minor)
+           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+          [o.customerName, o.phone, o.city, o.address, o.note ?? null, total]);
+        const orderId = orows[0].id as string;
+        for (const s of snap) {
+          await client.query(
+            `INSERT INTO shop_order_items (order_id, variant_id, product_name, color, qty, unit_price_minor)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [orderId, s.variantId, s.productName, s.color, s.qty, s.unit]);
+        }
+        await client.query('COMMIT');
+        return { ok: true, id: orderId, totalMinor: total };
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    async adminShopVariants() {
+      const { rows } = await pool.query(
+        `SELECT v.id, v.color, v.color_hex, v.stock, v.product_id, p.name AS product_name
+         FROM shop_variants v JOIN shop_products p ON p.id = v.product_id
+         ORDER BY p.sort, v.sort, v.color`);
+      return rows.map((r) => ({ id: r.id, color: r.color, colorHex: r.color_hex, stock: r.stock, productId: r.product_id, productName: r.product_name }));
+    },
+    async setShopVariantStock(variantId, stock) {
+      await pool.query('UPDATE shop_variants SET stock = $2 WHERE id = $1', [variantId, Math.max(0, Math.trunc(stock))]);
+    },
+    async addShopVariant(productId, color, colorHex, stock) {
+      await pool.query(
+        `INSERT INTO shop_variants (product_id, color, color_hex, stock)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (product_id, color) DO UPDATE SET color_hex = EXCLUDED.color_hex, stock = EXCLUDED.stock`,
+        [productId, color, colorHex, Math.max(0, Math.trunc(stock))]);
+    },
+    async adminShopOrders(limit) {
+      const { rows } = await pool.query(
+        `SELECT id, customer_name, phone, city, address, note, total_minor, status, created_at
+         FROM shop_orders ORDER BY created_at DESC LIMIT $1`, [limit]);
+      if (!rows.length) return [];
+      const ids = rows.map((r) => r.id);
+      const { rows: items } = await pool.query(
+        `SELECT order_id, product_name, color, qty, unit_price_minor
+         FROM shop_order_items WHERE order_id = ANY($1)`, [ids]);
+      const byOrder = new Map<string, Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }>>();
+      for (const it of items) {
+        const arr = byOrder.get(it.order_id) ?? [];
+        arr.push({ productName: it.product_name, color: it.color, qty: it.qty, unitPriceMinor: it.unit_price_minor });
+        byOrder.set(it.order_id, arr);
+      }
+      return rows.map((r) => ({
+        id: r.id, customerName: r.customer_name, phone: r.phone, city: r.city, address: r.address,
+        note: r.note, totalMinor: r.total_minor, status: r.status,
+        createdAt: new Date(r.created_at).toISOString(), items: byOrder.get(r.id) ?? [],
+      }));
+    },
+    async setShopOrderStatus(orderId, status) {
+      await pool.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
+    },
   };
 }

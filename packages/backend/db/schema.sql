@@ -430,3 +430,45 @@ CREATE TABLE IF NOT EXISTS timeline_content (
   payload     jsonb NOT NULL,
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- ---- Shop: device store (see migrations/009_shop.sql for seed data) ---------
+-- Products (watch/tracker), per-colour variants with stock managed from the admin
+-- panel, and cash-on-delivery orders carrying a delivery address. An order
+-- decrements the variant's stock atomically (see pgRepository.placeShopOrder).
+CREATE TABLE IF NOT EXISTS shop_products (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  price_minor INTEGER NOT NULL CHECK (price_minor >= 0),
+  active      BOOLEAN NOT NULL DEFAULT TRUE,
+  sort        INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS shop_variants (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  product_id TEXT NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
+  color      TEXT NOT NULL,
+  color_hex  TEXT NOT NULL,
+  stock      INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  sort       INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (product_id, color)
+);
+CREATE TABLE IF NOT EXISTS shop_orders (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  customer_name TEXT NOT NULL,
+  phone         TEXT NOT NULL,
+  city          TEXT NOT NULL,
+  address       TEXT NOT NULL,
+  note          TEXT,
+  total_minor   INTEGER NOT NULL CHECK (total_minor >= 0),
+  status        TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','confirmed','shipped','delivered','cancelled')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_shop_orders_created ON shop_orders (created_at DESC);
+CREATE TABLE IF NOT EXISTS shop_order_items (
+  order_id         UUID NOT NULL REFERENCES shop_orders(id) ON DELETE CASCADE,
+  variant_id       UUID NOT NULL REFERENCES shop_variants(id),
+  product_name     TEXT NOT NULL,
+  color            TEXT NOT NULL,
+  qty              INTEGER NOT NULL CHECK (qty > 0),
+  unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_shop_items_order ON shop_order_items (order_id);

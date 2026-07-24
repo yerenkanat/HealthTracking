@@ -425,4 +425,36 @@ export interface Repository {
 
   writeAudit(entry: { staffId: string; action: string; target?: string }): Promise<void>;
   listAudit(limit: number): Promise<Array<{ staffId: string; action: string; target: string | null; at: string }>>;
+
+  // ---- Shop (device store) ----
+  /// Active products with every colour variant (in- and out-of-stock), for the
+  /// public storefront. Out-of-stock variants are returned too so the page can
+  /// show them disabled rather than hiding a colour that will restock.
+  shopProducts(): Promise<ShopProduct[]>;
+  /// Place a COD order. Atomic: each variant row is locked, stock checked and
+  /// decremented, then the order + item snapshots are written — all or nothing,
+  /// so two buyers cannot oversell the last unit. Returns the order id + total,
+  /// or a typed failure (empty cart / unknown variant / insufficient stock).
+  placeShopOrder(o: ShopOrderInput): Promise<ShopOrderResult>;
+  adminShopVariants(): Promise<Array<ShopVariant & { productId: string; productName: string }>>;
+  setShopVariantStock(variantId: string, stock: number): Promise<void>;
+  addShopVariant(productId: string, color: string, colorHex: string, stock: number): Promise<void>;
+  adminShopOrders(limit: number): Promise<ShopOrder[]>;
+  setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
 }
+
+export interface ShopVariant { id: string; color: string; colorHex: string; stock: number }
+export interface ShopProduct { id: string; name: string; priceMinor: number; variants: ShopVariant[] }
+export interface ShopOrderInput {
+  customerName: string; phone: string; city: string; address: string; note?: string;
+  items: Array<{ variantId: string; qty: number }>;
+}
+export type ShopOrderStatus = 'new' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+export interface ShopOrder {
+  id: string; customerName: string; phone: string; city: string; address: string;
+  note: string | null; totalMinor: number; status: ShopOrderStatus; createdAt: string;
+  items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }>;
+}
+export type ShopOrderResult =
+  | { ok: true; id: string; totalMinor: number }
+  | { ok: false; error: 'empty' | 'not_found' | 'out_of_stock'; variantId?: string };

@@ -66,6 +66,13 @@ function makeDeps(
   const repo: Repository = {
     insertHealthMetric: async (m) => { healthRows.push(m); return false; },
     listManualVitals: async () => [],
+    shopProducts: async () => [],
+    placeShopOrder: async () => ({ ok: false, error: 'empty' }),
+    adminShopVariants: async () => [],
+    setShopVariantStock: async () => {},
+    addShopVariant: async () => {},
+    adminShopOrders: async () => [],
+    setShopOrderStatus: async () => {},
     insertBpCalibration: async (_u, c) => void calRows.push(c),
     latestBpCalibration: async () =>
       (calRows.length ? calRows[calRows.length - 1] : null) as never,

@@ -40,6 +40,14 @@ const medicationBody = z.object({
   dose: z.string().max(120).default(''),
   perDay: z.number().int().min(1).max(24).default(1),
 });
+const shopOrderBody = z.object({
+  customerName: z.string().trim().min(1).max(120),
+  phone: z.string().trim().min(5).max(40),
+  city: z.string().trim().min(1).max(120),
+  address: z.string().trim().min(3).max(400),
+  note: z.string().trim().max(500).optional(),
+  items: z.array(z.object({ variantId: z.string().min(1).max(64), qty: z.number().int().min(1).max(20) })).min(1).max(10),
+});
 const newbornEventBody = z.object({
   at: z.string().datetime({ offset: true }),
   kind: z.enum(['feed', 'diaper', 'sleep']),
@@ -486,6 +494,19 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const u = await requireUser(req, reply);
     if (!u) return;
     return reply.send({ readings: await repo.listManualVitals(u.userId) });
+  });
+
+  // ---- Shop (public storefront — no auth: customers are not signed in) ----
+  app.get('/shop/products', async (_req, reply) => reply.send({ products: await repo.shopProducts() }));
+  app.post('/shop/orders', async (req, reply) => {
+    const parsed = shopOrderBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const res = await repo.placeShopOrder(parsed.data);
+    if (!res.ok) {
+      // out_of_stock → 409 (the client re-reads stock and re-picks); the rest → 400.
+      return reply.code(res.error === 'out_of_stock' ? 409 : 400).send({ error: res.error, variantId: res.variantId });
+    }
+    return reply.code(201).send({ id: res.id, totalMinor: res.totalMinor });
   });
 
   app.get('/children/:id/events', async (req, reply) => {

@@ -394,6 +394,53 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
     return reply.send({ audit: await repo.listAudit(limit) });
   });
+
+  // ---- Shop: inventory (per-colour stock) + orders to fulfil ----
+  app.get('/admin/shop/variants', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    return reply.send({ variants: await repo.adminShopVariants() });
+  });
+  app.patch('/admin/shop/variants/:id', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const parsed = z.object({ stock: z.number().int().min(0).max(100000) }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.setShopVariantStock((req.params as { id: string }).id, parsed.data.stock);
+    await repo.writeAudit({ staffId: s.staffId, action: 'shop_set_stock', target: (req.params as { id: string }).id });
+    return reply.send({ ok: true });
+  });
+  app.post('/admin/shop/variants', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const parsed = z.object({
+      productId: z.string().min(1).max(64),
+      color: z.string().trim().min(1).max(60),
+      colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      stock: z.number().int().min(0).max(100000).default(0),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const { productId, color, colorHex, stock } = parsed.data;
+    await repo.addShopVariant(productId, color, colorHex, stock);
+    await repo.writeAudit({ staffId: s.staffId, action: 'shop_add_variant', target: `${productId}/${color}` });
+    return reply.code(201).send({ ok: true });
+  });
+  app.get('/admin/shop/orders', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_orders' });
+    return reply.send({ orders: await repo.adminShopOrders(limit) });
+  });
+  app.patch('/admin/shop/orders/:id', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const parsed = z.object({ status: z.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']) }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.setShopOrderStatus((req.params as { id: string }).id, parsed.data.status);
+    await repo.writeAudit({ staffId: s.staffId, action: 'shop_order_status', target: (req.params as { id: string }).id });
+    return reply.send({ ok: true });
+  });
 }
 
 function clampLimit(raw: string | undefined, def: number, max: number): number {

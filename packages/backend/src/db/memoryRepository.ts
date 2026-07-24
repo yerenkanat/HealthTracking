@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow } from './repository';
+import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus } from './repository';
 import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -121,6 +121,22 @@ export function createMemoryRepository(): Repository {
   /// Set by deleteAccount. Postgres simply has no row after a delete; this fake
   /// has to remember, or its seeded fallbacks would resurrect erased data.
   let accountDeleted = false;
+
+  // ---- Shop (mirrors migrations/009_shop.sql seed) ----
+  const shopProds = [
+    { id: 'watch', name: 'Смарт-часы Umay', priceMinor: 1990000, sort: 1 },
+    { id: 'tracker', name: 'Детский трекер Umay', priceMinor: 990000, sort: 2 },
+  ];
+  const shopVars: Array<{ id: string; productId: string; color: string; colorHex: string; stock: number; sort: number }> = [
+    { id: 'v-w-black', productId: 'watch', color: 'Чёрный', colorHex: '#1C1E2A', stock: 0, sort: 1 },
+    { id: 'v-w-rose', productId: 'watch', color: 'Розовое золото', colorHex: '#E8B4A0', stock: 0, sort: 2 },
+    { id: 'v-w-violet', productId: 'watch', color: 'Сиреневый', colorHex: '#B9A8F0', stock: 0, sort: 3 },
+    { id: 'v-t-teal', productId: 'tracker', color: 'Бирюзовый', colorHex: '#12B3A6', stock: 0, sort: 1 },
+    { id: 'v-t-blue', productId: 'tracker', color: 'Синий', colorHex: '#3B82F6', stock: 0, sort: 2 },
+    { id: 'v-t-pink', productId: 'tracker', color: 'Розовый', colorHex: '#E85C8A', stock: 0, sort: 3 },
+  ];
+  type ShopOrderRow = { id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
+  const shopOrders: ShopOrderRow[] = [];
 
   return {
     // Health
@@ -591,5 +607,55 @@ export function createMemoryRepository(): Repository {
 
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: new Date().toISOString() }),
     listAudit: async (limit) => audit.slice(-limit).reverse(),
+
+    // ---- Shop ----
+    shopProducts: async () => shopProds
+      .sort((a, b) => a.sort - b.sort)
+      .map((p) => ({
+        id: p.id, name: p.name, priceMinor: p.priceMinor,
+        variants: shopVars.filter((v) => v.productId === p.id).sort((a, b) => a.sort - b.sort)
+          .map((v) => ({ id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock })),
+      })),
+    placeShopOrder: async (o) => {
+      if (!o.items.length) return { ok: false as const, error: 'empty' as const };
+      // Two-pass: validate all, then commit — the memory store cannot roll back a
+      // partial write, so nothing changes until every line is known good.
+      const snap: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number; variant: (typeof shopVars)[number] }> = [];
+      let total = 0;
+      for (const it of o.items) {
+        const v = shopVars.find((x) => x.id === it.variantId);
+        if (!v) return { ok: false as const, error: 'not_found' as const, variantId: it.variantId };
+        if (v.stock < it.qty) return { ok: false as const, error: 'out_of_stock' as const, variantId: it.variantId };
+        const p = shopProds.find((x) => x.id === v.productId)!;
+        total += p.priceMinor * it.qty;
+        snap.push({ productName: p.name, color: v.color, qty: it.qty, unitPriceMinor: p.priceMinor, variant: v });
+      }
+      for (const s of snap) s.variant.stock -= s.qty;
+      const id = randomUUID();
+      shopOrders.push({
+        id, customerName: o.customerName, phone: o.phone, city: o.city, address: o.address,
+        note: o.note ?? null, totalMinor: total, status: 'new', createdAt: new Date().toISOString(),
+        items: snap.map((s) => ({ productName: s.productName, color: s.color, qty: s.qty, unitPriceMinor: s.unitPriceMinor })),
+      });
+      return { ok: true as const, id, totalMinor: total };
+    },
+    adminShopVariants: async () => shopVars.map((v) => ({
+      id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock,
+      productId: v.productId, productName: shopProds.find((p) => p.id === v.productId)?.name ?? v.productId,
+    })),
+    setShopVariantStock: async (variantId, stock) => {
+      const v = shopVars.find((x) => x.id === variantId);
+      if (v) v.stock = Math.max(0, Math.trunc(stock));
+    },
+    addShopVariant: async (productId, color, colorHex, stock) => {
+      const existing = shopVars.find((v) => v.productId === productId && v.color === color);
+      if (existing) { existing.colorHex = colorHex; existing.stock = Math.max(0, Math.trunc(stock)); return; }
+      shopVars.push({ id: randomUUID(), productId, color, colorHex, stock: Math.max(0, Math.trunc(stock)), sort: shopVars.length });
+    },
+    adminShopOrders: async (limit) => shopOrders.slice(-limit).reverse().map((o) => ({ ...o, status: o.status as ShopOrderStatus })),
+    setShopOrderStatus: async (orderId, status) => {
+      const o = shopOrders.find((x) => x.id === orderId);
+      if (o) o.status = status;
+    },
   };
 }

@@ -127,7 +127,23 @@ async function main() {
   const stats = await repo.childrenStats(new Date('2026-07-24').toISOString());
   ok(typeof stats.total === 'number' && stats.total >= 1, 'childrenStats aggregates');
 
+  console.log('shop: products, atomic order, oversell guard, admin visibility:');
+  const products = await repo.shopProducts();
+  ok(products.some((p) => p.id === 'watch') && products.some((p) => p.id === 'tracker'), 'shopProducts returns both products');
+  const watch = products.find((p) => p.id === 'watch')!;
+  const variant = watch.variants[0];
+  await repo.setShopVariantStock(variant.id, 2);
+  const r1 = await repo.placeShopOrder({ customerName: 'Тест', phone: '+77000000000', city: 'Алматы', address: 'ул. Абая 1', items: [{ variantId: variant.id, qty: 1 }] });
+  ok(r1.ok && r1.totalMinor === watch.priceMinor, 'order placed; total = product price');
+  ok((await repo.adminShopVariants()).find((v) => v.id === variant.id)!.stock === 1, 'stock decremented by 1');
+  const r2 = await repo.placeShopOrder({ customerName: 'Т', phone: '+77000000000', city: 'Алматы', address: 'ул', items: [{ variantId: variant.id, qty: 5 }] });
+  ok(!r2.ok && r2.error === 'out_of_stock', 'oversell is blocked (out_of_stock)');
+  ok((await repo.adminShopVariants()).find((v) => v.id === variant.id)!.stock === 1, 'stock unchanged after the blocked order (atomic rollback)');
+  const orders = await repo.adminShopOrders(10);
+  ok(orders.length >= 1 && orders[0].items[0].color === variant.color && orders[0].address === 'ул. Абая 1', 'order shows in admin with address + item snapshot');
+
   // Clean up so the smoke test is repeatable.
+  await pool.query('DELETE FROM shop_orders WHERE customer_name IN ($1,$2)', ['Тест', 'Т']);
   await pool.query('DELETE FROM users WHERE id=$1', [U]);
   await pool.end();
   console.log(process.exitCode ? '\nSMOKE FAILED' : '\n✓ all pgRepository checks passed against real Postgres');
