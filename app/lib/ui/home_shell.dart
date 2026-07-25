@@ -297,7 +297,13 @@ class _HomeShellState extends State<HomeShell> {
   /// triages it exactly as it would a band reading, so this may raise the
   /// emergency screen — which is the intended behaviour.
   Future<void> _logVitals(BuildContext context, AppController c) async {
-    final reading = await showLogVitalsSheet(context);
+    final api = c.api;
+    final reading = await showLogVitalsSheet(
+      context,
+      // Only offer the photo shortcut when we can reach the server; offline, the
+      // sheet is manual-entry only.
+      onScan: api == null ? null : (bytes, mediaType) => api.extractVitalsFromImage(bytes, mediaType),
+    );
     if (reading == null) return;
     final saved = c.logManualVitals(reading);
     if (!saved || !context.mounted) return;

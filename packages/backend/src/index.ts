@@ -56,6 +56,7 @@ async function productionDeps(): Promise<ServerDeps> {
   const { Pool } = await import('pg');
   const { createPgRepository } = await import('./db/pgRepository');
   const { createAnthropicCaller } = await import('./ai/anthropicClient');
+  const { createAnthropicVitalsExtractor } = await import('./ai/vitalsVision');
   const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
   const { emergencyCopy, geofenceCopy, sendPush, toPushLocale } =
     await import('./notifications/push');
@@ -121,6 +122,9 @@ async function productionDeps(): Promise<ServerDeps> {
         calibratedAt: offsets.calibratedAt,
       }),
     cryAnalyze: forwardCry,
+    // Photo → vitals needs the vision model; without a key the route 503s and
+    // the app falls back to manual entry rather than erroring.
+    extractVitals: process.env.ANTHROPIC_API_KEY ? createAnthropicVitalsExtractor() : undefined,
   };
 }
 

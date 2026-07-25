@@ -28,6 +28,7 @@ import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
 import { childDevCalendar, devWeekContent } from './child/development';
 import { appVersionInfo } from './app/version';
 import { vaccinationSchedule } from './vaccination/schedule';
+import type { VitalsExtractor } from './ai/vitalsVision';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -57,6 +58,10 @@ export interface ServerDeps {
    * service and return its JSON. Injected so the route is testable without the
    * Python service; omitted = the feature is unavailable (route 503s). */
   cryAnalyze?: (audio: Buffer, contentType: string) => Promise<unknown>;
+  /** Read vitals off a photo of a device/lab slip (Claude vision). Injected so
+   * the route is testable without the network; omitted (no API key) = the
+   * feature is unavailable and /vitals/extract returns 503. */
+  extractVitals?: VitalsExtractor;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -149,6 +154,13 @@ const chatSchema = z.object({
   locale: z.string().default('ru-KZ'),
   message: z.string().min(1).max(2000),
   latestTelemetry: telemetryBase.partial({ deviceId: true, recordedAt: true }).optional(),
+});
+// A photographed device/lab slip, base64-encoded. Bounded so a hostile client
+// cannot post gigabytes: ~9M base64 chars ≈ a 6.7 MB image, and the route's own
+// 7 MB bodyLimit rejects anything larger before this even runs.
+const extractSchema = z.object({
+  imageBase64: z.string().min(16).max(9_000_000),
+  mediaType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 });
 const bpCalSchema = z.object({
   // OPTIONAL, and checked only if sent. Identity comes from the session — every
@@ -344,6 +356,33 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     } catch {
       // Upstream (the classifier) is down or errored — a clean 502, not a 500.
       return reply.code(502).send({ error: 'cry_upstream_unavailable' });
+    }
+  });
+
+  // Read vitals off a photo of a home device or a lab slip, so the user can snap
+  // a picture instead of typing. The image rides as base64 in JSON (the app
+  // downscales it first), so this one route lifts the body limit to 7 MB while
+  // every other JSON route keeps the tight default. Returns the values it could
+  // read; the app pre-fills them and the user still confirms and saves normally.
+  app.post('/vitals/extract', { bodyLimit: 7 * 1024 * 1024 }, async (req, reply) => {
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
+    if (!deps.extractVitals) return reply.code(503).send({ error: 'vision_unavailable' });
+    const parsed = extractSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    // Each call reaches a paid third party, so bound it per user exactly like the
+    // chat assistant — a broken retry loop costs as much as a hostile one.
+    const rl = chatLimiter.take(caller.userId);
+    if (!rl.allowed) {
+      reply.header('retry-after', String(rl.retryAfterSec));
+      return reply.code(429).send({ error: 'rate_limited', retryAfterSec: rl.retryAfterSec });
+    }
+    try {
+      const vitals = await deps.extractVitals(parsed.data.imageBase64, parsed.data.mediaType);
+      return reply.send(vitals);
+    } catch {
+      return reply.code(502).send({ error: 'vision_upstream_unavailable' });
     }
   });
 
