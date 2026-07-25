@@ -56,6 +56,17 @@ class ExtractedReading {
       heartRate == null && spo2 == null && systolic == null && diastolic == null && temperature == null && glucose == null;
 }
 
+/// What the vision model read off a photo of a prescription / label / box.
+class ExtractedMedication {
+  final String? name;
+  final String? dose;
+  final int? perDay;
+  final String? note;
+  const ExtractedMedication({this.name, this.dose, this.perDay, this.note});
+
+  bool get isEmpty => (name == null || name!.isEmpty) && (dose == null || dose!.isEmpty) && perDay == null;
+}
+
 // ---- /ai/chat outcome (mirrors backend GuardrailOutcome) ----
 sealed class ChatOutcome {
   const ChatOutcome();
@@ -208,6 +219,24 @@ class ApiClient {
       diastolic: (j['diastolic'] as num?)?.toInt(),
       temperature: (j['temperature'] as num?)?.toDouble(),
       glucose: (j['glucose'] as num?)?.toDouble(),
+      note: j['note'] as String?,
+    );
+  }
+
+  /// Read a medication off a photo of a prescription, label, or box (Claude
+  /// vision on the server). Returns name/dose/times-a-day for the editor to
+  /// pre-fill; any field may be null.
+  Future<ExtractedMedication> extractMedicationFromImage(List<int> bytes, String mediaType) async {
+    final res = await transport.post('/medications/extract', {
+      'imageBase64': base64Encode(bytes),
+      'mediaType': mediaType,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ExtractedMedication(
+      name: j['name'] as String?,
+      dose: j['dose'] as String?,
+      perDay: (j['perDay'] as num?)?.toInt(),
       note: j['note'] as String?,
     );
   }

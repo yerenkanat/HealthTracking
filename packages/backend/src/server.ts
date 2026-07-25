@@ -29,6 +29,7 @@ import { childDevCalendar, devWeekContent } from './child/development';
 import { appVersionInfo } from './app/version';
 import { vaccinationSchedule } from './vaccination/schedule';
 import type { VitalsExtractor } from './ai/vitalsVision';
+import type { MedicationExtractor } from './ai/medicationVision';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -62,6 +63,10 @@ export interface ServerDeps {
    * the route is testable without the network; omitted (no API key) = the
    * feature is unavailable and /vitals/extract returns 503. */
   extractVitals?: VitalsExtractor;
+  /** Read a medication (name/dose/times-a-day) off a photo of a prescription or
+   * box. Same injection contract as extractVitals; /medications/extract 503s
+   * when omitted. */
+  extractMedication?: MedicationExtractor;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -381,6 +386,29 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     try {
       const vitals = await deps.extractVitals(parsed.data.imageBase64, parsed.data.mediaType);
       return reply.send(vitals);
+    } catch {
+      return reply.code(502).send({ error: 'vision_upstream_unavailable' });
+    }
+  });
+
+  // Read a medication off a photo of a prescription, label, or box. Same shape
+  // and guards as /vitals/extract — image as base64 JSON, 7 MB cap, per-user
+  // rate limit — returning name/dose/times-a-day for the editor to pre-fill.
+  app.post('/medications/extract', { bodyLimit: 7 * 1024 * 1024 }, async (req, reply) => {
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
+    if (!deps.extractMedication) return reply.code(503).send({ error: 'vision_unavailable' });
+    const parsed = extractSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const rl = chatLimiter.take(caller.userId);
+    if (!rl.allowed) {
+      reply.header('retry-after', String(rl.retryAfterSec));
+      return reply.code(429).send({ error: 'rate_limited', retryAfterSec: rl.retryAfterSec });
+    }
+    try {
+      const med = await deps.extractMedication(parsed.data.imageBase64, parsed.data.mediaType);
+      return reply.send(med);
     } catch {
       return reply.code(502).send({ error: 'vision_upstream_unavailable' });
     }

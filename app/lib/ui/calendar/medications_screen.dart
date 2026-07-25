@@ -5,8 +5,10 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
+import '../../data/api_client.dart' show ExtractedMedication;
 import '../../domain/medication.dart';
 import '../../l10n/l10n_scope.dart';
+import '../common/photo_scan_tile.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -101,12 +103,17 @@ class MedicationsScreen extends StatelessWidget {
   }
 
   Future<void> _openEditor(BuildContext context, {Medication? existing}) async {
+    final api = controller.api;
     final result = await showModalBottomSheet<_MedDraft>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Palette.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _MedEditorSheet(initial: existing),
+      // The photo shortcut only appears when we can reach the server.
+      builder: (_) => _MedEditorSheet(
+        initial: existing,
+        onScan: api == null ? null : (bytes, mediaType) => api.extractMedicationFromImage(bytes, mediaType),
+      ),
     );
     if (result == null) return;
     if (existing == null) {
@@ -353,9 +360,14 @@ class _MedDraft {
   const _MedDraft(this.name, this.dose, this.perDay);
 }
 
+/// Reads a medication off a photo. Returns what could be read (fields may be
+/// null), or null on failure. Injected so the sheet stays free of the ApiClient.
+typedef MedicationScanner = Future<ExtractedMedication?> Function(List<int> bytes, String mediaType);
+
 class _MedEditorSheet extends StatefulWidget {
   final Medication? initial; // non-null → edit mode
-  const _MedEditorSheet({this.initial});
+  final MedicationScanner? onScan;
+  const _MedEditorSheet({this.initial, this.onScan});
   @override
   State<_MedEditorSheet> createState() => _MedEditorSheetState();
 }
@@ -374,6 +386,14 @@ class _MedEditorSheetState extends State<_MedEditorSheet> {
 
   bool get _valid => _name.text.trim().isNotEmpty;
 
+  /// Apply a scanned medication to the form; returns whether anything landed.
+  bool _apply(ExtractedMedication m) {
+    if (m.name != null && m.name!.isNotEmpty) _name.text = m.name!;
+    if (m.dose != null && m.dose!.isNotEmpty) _dose.text = m.dose!;
+    if (m.perDay != null) _perDay = Medication.clampPerDay(m.perDay!);
+    return !m.isEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -386,6 +406,19 @@ class _MedEditorSheetState extends State<_MedEditorSheet> {
           Text(l.t(widget.initial == null ? 'med_add' : 'med_edit'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Palette.text)),
           const SizedBox(height: 14),
+          if (widget.onScan != null) ...[
+            PhotoScanTile(
+              cta: l.t('med_scan_cta'),
+              hint: l.t('med_scan_hint'),
+              onScan: (bytes, mediaType) async {
+                final m = await widget.onScan!(bytes, mediaType);
+                if (m == null || !_apply(m)) return ScanOutcome(filled: false, note: m?.note);
+                setState(() {}); // reflect the filled name/dose and re-validate Save
+                return ScanOutcome(filled: true, note: m.note);
+              },
+            ),
+            const SizedBox(height: 14),
+          ],
           TextField(
             controller: _name,
             autofocus: widget.initial == null,
