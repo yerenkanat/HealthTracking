@@ -269,6 +269,13 @@ async function main(): Promise<void> {
         'которое вовремя предупредит. 19 900 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
       '/shop/watch-og.png');
     serveImage('/shop/watch-og.png', 'watch-og.png');
+
+    servePage('/shop/tracker', 'tracker.html',
+      'Детский GPS-трекер Umay — всегда знаете, где ребёнок · 9 900 ₸',
+      'Детский трекер Umay: GPS в реальном времени, безопасные зоны, кнопка SOS и история перемещений — ' +
+        'ребёнок на карте в приложении. 9 900 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
+      '/shop/tracker-og.png');
+    serveImage('/shop/tracker-og.png', 'tracker-og.png');
   } catch {
     app.log.warn('shop storefront html not found; /shop pages disabled');
   }

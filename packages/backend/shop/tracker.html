@@ -1,0 +1,364 @@
+<style>
+  :root{
+    --violet:#6D5AE6;--violet-deep:#5646c9;--rose:#E85C8A;--teal:#12B3A6;--teal-deep:#0E8F85;--good:#17A672;--crit:#E5484D;--amber:#E5A50A;
+    --ink:#1C1E2A;--muted:#6C6F80;--bg:#F7FBFA;--surface:#FFFFFF;--surface-2:#EEF7F5;--hair:#E2EFEC;
+    --grad:linear-gradient(135deg,var(--teal),var(--violet));--grad-soft:linear-gradient(135deg,#E4F5F1,#EDEBFB);
+    --shadow:0 18px 46px -22px rgba(18,179,166,.4);--shadow-sm:0 8px 22px -14px rgba(28,30,42,.28);--r:22px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--mono:"SFMono-Regular",ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{--ink:#EAF4F2;--muted:#9FB0AD;--bg:#0C1413;--surface:#13201E;--surface-2:#172624;--hair:#22322F;--grad-soft:linear-gradient(135deg,#123029,#211C3A);--shadow:0 20px 50px -22px rgba(0,0,0,.7);--shadow-sm:0 10px 26px -16px rgba(0,0,0,.65)}}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;padding-bottom:72px}
+  @media(min-width:721px){body{padding-bottom:0}}
+  h1,h2,h3{margin:0;line-height:1.12;letter-spacing:-.02em;text-wrap:balance}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  a{color:inherit;text-decoration:none}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:800;font-size:16px;border-radius:14px;padding:15px 26px;cursor:pointer;border:1px solid transparent;transition:transform .15s,box-shadow .2s;min-height:54px}
+  .btn.primary{background:var(--grad);color:#fff;box-shadow:0 14px 30px -12px rgba(18,179,166,.55)}
+  .btn.primary:hover{transform:translateY(-2px)}
+  .btn.primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .btn.ghost{background:var(--surface);border-color:var(--hair);box-shadow:var(--shadow-sm);color:var(--ink)}
+  .btn.block{width:100%}
+  header.top{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--hair)}
+  .top .wrap{display:flex;align-items:center;gap:12px;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+  .logo{width:34px;height:34px;border-radius:11px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:900}
+  .top .spacer{flex:1}
+  .top .tprice{font-weight:800;font-family:var(--mono);display:none}
+  @media(min-width:560px){.top .tprice{display:inline}}
+  .hero{position:relative;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(55% 55% at 82% 12%,color-mix(in srgb,var(--teal) 22%,transparent),transparent 70%),radial-gradient(50% 50% at 6% 18%,color-mix(in srgb,var(--violet) 20%,transparent),transparent 70%);pointer-events:none}
+  .hero .wrap{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;padding:44px 20px 34px}
+  @media(max-width:820px){.hero .wrap{grid-template-columns:1fr;text-align:center;padding-top:30px}}
+  .eyebrow{display:inline-flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--hair);color:var(--teal-deep);font-weight:800;font-size:12.5px;padding:7px 14px;border-radius:99px;box-shadow:var(--shadow-sm)}
+  h1{font-size:clamp(30px,5.4vw,52px);font-weight:900;margin:16px 0 0;max-width:15ch}
+  @media(max-width:820px){h1{margin-inline:auto}}
+  h1 .g{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{color:var(--muted);font-size:clamp(15px,2.3vw,18.5px);margin-top:14px;max-width:46ch}
+  @media(max-width:820px){.lede{margin-inline:auto}}
+  .pricerow{display:flex;align-items:baseline;gap:12px;margin-top:22px;flex-wrap:wrap}
+  @media(max-width:820px){.pricerow{justify-content:center}}
+  .price{font-size:40px;font-weight:900;font-family:var(--mono)}
+  .price small{font-size:18px;color:var(--muted);font-weight:700}
+  .save{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good);font-weight:800;font-size:13px;padding:5px 11px;border-radius:99px}
+  .cta-row{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
+  @media(max-width:820px){.cta-row{justify-content:center}}
+  .reassure{margin-top:20px;color:var(--muted);font-size:13.5px;display:flex;flex-wrap:wrap;gap:8px 18px}
+  @media(max-width:820px){.reassure{justify-content:center}}
+  .reassure span{display:inline-flex;align-items:center;gap:6px}
+  .tick{width:16px;height:16px;color:var(--teal);flex:0 0 auto}
+  .hero-art{position:relative;display:grid;place-items:center}
+  .hero-art .halo{position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:var(--grad-soft);filter:blur(2px)}
+  .hero-art svg{position:relative;width:min(82%,340px);filter:drop-shadow(0 30px 40px rgba(18,179,166,.32))}
+  .trust{background:var(--surface-2);border-block:1px solid var(--hair);padding:16px 0}
+  .trust .wrap{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 28px}
+  .trust .item{display:flex;gap:9px;align-items:center;font-weight:700;font-size:14px}
+  .trust .item svg{width:20px;height:20px;color:var(--teal-deep)}
+  section{padding:46px 0}
+  .kicker{color:var(--teal-deep);font-weight:800;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-align:center}
+  h2{font-size:clamp(24px,4vw,34px);font-weight:900;margin-top:8px;text-align:center}
+  .sec-lede{color:var(--muted);text-align:center;max-width:52ch;margin:12px auto 0;font-size:15.5px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
+  @media(max-width:820px){.grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.grid{grid-template-columns:1fr}}
+  .feat{background:var(--surface);border:1px solid var(--hair);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
+  .feat .ic{width:44px;height:44px;border-radius:13px;background:var(--grad-soft);display:grid;place-items:center;margin-bottom:12px}
+  .feat .ic svg{width:24px;height:24px;color:var(--teal-deep)}
+  .feat h3{font-size:17px;font-weight:800}
+  .feat p{color:var(--muted);font-size:14px;margin:6px 0 0}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px;counter-reset:s}
+  @media(max-width:820px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--surface);border:1px solid var(--hair);border-radius:18px;padding:22px;position:relative;box-shadow:var(--shadow-sm)}
+  .step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:var(--grad);color:#fff;font-weight:900;font-family:var(--mono);margin-bottom:12px}
+  .step h3{font-size:16.5px;font-weight:800}
+  .step p{color:var(--muted);font-size:14px;margin:6px 0 0}
+  .care{background:var(--grad);color:#fff;border-radius:26px;padding:34px;box-shadow:var(--shadow);display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}
+  @media(max-width:720px){.care{grid-template-columns:1fr;text-align:center}}
+  .care h2{color:#fff;text-align:left}
+  @media(max-width:720px){.care h2{text-align:center}}
+  .care p{opacity:.94;margin-top:10px;max-width:52ch}
+  .order{background:var(--grad-soft);border-radius:26px;padding:8px;margin-top:6px}
+  .order .inner{background:var(--surface);border-radius:20px;padding:30px;border:1px solid var(--hair);display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start}
+  @media(max-width:820px){.order .inner{grid-template-columns:1fr}}
+  .order .pitch h2{text-align:left;font-size:26px}
+  @media(max-width:820px){.order .pitch h2{text-align:center}}
+  .order .pitch p{color:var(--muted);margin-top:12px}
+  .swatches{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}
+  .swatch{width:34px;height:34px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1.5px var(--hair);cursor:pointer;position:relative}
+  .swatch[aria-pressed="true"]{box-shadow:0 0 0 2.5px var(--teal)}
+  .swatch[data-oos="1"]{opacity:.32;cursor:not-allowed}
+  .swatch[data-oos="1"]::after{content:"";position:absolute;left:3px;right:3px;top:47%;height:2px;background:var(--crit);transform:rotate(-20deg)}
+  .cname{font-size:13.5px;color:var(--muted);margin-top:8px}
+  .cname b{color:var(--ink)}
+  form{display:grid;gap:12px}
+  label{font-size:13px;font-weight:700;color:var(--muted);display:grid;gap:6px}
+  input,select{font:inherit;font-size:15px;padding:13px 14px;border-radius:12px;border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);min-height:50px;width:100%}
+  input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--teal) 55%,transparent);border-color:transparent}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .opt{display:flex;gap:10px;margin-top:4px}
+  .optbtn{flex:1;border:1px solid var(--hair);background:var(--surface-2);border-radius:14px;padding:12px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+  .optbtn[aria-pressed="true"]{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 8%,transparent)}
+  .optbtn .ot{font-weight:800;font-size:14px}
+  .optbtn .op{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .optbtn .op b{color:var(--good)}
+  .summary{background:var(--surface-2);border:1px solid var(--hair);border-radius:12px;padding:12px 14px;font-size:14px;display:grid;gap:6px}
+  .summary .line{display:flex;justify-content:space-between;align-items:center}
+  .summary .num{font-family:var(--mono)}
+  .summary .disc{color:var(--good);font-weight:700}
+  .summary .grand{border-top:1px solid var(--hair);padding-top:8px;font-size:15px}
+  .summary .grand b{font-size:18px;font-family:var(--mono)}
+  .msg{border-radius:12px;padding:13px 15px;font-size:14px;font-weight:600;display:none}
+  .msg.ok{display:block;background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
+  .msg.err{display:block;background:color-mix(in srgb,var(--crit) 12%,transparent);color:var(--crit)}
+  .faq{max-width:760px;margin:26px auto 0;display:grid;gap:12px}
+  details{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:2px 18px;box-shadow:var(--shadow-sm)}
+  summary{list-style:none;cursor:pointer;font-weight:800;font-size:16px;padding:16px 0;display:flex;justify-content:space-between;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";font-size:22px;color:var(--teal-deep)}
+  details[open] summary::after{content:"–"}
+  details p{color:var(--muted);font-size:14.5px;padding:0 0 16px;margin:0}
+  footer{border-top:1px solid var(--hair);padding:30px 0;color:var(--muted);font-size:13.5px}
+  .buybar{position:fixed;left:0;right:0;bottom:0;z-index:45;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--hair);padding:10px 16px;display:flex;align-items:center;gap:12px}
+  @media(min-width:721px){.buybar{display:none}}
+  .buybar .bp{font-weight:900;font-family:var(--mono);font-size:18px}
+  .buybar .bp small{font-size:12px;color:var(--muted);font-weight:700;display:block;line-height:1}
+  .buybar .btn{flex:1;padding:13px;min-height:48px;font-size:15px}
+</style>
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="/shop"><span class="logo">U</span> Umay</a>
+  <div class="spacer"></div>
+  <span class="tprice num" id="topPrice">9 900 ₸</span>
+  <a class="btn primary" href="#order" style="padding:10px 18px;min-height:44px;font-size:14.5px">Заказать</a>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <div class="hero-copy">
+    <span class="eyebrow">🇰🇿 Детский GPS-трекер</span>
+    <h1>Всегда знаете, <span class="g">где ребёнок</span></h1>
+    <p class="lede">GPS-локация в реальном времени, безопасные зоны и кнопка SOS. Ребёнок — на карте в приложении Umay, а вы спокойны.</p>
+    <div class="pricerow">
+      <span class="price">9 900 <small>₸</small></span>
+      <span class="save" id="stockPill">В наличии</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#order">Заказать сейчас</a>
+      <a class="btn ghost" href="#how">Как это работает</a>
+    </div>
+    <div class="reassure">
+      <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Оплата при получении</span>
+      <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Доставка по Казахстану</span>
+      <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Гарантия 1 год</span>
+    </div>
+  </div>
+  <div class="hero-art">
+    <div class="halo"></div>
+    <svg viewBox="0 0 200 240" aria-label="Детский трекер Umay"><rect x="66" y="6" width="68" height="40" rx="14" fill="#bfe6df"/><rect x="66" y="194" width="68" height="40" rx="14" fill="#bfe6df"/><rect x="38" y="42" width="124" height="158" rx="36" fill="#12333A"/><rect x="50" y="54" width="100" height="134" rx="26" fill="url(#g2)"/><path d="M100 82c-16 0-29 13-29 29 0 21 29 47 29 47s29-26 29-47c0-16-13-29-29-29Z" fill="#fff"/><circle cx="100" cy="110" r="11" fill="#12B3A6"/><defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#12B3A6"/><stop offset="1" stop-color="#6D5AE6"/></linearGradient></defs></svg>
+  </div>
+</div></section>
+
+<div class="trust"><div class="wrap">
+  <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h11v8H3zM14 10h4l3 3v2h-7z"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg> Доставка по Казахстану</div>
+  <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Оплата при получении</div>
+  <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg> Гарантия 1 год · возврат 14 дней</div>
+</div></div>
+
+<section id="features"><div class="wrap">
+  <div class="kicker">Что умеет трекер</div>
+  <h2>Ребёнок под присмотром — где бы он ни был</h2>
+  <p class="sec-lede">Наденьте трекер утром — и весь день видите ребёнка на карте, а приложение предупредит, если он покинет безопасную зону.</p>
+  <div class="grid">
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.7-7-12a7 7 0 0 1 14 0c0 5.3-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></div><h3>GPS в реальном времени</h3><p>Точное местоположение ребёнка на карте — обновляется постоянно.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></div><h3>Безопасные зоны</h3><p>Отметьте дом и школу — приложение уведомит, когда ребёнок выйдет за границу.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div><h3>Кнопка SOS</h3><p>Одно нажатие — вам приходит сигнал тревоги с местоположением.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5M12 7v5l3 2"/></svg></div><h3>История перемещений</h3><p>Где ребёнок был в течение дня — весь маршрут в приложении.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div><h3>Уведомления</h3><p>Выход из зоны, разряд батареи, сигнал SOS — вы узнаете сразу.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M11 18h2"/></svg></div><h3>Работает с приложением</h3><p>Всё в одном приложении Umay — рядом со здоровьем мамы.</p></div>
+  </div>
+</div></section>
+
+<section id="how" style="background:var(--surface-2);border-block:1px solid var(--hair)"><div class="wrap">
+  <div class="kicker">Как это работает</div>
+  <h2>Три шага — и ребёнок на карте</h2>
+  <div class="steps">
+    <div class="step"><h3>Наденьте трекер</h3><p>Лёгкий браслет на руку ребёнка. Заряда хватает на весь день.</p></div>
+    <div class="step"><h3>Откройте приложение Umay</h3><p>Ребёнок появляется на карте, вы отмечаете безопасные зоны — дом, школу.</p></div>
+    <div class="step"><h3>Будьте спокойны</h3><p>Приложение предупредит о выходе из зоны или сигнале SOS — где бы вы ни были.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="care">
+    <div>
+      <h2>Меньше тревог — больше свободы</h2>
+      <p>Ребёнок гуляет и ходит в школу сам, а вы в любой момент видите, где он, и получаете сигнал, если что-то не так.</p>
+    </div>
+    <a class="btn ghost" href="#order" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.42);color:#fff">Заказать за 9 900 ₸</a>
+  </div>
+</div></section>
+
+<section id="order"><div class="wrap">
+  <div class="order"><div class="inner">
+    <div class="pitch">
+      <div class="kicker" style="text-align:left">Оформление заказа</div>
+      <h2>Выберите цвет и оформите</h2>
+      <p>Оплата при получении — курьер привезёт трекер, вы платите, только когда всё у вас в руках. Гарантия 1 год, возврат 14 дней.</p>
+      <div class="swatches" id="swatches"></div>
+      <div class="cname" id="cname"></div>
+      <div class="opt">
+        <button type="button" class="optbtn" id="optSingle" aria-pressed="true"><div class="ot">Только трекер</div><div class="op">9 900 ₸</div></button>
+        <button type="button" class="optbtn" id="optBundle" aria-pressed="false"><div class="ot">Трекер + умные часы</div><div class="op">26 900 ₸ · <b>экономия 2 900 ₸</b></div></button>
+      </div>
+      <div class="summary" style="margin-top:16px">
+        <div class="line"><span id="sumLabel">Детский трекер Umay</span><span class="num" id="sumSub">—</span></div>
+        <div class="line disc" id="sumDiscRow" hidden><span>Скидка за комплект</span><span class="num" id="sumDisc">—</span></div>
+        <div class="line grand"><span>Итого</span><b id="sumTotal">—</b></div>
+      </div>
+    </div>
+    <form id="orderForm" novalidate>
+      <label id="lblWatch" hidden>Цвет часов<select id="fWatch"></select></label>
+      <div class="row2">
+        <label>Количество<input id="fQty" type="number" min="1" max="20" value="1"></label>
+        <label>Город<input id="fCity" type="text" placeholder="Алматы" autocomplete="address-level2"></label>
+      </div>
+      <label>Ваше имя<input id="fName" type="text" placeholder="Айгерим" autocomplete="name"></label>
+      <label>Телефон<input id="fPhone" type="tel" inputmode="tel" placeholder="+7 (7__) ___-__-__" autocomplete="tel"></label>
+      <label>Адрес доставки<input id="fAddr" type="text" placeholder="Улица, дом, квартира" autocomplete="street-address"></label>
+      <div class="msg" id="orderMsg"></div>
+      <button class="btn primary block" id="submitBtn" type="submit">Оформить заказ</button>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin:0">Нажимая, вы соглашаетесь на обработку контактных данных для доставки.</p>
+    </form>
+  </div></div>
+</div></section>
+
+<section style="padding-top:10px"><div class="wrap">
+  <div class="kicker">Вопросы</div><h2>Частые вопросы</h2>
+  <div class="faq">
+    <details open><summary>Как я вижу ребёнка на карте?</summary><p>В приложении Umay — местоположение обновляется в реальном времени, и там же вы отмечаете безопасные зоны.</p></details>
+    <details><summary>Нужна ли SIM-карта?</summary><p>Для передачи геолокации трекеру нужна SIM с интернетом. Мы подскажем, как её установить.</p></details>
+    <details><summary>Что делает кнопка SOS?</summary><p>Ребёнок нажимает кнопку — вам мгновенно приходит тревожный сигнал с текущим местоположением.</p></details>
+    <details><summary>Как оплатить?</summary><p>Оплата при получении — вы осматриваете трекер и платите курьеру наличными или переводом.</p></details>
+    <details><summary>Какая гарантия и доставка?</summary><p>Официальная гарантия 1 год, возврат 14 дней. Доставка по всему Казахстану, оплата при получении.</p></details>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <a class="brand" href="/shop" style="font-size:16px"><span class="logo" style="width:28px;height:28px;border-radius:9px">U</span> Umay</a>
+  <p style="max-width:560px;margin-top:10px">© Umay · Казахстан · <a href="/shop" style="text-decoration:underline">Весь каталог</a> · <a href="/shop/watch" style="text-decoration:underline">Умные часы</a></p>
+</div></footer>
+
+<div class="buybar">
+  <div class="bp"><small>Детский трекер</small><span id="barPrice">9 900 ₸</span></div>
+  <a class="btn primary" href="#order">Заказать</a>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const fmt=n=>Number(n).toLocaleString("ru-RU");
+  const tng=minor=>fmt(Math.round(minor/100))+" ₸";
+  const BUNDLE_DISCOUNT=290000;
+  let TRACKER=null, WATCH=null, trackerColor=null, mode="single";
+
+  function stockPill(){
+    const s=TRACKER? TRACKER.variants.reduce((a,v)=>a+v.stock,0):0;
+    const el=$("stockPill");
+    if(s<=0){el.textContent="Скоро в наличии";el.style.background="color-mix(in srgb,var(--crit) 14%,transparent)";el.style.color="var(--crit)";}
+    else if(s<=5){el.textContent="Осталось мало";el.style.background="color-mix(in srgb,var(--amber) 18%,transparent)";el.style.color="var(--amber)";}
+    else{el.textContent="В наличии";}
+  }
+  function renderSwatches(){
+    const box=$("swatches"); box.innerHTML="";
+    TRACKER.variants.forEach(v=>{
+      const b=document.createElement("button"); b.type="button"; b.className="swatch";
+      b.style.background=v.colorHex; b.title=v.color; b.dataset.oos=v.stock<=0?1:0;
+      b.setAttribute("aria-pressed", String(v.id===trackerColor));
+      if(v.stock>0) b.onclick=()=>{ trackerColor=v.id; renderSwatches(); updateCname(); };
+      box.appendChild(b);
+    });
+  }
+  function updateCname(){
+    const v=TRACKER.variants.find(x=>x.id===trackerColor);
+    $("cname").innerHTML = v? ("Цвет: <b>"+v.color+"</b>") : "";
+  }
+  function setMode(m){
+    mode=m;
+    $("optSingle").setAttribute("aria-pressed", String(m==="single"));
+    $("optBundle").setAttribute("aria-pressed", String(m==="bundle"));
+    $("lblWatch").hidden = !(m==="bundle" && WATCH);
+    updateSummary();
+  }
+  function updateSummary(){
+    const qty=Math.max(1,parseInt($("fQty").value||"1",10));
+    if(mode==="bundle" && WATCH){
+      const sub=(TRACKER.priceMinor+WATCH.priceMinor);
+      $("sumLabel").textContent="Трекер + часы"; $("sumSub").textContent=tng(sub);
+      $("sumDiscRow").hidden=false; $("sumDisc").textContent="−"+tng(BUNDLE_DISCOUNT);
+      $("sumTotal").textContent=tng(sub-BUNDLE_DISCOUNT);
+    } else {
+      $("sumLabel").textContent="Детский трекер Umay ×"+qty; $("sumSub").textContent=tng(TRACKER.priceMinor*qty);
+      $("sumDiscRow").hidden=true; $("sumTotal").textContent=tng(TRACKER.priceMinor*qty);
+    }
+  }
+  function fillWatch(){
+    const sel=$("fWatch"); sel.innerHTML=""; if(!WATCH) return;
+    for(const v of WATCH.variants){
+      const o=document.createElement("option"); o.value=v.id;
+      o.textContent=v.color+(v.stock<=0?" — нет в наличии":""); o.disabled=v.stock<=0; sel.appendChild(o);
+    }
+    const first=WATCH.variants.find(v=>v.stock>0); if(first) sel.value=first.id;
+  }
+
+  async function load(){
+    try{ const d=await (await fetch("/shop/products")).json(); const ps=d.products||[];
+      TRACKER=ps.find(p=>p.id==="tracker"); WATCH=ps.find(p=>p.id==="watch"); }catch(e){}
+    if(!TRACKER){ return; }
+    const price=tng(TRACKER.priceMinor); $("topPrice").textContent=price; $("barPrice").textContent=price;
+    const firstIn=TRACKER.variants.find(v=>v.stock>0)||TRACKER.variants[0]; trackerColor=firstIn&&firstIn.id;
+    stockPill(); renderSwatches(); updateCname(); fillWatch();
+    $("optBundle").hidden = !WATCH;
+    setMode("single");
+    $("optSingle").onclick=()=>setMode("single");
+    $("optBundle").onclick=()=>setMode("bundle");
+    $("fQty").oninput=updateSummary; $("fWatch").onchange=updateSummary;
+  }
+
+  $("orderForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const msg=$("orderMsg"); msg.className="msg"; msg.textContent="";
+    const g=id=>($(id).value||"").trim();
+    const name=g("fName"),phone=g("fPhone"),city=g("fCity"),addr=g("fAddr");
+    const fail=(t,id)=>{msg.className="msg err";msg.textContent=t;if(id)$(id).focus();};
+    if(!trackerColor) return fail("Выберите цвет трекера");
+    if(!name) return fail("Укажите имя","fName");
+    if(phone.replace(/\D/g,"").length<10) return fail("Укажите корректный телефон","fPhone");
+    if(!city) return fail("Укажите город","fCity");
+    if(!addr) return fail("Укажите адрес доставки","fAddr");
+    let items;
+    if(mode==="bundle" && WATCH){
+      const w=$("fWatch").value; if(!w) return fail("Выберите цвет часов","fWatch");
+      items=[{variantId:trackerColor,qty:1},{variantId:w,qty:1}];
+    } else {
+      items=[{variantId:trackerColor,qty:Math.max(1,parseInt($("fQty").value||"1",10))}];
+    }
+    const btn=$("submitBtn"); btn.disabled=true; btn.textContent="Оформляем…";
+    try{
+      const r=await fetch("/shop/orders",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerName:name,phone,city,address:addr,items})});
+      if(r.status===201){
+        const d=await r.json().catch(()=>({}));
+        const saved=(d&&d.discountMinor>0)?" Вы сэкономили "+tng(d.discountMinor)+".":"";
+        msg.className="msg ok"; msg.textContent="Спасибо! Заказ принят — мы скоро перезвоним для подтверждения."+saved;
+        $("orderForm").reset(); mode="single"; await load();
+      } else if(r.status===409){
+        msg.className="msg err"; msg.textContent="К сожалению, выбранный цвет только что закончился. Выберите другой."; await load();
+      } else { msg.className="msg err"; msg.textContent="Не удалось оформить заказ. Проверьте данные и попробуйте ещё раз."; }
+    }catch(e){ msg.className="msg err"; msg.textContent="Нет связи с сервером. Попробуйте позже."; }
+    btn.disabled=false; btn.textContent="Оформить заказ";
+  });
+
+  load();
+})();
+</script>
