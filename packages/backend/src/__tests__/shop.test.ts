@@ -56,7 +56,7 @@ describe('the device shop', () => {
     // Now the order goes through.
     const placed = await a.inject({ method: 'POST', url: '/shop/orders', payload: order });
     expect(placed.statusCode).toBe(201);
-    expect(placed.json().totalMinor).toBe(1990000); // 19 900 ₸
+    expect(placed.json().totalMinor).toBe(2900000); // 29 000 ₸
 
     // Stock is now 2, and the order is visible to admin with its address.
     const variants = (await a.inject({ method: 'GET', url: '/admin/shop/variants' })).json().variants;
@@ -81,12 +81,12 @@ describe('the device shop', () => {
         items: [{ variantId: watch, qty: 1 }, { variantId: tracker, qty: 1 }] },
     });
     expect(placed.statusCode).toBe(201);
-    // 19 900 + 9 900 − 2 900 = 26 900 ₸, with 2 900 ₸ recorded as the saving.
-    expect(placed.json().totalMinor).toBe(2690000);
+    // 29 000 + 9 900 − 2 900 = 36 000 ₸, with 2 900 ₸ recorded as the saving.
+    expect(placed.json().totalMinor).toBe(3600000);
     expect(placed.json().discountMinor).toBe(290000);
 
     const orders = (await a.inject({ method: 'GET', url: '/admin/shop/orders' })).json().orders;
-    expect(orders[0].totalMinor).toBe(2690000);
+    expect(orders[0].totalMinor).toBe(3600000);
     expect(orders[0].discountMinor).toBe(290000);
     expect(orders[0].items).toHaveLength(2);
   });
@@ -100,7 +100,7 @@ describe('the device shop', () => {
       method: 'POST', url: '/shop/orders',
       payload: { customerName: 'Сауле', phone: '+77006665544', city: 'Алматы', address: 'ул. Сатпаева 3', items: [{ variantId: watch, qty: 1 }] },
     });
-    expect(placed.json().totalMinor).toBe(1990000);
+    expect(placed.json().totalMinor).toBe(2900000);
     expect(placed.json().discountMinor).toBe(0);
   });
 

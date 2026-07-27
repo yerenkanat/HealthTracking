@@ -125,7 +125,7 @@ export function createMemoryRepository(): Repository {
 
   // ---- Shop (mirrors migrations/009_shop.sql seed) ----
   const shopProds = [
-    { id: 'watch', name: 'Смарт-часы Umay', priceMinor: 1990000, sort: 1 },
+    { id: 'watch', name: 'Смарт-часы Umay', priceMinor: 2900000, sort: 1 },
     { id: 'tracker', name: 'Детский трекер Umay', priceMinor: 990000, sort: 2 },
   ];
   const shopVars: Array<{ id: string; productId: string; color: string; colorHex: string; stock: number; sort: number }> = [

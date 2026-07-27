@@ -1,0 +1,564 @@
+<style>
+  :root{
+    --violet:#6D5AE6;--violet-deep:#5646c9;--rose:#E85C8A;--teal:#12B3A6;--good:#17A672;--crit:#E5484D;--amber:#E5A50A;
+    --ink:#1C1E2A;--muted:#6C6F80;--bg:#FAF9FF;--surface:#FFFFFF;--surface-2:#F4F2FD;--hair:#ECE9F6;
+    --grad:linear-gradient(135deg,var(--violet),var(--rose));--grad-soft:linear-gradient(135deg,#EFEBFD,#FCE9F1);
+    --shadow:0 18px 46px -22px rgba(88,70,201,.38);--shadow-sm:0 8px 22px -14px rgba(28,30,42,.28);--r:22px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--mono:"SFMono-Regular",ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{--ink:#EEEDF6;--muted:#A2A3B4;--bg:#0F0E17;--surface:#181722;--surface-2:#201E2E;--hair:#2A2740;--grad-soft:linear-gradient(135deg,#221C3C,#301B2C);--shadow:0 20px 50px -22px rgba(0,0,0,.7);--shadow-sm:0 10px 26px -16px rgba(0,0,0,.65)}}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;padding-bottom:72px}
+  @media(min-width:721px){body{padding-bottom:0}}
+  h1,h2,h3{margin:0;line-height:1.12;letter-spacing:-.02em;text-wrap:balance}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  a{color:inherit;text-decoration:none}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:800;font-size:16px;border-radius:14px;padding:15px 26px;cursor:pointer;border:1px solid transparent;transition:transform .15s,box-shadow .2s;min-height:54px}
+  .btn.primary{background:var(--grad);color:#fff;box-shadow:0 14px 30px -12px rgba(216,74,123,.6)}
+  .btn.primary:hover{transform:translateY(-2px)}
+  .btn.primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .btn.ghost{background:var(--surface);border-color:var(--hair);box-shadow:var(--shadow-sm);color:var(--ink)}
+  .btn.block{width:100%}
+  header.top{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--hair)}
+  .top .wrap{display:flex;align-items:center;gap:10px;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+  .logo{width:34px;height:34px;border-radius:11px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:900}
+  .top .spacer{flex:1}
+  .top .tprice{font-weight:800;font-family:var(--mono);display:none}
+  @media(min-width:600px){.top .tprice{display:inline}}
+  .lang{display:inline-flex;border:1px solid var(--hair);border-radius:10px;overflow:hidden;background:var(--surface)}
+  .lang button{border:0;background:none;font:inherit;font-weight:800;font-size:12.5px;padding:7px 11px;cursor:pointer;color:var(--muted);min-height:36px}
+  .lang button[aria-pressed="true"]{background:var(--grad);color:#fff}
+  .hero{position:relative;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(55% 55% at 82% 12%,color-mix(in srgb,var(--rose) 22%,transparent),transparent 70%),radial-gradient(50% 50% at 6% 18%,color-mix(in srgb,var(--violet) 22%,transparent),transparent 70%);pointer-events:none}
+  .hero .wrap{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;padding:44px 20px 34px}
+  @media(max-width:820px){.hero .wrap{grid-template-columns:1fr;text-align:center;padding-top:30px}}
+  .eyebrow{display:inline-flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--hair);color:var(--violet);font-weight:800;font-size:12.5px;padding:7px 14px;border-radius:99px;box-shadow:var(--shadow-sm)}
+  h1{font-size:clamp(30px,5.4vw,52px);font-weight:900;margin:16px 0 0;max-width:15ch}
+  @media(max-width:820px){h1{margin-inline:auto}}
+  h1 .g{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{color:var(--muted);font-size:clamp(15px,2.3vw,18.5px);margin-top:14px;max-width:48ch}
+  @media(max-width:820px){.lede{margin-inline:auto}}
+  .pricerow{display:flex;align-items:baseline;gap:12px;margin-top:22px;flex-wrap:wrap}
+  @media(max-width:820px){.pricerow{justify-content:center}}
+  .price{font-size:42px;font-weight:900;font-family:var(--mono)}
+  .price small{font-size:18px;color:var(--muted);font-weight:700}
+  .save{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good);font-weight:800;font-size:13px;padding:5px 11px;border-radius:99px}
+  .cta-row{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
+  @media(max-width:820px){.cta-row{justify-content:center}}
+  .reassure{margin-top:20px;color:var(--muted);font-size:13.5px;display:flex;flex-wrap:wrap;gap:8px 18px}
+  @media(max-width:820px){.reassure{justify-content:center}}
+  .reassure span{display:inline-flex;align-items:center;gap:6px}
+  .tick{width:16px;height:16px;color:var(--teal);flex:0 0 auto}
+  .hero-art{position:relative;display:grid;place-items:center}
+  .hero-art .halo{position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:var(--grad-soft);filter:blur(2px)}
+  .hero-art svg{position:relative;width:min(80%,320px);filter:drop-shadow(0 30px 40px rgba(88,70,201,.32))}
+  .trust{background:var(--surface-2);border-block:1px solid var(--hair);padding:16px 0}
+  .trust .wrap{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 28px}
+  .trust .item{display:flex;gap:9px;align-items:center;font-weight:700;font-size:14px}
+  .trust .item svg{width:20px;height:20px;color:var(--violet)}
+  section{padding:46px 0}
+  .kicker{color:var(--rose);font-weight:800;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-align:center}
+  h2{font-size:clamp(24px,4vw,34px);font-weight:900;margin-top:8px;text-align:center}
+  .sec-lede{color:var(--muted);text-align:center;max-width:56ch;margin:12px auto 0;font-size:15.5px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:30px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.grid{grid-template-columns:1fr}}
+  .feat{background:var(--surface);border:1px solid var(--hair);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
+  .feat .n{font-family:var(--mono);font-weight:800;color:var(--violet);font-size:13px}
+  .feat .ic{width:44px;height:44px;border-radius:13px;background:var(--grad-soft);display:grid;place-items:center;margin:8px 0 12px}
+  .feat .ic svg{width:24px;height:24px;color:var(--violet)}
+  .feat h3{font-size:16.5px;font-weight:800}
+  .feat p{color:var(--muted);font-size:13.5px;margin:6px 0 0}
+  .health{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:820px){.health{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.health{grid-template-columns:1fr}}
+  /* app + AI band */
+  .ai{background:var(--grad);color:#fff;border-radius:26px;padding:34px;box-shadow:var(--shadow);display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center}
+  @media(max-width:820px){.ai{grid-template-columns:1fr;text-align:center}}
+  .ai h2{color:#fff;text-align:left}
+  @media(max-width:820px){.ai h2{text-align:center}}
+  .ai .kicker{color:#fff;opacity:.9;text-align:left}
+  @media(max-width:820px){.ai .kicker{text-align:center}}
+  .ai p{opacity:.95;margin-top:12px}
+  .ai ul{list-style:none;padding:0;margin:18px 0 0;display:grid;gap:10px}
+  .ai li{display:flex;gap:10px;align-items:flex-start;font-weight:600}
+  @media(max-width:820px){.ai li{justify-content:center}}
+  .ai li svg{width:20px;height:20px;flex:0 0 auto;margin-top:1px}
+  .phone{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:22px;padding:18px;display:grid;gap:10px}
+  .phrow{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.16);border-radius:12px;padding:11px 14px;font-weight:700;font-size:14px}
+  .phrow b{font-family:var(--mono)}
+  /* specs */
+  .specs{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-top:26px;max-width:760px;margin-inline:auto}
+  @media(max-width:600px){.specs{grid-template-columns:1fr}}
+  .spec{display:flex;justify-content:space-between;gap:16px;padding:14px 2px;border-bottom:1px solid var(--hair);font-size:14.5px}
+  .spec .k{color:var(--muted)}
+  .spec .v{font-weight:700;text-align:right}
+  /* colours */
+  .colors{display:flex;flex-wrap:wrap;justify-content:center;gap:18px 22px;margin-top:28px}
+  .color{display:grid;justify-items:center;gap:8px;width:84px}
+  .color .dot{width:52px;height:52px;border-radius:50%;box-shadow:0 0 0 1.5px var(--hair),inset 0 -8px 14px rgba(0,0,0,.18)}
+  .color span{font-size:12.5px;color:var(--muted);font-weight:600;text-align:center}
+  /* order */
+  .order{background:var(--grad-soft);border-radius:26px;padding:8px;margin-top:6px}
+  .order .inner{background:var(--surface);border-radius:20px;padding:30px;border:1px solid var(--hair);display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start}
+  @media(max-width:820px){.order .inner{grid-template-columns:1fr}}
+  .order .pitch h2{text-align:left;font-size:26px}
+  @media(max-width:820px){.order .pitch h2{text-align:center}}
+  .order .pitch p{color:var(--muted);margin-top:12px}
+  .swatches{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}
+  .swatch{width:34px;height:34px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1.5px var(--hair);cursor:pointer;position:relative}
+  .swatch[aria-pressed="true"]{box-shadow:0 0 0 2.5px var(--violet)}
+  .swatch[data-oos="1"]{opacity:.32;cursor:not-allowed}
+  .swatch[data-oos="1"]::after{content:"";position:absolute;left:3px;right:3px;top:47%;height:2px;background:var(--crit);transform:rotate(-20deg)}
+  .cname{font-size:13.5px;color:var(--muted);margin-top:8px}
+  .cname b{color:var(--ink)}
+  .opt{display:flex;gap:10px;margin-top:4px}
+  .optbtn{flex:1;border:1px solid var(--hair);background:var(--surface-2);border-radius:14px;padding:12px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+  .optbtn[aria-pressed="true"]{border-color:var(--violet);background:color-mix(in srgb,var(--violet) 8%,transparent)}
+  .optbtn .ot{font-weight:800;font-size:14px}
+  .optbtn .op{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .optbtn .op b{color:var(--good)}
+  form{display:grid;gap:12px}
+  label{font-size:13px;font-weight:700;color:var(--muted);display:grid;gap:6px}
+  input,select{font:inherit;font-size:15px;padding:13px 14px;border-radius:12px;border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);min-height:50px;width:100%}
+  input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--violet) 55%,transparent);border-color:transparent}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .summary{background:var(--surface-2);border:1px solid var(--hair);border-radius:12px;padding:12px 14px;font-size:14px;display:grid;gap:6px}
+  .summary .line{display:flex;justify-content:space-between;align-items:center}
+  .summary .num{font-family:var(--mono)}
+  .summary .disc{color:var(--good);font-weight:700}
+  .summary .grand{border-top:1px solid var(--hair);padding-top:8px;font-size:15px}
+  .summary .grand b{font-size:18px;font-family:var(--mono)}
+  .msg{border-radius:12px;padding:13px 15px;font-size:14px;font-weight:600;display:none}
+  .msg.ok{display:block;background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
+  .msg.err{display:block;background:color-mix(in srgb,var(--crit) 12%,transparent);color:var(--crit)}
+  .faq{max-width:760px;margin:26px auto 0;display:grid;gap:12px}
+  details{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:2px 18px;box-shadow:var(--shadow-sm)}
+  summary{list-style:none;cursor:pointer;font-weight:800;font-size:16px;padding:16px 0;display:flex;justify-content:space-between;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";font-size:22px;color:var(--violet)}
+  details[open] summary::after{content:"–"}
+  details p{color:var(--muted);font-size:14.5px;padding:0 0 16px;margin:0}
+  footer{border-top:1px solid var(--hair);padding:30px 0;color:var(--muted);font-size:13.5px}
+  .buybar{position:fixed;left:0;right:0;bottom:0;z-index:45;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--hair);padding:10px 16px;display:flex;align-items:center;gap:12px}
+  @media(min-width:721px){.buybar{display:none}}
+  .buybar .bp{font-weight:900;font-family:var(--mono);font-size:18px}
+  .buybar .bp small{font-size:12px;color:var(--muted);font-weight:700;display:block;line-height:1}
+  .buybar .btn{flex:1;padding:13px;min-height:48px;font-size:15px}
+</style>
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="/shop"><span class="logo">U</span> Umay</a>
+  <div class="spacer"></div>
+  <div class="lang" role="group" aria-label="Тіл / Язык">
+    <button id="langKz" aria-pressed="true" onclick="setLang('kz')">ҚАЗ</button>
+    <button id="langRu" aria-pressed="false" onclick="setLang('ru')">РУС</button>
+  </div>
+  <span class="tprice num" id="topPrice">29 000 ₸</span>
+  <a class="btn primary" href="#order" data-i18n="nav_cta" style="padding:10px 16px;min-height:44px;font-size:14px">Тапсырыс</a>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <div class="hero-copy">
+    <span class="eyebrow" data-i18n="hero_eyebrow">🇰🇿 Болашақ аналарға арналған смарт-сағат</span>
+    <h1><span data-i18n="hero_h1a">Денсаулық — әр күні </span><span class="g" data-i18n="hero_h1b">бақылауда</span></h1>
+    <p class="lede" data-i18n="hero_lede">Пульс, қысым, оттегі және глюкоза бағасы, ұйқы мен қадамдар. Umay қосымшасы көрсеткіштерді жинап, қажет кезде ескертеді.</p>
+    <div class="pricerow">
+      <span class="price">29 000 <small>₸</small></span>
+      <span class="save" id="stockPill" data-i18n="stock_in">Бар</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#order" data-i18n="hero_cta1">Қазір тапсырыс беру</a>
+      <a class="btn ghost" href="#upgrades" data-i18n="hero_cta2">Мүмкіндіктері</a>
+    </div>
+    <div class="reassure">
+      <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="re_cod">Алған кезде төлеу</span></span>
+      <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="re_delivery">Қазақстан бойынша жеткізу</span></span>
+      <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="re_warranty">1 жыл кепілдік</span></span>
+    </div>
+  </div>
+  <div class="hero-art">
+    <div class="halo"></div>
+    <svg viewBox="0 0 200 240" aria-label="Umay"><rect x="66" y="6" width="68" height="42" rx="15" fill="#c9c2ea"/><rect x="66" y="192" width="68" height="42" rx="15" fill="#c9c2ea"/><rect x="38" y="42" width="124" height="158" rx="36" fill="#1C1E2A"/><rect x="50" y="54" width="100" height="134" rx="26" fill="url(#g1)"/><path d="M72 118c6 0 8-16 14-16s8 26 14 26 6-18 12-18 6 8 12 8" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="96" text-anchor="middle" fill="#fff" font-family="monospace" font-weight="800" font-size="22">118/76</text><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6D5AE6"/><stop offset="1" stop-color="#E85C8A"/></linearGradient></defs></svg>
+  </div>
+</div></section>
+
+<div class="trust"><div class="wrap">
+  <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h11v8H3zM14 10h4l3 3v2h-7z"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg> <span data-i18n="re_delivery">Қазақстан бойынша жеткізу</span></div>
+  <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> <span data-i18n="re_cod">Алған кезде төлеу</span></div>
+  <div class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg> <span data-i18n="trust_warranty">1 жыл кепілдік · 14 күн қайтару</span></div>
+</div></div>
+
+<section id="upgrades"><div class="wrap">
+  <div class="kicker" data-i18n="up_kicker">Сегіз жаңарту</div>
+  <h2 data-i18n="up_h2">Толығымен жаңартылған сағат</h2>
+  <p class="sec-lede" data-i18n="up_lede">Жаңа жүйе, сенсорлар және алгоритмдер — дәлірек өлшеу және ұзақ жұмыс.</p>
+  <div class="grid">
+    <div class="feat"><div class="n">01</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 12l2 2 4-4"/></svg></div><h3 data-i18n="up1_t">Жаңа жүйе</h3><p data-i18n="up1_d">Өнімділік 60%-ға артты.</p></div>
+    <div class="feat"><div class="n">02</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2 5 4-12 2 7h6"/></svg></div><h3 data-i18n="up2_t">Пульс сенсоры</h3><p data-i18n="up2_d">Екі түсті үш арналы PPG — кез келген тері түсіне.</p></div>
+    <div class="feat"><div class="n">03</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3s6 6 6 11a6 6 0 0 1-12 0c0-5 6-11 6-11Z"/></svg></div><h3 data-i18n="up3_t">Қандағы оттегі</h3><p data-i18n="up3_d">SpO₂ дәлдігі 40%-ға жоғары.</p></div>
+    <div class="feat"><div class="n">04</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 9h6v6H9z"/></svg></div><h3 data-i18n="up4_t">Қуатты чип</h3><p data-i18n="up4_d">Екі ядролы — өнімділік 300%-ға артты.</p></div>
+    <div class="feat"><div class="n">05</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg></div><h3 data-i18n="up5_t">Ұзақ батарея</h3><p data-i18n="up5_d">10 күнге дейін жұмыс.</p></div>
+    <div class="feat"><div class="n">06</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 13a4 4 0 0 0 8 0"/><path d="M9 9h.01M15 9h.01"/></svg></div><h3 data-i18n="up6_t">Жаңа функциялар</h3><p data-i18n="up6_d">Стресс пен көңіл-күй мониторингі.</p></div>
+    <div class="feat"><div class="n">07</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5M12 7v5l3 2"/></svg></div><h3 data-i18n="up7_t">Дәл алгоритмдер</h3><p data-i18n="up7_d">Ұйқы мен белсенділік дәлдігі +20%.</p></div>
+    <div class="feat"><div class="n">08</div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div><h3 data-i18n="up8_t">Umay қосымшасы</h3><p data-i18n="up8_d">Синхрондау және ЖИ-кеңестер.</p></div>
+  </div>
+</div></section>
+
+<section id="health" style="background:var(--surface-2);border-block:1px solid var(--hair)"><div class="wrap">
+  <div class="kicker" data-i18n="he_kicker">Ана денсаулығы</div>
+  <h2 data-i18n="he_h2">Барлық көрсеткіш — қосымшада</h2>
+  <p class="sec-lede" data-i18n="he_lede">Сағат күні бойы өлшейді, ал Umay қосымшасы динамиканы көрсетіп, неге көңіл бөлу керегін айтады.</p>
+  <div class="grid health">
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2 5 4-12 2 7h6"/></svg></div><h3 data-i18n="he1_t">Пульс · 24 сағат</h3><p data-i18n="he1_d">Жүрек соғу жиілігі тәулік бойы.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.7-7-12a7 7 0 0 1 14 0c0 5.3-7 12-7 12Z"/><path d="M9 9h6"/></svg></div><h3 data-i18n="he2_t">Қан қысымы</h3><p data-i18n="he2_d">Артериялық қысымның скринингі.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3s6 6 6 11a6 6 0 0 1-12 0c0-5 6-11 6-11Z"/></svg></div><h3 data-i18n="he3_t">Оттегі (SpO₂)</h3><p data-i18n="he3_d">Қандағы оттегінің қанығуы.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3 data-i18n="he4_t">Глюкоза бағасы</h3><p data-i18n="he4_d">Өзін-өзі бақылауға арналған бағалау.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></div><h3 data-i18n="he5_t">Ұйқы</h3><p data-i18n="he5_d">Ұйқы фазалары мен ұзақтығы.</p></div>
+    <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M12 14l3-4"/></svg></div><h3 data-i18n="he6_t">Стресс</h3><p data-i18n="he6_d">Стресс деңгейі мен тыныс алу жаттығулары.</p></div>
+  </div>
+</div></section>
+
+<section id="app"><div class="wrap">
+  <div class="ai">
+    <div>
+      <div class="kicker" data-i18n="ai_kicker">Umay қосымшасы + ЖИ</div>
+      <h2 data-i18n="ai_h2">Дербес ЖИ-кеңестер — апта сайын</h2>
+      <p data-i18n="ai_lede">Барлық деректер бір қосымшада. Жасанды интеллект жүктілік аптасына қарай кеңес береді және дәрігерге қашан бару керегін еске салады.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="ai_b1">Апта сайын жеке кеңестер</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="ai_b2">Ауытқуларды ерте байқау</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="ai_b3">Дәрігерге бару кестесі мен еске салулар</span></li>
+      </ul>
+    </div>
+    <div class="phone">
+      <div class="phrow"><span data-i18n="ph_hr">Пульс</span><b>72</b></div>
+      <div class="phrow"><span data-i18n="ph_bp">Қысым</span><b>118/76</b></div>
+      <div class="phrow"><span data-i18n="ph_spo2">Оттегі</span><b>98%</b></div>
+      <div class="phrow"><span data-i18n="ph_week">21-апта</span><b>💜</b></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="specs"><div class="wrap">
+  <div class="kicker" data-i18n="sp_kicker">Сипаттамалары</div>
+  <h2 data-i18n="sp_h2">Техникалық сипаттамалар</h2>
+  <div class="specs">
+    <div class="spec"><span class="k" data-i18n="sp_screen_k">Экран</span><span class="v" data-i18n="sp_screen_v">TFT түрлі-түсті</span></div>
+    <div class="spec"><span class="k" data-i18n="sp_batt_k">Батарея</span><span class="v" data-i18n="sp_batt_v">10 күнге дейін</span></div>
+    <div class="spec"><span class="k" data-i18n="sp_charge_k">Зарядтау</span><span class="v" data-i18n="sp_charge_v">USB</span></div>
+    <div class="spec"><span class="k" data-i18n="sp_water_k">Су өткізбеу</span><span class="v" data-i18n="sp_water_v">Тұрмыстық (IP)</span></div>
+    <div class="spec"><span class="k" data-i18n="sp_band_k">Бау</span><span class="v" data-i18n="sp_band_v">Силикон, ауыстырмалы</span></div>
+    <div class="spec"><span class="k" data-i18n="sp_extra_k">Қосымша</span><span class="v" data-i18n="sp_extra_v">Қашықтан селфи</span></div>
+    <div class="spec"><span class="k" data-i18n="sp_size_k">Өлшемі</span><span class="v num">14.1 × 1.63 cm</span></div>
+    <div class="spec"><span class="k" data-i18n="sp_compat_k">Үйлесімділік</span><span class="v" data-i18n="sp_compat_v">Android және iPhone</span></div>
+  </div>
+</div></section>
+
+<section id="colors" style="background:var(--surface-2);border-block:1px solid var(--hair)"><div class="wrap">
+  <div class="kicker" data-i18n="col_kicker">Түстер</div>
+  <h2 data-i18n="col_h2">Тоғыз түсте</h2>
+  <p class="sec-lede" data-i18n="col_lede">Өзіңізге ұнайтын түсті таңдаңыз.</p>
+  <div class="colors">
+    <div class="color"><span class="dot" style="background:#1C1E2A"></span><span data-i18n="col_black">Қара</span></div>
+    <div class="color"><span class="dot" style="background:#3B4C7A"></span><span data-i18n="col_blue">Көк</span></div>
+    <div class="color"><span class="dot" style="background:#4B5320"></span><span data-i18n="col_army">Әскери жасыл</span></div>
+    <div class="color"><span class="dot" style="background:#7C3AED"></span><span data-i18n="col_purple">Күлгін</span></div>
+    <div class="color"><span class="dot" style="background:#F472B6"></span><span data-i18n="col_pink">Қызғылт</span></div>
+    <div class="color"><span class="dot" style="background:#34D399"></span><span data-i18n="col_green">Жасыл</span></div>
+    <div class="color"><span class="dot" style="background:#CBD5E1"></span><span data-i18n="col_gray">Ашық сұр</span></div>
+    <div class="color"><span class="dot" style="background:#FB7247"></span><span data-i18n="col_orange">Қызғылт сары</span></div>
+    <div class="color"><span class="dot" style="background:#EF4444"></span><span data-i18n="col_red">Қызыл</span></div>
+  </div>
+</div></section>
+
+<section id="order"><div class="wrap">
+  <div class="order"><div class="inner">
+    <div class="pitch">
+      <div class="kicker" style="text-align:left" data-i18n="or_kicker">Тапсырыс</div>
+      <h2 data-i18n="or_h2">Түсті таңдап, тапсырыс беріңіз</h2>
+      <p data-i18n="or_pitch">Алған кезде төлеу — курьер сағатты жеткізеді, ақшаны бәрі қолыңызда болғанда ғана төлейсіз. 1 жыл кепілдік, 14 күн қайтару.</p>
+      <div class="swatches" id="swatches"></div>
+      <div class="cname" id="cname"></div>
+      <div class="opt">
+        <button type="button" class="optbtn" id="optSingle" aria-pressed="true"><div class="ot" data-i18n="opt_single_t">Тек сағат</div><div class="op">29 000 ₸</div></button>
+        <button type="button" class="optbtn" id="optBundle" aria-pressed="false"><div class="ot" data-i18n="opt_bundle_t">Сағат + балаға трекер</div><div class="op">36 000 ₸ · <b data-i18n="opt_bundle_save">үнемдеу 2 900 ₸</b></div></button>
+      </div>
+      <div class="summary" style="margin-top:16px">
+        <div class="line"><span id="sumLabel">—</span><span class="num" id="sumSub">—</span></div>
+        <div class="line disc" id="sumDiscRow" hidden><span data-i18n="sum_disc">Жинақ жеңілдігі</span><span class="num" id="sumDisc">—</span></div>
+        <div class="line grand"><span data-i18n="sum_total">Барлығы</span><b id="sumTotal">—</b></div>
+      </div>
+    </div>
+    <form id="orderForm" novalidate>
+      <label id="lblTracker" hidden><span data-i18n="lbl_tracker">Трекер түсі</span><select id="fTracker"></select></label>
+      <div class="row2">
+        <label><span data-i18n="lbl_qty">Саны</span><input id="fQty" type="number" min="1" max="20" value="1"></label>
+        <label><span data-i18n="lbl_city">Қала</span><input id="fCity" type="text" data-i18n-ph="ph_city" placeholder="Алматы" autocomplete="address-level2"></label>
+      </div>
+      <label><span data-i18n="lbl_name">Атыңыз</span><input id="fName" type="text" data-i18n-ph="ph_name" placeholder="Айгерім" autocomplete="name"></label>
+      <label><span data-i18n="lbl_phone">Телефон</span><input id="fPhone" type="tel" inputmode="tel" placeholder="+7 (7__) ___-__-__" autocomplete="tel"></label>
+      <label><span data-i18n="lbl_addr">Жеткізу мекенжайы</span><input id="fAddr" type="text" data-i18n-ph="ph_addr" placeholder="Көше, үй, пәтер" autocomplete="street-address"></label>
+      <div class="msg" id="orderMsg"></div>
+      <button class="btn primary block" id="submitBtn" type="submit" data-i18n="or_submit">Тапсырыс беру</button>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin:0" data-i18n="or_consent">Батырманы басу арқылы жеткізу үшін байланыс деректерін өңдеуге келісесіз.</p>
+    </form>
+  </div></div>
+</div></section>
+
+<section style="padding-top:10px"><div class="wrap">
+  <div class="kicker" data-i18n="faq_kicker">Сұрақтар</div><h2 data-i18n="faq_h2">Жиі қойылатын сұрақтар</h2>
+  <div class="faq">
+    <details open><summary data-i18n="faq1_q">Бұл медициналық құрал ма?</summary><p data-i18n="faq1_a">Жоқ. Сағат өзін-өзі бақылауға арналған бағдарлы көрсеткіштер береді (скрининг), диагноз емес. Қауіпті мәндерде қосымша дәрігерге жүгінуге кеңес береді.</p></details>
+    <details><summary data-i18n="faq2_q">Қалай төлеймін?</summary><p data-i18n="faq2_a">Алған кезде төлеу — сағатты қарап, курьерге қолма-қол немесе аударыммен төлейсіз.</p></details>
+    <details><summary data-i18n="faq3_q">Қандай телефондармен жұмыс істейді?</summary><p data-i18n="faq3_a">Umay қосымшасы Android және iPhone-да жұмыс істейді.</p></details>
+    <details><summary data-i18n="faq4_q">Батарея қанша уақытқа жетеді?</summary><p data-i18n="faq4_a">Әдеттегі режимде 10 күнге дейін — өлшеу жиілігіне байланысты.</p></details>
+    <details><summary data-i18n="faq5_q">Кепілдік пен жеткізу қандай?</summary><p data-i18n="faq5_a">Ресми кепілдік 1 жыл, 14 күн қайтару. Қазақстан бойынша жеткізу, алған кезде төлеу.</p></details>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <a class="brand" href="/shop" style="font-size:16px"><span class="logo" style="width:28px;height:28px;border-radius:9px">U</span> Umay</a>
+  <p style="max-width:600px;margin-top:10px"><span data-i18n="foot_disc">Медициналық изделие емес. Көрсеткіштер бағдарлы сипатта және дәрігер қарауын алмастырмайды.</span> © Umay · <span data-i18n="foot_kz">Қазақстан</span> · <a href="/shop" style="text-decoration:underline" data-i18n="foot_catalog">Барлық каталог</a></p>
+</div></footer>
+
+<div class="buybar">
+  <div class="bp"><small data-i18n="bar_label">Смарт-сағат</small><span id="barPrice">29 000 ₸</span></div>
+  <a class="btn primary" href="#order" data-i18n="nav_cta">Тапсырыс</a>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const fmt=n=>Number(n).toLocaleString("ru-RU");
+  const tng=minor=>fmt(Math.round(minor/100))+" ₸";
+  const BUNDLE_DISCOUNT=290000;
+  let WATCH=null, TRACKER=null, watchColor=null, mode="single", LANG="kz";
+
+  const T={
+    kz:{
+      nav_cta:"Тапсырыс", hero_eyebrow:"🇰🇿 Болашақ аналарға арналған смарт-сағат",
+      hero_h1a:"Денсаулық — әр күні ", hero_h1b:"бақылауда",
+      hero_lede:"Пульс, қысым, оттегі және глюкоза бағасы, ұйқы мен қадамдар. Umay қосымшасы көрсеткіштерді жинап, қажет кезде ескертеді.",
+      hero_cta1:"Қазір тапсырыс беру", hero_cta2:"Мүмкіндіктері",
+      re_cod:"Алған кезде төлеу", re_delivery:"Қазақстан бойынша жеткізу", re_warranty:"1 жыл кепілдік",
+      trust_warranty:"1 жыл кепілдік · 14 күн қайтару",
+      up_kicker:"Сегіз жаңарту", up_h2:"Толығымен жаңартылған сағат", up_lede:"Жаңа жүйе, сенсорлар және алгоритмдер — дәлірек өлшеу және ұзақ жұмыс.",
+      up1_t:"Жаңа жүйе", up1_d:"Өнімділік 60%-ға артты.",
+      up2_t:"Пульс сенсоры", up2_d:"Екі түсті үш арналы PPG — кез келген тері түсіне.",
+      up3_t:"Қандағы оттегі", up3_d:"SpO₂ дәлдігі 40%-ға жоғары.",
+      up4_t:"Қуатты чип", up4_d:"Екі ядролы — өнімділік 300%-ға артты.",
+      up5_t:"Ұзақ батарея", up5_d:"10 күнге дейін жұмыс.",
+      up6_t:"Жаңа функциялар", up6_d:"Стресс пен көңіл-күй мониторингі.",
+      up7_t:"Дәл алгоритмдер", up7_d:"Ұйқы мен белсенділік дәлдігі +20%.",
+      up8_t:"Umay қосымшасы", up8_d:"Синхрондау және ЖИ-кеңестер.",
+      he_kicker:"Ана денсаулығы", he_h2:"Барлық көрсеткіш — қосымшада",
+      he_lede:"Сағат күні бойы өлшейді, ал Umay қосымшасы динамиканы көрсетіп, неге көңіл бөлу керегін айтады.",
+      he1_t:"Пульс · 24 сағат", he1_d:"Жүрек соғу жиілігі тәулік бойы.",
+      he2_t:"Қан қысымы", he2_d:"Артериялық қысымның скринингі.",
+      he3_t:"Оттегі (SpO₂)", he3_d:"Қандағы оттегінің қанығуы.",
+      he4_t:"Глюкоза бағасы", he4_d:"Өзін-өзі бақылауға арналған бағалау.",
+      he5_t:"Ұйқы", he5_d:"Ұйқы фазалары мен ұзақтығы.",
+      he6_t:"Стресс", he6_d:"Стресс деңгейі мен тыныс алу жаттығулары.",
+      ai_kicker:"Umay қосымшасы + ЖИ", ai_h2:"Дербес ЖИ-кеңестер — апта сайын",
+      ai_lede:"Барлық деректер бір қосымшада. Жасанды интеллект жүктілік аптасына қарай кеңес береді және дәрігерге қашан бару керегін еске салады.",
+      ai_b1:"Апта сайын жеке кеңестер", ai_b2:"Ауытқуларды ерте байқау", ai_b3:"Дәрігерге бару кестесі мен еске салулар",
+      ph_hr:"Пульс", ph_bp:"Қысым", ph_spo2:"Оттегі", ph_week:"21-апта",
+      sp_kicker:"Сипаттамалары", sp_h2:"Техникалық сипаттамалар",
+      sp_screen_k:"Экран", sp_screen_v:"TFT түрлі-түсті", sp_batt_k:"Батарея", sp_batt_v:"10 күнге дейін",
+      sp_charge_k:"Зарядтау", sp_charge_v:"USB", sp_water_k:"Су өткізбеу", sp_water_v:"Тұрмыстық (IP)",
+      sp_band_k:"Бау", sp_band_v:"Силикон, ауыстырмалы", sp_extra_k:"Қосымша", sp_extra_v:"Қашықтан селфи",
+      sp_size_k:"Өлшемі", sp_compat_k:"Үйлесімділік", sp_compat_v:"Android және iPhone",
+      col_kicker:"Түстер", col_h2:"Тоғыз түсте", col_lede:"Өзіңізге ұнайтын түсті таңдаңыз.",
+      col_black:"Қара", col_blue:"Көк", col_army:"Әскери жасыл", col_purple:"Күлгін", col_pink:"Қызғылт",
+      col_green:"Жасыл", col_gray:"Ашық сұр", col_orange:"Қызғылт сары", col_red:"Қызыл",
+      or_kicker:"Тапсырыс", or_h2:"Түсті таңдап, тапсырыс беріңіз",
+      or_pitch:"Алған кезде төлеу — курьер сағатты жеткізеді, ақшаны бәрі қолыңызда болғанда ғана төлейсіз. 1 жыл кепілдік, 14 күн қайтару.",
+      opt_single_t:"Тек сағат", opt_bundle_t:"Сағат + балаға трекер", opt_bundle_save:"үнемдеу 2 900 ₸",
+      sum_disc:"Жинақ жеңілдігі", sum_total:"Барлығы",
+      lbl_tracker:"Трекер түсі", lbl_qty:"Саны", lbl_city:"Қала", lbl_name:"Атыңыз", lbl_phone:"Телефон", lbl_addr:"Жеткізу мекенжайы",
+      ph_city:"Алматы", ph_name:"Айгерім", ph_addr:"Көше, үй, пәтер",
+      or_submit:"Тапсырыс беру", or_consent:"Батырманы басу арқылы жеткізу үшін байланыс деректерін өңдеуге келісесіз.",
+      faq_kicker:"Сұрақтар", faq_h2:"Жиі қойылатын сұрақтар",
+      faq1_q:"Бұл медициналық құрал ма?", faq1_a:"Жоқ. Сағат өзін-өзі бақылауға арналған бағдарлы көрсеткіштер береді (скрининг), диагноз емес. Қауіпті мәндерде дәрігерге жүгінуге кеңес береді.",
+      faq2_q:"Қалай төлеймін?", faq2_a:"Алған кезде төлеу — сағатты қарап, курьерге қолма-қол немесе аударыммен төлейсіз.",
+      faq3_q:"Қандай телефондармен жұмыс істейді?", faq3_a:"Umay қосымшасы Android және iPhone-да жұмыс істейді.",
+      faq4_q:"Батарея қанша уақытқа жетеді?", faq4_a:"Әдеттегі режимде 10 күнге дейін — өлшеу жиілігіне байланысты.",
+      faq5_q:"Кепілдік пен жеткізу қандай?", faq5_a:"Ресми кепілдік 1 жыл, 14 күн қайтару. Қазақстан бойынша жеткізу, алған кезде төлеу.",
+      foot_disc:"Медициналық изделие емес. Көрсеткіштер бағдарлы сипатта және дәрігер қарауын алмастырмайды.", foot_kz:"Қазақстан", foot_catalog:"Барлық каталог",
+      bar_label:"Смарт-сағат",
+      stock_in:"Бар", stock_low:"Азайып қалды", stock_oos:"Жақында түседі",
+      sum_single:"Смарт-сағат Umay", sum_bundle:"Сағат + трекер",
+      m_pickcolor:"Сағат түсін таңдаңыз", m_pickcolor_t:"Трекер түсін таңдаңыз",
+      m_name:"Атыңызды жазыңыз", m_phone:"Дұрыс телефон нөірін жазыңыз", m_city:"Қаланы жазыңыз", m_addr:"Жеткізу мекенжайын жазыңыз",
+      m_submitting:"Ресімделуде…", m_ok:"Рақмет! Тапсырыс қабылданды — растау үшін жақын арада хабарласамыз.", m_saved:" Сіз {x} үнемдедіңіз.",
+      m_oos:"Өкінішке орай, таңдаған түс жаңа ғана бітті. Басқасын таңдаңыз.", m_err:"Тапсырысты ресімдеу мүмкін болмады. Деректерді тексеріп, қайталап көріңіз.", m_neterr:"Сервермен байланыс жоқ. Кейінірек қайталаңыз."
+    },
+    ru:{
+      nav_cta:"Заказать", hero_eyebrow:"🇰🇿 Умные часы для будущих мам",
+      hero_h1a:"Здоровье под ", hero_h1b:"контролем",
+      hero_lede:"Пульс, давление, кислород и оценка глюкозы, сон и шаги. Приложение Umay собирает показатели и вовремя предупредит.",
+      hero_cta1:"Заказать сейчас", hero_cta2:"Возможности",
+      re_cod:"Оплата при получении", re_delivery:"Доставка по Казахстану", re_warranty:"Гарантия 1 год",
+      trust_warranty:"Гарантия 1 год · возврат 14 дней",
+      up_kicker:"Восемь обновлений", up_h2:"Полностью обновлённые часы", up_lede:"Новая система, датчики и алгоритмы — точнее измерения и дольше работа.",
+      up1_t:"Новая система", up1_d:"Производительность выше на 60%.",
+      up2_t:"Датчик пульса", up2_d:"Двухцветный трёхканальный PPG — для любого тона кожи.",
+      up3_t:"Кислород крови", up3_d:"Точность SpO₂ выше на 40%.",
+      up4_t:"Мощный чип", up4_d:"Двухъядерный — производительность выше на 300%.",
+      up5_t:"Долгий заряд", up5_d:"До 10 дней работы.",
+      up6_t:"Новые функции", up6_d:"Мониторинг стресса и настроения.",
+      up7_t:"Точные алгоритмы", up7_d:"Точность сна и активности выше на 20%.",
+      up8_t:"Приложение Umay", up8_d:"Синхронизация и AI-рекомендации.",
+      he_kicker:"Здоровье мамы", he_h2:"Все показатели — в приложении",
+      he_lede:"Часы измеряют весь день, а приложение Umay показывает динамику и подсказывает, на что обратить внимание.",
+      he1_t:"Пульс · 24 часа", he1_d:"Частота сердечных сокращений круглосуточно.",
+      he2_t:"Давление", he2_d:"Скрининг артериального давления.",
+      he3_t:"Кислород (SpO₂)", he3_d:"Насыщение крови кислородом.",
+      he4_t:"Оценка глюкозы", he4_d:"Ориентировочная оценка для самонаблюдения.",
+      he5_t:"Сон", he5_d:"Фазы и продолжительность сна.",
+      he6_t:"Стресс", he6_d:"Уровень стресса и дыхательные упражнения.",
+      ai_kicker:"Приложение Umay + ИИ", ai_h2:"Персональные AI-рекомендации — каждую неделю",
+      ai_lede:"Все данные в одном приложении. Искусственный интеллект даёт советы по неделе беременности и напоминает, когда обратиться к врачу.",
+      ai_b1:"Персональные советы каждую неделю", ai_b2:"Раннее выявление отклонений", ai_b3:"График визитов к врачу и напоминания",
+      ph_hr:"Пульс", ph_bp:"Давление", ph_spo2:"Кислород", ph_week:"21 неделя",
+      sp_kicker:"Характеристики", sp_h2:"Технические характеристики",
+      sp_screen_k:"Экран", sp_screen_v:"TFT цветной", sp_batt_k:"Батарея", sp_batt_v:"До 10 дней",
+      sp_charge_k:"Зарядка", sp_charge_v:"USB", sp_water_k:"Влагозащита", sp_water_v:"Бытовая (IP)",
+      sp_band_k:"Ремешок", sp_band_v:"Силикон, сменный", sp_extra_k:"Дополнительно", sp_extra_v:"Дистанционное селфи",
+      sp_size_k:"Размер", sp_compat_k:"Совместимость", sp_compat_v:"Android и iPhone",
+      col_kicker:"Цвета", col_h2:"В девяти цветах", col_lede:"Выберите цвет по душе.",
+      col_black:"Чёрный", col_blue:"Синий", col_army:"Хаки", col_purple:"Фиолетовый", col_pink:"Розовый",
+      col_green:"Зелёный", col_gray:"Светло-серый", col_orange:"Оранжевый", col_red:"Красный",
+      or_kicker:"Оформление заказа", or_h2:"Выберите цвет и оформите",
+      or_pitch:"Оплата при получении — курьер привезёт часы, вы платите, только когда всё у вас в руках. Гарантия 1 год, возврат 14 дней.",
+      opt_single_t:"Только часы", opt_bundle_t:"Часы + детский трекер", opt_bundle_save:"экономия 2 900 ₸",
+      sum_disc:"Скидка за комплект", sum_total:"Итого",
+      lbl_tracker:"Цвет трекера", lbl_qty:"Количество", lbl_city:"Город", lbl_name:"Ваше имя", lbl_phone:"Телефон", lbl_addr:"Адрес доставки",
+      ph_city:"Алматы", ph_name:"Айгерим", ph_addr:"Улица, дом, квартира",
+      or_submit:"Оформить заказ", or_consent:"Нажимая, вы соглашаетесь на обработку контактных данных для доставки.",
+      faq_kicker:"Вопросы", faq_h2:"Частые вопросы",
+      faq1_q:"Это медицинский прибор?", faq1_a:"Нет. Часы дают ориентировочные показатели для самонаблюдения (скрининг), а не диагноз. При тревожных значениях приложение советует обратиться к врачу.",
+      faq2_q:"Как оплатить?", faq2_a:"Оплата при получении — вы осматриваете часы и платите курьеру наличными или переводом.",
+      faq3_q:"С какими телефонами работают?", faq3_a:"Приложение Umay работает на Android и iPhone.",
+      faq4_q:"Сколько держит заряд?", faq4_a:"В обычном режиме до 10 дней — зависит от частоты измерений.",
+      faq5_q:"Какая гарантия и доставка?", faq5_a:"Официальная гарантия 1 год, возврат 14 дней. Доставка по Казахстану, оплата при получении.",
+      foot_disc:"Не является медицинским изделием. Показатели носят ориентировочный характер и не заменяют осмотр врача.", foot_kz:"Казахстан", foot_catalog:"Весь каталог",
+      bar_label:"Смарт-часы",
+      stock_in:"В наличии", stock_low:"Осталось мало", stock_oos:"Скоро в наличии",
+      sum_single:"Смарт-часы Umay", sum_bundle:"Часы + трекер",
+      m_pickcolor:"Выберите цвет часов", m_pickcolor_t:"Выберите цвет трекера",
+      m_name:"Укажите имя", m_phone:"Укажите корректный телефон", m_city:"Укажите город", m_addr:"Укажите адрес доставки",
+      m_submitting:"Оформляем…", m_ok:"Спасибо! Заказ принят — мы скоро перезвоним для подтверждения.", m_saved:" Вы сэкономили {x}.",
+      m_oos:"К сожалению, выбранный цвет только что закончился. Выберите другой.", m_err:"Не удалось оформить заказ. Проверьте данные и попробуйте ещё раз.", m_neterr:"Нет связи с сервером. Попробуйте позже."
+    }
+  };
+  const t=k=>(T[LANG][k]!=null?T[LANG][k]:k);
+
+  function setLang(lang){
+    LANG=lang;
+    try{ localStorage.setItem("umay_lang",lang); }catch(e){}
+    document.documentElement.lang = lang==="kz"?"kk":"ru";
+    $("langKz").setAttribute("aria-pressed",String(lang==="kz"));
+    $("langRu").setAttribute("aria-pressed",String(lang==="ru"));
+    document.querySelectorAll("[data-i18n]").forEach(el=>{ const v=T[lang][el.dataset.i18n]; if(v!=null) el.textContent=v; });
+    document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ const v=T[lang][el.dataset.i18nPh]; if(v!=null) el.placeholder=v; });
+    if(WATCH){ stockPill(); updateCname(); updateSummary(); }
+  }
+  window.setLang=setLang;
+
+  function stockPill(){
+    const s=WATCH?WATCH.variants.reduce((a,v)=>a+v.stock,0):0;
+    const el=$("stockPill");
+    if(s<=0){el.textContent=t("stock_oos");el.style.background="color-mix(in srgb,var(--crit) 14%,transparent)";el.style.color="var(--crit)";}
+    else if(s<=5){el.textContent=t("stock_low");el.style.background="color-mix(in srgb,var(--amber) 18%,transparent)";el.style.color="var(--amber)";}
+    else{el.textContent=t("stock_in");el.style.background="";el.style.color="";}
+  }
+  function renderSwatches(){
+    const box=$("swatches"); box.innerHTML="";
+    WATCH.variants.forEach(v=>{
+      const b=document.createElement("button"); b.type="button"; b.className="swatch";
+      b.style.background=v.colorHex; b.title=v.color; b.dataset.oos=v.stock<=0?1:0;
+      b.setAttribute("aria-pressed",String(v.id===watchColor));
+      if(v.stock>0) b.onclick=()=>{ watchColor=v.id; renderSwatches(); updateCname(); };
+      box.appendChild(b);
+    });
+  }
+  function updateCname(){ const v=WATCH.variants.find(x=>x.id===watchColor); $("cname").textContent=v?v.color:""; }
+  function setMode(m){
+    mode=m;
+    $("optSingle").setAttribute("aria-pressed",String(m==="single"));
+    $("optBundle").setAttribute("aria-pressed",String(m==="bundle"));
+    $("lblTracker").hidden=!(m==="bundle"&&TRACKER);
+    updateSummary();
+  }
+  function updateSummary(){
+    const qty=Math.max(1,parseInt($("fQty").value||"1",10));
+    if(mode==="bundle"&&TRACKER){
+      const sub=WATCH.priceMinor+TRACKER.priceMinor;
+      $("sumLabel").textContent=t("sum_bundle"); $("sumSub").textContent=tng(sub);
+      $("sumDiscRow").hidden=false; $("sumDisc").textContent="−"+tng(BUNDLE_DISCOUNT);
+      $("sumTotal").textContent=tng(sub-BUNDLE_DISCOUNT);
+    } else {
+      $("sumLabel").textContent=t("sum_single")+" ×"+qty; $("sumSub").textContent=tng(WATCH.priceMinor*qty);
+      $("sumDiscRow").hidden=true; $("sumTotal").textContent=tng(WATCH.priceMinor*qty);
+    }
+  }
+  function fillTracker(){
+    const sel=$("fTracker"); sel.innerHTML=""; if(!TRACKER) return;
+    for(const v of TRACKER.variants){ const o=document.createElement("option"); o.value=v.id; o.textContent=v.color+(v.stock<=0?" — 0":""); o.disabled=v.stock<=0; sel.appendChild(o); }
+    const first=TRACKER.variants.find(v=>v.stock>0); if(first) sel.value=first.id;
+  }
+
+  async function load(){
+    try{ const d=await (await fetch("/shop/products")).json(); const ps=d.products||[];
+      WATCH=ps.find(p=>p.id==="watch"); TRACKER=ps.find(p=>p.id==="tracker"); }catch(e){}
+    if(!WATCH) return;
+    const price=tng(WATCH.priceMinor); $("topPrice").textContent=price; $("barPrice").textContent=price;
+    const firstIn=WATCH.variants.find(v=>v.stock>0)||WATCH.variants[0]; watchColor=firstIn&&firstIn.id;
+    stockPill(); renderSwatches(); updateCname(); fillTracker();
+    $("optBundle").hidden=!TRACKER;
+    setMode("single");
+    $("optSingle").onclick=()=>setMode("single");
+    $("optBundle").onclick=()=>setMode("bundle");
+    $("fQty").oninput=updateSummary; $("fTracker").onchange=updateSummary;
+  }
+
+  $("orderForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const msg=$("orderMsg"); msg.className="msg"; msg.textContent="";
+    const g=id=>($(id).value||"").trim();
+    const name=g("fName"),phone=g("fPhone"),city=g("fCity"),addr=g("fAddr");
+    const fail=(k,id)=>{msg.className="msg err";msg.textContent=t(k);if(id)$(id).focus();};
+    if(!watchColor) return fail("m_pickcolor");
+    if(!name) return fail("m_name","fName");
+    if(phone.replace(/\D/g,"").length<10) return fail("m_phone","fPhone");
+    if(!city) return fail("m_city","fCity");
+    if(!addr) return fail("m_addr","fAddr");
+    let items;
+    if(mode==="bundle"&&TRACKER){ const tr=$("fTracker").value; if(!tr) return fail("m_pickcolor_t","fTracker"); items=[{variantId:watchColor,qty:1},{variantId:tr,qty:1}]; }
+    else { items=[{variantId:watchColor,qty:Math.max(1,parseInt($("fQty").value||"1",10))}]; }
+    const btn=$("submitBtn"); btn.disabled=true; btn.textContent=t("m_submitting");
+    try{
+      const r=await fetch("/shop/orders",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerName:name,phone,city,address:addr,items})});
+      if(r.status===201){
+        const d=await r.json().catch(()=>({}));
+        const saved=(d&&d.discountMinor>0)?t("m_saved").replace("{x}",tng(d.discountMinor)):"";
+        msg.className="msg ok"; msg.textContent=t("m_ok")+saved;
+        $("orderForm").reset(); mode="single"; await load();
+      } else if(r.status===409){ msg.className="msg err"; msg.textContent=t("m_oos"); await load(); }
+      else { msg.className="msg err"; msg.textContent=t("m_err"); }
+    }catch(e){ msg.className="msg err"; msg.textContent=t("m_neterr"); }
+    btn.disabled=false; btn.textContent=t("or_submit");
+  });
+
+  // Default Kazakh; honour a saved choice.
+  let saved="kz"; try{ saved=localStorage.getItem("umay_lang")||"kz"; }catch(e){}
+  setLang(saved==="ru"?"ru":"kz");
+  load();
+})();
+</script>

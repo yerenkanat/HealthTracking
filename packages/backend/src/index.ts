@@ -261,14 +261,14 @@ async function main(): Promise<void> {
     servePage('/shop', 'index.html',
       'Umay — умные часы и детский GPS-трекер · Казахстан',
       'Смарт-часы следят за самочувствием мамы, детский GPS-трекер показывает, где ребёнок. ' +
-        'Часы 19 900 ₸, трекер 9 900 ₸. Оплата при получении, доставка по Казахстану, гарантия 1 год.',
+        'Часы 29 000 ₸, трекер 9 900 ₸. Оплата при получении, доставка по Казахстану, гарантия 1 год.',
       '/shop/og.png');
     serveImage('/shop/og.png', 'og.png');
 
     servePage('/shop/watch', 'watch.html',
-      'Умные часы Umay — здоровье будущей мамы · 19 900 ₸',
+      'Умные часы Umay — здоровье будущей мамы · 29 000 ₸',
       'Смарт-часы Umay: пульс, давление, кислород и оценка глюкозы, сон и шаги — с приложением, ' +
-        'которое вовремя предупредит. 19 900 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
+        'которое вовремя предупредит. 29 000 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
       '/shop/watch-og.png');
     serveImage('/shop/watch-og.png', 'watch-og.png');
 
@@ -278,6 +278,14 @@ async function main(): Promise<void> {
         'ребёнок на карте в приложении. 9 900 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
       '/shop/tracker-og.png');
     serveImage('/shop/tracker-og.png', 'tracker-og.png');
+
+    // The flagship mom-watch landing — bilingual (Kazakh default / Russian).
+    servePage('/shop/umay-watch', 'umay-watch.html',
+      'Umay смарт-сағат — болашақ аналарға · 29 000 ₸ | Умные часы Umay',
+      'Umay смарт-сағаты: пульс, қысым, оттегі және глюкоза бағасы, ұйқы — Umay қосымшасымен және ЖИ-кеңестермен. ' +
+        '29 000 ₸, алған кезде төлеу, Қазақстан бойынша жеткізу, 1 жыл кепілдік. / Умные часы для будущих мам.',
+      '/shop/umay-watch-og.png');
+    serveImage('/shop/umay-watch-og.png', 'umay-watch-og.png');
   } catch {
     app.log.warn('shop storefront html not found; /shop pages disabled');
   }
