@@ -253,9 +253,9 @@ async function main(): Promise<void> {
     };
     // Social-preview cards — real PNGs crawlers can fetch (data: URIs and relative
     // paths are unreliable across scrapers), cached hard; they change only with art.
-    const serveImage = (path: string, file: string) => {
+    const serveImage = (path: string, file: string, type = 'image/png') => {
       const bytes = readFileSync(fileURLToPath(new URL(`../shop/${file}`, import.meta.url)));
-      app.get(path, async (_req, reply) => reply.type('image/png').header('cache-control', 'public, max-age=86400').send(bytes));
+      app.get(path, async (_req, reply) => reply.type(type).header('cache-control', 'public, max-age=86400').send(bytes));
     };
 
     servePage('/shop', 'index.html',
@@ -286,6 +286,12 @@ async function main(): Promise<void> {
         '29 000 ₸, алған кезде төлеу, Қазақстан бойынша жеткізу, 1 жыл кепілдік. / Умные часы для будущих мам.',
       '/shop/umay-watch-og.png');
     serveImage('/shop/umay-watch-og.png', 'umay-watch-og.png');
+
+    // Real product photos (single watch on white) for the landing hero + colour
+    // gallery. JPEG, cached hard.
+    for (const c of ['black', 'white', 'gray', 'pink', 'red', 'teal', 'army']) {
+      serveImage(`/shop/photos/watch-${c}.jpg`, `photos/watch-${c}.jpg`, 'image/jpeg');
+    }
   } catch {
     app.log.warn('shop storefront html not found; /shop pages disabled');
   }
