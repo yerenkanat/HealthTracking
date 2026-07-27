@@ -209,55 +209,68 @@ async function main(): Promise<void> {
     app.log.warn('admin dashboard html not found; /admin/ui disabled');
   }
 
-  // Public storefront at /shop. Served same-origin with the shop API, so its
-  // checkout POSTs real orders to /shop/orders and reads live stock from
-  // /shop/products (unlike an off-site page, which CSP would block).
+  // Public storefront + product landing pages, served same-origin with the shop
+  // API so their checkout POSTs real orders to /shop/orders and reads live stock
+  // from /shop/products (an off-site page's CSP would block reaching the DB).
+  //
+  // /shop        — the catalogue (both products)
+  // /shop/watch  — a focused promotion landing for the smart watch (ad traffic)
+  // each with its own SEO + social-preview card.
   try {
-    const shopBody = readFileSync(fileURLToPath(new URL('../shop/index.html', import.meta.url)), 'utf8');
-    const TITLE = 'Umay — умные часы и детский GPS-трекер · Казахстан';
-    const DESC =
-      'Смарт-часы следят за самочувствием мамы, детский GPS-трекер показывает, ' +
-      'где ребёнок. Часы 19 900 ₸, трекер 9 900 ₸. Оплата при получении, ' +
-      'доставка по Казахстану, гарантия 1 год.';
-    // Preview image (WhatsApp/Instagram/Telegram cards) is generated from the
-    // same brand art and served below; its URL is built from the request host
-    // so the tags are correct in dev and in production without a hardcoded domain.
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    const head = (base: string) =>
-      `<!doctype html><html lang="ru"><head><meta charset="utf-8">` +
-      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>${esc(TITLE)}</title>` +
-      `<meta name="description" content="${esc(DESC)}">` +
-      `<meta name="theme-color" content="#6D5AE6">` +
-      `<meta property="og:type" content="website">` +
-      `<meta property="og:site_name" content="Umay">` +
-      `<meta property="og:locale" content="ru_KZ">` +
-      `<meta property="og:title" content="${esc(TITLE)}">` +
-      `<meta property="og:description" content="${esc(DESC)}">` +
-      `<meta property="og:url" content="${esc(base)}/shop">` +
-      `<meta property="og:image" content="${esc(base)}/shop/og.png">` +
-      `<meta property="og:image:width" content="1200">` +
-      `<meta property="og:image:height" content="630">` +
-      `<meta name="twitter:card" content="summary_large_image">` +
-      `<meta name="twitter:title" content="${esc(TITLE)}">` +
-      `<meta name="twitter:description" content="${esc(DESC)}">` +
-      `<meta name="twitter:image" content="${esc(base)}/shop/og.png">` +
-      `</head><body>${shopBody}</body></html>`;
+    const readShop = (name: string) => readFileSync(fileURLToPath(new URL(`../shop/${name}`, import.meta.url)), 'utf8');
+    // og:url / og:image are built from the request host so the tags are right in
+    // dev and behind the production proxy without a hardcoded domain.
     const requestBase = (req: { headers: Record<string, string | string[] | undefined>; protocol?: string }) => {
       const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || 'umay.kz';
       const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
       return `${proto}://${host}`;
     };
-    app.get('/shop', async (req, reply) => reply.type('text/html').send(head(requestBase(req))));
+    const pageHtml = (base: string, path: string, title: string, desc: string, og: string, body: string) =>
+      `<!doctype html><html lang="ru"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<title>${esc(title)}</title>` +
+      `<meta name="description" content="${esc(desc)}">` +
+      `<meta name="theme-color" content="#6D5AE6">` +
+      `<meta property="og:type" content="website">` +
+      `<meta property="og:site_name" content="Umay">` +
+      `<meta property="og:locale" content="ru_KZ">` +
+      `<meta property="og:title" content="${esc(title)}">` +
+      `<meta property="og:description" content="${esc(desc)}">` +
+      `<meta property="og:url" content="${esc(base)}${path}">` +
+      `<meta property="og:image" content="${esc(base)}${og}">` +
+      `<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">` +
+      `<meta name="twitter:card" content="summary_large_image">` +
+      `<meta name="twitter:title" content="${esc(title)}">` +
+      `<meta name="twitter:description" content="${esc(desc)}">` +
+      `<meta name="twitter:image" content="${esc(base)}${og}">` +
+      `</head><body>${body}</body></html>`;
+    const servePage = (path: string, file: string, title: string, desc: string, og: string) => {
+      const body = readShop(file);
+      app.get(path, async (req, reply) => reply.type('text/html').send(pageHtml(requestBase(req), path, title, desc, og, body)));
+    };
+    // Social-preview cards — real PNGs crawlers can fetch (data: URIs and relative
+    // paths are unreliable across scrapers), cached hard; they change only with art.
+    const serveImage = (path: string, file: string) => {
+      const bytes = readFileSync(fileURLToPath(new URL(`../shop/${file}`, import.meta.url)));
+      app.get(path, async (_req, reply) => reply.type('image/png').header('cache-control', 'public, max-age=86400').send(bytes));
+    };
 
-    // The social-preview card — a real PNG crawlers can fetch (data: URIs and
-    // relative paths are unreliable across scrapers), cached hard since it only
-    // changes when the art does.
-    const ogPng = readFileSync(fileURLToPath(new URL('../shop/og.png', import.meta.url)));
-    app.get('/shop/og.png', async (_req, reply) =>
-      reply.type('image/png').header('cache-control', 'public, max-age=86400').send(ogPng));
+    servePage('/shop', 'index.html',
+      'Umay — умные часы и детский GPS-трекер · Казахстан',
+      'Смарт-часы следят за самочувствием мамы, детский GPS-трекер показывает, где ребёнок. ' +
+        'Часы 19 900 ₸, трекер 9 900 ₸. Оплата при получении, доставка по Казахстану, гарантия 1 год.',
+      '/shop/og.png');
+    serveImage('/shop/og.png', 'og.png');
+
+    servePage('/shop/watch', 'watch.html',
+      'Умные часы Umay — здоровье будущей мамы · 19 900 ₸',
+      'Смарт-часы Umay: пульс, давление, кислород и оценка глюкозы, сон и шаги — с приложением, ' +
+        'которое вовремя предупредит. 19 900 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
+      '/shop/watch-og.png');
+    serveImage('/shop/watch-og.png', 'watch-og.png');
   } catch {
-    app.log.warn('shop storefront html not found; /shop page disabled');
+    app.log.warn('shop storefront html not found; /shop pages disabled');
   }
 
   // ---- Refuse to serve real users with fake authentication ----
