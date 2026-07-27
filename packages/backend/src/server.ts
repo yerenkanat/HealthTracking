@@ -22,6 +22,7 @@ import {
 import { computeBpOffsets } from './health/bpCalibration';
 import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
+import { registerPublicApiRoutes } from './routes/publicApi';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
 import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
@@ -71,6 +72,9 @@ export interface ServerDeps {
   /** Read an appointment (title/date/time/place) off a photo of a referral slip
    * or talon. Same contract; /appointments/extract 503s when omitted. */
   extractAppointment?: AppointmentExtractor;
+  /** API key for the public content API (/api/v1/*). When set, every request must
+   * carry it as `x-api-key`; omitted = the API is open (dev). */
+  contentApiKey?: string;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -335,6 +339,9 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser);
   // Admin / back-office routes (require an authAdmin resolver).
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
+  // Public content API (/api/v1) — calendars, protocols, personalised timelines
+  // for an external consumer (e.g. a WhatsApp bot). Key-gated when configured.
+  registerPublicApiRoutes(app, { apiKey: deps.contentApiKey });
 
   /// Identity comes from authentication, never from the payload.
   /// Returns the caller, or null after already sending 401.

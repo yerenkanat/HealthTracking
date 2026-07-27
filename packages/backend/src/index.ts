@@ -129,6 +129,7 @@ async function productionDeps(): Promise<ServerDeps> {
     extractVitals: process.env.ANTHROPIC_API_KEY ? createAnthropicVitalsExtractor() : undefined,
     extractMedication: process.env.ANTHROPIC_API_KEY ? createAnthropicMedicationExtractor() : undefined,
     extractAppointment: process.env.ANTHROPIC_API_KEY ? createAnthropicAppointmentExtractor() : undefined,
+    contentApiKey: process.env.CONTENT_API_KEY,
   };
 }
 
@@ -172,6 +173,7 @@ function memoryDeps(): ServerDeps {
     cacheLastLocation: async (childId) => lastLoc.get(childId) ?? null,
     setBpCalibration: async () => {},
     cryAnalyze: forwardCry, // works in dev too if a CRY_API_URL is reachable
+    contentApiKey: process.env.CONTENT_API_KEY,
   };
 }
 
