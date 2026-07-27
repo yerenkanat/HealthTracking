@@ -8,9 +8,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../app/app_controller.dart';
+import '../../data/api_client.dart' show ExtractedAppointment;
 import '../../domain/appointment.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../common/photo_scan_tile.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -189,11 +191,17 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       isScrollControlled: true,
       backgroundColor: Palette.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _AddAppointmentSheet(now: now()),
+      builder: (_) => _AddAppointmentSheet(now: now(), onScan: _apptScanner),
     );
     if (result != null) {
       controller.addAppointment(result.title, result.at, note: result.note);
     }
+  }
+
+  /// The photo shortcut, only when we can reach the server.
+  AppointmentScanner? get _apptScanner {
+    final api = controller.api;
+    return api == null ? null : (bytes, mediaType) => api.extractAppointmentFromImage(bytes, mediaType);
   }
 
   void _reschedule(Appointment a, Duration by) =>
@@ -205,7 +213,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       isScrollControlled: true,
       backgroundColor: Palette.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _AddAppointmentSheet(now: now(), initial: appt),
+      builder: (_) => _AddAppointmentSheet(now: now(), initial: appt, onScan: _apptScanner),
     );
     if (result != null) {
       controller.updateAppointment(appt.id, result.title, result.at, note: result.note);
@@ -268,10 +276,15 @@ class _NewAppt {
   const _NewAppt(this.title, this.at, this.note);
 }
 
+/// Reads an appointment off a photo. Returns what could be read (fields may be
+/// null), or null on failure. Injected so the sheet stays free of the ApiClient.
+typedef AppointmentScanner = Future<ExtractedAppointment?> Function(List<int> bytes, String mediaType);
+
 class _AddAppointmentSheet extends StatefulWidget {
   final DateTime now;
   final Appointment? initial; // non-null → edit mode (prefilled)
-  const _AddAppointmentSheet({required this.now, this.initial});
+  final AppointmentScanner? onScan;
+  const _AddAppointmentSheet({required this.now, this.initial, this.onScan});
   @override
   State<_AddAppointmentSheet> createState() => _AddAppointmentSheetState();
 }
@@ -296,6 +309,22 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
   DateTime get _combined => DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
   bool get _valid => _title.text.trim().isNotEmpty;
 
+  /// Apply a scanned appointment to the form; returns whether anything landed.
+  /// The date/time are pre-validated server-side (strict YYYY-MM-DD / HH:MM).
+  bool _apply(ExtractedAppointment a) {
+    if (a.title != null && a.title!.isNotEmpty) _title.text = a.title!;
+    if (a.place != null && a.place!.isNotEmpty) _note.text = a.place!;
+    final d = a.date == null ? null : DateTime.tryParse(a.date!);
+    if (d != null) _date = DateTime(d.year, d.month, d.day);
+    if (a.time != null) {
+      final parts = a.time!.split(':');
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h != null && m != null) _time = TimeOfDay(hour: h, minute: m);
+    }
+    return !a.isEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -309,6 +338,19 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
           Text(l.t(widget.initial == null ? 'appt_add' : 'appt_edit'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Palette.text)),
           const SizedBox(height: 14),
+          if (widget.onScan != null) ...[
+            PhotoScanTile(
+              cta: l.t('appt_scan_cta'),
+              hint: l.t('appt_scan_hint'),
+              onScan: (bytes, mediaType) async {
+                final a = await widget.onScan!(bytes, mediaType);
+                if (a == null || !_apply(a)) return ScanOutcome(filled: false, note: a?.note);
+                setState(() {}); // reflect the filled title/date/time and re-validate Save
+                return ScanOutcome(filled: true, note: a.note);
+              },
+            ),
+            const SizedBox(height: 14),
+          ],
           TextField(
             controller: _title,
             autofocus: widget.initial == null,

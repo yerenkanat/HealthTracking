@@ -67,6 +67,20 @@ class ExtractedMedication {
   bool get isEmpty => (name == null || name!.isEmpty) && (dose == null || dose!.isEmpty) && perDay == null;
 }
 
+/// What the vision model read off a photo of a referral slip / talon. [date] is
+/// YYYY-MM-DD and [time] is HH:MM (24h) when present, or null.
+class ExtractedAppointment {
+  final String? title;
+  final String? date;
+  final String? time;
+  final String? place;
+  final String? note;
+  const ExtractedAppointment({this.title, this.date, this.time, this.place, this.note});
+
+  bool get isEmpty =>
+      (title == null || title!.isEmpty) && date == null && time == null && (place == null || place!.isEmpty);
+}
+
 // ---- /ai/chat outcome (mirrors backend GuardrailOutcome) ----
 sealed class ChatOutcome {
   const ChatOutcome();
@@ -237,6 +251,25 @@ class ApiClient {
       name: j['name'] as String?,
       dose: j['dose'] as String?,
       perDay: (j['perDay'] as num?)?.toInt(),
+      note: j['note'] as String?,
+    );
+  }
+
+  /// Read an appointment off a photo of a referral slip or talon (Claude vision
+  /// on the server). Returns title/date/time/place for the editor to pre-fill;
+  /// any field may be null.
+  Future<ExtractedAppointment> extractAppointmentFromImage(List<int> bytes, String mediaType) async {
+    final res = await transport.post('/appointments/extract', {
+      'imageBase64': base64Encode(bytes),
+      'mediaType': mediaType,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ExtractedAppointment(
+      title: j['title'] as String?,
+      date: j['date'] as String?,
+      time: j['time'] as String?,
+      place: j['place'] as String?,
       note: j['note'] as String?,
     );
   }

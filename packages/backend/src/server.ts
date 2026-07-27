@@ -30,6 +30,7 @@ import { appVersionInfo } from './app/version';
 import { vaccinationSchedule } from './vaccination/schedule';
 import type { VitalsExtractor } from './ai/vitalsVision';
 import type { MedicationExtractor } from './ai/medicationVision';
+import type { AppointmentExtractor } from './ai/appointmentVision';
 import type { Repository } from './db/repository';
 
 export interface ServerDeps {
@@ -67,6 +68,9 @@ export interface ServerDeps {
    * box. Same injection contract as extractVitals; /medications/extract 503s
    * when omitted. */
   extractMedication?: MedicationExtractor;
+  /** Read an appointment (title/date/time/place) off a photo of a referral slip
+   * or talon. Same contract; /appointments/extract 503s when omitted. */
+  extractAppointment?: AppointmentExtractor;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -409,6 +413,29 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     try {
       const med = await deps.extractMedication(parsed.data.imageBase64, parsed.data.mediaType);
       return reply.send(med);
+    } catch {
+      return reply.code(502).send({ error: 'vision_upstream_unavailable' });
+    }
+  });
+
+  // Read an appointment off a photo of a referral slip / talon. Same shape and
+  // guards as the other extract routes; returns title/date/time/place for the
+  // editor to pre-fill, with the pickers right there to correct a misread.
+  app.post('/appointments/extract', { bodyLimit: 7 * 1024 * 1024 }, async (req, reply) => {
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
+    if (!deps.extractAppointment) return reply.code(503).send({ error: 'vision_unavailable' });
+    const parsed = extractSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const rl = chatLimiter.take(caller.userId);
+    if (!rl.allowed) {
+      reply.header('retry-after', String(rl.retryAfterSec));
+      return reply.code(429).send({ error: 'rate_limited', retryAfterSec: rl.retryAfterSec });
+    }
+    try {
+      const appt = await deps.extractAppointment(parsed.data.imageBase64, parsed.data.mediaType);
+      return reply.send(appt);
     } catch {
       return reply.code(502).send({ error: 'vision_upstream_unavailable' });
     }

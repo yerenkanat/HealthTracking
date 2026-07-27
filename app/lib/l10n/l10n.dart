@@ -1003,6 +1003,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'vitals_scan_hint': {AppLocale.ru: 'Фото экрана глюкометра, тонометра или анализа', AppLocale.kk: 'Глюкометр, тонометр экраны немесе талдау фотосы', AppLocale.en: 'A photo of a glucometer, BP monitor or lab slip'},
   'med_scan_cta': {AppLocale.ru: 'Заполнить по фото', AppLocale.kk: 'Фотодан толтыру', AppLocale.en: 'Fill from a photo'},
   'med_scan_hint': {AppLocale.ru: 'Фото рецепта или упаковки лекарства', AppLocale.kk: 'Рецепт немесе дәрі қорабының фотосы', AppLocale.en: 'A photo of a prescription or medicine box'},
+  'appt_scan_cta': {AppLocale.ru: 'Заполнить по фото', AppLocale.kk: 'Фотодан толтыру', AppLocale.en: 'Fill from a photo'},
+  'appt_scan_hint': {AppLocale.ru: 'Фото талона или направления', AppLocale.kk: 'Талон немесе жолдама фотосы', AppLocale.en: 'A photo of a talon or referral'},
   // Generic scan UI, shared by every photo-fill affordance (PhotoScanTile).
   'scan_camera': {AppLocale.ru: 'Камера', AppLocale.kk: 'Камера', AppLocale.en: 'Camera'},
   'scan_gallery': {AppLocale.ru: 'Из галереи', AppLocale.kk: 'Галереядан', AppLocale.en: 'From gallery'},

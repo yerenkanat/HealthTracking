@@ -58,6 +58,7 @@ async function productionDeps(): Promise<ServerDeps> {
   const { createAnthropicCaller } = await import('./ai/anthropicClient');
   const { createAnthropicVitalsExtractor } = await import('./ai/vitalsVision');
   const { createAnthropicMedicationExtractor } = await import('./ai/medicationVision');
+  const { createAnthropicAppointmentExtractor } = await import('./ai/appointmentVision');
   const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
   const { emergencyCopy, geofenceCopy, sendPush, toPushLocale } =
     await import('./notifications/push');
@@ -127,6 +128,7 @@ async function productionDeps(): Promise<ServerDeps> {
     // routes 503 and the app falls back to manual entry rather than erroring.
     extractVitals: process.env.ANTHROPIC_API_KEY ? createAnthropicVitalsExtractor() : undefined,
     extractMedication: process.env.ANTHROPIC_API_KEY ? createAnthropicMedicationExtractor() : undefined,
+    extractAppointment: process.env.ANTHROPIC_API_KEY ? createAnthropicAppointmentExtractor() : undefined,
   };
 }
 
