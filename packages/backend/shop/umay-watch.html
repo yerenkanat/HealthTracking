@@ -1,4 +1,7 @@
 <style>
+  /* Inter with the Cyrillic + Cyrillic-Extended subsets — full Kazakh support
+     (ә ғ қ ң ө ұ ү і һ) so nothing falls back to a mismatched glyph. */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   :root{
     /* Clinical-trust palette: calm teal-tinted paper, deep teal ink, medical
        teal + health green accents. Legacy --violet/--rose names are remapped to
@@ -9,7 +12,7 @@
     --band:#0C3B39;--band-2:#0A302E;
     --grad:linear-gradient(135deg,#0E8F8A,#16A46F);--grad-soft:linear-gradient(135deg,#E1F0ED,#E7F4EC);
     --shadow:0 20px 46px -24px rgba(12,59,57,.34);--shadow-sm:0 8px 22px -16px rgba(15,42,44,.22);--r:20px;
-    --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Consolas,monospace;
+    --sans:"Inter","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SFMono-Regular",Consolas,monospace;
   }
   @media (prefers-color-scheme:dark){:root{--ink:#E7F1EF;--muted:#8DA7A4;--bg:#07201E;--surface:#0E2A28;--surface-2:#123331;--hair:#1D4744;--band:#071C1B;--band-2:#051615;--grad-soft:linear-gradient(135deg,#103230,#123a33);--shadow:0 22px 52px -22px rgba(0,0,0,.72);--shadow-sm:0 10px 26px -16px rgba(0,0,0,.6)}}
   *{box-sizing:border-box}
@@ -246,6 +249,16 @@
   .btn.kaspi:hover{background:#dd3a2b;transform:translateY(-2px)}
   .btn.kaspi b{font-weight:900;letter-spacing:-.02em;margin-right:2px}
   .kaspi-note{text-align:center;font-size:12.5px;font-weight:700;color:var(--muted);margin-top:-4px}
+  .scarce{display:inline-flex;gap:7px;align-items:center;margin-top:12px;background:color-mix(in srgb,var(--amber) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--amber) 38%,var(--hair));color:var(--amber);font-weight:800;font-size:12.5px;padding:6px 13px;border-radius:99px}
+  /* how it works — 3-step */
+  .how3{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:16px;align-items:center;margin-top:30px}
+  @media(max-width:760px){.how3{grid-template-columns:1fr;gap:12px}.how3 .harrow{display:none}}
+  .hstep{background:var(--surface);border:1px solid var(--hair);border-radius:18px;padding:24px 20px;box-shadow:var(--shadow-sm);text-align:center}
+  .hstep .hn{width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;font-family:var(--mono);font-weight:800;display:grid;place-items:center;margin:0 auto 12px}
+  .hstep .hic{width:30px;height:30px;color:var(--teal);margin-bottom:8px}
+  .hstep h3{font-size:16.5px;font-weight:800}
+  .hstep p{color:var(--muted);font-size:13.5px;margin:6px 0 0}
+  .harrow{color:var(--hair);width:26px;height:26px}
   .wa-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12.5px;font-weight:700}
   .wa-or::before,.wa-or::after{content:"";flex:1;height:1px;background:var(--hair)}
   .wa-fab{position:fixed;right:18px;bottom:18px;z-index:60;display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;font-weight:800;font-size:15px;padding:13px 20px 13px 15px;border-radius:99px;box-shadow:0 14px 34px -8px rgba(37,211,102,.65);cursor:pointer;transition:transform .16s}
@@ -290,7 +303,7 @@
   <div class="hero-copy">
     <span class="eyebrow" data-i18n="hero_eyebrow">🇰🇿 Болашақ аналарға арналған смарт-сағат</span>
     <h1><span data-i18n="hero_h1a">Денсаулық — әр күні </span><span class="g" data-i18n="hero_h1b">бақылауда</span></h1>
-    <p class="lede" data-i18n="hero_lede">Пульс, қысым, оттегі және глюкоза бағасы, ұйқы мен қадамдар. Umay қосымшасы көрсеткіштерді жинап, қажет кезде ескертеді.</p>
+    <p class="lede" data-i18n="hero_lede">Пульс, қысым, оттегі, глюкоза бағасы, ұйқы. Umay қосымшасы көрсеткіштерді жинап, қажет кезде ескертеді — өзіңіз бен балаңыз үшін көңіл тыныштығы.</p>
     <div class="pricerow">
       <span class="price">29 000 <small>₸</small></span>
       <span class="save" id="stockPill" data-i18n="stock_in">Бар</span>
@@ -463,6 +476,7 @@
       <div class="kicker" style="text-align:left" data-i18n="or_kicker">Тапсырыс</div>
       <h2 data-i18n="or_h2">Түсті таңдап, тапсырыс беріңіз</h2>
       <p data-i18n="or_pitch">Алған кезде төлеу — курьер сағатты жеткізеді, ақшаны бәрі қолыңызда болғанда ғана төлейсіз. 1 жыл кепілдік, 14 күн қайтару.</p>
+      <div class="scarce">🔥 <span data-i18n="scarce">Алғашқы партия · саны шектеулі</span></div>
       <div class="swatches" id="swatches"></div>
       <div class="cname" id="cname"></div>
       <div class="opt">
@@ -600,7 +614,7 @@
       wa_cta:"WhatsApp арқылы тапсырыс", wa_order_cta:"WhatsApp арқылы тапсырыс беру", wa_or:"немесе форманы толтырыңыз", wa_fab:"Жазу",
       kaspi_cta:"Kaspi-де сатып алу", kaspi_note:"Kaspi Red · 0-0-12 бөліп төлеу",
       hero_h1a:"Денсаулық — әр күні ", hero_h1b:"бақылауда",
-      hero_lede:"Пульс, қысым, оттегі және глюкоза бағасы, ұйқы мен қадамдар. Umay қосымшасы көрсеткіштерді жинап, қажет кезде ескертеді.",
+      hero_lede:"Пульс, қысым, оттегі, глюкоза бағасы, ұйқы. Umay қосымшасы көрсеткіштерді жинап, қажет кезде ескертеді — өзіңіз бен балаңыз үшін көңіл тыныштығы.",
       hero_cta1:"Қазір тапсырыс беру", hero_cta2:"Мүмкіндіктері",
       re_cod:"Алған кезде төлеу", re_delivery:"Қазақстан бойынша жеткізу", re_warranty:"1 жыл кепілдік",
       trust_warranty:"1 жыл кепілдік · 14 күн қайтару",
@@ -665,7 +679,7 @@
       gift_alone:"Курстың жеке бағасы", gift_free:"Сағатқа — тегін 🎁", gift_cta:"Сағатқа тапсырыс беру",
       sum_gift:"🎁 «МаМа» курсы — сыйлық", sum_gift_val:"49 000 ₸ · тегін",
       fin_h2:"Денсаулықты болжамай — өлшеп біліңіз", fin_p:"Umay смарт-сағаты мен қосымшасы — әр күні қасыңызда. Бүгін тапсырыс беріп, ертең-ақ бақылауды бастаңыз.", fin_cta:"29 000 ₸ — Тапсырыс беру",
-      stock_in:"Бар", stock_low:"Азайып қалды", stock_oos:"Жақында түседі",
+      stock_in:"Бар", stock_low:"Азайып қалды", stock_left:"Тек {n} қалды", stock_oos:"Жақында түседі", scarce:"Алғашқы партия · саны шектеулі",
       sum_single:"Смарт-сағат Umay", sum_bundle:"Сағат + трекер",
       m_pickcolor:"Сағат түсін таңдаңыз", m_pickcolor_t:"Трекер түсін таңдаңыз",
       m_name:"Атыңызды жазыңыз", m_phone:"Дұрыс телефон нөірін жазыңыз", m_city:"Қаланы жазыңыз", m_addr:"Жеткізу мекенжайын жазыңыз",
@@ -677,7 +691,7 @@
       wa_cta:"Заказать в WhatsApp", wa_order_cta:"Оформить в WhatsApp", wa_or:"или заполните форму", wa_fab:"Написать",
       kaspi_cta:"Купить на Kaspi", kaspi_note:"Kaspi Red · рассрочка 0-0-12",
       hero_h1a:"Здоровье под ", hero_h1b:"контролем",
-      hero_lede:"Пульс, давление, кислород и оценка глюкозы, сон и шаги. Приложение Umay собирает показатели и вовремя предупредит.",
+      hero_lede:"Пульс, давление, кислород, оценка глюкозы, сон. Приложение Umay собирает показатели и вовремя предупредит — спокойствие за себя и малыша.",
       hero_cta1:"Заказать сейчас", hero_cta2:"Возможности",
       re_cod:"Оплата при получении", re_delivery:"Доставка по Казахстану", re_warranty:"Гарантия 1 год",
       trust_warranty:"Гарантия 1 год · возврат 14 дней",
@@ -742,7 +756,7 @@
       gift_alone:"Отдельно курс стоит", gift_free:"К часам — бесплатно 🎁", gift_cta:"Заказать часы",
       sum_gift:"🎁 Курс «МаМа» — в подарок", sum_gift_val:"49 000 ₸ · бесплатно",
       fin_h2:"Не гадайте о здоровье — измеряйте", fin_p:"Умные часы Umay и приложение — рядом каждый день. Закажите сегодня и уже завтра начните следить за здоровьем.", fin_cta:"29 000 ₸ — Заказать",
-      stock_in:"В наличии", stock_low:"Осталось мало", stock_oos:"Скоро в наличии",
+      stock_in:"В наличии", stock_low:"Осталось мало", stock_left:"Осталось {n}", stock_oos:"Скоро в наличии", scarce:"Первая партия · количество ограничено",
       sum_single:"Смарт-часы Umay", sum_bundle:"Часы + трекер",
       m_pickcolor:"Выберите цвет часов", m_pickcolor_t:"Выберите цвет трекера",
       m_name:"Укажите имя", m_phone:"Укажите корректный телефон", m_city:"Укажите город", m_addr:"Укажите адрес доставки",
@@ -768,7 +782,7 @@
     const s=WATCH?WATCH.variants.reduce((a,v)=>a+v.stock,0):0;
     const el=$("stockPill");
     if(s<=0){el.textContent=t("stock_oos");el.style.background="color-mix(in srgb,var(--crit) 14%,transparent)";el.style.color="var(--crit)";}
-    else if(s<=5){el.textContent=t("stock_low");el.style.background="color-mix(in srgb,var(--amber) 18%,transparent)";el.style.color="var(--amber)";}
+    else if(s<=8){el.textContent=t("stock_left").replace("{n}",s);el.style.background="color-mix(in srgb,var(--amber) 18%,transparent)";el.style.color="var(--amber)";}
     else{el.textContent=t("stock_in");el.style.background="";el.style.color="";}
   }
   function renderSwatches(){
