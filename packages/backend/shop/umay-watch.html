@@ -590,7 +590,10 @@
       box.appendChild(b);
     });
   }
-  function updateCname(){ const v=WATCH.variants.find(x=>x.id===watchColor); $("cname").textContent=v?v.color:""; }
+  // DB variant colours are stored in Russian; show the Kazakh name in KZ mode.
+  const COLORKZ={"Чёрный":"Қара","Розовое золото":"Қызғылт алтын","Сиреневый":"Күлгін","Бирюзовый":"Көгілдір","Синий":"Көк","Розовый":"Қызғылт"};
+  const colorName=c=>LANG==="kz"&&COLORKZ[c]?COLORKZ[c]:c;
+  function updateCname(){ const v=WATCH.variants.find(x=>x.id===watchColor); $("cname").textContent=v?colorName(v.color):""; }
   function setMode(m){
     mode=m;
     $("optSingle").setAttribute("aria-pressed",String(m==="single"));
@@ -612,7 +615,7 @@
   }
   function fillTracker(){
     const sel=$("fTracker"); sel.innerHTML=""; if(!TRACKER) return;
-    for(const v of TRACKER.variants){ const o=document.createElement("option"); o.value=v.id; o.textContent=v.color+(v.stock<=0?" — 0":""); o.disabled=v.stock<=0; sel.appendChild(o); }
+    for(const v of TRACKER.variants){ const o=document.createElement("option"); o.value=v.id; o.textContent=colorName(v.color)+(v.stock<=0?" — 0":""); o.disabled=v.stock<=0; sel.appendChild(o); }
     const first=TRACKER.variants.find(v=>v.stock>0); if(first) sel.value=first.id;
   }
 
