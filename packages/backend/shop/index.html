@@ -102,6 +102,9 @@
   .wa-fab:hover{transform:translateY(-2px)}
   .wa-fab svg{width:26px;height:26px;flex:0 0 auto}
   @media(max-width:720px){.wa-fab{bottom:16px;right:13px;padding:13px;gap:0}.wa-fab .wl{display:none}}
+  .btn.kaspi{background:#F14635;color:#fff;box-shadow:0 12px 26px -12px rgba(241,70,53,.5)}
+  .btn.kaspi:hover{background:#dd3a2b;transform:translateY(-2px)}
+  .kaspi-note{text-align:center;font-size:12.5px;font-weight:700;color:var(--muted);margin-top:8px}
 </style>
 
 <header class="top"><div class="wrap">
@@ -169,6 +172,8 @@
       <label>Телефон<input id="fPhone" type="tel" inputmode="tel" placeholder="+7 (7__) ___-__-__" autocomplete="tel"></label>
       <label>Адрес доставки<input id="fAddr" type="text" placeholder="Улица, дом, квартира" autocomplete="street-address"></label>
       <div class="msg" id="orderMsg"></div>
+      <a class="btn kaspi block js-kaspi" href="#" target="_blank" rel="noopener" style="display:none">Купить на Kaspi</a>
+      <div class="kaspi-note js-kaspi" style="display:none">Kaspi Red · рассрочка 0-0-12</div>
       <button class="btn primary block" id="submitBtn" type="submit">Оформить заказ</button>
       <p style="font-size:12px;color:var(--muted);text-align:center;margin:0">Нажимая, вы соглашаетесь на обработку контактных данных для доставки.</p>
     </form>
@@ -215,6 +220,7 @@
     const a=e.target.closest(".js-wa"); if(!a) return;
     e.preventDefault(); window.open(waHref(),"_blank","noopener");
   });
+  function applyKaspi(){ document.querySelectorAll(".js-kaspi").forEach(a=>{ if(KASPI){a.href=KASPI;a.style.display="";}else{a.style.display="none";} }); }
   const LANDING={watch:"/shop/watch",tracker:"/shop/tracker"}; // products with a dedicated promo landing page
 
   const watchSvg=`<svg viewBox="0 0 200 240"><rect x="66" y="6" width="68" height="42" rx="15" fill="#c9c2ea"/><rect x="66" y="192" width="68" height="42" rx="15" fill="#c9c2ea"/><rect x="38" y="42" width="124" height="158" rx="36" fill="#1C1E2A"/><rect x="50" y="54" width="100" height="134" rx="26" fill="url(#g1)"/><path d="M72 118c6 0 8-16 14-16s8 26 14 26 6-18 12-18 6 8 12 8" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="96" text-anchor="middle" fill="#fff" font-family="monospace" font-weight="800" font-size="22">118/76</text><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C15A47"/><stop offset="1" stop-color="#C6695A"/></linearGradient></defs></svg>`;
@@ -294,6 +300,7 @@
 
   async function load(){
     try{ const c=await (await fetch("/shop/config")).json(); WHATSAPP=c.whatsapp||""; KASPI=c.kaspiUrl||""; }catch(e){}
+    applyKaspi();
     try{
       const r=await fetch("/shop/products"); const d=await r.json(); PRODUCTS=d.products||[];
     }catch(e){ PRODUCTS=[]; }
