@@ -89,6 +89,22 @@ describe('GET /api/v1 (index + gate)', () => {
     await a.close();
   });
 
+  it('serves the shop catalogue (goods) with price and colours, plus one-by-id', async () => {
+    const a = app();
+    const r = await a.inject({ method: 'GET', url: '/api/v1/shop/products' });
+    expect(r.statusCode).toBe(200);
+    const j = r.json();
+    expect(j.currency).toBe('KZT');
+    const watch = j.products.find((p: { id: string }) => p.id === 'watch');
+    expect(watch.priceTenge).toBe(29000);
+    expect(Array.isArray(watch.colours)).toBe(true);
+    expect((await a.inject({ url: '/api/v1/shop/products/tracker' })).statusCode).toBe(200);
+    expect((await a.inject({ url: '/api/v1/shop/products/nope' })).statusCode).toBe(404);
+    // and the index reflects the product count
+    expect((await a.inject({ url: '/api/v1' })).json().coverage.shopProducts).toBe(2);
+    await a.close();
+  });
+
   it('rejects a missing/wrong key when one is configured, accepts the right one', async () => {
     const a = app('secret-key');
     expect((await a.inject({ method: 'GET', url: '/api/v1/pregnancy/weeks' })).statusCode).toBe(401);

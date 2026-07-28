@@ -138,6 +138,9 @@
     {g:"Протоколы", m:"GET", p:"/api/v1/protocols/vaccination", d:"Национальный календарь прививок — справочно.", ex:"/api/v1/protocols/vaccination", params:[]},
     {g:"Протоколы", m:"GET", p:"/api/v1/protocols/vaccination/timeline", d:"Каждая прививка с датой и статусом (past / due / upcoming).", ex:"/api/v1/protocols/vaccination/timeline?birthDate="+BIRTH, params:[{n:"birthDate",in:"query",req:1,d:"Дата рождения, YYYY-MM-DD."},{n:"from",in:"query",req:0,d:"Сегодняшняя дата (по умолчанию сегодня)."}]},
 
+    {g:"Магазин", m:"GET", p:"/api/v1/shop/products", d:"Каталог товаров — умные часы и детский трекер: цена (в тиынах и тенге), цвета и остатки, наличие. Те же живые данные, что читают лендинги.", ex:"/api/v1/shop/products", params:[]},
+    {g:"Магазин", m:"GET", p:"/api/v1/shop/products/:id", d:"Один товар по id.", ex:"/api/v1/shop/products/watch", params:[{n:"id",in:"path",req:1,d:"watch | tracker."}]},
+
     {g:"Аудио", m:"GET", p:"/api/v1/audio/:track", d:"Покрытие ежедневного аудио: какие дни трека имеют клип и их URL.", ex:"/api/v1/audio/pregnancy", params:[{n:"track",in:"path",req:1,d:"pregnancy | child."}]},
     {g:"Аудио", m:"GET", p:"/audio/:track/:day/:locale", d:"Стрим самого клипа (audio/*), с поддержкой Range (206). Открывается в новой вкладке — это бинарные данные, не JSON.", ex:"/audio/pregnancy/140/ru", binary:1, params:[{n:"track",in:"path",req:1,d:"pregnancy | child."},{n:"day",in:"path",req:1,d:"День календаря (гестационный / день жизни)."},{n:"locale",in:"path",req:1,d:"ru | kk."}]}
   ];

@@ -12,7 +12,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import type { Repository, AudioLocale } from '../db/repository';
+import type { Repository, AudioLocale, ShopProduct } from '../db/repository';
 import { pregnancyCalendar, weekContent, firstWeek, lastWeek } from '../pregnancy/weeks';
 import { childDevCalendar, devWeekContent, firstDevWeek, lastDevWeek } from '../child/development';
 import { antenatalProtocol } from '../antenatal/protocol';
@@ -64,14 +64,15 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
         version: 'v1',
         docs: '/api-docs',
         authRequired: requireKey,
-        // Static calendar/protocol ranges + a live count of uploaded daily-audio
-        // clips per track, so the index reflects every content type including audio.
+        // Static calendar/protocol ranges + live counts (daily-audio clips per
+        // track, shop products) so the index reflects every content type.
         coverage: {
           ...coverage,
           audio: {
             pregnancy: (await repo.listDailyAudio('pregnancy')).length,
             child: (await repo.listDailyAudio('child')).length,
           },
+          shopProducts: (await repo.shopProducts()).length,
         },
         endpoints: {
           'GET /api/v1/pregnancy/weeks': 'Full pregnancy calendar (all weeks, ru+kk).',
@@ -87,6 +88,8 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
           'GET /api/v1/protocols/antenatal/timeline': 'Personalised. Param: dueDate. Each visit mapped to real from/to dates.',
           'GET /api/v1/protocols/vaccination': 'Childhood immunisation schedule (reference).',
           'GET /api/v1/protocols/vaccination/timeline': 'Personalised. Params: birthDate, from. Each vaccine mapped to a due date + past/due/upcoming.',
+          'GET /api/v1/shop/products': 'Shop catalogue — the smart watch and child tracker, with price and colour/stock, for storefronts and bots.',
+          'GET /api/v1/shop/products/:id': 'One product by id (watch | tracker).',
         },
       }));
 
@@ -173,6 +176,28 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
         if (track !== 'pregnancy' && track !== 'child') return reply.code(400).send({ error: 'invalid_track' });
         const audio = (await repo.listDailyAudio(track)).map((a) => ({ day: a.day, locale: a.locale, title: a.title, url: `/audio/${track}/${a.day}/${a.locale}` }));
         return { track, count: audio.length, audio };
+      });
+
+      // ---- Shop catalogue ----
+      // The public goods — the smart watch and the child tracker — with price and
+      // colour/stock, so a storefront or bot can list them and check availability.
+      // Same live data the shop landing pages read; price in tiyn and in tenge.
+      const shapeProduct = (p: ShopProduct) => ({
+        id: p.id,
+        name: p.name,
+        priceMinor: p.priceMinor,
+        priceTenge: Math.round(p.priceMinor / 100),
+        inStock: p.variants.some((v) => v.stock > 0),
+        colours: p.variants.map((v) => ({ id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock })),
+      });
+      api.get('/shop/products', async () => {
+        const products = await repo.shopProducts();
+        return { currency: 'KZT', count: products.length, products: products.map(shapeProduct) };
+      });
+      api.get('/shop/products/:id', async (req, reply) => {
+        const id = (req.params as { id: string }).id;
+        const product = (await repo.shopProducts()).find((p) => p.id === id);
+        return product ? shapeProduct(product) : reply.code(404).send({ error: 'not_found' });
       });
     },
     { prefix: '/api/v1' },
