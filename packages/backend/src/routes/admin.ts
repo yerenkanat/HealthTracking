@@ -432,6 +432,39 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_orders' });
     return reply.send({ orders: await repo.adminShopOrders(limit) });
   });
+
+  // App settings & integration keys — WhatsApp/Kaspi (public, shown on the
+  // landing) plus secret API keys (Anthropic, Google Maps) used server-side.
+  // Editable by staff; the public /shop/config exposes ONLY the public keys.
+  app.get('/admin/settings', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    // Auditable: this exposes the stored API keys, so record who read them.
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_settings' });
+    return reply.send({ settings: await repo.getShopSettings() });
+  });
+  app.put('/admin/settings', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const parsed = z.object({
+      whatsapp: z.string().trim().max(32).optional(),
+      kaspiUrl: z.string().trim().max(500).optional(),
+      anthropicApiKey: z.string().trim().max(300).optional(),
+      googleMapsApiKey: z.string().trim().max(300).optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    // Store only the keys actually sent. The phone is normalised to digits so
+    // wa.me links work regardless of how it was typed.
+    const patch: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed.data)) {
+      if (v === undefined) continue;
+      patch[k] = k === 'whatsapp' ? v.replace(/\D/g, '') : v;
+    }
+    await repo.setShopSettings(patch);
+    // Audit key NAMES only — never the secret values.
+    await repo.writeAudit({ staffId: s.staffId, action: 'set_settings', target: Object.keys(patch).join(',') });
+    return reply.send({ ok: true, settings: await repo.getShopSettings() });
+  });
   app.patch('/admin/shop/orders/:id', async (req, reply) => {
     const s = await requireAdmin(req, reply);
     if (!s) return;

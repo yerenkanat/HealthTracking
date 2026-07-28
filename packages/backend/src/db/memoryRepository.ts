@@ -140,6 +140,7 @@ export function createMemoryRepository(): Repository {
   const shopOrders: ShopOrderRow[] = [];
   type AudioRow = { track: string; day: number; locale: string; title: string | null; mime: string; bytes: Buffer; updatedAt: string };
   const dailyAudio = new Map<string, AudioRow>(); // key: `${track}|${day}|${locale}`
+  const shopSettings = new Map<string, string>();
 
   return {
     // Health
@@ -663,6 +664,11 @@ export function createMemoryRepository(): Repository {
     setShopOrderStatus: async (orderId, status) => {
       const o = shopOrders.find((x) => x.id === orderId);
       if (o) o.status = status;
+    },
+
+    getShopSettings: async () => Object.fromEntries(shopSettings),
+    setShopSettings: async (patch) => {
+      for (const [k, v] of Object.entries(patch)) shopSettings.set(k, v ?? '');
     },
 
     listDailyAudio: async (track) =>

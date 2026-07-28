@@ -1012,6 +1012,22 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
     },
 
+    async getShopSettings() {
+      const { rows } = await pool.query('SELECT key, value FROM shop_settings');
+      return Object.fromEntries(rows.map((r) => [r.key as string, (r.value as string) ?? '']));
+    },
+    async setShopSettings(patch) {
+      const entries = Object.entries(patch);
+      if (!entries.length) return;
+      for (const [key, value] of entries) {
+        await pool.query(
+          `INSERT INTO shop_settings (key, value, updated_at) VALUES ($1, $2, now())
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+          [key, value ?? ''],
+        );
+      }
+    },
+
     async listDailyAudio(track) {
       const { rows } = await pool.query(
         `SELECT track, day, locale, title, mime, octet_length(bytes) AS size, updated_at

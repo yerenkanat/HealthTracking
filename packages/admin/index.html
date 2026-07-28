@@ -776,6 +776,17 @@
 
       <!-- SHOP: inventory (per-colour stock) + orders to fulfil -->
       <section class="view" id="shop">
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Настройки и ключи</h3><span class="sub">WhatsApp и Kaspi показываются на лендинге · API-ключи используются на сервере</span></div>
+          <div class="audioadd">
+            <label>WhatsApp для заказов<input type="tel" id="setWhatsapp" placeholder="+7 700 123 45 67" autocomplete="off"></label>
+            <label>Ссылка Kaspi<input type="url" id="setKaspi" placeholder="https://kaspi.kz/shop/…" autocomplete="off"></label>
+            <label>Anthropic API key<input type="password" id="setAnthropic" placeholder="sk-ant-…" autocomplete="off"></label>
+            <label>Google Maps API key<input type="password" id="setGmaps" placeholder="AIza…" autocomplete="off"></label>
+            <button class="btn" id="setSave">Сохранить</button>
+          </div>
+          <div class="audiomsg" id="setMsg"></div>
+        </div>
         <div class="grid2">
           <div class="card">
             <div class="sec-h"><h3>Склад · остатки по цветам</h3><span class="sub">Меняйте количество — сохраняется сразу</span></div>
@@ -2192,7 +2203,30 @@
         <select class="ostatus" data-oid="${esc(o.id)}" aria-label="Статус заказа">${opts}</select></div>
     </div>`;
   }
+  async function renderSettings(){
+    const $=id=>document.getElementById(id), msg=$("setMsg");
+    try{
+      const {settings}=await api("/admin/settings");
+      $("setWhatsapp").value=settings.whatsapp||"";
+      $("setKaspi").value=settings.kaspiUrl||"";
+      $("setAnthropic").value=settings.anthropicApiKey||"";
+      $("setGmaps").value=settings.googleMapsApiKey||"";
+    }catch(e){}
+    const save=$("setSave");
+    save.onclick=async()=>{
+      msg.textContent="Сохранение…"; save.disabled=true;
+      try{
+        await apiSend("/admin/settings","PUT",{
+          whatsapp:$("setWhatsapp").value, kaspiUrl:$("setKaspi").value,
+          anthropicApiKey:$("setAnthropic").value, googleMapsApiKey:$("setGmaps").value
+        });
+        msg.textContent="Сохранено. Ключи API применятся после перезапуска сервера.";
+      }catch(e){ msg.textContent="Не удалось сохранить."; }
+      save.disabled=false;
+    };
+  }
   async function renderShop(){
+    renderSettings();
     const vwrap=document.getElementById("shopVariants");
     try{
       const {variants}=await api("/admin/shop/variants");

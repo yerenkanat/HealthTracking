@@ -485,3 +485,10 @@ CREATE TABLE IF NOT EXISTS daily_audio (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (track, day, locale)
 );
+
+-- Store settings (WhatsApp number, Kaspi link, …) edited in the admin panel.
+CREATE TABLE IF NOT EXISTS shop_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

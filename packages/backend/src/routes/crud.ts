@@ -498,6 +498,12 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
 
   // ---- Shop (public storefront — no auth: customers are not signed in) ----
   app.get('/shop/products', async (_req, reply) => reply.send({ products: await repo.shopProducts() }));
+  // Public store config the landing pages read: WhatsApp order number + Kaspi
+  // link. A whitelist of the settings table — secrets never leave here.
+  app.get('/shop/config', async (_req, reply) => {
+    const s = await repo.getShopSettings();
+    return reply.send({ whatsapp: s.whatsapp ?? '', kaspiUrl: s.kaspiUrl ?? '' });
+  });
   app.post('/shop/orders', async (req, reply) => {
     const parsed = shopOrderBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });

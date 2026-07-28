@@ -66,6 +66,21 @@ async function productionDeps(): Promise<ServerDeps> {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const repo = createPgRepository(pool);
 
+  // Integration keys managed from the admin panel fill in any that the
+  // environment doesn't already set (env always wins). Stored keys take effect
+  // on the next restart, which is fine for keys that change rarely.
+  try {
+    const stored = await repo.getShopSettings();
+    for (const [envName, key] of [
+      ['ANTHROPIC_API_KEY', 'anthropicApiKey'],
+      ['GOOGLE_MAPS_API_KEY', 'googleMapsApiKey'],
+    ] as const) {
+      if (!process.env[envName] && stored[key]) process.env[envName] = stored[key];
+    }
+  } catch {
+    /* settings table absent (unmigrated DB) — env-only until migrated */
+  }
+
   /// Forget dead tokens, and SAY when a push did not land.
   ///
   /// sendPush reports instead of throwing, so without this the result would be

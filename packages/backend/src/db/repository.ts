@@ -442,6 +442,12 @@ export interface Repository {
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
   setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
 
+  /// Store settings — WhatsApp number, Kaspi link, and any other keys the admin
+  /// adds. A flat key→value store; the public /shop/config only exposes a
+  /// whitelist (contact/links), never secrets. get returns all; set upserts.
+  getShopSettings(): Promise<Record<string, string>>;
+  setShopSettings(patch: Record<string, string>): Promise<void>;
+
   /// Daily calendar audio (pregnancy + child development). One short clip per
   /// (track, day, locale), uploaded/edited from the admin panel and played by the
   /// app on the matching day. list* returns metadata only — never the bytes.

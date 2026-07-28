@@ -240,6 +240,10 @@
   .btn.wa{background:#25D366;color:#fff;box-shadow:0 12px 26px -12px rgba(37,211,102,.6)}
   .btn.wa:hover{background:#20bd5a;transform:translateY(-2px)}
   .btn.wa svg{width:22px;height:22px}
+  .btn.kaspi{background:#F14635;color:#fff;box-shadow:0 12px 26px -12px rgba(241,70,53,.5)}
+  .btn.kaspi:hover{background:#dd3a2b;transform:translateY(-2px)}
+  .btn.kaspi b{font-weight:900;letter-spacing:-.02em;margin-right:2px}
+  .kaspi-note{text-align:center;font-size:12.5px;font-weight:700;color:var(--muted);margin-top:-4px}
   .wa-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12.5px;font-weight:700}
   .wa-or::before,.wa-or::after{content:"";flex:1;height:1px;background:var(--hair)}
   .wa-fab{position:fixed;right:18px;bottom:18px;z-index:60;display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;font-weight:800;font-size:15px;padding:13px 20px 13px 15px;border-radius:99px;box-shadow:0 14px 34px -8px rgba(37,211,102,.65);cursor:pointer;transition:transform .16s}
@@ -477,6 +481,8 @@
         <div class="step"><span class="sn">3</span><span data-i18n="wa_s3">Менеджер растайды, алған кезде төлейсіз</span></div>
       </div>
       <a class="btn wa block js-wa" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.55 15.2L2 22l4.94-1.3A10 10 0 1 0 12 2zm0 18.15a8.13 8.13 0 0 1-4.15-1.14l-.3-.18-2.93.77.78-2.85-.2-.3A8.15 8.15 0 1 1 12 20.15zm4.5-6.1c-.24-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.78.96-.14.16-.29.18-.53.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.11.24-.29.36-.43.12-.14.16-.25.24-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.32-.75-1.81-.2-.48-.4-.41-.55-.42h-.47c-.16 0-.42.06-.64.31-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.57.25 1.02.4 1.37.5.58.19 1.1.16 1.51.1.46-.07 1.45-.59 1.66-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28z"/></svg> <span data-i18n="wa_order_cta">WhatsApp арқылы тапсырыс беру</span></a>
+      <a class="btn kaspi block js-kaspi" href="#" target="_blank" rel="noopener" style="display:none"><span data-i18n="kaspi_cta">Kaspi-де сатып алу</span></a>
+      <div class="kaspi-note js-kaspi" style="display:none" data-i18n="kaspi_note">Kaspi Red · 0-0-12 бөліп төлеу</div>
       <div class="reassure" style="justify-content:flex-start">
         <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="re_cod">Алған кезде төлеу</span></span>
         <span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="re_warranty">1 жыл кепілдік</span></span>
@@ -552,9 +558,9 @@
   const BUNDLE_DISCOUNT=290000;
   let WATCH=null, TRACKER=null, watchColor=null, mode="single", LANG="kz";
 
-  // Seller WhatsApp number, international format WITHOUT '+' (e.g. 7 700 123 45 67).
-  // TODO: replace 77000000000 with the store's real WhatsApp number.
-  const WHATSAPP="77000000000";
+  // WhatsApp order number + Kaspi link come from /shop/config (set in the admin
+  // panel). Empty until configured.
+  let WHATSAPP="", KASPI="";
   // The chat opens pre-filled with the current selection, so the buyer sends an
   // order in one tap instead of filling the form.
   function waText(){
@@ -589,6 +595,7 @@
     kz:{
       nav_cta:"Тапсырыс", hero_eyebrow:"🇰🇿 Болашақ аналарға арналған смарт-сағат",
       wa_cta:"WhatsApp арқылы тапсырыс", wa_order_cta:"WhatsApp арқылы тапсырыс беру", wa_or:"немесе форманы толтырыңыз", wa_fab:"Жазу",
+      kaspi_cta:"Kaspi-де сатып алу", kaspi_note:"Kaspi Red · 0-0-12 бөліп төлеу",
       hero_h1a:"Денсаулық — әр күні ", hero_h1b:"бақылауда",
       hero_lede:"Пульс, қысым, оттегі және глюкоза бағасы, ұйқы мен қадамдар. Umay қосымшасы көрсеткіштерді жинап, қажет кезде ескертеді.",
       hero_cta1:"Қазір тапсырыс беру", hero_cta2:"Мүмкіндіктері",
@@ -665,6 +672,7 @@
     ru:{
       nav_cta:"Заказать", hero_eyebrow:"🇰🇿 Умные часы для будущих мам",
       wa_cta:"Заказать в WhatsApp", wa_order_cta:"Оформить в WhatsApp", wa_or:"или заполните форму", wa_fab:"Написать",
+      kaspi_cta:"Купить на Kaspi", kaspi_note:"Kaspi Red · рассрочка 0-0-12",
       hero_h1a:"Здоровье под ", hero_h1b:"контролем",
       hero_lede:"Пульс, давление, кислород и оценка глюкозы, сон и шаги. Приложение Umay собирает показатели и вовремя предупредит.",
       hero_cta1:"Заказать сейчас", hero_cta2:"Возможности",
@@ -792,7 +800,14 @@
     }
   }
 
+  function applyKaspi(){
+    document.querySelectorAll(".js-kaspi").forEach(a=>{
+      if(KASPI){ a.href=KASPI; a.style.display=""; } else { a.style.display="none"; }
+    });
+  }
   async function load(){
+    try{ const c=await (await fetch("/shop/config")).json(); WHATSAPP=c.whatsapp||""; KASPI=c.kaspiUrl||""; }catch(e){}
+    applyKaspi();
     try{ const d=await (await fetch("/shop/products")).json(); const ps=d.products||[];
       WATCH=ps.find(p=>p.id==="watch"); TRACKER=ps.find(p=>p.id==="tracker"); }catch(e){}
     if(!WATCH) return;
