@@ -287,15 +287,14 @@ void main() {
     addTearDown(c.dispose);
   });
 
-  testWidgets('pregnancy view shows the weekly baby-size card', (tester) async {
-    // Due in 140 days → ~40 - 20 = week 20 → banana.
-    final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+  testWidgets('baby size + weekly highlight are not duplicated on the overview', (tester) async {
+    // They live on the "Подробнее" week-detail page (see week_detail_test.dart),
+    // so the calendar overview must not repeat them.
+    final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // week 20 → banana
     await tester.pumpWidget(wrap(c));
-    expect(find.text('BABY SIZE'), findsOneWidget);
-    expect(find.textContaining('About the size of a'), findsOneWidget);
-    // The card also carries this week's development highlight — week 20 is the
-    // hear-your-voice one — so the overview shows the wonder of the week too.
-    expect(find.text('The baby can begin to hear your voice.'), findsOneWidget);
+    expect(find.text('BABY SIZE'), findsNothing);
+    expect(find.textContaining('About the size of a'), findsNothing);
+    expect(find.text('The baby can begin to hear your voice.'), findsNothing);
     addTearDown(c.dispose);
   });
 

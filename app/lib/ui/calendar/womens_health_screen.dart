@@ -20,8 +20,6 @@ import '../../domain/cycle_insights.dart'
     show cycleHistory, cycleRegularity, predictionConfidence, symptomsInPhase, PredictionConfidence;
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
-import '../../domain/baby_size.dart';
-import '../../domain/fetal_development.dart';
 import '../../domain/postpartum.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n.dart';
@@ -29,7 +27,6 @@ import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
-import 'baby_size_disc.dart';
 import 'contraction_timer_screen.dart';
 import 'postpartum_screen.dart';
 import 'pregnancy_warnings.dart';
@@ -258,8 +255,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   }),
                 ],
                 if (!cycleMode && c.gestation != null) ...[
-                  const SizedBox(height: 14),
-                  _BabySizeCard(week: c.gestation!.week),
+                  // The baby-size + weekly highlight live on the "Подробнее" week
+                  // detail page, so they're not repeated here.
                   const SizedBox(height: 14),
                   _PregnancyMilestones(week: c.gestation!.week),
                   // Third trimester: the hospital bag becomes worth packing.
@@ -1283,81 +1280,6 @@ class _HospitalBagCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _BabySizeCard extends StatelessWidget {
-  final int week;
-  const _BabySizeCard({required this.week});
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L10nScope.of(context);
-    final size = babySizeFor(week);
-    if (size == null) return const SizedBox.shrink();
-    final cm = size.lengthCm % 1 == 0 ? size.lengthCm.toStringAsFixed(0) : size.lengthCm.toStringAsFixed(1);
-    final highlight = fetalHighlightFor(week);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.05)],
-        ),
-        border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // The growing size disc, not a fixed icon: on the main view too,
-              // the picture should show how big baby is this week, against
-              // newborn size.
-              BabySizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: Palette.roseDeep, size: 52),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l.t('bsize_title').toUpperCase(),
-                        style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
-                    const SizedBox(height: 3),
-                    Text(l.t('bsize_about', {'food': l.t(size.code)}),
-                        style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: Palette.text, height: 1.2)),
-                    const SizedBox(height: 2),
-                    Text(l.t('bsize_length', {'cm': cm}),
-                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          // "Baby this week" — the same development highlight the week-detail
-          // screen shows, brought onto the overview so the wonder of the week is
-          // here too, not a tap away.
-          if (highlight != null) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, color: Palette.border),
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.auto_awesome_outlined, size: 17, color: Palette.roseDeep),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(l.t('fet_${highlight.id}'),
-                      style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-          ],
-        ],
       ),
     );
   }
