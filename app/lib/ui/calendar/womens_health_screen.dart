@@ -191,11 +191,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
 
                 // Daily audio for this exact day of the calendar, right under the
-                // week/day header. Hidden when the day has no clip.
-                if (!cycleMode && c.gestation != null) ...[
-                  const SizedBox(height: 14),
-                  DailyAudioCard(track: 'pregnancy', day: c.gestation!.totalDays),
-                ],
+                // week/day header. Renders nothing (and adds no gap) when the day
+                // has no clip.
+                if (!cycleMode && c.gestation != null)
+                  DailyAudioCard(track: 'pregnancy', day: c.gestation!.totalDays, margin: const EdgeInsets.only(top: 14)),
 
                 // After a recent birth the app is in cycle mode but her body is
                 // still recovering. Surface the recovery guide until the window

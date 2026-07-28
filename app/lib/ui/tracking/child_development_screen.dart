@@ -96,10 +96,8 @@ class _Timeline extends StatelessWidget {
       children: [
         _AgeHeader(ageMonths: ageMonths, name: childName),
         const SizedBox(height: 12),
-        if (ageDays >= 1) ...[
-          DailyAudioCard(track: 'child', day: ageDays),
-          const SizedBox(height: 12),
-        ],
+        if (ageDays >= 1)
+          DailyAudioCard(track: 'child', day: ageDays, margin: const EdgeInsets.only(bottom: 12)),
 
         // WHO weight/height range + this-week motor/speech/cognition, from the
         // shared baby-development calendar (GET /child/development). Only within

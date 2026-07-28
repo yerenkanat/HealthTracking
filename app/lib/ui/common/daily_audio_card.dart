@@ -2,8 +2,9 @@
 /// current day of the pregnancy / child-development calendar (uploaded from the
 /// admin panel, streamed from the backend's /audio route).
 ///
-/// It probes the clip with a HEAD request first and simply renders nothing when
-/// the day has no audio, so screens can drop it in unconditionally.
+/// It fetches the clip and renders only once playback is confirmed ready —
+/// nothing while checking or when the day has no audio — so screens can drop it
+/// in unconditionally.
 library;
 
 import 'dart:async';
@@ -21,7 +22,11 @@ class DailyAudioCard extends StatefulWidget {
   /// Calendar day: gestational day for pregnancy, day-of-life for a child.
   final int day;
 
-  const DailyAudioCard({super.key, required this.track, required this.day});
+  /// Spacing applied only when the card is actually shown — so a day with no
+  /// clip (the card renders nothing) adds no stray gap to the surrounding list.
+  final EdgeInsetsGeometry margin;
+
+  const DailyAudioCard({super.key, required this.track, required this.day, this.margin = EdgeInsets.zero});
 
   @override
   State<DailyAudioCard> createState() => _DailyAudioCardState();
@@ -31,7 +36,10 @@ enum _St { checking, ready, hidden }
 
 class _DailyAudioCardState extends State<DailyAudioCard> {
   static const _base = String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8080');
-  final AudioPlayer _player = AudioPlayer();
+  // Created lazily, only once the fetch confirms a real clip. Days without audio
+  // (the common case) never spin up a media player — and neither do widget tests,
+  // where the audioplayers plugin has no platform implementation.
+  AudioPlayer? _player;
   final List<StreamSubscription<dynamic>> _subs = [];
   _St _st = _St.checking;
   bool _playing = false;
@@ -72,15 +80,16 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
       s.cancel();
     }
     _subs.clear();
-    _subs.add(_player.onDurationChanged.listen((d) {
+    final player = _player ??= AudioPlayer();
+    _subs.add(player.onDurationChanged.listen((d) {
       if (mounted) setState(() { _dur = d; _st = _St.ready; }); // a duration means it's playable
     }));
-    _subs.add(_player.onPositionChanged.listen((p) => mounted ? setState(() => _pos = p) : null));
-    _subs.add(_player.onPlayerStateChanged.listen((s) => mounted ? setState(() => _playing = s == PlayerState.playing) : null));
-    _subs.add(_player.onPlayerComplete.listen((_) => mounted ? setState(() { _playing = false; _pos = Duration.zero; }) : null));
+    _subs.add(player.onPositionChanged.listen((p) => mounted ? setState(() => _pos = p) : null));
+    _subs.add(player.onPlayerStateChanged.listen((s) => mounted ? setState(() => _playing = s == PlayerState.playing) : null));
+    _subs.add(player.onPlayerComplete.listen((_) => mounted ? setState(() { _playing = false; _pos = Duration.zero; }) : null));
     // Confirm readiness via the future OR a duration event. On any failure — or
     // if it never becomes ready — hide, never spin forever.
-    _player.setSource(BytesSource(resp.bodyBytes, mimeType: resp.headers['content-type'])).then((_) {
+    player.setSource(BytesSource(resp.bodyBytes, mimeType: resp.headers['content-type'])).then((_) {
       if (mounted && _st == _St.checking) setState(() => _st = _St.ready);
     }).catchError((_) {
       if (mounted && _st != _St.ready) setState(() => _st = _St.hidden);
@@ -91,11 +100,13 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
   }
 
   Future<void> _toggle() async {
+    final player = _player;
+    if (player == null) return;
     if (_playing) {
-      await _player.pause();
+      await player.pause();
     } else {
-      if (_dur > Duration.zero && _pos >= _dur) await _player.seek(Duration.zero);
-      await _player.resume();
+      if (_dur > Duration.zero && _pos >= _dur) await player.seek(Duration.zero);
+      await player.resume();
     }
   }
 
@@ -104,7 +115,7 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
     for (final s in _subs) {
       s.cancel();
     }
-    _player.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -116,12 +127,16 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_st == _St.hidden) return const SizedBox.shrink();
+    // Stay invisible until a clip is confirmed. Most calendar days have none, so
+    // a loading card that flashes then vanishes would be worse than the card
+    // simply appearing once it's ready.
+    if (_st != _St.ready) return const SizedBox.shrink();
     final l = L10nScope.of(context);
     final total = _dur.inMilliseconds;
     final value = total > 0 ? (_pos.inMilliseconds / total).clamp(0.0, 1.0) : 0.0;
 
     return Container(
+      margin: widget.margin,
       decoration: BoxDecoration(
         gradient: const LinearGradient(colors: [Palette.lilac, Palette.blush], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(20),
@@ -130,7 +145,7 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
       padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          _PlayButton(playing: _playing, loading: _st == _St.checking, onTap: _st == _St.ready ? _toggle : null),
+          _PlayButton(playing: _playing, onTap: _toggle),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -162,7 +177,7 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
                   child: Slider(
                     value: value,
                     onChanged: _st == _St.ready && total > 0
-                        ? (v) => _player.seek(Duration(milliseconds: (v * total).round()))
+                        ? (v) => _player?.seek(Duration(milliseconds: (v * total).round()))
                         : null,
                   ),
                 ),
@@ -177,9 +192,8 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
 
 class _PlayButton extends StatelessWidget {
   final bool playing;
-  final bool loading;
   final VoidCallback? onTap;
-  const _PlayButton({required this.playing, required this.loading, required this.onTap});
+  const _PlayButton({required this.playing, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -193,9 +207,7 @@ class _PlayButton extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: [BoxShadow(color: Palette.violet.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 8))],
         ),
-        child: loading
-            ? const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-            : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 30),
+        child: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 30),
       ),
     );
   }

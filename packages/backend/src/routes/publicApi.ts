@@ -63,7 +63,15 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
         service: 'Umay content API',
         version: 'v1',
         authRequired: requireKey,
-        coverage,
+        // Static calendar/protocol ranges + a live count of uploaded daily-audio
+        // clips per track, so the index reflects every content type including audio.
+        coverage: {
+          ...coverage,
+          audio: {
+            pregnancy: (await repo.listDailyAudio('pregnancy')).length,
+            child: (await repo.listDailyAudio('child')).length,
+          },
+        },
         endpoints: {
           'GET /api/v1/pregnancy/weeks': 'Full pregnancy calendar (all weeks, ru+kk).',
           'GET /api/v1/pregnancy/weeks/:week': 'One gestational week (clamped to the covered range).',

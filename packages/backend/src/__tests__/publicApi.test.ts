@@ -76,6 +76,19 @@ describe('GET /api/v1 (index + gate)', () => {
     await a.close();
   });
 
+  it('reflects live daily-audio coverage in the index, per track', async () => {
+    const repo = createMemoryRepository();
+    await repo.upsertDailyAudio({ track: 'pregnancy', day: 140, locale: 'ru', title: 'x', mime: 'audio/mpeg', bytes: Buffer.from([1, 2, 3]) });
+    await repo.upsertDailyAudio({ track: 'child', day: 30, locale: 'kk', title: 'y', mime: 'audio/mpeg', bytes: Buffer.from([4, 5]) });
+    const a = buildServer(
+      { repo, guardrail: { callLLM: async () => 'ok' }, ingest: { cacheLocation: async () => {}, resolveTransition: async () => null, sendEmergencyPush: async () => {}, sendGeofencePush: async () => {} }, cacheLastLocation: async () => null, setBpCalibration: async () => {}, authUser: async () => null, authAdmin: async () => null },
+      { logger: false },
+    );
+    const j = (await a.inject({ method: 'GET', url: '/api/v1' })).json();
+    expect(j.coverage.audio).toEqual({ pregnancy: 1, child: 1 });
+    await a.close();
+  });
+
   it('rejects a missing/wrong key when one is configured, accepts the right one', async () => {
     const a = app('secret-key');
     expect((await a.inject({ method: 'GET', url: '/api/v1/pregnancy/weeks' })).statusCode).toBe(401);
