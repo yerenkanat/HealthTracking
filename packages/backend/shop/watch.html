@@ -135,6 +135,14 @@
   .buybar .bp{font-weight:900;font-family:var(--mono);font-size:18px}
   .buybar .bp small{font-size:12px;color:var(--muted);font-weight:700;display:block;line-height:1}
   .buybar .btn{flex:1;padding:13px;min-height:48px;font-size:15px}
+  .btn.wa{background:#25D366;color:#fff;box-shadow:0 12px 26px -12px rgba(37,211,102,.5)}
+  .btn.wa:hover{background:#20bd5a;transform:translateY(-2px)}
+  .btn.wa svg{width:22px;height:22px}
+  .buybar .btn.wa{flex:0 0 auto;padding:13px 15px}
+  .wa-fab{position:fixed;right:18px;bottom:18px;z-index:60;display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;font-weight:800;font-size:15px;padding:13px 20px 13px 15px;border-radius:99px;box-shadow:0 14px 34px -8px rgba(37,211,102,.6);cursor:pointer;transition:transform .16s}
+  .wa-fab:hover{transform:translateY(-2px)}
+  .wa-fab svg{width:26px;height:26px;flex:0 0 auto}
+  @media(max-width:720px){.wa-fab{bottom:76px;right:13px;padding:13px;gap:0}.wa-fab .wl{display:none}}
 </style>
 
 <header class="top"><div class="wrap">
@@ -262,8 +270,11 @@
 
 <div class="buybar">
   <div class="bp"><small>Смарт-часы</small><span id="barPrice">29 000 ₸</span></div>
+  <a class="btn wa js-wa" href="#" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.55 15.2L2 22l4.94-1.3A10 10 0 1 0 12 2zm0 18.15a8.13 8.13 0 0 1-4.15-1.14l-.3-.18-2.93.77.78-2.85-.2-.3A8.15 8.15 0 1 1 12 20.15zm4.5-6.1c-.24-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.78.96-.14.16-.29.18-.53.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.11.24-.29.36-.43.12-.14.16-.25.24-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.32-.75-1.81-.2-.48-.4-.41-.55-.42h-.47c-.16 0-.42.06-.64.31-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.57.25 1.02.4 1.37.5.58.19 1.1.16 1.51.1.46-.07 1.45-.59 1.66-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28z"/></svg></a>
   <a class="btn primary" href="#order">Заказать</a>
 </div>
+
+<a class="wa-fab js-wa" href="#" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.55 15.2L2 22l4.94-1.3A10 10 0 1 0 12 2zm0 18.15a8.13 8.13 0 0 1-4.15-1.14l-.3-.18-2.93.77.78-2.85-.2-.3A8.15 8.15 0 1 1 12 20.15zm4.5-6.1c-.24-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.78.96-.14.16-.29.18-.53.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.11.24-.29.36-.43.12-.14.16-.25.24-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.32-.75-1.81-.2-.48-.4-.41-.55-.42h-.47c-.16 0-.42.06-.64.31-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.57.25 1.02.4 1.37.5.58.19 1.1.16 1.51.1.46-.07 1.45-.59 1.66-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28z"/></svg> <span class="wl">Написать в WhatsApp</span></a>
 
 <script>
 (function(){
@@ -273,6 +284,18 @@
   const tng=minor=>fmt(Math.round(minor/100))+" ₸";
   const BUNDLE_DISCOUNT=290000;
   let WATCH=null, TRACKER=null, watchColor=null, mode="single";
+  let WHATSAPP="", KASPI="";
+  function waText(){
+    const v=WATCH&&WATCH.variants.find(x=>x.id===watchColor);
+    const prod=(mode==="bundle"&&TRACKER)?"Смарт-часы + детский трекер":(WATCH?"Смарт-часы Umay":"Umay");
+    const total=(($("sumTotal")||{}).textContent||"").trim();
+    const L=["Здравствуйте! Хочу заказать:","• "+prod+(v?", цвет "+v.color:"")];
+    if(total&&total!=="—")L.push("Итого: "+total);
+    return L.join("
+");
+  }
+  const waHref=()=>"https://wa.me/"+WHATSAPP+"?text="+encodeURIComponent(waText());
+  document.addEventListener("click",function(e){const a=e.target.closest(".js-wa");if(!a)return;e.preventDefault();window.open(waHref(),"_blank","noopener");});
 
   function stockPill(){
     const s=WATCH? WATCH.variants.reduce((a,v)=>a+v.stock,0):0;
@@ -325,6 +348,7 @@
   }
 
   async function load(){
+    try{ const c=await (await fetch("/shop/config")).json(); WHATSAPP=c.whatsapp||""; KASPI=c.kaspiUrl||""; }catch(e){}
     try{ const d=await (await fetch("/shop/products")).json(); const ps=d.products||[];
       WATCH=ps.find(p=>p.id==="watch"); TRACKER=ps.find(p=>p.id==="tracker"); }catch(e){}
     if(!WATCH){ return; }
