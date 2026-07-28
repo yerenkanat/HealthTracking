@@ -116,6 +116,8 @@
   .gcred>div{display:flex;gap:9px;align-items:flex-start;font-size:13px;font-weight:600;color:rgba(255,255,255,.94)}
   .gcred svg{width:18px;height:18px;flex:0 0 auto;margin-top:1px;color:#fff}
   .summary .line.gift,.summary .line.gift b{color:var(--good)}
+  .summary .line.value{color:var(--muted);font-size:13px}
+  .summary .line.value b{text-decoration:line-through;text-decoration-color:var(--muted);font-family:var(--mono);font-weight:700}
   /* specs */
   .specs{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-top:26px;max-width:760px;margin-inline:auto}
   @media(max-width:600px){.specs{grid-template-columns:1fr}}
@@ -471,7 +473,8 @@
         <div class="line"><span id="sumLabel">—</span><span class="num" id="sumSub">—</span></div>
         <div class="line disc" id="sumDiscRow" hidden><span data-i18n="sum_disc">Жинақ жеңілдігі</span><span class="num" id="sumDisc">—</span></div>
         <div class="line gift"><span data-i18n="sum_gift">🎁 «МаМа» курсы — сыйлық</span><b data-i18n="sum_gift_val">49 000 ₸ · тегін</b></div>
-        <div class="line grand"><span data-i18n="sum_total">Барлығы</span><b id="sumTotal">—</b></div>
+        <div class="line value"><span data-i18n="sum_value">Жалпы құндылық</span><b class="num" id="sumValue">—</b></div>
+        <div class="line grand"><span data-i18n="sum_total">Сіз төлейсіз</span><b id="sumTotal">—</b></div>
       </div>
     </div>
     <div class="orderwa">
@@ -634,7 +637,7 @@
       wa_s1:"Түсі мен жинақты таңдаңыз", wa_s2:"WhatsApp-та жазыңыз — таңдауыңыз дайын болады", wa_s3:"Менеджер растайды, алған кезде төлейсіз",
       or_pitch:"Алған кезде төлеу — курьер сағатты жеткізеді, ақшаны бәрі қолыңызда болғанда ғана төлейсіз. 1 жыл кепілдік, 14 күн қайтару.",
       opt_single_t:"Тек сағат", opt_bundle_t:"Сағат + балаға трекер", opt_bundle_save:"үнемдеу 2 900 ₸",
-      sum_disc:"Жинақ жеңілдігі", sum_total:"Барлығы",
+      sum_disc:"Жинақ жеңілдігі", sum_total:"Сіз төлейсіз", sum_value:"Жалпы құндылық",
       lbl_tracker:"Трекер түсі", lbl_qty:"Саны", lbl_city:"Қала", lbl_name:"Атыңыз", lbl_phone:"Телефон", lbl_addr:"Жеткізу мекенжайы",
       ph_city:"Алматы", ph_name:"Айгерім", ph_addr:"Көше, үй, пәтер",
       or_submit:"Тапсырыс беру", or_consent:"Батырманы басу арқылы жеткізу үшін байланыс деректерін өңдеуге келісесіз.",
@@ -711,7 +714,7 @@
       wa_s1:"Выберите цвет и комплект", wa_s2:"Напишите в WhatsApp — выбор уже подставлен", wa_s3:"Менеджер подтвердит, оплата при получении",
       or_pitch:"Оплата при получении — курьер привезёт часы, вы платите, только когда всё у вас в руках. Гарантия 1 год, возврат 14 дней.",
       opt_single_t:"Только часы", opt_bundle_t:"Часы + детский трекер", opt_bundle_save:"экономия 2 900 ₸",
-      sum_disc:"Скидка за комплект", sum_total:"Итого",
+      sum_disc:"Скидка за комплект", sum_total:"Вы платите", sum_value:"Общая ценность",
       lbl_tracker:"Цвет трекера", lbl_qty:"Количество", lbl_city:"Город", lbl_name:"Ваше имя", lbl_phone:"Телефон", lbl_addr:"Адрес доставки",
       ph_city:"Алматы", ph_name:"Айгерим", ph_addr:"Улица, дом, квартира",
       or_submit:"Оформить заказ", or_consent:"Нажимая, вы соглашаетесь на обработку контактных данных для доставки.",
@@ -788,15 +791,18 @@
     $("optBundle").setAttribute("aria-pressed",String(m==="bundle"));
     updateSummary();
   }
+  const COURSE_VALUE=4900000; // «МаМа» course worth 49 000 ₸, gifted — anchors the value.
   function updateSummary(){
     if(mode==="bundle"&&TRACKER){
       const sub=WATCH.priceMinor+TRACKER.priceMinor;
       $("sumLabel").textContent=t("sum_bundle"); $("sumSub").textContent=tng(sub);
       $("sumDiscRow").hidden=false; $("sumDisc").textContent="−"+tng(BUNDLE_DISCOUNT);
       $("sumTotal").textContent=tng(sub-BUNDLE_DISCOUNT);
+      $("sumValue").textContent=tng(sub+COURSE_VALUE);
     } else {
       $("sumLabel").textContent=t("sum_single"); $("sumSub").textContent=tng(WATCH.priceMinor);
       $("sumDiscRow").hidden=true; $("sumTotal").textContent=tng(WATCH.priceMinor);
+      $("sumValue").textContent=tng(WATCH.priceMinor+COURSE_VALUE);
     }
   }
 
