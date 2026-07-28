@@ -11,10 +11,10 @@
     --ink:#3A2A24;--muted:#786557;--bg:#FBF5EF;--surface:#FFFFFF;--surface-2:#F6EBE0;--hair:#EBDBCE;
     --band:#5C3A33;--band-2:#4A2E28;
     --grad:linear-gradient(135deg,#C8654E,#E39A72);--grad-soft:linear-gradient(135deg,#FBEDE3,#FAE6DA);
-    --shadow:0 22px 48px -24px rgba(90,54,44,.30);--shadow-sm:0 8px 22px -16px rgba(90,54,44,.20);--r:22px;
+    --shadow:0 2px 5px rgba(90,54,44,.05),0 24px 50px -26px rgba(90,54,44,.30);--shadow-sm:0 1px 2px rgba(90,54,44,.05),0 10px 26px -16px rgba(90,54,44,.16);--r:22px;
     --sans:"Inter","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SFMono-Regular",Consolas,monospace;
   }
-  @media (prefers-color-scheme:dark){:root{--ink:#F3E8DF;--muted:#B4A092;--bg:#1C1512;--surface:#271C18;--surface-2:#30231E;--hair:#3E2D26;--band:#3A241F;--band-2:#2C1B17;--grad-soft:linear-gradient(135deg,#33231D,#3A2620);--shadow:0 22px 52px -22px rgba(0,0,0,.7);--shadow-sm:0 10px 26px -16px rgba(0,0,0,.6)}}
+  @media (prefers-color-scheme:dark){:root{--ink:#F3E8DF;--muted:#B4A092;--bg:#1C1512;--surface:#271C18;--surface-2:#30231E;--hair:#3E2D26;--band:#3A241F;--band-2:#2C1B17;--grad-soft:linear-gradient(135deg,#33231D,#3A2620);--shadow:0 2px 6px rgba(0,0,0,.4),0 24px 52px -24px rgba(0,0,0,.72);--shadow-sm:0 1px 2px rgba(0,0,0,.4),0 10px 26px -16px rgba(0,0,0,.55)}}
   *{box-sizing:border-box}
   [hidden]{display:none!important}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;padding-bottom:72px}
@@ -188,8 +188,15 @@
   /* --- motion & marketing polish --- */
   html{scroll-behavior:smooth}
   section[id]{scroll-margin-top:74px}
-  html.js .reveal:not(.in){opacity:0;transform:translateY(22px)}
-  html.js .reveal.in{opacity:1;transform:none;transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+  html.js .reveal>*{opacity:0;transform:translateY(18px)}
+  html.js .reveal.in>*{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.2,1)}
+  html.js .reveal.in>*:nth-child(2){transition-delay:.06s}
+  html.js .reveal.in>*:nth-child(3){transition-delay:.12s}
+  html.js .reveal.in>*:nth-child(4){transition-delay:.18s}
+  html.js .reveal.in>*:nth-child(5){transition-delay:.24s}
+  html.js .reveal.in>*:nth-child(6){transition-delay:.30s}
+  html.js .reveal.in>*:nth-child(7){transition-delay:.36s}
+  html.js .reveal.in>*:nth-child(8){transition-delay:.42s}
   @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
   @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
   @keyframes pulseGlow{0%,100%{box-shadow:0 14px 30px -12px rgba(193,90,71,.5)}50%{box-shadow:0 16px 44px -6px rgba(227,154,114,.78)}}
@@ -200,8 +207,8 @@
   html.js .hero-copy>*:nth-child(4){animation-delay:.24s}
   html.js .hero-copy>*:nth-child(5){animation-delay:.32s}
   html.js .hero-copy>*:nth-child(6){animation-delay:.4s}
-  .feat,.step{transition:transform .18s ease,box-shadow .2s ease}
-  .feat:hover,.step:hover{transform:translateY(-4px);box-shadow:0 20px 40px -22px rgba(90,54,44,.5)}
+  .feat,.step,.hstep,.review{transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s ease}
+  .feat:hover,.step:hover,.hstep:hover,.review:hover{transform:translateY(-5px);box-shadow:0 3px 8px rgba(90,54,44,.06),0 26px 46px -22px rgba(90,54,44,.42)}
   .color .dot{transition:transform .18s ease}
   .color:hover .dot{transform:scale(1.09)}
   .btn.pulse{animation:pulseGlow 2.4s ease-in-out infinite}
@@ -298,7 +305,7 @@
   .ring small{position:relative;z-index:1;display:block;margin-top:3px;font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
   .mrow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:600;color:var(--muted);border-top:1px solid var(--hair);padding-top:8px}
   .mrow b{color:var(--ink);font-weight:800;font-size:13.5px}
-  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}html.js .reveal:not(.in),html.js .reveal.in{opacity:1!important;transform:none!important;transition:none!important}html.js .hero-copy>*{animation:none}.hero-art svg,.hero-art .shotcard{animation:none}.btn.pulse{animation:none}.live{animation:none}.feat:hover,.step:hover,.colorshots figure:hover{transform:none}}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}html.js .reveal>*,html.js .reveal.in>*{opacity:1!important;transform:none!important;transition:none!important}html.js .hero-copy>*{animation:none}.hero-art svg,.hero-art .shotcard{animation:none}.btn.pulse{animation:none}.live{animation:none}.feat:hover,.step:hover,.hstep:hover,.review:hover,.colorshots figure:hover{transform:none}}
 </style>
 
 <script>document.documentElement.classList.add('js')</script>
