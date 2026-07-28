@@ -451,6 +451,10 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       kaspiUrl: z.string().trim().max(500).optional(),
       anthropicApiKey: z.string().trim().max(300).optional(),
       googleMapsApiKey: z.string().trim().max(300).optional(),
+      // Social proof — public. reviews is a JSON array of {name,city,text,stars}.
+      reviews: z.string().trim().max(6000).optional(),
+      rating: z.string().trim().max(8).optional(),
+      reviewCount: z.string().trim().max(12).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     // Store only the keys actually sent. The phone is normalised to digits so

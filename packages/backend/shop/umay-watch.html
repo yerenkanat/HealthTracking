@@ -8,7 +8,7 @@
        are remapped so the whole token-driven page recolours at once. */
     --terra:#C15A47;--terra-deep:#A5482F;--blush:#E7A99F;--peach:#F0B98E;--good:#5E9E77;--crit:#D2544A;--amber:#BB8534;
     --teal:#C15A47;--violet:#C15A47;--violet-deep:#A5482F;--rose:#C6695A;
-    --ink:#3A2A24;--muted:#8C7A6F;--bg:#FBF5EF;--surface:#FFFFFF;--surface-2:#F6EBE0;--hair:#EBDBCE;
+    --ink:#3A2A24;--muted:#786557;--bg:#FBF5EF;--surface:#FFFFFF;--surface-2:#F6EBE0;--hair:#EBDBCE;
     --band:#5C3A33;--band-2:#4A2E28;
     --grad:linear-gradient(135deg,#C8654E,#E39A72);--grad-soft:linear-gradient(135deg,#FBEDE3,#FAE6DA);
     --shadow:0 22px 48px -24px rgba(90,54,44,.30);--shadow-sm:0 8px 22px -16px rgba(90,54,44,.20);--r:22px;
@@ -23,7 +23,9 @@
   .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
   a{color:inherit;text-decoration:none}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:800;font-size:16px;border-radius:14px;padding:15px 26px;cursor:pointer;border:1px solid transparent;transition:transform .15s,box-shadow .2s;min-height:54px}
+  /* Visible keyboard focus for every interactive element. */
+  :where(a,button,input,select,summary,.swatch,.optbtn,.lang button,.sarrow):focus-visible{outline:3px solid var(--terra);outline-offset:2px;border-radius:8px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:800;font-size:16px;border-radius:16px;padding:15px 26px;cursor:pointer;border:1px solid transparent;transition:transform .15s,box-shadow .2s;min-height:54px}
   .btn.primary{background:var(--grad);color:#fff;box-shadow:0 14px 30px -12px rgba(193,90,71,.5)}
   .btn.primary:hover{transform:translateY(-2px)}
   .btn.primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
@@ -67,14 +69,14 @@
   .trust .wrap{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 28px}
   .trust .item{display:flex;gap:9px;align-items:center;font-weight:700;font-size:14px}
   .trust .item svg{width:20px;height:20px;color:var(--violet)}
-  section{padding:46px 0}
+  section{padding:52px 0}
   .kicker{color:var(--teal);font-weight:800;font-size:12.5px;letter-spacing:.11em;text-transform:uppercase;text-align:center}
   h2{font-size:clamp(26px,4.3vw,39px);font-weight:800;margin-top:9px;text-align:center;letter-spacing:-.025em}
   .sec-lede{color:var(--muted);text-align:center;max-width:56ch;margin:12px auto 0;font-size:15.5px}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:30px}
   @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}
   @media(max-width:480px){.grid{grid-template-columns:1fr}}
-  .feat{background:var(--surface);border:1px solid var(--hair);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
+  .feat{background:var(--surface);border:1px solid var(--hair);border-radius:22px;padding:22px;box-shadow:var(--shadow-sm)}
   .feat .n{font-family:var(--mono);font-weight:800;color:var(--violet);font-size:13px}
   .feat .ic{width:44px;height:44px;border-radius:13px;background:var(--grad-soft);display:grid;place-items:center;margin:8px 0 12px}
   .feat .ic svg{width:24px;height:24px;color:var(--violet)}
@@ -259,6 +261,19 @@
   .hstep h3{font-size:16.5px;font-weight:800}
   .hstep p{color:var(--muted);font-size:13.5px;margin:6px 0 0}
   .harrow{color:var(--hair);width:26px;height:26px}
+  /* social proof: hero rating + testimonials */
+  .rating{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-weight:700;font-size:13.5px;color:var(--ink)}
+  @media(max-width:820px){.rating{justify-content:center}}
+  .rating .stars{color:var(--amber);letter-spacing:1px;font-size:15px}
+  .rating b{font-family:var(--mono)}
+  .rating em{color:var(--muted);font-weight:600;font-style:normal}
+  .reviews-grid{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 2px 14px;-webkit-overflow-scrolling:touch;margin-top:30px;scrollbar-width:thin}
+  .reviews-grid::-webkit-scrollbar{height:7px}.reviews-grid::-webkit-scrollbar-thumb{background:var(--hair);border-radius:99px}
+  .review{flex:0 0 clamp(258px,78%,340px);scroll-snap-align:center;background:var(--surface);border:1px solid var(--hair);border-radius:20px;padding:22px 22px 20px;box-shadow:var(--shadow-sm);text-align:left}
+  .review .rstars{color:var(--amber);letter-spacing:1px;font-size:15px}
+  .review p{margin:10px 0 14px;font-size:14.5px;line-height:1.55;color:var(--ink)}
+  .review .who{font-weight:800;font-size:14px}
+  .review .city{color:var(--muted);font-size:12.5px;font-weight:600;margin-top:1px}
   .wa-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12.5px;font-weight:700}
   .wa-or::before,.wa-or::after{content:"";flex:1;height:1px;background:var(--hair)}
   .wa-fab{position:fixed;right:18px;bottom:18px;z-index:60;display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;font-weight:800;font-size:15px;padding:13px 20px 13px 15px;border-radius:99px;box-shadow:0 14px 34px -8px rgba(37,211,102,.65);cursor:pointer;transition:transform .16s}
@@ -308,6 +323,7 @@
       <span class="price">29 000 <small>₸</small></span>
       <span class="save" id="stockPill" data-i18n="stock_in">Бар</span>
     </div>
+    <div class="rating" id="heroRating" style="display:none"></div>
     <div class="giftbadge">🎁 <span data-i18n="gift_badge">«МаМа» курсы сыйлыққа · 49 000 ₸</span></div>
     <div class="cta-row">
       <a class="btn wa js-wa" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.55 15.2L2 22l4.94-1.3A10 10 0 1 0 12 2zm0 18.15a8.13 8.13 0 0 1-4.15-1.14l-.3-.18-2.93.77.78-2.85-.2-.3A8.15 8.15 0 1 1 12 20.15zm4.5-6.1c-.24-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.78.96-.14.16-.29.18-.53.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.11.24-.29.36-.43.12-.14.16-.25.24-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.32-.75-1.81-.2-.48-.4-.41-.55-.42h-.47c-.16 0-.42.06-.64.31-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.57.25 1.02.4 1.37.5.58.19 1.1.16 1.51.1.46-.07 1.45-.59 1.66-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28z"/></svg> <span data-i18n="wa_cta">WhatsApp арқылы тапсырыс</span></a>
@@ -347,6 +363,33 @@
     <div class="stat"><div class="statnum" data-count="10">10</div><div class="statlbl" data-i18n="st_batt">күн батарея</div></div>
     <div class="stat"><div class="statnum" data-count="6">6</div><div class="statlbl" data-i18n="st_metrics">денсаулық көрсеткіші</div></div>
     <div class="stat"><div class="statnum" data-count="9">9</div><div class="statlbl" data-i18n="st_colors">түс</div></div>
+  </div>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="kicker" data-i18n="how_kicker">Қалай жұмыс істейді</div>
+  <h2 data-i18n="how_h2">Үш қадам — қалғанын өзі істейді</h2>
+  <div class="how3 reveal">
+    <div class="hstep">
+      <div class="hn">1</div>
+      <svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+      <h3 data-i18n="how1_t">Сағатты киіңіз</h3>
+      <p data-i18n="how1_d">Тәулік бойы пульс, қысым, оттегі мен ұйқыны өзі өлшейді.</p>
+    </div>
+    <svg class="harrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+    <div class="hstep">
+      <div class="hn">2</div>
+      <svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
+      <h3 data-i18n="how2_t">Umay қосымшасы</h3>
+      <p data-i18n="how2_d">Деректерді жинап, түсінікті етіп көрсетеді.</p>
+    </div>
+    <svg class="harrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+    <div class="hstep">
+      <div class="hn">3</div>
+      <svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg>
+      <h3 data-i18n="how3_t">ЖИ-кеңес</h3>
+      <p data-i18n="how3_d">Апта сайын кеңес беріп, қажет кезде ескертеді.</p>
+    </div>
   </div>
 </div></section>
 
@@ -529,6 +572,12 @@
   </div>
 </div></section>
 
+<section id="reviews" style="display:none"><div class="wrap">
+  <div class="kicker" data-i18n="rev_kicker">Пікірлер</div>
+  <h2 data-i18n="rev_h2">Аналар не дейді</h2>
+  <div class="reviews-grid" id="reviewsGrid"></div>
+</div></section>
+
 <section style="padding-top:10px"><div class="wrap">
   <div class="kicker" data-i18n="faq_kicker">Сұрақтар</div><h2 data-i18n="faq_h2">Жиі қойылатын сұрақтар</h2>
   <div class="faq">
@@ -575,9 +624,23 @@
   const BUNDLE_DISCOUNT=290000;
   let WATCH=null, TRACKER=null, watchColor=null, mode="single", LANG="kz";
 
-  // WhatsApp order number + Kaspi link come from /shop/config (set in the admin
-  // panel). Empty until configured.
-  let WHATSAPP="", KASPI="";
+  // WhatsApp order number, Kaspi link, and social proof come from /shop/config
+  // (set in the admin panel). Empty until configured.
+  let WHATSAPP="", KASPI="", CFG={};
+  const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const stars=n=>{n=Math.max(0,Math.min(5,Math.round(Number(n)||0)));return "★★★★★".slice(0,n)+"☆☆☆☆☆".slice(0,5-n);};
+  function renderSocial(c){
+    const rt=(c.rating||"").trim();
+    if(rt){ const rc=(c.reviewCount||"").trim();
+      $("heroRating").innerHTML='<span class="stars">'+stars(rt)+'</span> <b>'+esc(rt)+'</b>'+(rc?' <em>· '+esc(rc)+' '+t("rev_count")+'</em>':'');
+      $("heroRating").style.display="";
+    }
+    let rv=[]; try{ rv=JSON.parse(c.reviews||"[]"); }catch(e){}
+    if(Array.isArray(rv)&&rv.length){
+      $("reviewsGrid").innerHTML=rv.map(r=>'<div class="review"><div class="rstars">'+stars(r.stars!=null?r.stars:5)+'</div><p>'+esc(r.text||"")+'</p><div class="who">'+esc(r.name||"")+'</div><div class="city">'+esc(r.city||"")+'</div></div>').join("");
+      $("reviews").style.display="";
+    }
+  }
   // The chat opens pre-filled with the current selection, so the buyer sends an
   // order in one tap instead of filling the form.
   function waText(){
@@ -664,6 +727,11 @@
       foot_disc:"Медициналық изделие емес. Көрсеткіштер бағдарлы сипатта және дәрігер қарауын алмастырмайды.", foot_kz:"Қазақстан", foot_catalog:"Барлық каталог",
       bar_label:"Смарт-сағат",
       st_hr:"тәулік бойы пульс", st_batt:"күн батарея", st_metrics:"денсаулық көрсеткіші", st_colors:"түс",
+      how_kicker:"Қалай жұмыс істейді", how_h2:"Үш қадам — қалғанын өзі істейді",
+      how1_t:"Сағатты киіңіз", how1_d:"Тәулік бойы пульс, қысым, оттегі мен ұйқыны өзі өлшейді.",
+      how2_t:"Umay қосымшасы", how2_d:"Деректерді жинап, түсінікті етіп көрсетеді.",
+      how3_t:"ЖИ-кеңес", how3_d:"Апта сайын кеңес беріп, қажет кезде ескертеді.",
+      rev_kicker:"Пікірлер", rev_h2:"Аналар не дейді", rev_count:"пікір",
       val_kicker:"Неге Umay", val_h2:"Бір сатып алу — толық жинақ",
       val_1:"Смарт-сағат — 6 денсаулық көрсеткіші", val_2:"Umay қосымшасы + апталық ЖИ-кеңестер", val_3:"1 жыл ресми кепілдік", val_4:"Алған кезде төлеу — тәуекел жоқ", val_5:"Қазақстан бойынша жеткізу",
       val_guarantee:"14 күн ішінде қайтару кепілдігі", val_cta:"Тапсырыс беру",
@@ -741,6 +809,11 @@
       foot_disc:"Не является медицинским изделием. Показатели носят ориентировочный характер и не заменяют осмотр врача.", foot_kz:"Казахстан", foot_catalog:"Весь каталог",
       bar_label:"Смарт-часы",
       st_hr:"пульс круглосуточно", st_batt:"дней батарея", st_metrics:"показателей здоровья", st_colors:"цветов",
+      how_kicker:"Как это работает", how_h2:"Три шага — остальное сделает сам",
+      how1_t:"Наденьте часы", how1_d:"Круглосуточно измеряют пульс, давление, кислород и сон.",
+      how2_t:"Приложение Umay", how2_d:"Собирает показатели и показывает понятно.",
+      how3_t:"AI-советы", how3_d:"Каждую неделю советует и вовремя предупреждает.",
+      rev_kicker:"Отзывы", rev_h2:"Что говорят мамы", rev_count:"отзывов",
       val_kicker:"Почему Umay", val_h2:"Одна покупка — полный комплект",
       val_1:"Смарт-часы — 6 показателей здоровья", val_2:"Приложение Umay + еженедельные AI-советы", val_3:"1 год официальной гарантии", val_4:"Оплата при получении — без риска", val_5:"Доставка по Казахстану",
       val_guarantee:"Возврат в течение 14 дней", val_cta:"Оформить заказ",
@@ -774,6 +847,7 @@
     $("langRu").setAttribute("aria-pressed",String(lang==="ru"));
     document.querySelectorAll("[data-i18n]").forEach(el=>{ const v=T[lang][el.dataset.i18n]; if(v!=null) el.textContent=v; });
     document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ const v=T[lang][el.dataset.i18nPh]; if(v!=null) el.placeholder=v; });
+    renderSocial(CFG);
     if(WATCH){ stockPill(); updateCname(); updateSummary(); }
   }
   window.setLang=setLang;
@@ -826,8 +900,8 @@
     });
   }
   async function load(){
-    try{ const c=await (await fetch("/shop/config")).json(); WHATSAPP=c.whatsapp||""; KASPI=c.kaspiUrl||""; }catch(e){}
-    applyKaspi();
+    try{ CFG=await (await fetch("/shop/config")).json(); WHATSAPP=CFG.whatsapp||""; KASPI=CFG.kaspiUrl||""; }catch(e){}
+    applyKaspi(); renderSocial(CFG);
     try{ const d=await (await fetch("/shop/products")).json(); const ps=d.products||[];
       WATCH=ps.find(p=>p.id==="watch"); TRACKER=ps.find(p=>p.id==="tracker"); }catch(e){}
     if(!WATCH) return;

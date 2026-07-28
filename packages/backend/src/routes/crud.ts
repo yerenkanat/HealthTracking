@@ -502,7 +502,10 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
   // link. A whitelist of the settings table — secrets never leave here.
   app.get('/shop/config', async (_req, reply) => {
     const s = await repo.getShopSettings();
-    return reply.send({ whatsapp: s.whatsapp ?? '', kaspiUrl: s.kaspiUrl ?? '' });
+    return reply.send({
+      whatsapp: s.whatsapp ?? '', kaspiUrl: s.kaspiUrl ?? '',
+      reviews: s.reviews ?? '', rating: s.rating ?? '', reviewCount: s.reviewCount ?? '',
+    });
   });
   app.post('/shop/orders', async (req, reply) => {
     const parsed = shopOrderBody.safeParse(req.body);

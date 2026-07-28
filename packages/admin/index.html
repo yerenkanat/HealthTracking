@@ -783,8 +783,13 @@
             <label>Ссылка Kaspi<input type="url" id="setKaspi" placeholder="https://kaspi.kz/shop/…" autocomplete="off"></label>
             <label>Anthropic API key<input type="password" id="setAnthropic" placeholder="sk-ant-…" autocomplete="off"></label>
             <label>Google Maps API key<input type="password" id="setGmaps" placeholder="AIza…" autocomplete="off"></label>
+            <label>Рейтинг (напр. 4.9)<input type="text" id="setRating" placeholder="4.9" autocomplete="off"></label>
+            <label>Кол-во отзывов<input type="text" id="setRcount" placeholder="1240" autocomplete="off"></label>
             <button class="btn" id="setSave">Сохранить</button>
           </div>
+          <label style="display:block;margin-top:12px;font-weight:600;font-size:13px;color:var(--muted)">Отзывы — JSON-массив [{"name","city","text","stars"}]
+            <textarea id="setReviews" rows="4" placeholder='[{"name":"Айгерім","city":"Алматы","text":"Өте ұнады, қазақша сөйлейді!","stars":5}]' style="width:100%;margin-top:6px;background:var(--surface-2);border:1px solid var(--hair);border-radius:9px;padding:9px 11px;color:var(--ink);font-family:ui-monospace,monospace;font-size:12px"></textarea>
+          </label>
           <div class="audiomsg" id="setMsg"></div>
         </div>
         <div class="grid2">
@@ -2211,14 +2216,21 @@
       $("setKaspi").value=settings.kaspiUrl||"";
       $("setAnthropic").value=settings.anthropicApiKey||"";
       $("setGmaps").value=settings.googleMapsApiKey||"";
+      $("setRating").value=settings.rating||"";
+      $("setRcount").value=settings.reviewCount||"";
+      $("setReviews").value=settings.reviews||"";
     }catch(e){}
     const save=$("setSave");
     save.onclick=async()=>{
       msg.textContent="Сохранение…"; save.disabled=true;
+      // Validate reviews JSON before sending, so a typo can't break the landing.
+      const rv=$("setReviews").value.trim();
+      if(rv){ try{ JSON.parse(rv); }catch(e){ msg.textContent="Отзывы: неверный JSON."; save.disabled=false; return; } }
       try{
         await apiSend("/admin/settings","PUT",{
           whatsapp:$("setWhatsapp").value, kaspiUrl:$("setKaspi").value,
-          anthropicApiKey:$("setAnthropic").value, googleMapsApiKey:$("setGmaps").value
+          anthropicApiKey:$("setAnthropic").value, googleMapsApiKey:$("setGmaps").value,
+          rating:$("setRating").value, reviewCount:$("setRcount").value, reviews:rv
         });
         msg.textContent="Сохранено. Ключи API применятся после перезапуска сервера.";
       }catch(e){ msg.textContent="Не удалось сохранить."; }
