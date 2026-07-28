@@ -190,6 +190,13 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 else
                   _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
 
+                // Daily audio for this exact day of the calendar, right under the
+                // week/day header. Hidden when the day has no clip.
+                if (!cycleMode && c.gestation != null) ...[
+                  const SizedBox(height: 14),
+                  DailyAudioCard(track: 'pregnancy', day: c.gestation!.totalDays),
+                ],
+
                 // After a recent birth the app is in cycle mode but her body is
                 // still recovering. Surface the recovery guide until the window
                 // passes — the one place the app speaks to the mother, not the
@@ -252,8 +259,6 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   }),
                 ],
                 if (!cycleMode && c.gestation != null) ...[
-                  const SizedBox(height: 14),
-                  DailyAudioCard(track: 'pregnancy', day: c.gestation!.totalDays),
                   const SizedBox(height: 14),
                   _BabySizeCard(week: c.gestation!.week),
                   const SizedBox(height: 14),

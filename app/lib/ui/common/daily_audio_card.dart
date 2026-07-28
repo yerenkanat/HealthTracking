@@ -52,32 +52,42 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
 
   Future<void> _load(String url) async {
     setState(() => _st = _St.checking);
-    // Does this day have a clip? A HEAD keeps it cheap and lets us hide cleanly.
+    // Download the clip (they're small) and play it from bytes. Android's
+    // MediaPlayer is flaky with a URL source that has no file extension; a
+    // BytesSource writes a temp file it plays reliably — and the GET doubles as
+    // the existence check, so an absent day cleanly hides.
+    http.Response resp;
     try {
-      final r = await http.head(Uri.parse(url)).timeout(const Duration(seconds: 6));
-      if (!mounted) return;
-      if (r.statusCode != 200) {
-        setState(() => _st = _St.hidden);
-        return;
-      }
+      resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
     } catch (_) {
       if (mounted) setState(() => _st = _St.hidden);
+      return;
+    }
+    if (!mounted) return;
+    if (resp.statusCode != 200 || resp.bodyBytes.isEmpty) {
+      setState(() => _st = _St.hidden);
       return;
     }
     for (final s in _subs) {
       s.cancel();
     }
     _subs.clear();
-    _subs.add(_player.onDurationChanged.listen((d) => mounted ? setState(() => _dur = d) : null));
+    _subs.add(_player.onDurationChanged.listen((d) {
+      if (mounted) setState(() { _dur = d; _st = _St.ready; }); // a duration means it's playable
+    }));
     _subs.add(_player.onPositionChanged.listen((p) => mounted ? setState(() => _pos = p) : null));
     _subs.add(_player.onPlayerStateChanged.listen((s) => mounted ? setState(() => _playing = s == PlayerState.playing) : null));
     _subs.add(_player.onPlayerComplete.listen((_) => mounted ? setState(() { _playing = false; _pos = Duration.zero; }) : null));
-    try {
-      await _player.setSourceUrl(url);
-      if (mounted) setState(() => _st = _St.ready);
-    } catch (_) {
-      if (mounted) setState(() => _st = _St.hidden);
-    }
+    // Confirm readiness via the future OR a duration event. On any failure — or
+    // if it never becomes ready — hide, never spin forever.
+    _player.setSource(BytesSource(resp.bodyBytes, mimeType: resp.headers['content-type'])).then((_) {
+      if (mounted && _st == _St.checking) setState(() => _st = _St.ready);
+    }).catchError((_) {
+      if (mounted && _st != _St.ready) setState(() => _st = _St.hidden);
+    });
+    Future.delayed(const Duration(seconds: 8), () {
+      if (mounted && _st == _St.checking) setState(() => _st = _St.hidden);
+    });
   }
 
   Future<void> _toggle() async {

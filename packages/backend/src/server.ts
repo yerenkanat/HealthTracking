@@ -355,7 +355,21 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     }
     const a = await deps.repo.getDailyAudio(track, d, locale);
     if (!a) return reply.code(404).send({ error: 'not_found' });
-    return reply.type(a.mime).header('cache-control', 'public, max-age=3600').send(a.bytes);
+    // Range support (206) — Android's MediaPlayer streams audio over HTTP with a
+    // Range request and refuses a plain 200 for some sources, so honour it.
+    const total = a.bytes.length;
+    reply.header('accept-ranges', 'bytes').header('cache-control', 'public, max-age=3600').type(a.mime);
+    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ''));
+    if (range) {
+      const start = range[1] ? parseInt(range[1], 10) : 0;
+      let end = range[2] ? parseInt(range[2], 10) : total - 1;
+      if (Number.isNaN(start) || start >= total || start < 0) {
+        return reply.code(416).header('content-range', `bytes */${total}`).send();
+      }
+      end = Math.min(Number.isNaN(end) ? total - 1 : end, total - 1);
+      return reply.code(206).header('content-range', `bytes ${start}-${end}/${total}`).send(a.bytes.subarray(start, end + 1));
+    }
+    return reply.header('content-length', String(total)).send(a.bytes);
   });
 
   // Client CRUD + history routes (require an authUser resolver).
