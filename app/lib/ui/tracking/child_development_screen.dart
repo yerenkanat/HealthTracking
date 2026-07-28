@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../data/baby_development_repository.dart';
+import '../common/daily_audio_card.dart';
 import '../../domain/baby_development_content.dart';
 import '../../domain/child_development.dart';
 import '../../domain/family.dart';
@@ -52,6 +53,7 @@ class ChildDevelopmentScreen extends StatelessWidget {
           : _Timeline(
               ageMonths: ageInMonths(dob, today),
               ageWeeks: childAgeWeeks(dob, today),
+              ageDays: today.difference(dob).inDays + 1,
               childName: child.name,
             ),
     );
@@ -78,8 +80,9 @@ class _NoBirthdate extends StatelessWidget {
 class _Timeline extends StatelessWidget {
   final int ageMonths;
   final int ageWeeks;
+  final int ageDays;
   final String childName;
-  const _Timeline({required this.ageMonths, required this.ageWeeks, required this.childName});
+  const _Timeline({required this.ageMonths, required this.ageWeeks, required this.ageDays, required this.childName});
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +96,10 @@ class _Timeline extends StatelessWidget {
       children: [
         _AgeHeader(ageMonths: ageMonths, name: childName),
         const SizedBox(height: 12),
+        if (ageDays >= 1) ...[
+          DailyAudioCard(track: 'child', day: ageDays),
+          const SizedBox(height: 12),
+        ],
 
         // WHO weight/height range + this-week motor/speech/cognition, from the
         // shared baby-development calendar (GET /child/development). Only within

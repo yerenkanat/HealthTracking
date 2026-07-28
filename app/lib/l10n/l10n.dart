@@ -999,6 +999,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'vitals_err_bp_pair': {AppLocale.ru: 'Укажите оба значения давления — верхнее и нижнее.', AppLocale.kk: 'Қысымның екі мәнін де көрсетіңіз.', AppLocale.en: 'Enter both blood-pressure values, upper and lower.'},
   'vitals_err_bp_order': {AppLocale.ru: 'Нижнее давление должно быть меньше верхнего — возможно, они переставлены.', AppLocale.kk: 'Төменгі қысым жоғарғыдан кіші болуы керек — орындары ауысып кеткен шығар.', AppLocale.en: 'The lower value must be below the upper one — they may be swapped.'},
   'vitals_saved': {AppLocale.ru: 'Показатели записаны', AppLocale.kk: 'Көрсеткіштер жазылды', AppLocale.en: 'Reading saved'},
+  'audio_title': {AppLocale.ru: 'Аудио дня', AppLocale.kk: 'Күннің аудиосы', AppLocale.en: 'Daily audio'},
   'vitals_scan_cta': {AppLocale.ru: 'Считать с фото прибора', AppLocale.kk: 'Құрылғы фотосынан оқу', AppLocale.en: 'Read from a photo'},
   'vitals_scan_hint': {AppLocale.ru: 'Фото экрана глюкометра, тонометра или анализа', AppLocale.kk: 'Глюкометр, тонометр экраны немесе талдау фотосы', AppLocale.en: 'A photo of a glucometer, BP monitor or lab slip'},
   'med_scan_cta': {AppLocale.ru: 'Заполнить по фото', AppLocale.kk: 'Фотодан толтыру', AppLocale.en: 'Fill from a photo'},

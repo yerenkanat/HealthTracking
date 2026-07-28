@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeedback;
 import '../../app/app_controller.dart';
+import '../common/daily_audio_card.dart';
 import '../../domain/birth_transition.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/contraction.dart';
@@ -251,6 +252,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   }),
                 ],
                 if (!cycleMode && c.gestation != null) ...[
+                  const SizedBox(height: 14),
+                  DailyAudioCard(track: 'pregnancy', day: c.gestation!.totalDays),
                   const SizedBox(height: 14),
                   _BabySizeCard(week: c.gestation!.week),
                   const SizedBox(height: 14),
