@@ -90,6 +90,14 @@
   .phone{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:22px;padding:18px;display:grid;gap:10px}
   .phrow{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.16);border-radius:12px;padding:11px 14px;font-weight:700;font-size:14px}
   .phrow b{font-family:var(--mono)}
+  /* Gift bonus — free expert course with any watch */
+  .giftbadge{display:inline-flex;gap:7px;align-items:center;margin-top:14px;background:var(--grad-soft);border:1px solid color-mix(in srgb,var(--rose) 32%,var(--hair));color:var(--ink);font-weight:800;font-size:13px;padding:8px 14px;border-radius:99px;box-shadow:var(--shadow-sm)}
+  .giftval{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:22px;padding:24px;text-align:center;display:grid;gap:7px}
+  .giftval .gtag{opacity:.92;font-weight:700;font-size:13px}
+  .giftval .gold{font-family:var(--mono);font-size:34px;font-weight:800;line-height:1;text-decoration:line-through;text-decoration-color:rgba(255,255,255,.55)}
+  .giftval .gfree{font-weight:900;font-size:19px}
+  .giftval .btn{margin-top:8px;background:#fff;color:var(--violet-deep)}
+  .summary .line.gift,.summary .line.gift b{color:var(--good)}
   /* specs */
   .specs{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-top:26px;max-width:760px;margin-inline:auto}
   @media(max-width:600px){.specs{grid-template-columns:1fr}}
@@ -223,6 +231,7 @@
       <span class="price">29 000 <small>₸</small></span>
       <span class="save" id="stockPill" data-i18n="stock_in">Бар</span>
     </div>
+    <div class="giftbadge">🎁 <span data-i18n="gift_badge">«МаМа» курсы сыйлыққа · 49 000 ₸</span></div>
     <div class="cta-row">
       <a class="btn primary pulse" href="#order" data-i18n="hero_cta1">Қазір тапсырыс беру</a>
       <a class="btn ghost" href="#upgrades" data-i18n="hero_cta2">Мүмкіндіктері</a>
@@ -335,6 +344,28 @@
   </div>
 </div></section>
 
+<section id="gift"><div class="wrap">
+  <div class="ai reveal">
+    <div>
+      <div class="kicker" data-i18n="gift_kicker">Сыйлыққа</div>
+      <h2 data-i18n="gift_h2">Сағатпен бірге — «МаМа» сарапшы курсы сыйлыққа</h2>
+      <p data-i18n="gift_lede">Кез келген сағатқа тапсырыс берген анаға — жүктілік пен нәресте күтіміне арналған «МаМа» толық курсы тегін беріледі. Жеке бағасы — 49 000 ₸.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="gift_f1">30 бейнесабақ · 4 модуль</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="gift_f2">Акушер-гинекологтар, педиатр және акушерлер</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="gift_f3">15+ чек-лист пен PDF-нұсқаулық</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="gift_f4">Жоспарлаудан нәрестенің бір жасына дейін</span></li>
+      </ul>
+    </div>
+    <div class="giftval">
+      <div class="gtag" data-i18n="gift_alone">Курстың жеке бағасы</div>
+      <div class="gold">49 000 ₸</div>
+      <div class="gfree" data-i18n="gift_free">Сағатқа — тегін 🎁</div>
+      <a class="btn block" href="#order" data-i18n="gift_cta">Сағатқа тапсырыс беру</a>
+    </div>
+  </div>
+</div></section>
+
 <section id="order"><div class="wrap">
   <div class="order reveal"><div class="inner">
     <div class="pitch">
@@ -350,6 +381,7 @@
       <div class="summary" style="margin-top:16px">
         <div class="line"><span id="sumLabel">—</span><span class="num" id="sumSub">—</span></div>
         <div class="line disc" id="sumDiscRow" hidden><span data-i18n="sum_disc">Жинақ жеңілдігі</span><span class="num" id="sumDisc">—</span></div>
+        <div class="line gift"><span data-i18n="sum_gift">🎁 «МаМа» курсы — сыйлық</span><b data-i18n="sum_gift_val">49 000 ₸ · тегін</b></div>
         <div class="line grand"><span data-i18n="sum_total">Барлығы</span><b id="sumTotal">—</b></div>
       </div>
     </div>
@@ -376,6 +408,7 @@
     <ul>
       <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="val_1">Смарт-сағат — 6 денсаулық көрсеткіші</span></li>
       <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="val_2">Umay қосымшасы + апталық ЖИ-кеңестер</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="val_gift">«МаМа» сарапшы курсы (49 000 ₸) — сыйлыққа</span></li>
       <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="val_3">1 жыл ресми кепілдік</span></li>
       <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="val_4">Алған кезде төлеу — тәуекел жоқ</span></li>
       <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="val_5">Қазақстан бойынша жеткізу</span></li>
@@ -487,6 +520,13 @@
       val_kicker:"Неге Umay", val_h2:"Бір сатып алу — толық жинақ",
       val_1:"Смарт-сағат — 6 денсаулық көрсеткіші", val_2:"Umay қосымшасы + апталық ЖИ-кеңестер", val_3:"1 жыл ресми кепілдік", val_4:"Алған кезде төлеу — тәуекел жоқ", val_5:"Қазақстан бойынша жеткізу",
       val_guarantee:"14 күн ішінде қайтару кепілдігі", val_cta:"Тапсырыс беру",
+      val_gift:"«МаМа» сарапшы курсы (49 000 ₸) — сыйлыққа",
+      gift_badge:"«МаМа» курсы сыйлыққа · 49 000 ₸",
+      gift_kicker:"Сыйлыққа", gift_h2:"Сағатпен бірге — «МаМа» сарапшы курсы сыйлыққа",
+      gift_lede:"Кез келген сағатқа тапсырыс берген анаға — жүктілік пен нәресте күтіміне арналған «МаМа» толық курсы тегін беріледі. Жеке бағасы — 49 000 ₸.",
+      gift_f1:"30 бейнесабақ · 4 модуль", gift_f2:"Акушер-гинекологтар, педиатр және акушерлер", gift_f3:"15+ чек-лист пен PDF-нұсқаулық", gift_f4:"Жоспарлаудан нәрестенің бір жасына дейін",
+      gift_alone:"Курстың жеке бағасы", gift_free:"Сағатқа — тегін 🎁", gift_cta:"Сағатқа тапсырыс беру",
+      sum_gift:"🎁 «МаМа» курсы — сыйлық", sum_gift_val:"49 000 ₸ · тегін",
       fin_h2:"Денсаулықты болжамай — өлшеп біліңіз", fin_p:"Umay смарт-сағаты мен қосымшасы — әр күні қасыңызда. Бүгін тапсырыс беріп, ертең-ақ бақылауды бастаңыз.", fin_cta:"29 000 ₸ — Тапсырыс беру",
       stock_in:"Бар", stock_low:"Азайып қалды", stock_oos:"Жақында түседі",
       sum_single:"Смарт-сағат Umay", sum_bundle:"Сағат + трекер",
@@ -550,6 +590,13 @@
       val_kicker:"Почему Umay", val_h2:"Одна покупка — полный комплект",
       val_1:"Смарт-часы — 6 показателей здоровья", val_2:"Приложение Umay + еженедельные AI-советы", val_3:"1 год официальной гарантии", val_4:"Оплата при получении — без риска", val_5:"Доставка по Казахстану",
       val_guarantee:"Возврат в течение 14 дней", val_cta:"Оформить заказ",
+      val_gift:"Экспертный курс «МаМа» (49 000 ₸) — в подарок",
+      gift_badge:"Курс «МаМа» в подарок · 49 000 ₸",
+      gift_kicker:"В подарок", gift_h2:"К часам — экспертный курс «МаМа» в подарок",
+      gift_lede:"Каждой маме, заказавшей часы, — полный курс «МаМа» о беременности и уходе за малышом бесплатно. Отдельно он стоит 49 000 ₸.",
+      gift_f1:"30 видеоуроков · 4 модуля", gift_f2:"Акушеры-гинекологи, педиатр и акушерки", gift_f3:"15+ чек-листов и PDF-методичек", gift_f4:"От планирования до первого года малыша",
+      gift_alone:"Отдельно курс стоит", gift_free:"К часам — бесплатно 🎁", gift_cta:"Заказать часы",
+      sum_gift:"🎁 Курс «МаМа» — в подарок", sum_gift_val:"49 000 ₸ · бесплатно",
       fin_h2:"Не гадайте о здоровье — измеряйте", fin_p:"Умные часы Umay и приложение — рядом каждый день. Закажите сегодня и уже завтра начните следить за здоровьем.", fin_cta:"29 000 ₸ — Заказать",
       stock_in:"В наличии", stock_low:"Осталось мало", stock_oos:"Скоро в наличии",
       sum_single:"Смарт-часы Umay", sum_bundle:"Часы + трекер",
