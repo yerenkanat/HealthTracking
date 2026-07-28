@@ -1011,5 +1011,31 @@ export function createPgRepository(pool: Pool): Repository {
     async setShopOrderStatus(orderId, status) {
       await pool.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
     },
+
+    async listDailyAudio(track) {
+      const { rows } = await pool.query(
+        `SELECT track, day, locale, title, mime, octet_length(bytes) AS size, updated_at
+         FROM daily_audio WHERE track = $1 ORDER BY day, locale`, [track]);
+      return rows.map((r) => ({
+        track: r.track, day: r.day, locale: r.locale, title: r.title, mime: r.mime,
+        size: Number(r.size), updatedAt: new Date(r.updated_at).toISOString(),
+      }));
+    },
+    async getDailyAudio(track, day, locale) {
+      const { rows } = await pool.query(
+        'SELECT mime, bytes FROM daily_audio WHERE track = $1 AND day = $2 AND locale = $3', [track, day, locale]);
+      return rows.length ? { mime: rows[0].mime, bytes: rows[0].bytes as Buffer } : null;
+    },
+    async upsertDailyAudio(a) {
+      await pool.query(
+        `INSERT INTO daily_audio (track, day, locale, title, mime, bytes, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6, now())
+         ON CONFLICT (track, day, locale)
+         DO UPDATE SET title = EXCLUDED.title, mime = EXCLUDED.mime, bytes = EXCLUDED.bytes, updated_at = now()`,
+        [a.track, a.day, a.locale, a.title, a.mime, a.bytes]);
+    },
+    async deleteDailyAudio(track, day, locale) {
+      await pool.query('DELETE FROM daily_audio WHERE track = $1 AND day = $2 AND locale = $3', [track, day, locale]);
+    },
   };
 }

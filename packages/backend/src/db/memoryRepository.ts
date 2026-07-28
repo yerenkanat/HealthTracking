@@ -138,6 +138,8 @@ export function createMemoryRepository(): Repository {
   ];
   type ShopOrderRow = { id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
   const shopOrders: ShopOrderRow[] = [];
+  type AudioRow = { track: string; day: number; locale: string; title: string | null; mime: string; bytes: Buffer; updatedAt: string };
+  const dailyAudio = new Map<string, AudioRow>(); // key: `${track}|${day}|${locale}`
 
   return {
     // Health
@@ -662,5 +664,19 @@ export function createMemoryRepository(): Repository {
       const o = shopOrders.find((x) => x.id === orderId);
       if (o) o.status = status;
     },
+
+    listDailyAudio: async (track) =>
+      [...dailyAudio.values()]
+        .filter((a) => a.track === track)
+        .sort((a, b) => a.day - b.day || a.locale.localeCompare(b.locale))
+        .map((a) => ({ track: a.track as 'pregnancy' | 'child', day: a.day, locale: a.locale as 'ru' | 'kk', title: a.title, mime: a.mime, size: a.bytes.length, updatedAt: a.updatedAt })),
+    getDailyAudio: async (track, day, locale) => {
+      const a = dailyAudio.get(`${track}|${day}|${locale}`);
+      return a ? { mime: a.mime, bytes: a.bytes } : null;
+    },
+    upsertDailyAudio: async (a) => {
+      dailyAudio.set(`${a.track}|${a.day}|${a.locale}`, { track: a.track, day: a.day, locale: a.locale, title: a.title, mime: a.mime, bytes: a.bytes, updatedAt: new Date().toISOString() });
+    },
+    deleteDailyAudio: async (track, day, locale) => void dailyAudio.delete(`${track}|${day}|${locale}`),
   };
 }

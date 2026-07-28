@@ -473,3 +473,15 @@ CREATE TABLE IF NOT EXISTS shop_order_items (
   unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0)
 );
 CREATE INDEX IF NOT EXISTS idx_shop_items_order ON shop_order_items (order_id);
+
+-- Daily audio for the pregnancy + child-development calendars (see migration 012).
+CREATE TABLE IF NOT EXISTS daily_audio (
+  track      TEXT NOT NULL CHECK (track IN ('pregnancy','child')),
+  day        INTEGER NOT NULL CHECK (day >= 1 AND day <= 400),
+  locale     TEXT NOT NULL DEFAULT 'ru' CHECK (locale IN ('ru','kk')),
+  title      TEXT,
+  mime       TEXT NOT NULL,
+  bytes      BYTEA NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (track, day, locale)
+);

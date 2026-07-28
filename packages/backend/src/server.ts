@@ -248,6 +248,15 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     (_req, body, done) => done(null, body),
   );
 
+  // Daily-calendar audio clips uploaded from the admin panel arrive as raw audio
+  // bytes on POST /admin/audio/*. Buffer them (capped at 15 MB — a spoken clip is
+  // well under); the route validates the type and stores them.
+  app.addContentTypeParser(
+    /^audio\//,
+    { parseAs: 'buffer', bodyLimit: 15 * 1024 * 1024 },
+    (_req, body, done) => done(null, body),
+  );
+
   // 20 assistant messages per 5 minutes per user. A real conversation is
   // nowhere near this; a runaway client hits it in seconds. Overridable so the
   // tests can drive the boundary without waiting on a wall clock.
@@ -335,13 +344,27 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     return reply.send(content);
   });
 
+  // Public daily-calendar audio playback: streams the clip for a given
+  // (track, day, locale). Ungated so the app can play it directly; the bytes are
+  // uploaded/managed from the admin panel. 404 when that day has no clip.
+  app.get('/audio/:track/:day/:locale', async (req, reply) => {
+    const { track, day, locale } = req.params as { track: string; day: string; locale: string };
+    const d = Number(day);
+    if ((track !== 'pregnancy' && track !== 'child') || !Number.isInteger(d) || (locale !== 'ru' && locale !== 'kk')) {
+      return reply.code(400).send({ error: 'bad_request' });
+    }
+    const a = await deps.repo.getDailyAudio(track, d, locale);
+    if (!a) return reply.code(404).send({ error: 'not_found' });
+    return reply.type(a.mime).header('cache-control', 'public, max-age=3600').send(a.bytes);
+  });
+
   // Client CRUD + history routes (require an authUser resolver).
   if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser);
   // Admin / back-office routes (require an authAdmin resolver).
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
   // Public content API (/api/v1) — calendars, protocols, personalised timelines
   // for an external consumer (e.g. a WhatsApp bot). Key-gated when configured.
-  registerPublicApiRoutes(app, { apiKey: deps.contentApiKey });
+  registerPublicApiRoutes(app, deps.repo, { apiKey: deps.contentApiKey });
 
   /// Identity comes from authentication, never from the payload.
   /// Returns the caller, or null after already sending 401.

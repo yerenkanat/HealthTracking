@@ -441,6 +441,34 @@ export interface Repository {
   addShopVariant(productId: string, color: string, colorHex: string, stock: number): Promise<void>;
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
   setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
+
+  /// Daily calendar audio (pregnancy + child development). One short clip per
+  /// (track, day, locale), uploaded/edited from the admin panel and played by the
+  /// app on the matching day. list* returns metadata only — never the bytes.
+  listDailyAudio(track: AudioTrack): Promise<DailyAudioMeta[]>;
+  getDailyAudio(track: AudioTrack, day: number, locale: AudioLocale): Promise<{ mime: string; bytes: Buffer } | null>;
+  upsertDailyAudio(a: DailyAudioInput): Promise<void>;
+  deleteDailyAudio(track: AudioTrack, day: number, locale: AudioLocale): Promise<void>;
+}
+
+export type AudioTrack = 'pregnancy' | 'child';
+export type AudioLocale = 'ru' | 'kk';
+export interface DailyAudioMeta {
+  track: AudioTrack;
+  day: number;
+  locale: AudioLocale;
+  title: string | null;
+  mime: string;
+  size: number; // bytes
+  updatedAt: string;
+}
+export interface DailyAudioInput {
+  track: AudioTrack;
+  day: number;
+  locale: AudioLocale;
+  title: string | null;
+  mime: string;
+  bytes: Buffer;
 }
 
 export interface ShopVariant { id: string; color: string; colorHex: string; stock: number }

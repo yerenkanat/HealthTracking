@@ -55,6 +55,11 @@ export function pregnancyWeekOn(dueDate: Date, today: Date): number {
   return clamp(Math.floor(gestDays / 7), firstWeek, lastWeek);
 }
 
+/** Gestational day (1..280, clamped) on [today] — for daily audio. */
+export function pregnancyDayOn(dueDate: Date, today: Date): number {
+  return clamp(GESTATION_DAYS - diffDays(dueDate, today), 1, GESTATION_DAYS);
+}
+
 /** The calendar date on which gestational week [w] begins for this pregnancy. */
 function pregnancyWeekStart(dueDate: Date, w: number): Date {
   return addDays(dueDate, -(GESTATION_DAYS - 7 * w));
@@ -82,6 +87,11 @@ export function pregnancyTimeline(dueDate: Date, from: Date, weeks: number): { c
 /** Child age in whole weeks (clamped to the calendar) on [today]. */
 export function childWeekOn(birthDate: Date, today: Date): number {
   return clamp(Math.floor(diffDays(today, birthDate) / 7), firstDevWeek, lastDevWeek);
+}
+
+/** Child age in days (1..400, clamped; day 1 = birth day) on [today] — daily audio. */
+export function childDayOn(birthDate: Date, today: Date): number {
+  return clamp(diffDays(today, birthDate) + 1, 1, 400);
 }
 
 export interface ChildTimelineEntry {

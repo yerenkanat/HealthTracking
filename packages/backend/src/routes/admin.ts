@@ -441,6 +441,49 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     await repo.writeAudit({ staffId: s.staffId, action: 'shop_order_status', target: (req.params as { id: string }).id });
     return reply.send({ ok: true });
   });
+
+  // ---- Daily calendar audio (pregnancy + child development) ----
+  const audioParams = z.object({
+    track: z.enum(['pregnancy', 'child']),
+    day: z.coerce.number().int().min(1).max(400),
+    locale: z.enum(['ru', 'kk']),
+  });
+
+  // Coverage list for a track (metadata only — which days have a clip).
+  app.get('/admin/audio', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const track = (req.query as { track?: string }).track;
+    if (track !== 'pregnancy' && track !== 'child') return reply.code(400).send({ error: 'bad_track' });
+    return reply.send({ audio: await repo.listDailyAudio(track) });
+  });
+
+  // Upload/replace a day's clip. Raw audio bytes in the body (content-type is the
+  // audio mime); the day/locale come from the path and an optional ?title=.
+  app.post('/admin/audio/:track/:day/:locale', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const p = audioParams.safeParse(req.params);
+    if (!p.success) return reply.code(400).send({ error: p.error.flatten() });
+    const mime = String(req.headers['content-type'] ?? '');
+    if (!/^audio\//.test(mime)) return reply.code(415).send({ error: 'not_audio' });
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length === 0) return reply.code(400).send({ error: 'empty_audio' });
+    const title = ((req.query as { title?: string }).title ?? '').slice(0, 200) || null;
+    await repo.upsertDailyAudio({ track: p.data.track, day: p.data.day, locale: p.data.locale, title, mime: mime.split(';')[0], bytes: body });
+    await repo.writeAudit({ staffId: s.staffId, action: 'audio_upload', target: `${p.data.track}/${p.data.day}/${p.data.locale}` });
+    return reply.code(201).send({ ok: true });
+  });
+
+  app.delete('/admin/audio/:track/:day/:locale', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const p = audioParams.safeParse(req.params);
+    if (!p.success) return reply.code(400).send({ error: p.error.flatten() });
+    await repo.deleteDailyAudio(p.data.track, p.data.day, p.data.locale);
+    await repo.writeAudit({ staffId: s.staffId, action: 'audio_delete', target: `${p.data.track}/${p.data.day}/${p.data.locale}` });
+    return reply.send({ ok: true });
+  });
 }
 
 function clampLimit(raw: string | undefined, def: number, max: number): number {
