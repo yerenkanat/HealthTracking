@@ -1,7 +1,7 @@
 <style>
   :root{
     --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
-    --hair:#ECEDF3; --accent:#6D5AE6; --accent-soft:#EEEBFC;
+    --hair:#ECEDF3; --accent:#C15A47; --accent-soft:#F6E7E1;
     --crit:#E5484D; --warn:#E0930B; --good:#17A672;
     --crit-soft:#FCECEC; --warn-soft:#FBF1E1; --good-soft:#E6F5EE;
     --shadow:0 8px 24px -12px rgba(27,29,40,.14);
@@ -12,20 +12,20 @@
   @media (prefers-color-scheme:dark){
     :root{
       --bg:#0E0F16; --surface:#171922; --surface-2:#1C1F2A; --ink:#EDEEF4; --muted:#9BA0B5;
-      --hair:#262A38; --accent:#9385F0; --accent-soft:#221F3A;
+      --hair:#262A38; --accent:#D98A76; --accent-soft:#34231D;
       --crit-soft:#2A1A1D; --warn-soft:#2A2113; --good-soft:#132720;
       --shadow:0 10px 30px -14px rgba(0,0,0,.6);
     }
   }
   :root[data-theme="dark"]{
     --bg:#0E0F16; --surface:#171922; --surface-2:#1C1F2A; --ink:#EDEEF4; --muted:#9BA0B5;
-    --hair:#262A38; --accent:#9385F0; --accent-soft:#221F3A;
+    --hair:#262A38; --accent:#D98A76; --accent-soft:#34231D;
     --crit-soft:#2A1A1D; --warn-soft:#2A2113; --good-soft:#132720;
     --shadow:0 10px 30px -14px rgba(0,0,0,.6);
   }
   :root[data-theme="light"]{
     --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
-    --hair:#ECEDF3; --accent:#6D5AE6; --accent-soft:#EEEBFC;
+    --hair:#ECEDF3; --accent:#C15A47; --accent-soft:#F6E7E1;
     --crit-soft:#FCECEC; --warn-soft:#FBF1E1; --good-soft:#E6F5EE;
     --shadow:0 8px 24px -12px rgba(27,29,40,.14);
   }
@@ -38,7 +38,7 @@
   /* Sidebar */
   .side{background:var(--surface);border-right:1px solid var(--hair);padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
   .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
-  .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#E85C8A);display:grid;place-items:center;color:#fff;font-weight:800}
+  .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#E39A72);display:grid;place-items:center;color:#fff;font-weight:800}
   .brand b{font-size:15px;letter-spacing:-.2px}
   .brand span{display:block;font-size:11px;color:var(--muted);font-weight:500}
   /* Real <button>s, not divs. As divs they took no focus and answered no
@@ -102,7 +102,7 @@
   .spacer{flex:1}
   .chip{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--hair);border-radius:30px;padding:5px 6px 5px 12px;font-weight:600;font-size:12.5px}
   .chip .role{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;text-transform:capitalize}
-  .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#E85C8A);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+  .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#E39A72);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
   .iconbtn{width:40px;height:40px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center}
   .modepill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid var(--hair)}
   .modepill.mock{color:var(--warn);background:var(--warn-soft);border-color:transparent}
@@ -2253,7 +2253,7 @@
         }
         // Add a new colour for this product (POST /admin/shop/variants).
         html+=`<div class="tli addvar" data-pid="${esc(pid)}">`+
-          `<span class="addfields"><input type="color" class="av-hex" value="#6D5AE6" aria-label="Цвет"><input type="text" class="av-name" placeholder="Новый цвет" maxlength="60" aria-label="Название цвета"></span>`+
+          `<span class="addfields"><input type="color" class="av-hex" value="#C15A47" aria-label="Цвет"><input type="text" class="av-name" placeholder="Новый цвет" maxlength="60" aria-label="Название цвета"></span>`+
           `<span class="stockrow"><input type="number" min="0" class="av-stock" value="0" aria-label="Остаток на старте"><button class="btn addbtn" title="Добавить цвет">＋</button></span></div>`;
         html+=`</div>`;
       }
