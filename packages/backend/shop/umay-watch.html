@@ -222,10 +222,18 @@
   .hero-art .shotcard{animation:floaty 5.5s ease-in-out infinite}
   .shotcard{background:#fff;border-radius:26px;padding:10px;box-shadow:0 34px 66px -30px rgba(12,59,57,.5),0 2px 10px rgba(0,0,0,.06);max-width:360px;width:82%}
   .shotcard img{width:100%;display:block;border-radius:18px}
-  .colorshots{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:28px}
-  @media(max-width:820px){.colorshots{grid-template-columns:1fr 1fr}}
-  .colorshots figure{margin:0;background:#fff;border:1px solid var(--hair);border-radius:18px;padding:8px;box-shadow:var(--shadow-sm);transition:transform .18s ease}
+  .slider{position:relative;margin-top:28px}
+  .colorshots{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:4px 2px 14px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .colorshots::-webkit-scrollbar{height:7px}
+  .colorshots::-webkit-scrollbar-thumb{background:var(--hair);border-radius:99px}
+  .colorshots figure{flex:0 0 clamp(200px,42%,258px);scroll-snap-align:center;margin:0;background:#fff;border:1px solid var(--hair);border-radius:18px;padding:8px;box-shadow:var(--shadow-sm);transition:transform .18s ease}
   .colorshots figure:hover{transform:translateY(-4px)}
+  .sarrow{position:absolute;top:44%;transform:translateY(-50%);z-index:2;width:46px;height:46px;border-radius:50%;background:var(--surface);border:1px solid var(--hair);box-shadow:var(--shadow);cursor:pointer;display:grid;place-items:center;color:var(--ink);transition:opacity .2s,transform .15s}
+  .sarrow:hover{transform:translateY(-50%) scale(1.06)}
+  .sarrow svg{width:22px;height:22px}
+  .sarrow.prev{left:-10px}.sarrow.next{right:-10px}
+  .sarrow:disabled{opacity:0;pointer-events:none}
+  @media(max-width:640px){.sarrow{display:none}}
   .colorshots img{width:100%;display:block;border-radius:12px;aspect-ratio:1;object-fit:cover;background:#fff}
   .colorshots figcaption{text-align:center;font-size:13px;font-weight:700;color:var(--muted);padding:8px 0 4px}
   /* --- WhatsApp CTA (KZ buyers message rather than fill forms) --- */
@@ -393,7 +401,9 @@
   <div class="kicker" data-i18n="col_kicker">Түстер</div>
   <h2 data-i18n="col_h2">Тоғыз түсте</h2>
   <p class="sec-lede" data-i18n="col_lede">Өзіңізге ұнайтын түсті таңдаңыз.</p>
-  <div class="colorshots reveal">
+  <div class="slider reveal">
+   <button class="sarrow prev" id="colPrev" type="button" aria-label="Артқа"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+   <div class="colorshots" id="colorTrack">
     <figure><img src="/shop/photos/watch-black.jpg" alt="" loading="lazy" width="400" height="400"><figcaption data-i18n="col_black">Қара</figcaption></figure>
     <figure><img src="/shop/photos/watch-white.jpg" alt="" loading="lazy" width="400" height="400"><figcaption data-i18n="col_white">Ақ</figcaption></figure>
     <figure><img src="/shop/photos/watch-gray.jpg" alt="" loading="lazy" width="400" height="400"><figcaption data-i18n="col_gray">Ашық сұр</figcaption></figure>
@@ -401,6 +411,8 @@
     <figure><img src="/shop/photos/watch-red.jpg" alt="" loading="lazy" width="400" height="400"><figcaption data-i18n="col_red">Қызыл</figcaption></figure>
     <figure><img src="/shop/photos/watch-teal.jpg" alt="" loading="lazy" width="400" height="400"><figcaption data-i18n="col_teal">Көгілдір</figcaption></figure>
     <figure><img src="/shop/photos/watch-army.jpg" alt="" loading="lazy" width="400" height="400"><figcaption data-i18n="col_army">Әскери жасыл</figcaption></figure>
+   </div>
+   <button class="sarrow next" id="colNext" type="button" aria-label="Алға"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></button>
   </div>
 </div></section>
 
@@ -561,6 +573,17 @@
     const a=e.target.closest(".js-wa"); if(!a) return;
     e.preventDefault(); window.open(waHref(),"_blank","noopener");
   });
+
+  // Colour gallery slider: arrows scroll two cards; disabled at the ends.
+  (function(){
+    const track=$("colorTrack"), prev=$("colPrev"), next=$("colNext");
+    if(!track||!prev||!next) return;
+    const step=()=>{ const f=track.querySelector("figure"); return (f?f.offsetWidth:240)+16; };
+    const upd=()=>{ prev.disabled=track.scrollLeft<8; next.disabled=track.scrollLeft>=track.scrollWidth-track.clientWidth-8; };
+    prev.onclick=()=>track.scrollBy({left:-step()*2,behavior:"smooth"});
+    next.onclick=()=>track.scrollBy({left:step()*2,behavior:"smooth"});
+    track.addEventListener("scroll",upd,{passive:true}); window.addEventListener("resize",upd); upd();
+  })();
 
   const T={
     kz:{
