@@ -62,6 +62,7 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
       api.get('/', async () => ({
         service: 'Umay content API',
         version: 'v1',
+        docs: '/api-docs',
         authRequired: requireKey,
         // Static calendar/protocol ranges + a live count of uploaded daily-audio
         // clips per track, so the index reflects every content type including audio.

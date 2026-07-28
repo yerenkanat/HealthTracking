@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Umay API — документация</title>
+<meta name="description" content="Публичный контент-API Umay: календари беременности и развития, протоколы Минздрава, ежедневное аудио. Справочник эндпоинтов с живой консолью.">
+<meta name="theme-color" content="#6D5AE6">
+<style>
+  :root{
+    --violet:#6D5AE6;--violet-deep:#5646c9;--rose:#E85C8A;--good:#17A672;--amber:#E5A50A;--crit:#E5484D;
+    --ink:#1C1E2A;--muted:#6C6F80;--bg:#FAF9FF;--surface:#FFFFFF;--surface-2:#F4F2FD;--hair:#ECE9F6;--code:#2A2740;
+    --get:#17A672;--post:#E5A50A;
+    --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --shadow-sm:0 10px 26px -18px rgba(50,40,110,.4);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--ink:#EEEDF6;--muted:#9EA0B4;--bg:#0F0E17;--surface:#181722;--surface-2:#201E2E;--hair:#2A2740;--code:#0B0A12;--shadow-sm:0 10px 26px -16px rgba(0,0,0,.7)}
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--violet);text-decoration:none}
+  code,kbd,pre{font-family:var(--mono)}
+  .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--hair)}
+  .top .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;max-width:1180px;margin:0 auto;padding:12px 22px}
+  .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--violet),var(--rose));color:#fff;font-weight:800;display:grid;place-items:center}
+  .brand b{font-size:15px;display:block;line-height:1.1}
+  .brand span{font-size:12px;color:var(--muted)}
+  .pill{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid var(--hair);color:var(--muted);background:var(--surface)}
+  .pill.ok{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,var(--hair))}
+  .pill.warn{color:var(--amber);border-color:color-mix(in srgb,var(--amber) 40%,var(--hair))}
+  .spacer{flex:1}
+  .layout{max-width:1180px;margin:0 auto;padding:22px;display:grid;grid-template-columns:236px 1fr;gap:28px;align-items:start}
+  @media(max-width:860px){.layout{grid-template-columns:1fr;padding:16px}}
+  nav.toc{position:sticky;top:74px;display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+  @media(max-width:860px){nav.toc{position:static;flex-direction:row;flex-wrap:wrap;gap:8px;margin-bottom:6px}}
+  nav.toc .grp{color:var(--muted);font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin:14px 0 4px}
+  @media(max-width:860px){nav.toc .grp{display:none}}
+  nav.toc a{color:var(--muted);padding:5px 10px;border-radius:8px;display:flex;gap:8px;align-items:center}
+  nav.toc a:hover{background:var(--surface-2);color:var(--ink)}
+  nav.toc .m{font:700 10px/1 var(--mono);padding:2px 5px;border-radius:5px;color:#fff}
+  .m.get{background:var(--get)}.m.post{background:var(--post)}
+  .intro{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow-sm);margin-bottom:22px}
+  .intro h1{margin:0 0 6px;font-size:24px}
+  .intro p{margin:8px 0;color:var(--muted);font-size:14.5px;max-width:70ch}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin-top:14px;font-size:13.5px}
+  .kv dt{color:var(--muted);font-weight:700}
+  .kv dd{margin:0}
+  .kv code{background:var(--surface-2);border:1px solid var(--hair);border-radius:6px;padding:1px 7px;font-size:12.5px}
+  .keyrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--hair)}
+  .keyrow label{font-size:13px;font-weight:700;color:var(--muted)}
+  input,select{font:inherit;font-size:13.5px;padding:8px 11px;border:1px solid var(--hair);border-radius:9px;background:var(--surface);color:var(--ink);min-height:38px}
+  input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--violet) 45%,transparent);outline-offset:1px;border-color:var(--violet)}
+  .grp-h{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--rose);margin:26px 4px 12px}
+  .ep{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm);scroll-margin-top:80px}
+  .ep .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .badge{font:800 11px/1 var(--mono);color:#fff;padding:5px 8px;border-radius:6px}
+  .badge.get{background:var(--get)}.badge.post{background:var(--post)}
+  .path{font-family:var(--mono);font-size:14px;font-weight:600;word-break:break-all}
+  .desc{color:var(--muted);font-size:13.5px;margin:10px 0 0}
+  table.params{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+  table.params th{text-align:left;color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:4px 8px;border-bottom:1px solid var(--hair)}
+  table.params td{padding:7px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+  table.params td code{font-size:12.5px;color:var(--violet-deep)}
+  .req{color:var(--crit);font-weight:800;font-size:11px}
+  .opt{color:var(--muted);font-size:11px}
+  .try{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+  .try input{flex:1;min-width:220px;font-family:var(--mono);font-size:13px}
+  .btn{font:inherit;font-weight:700;font-size:13.5px;border:0;border-radius:9px;padding:9px 16px;cursor:pointer;background:linear-gradient(135deg,var(--violet),var(--violet-deep));color:#fff;min-height:38px}
+  .btn.ghost{background:var(--surface);border:1px solid var(--hair);color:var(--ink)}
+  .btn:active{transform:translateY(1px)}
+  .out{margin-top:12px;display:none}
+  .out.show{display:block}
+  .out .status{font:700 12px/1 var(--mono);padding:5px 9px;border-radius:6px;display:inline-block;margin-bottom:8px}
+  .status.s2{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+  .status.s4,.status.s5{background:color-mix(in srgb,var(--crit) 15%,transparent);color:var(--crit)}
+  pre.json{margin:0;background:var(--code);color:#d7d3f0;border-radius:10px;padding:14px 16px;overflow:auto;max-height:420px;font-size:12.5px;line-height:1.5}
+  pre.json .k{color:#9DA5FF}pre.json .s{color:#7FD4A6}pre.json .n{color:#F2B266}pre.json .b{color:#E58FB0}
+  .foot{max-width:1180px;margin:0 auto;padding:8px 22px 40px;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="logo">U</div>
+  <div class="brand"><b>Umay API</b><span>Контент-API · v1</span></div>
+  <span class="spacer"></span>
+  <span class="pill" id="basePill">base: …</span>
+  <span class="pill" id="authPill">проверка…</span>
+</div></header>
+
+<div class="layout">
+  <nav class="toc" id="toc"></nav>
+
+  <main>
+    <section class="intro">
+      <h1>Контент-API Umay</h1>
+      <p>Справочные календари, протоколы Минздрава и <b>персонализированные таймлайны</b>, вычисляемые из даты (срок родов или дата рождения ребёнка). Личных данных здесь нет — это контент, который сторонний сервис (например, WhatsApp-бот) может присылать вовремя нужную неделю.</p>
+      <dl class="kv">
+        <dt>Base URL</dt><dd><code id="baseUrl">/api/v1</code></dd>
+        <dt>Формат</dt><dd>JSON. Даты — <code>YYYY-MM-DD</code>. Язык — <code>lang=ru|kk</code>.</dd>
+        <dt>Авторизация</dt><dd id="authNote">Если задан <code>CONTENT_API_KEY</code>, каждый запрос шлёт заголовок <code>x-api-key</code>. В деве ключ обычно не нужен.</dd>
+        <dt>Аудио</dt><dd>Клипы стримятся с <code>/audio/:track/:day/:locale</code> (поддержка Range).</dd>
+      </dl>
+      <div class="keyrow">
+        <label for="apiKey">x-api-key</label>
+        <input id="apiKey" type="text" placeholder="только если задан CONTENT_API_KEY" style="flex:1;min-width:220px" autocomplete="off">
+        <span class="opt">сохраняется только в этой вкладке</span>
+      </div>
+    </section>
+    <div id="eps"></div>
+  </main>
+</div>
+<div class="foot">Umay · контент-API v1 · не является медицинским изделием. Показатели носят справочный характер.</div>
+
+<script>
+(function(){
+  "use strict";
+  var origin = location.origin;
+  // Example values (today ≈ 2026-07-28): a ~week-20 pregnancy and a young child.
+  var DUE = "2026-12-15", BIRTH = "2026-05-01";
+  var EP = [
+    {g:"Обзор", m:"GET", p:"/api/v1", d:"Самоописывающийся индекс: список эндпоинтов, покрытие календарей и живой счётчик аудио-клипов по трекам.", ex:"/api/v1", params:[]},
+
+    {g:"Беременность", m:"GET", p:"/api/v1/pregnancy/weeks", d:"Полный календарь беременности — все недели, на русском и казахском.", ex:"/api/v1/pregnancy/weeks", params:[]},
+    {g:"Беременность", m:"GET", p:"/api/v1/pregnancy/weeks/:week", d:"Одна неделя беременности (номер приводится к покрытому диапазону).", ex:"/api/v1/pregnancy/weeks/20", params:[{n:"week",in:"path",req:1,d:"Номер недели, напр. 20."}]},
+    {g:"Беременность", m:"GET", p:"/api/v1/pregnancy/timeline", d:"Персонализированный таймлайн: текущая неделя + недели с реальными датами.", ex:"/api/v1/pregnancy/timeline?dueDate="+DUE+"&weeks=6", params:[{n:"dueDate",in:"query",req:1,d:"Срок родов, YYYY-MM-DD."},{n:"from",in:"query",req:0,d:"Точка отсчёта (по умолчанию сегодня)."},{n:"weeks",in:"query",req:0,d:"Сколько недель вперёд, 1–20 (по умолчанию 6)."}]},
+    {g:"Беременность", m:"GET", p:"/api/v1/pregnancy/today", d:"Что прислать сегодня: гестационный день, контент недели и аудио-клип дня (если загружен). Идеально для ежедневного пуша.", ex:"/api/v1/pregnancy/today?dueDate="+DUE+"&lang=ru", params:[{n:"dueDate",in:"query",req:1,d:"Срок родов, YYYY-MM-DD."},{n:"from",in:"query",req:0,d:"День, за который считать (по умолчанию сегодня)."},{n:"lang",in:"query",req:0,d:"ru | kk."}]},
+
+    {g:"Ребёнок", m:"GET", p:"/api/v1/child/weeks", d:"Полный календарь развития ребёнка — все недели, ru + kk.", ex:"/api/v1/child/weeks", params:[]},
+    {g:"Ребёнок", m:"GET", p:"/api/v1/child/weeks/:week", d:"Одна неделя развития (приводится к диапазону).", ex:"/api/v1/child/weeks/8", params:[{n:"week",in:"path",req:1,d:"Номер недели развития."}]},
+    {g:"Ребёнок", m:"GET", p:"/api/v1/child/timeline", d:"Персонализированный таймлайн развития от даты рождения.", ex:"/api/v1/child/timeline?birthDate="+BIRTH+"&weeks=4", params:[{n:"birthDate",in:"query",req:1,d:"Дата рождения, YYYY-MM-DD."},{n:"from",in:"query",req:0,d:"Точка отсчёта (по умолчанию сегодня)."},{n:"weeks",in:"query",req:0,d:"Недель вперёд, 1–20."}]},
+    {g:"Ребёнок", m:"GET", p:"/api/v1/child/today", d:"День жизни ребёнка, контент недели, аудио-клип дня.", ex:"/api/v1/child/today?birthDate="+BIRTH+"&lang=ru", params:[{n:"birthDate",in:"query",req:1,d:"Дата рождения, YYYY-MM-DD."},{n:"from",in:"query",req:0,d:"День (по умолчанию сегодня)."},{n:"lang",in:"query",req:0,d:"ru | kk."}]},
+
+    {g:"Протоколы", m:"GET", p:"/api/v1/protocols/antenatal", d:"Протокол антенатального наблюдения Минздрава (8 визитов) — справочно.", ex:"/api/v1/protocols/antenatal", params:[]},
+    {g:"Протоколы", m:"GET", p:"/api/v1/protocols/antenatal/timeline", d:"Каждый визит с реальными датами from/to для срока родов.", ex:"/api/v1/protocols/antenatal/timeline?dueDate="+DUE, params:[{n:"dueDate",in:"query",req:1,d:"Срок родов, YYYY-MM-DD."}]},
+    {g:"Протоколы", m:"GET", p:"/api/v1/protocols/vaccination", d:"Национальный календарь прививок — справочно.", ex:"/api/v1/protocols/vaccination", params:[]},
+    {g:"Протоколы", m:"GET", p:"/api/v1/protocols/vaccination/timeline", d:"Каждая прививка с датой и статусом (past / due / upcoming).", ex:"/api/v1/protocols/vaccination/timeline?birthDate="+BIRTH, params:[{n:"birthDate",in:"query",req:1,d:"Дата рождения, YYYY-MM-DD."},{n:"from",in:"query",req:0,d:"Сегодняшняя дата (по умолчанию сегодня)."}]},
+
+    {g:"Аудио", m:"GET", p:"/api/v1/audio/:track", d:"Покрытие ежедневного аудио: какие дни трека имеют клип и их URL.", ex:"/api/v1/audio/pregnancy", params:[{n:"track",in:"path",req:1,d:"pregnancy | child."}]},
+    {g:"Аудио", m:"GET", p:"/audio/:track/:day/:locale", d:"Стрим самого клипа (audio/*), с поддержкой Range (206). Открывается в новой вкладке — это бинарные данные, не JSON.", ex:"/audio/pregnancy/140/ru", binary:1, params:[{n:"track",in:"path",req:1,d:"pregnancy | child."},{n:"day",in:"path",req:1,d:"День календаря (гестационный / день жизни)."},{n:"locale",in:"path",req:1,d:"ru | kk."}]}
+  ];
+
+  var $=function(s,r){return (r||document).querySelector(s)};
+  var el=function(t,c,h){var e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e};
+  var esc=function(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")};
+
+  // pretty + lightly syntax-highlighted JSON
+  function hl(obj){
+    var j=JSON.stringify(obj,null,2);
+    j=esc(j);
+    j=j.replace(/&quot;([^&]+?)&quot;(\s*:)/g,'<span class="k">&quot;$1&quot;</span>$2');
+    j=j.replace(/:\s&quot;([^&]*?)&quot;/g,': <span class="s">&quot;$1&quot;</span>');
+    j=j.replace(/:\s(-?\d+\.?\d*)/g,': <span class="n">$1</span>');
+    j=j.replace(/:\s(true|false|null)/g,': <span class="b">$1</span>');
+    return j;
+  }
+
+  var KEY="";
+  try{ KEY=sessionStorage.getItem("umay_api_key")||""; }catch(e){}
+  var keyInput=$("#apiKey"); keyInput.value=KEY;
+  keyInput.addEventListener("input",function(){ KEY=keyInput.value.trim(); try{sessionStorage.setItem("umay_api_key",KEY);}catch(e){} });
+
+  $("#basePill").textContent="base: "+origin;
+  $("#baseUrl").textContent=origin+"/api/v1";
+
+  // group ids for TOC anchors
+  function idFor(p,i){ return "ep-"+i; }
+
+  var toc=$("#toc"), eps=$("#eps"), lastGrp=null, seenGrp={};
+  EP.forEach(function(e,i){
+    if(e.g!==lastGrp){
+      lastGrp=e.g;
+      if(!seenGrp[e.g]){ seenGrp[e.g]=1; toc.appendChild(el("div","grp",esc(e.g))); }
+      eps.appendChild(el("div","grp-h",esc(e.g)));
+    }
+    // TOC entry
+    var ta=el("a"); ta.href="#"+idFor(e.p,i);
+    ta.appendChild(el("span","m "+e.m.toLowerCase(),e.m));
+    ta.appendChild(document.createTextNode(e.p.replace("/api/v1","").replace(/^\//,"")||"index"));
+    toc.appendChild(ta);
+
+    // Card
+    var card=el("div","ep"); card.id=idFor(e.p,i);
+    var head=el("div","head");
+    head.appendChild(el("span","badge "+e.m.toLowerCase(),e.m));
+    head.appendChild(el("span","path",esc(e.p)));
+    card.appendChild(head);
+    card.appendChild(el("p","desc",esc(e.d)));
+
+    if(e.params.length){
+      var t=el("table","params","<tr><th>Параметр</th><th>Где</th><th></th><th>Описание</th></tr>");
+      e.params.forEach(function(p){
+        var tr=el("tr");
+        tr.appendChild(el("td",null,"<code>"+esc(p.n)+"</code>"));
+        tr.appendChild(el("td",null,'<span class="opt">'+p.in+'</span>'));
+        tr.appendChild(el("td",null,p.req?'<span class="req">обяз.</span>':'<span class="opt">опц.</span>'));
+        tr.appendChild(el("td",null,esc(p.d)));
+        t.appendChild(tr);
+      });
+      card.appendChild(t);
+    }
+
+    // Try row
+    var tryRow=el("div","try");
+    var inp=el("input"); inp.type="text"; inp.value=e.ex; inp.spellcheck=false;
+    var go=el("button","btn",e.binary?"Открыть":"Выполнить");
+    tryRow.appendChild(inp); tryRow.appendChild(go);
+    card.appendChild(tryRow);
+
+    var out=el("div","out"); card.appendChild(out);
+
+    go.addEventListener("click",function(){
+      var url=origin+(inp.value.charAt(0)==="/"?"":"/")+inp.value;
+      if(e.binary){ window.open(url,"_blank","noopener"); return; }
+      out.className="out show"; out.innerHTML='<span class="status">запрос…</span>';
+      var headers={}; if(KEY) headers["x-api-key"]=KEY;
+      fetch(url,{headers:headers}).then(function(r){
+        var cls=r.status<300?"s2":(r.status<500?"s4":"s5");
+        return r.text().then(function(txt){
+          var body; try{ body=hl(JSON.parse(txt)); }catch(_){ body=esc(txt); }
+          out.innerHTML='<span class="status '+cls+'">'+r.status+" "+r.statusText+'</span><pre class="json">'+body+"</pre>";
+        });
+      }).catch(function(err){
+        out.innerHTML='<span class="status s5">сеть недоступна</span><pre class="json">'+esc(String(err))+"</pre>";
+      });
+    });
+
+    eps.appendChild(card);
+  });
+
+  // Probe auth: hit the index without a key; 401 → key required.
+  fetch(origin+"/api/v1").then(function(r){
+    var p=$("#authPill");
+    if(r.status===401){ p.textContent="нужен x-api-key"; p.className="pill warn"; }
+    else { p.textContent="открытый доступ"; p.className="pill ok"; }
+  }).catch(function(){ $("#authPill").textContent="offline"; });
+})();
+</script>
+</body>
+</html>

@@ -211,6 +211,16 @@ async function main(): Promise<void> {
     app.log.warn('admin dashboard html not found; /admin/ui disabled');
   }
 
+  // Human-readable API docs at /api-docs — a self-contained page with a live
+  // "try it" console. Served OUTSIDE the /api/v1 key guard so the docs are always
+  // reachable; the console sends x-api-key on requests when the operator enters one.
+  try {
+    const apiDocs = readFileSync(fileURLToPath(new URL('../docs/api.html', import.meta.url)), 'utf8');
+    app.get('/api-docs', async (_req, reply) => reply.type('text/html').send(apiDocs));
+  } catch {
+    app.log.warn('api docs html not found; /api-docs disabled');
+  }
+
   // Public storefront + product landing pages, served same-origin with the shop
   // API so their checkout POSTs real orders to /shop/orders and reads live stock
   // from /shop/products (an off-site page's CSP would block reaching the DB).
