@@ -66,6 +66,19 @@ void main() {
   _chk('childAgeWeeks never goes negative',
       childAgeWeeks(now.add(const Duration(days: 10)), now) == 0);
 
+  // childAgeDays: 1-based (birth day = day 1), calendar-day counted.
+  _chk('childAgeDays is 1 on the day of birth',
+      childAgeDays(now, now) == 1);
+  _chk('childAgeDays counts calendar days + 1',
+      childAgeDays(now.subtract(const Duration(days: 30)), now) == 31);
+  _chk('childAgeDays never goes below 1',
+      childAgeDays(now.add(const Duration(days: 5)), now) == 1);
+  // Calendar-day counting, not elapsed: a birth just before midnight and a
+  // "now" the next morning is one calendar day old (day 2), where
+  // now.difference(birth).inDays would truncate to 0 and give day 1.
+  _chk('childAgeDays counts the calendar boundary, not elapsed 24h',
+      childAgeDays(DateTime(2026, 7, 22, 23, 30), DateTime(2026, 7, 23, 7, 0)) == 2);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

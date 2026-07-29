@@ -53,7 +53,7 @@ class ChildDevelopmentScreen extends StatelessWidget {
           : _Timeline(
               ageMonths: ageInMonths(dob, today),
               ageWeeks: childAgeWeeks(dob, today),
-              ageDays: today.difference(dob).inDays + 1,
+              ageDays: childAgeDays(dob, today),
               childName: child.name,
             ),
     );

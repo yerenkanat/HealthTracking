@@ -117,3 +117,12 @@ int childAgeWeeks(DateTime birthDate, DateTime now) {
   final days = daysBetween(birthDate, now);
   return days <= 0 ? 0 : days ~/ 7;
 }
+
+/// A child's age in days, 1-based (the day of birth is day 1). Counts calendar
+/// days (via [daysBetween]) rather than elapsed time, so a DST change or a
+/// time-of-day component never shifts it the way `now.difference(birth).inDays`
+/// would (which is off by one across a DST boundary).
+int childAgeDays(DateTime birthDate, DateTime now) {
+  final days = daysBetween(birthDate, now);
+  return days <= 0 ? 1 : days + 1;
+}
