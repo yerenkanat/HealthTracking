@@ -110,6 +110,11 @@ const sleepBody = z.object({
   source: z.enum(['band', 'manual']).optional(),
   manualAsleepMin: z.number().int().min(0).max(1440).nullable().optional(),
 });
+const cryResultBody = z.object({
+  at: z.string(),
+  reason: z.string().max(40),
+  confidence: z.number().min(0).max(1),
+});
 const weightBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   kg: z.number().min(20).max(400), // sane human range; rejects a fat-fingered 3.5 or 3500
@@ -543,6 +548,24 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const parsed = sleepBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     await repo.recordSleep(u.userId, parsed.data);
+    return reply.code(201).send({ ok: true });
+  });
+
+  // ---- Baby cry-analysis history (push a result; restore the list) ----
+  // Distinct from the /cry/analyze proxy (server.ts): this is the saved history.
+  app.get('/cry/results', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
+    return reply.send({ results: await repo.listCry(u.userId, limit) });
+  });
+
+  app.post('/cry/results', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = cryResultBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.recordCry(u.userId, parsed.data);
     return reply.code(201).send({ ok: true });
   });
 

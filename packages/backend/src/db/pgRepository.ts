@@ -789,6 +789,24 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    // ---- Baby cry-analysis history ----
+    async recordCry(userId, c) {
+      await pool.query(
+        `INSERT INTO cry_results (user_id, at, reason, confidence)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (user_id, at) DO UPDATE
+           SET reason = EXCLUDED.reason, confidence = EXCLUDED.confidence`,
+        [userId, c.at, c.reason, c.confidence]);
+    },
+    async listCry(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT at, reason, confidence FROM cry_results
+         WHERE user_id = $1 ORDER BY at DESC LIMIT $2`, [userId, limit]);
+      return rows.map((r) => ({
+        at: new Date(r.at).toISOString(), reason: r.reason, confidence: Number(r.confidence),
+      }));
+    },
+
     // ---- Maternal weight log ----
     async recordWeight(userId, w) {
       await pool.query(

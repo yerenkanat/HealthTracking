@@ -169,6 +169,9 @@ class AppController {
   // sleep the mother does (the admin wellness view). Local stays the source of
   // truth; a failed push never breaks recording a night.
   Future<void> Function(SleepSummary)? _onSleepUpsert;
+  // Push-only cry-analysis sync: fires when a result is recorded, so the history
+  // survives a reinstall and restores on a new device (it was device-local).
+  Future<void> Function(CryResult)? _onCryUpsert;
   // Push-only women's-health day-log sync: fires when a day changes, so the
   // admin wellness diary mirrors the mother's (flow / mood / symptoms / kicks).
   Future<void> Function(DayLog)? _onDayLogUpsert;
@@ -1342,7 +1345,31 @@ class AppController {
 
   /// Save the outcome of a cry analysis to the history (newest first, capped).
   void recordCry(CryAnalysis analysis) {
-    _cryHistory.insert(0, CryResult.from(analysis, _now()));
+    final result = CryResult.from(analysis, _now());
+    _cryHistory.insert(0, result);
+    if (_cryHistory.length > _maxCryHistory) {
+      _cryHistory.removeRange(_maxCryHistory, _cryHistory.length);
+    }
+    // Mirror to the server (push-only) so the history isn't lost on a new device.
+    unawaited(_onCryUpsert?.call(result) ?? Future<void>.value());
+    _persist();
+    _notify();
+  }
+
+  /// Wire backend sync for cry results (called by main.dart when signed in).
+  void attachCrySync({required Future<void> Function(CryResult) upsert}) {
+    _onCryUpsert = upsert;
+  }
+
+  /// Merge cry results pulled from the server on a new device. Dedup by instant;
+  /// local wins. Newest-first, capped — so a restored history reads exactly like
+  /// a locally-built one.
+  void mergeRemoteCry(List<CryResult> remote) {
+    final have = _cryHistory.map((c) => c.at).toSet();
+    final added = [for (final c in remote) if (!have.contains(c.at)) c];
+    if (added.isEmpty) return;
+    _cryHistory.addAll(added);
+    _cryHistory.sort((a, b) => b.at.compareTo(a.at)); // newest first
     if (_cryHistory.length > _maxCryHistory) {
       _cryHistory.removeRange(_maxCryHistory, _cryHistory.length);
     }

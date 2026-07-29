@@ -450,6 +450,30 @@ class ApiClient {
     return ((j['nights'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  /// The caller's saved cry-analysis results ({reason, confidence, at}), newest
+  /// first. For restoring the cry history on a new device.
+  Future<List<Map<String, dynamic>>> getCryResults() async {
+    final res = await transport.get('/cry/results?limit=50');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['results'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// Push one cry-analysis result so the history survives a device change.
+  /// Push-only, like sleep: the device is the source of truth.
+  Future<void> putCryResult({
+    required String at, // ISO instant of the analysis
+    required String reason,
+    required double confidence,
+  }) async {
+    final res = await transport.post('/cry/results', {
+      'at': at,
+      'reason': reason,
+      'confidence': confidence,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// The caller's own hand-entered readings (HealthSample wire shape). For
   /// restoring a typed vitals/glucose history on a new device — the server only
   /// returns device-less rows, so band readings are never pulled back.

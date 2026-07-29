@@ -278,6 +278,16 @@ CREATE TABLE audit_log (
 CREATE INDEX idx_audit_at ON audit_log (at DESC);
 
 -- Nightly sleep summaries from the band (one row per wake-day per user).
+-- Baby cry-analysis results (parent-recorded). Newest-first history, pushed so
+-- it survives a reinstall and restores on a new device.
+CREATE TABLE cry_results (
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  at          TIMESTAMPTZ NOT NULL,
+  reason      TEXT NOT NULL,          -- wire code, e.g. hungry | tired | discomfort
+  confidence  REAL NOT NULL,          -- 0..1
+  PRIMARY KEY (user_id, at)
+);
+
 CREATE TABLE sleep_nights (
   user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   night       DATE NOT NULL,

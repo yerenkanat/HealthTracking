@@ -12,7 +12,7 @@ import type { FastifyInstance } from 'fastify';
 import type { InjectPayload, Response as InjectResponse } from 'light-my-request';
 import { buildServer } from '../server';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
-import type { Repository, SleepNight, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
+import type { Repository, SleepNight, CryRow, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
 const USER = '11111111-1111-1111-1111-111111111111';
@@ -54,6 +54,7 @@ function makeDeps(
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleepRows: SleepNight[] = [];
+  const cryRows: CryRow[] = [];
   const weightRows: Array<{ date: string; kg: number }> = [];
   const kickRows: Array<{ endedAt: string; count: number; durationSec: number }> = [];
   const contractionRows: Array<{ endedAt: string; count: number; avgDurationSec: number; avgIntervalSec: number }> = [];
@@ -223,6 +224,11 @@ function makeDeps(
       if (i >= 0) sleepRows[i] = s; else sleepRows.push(s);
     },
     listSleep: async (_u, limit) => [...sleepRows].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    recordCry: async (_u, c) => {
+      const i = cryRows.findIndex((x) => x.at === c.at);
+      if (i >= 0) cryRows[i] = c; else cryRows.push(c);
+    },
+    listCry: async (_u, limit) => [...cryRows].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit),
     recordWeight: async (_u, w) => {
       const i = weightRows.findIndex((x) => x.date === w.date);
       if (i >= 0) weightRows[i] = w; else weightRows.push(w);
@@ -1008,6 +1014,21 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
     const night = (await get('/sleep')).json().nights.find((n: { night: string }) => n.night === '2026-07-16');
     expect(night.source).toBe('manual');
     expect(night.manualAsleepMin).toBe(430);
+  });
+
+  it('cry history: record results → list newest-first (restored on a new device)', async () => {
+    expect((await get('/cry/results')).json().results).toHaveLength(0);
+    expect((await post('/cry/results', { at: '2026-07-20T09:00:00.000Z', reason: 'hungry', confidence: 0.82 })).statusCode).toBe(201);
+    await post('/cry/results', { at: '2026-07-20T11:30:00.000Z', reason: 'tired', confidence: 0.64 });
+    const results = (await get('/cry/results')).json().results;
+    expect(results).toHaveLength(2);
+    expect(results[0].at).toBe('2026-07-20T11:30:00.000Z'); // newest first
+    expect(results[0].reason).toBe('tired');
+    expect(results[0].confidence).toBeCloseTo(0.64);
+  });
+
+  it('cry history: rejects a bad confidence (zod 400)', async () => {
+    expect((await post('/cry/results', { at: '2026-07-20T09:00:00.000Z', reason: 'hungry', confidence: 1.5 })).statusCode).toBe(400);
   });
 
   it('sleep: rejects out-of-range minutes (zod 400)', async () => {

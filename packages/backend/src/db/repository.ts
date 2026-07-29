@@ -16,6 +16,12 @@ import type { BiMetrics } from '../analytics/biMetrics.js';
 
 export type { BiMetrics };
 
+export interface CryRow {
+  at: string; // ISO timestamp of the analysis
+  reason: string; // wire code, e.g. 'hungry'
+  confidence: number; // 0..1
+}
+
 export interface SleepNight {
   night: string; // ISO date (wake day)
   deepMin: number;
@@ -352,6 +358,11 @@ export interface Repository {
   // ---- Sleep (nightly summaries) ----
   recordSleep(userId: string, s: SleepNight): Promise<void>;
   listSleep(userId: string, limit: number): Promise<SleepNight[]>;
+
+  // Baby cry-analysis results (parent-recorded, newest-first). Pushed so they
+  // survive a reinstall and restore on a new device — history was device-local.
+  recordCry(userId: string, c: CryRow): Promise<void>;
+  listCry(userId: string, limit: number): Promise<CryRow[]>;
 
   // ---- Maternal weight log (one row per day, upsert on the date) ----
   recordWeight(userId: string, w: WeightRow): Promise<void>;

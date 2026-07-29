@@ -13,6 +13,7 @@ import 'package:fcs_app/data/api_client.dart';
 import 'package:fcs_app/domain/child_emergency.dart';
 import 'package:fcs_app/domain/child_growth.dart';
 import 'package:fcs_app/domain/contraction.dart';
+import 'package:fcs_app/domain/cry_analysis.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
@@ -238,6 +239,25 @@ void main() {
       ]);
       expect(c.manualSleep.where((n) => n.night.day == 19), hasLength(1),
           reason: 'restored night is not in the persisted store — it would vanish on restart');
+    });
+
+    test('mergeRemoteCry restores results newest-first, keeps local, persists', () {
+      // Cry history was device-local; this is the pull side that brings it back
+      // on a new device. Dedup by instant, newest-first, capped, persisted.
+      final c = make();
+      addTearDown(c.dispose);
+      final at9 = DateTime.utc(2026, 7, 20, 9);
+      final at11 = DateTime.utc(2026, 7, 20, 11);
+      c.mergeRemoteCry([
+        CryResult(reason: 'hungry', confidence: 0.8, at: at9),
+        CryResult(reason: 'tired', confidence: 0.6, at: at11),
+      ]);
+      expect(c.cryHistory, hasLength(2));
+      expect(c.cryHistory.first.reason, 'tired'); // newest first
+      // A second restore of the same instant is ignored (local wins).
+      c.mergeRemoteCry([CryResult(reason: 'discomfort', confidence: 0.9, at: at9)]);
+      expect(c.cryHistory, hasLength(2));
+      expect(c.cryHistory.firstWhere((r) => r.at == at9).reason, 'hungry');
     });
 
     test('mergeRemoteDayLogs restores logs and moves the cycle prediction', () {

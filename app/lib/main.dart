@@ -29,6 +29,7 @@ import 'ui/widgets/error_fallback.dart';
 import 'domain/cycle_log.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
+import 'domain/cry_analysis.dart';
 import 'domain/weight.dart';
 import 'domain/wearable_metrics.dart';
 import 'ble/starmax/starmax_ble_transport.dart';
@@ -536,6 +537,14 @@ Future<void> bootstrapRuntime(
         unawaited(pushSleep(s));
       }
 
+      // Push-only cry-analysis history, so it survives a reinstall / new device.
+      Future<void> pushCry(CryResult c) => api.putCryResult(
+            at: c.at.toIso8601String(), reason: c.reason, confidence: c.confidence);
+      controller.attachCrySync(upsert: pushCry);
+      for (final c in controller.cryHistory) {
+        unawaited(pushCry(c));
+      }
+
       // Push-only women's-health day-log sync (flow / mood / symptoms / kicks),
       // so the admin wellness diary mirrors hers.
       controller.attachCycleSync(upsert: (log) => api.putDayLog(log.toJson()));
@@ -806,6 +815,9 @@ Future<void> bootstrapRuntime(
             .mergeRemoteWeights([for (final w in await api.getWeight()) WeightEntry.fromJson(w)])),
         _restore(() async => controller
             .mergeRemoteSleep([for (final n in await api.getSleep()) SleepSummary.fromJson(n)])),
+        // Her baby-cry-analysis history, so the log isn't lost on a new phone.
+        _restore(() async => controller
+            .mergeRemoteCry([for (final r in await api.getCryResults()) CryResult.fromJson(r)])),
         // Her hand-entered vitals/glucose (device-less rows only), so a typed
         // cuff/glucometer history is not lost on a new phone.
         _restore(() async => controller

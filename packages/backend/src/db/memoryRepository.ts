@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus } from './repository';
+import type { ContentItemRow, Repository, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus } from './repository';
 import { bundleDiscountMinor } from './repository';
 import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -55,6 +55,7 @@ export function createMemoryRepository(): Repository {
   const emergencyAcks = new Map<string, { staffId: string; at: string }>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
+  const cryResults: CryRow[] = [];
   const weights: WeightRow[] = [];
   const kickSessions: KickSessionRow[] = [];
   const contractionSessions: ContractionSessionRow[] = [];
@@ -342,6 +343,12 @@ export function createMemoryRepository(): Repository {
       if (i >= 0) sleep[i] = s; else sleep.push(s);
     },
     listSleep: async (_u, limit) => [...sleep].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    // Baby cry-analysis history
+    recordCry: async (_u, c) => {
+      const i = cryResults.findIndex((x) => x.at === c.at);
+      if (i >= 0) cryResults[i] = c; else cryResults.push(c);
+    },
+    listCry: async (_u, limit) => [...cryResults].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit),
     // Weight (upsert on the date)
     recordWeight: async (_u, w) => {
       const i = weights.findIndex((x) => x.date === w.date);
@@ -557,6 +564,7 @@ export function createMemoryRepository(): Repository {
       healthRows.length = 0;
       seenReadings.clear();
       sleep.length = 0;
+      cryResults.length = 0;
       dayLogs.clear();
       alerts.length = 0;
       batteryByDevice.clear();
