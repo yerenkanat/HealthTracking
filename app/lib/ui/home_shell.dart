@@ -428,8 +428,8 @@ class _HomeShellState extends State<HomeShell> {
               center: LatLng(f.center!.lat, f.center!.lng),
               radius: f.radiusM ?? 0,
               strokeWidth: 2,
-              strokeColor: const Color(0xFF8E5BA6),
-              fillColor: const Color(0x228E5BA6),
+              strokeColor: Palette.violet,
+              fillColor: Palette.violet.withValues(alpha: 0.13),
             ),
       },
       markers: {

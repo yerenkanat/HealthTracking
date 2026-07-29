@@ -43,7 +43,7 @@ import '../theme.dart';
     switch (trimester) {
       1 => (top: const Color(0xFFFDF0F5), bottom: const Color(0xFFFBE7EF), glow: Palette.rose),
       2 => (top: const Color(0xFFFDEFE8), bottom: const Color(0xFFFAE6DC), glow: const Color(0xFFEE9B6E)),
-      _ => (top: const Color(0xFFF3EEFC), bottom: const Color(0xFFEDE6FA), glow: Palette.violet),
+      _ => (top: const Color(0xFFFBEAE1), bottom: const Color(0xFFF6DDCC), glow: Palette.violet),
     };
 
 /// A curled figure, drawn from the week.
