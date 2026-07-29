@@ -479,10 +479,17 @@ export function createMemoryRepository(): Repository {
         locale: profile?.locale ?? null,
         birthDate: profile?.birthDate ?? null,
         city: profile?.city ?? null,
+        // Parity with pgRepository.adminUserDetail — the admin drilldown renders
+        // "Контакт врача" and "Цикл (база)" from these; the in-memory repo (the
+        // one that runs today) was dropping them, blanking a staff-callable
+        // doctor number that the feature is documented to surface.
+        doctorPhone: profile?.doctorPhone ?? null,
+        avgCycleLength: profile?.avgCycleLength ?? null,
+        avgPeriodLength: profile?.avgPeriodLength ?? null,
         children: children.map((c) => ({
           id: c.id,
           name: c.name,
-          dateOfBirth: null,
+          dateOfBirth: c.dateOfBirth ?? null,
           zones: (geofences.get(c.id) ?? []).length,
         })),
         devices: devices.map((d) => ({

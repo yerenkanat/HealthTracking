@@ -1226,8 +1226,10 @@
       row("С детьми",a.withChildren,"var(--good)")+
       row("Со сцепленным устройством",a.devices,"var(--warn)")+
       `<div class="mtotal"><span>Всего аккаунтов</span><span class="v">${fmt(a.totalUsers)}</span></div>`+
+      `<div class="mtotal"><span>SOS-сигналов за всё время</span><span class="v">${fmt(a.sosAllTime ?? 0)}</span></div>`+
       note(`Группы пересекаются: одна и та же женщина может быть беременна, иметь
-            ребёнка и носить браслет, поэтому доли не складываются в 100%.`);
+            ребёнка и носить браслет, поэтому доли не складываются в 100%.
+            SOS — суммарное число экстренных активаций по всей базе.`);
   }
 
   // The BI module. Two endpoints feed it: /admin/bi for behaviour over time,

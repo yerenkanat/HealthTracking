@@ -54,6 +54,7 @@ const ANALYTICS = {
   pregnant: 120,
   withChildren: 140,
   devices: 161,
+  sosAllTime: 7,
   contentStages: 40,
   contentItems: 364,
   contentLinked: 300,
@@ -209,6 +210,15 @@ describe('the analytics tab renders the whole product, not the device fleet', ()
     expect(t).toContain('D1');
     expect(t).toContain('D30');
     expect(t.match(/когорта/g)?.length).toBe(3);
+  });
+
+  it('surfaces the base-wide SOS total in the composition', () => {
+    // /admin/analytics computes sosAllTime (total emergency activations across
+    // the base) but the panel used to drop it. A safety KPI reaching the client
+    // and never rendered is the "unsurfaced data" defect this panel is prone to.
+    const t = page.text('#anComposition');
+    expect(t).toContain('SOS');
+    expect(t).toContain('7');
   });
 });
 
