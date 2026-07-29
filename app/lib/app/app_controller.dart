@@ -1338,7 +1338,6 @@ class AppController {
 
   // ---- Weight log (one entry per day) ----
   List<WeightEntry> get weights => List.unmodifiable(_weights);
-  WeightStats? get weightStats => computeWeightStats(_weights);
 
   /// Recent cry-analysis results, newest first (capped).
   List<CryResult> get cryHistory => List.unmodifiable(_cryHistory);
@@ -1410,11 +1409,6 @@ class AppController {
   }
 
   // ---- Wearable link state ----
-  /// The last reported link state of the health wearable, or null when no
-  /// device is wired this run. Drives the dashboard's "not measuring" chip so a
-  /// watch out of range since morning is not mistaken for a quiet one.
-  BandLinkState? get bandLinkState => _bandLinkState;
-
   /// True when a device is wired but not currently delivering readings — the
   /// signal the dashboard shows so stale numbers are explained, not silent.
   bool get isBandNotMeasuring =>
@@ -2568,7 +2562,6 @@ class AppController {
   }
 
   ApiClient? get api => _api;
-  TelemetryBatcher? get batcher => _batcher;
 
   ChatController? _chat;
   ChatController? get chat => _chat;
