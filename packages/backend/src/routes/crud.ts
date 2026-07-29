@@ -106,6 +106,9 @@ const sleepBody = z.object({
   remMin: z.number().int().min(0).max(1440),
   lightMin: z.number().int().min(0).max(1440),
   awakeMin: z.number().int().min(0).max(1440),
+  // Provenance for a hand-entered night; the app omits both for band nights.
+  source: z.enum(['band', 'manual']).optional(),
+  manualAsleepMin: z.number().int().min(0).max(1440).nullable().optional(),
 });
 const weightBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

@@ -997,6 +997,19 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
     expect(nights[0].deepMin).toBe(95);
   });
 
+  it('sleep: a hand-entered night round-trips its source + typed asleep total', async () => {
+    // A manual night has no measured stage split; the app sends the typed total
+    // in manualAsleepMin. Both must survive the backup so a new device restores
+    // the night as manual (not as a band night with an inferred split).
+    expect((await post('/sleep', {
+      night: '2026-07-16', deepMin: 0, remMin: 0, lightMin: 430, awakeMin: 20,
+      source: 'manual', manualAsleepMin: 430,
+    })).statusCode).toBe(201);
+    const night = (await get('/sleep')).json().nights.find((n: { night: string }) => n.night === '2026-07-16');
+    expect(night.source).toBe('manual');
+    expect(night.manualAsleepMin).toBe(430);
+  });
+
   it('sleep: rejects out-of-range minutes (zod 400)', async () => {
     expect((await post('/sleep', { night: '2026-07-15', deepMin: -1, remMin: 0, lightMin: 0, awakeMin: 0 })).statusCode).toBe(400);
     expect((await post('/sleep', { night: '2026-07-15', deepMin: 0, remMin: 0, lightMin: 9999, awakeMin: 0 })).statusCode).toBe(400);

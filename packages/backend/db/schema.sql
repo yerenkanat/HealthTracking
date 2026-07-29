@@ -285,6 +285,11 @@ CREATE TABLE sleep_nights (
   rem_min     INTEGER NOT NULL DEFAULT 0,
   light_min   INTEGER NOT NULL DEFAULT 0,
   awake_min   INTEGER NOT NULL DEFAULT 0,
+  -- Provenance. NULL source = a device-measured ('band') night, the historical
+  -- default. A hand-entered night is 'manual' and carries the typed asleep total
+  -- in manual_asleep_min, which the app can't infer a stage split for.
+  source            TEXT,
+  manual_asleep_min INTEGER,
   PRIMARY KEY (user_id, night)
 );
 

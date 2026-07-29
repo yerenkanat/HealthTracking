@@ -769,20 +769,23 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Sleep ----
     async recordSleep(userId, s) {
       await pool.query(
-        `INSERT INTO sleep_nights (user_id, night, deep_min, rem_min, light_min, awake_min)
-         VALUES ($1,$2,$3,$4,$5,$6)
+        `INSERT INTO sleep_nights (user_id, night, deep_min, rem_min, light_min, awake_min, source, manual_asleep_min)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          ON CONFLICT (user_id, night) DO UPDATE
            SET deep_min = EXCLUDED.deep_min, rem_min = EXCLUDED.rem_min,
-               light_min = EXCLUDED.light_min, awake_min = EXCLUDED.awake_min`,
-        [userId, s.night, s.deepMin, s.remMin, s.lightMin, s.awakeMin]);
+               light_min = EXCLUDED.light_min, awake_min = EXCLUDED.awake_min,
+               source = EXCLUDED.source, manual_asleep_min = EXCLUDED.manual_asleep_min`,
+        [userId, s.night, s.deepMin, s.remMin, s.lightMin, s.awakeMin, s.source ?? null, s.manualAsleepMin ?? null]);
     },
     async listSleep(userId, limit) {
       const { rows } = await pool.query(
-        `SELECT night, deep_min, rem_min, light_min, awake_min FROM sleep_nights
+        `SELECT night, deep_min, rem_min, light_min, awake_min, source, manual_asleep_min FROM sleep_nights
          WHERE user_id = $1 ORDER BY night DESC LIMIT $2`, [userId, limit]);
       return rows.map((r) => ({
         night: new Date(r.night).toISOString(),
         deepMin: r.deep_min, remMin: r.rem_min, lightMin: r.light_min, awakeMin: r.awake_min,
+        source: r.source ?? undefined,
+        manualAsleepMin: r.manual_asleep_min ?? null,
       }));
     },
 

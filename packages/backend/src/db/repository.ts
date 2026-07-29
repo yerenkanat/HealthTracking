@@ -22,6 +22,12 @@ export interface SleepNight {
   remMin: number;
   lightMin: number;
   awakeMin: number;
+  // Provenance. A hand-entered night ('manual') has no measured stage split, so
+  // the app stores the whole typed total here rather than inferring deep/REM it
+  // could not know. Absent ('band', the default) for device-measured nights and
+  // for backups that predate this — so old rows still read exactly as before.
+  source?: string;
+  manualAsleepMin?: number | null;
 }
 
 export interface WeightRow {
