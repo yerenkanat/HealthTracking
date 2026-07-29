@@ -78,7 +78,7 @@ bool isPlausibleHeight(double cm) =>
 /// figure, not two conflicting ones an hour apart.
 List<GrowthPoint> upsertGrowth(List<GrowthPoint> points, GrowthPoint p) {
   if (p.isEmpty) return points;
-  final out = [for (final e in points) if (e.key != p.key) e]..add(p);
+  final out = [for (final e in points) if (e.key != p.key) e, p];
   out.sort((a, b) => a.at.compareTo(b.at));
   return out;
 }

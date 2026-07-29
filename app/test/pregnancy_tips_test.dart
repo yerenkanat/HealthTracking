@@ -20,7 +20,7 @@ ContentItem tip(String id, String title) => ContentItem(
       id: id,
       kind: ContentKind.lesson,
       title: LocalizedText({'ru': title, 'en': title}),
-      summary: LocalizedText({'ru': 'Описание', 'en': 'Summary'}),
+      summary: const LocalizedText({'ru': 'Описание', 'en': 'Summary'}),
       url: 'https://umay.kz/$id',
     );
 

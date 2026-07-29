@@ -134,9 +134,9 @@ class BabyPainter extends CustomPainter {
       ..close();
 
     final m = Matrix4.identity()
-      ..translate(44.0, 26.0)
-      ..scale(bodyScale, bodyScale)
-      ..translate(-44.0, -26.0);
+      ..translateByDouble(44.0, 26.0, 0.0, 1.0)
+      ..scaleByDouble(bodyScale, bodyScale, bodyScale, 1.0)
+      ..translateByDouble(-44.0, -26.0, 0.0, 1.0);
 
     return Path.combine(PathOperation.union, body.transform(m.storage), arm.transform(m.storage));
   }
@@ -200,7 +200,7 @@ class BabyPainter extends CustomPainter {
     // On its own layer, so the notch below erases only the figure and lets the
     // backdrop show through. Cleared straight onto the canvas it punched a
     // white ring through the gradient.
-    canvas.saveLayer(Rect.fromLTWH(-200, -200, 500, 500), Paint());
+    canvas.saveLayer(const Rect.fromLTWH(-200, -200, 500, 500), Paint());
 
     // Body first, WITHOUT the head.
     canvas.drawPath(bodyOnly(headShare), fill);

@@ -62,8 +62,8 @@ void main() {
   });
 
   testWidgets('the force-update screen shows the block message', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: L10nScope(l10n: const L10n(AppLocale.en), child: const ForceUpdateScreen()),
+    await tester.pumpWidget(const MaterialApp(
+      home: L10nScope(l10n: L10n(AppLocale.en), child: ForceUpdateScreen()),
     ));
     expect(find.text('Time to update the app'), findsOneWidget);
     // No update button when no store link is wired.

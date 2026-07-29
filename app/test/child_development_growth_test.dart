@@ -32,7 +32,7 @@ ChildDevCalendar _calendar() => const ChildDevCalendar(
       noteKk: 'Анықтамалық.',
     );
 
-Widget _wrap(Widget child) => L10nScope(l10n: L10n(AppLocale.en), child: child);
+Widget _wrap(Widget child) => L10nScope(l10n: const L10n(AppLocale.en), child: child);
 
 void main() {
   testWidgets('growth card shows the current week WHO range and skills', (tester) async {

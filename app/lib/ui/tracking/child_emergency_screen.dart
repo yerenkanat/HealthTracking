@@ -286,8 +286,8 @@ class _EmergencyEditScreenState extends State<_EmergencyEditScreen> {
             labelText: hint == null ? label : '$label · $hint',
             filled: true,
             fillColor: Palette.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Palette.border)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Palette.border)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Palette.border)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Palette.border)),
           ),
         ),
       );
