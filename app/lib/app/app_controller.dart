@@ -1188,11 +1188,29 @@ class AppController {
 
   /// Merge sleep nights pulled from the server. Add nights (by wake-date) this
   /// install lacks; local wins.
+  ///
+  /// `_sleep` is ephemeral — rebuilt on every launch from live band snapshots
+  /// plus the persisted `_manualSleep`. The band does NOT backfill old nights on
+  /// a new device, so a pulled night that lands only in `_sleep` shows right
+  /// after sign-in and then silently vanishes on the next restart. Route it into
+  /// the persisted store too (sorted + capped, like [mergeRemoteManualVitals]),
+  /// so restored sleep history actually survives. Deliberately does NOT go
+  /// through [addSleepSummary]: that mirrors each night back to the server, which
+  /// would echo the data we just pulled.
   void mergeRemoteSleep(List<SleepSummary> remote) {
     final have = _sleep.map((n) => dateKey(n.night)).toSet();
     final added = [for (final n in remote) if (!have.contains(dateKey(n.night))) n];
     if (added.isEmpty) return;
     _sleep.addAll(added);
+    for (final n in added) {
+      _manualSleep.removeWhere((m) => _sameNight(m.night, n.night));
+      _manualSleep.add(n);
+    }
+    _manualSleep.sort((a, b) => a.night.compareTo(b.night));
+    if (_manualSleep.length > _maxManualNights) {
+      _manualSleep.removeRange(0, _manualSleep.length - _maxManualNights);
+    }
+    _persist();
     _notify();
   }
 

@@ -225,6 +225,21 @@ void main() {
       expect(c.sleepNights.firstWhere((n) => n.night.day == 20).deepMin, 10); // local kept
     });
 
+    test('mergeRemoteSleep persists restored nights so they survive a restart', () {
+      // The bug this guards: pulled nights landed only in the ephemeral _sleep
+      // list, which a restart rebuilds from the band + the persisted store. The
+      // band never backfills old nights on a new device, so restored sleep
+      // history showed after sign-in and then silently vanished on next launch.
+      // The pulled night must reach the persisted store (manualSleep).
+      final c = make();
+      addTearDown(c.dispose);
+      c.mergeRemoteSleep([
+        SleepSummary(night: DateTime.utc(2026, 7, 19), deepMin: 90, remMin: 80, lightMin: 200, awakeMin: 20),
+      ]);
+      expect(c.manualSleep.where((n) => n.night.day == 19), hasLength(1),
+          reason: 'restored night is not in the persisted store — it would vanish on restart');
+    });
+
     test('mergeRemoteDayLogs restores logs and moves the cycle prediction', () {
       final c = make();
       addTearDown(c.dispose);
