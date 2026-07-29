@@ -6,23 +6,25 @@ library;
 import 'package:flutter/material.dart';
 
 class Palette {
-  // Canvas + surfaces (light)
-  static const bg = Color(0xFFF4F5FA);
+  // Canvas + surfaces (light) — warm cream, matching the Umay storefront.
+  static const bg = Color(0xFFFBF5EF);
   static const bgElevated = Color(0xFFFFFFFF);
   static const surface = Color(0xFFFFFFFF);
   static const surfaceHi = Color(0xFFFFFFFF);
 
-  // Accents (refined)
-  static const violet = Color(0xFF6D5AE6);
-  static const pink = Color(0xFFE85C8A);
+  // Accents — warm maternal. `violet`/`pink` keep their names (used widely) but
+  // now carry the terracotta + peach brand colours; teal/blue stay as distinct
+  // per-metric colours so health data stays legible.
+  static const violet = Color(0xFFAF4C35); // terracotta (primary brand accent; text-safe on cream)
+  static const pink = Color(0xFFE39A72); // warm peach (gradient partner)
   static const teal = Color(0xFF12B3A6);
   static const blue = Color(0xFF4F8DF5);
 
   // Warm FemTech accents (women's-health calendar + gestation)
-  static const rose = Color(0xFFF67CA6); // soft warm pink
-  static const roseDeep = Color(0xFFE0568A);
-  static const blush = Color(0xFFFDF2F6); // whisper-pink surface tint
-  static const lilac = Color(0xFFEDE9FF); // soft violet fill
+  static const rose = Color(0xFFE08A6E); // warm terracotta-rose
+  static const roseDeep = Color(0xFFC15A47);
+  static const blush = Color(0xFFFCEFE7); // whisper-peach surface tint
+  static const lilac = Color(0xFFF6E7DD); // soft peach fill
 
   // Status
   static const good = Color(0xFF17A672);
@@ -31,22 +33,22 @@ class Palette {
   static const danger = Color(0xFFE5484D);
 
   // Text + lines
-  static const text = Color(0xFF1B1D28);
+  static const text = Color(0xFF2A211C);
   // Secondary text. Darkened from 0xFF6E7180, which measured 4.45:1 over the
   // glass-card background — just under the 4.5:1 WCAG floor, and failing on
   // every screen that used it for body copy rather than a short label.
-  static const textDim = Color(0xFF656877);
-  static const border = Color(0xFFECEDF3);
+  static const textDim = Color(0xFF6A5C4D);
+  static const border = Color(0xFFEEE4DA);
   // Darker variants of the accents, for TEXT sitting on a tint of that same
   // accent. The bright accents above are tuned for icons, fills and borders,
   // where WCAG's 4.5:1 contrast rule for text doesn't apply — used as label
   // text over an 8–16% tint of themselves they measured as low as 2.65:1.
   // Keep the bright colour for the icon and the darker one for the words.
   static const goodText = Color(0xFF0B6B48);
-  static const violetText = Color(0xFF5040B8);
-  static const pinkText = Color(0xFFB33765);
+  static const violetText = Color(0xFFA5482F); // terracotta-deep, for text on a terracotta tint
+  static const pinkText = Color(0xFFB05A34); // warm, for text on a peach tint
 
-  static const glass = Color(0xFFF2F3F8); // input / subtle fill
+  static const glass = Color(0xFFF4ECE3); // input / subtle fill
 
   static const violetPink = LinearGradient(
     begin: Alignment.topLeft,
@@ -66,7 +68,7 @@ class Palette {
 
   // Soft, premium card shadow (not glow).
   static List<BoxShadow> get cardShadow => const [
-        BoxShadow(color: Color(0x0F1B1D28), blurRadius: 20, offset: Offset(0, 8), spreadRadius: -6),
+        BoxShadow(color: Color(0x0F2A211C), blurRadius: 20, offset: Offset(0, 8), spreadRadius: -6),
       ];
 }
 
@@ -125,12 +127,21 @@ class FcsTheme {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
+      // Text/outlined buttons show the accent as TEXT on a light surface, so they
+      // must use the darker, WCAG-safe terracotta — the bright accent is tuned
+      // for fills, not small text.
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: Palette.violetText),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(foregroundColor: Palette.violetText),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Palette.glass,
         hintStyle: const TextStyle(color: Palette.textDim),
         labelStyle: const TextStyle(color: Palette.textDim),
-        floatingLabelStyle: const TextStyle(color: Palette.violet),
+        floatingLabelStyle: const TextStyle(color: Palette.violetText),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
