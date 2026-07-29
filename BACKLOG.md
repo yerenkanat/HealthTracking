@@ -59,9 +59,9 @@ tests + 40 Node vitest tests green. Everything below is what remains.
 - [ ] Confirm Timescale retention (90d location) + compression policies on a live DB
 
 ## 7. Features / screens still missing 🟢
-- [ ] Detail screen: day / week / month range toggle + longer history
+- [x] Detail screen range toggle (24h / 7d / all) + longer history — `metric_detail_screen.dart` (`_Range`/`_RangeSelector`); month bucket not added
 - [ ] Sleep tracking view (deep/light/REM — spec) — needs band sleep data
-- [ ] Emergency contacts management (doctor number) in Profile/Settings
+- [x] Emergency contacts management (doctor number) in Profile/Settings — shipped full-stack (see "Suggested next sprint" note)
 - [ ] Weekly health summary / report
 - [ ] Growth: share a safety/health milestone, referral loop (spec)
 - [ ] Consistent loading / empty / error states across all screens
@@ -135,8 +135,13 @@ A separate web app (e.g. Next.js/React) for staff/clinicians — none exists yet
 ---
 
 ## Suggested next sprint (all 🟢 — no external deps)
-1. Emergency contacts in Profile (doctor number) + wire into the emergency screen call button.
-2. Detail-screen range toggle (24h / 7d) + longer history.
-3. Advisor: runtime locale + 2–3 more rules (sleep/hydration/multi-day trend).
+> ⚠️ This list drifts ahead of the code — verify each item against the source before building.
+> Audited 2026-07-29: items 1 and 2 below already shipped.
+1. ~~Emergency contacts in Profile (doctor number) + wire into the emergency screen call button.~~
+   **DONE** — `UserProfile.doctorPhone` → edit sheet (`family_sheets.dart`) → push/restore
+   (`api_client.putProfile`/`getProfile`, `crud.ts /profile`, `users.doctor_phone` col) →
+   emergency call button (`app_controller.dart` `callButtons` + `app.dart` `_dial` tel:) → admin row.
+2. ~~Detail-screen range toggle (24h / 7d) + longer history.~~ **DONE** — `metric_detail_screen.dart`.
+3. Advisor: runtime locale + 2–3 more rules (sleep/hydration/multi-day trend). *(verify current state first)*
 4. Widget tests for settings/profile/calibration + an offline batcher test.
 5. iOS scaffold so the app builds for both platforms.

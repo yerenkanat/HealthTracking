@@ -22,6 +22,28 @@ void main() {
     expect(pushed.first.e164, '+77001234567');
   });
 
+  test('the doctor emergency number rides the profile push', () async {
+    // The emergency screen dials _profile.doctorPhone, so it must survive the
+    // backup round-trip. Restore (pull) is covered in restore_test.dart; this
+    // guards the push side, which had no doctorPhone assertion.
+    final c = AppController(now: () => DateTime.utc(2026, 7, 22), locale: AppLocale.ru);
+    addTearDown(c.dispose);
+    final pushed = <UserProfile>[];
+    c.attachProfileSync((p) async => pushed.add(p));
+
+    c.updateProfile(const UserProfile(
+      displayName: 'Aigerim',
+      dialCode: '+7',
+      phoneNumber: '7001234567',
+      doctorPhone: '+77007654321',
+    ));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(pushed, hasLength(1));
+    expect(pushed.first.doctorPhone, '+77007654321');
+    expect(pushed.first.hasDoctor, isTrue);
+  });
+
   test('no push when no sync hook is attached (offline / signed out)', () async {
     final c = AppController(now: () => DateTime.utc(2026, 7, 22), locale: AppLocale.ru);
     addTearDown(c.dispose);
