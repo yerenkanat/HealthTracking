@@ -10,7 +10,9 @@ library;
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../data/cry_classifier_client.dart';
+import '../../data/cry_recorder.dart';
 import '../../domain/battery.dart';
+import '../../domain/cry_analysis.dart';
 import '../../domain/family.dart';
 import '../../domain/geofence_alerts.dart';
 import '../../domain/child_development.dart';
@@ -19,6 +21,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
 import 'child_development_screen.dart';
+import 'cry_insight_screen.dart';
 import 'vaccination_screen.dart';
 import 'child_growth_screen.dart';
 import 'newborn_log_screen.dart';
@@ -282,6 +285,19 @@ class ChildDetailScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                             ],
+                            // Cry analysis — a discoverable card, not a header icon
+                            // buried in the newborn log. Needs sign-in (the
+                            // classifier is reached through the authenticated
+                            // backend proxy).
+                            if (child.ageInMonths(now) < 6 && controller.isSignedIn) ...[
+                              _CareCard(
+                                icon: Icons.graphic_eq_rounded,
+                                title: l.t('cry_title'),
+                                summary: _crySummary(l, controller.cryHistory),
+                                onTap: () => _openCryInsight(context, controller),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             _CareCard(
                               icon: Icons.timeline_rounded,
                               title: l.t('dev_title'),
@@ -477,19 +493,38 @@ void _openNewbornLog(
         today: today,
         onLog: (e) => controller.logNewbornEvent(child.id, e),
         onDelete: (e) => _confirmDeleteNewborn(context, controller, child.id, e),
-        // Cry analysis goes through the Node backend (one authenticated surface),
-        // which proxies to the classifier. Only when signed in.
-        cryClient: controller.isSignedIn
-            ? CryClassifierClient(
-                baseUrl: Uri.parse(_apiBase),
-                authToken: () async => controller.authSession?.token,
-              )
-            : null,
-        onCryResult: controller.recordCry,
-        cryHistory: controller.cryHistory,
       ),
     ),
   ));
+}
+
+/// Open the cry-analysis recorder. Results save to the shared history via
+/// controller.recordCry (which also syncs them across devices). The classifier
+/// is reached through the authenticated backend proxy, so the card that calls
+/// this is only shown when signed in.
+void _openCryInsight(BuildContext context, AppController controller) {
+  Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => StreamBuilder<void>(
+      stream: controller.changes,
+      builder: (context, _) => CryInsightScreen(
+        recorder: RecordCryRecorder(),
+        client: CryClassifierClient(
+          baseUrl: Uri.parse(_apiBase),
+          authToken: () async => controller.authSession?.token,
+        ),
+        onResult: controller.recordCry,
+        history: controller.cryHistory,
+      ),
+    ),
+  ));
+}
+
+/// Card summary for the cry-analysis tool: the last reason if there's history,
+/// else the one-line intro.
+String _crySummary(L10n l, List<CryResult> history) {
+  if (history.isEmpty) return l.t('cry_intro');
+  final code = CryReason.fromCode(history.first.reason) == null ? 'unknown' : history.first.reason;
+  return l.t('cry_last', {'reason': l.t('cry_reason_$code')});
 }
 
 Future<void> _confirmDeleteNewborn(

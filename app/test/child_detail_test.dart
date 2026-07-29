@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
+import 'package:fcs_app/domain/phone_auth.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
@@ -71,6 +72,25 @@ void main() {
     expect(find.text('Alerts'), findsOneWidget);
     expect(find.text('2'), findsWidgets); // 2 alerts (also 2 zones)
     addTearDown(c.dispose);
+  });
+
+  testWidgets('cry analysis is a discoverable Care card for a signed-in parent of a young baby', (tester) async {
+    final c = AppController(now: () => now);
+    c.configureChild(name: 'Sultan', fences: [home], dateOfBirth: DateTime(2026, 5, 1)); // ~2.5 mo at `now`
+    c.signIn(AuthSession(userId: 'u1', phoneE164: '+77001112233', token: 't', signedInAt: now));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    // The cry tool is a first-class Care card (its title), not a header icon
+    // buried inside the newborn log.
+    expect(find.text('Why is baby crying'), findsOneWidget);
+  });
+
+  testWidgets('cry card is hidden when signed out (the classifier needs auth)', (tester) async {
+    final c = AppController(now: () => now);
+    c.configureChild(name: 'Sultan', fences: [home], dateOfBirth: DateTime(2026, 5, 1));
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Why is baby crying'), findsNothing);
   });
 
   testWidgets('handles the child being deleted underneath it', (tester) async {
