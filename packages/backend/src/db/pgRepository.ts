@@ -840,19 +840,20 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Women's-health day logs ----
     async upsertDayLog(userId, log) {
       await pool.query(
-        `INSERT INTO cycle_day_logs (user_id, log_date, mood, symptoms, kicks, flow)
-         VALUES ($1,$2,$3,$4,$5,$6)
+        `INSERT INTO cycle_day_logs (user_id, log_date, mood, symptoms, kicks, flow, note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT (user_id, log_date) DO UPDATE
            SET mood = EXCLUDED.mood, symptoms = EXCLUDED.symptoms,
-               kicks = EXCLUDED.kicks, flow = EXCLUDED.flow`,
-        [userId, log.date, log.mood, log.symptoms, log.kicks, log.flow]);
+               kicks = EXCLUDED.kicks, flow = EXCLUDED.flow, note = EXCLUDED.note`,
+        [userId, log.date, log.mood, log.symptoms, log.kicks, log.flow, log.note ?? null]);
     },
     async listDayLogs(userId, from, to) {
       const { rows } = await pool.query(
-        `SELECT log_date, mood, symptoms, kicks, flow FROM cycle_day_logs
+        `SELECT log_date, mood, symptoms, kicks, flow, note FROM cycle_day_logs
          WHERE user_id = $1 AND log_date BETWEEN $2 AND $3 ORDER BY log_date`, [userId, from, to]);
       return rows.map((r) => ({
         date: r.log_date, mood: r.mood, symptoms: r.symptoms ?? [], kicks: r.kicks, flow: r.flow,
+        note: r.note ?? '',
       }));
     },
 

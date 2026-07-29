@@ -1081,6 +1081,18 @@ describe('sleep / cycle / alerts routes (in-process)', () => {
     expect(days[0].flow).toBeNull(); // omitted → cleared to null
   });
 
+  it('cycle day logs: a typed note round-trips so it survives a new device', async () => {
+    // The app sends DayLog.note and reads it back; the backend used to strip it
+    // (no column), so a note typed on a day was lost on restore.
+    await app.inject({
+      method: 'PUT', url: '/cycle/days',
+      payload: { date: '2026-07-18', symptoms: [], kicks: 0, note: 'Кружилась голова утром' },
+    });
+    const days = (await get('/cycle/days?from=2026-07-01&to=2026-07-31')).json().days;
+    const day = days.find((d: { date: string }) => d.date === '2026-07-18');
+    expect(day.note).toBe('Кружилась голова утром');
+  });
+
   it('cycle day logs: rejects a bad date + bad enum (zod 400)', async () => {
     expect((await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '15-07-2026' } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '2026-07-15', flow: 'gushing' } })).statusCode).toBe(400);

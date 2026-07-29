@@ -132,6 +132,7 @@ const dayLogBody = z.object({
   symptoms: z.array(z.enum(['allGood', 'cramps', 'spotting', 'headache', 'nausea', 'swelling'])).default([]),
   kicks: z.number().int().min(0).max(999).default(0),
   flow: z.enum(['light', 'medium', 'heavy']).nullable().optional(),
+  note: z.string().max(2000).optional(), // free-text note the user typed for the day
 });
 // Same date shape as dayLogBody.date, which was already validated. Without it
 // an arbitrary string reached the date comparison in the query and surfaced as
@@ -613,6 +614,7 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
       symptoms: parsed.data.symptoms,
       kicks: parsed.data.kicks,
       flow: parsed.data.flow ?? null,
+      note: parsed.data.note ?? '',
     });
     return reply.send({ ok: true });
   });

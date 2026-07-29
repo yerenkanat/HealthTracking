@@ -92,6 +92,7 @@ export interface DayLogRow {
   symptoms: string[];
   kicks: number;
   flow: string | null; // light | medium | heavy | null
+  note?: string; // free-text note the user typed for the day; '' / absent = none
 }
 
 export interface SafetyAlertRow {

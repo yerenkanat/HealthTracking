@@ -378,6 +378,7 @@ CREATE TABLE cycle_day_logs (
   symptoms    TEXT[] NOT NULL DEFAULT '{}',      -- allGood | cramps | spotting | ...
   kicks       INTEGER NOT NULL DEFAULT 0,
   flow        TEXT,                              -- light | medium | heavy | NULL
+  note        TEXT,                              -- free-text note the user typed for the day
   PRIMARY KEY (user_id, log_date)
 );
 
