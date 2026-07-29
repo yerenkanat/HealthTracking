@@ -9,6 +9,31 @@ one investigation: `ApiClient.lastLocation` existed, was called from nowhere,
 and the child tracking map therefore had no source of position at all outside a
 demo build. It looked like it was waiting for a fix that was never coming.
 
+## Update — 2026-07-29: audited against source — items below are STALE
+
+A wiring audit re-checked this file against the code. Much of what it still
+describes as open or broken has shipped — grep the code before acting on any
+entry below. Confirmed fixed since this was written:
+
+- **Emergency "Acknowledge"** — described as removed for want of storage; it is
+  wired end to end (`server.ts` route → `repo.acknowledgeEmergency` → admin
+  button + `acknowledgedBy` render).
+- **Telemetry disk mirror** — described as a `(_) async {}` no-op; it persists to
+  `prefs_telemetry_queue` (`main.dart` `persist`/`restore`).
+- **`submitBpCalibration`** — described as never called; it is (`main.dart`).
+- **`getProfile`** — the "NOT CALLED YET" comment in `api_client.dart` is stale;
+  the restore path calls it.
+- **New this session:** sleep provenance (source + typed asleep total),
+  women's-health day-log notes, and **baby cry-analysis history** now all
+  round-trip through the backup + restore (migrations 014–016). The in-memory
+  admin drilldown no longer drops the doctor phone / cycle baselines / child
+  DOB, and the base-wide SOS KPI renders. Cry analysis is now a discoverable
+  Care card, not a buried icon.
+
+The genuine remaining blockers are external: real Firebase auth, the cry
+classifier model (`packages/cry-classifier` needs a trained `model.pkl`), a Maps
+key, and band hardware. See `docs/DEPLOY.md`.
+
 ## Update — 2026-07-22: sign-in and first sync landed
 
 The "one blocker" below has been substantially addressed with a **provider-agnostic
