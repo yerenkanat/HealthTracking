@@ -1,0 +1,43 @@
+# Umay — Caddy reverse proxy (automatic HTTPS via Let's Encrypt).
+#
+# Prerequisite: DNS A (and AAAA) records for ana-bala.kz, www.ana-bala.kz and
+# admin.ana-bala.kz must already point at this server, or the TLS challenge
+# fails. Caddy obtains + renews certificates on its own once they resolve.
+#
+# The Node backend serves EVERYTHING on 127.0.0.1:8080 — the JSON API, the
+# storefront (/shop…), the admin panel (/admin/ui + /admin/*) and the API docs
+# (/docs/api). These two site blocks just route the public names to it and add
+# TLS; the app talks to https://ana-bala.kz for its API.
+
+# ---- Storefront + app API ----------------------------------------------------
+ana-bala.kz, www.ana-bala.kz {
+	encode gzip zstd
+	# Root → the storefront. Lead with the product index; change to
+	# /shop/umay-watch to point ad traffic straight at the flagship watch.
+	redir / /shop temporary
+	reverse_proxy 127.0.0.1:8080
+	header {
+		# Modest hardening (the pages are self-contained; tune CSP if you add CDNs).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
+
+# ---- Staff back-office -------------------------------------------------------
+# The admin API has no real staff RBAC yet (see docs/DEPLOY.md §5), so gate the
+# WHOLE subdomain at the edge. Generate the hash on the server with:
+#     caddy hash-password --plaintext 'choose-a-strong-password'
+# and paste it below (it starts with $2a$…). Keep this file readable only by root.
+admin.ana-bala.kz {
+	encode gzip zstd
+	basic_auth {
+		admin REPLACE_WITH_BCRYPT_HASH
+	}
+	redir / /admin/ui temporary
+	reverse_proxy 127.0.0.1:8080
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+	}
+}

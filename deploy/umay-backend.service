@@ -1,0 +1,30 @@
+# Umay backend — systemd unit. Install to /etc/systemd/system/umay-backend.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now umay-backend
+# Runs as the unprivileged `umay` user; reads secrets from /etc/umay/backend.env.
+[Unit]
+Description=Umay backend (API + storefront + admin)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=umay
+Group=umay
+WorkingDirectory=/opt/umay/packages/backend
+EnvironmentFile=/etc/umay/backend.env
+# npm start === tsx src/index.ts (see packages/backend/package.json)
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=3
+# Restart after editing the static admin/shop HTML — it's read once at startup.
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/umay
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

@@ -11,6 +11,41 @@ then run.
 
 ---
 
+## Concrete setup — ana-bala.kz (fresh box, full stack)
+
+Decided config for this deploy. Ready-to-use files live in [`deploy/`](../deploy/):
+
+| Public name | Serves | Notes |
+|---|---|---|
+| `ana-bala.kz`, `www.ana-bala.kz` | Storefront (`/shop…`) **and** the app API | The Flutter app builds with `API_BASE=https://ana-bala.kz`. Root `/` → `/shop`. |
+| `admin.ana-bala.kz` | Staff back-office (`/admin/ui` + `/admin/*`) | Basic-auth gated at the edge (no staff RBAC yet). Root `/` → `/admin/ui`. |
+
+One Node process on `127.0.0.1:8080` serves all of it; **Caddy** terminates TLS
+(auto Let's Encrypt) and routes both names to it.
+
+**DNS to set first** (TLS won't issue until these resolve to the server):
+```
+ana-bala.kz         A     188.137.231.252
+www.ana-bala.kz     A     188.137.231.252
+admin.ana-bala.kz   A     188.137.231.252
+```
+(add matching `AAAA` records for the IPv6 address if you use it).
+
+**Files in `deploy/`:**
+- `Caddyfile` — the two site blocks above (set the admin basic-auth hash).
+- `umay-backend.service` — systemd unit (runs as the `umay` user, env from `/etc/umay/backend.env`).
+- `backend.env.example` — the env matrix, ready to fill.
+- `bootstrap.sh` — a reviewable fresh-box script that does §2–§7 below end to end.
+
+**Blocked on you to run it:** SSH access (rotate the leaked root password, add my
+key or share a fresh one securely) and the DNS records above. Then it's:
+`REPO_URL=… DB_PASS=… ./deploy/bootstrap.sh` on the box, plus the manual steps it
+prints (Firebase for `REAL_AUTH`, the admin hash, the app build).
+
+The step-by-step sections below explain each piece the script automates.
+
+---
+
 ## 0. Architecture
 
 - **Backend** — one Node process (`packages/backend`, `tsx src/index.ts`). It
