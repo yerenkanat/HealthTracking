@@ -52,6 +52,36 @@ echo "==> Backed up to $BACKUP"
 KONG_BLOCK="$(awk '/^:8081 \{/,/^\}/' "$CADDYFILE")"
 [ -n "$KONG_BLOCK" ] || KONG_BLOCK=$':8081 {\n    encode zstd gzip\n    reverse_proxy kong:8000\n}'
 
+# ---- /admin: 404, or basic_auth if a credential has been created ------------
+#
+# The panel embeds the staff header stub, so reaching it IS admin over every
+# family's data. Closed by default. deploy/admin-access.sh writes a bcrypt hash
+# to $ADMIN_HASH_FILE, and when that exists the panel is served behind an edge
+# password instead — which is what makes the leads queue readable at all while
+# there is still no real staff verifier.
+ADMIN_HASH_FILE="${ADMIN_HASH_FILE:-/etc/umay/admin-basicauth}"
+if [ -s "$ADMIN_HASH_FILE" ]; then
+  ADMIN_HASH="$(cat "$ADMIN_HASH_FILE")"
+  ADMIN_BLOCK="    # Edge password ONLY. The app behind it still trusts
+    # x-staff-role, so this password is the whole boundary — see
+    # docs/SECURITY_FOLLOWUP.md §2. Belongs on admin.ana-bala.kz once that
+    # DNS record exists; it is here because the record does not.
+    handle /admin* {
+        basic_auth {
+            admin ${ADMIN_HASH}
+        }
+        reverse_proxy ${BACKEND}
+    }"
+  echo "==> /admin will be served behind basic_auth"
+else
+  ADMIN_BLOCK="    # No credential created yet, so the back-office is simply not
+    # reachable. Run deploy/admin-access.sh to open it behind a password.
+    handle /admin* {
+        respond \"Not found\" 404
+    }"
+  echo "==> /admin stays closed (no credential at $ADMIN_HASH_FILE)"
+fi
+
 cat > "$CADDYFILE" <<EOF
 $MARKER — written by deploy/landing-takeover.sh
 #
@@ -91,6 +121,11 @@ ana-bala.kz, www.ana-bala.kz {
     #
     # To open the app API, set REAL_AUTH=1 with a service account, confirm the
     # boot guard is satisfied, and add the paths here — not before.
+
+    # The back-office. Must come BEFORE the allow-list: Caddy takes the first
+    # matching handle, and /admin is deliberately not in @public.
+$ADMIN_BLOCK
+
     @public path / /landing/* /shop /shop/* /health /ready
     handle @public {
         reverse_proxy $BACKEND
