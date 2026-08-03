@@ -327,7 +327,11 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: filled ? Palette.danger : Palette.bgElevated,
+      // Transparent, with the fill moved onto the Container below. The colour
+      // used to live here while the Container drew the hard shadow — and an
+      // unblurred ink rectangle behind a Container that has no fill of its own
+      // reads through the whole button, so both actions rendered solid ink.
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(18),
       elevation: 0,
       child: InkWell(
@@ -337,25 +341,36 @@ class _ActionButton extends StatelessWidget {
           height: 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
+            color: filled ? Palette.danger : Palette.bgElevated,
             borderRadius: BorderRadius.circular(18),
-            border: filled
-                ? null
-                : Border.all(color: Ds.ink, width: DsShape.borderWidth),
+            // Both variants carry the outline. The filled one skipped it, which
+            // left the SOS button as the only control on the screen without an
+            // edge — in this system that reads as unfinished, not as emphasis.
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             boxShadow: [
               ...DsShape.hardShadow,
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: foreground),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: TextStyle(
-                      color: foreground,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15)),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20, color: foreground),
+                const SizedBox(width: 8),
+                // The Russian labels are long enough that the pair overflowed
+                // by a hair once each button gained its 2px outline.
+                Flexible(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: foreground,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -432,23 +447,34 @@ class MinimalTrackingStatusBar extends StatelessWidget {
           Row(
             children: [
               // Freshness badge — colored, soft-tinted, with an icon + label.
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                  color: _accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(30),
+              // Flexible: the ink outline added 4px to every chip on this row,
+              // and this one was already at the edge of the width — it
+              // overflowed by 64px with a long Russian freshness label. The
+              // badge now gives way before the row does.
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                  decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    color: _accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(_icon, size: 14, color: _accent),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(freshnessLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: _accent,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
+                    ),
+                  ]),
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(_icon, size: 14, color: _accent),
-                  const SizedBox(width: 6),
-                  Text(freshnessLabel,
-                      style: TextStyle(
-                          color: _accent,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13)),
-                ]),
               ),
               if (batteryPct != null) ...[
                 const SizedBox(width: 8),
@@ -458,10 +484,16 @@ class MinimalTrackingStatusBar extends StatelessWidget {
                     now: now ?? DateTime.now()),
               ],
               const Spacer(),
+              // Also flexible: with a battery chip and a long freshness label
+              // all three items no longer fit once each gained a 2px outline.
               if (distanceLabel != null)
-                Text(distanceLabel!,
-                    style:
-                        const TextStyle(color: Palette.textDim, fontSize: 13)),
+                Flexible(
+                  child: Text(distanceLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 13)),
+                ),
             ],
           ),
           const SizedBox(height: 12),
