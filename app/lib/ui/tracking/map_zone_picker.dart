@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../core/geofence.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 typedef ZonePick = ({Coordinates center, double radius});
@@ -69,7 +70,7 @@ class _MapZonePickerScreenState extends State<MapZonePickerScreen> {
                 decoration: BoxDecoration(
                   color: Palette.bgElevated,
                   borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4)],
+                  boxShadow: DsShape.hardShadow,
                 ),
                 child: Row(children: [
                   const Icon(Icons.touch_app_outlined, size: 18, color: Palette.violet),
@@ -89,7 +90,7 @@ class _MapZonePickerScreenState extends State<MapZonePickerScreen> {
                 decoration: BoxDecoration(
                   color: Palette.bgElevated,
                   borderRadius: BorderRadius.circular(22),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 24, offset: const Offset(0, 10), spreadRadius: -6)],
+                  boxShadow: DsShape.hardShadow,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

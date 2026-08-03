@@ -15,6 +15,7 @@ import '../../domain/battery.dart';
 import '../../domain/child_tracker_state.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import 'child_safety_screen.dart';
@@ -304,9 +305,9 @@ class _ActionButton extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: filled ? null : Border.all(color: Palette.border),
+            border: filled ? null : Border.all(color: Ds.ink, width: DsShape.borderWidth),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
+              ...DsShape.hardShadow,
             ],
           ),
           child: Row(
@@ -381,9 +382,9 @@ class MinimalTrackingStatusBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.bgElevated,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 24, offset: const Offset(0, 10), spreadRadius: -6),
+          ...DsShape.hardShadow,
         ],
       ),
       child: Column(
@@ -639,7 +640,7 @@ class _ZonePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         border: Border.all(color: active ? Palette.good.withValues(alpha: 0.5) : Palette.border),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4), spreadRadius: -4),
+          ...DsShape.hardShadow,
         ],
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -703,9 +704,9 @@ class _SelectorChip extends StatelessWidget {
             gradient: selected ? Palette.roseViolet : null,
             color: selected ? null : Palette.bgElevated,
             borderRadius: BorderRadius.circular(30),
-            border: selected ? null : Border.all(color: Palette.border),
+            border: selected ? null : Border.all(color: Ds.ink, width: DsShape.borderWidth),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4), spreadRadius: -4),
+              ...DsShape.hardShadow,
             ],
           ),
           child: Text(label,
@@ -731,7 +732,7 @@ class _FloatingTitle extends StatelessWidget {
         color: Palette.bgElevated,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
+          ...DsShape.hardShadow,
         ],
       ),
       child: Text(text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Palette.text)),
@@ -755,7 +756,7 @@ class _FloatingIconButton extends StatelessWidget {
             color: Palette.bgElevated,
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
+              ...DsShape.hardShadow,
             ],
           ),
           child: IconButton(
@@ -798,7 +799,7 @@ class _FloatingActionChip extends StatelessWidget {
         color: Palette.bgElevated,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4), spreadRadius: -4),
+          ...DsShape.hardShadow,
         ],
       ),
       child: PopupMenuButton<String>(

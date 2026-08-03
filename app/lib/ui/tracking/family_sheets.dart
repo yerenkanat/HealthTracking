@@ -10,6 +10,7 @@ import '../../data/photo_store.dart';
 import '../../domain/country_codes.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/photo_picker_sheet.dart';
@@ -40,7 +41,7 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
               decoration: BoxDecoration(
                 color: Palette.glass,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Palette.border),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(

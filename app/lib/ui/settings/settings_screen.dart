@@ -15,6 +15,7 @@ import '../../domain/reminders.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../calibration/bp_calibration_sheet.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import 'journey_screen.dart';
 import 'help_support_screen.dart';
@@ -306,7 +307,7 @@ class SettingsScreen extends StatelessWidget {
                 constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
                 child: Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(12), border: Border.all(color: Palette.border)),
+                  decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(12), border: Border.all(color: Ds.ink, width: DsShape.borderWidth)),
                   child: SingleChildScrollView(
                     child: SelectableText(json,
                         style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11.5, height: 1.35, color: Palette.text)),
@@ -666,7 +667,7 @@ class _Section extends StatelessWidget {
           decoration: BoxDecoration(
             color: Palette.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Palette.border),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             boxShadow: Palette.cardShadow,
           ),
           child: Column(

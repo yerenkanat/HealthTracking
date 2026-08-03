@@ -12,6 +12,7 @@ import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter/services.dart' show HapticFeedback;
 import '../../domain/cycle_log.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 
@@ -397,7 +398,7 @@ class _KickCounter extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: Palette.roseViolet,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Palette.rose.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 6), spreadRadius: -4)],
+                    boxShadow: DsShape.hardShadow,
                   ),
                   child: const Icon(Icons.add_rounded, color: Colors.white, size: 34),
                 ),

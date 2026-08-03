@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../domain/geofence_alerts.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -237,7 +238,7 @@ class _TodaySummary extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.violet.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

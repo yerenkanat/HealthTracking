@@ -23,6 +23,7 @@ import '../../domain/pregnancy_guide.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../domain/pregnancy_week_content.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import 'antenatal_plan_screen.dart';
 import 'baby_size_disc.dart';
@@ -288,7 +289,7 @@ class _WeekStepper extends StatelessWidget {
           decoration: BoxDecoration(
             color: Palette.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Palette.border),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           child: Row(
             children: [
@@ -344,7 +345,7 @@ class _Card extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Palette.border),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,7 +538,7 @@ class _AntenatalCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Palette.border),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Row(
               children: [

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../../domain/pregnancy_weight_guide.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class PregnancyWeightScreen extends StatelessWidget {
@@ -136,7 +137,7 @@ class _RangeRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [
@@ -166,7 +167,7 @@ class _Card extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Palette.border),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -15,6 +15,7 @@ import '../../data/cry_recorder.dart';
 import '../../domain/cry_analysis.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 /// How long a clip we capture. The classifier is trained on ~5s windows.
@@ -178,7 +179,7 @@ class _MicButton extends StatelessWidget {
               gradient: recording ? null : Palette.violetPink,
               color: recording ? Palette.roseDeep : null,
               boxShadow: [
-                BoxShadow(color: (recording ? Palette.roseDeep : Palette.violet).withValues(alpha: 0.35), blurRadius: 24, spreadRadius: 2),
+                ...DsShape.hardShadowLg,
               ],
             ),
             child: busy
@@ -211,7 +212,7 @@ class _ResultCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,7 +280,7 @@ class _HistoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

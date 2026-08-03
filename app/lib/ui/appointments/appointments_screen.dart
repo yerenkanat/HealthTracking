@@ -13,6 +13,7 @@ import '../../domain/appointment.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../common/photo_scan_tile.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -434,7 +435,7 @@ class _PickerTile extends StatelessWidget {
           height: 52,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: Palette.border)),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: Ds.ink, width: DsShape.borderWidth)),
           child: Row(children: [
             Icon(icon, size: 18, color: Palette.violet),
             const SizedBox(width: 10),

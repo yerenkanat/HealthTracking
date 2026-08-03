@@ -14,6 +14,7 @@ import '../../domain/contraction.dart';
 import '../../domain/kick_session.dart' show formatElapsed;
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -300,7 +301,7 @@ class _BigButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: gradient,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: (active ? Palette.roseDeep : Palette.violet).withValues(alpha: 0.4), blurRadius: 36, spreadRadius: -6, offset: const Offset(0, 12))],
+                    boxShadow: DsShape.hardShadowLg,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

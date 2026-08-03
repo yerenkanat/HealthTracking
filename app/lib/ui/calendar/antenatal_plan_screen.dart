@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/antenatal_protocol.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class AntenatalPlanScreen extends StatefulWidget {
@@ -226,7 +227,7 @@ class _TermCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Palette.surface,
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

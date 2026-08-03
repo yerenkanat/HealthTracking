@@ -24,6 +24,7 @@ import '../../domain/postpartum.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -955,19 +956,18 @@ class _DayChip extends StatelessWidget {
         Container(
           width: 34, height: 34,
           decoration: BoxDecoration(
-            // The today chip carries WHITE text, and white on the pastel end of
-            // roseViolet measures 3.58:1 — under the 4.5 minimum. Darkening the
-            // stops keeps the gradient look while making the number legible;
-            // the accessibility suite checks the result rather than my eye.
-            gradient: isToday
-                ? LinearGradient(colors: [
-                    darkenForText(Palette.rose),
-                    darkenForText(Palette.violet),
-                  ])
-                : null,
-            color: isToday ? null : Colors.white,
+            // Today is a solid coral disc; every other day is white. Both carry
+            // the ink outline, so "today" is signalled by fill rather than by
+            // the presence of an edge.
+            //
+            // This was a two-stop gradient of darkened accents — the darkening
+            // was there because the chip prints WHITE text and the original
+            // pastel stops measured 3.58:1. Ds.coralCta is the token that
+            // already guarantees white-on-it clears 4.5:1, so the workaround
+            // goes with the gradient.
+            color: isToday ? Ds.coralCta : Colors.white,
             shape: BoxShape.circle,
-            border: isToday ? null : Border.all(color: Palette.border),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           alignment: Alignment.center,
           child: Text('$day',

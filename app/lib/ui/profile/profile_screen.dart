@@ -10,6 +10,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../appointments/appointments_screen.dart';
 import '../settings/settings_screen.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
@@ -179,7 +180,7 @@ class _EditablePhoto extends StatelessWidget {
             photoPath: photoPath,
             name: name,
             size: 96,
-            shadow: [BoxShadow(color: Palette.violet.withValues(alpha: 0.3), blurRadius: 22, offset: const Offset(0, 10), spreadRadius: -6)],
+            shadow: DsShape.hardShadow,
           ),
           Positioned(
             right: 0, bottom: 0,

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import '../../domain/kick_session.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -181,14 +182,7 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                                       ? const LinearGradient(colors: [Palette.good, Palette.teal])
                                       : Palette.roseViolet,
                                   shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (reached ? Palette.good : Palette.rose).withValues(alpha: 0.40),
-                                      blurRadius: 40,
-                                      spreadRadius: -8,
-                                      offset: const Offset(0, 12),
-                                    ),
-                                  ],
+                                  boxShadow: DsShape.hardShadowLg,
                                 ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,

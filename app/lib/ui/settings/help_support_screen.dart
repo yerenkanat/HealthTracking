@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 const _supportEmail = 'support@umay.app'; // placeholder until a real inbox exists
@@ -121,7 +122,7 @@ class _FaqTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Palette.border),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),

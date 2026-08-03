@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/postpartum.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class PostpartumScreen extends StatelessWidget {
@@ -118,7 +119,7 @@ class _NoteRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

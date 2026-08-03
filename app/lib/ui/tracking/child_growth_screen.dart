@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/child_growth.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class ChildGrowthScreen extends StatelessWidget {
@@ -188,7 +189,7 @@ class _GrowthCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

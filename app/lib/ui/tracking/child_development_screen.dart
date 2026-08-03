@@ -19,6 +19,7 @@ import '../../domain/baby_development_content.dart';
 import '../../domain/child_development.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import 'teething_screen.dart';
 
@@ -252,7 +253,7 @@ class _GrowthWeekCardState extends State<_GrowthWeekCard> {
           decoration: BoxDecoration(
             color: Palette.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Palette.border),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

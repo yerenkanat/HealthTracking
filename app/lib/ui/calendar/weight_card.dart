@@ -10,6 +10,7 @@ import '../../domain/weight.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../dashboard/sparkline.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
@@ -374,7 +375,7 @@ class _StepBtn extends StatelessWidget {
           customBorder: const CircleBorder(),
           child: Container(
             width: 48, height: 48,
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Palette.border)),
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Ds.ink, width: DsShape.borderWidth)),
             child: Icon(icon, color: Palette.violet),
           ),
         ),

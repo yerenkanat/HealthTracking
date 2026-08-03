@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class EmergencyCallButton {
@@ -156,7 +157,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: _emergency.withValues(alpha: 0.5), blurRadius: 32, spreadRadius: -4)],
+                        boxShadow: DsShape.hardShadowLg,
                       ),
                       child: SizedBox(
                         height: 78,
