@@ -17,8 +17,13 @@
 # docs/SECURITY_FOLLOWUP.md §2), and move it to admin.ana-bala.kz once that DNS
 # record exists — the path form is here because the record does not.
 #
-#   bash /opt/umay/deploy/admin-access.sh            # create/rotate the password
+#   bash /opt/umay/deploy/admin-access.sh            # generate a random password
+#   ADMIN_USER=7073452244 ADMIN_PASSWORD=... \
+#     bash /opt/umay/deploy/admin-access.sh          # set a chosen credential
 #   bash /opt/umay/deploy/admin-access.sh --close    # take it away again
+#
+# The identifier is the staff member's PHONE NUMBER, digits only, matching how
+# people sign in to the app itself — one thing to remember rather than two.
 # =============================================================================
 set -euo pipefail
 
@@ -26,6 +31,10 @@ CONTAINER="${CONTAINER:-aiti_caddy}"
 HASH_FILE="${HASH_FILE:-/etc/umay/admin-basicauth}"
 CRED_FILE="${CRED_FILE:-/etc/umay/admin-credentials}"
 APP_DIR="${APP_DIR:-/opt/umay}"
+
+# Digits only: Caddy's basic_auth username is compared literally, so "+7 707…"
+# and "7707…" would be different accounts and only one of them would work.
+ADMIN_USER="$(printf '%s' "${ADMIN_USER:-admin}" | tr -cd '0-9A-Za-z')"
 
 if [ "${1:-}" = "--close" ]; then
   rm -f "$HASH_FILE" "$CRED_FILE"
@@ -36,13 +45,15 @@ fi
 
 mkdir -p "$(dirname "$HASH_FILE")"
 
-# Generated HERE, on the box. The root password for this machine has been pasted
-# into a chat twice; this one is written to a 0600 file and printed nowhere, so
-# there is no transcript of it anywhere to leak.
-PASSWORD="$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | head -c 22)"
+# Generated HERE by default, so there is no transcript of it anywhere to leak —
+# the root password for this machine has been pasted into a chat twice. Set
+# ADMIN_PASSWORD to choose one instead.
+PASSWORD="${ADMIN_PASSWORD:-$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | head -c 22)}"
 HASH="$(docker exec "$CONTAINER" caddy hash-password --plaintext "$PASSWORD")"
 
-printf '%s' "$HASH" > "$HASH_FILE"
+# Stored as the whole `user hash` pair, because the username is part of the
+# credential and keeping them in separate files invites them drifting apart.
+printf '%s %s' "$ADMIN_USER" "$HASH" > "$HASH_FILE"
 chmod 600 "$HASH_FILE"
 
 cat > "$CRED_FILE" <<EOF
@@ -53,7 +64,7 @@ cat > "$CRED_FILE" <<EOF
 # because the app behind it still trusts the x-staff-role header. Treat it as
 # you would the root password: share it over something that is not a chat log,
 # and rotate it by re-running admin-access.sh.
-username: admin
+username: $ADMIN_USER   (the staff phone number, digits only)
 password: $PASSWORD
 EOF
 chmod 600 "$CRED_FILE"
@@ -66,8 +77,8 @@ echo
 echo "==> Verify"
 sleep 2
 printf '    without a password : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/ui
-printf '    with it            : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -u "admin:$PASSWORD" https://ana-bala.kz/admin/ui
-printf '    leads endpoint     : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -u "admin:$PASSWORD" \
+printf '    with it            : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -u "$ADMIN_USER:$PASSWORD" https://ana-bala.kz/admin/ui
+printf '    leads endpoint     : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -u "$ADMIN_USER:$PASSWORD" \
   -H 'x-staff-id: s1' -H 'x-staff-role: admin' https://ana-bala.kz/admin/shop/leads
 printf '    landing unaffected : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/
 

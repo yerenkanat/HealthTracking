@@ -61,18 +61,20 @@ KONG_BLOCK="$(awk '/^:8081 \{/,/^\}/' "$CADDYFILE")"
 # there is still no real staff verifier.
 ADMIN_HASH_FILE="${ADMIN_HASH_FILE:-/etc/umay/admin-basicauth}"
 if [ -s "$ADMIN_HASH_FILE" ]; then
-  ADMIN_HASH="$(cat "$ADMIN_HASH_FILE")"
+  # The file holds "<user> <bcrypt hash>" — the username is the staff phone
+  # number, matching how people sign in to the app.
+  ADMIN_CRED="$(cat "$ADMIN_HASH_FILE")"
   ADMIN_BLOCK="    # Edge password ONLY. The app behind it still trusts
     # x-staff-role, so this password is the whole boundary — see
     # docs/SECURITY_FOLLOWUP.md §2. Belongs on admin.ana-bala.kz once that
     # DNS record exists; it is here because the record does not.
     handle /admin* {
         basic_auth {
-            admin ${ADMIN_HASH}
+            ${ADMIN_CRED}
         }
         reverse_proxy ${BACKEND}
     }"
-  echo "==> /admin will be served behind basic_auth"
+  echo "==> /admin will be served behind basic_auth as ${ADMIN_CRED%% *}"
 else
   ADMIN_BLOCK="    # No credential created yet, so the back-office is simply not
     # reachable. Run deploy/admin-access.sh to open it behind a password.
