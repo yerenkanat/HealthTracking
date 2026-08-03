@@ -53,7 +53,10 @@ class DsCard extends StatelessWidget {
     final body = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color,
+        // A raised card must be opaque: the hard shadow is an unblurred ink
+        // rectangle behind it, and a translucent pastel would let it read
+        // through and turn the card near-black.
+        color: raised ? DsShape.opaque(color) : color,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         boxShadow: raised ? DsShape.hardShadow : null,

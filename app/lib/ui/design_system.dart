@@ -218,9 +218,19 @@ abstract final class DsShape {
 
   /// Hard offset shadow, **no blur** — the signature of this system. Applied to
   /// selected and primary elements only; most cards carry the border alone.
+  ///
+  /// The surface it sits under must be **opaque**. With no blur this is a solid
+  /// ink rectangle drawn behind the box, so a translucent fill (an accent at
+  /// 16%, say) lets the whole thing read through and the card turns near-black.
+  /// Blend the tint against the canvas first — see [opaque].
   static const List<BoxShadow> hardShadow = [
     BoxShadow(color: Ds.ink, offset: Offset(4, 4), blurRadius: 0),
   ];
+
+  /// Flatten a translucent tint onto the app canvas, so it can safely carry
+  /// [hardShadow]. A no-op for colours that are already opaque.
+  static Color opaque(Color c, [Color under = Ds.cream]) =>
+      c.a >= 1.0 ? c : Color.alphaBlend(c, under);
 
   /// The smaller 5px variant used on the landing's large CTAs.
   static const List<BoxShadow> hardShadowLg = [

@@ -22,6 +22,7 @@ import '../../domain/weekly_digest.dart';
 import '../../domain/wearable_metrics.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/fitted_title.dart';
@@ -376,13 +377,17 @@ class _PeaceOfMindBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [accent.withValues(alpha: 0.10), accent.withValues(alpha: 0.03)],
-        ),
-        border: Border.all(color: accent.withValues(alpha: 0.20)),
+        borderRadius: DsShape.card,
+        // A flat tint of the status accent behind the ink outline — this was a
+        // gradient over a 20%-alpha border, which on cream read as no edge at
+        // all. It is the screen's summary, so it carries the raised step.
+        //
+        // Blended against the canvas rather than left translucent: the hard
+        // shadow is a solid ink rectangle drawn behind the box, so a see-through
+        // fill lets it read straight through and the card turns near-black.
+        color: Color.alphaBlend(accent.withValues(alpha: 0.16), Ds.cream),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        boxShadow: DsShape.hardShadow,
       ),
       child: Row(
         children: [
@@ -394,8 +399,12 @@ class _PeaceOfMindBanner extends StatelessWidget {
             center: Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(gradient: gradient, shape: BoxShape.circle),
-              child: Icon(icon, color: Colors.white, size: 22),
+              decoration: BoxDecoration(
+                color: gradient.colors.first,
+                shape: BoxShape.circle,
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              ),
+              child: Icon(icon, color: Colors.white, size: 21),
             ),
           ),
           const SizedBox(width: 16),
@@ -447,7 +456,11 @@ class _MetricCard extends StatelessWidget {
     return Semantics(
       label: '$label: $value ${spec.unit}${abnormal ? l.t('db_outside_range') : ''}',
       child: GlassCard(
-        glow: abnormal ? _statusColor(status) : spec.color,
+        // The raised step now means "this one wants your attention", so only an
+        // out-of-range reading gets it. Passing a colour unconditionally — which
+        // is what the old soft coloured glow did — put the step on all four
+        // cards at once and said nothing.
+        glow: abnormal ? _statusColor(status) : null,
         padding: const EdgeInsets.all(16),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MetricDetailScreen(
@@ -940,9 +953,12 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(11, 11, 11, 12),
       decoration: BoxDecoration(
-        color: Palette.bg,
+        // A pastel of the metric's own accent, outlined in ink — the design
+        // system's stat-grid tile. It used to be cream on a hairline, which on
+        // a cream screen made the tile nearly invisible.
+        color: colour.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,8 +966,12 @@ class _StatTile extends StatelessWidget {
           Container(
             width: 28,
             height: 28,
-            decoration: BoxDecoration(color: colour.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(9)),
-            child: Icon(icon, size: 16, color: colour),
+            decoration: BoxDecoration(
+              color: colour,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: Ds.ink, width: 1.5),
+            ),
+            child: Icon(icon, size: 15, color: Colors.white),
           ),
           const SizedBox(height: 10),
           // scaleDown only when it has to: a long value ("12 345", or a Kazakh
@@ -967,11 +987,12 @@ class _StatTile extends StatelessWidget {
                 Text(value,
                     maxLines: 1,
                     style: TextStyle(
-                        fontFamily: 'JetBrainsMono',
+                        fontFamily: DsFont.display,
+                        fontFamilyFallback: DsFont.fallback,
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         height: 1,
-                        color: valueColor ?? Palette.text)),
+                        color: valueColor ?? Ds.ink)),
                 if (unit != null) ...[
                   const SizedBox(width: 3),
                   Text(unit!, style: const TextStyle(color: Palette.textDim, fontSize: 10.5)),
@@ -1440,10 +1461,17 @@ class _IconBadge extends StatelessWidget {
   final Gradient gradient;
   const _IconBadge(this.icon, this.gradient);
   @override
+  // A solid accent block with a white glyph and an ink outline. The [gradient]
+  // is still in the signature because every metric spec carries one; only its
+  // first stop is used, since the design system has no gradients.
   Widget build(BuildContext context) => Container(
         width: 30, height: 30,
-        decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, size: 17, color: Colors.white),
+        decoration: BoxDecoration(
+          color: gradient.colors.isEmpty ? Ds.coralCta : gradient.colors.first,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        ),
+        child: Icon(icon, size: 16, color: Colors.white),
       );
 }
 

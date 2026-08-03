@@ -44,6 +44,28 @@ void main() {
       expect(d.boxShadow, anyOf(isNull, isEmpty));
     });
 
+    testWidgets('a raised card is opaque, so the shadow cannot read through it', (tester) async {
+      // The hard shadow is an unblurred ink rectangle drawn behind the box. Give
+      // a raised card a translucent pastel and the ink shows straight through:
+      // the dashboard's summary banner turned near-black exactly this way, and
+      // the golden was the only thing that noticed.
+      await pump(tester, DsCard(
+        raised: true,
+        color: Ds.mint.withValues(alpha: 0.16),
+        child: const Text('hello'),
+      ));
+      final d = firstBorderedBox(tester)!;
+      expect(d.color!.a, 1.0, reason: 'a raised surface must be opaque');
+      // …and still be the pale tint it asked for, not flattened to white.
+      expect(d.color, isNot(Colors.white));
+      expect(d.color, DsShape.opaque(Ds.mint.withValues(alpha: 0.16)));
+    });
+
+    testWidgets('a flat card keeps whatever translucency it was given', (tester) async {
+      await pump(tester, DsCard(color: Ds.mint.withValues(alpha: 0.16), child: const Text('hello')));
+      expect(firstBorderedBox(tester)!.color!.a, closeTo(0.16, 0.01));
+    });
+
     testWidgets('raised adds the hard offset shadow, never a blur', (tester) async {
       await pump(tester, const DsCard(raised: true, child: Text('hello')));
       final s = firstBorderedBox(tester)!.boxShadow!;
