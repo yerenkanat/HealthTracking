@@ -98,7 +98,27 @@ instance is finished with, remove the `:8081` site block and stop its containers
 docker ps --filter label=com.docker.compose.project=supabase
 ```
 
-## 6. Postgres credentials
+## 6. Backups exist now, but only on the same disk
+
+**Status:** half done. **Who:** owner/developer.
+
+There was no backup of anything until 2026-08-03. There is now a systemd timer
+(`umay-backup.timer`, 03:20 UTC) that dumps the database, proves the archive is
+readable, restores it into a scratch database and compares row counts, and keeps
+14 daily plus one per month.
+
+```bash
+systemctl list-timers umay-backup     # when it next runs
+journalctl -u umay-backup -n 40       # what the last run did
+bash /opt/umay/deploy/backup.sh --verify   # take one now, verified
+```
+
+**What is missing is the half that matters:** every copy is in
+`/var/backups/umay` on the same host as the database, so one dead machine loses
+both. Add an offsite step — `deploy/backup-install.sh` prints the `rsync` and
+`rclone` lines — and restore from it once before believing it.
+
+## 7. Postgres credentials
 
 **Status:** fine, noted. `/etc/umay/backend.env` is `chmod 600` and its password
 was generated on the box, never typed into a chat. `umay-db` publishes no port —
