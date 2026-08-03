@@ -47,7 +47,7 @@ class WeightCard extends StatelessWidget {
                 onPressed: () => _openLog(context, l, stats?.latest ?? 65.0),
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: Text(l.t('weight_log')),
-                style: TextButton.styleFrom(foregroundColor: Palette.violet, padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
+                style: TextButton.styleFrom(foregroundColor: Palette.violetText, padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
               ),
             ],
           ),

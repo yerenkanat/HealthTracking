@@ -59,16 +59,47 @@ flutter:
     # contract packages/contract/baby_development.json; kept in sync by
     # tool/verify_baby_development_contract.dart.
     - assets/data/baby_development.json
+  # Fonts for the Ana-Bala design system (docs/design-system-app.md).
+  #
+  # Unbounded, Manrope and Rubik are VARIABLE fonts — one file carrying the whole
+  # weight axis. Declaring one `weight:` per family is correct for them: Flutter
+  # picks the file, and the actual weight comes from `fontVariations` in the text
+  # style (see ui/design_system.dart). Listing several fake weights against the
+  # same file would just invite synthetic bolding.
+  #
+  # Cyrillic coverage was read from each font's cmap table, and it is why the
+  # Kazakh interface uses Rubik throughout:
+  #   Unbounded      — Russian ✓, Kazakh ✗ (no Ә Ғ Қ Ң Ө Ұ Ү Һ)
+  #   Manrope        — Russian ✓, Kazakh ✗ (no Ә Ғ Қ Ң Ұ)
+  #   JetBrainsMono  — Russian ✓, Kazakh ✗ (no Ә Ғ Қ Ң Ұ Һ)
+  #   Rubik          — Russian ✓, Kazakh ✓   ← the fallback for all of the above
   fonts:
-    - family: Outfit
+    # Display: screen titles and hero metrics on Russian screens.
+    - family: Unbounded
       fonts:
-        - asset: assets/fonts/Outfit-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Outfit-Bold.ttf
-          weight: 700
+        - asset: assets/fonts/Unbounded.ttf
+    # UI and body copy.
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope.ttf
+    # Every Kazakh screen, and the glyph fallback for every family above — a
+    # Kazakh name inside the Russian UI would otherwise render as empty boxes.
+    - family: Rubik
+      fonts:
+        - asset: assets/fonts/Rubik.ttf
     - family: JetBrainsMono
       fonts:
         - asset: assets/fonts/JetBrainsMono-Regular.ttf
           weight: 400
         - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700
+    # Outfit is the previous theme's face. It carries NO Cyrillic at all (360
+    # glyphs, Latin only), so every Russian string it was applied to has been
+    # silently falling back to a system font. Kept only until the last
+    # `fontFamily: 'Outfit'` is gone from lib/.
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Outfit-Bold.ttf
           weight: 700

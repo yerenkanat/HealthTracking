@@ -152,7 +152,7 @@ class FloStyleCalendarDrawer extends StatelessWidget {
                       icon: const Icon(Icons.timer_outlined, size: 18),
                       label: Text(l.t('kick_session_start')),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Palette.violet,
+                        foregroundColor: Palette.violetText,
                         side: BorderSide(color: Palette.violet.withValues(alpha: 0.35)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),

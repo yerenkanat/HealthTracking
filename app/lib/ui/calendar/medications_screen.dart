@@ -453,7 +453,7 @@ class _MedEditorSheetState extends State<_MedEditorSheet> {
                   showCheckmark: false,
                   selectedColor: Palette.violet.withValues(alpha: 0.16),
                   labelStyle: TextStyle(
-                    color: _perDay == i ? Palette.violet : Palette.textDim,
+                    color: _perDay == i ? Palette.violetText : Palette.textDim,
                     fontWeight: FontWeight.w700,
                   ),
                   backgroundColor: Palette.surface,
@@ -530,7 +530,7 @@ class MedicationCard extends StatelessWidget {
                           ? Icons.check_circle_rounded
                           : Icons.add_circle_outline_rounded,
                       size: 24,
-                      color: dosesTaken(controller.medLog, today, m.id) >= m.perDay ? Palette.good : Palette.violet,
+                      color: dosesTaken(controller.medLog, today, m.id) >= m.perDay ? Palette.good : Palette.violetText,
                     ),
                     tooltip: l.t('med_take'),
                     onPressed: dosesTaken(controller.medLog, today, m.id) >= m.perDay

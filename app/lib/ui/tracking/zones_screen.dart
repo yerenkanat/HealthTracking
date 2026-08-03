@@ -65,7 +65,7 @@ class ZonesScreen extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                     side: BorderSide(color: Palette.violet.withValues(alpha: 0.5)),
-                    foregroundColor: Palette.violet,
+                    foregroundColor: Palette.violetText,
                   ),
                 ),
               ],
@@ -328,7 +328,7 @@ class _ZoneSheetState extends State<_ZoneSheet> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 backgroundColor: Palette.violet.withValues(alpha: 0.12),
-                foregroundColor: Palette.violet,
+                foregroundColor: Palette.violetText,
               ),
             ),
             const SizedBox(height: 8),

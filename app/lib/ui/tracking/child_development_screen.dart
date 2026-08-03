@@ -291,7 +291,7 @@ class _GrowthWeekCardState extends State<_GrowthWeekCard> {
                     onPressed: () => setState(() => _week = widget.week),
                     icon: const Icon(Icons.today_rounded, size: 15),
                     label: Text(l.t('wk_to_current')),
-                    style: TextButton.styleFrom(foregroundColor: Palette.violet, visualDensity: VisualDensity.compact),
+                    style: TextButton.styleFrom(foregroundColor: Palette.violetText, visualDensity: VisualDensity.compact),
                   ),
                 ),
               const SizedBox(height: 8),

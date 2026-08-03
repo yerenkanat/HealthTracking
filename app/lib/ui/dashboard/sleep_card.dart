@@ -205,7 +205,7 @@ class _EmptySleepCard extends StatelessWidget {
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(l.t('sleep_log_title')),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Palette.violet,
+                foregroundColor: Palette.violetText,
                 side: const BorderSide(color: Palette.violet),
               ),
             ),
