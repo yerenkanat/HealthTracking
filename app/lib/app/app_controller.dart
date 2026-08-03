@@ -612,6 +612,19 @@ class AppController {
   void addChild(ChildProfile child) {
     _children.add(child);
     _selectedChildId ??= child.id;
+    // A just-born baby means the pregnancy is over. If it's still marked active
+    // (e.g. the baby was added from Settings rather than the "no longer
+    // pregnant" flow), end it — otherwise the app shows "X weeks pregnant"
+    // beside a newborn, the same stale-after-birth mismatch as the postpartum
+    // cycle. Only for a clearly-just-born baby, so adding an older child (you
+    // can be pregnant with other kids around) never clears a real pregnancy.
+    final dob = child.dateOfBirth;
+    if (isPregnant && dob != null) {
+      final age = daysBetween(dob, _now());
+      if (age >= 0 && age <= 30) {
+        _profile = _profile.copyWith(dueDate: null, clearDueDate: true);
+      }
+    }
     _emitVaccinationReminder(child);
     unawaited(_onChildUpsert?.call(child) ?? Future<void>.value());
     _persist();

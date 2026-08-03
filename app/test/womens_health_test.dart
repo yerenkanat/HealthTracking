@@ -222,6 +222,22 @@ void main() {
       expect(find.text('Cycle paused after birth'), findsOneWidget);
       expect(find.text('Recovery after birth'), findsOneWidget); // both, correctly
     });
+
+    test('adding a newborn while still marked pregnant ends the pregnancy', () {
+      final c = controllerFor(dueDate: today.subtract(const Duration(days: 3))); // overdue = "pregnant"
+      addTearDown(c.dispose);
+      expect(c.isPregnant, isTrue);
+      c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 2))));
+      expect(c.isPregnant, isFalse, reason: 'a newborn means the pregnancy is over');
+      expect(c.isPostpartum, isTrue);
+    });
+
+    test('adding an older child never clears a real pregnancy', () {
+      final c = controllerFor(dueDate: today.add(const Duration(days: 60))); // genuinely pregnant
+      addTearDown(c.dispose);
+      c.addChild(ChildProfile(id: 'k', name: 'Big kid', dateOfBirth: today.subtract(const Duration(days: 400))));
+      expect(c.isPregnant, isTrue);
+    });
   });
 
   testWidgets('cycle mode shows the current phase card', (tester) async {
