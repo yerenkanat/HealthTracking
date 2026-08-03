@@ -20,7 +20,7 @@ const LEADS = {
   leads: [
     {
       id: 'l-1', customerName: 'Айгерім', phone: '+7 707 345 22 44',
-      package: 'Комплект «Мама и ребёнок» — 25 900 ₸', locale: 'kz',
+      package: 'Комплект «Мама и ребёнок» — 39 000 ₸', locale: 'kz',
       status: 'new', createdAt: '2026-08-01T09:12:00.000Z',
     },
     {
@@ -117,7 +117,7 @@ describe('the landing-leads card', () => {
     const t = page.text('#shopLeads');
     expect(t).toContain('Айгерім');
     expect(t).toContain('+7 707 345 22 44');
-    expect(t).toContain('25 900');
+    expect(t).toContain('39 000');
     // Which language to greet them in — the lead came off the Kazakh page.
     expect(t).toContain('қаз');
   });

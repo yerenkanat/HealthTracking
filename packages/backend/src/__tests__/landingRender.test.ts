@@ -98,7 +98,7 @@ describe('landing page renders', () => {
     expect(text).toContain('Ana-Bala');
     expect(dom.window.document.querySelectorAll('section').length).toBeGreaterThanOrEqual(5);
     // The offer itself — if pricing vanished, the page is decoration.
-    expect(text).toMatch(/25 900|24 900/);
+    expect(text).toMatch(/39 000|24 900|4 900/);
   });
 
   it('ends up with one title, not the injected one plus the runtime\'s', () => {

@@ -121,7 +121,7 @@ describe('landing callback requests', () => {
   const LEAD = {
     customerName: 'Айгерім',
     phone: '+7 707 345 22 44',
-    package: 'Комплект «Мама и ребёнок» — 25 900 ₸',
+    package: 'Комплект «Мама и ребёнок» — 39 000 ₸',
     locale: 'kz' as const,
   };
 
@@ -141,7 +141,7 @@ describe('landing callback requests', () => {
     expect(leads[0].customerName).toBe('Айгерім');
     expect(leads[0].phone).toBe('+7 707 345 22 44');
     // Which bundle they picked, and which language to call them in.
-    expect(leads[0].package).toContain('25 900');
+    expect(leads[0].package).toContain('39 000');
     expect(leads[0].locale).toBe('kz');
     expect(leads[0].status).toBe('new');
   });
