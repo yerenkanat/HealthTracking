@@ -13,6 +13,8 @@ import type { ServerDeps } from './server';
 import { authPosture } from './authPosture';
 import { createMemoryRepository } from './db/memoryRepository';
 import { makeAuthUser } from './http/auth';
+import { registerLanding } from './http/landing';
+import { esc, requestBase } from './http/pageMeta';
 import type { BandTelemetry, ChildLocationFix } from '@fcs/shared';
 import { assessTelemetry } from '@fcs/shared';
 
@@ -244,15 +246,7 @@ async function main(): Promise<void> {
   // /shop/watch  — a focused promotion landing for the smart watch (ad traffic)
   // each with its own SEO + social-preview card.
   try {
-    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     const readShop = (name: string) => readFileSync(fileURLToPath(new URL(`../shop/${name}`, import.meta.url)), 'utf8');
-    // og:url / og:image are built from the request host so the tags are right in
-    // dev and behind the production proxy without a hardcoded domain.
-    const requestBase = (req: { headers: Record<string, string | string[] | undefined>; protocol?: string }) => {
-      const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || 'umay.kz';
-      const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
-      return `${proto}://${host}`;
-    };
     const pageHtml = (base: string, path: string, title: string, desc: string, og: string, body: string) =>
       `<!doctype html><html lang="ru"><head><meta charset="utf-8">` +
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
@@ -319,6 +313,20 @@ async function main(): Promise<void> {
     }
   } catch {
     app.log.warn('shop storefront html not found; /shop pages disabled');
+  }
+
+  // ---- The Ana-Bala landing page (the site root) ------------------------------
+  // Built from the exported artifact by tools/build-landing.mjs — see its header
+  // for why we unpack rather than serve the export as-is. Everything under
+  // /landing/a/ is content-addressed by uuid and regenerated on each build, so
+  // it is immutable for as long as the URL exists: cache it for a year. The HTML
+  // itself must never be cached that way — it is what points at new asset uuids.
+  try {
+    const assets = registerLanding(app);
+    app.log.info(`landing page served at / (${assets} assets)`);
+  } catch (err) {
+    // Without this the root is a 404 — loud, because it is the whole site.
+    app.log.error({ err }, 'landing page not built; / is unavailable. Run: node packages/backend/tools/build-landing.mjs');
   }
 
   // ---- Refuse to serve real users with fake authentication ----

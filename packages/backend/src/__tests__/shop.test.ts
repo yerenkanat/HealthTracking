@@ -110,3 +110,66 @@ describe('the device shop', () => {
     expect(r.statusCode).toBe(400);
   });
 });
+
+/**
+ * The landing page's "оставьте номер — перезвоним сами" form. Not an order: no
+ * address, no variant, no stock. The only thing that matters is that a number
+ * typed on the site becomes a row staff can work through — the form used to
+ * paint a confirmation and send nothing.
+ */
+describe('landing callback requests', () => {
+  const LEAD = {
+    customerName: 'Айгерім',
+    phone: '+7 707 345 22 44',
+    package: 'Комплект «Мама и ребёнок» — 25 900 ₸',
+    locale: 'kz' as const,
+  };
+
+  it('records a lead from the public landing without auth', async () => {
+    const a = app();
+    const r = await a.inject({ method: 'POST', url: '/shop/leads', payload: LEAD });
+    expect(r.statusCode).toBe(201);
+    expect(r.json().id).toBeTruthy();
+  });
+
+  it('shows the lead to staff with everything needed to call back', async () => {
+    const a = app();
+    await a.inject({ method: 'POST', url: '/shop/leads', payload: LEAD });
+
+    const leads = (await a.inject({ method: 'GET', url: '/admin/shop/leads' })).json().leads;
+    expect(leads).toHaveLength(1);
+    expect(leads[0].customerName).toBe('Айгерім');
+    expect(leads[0].phone).toBe('+7 707 345 22 44');
+    // Which bundle they picked, and which language to call them in.
+    expect(leads[0].package).toContain('25 900');
+    expect(leads[0].locale).toBe('kz');
+    expect(leads[0].status).toBe('new');
+  });
+
+  it('tracks what came of the call', async () => {
+    const a = app();
+    const id = (await a.inject({ method: 'POST', url: '/shop/leads', payload: LEAD })).json().id;
+
+    const patched = await a.inject({ method: 'PATCH', url: `/admin/shop/leads/${id}`, payload: { status: 'called' } });
+    expect(patched.statusCode).toBe(200);
+    expect((await a.inject({ method: 'GET', url: '/admin/shop/leads' })).json().leads[0].status).toBe('called');
+
+    // A status outside the lead vocabulary is refused rather than stored.
+    const bad = await a.inject({ method: 'PATCH', url: `/admin/shop/leads/${id}`, payload: { status: 'shipped' } });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it('defaults the package and language when the visitor left them alone', async () => {
+    const a = app();
+    await a.inject({ method: 'POST', url: '/shop/leads', payload: { customerName: 'Сауле', phone: '+77006665544' } });
+    const lead = (await a.inject({ method: 'GET', url: '/admin/shop/leads' })).json().leads[0];
+    expect(lead.package).toBe('');
+    expect(lead.locale).toBe('ru');
+  });
+
+  it('refuses a lead with no phone to call — 400, not a half-row', async () => {
+    const a = app();
+    const r = await a.inject({ method: 'POST', url: '/shop/leads', payload: { customerName: 'X', phone: '' } });
+    expect(r.statusCode).toBe(400);
+  });
+});

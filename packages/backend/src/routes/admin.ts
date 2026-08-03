@@ -479,6 +479,25 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.send({ ok: true });
   });
 
+  // Landing-page callback requests ("перезвоним сами"). A queue of phone numbers
+  // to work through, not orders — staff call, then mark what came of it.
+  app.get('/admin/shop/leads', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_leads' });
+    return reply.send({ leads: await repo.adminShopLeads(limit) });
+  });
+  app.patch('/admin/shop/leads/:id', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const parsed = z.object({ status: z.enum(['new', 'called', 'ordered', 'dropped']) }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.setShopLeadStatus((req.params as { id: string }).id, parsed.data.status);
+    await repo.writeAudit({ staffId: s.staffId, action: 'shop_lead_status', target: (req.params as { id: string }).id });
+    return reply.send({ ok: true });
+  });
+
   // ---- Daily calendar audio (pregnancy + child development) ----
   const audioParams = z.object({
     track: z.enum(['pregnancy', 'child']),

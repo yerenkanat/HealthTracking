@@ -5,16 +5,16 @@
 # fails. Caddy obtains + renews certificates on its own once they resolve.
 #
 # The Node backend serves EVERYTHING on 127.0.0.1:8080 — the JSON API, the
-# storefront (/shop…), the admin panel (/admin/ui + /admin/*) and the API docs
-# (/docs/api). These two site blocks just route the public names to it and add
-# TLS; the app talks to https://ana-bala.kz for its API.
+# Ana-Bala landing page (/), the storefront (/shop…), the admin panel
+# (/admin/ui + /admin/*) and the API docs (/docs/api). These two site blocks
+# just route the public names to it and add TLS; the app talks to
+# https://ana-bala.kz for its API.
 
-# ---- Storefront + app API ----------------------------------------------------
+# ---- Landing + storefront + app API ------------------------------------------
 ana-bala.kz, www.ana-bala.kz {
 	encode gzip zstd
-	# Root → the storefront. Lead with the product index; change to
-	# /shop/umay-watch to point ad traffic straight at the flagship watch.
-	redir / /shop temporary
+	# Root is the Ana-Bala landing page, served by the backend itself — no redirect.
+	# The product pages stay reachable at /shop, /shop/umay-watch and /shop/tracker.
 	reverse_proxy 127.0.0.1:8080
 	header {
 		# Modest hardening (the pages are self-contained; tune CSP if you add CDNs).

@@ -460,6 +460,13 @@ export interface Repository {
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
   setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
 
+  /// Landing-page callback requests. Recording one can never fail on stock or
+  /// availability — the whole point is to capture the number before the visitor
+  /// leaves — so this returns the id rather than a typed failure.
+  recordShopLead(lead: ShopLeadInput): Promise<{ id: string }>;
+  adminShopLeads(limit: number): Promise<ShopLead[]>;
+  setShopLeadStatus(leadId: string, status: ShopLeadStatus): Promise<void>;
+
   /// Store settings — WhatsApp number, Kaspi link, and any other keys the admin
   /// adds. A flat key→value store; the public /shop/config only exposes a
   /// whitelist (contact/links), never secrets. get returns all; set upserts.
@@ -510,6 +517,18 @@ export interface ShopOrder {
 export type ShopOrderResult =
   | { ok: true; id: string; totalMinor: number; discountMinor: number }
   | { ok: false; error: 'empty' | 'not_found' | 'out_of_stock'; variantId?: string };
+
+/// A callback request from the landing page: a name and a number, nothing more.
+/// Not an order — no address, no variant, no stock reserved. See migration 017.
+export type ShopLeadLocale = 'ru' | 'kz';
+export type ShopLeadStatus = 'new' | 'called' | 'ordered' | 'dropped';
+export interface ShopLeadInput {
+  customerName: string; phone: string; package?: string; locale?: ShopLeadLocale;
+}
+export interface ShopLead {
+  id: string; customerName: string; phone: string; package: string;
+  locale: ShopLeadLocale; status: ShopLeadStatus; createdAt: string;
+}
 
 /// The family bundle: a watch and a tracker bought together take this much off,
 /// per matched pair (2 buys of each = 2× off). Recomputed server-side from the

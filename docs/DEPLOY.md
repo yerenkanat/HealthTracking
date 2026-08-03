@@ -17,7 +17,7 @@ Decided config for this deploy. Ready-to-use files live in [`deploy/`](../deploy
 
 | Public name | Serves | Notes |
 |---|---|---|
-| `ana-bala.kz`, `www.ana-bala.kz` | Storefront (`/shop…`) **and** the app API | The Flutter app builds with `API_BASE=https://ana-bala.kz`. Root `/` → `/shop`. |
+| `ana-bala.kz`, `www.ana-bala.kz` | Landing page (`/`), storefront (`/shop…`) **and** the app API | The Flutter app builds with `API_BASE=https://ana-bala.kz`. Root `/` is the Ana-Bala landing page — no redirect. |
 | `admin.ana-bala.kz` | Staff back-office (`/admin/ui` + `/admin/*`) | Basic-auth gated at the edge (no staff RBAC yet). Root `/` → `/admin/ui`. |
 
 One Node process on `127.0.0.1:8080` serves all of it; **Caddy** terminates TLS
@@ -30,6 +30,24 @@ www.ana-bala.kz     A     188.137.231.252
 admin.ana-bala.kz   A     188.137.231.252
 ```
 (add matching `AAAA` records for the IPv6 address if you use it).
+
+> ### ⚠ The target box is not empty
+>
+> As of **2026-08-03**, `188.137.231.252` is already serving a different, live
+> application — *Aiti.kz — Қойма басқару жүйесі*, a warehouse-management SPA that
+> answers 200 on every path of `ana-bala.kz`. The owner has authorised replacing
+> it, but `bootstrap.sh` assumes a **fresh** box: it overwrites
+> `/etc/caddy/Caddyfile` and takes ports 80/443, which stops that site dead.
+>
+> Take a copy you can put back **before** running anything:
+> ```bash
+> ssh root@188.137.231.252 'tar czf /root/preexisting-site-$(date +%F).tgz \
+>     /etc/caddy /etc/nginx /var/www /etc/systemd/system/*.service 2>/dev/null; \
+>   systemctl list-units --type=service --state=running > /root/preexisting-services.txt'
+> ```
+> Then confirm what that app is and where else it lives. Once Caddy is
+> reconfigured and its service is stopped, the site is down until someone
+> restores it.
 
 **Files in `deploy/`:**
 - `Caddyfile` — the two site blocks above (set the admin basic-auth hash).
@@ -49,10 +67,21 @@ The step-by-step sections below explain each piece the script automates.
 ## 0. Architecture
 
 - **Backend** — one Node process (`packages/backend`, `tsx src/index.ts`). It
-  serves the JSON API **and** the static pages: admin at `/admin/ui`, the
-  storefront at `/shop`, `/shop/watch`, `/shop/umay-watch`, `/shop/tracker`, and
-  the API docs at `/docs/api`. Static HTML is read **once at startup**, so a
-  content edit needs a process restart to show.
+  serves the JSON API **and** the static pages: the landing page at `/`, admin
+  at `/admin/ui`, the storefront at `/shop`, `/shop/watch`, `/shop/umay-watch`,
+  `/shop/tracker`, and the API docs at `/docs/api`. Static HTML is read **once at
+  startup**, so a content edit needs a process restart to show.
+- **Landing page** — `/` is built from the exported artifact
+  `docs/Ana-Bala Landing.html` into `packages/backend/landing/` (tracked in git).
+  Rebuild it after every re-export, then restart the backend:
+
+  ```bash
+  node packages/backend/tools/build-landing.mjs
+  systemctl restart umay-backend
+  ```
+
+  The page's callback form POSTs to `/shop/leads`; the requests show up in the
+  admin panel under **Магазин → Заявки с лендинга**.
 - **Postgres** — the system of record. Built from `db/schema.sql` on a fresh box.
 - **Redis** *(optional)* — rate limiting / caches (`REDIS_URL`); the app runs
   without it.
@@ -241,9 +270,13 @@ the define is required for a real build.
 curl -fsS https://your-domain.kz/health           # liveness → 200
 curl -sS  https://your-domain.kz/ready            # readiness + per-dep status
 curl -s -o /dev/null -w '%{http_code}\n' https://your-domain.kz/cry/results  # 401 (auth), not 500
+open      https://your-domain.kz/                 # landing page renders (not a blank pink screen)
 open      https://your-domain.kz/shop/umay-watch  # storefront renders
 open      https://your-domain.kz/admin/ui         # admin loads (behind allow-list)
 ```
+The landing page paints entirely from JavaScript, so "200 OK" does not mean it
+rendered. Open it in a browser: an unstyled pink page means an asset under
+`/landing/a/` is missing — rebuild it and restart the backend.
 `/ready` returns 503 with a per-dependency breakdown when a dependency is down —
 use it to confirm Postgres is reachable.
 

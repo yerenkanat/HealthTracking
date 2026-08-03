@@ -78,6 +78,11 @@ function makeDeps(
     addShopVariant: async () => {},
     adminShopOrders: async () => [],
     setShopOrderStatus: async () => {},
+    recordShopLead: async () => ({ id: 'lead-1' }),
+    adminShopLeads: async () => [],
+    setShopLeadStatus: async () => {},
+    getShopSettings: async () => ({}),
+    setShopSettings: async () => {},
     insertBpCalibration: async (_u, c) => void calRows.push(c),
     latestBpCalibration: async () =>
       (calRows.length ? calRows[calRows.length - 1] : null) as never,

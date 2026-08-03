@@ -1034,6 +1034,26 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
     },
 
+    async recordShopLead(lead) {
+      const { rows } = await pool.query(
+        `INSERT INTO shop_leads (customer_name, phone, package, locale)
+         VALUES ($1,$2,$3,$4) RETURNING id`,
+        [lead.customerName, lead.phone, lead.package ?? '', lead.locale ?? 'ru']);
+      return { id: rows[0].id as string };
+    },
+    async adminShopLeads(limit) {
+      const { rows } = await pool.query(
+        `SELECT id, customer_name, phone, package, locale, status, created_at
+         FROM shop_leads ORDER BY created_at DESC LIMIT $1`, [limit]);
+      return rows.map((r) => ({
+        id: r.id, customerName: r.customer_name, phone: r.phone, package: r.package,
+        locale: r.locale, status: r.status, createdAt: new Date(r.created_at).toISOString(),
+      }));
+    },
+    async setShopLeadStatus(leadId, status) {
+      await pool.query('UPDATE shop_leads SET status = $2 WHERE id = $1', [leadId, status]);
+    },
+
     async getShopSettings() {
       const { rows } = await pool.query('SELECT key, value FROM shop_settings');
       return Object.fromEntries(rows.map((r) => [r.key as string, (r.value as string) ?? '']));
