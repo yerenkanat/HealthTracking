@@ -17,7 +17,7 @@ Decided config for this deploy. Ready-to-use files live in [`deploy/`](../deploy
 
 | Public name | Serves | Notes |
 |---|---|---|
-| `ana-bala.kz`, `www.ana-bala.kz` | Landing page (`/`), storefront (`/shop…`) **and** the app API | The Flutter app builds with `API_BASE=https://ana-bala.kz`. Root `/` is the Ana-Bala landing page — no redirect. |
+| `ana-bala.kz`, `www.ana-bala.kz` | Landing page (`/`) and the storefront API (`/shop…`) only | Root `/` is the Ana-Bala landing page — no redirect. The **app API is closed** at the edge until real auth exists (§9), so `API_BASE=https://ana-bala.kz` does not work yet. |
 | `admin.ana-bala.kz` | Staff back-office (`/admin/ui` + `/admin/*`) | Basic-auth gated at the edge (no staff RBAC yet). Root `/` → `/admin/ui`. |
 
 One Node process on `127.0.0.1:8080` serves all of it; **Caddy** terminates TLS
@@ -252,6 +252,36 @@ state; cry **history** still syncs (that path has no model dependency).
 ---
 
 ## 9. App build
+
+> ### ⛔ `API_BASE=https://ana-bala.kz` does not work yet, on purpose
+>
+> The production edge serves an **allow-list**: `/`, `/landing/*`, `/shop/*`,
+> `/health`, `/ready`. Every route the app needs — `/children`,
+> `/appointments`, `/geofences`, `/devices`, `/vitals`, … — returns **404**.
+>
+> That is deliberate. `authUser` and `authAdmin` are header stubs until
+> `REAL_AUTH=1` and a Firebase service account are configured (§5), so while
+> they are open anyone can read any family's data by typing a header:
+>
+> ```bash
+> curl -H 'x-user-id: <any id>' https://ana-bala.kz/children   # was 200
+> ```
+>
+> The backend's own boot guard refuses to start with `NODE_ENV=production` for
+> exactly this reason. The edge allow-list is what lets it run at all.
+>
+> **To point the app at production**, in this order:
+>
+> 1. Put a Firebase service account on the box and set `REAL_AUTH=1` in
+>    `/etc/umay/backend.env`.
+> 2. Restart and confirm the boot log no longer warns about stub auth.
+> 3. Add the app's paths to the `@public` matcher in
+>    `deploy/landing-takeover.sh`, re-run it, and check the smoke test's
+>    `forged id` line still returns 404 for a *user id that is not signed in*.
+> 4. Only then build with `API_BASE=https://ana-bala.kz`.
+>
+> Staff auth (`x-staff-role`) has no real verifier at all yet, so `/admin*`
+> stays closed regardless — see §5.
 
 Point the app at this backend and enable maps where wanted:
 ```bash
