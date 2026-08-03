@@ -3,6 +3,7 @@
 /// subscribes to the controller's new-alert stream and calls [show] here.
 library;
 
+import 'dart:ui' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -52,6 +53,11 @@ class NoopNotificationService implements NotificationService {
 
 class LocalNotificationService implements NotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  /// Ds.coralCta. Android tints the small icon and the app name in the shade
+  /// with this; without it the shade shows the platform default and nothing in
+  /// the notification says Ana-Bala.
+  static const _brand = Color(0xFFEA003F);
+
   static const _channelId = 'safety_alerts';
   static const _channelName = 'Safety alerts';
   static const _reminderChannelId = 'reminders';
@@ -69,7 +75,7 @@ class LocalNotificationService implements NotificationService {
 
   @override
   Future<void> init() async {
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('@drawable/ic_notification');
     // iOS was never initialized, although ios/ is a build target: with no
     // Darwin settings the plugin has no iOS configuration, so every show() and
     // every schedule did nothing there — and requestPermission() below returned
@@ -167,6 +173,7 @@ class LocalNotificationService implements NotificationService {
         _channelId, _channelName,
         importance: Importance.high,
         priority: Priority.high,
+        color: _brand,
       ),
       iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
@@ -183,6 +190,7 @@ class LocalNotificationService implements NotificationService {
         _reminderChannelId, _reminderChannelName,
         importance: Importance.high,
         priority: Priority.high,
+        color: _brand,
       ),
       iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
@@ -208,6 +216,7 @@ class LocalNotificationService implements NotificationService {
         _reminderChannelId, _reminderChannelName,
         importance: Importance.high,
         priority: Priority.high,
+        color: _brand,
       ),
       iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
