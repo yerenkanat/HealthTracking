@@ -46,6 +46,47 @@ void main() {
     });
   });
 
+  group('the iOS launch screen carries the brand too', () {
+    final storyboard = File('ios/Runner/Base.lproj/LaunchScreen.storyboard');
+    final imageset = Directory('ios/Runner/Assets.xcassets/LaunchImage.imageset');
+
+    test('the background is Ds.cream, not white', () {
+      final xml = storyboard.readAsStringSync();
+      final bg = RegExp(r'<color key="backgroundColor"[^/]*/>').firstMatch(xml)!.group(0)!;
+      // Storyboards store sRGB components as 0..1 doubles, so compare numerically
+      // rather than hunting for a hex string that is not there.
+      double comp(String name) =>
+          double.parse(RegExp('$name="([0-9.]+)"').firstMatch(bg)!.group(1)!);
+      expect(comp('red'), closeTo(Ds.cream.r, 0.002));
+      expect(comp('green'), closeTo(Ds.cream.g, 0.002));
+      expect(comp('blue'), closeTo(Ds.cream.b, 0.002));
+    });
+
+    test('the launch mark is a real image, not the shipped placeholder', () {
+      // Flutter's template ships three 68-byte transparent PNGs. iOS therefore
+      // opened on a blank screen while Android showed the coral heart, and no
+      // test noticed because both are "valid".
+      for (final n in ['LaunchImage.png', 'LaunchImage@2x.png', 'LaunchImage@3x.png']) {
+        final f = File('${imageset.path}/$n');
+        expect(f.existsSync(), isTrue, reason: '$n is missing');
+        expect(f.lengthSync(), greaterThan(500), reason: '$n is still the 68-byte placeholder');
+      }
+    });
+
+    test('the three scales really are 1x/2x/3x of each other', () {
+      // A PNG's width lives at bytes 16..20 of the IHDR chunk.
+      int width(String n) {
+        final b = File('${imageset.path}/$n').readAsBytesSync();
+        return (b[16] << 24) | (b[17] << 16) | (b[18] << 8) | b[19];
+      }
+
+      final one = width('LaunchImage.png');
+      expect(one, greaterThan(0));
+      expect(width('LaunchImage@2x.png'), one * 2);
+      expect(width('LaunchImage@3x.png'), one * 3);
+    });
+  });
+
   group('the notification icon can actually be rendered', () {
     test('a white silhouette exists for the status bar', () {
       final f = File('${res.path}/drawable/ic_notification.xml');
