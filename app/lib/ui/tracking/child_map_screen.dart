@@ -556,11 +556,18 @@ class MinimalTrackingStatusBar extends StatelessWidget {
                 const Icon(Icons.how_to_reg_rounded,
                     size: 16, color: Palette.blue),
                 const SizedBox(width: 5),
-                Text(
-                    l.t('tr_last_checkin',
-                        {'ago': l.ago(age.isNegative ? Duration.zero : age)}),
-                    style:
-                        const TextStyle(color: Palette.textDim, fontSize: 13)),
+                // Flexible, so the sentence wraps instead of running off the
+                // side. At 360dp with the font-size slider at 130% this line
+                // overran by 51px, and Flutter paints the striped overflow bar
+                // over the content rather than clipping it — so the parent who
+                // most needs larger text got the worst version of this screen.
+                Flexible(
+                  child: Text(
+                      l.t('tr_last_checkin',
+                          {'ago': l.ago(age.isNegative ? Duration.zero : age)}),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 13)),
+                ),
               ]);
             }),
           ],

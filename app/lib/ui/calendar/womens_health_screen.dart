@@ -668,13 +668,21 @@ class _GestationHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            GestureDetector(
-              onTap: () => _confirmEndPregnancy(context),
-              child: Text(l.t('cyc_end_pregnancy'),
-                  style: const TextStyle(
-                      color: Palette.textDim,
-                      fontSize: 12,
-                      decoration: TextDecoration.underline)),
+            // The comment above said both sides flex, and only the left one
+            // did — so with the font-size slider at 130% this side pushed the
+            // row 1px past a 360dp screen, which is a full-width striped
+            // overflow bar for one pixel of text.
+            Flexible(
+              child: GestureDetector(
+                onTap: () => _confirmEndPregnancy(context),
+                child: Text(l.t('cyc_end_pregnancy'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Palette.textDim,
+                        fontSize: 12,
+                        decoration: TextDecoration.underline)),
+              ),
             ),
           ],
         ),
