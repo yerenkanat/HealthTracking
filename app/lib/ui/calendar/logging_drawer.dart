@@ -388,7 +388,7 @@ class _KickCounter extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Palette.rose.withValues(alpha: 0.12),
-        border: Border.all(color: Palette.rose.withValues(alpha: 0.20)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [

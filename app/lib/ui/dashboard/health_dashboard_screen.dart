@@ -762,7 +762,7 @@ class _AdvisorEntry extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             color: Palette.violet.withValues(alpha: 0.10),
-            border: Border.all(color: Palette.violet.withValues(alpha: 0.18)),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
@@ -1168,7 +1168,7 @@ class _NotMeasuringChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: _tempA.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _tempA.withValues(alpha: 0.30)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [
@@ -1221,7 +1221,7 @@ class _StatusChip extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
               color: accent.withValues(alpha: 0.10),
-              border: Border.all(color: accent.withValues(alpha: 0.22)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
             child: Row(
@@ -1268,7 +1268,7 @@ class _RepeatReadingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.amber.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Palette.amber.withValues(alpha: 0.35)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

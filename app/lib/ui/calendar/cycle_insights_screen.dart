@@ -78,7 +78,7 @@ class CycleInsightsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(24),
                     color: Palette.rose.withValues(alpha: 0.14),
                     border:
-                        Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
                   ),
                   child: Row(
                     children: [
@@ -333,7 +333,7 @@ class _SymptomPhaseCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Palette.violet.withValues(alpha: 0.10),
-        border: Border.all(color: Palette.violet.withValues(alpha: 0.20)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [

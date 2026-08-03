@@ -9,6 +9,7 @@ import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/sleep.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
@@ -113,7 +114,7 @@ class _AskCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.teal.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: Palette.teal.withValues(alpha: 0.4)),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: const Icon(Icons.forum_outlined, color: Palette.teal, size: 20),
             ),
@@ -161,7 +162,7 @@ class _AdvisoryCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: color.withValues(alpha: 0.4)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Icon(icon, color: color, size: 20),
           ),

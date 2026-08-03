@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/home_safety.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class HomeSafetyScreen extends StatelessWidget {
@@ -44,7 +45,7 @@ class HomeSafetyScreen extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: Palette.teal.withValues(alpha: 0.12),
-              border: Border.all(color: Palette.teal.withValues(alpha: 0.22)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

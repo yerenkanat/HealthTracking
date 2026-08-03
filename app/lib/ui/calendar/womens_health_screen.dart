@@ -882,7 +882,7 @@ class _CycleHeader extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         color: Palette.rose.withValues(alpha: 0.14),
-        border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         children: [
@@ -1352,7 +1352,7 @@ class _PostpartumCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: Palette.violet.withValues(alpha: 0.14),
-            border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           child: Row(
             children: [
@@ -1418,7 +1418,7 @@ class _HospitalBagCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: Palette.rose.withValues(alpha: 0.14),
-            border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           child: Row(
             children: [
@@ -1980,7 +1980,7 @@ class _CyclePhaseCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: color.withValues(alpha: 0.12),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [
@@ -2120,7 +2120,7 @@ class _FertileCountdownCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Palette.teal.withValues(alpha: 0.12),
-        border: Border.all(color: Palette.teal.withValues(alpha: 0.22)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [

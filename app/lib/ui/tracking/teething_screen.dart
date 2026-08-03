@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/teething.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class TeethingScreen extends StatelessWidget {
@@ -57,7 +58,7 @@ class TeethingScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Palette.roseDeep.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.28)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

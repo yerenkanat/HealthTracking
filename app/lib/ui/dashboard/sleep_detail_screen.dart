@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../domain/sleep.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'sleep_card.dart';
@@ -132,7 +133,7 @@ class _StatsHeader extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         color: sleepDeep.withValues(alpha: 0.10),
-        border: Border.all(color: sleepRem.withValues(alpha: 0.20)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [

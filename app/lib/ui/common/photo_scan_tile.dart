@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 /// What a scan produced: whether it filled anything, and an optional human note
@@ -141,7 +142,7 @@ class _PhotoScanTileState extends State<PhotoScanTile> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Palette.violet.withValues(alpha: 0.35)),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: Row(children: [
                 busy

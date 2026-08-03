@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../domain/child_safety_advisor.dart';
 import '../../domain/child_tracker_state.dart' show Freshness;
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
@@ -95,7 +96,7 @@ class _TipCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: color.withValues(alpha: 0.4)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Icon(icon, color: color, size: 20),
           ),

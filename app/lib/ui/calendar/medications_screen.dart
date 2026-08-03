@@ -161,7 +161,7 @@ class _TodayHeader extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: accent.withValues(alpha: 0.07),
-        border: Border.all(color: accent.withValues(alpha: 0.22)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -178,7 +178,7 @@ class _CheckCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: Palette.violet.withValues(alpha: 0.12),
-        border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,7 +236,7 @@ class _WarningBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.roseDeep.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.28)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

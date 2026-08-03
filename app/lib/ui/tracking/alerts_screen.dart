@@ -221,7 +221,7 @@ class _AllClearBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.good.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.good.withValues(alpha: 0.22)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(children: [
         const Icon(Icons.verified_user_rounded, size: 18, color: Palette.good),

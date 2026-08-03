@@ -82,7 +82,7 @@ class ChildEmergencyScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.roseDeep.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.30)),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

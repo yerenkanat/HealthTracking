@@ -223,7 +223,7 @@ class _FiveOneOneCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: accent.withValues(alpha: 0.07),
-          border: Border.all(color: accent.withValues(alpha: 0.20)),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

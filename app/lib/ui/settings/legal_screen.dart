@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 enum LegalDoc { privacy, terms }
@@ -76,7 +77,7 @@ class _DraftBanner extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.amber.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Palette.amber.withValues(alpha: 0.35)),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

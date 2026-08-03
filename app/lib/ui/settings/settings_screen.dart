@@ -668,7 +668,7 @@ class _CalibrateCta extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               color: Palette.violet.withValues(alpha: 0.10),
-              border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             padding: const EdgeInsets.all(16),
             child: Row(

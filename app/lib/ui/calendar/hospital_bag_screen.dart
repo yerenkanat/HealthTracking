@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/hospital_bag.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class HospitalBagScreen extends StatelessWidget {
@@ -35,7 +36,7 @@ class HospitalBagScreen extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: Palette.rose.withValues(alpha: 0.14),
-              border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

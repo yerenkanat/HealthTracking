@@ -141,7 +141,7 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
       decoration: BoxDecoration(
         color: Palette.lilac,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Palette.violet.withValues(alpha: 0.14)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       padding: const EdgeInsets.all(14),
       child: Row(

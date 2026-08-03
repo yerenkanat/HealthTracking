@@ -156,7 +156,7 @@ class _LeadCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: accent.withValues(alpha: 0.14),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +283,7 @@ class _WindowsCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         color: Palette.rose.withValues(alpha: 0.08),
-        border: Border.all(color: Palette.rose.withValues(alpha: 0.32)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

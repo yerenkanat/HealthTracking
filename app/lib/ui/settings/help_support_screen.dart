@@ -88,7 +88,7 @@ class HelpSupportScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Palette.rose.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Palette.rose.withValues(alpha: 0.3)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Row(children: [
               const Icon(Icons.emergency_outlined,
