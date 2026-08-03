@@ -73,6 +73,74 @@
     if (el) el.remove();
   }
 
+  // ---- The WhatsApp number ------------------------------------------------
+  //
+  // The artifact hardcodes one number into six wa.me links. `shop_settings` has
+  // a `whatsapp` key that staff edit in the admin panel and that /shop/config
+  // exposes — but nothing was reading it, so changing the number there moved
+  // nothing and the page kept dialling whatever was current the day it was
+  // exported.
+  //
+  // The hardcoded number stays as the fallback: if the setting is blank (as it
+  // is today) or the request fails, the links are left exactly as authored.
+  var waNumber = null; // digits, once /shop/config has answered
+
+  /**
+   * Point every wa.me link at the configured number.
+   *
+   * Must be idempotent and repeatable, NOT a one-shot: React rebuilds these
+   * anchors from the template on every re-render — opening an FAQ row or
+   * switching language is enough — and each rebuild restores the number baked
+   * into the export. Rewriting once looked right in a screenshot and reverted
+   * the moment anyone touched the page.
+   *
+   * Setting .href is itself a DOM mutation, so the "already correct" check is
+   * what stops the observer below from re-entering forever.
+   */
+  function rewriteWaLinks() {
+    if (!waNumber) return;
+    var links = document.querySelectorAll('a[href*="wa.me/"]');
+    for (var i = 0; i < links.length; i++) {
+      // Swap only the number, keeping each link's own ?text= greeting — the
+      // Russian and Kazakh sections pre-fill different messages.
+      var next = links[i].href.replace(/wa\.me\/\d+/, 'wa.me/' + waNumber);
+      if (next !== links[i].href) links[i].href = next;
+    }
+  }
+
+  fetch('/shop/config')
+    .then(function (r) {
+      return r.ok ? r.json() : null;
+    })
+    .then(function (cfg) {
+      var digits = cfg && typeof cfg.whatsapp === 'string' ? cfg.whatsapp.replace(/\D/g, '') : '';
+      // Unset (the current state) or too short to dial: leave the authored
+      // links exactly as they are rather than breaking them.
+      if (digits.length < 8) return;
+      waNumber = digits;
+      rewriteWaLinks();
+    })
+    .catch(function () {
+      /* offline or 500 — the authored number still works */
+    });
+
+  new MutationObserver(rewriteWaLinks).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+
+  // Last line of defence for the click itself, in case a render lands between
+  // the observer firing and the tap being delivered.
+  document.addEventListener(
+    'click',
+    function (ev) {
+      if (!waNumber || !ev.target || !ev.target.closest) return;
+      var a = ev.target.closest('a[href*="wa.me/"]');
+      if (a) a.href = a.href.replace(/wa\.me\/\d+/, 'wa.me/' + waNumber);
+    },
+    true,
+  );
+
   document.addEventListener(
     'submit',
     function (ev) {

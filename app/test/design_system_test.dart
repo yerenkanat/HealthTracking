@@ -149,11 +149,26 @@ void main() {
     // palette on their own — but only while every name still exists.
     test('names map onto design-system tokens', () {
       expect(Palette.bg, Ds.cream);
-      expect(Palette.violet, Ds.coral); // the primary accent, renamed in spirit
       expect(Palette.text, Ds.ink);
       expect(Palette.good, Ds.mint);
-      expect(Palette.danger, Ds.coralDeep);
       expect(Palette.cardShadow, DsShape.hardShadow);
+      // The two accents that carry text or sit under white text take the
+      // measured variants, not the spec swatches — see the Ds doc comments.
+      expect(Palette.violet, Ds.coralCta); // fills, usually with a white label
+      expect(Palette.danger, Ds.coralText); // almost always words
+    });
+
+    test('the accent names that render text are all contrast-safe', () {
+      // Guards the whole class of regression: pointing one of these back at a
+      // bright swatch turns 40 accessibility tests red, and nothing else.
+      for (final c in [Palette.danger, Palette.roseDeep, Palette.goodText, Palette.violetText, Palette.pinkText]) {
+        expect(contrastRatio(c, Colors.white), greaterThanOrEqualTo(4.5));
+        expect(contrastRatio(c, Ds.cream), greaterThanOrEqualTo(4.5));
+      }
+      // And the fills that carry a white label.
+      for (final fill in [Palette.violet, Ds.coralCta, Ds.mintCta, Ds.blueCta]) {
+        expect(contrastRatio(Colors.white, fill), greaterThanOrEqualTo(4.5));
+      }
     });
 
     test('accent-on-tint text colours stay legible', () {
@@ -182,7 +197,8 @@ void main() {
     testWidgets('scaffold, cards and inputs carry the system', (tester) async {
       final theme = FcsTheme.light(AppLocale.ru);
       expect(theme.scaffoldBackgroundColor, Ds.cream);
-      expect(theme.colorScheme.primary, Ds.coral);
+      // primary fills buttons that print white labels, so it is the CTA coral.
+      expect(theme.colorScheme.primary, Ds.coralCta);
 
       // Cards are outlined, not shadowed.
       final cardShape = theme.cardTheme.shape as RoundedRectangleBorder;

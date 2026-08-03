@@ -93,13 +93,6 @@ flutter:
           weight: 400
         - asset: assets/fonts/JetBrainsMono-Bold.ttf
           weight: 700
-    # Outfit is the previous theme's face. It carries NO Cyrillic at all (360
-    # glyphs, Latin only), so every Russian string it was applied to has been
-    # silently falling back to a system font. Kept only until the last
-    # `fontFamily: 'Outfit'` is gone from lib/.
-    - family: Outfit
-      fonts:
-        - asset: assets/fonts/Outfit-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Outfit-Bold.ttf
-          weight: 700
+    # (Outfit, the previous theme's face, is gone. It carried no Cyrillic at all
+    # — 360 glyphs, Latin only — so every Russian string it was applied to was
+    # silently rendering in a system fallback font.)

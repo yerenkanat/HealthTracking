@@ -44,6 +44,10 @@ beforeAll(async () => {
     posted.push(req.body as Record<string, unknown>);
     return reply.code(201).send({ id: 'lead-test' });
   });
+  // The number staff would have set in the admin panel. The artifact hardcodes
+  // a different one, so this is what proves the setting reaches the page.
+  app.get('/shop/config', async (_req, reply) =>
+    reply.send({ whatsapp: '77015550101', kaspiUrl: '', reviews: '', rating: '', reviewCount: '' }));
   await app.listen({ port: 0, host: '127.0.0.1' });
   const addr = app.server.address();
   if (!addr || typeof addr === 'string') throw new Error('no port');
@@ -114,6 +118,19 @@ describe('landing page renders', () => {
     const doc = dom.window.document;
     expect(doc.querySelector('a[href*="wa.me"]')).not.toBeNull();
     expect(doc.querySelectorAll('form').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('dials the number staff configured, not the one baked into the export', () => {
+    // WhatsApp is the main way to buy here, so a stale number is a dead
+    // storefront — and the admin field that is supposed to control it was
+    // reaching nothing at all.
+    const links = Array.from(dom.window.document.querySelectorAll('a[href*="wa.me/"]')) as HTMLAnchorElement[];
+    expect(links.length).toBeGreaterThan(0);
+    for (const a of links) {
+      expect(a.href, 'link still points at the hardcoded number').toContain('wa.me/77015550101');
+    }
+    // Each link keeps its own pre-filled greeting; the RU and KZ ones differ.
+    expect(links.some((a) => a.href.includes('?text='))).toBe(true);
   });
 
   it('serves crawler-readable meta in the first byte', async () => {
