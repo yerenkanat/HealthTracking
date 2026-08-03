@@ -39,14 +39,26 @@ echo "  backend: $API" >&2
 #
 # Auth is the same development stub the admin panel uses: the backend trusts
 # x-staff-id / x-staff-role outright. What actually keeps the public out is the
-# basic_auth in front of /admin (deploy/admin-access.sh) — which is why this is
-# a loopback-only script and why $API defaults to 127.0.0.1. Sending these
-# headers from anywhere reachable would be handing over the back office.
+# basic_auth in front of /admin (deploy/admin-access.sh) — which is why this
+# only ever talks to the backend from the box it runs on. Sending these headers
+# from anywhere reachable would be handing over the back office.
 STAFF_ID="${STAFF_ID:-seed-reviews}"
+
+# The production host has no node of its own — it only runs containers — so
+# borrow the one that runs the backend. /opt/umay is mounted at /app there,
+# which is why the seed is re-pathed.
+if command -v node >/dev/null 2>&1; then
+  node_run() { node "$@"; }
+  SEED_FOR_NODE="$SEED"
+else
+  node_run() { docker exec -i umay-backend node "$@"; }
+  SEED_FOR_NODE="/app/deploy/seed-reviews.json"
+  echo "  using the backend container's node" >&2
+fi
 
 # Validate before touching anything: the landing silently ignores a value it
 # cannot parse, so a bad save looks exactly like a successful one.
-BODY="$(node -e '
+BODY="$(node_run -e '
 const fs = require("fs");
 const rs = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 if (!Array.isArray(rs) || !rs.length) throw new Error("expected a non-empty array");
@@ -60,7 +72,7 @@ process.stderr.write(`  ${rs.length} reviews, ${kz} with Kazakh text\n`);
 // The setting is a STRING holding JSON, not a JSON array — /shop/config hands
 // it to the page verbatim for the page to parse.
 process.stdout.write(JSON.stringify({ reviews: JSON.stringify(rs) }));
-' "$SEED")"
+' "$SEED_FOR_NODE")"
 
 curl -fsS -X PUT "$API/admin/settings" \
   -H 'content-type: application/json' \
@@ -71,7 +83,7 @@ curl -fsS -X PUT "$API/admin/settings" \
 # Read it back through the PUBLIC route — that is the one the landing calls, and
 # it exposes only the public keys. If reviews came back empty here the page
 # would keep showing the baked-in copy, and the change would look applied.
-curl -fsS "$API/shop/config" | node -e '
+curl -fsS "$API/shop/config" | node_run -e '
 let raw = "";
 process.stdin.on("data", (d) => (raw += d)).on("end", () => {
   const rs = JSON.parse(JSON.parse(raw).reviews || "[]");
