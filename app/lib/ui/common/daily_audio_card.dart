@@ -139,7 +139,7 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
     return Container(
       margin: widget.margin,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Palette.lilac, Palette.blush], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        color: Palette.lilac,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Palette.violet.withValues(alpha: 0.14)),
       ),
@@ -204,7 +204,7 @@ class _PlayButton extends StatelessWidget {
         width: 54,
         height: 54,
         decoration: BoxDecoration(
-          gradient: Palette.violetPink,
+          color: Ds.coralCta,
           shape: BoxShape.circle,
           boxShadow: DsShape.hardShadow,
         ),

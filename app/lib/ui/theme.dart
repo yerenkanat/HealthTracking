@@ -94,26 +94,9 @@ class Palette {
   /// Input and other subtle fills.
   static const glass = Color(0xFFFDF0F5);
 
-  // ---- Gradients -----------------------------------------------------------
-  // The design system has no gradients — the lock screen is the one exception.
-  // These stay so existing call sites compile, but they are now flat two-stop
-  // ramps between related tokens rather than the old violet→pink sweeps.
-  // Replace each with a solid accent as its screen is converted.
-  static const violetPink = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Ds.coral, Ds.coral],
-  );
-  static const tealBlue = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Ds.mint, Ds.mint],
-  );
-  static const roseViolet = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Ds.coral, Ds.coral],
-  );
+  // (The violetPink / tealBlue / roseViolet ramps are gone. The design system
+  // has one gradient, on the lock screen; every call site now names a solid
+  // accent, and keeping dead two-stop constants around invites their return.)
 
   /// → the hard offset shadow. No blur, no spread: that flat 4px step is the
   /// whole visual identity, and a soft shadow reads as a different product.

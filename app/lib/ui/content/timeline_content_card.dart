@@ -145,12 +145,7 @@ class StageHero extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-        gradient: LinearGradient(
-          colors: [
-            Palette.violet.withValues(alpha: 0.10),
-            Palette.pink.withValues(alpha: 0.08),
-          ],
-        ),
+        color: Palette.violet.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -269,7 +264,7 @@ class _CardHeader extends StatelessWidget {
             height: 30,
             decoration: BoxDecoration(
               border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-              gradient: Palette.violetPink,
+              color: Ds.coralCta,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.auto_stories_rounded,

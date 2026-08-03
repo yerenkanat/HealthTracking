@@ -103,7 +103,7 @@ class ProfileScreen extends StatelessWidget {
                   Expanded(
                       child: StatTile(
                     icon: Icons.child_care,
-                    gradient: Palette.violetPink,
+                    color: Ds.coralCta,
                     value: '${c.children.length}',
                     label: l.t('prof_children_count'),
                     onTap: onOpenChildren,
@@ -112,7 +112,7 @@ class ProfileScreen extends StatelessWidget {
                   Expanded(
                       child: StatTile(
                     icon: Icons.watch,
-                    gradient: Palette.tealBlue,
+                    color: Ds.mint,
                     value: '${c.devices.length}',
                     label: l.t('prof_devices_count'),
                     onTap: onOpenDevices,
@@ -165,7 +165,7 @@ class _AppointmentsEntry extends StatelessWidget {
           height: 42,
           decoration: BoxDecoration(
               border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-              gradient: Palette.roseViolet,
+              color: Ds.coralCta,
               borderRadius: BorderRadius.circular(12)),
           child: const Icon(Icons.event_note_rounded,
               color: Colors.white, size: 22),

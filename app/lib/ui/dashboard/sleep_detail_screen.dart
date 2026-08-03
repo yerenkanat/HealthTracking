@@ -131,10 +131,7 @@ class _StatsHeader extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [sleepDeep.withValues(alpha: 0.10), sleepRem.withValues(alpha: 0.04)],
-        ),
+        color: sleepDeep.withValues(alpha: 0.10),
         border: Border.all(color: sleepRem.withValues(alpha: 0.20)),
       ),
       child: Row(

@@ -114,11 +114,7 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
             decoration: BoxDecoration(
               border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               borderRadius: BorderRadius.circular(22),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [pal.top, pal.bottom],
-              ),
+              color: pal.top,
             ),
             child: Center(
               child: SizedBox(

@@ -456,7 +456,7 @@ class _SheetBody extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                   border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                  gradient: Palette.violetPink,
+                  color: Ds.coralCta,
                   borderRadius: BorderRadius.circular(12)),
               child: Icon(icon, color: Colors.white, size: 20),
             ),

@@ -192,8 +192,7 @@ class _MicButton extends StatelessWidget {
               height: 116,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: recording ? null : Palette.violetPink,
-                color: recording ? Palette.roseDeep : null,
+                color: recording ? Palette.roseDeep : Ds.coralCta,
                 boxShadow: [
                   ...DsShape.hardShadowLg,
                 ],

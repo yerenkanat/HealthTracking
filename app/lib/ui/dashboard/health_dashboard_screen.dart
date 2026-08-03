@@ -37,9 +37,8 @@ class MetricSpec {
   final String key;
   final String unit;
   final IconData icon;
-  final Gradient gradient;
-  final Color color;
-  const MetricSpec(this.key, this.unit, this.icon, this.gradient, this.color);
+    final Color color;
+  const MetricSpec(this.key, this.unit, this.icon, this.color);
 }
 
 const _hrColor = Color(0xFFFF5A7A);
@@ -50,10 +49,10 @@ const _tempB = Color(0xFFFBBF24);
 // rendered separately (two values merged into one card).
 const _specs = <MetricSpec>[
   MetricSpec('hr', 'bpm', Icons.favorite_rounded,
-      LinearGradient(colors: [_hrColor, Palette.pink]), _hrColor),
-  MetricSpec('spo2', '%', Icons.air_rounded, Palette.tealBlue, Palette.teal),
+      _hrColor),
+  MetricSpec('spo2', '%', Icons.air_rounded, Palette.teal),
   MetricSpec('temp', '°C', Icons.thermostat_rounded,
-      LinearGradient(colors: [_tempA, _tempB]), _tempA),
+      _tempA),
 ];
 
 class HealthDashboardView extends StatelessWidget {
@@ -377,21 +376,21 @@ class _PeaceOfMindBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final status = overallStatus(samples);
-    final (accent, icon, gradient) = switch (status.tone) {
+    final (accent, icon, ringColor) = switch (status.tone) {
       AdviceTone.positive => (
           Palette.good,
           Icons.check_rounded,
-          const LinearGradient(colors: [Palette.good, Palette.teal])
+          Palette.good
         ),
       AdviceTone.watch => (
           Palette.amber,
           Icons.spa_rounded,
-          const LinearGradient(colors: [Palette.amber, Palette.rose])
+          Palette.amber
         ),
       AdviceTone.info => (
           Palette.violet,
           Icons.hourglass_bottom_rounded,
-          Palette.roseViolet
+          Ds.coralCta
         ),
     };
 
@@ -437,14 +436,14 @@ class _PeaceOfMindBanner extends StatelessWidget {
         children: [
           MetricRing(
             fraction: fraction,
-            gradient: gradient,
+            color: ringColor,
             size: 74,
             stroke: 8,
             center: Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: gradient.colors.first,
+                color: ringColor,
                 shape: BoxShape.circle,
                 border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
@@ -528,7 +527,7 @@ class _MetricCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                _IconBadge(spec.icon, spec.gradient),
+                _IconBadge(spec.icon, spec.color),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(label,
@@ -650,8 +649,7 @@ class _BloodPressureCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const _IconBadge(Icons.monitor_heart_rounded,
-                    LinearGradient(colors: [Palette.violet, Palette.pink])),
+                const _IconBadge(Icons.monitor_heart_rounded, Palette.violet),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(l.t('metric_bp'),
@@ -763,14 +761,7 @@ class _AdvisorEntry extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Palette.violet.withValues(alpha: 0.10),
-                Palette.rose.withValues(alpha: 0.08)
-              ],
-            ),
+            color: Palette.violet.withValues(alpha: 0.10),
             border: Border.all(color: Palette.violet.withValues(alpha: 0.18)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -780,7 +771,7 @@ class _AdvisorEntry extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: const BoxDecoration(
-                    gradient: Palette.roseViolet, shape: BoxShape.circle),
+                    color: Ds.coralCta, shape: BoxShape.circle),
                 child: const Icon(Icons.auto_awesome,
                     color: Colors.white, size: 21),
               ),
@@ -881,7 +872,7 @@ class _WearableSummaryCard extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          const _IconBadge(Icons.monitor_heart_rounded, Palette.tealBlue),
+          const _IconBadge(Icons.monitor_heart_rounded, Palette.teal),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1638,7 +1629,7 @@ class _WeeklyDigestCard extends StatelessWidget {
                 decoration: BoxDecoration(
                     border:
                         Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                    gradient: Palette.roseViolet,
+                    color: Ds.coralCta,
                     borderRadius: BorderRadius.circular(10)),
                 child: const Icon(Icons.calendar_view_week_rounded,
                     size: 17, color: Colors.white),
@@ -1717,8 +1708,8 @@ class _DigestStat extends StatelessWidget {
 
 class _IconBadge extends StatelessWidget {
   final IconData icon;
-  final Gradient gradient;
-  const _IconBadge(this.icon, this.gradient);
+  final Color color;
+  const _IconBadge(this.icon, this.color);
   @override
   // A solid accent block with a white glyph and an ink outline. The [gradient]
   // is still in the signature because every metric spec carries one; only its
@@ -1727,7 +1718,7 @@ class _IconBadge extends StatelessWidget {
         width: 30,
         height: 30,
         decoration: BoxDecoration(
-          color: gradient.colors.isEmpty ? Ds.coralCta : gradient.colors.first,
+          color: color,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
@@ -1773,7 +1764,7 @@ class _EmptyState extends StatelessWidget {
                 width: 64,
                 height: 64,
                 decoration: const BoxDecoration(
-                    gradient: Palette.violetPink, shape: BoxShape.circle),
+                    color: Ds.coralCta, shape: BoxShape.circle),
                 child: const Icon(Icons.watch_outlined,
                     size: 30, color: Colors.white),
               ),

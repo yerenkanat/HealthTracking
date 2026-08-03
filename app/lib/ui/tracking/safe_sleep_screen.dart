@@ -29,11 +29,7 @@ class SafeSleepScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Palette.violet.withValues(alpha: 0.12), Palette.teal.withValues(alpha: 0.06)],
-              ),
+              color: Palette.violet.withValues(alpha: 0.12),
               border: Border.all(color: Palette.violet.withValues(alpha: 0.20)),
             ),
             child: Row(

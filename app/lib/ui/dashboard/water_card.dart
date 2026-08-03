@@ -47,9 +47,7 @@ class WaterCard extends StatelessWidget {
               customBorder: const CircleBorder(),
               child: MetricRing(
                 fraction: fraction,
-                gradient: met
-                    ? const LinearGradient(colors: [Palette.good, Palette.teal])
-                    : const LinearGradient(colors: [Palette.blue, Palette.teal]),
+                color: met ? Palette.good : Palette.blue,
                 size: 66,
                 stroke: 7,
                 center: Icon(met ? Icons.check_rounded : Icons.water_drop_rounded, color: accent, size: 24),
@@ -174,7 +172,7 @@ class _AddGlassButton extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Palette.blue, Palette.teal]),
+              color: Palette.blue,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),

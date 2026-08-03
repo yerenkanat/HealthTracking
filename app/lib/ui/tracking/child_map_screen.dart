@@ -810,8 +810,7 @@ class _SelectorChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
           decoration: BoxDecoration(
-            gradient: selected ? Palette.roseViolet : null,
-            color: selected ? null : Palette.bgElevated,
+            color: selected ? Ds.coralCta : Palette.bgElevated,
             borderRadius: BorderRadius.circular(30),
             border: selected
                 ? null

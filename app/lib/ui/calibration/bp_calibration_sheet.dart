@@ -73,7 +73,7 @@ class _CalibrateBodyState extends State<_CalibrateBody> {
               height: 40,
               decoration: BoxDecoration(
                   border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                  gradient: Palette.violetPink,
+                  color: Ds.coralCta,
                   borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.speed_rounded,
                   color: Colors.white, size: 20),

@@ -77,8 +77,7 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                   decoration: BoxDecoration(
                     border:
                         Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                    gradient: LinearGradient(
-                        colors: [color, color.withValues(alpha: 0.7)]),
+                    color: color,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: Colors.white, size: 24),

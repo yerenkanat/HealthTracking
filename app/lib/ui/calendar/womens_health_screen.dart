@@ -589,7 +589,7 @@ class _GestationHeader extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: const BoxDecoration(
-                  gradient: Palette.roseViolet, shape: BoxShape.circle),
+                  color: Ds.coralCta, shape: BoxShape.circle),
               child: const Icon(Icons.calendar_month_rounded,
                   color: Colors.white, size: 24),
             ),
@@ -826,8 +826,7 @@ class _CycleHeader extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [Palette.rose, Palette.roseDeep]),
+                    color: Palette.rose,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -882,14 +881,7 @@ class _CycleHeader extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Palette.rose.withValues(alpha: 0.14),
-            Palette.violet.withValues(alpha: 0.06)
-          ],
-        ),
+        color: Palette.rose.withValues(alpha: 0.14),
         border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
       ),
       child: Column(
@@ -898,8 +890,7 @@ class _CycleHeader extends StatelessWidget {
             children: [
               MetricRing(
                 fraction: (info.cycleDay ?? 1) / info.avgCycleLength,
-                gradient: const LinearGradient(
-                    colors: [Palette.rose, Palette.violet]),
+                color: Palette.rose,
                 size: 72,
                 stroke: 8,
                 center: Column(
@@ -1360,14 +1351,7 @@ class _PostpartumCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Palette.violet.withValues(alpha: 0.14),
-                Palette.rose.withValues(alpha: 0.06)
-              ],
-            ),
+            color: Palette.violet.withValues(alpha: 0.14),
             border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
           ),
           child: Row(
@@ -1433,14 +1417,7 @@ class _HospitalBagCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Palette.rose.withValues(alpha: 0.14),
-                Palette.violet.withValues(alpha: 0.05)
-              ],
-            ),
+            color: Palette.rose.withValues(alpha: 0.14),
             border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
           ),
           child: Row(
@@ -1754,7 +1731,7 @@ class _KickHistoryRow extends StatelessWidget {
           height: 34,
           decoration: BoxDecoration(
               border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-              gradient: Palette.roseViolet,
+              color: Ds.coralCta,
               borderRadius: BorderRadius.circular(10)),
           child: const Icon(Icons.child_care_rounded,
               size: 18, color: Colors.white),
@@ -2002,14 +1979,7 @@ class _CyclePhaseCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.12),
-            color.withValues(alpha: 0.04)
-          ],
-        ),
+        color: color.withValues(alpha: 0.12),
         border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Row(
@@ -2149,14 +2119,7 @@ class _FertileCountdownCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Palette.teal.withValues(alpha: 0.12),
-            Palette.teal.withValues(alpha: 0.04)
-          ],
-        ),
+        color: Palette.teal.withValues(alpha: 0.12),
         border: Border.all(color: Palette.teal.withValues(alpha: 0.22)),
       ),
       child: Row(

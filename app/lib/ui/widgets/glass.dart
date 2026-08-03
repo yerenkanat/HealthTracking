@@ -78,21 +78,21 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Circular progress ring.
+/// Circular progress ring, in a flat accent.
 ///
-/// The sweep is a flat accent now rather than a gradient — the system has none.
-/// [gradient] is kept in the signature because six call sites pass one; its
-/// first colour is used and the ramp is ignored.
+/// This took a [Gradient] and swept it around the arc. The design system has no
+/// gradients, so the parameter is a plain [color] — keeping a Gradient argument
+/// that only ever contributed its first stop would have been a lie in the API.
 class MetricRing extends StatelessWidget {
   final double fraction; // 0..1
-  final Gradient gradient;
+  final Color color;
   final double size;
   final double stroke;
   final Widget? center;
   const MetricRing({
     super.key,
     required this.fraction,
-    required this.gradient,
+    required this.color,
     this.size = 120,
     this.stroke = 10,
     this.center,
@@ -104,7 +104,7 @@ class MetricRing extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _RingPainter(fraction.clamp(0, 1), gradient, stroke),
+        painter: _RingPainter(fraction.clamp(0, 1), color, stroke),
         child: Center(child: center),
       ),
     );
@@ -113,9 +113,9 @@ class MetricRing extends StatelessWidget {
 
 class _RingPainter extends CustomPainter {
   final double fraction;
-  final Gradient gradient;
+  final Color color;
   final double stroke;
-  _RingPainter(this.fraction, this.gradient, this.stroke);
+  _RingPainter(this.fraction, this.color, this.stroke);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -134,7 +134,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round
-      ..color = gradient.colors.isEmpty ? Ds.coralCta : gradient.colors.first;
+      ..color = color;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       -math.pi / 2,
@@ -145,7 +145,8 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.fraction != fraction;
+  bool shouldRepaint(_RingPainter old) =>
+      old.fraction != fraction || old.color != color;
 }
 
 /// A status pill: the accent at a light tint, outlined in ink.

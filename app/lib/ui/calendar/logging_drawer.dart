@@ -387,12 +387,7 @@ class _KickCounter extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            Palette.rose.withValues(alpha: 0.12),
-            Palette.violet.withValues(alpha: 0.06)
-          ],
-        ),
+        color: Palette.rose.withValues(alpha: 0.12),
         border: Border.all(color: Palette.rose.withValues(alpha: 0.20)),
       ),
       child: Row(
@@ -451,7 +446,7 @@ class _KickCounter extends StatelessWidget {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    gradient: Palette.roseViolet,
+                    color: Ds.coralCta,
                     shape: BoxShape.circle,
                     boxShadow: DsShape.hardShadow,
                   ),

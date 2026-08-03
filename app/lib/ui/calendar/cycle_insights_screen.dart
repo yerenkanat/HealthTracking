@@ -76,14 +76,7 @@ class CycleInsightsScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Palette.rose.withValues(alpha: 0.14),
-                        Palette.violet.withValues(alpha: 0.06)
-                      ],
-                    ),
+                    color: Palette.rose.withValues(alpha: 0.14),
                     border:
                         Border.all(color: Palette.rose.withValues(alpha: 0.22)),
                   ),
@@ -296,8 +289,7 @@ class _StreakBanner extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: const BoxDecoration(
-                gradient:
-                    LinearGradient(colors: [Palette.amber, Palette.roseDeep]),
+                color: Palette.amber,
                 shape: BoxShape.circle),
             child: const Icon(Icons.local_fire_department_rounded,
                 color: Colors.white, size: 26),
@@ -340,14 +332,7 @@ class _SymptomPhaseCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Palette.violet.withValues(alpha: 0.10),
-            Palette.roseDeep.withValues(alpha: 0.05)
-          ],
-        ),
+        color: Palette.violet.withValues(alpha: 0.10),
         border: Border.all(color: Palette.violet.withValues(alpha: 0.20)),
       ),
       child: Row(

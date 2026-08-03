@@ -188,11 +188,7 @@ class _AgeHeader extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Palette.lilac, Palette.blush],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Palette.lilac,
       ),
       child: Row(
         children: [

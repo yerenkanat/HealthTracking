@@ -667,14 +667,7 @@ class _CalibrateCta extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Palette.violet.withValues(alpha: 0.10),
-                  Palette.pink.withValues(alpha: 0.07)
-                ],
-              ),
+              color: Palette.violet.withValues(alpha: 0.10),
               border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
             ),
             padding: const EdgeInsets.all(16),
@@ -686,8 +679,7 @@ class _CalibrateCta extends StatelessWidget {
                   decoration: BoxDecoration(
                     border:
                         Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                    gradient: const LinearGradient(
-                        colors: [Palette.violet, Palette.pink]),
+                    color: Palette.violet,
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: const Icon(Icons.monitor_heart_rounded,

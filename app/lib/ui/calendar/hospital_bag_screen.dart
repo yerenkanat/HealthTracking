@@ -34,11 +34,7 @@ class HospitalBagScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.05)],
-              ),
+              color: Palette.rose.withValues(alpha: 0.14),
               border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
             ),
             child: Column(

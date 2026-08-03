@@ -180,8 +180,7 @@ class _StreakCard extends StatelessWidget {
           Container(
             width: 52, height: 52,
             decoration: BoxDecoration(
-              gradient: active ? const LinearGradient(colors: [Palette.blue, Palette.teal]) : null,
-              color: active ? null : Palette.glass,
+              color: active ? Palette.blue : Palette.glass,
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.local_fire_department_rounded, color: active ? Colors.white : Palette.textDim, size: 28),

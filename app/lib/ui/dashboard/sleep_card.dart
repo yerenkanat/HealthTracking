@@ -71,8 +71,7 @@ class SleepCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     border:
                         Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                    gradient:
-                        const LinearGradient(colors: [sleepDeep, sleepRem]),
+                    color: sleepDeep,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.bedtime_rounded,
@@ -221,7 +220,7 @@ class _EmptySleepCard extends StatelessWidget {
               height: 30,
               decoration: BoxDecoration(
                 border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                gradient: const LinearGradient(colors: [sleepDeep, sleepRem]),
+                color: sleepDeep,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.bedtime_rounded,

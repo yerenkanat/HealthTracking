@@ -343,8 +343,8 @@ class _BigButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gradient = active
-        ? const LinearGradient(colors: [Palette.roseDeep, Palette.rose])
-        : const LinearGradient(colors: [Palette.violet, Palette.pink]);
+        ? Palette.roseDeep
+        : Ds.coralCta;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -361,7 +361,7 @@ class _BigButton extends StatelessWidget {
                   width: 180,
                   height: 180,
                   decoration: BoxDecoration(
-                    gradient: gradient,
+                    color: gradient,
                     shape: BoxShape.circle,
                     boxShadow: DsShape.hardShadowLg,
                   ),

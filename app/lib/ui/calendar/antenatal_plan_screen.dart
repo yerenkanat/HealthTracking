@@ -155,14 +155,7 @@ class _LeadCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            accent.withValues(alpha: 0.14),
-            accent.withValues(alpha: 0.04)
-          ],
-        ),
+        color: accent.withValues(alpha: 0.14),
         border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Column(

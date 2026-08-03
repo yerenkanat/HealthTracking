@@ -163,9 +163,7 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                         children: [
                           MetricRing(
                             fraction: kickGoalFraction(_session.count, defaultKickGoal),
-                            gradient: reached
-                                ? const LinearGradient(colors: [Palette.good, Palette.teal])
-                                : Palette.roseViolet,
+                            color: reached ? Palette.good : Ds.coralCta,
                             size: 244,
                             stroke: 8,
                           ),
@@ -178,10 +176,11 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                                 width: 206,
                                 height: 206,
                                 decoration: BoxDecoration(
-                                  gradient: reached
-                                      ? const LinearGradient(colors: [Palette.good, Palette.teal])
-                                      : Palette.roseViolet,
+                                  color: reached ? Palette.good : Ds.coralCta,
                                   shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: Ds.ink,
+                                      width: DsShape.borderWidth),
                                   boxShadow: DsShape.hardShadowLg,
                                 ),
                                 child: Column(

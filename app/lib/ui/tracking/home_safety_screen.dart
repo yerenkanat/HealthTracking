@@ -43,11 +43,7 @@ class HomeSafetyScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Palette.teal.withValues(alpha: 0.12), Palette.violet.withValues(alpha: 0.05)],
-              ),
+              color: Palette.teal.withValues(alpha: 0.12),
               border: Border.all(color: Palette.teal.withValues(alpha: 0.22)),
             ),
             child: Column(
