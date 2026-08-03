@@ -177,6 +177,53 @@ void main() {
     expect(find.textContaining('not medical advice'), findsOneWidget);
   });
 
+  group('a birth pauses cycle predictions (no phantom period)', () {
+    void logPeriod(AppController c, DateTime start) {
+      for (int i = 0; i < 4; i++) {
+        c.toggleFlowFor(start.add(Duration(days: i)), Flow.medium);
+      }
+    }
+
+    test('a recent birth suppresses cycle predictions from pre-pregnancy logs', () {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      logPeriod(c, DateTime(2025, 9, 1)); // pre-pregnancy history
+      c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 2))));
+      expect(c.isPostpartum, isTrue);
+      expect(c.cycle.hasData, isFalse, reason: 'no "period in N days" right after birth');
+      expect(c.cycle.nextPeriodStart, isNull);
+    });
+
+    test('a period logged after the birth means the cycle is back', () {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 60))));
+      expect(c.isPostpartum, isTrue);
+      logPeriod(c, today.subtract(const Duration(days: 6))); // her cycle returns
+      expect(c.isPostpartum, isFalse);
+      expect(c.cycle.hasData, isTrue);
+    });
+
+    test('an older child (>1y) is not a postpartum context', () {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      logPeriod(c, today.subtract(const Duration(days: 6)));
+      c.addChild(ChildProfile(id: 'k', name: 'Big kid', dateOfBirth: today.subtract(const Duration(days: 800))));
+      expect(c.isPostpartum, isFalse);
+      expect(c.cycle.hasData, isTrue);
+    });
+
+    testWidgets('the header shows the cycle-paused notice after a birth', (tester) async {
+      final c = controllerFor();
+      logPeriod(c, DateTime(2025, 9, 1));
+      c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 2))));
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      expect(find.text('Cycle paused after birth'), findsOneWidget);
+      expect(find.text('Recovery after birth'), findsOneWidget); // both, correctly
+    });
+  });
+
   testWidgets('cycle mode shows the current phase card', (tester) async {
     final c = controllerFor(); // cycle mode, today = Jul 16
     // A period Jul 10–12 → today (Jul 16) lands after the period, before the

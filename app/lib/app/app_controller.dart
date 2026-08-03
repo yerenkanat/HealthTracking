@@ -1734,6 +1734,29 @@ class AppController {
   /// Whether the app is in pregnancy mode (a due date is set) vs cycle mode.
   bool get isPregnant => _profile.dueDate != null;
 
+  /// True while the mother is recently postpartum and her cycle has not yet
+  /// resumed: a child was born within the last year and no period has been
+  /// logged on or after that birth. Menstruation commonly pauses for months
+  /// after childbirth (lactational amenorrhoea), so predicting "next period /
+  /// ovulation / fertile window" from the pre-pregnancy logs is wrong — [cycle]
+  /// returns no data in this state, which suppresses every cycle prediction
+  /// (screen, header, dashboard chip, month grid, insights, reminders). Logging
+  /// a period after the birth clears this and predictions resume.
+  bool get isPostpartum {
+    DateTime? birth;
+    for (final ch in _children) {
+      final dob = ch.dateOfBirth;
+      if (dob == null) continue;
+      final days = daysBetween(dob, _now());
+      if (days < 0 || days > 365) continue; // a recent birth, not an older child
+      if (birth == null || dob.isAfter(birth)) birth = dob; // the youngest
+    }
+    if (birth == null) return false;
+    final b = DateTime(birth.year, birth.month, birth.day);
+    final resumed = periodDays.any((d) => !DateTime(d.year, d.month, d.day).isBefore(b));
+    return !resumed;
+  }
+
   /// The set of days a period flow was logged (for cycle prediction + calendar).
   Set<DateTime> get periodDays {
     final out = <DateTime>{};
@@ -1830,9 +1853,15 @@ class AppController {
   /// Re-emit the cycle reminders on boot (after the runtime attaches its listener).
   void reconcileCycleReminders() => _reconcileCycleReminders();
 
-  /// Predicted cycle info from logged periods (empty until the user logs a period).
-  CycleInfo get cycle =>
-      computeCycle(periodDays, _now(), defaultCycle: avgCycleLength, defaultPeriod: avgPeriodLength);
+  /// Predicted cycle info from logged periods (empty until the user logs a
+  /// period). Also empty while [isPostpartum]: after a birth the pre-pregnancy
+  /// logs would otherwise roll forward into a phantom "period in N days".
+  CycleInfo get cycle => computeCycle(
+        isPostpartum ? const {} : periodDays,
+        _now(),
+        defaultCycle: avgCycleLength,
+        defaultPeriod: avgPeriodLength,
+      );
 
   /// Estimated due date and the derived gestation (null until the mother sets one).
   DateTime? get dueDate => _profile.dueDate;

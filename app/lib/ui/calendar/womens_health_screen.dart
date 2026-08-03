@@ -705,6 +705,9 @@ class _CycleHeader extends StatelessWidget {
     final info = controller.cycle;
 
     if (!info.hasData) {
+      // Postpartum the cycle is paused, not un-started: say so, and don't prompt
+      // "log a period" or "expecting a baby?" to someone who just gave birth.
+      final postpartum = controller.isPostpartum;
       return GlassCard(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -718,25 +721,28 @@ class _CycleHeader extends StatelessWidget {
                     gradient: LinearGradient(colors: [Palette.rose, Palette.roseDeep]),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.water_drop_rounded, color: Colors.white, size: 24),
+                  child: Icon(postpartum ? Icons.spa_rounded : Icons.water_drop_rounded,
+                      color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(l.t('cyc_no_data_title'),
+                      Text(l.t(postpartum ? 'cyc_pp_paused_title' : 'cyc_no_data_title'),
                           style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 3),
-                      Text(l.t('cyc_no_data_body'),
+                      Text(l.t(postpartum ? 'cyc_pp_paused_body' : 'cyc_no_data_body'),
                           style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            _ExpectingLink(onTap: onSetDueDate),
+            if (!postpartum) ...[
+              const SizedBox(height: 6),
+              _ExpectingLink(onTap: onSetDueDate),
+            ],
           ],
         ),
       );
