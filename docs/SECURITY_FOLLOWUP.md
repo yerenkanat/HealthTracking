@@ -29,9 +29,32 @@ passwords, or a typo locks everyone out of the box.
 
 ---
 
-## 2. Staff auth does not exist, so `/admin*` is closed — and the leads queue with it
+## 2. Staff auth still does not exist; the panel is behind an edge password
 
-**Status:** open, and it is blocking real work. **Who:** developer.
+**Status:** mitigated 2026-08-03, not solved. **Who:** developer.
+
+The back-office is reachable again at **https://ana-bala.kz/admin/ui**, behind
+HTTP basic auth. Read the password on the box — it is deliberately not in any
+chat, ticket or commit:
+
+```bash
+ssh root@188.137.231.252 'cat /etc/umay/admin-credentials'
+bash /opt/umay/deploy/admin-access.sh            # rotate it
+bash /opt/umay/deploy/admin-access.sh --close    # take it away again
+```
+
+**That password is the entire boundary.** The page behind it carries the staff
+header stub in its own source, so anyone who gets past basic auth has full
+read/write over every family's data. Treat it like the root password. It also
+belongs on `admin.ana-bala.kz` rather than a path — that DNS record does not
+exist yet, which is the only reason it is not there.
+
+Everything below still stands as the real fix.
+
+---
+
+**The original problem:** `authAdmin` trusts the `x-staff-id` / `x-staff-role`
+headers outright.
 
 `authAdmin` trusts the `x-staff-id` / `x-staff-role` headers outright. There is
 no verifier behind them, and `authPosture()` hardcodes `adminStub = true` for
