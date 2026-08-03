@@ -16,6 +16,7 @@ import { makeAuthUser } from './http/auth';
 import { registerLanding } from './http/landing';
 import { esc, requestBase } from './http/pageMeta';
 import { createInProcessTransitions, withInProcessFallback } from './geofence/inProcessTransitions';
+import { createLeadNotifier } from './notifications/leadAlert';
 import type { BandTelemetry, ChildLocationFix } from '@fcs/shared';
 import { assessTelemetry } from '@fcs/shared';
 
@@ -146,6 +147,15 @@ async function productionDeps(): Promise<ServerDeps> {
       }
     },
     cacheLastLocation: (childId) => getChildLastLocation(childId),
+    // Reads the token from shop_settings on every lead, so pasting one into the
+    // admin panel takes effect immediately — unlike the API keys above, which
+    // are copied into the environment at boot.
+    notifyLead: createLeadNotifier({
+      loadConfig: async () => {
+        const s = await repo.getShopSettings();
+        return { telegramBotToken: s.telegramBotToken, telegramChatId: s.telegramChatId };
+      },
+    }),
     setBpCalibration: (userId, offsets) =>
       setBpCalibration(userId, {
         systolicOffset: offsets.systolicOffset,

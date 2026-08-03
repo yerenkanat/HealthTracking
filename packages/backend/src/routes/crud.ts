@@ -11,6 +11,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository } from '../db/repository';
 import type { Geofence } from '@fcs/shared';
+import type { LeadNotifier } from '../notifications/leadAlert';
 
 export type AuthUser = (req: FastifyRequest) => Promise<{ userId: string } | null>;
 
@@ -179,7 +180,7 @@ const profileBody = z.object({
 });
 const reassignBody = z.object({ childId: z.string().min(1).nullable() });
 
-export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authUser: AuthUser): void {
+export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authUser: AuthUser, notifyLead?: LeadNotifier): void {
   // Guard: resolve the user or 401.
   async function requireUser(req: FastifyRequest, reply: import('fastify').FastifyReply) {
     const u = await authUser(req);
@@ -543,7 +544,17 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
     const parsed = shopLeadBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const { id } = await repo.recordShopLead(parsed.data);
-    return reply.code(201).send({ id });
+    // Answer the customer FIRST. Their row is committed above, which is the
+    // commitment; telling staff is a separate concern and must not put a call
+    // to api.telegram.org between a mother tapping "send" and the page saying
+    // it worked.
+    //
+    // Still awaited after that, rather than left dangling: the notifier never
+    // throws, and awaiting keeps it from being cut short if the process is
+    // stopped mid-flight.
+    reply.code(201).send({ id });
+    if (notifyLead) await notifyLead(parsed.data);
+    return reply;
   });
 
   app.get('/children/:id/events', async (req, reply) => {

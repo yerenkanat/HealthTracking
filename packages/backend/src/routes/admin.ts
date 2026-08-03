@@ -8,6 +8,7 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { sendTelegramTest } from '../notifications/leadAlert';
 import type { ContentItemRow, Repository } from '../db/repository';
 
 /// Pregnancy weeks 1..40 and child months 0..60 (birth to five years). Content
@@ -451,6 +452,11 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       kaspiUrl: z.string().trim().max(500).optional(),
       anthropicApiKey: z.string().trim().max(300).optional(),
       googleMapsApiKey: z.string().trim().max(300).optional(),
+      // Where a new callback request is announced. SECRET — the bot token lets
+      // anyone post as the bot, so like the API keys it must never appear in
+      // the public /shop/config.
+      telegramBotToken: z.string().trim().max(200).optional(),
+      telegramChatId: z.string().trim().max(64).optional(),
       // Social proof — public. reviews is a JSON array of {name,city,text,stars}.
       reviews: z.string().trim().max(6000).optional(),
       rating: z.string().trim().max(8).optional(),
@@ -469,6 +475,23 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     await repo.writeAudit({ staffId: s.staffId, action: 'set_settings', target: Object.keys(patch).join(',') });
     return reply.send({ ok: true, settings: await repo.getShopSettings() });
   });
+  // Prove the Telegram settings actually work.
+  //
+  // Saving them succeeds regardless of whether the token is valid, so without
+  // this the first sign of a typo is a customer who was never called back. The
+  // whole point is to fail here, loudly, in front of the person who can fix it.
+  app.post('/admin/settings/test-telegram', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const cfg = await repo.getShopSettings();
+    if (!cfg.telegramBotToken?.trim() || !cfg.telegramChatId?.trim()) {
+      return reply.send({ ok: false, error: 'сначала сохраните токен и chat ID' });
+    }
+    await repo.writeAudit({ staffId: s.staffId, action: 'test_telegram' });
+    const result = await sendTelegramTest(cfg.telegramBotToken, cfg.telegramChatId);
+    return reply.send(result);
+  });
+
   app.patch('/admin/shop/orders/:id', async (req, reply) => {
     const s = await requireAdmin(req, reply);
     if (!s) return;

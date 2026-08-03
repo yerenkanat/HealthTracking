@@ -21,6 +21,7 @@ import {
 } from './ai/AIGuardrailProcessor';
 import { computeBpOffsets } from './health/bpCalibration';
 import { registerCrudRoutes, type AuthUser } from './routes/crud';
+import type { LeadNotifier } from './notifications/leadAlert';
 import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { registerPublicApiRoutes } from './routes/publicApi';
 import { RateLimiter } from './http/rateLimit';
@@ -48,6 +49,9 @@ export interface ServerDeps {
   /// ever bounds a runaway/abusive one. /ingest and /ai/chat keep their own.
   writeLimiter?: RateLimiter;
   cacheLastLocation: (childId: string) => Promise<unknown>;
+  /** Tell staff about a new callback request. Omitted = no channel configured;
+   *  the lead is still recorded. Must never throw — see notifications/leadAlert. */
+  notifyLead?: LeadNotifier;
   setBpCalibration: (userId: string, offsets: { systolicOffset: number; diastolicOffset: number; calibratedAt: string }) => Promise<void>;
   /** Resolve the caller's user from the request (verify Firebase token in prod). */
   authUser?: AuthUser;
@@ -373,7 +377,7 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   });
 
   // Client CRUD + history routes (require an authUser resolver).
-  if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser);
+  if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser, deps.notifyLead);
   // Admin / back-office routes (require an authAdmin resolver).
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
   // Public content API (/api/v1) — calendars, protocols, personalised timelines
