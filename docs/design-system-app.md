@@ -1,0 +1,100 @@
+# Ana-Bala Mobile App — Design System
+
+iOS-first, bright "neo-brutalist warm" style: cream screens, black-ink 2px outlines on every surface, hard offset shadows, saturated accent blocks. No dark theme (only the lock-screen/push view is dark), no gradients, no blur except the sticky tab bar and lock screen.
+
+## Device & frame
+
+- Canvas: **402 × 874** (iPhone 16 logical size), corner radius 48, Dynamic Island 126 × 37.
+- Content starts at `padding-top: 62px` (under the status bar). Home-indicator area: keep 34px free at the bottom.
+- Screen root: `min-height:874px; background:#FFF7F0; display:flex; flex-direction:column`, then `<div style="flex:1"></div>` before the bottom bar so content pins correctly.
+
+## Fonts
+
+```html
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Rubik:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+```
+
+| Role | Family | Notes |
+|---|---|---|
+| Screen titles, big metrics (RU) | Unbounded 700/800 | `letter-spacing:-0.02em`, `line-height:1.05–1.12` |
+| Same, Kazakh screens | Rubik 700/800 | **Unbounded lacks қ ң ә ү і ұ ө һ** — use Rubik for all Kazakh text, headings and body, or glyphs fall back mid-word |
+| UI / body | Manrope 400–800 | labels & buttons 700–800 |
+| Mono captions (placeholders) | JetBrains Mono 500 | 11–13px |
+
+App type scale: screen title **21–24** · hero metric **26–46** (Unbounded/Rubik 700–800) · card title **15–19** · body **14–17** · caption **13** · micro label **11–12** uppercase `letter-spacing:.07–.08em`. Tap targets ≥ 44px.
+
+## Colors
+
+```
+--ink        #26132E   text, ALL borders, hard shadows
+--ink-2      #3A1F45   dark cards (push screen)
+--cream      #FFF7F0   screen background
+--coral      #FF3D71   primary CTA, active tab, alerts
+--coral-deep #E8264F   destructive / link text
+--yellow     #FFEA5C   highlight blocks, secondary CTA
+--mint       #00C48C   success, "child in safe zone", measuring screen
+--mint-deep  #0E9E6E   success text
+--blue       #4C8BFF   info, second child, SpO2
+--amber      #FFB020   warnings, battery, ratings
+
+Pastel card fills: pink #FFD9E4 · mint #D6F5E7 · butter #FFEFC2 · sky #E2ECFF · lilac #EAE2FF
+Map placeholder: repeating stripes #E4EEE8 / #D5E4DC
+Text: #26132E primary · #4A3350 body · #8A7590 secondary · #A895B3 inactive tab / placeholder · #C0AECB chevrons
+Dividers: #F0DFE7. On dark: #E4D3EC body, #CBB6D6 secondary, rgba(255,255,255,.18) hairline
+```
+
+Rule: one accent per screen dominates (coral for home, mint for measuring, pink for onboarding); pastels only as small stat cards.
+
+## Shape & elevation
+
+- Border `2px solid #26132E` on cards, inputs, chips, toggles, avatars, images. Dashed ink border = empty/add state.
+- Radii: pills `999px` · inputs and list cards `20px` · content cards `22–26px` · icon tiles `12–16px` · avatar circles 50%.
+- Shadow: hard offset only, no blur — `4px 4px 0 #26132E` on selected/primary elements. Most cards have no shadow, only the border.
+- Icon tile: 38–46px, radius 12–14px, solid accent fill, white glyph (text glyph like ◎ ♥ ▶ ✿ ☺ — no custom SVG).
+
+## Screen patterns
+
+**Header** — `‹` chevron (24px, #8A7590) + title (Unbounded 21–24) + optional right action in `#E8264F` weight 800; step caption below in 14px/600/#8A7590.
+
+**Tab bar** (5 tabs: Главная · Здоровье · Дети · Курс · Я / Басты · Денсаулық · Балалар · Курс · Мен)
+```
+position:sticky; bottom:0; background:rgba(255,247,240,.94); backdrop-filter:blur(12px);
+border-top:2px solid #26132E; padding:12px 16px 34px; display:flex
+```
+Each tab: glyph 19px + label 11px; active `#FF3D71` weight 800, inactive `#A895B3` weight 700.
+
+**Hero metric card** — coral fill, white text, uppercase micro label, 46px number, unit caption, plus a mini bar chart of 9 bars (`rgba(255,255,255,.55)`, current bar `#FFEA5C`), heights 34–88%.
+
+**Stat grid** — `grid-template-columns:1fr 1fr; gap:12px`, pastel fills, micro uppercase label + 26px number + 13px caption.
+
+**List rows** — white card radius 24px, `padding: 4px 18px`, each row `padding:15px 0` with `1px solid #F0DFE7` divider except the last; label 15/700 left, value 14–15/600 #8A7590 right.
+
+**Segmented control** — white pill, 6px padding, active chip `#26132E` + white text, inactive `#8A7590`.
+
+**Toggle** — 48 × 28 pill, `#00C48C` on, 20px white knob, ink borders.
+
+**Bottom action bar** — `padding:16px 20px 34px; border-top:2px solid #26132E; background:rgba(255,247,240,.94)` with a full-width coral pill button (`box-shadow:4px 4px 0 #26132E`).
+
+**Map view** — striped placeholder block (400–480px tall), pins = accent pill with child's name + ink border, plus a 14px dot below; filter chips (`Сейчас / История дня / Зоны`) floating at top; caption aligned to the bottom so pins never overlap it.
+
+**Timeline (history)** — 16px accent dot + 2px `#E5D5DE` connector, event title 15/800, meta 13/600/#8A7590.
+
+**Push / lock screen** — dark gradient `#3A1F45 → #26132E → #1A0C22`, time in Unbounded 66px, notification cards `rgba(255,255,255,.14)` + 1px `rgba(255,255,255,.18)` + radius 20 + `backdrop-filter:blur(8px)`; each has accent icon tile, `ANA-BALA` + timestamp in 12/700/#CBB6D6, title 15/800, body 14/#E4D3EC.
+
+**Pickers** — date wheel as three columns (день/месяц/год); selected value on `#FFD9E4` chip radius 10, neighbours `#C0AECB`.
+
+**Empty / add state** — dashed ink border, `＋` glyph, one-line explanation in 14/600/#8A7590.
+
+## Screen inventory (17)
+
+Auth & setup: вход по номеру телефона (+7, SMS, Apple ID, WhatsApp) · код из SMS (4 ячейки) · первый запуск с выбором языка (Қазақша / Русский).
+Core: главная (пульс, сон, стресс, кислород, шаги, статус ребёнка, курс) · здоровье и цикл · замер 60 секунд · дети на карте · история дня · безопасная зона (радиус, входы/выходы) · push-уведомления.
+Family & data: добавить ребёнка (фото, имя, пол, дата рождения → привязка брелока к имени) · устройства и семейный доступ · профиль (RU и KZ) · отчёт для врача (PDF) · курс Ма!Ма! (уроки, прогресс, трейлер).
+
+## Content rules
+
+- Bilingual RU/KZ; language switch lives in Профиль and on first launch; the whole KZ subtree uses Rubik.
+- Devices are bound to a named child — the name appears on the map, in the device list and in every notification.
+- Currency `₸`, thin-space grouping (`25 900 ₸`). Dates in Russian long form (`14 марта 2018`), age chip beside them.
+- Voice: warm, concrete, short. No emoji except the 🇰🇿 flag in the phone input. No hand-drawn SVG illustrations — real photos or striped placeholders with mono captions.
+- Product facts: Watch S5 — 0.96″ TFT, 145 mAh, IP68, BT 5.3, 10 дней, 9 ремешков. Kid tag AK-08B — 32 × 8 mm, 6.1 g, CR2032, 365 дней, без SIM и подписки, зуммер.

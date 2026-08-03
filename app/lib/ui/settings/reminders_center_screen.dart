@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../domain/reminders.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import '../widgets/permission_primer.dart';
@@ -40,7 +41,10 @@ class RemindersCenterScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
                   child: Text(l.t('rem_active', {'n': active}),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 13, fontWeight: FontWeight.w600)),
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
                 ),
                 GlassCard(
                   child: Column(
@@ -49,18 +53,28 @@ class RemindersCenterScreen extends StatelessWidget {
                         icon: Icons.water_drop_rounded,
                         color: Palette.roseDeep,
                         title: l.t('period_reminder'),
-                        subtitle: hasCycle ? l.t('period_reminder_sub') : l.t('rem_needs_cycle'),
+                        subtitle: hasCycle
+                            ? l.t('period_reminder_sub')
+                            : l.t('rem_needs_cycle'),
                         value: c.periodReminderEnabled,
-                        onChanged: hasCycle ? (on) => _enable(context, c, on, () => c.setPeriodReminder(on)) : null,
+                        onChanged: hasCycle
+                            ? (on) => _enable(
+                                context, c, on, () => c.setPeriodReminder(on))
+                            : null,
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
                         icon: Icons.eco_rounded,
                         color: Palette.teal,
                         title: l.t('fertile_reminder'),
-                        subtitle: hasCycle ? l.t('fertile_reminder_sub') : l.t('rem_needs_cycle'),
+                        subtitle: hasCycle
+                            ? l.t('fertile_reminder_sub')
+                            : l.t('rem_needs_cycle'),
                         value: c.fertileReminderEnabled,
-                        onChanged: hasCycle ? (on) => _enable(context, c, on, () => c.setFertileReminder(on)) : null,
+                        onChanged: hasCycle
+                            ? (on) => _enable(
+                                context, c, on, () => c.setFertileReminder(on))
+                            : null,
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -69,10 +83,15 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('water_reminder'),
                         subtitle: c.waterReminderMinutes == null
                             ? l.t('water_reminder_off')
-                            : l.t('water_reminder_at', {'time': minutesToHhmm(c.waterReminderMinutes!)}),
+                            : l.t('water_reminder_at', {
+                                'time': minutesToHhmm(c.waterReminderMinutes!)
+                              }),
                         value: c.waterReminderMinutes != null,
-                        onChanged: (on) => _enable(context, c, on, () => _toggleWater(context, c, on)),
-                        onTapBody: c.waterReminderMinutes == null ? null : () => _pickWaterTime(context, c),
+                        onChanged: (on) => _enable(
+                            context, c, on, () => _toggleWater(context, c, on)),
+                        onTapBody: c.waterReminderMinutes == null
+                            ? null
+                            : () => _pickWaterTime(context, c),
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -83,11 +102,18 @@ class RemindersCenterScreen extends StatelessWidget {
                             ? l.t('rem_needs_meds')
                             : c.medReminderMinutes == null
                                 ? l.t('med_reminder_off')
-                                : l.t('med_reminder_at', {'time': minutesToHhmm(c.medReminderMinutes!)}),
+                                : l.t('med_reminder_at', {
+                                    'time': minutesToHhmm(c.medReminderMinutes!)
+                                  }),
                         value: c.medReminderMinutes != null,
                         // Nothing to be reminded about until something's tracked.
-                        onChanged: c.medications.isEmpty ? null : (on) => _enable(context, c, on, () => _toggleMed(context, c, on)),
-                        onTapBody: c.medReminderMinutes == null ? null : () => _pickMedTime(context, c),
+                        onChanged: c.medications.isEmpty
+                            ? null
+                            : (on) => _enable(context, c, on,
+                                () => _toggleMed(context, c, on)),
+                        onTapBody: c.medReminderMinutes == null
+                            ? null
+                            : () => _pickMedTime(context, c),
                       ),
                     ],
                   ),
@@ -97,7 +123,10 @@ class RemindersCenterScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
                   child: Text(l.t('notif_safety_section').toUpperCase(),
                       style: const TextStyle(
-                          color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                          color: Palette.textDim,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                 ),
                 GlassCard(
                   child: Column(
@@ -108,7 +137,12 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('notif_zone'),
                         subtitle: l.t('notif_zone_sub'),
                         value: c.notificationPrefs.zoneEvents,
-                        onChanged: (on) => _enable(context, c, on, () => c.setNotificationPrefs(c.notificationPrefs.copyWith(zoneEvents: on))),
+                        onChanged: (on) => _enable(
+                            context,
+                            c,
+                            on,
+                            () => c.setNotificationPrefs(
+                                c.notificationPrefs.copyWith(zoneEvents: on))),
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -117,7 +151,12 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('notif_checkin'),
                         subtitle: l.t('notif_checkin_sub'),
                         value: c.notificationPrefs.checkIn,
-                        onChanged: (on) => _enable(context, c, on, () => c.setNotificationPrefs(c.notificationPrefs.copyWith(checkIn: on))),
+                        onChanged: (on) => _enable(
+                            context,
+                            c,
+                            on,
+                            () => c.setNotificationPrefs(
+                                c.notificationPrefs.copyWith(checkIn: on))),
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -126,7 +165,12 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('notif_lowbattery'),
                         subtitle: l.t('notif_lowbattery_sub'),
                         value: c.notificationPrefs.lowBattery,
-                        onChanged: (on) => _enable(context, c, on, () => c.setNotificationPrefs(c.notificationPrefs.copyWith(lowBattery: on))),
+                        onChanged: (on) => _enable(
+                            context,
+                            c,
+                            on,
+                            () => c.setNotificationPrefs(
+                                c.notificationPrefs.copyWith(lowBattery: on))),
                       ),
                       const _ThinDivider(),
                       _ReminderTile(
@@ -135,13 +179,17 @@ class RemindersCenterScreen extends StatelessWidget {
                         title: l.t('notif_quiet'),
                         subtitle: c.notificationPrefs.hasQuietHours
                             ? l.t('notif_quiet_at', {
-                                'from': minutesToHhmm(c.notificationPrefs.quietStart!),
-                                'to': minutesToHhmm(c.notificationPrefs.quietEnd!),
+                                'from': minutesToHhmm(
+                                    c.notificationPrefs.quietStart!),
+                                'to': minutesToHhmm(
+                                    c.notificationPrefs.quietEnd!),
                               })
                             : l.t('notif_quiet_off'),
                         value: c.notificationPrefs.hasQuietHours,
                         onChanged: (on) => _toggleQuietHours(context, c, on),
-                        onTapBody: c.notificationPrefs.hasQuietHours ? () => _pickQuietHours(context, c) : null,
+                        onTapBody: c.notificationPrefs.hasQuietHours
+                            ? () => _pickQuietHours(context, c)
+                            : null,
                       ),
                     ],
                   ),
@@ -150,15 +198,21 @@ class RemindersCenterScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Row(children: [
-                    const Icon(Icons.sos_rounded, size: 15, color: Palette.roseDeep),
+                    const Icon(Icons.sos_rounded,
+                        size: 15, color: Palette.roseDeep),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(l.t('notif_sos_note'),
-                        style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.4))),
+                    Expanded(
+                        child: Text(l.t('notif_sos_note'),
+                            style: const TextStyle(
+                                color: Palette.textDim,
+                                fontSize: 12,
+                                height: 1.4))),
                   ]),
                 ),
                 const SizedBox(height: 14),
                 Text(l.t('rem_footer'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.4)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12, height: 1.4)),
               ],
             );
           },
@@ -170,40 +224,47 @@ class RemindersCenterScreen extends StatelessWidget {
   /// Turn a reminder on/off, priming notification permission first when turning
   /// ON. This is the moment the user has just said they want to be notified — so
   /// it's exactly where explaining, then asking, belongs.
-  Future<void> _enable(BuildContext context, AppController c, bool on, VoidCallback apply) async {
+  Future<void> _enable(BuildContext context, AppController c, bool on,
+      VoidCallback apply) async {
     if (on) await _ensureNotifications(context, c);
     apply();
   }
 
   /// Show the notifications primer once per run, only when a service is wired and
   /// permission isn't already granted; on Continue, fire the OS request.
-  Future<void> _ensureNotifications(BuildContext context, AppController c) async {
+  Future<void> _ensureNotifications(
+      BuildContext context, AppController c) async {
     if (!c.notificationsSupported || c.notificationsAsked) return;
     if (await c.notificationsGranted()) {
       c.markNotificationsAsked();
       return;
     }
     if (!context.mounted) return;
-    final proceed = await showPermissionPrimer(context, PermissionKind.notifications);
+    final proceed =
+        await showPermissionPrimer(context, PermissionKind.notifications);
     c.markNotificationsAsked();
     if (proceed) await c.requestNotifications();
   }
 
-  Future<void> _toggleWater(BuildContext context, AppController c, bool on) async {
+  Future<void> _toggleWater(
+      BuildContext context, AppController c, bool on) async {
     if (!on) {
       c.setWaterReminder(null);
       return;
     }
-    final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 20, minute: 0));
+    final picked = await showTimePicker(
+        context: context, initialTime: const TimeOfDay(hour: 20, minute: 0));
     if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
   }
 
-  Future<void> _toggleMed(BuildContext context, AppController c, bool on) async {
+  Future<void> _toggleMed(
+      BuildContext context, AppController c, bool on) async {
     if (!on) {
       c.setMedReminder(null);
       return;
     }
-    final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 9, minute: 0));
+    final picked = await showTimePicker(
+        context: context, initialTime: const TimeOfDay(hour: 9, minute: 0));
     if (picked != null) c.setMedReminder(picked.hour * 60 + picked.minute);
   }
 
@@ -225,9 +286,11 @@ class RemindersCenterScreen extends StatelessWidget {
     if (picked != null) c.setWaterReminder(picked.hour * 60 + picked.minute);
   }
 
-  Future<void> _toggleQuietHours(BuildContext context, AppController c, bool on) async {
+  Future<void> _toggleQuietHours(
+      BuildContext context, AppController c, bool on) async {
     if (!on) {
-      c.setNotificationPrefs(c.notificationPrefs.copyWith(clearQuietHours: true));
+      c.setNotificationPrefs(
+          c.notificationPrefs.copyWith(clearQuietHours: true));
       return;
     }
     await _pickQuietHours(context, c);
@@ -288,18 +351,29 @@ class _ReminderTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(color: color.withValues(alpha: disabled ? 0.06 : 0.14), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: disabled ? Palette.textDim : color, size: 20),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: color.withValues(alpha: disabled ? 0.06 : 0.14),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon,
+                  color: disabled ? Palette.textDim : color, size: 20),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: disabled ? Palette.textDim : Palette.text)),
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: disabled ? Palette.textDim : Palette.text)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12.5, height: 1.3)),
                 ],
               ),
             ),
@@ -314,5 +388,6 @@ class _ReminderTile extends StatelessWidget {
 class _ThinDivider extends StatelessWidget {
   const _ThinDivider();
   @override
-  Widget build(BuildContext context) => const Divider(height: 14, color: Palette.border);
+  Widget build(BuildContext context) =>
+      const Divider(height: 14, color: Palette.border);
 }

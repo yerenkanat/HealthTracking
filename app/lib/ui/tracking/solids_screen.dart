@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/solids_guide.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class SolidsScreen extends StatelessWidget {
@@ -31,12 +32,8 @@ class SolidsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Palette.teal.withValues(alpha: 0.12), Palette.violet.withValues(alpha: 0.05)],
-              ),
-              border: Border.all(color: Palette.teal.withValues(alpha: 0.22)),
+              color: Palette.teal.withValues(alpha: 0.12),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +75,7 @@ class SolidsScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Palette.roseDeep.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.26)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

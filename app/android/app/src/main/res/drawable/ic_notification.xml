@@ -1,0 +1,15 @@
+<!-- The notification small icon.
+
+     Android ≥5 masks this to a silhouette and tints it with the notification's
+     `color`, so it MUST be white-on-transparent with no detail. The app was
+     passing `@mipmap/ic_launcher` instead — a full-colour adaptive icon, which
+     the mask turns into a featureless white blob in the status bar.
+
+     Same heart as the splash mark, drawn in white so the tint takes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,21s-7.5,-4.9 -9.5,-9.2C1,8.5 3,5.5 6,5.5c1.9,0 3.2,1 4,2 0.8,-1 2.1,-2 4,-2 3,0 5,3 3.5,6.3C19.5,16.1 12,21 12,21z"/>
+</vector>

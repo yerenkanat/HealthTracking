@@ -84,7 +84,10 @@ class FcsApp extends StatelessWidget {
           child: MaterialApp(
             title: 'Umay',
             debugShowCheckedModeBanner: false,
-            theme: FcsTheme.light(),
+            // The locale is a real theme input: Unbounded carries no Kazakh
+            // glyphs, so the display family switches to Rubik on kk. Passing it
+            // here means the swap happens the moment the language changes.
+            theme: FcsTheme.light(controller.locale),
             themeMode: ThemeMode.light,
             locale: appLocaleToFlutter(controller.locale),
             supportedLocales: supportedFlutterLocales,

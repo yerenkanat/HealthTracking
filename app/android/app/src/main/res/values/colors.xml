@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="brand_bg">#FFFBF5EF</color>
+    <!-- The design system's canvas (Ds.cream, #FFF7F0). This was #FBF5EF, the
+         previous palette's cream, so the very first frame of the app — the
+         window behind the splash — was a different colour from every screen
+         that followed it. -->
+    <color name="brand_bg">#FFFFF7F0</color>
+
+    <!-- Ds.coralCta. Android tints the notification's small icon and the app
+         name in the shade with this. -->
+    <color name="brand_accent">#FFEA003F</color>
 </resources>

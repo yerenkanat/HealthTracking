@@ -10,11 +10,13 @@ import '../../data/photo_store.dart';
 import '../../domain/country_codes.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/photo_picker_sheet.dart';
 
-Future<void> showEditProfileSheet(BuildContext context, AppController controller) {
+Future<void> showEditProfileSheet(
+    BuildContext context, AppController controller) {
   final p = controller.profile;
   final nameCtl = TextEditingController(text: p.displayName);
   final phoneCtl = TextEditingController(text: p.phoneNumber);
@@ -40,15 +42,20 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
               decoration: BoxDecoration(
                 color: Palette.glass,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Palette.border),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: '${countries.firstWhere((c) => c.dial == dial, orElse: () => defaultCountry).iso}|$dial',
-                  onChanged: (v) { if (v != null) setState(() => dial = v.split('|')[1]); },
+                  value:
+                      '${countries.firstWhere((c) => c.dial == dial, orElse: () => defaultCountry).iso}|$dial',
+                  onChanged: (v) {
+                    if (v != null) setState(() => dial = v.split('|')[1]);
+                  },
                   items: [
                     for (final c in countries)
-                      DropdownMenuItem(value: '${c.iso}|${c.dial}', child: Text('${c.flag} ${c.dial}')),
+                      DropdownMenuItem(
+                          value: '${c.iso}|${c.dial}',
+                          child: Text('${c.flag} ${c.dial}')),
                   ],
                 ),
               ),
@@ -124,14 +131,17 @@ Future<void> showEditProfileSheet(BuildContext context, AppController controller
   });
 }
 
-Future<void> showAddChildSheet(BuildContext context, AppController controller) =>
+Future<void> showAddChildSheet(
+        BuildContext context, AppController controller) =>
     _childSheet(context, controller);
 
-Future<void> showEditChildSheet(BuildContext context, AppController controller, ChildProfile child) =>
+Future<void> showEditChildSheet(
+        BuildContext context, AppController controller, ChildProfile child) =>
     _childSheet(context, controller, existing: child);
 
 /// Shared add/edit child sheet: photo + name + date of birth.
-Future<void> _childSheet(BuildContext context, AppController controller, {ChildProfile? existing}) {
+Future<void> _childSheet(BuildContext context, AppController controller,
+    {ChildProfile? existing}) {
   final isEdit = existing != null;
   final nameCtl = TextEditingController(text: existing?.name ?? '');
   DateTime? dob = existing?.dateOfBirth;
@@ -163,16 +173,20 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
           ),
           const SizedBox(height: 14),
           // Gender — optional (tap again to clear).
-          Text(l.t('child_gender'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+          Text(l.t('child_gender'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, children: [
             for (final g in Gender.values)
               ChoiceChip(
                 avatar: Icon(g == Gender.boy ? Icons.boy : Icons.girl,
-                    size: 18, color: gender == g ? Palette.violet : Palette.textDim),
+                    size: 18,
+                    color: gender == g ? Palette.violet : Palette.textDim),
                 label: Text(l.t('gender_${g.name}')),
                 selected: gender == g,
-                onSelected: (_) => setState(() => gender = gender == g ? null : g),
+                onSelected: (_) =>
+                    setState(() => gender = gender == g ? null : g),
                 selectedColor: Palette.violet.withValues(alpha: 0.18),
                 backgroundColor: Palette.glass,
                 side: const BorderSide(color: Palette.border),
@@ -207,9 +221,12 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
           if (isEdit) {
             controller.updateChild(existing.copyWith(
               name: name,
-              dateOfBirth: dob, clearDateOfBirth: dob == null,
-              photoPath: photoPath, clearPhoto: photoPath == null,
-              gender: gender, clearGender: gender == null,
+              dateOfBirth: dob,
+              clearDateOfBirth: dob == null,
+              photoPath: photoPath,
+              clearPhoto: photoPath == null,
+              gender: gender,
+              clearGender: gender == null,
             ));
           } else {
             // Default Home zone; the user can refine zones later.
@@ -224,7 +241,8 @@ Future<void> _childSheet(BuildContext context, AppController controller, {ChildP
               geofences: [
                 // A UUID so the zone can sync to the backend (its id column is a
                 // UUID); a literal 'home' also collided across children.
-                Geofence.circle(uuidV4(), l.t('onb_home_label'), const Coordinates(43.238949, 76.889709), 100),
+                Geofence.circle(uuidV4(), l.t('onb_home_label'),
+                    const Coordinates(43.238949, 76.889709), 100),
               ],
             ));
           }
@@ -245,29 +263,42 @@ class _PhotoPickerAvatar extends StatelessWidget {
   final String name;
   final String prefix;
   final void Function(String?) onChanged;
-  const _PhotoPickerAvatar({required this.photoPath, required this.name, required this.prefix, required this.onChanged});
+  const _PhotoPickerAvatar(
+      {required this.photoPath,
+      required this.name,
+      required this.prefix,
+      required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        final r = await pickPhoto(context, prefix: prefix, canRemove: photoPath != null && photoPath!.isNotEmpty);
+        final r = await pickPhoto(context,
+            prefix: prefix,
+            canRemove: photoPath != null && photoPath!.isNotEmpty);
         if (r == null) return;
         onChanged(r.remove ? null : r.path);
       },
       child: Stack(
         children: [
-          PhotoAvatar(photoPath: photoPath, name: name, size: 84, fallbackIcon: Icons.child_care),
+          PhotoAvatar(
+              photoPath: photoPath,
+              name: name,
+              size: 84,
+              fallbackIcon: Icons.child_care),
           Positioned(
-            right: 0, bottom: 0,
+            right: 0,
+            bottom: 0,
             child: Container(
-              width: 28, height: 28,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: Palette.violet,
                 shape: BoxShape.circle,
                 border: Border.all(color: Palette.surface, width: 2.5),
               ),
-              child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 14),
+              child: const Icon(Icons.photo_camera_rounded,
+                  color: Colors.white, size: 14),
             ),
           ),
         ],
@@ -276,13 +307,15 @@ class _PhotoPickerAvatar extends StatelessWidget {
   }
 }
 
-Future<void> showAddDeviceSheet(BuildContext context, AppController controller) {
+Future<void> showAddDeviceSheet(
+    BuildContext context, AppController controller) {
   final nameCtl = TextEditingController();
   final idCtl = TextEditingController();
   var kind = DeviceKind.band;
   final children = controller.children;
   // A tag belongs to one child; default to the currently selected child.
-  String? tagChildId = controller.selectedChild?.id ?? (children.isNotEmpty ? children.first.id : null);
+  String? tagChildId = controller.selectedChild?.id ??
+      (children.isNotEmpty ? children.first.id : null);
 
   return _sheet(context, (ctx, l) {
     return StatefulBuilder(
@@ -311,13 +344,16 @@ Future<void> showAddDeviceSheet(BuildContext context, AppController controller) 
           if (kind == DeviceKind.tag) ...[
             const SizedBox(height: 16),
             Text(l.t('dev_for_child'),
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13.5)),
             const SizedBox(height: 8),
             if (children.isEmpty)
-              Text(l.t('dev_no_child'), style: const TextStyle(color: Palette.textDim, fontSize: 13))
+              Text(l.t('dev_no_child'),
+                  style: const TextStyle(color: Palette.textDim, fontSize: 13))
             else
               Wrap(
-                spacing: 8, runSpacing: 8,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   for (final ch in children)
                     ChoiceChip(
@@ -328,7 +364,9 @@ Future<void> showAddDeviceSheet(BuildContext context, AppController controller) 
                       backgroundColor: Palette.glass,
                       side: const BorderSide(color: Palette.border),
                       labelStyle: TextStyle(
-                        color: ch.id == tagChildId ? Palette.text : Palette.textDim,
+                        color: ch.id == tagChildId
+                            ? Palette.text
+                            : Palette.textDim,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -353,7 +391,9 @@ Future<void> showAddDeviceSheet(BuildContext context, AppController controller) 
           if (kind == DeviceKind.tag && tagChildId == null) return false;
           controller.addDevice(PairedDevice(
             id: id,
-            name: nameCtl.text.trim().isEmpty ? l.t(kind == DeviceKind.band ? 'dev_band' : 'dev_tag') : nameCtl.text.trim(),
+            name: nameCtl.text.trim().isEmpty
+                ? l.t(kind == DeviceKind.band ? 'dev_band' : 'dev_tag')
+                : nameCtl.text.trim(),
             kind: kind,
             childId: kind == DeviceKind.tag ? tagChildId : null,
           ));
@@ -364,7 +404,8 @@ Future<void> showAddDeviceSheet(BuildContext context, AppController controller) 
   });
 }
 
-Future<void> _sheet(BuildContext context, Widget Function(BuildContext, dynamic l) body) {
+Future<void> _sheet(
+    BuildContext context, Widget Function(BuildContext, dynamic l) body) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -384,7 +425,11 @@ class _SheetBody extends StatelessWidget {
   final IconData icon;
   final List<Widget> fields;
   final bool Function() onSave;
-  const _SheetBody({required this.title, required this.icon, required this.fields, required this.onSave});
+  const _SheetBody(
+      {required this.title,
+      required this.icon,
+      required this.fields,
+      required this.onSave});
 
   @override
   Widget build(BuildContext context) {
@@ -397,18 +442,28 @@ class _SheetBody extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                  color: Palette.border,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
           Row(children: [
             Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(gradient: Palette.violetPink, borderRadius: BorderRadius.circular(12)),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: Ds.coralCta,
+                  borderRadius: BorderRadius.circular(12)),
               child: Icon(icon, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
-            Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 18),
           ...fields,
@@ -448,7 +503,8 @@ class _DateField extends StatelessWidget {
   final String? helper;
   final DateTime? value;
   final VoidCallback onTap;
-  const _DateField({required this.label, required this.onTap, this.helper, this.value});
+  const _DateField(
+      {required this.label, required this.onTap, this.helper, this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -477,7 +533,8 @@ class _DateField extends StatelessWidget {
         if (helper != null)
           Padding(
             padding: const EdgeInsets.only(left: 12, top: 6),
-            child: Text(helper!, style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+            child: Text(helper!,
+                style: const TextStyle(color: Palette.textDim, fontSize: 12)),
           ),
       ],
     );
@@ -488,7 +545,8 @@ class _KindChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _KindChip({required this.label, required this.selected, required this.onTap});
+  const _KindChip(
+      {required this.label, required this.selected, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -498,7 +556,8 @@ class _KindChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? Palette.violet.withValues(alpha: 0.2) : Palette.glass,
+          color:
+              selected ? Palette.violet.withValues(alpha: 0.2) : Palette.glass,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: selected ? Palette.violet : Palette.border),
         ),
@@ -528,6 +587,7 @@ class _WhyWeAsk extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         color: Palette.violet.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -535,12 +595,15 @@ class _WhyWeAsk extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.auto_awesome_rounded, size: 16, color: Palette.violetText),
+            const Icon(Icons.auto_awesome_rounded,
+                size: 16, color: Palette.violetText),
             const SizedBox(width: 8),
             Expanded(
               child: Text(l.t('prof_more_title'),
                   style: const TextStyle(
-                      color: Palette.text, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                      color: Palette.text,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700)),
             ),
           ]),
           for (final line in lines) ...[
@@ -561,7 +624,9 @@ class _WhyWeAsk extends StatelessWidget {
           const SizedBox(height: 8),
           Text(footnote,
               style: const TextStyle(
-                  color: Palette.textDim, fontSize: 11.5, fontStyle: FontStyle.italic)),
+                  color: Palette.textDim,
+                  fontSize: 11.5,
+                  fontStyle: FontStyle.italic)),
         ],
       ),
     );

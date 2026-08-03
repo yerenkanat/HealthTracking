@@ -811,6 +811,13 @@
             <div id="shopOrders"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
           </div>
         </div>
+        <!-- Callback requests from the landing page. Not orders: a name and a
+             number someone left instead of writing on WhatsApp — the queue to
+             call back. -->
+        <div class="card">
+          <div class="sec-h"><h3>Заявки с лендинга · перезвонить</h3><span class="sub" id="shopLeadsSub">—</span></div>
+          <div id="shopLeads"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
       </section>
 
       <!-- AUDIO: daily calendar clips (pregnancy + child development) -->
@@ -2206,6 +2213,21 @@
     return r.json().catch(()=>({}));
   }
   const orderStatusLbl={new:"Новый",confirmed:"Подтверждён",shipped:"Отправлен",delivered:"Доставлен",cancelled:"Отменён"};
+  // Leads have their own vocabulary: nobody ships a phone call.
+  const leadStatusLbl={new:"Новая",called:"Позвонили",ordered:"Оформлен заказ",dropped:"Отказ"};
+  const leadLocaleLbl={ru:"рус",kz:"қаз"};
+  function shopLeadRow(l){
+    const opts=Object.keys(leadStatusLbl).map(s=>`<option value="${s}"${s===l.status?" selected":""}>${leadStatusLbl[s]}</option>`).join("");
+    // The phone is the point of the row — make it dialable rather than something
+    // staff retype into a handset.
+    const tel=String(l.phone||"").replace(/[^\d+]/g,"");
+    return `<div class="ordercard">
+      <div class="ordertop"><b>${esc(l.customerName)}</b><a class="num" href="tel:${esc(tel)}">${esc(l.phone)}</a></div>
+      ${l.package?`<div class="t" style="margin:6px 0">${esc(l.package)}</div>`:""}
+      <div class="ordertop"><span class="t">${stamp(l.createdAt)} · ${leadLocaleLbl[l.locale]||esc(l.locale)}</span>
+        <select class="lstatus" data-lid="${esc(l.id)}" aria-label="Статус заявки">${opts}</select></div>
+    </div>`;
+  }
   function shopOrderRow(o){
     const money=fmt(Math.round(o.totalMinor/100))+" ₸";
     const items=o.items.map(i=>`${esc(i.productName)} · ${esc(i.color)} ×${i.qty}`).join("<br>");
@@ -2289,17 +2311,33 @@
       });
     }catch(e){ vwrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить склад</div>`; }
 
+    // Both an unhandled order and an uncalled lead are somebody waiting, so the
+    // nav badge counts them together — set once, after both have loaded.
+    let waiting=0;
     const owrap=document.getElementById("shopOrders");
     try{
       const {orders}=await api("/admin/shop/orders");
       const fresh=orders.filter(o=>o.status==="new").length;
+      waiting+=fresh;
       document.getElementById("shopOrdersSub").textContent=orders.length?(orders.length+" · новых: "+fresh):"нет заказов";
-      setBadge(document.getElementById("shopBadge"),fresh);
       owrap.innerHTML=orders.length?orders.map(shopOrderRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заказов пока нет</div>`;
       owrap.querySelectorAll(".ostatus").forEach(sel=>sel.onchange=async()=>{
         try{ await apiSend("/admin/shop/orders/"+encodeURIComponent(sel.dataset.oid),"PATCH",{status:sel.value}); renderShop(); }catch(e){}
       });
     }catch(e){ owrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить заказы</div>`; }
+
+    const lwrap=document.getElementById("shopLeads");
+    try{
+      const {leads}=await api("/admin/shop/leads");
+      const uncalled=leads.filter(l=>l.status==="new").length;
+      waiting+=uncalled;
+      document.getElementById("shopLeadsSub").textContent=leads.length?(leads.length+" · не обработано: "+uncalled):"нет заявок";
+      lwrap.innerHTML=leads.length?leads.map(shopLeadRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заявок пока нет</div>`;
+      lwrap.querySelectorAll(".lstatus").forEach(sel=>sel.onchange=async()=>{
+        try{ await apiSend("/admin/shop/leads/"+encodeURIComponent(sel.dataset.lid),"PATCH",{status:sel.value}); renderShop(); }catch(e){}
+      });
+    }catch(e){ lwrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить заявки</div>`; }
+    setBadge(document.getElementById("shopBadge"),waiting);
   }
 
   // ---- Daily calendar audio ----

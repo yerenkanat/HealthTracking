@@ -1,207 +1,337 @@
-/// Premium LIGHT theme — refined, professional, calm. Soft off-white canvas,
-/// white cards with subtle shadows (no neon glow), a restrained violet accent with
-/// per-metric colors, Outfit for text and JetBrains Mono for numbers.
+/// The app's Material theme, built from the Ana-Bala design system.
+///
+/// Tokens live in `design_system.dart` (`Ds`, `DsShape`, `DsTypography`) — that
+/// file is the translation of `docs/design-system-app.md` and is what new code
+/// should use.
+///
+/// ## Why `Palette` is still here
+///
+/// `Palette.violet`, `Palette.textDim` and friends appear ~1400 times across
+/// 183 files. Renaming them all in one commit would be a diff nobody could
+/// review, and would mix a mechanical rename with a visual change. So every
+/// name is KEPT and re-pointed at its nearest design-system token: screens that
+/// have not been converted yet move to the new palette on their own, and the
+/// conversion becomes a series of small, readable commits instead of one large
+/// one.
+///
+/// The names lie a little as a result — `Palette.violet` is coral now, exactly
+/// as it was terracotta before this. Prefer `Ds.coral`. Each mapping below says
+/// what it became.
 library;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+import 'design_system.dart';
+
 class Palette {
-  // Canvas + surfaces (light) — warm cream, matching the Umay storefront.
-  static const bg = Color(0xFFFBF5EF);
-  static const bgElevated = Color(0xFFFFFFFF);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceHi = Color(0xFFFFFFFF);
+  // ---- Canvas + surfaces ---------------------------------------------------
+  /// Cream screen background.
+  static const bg = Ds.cream;
 
-  // Accents — warm maternal. `violet`/`pink` keep their names (used widely) but
-  // now carry the terracotta + peach brand colours; teal/blue stay as distinct
-  // per-metric colours so health data stays legible.
-  static const violet = Color(0xFFAF4C35); // terracotta (primary brand accent; text-safe on cream)
-  static const pink = Color(0xFFE39A72); // warm peach (gradient partner)
-  static const teal = Color(0xFF12B3A6);
-  static const blue = Color(0xFF4F8DF5);
+  /// Cards sit on white inside the cream screen, outlined in ink.
+  static const bgElevated = Colors.white;
+  static const surface = Colors.white;
+  static const surfaceHi = Colors.white;
 
-  // Warm FemTech accents (women's-health calendar + gestation)
-  static const rose = Color(0xFFE08A6E); // warm terracotta-rose
-  static const roseDeep = Color(0xFFC15A47);
-  static const blush = Color(0xFFFCEFE7); // whisper-peach surface tint
-  static const lilac = Color(0xFFF6E7DD); // soft peach fill
+  // ---- Accents -------------------------------------------------------------
+  /// → the CTA coral. This name fills buttons, FABs and badges that carry WHITE
+  /// text all over the app, and white on the spec's `#FF3D71` is only 3.41:1.
+  /// [Ds.coral] itself stays available for fills whose text colour we control.
+  static const violet = Ds.coralCta;
 
-  // Status
-  static const good = Color(0xFF17A672);
-  static const watch = Color(0xFFE0930B);
-  static const amber = Color(0xFFE8890B); // warm, low-anxiety "delayed" state
-  static const danger = Color(0xFFE5484D);
+  /// → pastel pink. Was the gradient partner; now a card fill.
+  static const pink = Ds.pastelPink;
 
-  // Text + lines
-  static const text = Color(0xFF2A211C);
-  // Secondary text. Darkened from 0xFF6E7180, which measured 4.45:1 over the
-  // glass-card background — just under the 4.5:1 WCAG floor, and failing on
-  // every screen that used it for body copy rather than a short label.
-  static const textDim = Color(0xFF6A5C4D);
-  static const border = Color(0xFFEEE4DA);
-  // Darker variants of the accents, for TEXT sitting on a tint of that same
-  // accent. The bright accents above are tuned for icons, fills and borders,
-  // where WCAG's 4.5:1 contrast rule for text doesn't apply — used as label
-  // text over an 8–16% tint of themselves they measured as low as 2.65:1.
-  // Keep the bright colour for the icon and the darker one for the words.
-  static const goodText = Color(0xFF0B6B48);
-  static const violetText = Color(0xFFA5482F); // terracotta-deep, for text on a terracotta tint
-  static const pinkText = Color(0xFFB05A34); // warm, for text on a peach tint
+  /// → mint. Success and "child is in the safe zone".
+  static const teal = Ds.mint;
 
-  static const glass = Color(0xFFF4ECE3); // input / subtle fill
+  /// → blue. Info, the second child, SpO₂.
+  static const blue = Ds.blue;
 
-  static const violetPink = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [violet, pink],
-  );
-  static const tealBlue = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [teal, blue],
-  );
-  static const roseViolet = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [rose, violet],
-  );
+  // ---- Women's-health accents ---------------------------------------------
+  /// → coral. The cycle/gestation screens share the primary accent.
+  static const rose = Ds.coral;
 
-  // Soft, premium card shadow (not glow).
-  static List<BoxShadow> get cardShadow => const [
-        BoxShadow(color: Color(0x0F2A211C), blurRadius: 20, offset: Offset(0, 8), spreadRadius: -6),
-      ];
+  /// → the measured text-safe coral. Mostly used for destructive and link TEXT,
+  /// and the spec's own `coralDeep` only reaches 4.36:1 on white.
+  static const roseDeep = Ds.coralText;
+
+  /// → pastel pink surface tint.
+  static const blush = Ds.pastelPink;
+
+  /// → pastel lilac fill.
+  static const lilac = Ds.pastelLilac;
+
+  // ---- Status --------------------------------------------------------------
+  static const good = Ds.mint;
+  static const watch = Ds.amber;
+  static const amber = Ds.amber;
+
+  /// → the text-safe coral. `danger` labels error TEXT far more often than it
+  /// fills anything, so it takes the measured variant.
+  static const danger = Ds.coralText;
+
+  // ---- Text + lines --------------------------------------------------------
+  static const text = Ds.text;
+
+  /// Secondary text — 4.9:1 on cream, above the 4.5:1 WCAG floor.
+  static const textDim = Ds.textSecondary;
+
+  /// NOTE: in this system a *card* border is 2px [Ds.ink]. This value is the
+  /// hairline BETWEEN list rows. Reach for [DsShape.border] when outlining a
+  /// surface, not for this.
+  static const border = Ds.divider;
+
+  /// Text sitting on a pale tint of the same accent needs the darker variant —
+  /// the bright accents are tuned for fills. These are the MEASURED ones (see
+  /// [Ds.mintText] and friends), not the spec's display-deep values, which fall
+  /// under 4.5:1 on the very pastels they are paired with.
+  static const goodText = Ds.mintText;
+  static const violetText = Ds.coralText;
+  static const pinkText = Ds.coralText;
+
+  /// Input and other subtle fills.
+  static const glass = Color(0xFFFDF0F5);
+
+  // (The violetPink / tealBlue / roseViolet ramps are gone. The design system
+  // has one gradient, on the lock screen; every call site now names a solid
+  // accent, and keeping dead two-stop constants around invites their return.)
+
+  /// → the hard offset shadow. No blur, no spread: that flat 4px step is the
+  /// whole visual identity, and a soft shadow reads as a different product.
+  static List<BoxShadow> get cardShadow => DsShape.hardShadow;
 }
 
 class FcsTheme {
-  static ThemeData light() {
+  /// Build the theme for [locale].
+  ///
+  /// The locale is a real input, not a convenience: Unbounded has no Kazakh
+  /// glyphs, so the display family has to change with the language or headings
+  /// lose letters mid-word. Rebuild the theme when the language changes.
+  static ThemeData light([AppLocale locale = AppLocale.ru]) {
+    final type = DsTypography(locale);
+    final bodyFamily = DsFont.bodyFor(locale);
+
     const scheme = ColorScheme.light(
-      primary: Palette.violet,
+      primary: Ds.coralCta,
       onPrimary: Colors.white,
-      secondary: Palette.pink,
-      onSecondary: Colors.white,
-      tertiary: Palette.teal,
-      surface: Palette.surface,
-      onSurface: Palette.text,
+      secondary: Ds.yellow,
+      onSecondary: Ds.ink,
+      tertiary: Ds.mint,
+      surface: Colors.white,
+      onSurface: Ds.ink,
       surfaceContainerHighest: Palette.glass,
-      error: Palette.danger,
-      outline: Palette.border,
+      error: Ds.coralDeep,
+      outline: Ds.ink,
     );
 
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: scheme,
-      scaffoldBackgroundColor: Palette.bg,
-      fontFamily: 'Outfit',
-      canvasColor: Palette.bg,
+      scaffoldBackgroundColor: Ds.cream,
+      fontFamily: bodyFamily,
+      fontFamilyFallback: DsFont.fallback,
+      canvasColor: Ds.cream,
       splashFactory: InkRipple.splashFactory,
     );
 
     return base.copyWith(
-      textTheme: base.textTheme.apply(
-        bodyColor: Palette.text,
-        displayColor: Palette.text,
-        fontFamily: 'Outfit',
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Palette.bg,
+      extensions: [type],
+      textTheme: base.textTheme
+          .apply(bodyColor: Ds.text, displayColor: Ds.text, fontFamily: bodyFamily)
+          .copyWith(
+            // Headline slots take the display face so Material widgets pick up
+            // Unbounded (or Rubik on Kazakh) without each screen asking.
+            headlineLarge: type.heroMetric(size: 34),
+            headlineMedium: type.screenTitle,
+            headlineSmall: type.cardTitle,
+            titleLarge: type.screenTitle,
+            titleMedium: type.cardTitle,
+            titleSmall: type.rowLabel,
+            bodyLarge: type.body(size: 16),
+            bodyMedium: type.body(),
+            bodySmall: type.caption(),
+            labelLarge: type.button(color: Ds.ink),
+            labelSmall: type.micro(),
+          ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Ds.cream,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: Palette.text,
+        foregroundColor: Ds.ink,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Outfit',
-          fontSize: 23,
-          fontWeight: FontWeight.w700,
-          color: Palette.text,
-          letterSpacing: -0.4,
-        ),
+        titleTextStyle: type.screenTitle,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(54),
-          backgroundColor: Palette.violet,
+          backgroundColor: Ds.coralCta,
           foregroundColor: Colors.white,
           elevation: 0,
-          textStyle: const TextStyle(fontFamily: 'Outfit', fontSize: 16.5, fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: type.button(size: 17),
+          // Pill + ink outline. A ButtonStyle cannot carry the hard offset
+          // shadow, so a primary CTA that needs it wraps in `DsHardShadow`.
+          shape: RoundedRectangleBorder(
+            borderRadius: DsShape.pill,
+            side: DsShape.border,
+          ),
         ),
       ),
-      // Text/outlined buttons show the accent as TEXT on a light surface, so they
-      // must use the darker, WCAG-safe terracotta — the bright accent is tuned
-      // for fills, not small text.
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: Palette.violetText),
+        style: TextButton.styleFrom(
+          foregroundColor: Ds.coralDeep,
+          textStyle: type.button(color: Ds.coralDeep),
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(foregroundColor: Palette.violetText),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Ds.ink,
+          minimumSize: const Size.fromHeight(54),
+          side: DsShape.border,
+          textStyle: type.button(color: Ds.ink),
+          shape: RoundedRectangleBorder(borderRadius: DsShape.pill),
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Palette.glass,
-        hintStyle: const TextStyle(color: Palette.textDim),
-        labelStyle: const TextStyle(color: Palette.textDim),
-        floatingLabelStyle: const TextStyle(color: Palette.violetText),
+        fillColor: Colors.white,
+        hintStyle: type.body(color: Ds.textMuted),
+        labelStyle: type.body(color: Ds.textSecondary),
+        floatingLabelStyle: type.caption(color: Ds.coralDeep),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Palette.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Palette.border),
-        ),
+        border: OutlineInputBorder(borderRadius: DsShape.input, borderSide: DsShape.border),
+        enabledBorder: OutlineInputBorder(borderRadius: DsShape.input, borderSide: DsShape.border),
+        // Focus thickens the same ink line rather than recolouring it — the
+        // outline is structural here, not decorative.
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Palette.violet, width: 1.6),
+          borderRadius: DsShape.input,
+          borderSide: const BorderSide(color: Ds.ink, width: 3),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: DsShape.input,
+          borderSide: const BorderSide(color: Ds.coralDeep, width: DsShape.borderWidth),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: DsShape.input,
+          borderSide: const BorderSide(color: Ds.coralDeep, width: 3),
         ),
       ),
       cardTheme: CardThemeData(
-        color: Palette.surface,
+        color: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: DsShape.card,
+          side: DsShape.border,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.white,
+        selectedColor: Ds.ink,
+        labelStyle: type.caption(color: Ds.ink),
+        secondaryLabelStyle: type.caption(color: Colors.white),
+        side: DsShape.border,
+        shape: RoundedRectangleBorder(borderRadius: DsShape.pill),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: const WidgetStatePropertyAll(Colors.white),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? Ds.mint : Ds.chevron,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Ds.ink),
+        trackOutlineWidth: const WidgetStatePropertyAll(DsShape.borderWidth),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: Palette.surface,
+        color: Colors.white,
         surfaceTintColor: Colors.transparent,
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: DsShape.input,
+          side: DsShape.border,
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        titleTextStyle: type.cardTitle,
+        contentTextStyle: type.body(),
+        shape: RoundedRectangleBorder(
+          borderRadius: DsShape.card,
+          side: DsShape.border,
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(DsShape.radiusCard)),
+          side: DsShape.border,
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Palette.bgElevated,
+        backgroundColor: Ds.barFill,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         height: 66,
-        indicatorColor: Palette.violet.withValues(alpha: 0.12),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
-              fontFamily: 'Outfit',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: states.contains(WidgetState.selected) ? Palette.violet : Palette.textDim,
-            )),
-        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
-              color: states.contains(WidgetState.selected) ? Palette.violet : Palette.textDim,
-            )),
+        // The active tab is named by colour and weight, not by a pill behind it.
+        indicatorColor: Colors.transparent,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => type
+              .micro(
+                size: 11,
+                color: states.contains(WidgetState.selected) ? Ds.coralText : Ds.textMuted,
+              )
+              .copyWith(letterSpacing: 0),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 22,
+            color: states.contains(WidgetState.selected) ? Ds.coral : Ds.textMuted,
+          ),
+        ),
       ),
-      dividerColor: Palette.border,
+      dividerTheme: const DividerThemeData(color: Ds.divider, thickness: 1, space: 1),
+      dividerColor: Ds.divider,
     );
   }
 }
 
-/// Darken a brand colour enough to use as TEXT on its own pale tint.
+/// WCAG contrast ratio between two opaque colours.
+double contrastRatio(Color a, Color b) {
+  final la = a.computeLuminance(), lb = b.computeLuminance();
+  final hi = la > lb ? la : lb, lo = la > lb ? lb : la;
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/// Darken a brand colour enough to use as TEXT on [on] (white by default).
 ///
 /// The pattern "accent text on accent-at-12%" recurs all over this app — badges,
-/// tonal buttons, links — and the brand colours were chosen to look right as
-/// fills, not as small text. Palette.violet on its own tint measures 3.58:1
-/// against the 4.5 WCAG minimum; the same shape failed on the profile screen at
-/// 4.02. This pulls the lightness down until it carries.
+/// tonal buttons, links — and the brand colours are chosen to look right as
+/// fills, not as small text.
 ///
-/// [Palette.violetText] is the hand-tuned violet and stays preferable where the
-/// colour is known at authoring time; this is for the places that take a colour
-/// as a parameter and cannot name one.
-Color darkenForText(Color c) {
+/// This used to clamp lightness to 0.36 and claim that cleared 4.5:1 "for every
+/// hue in the palette". That held for the old terracotta palette, whose hues are
+/// all low-luminance, and quietly stopped holding when the design system brought
+/// in bright greens and yellows: luminance is ~72% green-weighted, so mint at
+/// lightness 0.36 still measures **2.57:1** on white — a failing colour returned
+/// by the function whose whole job is to prevent one.
+///
+/// So it now *measures* instead of assuming, walking the lightness down until
+/// the contrast actually clears. Slower, and correct for hues nobody has picked
+/// yet.
+///
+/// Prefer the hand-tuned pairs where the colour is known when writing the code
+/// ([Ds.coralDeep] for coral, [Ds.mintDeep] for mint). This is for the places
+/// that take a colour as a parameter and cannot name one.
+Color darkenForText(Color c, {Color on = Colors.white, double minRatio = 4.5}) {
   final hsl = HSLColor.fromColor(c);
-  // 0.36 lightness clears 4.5:1 against the app's near-white surfaces for every
-  // hue in the palette, checked by the accessibility suite rather than by eye.
-  return hsl.withLightness(hsl.lightness > 0.36 ? 0.36 : hsl.lightness).toColor();
+  for (var l = hsl.lightness; l > 0; l -= 0.02) {
+    final candidate = hsl.withLightness(l).toColor();
+    if (contrastRatio(candidate, on) >= minRatio) return candidate;
+  }
+  // Black clears 4.5:1 against anything light enough to be a card.
+  return hsl.withLightness(0).toColor();
 }

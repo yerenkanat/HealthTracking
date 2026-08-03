@@ -14,7 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../theme.dart';
+import '../design_system.dart';
 import 'glass.dart';
 
 class StatTile extends StatelessWidget {
@@ -45,7 +45,12 @@ class StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chipColor = color ?? Palette.violet;
+    // In the design system the icon chip is a solid accent block with a white
+    // glyph and an ink outline — the tinted-chip variant the [gradient]/[color]
+    // split expressed no longer exists, so both now produce the same tile. The
+    // parameters stay because 20 call sites pass them; [gradient] contributes
+    // its first colour, since the system has no gradients.
+    final chip = gradient?.colors.firstOrNull ?? color ?? Ds.coralCta;
     return GlassCard(
       padding: const EdgeInsets.all(16),
       onTap: onTap,
@@ -55,27 +60,28 @@ class StatTile extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  gradient: gradient,
-                  color: gradient == null ? chipColor.withValues(alpha: 0.14) : null,
-                  borderRadius: BorderRadius.circular(11),
+                  color: chip,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                 ),
-                child: Icon(icon, color: gradient != null ? Colors.white : chipColor, size: 20),
+                child: Icon(icon, color: Colors.white, size: 19),
               ),
               const Spacer(),
-              if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Palette.textDim, size: 20),
+              if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Ds.chevron, size: 20),
             ],
           ),
           const SizedBox(height: 14),
+          // The display face, not mono: these are headline figures, and
+          // JetBrains Mono has no ә ғ қ ң ұ for the units that follow them.
           Text(value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontFamily: 'JetBrainsMono', fontSize: 26, fontWeight: FontWeight.w700, height: 1)),
+              style: context.ds.statNumber()),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+          Text(label, style: context.ds.caption()),
         ],
       ),
     );

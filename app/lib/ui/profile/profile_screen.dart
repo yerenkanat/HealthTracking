@@ -10,6 +10,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../appointments/appointments_screen.dart';
 import '../settings/settings_screen.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
@@ -24,7 +25,11 @@ class ProfileScreen extends StatelessWidget {
   /// Null in tests/standalone use leaves the summary tiles as plain readouts.
   final VoidCallback? onOpenChildren;
   final VoidCallback? onOpenDevices;
-  const ProfileScreen({super.key, required this.controller, this.onOpenChildren, this.onOpenDevices});
+  const ProfileScreen(
+      {super.key,
+      required this.controller,
+      this.onOpenChildren,
+      this.onOpenDevices});
 
   @override
   Widget build(BuildContext context) {
@@ -63,11 +68,16 @@ class ProfileScreen extends StatelessWidget {
                       onTap: () => _editProfilePhoto(context, c),
                     ),
                     const SizedBox(height: 16),
-                    Text(name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                    Text(name,
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Text(
-                      c.profile.hasPhone ? '${c.profile.dialCode} ${c.profile.phoneNumber}' : l.t('prof_no_phone'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 14.5),
+                      c.profile.hasPhone
+                          ? '${c.profile.dialCode} ${c.profile.phoneNumber}'
+                          : l.t('prof_no_phone'),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 14.5),
                     ),
                     const SizedBox(height: 16),
                     FilledButton.tonalIcon(
@@ -90,17 +100,19 @@ class ProfileScreen extends StatelessWidget {
               // Summary tiles: children + devices
               Row(
                 children: [
-                  Expanded(child: StatTile(
+                  Expanded(
+                      child: StatTile(
                     icon: Icons.child_care,
-                    gradient: Palette.violetPink,
+                    color: Ds.coralCta,
                     value: '${c.children.length}',
                     label: l.t('prof_children_count'),
                     onTap: onOpenChildren,
                   )),
                   const SizedBox(width: 14),
-                  Expanded(child: StatTile(
+                  Expanded(
+                      child: StatTile(
                     icon: Icons.watch,
-                    gradient: Palette.tealBlue,
+                    color: Ds.mint,
                     value: '${c.devices.length}',
                     label: l.t('prof_devices_count'),
                     onTap: onOpenDevices,
@@ -111,7 +123,8 @@ class ProfileScreen extends StatelessWidget {
               _AppointmentsEntry(
                 subtitle: _apptSubtitle(l, c),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => AppointmentsScreen(controller: c)),
+                  MaterialPageRoute(
+                      builder: (_) => AppointmentsScreen(controller: c)),
                 ),
               ),
             ],
@@ -148,14 +161,23 @@ class _AppointmentsEntry extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         leading: Container(
-          width: 42, height: 42,
-          decoration: BoxDecoration(gradient: Palette.roseViolet, borderRadius: BorderRadius.circular(12)),
-          child: const Icon(Icons.event_note_rounded, color: Colors.white, size: 22),
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.coralCta,
+              borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.event_note_rounded,
+              color: Colors.white, size: 22),
         ),
-        title: Text(l.t('appt_title'), style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+        title: Text(l.t('appt_title'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
-        trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
         onTap: onTap,
       ),
     );
@@ -167,7 +189,8 @@ class _EditablePhoto extends StatelessWidget {
   final String? photoPath;
   final String name;
   final VoidCallback onTap;
-  const _EditablePhoto({required this.photoPath, required this.name, required this.onTap});
+  const _EditablePhoto(
+      {required this.photoPath, required this.name, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -179,18 +202,21 @@ class _EditablePhoto extends StatelessWidget {
             photoPath: photoPath,
             name: name,
             size: 96,
-            shadow: [BoxShadow(color: Palette.violet.withValues(alpha: 0.3), blurRadius: 22, offset: const Offset(0, 10), spreadRadius: -6)],
+            shadow: DsShape.hardShadow,
           ),
           Positioned(
-            right: 0, bottom: 0,
+            right: 0,
+            bottom: 0,
             child: Container(
-              width: 30, height: 30,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: Palette.violet,
                 shape: BoxShape.circle,
                 border: Border.all(color: Palette.bg, width: 2.5),
               ),
-              child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 15),
+              child: const Icon(Icons.photo_camera_rounded,
+                  color: Colors.white, size: 15),
             ),
           ),
         ],
@@ -200,7 +226,8 @@ class _EditablePhoto extends StatelessWidget {
 }
 
 Future<void> _editProfilePhoto(BuildContext context, AppController c) async {
-  final r = await pickPhoto(context, prefix: 'profile', canRemove: c.profile.hasPhoto);
+  final r = await pickPhoto(context,
+      prefix: 'profile', canRemove: c.profile.hasPhoto);
   if (r == null) return;
   final old = c.profile.photoPath;
   if (r.remove) {
@@ -210,4 +237,3 @@ Future<void> _editProfilePhoto(BuildContext context, AppController c) async {
   }
   if (old != null && old != c.profile.photoPath) await PhotoStore().delete(old);
 }
-

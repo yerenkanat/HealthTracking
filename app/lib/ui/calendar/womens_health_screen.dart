@@ -10,20 +10,27 @@
 library;
 
 import 'package:flutter/material.dart' hide Flow;
-import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeedback;
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, HapticFeedback;
 import '../../app/app_controller.dart';
 import '../common/daily_audio_card.dart';
 import '../../domain/birth_transition.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/contraction.dart';
 import '../../domain/cycle_insights.dart'
-    show cycleHistory, cycleRegularity, predictionConfidence, symptomsInPhase, PredictionConfidence;
+    show
+        cycleHistory,
+        cycleRegularity,
+        predictionConfidence,
+        symptomsInPhase,
+        PredictionConfidence;
 import '../../domain/cycle_predictions.dart';
 import '../../domain/kick_session.dart';
 import '../../domain/postpartum.dart';
 import '../../domain/pregnancy_milestones.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -100,7 +107,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     return newest;
   }
 
-  void _shiftMonth(int by) => setState(() => _month = DateTime(_month.year, _month.month + by, 1));
+  void _shiftMonth(int by) =>
+      setState(() => _month = DateTime(_month.year, _month.month + by, 1));
 
   @override
   Widget build(BuildContext context) {
@@ -122,9 +130,12 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     icon: const Icon(Icons.timer_outlined),
                     tooltip: l.t('contr_title'),
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => ContractionTimerScreen(
-                        onSave: (count, dur, interval) => c.logContractionSession(count, dur, interval),
-                      )),
+                      MaterialPageRoute(
+                          builder: (_) => ContractionTimerScreen(
+                                onSave: (count, dur, interval) =>
+                                    c.logContractionSession(
+                                        count, dur, interval),
+                              )),
                     ),
                   ),
                 // Safety content, always one tap from the main pregnancy view —
@@ -135,7 +146,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     icon: const Icon(Icons.health_and_safety_outlined),
                     tooltip: l.t('preg_warn_title'),
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const PregnancyWarningsScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const PregnancyWarningsScreen()),
                     ),
                   ),
                 if (cycleMode && c.cycle.hasData)
@@ -154,14 +166,17 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   icon: const Icon(Icons.medication_outlined),
                   tooltip: l.t('med_title'),
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => MedicationsScreen(controller: c, now: () => _today)),
+                    MaterialPageRoute(
+                        builder: (_) => MedicationsScreen(
+                            controller: c, now: () => _today)),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.insights_rounded),
                   tooltip: l.t('cyc_insights_title'),
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => CycleInsightsScreen(controller: c)),
+                    MaterialPageRoute(
+                        builder: (_) => CycleInsightsScreen(controller: c)),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -175,23 +190,31 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     // most-used control on this screen is legible.
                     backgroundColor: darkenForText(Palette.roseDeep),
                     foregroundColor: Colors.white,
-                    icon: Icon(periodToday ? Icons.check_rounded : Icons.water_drop_rounded),
-                    label: Text(l.t(periodToday ? 'cyc_period_logged' : 'cyc_log_period')),
+                    icon: Icon(periodToday
+                        ? Icons.check_rounded
+                        : Icons.water_drop_rounded),
+                    label: Text(l.t(
+                        periodToday ? 'cyc_period_logged' : 'cyc_log_period')),
                   )
                 : null,
             body: ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
               children: [
                 if (cycleMode)
-                  _CycleHeader(controller: c, today: _today, onSetDueDate: _pickDueDate)
+                  _CycleHeader(
+                      controller: c, today: _today, onSetDueDate: _pickDueDate)
                 else
-                  _GestationHeader(controller: c, today: _today, onSetDueDate: _pickDueDate),
+                  _GestationHeader(
+                      controller: c, today: _today, onSetDueDate: _pickDueDate),
 
                 // Daily audio for this exact day of the calendar, right under the
                 // week/day header. Renders nothing (and adds no gap) when the day
                 // has no clip.
                 if (!cycleMode && c.gestation != null)
-                  DailyAudioCard(track: 'pregnancy', day: c.gestation!.totalDays, margin: const EdgeInsets.only(top: 14)),
+                  DailyAudioCard(
+                      track: 'pregnancy',
+                      day: c.gestation!.totalDays,
+                      margin: const EdgeInsets.only(top: 14)),
 
                 // After a recent birth the app is in cycle mode but her body is
                 // still recovering. Surface the recovery guide until the window
@@ -203,8 +226,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     _PostpartumCard(
                       birthDate: birth,
                       today: _today,
-                      onOpen: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => PostpartumScreen(birthDate: birth, today: _today),
+                      onOpen: () =>
+                          Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) =>
+                            PostpartumScreen(birthDate: birth, today: _today),
                       )),
                     ),
                   ],
@@ -231,16 +256,19 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   _CyclePhaseCard(info: c.cycle),
                   if (cyclePhaseFor(c.cycle) case final ph?)
                     Builder(builder: (_) {
-                      final usual = symptomsInPhase(c.dayLogs.values, c.periodDays, ph.phase);
+                      final usual = symptomsInPhase(
+                          c.dayLogs.values, c.periodDays, ph.phase);
                       if (usual.isEmpty) return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(top: 14),
                         child: _UsualSymptomsCard(symptoms: usual),
                       );
                     }),
-                  if (fertileCountdown(c.cycle)?.state == FertileWindowState.upcoming) ...[
+                  if (fertileCountdown(c.cycle)?.state ==
+                      FertileWindowState.upcoming) ...[
                     const SizedBox(height: 14),
-                    _FertileCountdownCard(countdown: fertileCountdown(c.cycle)!),
+                    _FertileCountdownCard(
+                        countdown: fertileCountdown(c.cycle)!),
                   ],
                   const SizedBox(height: 14),
                   Builder(builder: (_) {
@@ -264,7 +292,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     const SizedBox(height: 14),
                     _HospitalBagCard(
                       checked: c.hospitalBagChecked,
-                      onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+                      onOpen: () =>
+                          Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => StreamBuilder<void>(
                           stream: c.changes,
                           builder: (_, __) => HospitalBagScreen(
@@ -283,13 +312,19 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     onLog: (kg) => c.logWeight(_today, kg),
                     goalKg: c.weightGoalKg,
                     onSetGoal: c.setWeightGoal,
-                    onOpenHistory: c.weights.isEmpty ? null : () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => WeightHistoryScreen(entries: c.weights, onDelete: c.removeWeightEntry),
-                    )),
+                    onOpenHistory: c.weights.isEmpty
+                        ? null
+                        : () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => WeightHistoryScreen(
+                                  entries: c.weights,
+                                  onDelete: c.removeWeightEntry),
+                            )),
                     // Pregnancy only: how much is healthy to gain, and how her
                     // logged pace compares.
-                    onOpenGuide: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => PregnancyWeightScreen(weeklyRateKg: weeklyGainRate(c.weights)),
+                    onOpenGuide: () =>
+                        Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => PregnancyWeightScreen(
+                          weeklyRateKg: weeklyGainRate(c.weights)),
                     )),
                   ),
                 ],
@@ -299,7 +334,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     controller: c,
                     today: _today,
                     onOpen: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => MedicationsScreen(controller: c, now: () => _today),
+                      builder: (_) =>
+                          MedicationsScreen(controller: c, now: () => _today),
                     )),
                   ),
                 ],
@@ -309,7 +345,9 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   today: _today,
                   logs: c.dayLogs,
                   cycle: cycleMode ? c.cycle : null,
-                  appointmentDays: {for (final a in c.appointments) dateKey(a.at)},
+                  appointmentDays: {
+                    for (final a in c.appointments) dateKey(a.at)
+                  },
                   onPrev: () => _shiftMonth(-1),
                   onNext: () => _shiftMonth(1),
                   onTapDay: _openDay,
@@ -320,17 +358,29 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 ],
                 if (!cycleMode && c.kickSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _KickHistory(sessions: c.kickSessions, today: _today,
-                      onClear: () => _clearHistory(title: l.t('kick_history_clear_title'), onConfirmed: c.clearKickSessions),
-                      onOpenAll: () => _openFullHistory(l.t('kick_history'),
-                          [for (final s in c.kickSessions) _KickHistoryRow(record: s, now: _today)])),
+                  _KickHistory(
+                      sessions: c.kickSessions,
+                      today: _today,
+                      onClear: () => _clearHistory(
+                          title: l.t('kick_history_clear_title'),
+                          onConfirmed: c.clearKickSessions),
+                      onOpenAll: () => _openFullHistory(l.t('kick_history'), [
+                            for (final s in c.kickSessions)
+                              _KickHistoryRow(record: s, now: _today)
+                          ])),
                 ],
                 if (!cycleMode && c.contractionSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _ContractionHistory(sessions: c.contractionSessions, today: _today,
-                      onClear: () => _clearHistory(title: l.t('contr_history_clear_title'), onConfirmed: c.clearContractionSessions),
-                      onOpenAll: () => _openFullHistory(l.t('contr_history'),
-                          [for (final s in c.contractionSessions) _ContractionHistoryRow(record: s, now: _today)])),
+                  _ContractionHistory(
+                      sessions: c.contractionSessions,
+                      today: _today,
+                      onClear: () => _clearHistory(
+                          title: l.t('contr_history_clear_title'),
+                          onConfirmed: c.clearContractionSessions),
+                      onOpenAll: () => _openFullHistory(l.t('contr_history'), [
+                            for (final s in c.contractionSessions)
+                              _ContractionHistoryRow(record: s, now: _today)
+                          ])),
                 ],
               ],
             ),
@@ -346,7 +396,8 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     ));
   }
 
-  Future<void> _clearHistory({required String title, required VoidCallback onConfirmed}) async {
+  Future<void> _clearHistory(
+      {required String title, required VoidCallback onConfirmed}) async {
     final l = L10nScope.of(context);
     final ok = await confirmDestructive(
       context,
@@ -363,7 +414,9 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.t('cyc_share_copied')), behavior: SnackBarBehavior.floating),
+      SnackBar(
+          content: Text(l.t('cyc_share_copied')),
+          behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -374,55 +427,76 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Palette.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
       builder: (ctx) {
         final l = L10nScope.of(ctx);
         return StatefulBuilder(
           builder: (ctx, setSheet) => Padding(
             padding: EdgeInsets.only(
-                left: 20, right: 20, top: 16, bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
                   child: Container(
-                    width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                        color: Palette.border,
+                        borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
-                Text(l.t('cyc_settings_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                Text(l.t('cyc_settings_title'),
+                    style: const TextStyle(
+                        fontSize: 19, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text(l.t('cyc_settings_hint'), style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                Text(l.t('cyc_settings_hint'),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.3)),
                 const SizedBox(height: 18),
                 _SliderRow(
                   label: l.t('cyc_avg_cycle_label'),
-                  value: cycleLen, min: 21, max: 35,
+                  value: cycleLen,
+                  min: 21,
+                  max: 35,
                   display: l.t('cyc_days_short', {'n': cycleLen.round()}),
                   onChanged: (v) => setSheet(() => cycleLen = v),
                 ),
                 const SizedBox(height: 12),
                 _SliderRow(
                   label: l.t('cyc_avg_period_label'),
-                  value: periodLen, min: 2, max: 8,
+                  value: periodLen,
+                  min: 2,
+                  max: 8,
                   display: l.t('cyc_days_short', {'n': periodLen.round()}),
                   onChanged: (v) => setSheet(() => periodLen = v),
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.notifications_outlined, size: 18, color: Palette.textDim),
+                    const Icon(Icons.notifications_outlined,
+                        size: 18, color: Palette.textDim),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(l.t('rem_manage_hint'),
-                          style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                          style: const TextStyle(
+                              color: Palette.textDim,
+                              fontSize: 12.5,
+                              height: 1.3)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () {
-                    c.setCycleBaseline(cycle: cycleLen.round(), period: periodLen.round());
+                    c.setCycleBaseline(
+                        cycle: cycleLen.round(), period: periodLen.round());
                     Navigator.pop(ctx);
                   },
                   child: Text(l.t('act_save')),
@@ -447,24 +521,31 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     c.toggleFlowFor(_today, Flow.medium);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(l.t('cyc_period_logged_toast')),
-      action: SnackBarAction(label: l.t('act_remove'), onPressed: () => c.toggleFlowFor(_today, Flow.medium)),
+      action: SnackBarAction(
+          label: l.t('act_remove'),
+          onPressed: () => c.toggleFlowFor(_today, Flow.medium)),
     ));
   }
 
   Future<void> _pickDueDate() async {
     final c = widget.controller;
-    final initial = c.dueDate ?? _today.add(const Duration(days: 140)); // elapsed-ok: a picker default, adjustable by hand
+    final initial = c.dueDate ??
+        _today.add(const Duration(
+            days: 140)); // elapsed-ok: a picker default, adjustable by hand
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: _today.subtract(const Duration(days: 300)), // elapsed-ok: a generous picker bound
-      lastDate: _today.add(const Duration(days: 300)), // elapsed-ok: a generous picker bound
+      firstDate: _today.subtract(
+          const Duration(days: 300)), // elapsed-ok: a generous picker bound
+      lastDate: _today.add(
+          const Duration(days: 300)), // elapsed-ok: a generous picker bound
       helpText: L10nScope.of(context).t('cal_due_pick'),
     );
     if (picked != null) c.setDueDate(picked);
   }
 
-  void _openDay(DateTime day) => showDayLogSheet(context, widget.controller, day);
+  void _openDay(DateTime day) =>
+      showDayLogSheet(context, widget.controller, day);
 }
 
 /// Gestation header: a "Week N, Day D" progress card + a 7-day horizontal strip
@@ -473,7 +554,10 @@ class _GestationHeader extends StatelessWidget {
   final AppController controller;
   final DateTime today;
   final VoidCallback onSetDueDate;
-  const _GestationHeader({required this.controller, required this.today, required this.onSetDueDate});
+  const _GestationHeader(
+      {required this.controller,
+      required this.today,
+      required this.onSetDueDate});
 
   /// Open the week browser. [week] null starts on her real week (the "More"
   /// button); the hero's chevrons pass the adjacent week to land there directly.
@@ -484,8 +568,8 @@ class _GestationHeader extends StatelessWidget {
         gestation: g,
         dueDate: controller.dueDate,
         initialWeek: week,
-        onBookAntenatal: (visit, at) =>
-            controller.addAppointment(l.t('an_book_title', {'n': visit.number}), at),
+        onBookAntenatal: (visit, at) => controller.addAppointment(
+            l.t('an_book_title', {'n': visit.number}), at),
       ),
     ));
   }
@@ -502,9 +586,12 @@ class _GestationHeader extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 46, height: 46,
-              decoration: const BoxDecoration(gradient: Palette.roseViolet, shape: BoxShape.circle),
-              child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 24),
+              width: 46,
+              height: 46,
+              decoration: const BoxDecoration(
+                  color: Ds.coralCta, shape: BoxShape.circle),
+              child: const Icon(Icons.calendar_month_rounded,
+                  color: Colors.white, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -512,10 +599,12 @@ class _GestationHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(l.t('cal_no_due_title'),
-                      style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(
+                          fontSize: 15.5, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 3),
                   Text(l.t('cal_no_due_body'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12.5, height: 1.3)),
                 ],
               ),
             ),
@@ -556,18 +645,23 @@ class _GestationHeader extends StatelessWidget {
               child: GestureDetector(
                 onTap: onSetDueDate,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.edit_calendar_outlined, size: 15, color: Palette.violet),
+                  const Icon(Icons.edit_calendar_outlined,
+                      size: 15, color: Palette.violet),
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(
                       controller.dueDate != null
                           ? l.t('gest_due', {
-                              'date': MaterialLocalizations.of(context).formatMediumDate(controller.dueDate!)
+                              'date': MaterialLocalizations.of(context)
+                                  .formatMediumDate(controller.dueDate!)
                             })
                           : l.t('cal_no_due_title'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          color: Palette.violetText,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ]),
@@ -577,12 +671,18 @@ class _GestationHeader extends StatelessWidget {
             GestureDetector(
               onTap: () => _confirmEndPregnancy(context),
               child: Text(l.t('cyc_end_pregnancy'),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12, decoration: TextDecoration.underline)),
+                  style: const TextStyle(
+                      color: Palette.textDim,
+                      fontSize: 12,
+                      decoration: TextDecoration.underline)),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        _WeekStrip(today: today, logs: controller.dayLogs, dueDate: controller.dueDate),
+        _WeekStrip(
+            today: today,
+            logs: controller.dayLogs,
+            dueDate: controller.dueDate),
       ],
     );
   }
@@ -612,10 +712,12 @@ class _GestationHeader extends StatelessWidget {
           children: [
             const SizedBox(height: 18),
             Text(l.t('birth_which'),
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
             ListTile(
-              leading: const Icon(Icons.child_friendly_rounded, color: Palette.rose),
+              leading:
+                  const Icon(Icons.child_friendly_rounded, color: Palette.rose),
               title: Text(l.t('birth_born'),
                   style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(l.t('birth_born_sub'),
@@ -686,7 +788,9 @@ class _GestationHeader extends StatelessWidget {
     controller.setDueDate(null);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.t('birth_done')), behavior: SnackBarBehavior.floating),
+      SnackBar(
+          content: Text(l.t('birth_done')),
+          behavior: SnackBarBehavior.floating),
     );
   }
 }
@@ -697,7 +801,10 @@ class _CycleHeader extends StatelessWidget {
   final AppController controller;
   final DateTime today;
   final VoidCallback onSetDueDate;
-  const _CycleHeader({required this.controller, required this.today, required this.onSetDueDate});
+  const _CycleHeader(
+      {required this.controller,
+      required this.today,
+      required this.onSetDueDate});
 
   @override
   Widget build(BuildContext context) {
@@ -716,24 +823,37 @@ class _CycleHeader extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 46, height: 46,
+                  width: 46,
+                  height: 46,
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [Palette.rose, Palette.roseDeep]),
+                    color: Palette.rose,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(postpartum ? Icons.spa_rounded : Icons.water_drop_rounded,
-                      color: Colors.white, size: 24),
+                  child: Icon(
+                      postpartum ? Icons.spa_rounded : Icons.water_drop_rounded,
+                      color: Colors.white,
+                      size: 24),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(l.t(postpartum ? 'cyc_pp_paused_title' : 'cyc_no_data_title'),
-                          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+                      Text(
+                          l.t(postpartum
+                              ? 'cyc_pp_paused_title'
+                              : 'cyc_no_data_title'),
+                          style: const TextStyle(
+                              fontSize: 15.5, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 3),
-                      Text(l.t(postpartum ? 'cyc_pp_paused_body' : 'cyc_no_data_body'),
-                          style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                      Text(
+                          l.t(postpartum
+                              ? 'cyc_pp_paused_body'
+                              : 'cyc_no_data_body'),
+                          style: const TextStyle(
+                              color: Palette.textDim,
+                              fontSize: 12.5,
+                              height: 1.3)),
                     ],
                   ),
                 ),
@@ -761,11 +881,8 @@ class _CycleHeader extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.06)],
-        ),
-        border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+        color: Palette.rose.withValues(alpha: 0.14),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         children: [
@@ -773,14 +890,21 @@ class _CycleHeader extends StatelessWidget {
             children: [
               MetricRing(
                 fraction: (info.cycleDay ?? 1) / info.avgCycleLength,
-                gradient: const LinearGradient(colors: [Palette.rose, Palette.violet]),
-                size: 72, stroke: 8,
+                color: Palette.rose,
+                size: 72,
+                stroke: 8,
                 center: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('${info.cycleDay ?? 1}',
-                        style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 22, fontWeight: FontWeight.w700, height: 1)),
-                    Text(l.t('cyc_day_short'), style: const TextStyle(color: Palette.textDim, fontSize: 10)),
+                        style: const TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            height: 1)),
+                    Text(l.t('cyc_day_short'),
+                        style: const TextStyle(
+                            color: Palette.textDim, fontSize: 10)),
                   ],
                 ),
               ),
@@ -789,10 +913,13 @@ class _CycleHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(subtitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 5),
                     if (_phaseLabel(l, phaseType) != null)
-                      _PhasePill(label: _phaseLabel(l, phaseType)!, type: phaseType),
+                      _PhasePill(
+                          label: _phaseLabel(l, phaseType)!, type: phaseType),
                     const SizedBox(height: 6),
                     _ExpectingLink(onTap: onSetDueDate),
                   ],
@@ -829,8 +956,13 @@ class _PhasePill extends StatelessWidget {
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(20)),
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontWeight: FontWeight.w700, fontSize: 12)),
     );
   }
 }
@@ -844,7 +976,8 @@ class _ExpectingLink extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.pregnant_woman_rounded, size: 15, color: Palette.violet),
+        const Icon(Icons.pregnant_woman_rounded,
+            size: 15, color: Palette.violet),
         const SizedBox(width: 4),
         // Flexible because this label is a sentence, not a word, and it is
         // longest in Kazakh — where it ran 173px past the row at 360dp. A
@@ -855,7 +988,9 @@ class _ExpectingLink extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-                color: Palette.violetText, fontSize: 12.5, fontWeight: FontWeight.w600),
+                color: Palette.violetText,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600),
           ),
         ),
       ]),
@@ -935,7 +1070,11 @@ class _DayChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(weekday, style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w600)),
+        Text(weekday,
+            style: const TextStyle(
+                color: Palette.textDim,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
         // The running day count, above the date. Reserve the line either way
         // so the seven chips keep a common baseline — without it the strip
         // shifts vertically the moment one day falls outside the pregnancy.
@@ -948,26 +1087,28 @@ class _DayChip extends StatelessWidget {
                     fontFamily: 'JetBrainsMono',
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: isToday ? Palette.roseDeep : Palette.textDim.withValues(alpha: 0.7),
+                    color: isToday
+                        ? Palette.roseDeep
+                        : Palette.textDim.withValues(alpha: 0.7),
                   )),
         ),
         const SizedBox(height: 2),
         Container(
-          width: 34, height: 34,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
-            // The today chip carries WHITE text, and white on the pastel end of
-            // roseViolet measures 3.58:1 — under the 4.5 minimum. Darkening the
-            // stops keeps the gradient look while making the number legible;
-            // the accessibility suite checks the result rather than my eye.
-            gradient: isToday
-                ? LinearGradient(colors: [
-                    darkenForText(Palette.rose),
-                    darkenForText(Palette.violet),
-                  ])
-                : null,
-            color: isToday ? null : Colors.white,
+            // Today is a solid coral disc; every other day is white. Both carry
+            // the ink outline, so "today" is signalled by fill rather than by
+            // the presence of an edge.
+            //
+            // This was a two-stop gradient of darkened accents — the darkening
+            // was there because the chip prints WHITE text and the original
+            // pastel stops measured 3.58:1. Ds.coralCta is the token that
+            // already guarantees white-on-it clears 4.5:1, so the workaround
+            // goes with the gradient.
+            color: isToday ? Ds.coralCta : Colors.white,
             shape: BoxShape.circle,
-            border: isToday ? null : Border.all(color: Palette.border),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           alignment: Alignment.center,
           child: Text('$day',
@@ -980,7 +1121,8 @@ class _DayChip extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Container(
-          width: 5, height: 5,
+          width: 5,
+          height: 5,
           decoration: BoxDecoration(
             color: logged ? Palette.rose : Colors.transparent,
             shape: BoxShape.circle,
@@ -1036,7 +1178,8 @@ class _MonthCalendar extends StatelessWidget {
               Expanded(
                 child: Text(ml.formatMonthYear(month),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(
+                        fontSize: 15.5, fontWeight: FontWeight.w700)),
               ),
               IconButton(
                 onPressed: onNext,
@@ -1052,7 +1195,10 @@ class _MonthCalendar extends StatelessWidget {
                 Expanded(
                   child: Text(ml.narrowWeekdays[i],
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600)),
                 ),
             ],
           ),
@@ -1063,7 +1209,9 @@ class _MonthCalendar extends StatelessWidget {
               child: Row(
                 children: [
                   for (var col = 0; col < 7; col++)
-                    Expanded(child: _buildCell(r * 7 + col - leadingBlanks + 1, daysInMonth)),
+                    Expanded(
+                        child: _buildCell(
+                            r * 7 + col - leadingBlanks + 1, daysInMonth)),
                 ],
               ),
             ),
@@ -1087,7 +1235,8 @@ class _MonthCalendar extends StatelessWidget {
     Color? textColor;
     Color borderColor = Palette.violet;
     if (cycle != null) {
-      final type = cycleDayType(date, cycle!, loggedPeriod: log?.hasPeriod ?? false);
+      final type =
+          cycleDayType(date, cycle!, loggedPeriod: log?.hasPeriod ?? false);
       final s = cycleCellStyle(type);
       fill = s.fill;
       textColor = s.text;
@@ -1099,55 +1248,62 @@ class _MonthCalendar extends StatelessWidget {
     return Semantics(
       button: !isFuture,
       child: GestureDetector(
-      onTap: isFuture
-          ? null
-          : () {
-              HapticFeedback.selectionClick();
-              onTapDay(date);
-            },
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        // 48, not 40: this is the minimum touch target on both platforms, and
-        // these cells were below it. The visible circle stays 34 — only the
-        // hit area grows, so nothing looks different but the day someone is
-        // aiming for is the day they get.
-        height: 48,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 34, height: 34,
-              decoration: BoxDecoration(
-                color: fill,
-                shape: BoxShape.circle,
-                border: isToday ? Border.all(color: borderColor, width: 1.6) : null,
+        onTap: isFuture
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onTapDay(date);
+              },
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          // 48, not 40: this is the minimum touch target on both platforms, and
+          // these cells were below it. The visible circle stays 34 — only the
+          // hit area grows, so nothing looks different but the day someone is
+          // aiming for is the day they get.
+          height: 48,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: fill,
+                  shape: BoxShape.circle,
+                  border: isToday
+                      ? Border.all(color: borderColor, width: 1.6)
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text('$dayNum',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                      color: textColor ??
+                          (isFuture
+                              ? Palette.textDim.withValues(alpha: 0.5)
+                              : Palette.text),
+                    )),
               ),
-              alignment: Alignment.center,
-              child: Text('$dayNum',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                    color: textColor ?? (isFuture ? Palette.textDim.withValues(alpha: 0.5) : Palette.text),
-                  )),
-            ),
-            // Appointment marker: a small amber dot at the bottom of the cell,
-            // bordered so it stays visible on filled (period/ovulation) days.
-            if (hasAppointment)
-              Positioned(
-                bottom: 1,
-                child: Container(
-                  key: ValueKey('appt-dot-$dayNum'),
-                  width: 6, height: 6,
-                  decoration: BoxDecoration(
-                    color: Palette.amber,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Palette.surface, width: 1),
+              // Appointment marker: a small amber dot at the bottom of the cell,
+              // bordered so it stays visible on filled (period/ovulation) days.
+              if (hasAppointment)
+                Positioned(
+                  bottom: 1,
+                  child: Container(
+                    key: ValueKey('appt-dot-$dayNum'),
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Palette.amber,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Palette.surface, width: 1),
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1156,9 +1312,15 @@ class _MonthCalendar extends StatelessWidget {
 /// Fill + text colour for each cycle day type in the month grid.
 ({Color fill, Color? text}) cycleCellStyle(CycleDayType type) => switch (type) {
       CycleDayType.period => (fill: Palette.roseDeep, text: Colors.white),
-      CycleDayType.predictedPeriod => (fill: Palette.rose.withValues(alpha: 0.18), text: Palette.roseDeep),
+      CycleDayType.predictedPeriod => (
+          fill: Palette.rose.withValues(alpha: 0.18),
+          text: Palette.roseDeep
+        ),
       CycleDayType.ovulation => (fill: Palette.teal, text: Colors.white),
-      CycleDayType.fertile => (fill: Palette.teal.withValues(alpha: 0.16), text: Palette.teal),
+      CycleDayType.fertile => (
+          fill: Palette.teal.withValues(alpha: 0.16),
+          text: Palette.teal
+        ),
       CycleDayType.none => (fill: Colors.transparent, text: null),
     };
 
@@ -1173,7 +1335,8 @@ class _PostpartumCard extends StatelessWidget {
   final DateTime birthDate;
   final DateTime today;
   final VoidCallback onOpen;
-  const _PostpartumCard({required this.birthDate, required this.today, required this.onOpen});
+  const _PostpartumCard(
+      {required this.birthDate, required this.today, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -1188,22 +1351,21 @@ class _PostpartumCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Palette.violet.withValues(alpha: 0.14), Palette.rose.withValues(alpha: 0.06)],
-            ),
-            border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
+            color: Palette.violet.withValues(alpha: 0.14),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           child: Row(
             children: [
               Container(
-                width: 44, height: 44,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                   color: Palette.violet.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: const Icon(Icons.spa_outlined, color: Palette.violet, size: 22),
+                child: const Icon(Icons.spa_outlined,
+                    color: Palette.violet, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1211,11 +1373,17 @@ class _PostpartumCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(l.t('pp_card_title'),
-                        style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                        style: const TextStyle(
+                            fontSize: 15.5, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
                     Text(
-                      until != null ? l.t('pp_check_in', {'n': until}) : l.t('pp_card_sub'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600),
+                      until != null
+                          ? l.t('pp_check_in', {'n': until})
+                          : l.t('pp_card_sub'),
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -1249,23 +1417,23 @@ class _HospitalBagCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Palette.rose.withValues(alpha: 0.14), Palette.violet.withValues(alpha: 0.05)],
-            ),
-            border: Border.all(color: Palette.rose.withValues(alpha: 0.22)),
+            color: Palette.rose.withValues(alpha: 0.14),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           child: Row(
             children: [
               Container(
-                width: 44, height: 44,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                   color: Palette.roseDeep.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(done ? Icons.check_circle_rounded : Icons.luggage_outlined,
-                    color: done ? Palette.teal : Palette.roseDeep, size: 22),
+                child: Icon(
+                    done ? Icons.check_circle_rounded : Icons.luggage_outlined,
+                    color: done ? Palette.teal : Palette.roseDeep,
+                    size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1273,11 +1441,20 @@ class _HospitalBagCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(l.t('bag_card_title'),
-                        style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                        style: const TextStyle(
+                            fontSize: 15.5, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
                     Text(
-                      done ? l.t('bag_done') : l.t('bag_packed', {'n': packedCount(checked), 'total': hospitalBagTotal}),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600),
+                      done
+                          ? l.t('bag_done')
+                          : l.t('bag_packed', {
+                              'n': packedCount(checked),
+                              'total': hospitalBagTotal
+                            }),
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -1305,7 +1482,11 @@ class _PregnancyMilestones extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l.t('gest_milestones').toUpperCase(),
-              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+              style: const TextStyle(
+                  color: Palette.textDim,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6)),
           const SizedBox(height: 12),
           _MilestoneRow(
             icon: Icons.flag_rounded,
@@ -1315,7 +1496,9 @@ class _PregnancyMilestones extends StatelessWidget {
             badgeColor: Palette.violet,
           ),
           if (next != null) ...[
-            const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(height: 1, color: Palette.border)),
             _MilestoneRow(
               icon: Icons.outlined_flag_rounded,
               color: Palette.rose,
@@ -1342,7 +1525,11 @@ class _HistoryHeader extends StatelessWidget {
       children: [
         Expanded(
           child: Text(title.toUpperCase(),
-              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+              style: const TextStyle(
+                  color: Palette.textDim,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6)),
         ),
         InkWell(
           onTap: onClear,
@@ -1353,7 +1540,10 @@ class _HistoryHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             alignment: Alignment.center,
             child: Text(l.t('hist_clear'),
-                style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w600)),
+                style: const TextStyle(
+                    color: Palette.textDim,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
           ),
         ),
       ],
@@ -1368,7 +1558,11 @@ class _KickHistory extends StatelessWidget {
   final DateTime today;
   final VoidCallback onClear;
   final VoidCallback onOpenAll;
-  const _KickHistory({required this.sessions, required this.today, required this.onClear, required this.onOpenAll});
+  const _KickHistory(
+      {required this.sessions,
+      required this.today,
+      required this.onClear,
+      required this.onOpenAll});
 
   @override
   Widget build(BuildContext context) {
@@ -1386,10 +1580,14 @@ class _KickHistory extends StatelessWidget {
           ],
           const SizedBox(height: 12),
           for (var i = 0; i < shown.length; i++) ...[
-            if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
+            if (i > 0)
+              const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(height: 1, color: Palette.border)),
             _KickHistoryRow(record: shown[i], now: today),
           ],
-          if (sessions.length > shown.length) _SeeAllRow(count: sessions.length, onTap: onOpenAll),
+          if (sessions.length > shown.length)
+            _SeeAllRow(count: sessions.length, onTap: onOpenAll),
         ],
       ),
     );
@@ -1400,7 +1598,8 @@ class _KickHistory extends StatelessWidget {
 class SessionHistoryScreen extends StatelessWidget {
   final String title;
   final List<Widget> rows;
-  const SessionHistoryScreen({super.key, required this.title, required this.rows});
+  const SessionHistoryScreen(
+      {super.key, required this.title, required this.rows});
 
   @override
   Widget build(BuildContext context) {
@@ -1412,7 +1611,9 @@ class SessionHistoryScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           itemCount: rows.length,
           separatorBuilder: (_, __) => const SizedBox(height: 6),
-          itemBuilder: (_, i) => GlassCard(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), child: rows[i]),
+          itemBuilder: (_, i) => GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: rows[i]),
         ),
       ),
     );
@@ -1437,9 +1638,13 @@ class _SeeAllRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(l.t('hist_see_all', {'n': count}),
-                  style: const TextStyle(color: Palette.violetText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(
+                      color: Palette.violetText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, size: 18, color: Palette.violet),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 18, color: Palette.violet),
             ],
           ),
         ),
@@ -1459,22 +1664,31 @@ class _KickSummaryStrip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         color: Palette.violet.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          _KickSummaryStat(value: summary.avgCount.toStringAsFixed(summary.avgCount % 1 == 0 ? 0 : 1), label: l.t('kick_avg_count')),
+          _KickSummaryStat(
+              value: summary.avgCount
+                  .toStringAsFixed(summary.avgCount % 1 == 0 ? 0 : 1),
+              label: l.t('kick_avg_count')),
           _kickDivider(),
-          _KickSummaryStat(value: formatElapsed(summary.avgDuration), label: l.t('kick_avg_length')),
+          _KickSummaryStat(
+              value: formatElapsed(summary.avgDuration),
+              label: l.t('kick_avg_length')),
           _kickDivider(),
-          _KickSummaryStat(value: '${summary.goalReached}/${summary.sessions}', label: l.t('kick_goal_hits')),
+          _KickSummaryStat(
+              value: '${summary.goalReached}/${summary.sessions}',
+              label: l.t('kick_goal_hits')),
         ],
       ),
     );
   }
 
-  Widget _kickDivider() => Container(width: 1, height: 30, color: Palette.border);
+  Widget _kickDivider() =>
+      Container(width: 1, height: 30, color: Palette.border);
 }
 
 class _KickSummaryStat extends StatelessWidget {
@@ -1485,9 +1699,16 @@ class _KickSummaryStat extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(
         child: Column(
           children: [
-            Text(value, style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700, color: Palette.text)),
+            Text(value,
+                style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Palette.text)),
             const SizedBox(height: 2),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11)),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Palette.textDim, fontSize: 11)),
           ],
         ),
       );
@@ -1506,9 +1727,14 @@ class _KickHistoryRow extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 34, height: 34,
-          decoration: BoxDecoration(gradient: Palette.roseViolet, borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.child_care_rounded, size: 18, color: Colors.white),
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.coralCta,
+              borderRadius: BorderRadius.circular(10)),
+          child: const Icon(Icons.child_care_rounded,
+              size: 18, color: Colors.white),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1516,18 +1742,25 @@ class _KickHistoryRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l.t('kick_history_count', {'n': record.count}),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text('${formatElapsed(record.duration)} · ${l.ago(age.isNegative ? Duration.zero : age)}',
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              Text(
+                  '${formatElapsed(record.duration)} · ${l.ago(age.isNegative ? Duration.zero : age)}',
+                  style:
+                      const TextStyle(color: Palette.textDim, fontSize: 12.5)),
             ],
           ),
         ),
         if (reached)
           Container(
-            width: 26, height: 26,
-            decoration: BoxDecoration(color: Palette.good.withValues(alpha: 0.14), shape: BoxShape.circle),
-            child: const Icon(Icons.check_rounded, size: 16, color: Palette.good),
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+                color: Palette.good.withValues(alpha: 0.14),
+                shape: BoxShape.circle),
+            child:
+                const Icon(Icons.check_rounded, size: 16, color: Palette.good),
           ),
       ],
     );
@@ -1540,7 +1773,11 @@ class _ContractionHistory extends StatelessWidget {
   final DateTime today;
   final VoidCallback onClear;
   final VoidCallback onOpenAll;
-  const _ContractionHistory({required this.sessions, required this.today, required this.onClear, required this.onOpenAll});
+  const _ContractionHistory(
+      {required this.sessions,
+      required this.today,
+      required this.onClear,
+      required this.onOpenAll});
 
   @override
   Widget build(BuildContext context) {
@@ -1553,10 +1790,14 @@ class _ContractionHistory extends StatelessWidget {
           _HistoryHeader(title: l.t('contr_history'), onClear: onClear),
           const SizedBox(height: 12),
           for (var i = 0; i < shown.length; i++) ...[
-            if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border)),
+            if (i > 0)
+              const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(height: 1, color: Palette.border)),
             _ContractionHistoryRow(record: shown[i], now: today),
           ],
-          if (sessions.length > shown.length) _SeeAllRow(count: sessions.length, onTap: onOpenAll),
+          if (sessions.length > shown.length)
+            _SeeAllRow(count: sessions.length, onTap: onOpenAll),
         ],
       ),
     );
@@ -1572,13 +1813,19 @@ class _ContractionHistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final age = now.difference(record.endedAt);
-    final interval = record.avgIntervalSec > 0 ? formatElapsed(record.avgInterval) : '—';
+    final interval =
+        record.avgIntervalSec > 0 ? formatElapsed(record.avgInterval) : '—';
     return Row(
       children: [
         Container(
-          width: 34, height: 34,
-          decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.timer_outlined, size: 18, color: Palette.violet),
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Palette.violet.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10)),
+          child:
+              const Icon(Icons.timer_outlined, size: 18, color: Palette.violet),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1586,10 +1833,15 @@ class _ContractionHistoryRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l.t('contr_history_count', {'n': record.count}),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text('${l.t('contr_history_interval', {'i': interval})} · ${l.ago(age.isNegative ? Duration.zero : age)}',
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              Text(
+                  '${l.t('contr_history_interval', {
+                        'i': interval
+                      })} · ${l.ago(age.isNegative ? Duration.zero : age)}',
+                  style:
+                      const TextStyle(color: Palette.textDim, fontSize: 12.5)),
             ],
           ),
         ),
@@ -1604,22 +1856,41 @@ class _MilestoneRow extends StatelessWidget {
   final String label;
   final String badge;
   final Color badgeColor;
-  const _MilestoneRow({required this.icon, required this.color, required this.label, required this.badge, required this.badgeColor});
+  const _MilestoneRow(
+      {required this.icon,
+      required this.color,
+      required this.label,
+      required this.badge,
+      required this.badgeColor});
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          width: 34, height: 34,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, size: 18, color: color),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
+        Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700))),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-          child: Text(badge, style: TextStyle(color: darkenForText(badgeColor), fontWeight: FontWeight.w700, fontSize: 12)),
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: badgeColor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(20)),
+          child: Text(badge,
+              style: TextStyle(
+                  color: darkenForText(badgeColor),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12)),
         ),
       ],
     );
@@ -1634,18 +1905,33 @@ class _SliderRow extends StatelessWidget {
   final double max;
   final String display;
   final ValueChanged<double> onChanged;
-  const _SliderRow({required this.label, required this.value, required this.min, required this.max, required this.display, required this.onChanged});
+  const _SliderRow(
+      {required this.label,
+      required this.value,
+      required this.min,
+      required this.max,
+      required this.display,
+      required this.onChanged});
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
-          Text(display, style: const TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: Palette.roseDeep)),
+          Expanded(
+              child: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
+          Text(display,
+              style: const TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontWeight: FontWeight.w700,
+                  color: Palette.roseDeep)),
         ]),
         Slider(
-          value: value, min: min, max: max, divisions: (max - min).round(),
+          value: value,
+          min: min,
+          max: max,
+          divisions: (max - min).round(),
           activeColor: Palette.roseDeep,
           onChanged: onChanged,
         ),
@@ -1666,10 +1952,26 @@ class _CyclePhaseCard extends StatelessWidget {
     final phase = cyclePhaseFor(info);
     if (phase == null) return const SizedBox.shrink();
     final (name, color, icon) = switch (phase.phase) {
-      CyclePhase.menstrual => (l.t('phase_menstrual'), Palette.roseDeep, Icons.water_drop_rounded),
-      CyclePhase.follicular => (l.t('phase_follicular'), Palette.violet, Icons.eco_rounded),
-      CyclePhase.fertile => (l.t('phase_fertile'), Palette.teal, Icons.brightness_high_rounded),
-      CyclePhase.luteal => (l.t('phase_luteal'), Palette.amber, Icons.nightlight_round),
+      CyclePhase.menstrual => (
+          l.t('phase_menstrual'),
+          Palette.roseDeep,
+          Icons.water_drop_rounded
+        ),
+      CyclePhase.follicular => (
+          l.t('phase_follicular'),
+          Palette.violet,
+          Icons.eco_rounded
+        ),
+      CyclePhase.fertile => (
+          l.t('phase_fertile'),
+          Palette.teal,
+          Icons.brightness_high_rounded
+        ),
+      CyclePhase.luteal => (
+          l.t('phase_luteal'),
+          Palette.amber,
+          Icons.nightlight_round
+        ),
     };
     final note = l.t('phase_${phase.phase.name}_note');
 
@@ -1677,18 +1979,18 @@ class _CyclePhaseCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.04)],
-        ),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [
           Container(
-            width: 46, height: 46,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(14)),
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: color.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(14)),
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 14),
@@ -1698,18 +2000,34 @@ class _CyclePhaseCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(name, style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: color)),
+                    Text(name,
+                        style: TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w800,
+                            color: color)),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-                      child: Text(l.t('phase_day', {'n': phase.dayInPhase, 'of': phase.phaseLength}),
-                          style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11.5)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                          border: Border.all(
+                              color: Ds.ink, width: DsShape.borderWidth),
+                          color: color.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text(
+                          l.t('phase_day',
+                              {'n': phase.dayInPhase, 'of': phase.phaseLength}),
+                          style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11.5)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(note, style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+                Text(note,
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.35)),
               ],
             ),
           ),
@@ -1735,9 +2053,14 @@ class _UsualSymptomsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: Palette.amber.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)),
-            child: const Icon(Icons.lightbulb_outline_rounded, color: Palette.amber, size: 19),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: Palette.amber.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(11)),
+            child: const Icon(Icons.lightbulb_outline_rounded,
+                color: Palette.amber, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1745,21 +2068,31 @@ class _UsualSymptomsCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t('cyc_usual_title'),
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Palette.text)),
+                    style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: Palette.text)),
                 const SizedBox(height: 6),
                 Wrap(
-                  spacing: 6, runSpacing: 6,
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
                     for (final s in top)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
                           color: Palette.amber.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Palette.amber.withValues(alpha: 0.25)),
+                          border: Border.all(
+                              color: Palette.amber.withValues(alpha: 0.25)),
                         ),
-                        child: Text('${l.t('sym_${s.symptom.name}')} · ${s.count}×',
-                            style: const TextStyle(color: Palette.text, fontSize: 12, fontWeight: FontWeight.w600)),
+                        child: Text(
+                            '${l.t('sym_${s.symptom.name}')} · ${s.count}×',
+                            style: const TextStyle(
+                                color: Palette.text,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
                       ),
                   ],
                 ),
@@ -1786,18 +2119,18 @@ class _FertileCountdownCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Palette.teal.withValues(alpha: 0.12), Palette.teal.withValues(alpha: 0.04)],
-        ),
-        border: Border.all(color: Palette.teal.withValues(alpha: 0.22)),
+        color: Palette.teal.withValues(alpha: 0.12),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(color: Palette.teal.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(13)),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: Palette.teal.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(13)),
             child: const Icon(Icons.eco_rounded, color: Palette.teal, size: 22),
           ),
           const SizedBox(width: 14),
@@ -1806,10 +2139,15 @@ class _FertileCountdownCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t('cyc_fertile_in', {'n': countdown.daysToStart}),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Palette.teal, height: 1.2)),
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Palette.teal,
+                        height: 1.2)),
                 const SizedBox(height: 3),
                 Text(l.t('cyc_ovulation_in', {'n': countdown.daysToOvulation}),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5)),
               ],
             ),
           ),
@@ -1843,7 +2181,11 @@ class _CyclePredictions extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l.t('cyc_predictions').toUpperCase(),
-              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+              style: const TextStyle(
+                  color: Palette.textDim,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6)),
           const SizedBox(height: 12),
           _PredRow(
             icon: Icons.water_drop_rounded,
@@ -1858,7 +2200,8 @@ class _CyclePredictions extends StatelessWidget {
             icon: Icons.eco_rounded,
             color: Palette.teal,
             label: l.t('cyc_phase_fertile'),
-            value: '${ml.formatMediumDate(info.fertileStart!)} – ${ml.formatMediumDate(info.fertileEnd!)}',
+            value:
+                '${ml.formatMediumDate(info.fertileStart!)} – ${ml.formatMediumDate(info.fertileEnd!)}',
           ),
           const _PredDivider(),
           _PredRow(
@@ -1872,7 +2215,8 @@ class _CyclePredictions extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(l.t('cyc_avg_cycle', {'n': info.avgCycleLength}),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+                    style:
+                        const TextStyle(color: Palette.textDim, fontSize: 12)),
               ),
               _ConfidenceChip(confidence: confidence),
             ],
@@ -1893,21 +2237,32 @@ class _ConfidenceChip extends StatelessWidget {
     final l = L10nScope.of(context);
     final (color, label) = switch (confidence) {
       PredictionConfidence.low => (Palette.textDim, l.t('cyc_conf_low')),
-      PredictionConfidence.building => (Palette.amber, l.t('cyc_conf_building')),
+      PredictionConfidence.building => (
+          Palette.amber,
+          l.t('cyc_conf_building')
+        ),
       // Amber like 'building' — the date is equally approximate — but the
       // words say why, and that logging more will not sharpen it.
-      PredictionConfidence.variable => (Palette.amber, l.t('cyc_conf_variable')),
+      PredictionConfidence.variable => (
+          Palette.amber,
+          l.t('cyc_conf_variable')
+        ),
       PredictionConfidence.good => (Palette.good, l.t('cyc_conf_good')),
     };
     return Tooltip(
       message: l.t('cyc_conf_tip'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.insights_rounded, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w700, fontSize: 11)),
         ]),
       ),
     );
@@ -1921,14 +2276,24 @@ class _PredRow extends StatelessWidget {
   final String value;
   final String? badge;
   final Color? badgeColor;
-  const _PredRow({required this.icon, required this.color, required this.label, required this.value, this.badge, this.badgeColor});
+  const _PredRow(
+      {required this.icon,
+      required this.color,
+      required this.label,
+      required this.value,
+      this.badge,
+      this.badgeColor});
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          width: 34, height: 34,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, size: 18, color: color),
         ),
         const SizedBox(width: 12),
@@ -1936,17 +2301,28 @@ class _PredRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+              Text(label,
+                  style:
+                      const TextStyle(color: Palette.textDim, fontSize: 12.5)),
               const SizedBox(height: 1),
-              Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
             ],
           ),
         ),
         if (badge != null)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: badgeColor!.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-            child: Text(badge!, style: TextStyle(color: badgeColor, fontWeight: FontWeight.w700, fontSize: 12)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: badgeColor!.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(badge!,
+                style: TextStyle(
+                    color: badgeColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12)),
           ),
       ],
     );
@@ -1956,8 +2332,9 @@ class _PredRow extends StatelessWidget {
 class _PredDivider extends StatelessWidget {
   const _PredDivider();
   @override
-  Widget build(BuildContext context) =>
-      const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1, color: Palette.border));
+  Widget build(BuildContext context) => const Padding(
+      padding: EdgeInsets.symmetric(vertical: 10),
+      child: Divider(height: 1, color: Palette.border));
 }
 
 /// Legend for the cycle calendar colours.
@@ -1967,11 +2344,16 @@ class _CycleLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     return Wrap(
-      spacing: 16, runSpacing: 8,
+      spacing: 16,
+      runSpacing: 8,
       children: [
         _LegendDot(color: Palette.roseDeep, label: l.t('cyc_period')),
-        _LegendDot(color: Palette.rose.withValues(alpha: 0.5), label: l.t('cyc_predicted')),
-        _LegendDot(color: Palette.teal.withValues(alpha: 0.5), label: l.t('cyc_fertile')),
+        _LegendDot(
+            color: Palette.rose.withValues(alpha: 0.5),
+            label: l.t('cyc_predicted')),
+        _LegendDot(
+            color: Palette.teal.withValues(alpha: 0.5),
+            label: l.t('cyc_fertile')),
         _LegendDot(color: Palette.teal, label: l.t('cyc_ovulation')),
       ],
     );
@@ -1985,9 +2367,13 @@ class _LegendDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(width: 11, height: 11, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      Container(
+          width: 11,
+          height: 11,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
       const SizedBox(width: 6),
-      Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+      Text(label,
+          style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
     ]);
   }
 }
@@ -2002,7 +2388,8 @@ class _BirthNameDialog extends StatefulWidget {
   final String title;
   final String label;
   final String save;
-  const _BirthNameDialog({required this.title, required this.label, required this.save});
+  const _BirthNameDialog(
+      {required this.title, required this.label, required this.save});
 
   @override
   State<_BirthNameDialog> createState() => _BirthNameDialogState();

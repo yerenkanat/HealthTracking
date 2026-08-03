@@ -19,13 +19,15 @@ import '../../domain/baby_development_content.dart';
 import '../../domain/child_development.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import 'teething_screen.dart';
 
 class ChildDevelopmentScreen extends StatelessWidget {
   final ChildProfile child;
   final DateTime today;
-  const ChildDevelopmentScreen({super.key, required this.child, required this.today});
+  const ChildDevelopmentScreen(
+      {super.key, required this.child, required this.today});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +45,8 @@ class ChildDevelopmentScreen extends StatelessWidget {
               icon: const Icon(Icons.sentiment_satisfied_outlined),
               tooltip: l.t('teeth_title'),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => TeethingScreen(ageMonths: ageInMonths(dob, today)),
+                builder: (_) =>
+                    TeethingScreen(ageMonths: ageInMonths(dob, today)),
               )),
             ),
         ],
@@ -82,7 +85,11 @@ class _Timeline extends StatelessWidget {
   final int ageWeeks;
   final int ageDays;
   final String childName;
-  const _Timeline({required this.ageMonths, required this.ageWeeks, required this.ageDays, required this.childName});
+  const _Timeline(
+      {required this.ageMonths,
+      required this.ageWeeks,
+      required this.ageDays,
+      required this.childName});
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +104,10 @@ class _Timeline extends StatelessWidget {
         _AgeHeader(ageMonths: ageMonths, name: childName),
         const SizedBox(height: 12),
         if (ageDays >= 1)
-          DailyAudioCard(track: 'child', day: ageDays, margin: const EdgeInsets.only(bottom: 12)),
+          DailyAudioCard(
+              track: 'child',
+              day: ageDays,
+              margin: const EdgeInsets.only(bottom: 12)),
 
         // WHO weight/height range + this-week motor/speech/cognition, from the
         // shared baby-development calendar (GET /child/development). Only within
@@ -115,6 +125,7 @@ class _Timeline extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             color: Palette.glass,
             borderRadius: BorderRadius.circular(14),
           ),
@@ -125,7 +136,8 @@ class _Timeline extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(l.t('dev_spread'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.45)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.45)),
               ),
             ],
           ),
@@ -151,12 +163,13 @@ class _Timeline extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(l.t('dev_ask_note'),
-                style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.4)),
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 12.5, height: 1.4)),
           ),
-          for (final m in ask) _MilestoneCard(m: m, status: DevStatus.worthAsking),
+          for (final m in ask)
+            _MilestoneCard(m: m, status: DevStatus.worthAsking),
           const SizedBox(height: 18),
         ],
-
       ],
     );
   }
@@ -173,12 +186,9 @@ class _AgeHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Palette.lilac, Palette.blush],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Palette.lilac,
       ),
       child: Row(
         children: [
@@ -187,10 +197,12 @@ class _AgeHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name.isEmpty ? l.t('dev_title') : name,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text(l.childAge(ageMonths),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 13.5)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 13.5)),
               ],
             ),
           ),
@@ -202,7 +214,8 @@ class _AgeHeader extends StatelessWidget {
                 textAlign: TextAlign.right,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Palette.textDim, fontSize: 11.5, height: 1.3)),
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 11.5, height: 1.3)),
           ),
         ],
       ),
@@ -252,7 +265,7 @@ class _GrowthWeekCardState extends State<_GrowthWeekCard> {
           decoration: BoxDecoration(
             color: Palette.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Palette.border),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +274,8 @@ class _GrowthWeekCardState extends State<_GrowthWeekCard> {
                 children: [
                   Expanded(
                     child: Text(l.t('cdw_title'),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w800)),
                   ),
                   IconButton(
                     visualDensity: VisualDensity.compact,
@@ -270,11 +284,18 @@ class _GrowthWeekCardState extends State<_GrowthWeekCard> {
                     onPressed: _week <= _minWeek ? null : () => _go(-1),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                        color: Palette.violet.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                        border: Border.all(
+                            color: Ds.ink, width: DsShape.borderWidth),
+                        color: Palette.violet.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20)),
                     child: Text(l.t('cdw_week', {'n': w.week}),
-                        style: const TextStyle(color: Palette.violet, fontSize: 12, fontWeight: FontWeight.w700)),
+                        style: const TextStyle(
+                            color: Palette.violet,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
                   ),
                   IconButton(
                     visualDensity: VisualDensity.compact,
@@ -291,29 +312,51 @@ class _GrowthWeekCardState extends State<_GrowthWeekCard> {
                     onPressed: () => setState(() => _week = widget.week),
                     icon: const Icon(Icons.today_rounded, size: 15),
                     label: Text(l.t('wk_to_current')),
-                    style: TextButton.styleFrom(foregroundColor: Palette.violet, visualDensity: VisualDensity.compact),
+                    style: TextButton.styleFrom(
+                        foregroundColor: Palette.violetText,
+                        visualDensity: VisualDensity.compact),
                   ),
                 ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   if (w.weightKg.isNotEmpty)
-                    Expanded(child: _GrowthStat(icon: Icons.monitor_weight_outlined, label: l.t('cdw_weight'), value: '${w.weightKg} ${l.t('grw_kg')}')),
+                    Expanded(
+                        child: _GrowthStat(
+                            icon: Icons.monitor_weight_outlined,
+                            label: l.t('cdw_weight'),
+                            value: '${w.weightKg} ${l.t('grw_kg')}')),
                   if (w.heightCm.isNotEmpty)
-                    Expanded(child: _GrowthStat(icon: Icons.straighten_rounded, label: l.t('cdw_height'), value: '${w.heightCm} ${l.t('grw_cm')}')),
+                    Expanded(
+                        child: _GrowthStat(
+                            icon: Icons.straighten_rounded,
+                            label: l.t('cdw_height'),
+                            value: '${w.heightCm} ${l.t('grw_cm')}')),
                 ],
               ),
               if (s.motor.isNotEmpty) ...[
                 const SizedBox(height: 14),
-                _CalendarRow(icon: Icons.directions_run_rounded, colour: Palette.violet, label: l.t('cdw_motor'), text: s.motor),
+                _CalendarRow(
+                    icon: Icons.directions_run_rounded,
+                    colour: Palette.violet,
+                    label: l.t('cdw_motor'),
+                    text: s.motor),
               ],
               if (s.speech.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _CalendarRow(icon: Icons.chat_bubble_outline_rounded, colour: Palette.rose, label: l.t('cdw_speech'), text: s.speech),
+                _CalendarRow(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    colour: Palette.rose,
+                    label: l.t('cdw_speech'),
+                    text: s.speech),
               ],
               if (s.cognition.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _CalendarRow(icon: Icons.lightbulb_outline_rounded, colour: Palette.teal, label: l.t('cdw_cognition'), text: s.cognition),
+                _CalendarRow(
+                    icon: Icons.lightbulb_outline_rounded,
+                    colour: Palette.teal,
+                    label: l.t('cdw_cognition'),
+                    text: s.cognition),
               ],
             ],
           ),
@@ -328,7 +371,8 @@ class _GrowthStat extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _GrowthStat({required this.icon, required this.label, required this.value});
+  const _GrowthStat(
+      {required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) => Row(
@@ -342,11 +386,19 @@ class _GrowthStat extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label.toUpperCase(),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.4, color: Palette.textDim)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: Palette.textDim)),
                 const SizedBox(height: 1),
-                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13.5, fontWeight: FontWeight.w700)),
               ],
             ),
           ),
@@ -361,7 +413,11 @@ class _CalendarRow extends StatelessWidget {
   final Color colour;
   final String label;
   final String text;
-  const _CalendarRow({required this.icon, required this.colour, required this.label, required this.text});
+  const _CalendarRow(
+      {required this.icon,
+      required this.colour,
+      required this.label,
+      required this.text});
 
   @override
   Widget build(BuildContext context) => Row(
@@ -370,7 +426,10 @@ class _CalendarRow extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(color: colour.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: colour.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, size: 16, color: colour),
           ),
           const SizedBox(width: 11),
@@ -379,7 +438,11 @@ class _CalendarRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label.toUpperCase(),
-                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.4, color: colour)),
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: colour)),
                 const SizedBox(height: 2),
                 Text(text, style: const TextStyle(fontSize: 13, height: 1.45)),
               ],
@@ -397,7 +460,8 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(2, 4, 2, 8),
         child: Text(text,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
       );
 }
 
@@ -452,6 +516,7 @@ class _MilestoneCard extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               color: _accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(11),
             ),
@@ -467,7 +532,8 @@ class _MilestoneCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(l.t('dev_${m.id}'),
-                          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+                          style: const TextStyle(
+                              fontSize: 14.5, fontWeight: FontWeight.w700)),
                     ),
                     const SizedBox(width: 8),
                     Text(range,
@@ -480,10 +546,14 @@ class _MilestoneCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(l.t('dev_${m.id}_note'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.4)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.4)),
                 const SizedBox(height: 6),
                 Text(l.t('dev_area_${m.area.name}'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w600)),
+                    style: const TextStyle(
+                        color: Palette.textDim,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600)),
               ],
             ),
           ),

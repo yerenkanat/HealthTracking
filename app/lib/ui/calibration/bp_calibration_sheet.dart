@@ -6,14 +6,17 @@ library;
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
-Future<void> showCalibrateBpSheet(BuildContext context, AppController controller) {
+Future<void> showCalibrateBpSheet(
+    BuildContext context, AppController controller) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Palette.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
       child: _CalibrateBody(controller: controller),
@@ -56,59 +59,81 @@ class _CalibrateBodyState extends State<_CalibrateBody> {
         children: [
           Center(
             child: Container(
-              width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                  color: Palette.border,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
           Row(children: [
             Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(gradient: Palette.violetPink, borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.speed_rounded, color: Colors.white, size: 20),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: Ds.coralCta,
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.speed_rounded,
+                  color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(l.t('cal_title'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+            Expanded(
+                child: Text(l.t('cal_title'),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700))),
           ]),
           const SizedBox(height: 12),
-          Text(l.t('cal_intro'), style: const TextStyle(color: Palette.textDim, fontSize: 13.5, height: 1.35)),
+          Text(l.t('cal_intro'),
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 13.5, height: 1.35)),
           const SizedBox(height: 18),
-
           if (ppg == null)
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                 color: Palette.watch.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(children: [
                 const Icon(Icons.info_outline, size: 18, color: Palette.watch),
                 const SizedBox(width: 10),
-                Expanded(child: Text(l.t('cal_no_band'), style: const TextStyle(fontSize: 13))),
+                Expanded(
+                    child: Text(l.t('cal_no_band'),
+                        style: const TextStyle(fontSize: 13))),
               ]),
             )
           else ...[
             // Band reference
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: Palette.glass,
+                  borderRadius: BorderRadius.circular(14)),
               child: Row(children: [
                 const Icon(Icons.watch, size: 18, color: Palette.textDim),
                 const SizedBox(width: 10),
-                Text(l.t('cal_band_reading', {'sys': ppg.systolic, 'dia': ppg.diastolic}),
+                Text(
+                    l.t('cal_band_reading',
+                        {'sys': ppg.systolic, 'dia': ppg.diastolic}),
                     style: const TextStyle(fontWeight: FontWeight.w600)),
               ]),
             ),
             const SizedBox(height: 14),
             Row(children: [
-              Expanded(child: TextField(
+              Expanded(
+                  child: TextField(
                 controller: _sysCtl,
                 keyboardType: TextInputType.number,
                 onChanged: (_) => setState(() => _rejected = false),
                 decoration: InputDecoration(labelText: l.t('cal_cuff_sys')),
               )),
               const SizedBox(width: 12),
-              Expanded(child: TextField(
+              Expanded(
+                  child: TextField(
                 controller: _diaCtl,
                 keyboardType: TextInputType.number,
                 onChanged: (_) => setState(() => _rejected = false),
@@ -120,17 +145,22 @@ class _CalibrateBodyState extends State<_CalibrateBody> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                   color: Palette.danger.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Icon(Icons.error_outline_rounded, size: 20, color: Palette.danger),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(l.t('cal_too_far'),
-                        style: const TextStyle(color: Palette.danger, height: 1.35)),
-                  ),
-                ]),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.error_outline_rounded,
+                          size: 20, color: Palette.danger),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(l.t('cal_too_far'),
+                            style: const TextStyle(
+                                color: Palette.danger, height: 1.35)),
+                      ),
+                    ]),
               ),
             ],
             const SizedBox(height: 20),

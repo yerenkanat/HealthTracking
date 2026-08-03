@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../domain/sleep.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'sleep_detail_screen.dart';
@@ -45,14 +46,19 @@ class SleepCard extends StatelessWidget {
     // With no nights the card used to disappear entirely — which is exactly the
     // state a user without a band is permanently in, leaving them no way to
     // record sleep at all. Offer the hand-entry prompt instead.
-    if (last == null) return onLog == null ? const SizedBox.shrink() : _EmptySleepCard(onLog: onLog!);
+    if (last == null)
+      return onLog == null
+          ? const SizedBox.shrink()
+          : _EmptySleepCard(onLog: onLog!);
     final accent = sleepAccentFor(last.quality);
 
     return Semantics(
-      label: '${l.t('metric_sleep')}: ${l.duration(last.asleepMin)}, ${l.sleepQuality(last.quality)}',
+      label:
+          '${l.t('metric_sleep')}: ${l.duration(last.asleepMin)}, ${l.sleepQuality(last.quality)}',
       child: GlassCard(
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => SleepDetailScreen(nights: nights, onLog: onLog)),
+          MaterialPageRoute(
+              builder: (_) => SleepDetailScreen(nights: nights, onLog: onLog)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,17 +66,24 @@ class SleepCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 30, height: 30,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [sleepDeep, sleepRem]),
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    color: sleepDeep,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.bedtime_rounded, size: 17, color: Colors.white),
+                  child: const Icon(Icons.bedtime_rounded,
+                      size: 17, color: Colors.white),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(l.t('metric_sleep'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600)),
                 ),
                 TonePill(l.sleepQuality(last.quality), accent),
               ],
@@ -82,7 +95,11 @@ class SleepCard extends StatelessWidget {
               children: [
                 Text(l.duration(last.asleepMin),
                     style: const TextStyle(
-                      fontFamily: 'JetBrainsMono', fontSize: 30, fontWeight: FontWeight.w700, height: 1, color: Palette.text,
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      height: 1,
+                      color: Palette.text,
                     )),
                 const SizedBox(width: 8),
                 // Flexible because the label is markedly longer in ru/kk than
@@ -93,7 +110,8 @@ class SleepCard extends StatelessWidget {
                     child: Text(l.t('sleep_last_night'),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                        style: const TextStyle(
+                            color: Palette.textDim, fontSize: 12.5)),
                   ),
                 ),
               ],
@@ -104,14 +122,17 @@ class SleepCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(children: [
                 Icon(
-                  last.asleepMin >= avg ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                  last.asleepMin >= avg
+                      ? Icons.trending_up_rounded
+                      : Icons.trending_down_rounded,
                   size: 15,
                   color: Palette.textDim,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(l.t('sleep_week_avg', {'dur': l.duration(avg)}),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12)),
                 ),
               ]),
             ],
@@ -119,12 +140,25 @@ class SleepCard extends StatelessWidget {
             SleepStageBar(summary: last, height: 12),
             const SizedBox(height: 12),
             Wrap(
-              spacing: 16, runSpacing: 6,
+              spacing: 16,
+              runSpacing: 6,
               children: [
-                _Legend(color: sleepDeep, label: l.t('sleep_deep'), value: l.duration(last.deepMin)),
-                _Legend(color: sleepRem, label: l.t('sleep_rem'), value: l.duration(last.remMin)),
-                _Legend(color: sleepLight, label: l.t('sleep_light'), value: l.duration(last.lightMin)),
-                _Legend(color: sleepAwake, label: l.t('sleep_awake'), value: l.duration(last.awakeMin)),
+                _Legend(
+                    color: sleepDeep,
+                    label: l.t('sleep_deep'),
+                    value: l.duration(last.deepMin)),
+                _Legend(
+                    color: sleepRem,
+                    label: l.t('sleep_rem'),
+                    value: l.duration(last.remMin)),
+                _Legend(
+                    color: sleepLight,
+                    label: l.t('sleep_light'),
+                    value: l.duration(last.lightMin)),
+                _Legend(
+                    color: sleepAwake,
+                    label: l.t('sleep_awake'),
+                    value: l.duration(last.awakeMin)),
               ],
             ),
           ],
@@ -182,30 +216,38 @@ class _EmptySleepCard extends StatelessWidget {
         children: [
           Row(children: [
             Container(
-              width: 30, height: 30,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [sleepDeep, sleepRem]),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: sleepDeep,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.bedtime_rounded, size: 17, color: Colors.white),
+              child: const Icon(Icons.bedtime_rounded,
+                  size: 17, color: Colors.white),
             ),
             const SizedBox(width: 10),
             Text(l.t('metric_sleep'),
-                style: const TextStyle(color: Palette.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                style: const TextStyle(
+                    color: Palette.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 10),
           Text(l.t('sleep_empty'),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 12.5, height: 1.35)),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            height: 48, // full-size target: this is the only way in without a band
+            height:
+                48, // full-size target: this is the only way in without a band
             child: OutlinedButton.icon(
               onPressed: onLog,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(l.t('sleep_log_title')),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Palette.violet,
+                foregroundColor: Palette.violetText,
                 side: const BorderSide(color: Palette.violet),
               ),
             ),
@@ -220,14 +262,22 @@ class _Legend extends StatelessWidget {
   final Color color;
   final String label;
   final String value;
-  const _Legend({required this.color, required this.label, required this.value});
+  const _Legend(
+      {required this.color, required this.label, required this.value});
   @override
   Widget build(BuildContext context) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(width: 9, height: 9, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+      Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(3))),
       const SizedBox(width: 6),
-      Text('$label ', style: const TextStyle(color: Palette.textDim, fontSize: 12)),
-      Text(value, style: const TextStyle(color: Palette.text, fontSize: 12, fontWeight: FontWeight.w600)),
+      Text('$label ',
+          style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+      Text(value,
+          style: const TextStyle(
+              color: Palette.text, fontSize: 12, fontWeight: FontWeight.w600)),
     ]);
   }
 }

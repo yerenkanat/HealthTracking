@@ -11,6 +11,7 @@ import '../../core/uuid.dart';
 import '../../domain/geofence_alerts.dart' show visitsToZone;
 import '../../data/device_location.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -19,12 +20,14 @@ import 'map_zone_picker.dart';
 
 /// Google Maps needs a real key to render; the map picker is only offered when
 /// the app is built with --dart-define=MAPS_ENABLED=true.
-const bool _mapsEnabled = bool.fromEnvironment('MAPS_ENABLED', defaultValue: false);
+const bool _mapsEnabled =
+    bool.fromEnvironment('MAPS_ENABLED', defaultValue: false);
 
 class ZonesScreen extends StatelessWidget {
   final AppController controller;
   final String childId;
-  const ZonesScreen({super.key, required this.controller, required this.childId});
+  const ZonesScreen(
+      {super.key, required this.controller, required this.childId});
 
   @override
   Widget build(BuildContext context) {
@@ -43,15 +46,19 @@ class ZonesScreen extends StatelessWidget {
               children: [
                 if (zones.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 40, horizontal: 20),
                     child: Text(l.t('zones_empty'),
-                        textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Palette.textDim, height: 1.4)),
                   )
                 else
                   for (final z in zones) ...[
                     _ZoneCard(
                       zone: z,
-                      visits: visitsToZone(controller.alerts, child?.name ?? '', z.name),
+                      visits: visitsToZone(
+                          controller.alerts, child?.name ?? '', z.name),
                       onEdit: () => _openSheet(context, existing: z),
                       onDelete: () => _confirmDelete(context, z),
                     ),
@@ -64,8 +71,9 @@ class ZonesScreen extends StatelessWidget {
                   label: Text(l.t('zone_add')),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
-                    side: BorderSide(color: Palette.violet.withValues(alpha: 0.5)),
-                    foregroundColor: Palette.violet,
+                    side: BorderSide(
+                        color: Palette.violet.withValues(alpha: 0.5)),
+                    foregroundColor: Palette.violetText,
                   ),
                 ),
               ],
@@ -109,7 +117,8 @@ class ZonesScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Palette.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: _ZoneSheet(
@@ -127,12 +136,18 @@ class _ZoneCard extends StatelessWidget {
   final int visits; // recorded entries into this zone
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  const _ZoneCard({required this.zone, required this.visits, required this.onEdit, required this.onDelete});
+  const _ZoneCard(
+      {required this.zone,
+      required this.visits,
+      required this.onEdit,
+      required this.onDelete});
 
   IconData get _icon {
     final n = zone.name.toLowerCase();
-    if (n.contains('home') || n.contains('дом') || n.contains('үй')) return Icons.home_rounded;
-    if (n.contains('school') || n.contains('школ') || n.contains('мектеп')) return Icons.school_rounded;
+    if (n.contains('home') || n.contains('дом') || n.contains('үй'))
+      return Icons.home_rounded;
+    if (n.contains('school') || n.contains('школ') || n.contains('мектеп'))
+      return Icons.school_rounded;
     return Icons.place_rounded;
   }
 
@@ -145,8 +160,12 @@ class _ZoneCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: Palette.violet.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12)),
             child: Icon(_icon, color: Palette.violet, size: 21),
           ),
           const SizedBox(width: 14),
@@ -154,13 +173,18 @@ class _ZoneCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(zone.name, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                Text(zone.name,
+                    style: const TextStyle(
+                        fontSize: 15.5, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(
                   zone.shape == GeofenceShape.circle && zone.radiusM != null
-                      ? '${l.t('zone_radius')} · ${l.t('zone_meters', {'m': zone.radiusM!.round()})}'
+                      ? '${l.t('zone_radius')} · ${l.t('zone_meters', {
+                              'm': zone.radiusM!.round()
+                            })}'
                       : l.t('zone_location_set'),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5),
+                  style:
+                      const TextStyle(color: Palette.textDim, fontSize: 12.5),
                 ),
               ],
             ),
@@ -168,12 +192,18 @@ class _ZoneCard extends StatelessWidget {
           if (visits > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(color: Palette.good.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: Palette.good.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.login_rounded, size: 12, color: Palette.good),
                 const SizedBox(width: 4),
                 Text(l.t('zone_visits', {'n': visits}),
-                    style: const TextStyle(color: Palette.good, fontWeight: FontWeight.w700, fontSize: 11.5)),
+                    style: const TextStyle(
+                        color: Palette.good,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5)),
               ]),
             ),
           IconButton(
@@ -191,7 +221,10 @@ class _ZoneSheet extends StatefulWidget {
   final Geofence? existing;
   final Coordinates defaultCenter;
   final void Function(Geofence) onSave;
-  const _ZoneSheet({required this.existing, required this.defaultCenter, required this.onSave});
+  const _ZoneSheet(
+      {required this.existing,
+      required this.defaultCenter,
+      required this.onSave});
 
   @override
   State<_ZoneSheet> createState() => _ZoneSheetState();
@@ -219,7 +252,8 @@ class _ZoneSheetState extends State<_ZoneSheet> {
 
   Future<void> _pickOnMap() async {
     final picked = await Navigator.of(context).push<ZonePick>(MaterialPageRoute(
-      builder: (_) => MapZonePickerScreen(initialCenter: _center, initialRadius: _radius),
+      builder: (_) =>
+          MapZonePickerScreen(initialCenter: _center, initialRadius: _radius),
     ));
     if (picked != null && mounted) {
       setState(() {
@@ -242,7 +276,8 @@ class _ZoneSheetState extends State<_ZoneSheet> {
     // and don't fire the one-shot system dialog.
     if (await locationPermissionUndecided()) {
       if (!mounted) return;
-      final proceed = await showPermissionPrimer(context, PermissionKind.location);
+      final proceed =
+          await showPermissionPrimer(context, PermissionKind.location);
       if (!proceed) return;
     }
     setState(() => _locating = true);
@@ -275,27 +310,41 @@ class _ZoneSheetState extends State<_ZoneSheet> {
         children: [
           Center(
             child: Container(
-              width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                  color: Palette.border,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
           Row(children: [
             Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(gradient: Palette.violetPink, borderRadius: BorderRadius.circular(12)),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: Ds.coralCta,
+                  borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.place, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
             Text(l.t(widget.existing == null ? 'zone_add' : 'zone_edit'),
-                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                style:
+                    const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 18),
           // Quick-fill name chips
           Wrap(spacing: 8, children: [
-            for (final name in [l.t('onb_home_label'), l.t('onb_school_label'), l.t('zone_type_other')])
+            for (final name in [
+              l.t('onb_home_label'),
+              l.t('onb_school_label'),
+              l.t('zone_type_other')
+            ])
               ActionChip(
                 label: Text(name),
-                onPressed: () => setState(() => _nameCtl.text = name == l.t('zone_type_other') ? '' : name),
+                onPressed: () => setState(() =>
+                    _nameCtl.text = name == l.t('zone_type_other') ? '' : name),
                 backgroundColor: Palette.glass,
                 side: const BorderSide(color: Palette.border),
               ),
@@ -308,14 +357,20 @@ class _ZoneSheetState extends State<_ZoneSheet> {
           ),
           const SizedBox(height: 18),
           Row(children: [
-            Text(l.t('zone_radius'), style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(l.t('zone_radius'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             const Spacer(),
             Text(l.t('zone_meters', {'m': _radius.round()}),
-                style: const TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: Palette.violet)),
+                style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontWeight: FontWeight.w700,
+                    color: Palette.violet)),
           ]),
           Slider(
             value: _radius,
-            min: 50, max: 500, divisions: 45,
+            min: 50,
+            max: 500,
+            divisions: 45,
             activeColor: Palette.violet,
             onChanged: (v) => setState(() => _radius = v),
           ),
@@ -328,7 +383,7 @@ class _ZoneSheetState extends State<_ZoneSheet> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 backgroundColor: Palette.violet.withValues(alpha: 0.12),
-                foregroundColor: Palette.violet,
+                foregroundColor: Palette.violetText,
               ),
             ),
             const SizedBox(height: 8),
@@ -336,7 +391,10 @@ class _ZoneSheetState extends State<_ZoneSheet> {
           OutlinedButton.icon(
             onPressed: _locating ? null : _useCurrentLocation,
             icon: _locating
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.my_location, size: 18),
             label: Text(l.t('zone_use_location')),
             style: OutlinedButton.styleFrom(

@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/antenatal_protocol.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class AntenatalPlanScreen extends StatefulWidget {
@@ -32,7 +33,8 @@ class AntenatalPlanScreen extends StatefulWidget {
   /// any other appointment. Null (with no dueDate) hides the booking action.
   final void Function(AntenatalVisit visit, DateTime at)? onBook;
 
-  const AntenatalPlanScreen({super.key, required this.week, this.dueDate, this.onBook});
+  const AntenatalPlanScreen(
+      {super.key, required this.week, this.dueDate, this.onBook});
 
   @override
   State<AntenatalPlanScreen> createState() => _AntenatalPlanScreenState();
@@ -59,7 +61,8 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
     final l = L10nScope.of(context);
     final day = visitOpensOn(visit, due);
     book(visit, DateTime(day.year, day.month, day.day, 10, 0));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.t('an_booked'))));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l.t('an_booked'))));
   }
 
   @override
@@ -78,13 +81,17 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           Text(l.t('an_intro'),
-              style: const TextStyle(color: Palette.textDim, fontSize: 13, height: 1.5)),
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 13, height: 1.5)),
           const SizedBox(height: 16),
 
           // What now: the visit due (or next), or a gentle "you're through the
           // plan" once term has come.
           if (lead != null)
-            _LeadCard(visit: lead, dueNow: dueNow, onBook: canBook ? () => _book(lead) : null)
+            _LeadCard(
+                visit: lead,
+                dueNow: dueNow,
+                onBook: canBook ? () => _book(lead) : null)
           else
             _TermCard(),
 
@@ -117,11 +124,15 @@ class _AntenatalPlanScreenState extends State<AntenatalPlanScreen> {
           _RiskNote(),
           const SizedBox(height: 16),
           Text(l.t('an_disclaimer'),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.5)),
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 12, height: 1.5)),
           const SizedBox(height: 10),
           Text(l.t('an_source'),
               style: const TextStyle(
-                  color: Palette.textDim, fontSize: 11, height: 1.45, fontStyle: FontStyle.italic)),
+                  color: Palette.textDim,
+                  fontSize: 11,
+                  height: 1.45,
+                  fontStyle: FontStyle.italic)),
         ],
       ),
     );
@@ -144,23 +155,27 @@ class _LeadCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [accent.withValues(alpha: 0.14), accent.withValues(alpha: 0.04)],
-        ),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
+        color: accent.withValues(alpha: 0.14),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(dueNow ? Icons.event_available_rounded : Icons.upcoming_outlined,
-                size: 18, color: accent),
+            Icon(
+                dueNow
+                    ? Icons.event_available_rounded
+                    : Icons.upcoming_outlined,
+                size: 18,
+                color: accent),
             const SizedBox(width: 8),
-            Text((dueNow ? l.t('an_due_now') : l.t('an_upcoming')).toUpperCase(),
+            Text(
+                (dueNow ? l.t('an_due_now') : l.t('an_upcoming')).toUpperCase(),
                 style: TextStyle(
-                    fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: accent)),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: accent)),
           ]),
           const SizedBox(height: 10),
           Row(
@@ -168,7 +183,8 @@ class _LeadCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(l.t('an_of_eight', {'n': visit.number}),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800)),
               ),
               Text(_weeksLabel(l, visit),
                   style: const TextStyle(
@@ -209,7 +225,8 @@ class _BookButton extends StatelessWidget {
           foregroundColor: accent,
           side: BorderSide(color: accent.withValues(alpha: 0.5)),
           padding: const EdgeInsets.symmetric(vertical: 11),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
@@ -226,7 +243,7 @@ class _TermCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Palette.surface,
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,10 +255,12 @@ class _TermCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t('an_term_title'),
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
                 Text(l.t('an_term_note'),
-                    style: const TextStyle(fontSize: 13, height: 1.5, color: Palette.textDim)),
+                    style: const TextStyle(
+                        fontSize: 13, height: 1.5, color: Palette.textDim)),
               ],
             ),
           ),
@@ -264,23 +283,27 @@ class _WindowsCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         color: Palette.rose.withValues(alpha: 0.08),
-        border: Border.all(color: Palette.rose.withValues(alpha: 0.32)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.schedule_rounded, size: 18, color: Palette.roseDeep),
+            const Icon(Icons.schedule_rounded,
+                size: 18, color: Palette.roseDeep),
             const SizedBox(width: 8),
             Expanded(
               child: Text(l.t('an_windows_title'),
                   style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w800, color: Palette.roseDeep)),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Palette.roseDeep)),
             ),
           ]),
           const SizedBox(height: 6),
           Text(l.t('an_windows_intro'),
-              style: const TextStyle(fontSize: 12, height: 1.45, color: Palette.textDim)),
+              style: const TextStyle(
+                  fontSize: 12, height: 1.45, color: Palette.textDim)),
           const SizedBox(height: 12),
           for (var i = 0; i < windows.length; i++) ...[
             if (i > 0) const SizedBox(height: 10),
@@ -314,24 +337,36 @@ class _WindowRow extends StatelessWidget {
               // Window names reuse the visit-item strings — same screening,
               // one source of truth for its wording.
               Text(l.t('an_item_${window.id}'),
-                  style: const TextStyle(fontSize: 13.5, height: 1.4, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 3),
-              Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                _Pill(
-                  text: l.t('an_win_open'),
-                  fg: Palette.roseDeep,
-                  bg: Palette.rose.withValues(alpha: 0.16),
-                ),
-                Text(
-                  l.t('an_win_range', {'from': window.fromWeek, 'to': window.toWeek}),
                   style: const TextStyle(
-                      fontFamily: 'JetBrainsMono', fontSize: 11.5, color: Palette.textDim),
-                ),
-                if (window.risk)
-                  Text('· ${l.t('an_risk_tag')}',
+                      fontSize: 13.5,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 3),
+              Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _Pill(
+                      text: l.t('an_win_open'),
+                      fg: Palette.roseDeep,
+                      bg: Palette.rose.withValues(alpha: 0.16),
+                    ),
+                    Text(
+                      l.t('an_win_range',
+                          {'from': window.fromWeek, 'to': window.toWeek}),
                       style: const TextStyle(
-                          fontSize: 11.5, fontStyle: FontStyle.italic, color: Palette.textDim)),
-              ]),
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 11.5,
+                          color: Palette.textDim),
+                    ),
+                    if (window.risk)
+                      Text('· ${l.t('an_risk_tag')}',
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontStyle: FontStyle.italic,
+                              color: Palette.textDim)),
+                  ]),
             ],
           ),
         ),
@@ -365,7 +400,9 @@ class _VisitTile extends StatelessWidget {
         color: Palette.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: current ? Palette.violet.withValues(alpha: 0.4) : Palette.border),
+            color: current
+                ? Palette.violet.withValues(alpha: 0.4)
+                : Palette.border),
       ),
       child: Column(
         children: [
@@ -386,7 +423,9 @@ class _VisitTile extends StatelessWidget {
                     ),
                     child: Text('${visit.number}',
                         style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w800, color: accent)),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: accent)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -396,7 +435,8 @@ class _VisitTile extends StatelessWidget {
                         Text(l.t('an_visit_label', {'n': visit.number}),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+                            style: const TextStyle(
+                                fontSize: 14.5, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(_weeksLabel(l, visit),
                             style: const TextStyle(
@@ -406,7 +446,10 @@ class _VisitTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                  Icon(
+                      expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
                       color: Palette.textDim),
                 ],
               ),
@@ -421,7 +464,9 @@ class _VisitTile extends StatelessWidget {
                   _GroupedItems(visit: visit),
                   if (onBook != null) ...[
                     const SizedBox(height: 12),
-                    _BookButton(accent: current ? Palette.violet : Palette.textDim, onBook: onBook!),
+                    _BookButton(
+                        accent: current ? Palette.violet : Palette.textDim,
+                        onBook: onBook!),
                   ],
                 ],
               ),
@@ -456,7 +501,8 @@ class _GroupedItems extends StatelessWidget {
         blocks.add(_ItemRow(item: it));
       }
     }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: blocks);
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: blocks);
   }
 }
 
@@ -472,7 +518,8 @@ class _ItemRow extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 5),
-          child: Icon(_catIcon(item.category), size: 14, color: _catColour(item.category)),
+          child: Icon(_catIcon(item.category),
+              size: 14, color: _catColour(item.category)),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -483,7 +530,9 @@ class _ItemRow extends StatelessWidget {
                 TextSpan(
                   text: '  · ${l.t('an_risk_tag')}',
                   style: const TextStyle(
-                      fontSize: 11.5, fontStyle: FontStyle.italic, color: Palette.textDim),
+                      fontSize: 11.5,
+                      fontStyle: FontStyle.italic,
+                      color: Palette.textDim),
                 ),
             ]),
             style: const TextStyle(fontSize: 13, height: 1.42),
@@ -501,12 +550,16 @@ class _RiskNote extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.info_outline_rounded, size: 15, color: Palette.textDim),
+        const Icon(Icons.info_outline_rounded,
+            size: 15, color: Palette.textDim),
         const SizedBox(width: 8),
         Expanded(
           child: Text(l.t('an_risk_note'),
               style: const TextStyle(
-                  fontSize: 12, height: 1.45, fontStyle: FontStyle.italic, color: Palette.textDim)),
+                  fontSize: 12,
+                  height: 1.45,
+                  fontStyle: FontStyle.italic,
+                  color: Palette.textDim)),
         ),
       ],
     );
@@ -521,7 +574,10 @@ class _SectionLabel extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(2, 0, 2, 6),
         child: Text(text.toUpperCase(),
             style: const TextStyle(
-                fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Palette.textDim)),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: Palette.textDim)),
       );
 }
 
@@ -533,9 +589,13 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(99)),
+        decoration: BoxDecoration(
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+            color: bg,
+            borderRadius: BorderRadius.circular(99)),
         child: Text(text,
-            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: fg)),
+            style: TextStyle(
+                fontSize: 10.5, fontWeight: FontWeight.w800, color: fg)),
       );
 }
 

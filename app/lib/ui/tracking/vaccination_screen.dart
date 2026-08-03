@@ -16,6 +16,7 @@ import '../../domain/child_development.dart' show ageInMonths;
 import '../../domain/family.dart';
 import '../../domain/vaccination.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class VaccinationScreen extends StatelessWidget {
@@ -53,7 +54,8 @@ class VaccinationScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(32),
                 child: Text(l.t('dev_no_birthdate'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Palette.textDim, height: 1.4)),
+                    style:
+                        const TextStyle(color: Palette.textDim, height: 1.4)),
               ),
             )
           : _Schedule(
@@ -75,7 +77,11 @@ class _Schedule extends StatelessWidget {
   final DateTime? reminderAt;
   final Set<String> done;
   final ValueChanged<String>? onToggle;
-  const _Schedule({required this.ageMonths, required this.reminderAt, required this.done, required this.onToggle});
+  const _Schedule(
+      {required this.ageMonths,
+      required this.reminderAt,
+      required this.done,
+      required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +100,7 @@ class _Schedule extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             color: Palette.glass,
             borderRadius: BorderRadius.circular(14),
           ),
@@ -104,7 +111,8 @@ class _Schedule extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(l.t('vac_disclaimer'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.45)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.45)),
               ),
             ],
           ),
@@ -116,19 +124,35 @@ class _Schedule extends StatelessWidget {
         if (catchUp.isNotEmpty) ...[
           _Title(l.t('vac_catchup')),
           for (final v in catchUp)
-            _VaccineRow(v: v, status: VaccineStatus.passed, catchUp: true, done: done.contains(vaccineKey(v)), onToggle: onToggle),
+            _VaccineRow(
+                v: v,
+                status: VaccineStatus.passed,
+                catchUp: true,
+                done: done.contains(vaccineKey(v)),
+                onToggle: onToggle),
           const SizedBox(height: 16),
         ],
 
         if (due.isNotEmpty) ...[
           _Title(l.t('vac_due')),
-          for (final v in due) _VaccineRow(v: v, status: VaccineStatus.due, done: done.contains(vaccineKey(v)), onToggle: onToggle),
+          for (final v in due)
+            _VaccineRow(
+                v: v,
+                status: VaccineStatus.due,
+                done: done.contains(vaccineKey(v)),
+                onToggle: onToggle),
           const SizedBox(height: 16),
         ],
 
         if (next.isNotEmpty) ...[
-          _Title('${l.t('vac_next')} · ${l.t('vac_in_months', {'n': untilNext})}'),
-          for (final v in next) _VaccineRow(v: v, status: VaccineStatus.upcoming, done: done.contains(vaccineKey(v)), onToggle: onToggle),
+          _Title(
+              '${l.t('vac_next')} · ${l.t('vac_in_months', {'n': untilNext})}'),
+          for (final v in next)
+            _VaccineRow(
+                v: v,
+                status: VaccineStatus.upcoming,
+                done: done.contains(vaccineKey(v)),
+                onToggle: onToggle),
           if (reminderAt != null) _ReminderNote(at: reminderAt!),
           const SizedBox(height: 16),
         ],
@@ -137,13 +161,20 @@ class _Schedule extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(l.t('vac_complete'),
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           ),
 
         // The whole calendar, so a parent can look ahead or check what was
         // scheduled when — the question they actually bring to a visit.
         _Title(l.t('vac_sub')),
-        for (final entry in byAge.entries) _AgeGroup(months: entry.key, vaccines: entry.value, ageMonths: ageMonths, done: done, onToggle: onToggle),
+        for (final entry in byAge.entries)
+          _AgeGroup(
+              months: entry.key,
+              vaccines: entry.value,
+              ageMonths: ageMonths,
+              done: done,
+              onToggle: onToggle),
 
         const SizedBox(height: 8),
         Text(l.t('vac_revision', {'d': scheduleRevision}),
@@ -160,7 +191,8 @@ class _Title extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(2, 4, 2, 8),
         child: Text(text,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
       );
 }
 
@@ -179,7 +211,8 @@ class _ReminderNote extends StatelessWidget {
       padding: const EdgeInsets.only(left: 2, top: 2, bottom: 2),
       child: Row(
         children: [
-          const Icon(Icons.notifications_active_outlined, size: 15, color: Palette.textDim),
+          const Icon(Icons.notifications_active_outlined,
+              size: 15, color: Palette.textDim),
           const SizedBox(width: 8),
           Expanded(
             child: Text(l.t('vac_reminder_on', {'d': date}),
@@ -197,12 +230,18 @@ class _AgeGroup extends StatelessWidget {
   final int ageMonths;
   final Set<String> done;
   final ValueChanged<String>? onToggle;
-  const _AgeGroup({required this.months, required this.vaccines, required this.ageMonths, required this.done, required this.onToggle});
+  const _AgeGroup(
+      {required this.months,
+      required this.vaccines,
+      required this.ageMonths,
+      required this.done,
+      required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final label = months == 0 ? l.t('vac_at_birth') : l.t('vac_at_month', {'n': months});
+    final label =
+        months == 0 ? l.t('vac_at_birth') : l.t('vac_at_month', {'n': months});
     final reached = ageMonths >= months;
 
     return Padding(
@@ -233,7 +272,12 @@ class _AgeGroup extends StatelessWidget {
             child: Column(
               children: [
                 for (final v in vaccines)
-                  _VaccineRow(v: v, status: vaccineStatus(v, ageMonths), compact: true, done: done.contains(vaccineKey(v)), onToggle: onToggle),
+                  _VaccineRow(
+                      v: v,
+                      status: vaccineStatus(v, ageMonths),
+                      compact: true,
+                      done: done.contains(vaccineKey(v)),
+                      onToggle: onToggle),
               ],
             ),
           ),
@@ -300,14 +344,17 @@ class _VaccineRow extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(right: 10, top: 1),
                 child: Icon(
-                  done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  done
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
                   size: compact ? 18 : 21,
                   color: done ? Palette.teal : Palette.border,
                 ),
               ),
             )
           else ...[
-            Icon(Icons.vaccines_outlined, size: compact ? 17 : 19, color: _accent),
+            Icon(Icons.vaccines_outlined,
+                size: compact ? 17 : 19, color: _accent),
             const SizedBox(width: 10),
           ],
           Expanded(
@@ -324,7 +371,8 @@ class _VaccineRow extends StatelessWidget {
                 if (!compact) ...[
                   const SizedBox(height: 3),
                   Text(l.t('vac_${v.id}_note'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.4)),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12.5, height: 1.4)),
                 ],
               ],
             ),

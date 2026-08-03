@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus } from './repository';
+import type { ContentItemRow, Repository, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus } from './repository';
 import { bundleDiscountMinor } from './repository';
 import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -126,8 +126,8 @@ export function createMemoryRepository(): Repository {
 
   // ---- Shop (mirrors migrations/009_shop.sql seed) ----
   const shopProds = [
-    { id: 'watch', name: 'Смарт-часы Umay', priceMinor: 2900000, sort: 1 },
-    { id: 'tracker', name: 'Детский трекер Umay', priceMinor: 990000, sort: 2 },
+    { id: 'watch', name: 'Смарт-часы Umay', priceMinor: 2490000, sort: 1 },
+    { id: 'tracker', name: 'Детский трекер Umay', priceMinor: 490000, sort: 2 },
   ];
   const shopVars: Array<{ id: string; productId: string; color: string; colorHex: string; stock: number; sort: number }> = [
     { id: 'v-w-black', productId: 'watch', color: 'Чёрный', colorHex: '#1C1E2A', stock: 0, sort: 1 },
@@ -139,6 +139,8 @@ export function createMemoryRepository(): Repository {
   ];
   type ShopOrderRow = { id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
   const shopOrders: ShopOrderRow[] = [];
+  type ShopLeadRow = { id: string; customerName: string; phone: string; package: string; locale: ShopLeadLocale; status: ShopLeadStatus; createdAt: string };
+  const shopLeads: ShopLeadRow[] = [];
   type AudioRow = { track: string; day: number; locale: string; title: string | null; mime: string; bytes: Buffer; updatedAt: string };
   const dailyAudio = new Map<string, AudioRow>(); // key: `${track}|${day}|${locale}`
   const shopSettings = new Map<string, string>();
@@ -679,6 +681,21 @@ export function createMemoryRepository(): Repository {
     setShopOrderStatus: async (orderId, status) => {
       const o = shopOrders.find((x) => x.id === orderId);
       if (o) o.status = status;
+    },
+
+    recordShopLead: async (lead) => {
+      const id = randomUUID();
+      shopLeads.push({
+        id, customerName: lead.customerName, phone: lead.phone,
+        package: lead.package ?? '', locale: lead.locale ?? 'ru',
+        status: 'new', createdAt: new Date().toISOString(),
+      });
+      return { id };
+    },
+    adminShopLeads: async (limit) => shopLeads.slice(-limit).reverse().map((l) => ({ ...l })),
+    setShopLeadStatus: async (leadId, status) => {
+      const l = shopLeads.find((x) => x.id === leadId);
+      if (l) l.status = status;
     },
 
     getShopSettings: async () => Object.fromEntries(shopSettings),

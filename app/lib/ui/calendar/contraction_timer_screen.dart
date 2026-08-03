@@ -14,6 +14,7 @@ import '../../domain/contraction.dart';
 import '../../domain/kick_session.dart' show formatElapsed;
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -22,7 +23,8 @@ import 'labour_signs_screen.dart';
 class ContractionTimerScreen extends StatefulWidget {
   /// Called with the session summary when the screen closes (if any contractions
   /// were recorded), so it can be added to history.
-  final void Function(int count, Duration avgDuration, Duration avgInterval)? onSave;
+  final void Function(int count, Duration avgDuration, Duration avgInterval)?
+      onSave;
   const ContractionTimerScreen({super.key, this.onSave});
   @override
   State<ContractionTimerScreen> createState() => _ContractionTimerScreenState();
@@ -85,7 +87,9 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
     final l = L10nScope.of(context);
     final active = _activeStart != null;
     final stats = contractionStats(_contractions);
-    final elapsed = active ? formatElapsed(DateTime.now().difference(_activeStart!)) : '0:00';
+    final elapsed = active
+        ? formatElapsed(DateTime.now().difference(_activeStart!))
+        : '0:00';
 
     return Scaffold(
       backgroundColor: Palette.bg,
@@ -96,7 +100,8 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
           // "Am I in labour / should I go in?" — the question this screen exists
           // to help answer, one tap away.
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: Palette.textDim),
+            icon:
+                const Icon(Icons.info_outline_rounded, color: Palette.textDim),
             tooltip: l.t('lab_title'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const LabourSignsScreen()),
@@ -104,7 +109,8 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
           ),
           if (_contractions.isNotEmpty || active)
             IconButton(
-              icon: const Icon(Icons.restart_alt_rounded, color: Palette.textDim),
+              icon:
+                  const Icon(Icons.restart_alt_rounded, color: Palette.textDim),
               tooltip: l.t('contr_reset'),
               onPressed: _reset,
             ),
@@ -121,12 +127,17 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
             // to set off for hospital.
             if (_contractions.length >= 2)
               _FiveOneOneCard(
-                progress: fiveOneOneProgress(_contractions, now: DateTime.now()),
+                progress:
+                    fiveOneOneProgress(_contractions, now: DateTime.now()),
               ),
             const SizedBox(height: 8),
             Expanded(
               child: _contractions.isEmpty
-                  ? Center(child: Text(l.t('contr_empty'), textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)))
+                  ? Center(
+                      child: Text(l.t('contr_empty'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Palette.textDim, height: 1.4)))
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
                       itemCount: _contractions.length,
@@ -148,7 +159,12 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
             // and over, one-handed — a top-anchored button forces a phone re-grip
             // each time, so it lives at the bottom, under the resting thumb.
             const SizedBox(height: 12),
-            _BigButton(active: active, elapsed: elapsed, label: l.t(active ? 'contr_stop' : 'contr_start'), sub: l.t(active ? 'contr_running' : 'contr_hint'), onTap: _toggle),
+            _BigButton(
+                active: active,
+                elapsed: elapsed,
+                label: l.t(active ? 'contr_stop' : 'contr_start'),
+                sub: l.t(active ? 'contr_running' : 'contr_hint'),
+                onTap: _toggle),
             const SizedBox(height: 4),
           ],
         ),
@@ -171,9 +187,15 @@ class _StatsBar extends StatelessWidget {
           children: [
             _Stat(value: '${stats.count}', label: l.t('contr_count')),
             _divider(),
-            _Stat(value: formatElapsed(stats.avgDuration), label: l.t('contr_avg_dur')),
+            _Stat(
+                value: formatElapsed(stats.avgDuration),
+                label: l.t('contr_avg_dur')),
             _divider(),
-            _Stat(value: stats.avgInterval == Duration.zero ? '—' : formatElapsed(stats.avgInterval), label: l.t('contr_avg_freq')),
+            _Stat(
+                value: stats.avgInterval == Duration.zero
+                    ? '—'
+                    : formatElapsed(stats.avgInterval),
+                label: l.t('contr_avg_freq')),
           ],
         ),
       ),
@@ -201,29 +223,49 @@ class _FiveOneOneCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: accent.withValues(alpha: 0.07),
-          border: Border.all(color: accent.withValues(alpha: 0.20)),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(progress.allMet ? Icons.info_rounded : Icons.timeline_rounded, size: 18, color: accent),
+                Icon(
+                    progress.allMet
+                        ? Icons.info_rounded
+                        : Icons.timeline_rounded,
+                    size: 18,
+                    color: accent),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(l.t('contr_511_title'),
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accent)),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: accent)),
                 ),
-                Text('${progress.metCount}/3', style: TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: accent, fontSize: 13)),
+                Text('${progress.metCount}/3',
+                    style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                        fontSize: 13)),
               ],
             ),
             const SizedBox(height: 10),
-            _Criterion(met: progress.intervalMet, label: l.t('contr_511_interval')),
-            _Criterion(met: progress.durationMet, label: l.t('contr_511_duration')),
-            _Criterion(met: progress.sustainedMet, label: l.t('contr_511_sustained')),
+            _Criterion(
+                met: progress.intervalMet, label: l.t('contr_511_interval')),
+            _Criterion(
+                met: progress.durationMet, label: l.t('contr_511_duration')),
+            _Criterion(
+                met: progress.sustainedMet, label: l.t('contr_511_sustained')),
             const SizedBox(height: 8),
-            Text(progress.allMet ? l.t('contr_511_ready') : l.t('contr_511_note'),
-                style: const TextStyle(color: Palette.textDim, fontSize: 11.5, height: 1.35)),
+            Text(
+                progress.allMet
+                    ? l.t('contr_511_ready')
+                    : l.t('contr_511_note'),
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 11.5, height: 1.35)),
           ],
         ),
       ),
@@ -241,12 +283,20 @@ class _Criterion extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          Icon(met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-              size: 18, color: met ? Palette.good : Palette.textDim.withValues(alpha: 0.5)),
+          Icon(
+              met
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 18,
+              color:
+                  met ? Palette.good : Palette.textDim.withValues(alpha: 0.5)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(label,
-                style: TextStyle(fontSize: 13.5, color: met ? Palette.text : Palette.textDim, fontWeight: met ? FontWeight.w600 : FontWeight.w400)),
+                style: TextStyle(
+                    fontSize: 13.5,
+                    color: met ? Palette.text : Palette.textDim,
+                    fontWeight: met ? FontWeight.w600 : FontWeight.w400)),
           ),
         ],
       ),
@@ -262,9 +312,16 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(
         child: Column(
           children: [
-            Text(value, style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 20, fontWeight: FontWeight.w700, color: Palette.text)),
+            Text(value,
+                style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Palette.text)),
             const SizedBox(height: 2),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
           ],
         ),
       );
@@ -276,13 +333,18 @@ class _BigButton extends StatelessWidget {
   final String label;
   final String sub;
   final VoidCallback onTap;
-  const _BigButton({required this.active, required this.elapsed, required this.label, required this.sub, required this.onTap});
+  const _BigButton(
+      {required this.active,
+      required this.elapsed,
+      required this.label,
+      required this.sub,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final gradient = active
-        ? const LinearGradient(colors: [Palette.roseDeep, Palette.rose])
-        : const LinearGradient(colors: [Palette.violet, Palette.pink]);
+        ? Palette.roseDeep
+        : Ds.coralCta;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -296,20 +358,29 @@ class _BigButton extends StatelessWidget {
                 onTap: onTap,
                 customBorder: const CircleBorder(),
                 child: Container(
-                  width: 180, height: 180,
+                  width: 180,
+                  height: 180,
                   decoration: BoxDecoration(
-                    gradient: gradient,
+                    color: gradient,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: (active ? Palette.roseDeep : Palette.violet).withValues(alpha: 0.4), blurRadius: 36, spreadRadius: -6, offset: const Offset(0, 12))],
+                    boxShadow: DsShape.hardShadowLg,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(active ? elapsed : label,
-                          style: TextStyle(fontFamily: active ? 'JetBrainsMono' : null, fontSize: active ? 40 : 26, fontWeight: FontWeight.w700, color: Colors.white)),
+                          style: TextStyle(
+                              fontFamily: active ? 'JetBrainsMono' : null,
+                              fontSize: active ? 40 : 26,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
                       if (active) ...[
                         const SizedBox(height: 4),
-                        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, fontWeight: FontWeight.w600)),
+                        Text(label,
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
                       ],
                     ],
                   ),
@@ -318,7 +389,9 @@ class _BigButton extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(sub, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+          Text(sub,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Palette.textDim, fontSize: 13)),
         ],
       ),
     );
@@ -330,7 +403,11 @@ class _ContractionRow extends StatelessWidget {
   final Duration duration;
   final Duration? interval;
   final L10n l;
-  const _ContractionRow({required this.number, required this.duration, required this.interval, required this.l});
+  const _ContractionRow(
+      {required this.number,
+      required this.duration,
+      required this.interval,
+      required this.l});
 
   @override
   Widget build(BuildContext context) {
@@ -341,16 +418,29 @@ class _ContractionRow extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 34, height: 34, alignment: Alignment.center,
-              decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-              child: Text('$number', style: const TextStyle(fontWeight: FontWeight.w700, color: Palette.violet)),
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: Palette.violet.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text('$number',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, color: Palette.violet)),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(l.t('contr_duration', {'d': formatElapsed(duration)}),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Palette.text)),
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Palette.text)),
             ),
-            Text(interval == null ? l.t('contr_first') : l.t('contr_apart', {'i': formatElapsed(interval!)}),
+            Text(
+                interval == null
+                    ? l.t('contr_first')
+                    : l.t('contr_apart', {'i': formatElapsed(interval!)}),
                 style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
           ],
         ),

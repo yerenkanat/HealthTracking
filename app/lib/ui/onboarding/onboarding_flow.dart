@@ -15,6 +15,7 @@ import '../../l10n/l10n.dart';
 import '../../data/device_location.dart';
 import '../../l10n/l10n_scope.dart';
 import '../settings/legal_screen.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
@@ -265,7 +266,7 @@ class _ProfilePage extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.glass,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Palette.border),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
@@ -323,7 +324,7 @@ class _ExpectingSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.glass,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Material(

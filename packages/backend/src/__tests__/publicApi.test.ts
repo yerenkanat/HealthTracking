@@ -96,7 +96,7 @@ describe('GET /api/v1 (index + gate)', () => {
     const j = r.json();
     expect(j.currency).toBe('KZT');
     const watch = j.products.find((p: { id: string }) => p.id === 'watch');
-    expect(watch.priceTenge).toBe(29000);
+    expect(watch.priceTenge).toBe(24900); // matches the landing page (migration 018)
     expect(Array.isArray(watch.colours)).toBe(true);
     expect((await a.inject({ url: '/api/v1/shop/products/tracker' })).statusCode).toBe(200);
     expect((await a.inject({ url: '/api/v1/shop/products/nope' })).statusCode).toBe(404);

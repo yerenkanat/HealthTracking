@@ -13,6 +13,8 @@ import type { ServerDeps } from './server';
 import { authPosture } from './authPosture';
 import { createMemoryRepository } from './db/memoryRepository';
 import { makeAuthUser } from './http/auth';
+import { registerLanding } from './http/landing';
+import { esc, requestBase } from './http/pageMeta';
 import type { BandTelemetry, ChildLocationFix } from '@fcs/shared';
 import { assessTelemetry } from '@fcs/shared';
 
@@ -236,46 +238,14 @@ async function main(): Promise<void> {
     app.log.warn('api docs html not found; /api-docs disabled');
   }
 
-  // Public storefront + product landing pages, served same-origin with the shop
-  // API so their checkout POSTs real orders to /shop/orders and reads live stock
-  // from /shop/products (an off-site page's CSP would block reaching the DB).
+  // What is left of the old storefront: its images, and redirects from its pages
+  // to the Ana-Bala landing that replaced them. The shop API itself lives in
+  // routes/crud.ts and is unaffected.
   //
-  // /shop        — the catalogue (both products)
-  // /shop/watch  — a focused promotion landing for the smart watch (ad traffic)
-  // each with its own SEO + social-preview card.
+  // The HTML for those pages is still in packages/backend/shop/ — kept rather
+  // than deleted so the copy and layout can be mined when the storefront is
+  // rebuilt in the new brand, but no route serves it any more.
   try {
-    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    const readShop = (name: string) => readFileSync(fileURLToPath(new URL(`../shop/${name}`, import.meta.url)), 'utf8');
-    // og:url / og:image are built from the request host so the tags are right in
-    // dev and behind the production proxy without a hardcoded domain.
-    const requestBase = (req: { headers: Record<string, string | string[] | undefined>; protocol?: string }) => {
-      const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || 'umay.kz';
-      const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
-      return `${proto}://${host}`;
-    };
-    const pageHtml = (base: string, path: string, title: string, desc: string, og: string, body: string) =>
-      `<!doctype html><html lang="ru"><head><meta charset="utf-8">` +
-      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>${esc(title)}</title>` +
-      `<meta name="description" content="${esc(desc)}">` +
-      `<meta name="theme-color" content="#6D5AE6">` +
-      `<meta property="og:type" content="website">` +
-      `<meta property="og:site_name" content="Umay">` +
-      `<meta property="og:locale" content="ru_KZ">` +
-      `<meta property="og:title" content="${esc(title)}">` +
-      `<meta property="og:description" content="${esc(desc)}">` +
-      `<meta property="og:url" content="${esc(base)}${path}">` +
-      `<meta property="og:image" content="${esc(base)}${og}">` +
-      `<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">` +
-      `<meta name="twitter:card" content="summary_large_image">` +
-      `<meta name="twitter:title" content="${esc(title)}">` +
-      `<meta name="twitter:description" content="${esc(desc)}">` +
-      `<meta name="twitter:image" content="${esc(base)}${og}">` +
-      `</head><body>${body}</body></html>`;
-    const servePage = (path: string, file: string, title: string, desc: string, og: string) => {
-      const body = readShop(file);
-      app.get(path, async (req, reply) => reply.type('text/html').send(pageHtml(requestBase(req), path, title, desc, og, body)));
-    };
     // Social-preview cards — real PNGs crawlers can fetch (data: URIs and relative
     // paths are unreliable across scrapers), cached hard; they change only with art.
     const serveImage = (path: string, file: string, type = 'image/png') => {
@@ -283,42 +253,53 @@ async function main(): Promise<void> {
       app.get(path, async (_req, reply) => reply.type(type).header('cache-control', 'public, max-age=86400').send(bytes));
     };
 
-    servePage('/shop', 'index.html',
-      'Umay — умные часы и детский GPS-трекер · Казахстан',
-      'Смарт-часы следят за самочувствием мамы, детский GPS-трекер показывает, где ребёнок. ' +
-        'Часы 29 000 ₸, трекер 9 900 ₸. Оплата при получении, доставка по Казахстану, гарантия 1 год.',
-      '/shop/og.png');
+    // ---- The previous generation of product pages, retired -------------------
+    //
+    // These four pages (/shop, /shop/watch, /shop/tracker, /shop/umay-watch) sold
+    // the same two devices under the old "Umay" brand, in the old terracotta
+    // design, at the old prices — 29 000 ₸ for the watch where the Ana-Bala
+    // landing says 24 900. Two prices for one product on one domain is worse
+    // than one page fewer, and it is not fixable by editing numbers: the brand
+    // name is wrong throughout and each page's social card is a PNG with the old
+    // price baked into the artwork.
+    //
+    // So they redirect to the landing, which now carries the whole offer. The
+    // shop *API* is untouched — /shop/products, /shop/orders, /shop/config and
+    // /shop/leads still serve the app, the admin panel and the landing's form.
+    //
+    // 302, not 301: this supersession is a product decision, and a permanent
+    // redirect is cached by browsers in a way that is painful to undo.
+    for (const path of ['/shop', '/shop/watch', '/shop/tracker', '/shop/umay-watch']) {
+      app.get(path, async (_req, reply) => reply.redirect('/', 302));
+    }
+    // The cards themselves stay reachable — they are still referenced by links
+    // shared before the redirect, and a dead og:image is worse than a stale one.
     serveImage('/shop/og.png', 'og.png');
-
-    servePage('/shop/watch', 'watch.html',
-      'Умные часы Umay — здоровье будущей мамы · 29 000 ₸',
-      'Смарт-часы Umay: пульс, давление, кислород и оценка глюкозы, сон и шаги — с приложением, ' +
-        'которое вовремя предупредит. 29 000 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
-      '/shop/watch-og.png');
     serveImage('/shop/watch-og.png', 'watch-og.png');
-
-    servePage('/shop/tracker', 'tracker.html',
-      'Детский GPS-трекер Umay — всегда знаете, где ребёнок · 9 900 ₸',
-      'Детский трекер Umay: GPS в реальном времени, безопасные зоны, кнопка SOS и история перемещений — ' +
-        'ребёнок на карте в приложении. 9 900 ₸, оплата при получении, доставка по Казахстану, гарантия 1 год.',
-      '/shop/tracker-og.png');
     serveImage('/shop/tracker-og.png', 'tracker-og.png');
-
-    // The flagship mom-watch landing — bilingual (Kazakh default / Russian).
-    servePage('/shop/umay-watch', 'umay-watch.html',
-      'Umay смарт-сағат — болашақ аналарға · 29 000 ₸ | Умные часы Umay',
-      'Umay смарт-сағаты: пульс, қысым, оттегі және глюкоза бағасы, ұйқы — Umay қосымшасымен және ЖИ-кеңестермен. ' +
-        '29 000 ₸, алған кезде төлеу, Қазақстан бойынша жеткізу, 1 жыл кепілдік. / Умные часы для будущих мам.',
-      '/shop/umay-watch-og.png');
     serveImage('/shop/umay-watch-og.png', 'umay-watch-og.png');
 
-    // Real product photos (single watch on white) for the landing hero + colour
-    // gallery. JPEG, cached hard.
+    // Real product photos (single watch on white), kept for the admin panel and
+    // any page that still links them. JPEG, cached hard.
     for (const c of ['black', 'white', 'gray', 'pink', 'red', 'teal', 'army']) {
       serveImage(`/shop/photos/watch-${c}.jpg`, `photos/watch-${c}.jpg`, 'image/jpeg');
     }
   } catch {
     app.log.warn('shop storefront html not found; /shop pages disabled');
+  }
+
+  // ---- The Ana-Bala landing page (the site root) ------------------------------
+  // Built from the exported artifact by tools/build-landing.mjs — see its header
+  // for why we unpack rather than serve the export as-is. Everything under
+  // /landing/a/ is content-addressed by uuid and regenerated on each build, so
+  // it is immutable for as long as the URL exists: cache it for a year. The HTML
+  // itself must never be cached that way — it is what points at new asset uuids.
+  try {
+    const assets = registerLanding(app);
+    app.log.info(`landing page served at / (${assets} assets)`);
+  } catch (err) {
+    // Without this the root is a 404 — loud, because it is the whole site.
+    app.log.error({ err }, 'landing page not built; / is unavailable. Run: node packages/backend/tools/build-landing.mjs');
   }
 
   // ---- Refuse to serve real users with fake authentication ----

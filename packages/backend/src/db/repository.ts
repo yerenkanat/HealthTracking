@@ -178,6 +178,14 @@ export interface AdminUserDetail {
   /** Null when she declined — the panel shows that as "not provided". */
   birthDate: string | null;
   city: string | null;
+  /**
+   * Both repositories return these and the admin drilldown renders them as
+   * "Контакт врача" and "Цикл (база)" — they were just missing from the type,
+   * so the parity test that guards them could not compile.
+   */
+  doctorPhone: string | null;
+  avgCycleLength: number | null;
+  avgPeriodLength: number | null;
   children: Array<{ id: string; name: string; dateOfBirth: string | null; zones: number }>;
   devices: Array<{ id: string; name: string; kind: string; childId: string | null; batteryPct: number | null }>;
   latest: Record<string, number | null>;
@@ -460,6 +468,13 @@ export interface Repository {
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
   setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
 
+  /// Landing-page callback requests. Recording one can never fail on stock or
+  /// availability — the whole point is to capture the number before the visitor
+  /// leaves — so this returns the id rather than a typed failure.
+  recordShopLead(lead: ShopLeadInput): Promise<{ id: string }>;
+  adminShopLeads(limit: number): Promise<ShopLead[]>;
+  setShopLeadStatus(leadId: string, status: ShopLeadStatus): Promise<void>;
+
   /// Store settings — WhatsApp number, Kaspi link, and any other keys the admin
   /// adds. A flat key→value store; the public /shop/config only exposes a
   /// whitelist (contact/links), never secrets. get returns all; set upserts.
@@ -511,11 +526,33 @@ export type ShopOrderResult =
   | { ok: true; id: string; totalMinor: number; discountMinor: number }
   | { ok: false; error: 'empty' | 'not_found' | 'out_of_stock'; variantId?: string };
 
+/// A callback request from the landing page: a name and a number, nothing more.
+/// Not an order — no address, no variant, no stock reserved. See migration 017.
+export type ShopLeadLocale = 'ru' | 'kz';
+export type ShopLeadStatus = 'new' | 'called' | 'ordered' | 'dropped';
+export interface ShopLeadInput {
+  customerName: string; phone: string; package?: string; locale?: ShopLeadLocale;
+}
+export interface ShopLead {
+  id: string; customerName: string; phone: string; package: string;
+  locale: ShopLeadLocale; status: ShopLeadStatus; createdAt: string;
+}
+
 /// The family bundle: a watch and a tracker bought together take this much off,
 /// per matched pair (2 buys of each = 2× off). Recomputed server-side from the
 /// order's own contents at placement — the client never sends a price — so the
 /// saving advertised on the storefront is exactly the saving that is charged.
-export const BUNDLE_DISCOUNT_MINOR = 290000; // 2 900 ₸
+///
+/// **Currently 0.** The landing page — the only place prices are advertised —
+/// no longer sells a discounted hardware pair. Its «Комплект «Мама и ребёнок»»
+/// is 39 000 ₸ for both devices PLUS the Ма!Ма! course (a 40 000 ₸ gift), which
+/// is not a product in this schema and cannot be expressed as a discount on the
+/// two devices. A non-zero value here would make the shop API undercut the
+/// landing's own à-la-carte prices for the same two items.
+///
+/// The mechanism is kept rather than deleted: re-enabling a hardware bundle is a
+/// one-line change plus the storefront copy to advertise it.
+export const BUNDLE_DISCOUNT_MINOR = 0;
 export function bundleDiscountMinor(lines: Array<{ productId: string; qty: number }>): number {
   const qtyOf = (id: string) => lines.filter((l) => l.productId === id).reduce((n, l) => n + l.qty, 0);
   return Math.min(qtyOf('watch'), qtyOf('tracker')) * BUNDLE_DISCOUNT_MINOR;

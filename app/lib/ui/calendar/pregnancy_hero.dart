@@ -31,6 +31,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/cycle_log.dart' show GestationInfo;
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 /// How the palette warms as the pregnancy progresses.
@@ -39,11 +40,19 @@ import '../theme.dart';
 /// eight does not look identical to the one from week five. Kept close in
 /// value — this sits behind text, and a hero that shouts is a hero she stops
 /// reading.
+///
+/// One flat pastel per trimester, from the design system's card fills. These
+/// used to be two-stop peach gradients from the previous palette; the system
+/// has no gradients, and the hero now carries an ink outline instead, which is
+/// what separates it from the cream page.
+///
+/// `top`/`bottom` are kept as a pair — several callers destructure them — but
+/// hold the same colour, so the ramp is flat wherever one survives.
 ({Color top, Color bottom, Color glow}) trimesterPalette(int trimester) =>
     switch (trimester) {
-      1 => (top: const Color(0xFFFDF0F5), bottom: const Color(0xFFFBE7EF), glow: Palette.rose),
-      2 => (top: const Color(0xFFFDEFE8), bottom: const Color(0xFFFAE6DC), glow: const Color(0xFFEE9B6E)),
-      _ => (top: const Color(0xFFFBEAE1), bottom: const Color(0xFFF6DDCC), glow: Palette.violet),
+      1 => (top: Ds.pastelPink, bottom: Ds.pastelPink, glow: Ds.coral),
+      2 => (top: Ds.pastelButter, bottom: Ds.pastelButter, glow: Ds.amber),
+      _ => (top: Ds.pastelLilac, bottom: Ds.pastelLilac, glow: Ds.coralCta),
     };
 
 /// A curled figure, drawn from the week.
@@ -138,7 +147,8 @@ class BabyPainter extends CustomPainter {
       ..scaleByDouble(bodyScale, bodyScale, bodyScale, 1.0)
       ..translateByDouble(-44.0, -26.0, 0.0, 1.0);
 
-    return Path.combine(PathOperation.union, body.transform(m.storage), arm.transform(m.storage));
+    return Path.combine(PathOperation.union, body.transform(m.storage),
+        arm.transform(m.storage));
   }
 
   @override
@@ -155,7 +165,8 @@ class BabyPainter extends CustomPainter {
     // reads as a rounded body rather than a sticker. Both variants are derived
     // from the one [body] colour so the caller still passes a single tint.
     final lighter = Color.lerp(body, Colors.white, 0.34)!;
-    final deeper = Color.lerp(body, Colors.black, 0.16)!.withValues(alpha: body.a);
+    final deeper =
+        Color.lerp(body, Colors.black, 0.16)!.withValues(alpha: body.a);
     final fill = Paint()
       ..isAntiAlias = true
       ..shader = RadialGradient(
@@ -216,7 +227,8 @@ class BabyPainter extends CustomPainter {
 
     // One soft highlight on the crown — enough to keep the head reading as a
     // sphere, and a second, tighter specular glint for a little life.
-    canvas.drawCircle(headC + Offset(-headR * 0.30, -headR * 0.32), headR * 0.52, shading);
+    canvas.drawCircle(
+        headC + Offset(-headR * 0.30, -headR * 0.32), headR * 0.52, shading);
     canvas.drawCircle(
       headC + Offset(-headR * 0.38, -headR * 0.42),
       headR * 0.16,
@@ -227,9 +239,13 @@ class BabyPainter extends CustomPainter {
 
     canvas.restore();
   }
+
   @override
   bool shouldRepaint(BabyPainter old) =>
-      old.week != week || old.phase != phase || old.body != body || old.shade != shade;
+      old.week != week ||
+      old.phase != phase ||
+      old.body != body ||
+      old.shade != shade;
 }
 
 /// A soft radial wash behind the figure, so it sits in something rather than
@@ -242,14 +258,18 @@ class _GlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final centre = Offset(size.width / 2, size.height * 0.52);
-    final r = math.min(size.width, size.height) * (0.52 + 0.015 * math.sin(phase * 2 * math.pi));
+    final r = math.min(size.width, size.height) *
+        (0.52 + 0.015 * math.sin(phase * 2 * math.pi));
     // The amniotic wash: a soft coloured halo the figure sits inside.
     canvas.drawCircle(
       centre,
       r,
       Paint()
         ..shader = RadialGradient(
-          colors: [colour.withValues(alpha: 0.30), colour.withValues(alpha: 0.0)],
+          colors: [
+            colour.withValues(alpha: 0.30),
+            colour.withValues(alpha: 0.0)
+          ],
           stops: const [0.25, 1.0],
         ).createShader(Rect.fromCircle(center: centre, radius: r)),
     );
@@ -262,13 +282,17 @@ class _GlowPainter extends CustomPainter {
       r * 0.42,
       Paint()
         ..shader = RadialGradient(
-          colors: [Colors.white.withValues(alpha: 0.35), Colors.white.withValues(alpha: 0.0)],
+          colors: [
+            Colors.white.withValues(alpha: 0.35),
+            Colors.white.withValues(alpha: 0.0)
+          ],
         ).createShader(Rect.fromCircle(center: core, radius: r * 0.42)),
     );
   }
 
   @override
-  bool shouldRepaint(_GlowPainter old) => old.colour != colour || old.phase != phase;
+  bool shouldRepaint(_GlowPainter old) =>
+      old.colour != colour || old.phase != phase;
 }
 
 /// The illustrated hero.
@@ -309,7 +333,8 @@ class PregnancyHero extends StatefulWidget {
 // TickerProviderStateMixin, not Single: there are two controllers here — the
 // endless breath and the one-shot entry — and the single-ticker mixin asserts
 // on the second.
-class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateMixin {
+class _PregnancyHeroState extends State<PregnancyHero>
+    with TickerProviderStateMixin {
   /// The breath. Finite, not endless.
   ///
   /// It used to `repeat()` forever. That costs a frame every 16ms for as long
@@ -332,8 +357,10 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _loop = AnimationController(vsync: this, duration: _breathPeriod * _breaths);
-    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _loop =
+        AnimationController(vsync: this, duration: _breathPeriod * _breaths);
+    _entry = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900));
   }
 
   @override
@@ -364,128 +391,147 @@ class _PregnancyHeroState extends State<PregnancyHero> with TickerProviderStateM
     final g = widget.gestation;
     final pal = trimesterPalette(g.trimester);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [pal.top, pal.bottom],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-          child: Column(
-            // Wrap the content. A Column defaults to filling its parent, and
-            // given loose constraints — anywhere but inside a fixed-height
-            // slot — that left a tall band of empty gradient under the button
-            // and overflowed when the space was short.
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 204,
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_loop, _entry]),
-                  builder: (context, _) {
-                    // One controller pass covers every breath, so `t` counts
-                    // whole cycles and lands back at rest when it finishes.
-                    final t = _loop.value * _breaths;
-                    // A slow vertical drift, in step with the breath. Eased out
-                    // over the pass so the motion fades rather than stopping
-                    // mid-rise.
-                    final settle = 1 - Curves.easeInCubic.transform(_loop.value);
-                    final dy = math.sin(t * 2 * math.pi) * 5 * settle;
-                    // The ring fills once, on entry, toward the due date.
-                    final ringFraction = g.progress * Curves.easeOutCubic.transform(_entry.value);
-                    return Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned.fill(
-                          child: CustomPaint(painter: _GlowPainter(pal.glow, t)),
-                        ),
-                        // The due-date ring: a frame around the figure that fills
-                        // toward term. Static — it does not breathe with the
-                        // figure — so it reads as the clock the figure sits in,
-                        // and it replaces the old linear bar rather than joining
-                        // it (progress shown twice is a duplicate control).
-                        SizedBox(
-                          width: 198,
-                          height: 198,
-                          child: CustomPaint(
-                            painter: _RingPainter(fraction: ringFraction, colour: pal.glow),
+    return Container(
+      decoration: BoxDecoration(
+        color: pal.top,
+        borderRadius: DsShape.card,
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        // The one thing she opens this screen to see, so it takes the step.
+        boxShadow: DsShape.hardShadow,
+      ),
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(DsShape.radiusCard - DsShape.borderWidth),
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: pal.top),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: Column(
+              // Wrap the content. A Column defaults to filling its parent, and
+              // given loose constraints — anywhere but inside a fixed-height
+              // slot — that left a tall band of empty gradient under the button
+              // and overflowed when the space was short.
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 204,
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_loop, _entry]),
+                    builder: (context, _) {
+                      // One controller pass covers every breath, so `t` counts
+                      // whole cycles and lands back at rest when it finishes.
+                      final t = _loop.value * _breaths;
+                      // A slow vertical drift, in step with the breath. Eased out
+                      // over the pass so the motion fades rather than stopping
+                      // mid-rise.
+                      final settle =
+                          1 - Curves.easeInCubic.transform(_loop.value);
+                      final dy = math.sin(t * 2 * math.pi) * 5 * settle;
+                      // The ring fills once, on entry, toward the due date.
+                      final ringFraction = g.progress *
+                          Curves.easeOutCubic.transform(_entry.value);
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned.fill(
+                            child:
+                                CustomPaint(painter: _GlowPainter(pal.glow, t)),
                           ),
-                        ),
-                        Transform.translate(
-                          offset: Offset(0, dy),
-                          child: SizedBox(
-                            width: 166,
-                            height: 166,
+                          // The due-date ring: a frame around the figure that fills
+                          // toward term. Static — it does not breathe with the
+                          // figure — so it reads as the clock the figure sits in,
+                          // and it replaces the old linear bar rather than joining
+                          // it (progress shown twice is a duplicate control).
+                          SizedBox(
+                            width: 198,
+                            height: 198,
                             child: CustomPaint(
-                              painter: BabyPainter(
-                                week: g.week,
-                                phase: t,
-                                body: pal.glow.withValues(alpha: 0.92),
-                                shade: Colors.white.withValues(alpha: 0.22),
+                              painter: _RingPainter(
+                                  fraction: ringFraction, colour: pal.glow),
+                            ),
+                          ),
+                          Transform.translate(
+                            offset: Offset(0, dy),
+                            child: SizedBox(
+                              width: 166,
+                              height: 166,
+                              child: CustomPaint(
+                                painter: BabyPainter(
+                                  week: g.week,
+                                  phase: t,
+                                  body: pal.glow.withValues(alpha: 0.92),
+                                  shade: Colors.white.withValues(alpha: 0.22),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              // Week label, flanked by prev/next chevrons when week browsing is
-              // wired — the affordance that makes "last / next week" discoverable
-              // without first opening the details screen. Chevrons disable at the
-              // 1 and 40 bounds.
-              Builder(builder: (context) {
-                final label = Text(
-                  widget.weekLabel,
+                const SizedBox(height: 10),
+                // Week label, flanked by prev/next chevrons when week browsing is
+                // wired — the affordance that makes "last / next week" discoverable
+                // without first opening the details screen. Chevrons disable at the
+                // 1 and 40 bounds.
+                Builder(builder: (context) {
+                  final label = Text(
+                    widget.weekLabel,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4),
+                  );
+                  if (widget.onOpenWeek == null) return label;
+                  // Only reached when week browsing is wired (never in the bare
+                  // golden test), so the hero stays language-free unless it's used
+                  // with navigation — where an L10nScope is always in context.
+                  final l = L10nScope.of(context);
+                  final wk = widget.gestation.week;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _WeekChevron(
+                        icon: Icons.chevron_left_rounded,
+                        tooltip: l.t('wk_prev'),
+                        onTap: wk > 1 ? () => widget.onOpenWeek!(wk - 1) : null,
+                      ),
+                      Flexible(child: label),
+                      _WeekChevron(
+                        icon: Icons.chevron_right_rounded,
+                        tooltip: l.t('wk_next'),
+                        onTap:
+                            wk < 40 ? () => widget.onOpenWeek!(wk + 1) : null,
+                      ),
+                    ],
+                  );
+                }),
+                const SizedBox(height: 4),
+                Text(
+                  widget.trimesterLabel,
+                  style: TextStyle(
+                      color: Palette.text.withValues(alpha: 0.55),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  widget.remainingLabel,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
-                );
-                if (widget.onOpenWeek == null) return label;
-                // Only reached when week browsing is wired (never in the bare
-                // golden test), so the hero stays language-free unless it's used
-                // with navigation — where an L10nScope is always in context.
-                final l = L10nScope.of(context);
-                final wk = widget.gestation.week;
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _WeekChevron(
-                      icon: Icons.chevron_left_rounded,
-                      tooltip: l.t('wk_prev'),
-                      onTap: wk > 1 ? () => widget.onOpenWeek!(wk - 1) : null,
-                    ),
-                    Flexible(child: label),
-                    _WeekChevron(
-                      icon: Icons.chevron_right_rounded,
-                      tooltip: l.t('wk_next'),
-                      onTap: wk < 40 ? () => widget.onOpenWeek!(wk + 1) : null,
-                    ),
-                  ],
-                );
-              }),
-              const SizedBox(height: 4),
-              Text(
-                widget.trimesterLabel,
-                style: TextStyle(color: Palette.text.withValues(alpha: 0.55), fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                widget.remainingLabel,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Palette.text.withValues(alpha: 0.62), fontSize: 12.5, fontWeight: FontWeight.w600),
-              ),
-              if (widget.onDetails != null) ...[
-                const SizedBox(height: 14),
-                _DetailsButton(label: widget.detailsLabel, onTap: widget.onDetails!),
+                  style: TextStyle(
+                      color: Palette.text.withValues(alpha: 0.62),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600),
+                ),
+                if (widget.onDetails != null) ...[
+                  const SizedBox(height: 14),
+                  _DetailsButton(
+                      label: widget.detailsLabel, onTap: widget.onDetails!),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -533,7 +579,8 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.fraction != fraction || old.colour != colour;
+  bool shouldRepaint(_RingPainter old) =>
+      old.fraction != fraction || old.colour != colour;
 }
 
 class _DetailsButton extends StatelessWidget {
@@ -557,7 +604,10 @@ class _DetailsButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: Palette.text),
+            style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14.5,
+                color: Palette.text),
           ),
         ),
       ),

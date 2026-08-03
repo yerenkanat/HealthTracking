@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../domain/timeline_content.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/fitted_title.dart';
 import '../widgets/glass.dart';
@@ -16,8 +17,9 @@ import '../widgets/glass.dart';
 /// Human label for a stage: "20-я неделя", "Новорождённый", "4 мес.".
 String stageLabel(L10n l, TimelineStage stage) => switch (stage.kind) {
       TimelineKind.pregnancyWeek => l.t('tl_stage_week', {'n': stage.index}),
-      TimelineKind.childMonth =>
-        stage.index == 0 ? l.t('tl_stage_newborn') : l.t('tl_stage_month', {'n': stage.index}),
+      TimelineKind.childMonth => stage.index == 0
+          ? l.t('tl_stage_newborn')
+          : l.t('tl_stage_month', {'n': stage.index}),
     };
 
 class TimelineContentScreen extends StatelessWidget {
@@ -37,20 +39,28 @@ class TimelineContentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final lessons = [for (final i in items) if (i.isLesson) i];
-    final products = [for (final i in items) if (i.isProduct) i];
+    final lessons = [
+      for (final i in items)
+        if (i.isLesson) i
+    ];
+    final products = [
+      for (final i in items)
+        if (i.isProduct) i
+    ];
 
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: FittedTitle('${l.t('tl_title')} · ${stageLabel(l, stage)}')),
+        appBar: AppBar(
+            title: FittedTitle('${l.t('tl_title')} · ${stageLabel(l, stage)}')),
         body: items.isEmpty
             ? Center(
                 child: Padding(
                   padding: const EdgeInsets.all(28),
                   child: Text(l.t('tl_none_for_stage'),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Palette.textDim, height: 1.4)),
+                      style:
+                          const TextStyle(color: Palette.textDim, height: 1.4)),
                 ),
               )
             : ListView(
@@ -116,7 +126,8 @@ class ContentTile extends StatelessWidget {
 
     return Semantics(
       button: actionable,
-      label: '${item.title(locale)}. ${lesson ? l.t('tl_lessons') : l.t('tl_products')}'
+      label:
+          '${item.title(locale)}. ${lesson ? l.t('tl_lessons') : l.t('tl_products')}'
           '${price.isEmpty ? '' : ', $price'}',
       child: GlassCard(
         onTap: actionable ? () => onOpen!(item) : null,
@@ -127,11 +138,14 @@ class ContentTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                 color: accent.withValues(alpha: 0.13),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                lesson ? Icons.play_circle_fill_rounded : Icons.shopping_bag_rounded,
+                lesson
+                    ? Icons.play_circle_fill_rounded
+                    : Icons.shopping_bag_rounded,
                 color: accent,
                 size: 24,
               ),
@@ -143,15 +157,20 @@ class ContentTile extends StatelessWidget {
                 children: [
                   Text(item.title(locale),
                       style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700, color: Palette.text)),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Palette.text)),
                   const SizedBox(height: 3),
                   Text(item.summary(locale),
                       style: const TextStyle(
-                          color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+                          color: Palette.textDim,
+                          fontSize: 12.5,
+                          height: 1.35)),
                   const SizedBox(height: 8),
                   Row(children: [
                     if (lesson && item.durationMin != null)
-                      _Chip(l.t('tl_minutes', {'n': item.durationMin}), Palette.violetText)
+                      _Chip(l.t('tl_minutes', {'n': item.durationMin}),
+                          Palette.violetText)
                     else if (price.isNotEmpty)
                       _Chip(price, Palette.pinkText),
                     const Spacer(),
@@ -189,12 +208,14 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w700, fontSize: 12)),
       );
 }

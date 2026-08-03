@@ -133,8 +133,21 @@ void main() {
         if (!RegExp('[.]$method\\b').hasMatch(line)) continue;
         callSites++;
 
+        // The exemption token names the WRAPPER that confirms — `onClear:` in
+        // `onClear: () => _clearHistory(...)`. It used to be matched against
+        // this line alone, which meant a formatter breaking that call across
+        // lines defeated the exemption and reported a guarded action as
+        // unguarded. `dart format` did exactly that and turned this runner red
+        // while the confirmation was still firing.
+        //
+        // Three lines, not the full lookback: enough to span a reflowed
+        // argument list, far too few to reach an unrelated handler — which is
+        // the false negative the tight window above exists to prevent.
+        final nearby = lines
+            .sublist((i - 3).clamp(0, lines.length), i + 1)
+            .join('\n');
         final exemptKey = _exempt.keys.firstWhere(
-          (k) => name == k.split(':').first && line.contains(k.split(':').last),
+          (k) => name == k.split(':').first && nearby.contains(k.split(':').last),
           orElse: () => '',
         );
         if (exemptKey.isNotEmpty) continue;

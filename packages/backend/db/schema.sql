@@ -508,3 +508,16 @@ CREATE TABLE IF NOT EXISTS shop_settings (
   value      TEXT NOT NULL DEFAULT '',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Callback requests from the landing page — a name and a phone number, not an
+-- order (no address, no variant, no stock held). See migration 017.
+CREATE TABLE IF NOT EXISTS shop_leads (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  customer_name TEXT NOT NULL,
+  phone         TEXT NOT NULL,
+  package       TEXT NOT NULL DEFAULT '',
+  locale        TEXT NOT NULL DEFAULT 'ru' CHECK (locale IN ('ru','kz')),
+  status        TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','called','ordered','dropped')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_shop_leads_created ON shop_leads (created_at DESC);

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import '../../domain/kick_session.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
@@ -162,9 +163,7 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                         children: [
                           MetricRing(
                             fraction: kickGoalFraction(_session.count, defaultKickGoal),
-                            gradient: reached
-                                ? const LinearGradient(colors: [Palette.good, Palette.teal])
-                                : Palette.roseViolet,
+                            color: reached ? Palette.good : Ds.coralCta,
                             size: 244,
                             stroke: 8,
                           ),
@@ -177,18 +176,12 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                                 width: 206,
                                 height: 206,
                                 decoration: BoxDecoration(
-                                  gradient: reached
-                                      ? const LinearGradient(colors: [Palette.good, Palette.teal])
-                                      : Palette.roseViolet,
+                                  color: reached ? Palette.good : Ds.coralCta,
                                   shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (reached ? Palette.good : Palette.rose).withValues(alpha: 0.40),
-                                      blurRadius: 40,
-                                      spreadRadius: -8,
-                                      offset: const Offset(0, 12),
-                                    ),
-                                  ],
+                                  border: Border.all(
+                                      color: Ds.ink,
+                                      width: DsShape.borderWidth),
+                                  boxShadow: DsShape.hardShadowLg,
                                 ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,

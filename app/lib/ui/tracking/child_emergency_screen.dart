@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../domain/child_emergency.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class ChildEmergencyScreen extends StatelessWidget {
@@ -81,7 +82,7 @@ class ChildEmergencyScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.roseDeep.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.30)),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +123,7 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.border),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
@@ -170,7 +171,7 @@ class _ContactCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Palette.border),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         ),
         child: Row(
           children: [

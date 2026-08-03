@@ -1,18 +1,19 @@
 /// PhotoAvatar — a circular avatar that shows the stored photo when present,
-/// otherwise falls back to the person's initials on a gradient (or an icon when
+/// otherwise falls back to the person's initials on a solid accent (or an icon when
 /// there's no name). Used for the mother and each child, at any size.
 library;
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../data/photo_paths.dart';
-import '../theme.dart';
+import '../design_system.dart';
 
 class PhotoAvatar extends StatelessWidget {
   final String? photoPath;
   final String name;
   final double size;
-  final Gradient gradient;
+  /// The disc behind the initials. Was a Gradient; the system has none.
+  final Color color;
   final IconData fallbackIcon;
   final List<BoxShadow>? shadow;
 
@@ -21,7 +22,7 @@ class PhotoAvatar extends StatelessWidget {
     required this.photoPath,
     required this.name,
     this.size = 40,
-    this.gradient = Palette.violetPink,
+    this.color = Ds.coralCta,
     this.fallbackIcon = Icons.person,
     this.shadow,
   });
@@ -48,7 +49,12 @@ class PhotoAvatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(gradient: gradient, shape: BoxShape.circle, boxShadow: shadow),
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        boxShadow: shadow,
+      ),
       alignment: Alignment.center,
       child: initials.isEmpty
           ? Icon(fallbackIcon, color: Colors.white, size: size * 0.46)

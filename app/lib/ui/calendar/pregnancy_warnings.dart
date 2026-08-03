@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/pregnancy_guide.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 /// The warning list in its own warm frame, set apart so surrounding reassurance
@@ -29,7 +30,7 @@ class PregnancyWarningsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.roseDeep.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.28)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

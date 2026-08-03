@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../l10n/l10n.dart' show AppLocale;
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class DailyAudioCard extends StatefulWidget {
@@ -138,9 +139,9 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
     return Container(
       margin: widget.margin,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Palette.lilac, Palette.blush], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        color: Palette.lilac,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Palette.violet.withValues(alpha: 0.14)),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -203,9 +204,9 @@ class _PlayButton extends StatelessWidget {
         width: 54,
         height: 54,
         decoration: BoxDecoration(
-          gradient: Palette.violetPink,
+          color: Ds.coralCta,
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Palette.violet.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 8))],
+          boxShadow: DsShape.hardShadow,
         ),
         child: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 30),
       ),

@@ -19,6 +19,7 @@ import '../../domain/child_development.dart';
 import '../../domain/vaccination.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import 'child_development_screen.dart';
 import 'cry_insight_screen.dart';
@@ -42,7 +43,8 @@ import 'zones_screen.dart';
 
 /// The backend API base — same default as the transport in main.dart. The cry
 /// client talks to this (the Node proxy), not the classifier directly.
-const _apiBase = String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8080');
+const _apiBase =
+    String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8080');
 
 class ChildDetailScreen extends StatelessWidget {
   final AppController controller;
@@ -83,7 +85,9 @@ class ChildDetailScreen extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(28),
                     child: Text(l.t('child_gone'),
-                        textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Palette.textDim, height: 1.4)),
                   ),
                 ),
               );
@@ -113,13 +117,15 @@ class ChildDetailScreen extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.medical_information_outlined),
                       tooltip: l.t('ei_title'),
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => StreamBuilder<void>(
                           stream: controller.changes,
                           builder: (_, __) => ChildEmergencyScreen(
                             childName: child.name,
                             info: controller.emergencyInfoFor(child.id),
-                            onSave: (info) => controller.setEmergencyInfo(child.id, info),
+                            onSave: (info) =>
+                                controller.setEmergencyInfo(child.id, info),
                           ),
                         ),
                       )),
@@ -129,14 +135,17 @@ class ChildDetailScreen extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.sick_outlined),
                       tooltip: l.t('ill_title'),
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => ChildIllnessScreen(ageMonths: child.ageInMonths(now)),
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ChildIllnessScreen(
+                            ageMonths: child.ageInMonths(now)),
                       )),
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
                       tooltip: l.t('set_edit_profile'),
-                      onPressed: () => showEditChildSheet(context, controller, child),
+                      onPressed: () =>
+                          showEditChildSheet(context, controller, child),
                     ),
                     const SizedBox(width: 4),
                   ],
@@ -148,7 +157,8 @@ class ChildDetailScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _Header(child: child, now: now, controller: controller),
+                          _Header(
+                              child: child, now: now, controller: controller),
                           const SizedBox(height: 14),
 
                           // ---- Status ----
@@ -172,7 +182,8 @@ class ChildDetailScreen extends StatelessWidget {
                                   ),
                                 ],
                                 if (activity != null) ...[
-                                  if (battery != null || checkIn != null) const _Divider(),
+                                  if (battery != null || checkIn != null)
+                                    const _Divider(),
                                   _StatusRow(
                                     icon: Icons.history_rounded,
                                     color: Palette.violet,
@@ -180,11 +191,16 @@ class ChildDetailScreen extends StatelessWidget {
                                     value: ago(activity),
                                   ),
                                 ],
-                                if (battery == null && checkIn == null && activity == null)
+                                if (battery == null &&
+                                    checkIn == null &&
+                                    activity == null)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 6),
                                     child: Text(l.t('child_no_activity'),
-                                        style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+                                        style: const TextStyle(
+                                            color: Palette.textDim,
+                                            fontSize: 13)),
                                   ),
                               ],
                             ),
@@ -193,37 +209,57 @@ class ChildDetailScreen extends StatelessWidget {
 
                           // ---- Zones (links to the manager, which owns editing) ----
                           GlassCard(
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => ZonesScreen(controller: controller, childId: child.id),
+                            onTap: () =>
+                                Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => ZonesScreen(
+                                  controller: controller, childId: child.id),
                             )),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(children: [
                                   Text(l.t('child_zones').toUpperCase(),
-                                      style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                                      style: const TextStyle(
+                                          color: Palette.textDim,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.6)),
                                   const Spacer(),
                                   Text('${child.geofences.length}',
-                                      style: const TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: Palette.violet)),
-                                  const Icon(Icons.chevron_right_rounded, size: 20, color: Palette.textDim),
+                                      style: const TextStyle(
+                                          fontFamily: 'JetBrainsMono',
+                                          fontWeight: FontWeight.w700,
+                                          color: Palette.violet)),
+                                  const Icon(Icons.chevron_right_rounded,
+                                      size: 20, color: Palette.textDim),
                                 ]),
                                 if (visits.isNotEmpty) ...[
                                   const SizedBox(height: 10),
                                   for (final v in visits.take(3))
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 3),
                                       child: Row(children: [
-                                        const Icon(Icons.place_rounded, size: 15, color: Palette.good),
+                                        const Icon(Icons.place_rounded,
+                                            size: 15, color: Palette.good),
                                         const SizedBox(width: 8),
-                                        Expanded(child: Text(v.zone, style: const TextStyle(fontSize: 14))),
-                                        Text(l.t('zone_visits', {'n': v.visits}),
-                                            style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                                        Expanded(
+                                            child: Text(v.zone,
+                                                style: const TextStyle(
+                                                    fontSize: 14))),
+                                        Text(
+                                            l.t('zone_visits', {'n': v.visits}),
+                                            style: const TextStyle(
+                                                color: Palette.textDim,
+                                                fontSize: 12.5)),
                                       ]),
                                     ),
                                 ] else if (child.geofences.isEmpty) ...[
                                   const SizedBox(height: 8),
                                   Text(l.t('child_no_zones'),
-                                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                                      style: const TextStyle(
+                                          color: Palette.textDim,
+                                          fontSize: 12.5)),
                                 ],
                               ],
                             ),
@@ -232,26 +268,41 @@ class ChildDetailScreen extends StatelessWidget {
 
                           // ---- Alerts (links to the feed, which owns filtering) ----
                           GlassCard(
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => AlertsScreen(controller: controller),
+                            onTap: () =>
+                                Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) =>
+                                  AlertsScreen(controller: controller),
                             )),
                             child: Row(children: [
                               Container(
-                                width: 40, height: 40,
+                                width: 40,
+                                height: 40,
                                 decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color: Ds.ink,
+                                      width: DsShape.borderWidth),
                                   color: Palette.violet.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(Icons.notifications_none_rounded, size: 20, color: Palette.violet),
+                                child: const Icon(
+                                    Icons.notifications_none_rounded,
+                                    size: 20,
+                                    color: Palette.violet),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Text(l.t('child_alerts'),
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600)),
                               ),
                               Text('${mine.length}',
-                                  style: const TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: Palette.violet)),
-                              const Icon(Icons.chevron_right_rounded, size: 20, color: Palette.textDim),
+                                  style: const TextStyle(
+                                      fontFamily: 'JetBrainsMono',
+                                      fontWeight: FontWeight.w700,
+                                      color: Palette.violet)),
+                              const Icon(Icons.chevron_right_rounded,
+                                  size: 20, color: Palette.textDim),
                             ]),
                           ),
 
@@ -280,8 +331,10 @@ class ChildDetailScreen extends StatelessWidget {
                               _CareCard(
                                 icon: Icons.child_friendly_outlined,
                                 title: l.t('nb_title'),
-                                summary: _newbornSummary(l, controller.newbornLogFor(child.id), now),
-                                onTap: () => _openNewbornLog(context, controller, child, now),
+                                summary: _newbornSummary(
+                                    l, controller.newbornLogFor(child.id), now),
+                                onTap: () => _openNewbornLog(
+                                    context, controller, child, now),
                               ),
                               const SizedBox(height: 12),
                             ],
@@ -289,36 +342,47 @@ class ChildDetailScreen extends StatelessWidget {
                             // buried in the newborn log. Needs sign-in (the
                             // classifier is reached through the authenticated
                             // backend proxy).
-                            if (child.ageInMonths(now) < 6 && controller.isSignedIn) ...[
+                            if (child.ageInMonths(now) < 6 &&
+                                controller.isSignedIn) ...[
                               _CareCard(
                                 icon: Icons.graphic_eq_rounded,
                                 title: l.t('cry_title'),
                                 summary: _crySummary(l, controller.cryHistory),
-                                onTap: () => _openCryInsight(context, controller),
+                                onTap: () =>
+                                    _openCryInsight(context, controller),
                               ),
                               const SizedBox(height: 12),
                             ],
                             _CareCard(
                               icon: Icons.timeline_rounded,
                               title: l.t('dev_title'),
-                              summary: _developmentSummary(l, child.ageInMonths(now)),
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => ChildDevelopmentScreen(child: child, today: now),
+                              summary: _developmentSummary(
+                                  l, child.ageInMonths(now)),
+                              onTap: () =>
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => ChildDevelopmentScreen(
+                                    child: child, today: now),
                               )),
                             ),
                             const SizedBox(height: 12),
                             _CareCard(
                               icon: Icons.vaccines_outlined,
                               title: l.t('vac_title'),
-                              summary: _vaccinationSummary(l, child.ageInMonths(now), controller.vaccinesDoneFor(child.id)),
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                              summary: _vaccinationSummary(
+                                  l,
+                                  child.ageInMonths(now),
+                                  controller.vaccinesDoneFor(child.id)),
+                              onTap: () =>
+                                  Navigator.of(context).push(MaterialPageRoute(
                                 builder: (_) => StreamBuilder<void>(
                                   stream: controller.changes,
                                   builder: (_, __) => VaccinationScreen(
                                     child: child,
                                     today: now,
-                                    doneKeys: controller.vaccinesDoneFor(child.id),
-                                    onToggleDone: (key) => controller.toggleVaccineDone(child.id, key),
+                                    doneKeys:
+                                        controller.vaccinesDoneFor(child.id),
+                                    onToggleDone: (key) => controller
+                                        .toggleVaccineDone(child.id, key),
                                   ),
                                 ),
                               )),
@@ -327,8 +391,10 @@ class ChildDetailScreen extends StatelessWidget {
                             _CareCard(
                               icon: Icons.monitor_weight_outlined,
                               title: l.t('grw_title'),
-                              summary: _growthSummary(l, controller.growthFor(child.id)),
-                              onTap: () => _openGrowth(context, controller, child),
+                              summary: _growthSummary(
+                                  l, controller.growthFor(child.id)),
+                              onTap: () =>
+                                  _openGrowth(context, controller, child),
                             ),
                             // Weaning: shown across the window when solids matter
                             // (about four months to just past the first birthday).
@@ -337,9 +403,12 @@ class ChildDetailScreen extends StatelessWidget {
                               _CareCard(
                                 icon: Icons.restaurant_outlined,
                                 title: l.t('sol_card_title'),
-                                summary: _solidsSummary(l, child.ageInMonths(now)),
-                                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => SolidsScreen(ageMonths: child.ageInMonths(now)),
+                                summary:
+                                    _solidsSummary(l, child.ageInMonths(now)),
+                                onTap: () => Navigator.of(context)
+                                    .push(MaterialPageRoute(
+                                  builder: (_) => SolidsScreen(
+                                      ageMonths: child.ageInMonths(now)),
                                 )),
                               ),
                             ],
@@ -349,8 +418,12 @@ class ChildDetailScreen extends StatelessWidget {
                             _CareCard(
                               icon: Icons.shield_outlined,
                               title: l.t('hs_card_title'),
-                              summary: _homeSafetySummary(l, controller.homeSafetyDone, child.ageInMonths(now)),
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                              summary: _homeSafetySummary(
+                                  l,
+                                  controller.homeSafetyDone,
+                                  child.ageInMonths(now)),
+                              onTap: () =>
+                                  Navigator.of(context).push(MaterialPageRoute(
                                 builder: (_) => StreamBuilder<void>(
                                   stream: controller.changes,
                                   builder: (_, __) => HomeSafetyScreen(
@@ -399,7 +472,9 @@ String _vaccinationSummary(L10n l, int ageMonths, Set<String> done) {
   if (vaccinesToCatchUp(ageMonths, done).isNotEmpty) return l.t('vac_catchup');
   if (vaccinesDue(ageMonths).isNotEmpty) return l.t('vac_due');
   final months = monthsUntilNextVisit(ageMonths);
-  return months == null ? l.t('vac_complete') : l.t('vac_in_months', {'n': months});
+  return months == null
+      ? l.t('vac_complete')
+      : l.t('vac_in_months', {'n': months});
 }
 
 /// The growth card: the latest weight, or an invitation to record one.
@@ -431,6 +506,7 @@ class _CareCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               color: Palette.violet.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -441,16 +517,20 @@ class _CareCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(summary,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5)),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, size: 20, color: Palette.textDim),
+          const Icon(Icons.chevron_right_rounded,
+              size: 20, color: Palette.textDim),
         ]),
       );
 }
@@ -459,7 +539,9 @@ class _CareCard extends StatelessWidget {
 String _homeSafetySummary(L10n l, Set<String> done, int ageMonths) {
   final count = homeSafetyDoneCount(done, ageMonths);
   final total = homeSafetyRelevantTotal(ageMonths);
-  return count == total && total > 0 ? l.t('hs_all_done') : l.t('hs_progress', {'n': count, 'total': total});
+  return count == total && total > 0
+      ? l.t('hs_all_done')
+      : l.t('hs_progress', {'n': count, 'total': total});
 }
 
 String _solidsSummary(L10n l, int ageMonths) {
@@ -472,18 +554,20 @@ String _solidsSummary(L10n l, int ageMonths) {
 String _newbornSummary(L10n l, List<NewbornEvent> events, DateTime today) {
   final s = summaryFor(events, today);
   if (s.isEmpty) return l.t('nb_empty');
-  final counts = '${l.t('nb_feeds')} ${s.feeds} · ${l.t('nb_diapers')} ${s.diapers}';
+  final counts =
+      '${l.t('nb_feeds')} ${s.feeds} · ${l.t('nb_diapers')} ${s.diapers}';
   // Lead with the 3am question — "when was the last feed" — so a parent can
   // answer it from the card without opening the log. Only when a feed exists.
   final lastFeed = lastOfKind(events, NewbornEventKind.feed);
   if (lastFeed == null) return counts;
-  final ago = l.t('nb_last', {'ago': l.ago(today.difference(lastFeed.at).abs())});
+  final ago =
+      l.t('nb_last', {'ago': l.ago(today.difference(lastFeed.at).abs())});
   return '$ago · $counts';
 }
 
 /// Open the newborn log, wired to the controller.
-void _openNewbornLog(
-    BuildContext context, AppController controller, ChildProfile child, DateTime today) {
+void _openNewbornLog(BuildContext context, AppController controller,
+    ChildProfile child, DateTime today) {
   Navigator.of(context).push(MaterialPageRoute(
     builder: (_) => StreamBuilder<void>(
       stream: controller.changes,
@@ -492,7 +576,8 @@ void _openNewbornLog(
         events: controller.newbornLogFor(child.id),
         today: today,
         onLog: (e) => controller.logNewbornEvent(child.id, e),
-        onDelete: (e) => _confirmDeleteNewborn(context, controller, child.id, e),
+        onDelete: (e) =>
+            _confirmDeleteNewborn(context, controller, child.id, e),
       ),
     ),
   ));
@@ -523,12 +608,14 @@ void _openCryInsight(BuildContext context, AppController controller) {
 /// else the one-line intro.
 String _crySummary(L10n l, List<CryResult> history) {
   if (history.isEmpty) return l.t('cry_intro');
-  final code = CryReason.fromCode(history.first.reason) == null ? 'unknown' : history.first.reason;
+  final code = CryReason.fromCode(history.first.reason) == null
+      ? 'unknown'
+      : history.first.reason;
   return l.t('cry_last', {'reason': l.t('cry_reason_$code')});
 }
 
-Future<void> _confirmDeleteNewborn(
-    BuildContext context, AppController controller, String childId, NewbornEvent event) async {
+Future<void> _confirmDeleteNewborn(BuildContext context,
+    AppController controller, String childId, NewbornEvent event) async {
   final l = L10nScope.of(context);
   final ok = await confirmDestructive(
     context,
@@ -540,7 +627,8 @@ Future<void> _confirmDeleteNewborn(
 }
 
 /// Open the growth chart, with an add-measurement sheet wired to the controller.
-void _openGrowth(BuildContext context, AppController controller, ChildProfile child) {
+void _openGrowth(
+    BuildContext context, AppController controller, ChildProfile child) {
   final now = DateTime.now();
   Navigator.of(context).push(MaterialPageRoute(
     builder: (_) => StreamBuilder<void>(
@@ -549,7 +637,8 @@ void _openGrowth(BuildContext context, AppController controller, ChildProfile ch
         childName: child.name,
         points: controller.growthFor(child.id),
         onAdd: () => _addMeasurement(context, controller, child.id, now),
-        onDelete: (day) => _deleteMeasurement(context, controller, child.id, day),
+        onDelete: (day) =>
+            _deleteMeasurement(context, controller, child.id, day),
       ),
     ),
   ));
@@ -557,8 +646,8 @@ void _openGrowth(BuildContext context, AppController controller, ChildProfile ch
 
 /// Remove a measurement, after confirming — deleting a recorded number is a
 /// destructive action like every other, and confirms like one.
-Future<void> _deleteMeasurement(
-    BuildContext context, AppController controller, String childId, DateTime day) async {
+Future<void> _deleteMeasurement(BuildContext context, AppController controller,
+    String childId, DateTime day) async {
   final l = L10nScope.of(context);
   final ok = await confirmDestructive(
     context,
@@ -569,8 +658,8 @@ Future<void> _deleteMeasurement(
   if (ok) controller.removeGrowth(childId, day);
 }
 
-Future<void> _addMeasurement(
-    BuildContext context, AppController controller, String childId, DateTime today) async {
+Future<void> _addMeasurement(BuildContext context, AppController controller,
+    String childId, DateTime today) async {
   final result = await showModalBottomSheet<GrowthPoint>(
     context: context,
     isScrollControlled: true,
@@ -629,41 +718,49 @@ class _MeasurementSheetState extends State<_MeasurementSheet> {
       Navigator.pop(context); // nothing entered — just close
       return;
     }
-    Navigator.pop(context, GrowthPoint(at: widget.today, weightKg: w, heightCm: h));
+    Navigator.pop(
+        context, GrowthPoint(at: widget.today, weightKg: w, heightCm: h));
   }
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 18, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(
+          20, 18, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l.t('grw_add'),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              style:
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           Row(children: [
             Expanded(
               child: TextField(
                 controller: _weight,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: l.t('grw_weight'), suffixText: l.t('grw_kg')),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                    labelText: l.t('grw_weight'), suffixText: l.t('grw_kg')),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: TextField(
                 controller: _height,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: l.t('grw_height'), suffixText: l.t('grw_cm')),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                    labelText: l.t('grw_height'), suffixText: l.t('grw_cm')),
               ),
             ),
           ]),
           if (_error != null) ...[
             const SizedBox(height: 10),
-            Text(_error!, style: const TextStyle(color: Palette.danger, fontSize: 12.5)),
+            Text(_error!,
+                style: const TextStyle(color: Palette.danger, fontSize: 12.5)),
           ],
           const SizedBox(height: 18),
           SizedBox(
@@ -671,7 +768,8 @@ class _MeasurementSheetState extends State<_MeasurementSheet> {
             child: FilledButton(
               onPressed: _save,
               style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48), backgroundColor: Palette.violet),
+                  minimumSize: const Size.fromHeight(48),
+                  backgroundColor: Palette.violet),
               child: Text(l.t('birth_save')),
             ),
           ),
@@ -685,7 +783,8 @@ class _Header extends StatelessWidget {
   final ChildProfile child;
   final DateTime now;
   final AppController controller;
-  const _Header({required this.child, required this.now, required this.controller});
+  const _Header(
+      {required this.child, required this.now, required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -706,10 +805,13 @@ class _Header extends StatelessWidget {
         // The name lives in the (pinned) app bar, so it isn't repeated here.
         Expanded(
           child: Text(
-            child.hasDateOfBirth ? l.childAge(child.ageInMonths(now)) : l.t('child_no_dob'),
+            child.hasDateOfBirth
+                ? l.childAge(child.ageInMonths(now))
+                : l.t('child_no_dob'),
             style: TextStyle(
               fontSize: child.hasDateOfBirth ? 16 : 13.5,
-              fontWeight: child.hasDateOfBirth ? FontWeight.w600 : FontWeight.w400,
+              fontWeight:
+                  child.hasDateOfBirth ? FontWeight.w600 : FontWeight.w400,
               color: child.hasDateOfBirth ? Palette.text : Palette.textDim,
             ),
           ),
@@ -731,7 +833,11 @@ class _StatusRow extends StatelessWidget {
   final Color color;
   final String label;
   final String value;
-  const _StatusRow({required this.icon, required this.color, required this.label, required this.value});
+  const _StatusRow(
+      {required this.icon,
+      required this.color,
+      required this.label,
+      required this.value});
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -739,7 +845,9 @@ class _StatusRow extends StatelessWidget {
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 12),
           Expanded(child: Text(label, style: const TextStyle(fontSize: 14.5))),
-          Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: color, fontSize: 13.5)),
+          Text(value,
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, color: color, fontSize: 13.5)),
         ]),
       );
 }
@@ -747,5 +855,6 @@ class _StatusRow extends StatelessWidget {
 class _Divider extends StatelessWidget {
   const _Divider();
   @override
-  Widget build(BuildContext context) => const Divider(height: 14, color: Palette.border);
+  Widget build(BuildContext context) =>
+      const Divider(height: 14, color: Palette.border);
 }

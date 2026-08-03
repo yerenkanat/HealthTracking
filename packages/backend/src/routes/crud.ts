@@ -48,6 +48,16 @@ const shopOrderBody = z.object({
   note: z.string().trim().max(500).optional(),
   items: z.array(z.object({ variantId: z.string().min(1).max(64), qty: z.number().int().min(1).max(20) })).min(1).max(10),
 });
+// A landing-page callback request. Looser than an order on purpose: the visitor
+// typed two fields on their way past, and a rejected lead is a lost customer.
+// Only name and phone are required; the package label is whatever option they
+// left selected.
+const shopLeadBody = z.object({
+  customerName: z.string().trim().min(1).max(120),
+  phone: z.string().trim().min(5).max(40),
+  package: z.string().trim().max(200).optional(),
+  locale: z.enum(['ru', 'kz']).optional(),
+});
 const newbornEventBody = z.object({
   at: z.string().datetime({ offset: true }),
   kind: z.enum(['feed', 'diaper', 'sleep']),
@@ -525,6 +535,15 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
       return reply.code(res.error === 'out_of_stock' ? 409 : 400).send({ error: res.error, variantId: res.variantId });
     }
     return reply.code(201).send({ id: res.id, totalMinor: res.totalMinor, discountMinor: res.discountMinor });
+  });
+  // "Оставьте номер — перезвоним сами" on the landing page. Public and
+  // unauthenticated like the rest of the storefront: whoever fills this in is a
+  // prospective customer, not a user of the app.
+  app.post('/shop/leads', async (req, reply) => {
+    const parsed = shopLeadBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const { id } = await repo.recordShopLead(parsed.data);
+    return reply.code(201).send({ id });
   });
 
   app.get('/children/:id/events', async (req, reply) => {

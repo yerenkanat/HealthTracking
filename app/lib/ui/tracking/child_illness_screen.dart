@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/child_illness.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class ChildIllnessScreen extends StatelessWidget {
@@ -39,7 +40,7 @@ class ChildIllnessScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.roseDeep.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.32)),
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,7 +76,7 @@ class ChildIllnessScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Palette.roseDeep.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Palette.roseDeep.withValues(alpha: 0.28)),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

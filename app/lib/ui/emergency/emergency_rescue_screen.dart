@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 
 class EmergencyCallButton {
@@ -82,13 +83,11 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
       child: Scaffold(
         backgroundColor: _surface,
         body: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment.topCenter,
-              radius: 1.1,
-              colors: [Color(0x33FB5E6D), Palette.bg],
-            ),
-          ),
+          // A flat cream page. This was a radial red wash from the top — the
+          // one remaining gradient outside the lock screen, and on a screen
+          // whose whole job is legibility under stress it tinted the text
+          // behind it for no information.
+          decoration: const BoxDecoration(color: Ds.cream),
           child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
@@ -156,7 +155,7 @@ class _EmergencyRescueScreenState extends State<EmergencyRescueScreen> {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: _emergency.withValues(alpha: 0.5), blurRadius: 32, spreadRadius: -4)],
+                        boxShadow: DsShape.hardShadowLg,
                       ),
                       child: SizedBox(
                         height: 78,

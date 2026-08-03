@@ -78,6 +78,11 @@ function makeDeps(
     addShopVariant: async () => {},
     adminShopOrders: async () => [],
     setShopOrderStatus: async () => {},
+    recordShopLead: async () => ({ id: 'lead-1' }),
+    adminShopLeads: async () => [],
+    setShopLeadStatus: async () => {},
+    getShopSettings: async () => ({}),
+    setShopSettings: async () => {},
     insertBpCalibration: async (_u, c) => void calRows.push(c),
     latestBpCalibration: async () =>
       (calRows.length ? calRows[calRows.length - 1] : null) as never,
@@ -285,6 +290,7 @@ function makeDeps(
             // Given, so the panel's rendering of the populated case is exercised;
             // the memory repository seeds them null, which covers the other.
             birthDate: '1996-04-12', city: 'Алматы',
+            doctorPhone: '+77007654321', avgCycleLength: 28, avgPeriodLength: 5,
             children: children.map((c) => ({ id: c.id, name: c.name, dateOfBirth: null, zones: 0 })),
             devices: devices.map((d) => ({ ...d, batteryPct: 62 })),
             latest: { hr: 80 }, triage: [], alerts: [], sleepNights: sleepRows.length, loggedDays: dayLogs.size,
