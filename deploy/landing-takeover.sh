@@ -72,19 +72,33 @@ ana-bala.kz, www.ana-bala.kz {
     @www host www.ana-bala.kz
     redir @www https://ana-bala.kz{uri} permanent
 
-    # The staff back-office is NOT exposed. Its auth is still the x-staff-id /
-    # x-staff-role header stub, so anyone who could reach /admin/ui would have
-    # full admin over every family's data. This 404 is what makes running the
-    # backend without NODE_ENV=production defensible. Remove it only once real
-    # staff auth exists — see docs/DEPLOY.md §5 — and put it behind
-    # admin.ana-bala.kz with basic_auth, as deploy/Caddyfile does.
-    handle /admin* {
-        respond "Not found" 404
+    # ---- Fail closed --------------------------------------------------------
+    #
+    # Only the public surface is proxied; everything else 404s. This is an
+    # allow-list on purpose, because the deny-list version was wrong: it closed
+    # /admin* and left the whole app API open, and
+    #
+    #     curl -H 'x-user-id: <any id>' https://ana-bala.kz/children
+    #
+    # answered 200 with that family's children. Both authUser and authAdmin are
+    # header stubs until REAL_AUTH=1 and a Firebase service account are wired
+    # (docs/DEPLOY.md §5), so every user-data route is forgeable by anyone who
+    # can reach it. Nothing leaked — the database has no families in it yet —
+    # but the door was open on the public internet.
+    #
+    # An allow-list also cannot rot the same way: a new route is closed by
+    # default rather than exposed by default.
+    #
+    # To open the app API, set REAL_AUTH=1 with a service account, confirm the
+    # boot guard is satisfied, and add the paths here — not before.
+    @public path / /landing/* /shop /shop/* /health /ready
+    handle @public {
+        reverse_proxy $BACKEND
     }
 
-    # Everything else: the landing page, its assets, the storefront and the
-    # JSON API the Flutter app talks to.
-    reverse_proxy $BACKEND
+    handle {
+        respond "Not found" 404
+    }
 
     header {
         # Start HSTS at 0 and raise it only after HTTPS has been stable for a
@@ -118,5 +132,8 @@ printf '    assets   : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' "https:/
 printf '    lead API : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -X POST https://ana-bala.kz/shop/leads \
   -H 'content-type: application/json' -d '{"customerName":"","phone":""}'   # expect 400 = reached the app
 printf '    admin    : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/ui   # expect 404
+# The one that regressed once: a forged user header must NOT reach the backend.
+printf '    forged id: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'x-user-id: 11111111-1111-1111-1111-111111111111' https://ana-bala.kz/children   # expect 404, never 200
 echo
 echo "Roll back with: bash /opt/umay/deploy/landing-takeover.sh --revert"
