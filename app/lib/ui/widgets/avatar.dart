@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../data/photo_paths.dart';
 import '../design_system.dart';
-import '../theme.dart';
 
 class PhotoAvatar extends StatelessWidget {
   final String? photoPath;

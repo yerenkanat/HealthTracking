@@ -65,7 +65,7 @@ void main() {
       onSetGoal: (_) {},
       goalKg: 70,
     )));
-    expect(find.text('Target reached 🎉'), findsOneWidget);
+    expect(find.text('Target reached'), findsOneWidget);
   });
 
   testWidgets('no target → shows a set-target prompt', (tester) async {

@@ -52,7 +52,7 @@ void main() {
       await tester.pump();
     }
     expect(find.text('10'), findsOneWidget); // count reached the goal
-    expect(find.text('Goal reached 🎉'), findsOneWidget);
+    expect(find.text('Goal reached'), findsOneWidget);
     // Clean up the running timer.
     await tester.tap(find.text('Save session'));
     await tester.pumpAndSettle();

@@ -43,7 +43,8 @@ class MetricSpec {
 
 const _hrColor = Color(0xFFFF5A7A);
 const _tempA = Color(0xFFF59E0B);
-const _tempB = Color(0xFFFBBF24);
+// (_tempB is gone: it was the second stop of the temperature gradient, and the
+// design system has no gradients.)
 
 // The three single-value metrics shown as uniform grid cards; blood pressure is
 // rendered separately (two values merged into one card).
