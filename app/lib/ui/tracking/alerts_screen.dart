@@ -15,7 +15,9 @@ import '../widgets/glass.dart';
 class AlertsScreen extends StatefulWidget {
   final AppController controller;
   final DateTime Function()? _nowFn;
-  const AlertsScreen({super.key, required this.controller, DateTime Function()? now}) : _nowFn = now;
+  const AlertsScreen(
+      {super.key, required this.controller, DateTime Function()? now})
+      : _nowFn = now;
   @override
   State<AlertsScreen> createState() => _AlertsScreenState();
 }
@@ -85,10 +87,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.notifications_none_rounded, size: 56, color: Palette.textDim.withValues(alpha: 0.6)),
+                      Icon(Icons.notifications_none_rounded,
+                          size: 56,
+                          color: Palette.textDim.withValues(alpha: 0.6)),
                       const SizedBox(height: 12),
                       Text(l.t('alerts_empty'),
-                          textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Palette.textDim, height: 1.4)),
                     ],
                   ),
                 ),
@@ -100,21 +106,31 @@ class _AlertsScreenState extends State<AlertsScreen> {
             final byChild = filterAlertsByChild(all, _child);
             // A filter no longer present (e.g. after clearing) falls back to All.
             final present = presentAlertFilters(byChild);
-            if (_filter != AlertFilter.all && !present.contains(_filter)) _filter = AlertFilter.all;
+            if (_filter != AlertFilter.all && !present.contains(_filter))
+              _filter = AlertFilter.all;
             final alerts = filterAlerts(byChild, _filter);
             // Today's activity summary (respects the child filter).
             final todayCounts = alertKindCounts(alertsOnDay(byChild, _now()));
             // Reassurance: how long since the last SOS (only once one exists).
-            final sosDays = daysSinceKind(byChild, _child, AlertKind.sos, _now());
+            final sosDays =
+                daysSinceKind(byChild, _child, AlertKind.sos, _now());
             return Column(
               children: [
                 // Only from a day out — a same-day SOS is already the loudest
                 // thing in the feed and must not be dressed up as "all clear".
-                if (sosDays != null && sosDays >= 1) _AllClearBanner(days: sosDays),
+                if (sosDays != null && sosDays >= 1)
+                  _AllClearBanner(days: sosDays),
                 if (todayCounts.isNotEmpty) _TodaySummary(counts: todayCounts),
                 if (children.length > 1)
-                  _ChildChips(children: children, selected: _child, onSelect: (c) => setState(() => _child = c)),
-                if (present.length > 1) _FilterChips(present: present, selected: _filter, onSelect: (f) => setState(() => _filter = f)),
+                  _ChildChips(
+                      children: children,
+                      selected: _child,
+                      onSelect: (c) => setState(() => _child = c)),
+                if (present.length > 1)
+                  _FilterChips(
+                      present: present,
+                      selected: _filter,
+                      onSelect: (f) => setState(() => _filter = f)),
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -141,7 +157,8 @@ class _FilterChips extends StatelessWidget {
   final Set<AlertFilter> present;
   final AlertFilter selected;
   final ValueChanged<AlertFilter> onSelect;
-  const _FilterChips({required this.present, required this.selected, required this.onSelect});
+  const _FilterChips(
+      {required this.present, required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -172,8 +189,14 @@ class _FilterChips extends StatelessWidget {
             // Keeps the compact 32dp chip look while giving it a 48dp tap area.
             materialTapTargetSize: MaterialTapTargetSize.padded,
             selectedColor: Palette.violet.withValues(alpha: 0.16),
-            side: BorderSide(color: sel ? Palette.violet.withValues(alpha: 0.5) : Palette.border),
-            labelStyle: TextStyle(color: sel ? Palette.violetText : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
+            side: BorderSide(
+                color: sel
+                    ? Palette.violet.withValues(alpha: 0.5)
+                    : Palette.border),
+            labelStyle: TextStyle(
+                color: sel ? Palette.violetText : Palette.textDim,
+                fontWeight: FontWeight.w600,
+                fontSize: 13),
             backgroundColor: Palette.surface,
           );
         },
@@ -206,7 +229,10 @@ class _AllClearBanner extends StatelessWidget {
         Expanded(
           child: Text(
             l.t('sos_days_clear', {'n': days}),
-            style: const TextStyle(color: Palette.goodText, fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(
+                color: Palette.goodText,
+                fontWeight: FontWeight.w700,
+                fontSize: 13),
           ),
         ),
       ]),
@@ -224,12 +250,37 @@ class _TodaySummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     // Fixed order; zone enter+left are merged into one "zone events" figure.
-    final zone = (counts[AlertKind.entered] ?? 0) + (counts[AlertKind.left] ?? 0);
+    final zone =
+        (counts[AlertKind.entered] ?? 0) + (counts[AlertKind.left] ?? 0);
     final items = <(IconData, Color, int, String)>[
-      if (zone > 0) (Icons.swap_horiz_rounded, Palette.good, zone, l.t('today_zone_events')),
-      if ((counts[AlertKind.checkIn] ?? 0) > 0) (Icons.how_to_reg_rounded, Palette.blue, counts[AlertKind.checkIn]!, l.t('today_checkins')),
-      if ((counts[AlertKind.sos] ?? 0) > 0) (Icons.sos_rounded, Palette.danger, counts[AlertKind.sos]!, l.t('today_sos')),
-      if ((counts[AlertKind.lowBattery] ?? 0) > 0) (Icons.battery_alert_rounded, Palette.amber, counts[AlertKind.lowBattery]!, l.t('today_battery')),
+      if (zone > 0)
+        (
+          Icons.swap_horiz_rounded,
+          Palette.good,
+          zone,
+          l.t('today_zone_events')
+        ),
+      if ((counts[AlertKind.checkIn] ?? 0) > 0)
+        (
+          Icons.how_to_reg_rounded,
+          Palette.blue,
+          counts[AlertKind.checkIn]!,
+          l.t('today_checkins')
+        ),
+      if ((counts[AlertKind.sos] ?? 0) > 0)
+        (
+          Icons.sos_rounded,
+          Palette.danger,
+          counts[AlertKind.sos]!,
+          l.t('today_sos')
+        ),
+      if ((counts[AlertKind.lowBattery] ?? 0) > 0)
+        (
+          Icons.battery_alert_rounded,
+          Palette.amber,
+          counts[AlertKind.lowBattery]!,
+          l.t('today_battery')
+        ),
     ];
     if (items.isEmpty) return const SizedBox.shrink();
     return Container(
@@ -244,18 +295,30 @@ class _TodaySummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l.t('today_title').toUpperCase(),
-              style: const TextStyle(color: Palette.textDim, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+              style: const TextStyle(
+                  color: Palette.textDim,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6)),
           const SizedBox(height: 8),
           Wrap(
-            spacing: 16, runSpacing: 8,
+            spacing: 16,
+            runSpacing: 8,
             children: [
               for (final (icon, color, n, label) in items)
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(icon, size: 16, color: color),
                   const SizedBox(width: 5),
-                  Text('$n', style: TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: color, fontSize: 14)),
+                  Text('$n',
+                      style: TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                          fontSize: 14)),
                   const SizedBox(width: 4),
-                  Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                  Text(label,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12.5)),
                 ]),
             ],
           ),
@@ -271,7 +334,8 @@ class _ChildChips extends StatelessWidget {
   final List<String> children;
   final String? selected; // null = all
   final ValueChanged<String?> onSelect;
-  const _ChildChips({required this.children, required this.selected, required this.onSelect});
+  const _ChildChips(
+      {required this.children, required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +353,10 @@ class _ChildChips extends StatelessWidget {
           final c = items[i];
           final sel = c == selected;
           return ChoiceChip(
-            avatar: c == null ? null : Icon(Icons.person_rounded, size: 16, color: sel ? Palette.pink : Palette.textDim),
+            avatar: c == null
+                ? null
+                : Icon(Icons.person_rounded,
+                    size: 16, color: sel ? Palette.pink : Palette.textDim),
             label: Text(c ?? l.t('alerts_child_all')),
             selected: sel,
             onSelected: (_) => onSelect(c),
@@ -297,8 +364,13 @@ class _ChildChips extends StatelessWidget {
             // Keeps the compact 32dp chip look while giving it a 48dp tap area.
             materialTapTargetSize: MaterialTapTargetSize.padded,
             selectedColor: Palette.pink.withValues(alpha: 0.16),
-            side: BorderSide(color: sel ? Palette.pink.withValues(alpha: 0.5) : Palette.border),
-            labelStyle: TextStyle(color: sel ? Palette.pinkText : Palette.textDim, fontWeight: FontWeight.w600, fontSize: 13),
+            side: BorderSide(
+                color:
+                    sel ? Palette.pink.withValues(alpha: 0.5) : Palette.border),
+            labelStyle: TextStyle(
+                color: sel ? Palette.pinkText : Palette.textDim,
+                fontWeight: FontWeight.w600,
+                fontSize: 13),
             backgroundColor: Palette.surface,
           );
         },
@@ -317,11 +389,27 @@ class _AlertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final (color, icon, title) = switch (alert.kind) {
-      AlertKind.entered => (Palette.good, Icons.login_rounded, l.t('alert_entered', {'zone': alert.zoneName})),
-      AlertKind.left => (Palette.amber, Icons.logout_rounded, l.t('alert_left', {'zone': alert.zoneName})),
-      AlertKind.checkIn => (Palette.blue, Icons.how_to_reg_rounded, l.t('alert_checkin')),
+      AlertKind.entered => (
+          Palette.good,
+          Icons.login_rounded,
+          l.t('alert_entered', {'zone': alert.zoneName})
+        ),
+      AlertKind.left => (
+          Palette.amber,
+          Icons.logout_rounded,
+          l.t('alert_left', {'zone': alert.zoneName})
+        ),
+      AlertKind.checkIn => (
+          Palette.blue,
+          Icons.how_to_reg_rounded,
+          l.t('alert_checkin')
+        ),
       AlertKind.sos => (Palette.danger, Icons.sos_rounded, l.t('alert_sos')),
-      AlertKind.lowBattery => (Palette.amber, Icons.battery_alert_rounded, l.t('alert_low_battery', {'pct': alert.zoneName})),
+      AlertKind.lowBattery => (
+          Palette.amber,
+          Icons.battery_alert_rounded,
+          l.t('alert_low_battery', {'pct': alert.zoneName})
+        ),
     };
     final age = now.difference(alert.at);
 
@@ -330,8 +418,12 @@ class _AlertCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 14),
@@ -339,16 +431,20 @@ class _AlertCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 15.5, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text('${alert.childName} · ${l.ago(age)}',
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5)),
               ],
             ),
           ),
           if (onDismiss != null)
             IconButton(
-              icon: const Icon(Icons.close_rounded, size: 18, color: Palette.textDim),
+              icon: const Icon(Icons.close_rounded,
+                  size: 18, color: Palette.textDim),
               tooltip: l.t('alerts_dismiss'),
               onPressed: onDismiss,
             ),

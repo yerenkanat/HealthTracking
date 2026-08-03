@@ -76,7 +76,8 @@ class DsCard extends StatelessWidget {
 /// explanation. The spec calls for dashed specifically — it is how an empty
 /// slot is told apart from a card that failed to load.
 class DsEmptyState extends StatelessWidget {
-  const DsEmptyState({super.key, required this.label, this.onTap, this.glyph = '＋'});
+  const DsEmptyState(
+      {super.key, required this.label, this.onTap, this.glyph = '＋'});
 
   final String label;
   final VoidCallback? onTap;
@@ -95,9 +96,13 @@ class DsEmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(glyph, style: context.ds.heroMetric(size: 30, color: Ds.textSecondary)),
+              Text(glyph,
+                  style:
+                      context.ds.heroMetric(size: 30, color: Ds.textSecondary)),
               const SizedBox(height: 6),
-              Text(label, textAlign: TextAlign.center, style: context.ds.caption().copyWith(fontSize: 14)),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: context.ds.caption().copyWith(fontSize: 14)),
             ],
           ),
         ),
@@ -116,7 +121,8 @@ class _DashedBorderPainter extends CustomPainter {
       ..color = Ds.ink
       ..style = PaintingStyle.stroke
       ..strokeWidth = DsShape.borderWidth;
-    final rrect = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius));
+    final rrect =
+        RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius));
     // Walk the rounded rect and draw 7-on/5-off, which is what reads as
     // "dashed" at this stroke width without turning into a dotted line.
     for (final metric in (Path()..addRRect(rrect)).computeMetrics()) {
@@ -172,7 +178,8 @@ class DsPrimaryButton extends StatelessWidget {
       ),
       child: Material(
         color: disabled ? Ds.chevron : fill,
-        shape: RoundedRectangleBorder(borderRadius: DsShape.pill, side: DsShape.border),
+        shape: RoundedRectangleBorder(
+            borderRadius: DsShape.pill, side: DsShape.border),
         child: InkWell(
           onTap: onPressed,
           customBorder: RoundedRectangleBorder(borderRadius: DsShape.pill),
@@ -180,7 +187,8 @@ class DsPrimaryButton extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 54),
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 26),
-            child: Text(label, style: context.ds.button(size: 17, color: foreground)),
+            child: Text(label,
+                style: context.ds.button(size: 17, color: foreground)),
           ),
         ),
       ),
@@ -208,7 +216,8 @@ class DsSecondaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = Material(
       color: fill,
-      shape: RoundedRectangleBorder(borderRadius: DsShape.pill, side: DsShape.border),
+      shape: RoundedRectangleBorder(
+          borderRadius: DsShape.pill, side: DsShape.border),
       child: InkWell(
         onTap: onPressed,
         customBorder: RoundedRectangleBorder(borderRadius: DsShape.pill),
@@ -227,7 +236,11 @@ class DsSecondaryButton extends StatelessWidget {
 /// A solid accent square with a single white glyph. The spec is explicit that
 /// these are text glyphs (◎ ♥ ▶ ✿ ☺), not custom artwork.
 class DsIconTile extends StatelessWidget {
-  const DsIconTile({super.key, required this.glyph, this.color = Ds.coralCta, this.size = 42});
+  const DsIconTile(
+      {super.key,
+      required this.glyph,
+      this.color = Ds.coralCta,
+      this.size = 42});
 
   final String glyph;
   final Color color;
@@ -241,10 +254,12 @@ class DsIconTile extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(size < 40 ? 12 : DsShape.radiusTile),
+        borderRadius:
+            BorderRadius.circular(size < 40 ? 12 : DsShape.radiusTile),
         border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
-      child: Text(glyph, style: context.ds.button(size: size * 0.45, color: Colors.white)),
+      child: Text(glyph,
+          style: context.ds.button(size: size * 0.45, color: Colors.white)),
     );
   }
 }
@@ -325,7 +340,9 @@ class _Bars extends StatelessWidget {
                 decoration: BoxDecoration(
                   // The current reading is the yellow one; the history behind it
                   // is white at 55%, per the spec.
-                  color: i == bars.length - 1 ? Ds.yellow : Colors.white.withValues(alpha: 0.55),
+                  color: i == bars.length - 1
+                      ? Ds.yellow
+                      : Colors.white.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -410,7 +427,8 @@ class DsListCard extends StatelessWidget {
               child: InkWell(
                 onTap: rows[i].onTap,
                 child: Container(
-                  constraints: const BoxConstraints(minHeight: DsShape.minTapTarget),
+                  constraints:
+                      const BoxConstraints(minHeight: DsShape.minTapTarget),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   child: Row(
                     children: [
@@ -421,7 +439,8 @@ class DsListCard extends StatelessWidget {
                       if (rows[i].onTap != null && rows[i].trailing == null)
                         const Padding(
                           padding: EdgeInsets.only(left: 6),
-                          child: Icon(Icons.chevron_right_rounded, size: 20, color: Ds.chevron),
+                          child: Icon(Icons.chevron_right_rounded,
+                              size: 20, color: Ds.chevron),
                         ),
                     ],
                   ),
@@ -467,17 +486,22 @@ class DsSegmented extends StatelessWidget {
             Expanded(
               child: InkWell(
                 onTap: () => onChanged(i),
-                customBorder: RoundedRectangleBorder(borderRadius: DsShape.pill),
+                customBorder:
+                    RoundedRectangleBorder(borderRadius: DsShape.pill),
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 38),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
                     color: i == index ? Ds.ink : Colors.transparent,
                     borderRadius: DsShape.pill,
                   ),
                   child: Text(
                     items[i],
-                    style: t.button(size: 14, color: i == index ? Colors.white : Ds.textSecondary),
+                    style: t.button(
+                        size: 14,
+                        color: i == index ? Colors.white : Ds.textSecondary),
                   ),
                 ),
               ),
@@ -490,7 +514,11 @@ class DsSegmented extends StatelessWidget {
 
 /// 48×28 pill, mint when on, a 20px white knob, ink outlines throughout.
 class DsToggle extends StatelessWidget {
-  const DsToggle({super.key, required this.value, required this.onChanged, this.semanticLabel});
+  const DsToggle(
+      {super.key,
+      required this.value,
+      required this.onChanged,
+      this.semanticLabel});
 
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -562,7 +590,8 @@ class DsScreenHeader extends StatelessWidget {
             if (onBack != null)
               IconButton(
                 onPressed: onBack,
-                icon: const Icon(Icons.chevron_left_rounded, size: 28, color: Ds.textSecondary),
+                icon: const Icon(Icons.chevron_left_rounded,
+                    size: 28, color: Ds.textSecondary),
                 constraints: const BoxConstraints(
                   minWidth: DsShape.minTapTarget,
                   minHeight: DsShape.minTapTarget,
@@ -573,7 +602,8 @@ class DsScreenHeader extends StatelessWidget {
             if (actionLabel != null)
               TextButton(
                 onPressed: onAction,
-                child: Text(actionLabel!, style: t.button(size: 15, color: Ds.coralText)),
+                child: Text(actionLabel!,
+                    style: t.button(size: 15, color: Ds.coralText)),
               ),
           ],
         ),
@@ -600,7 +630,8 @@ class DsBottomActionBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, DsLayout.homeIndicator),
       decoration: const BoxDecoration(
         color: Ds.barFill,
-        border: Border(top: BorderSide(color: Ds.ink, width: DsShape.borderWidth)),
+        border:
+            Border(top: BorderSide(color: Ds.ink, width: DsShape.borderWidth)),
       ),
       child: child,
     );

@@ -38,7 +38,8 @@ class ChildGrowthScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Palette.bg,
-      appBar: AppBar(backgroundColor: Palette.bg, title: Text(l.t('grw_title'))),
+      appBar:
+          AppBar(backgroundColor: Palette.bg, title: Text(l.t('grw_title'))),
       floatingActionButton: onAdd == null
           ? null
           : FloatingActionButton.extended(
@@ -52,7 +53,8 @@ class ChildGrowthScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(32),
                 child: Text(l.t('grw_empty'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Palette.textDim, height: 1.45)),
+                    style:
+                        const TextStyle(color: Palette.textDim, height: 1.45)),
               ),
             )
           : ListView(
@@ -86,18 +88,23 @@ class ChildGrowthScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
                     color: Palette.glass,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline, size: 17, color: Palette.textDim),
+                      const Icon(Icons.info_outline,
+                          size: 17, color: Palette.textDim),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(l.t('grw_no_percentiles'),
                             style: const TextStyle(
-                                color: Palette.textDim, fontSize: 12.5, height: 1.45)),
+                                color: Palette.textDim,
+                                fontSize: 12.5,
+                                height: 1.45)),
                       ),
                     ],
                   ),
@@ -115,7 +122,8 @@ class _Title extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(2, 4, 2, 8),
         child: Text(text,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
       );
 }
 
@@ -132,8 +140,10 @@ class _VisitRow extends StatelessWidget {
     final l = L10nScope.of(context);
     final ml = MaterialLocalizations.of(context);
     final parts = <String>[
-      if (point.weightKg != null) '${point.weightKg!.toStringAsFixed(1)} ${l.t('grw_kg')}',
-      if (point.heightCm != null) '${point.heightCm!.toStringAsFixed(1)} ${l.t('grw_cm')}',
+      if (point.weightKg != null)
+        '${point.weightKg!.toStringAsFixed(1)} ${l.t('grw_kg')}',
+      if (point.heightCm != null)
+        '${point.heightCm!.toStringAsFixed(1)} ${l.t('grw_cm')}',
     ];
 
     return InkWell(
@@ -145,7 +155,8 @@ class _VisitRow extends StatelessWidget {
           children: [
             Expanded(
               child: Text(ml.formatMediumDate(point.at),
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(
+                      fontSize: 13.5, fontWeight: FontWeight.w600)),
             ),
             Text(parts.join(' · '),
                 style: const TextStyle(
@@ -292,7 +303,10 @@ class _LinePainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [colour.withValues(alpha: 0.22), colour.withValues(alpha: 0.0)],
+          colors: [
+            colour.withValues(alpha: 0.22),
+            colour.withValues(alpha: 0.0)
+          ],
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
     );
 

@@ -58,7 +58,8 @@ class WeekDetailScreen extends StatefulWidget {
 class _WeekDetailScreenState extends State<WeekDetailScreen> {
   /// The week being viewed — starts at the mother's real week, then the arrows
   /// browse anywhere in 1..40 so she can read ahead or look back.
-  late int _week = (widget.initialWeek ?? widget.gestation.week).clamp(_minWeek, _maxWeek);
+  late int _week =
+      (widget.initialWeek ?? widget.gestation.week).clamp(_minWeek, _maxWeek);
 
   static const _minWeek = 1;
   static const _maxWeek = 40;
@@ -69,7 +70,8 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
   }
 
   void _toCurrent() {
-    if (_week != widget.gestation.week) setState(() => _week = widget.gestation.week);
+    if (_week != widget.gestation.week)
+      setState(() => _week = widget.gestation.week);
   }
 
   @override
@@ -110,6 +112,7 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
           Container(
             height: 170,
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               borderRadius: BorderRadius.circular(22),
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -142,7 +145,9 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                   // A disc that grows week to week against a faint ring at
                   // newborn size — the visceral "how big now" the fruit name
                   // alone can't give, and a picture of the journey's progress.
-                  BabySizeDisc(fraction: sizeVisualFraction(size.lengthCm), colour: pal.glow),
+                  BabySizeDisc(
+                      fraction: sizeVisualFraction(size.lengthCm),
+                      colour: pal.glow),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -150,11 +155,13 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                       children: [
                         Text(
                           l.t(size.code),
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          l.t('bsize_length', {'cm': size.lengthCm.toStringAsFixed(1)}),
+                          l.t('bsize_length',
+                              {'cm': size.lengthCm.toStringAsFixed(1)}),
                           style: const TextStyle(
                               fontFamily: 'JetBrainsMono',
                               fontSize: 14,
@@ -181,7 +188,8 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t(current.code),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
                 // Progress and days-left describe HER real pregnancy, so they
                 // show only on her own week — meaningless when reading ahead.
                 if (!browsing) ...[
@@ -192,7 +200,8 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                     g.daysUntilDue >= 0
                         ? l.t('gest_days_left', {'n': g.daysUntilDue})
                         : l.t('gest_overdue'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 13),
+                    style:
+                        const TextStyle(color: Palette.textDim, fontSize: 13),
                   ),
                 ],
               ],
@@ -208,10 +217,13 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Ds.ink, width: DsShape.borderWidth),
                       color: Palette.violet.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(11),
                     ),
-                    child: const Icon(Icons.flag_outlined, size: 19, color: Palette.violet),
+                    child: const Icon(Icons.flag_outlined,
+                        size: 19, color: Palette.violet),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -219,11 +231,13 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(l.t(next.code),
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(
                           l.t('ms_in_weeks', {'n': weeksUntil(week, next)}),
-                          style: const TextStyle(color: Palette.textDim, fontSize: 12.5),
+                          style: const TextStyle(
+                              color: Palette.textDim, fontSize: 12.5),
                         ),
                       ],
                     ),
@@ -238,7 +252,10 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
 
           // Her care schedule this week — which antenatal visit is due or next,
           // straight from the state protocol.
-          _AntenatalCard(week: week, dueDate: widget.dueDate, onBook: widget.onBookAntenatal),
+          _AntenatalCard(
+              week: week,
+              dueDate: widget.dueDate,
+              onBook: widget.onBookAntenatal),
           const Padding(
             padding: EdgeInsets.only(bottom: 4),
             child: PregnancyWarningsCard(),
@@ -250,7 +267,8 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
             padding: const EdgeInsets.only(top: 12),
             child: Text(
               l.t('gest_estimate_note'),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.45),
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 12, height: 1.45),
             ),
           ),
         ],
@@ -303,10 +321,14 @@ class _WeekStepper extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(l.t('wk_label', {'w': week}),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
                     if (isCurrent)
                       Text(l.t('wk_current'),
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Palette.violet)),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Palette.violet)),
                   ],
                 ),
               ),
@@ -404,21 +426,34 @@ class _WeekCalendarCard extends StatelessWidget {
         final w = weekContentFor(weeks, week);
         if (w == null) return const SizedBox.shrink();
         final t = w.textFor(l.locale.name);
-        if (t.recommend.isEmpty && t.you.isEmpty && t.baby.isEmpty) return const SizedBox.shrink();
+        if (t.recommend.isEmpty && t.you.isEmpty && t.baby.isEmpty)
+          return const SizedBox.shrink();
         return _Card(
           title: l.t('pw_week_title'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (t.recommend.isNotEmpty)
-                _CalendarRow(icon: Icons.check_circle_outline, colour: colour, label: l.t('pw_recommend'), text: t.recommend),
+                _CalendarRow(
+                    icon: Icons.check_circle_outline,
+                    colour: colour,
+                    label: l.t('pw_recommend'),
+                    text: t.recommend),
               if (t.you.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _CalendarRow(icon: Icons.favorite_outline, colour: Palette.rose, label: l.t('pw_you'), text: t.you),
+                _CalendarRow(
+                    icon: Icons.favorite_outline,
+                    colour: Palette.rose,
+                    label: l.t('pw_you'),
+                    text: t.you),
               ],
               if (t.baby.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _CalendarRow(icon: Icons.child_friendly_outlined, colour: Palette.violet, label: l.t('pw_baby'), text: t.baby),
+                _CalendarRow(
+                    icon: Icons.child_friendly_outlined,
+                    colour: Palette.violet,
+                    label: l.t('pw_baby'),
+                    text: t.baby),
               ],
             ],
           ),
@@ -433,7 +468,11 @@ class _CalendarRow extends StatelessWidget {
   final Color colour;
   final String label;
   final String text;
-  const _CalendarRow({required this.icon, required this.colour, required this.label, required this.text});
+  const _CalendarRow(
+      {required this.icon,
+      required this.colour,
+      required this.label,
+      required this.text});
 
   @override
   Widget build(BuildContext context) => Row(
@@ -442,7 +481,10 @@ class _CalendarRow extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(color: colour.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: colour.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, size: 16, color: colour),
           ),
           const SizedBox(width: 11),
@@ -451,7 +493,11 @@ class _CalendarRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label.toUpperCase(),
-                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.4, color: colour)),
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: colour)),
                 const SizedBox(height: 2),
                 Text(text, style: const TextStyle(fontSize: 13, height: 1.45)),
               ],
@@ -481,6 +527,7 @@ class _FetalCard extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               color: colour.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(11),
             ),
@@ -491,7 +538,8 @@ class _FetalCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(top: 3),
               child: Text(l.t('fet_${h.id}'),
-                  style: const TextStyle(fontSize: 14, height: 1.42, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(
+                      fontSize: 14, height: 1.42, fontWeight: FontWeight.w600)),
             ),
           ),
         ],
@@ -531,7 +579,8 @@ class _AntenatalCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => AntenatalPlanScreen(week: week, dueDate: dueDate, onBook: onBook),
+              builder: (_) => AntenatalPlanScreen(
+                  week: week, dueDate: dueDate, onBook: onBook),
             ),
           ),
           child: Container(
@@ -546,10 +595,13 @@ class _AntenatalCard extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
                     color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(Icons.event_note_outlined, size: 19, color: accent),
+                  child:
+                      Icon(Icons.event_note_outlined, size: 19, color: accent),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -564,7 +616,10 @@ class _AntenatalCard extends StatelessWidget {
                               letterSpacing: 0.6)),
                       const SizedBox(height: 3),
                       Text(line,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, height: 1.3)),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              height: 1.3)),
                     ],
                   ),
                 ),
@@ -618,6 +673,7 @@ class _NoteRow extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
             color: colour.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
@@ -630,7 +686,10 @@ class _NoteRow extends StatelessWidget {
             children: [
               Text(_areaLabel(l, note.area),
                   style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.3, color: colour)),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                      color: colour)),
               const SizedBox(height: 2),
               Text(l.t('preg_note_${note.id}'),
                   style: const TextStyle(fontSize: 13, height: 1.42)),

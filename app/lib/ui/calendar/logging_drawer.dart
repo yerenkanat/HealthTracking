@@ -18,19 +18,40 @@ import '../widgets/confirm.dart';
 
 /// Icon + accent colour for each mood (localized label via `mood_<name>`).
 ({IconData icon, Color color}) _moodStyle(Mood m) => switch (m) {
-      Mood.happy => (icon: Icons.sentiment_very_satisfied_rounded, color: Palette.good),
-      Mood.calm => (icon: Icons.sentiment_satisfied_rounded, color: Palette.teal),
-      Mood.anxious => (icon: Icons.sentiment_dissatisfied_rounded, color: Palette.amber),
+      Mood.happy => (
+          icon: Icons.sentiment_very_satisfied_rounded,
+          color: Palette.good
+        ),
+      Mood.calm => (
+          icon: Icons.sentiment_satisfied_rounded,
+          color: Palette.teal
+        ),
+      Mood.anxious => (
+          icon: Icons.sentiment_dissatisfied_rounded,
+          color: Palette.amber
+        ),
       Mood.tired => (icon: Icons.bedtime_rounded, color: Palette.blue),
-      Mood.sad => (icon: Icons.sentiment_very_dissatisfied_rounded, color: Palette.violet),
+      Mood.sad => (
+          icon: Icons.sentiment_very_dissatisfied_rounded,
+          color: Palette.violet
+        ),
     };
 
 /// Icon + accent colour for each symptom (localized label via `sym_<name>`).
 ({IconData icon, Color color}) _symptomStyle(Symptom s) => switch (s) {
-      Symptom.allGood => (icon: Icons.auto_awesome_rounded, color: Palette.good),
+      Symptom.allGood => (
+          icon: Icons.auto_awesome_rounded,
+          color: Palette.good
+        ),
       Symptom.cramps => (icon: Icons.bolt_rounded, color: Palette.amber),
-      Symptom.spotting => (icon: Icons.water_drop_rounded, color: Palette.roseDeep),
-      Symptom.headache => (icon: Icons.psychology_alt_rounded, color: Palette.violet),
+      Symptom.spotting => (
+          icon: Icons.water_drop_rounded,
+          color: Palette.roseDeep
+        ),
+      Symptom.headache => (
+          icon: Icons.psychology_alt_rounded,
+          color: Palette.violet
+        ),
       Symptom.nausea => (icon: Icons.sick_rounded, color: Palette.teal),
       Symptom.swelling => (icon: Icons.back_hand_rounded, color: Palette.blue),
     };
@@ -45,13 +66,15 @@ import '../widgets/confirm.dart';
 class FloStyleCalendarDrawer extends StatelessWidget {
   final DateTime day;
   final DayLog log;
-  final bool pregnant; // pregnancy mode → kick counter; cycle mode → period flow
+  final bool
+      pregnant; // pregnancy mode → kick counter; cycle mode → period flow
   final void Function(Mood) onToggleMood;
   final void Function(Symptom) onToggleSymptom;
   final void Function(Flow) onToggleFlow;
   final VoidCallback onKick;
   final VoidCallback onResetKicks;
-  final VoidCallback? onStartSession; // opens the timed kick session (pregnancy)
+  final VoidCallback?
+      onStartSession; // opens the timed kick session (pregnancy)
   final ValueChanged<String>? onSetNote;
 
   const FloStyleCalendarDrawer({
@@ -77,6 +100,7 @@ class FloStyleCalendarDrawer extends StatelessWidget {
       top: false,
       child: Container(
         decoration: const BoxDecoration(
+          border: DsShape.inkBorder,
           color: Palette.bgElevated,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -89,13 +113,17 @@ class FloStyleCalendarDrawer extends StatelessWidget {
               // Grab handle
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                      color: Palette.border,
+                      borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               Text(l.t('log_title'),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
               Text(ml.formatFullDate(day),
                   style: const TextStyle(color: Palette.textDim, fontSize: 13)),
@@ -143,7 +171,8 @@ class FloStyleCalendarDrawer extends StatelessWidget {
               if (pregnant) ...[
                 _SectionLabel(l.t('log_kicks')),
                 const SizedBox(height: 10),
-                _KickCounter(kicks: log.kicks, onKick: onKick, onReset: onResetKicks),
+                _KickCounter(
+                    kicks: log.kicks, onKick: onKick, onReset: onResetKicks),
                 if (onStartSession != null) ...[
                   const SizedBox(height: 10),
                   SizedBox(
@@ -154,7 +183,8 @@ class FloStyleCalendarDrawer extends StatelessWidget {
                       label: Text(l.t('kick_session_start')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Palette.violetText,
-                        side: BorderSide(color: Palette.violet.withValues(alpha: 0.35)),
+                        side: BorderSide(
+                            color: Palette.violet.withValues(alpha: 0.35)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
@@ -182,7 +212,10 @@ class FloStyleCalendarDrawer extends StatelessWidget {
                 const SizedBox(height: 22),
                 _SectionLabel(l.t('log_note')),
                 const SizedBox(height: 10),
-                _NoteField(initial: log.note, hint: l.t('log_note_hint'), onSave: onSetNote!),
+                _NoteField(
+                    initial: log.note,
+                    hint: l.t('log_note_hint'),
+                    onSave: onSetNote!),
               ],
               const SizedBox(height: 8),
 
@@ -208,7 +241,11 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         text.toUpperCase(),
-        style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+        style: const TextStyle(
+            color: Palette.textDim,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6),
       );
 }
 
@@ -218,7 +255,8 @@ class _NoteField extends StatefulWidget {
   final String initial;
   final String hint;
   final ValueChanged<String> onSave;
-  const _NoteField({required this.initial, required this.hint, required this.onSave});
+  const _NoteField(
+      {required this.initial, required this.hint, required this.onSave});
   @override
   State<_NoteField> createState() => _NoteFieldState();
 }
@@ -234,7 +272,8 @@ class _NoteFieldState extends State<_NoteField> {
   }
 
   void _onFocusChange() {
-    if (!_focus.hasFocus && _ctl.text.trim() != widget.initial) widget.onSave(_ctl.text);
+    if (!_focus.hasFocus && _ctl.text.trim() != widget.initial)
+      widget.onSave(_ctl.text);
   }
 
   @override
@@ -259,8 +298,11 @@ class _NoteFieldState extends State<_NoteField> {
         hintText: widget.hint,
         filled: true,
         fillColor: Palette.glass,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
     );
   }
@@ -305,7 +347,8 @@ class _PillButton extends StatelessWidget {
               color: selected ? color.withValues(alpha: 0.14) : Palette.glass,
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: selected ? color.withValues(alpha: 0.55) : Palette.border,
+                color:
+                    selected ? color.withValues(alpha: 0.55) : Palette.border,
                 width: selected ? 1.4 : 1,
               ),
             ),
@@ -334,7 +377,8 @@ class _KickCounter extends StatelessWidget {
   final int kicks;
   final VoidCallback onKick;
   final VoidCallback onReset;
-  const _KickCounter({required this.kicks, required this.onKick, required this.onReset});
+  const _KickCounter(
+      {required this.kicks, required this.onKick, required this.onReset});
 
   @override
   Widget build(BuildContext context) {
@@ -344,7 +388,10 @@ class _KickCounter extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [Palette.rose.withValues(alpha: 0.12), Palette.violet.withValues(alpha: 0.06)],
+          colors: [
+            Palette.rose.withValues(alpha: 0.12),
+            Palette.violet.withValues(alpha: 0.06)
+          ],
         ),
         border: Border.all(color: Palette.rose.withValues(alpha: 0.20)),
       ),
@@ -358,10 +405,15 @@ class _KickCounter extends StatelessWidget {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text('$kicks',
-                      style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 30, fontWeight: FontWeight.w700, height: 1)),
+                      style: const TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 30,
+                          fontWeight: FontWeight.w700,
+                          height: 1)),
                   const SizedBox(width: 6),
                   Text(l.t('kick_today'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 13)),
                 ],
               ),
               if (kicks > 0)
@@ -375,8 +427,10 @@ class _KickCounter extends StatelessWidget {
                     );
                     if (ok) onReset();
                   },
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
-                  child: Text(l.t('kick_reset'), style: const TextStyle(fontSize: 12.5)),
+                  style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
+                  child: Text(l.t('kick_reset'),
+                      style: const TextStyle(fontSize: 12.5)),
                 ),
             ],
           ),
@@ -394,13 +448,15 @@ class _KickCounter extends StatelessWidget {
                 },
                 customBorder: const CircleBorder(),
                 child: Container(
-                  width: 64, height: 64,
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     gradient: Palette.roseViolet,
                     shape: BoxShape.circle,
                     boxShadow: DsShape.hardShadow,
                   ),
-                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 34),
+                  child: const Icon(Icons.add_rounded,
+                      color: Colors.white, size: 34),
                 ),
               ),
             ),

@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../domain/health_series.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 
@@ -37,7 +38,9 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
   List<HealthSample> _filtered() {
     if (_range == _Range.all) return widget.samples;
     final now = DateTime.now();
-    final cutoff = now.subtract(_range == _Range.d1 ? const Duration(hours: 24) : const Duration(days: 7));
+    final cutoff = now.subtract(_range == _Range.d1
+        ? const Duration(hours: 24)
+        : const Duration(days: 7));
     return widget.samples.where((s) => s.at.isAfter(cutoff)).toList();
   }
 
@@ -54,7 +57,8 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
     final band = bandFor(metricKey);
     final danger = latestInDanger(metricKey, stats);
 
-    String fmt(double v) => metricKey == 'temp' ? v.toStringAsFixed(1) : v.round().toString();
+    String fmt(double v) =>
+        metricKey == 'temp' ? v.toStringAsFixed(1) : v.round().toString();
 
     return AuroraBackground(
       child: Scaffold(
@@ -68,9 +72,13 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [color, color.withValues(alpha: 0.7)]),
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    gradient: LinearGradient(
+                        colors: [color, color.withValues(alpha: 0.7)]),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: Colors.white, size: 24),
@@ -87,14 +95,17 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                 const SizedBox(width: 6),
                 Padding(
                   padding: const EdgeInsets.only(top: 14),
-                  child: Text(unit, style: const TextStyle(color: Palette.textDim, fontSize: 15)),
+                  child: Text(unit,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 15)),
                 ),
                 const Spacer(),
                 if (stats != null) _TrendChip(stats.trend),
               ],
             ),
             const SizedBox(height: 18),
-            _RangeSelector(range: _range, onChanged: (r) => setState(() => _range = r)),
+            _RangeSelector(
+                range: _range, onChanged: (r) => setState(() => _range = r)),
             const SizedBox(height: 14),
 
             // Chart
@@ -111,7 +122,8 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                   : SizedBox(
                       height: 220,
                       child: CustomPaint(
-                        painter: _LargeChartPainter(series, band, color, danger),
+                        painter:
+                            _LargeChartPainter(series, band, color, danger),
                         child: const SizedBox.expand(),
                       ),
                     ),
@@ -132,10 +144,16 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
             if (band.warnAbove != null || band.warnBelow != null) ...[
               const SizedBox(height: 14),
               Row(children: [
-                Container(width: 12, height: 12,
-                    decoration: BoxDecoration(color: Palette.danger.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(3))),
+                Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                        color: Palette.danger.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(3))),
                 const SizedBox(width: 8),
-                Text(l.t('detail_safe_range'), style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+                Text(l.t('detail_safe_range'),
+                    style:
+                        const TextStyle(color: Palette.textDim, fontSize: 13)),
               ]),
             ],
           ],
@@ -153,10 +171,17 @@ class _RangeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final items = [(_Range.d1, l.t('range_24h')), (_Range.d7, l.t('range_7d')), (_Range.all, l.t('range_all'))];
+    final items = [
+      (_Range.d1, l.t('range_24h')),
+      (_Range.d7, l.t('range_7d')),
+      (_Range.all, l.t('range_all'))
+    ];
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+          color: Palette.glass,
+          borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
           for (final (r, lbl) in items)
@@ -167,6 +192,8 @@ class _RangeSelector extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
                     color: r == range ? Palette.surface : Colors.transparent,
                     borderRadius: BorderRadius.circular(11),
                     boxShadow: r == range ? Palette.cardShadow : null,
@@ -196,9 +223,15 @@ class _Stat extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 18, fontWeight: FontWeight.w700, color: color)),
+          Text(value,
+              style: TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: color)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
+          Text(label,
+              style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
         ],
       ),
     );
@@ -217,7 +250,10 @@ class _TrendChip extends StatelessWidget {
     };
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12)),
       child: Icon(icon, size: 20, color: color),
     );
   }
@@ -237,8 +273,10 @@ class _LargeChartPainter extends CustomPainter {
       lo = p.value < lo ? p.value : lo;
       hi = p.value > hi ? p.value : hi;
     }
-    if (band.warnAbove != null) hi = hi > band.warnAbove! ? hi : band.warnAbove!;
-    if (band.warnBelow != null) lo = lo < band.warnBelow! ? lo : band.warnBelow!;
+    if (band.warnAbove != null)
+      hi = hi > band.warnAbove! ? hi : band.warnAbove!;
+    if (band.warnBelow != null)
+      lo = lo < band.warnBelow! ? lo : band.warnBelow!;
     final pad = (hi - lo) * 0.15 + 0.5;
     lo -= pad;
     hi += pad;

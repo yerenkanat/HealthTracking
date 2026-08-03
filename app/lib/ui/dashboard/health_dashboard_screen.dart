@@ -49,9 +49,11 @@ const _tempB = Color(0xFFFBBF24);
 // The three single-value metrics shown as uniform grid cards; blood pressure is
 // rendered separately (two values merged into one card).
 const _specs = <MetricSpec>[
-  MetricSpec('hr', 'bpm', Icons.favorite_rounded, LinearGradient(colors: [_hrColor, Palette.pink]), _hrColor),
+  MetricSpec('hr', 'bpm', Icons.favorite_rounded,
+      LinearGradient(colors: [_hrColor, Palette.pink]), _hrColor),
   MetricSpec('spo2', '%', Icons.air_rounded, Palette.tealBlue, Palette.teal),
-  MetricSpec('temp', '°C', Icons.thermostat_rounded, LinearGradient(colors: [_tempA, _tempB]), _tempA),
+  MetricSpec('temp', '°C', Icons.thermostat_rounded,
+      LinearGradient(colors: [_tempA, _tempB]), _tempA),
 ];
 
 class HealthDashboardView extends StatelessWidget {
@@ -63,7 +65,8 @@ class HealthDashboardView extends StatelessWidget {
   final void Function(AppLocale)? onLocaleChange;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenAdvisor;
-  final String summaryStatus; // pregnancy/cycle status line for the shared summary
+  final String
+      summaryStatus; // pregnancy/cycle status line for the shared summary
   // Quick status chip: cycle day / pregnancy week (empty = hidden).
   final String statusChip;
   final bool statusChipPregnancy;
@@ -74,12 +77,14 @@ class HealthDashboardView extends StatelessWidget {
   /// 'spo2', 'hr' — or null when nothing is. See emergency_confirmation.dart.
   final String? awaitingRepeat;
 
-  final SetupProgress? setupProgress; // first-run checklist (null/complete = hidden)
+  final SetupProgress?
+      setupProgress; // first-run checklist (null/complete = hidden)
   // Routed with the step being nudged, so each lands on the right screen.
   final void Function(SetupStep step)? onOpenSetup;
   final Appointment? nextAppointment; // soonest upcoming (null = hidden)
   final DateTime? nowForAppointment; // anchor for the countdown
   final VoidCallback? onOpenAppointments;
+
   /// Completed gestational week, when pregnant — drives the antenatal-protocol
   /// card ("the state plan says a visit is due now / at weeks X–Y"). Null when
   /// not pregnant, which hides the card.
@@ -89,12 +94,14 @@ class HealthDashboardView extends StatelessWidget {
   /// True when a wearable is wired but not currently delivering readings, so
   /// the numbers on screen may be stale. Shows a quiet "not measuring" chip.
   final bool bandNotMeasuring;
+
   /// The watch's latest activity/sleep/wellness snapshot (null = none). Drives
   /// the activity panel below the vitals.
   final WearableMetrics? wearable;
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
+
   /// Timeline content: the stage the family is at, and its lessons/products.
   final TimelineStage? timelineStage;
   final List<ContentItem> timelineItems;
@@ -152,24 +159,34 @@ class HealthDashboardView extends StatelessWidget {
     // this week, or a dated screening window is open. Computed here so the "Care"
     // zone can decide whether it has anything to show.
     final pregWeek = pregnancyWeek;
-    final showAntenatal = pregWeek != null && (visitAtWeek(pregWeek) != null || windowsOpenAt(pregWeek).isNotEmpty);
+    final showAntenatal = pregWeek != null &&
+        (visitAtWeek(pregWeek) != null || windowsOpenAt(pregWeek).isNotEmpty);
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           leadingWidth: onOpenProfile == null ? null : 60,
-          leading: onOpenProfile == null ? null : _AvatarButton(name: greetingName, photoPath: photoPath, onTap: onOpenProfile!),
-          title: FittedTitle(greetingName.isEmpty ? l.t('db_title') : l.t('db_greeting', {'name': greetingName})),
+          leading: onOpenProfile == null
+              ? null
+              : _AvatarButton(
+                  name: greetingName,
+                  photoPath: photoPath,
+                  onTap: onOpenProfile!),
+          title: FittedTitle(greetingName.isEmpty
+              ? l.t('db_title')
+              : l.t('db_greeting', {'name': greetingName})),
           actions: [
             if (onLogVitals != null)
               IconButton(
-                icon: const Icon(Icons.add_chart_rounded, color: Palette.textDim),
+                icon:
+                    const Icon(Icons.add_chart_rounded, color: Palette.textDim),
                 tooltip: l.t('vitals_log'),
                 onPressed: onLogVitals,
               ),
             if (samples.isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.ios_share_rounded, color: Palette.textDim),
+                icon:
+                    const Icon(Icons.ios_share_rounded, color: Palette.textDim),
                 tooltip: l.t('db_share'),
                 onPressed: () => _shareSummary(context, l),
               ),
@@ -206,7 +223,11 @@ class HealthDashboardView extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                 children: [
                   if (statusChip.isNotEmpty && onOpenStatus != null) ...[
-                    _StatusChip(label: statusChip, pregnancy: statusChipPregnancy, late: statusChipLate, onTap: onOpenStatus!),
+                    _StatusChip(
+                        label: statusChip,
+                        pregnancy: statusChipPregnancy,
+                        late: statusChipLate,
+                        onTap: onOpenStatus!),
                     const SizedBox(height: 12),
                   ],
                   // Setup guidance outranks ambient status: an unfinished app
@@ -216,7 +237,8 @@ class HealthDashboardView extends StatelessWidget {
                   // wrist estimate does not justify that — but the most
                   // important thing on the screen until it resolves.
                   if (awaitingRepeat != null) ...[
-                    _RepeatReadingCard(family: awaitingRepeat!, onLog: onLogVitals),
+                    _RepeatReadingCard(
+                        family: awaitingRepeat!, onLog: onLogVitals),
                     const SizedBox(height: 14),
                   ],
                   if (setupProgress != null && !setupProgress!.complete) ...[
@@ -244,14 +266,16 @@ class HealthDashboardView extends StatelessWidget {
                     crossAxisSpacing: 14,
                     childAspectRatio: 0.94,
                     children: [
-                      for (final spec in _specs) _MetricCard(spec: spec, samples: samples),
+                      for (final spec in _specs)
+                        _MetricCard(spec: spec, samples: samples),
                       _BloodPressureCard(samples: samples),
                     ],
                   ),
                   // Sleep sits directly under the vital signs — it is one of her
                   // core health readings, not something to bury in the watch
                   // detail. Shown when there's a night to show or a way to log one.
-                  if (latestNight(sleepNights) != null || onLogSleep != null) ...[
+                  if (latestNight(sleepNights) != null ||
+                      onLogSleep != null) ...[
                     const SizedBox(height: 14),
                     SleepCard(nights: sleepNights, onLog: onLogSleep),
                   ],
@@ -290,13 +314,16 @@ class HealthDashboardView extends StatelessWidget {
                     // too important to bury behind a tab.
                     if (showAntenatal) ...[
                       const SizedBox(height: 12),
-                      _AntenatalProtocolCard(week: pregWeek, onTap: onOpenAntenatalPlan),
+                      _AntenatalProtocolCard(
+                          week: pregWeek, onTap: onOpenAntenatalPlan),
                     ],
                   ],
                   // ---- Tools zone --------------------------------------------
                   // Her weekly digest, the water tracker and the assistant — the
                   // things she opens and acts on, gathered under one header.
-                  if ((weeklyDigest?.hasData ?? false) || onAddWater != null || onOpenAdvisor != null) ...[
+                  if ((weeklyDigest?.hasData ?? false) ||
+                      onAddWater != null ||
+                      onOpenAdvisor != null) ...[
                     const SizedBox(height: 22),
                     _SectionLabel(l.t('db_zone_tools')),
                     if (weeklyDigest?.hasData ?? false) ...[
@@ -326,11 +353,14 @@ class HealthDashboardView extends StatelessWidget {
   }
 
   Future<void> _shareSummary(BuildContext context, L10n l) async {
-    final text = buildHealthSummary(l, samples, nights: sleepNights, name: greetingName, status: summaryStatus);
+    final text = buildHealthSummary(l, samples,
+        nights: sleepNights, name: greetingName, status: summaryStatus);
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.t('db_share_copied')), behavior: SnackBarBehavior.floating),
+      SnackBar(
+          content: Text(l.t('db_share_copied')),
+          behavior: SnackBarBehavior.floating),
     );
   }
 }
@@ -348,9 +378,21 @@ class _PeaceOfMindBanner extends StatelessWidget {
     final l = L10nScope.of(context);
     final status = overallStatus(samples);
     final (accent, icon, gradient) = switch (status.tone) {
-      AdviceTone.positive => (Palette.good, Icons.check_rounded, const LinearGradient(colors: [Palette.good, Palette.teal])),
-      AdviceTone.watch => (Palette.amber, Icons.spa_rounded, const LinearGradient(colors: [Palette.amber, Palette.rose])),
-      AdviceTone.info => (Palette.violet, Icons.hourglass_bottom_rounded, Palette.roseViolet),
+      AdviceTone.positive => (
+          Palette.good,
+          Icons.check_rounded,
+          const LinearGradient(colors: [Palette.good, Palette.teal])
+        ),
+      AdviceTone.watch => (
+          Palette.amber,
+          Icons.spa_rounded,
+          const LinearGradient(colors: [Palette.amber, Palette.rose])
+        ),
+      AdviceTone.info => (
+          Palette.violet,
+          Icons.hourglass_bottom_rounded,
+          Palette.roseViolet
+        ),
     };
 
     // Data-driven ring: fraction of metrics currently in a healthy range.
@@ -364,7 +406,9 @@ class _PeaceOfMindBanner extends StatelessWidget {
     final fraction = withData == 0 ? 1.0 : healthy / withData;
 
     final headline = switch (status.tone) {
-      AdviceTone.positive => name.isEmpty ? l.t('db_peace_stable_noname') : l.t('db_peace_stable', {'name': name}),
+      AdviceTone.positive => name.isEmpty
+          ? l.t('db_peace_stable_noname')
+          : l.t('db_peace_stable', {'name': name}),
       AdviceTone.info => l.t(status.code),
       AdviceTone.watch => l.t(status.code),
     };
@@ -415,10 +459,15 @@ class _PeaceOfMindBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(headline,
-                      style: const TextStyle(fontSize: 17.5, fontWeight: FontWeight.w700, height: 1.2, color: Palette.text)),
+                      style: const TextStyle(
+                          fontSize: 17.5,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                          color: Palette.text)),
                   const SizedBox(height: 5),
                   Text(sub,
-                      style: const TextStyle(color: Palette.textDim, fontSize: 13, height: 1.35)),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 13, height: 1.35)),
                 ],
               ),
             ),
@@ -448,13 +497,16 @@ class _MetricCard extends StatelessWidget {
     final label = l.metricLabel(spec.key);
     final series = downsampleMean(buildSeries(samples, spec.key), 40);
     final stats = statsFor(series);
-    final status = stats == null ? MetricStatus.normal : metricStatus(spec.key, stats.latest);
+    final status = stats == null
+        ? MetricStatus.normal
+        : metricStatus(spec.key, stats.latest);
     final danger = status == MetricStatus.danger;
     final abnormal = status != MetricStatus.normal;
     final value = stats == null ? '—' : _fmt(spec.key, stats.latest);
 
     return Semantics(
-      label: '$label: $value ${spec.unit}${abnormal ? l.t('db_outside_range') : ''}',
+      label:
+          '$label: $value ${spec.unit}${abnormal ? l.t('db_outside_range') : ''}',
       child: GlassCard(
         // The raised step now means "this one wants your attention", so only an
         // out-of-range reading gets it. Passing a colour unconditionally — which
@@ -480,8 +532,12 @@ class _MetricCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(label,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600)),
                 ),
                 if (stats != null) _trend(stats.trend),
               ],
@@ -504,10 +560,14 @@ class _MetricCard extends StatelessWidget {
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         height: 1,
-                        color: stats == null ? Palette.textDim : _statusColor(status),
+                        color: stats == null
+                            ? Palette.textDim
+                            : _statusColor(status),
                       )),
                   const SizedBox(width: 4),
-                  Text(spec.unit, style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+                  Text(spec.unit,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12)),
                 ],
               ),
             ),
@@ -536,7 +596,8 @@ class _MetricCard extends StatelessWidget {
     return Icon(icon, size: 16, color: color);
   }
 
-  String _fmt(String key, double v) => key == 'temp' ? v.toStringAsFixed(1) : v.round().toString();
+  String _fmt(String key, double v) =>
+      key == 'temp' ? v.toStringAsFixed(1) : v.round().toString();
 }
 
 /// Blood pressure, presented the way clinics do: systolic / diastolic together
@@ -555,8 +616,12 @@ class _BloodPressureCard extends StatelessWidget {
     final dia = statsFor(diaSeries);
     // Each number carries its own grade, so "138 / 77" can show the systolic in
     // amber while the diastolic stays green — the reader sees which one is off.
-    final sysStatus = sys == null ? MetricStatus.normal : metricStatus('systolic', sys.latest);
-    final diaStatus = dia == null ? MetricStatus.normal : metricStatus('diastolic', dia.latest);
+    final sysStatus = sys == null
+        ? MetricStatus.normal
+        : metricStatus('systolic', sys.latest);
+    final diaStatus = dia == null
+        ? MetricStatus.normal
+        : metricStatus('diastolic', dia.latest);
     final status = worstStatus([sysStatus, diaStatus]);
     final danger = status == MetricStatus.danger;
     final abnormal = status != MetricStatus.normal;
@@ -585,12 +650,17 @@ class _BloodPressureCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const _IconBadge(Icons.monitor_heart_rounded, LinearGradient(colors: [Palette.violet, Palette.pink])),
+                const _IconBadge(Icons.monitor_heart_rounded,
+                    LinearGradient(colors: [Palette.violet, Palette.pink])),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(l.t('metric_bp'),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600)),
                 ),
                 if (sys != null) _trendIcon(sys.trend),
               ],
@@ -603,26 +673,42 @@ class _BloodPressureCard extends StatelessWidget {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(sysV,
-                    style: TextStyle(
-                      fontFamily: 'JetBrainsMono', fontSize: 27, fontWeight: FontWeight.w700, height: 1,
-                      color: sys == null ? Palette.textDim : _statusColor(sysStatus),
-                    )),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 3),
-                  child: Text('/', style: TextStyle(color: Palette.textDim, fontSize: 22, fontWeight: FontWeight.w400)),
-                ),
-                Text(diaV,
-                    style: TextStyle(
-                      fontFamily: 'JetBrainsMono', fontSize: 27, fontWeight: FontWeight.w700, height: 1,
-                      color: dia == null ? Palette.textDim : _statusColor(diaStatus),
-                    )),
-                const SizedBox(width: 4),
-                Text(l.t('unit_mmhg'), style: const TextStyle(color: Palette.textDim, fontSize: 11)),
-              ],
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(sysV,
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 27,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        color: sys == null
+                            ? Palette.textDim
+                            : _statusColor(sysStatus),
+                      )),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 3),
+                    child: Text('/',
+                        style: TextStyle(
+                            color: Palette.textDim,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w400)),
+                  ),
+                  Text(diaV,
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 27,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        color: dia == null
+                            ? Palette.textDim
+                            : _statusColor(diaStatus),
+                      )),
+                  const SizedBox(width: 4),
+                  Text(l.t('unit_mmhg'),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 11)),
+                ],
               ),
             ),
             const SizedBox(height: 10),
@@ -631,7 +717,10 @@ class _BloodPressureCard extends StatelessWidget {
               child: Stack(
                 children: [
                   if (diaSeries.length >= 2)
-                    Sparkline(points: diaSeries, band: const MetricBand(), color: Palette.blue.withValues(alpha: 0.45)),
+                    Sparkline(
+                        points: diaSeries,
+                        band: const MetricBand(),
+                        color: Palette.blue.withValues(alpha: 0.45)),
                   Sparkline(
                     points: sysSeries,
                     band: bandFor('systolic'),
@@ -677,7 +766,10 @@ class _AdvisorEntry extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Palette.violet.withValues(alpha: 0.10), Palette.rose.withValues(alpha: 0.08)],
+              colors: [
+                Palette.violet.withValues(alpha: 0.10),
+                Palette.rose.withValues(alpha: 0.08)
+              ],
             ),
             border: Border.all(color: Palette.violet.withValues(alpha: 0.18)),
           ),
@@ -685,9 +777,12 @@ class _AdvisorEntry extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 42, height: 42,
-                decoration: const BoxDecoration(gradient: Palette.roseViolet, shape: BoxShape.circle),
-                child: const Icon(Icons.auto_awesome, color: Colors.white, size: 21),
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(
+                    gradient: Palette.roseViolet, shape: BoxShape.circle),
+                child: const Icon(Icons.auto_awesome,
+                    color: Colors.white, size: 21),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -695,19 +790,28 @@ class _AdvisorEntry extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(l.t('db_advisor_cta'),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Palette.text)),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Palette.text)),
                     const SizedBox(height: 2),
                     Text(l.t('db_advisor_sub'),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Palette.textDim, fontSize: 12.5)),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.12), shape: BoxShape.circle),
-                child: const Icon(Icons.arrow_forward_rounded, color: Palette.violet, size: 17),
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: Palette.violet.withValues(alpha: 0.12),
+                    shape: BoxShape.circle),
+                child: const Icon(Icons.arrow_forward_rounded,
+                    color: Palette.violet, size: 17),
               ),
             ],
           ),
@@ -739,7 +843,8 @@ class WearableDetailScreen extends StatelessWidget {
           children: [
             // Sleep now lives on the health home under the vital signs; this
             // screen is the watch's activity + wellbeing breakdown.
-            if (metrics case final m? when m.hasAnything) _ActivityWellnessCard(m: m),
+            if (metrics case final m? when m.hasAnything)
+              _ActivityWellnessCard(m: m),
           ],
         ),
       ),
@@ -763,7 +868,8 @@ class _WearableSummaryCard extends StatelessWidget {
     final w = m;
     if (w != null) {
       if (w.steps > 0) {
-        bits.add('${_ActivityWellnessCard._grouped(w.steps)} ${l.t('wm_steps').toLowerCase()}');
+        bits.add(
+            '${_ActivityWellnessCard._grouped(w.steps)} ${l.t('wm_steps').toLowerCase()}');
       } else if (w.kcal > 0) {
         bits.add('${w.kcal} ${l.t('wm_unit_kcal')}');
       }
@@ -782,13 +888,19 @@ class _WearableSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t('wm_title'),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Palette.text)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Palette.text)),
                 if (preview.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(preview,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5, color: Palette.textDim)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12.5, color: Palette.textDim)),
                 ],
               ],
             ),
@@ -821,11 +933,25 @@ class _ActivityWellnessCard extends StatelessWidget {
     // only when measured — an untracked glucose leaves no empty tile.
     final activity = <Widget>[
       if (m.steps > 0)
-        _StatTile(icon: Icons.directions_walk_rounded, colour: Palette.teal, label: l.t('wm_steps'), value: _grouped(m.steps)),
+        _StatTile(
+            icon: Icons.directions_walk_rounded,
+            colour: Palette.teal,
+            label: l.t('wm_steps'),
+            value: _grouped(m.steps)),
       if (m.meters > 0)
-        _StatTile(icon: Icons.straighten_rounded, colour: Palette.blue, label: l.t('wm_distance'), value: _num1(m.km), unit: l.t('wm_unit_km')),
+        _StatTile(
+            icon: Icons.straighten_rounded,
+            colour: Palette.blue,
+            label: l.t('wm_distance'),
+            value: _num1(m.km),
+            unit: l.t('wm_unit_km')),
       if (m.kcal > 0)
-        _StatTile(icon: Icons.local_fire_department_rounded, colour: Palette.watch, label: l.t('wm_calories'), value: '${m.kcal}', unit: l.t('wm_unit_kcal')),
+        _StatTile(
+            icon: Icons.local_fire_department_rounded,
+            colour: Palette.watch,
+            label: l.t('wm_calories'),
+            value: '${m.kcal}',
+            unit: l.t('wm_unit_kcal')),
     ];
     final wellbeing = <Widget>[
       if (m.stress != null)
@@ -834,7 +960,8 @@ class _ActivityWellnessCard extends StatelessWidget {
             colour: Palette.pink,
             label: l.t('wm_stress'),
             value: '${m.stress}',
-            valueColor: _statusColor(metricStatus('stress', m.stress!.toDouble()))),
+            valueColor:
+                _statusColor(metricStatus('stress', m.stress!.toDouble()))),
       if (m.breathRate != null)
         _StatTile(
             icon: Icons.air_rounded,
@@ -842,7 +969,8 @@ class _ActivityWellnessCard extends StatelessWidget {
             label: l.t('wm_breath'),
             value: '${m.breathRate}',
             unit: l.t('wm_unit_brpm'),
-            valueColor: _statusColor(metricStatus('breathRate', m.breathRate!.toDouble()))),
+            valueColor: _statusColor(
+                metricStatus('breathRate', m.breathRate!.toDouble()))),
       if (m.bloodSugar != null)
         _StatTile(
             icon: Icons.water_drop_rounded,
@@ -861,14 +989,19 @@ class _ActivityWellnessCard extends StatelessWidget {
           // repeated the group names below it ("Активность" / "Самочувствие").
           // The two labelled halves carry the module's identity on their own.
           _Group(label: l.t('wm_group_activity'), tiles: activity),
-          if (activity.isNotEmpty && wellbeing.isNotEmpty) const SizedBox(height: 16),
+          if (activity.isNotEmpty && wellbeing.isNotEmpty)
+            const SizedBox(height: 16),
           _Group(label: l.t('wm_group_wellbeing'), tiles: wellbeing),
           if (!m.worn) ...[
             const SizedBox(height: 14),
             Row(children: [
-              const Icon(Icons.watch_off_outlined, size: 14, color: Palette.textDim),
+              const Icon(Icons.watch_off_outlined,
+                  size: 14, color: Palette.textDim),
               const SizedBox(width: 6),
-              Expanded(child: Text(l.t('wm_off_wrist'), style: const TextStyle(color: Palette.textDim, fontSize: 11.5))),
+              Expanded(
+                  child: Text(l.t('wm_off_wrist'),
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 11.5))),
             ]),
           ],
         ],
@@ -876,7 +1009,8 @@ class _ActivityWellnessCard extends StatelessWidget {
     );
   }
 
-  static String _num1(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+  static String _num1(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
   static String _grouped(int n) {
     final s = n.toString();
     final b = StringBuffer();
@@ -897,7 +1031,11 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         text.toUpperCase(),
-        style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+        style: const TextStyle(
+            color: Palette.textDim,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6),
       );
 }
 
@@ -916,7 +1054,10 @@ class _Group extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(color: Palette.text, fontSize: 12.5, fontWeight: FontWeight.w700)),
+            style: const TextStyle(
+                color: Palette.text,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700)),
         const SizedBox(height: 9),
         LayoutBuilder(builder: (context, c) {
           const gap = 9.0;
@@ -943,10 +1084,17 @@ class _StatTile extends StatelessWidget {
   final String label;
   final String value;
   final String? unit;
+
   /// Colours the value when the reading carries a health grade (e.g. glucose).
   /// Null for neutral metrics like steps, where a colour would imply a judgement.
   final Color? valueColor;
-  const _StatTile({required this.icon, required this.colour, required this.label, required this.value, this.unit, this.valueColor});
+  const _StatTile(
+      {required this.icon,
+      required this.colour,
+      required this.label,
+      required this.value,
+      this.unit,
+      this.valueColor});
 
   @override
   Widget build(BuildContext context) {
@@ -995,7 +1143,9 @@ class _StatTile extends StatelessWidget {
                         color: valueColor ?? Ds.ink)),
                 if (unit != null) ...[
                   const SizedBox(width: 3),
-                  Text(unit!, style: const TextStyle(color: Palette.textDim, fontSize: 10.5)),
+                  Text(unit!,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 10.5)),
                 ],
               ],
             ),
@@ -1004,7 +1154,10 @@ class _StatTile extends StatelessWidget {
           Text(label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w600)),
+              style: const TextStyle(
+                  color: Palette.textDim,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -1028,11 +1181,13 @@ class _NotMeasuringChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.bluetooth_searching_rounded, size: 17, color: _tempA),
+          const Icon(Icons.bluetooth_searching_rounded,
+              size: 17, color: _tempA),
           const SizedBox(width: 10),
           Expanded(
             child: Text(l.t('db_not_measuring'),
-                style: const TextStyle(fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600)),
+                style: const TextStyle(
+                    fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1045,7 +1200,11 @@ class _StatusChip extends StatelessWidget {
   final bool pregnancy;
   final bool late;
   final VoidCallback onTap;
-  const _StatusChip({required this.label, required this.pregnancy, required this.onTap, this.late = false});
+  const _StatusChip(
+      {required this.label,
+      required this.pregnancy,
+      required this.onTap,
+      this.late = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1079,9 +1238,14 @@ class _StatusChip extends StatelessWidget {
               children: [
                 Icon(icon, size: 17, color: accent),
                 const SizedBox(width: 7),
-                Text(label, style: TextStyle(color: accent, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                Text(label,
+                    style: TextStyle(
+                        color: accent,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700)),
                 const SizedBox(width: 2),
-                Icon(Icons.chevron_right_rounded, size: 18, color: accent.withValues(alpha: 0.8)),
+                Icon(Icons.chevron_right_rounded,
+                    size: 18, color: accent.withValues(alpha: 0.8)),
               ],
             ),
           ),
@@ -1120,27 +1284,33 @@ class _RepeatReadingCard extends StatelessWidget {
         children: [
           Row(children: [
             Container(
-              width: 38, height: 38,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                 color: Palette.amber.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.replay_rounded, size: 20, color: Palette.amber),
+              child: const Icon(Icons.replay_rounded,
+                  size: 20, color: Palette.amber),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(l.t('repeat_title_$family'),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700)),
             ),
           ]),
           const SizedBox(height: 10),
           Text(l.t('repeat_body'),
-              style: const TextStyle(fontSize: 13.5, height: 1.4, color: Palette.textDim)),
+              style: const TextStyle(
+                  fontSize: 13.5, height: 1.4, color: Palette.textDim)),
           if (onLog != null) ...[
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(onPressed: onLog, child: Text(l.t('repeat_cta'))),
+              child: FilledButton(
+                  onPressed: onLog, child: Text(l.t('repeat_cta'))),
             ),
           ],
         ],
@@ -1179,17 +1349,30 @@ class _SetupCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 34, height: 34,
-                decoration: BoxDecoration(color: Palette.violet.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)),
-                child: const Icon(Icons.rocket_launch_rounded, size: 18, color: Palette.violet),
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    color: Palette.violet.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.rocket_launch_rounded,
+                    size: 18, color: Palette.violet),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(l.t('setup_title'),
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Palette.text)),
+                    style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Palette.text)),
               ),
               Text('${progress.done.length}/${progress.total}',
-                  style: const TextStyle(fontFamily: 'JetBrainsMono', color: Palette.violet, fontWeight: FontWeight.w700, fontSize: 13)),
+                  style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      color: Palette.violet,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13)),
             ],
           ),
           const SizedBox(height: 12),
@@ -1204,11 +1387,13 @@ class _SetupCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Row(children: [
-            const Icon(Icons.arrow_forward_rounded, size: 15, color: Palette.textDim),
+            const Icon(Icons.arrow_forward_rounded,
+                size: 15, color: Palette.textDim),
             const SizedBox(width: 6),
             Expanded(
               child: Text(l.t(_key(next)),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+                  style: const TextStyle(
+                      color: Palette.textDim, fontSize: 12.5, height: 1.3)),
             ),
           ]),
         ],
@@ -1223,7 +1408,8 @@ class _NextAppointmentCard extends StatelessWidget {
   final Appointment appt;
   final DateTime now;
   final VoidCallback? onTap;
-  const _NextAppointmentCard({required this.appt, required this.now, this.onTap});
+  const _NextAppointmentCard(
+      {required this.appt, required this.now, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1244,8 +1430,12 @@ class _NextAppointmentCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(13)),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(13)),
             child: Icon(Icons.event_rounded, color: accent, size: 22),
           ),
           const SizedBox(width: 14),
@@ -1254,21 +1444,36 @@ class _NextAppointmentCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t('appt_next').toUpperCase(),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                    style: const TextStyle(
+                        color: Palette.textDim,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6)),
                 const SizedBox(height: 3),
-                Text(appt.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Palette.text)),
+                Text(appt.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Palette.text)),
                 const SizedBox(height: 2),
                 Text('${ml.formatMediumDate(appt.at)} · $time',
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5)),
               ],
             ),
           ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-            decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-            child: Text(badge, style: TextStyle(color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(badge,
+                style: TextStyle(
+                    color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
           ),
         ],
       ),
@@ -1297,9 +1502,12 @@ class _AntenatalProtocolCard extends StatelessWidget {
     // talk, so keep the card and lead with the "visits complete" line.
     final line = lead == null
         ? l.t('an_term_title')
-        : (dueNow ? l.t('an_card_due', {'n': lead.number}) : l.t('an_card_next', {'n': lead.number}));
+        : (dueNow
+            ? l.t('an_card_due', {'n': lead.number})
+            : l.t('an_card_next', {'n': lead.number}));
     final accent = dueNow ? Palette.roseDeep : Palette.violet;
-    final badge = lead == null ? null : (dueNow ? l.t('an_due_now') : l.t('an_upcoming'));
+    final badge =
+        lead == null ? null : (dueNow ? l.t('an_due_now') : l.t('an_upcoming'));
     final window = lead == null
         ? null
         : l.t('an_weeks_range', {'from': lead.fromWeek, 'to': lead.toWeek});
@@ -1313,8 +1521,13 @@ class _AntenatalProtocolCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(13)),
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(13)),
                 child: Icon(Icons.event_note_rounded, color: accent, size: 22),
               ),
               const SizedBox(width: 14),
@@ -1323,13 +1536,24 @@ class _AntenatalProtocolCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(l.t('an_card_title').toUpperCase(),
-                        style: const TextStyle(color: Palette.textDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                        style: const TextStyle(
+                            color: Palette.textDim,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6)),
                     const SizedBox(height: 3),
-                    Text(line, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Palette.text)),
+                    Text(line,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Palette.text)),
                     if (window != null) ...[
                       const SizedBox(height: 2),
-                      Text(window, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                      Text(window,
+                          style: const TextStyle(
+                              color: Palette.textDim, fontSize: 12.5)),
                     ],
                   ],
                 ),
@@ -1337,9 +1561,18 @@ class _AntenatalProtocolCard extends StatelessWidget {
               const SizedBox(width: 8),
               if (badge != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                  decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-                  child: Text(badge, style: TextStyle(color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                  decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(badge,
+                      style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12)),
                 ),
             ],
           ),
@@ -1351,17 +1584,22 @@ class _AntenatalProtocolCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
               decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                 color: Palette.teal.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, size: 16, color: Palette.teal),
+                  const Icon(Icons.schedule_rounded,
+                      size: 16, color: Palette.teal),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '${l.t('an_win_open')}: ${openWindows.map((w) => l.t('an_item_${w.id}')).join(', ')}',
-                      style: const TextStyle(color: Palette.teal, fontSize: 12.5, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          color: Palette.teal,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -1385,7 +1623,8 @@ class _WeeklyDigestCard extends StatelessWidget {
     final l = L10nScope.of(context);
     // Through the localized formatter — hand-writing "h"/"m" here put English
     // units in a Russian sentence, the same defect found on the child screen.
-    final sleepLabel = digest.sleepNights == 0 ? '—' : l.duration(digest.avgSleepMin);
+    final sleepLabel =
+        digest.sleepNights == 0 ? '—' : l.duration(digest.avgSleepMin);
     return GlassCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1394,19 +1633,31 @@ class _WeeklyDigestCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(gradient: Palette.roseViolet, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.calendar_view_week_rounded, size: 17, color: Colors.white),
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    gradient: Palette.roseViolet,
+                    borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.calendar_view_week_rounded,
+                    size: 17, color: Colors.white),
               ),
               const SizedBox(width: 10),
               Text(l.t('db_week_title'),
-                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Palette.text)),
+                  style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: Palette.text)),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              _DigestStat(value: '${digest.daysLogged}', label: l.t('db_week_logged'), color: Palette.violet),
+              _DigestStat(
+                  value: '${digest.daysLogged}',
+                  label: l.t('db_week_logged'),
+                  color: Palette.violet),
               _digestDivider(),
               _DigestStat(
                 value: '${digest.waterGlasses}',
@@ -1414,7 +1665,10 @@ class _WeeklyDigestCard extends StatelessWidget {
                 color: Palette.blue,
               ),
               _digestDivider(),
-              _DigestStat(value: sleepLabel, label: l.t('db_week_sleep'), color: Palette.teal),
+              _DigestStat(
+                  value: sleepLabel,
+                  label: l.t('db_week_sleep'),
+                  color: Palette.teal),
             ],
           ),
         ],
@@ -1422,14 +1676,16 @@ class _WeeklyDigestCard extends StatelessWidget {
     );
   }
 
-  Widget _digestDivider() => Container(width: 1, height: 34, color: Palette.border);
+  Widget _digestDivider() =>
+      Container(width: 1, height: 34, color: Palette.border);
 }
 
 class _DigestStat extends StatelessWidget {
   final String value;
   final String label;
   final Color color;
-  const _DigestStat({required this.value, required this.label, required this.color});
+  const _DigestStat(
+      {required this.value, required this.label, required this.color});
   @override
   Widget build(BuildContext context) => Expanded(
         child: Column(
@@ -1450,7 +1706,10 @@ class _DigestStat extends StatelessWidget {
                       color: color)),
             ),
             const SizedBox(height: 3),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11, height: 1.2)),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 11, height: 1.2)),
           ],
         ),
       );
@@ -1465,7 +1724,8 @@ class _IconBadge extends StatelessWidget {
   // is still in the signature because every metric spec carries one; only its
   // first stop is used, since the design system has no gradients.
   Widget build(BuildContext context) => Container(
-        width: 30, height: 30,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
           color: gradient.colors.isEmpty ? Ds.coralCta : gradient.colors.first,
           borderRadius: BorderRadius.circular(10),
@@ -1479,7 +1739,8 @@ class _AvatarButton extends StatelessWidget {
   final String name;
   final String? photoPath;
   final VoidCallback onTap;
-  const _AvatarButton({required this.name, required this.onTap, this.photoPath});
+  const _AvatarButton(
+      {required this.name, required this.onTap, this.photoPath});
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -1509,16 +1770,23 @@ class _EmptyState extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 64, height: 64,
-                decoration: const BoxDecoration(gradient: Palette.violetPink, shape: BoxShape.circle),
-                child: const Icon(Icons.watch_outlined, size: 30, color: Colors.white),
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                    gradient: Palette.violetPink, shape: BoxShape.circle),
+                child: const Icon(Icons.watch_outlined,
+                    size: 30, color: Colors.white),
               ),
               const SizedBox(height: 16),
               Text(l.t('db_empty_title'),
-                  style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: Palette.text)),
+                  style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: Palette.text)),
               const SizedBox(height: 8),
               Text(l.t('db_empty_body'),
-                  textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Palette.textDim, height: 1.4)),
               // Without a band this is the only way in — so offer it here
               // rather than leaving the screen a dead end.
               if (onLogVitals != null) ...[
@@ -1529,7 +1797,8 @@ class _EmptyState extends StatelessWidget {
                   label: Text(l.t('vitals_log')),
                   style: FilledButton.styleFrom(
                     backgroundColor: Palette.violet,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
                   ),
                 ),
               ],

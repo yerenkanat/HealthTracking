@@ -91,7 +91,8 @@ class ChildMapScreen extends StatelessWidget {
       fences: fences,
       now: now,
     );
-    final showSelector = childOptions.length > 1 || (childOptions.isNotEmpty && onAddChild != null);
+    final showSelector = childOptions.length > 1 ||
+        (childOptions.isNotEmpty && onAddChild != null);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -126,7 +127,9 @@ class ChildMapScreen extends StatelessWidget {
               )),
             ),
           ),
-          if (onAddChild != null || onAddDevice != null || onManageZones != null)
+          if (onAddChild != null ||
+              onAddDevice != null ||
+              onManageZones != null)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: _FloatingActionChip(
@@ -139,20 +142,32 @@ class ChildMapScreen extends StatelessWidget {
                 },
                 items: [
                   if (onAddChild != null)
-                    PopupMenuItem(value: 'child', child: Row(children: [
-                      const Icon(Icons.child_care, size: 18, color: Palette.textDim),
-                      const SizedBox(width: 10), Text(l.t('tr_add_child')),
-                    ])),
+                    PopupMenuItem(
+                        value: 'child',
+                        child: Row(children: [
+                          const Icon(Icons.child_care,
+                              size: 18, color: Palette.textDim),
+                          const SizedBox(width: 10),
+                          Text(l.t('tr_add_child')),
+                        ])),
                   if (onAddDevice != null)
-                    PopupMenuItem(value: 'device', child: Row(children: [
-                      const Icon(Icons.watch, size: 18, color: Palette.textDim),
-                      const SizedBox(width: 10), Text(l.t('tr_add_device')),
-                    ])),
+                    PopupMenuItem(
+                        value: 'device',
+                        child: Row(children: [
+                          const Icon(Icons.watch,
+                              size: 18, color: Palette.textDim),
+                          const SizedBox(width: 10),
+                          Text(l.t('tr_add_device')),
+                        ])),
                   if (onManageZones != null)
-                    PopupMenuItem(value: 'zones', child: Row(children: [
-                      const Icon(Icons.add_location_alt_outlined, size: 18, color: Palette.textDim),
-                      const SizedBox(width: 10), Text(l.t('tr_manage_zones')),
-                    ])),
+                    PopupMenuItem(
+                        value: 'zones',
+                        child: Row(children: [
+                          const Icon(Icons.add_location_alt_outlined,
+                              size: 18, color: Palette.textDim),
+                          const SizedBox(width: 10),
+                          Text(l.t('tr_manage_zones')),
+                        ])),
                 ],
               ),
             ),
@@ -165,7 +180,9 @@ class ChildMapScreen extends StatelessWidget {
 
           // Floating top layer: child selector + geofence zone pills.
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: SafeArea(
               bottom: false,
               child: Padding(
@@ -189,7 +206,9 @@ class ChildMapScreen extends StatelessWidget {
 
           // Floating bottom layer: check-in / SOS actions + polished status card.
           Positioned(
-            left: 12, right: 12, bottom: 12,
+            left: 12,
+            right: 12,
+            bottom: 12,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -203,8 +222,12 @@ class ChildMapScreen extends StatelessWidget {
                 MinimalTrackingStatusBar(
                   freshness: status.freshness,
                   headline: l.trackingHeadline(status, childName, now),
-                  zoneLabel: status.currentZone == null ? null : l.t('tr_inside_zone', {'zone': status.currentZone}),
-                  distanceLabel: status.distanceFromHomeM == null ? null : l.distanceFromHome(status.distanceFromHomeM!),
+                  zoneLabel: status.currentZone == null
+                      ? null
+                      : l.t('tr_inside_zone', {'zone': status.currentZone}),
+                  distanceLabel: status.distanceFromHomeM == null
+                      ? null
+                      : l.distanceFromHome(status.distanceFromHomeM!),
                   freshnessLabel: l.freshnessLabel(status.freshness),
                   batteryPct: batteryPct,
                   batteryHistory: batteryHistory,
@@ -235,7 +258,10 @@ class ChildMapScreen extends StatelessWidget {
     if (!ok || !context.mounted) return;
     onSos?.call();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.t('sos_sent')), behavior: SnackBarBehavior.floating, backgroundColor: Palette.danger),
+      SnackBar(
+          content: Text(l.t('sos_sent')),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Palette.danger),
     );
   }
 }
@@ -262,7 +288,9 @@ class _ChildActionRow extends StatelessWidget {
               onTap: () {
                 onCheckIn!();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l.t('child_checkin_done')), behavior: SnackBarBehavior.floating),
+                  SnackBar(
+                      content: Text(l.t('child_checkin_done')),
+                      behavior: SnackBarBehavior.floating),
                 );
               },
             ),
@@ -289,7 +317,12 @@ class _ActionButton extends StatelessWidget {
   final Color foreground;
   final bool filled;
   final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.label, required this.foreground, required this.filled, required this.onTap});
+  const _ActionButton(
+      {required this.icon,
+      required this.label,
+      required this.foreground,
+      required this.filled,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +338,9 @@ class _ActionButton extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: filled ? null : Border.all(color: Ds.ink, width: DsShape.borderWidth),
+            border: filled
+                ? null
+                : Border.all(color: Ds.ink, width: DsShape.borderWidth),
             boxShadow: [
               ...DsShape.hardShadow,
             ],
@@ -315,7 +350,11 @@ class _ActionButton extends StatelessWidget {
             children: [
               Icon(icon, size: 20, color: foreground),
               const SizedBox(width: 8),
-              Text(label, style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(label,
+                  style: TextStyle(
+                      color: foreground,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15)),
             ],
           ),
         ),
@@ -394,8 +433,10 @@ class MinimalTrackingStatusBar extends StatelessWidget {
             children: [
               // Freshness badge — colored, soft-tinted, with an icon + label.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                 decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                   color: _accent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(30),
                 ),
@@ -403,30 +444,43 @@ class MinimalTrackingStatusBar extends StatelessWidget {
                   Icon(_icon, size: 14, color: _accent),
                   const SizedBox(width: 6),
                   Text(freshnessLabel,
-                      style: TextStyle(color: _accent, fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: TextStyle(
+                          color: _accent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13)),
                 ]),
               ),
               if (batteryPct != null) ...[
                 const SizedBox(width: 8),
-                _BatteryChip(pct: batteryPct!, history: batteryHistory, now: now ?? DateTime.now()),
+                _BatteryChip(
+                    pct: batteryPct!,
+                    history: batteryHistory,
+                    now: now ?? DateTime.now()),
               ],
               const Spacer(),
               if (distanceLabel != null)
-                Text(distanceLabel!, style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+                Text(distanceLabel!,
+                    style:
+                        const TextStyle(color: Palette.textDim, fontSize: 13)),
             ],
           ),
           const SizedBox(height: 12),
           Semantics(
             liveRegion: true,
             child: Text(headline,
-                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, height: 1.25)),
+                style: const TextStyle(
+                    fontSize: 19, fontWeight: FontWeight.w700, height: 1.25)),
           ),
           if (hint != null) ...[
             const SizedBox(height: 6),
             Row(children: [
-              const Icon(Icons.info_outline_rounded, size: 15, color: Palette.textDim),
+              const Icon(Icons.info_outline_rounded,
+                  size: 15, color: Palette.textDim),
               const SizedBox(width: 6),
-              Expanded(child: Text(hint!, style: const TextStyle(color: Palette.textDim, fontSize: 13, height: 1.35))),
+              Expanded(
+                  child: Text(hint!,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 13, height: 1.35))),
             ]),
           ],
           if (zoneLabel != null) ...[
@@ -434,16 +488,28 @@ class MinimalTrackingStatusBar extends StatelessWidget {
             Row(children: [
               Icon(Icons.place_rounded, size: 16, color: _accent),
               const SizedBox(width: 5),
-              Expanded(child: Text(zoneLabel!, style: const TextStyle(color: Palette.textDim, fontSize: 13.5))),
+              Expanded(
+                  child: Text(zoneLabel!,
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 13.5))),
               if (_dwellLabel(context) != null) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(color: _accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                      color: _accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.schedule_rounded, size: 12, color: _accent),
                     const SizedBox(width: 4),
-                    Text(_dwellLabel(context)!, style: TextStyle(color: _accent, fontWeight: FontWeight.w700, fontSize: 12)),
+                    Text(_dwellLabel(context)!,
+                        style: TextStyle(
+                            color: _accent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12)),
                   ]),
                 ),
               ],
@@ -455,10 +521,14 @@ class MinimalTrackingStatusBar extends StatelessWidget {
               final l = L10nScope.of(context);
               final age = now!.difference(lastCheckInAt!);
               return Row(children: [
-                const Icon(Icons.how_to_reg_rounded, size: 16, color: Palette.blue),
+                const Icon(Icons.how_to_reg_rounded,
+                    size: 16, color: Palette.blue),
                 const SizedBox(width: 5),
-                Text(l.t('tr_last_checkin', {'ago': l.ago(age.isNegative ? Duration.zero : age)}),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+                Text(
+                    l.t('tr_last_checkin',
+                        {'ago': l.ago(age.isNegative ? Duration.zero : age)}),
+                    style:
+                        const TextStyle(color: Palette.textDim, fontSize: 13)),
               ]);
             }),
           ],
@@ -486,7 +556,8 @@ class _BatteryChip extends StatelessWidget {
   final int pct;
   final List<BatteryReading> history;
   final DateTime now;
-  const _BatteryChip({required this.pct, this.history = const [], required this.now});
+  const _BatteryChip(
+      {required this.pct, this.history = const [], required this.now});
 
   @override
   Widget build(BuildContext context) {
@@ -504,11 +575,16 @@ class _BatteryChip extends StatelessWidget {
       button: tappable,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(30)),
+        decoration: BoxDecoration(
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(30)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 5),
-          Text('$pct%', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+          Text('$pct%',
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w700, fontSize: 13)),
           if (tappable) ...[
             const SizedBox(width: 3),
             Icon(Icons.expand_more_rounded, size: 14, color: color),
@@ -529,7 +605,8 @@ class _BatteryChip extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Palette.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
       builder: (ctx) {
         final recent = history.reversed.toList(); // newest-first for display
         return Padding(
@@ -540,25 +617,34 @@ class _BatteryChip extends StatelessWidget {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: Palette.border, borderRadius: BorderRadius.circular(2)),
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: Palette.border,
+                      borderRadius: BorderRadius.circular(2)),
                 ),
               ),
-              Text(l.t('bat_history_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+              Text(l.t('bat_history_title'),
+                  style: const TextStyle(
+                      fontSize: 19, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(
                 change == 0
                     ? l.t('bat_change_flat')
-                    : l.t(change < 0 ? 'bat_change_down' : 'bat_change_up', {'n': change.abs()}),
+                    : l.t(change < 0 ? 'bat_change_down' : 'bat_change_up',
+                        {'n': change.abs()}),
                 style: const TextStyle(color: Palette.textDim, fontSize: 13),
               ),
               const SizedBox(height: 14),
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.4),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.4),
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: recent.length,
-                  separatorBuilder: (_, __) => const Divider(height: 14, color: Palette.border),
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 14, color: Palette.border),
                   itemBuilder: (_, i) {
                     final r = recent[i];
                     final level = batteryLevel(r.pct);
@@ -573,9 +659,16 @@ class _BatteryChip extends StatelessWidget {
                       children: [
                         Icon(Icons.circle, size: 10, color: color),
                         const SizedBox(width: 12),
-                        Text('${r.pct}%', style: TextStyle(fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w700, color: color, fontSize: 15)),
+                        Text('${r.pct}%',
+                            style: TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontWeight: FontWeight.w700,
+                                color: color,
+                                fontSize: 15)),
                         const Spacer(),
-                        Text(l.ago(age.isNegative ? Duration.zero : age), style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                        Text(l.ago(age.isNegative ? Duration.zero : age),
+                            style: const TextStyle(
+                                color: Palette.textDim, fontSize: 12.5)),
                       ],
                     );
                   },
@@ -601,8 +694,10 @@ class _ZonePills extends StatelessWidget {
 
   IconData _iconFor(String name) {
     final n = name.toLowerCase();
-    if (n.contains('home') || n.contains('дом') || n.contains('үй')) return Icons.home_rounded;
-    if (n.contains('school') || n.contains('школ') || n.contains('мектеп')) return Icons.school_rounded;
+    if (n.contains('home') || n.contains('дом') || n.contains('үй'))
+      return Icons.home_rounded;
+    if (n.contains('school') || n.contains('школ') || n.contains('мектеп'))
+      return Icons.school_rounded;
     return Icons.place_rounded;
   }
 
@@ -617,7 +712,8 @@ class _ZonePills extends StatelessWidget {
           for (final f in fences)
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: _ZonePill(name: f.name, icon: _iconFor(f.name), active: _isInside(f)),
+              child: _ZonePill(
+                  name: f.name, icon: _iconFor(f.name), active: _isInside(f)),
             ),
         ],
       ),
@@ -629,7 +725,8 @@ class _ZonePill extends StatelessWidget {
   final String name;
   final IconData icon;
   final bool active;
-  const _ZonePill({required this.name, required this.icon, required this.active});
+  const _ZonePill(
+      {required this.name, required this.icon, required this.active});
 
   @override
   Widget build(BuildContext context) {
@@ -638,7 +735,9 @@ class _ZonePill extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.bgElevated,
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: active ? Palette.good.withValues(alpha: 0.5) : Palette.border),
+        border: Border.all(
+            color:
+                active ? Palette.good.withValues(alpha: 0.5) : Palette.border),
         boxShadow: [
           ...DsShape.hardShadow,
         ],
@@ -646,10 +745,18 @@ class _ZonePill extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 16, color: active ? Palette.good : Palette.textDim),
         const SizedBox(width: 7),
-        Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5, color: active ? Palette.text : Palette.textDim)),
+        Text(name,
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+                color: active ? Palette.text : Palette.textDim)),
         if (active) ...[
           const SizedBox(width: 7),
-          Container(width: 8, height: 8, decoration: const BoxDecoration(color: Palette.good, shape: BoxShape.circle)),
+          Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                  color: Palette.good, shape: BoxShape.circle)),
         ],
       ]),
     );
@@ -660,7 +767,8 @@ class _ChildSelector extends StatelessWidget {
   final List<ChildOption> options;
   final String? selectedId;
   final void Function(String id)? onSelect;
-  const _ChildSelector({required this.options, required this.selectedId, this.onSelect});
+  const _ChildSelector(
+      {required this.options, required this.selectedId, this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -689,7 +797,8 @@ class _SelectorChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _SelectorChip({required this.label, required this.selected, required this.onTap});
+  const _SelectorChip(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -704,7 +813,9 @@ class _SelectorChip extends StatelessWidget {
             gradient: selected ? Palette.roseViolet : null,
             color: selected ? null : Palette.bgElevated,
             borderRadius: BorderRadius.circular(30),
-            border: selected ? null : Border.all(color: Ds.ink, width: DsShape.borderWidth),
+            border: selected
+                ? null
+                : Border.all(color: Ds.ink, width: DsShape.borderWidth),
             boxShadow: [
               ...DsShape.hardShadow,
             ],
@@ -729,13 +840,16 @@ class _FloatingTitle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         color: Palette.bgElevated,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           ...DsShape.hardShadow,
         ],
       ),
-      child: Text(text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Palette.text)),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 17, fontWeight: FontWeight.w700, color: Palette.text)),
     );
   }
 }
@@ -745,7 +859,11 @@ class _FloatingIconButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onTap;
   final int badgeCount;
-  const _FloatingIconButton({required this.icon, required this.tooltip, required this.onTap, this.badgeCount = 0});
+  const _FloatingIconButton(
+      {required this.icon,
+      required this.tooltip,
+      required this.onTap,
+      this.badgeCount = 0});
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -767,7 +885,8 @@ class _FloatingIconButton extends StatelessWidget {
         ),
         if (badgeCount > 0)
           Positioned(
-            right: 2, top: 2,
+            right: 2,
+            top: 2,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
@@ -778,7 +897,10 @@ class _FloatingIconButton extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Text(badgeCount > 9 ? '9+' : '$badgeCount',
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700)),
             ),
           ),
       ],
@@ -791,7 +913,11 @@ class _FloatingActionChip extends StatelessWidget {
   final String tooltip;
   final void Function(String) onSelected;
   final List<PopupMenuEntry<String>> items;
-  const _FloatingActionChip({required this.icon, required this.tooltip, required this.onSelected, required this.items});
+  const _FloatingActionChip(
+      {required this.icon,
+      required this.tooltip,
+      required this.onSelected,
+      required this.items});
   @override
   Widget build(BuildContext context) {
     return Container(

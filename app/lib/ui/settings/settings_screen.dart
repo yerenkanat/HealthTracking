@@ -49,14 +49,16 @@ class SettingsScreen extends StatelessWidget {
               if (c.isSignedIn)
                 _Row(
                   leading: Icons.verified_user_outlined,
-                  title: l.t('auth_signed_in_as', {'phone': c.authSession!.phoneE164}),
+                  title: l.t(
+                      'auth_signed_in_as', {'phone': c.authSession!.phoneE164}),
                   subtitle: l.t('auth_sign_out'),
                   titleColor: Palette.teal,
                   onTap: () async {
                     final ok = await confirmDestructive(
                       context,
                       title: l.t('auth_sign_out'),
-                      message: l.t('auth_signed_in_as', {'phone': c.authSession!.phoneE164}),
+                      message: l.t('auth_signed_in_as',
+                          {'phone': c.authSession!.phoneE164}),
                       confirmLabel: l.t('auth_sign_out'),
                     );
                     if (ok) c.signOut();
@@ -66,7 +68,8 @@ class SettingsScreen extends StatelessWidget {
                 _Row(
                   leading: Icons.login_rounded,
                   title: l.t('auth_sign_in_cta'),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                  trailing: const Icon(Icons.chevron_right_rounded,
+                      color: Palette.textDim),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => SignInScreen(
                       provider: const StubPhoneAuthProvider(now: DateTime.now),
@@ -88,11 +91,13 @@ class SettingsScreen extends StatelessWidget {
               ])
                 _Row(
                   leading: Icons.translate,
-                  leadingWidget: _LangBadge(code: code, selected: c.locale == loc),
+                  leadingWidget:
+                      _LangBadge(code: code, selected: c.locale == loc),
                   title: name,
                   trailing: c.locale == loc
                       ? const Icon(Icons.check_circle, color: Palette.violet)
-                      : const Icon(Icons.circle_outlined, color: Palette.border),
+                      : const Icon(Icons.circle_outlined,
+                          color: Palette.border),
                   onTap: () => c.setLocale(loc),
                 ),
             ]),
@@ -100,33 +105,40 @@ class SettingsScreen extends StatelessWidget {
             // ---- Children ----
             _Section(
               title: l.t('set_children'),
-              action: _AddButton(label: l.t('tr_add_child'), onTap: () => showAddChildSheet(context, c)),
+              action: _AddButton(
+                  label: l.t('tr_add_child'),
+                  onTap: () => showAddChildSheet(context, c)),
               children: [
                 for (final child in c.children)
                   _Row(
                     leading: Icons.child_care,
                     leadingWidget: PhotoAvatar(
-                      photoPath: child.photoPath, name: child.name, size: 34,
-                      fallbackIcon: child.gender == Gender.boy
-                          ? Icons.boy
-                          : child.gender == Gender.girl
-                              ? Icons.girl
-                              : Icons.child_care),
+                        photoPath: child.photoPath,
+                        name: child.name,
+                        size: 34,
+                        fallbackIcon: child.gender == Gender.boy
+                            ? Icons.boy
+                            : child.gender == Gender.girl
+                                ? Icons.girl
+                                : Icons.child_care),
                     title: child.name,
                     subtitle: _childSubtitle(l, child),
                     // Row opens the child's overview; editing lives in there, so
                     // each destination has exactly one entry point.
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ChildDetailScreen(controller: c, childId: child.id),
+                      builder: (_) =>
+                          ChildDetailScreen(controller: c, childId: child.id),
                     )),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Palette.textDim),
+                      icon: const Icon(Icons.delete_outline,
+                          color: Palette.textDim),
                       tooltip: l.t('act_remove'),
                       onPressed: () async {
                         final ok = await confirmDestructive(
                           context,
                           title: l.t('confirm_remove_child_title'),
-                          message: l.t('confirm_remove_child_body', {'name': child.name}),
+                          message: l.t('confirm_remove_child_body',
+                              {'name': child.name}),
                           confirmLabel: l.t('act_remove'),
                         );
                         if (ok) c.removeChild(child.id);
@@ -139,23 +151,33 @@ class SettingsScreen extends StatelessWidget {
             // ---- Devices ----
             _Section(
               title: l.t('set_devices'),
-              action: _AddButton(label: l.t('tr_add_device'), onTap: () => showAddDeviceSheet(context, c)),
+              action: _AddButton(
+                  label: l.t('tr_add_device'),
+                  onTap: () => showAddDeviceSheet(context, c)),
               children: c.devices.isEmpty
-                  ? [_Row(leading: Icons.watch_off_outlined, title: l.t('set_no_devices'))]
+                  ? [
+                      _Row(
+                          leading: Icons.watch_off_outlined,
+                          title: l.t('set_no_devices'))
+                    ]
                   : [
                       for (final d in c.devices)
                         _Row(
-                          leading: d.kind == DeviceKind.band ? Icons.watch : Icons.sensors,
+                          leading: d.kind == DeviceKind.band
+                              ? Icons.watch
+                              : Icons.sensors,
                           title: d.name,
                           subtitle: _deviceSubtitle(l, c, d),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Palette.textDim),
+                            icon: const Icon(Icons.delete_outline,
+                                color: Palette.textDim),
                             tooltip: l.t('act_remove'),
                             onPressed: () async {
                               final ok = await confirmDestructive(
                                 context,
                                 title: l.t('confirm_remove_device_title'),
-                                message: l.t('confirm_remove_device_body', {'name': d.name}),
+                                message: l.t('confirm_remove_device_body',
+                                    {'name': d.name}),
                                 confirmLabel: l.t('act_remove'),
                               );
                               if (ok) c.removeDevice(d.id);
@@ -194,7 +216,8 @@ class SettingsScreen extends StatelessWidget {
                     water: c.waterReminderMinutes != null,
                   )
                 }),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => RemindersCenterScreen(controller: c),
                 )),
@@ -205,9 +228,15 @@ class SettingsScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 18, 6, 8),
               child: Text(l.t('set_bp_calibration').toUpperCase(),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                  style: const TextStyle(
+                      color: Palette.textDim,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6)),
             ),
-            _CalibrateCta(status: _calStatus(l, c), onTap: () => showCalibrateBpSheet(context, c)),
+            _CalibrateCta(
+                status: _calStatus(l, c),
+                onTap: () => showCalibrateBpSheet(context, c)),
 
             // ---- Data ----
             _Section(title: l.t('set_data'), children: [
@@ -215,7 +244,8 @@ class SettingsScreen extends StatelessWidget {
                 leading: Icons.insights_rounded,
                 title: l.t('journey_title'),
                 subtitle: l.t('journey_sub'),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => JourneyScreen(controller: c),
                 )),
@@ -224,16 +254,20 @@ class SettingsScreen extends StatelessWidget {
                 leading: Icons.download_rounded,
                 title: l.t('set_export'),
                 subtitle: _backupSubtitle(l, c),
-                trailing: shouldNudgeBackup(backupFreshness(c.lastExportAt, DateTime.now()))
-                    ? const Icon(Icons.error_outline_rounded, color: Palette.amber)
-                    : const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                trailing: shouldNudgeBackup(
+                        backupFreshness(c.lastExportAt, DateTime.now()))
+                    ? const Icon(Icons.error_outline_rounded,
+                        color: Palette.amber)
+                    : const Icon(Icons.chevron_right_rounded,
+                        color: Palette.textDim),
                 onTap: () => _openExport(context, c),
               ),
               _Row(
                 leading: Icons.upload_rounded,
                 title: l.t('set_import'),
                 subtitle: l.t('set_import_sub'),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: Palette.textDim),
                 onTap: () => _openImport(context, c),
               ),
               // Erase everything. This app holds a child's name, date of birth
@@ -252,19 +286,25 @@ class SettingsScreen extends StatelessWidget {
 
             // ---- About ----
             _Section(title: l.t('set_about'), children: [
-              _Row(leading: Icons.info_outline, title: 'Umay', subtitle: l.t('set_about_body')),
+              _Row(
+                  leading: Icons.info_outline,
+                  title: 'Umay',
+                  subtitle: l.t('set_about_body')),
               _Row(
                 leading: Icons.help_outline_rounded,
                 title: l.t('set_help'),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => HelpSupportScreen(diagnostics: 'locale ${c.locale.name}'),
+                  builder: (_) =>
+                      HelpSupportScreen(diagnostics: 'locale ${c.locale.name}'),
                 )),
               ),
               _Row(
                 leading: Icons.privacy_tip_outlined,
                 title: l.t('set_privacy'),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const LegalScreen(doc: LegalDoc.privacy),
                 )),
@@ -272,12 +312,17 @@ class SettingsScreen extends StatelessWidget {
               _Row(
                 leading: Icons.description_outlined,
                 title: l.t('set_terms'),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const LegalScreen(doc: LegalDoc.terms),
                 )),
               ),
-              _Row(leading: Icons.tag, title: l.t('set_version'), trailing: const Text('0.1.0', style: TextStyle(color: Palette.textDim))),
+              _Row(
+                  leading: Icons.tag,
+                  title: l.t('set_version'),
+                  trailing: const Text('0.1.0',
+                      style: TextStyle(color: Palette.textDim))),
             ]),
           ],
         ),
@@ -298,19 +343,29 @@ class SettingsScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l.t('set_export_hint'), style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+              Text(l.t('set_export_hint'),
+                  style: const TextStyle(color: Palette.textDim, fontSize: 13)),
               const SizedBox(height: 12),
               // Bounded scroll area — a Flexible in a min-height Column can fail to
               // lay out; a ConstrainedBox sized to the screen keeps the dialog from
               // overflowing on short screens while staying generous on tall ones.
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4),
                 child: Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(12), border: Border.all(color: Ds.ink, width: DsShape.borderWidth)),
+                  decoration: BoxDecoration(
+                      color: Palette.glass,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: Ds.ink, width: DsShape.borderWidth)),
                   child: SingleChildScrollView(
                     child: SelectableText(json,
-                        style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11.5, height: 1.35, color: Palette.text)),
+                        style: const TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 11.5,
+                            height: 1.35,
+                            color: Palette.text)),
                   ),
                 ),
               ),
@@ -318,7 +373,9 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogCtx).pop(), child: Text(l.t('act_cancel'))),
+          TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: Text(l.t('act_cancel'))),
           FilledButton.icon(
             // Saves to a file and opens the system share sheet, instead of
             // putting the backup on the clipboard.
@@ -351,7 +408,8 @@ class SettingsScreen extends StatelessWidget {
   ///
   /// Failure is reported. A silent catch here would leave her believing a
   /// backup exists, which is worse than knowing none does.
-  Future<void> _saveExport(BuildContext context, BuildContext dialogCtx, String json) async {
+  Future<void> _saveExport(
+      BuildContext context, BuildContext dialogCtx, String json) async {
     final l = L10nScope.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -376,7 +434,9 @@ class SettingsScreen extends StatelessWidget {
     } catch (_) {
       if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
       messenger.showSnackBar(
-        SnackBar(content: Text(l.t('set_export_failed')), behavior: SnackBarBehavior.floating),
+        SnackBar(
+            content: Text(l.t('set_export_failed')),
+            behavior: SnackBarBehavior.floating),
       );
     }
   }
@@ -404,7 +464,8 @@ class SettingsScreen extends StatelessWidget {
     // would be the same false promise this whole change exists to remove.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(l.t(serverErased ? 'set_erased' : 'set_erased_local_only')),
+        content:
+            Text(l.t(serverErased ? 'set_erased' : 'set_erased_local_only')),
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: serverErased ? 4 : 8),
       ),
@@ -482,7 +543,8 @@ class SettingsScreen extends StatelessWidget {
     final kindLabel = l.t(d.kind == DeviceKind.band ? 'dev_band' : 'dev_tag');
     if (d.kind == DeviceKind.tag && d.childId != null) {
       for (final ch in c.children) {
-        if (ch.id == d.childId) return '${l.t('dev_linked_to', {'name': ch.name})} · ${d.id}';
+        if (ch.id == d.childId)
+          return '${l.t('dev_linked_to', {'name': ch.name})} · ${d.id}';
       }
     }
     return '$kindLabel · ${d.id}';
@@ -493,7 +555,6 @@ class SettingsScreen extends StatelessWidget {
     if (!child.hasDateOfBirth) return zones;
     return '${l.childAge(child.ageInMonths(DateTime.now()))} · $zones';
   }
-
 }
 
 /// Paste-a-backup dialog: a text field for the exported JSON, a clear warning
@@ -529,11 +590,20 @@ class _ImportDialogState extends State<_ImportDialog> {
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Palette.danger.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: Palette.danger.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10)),
               child: Row(children: [
-                const Icon(Icons.warning_amber_rounded, color: Palette.danger, size: 18),
+                const Icon(Icons.warning_amber_rounded,
+                    color: Palette.danger, size: 18),
                 const SizedBox(width: 8),
-                Expanded(child: Text(l.t('set_import_warn'), style: const TextStyle(color: Palette.danger, fontSize: 12.5, height: 1.3))),
+                Expanded(
+                    child: Text(l.t('set_import_warn'),
+                        style: const TextStyle(
+                            color: Palette.danger,
+                            fontSize: 12.5,
+                            height: 1.3))),
               ]),
             ),
             const SizedBox(height: 12),
@@ -545,7 +615,8 @@ class _ImportDialogState extends State<_ImportDialog> {
                 maxLines: null,
                 minLines: null,
                 textAlignVertical: TextAlignVertical.top,
-                style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12),
+                style:
+                    const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12),
                 decoration: InputDecoration(
                   hintText: l.t('set_import_hint'),
                   alignLabelWithHint: true,
@@ -558,9 +629,13 @@ class _ImportDialogState extends State<_ImportDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l.t('act_cancel'))),
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l.t('act_cancel'))),
         FilledButton(
-          onPressed: hasText ? () => Navigator.of(context).pop(_controller.text) : null,
+          onPressed: hasText
+              ? () => Navigator.of(context).pop(_controller.text)
+              : null,
           style: FilledButton.styleFrom(backgroundColor: Palette.danger),
           child: Text(l.t('set_import_apply')),
         ),
@@ -595,7 +670,10 @@ class _CalibrateCta extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Palette.violet.withValues(alpha: 0.10), Palette.pink.withValues(alpha: 0.07)],
+                colors: [
+                  Palette.violet.withValues(alpha: 0.10),
+                  Palette.pink.withValues(alpha: 0.07)
+                ],
               ),
               border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
             ),
@@ -603,12 +681,17 @@ class _CalibrateCta extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Palette.violet, Palette.pink]),
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    gradient: const LinearGradient(
+                        colors: [Palette.violet, Palette.pink]),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(Icons.monitor_heart_rounded, color: Colors.white, size: 24),
+                  child: const Icon(Icons.monitor_heart_rounded,
+                      color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -619,13 +702,18 @@ class _CalibrateCta extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(l.t('cal_title'),
-                                style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+                                style: const TextStyle(
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w700)),
                           ),
-                          const Icon(Icons.info_outline_rounded, size: 16, color: Palette.violet),
+                          const Icon(Icons.info_outline_rounded,
+                              size: 16, color: Palette.violet),
                         ],
                       ),
                       const SizedBox(height: 3),
-                      Text(status, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                      Text(status,
+                          style: const TextStyle(
+                              color: Palette.textDim, fontSize: 12.5)),
                     ],
                   ),
                 ),
@@ -655,7 +743,11 @@ class _Section extends StatelessWidget {
           child: Row(children: [
             Expanded(
               child: Text(title.toUpperCase(),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                  style: const TextStyle(
+                      color: Palette.textDim,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6)),
             ),
             // Flexible: at large accessibility text the action's label grows
             // past the row and the header overflowed by 125px. The title is
@@ -673,7 +765,8 @@ class _Section extends StatelessWidget {
           child: Column(
             children: [
               for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const Divider(height: 1, color: Palette.border, indent: 54),
+                if (i > 0)
+                  const Divider(height: 1, color: Palette.border, indent: 54),
                 children[i],
               ],
             ],
@@ -695,7 +788,14 @@ class _Row extends StatelessWidget {
   /// Tints the title — used to mark an irreversible action as such before it
   /// is tapped, not only in the dialog that follows.
   final Color? titleColor;
-  const _Row({required this.leading, this.leadingWidget, required this.title, this.subtitle, this.trailing, this.onTap, this.titleColor});
+  const _Row(
+      {required this.leading,
+      this.leadingWidget,
+      required this.title,
+      this.subtitle,
+      this.trailing,
+      this.onTap,
+      this.titleColor});
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -710,10 +810,16 @@ class _Row extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: titleColor)),
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w600,
+                          color: titleColor)),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
-                    Text(subtitle!, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                    Text(subtitle!,
+                        style: const TextStyle(
+                            color: Palette.textDim, fontSize: 12.5)),
                   ],
                 ],
               ),
@@ -736,14 +842,20 @@ class _LangBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? Palette.violet : Palette.textDim;
     return Container(
-      width: 34, height: 26,
+      width: 34,
+      height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(code,
-          style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+          style: TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color)),
     );
   }
 }
@@ -758,7 +870,8 @@ class _AddButton extends StatelessWidget {
       onPressed: onTap,
       icon: const Icon(Icons.add, size: 18),
       label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+      style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8)),
     );
   }
 }

@@ -198,6 +198,11 @@ abstract final class DsShape {
   static const borderWidth = 2.0;
   static const border = BorderSide(color: Ds.ink, width: borderWidth);
 
+  /// The same outline as a whole [Border], usable in a `const BoxDecoration`.
+  /// `Border.all(...)` is not a const constructor, so a decoration that was
+  /// const stops being one the moment it gains an outline.
+  static const inkBorder = Border.fromBorderSide(border);
+
   /// Empty / "add something here" states use a dashed ink border instead —
   /// see `DashedInkBorder` in `ds_widgets.dart`.
   static const radiusPill = 999.0;
@@ -273,7 +278,8 @@ abstract final class DsFont {
       locale == AppLocale.kk ? displayKk : display;
 
   /// Manrope has no ә ғ қ ң ұ either, so Kazakh body text is Rubik as well.
-  static String bodyFor(AppLocale locale) => locale == AppLocale.kk ? displayKk : body;
+  static String bodyFor(AppLocale locale) =>
+      locale == AppLocale.kk ? displayKk : body;
 }
 
 /// Build a style on a variable font.
@@ -316,16 +322,25 @@ class DsTypography extends ThemeExtension<DsTypography> {
   final String _body;
 
   /// Screen titles — 21–24.
-  TextStyle get screenTitle =>
-      _v(_display, size: 23, weight: 800, height: 1.08, letterSpacing: -0.02 * 23);
+  TextStyle get screenTitle => _v(_display,
+      size: 23, weight: 800, height: 1.08, letterSpacing: -0.02 * 23);
 
   /// The one big number on a screen — 26–46.
   TextStyle heroMetric({double size = 46, Color color = Ds.text}) =>
-      _v(_display, size: size, weight: 800, height: 1.05, letterSpacing: -0.02 * size, color: color);
+      _v(_display,
+          size: size,
+          weight: 800,
+          height: 1.05,
+          letterSpacing: -0.02 * size,
+          color: color);
 
   /// The number on a pastel stat tile.
-  TextStyle statNumber({Color color = Ds.text}) =>
-      _v(_display, size: 26, weight: 700, height: 1.12, letterSpacing: -0.02 * 26, color: color);
+  TextStyle statNumber({Color color = Ds.text}) => _v(_display,
+      size: 26,
+      weight: 700,
+      height: 1.12,
+      letterSpacing: -0.02 * 26,
+      color: color);
 
   /// Card titles — 15–19.
   TextStyle get cardTitle => _v(_body, size: 17, weight: 800, height: 1.25);
@@ -351,7 +366,12 @@ class DsTypography extends ThemeExtension<DsTypography> {
   /// Uppercase micro label — 11–12 with wide tracking. Always `.toUpperCase()`
   /// the string; the scale assumes it.
   TextStyle micro({Color color = Ds.textSecondary, double size = 11}) =>
-      _v(_body, size: size, weight: 800, height: 1.2, letterSpacing: 0.075 * size, color: color);
+      _v(_body,
+          size: size,
+          weight: 800,
+          height: 1.2,
+          letterSpacing: 0.075 * size,
+          color: color);
 
   /// Mono captions and placeholder text — 11–13.
   ///
@@ -361,11 +381,16 @@ class DsTypography extends ThemeExtension<DsTypography> {
       _v(DsFont.mono, size: size, weight: 500, height: 1.3, color: color);
 
   /// The lock-screen clock.
-  TextStyle get lockClock =>
-      _v(_display, size: 66, weight: 700, height: 1.0, letterSpacing: -0.02 * 66, color: Colors.white);
+  TextStyle get lockClock => _v(_display,
+      size: 66,
+      weight: 700,
+      height: 1.0,
+      letterSpacing: -0.02 * 66,
+      color: Colors.white);
 
   @override
-  DsTypography copyWith({AppLocale? locale}) => DsTypography(locale ?? this.locale);
+  DsTypography copyWith({AppLocale? locale}) =>
+      DsTypography(locale ?? this.locale);
 
   /// Type does not tween — a half-way font is never a frame anyone wants.
   @override

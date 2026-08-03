@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../domain/chat_controller.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 
 class AssistantChatScreen extends StatefulWidget {
   final ChatController controller;
@@ -115,7 +116,10 @@ class _Disclaimer extends StatelessWidget {
       child: Row(children: [
         Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
         const SizedBox(width: 8),
-        Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant))),
+        Expanded(
+            child: Text(text,
+                style:
+                    TextStyle(fontSize: 12, color: scheme.onSurfaceVariant))),
       ]),
     );
   }
@@ -142,12 +146,15 @@ class _Bubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           color: bg,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(message.text, style: TextStyle(color: fg, fontSize: 15, height: 1.3)),
+        child: Text(message.text,
+            style: TextStyle(color: fg, fontSize: 15, height: 1.3)),
       ),
     );
   }
@@ -185,7 +192,8 @@ class _InputBar extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: hint,
                   filled: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
@@ -200,7 +208,10 @@ class _InputBar extends StatelessWidget {
               child: IconButton.filled(
                 onPressed: sending ? null : onSend,
                 icon: sending
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.arrow_upward),
               ),
             ),
@@ -225,7 +236,8 @@ class _EmptyState extends StatelessWidget {
             Icon(Icons.spa_outlined, size: 48, color: scheme.primary),
             const SizedBox(height: 12),
             Text(l.t('chat_empty_title'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(l.t('chat_empty_body'),
                 textAlign: TextAlign.center,

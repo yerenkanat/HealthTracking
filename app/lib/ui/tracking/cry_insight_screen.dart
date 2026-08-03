@@ -101,7 +101,8 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
     final l = L10nScope.of(context);
     return Scaffold(
       backgroundColor: Palette.bg,
-      appBar: AppBar(backgroundColor: Palette.bg, title: Text(l.t('cry_title'))),
+      appBar:
+          AppBar(backgroundColor: Palette.bg, title: Text(l.t('cry_title'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -109,9 +110,15 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(l.t('cry_intro'),
-                  style: const TextStyle(color: Palette.textDim, fontSize: 13.5, height: 1.5)),
+                  style: const TextStyle(
+                      color: Palette.textDim, fontSize: 13.5, height: 1.5)),
               const SizedBox(height: 22),
-              _MicButton(phase: _phase, onTap: _phase == _Phase.recording || _phase == _Phase.analyzing ? null : _start),
+              _MicButton(
+                  phase: _phase,
+                  onTap:
+                      _phase == _Phase.recording || _phase == _Phase.analyzing
+                          ? null
+                          : _start),
               const SizedBox(height: 14),
               _statusLine(l),
               if (_phase == _Phase.done && _result != null) ...[
@@ -125,7 +132,11 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
               const SizedBox(height: 24),
               Text(l.t('cry_disclaimer'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Palette.textDim, fontSize: 11.5, height: 1.45, fontStyle: FontStyle.italic)),
+                  style: const TextStyle(
+                      color: Palette.textDim,
+                      fontSize: 11.5,
+                      height: 1.45,
+                      fontStyle: FontStyle.italic)),
             ],
           ),
         ),
@@ -142,7 +153,10 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
       _ => ('', Palette.textDim),
     };
     if (text.isEmpty) return const SizedBox.shrink();
-    return Text(text, textAlign: TextAlign.center, style: TextStyle(color: colour, fontSize: 13.5, fontWeight: FontWeight.w600));
+    return Text(text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+            color: colour, fontSize: 13.5, fontWeight: FontWeight.w600));
   }
 }
 
@@ -166,29 +180,37 @@ class _MicButton extends StatelessWidget {
       button: true,
       enabled: onTap != null,
       label: label, // a screen reader announces "Record the cry, button" etc.
-      excludeSemantics: true, // the icon + text below are decorative once labelled
+      excludeSemantics:
+          true, // the icon + text below are decorative once labelled
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Column(
           children: [
-          Container(
-            width: 116, height: 116,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: recording ? null : Palette.violetPink,
-              color: recording ? Palette.roseDeep : null,
-              boxShadow: [
-                ...DsShape.hardShadowLg,
-              ],
+            Container(
+              width: 116,
+              height: 116,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: recording ? null : Palette.violetPink,
+                color: recording ? Palette.roseDeep : null,
+                boxShadow: [
+                  ...DsShape.hardShadowLg,
+                ],
+              ),
+              child: busy
+                  ? const Padding(
+                      padding: EdgeInsets.all(38),
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 3))
+                  : Icon(recording ? Icons.stop_rounded : Icons.mic_rounded,
+                      color: Colors.white, size: 48),
             ),
-            child: busy
-                ? const Padding(padding: EdgeInsets.all(38), child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                : Icon(recording ? Icons.stop_rounded : Icons.mic_rounded, color: Colors.white, size: 48),
-          ),
-          const SizedBox(height: 12),
-          Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        ],
+            const SizedBox(height: 12),
+            Text(label,
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          ],
         ),
       ),
     );
@@ -218,22 +240,33 @@ class _ResultCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l.t('cry_result_title').toUpperCase(),
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: Palette.textDim)),
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: Palette.textDim)),
           const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Text(_reasonLabel(l, analysis.primaryReason),
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w800)),
               ),
               Text(l.t('cry_confidence', {'n': analysis.confidencePct}),
-                  style: const TextStyle(fontSize: 12.5, color: Palette.textDim, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Palette.textDim,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 16),
           for (final e in analysis.ranked) ...[
-            _ReasonBar(label: _reasonLabel(l, e.key), pct: e.value, highlight: e.key == analysis.primaryReason),
+            _ReasonBar(
+                label: _reasonLabel(l, e.key),
+                pct: e.value,
+                highlight: e.key == analysis.primaryReason),
             const SizedBox(height: 8),
           ],
           if (analysis.recommendationRu.isNotEmpty) ...[
@@ -241,15 +274,19 @@ class _ResultCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                 color: Palette.violet.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.tips_and_updates_outlined, size: 18, color: Palette.violet),
+                  const Icon(Icons.tips_and_updates_outlined,
+                      size: 18, color: Palette.violet),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(analysis.recommendationRu, style: const TextStyle(fontSize: 13.5, height: 1.5))),
+                  Expanded(
+                      child: Text(analysis.recommendationRu,
+                          style: const TextStyle(fontSize: 13.5, height: 1.5))),
                 ],
               ),
             ),
@@ -286,7 +323,11 @@ class _HistoryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l.t('cry_history_title').toUpperCase(),
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: Palette.textDim)),
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: Palette.textDim)),
           const SizedBox(height: 8),
           for (var i = 0; i < history.length; i++) ...[
             if (i > 0) const Divider(height: 14, color: Palette.border),
@@ -294,10 +335,13 @@ class _HistoryCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(_reasonLabel(l, history[i].reason),
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700)),
                 ),
-                Text('${history[i].confidencePct}%  ·  ${ml.formatMediumDate(history[i].at)}',
-                    style: const TextStyle(fontSize: 12, color: Palette.textDim)),
+                Text(
+                    '${history[i].confidencePct}%  ·  ${ml.formatMediumDate(history[i].at)}',
+                    style:
+                        const TextStyle(fontSize: 12, color: Palette.textDim)),
               ],
             ),
           ],
@@ -311,15 +355,23 @@ class _ReasonBar extends StatelessWidget {
   final String label;
   final int pct;
   final bool highlight;
-  const _ReasonBar({required this.label, required this.pct, required this.highlight});
+  const _ReasonBar(
+      {required this.label, required this.pct, required this.highlight});
 
   @override
   Widget build(BuildContext context) {
     final colour = highlight ? Palette.violet : Palette.textDim;
     return Row(
       children: [
-        SizedBox(width: 96, child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12.5, fontWeight: highlight ? FontWeight.w700 : FontWeight.w500))),
+        SizedBox(
+            width: 96,
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight:
+                        highlight ? FontWeight.w700 : FontWeight.w500))),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -332,8 +384,12 @@ class _ReasonBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        SizedBox(width: 34, child: Text('$pct%', textAlign: TextAlign.right,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colour))),
+        SizedBox(
+            width: 34,
+            child: Text('$pct%',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: colour))),
       ],
     );
   }

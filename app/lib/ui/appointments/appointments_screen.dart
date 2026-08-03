@@ -22,7 +22,9 @@ import 'visit_summary.dart';
 class AppointmentsScreen extends StatefulWidget {
   final AppController controller;
   final DateTime Function()? nowFn;
-  const AppointmentsScreen({super.key, required this.controller, DateTime Function()? now}) : nowFn = now;
+  const AppointmentsScreen(
+      {super.key, required this.controller, DateTime Function()? now})
+      : nowFn = now;
 
   @override
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
@@ -82,9 +84,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               now(),
             );
             // An empty selected tab falls back to the one that has items.
-            if (_tab == _ApptTab.upcoming && split.upcoming.isEmpty && split.past.isNotEmpty) _tab = _ApptTab.past;
-            if (_tab == _ApptTab.past && split.past.isEmpty && split.upcoming.isNotEmpty) _tab = _ApptTab.upcoming;
-            final list = _tab == _ApptTab.upcoming ? split.upcoming : split.past;
+            if (_tab == _ApptTab.upcoming &&
+                split.upcoming.isEmpty &&
+                split.past.isNotEmpty) _tab = _ApptTab.past;
+            if (_tab == _ApptTab.past &&
+                split.past.isEmpty &&
+                split.upcoming.isNotEmpty) _tab = _ApptTab.upcoming;
+            final list =
+                _tab == _ApptTab.upcoming ? split.upcoming : split.past;
             return Column(
               children: [
                 if (showSearch)
@@ -95,17 +102,21 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
                         hintText: l.t('appt_search_hint'),
-                        prefixIcon: const Icon(Icons.search_rounded, color: Palette.textDim),
+                        prefixIcon: const Icon(Icons.search_rounded,
+                            color: Palette.textDim),
                         suffixIcon: _search.text.isEmpty
                             ? null
                             : IconButton(
-                                icon: const Icon(Icons.close_rounded, color: Palette.textDim),
+                                icon: const Icon(Icons.close_rounded,
+                                    color: Palette.textDim),
                                 tooltip: l.t('act_clear_search'),
                                 onPressed: () => setState(_search.clear),
                               ),
                         filled: true,
                         fillColor: Palette.surface,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none),
                         contentPadding: const EdgeInsets.symmetric(vertical: 4),
                       ),
                     ),
@@ -125,7 +136,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                           child: Text(
                             // A fruitless search reads differently from a
                             // genuinely empty tab.
-                            showSearch && _search.text.trim().isNotEmpty && split.upcoming.isEmpty && split.past.isEmpty
+                            showSearch &&
+                                    _search.text.trim().isNotEmpty &&
+                                    split.upcoming.isEmpty &&
+                                    split.past.isEmpty
                                 ? l.t('appt_no_match')
                                 : l.t('appt_none'),
                             style: const TextStyle(color: Palette.textDim),
@@ -171,7 +185,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.t('visit_copied')), behavior: SnackBarBehavior.floating),
+      SnackBar(
+          content: Text(l.t('visit_copied')),
+          behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -191,7 +207,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Palette.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _AddAppointmentSheet(now: now(), onScan: _apptScanner),
     );
     if (result != null) {
@@ -202,7 +219,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   /// The photo shortcut, only when we can reach the server.
   AppointmentScanner? get _apptScanner {
     final api = controller.api;
-    return api == null ? null : (bytes, mediaType) => api.extractAppointmentFromImage(bytes, mediaType);
+    return api == null
+        ? null
+        : (bytes, mediaType) =>
+            api.extractAppointmentFromImage(bytes, mediaType);
   }
 
   void _reschedule(Appointment a, Duration by) =>
@@ -213,11 +233,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Palette.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _AddAppointmentSheet(now: now(), initial: appt, onScan: _apptScanner),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) =>
+          _AddAppointmentSheet(now: now(), initial: appt, onScan: _apptScanner),
     );
     if (result != null) {
-      controller.updateAppointment(appt.id, result.title, result.at, note: result.note);
+      controller.updateAppointment(appt.id, result.title, result.at,
+          note: result.note);
     }
   }
 }
@@ -228,24 +251,34 @@ class _ApptTabs extends StatelessWidget {
   final int upcomingCount;
   final int pastCount;
   final ValueChanged<_ApptTab> onSelect;
-  const _ApptTabs({required this.tab, required this.upcomingCount, required this.pastCount, required this.onSelect});
+  const _ApptTabs(
+      {required this.tab,
+      required this.upcomingCount,
+      required this.pastCount,
+      required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: Palette.glass, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+          color: Palette.glass,
+          borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
-          _seg(l.t('appt_upcoming'), upcomingCount, tab == _ApptTab.upcoming, () => onSelect(_ApptTab.upcoming)),
-          _seg(l.t('appt_past'), pastCount, tab == _ApptTab.past, () => onSelect(_ApptTab.past)),
+          _seg(l.t('appt_upcoming'), upcomingCount, tab == _ApptTab.upcoming,
+              () => onSelect(_ApptTab.upcoming)),
+          _seg(l.t('appt_past'), pastCount, tab == _ApptTab.past,
+              () => onSelect(_ApptTab.past)),
         ],
       ),
     );
   }
 
-  Widget _seg(String label, int count, bool selected, VoidCallback onTap) => Expanded(
+  Widget _seg(String label, int count, bool selected, VoidCallback onTap) =>
+      Expanded(
         child: Material(
           color: selected ? Palette.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
@@ -279,7 +312,8 @@ class _NewAppt {
 
 /// Reads an appointment off a photo. Returns what could be read (fields may be
 /// null), or null on failure. Injected so the sheet stays free of the ApiClient.
-typedef AppointmentScanner = Future<ExtractedAppointment?> Function(List<int> bytes, String mediaType);
+typedef AppointmentScanner = Future<ExtractedAppointment?> Function(
+    List<int> bytes, String mediaType);
 
 class _AddAppointmentSheet extends StatefulWidget {
   final DateTime now;
@@ -295,7 +329,8 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
   late final _note = TextEditingController(text: widget.initial?.note ?? '');
   late DateTime _date = widget.initial == null
       ? DateTime(widget.now.year, widget.now.month, widget.now.day)
-      : DateTime(widget.initial!.at.year, widget.initial!.at.month, widget.initial!.at.day);
+      : DateTime(widget.initial!.at.year, widget.initial!.at.month,
+          widget.initial!.at.day);
   late TimeOfDay _time = widget.initial == null
       ? const TimeOfDay(hour: 9, minute: 0)
       : TimeOfDay.fromDateTime(widget.initial!.at);
@@ -307,7 +342,8 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
     super.dispose();
   }
 
-  DateTime get _combined => DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
+  DateTime get _combined =>
+      DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
   bool get _valid => _title.text.trim().isNotEmpty;
 
   /// Apply a scanned appointment to the form; returns whether anything landed.
@@ -331,13 +367,17 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
     final l = L10nScope.of(context);
     final ml = MaterialLocalizations.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 18, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(
+          20, 18, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l.t(widget.initial == null ? 'appt_add' : 'appt_edit'),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Palette.text)),
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Palette.text)),
           const SizedBox(height: 14),
           if (widget.onScan != null) ...[
             PhotoScanTile(
@@ -345,8 +385,10 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
               hint: l.t('appt_scan_hint'),
               onScan: (bytes, mediaType) async {
                 final a = await widget.onScan!(bytes, mediaType);
-                if (a == null || !_apply(a)) return ScanOutcome(filled: false, note: a?.note);
-                setState(() {}); // reflect the filled title/date/time and re-validate Save
+                if (a == null || !_apply(a))
+                  return ScanOutcome(filled: false, note: a?.note);
+                setState(
+                    () {}); // reflect the filled title/date/time and re-validate Save
                 return ScanOutcome(filled: true, note: a.note);
               },
             ),
@@ -387,7 +429,8 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
                   icon: Icons.schedule_rounded,
                   label: _time.format(context),
                   onTap: () async {
-                    final picked = await showTimePicker(context: context, initialTime: _time);
+                    final picked = await showTimePicker(
+                        context: context, initialTime: _time);
                     if (picked != null) setState(() => _time = picked);
                   },
                 ),
@@ -407,9 +450,16 @@ class _AddAppointmentSheetState extends State<_AddAppointmentSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _valid ? () => Navigator.of(context).pop(_NewAppt(_title.text.trim(), _combined, _note.text.trim())) : null,
-              style: FilledButton.styleFrom(backgroundColor: Palette.violet, padding: const EdgeInsets.symmetric(vertical: 14)),
-              child: Text(l.t('act_save'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+              onPressed: _valid
+                  ? () => Navigator.of(context).pop(_NewAppt(
+                      _title.text.trim(), _combined, _note.text.trim()))
+                  : null,
+              style: FilledButton.styleFrom(
+                  backgroundColor: Palette.violet,
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: Text(l.t('act_save'),
+                  style: const TextStyle(
+                      fontSize: 15.5, fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -422,7 +472,8 @@ class _PickerTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _PickerTile({required this.icon, required this.label, required this.onTap});
+  const _PickerTile(
+      {required this.icon, required this.label, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -435,11 +486,15 @@ class _PickerTile extends StatelessWidget {
           height: 52,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: Ds.ink, width: DsShape.borderWidth)),
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth)),
           child: Row(children: [
             Icon(icon, size: 18, color: Palette.violet),
             const SizedBox(width: 10),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Palette.text)),
+            Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: Palette.text)),
           ]),
         ),
       ),
@@ -454,7 +509,13 @@ class _AppointmentCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback? onEdit;
   final ValueChanged<Duration>? onReschedule;
-  const _AppointmentCard({required this.appt, required this.now, required this.onDelete, this.onEdit, this.onReschedule, this.past = false});
+  const _AppointmentCard(
+      {required this.appt,
+      required this.now,
+      required this.onDelete,
+      this.onEdit,
+      this.onReschedule,
+      this.past = false});
 
   @override
   Widget build(BuildContext context) {
@@ -478,8 +539,12 @@ class _AppointmentCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: accent.withValues(alpha: past ? 0.10 : 0.14), borderRadius: BorderRadius.circular(12)),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                  color: accent.withValues(alpha: past ? 0.10 : 0.14),
+                  borderRadius: BorderRadius.circular(12)),
               child: Icon(Icons.event_note_rounded, color: accent, size: 22),
             ),
             const SizedBox(width: 14),
@@ -488,15 +553,26 @@ class _AppointmentCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(appt.title,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: past ? Palette.textDim : Palette.text)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: past ? Palette.textDim : Palette.text)),
                   const SizedBox(height: 2),
-                  Text('${ml.formatMediumDate(appt.at)} · ${TimeOfDay.fromDateTime(appt.at).format(context)}',
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                  Text(
+                      '${ml.formatMediumDate(appt.at)} · ${TimeOfDay.fromDateTime(appt.at).format(context)}',
+                      style: const TextStyle(
+                          color: Palette.textDim, fontSize: 12.5)),
                   if (appt.note.isNotEmpty) ...[
                     const SizedBox(height: 3),
-                    Text(appt.note, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Palette.textDim, fontSize: 12.5, fontStyle: FontStyle.italic)),
+                    Text(appt.note,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Palette.textDim,
+                            fontSize: 12.5,
+                            fontStyle: FontStyle.italic)),
                   ],
                 ],
               ),
@@ -504,12 +580,22 @@ class _AppointmentCard extends StatelessWidget {
             const SizedBox(width: 8),
             if (badge != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-                child: Text(badge, style: TextStyle(color: accent, fontWeight: FontWeight.w700, fontSize: 12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text(badge,
+                    style: TextStyle(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
               ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, size: 20, color: Palette.textDim),
+              icon: const Icon(Icons.more_vert_rounded,
+                  size: 20, color: Palette.textDim),
               color: Palette.surfaceHi,
               tooltip: l.t('appt_actions'),
               onSelected: (v) {
@@ -526,12 +612,28 @@ class _AppointmentCard extends StatelessWidget {
               },
               itemBuilder: (_) => [
                 if (onEdit != null)
-                  PopupMenuItem(value: 'edit', child: _MenuRow(icon: Icons.edit_outlined, label: l.t('appt_edit'))),
+                  PopupMenuItem(
+                      value: 'edit',
+                      child: _MenuRow(
+                          icon: Icons.edit_outlined, label: l.t('appt_edit'))),
                 if (onReschedule != null && !past) ...[
-                  PopupMenuItem(value: 'day', child: _MenuRow(icon: Icons.today_rounded, label: l.t('appt_plus_day'))),
-                  PopupMenuItem(value: 'week', child: _MenuRow(icon: Icons.date_range_rounded, label: l.t('appt_plus_week'))),
+                  PopupMenuItem(
+                      value: 'day',
+                      child: _MenuRow(
+                          icon: Icons.today_rounded,
+                          label: l.t('appt_plus_day'))),
+                  PopupMenuItem(
+                      value: 'week',
+                      child: _MenuRow(
+                          icon: Icons.date_range_rounded,
+                          label: l.t('appt_plus_week'))),
                 ],
-                PopupMenuItem(value: 'delete', child: _MenuRow(icon: Icons.delete_outline_rounded, label: l.t('act_remove'), danger: true)),
+                PopupMenuItem(
+                    value: 'delete',
+                    child: _MenuRow(
+                        icon: Icons.delete_outline_rounded,
+                        label: l.t('act_remove'),
+                        danger: true)),
               ],
             ),
           ],
@@ -545,7 +647,8 @@ class _MenuRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool danger;
-  const _MenuRow({required this.icon, required this.label, this.danger = false});
+  const _MenuRow(
+      {required this.icon, required this.label, this.danger = false});
   @override
   Widget build(BuildContext context) {
     final color = danger ? Palette.danger : Palette.text;
@@ -568,10 +671,12 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.event_available_rounded, size: 56, color: Palette.textDim.withValues(alpha: 0.6)),
+            Icon(Icons.event_available_rounded,
+                size: 56, color: Palette.textDim.withValues(alpha: 0.6)),
             const SizedBox(height: 12),
             Text(l.t('appt_empty'),
-                textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, height: 1.4)),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Palette.textDim, height: 1.4)),
           ],
         ),
       ),

@@ -15,7 +15,8 @@ import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 
-const _supportEmail = 'support@umay.app'; // placeholder until a real inbox exists
+const _supportEmail =
+    'support@umay.app'; // placeholder until a real inbox exists
 const _appVersion = '0.1.0';
 
 class HelpSupportScreen extends StatelessWidget {
@@ -27,7 +28,8 @@ class HelpSupportScreen extends StatelessWidget {
     final uri = Uri(
       scheme: 'mailto',
       path: _supportEmail,
-      query: _encodeQuery({'subject': subject, if (body.isNotEmpty) 'body': body}),
+      query:
+          _encodeQuery({'subject': subject, if (body.isNotEmpty) 'body': body}),
     );
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
@@ -35,7 +37,8 @@ class HelpSupportScreen extends StatelessWidget {
   // Uri(queryParameters:) encodes spaces as '+', which some mail apps show
   // literally; encode manually with %20 instead.
   static String _encodeQuery(Map<String, String> params) => params.entries
-      .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+      .map((e) =>
+          '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
       .join('&');
 
   @override
@@ -45,7 +48,8 @@ class HelpSupportScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Palette.bg,
-      appBar: AppBar(backgroundColor: Palette.bg, title: Text(l.t('help_title'))),
+      appBar:
+          AppBar(backgroundColor: Palette.bg, title: Text(l.t('help_title'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
@@ -66,14 +70,16 @@ class HelpSupportScreen extends StatelessWidget {
             subtitle: l.t('help_report_sub'),
             onTap: () => _mailto(
               l.t('help_report_subject'),
-              body: '\n\n—\n${l.t('help_report_diag')}: app $_appVersion${diagnostics.isEmpty ? '' : ', $diagnostics'}',
+              body:
+                  '\n\n—\n${l.t('help_report_diag')}: app $_appVersion${diagnostics.isEmpty ? '' : ', $diagnostics'}',
             ),
           ),
           _ActionRow(
             icon: Icons.ios_share_rounded,
             title: l.t('help_share'),
             subtitle: l.t('help_share_sub'),
-            onTap: () => SharePlus.instance.share(ShareParams(text: l.t('help_share_text'))),
+            onTap: () => SharePlus.instance
+                .share(ShareParams(text: l.t('help_share_text'))),
           ),
           const SizedBox(height: 20),
           // Safety reminder — support is not an emergency channel.
@@ -85,15 +91,20 @@ class HelpSupportScreen extends StatelessWidget {
               border: Border.all(color: Palette.rose.withValues(alpha: 0.3)),
             ),
             child: Row(children: [
-              const Icon(Icons.emergency_outlined, size: 18, color: Palette.roseDeep),
+              const Icon(Icons.emergency_outlined,
+                  size: 18, color: Palette.roseDeep),
               const SizedBox(width: 10),
-              Expanded(child: Text(l.t('help_emergency_note'),
-                  style: const TextStyle(fontSize: 12.5, height: 1.45, color: Palette.text))),
+              Expanded(
+                  child: Text(l.t('help_emergency_note'),
+                      style: const TextStyle(
+                          fontSize: 12.5, height: 1.45, color: Palette.text))),
             ]),
           ),
           const SizedBox(height: 16),
-          Center(child: Text(l.t('help_app_line', {'v': _appVersion}),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12))),
+          Center(
+              child: Text(l.t('help_app_line', {'v': _appVersion}),
+                  style:
+                      const TextStyle(color: Palette.textDim, fontSize: 12))),
         ],
       ),
     );
@@ -108,7 +119,10 @@ class _SectionLabel extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(2, 4, 2, 8),
         child: Text(text.toUpperCase(),
             style: const TextStyle(
-                fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Palette.textDim)),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: Palette.textDim)),
       );
 }
 
@@ -128,12 +142,16 @@ class _FaqTile extends StatelessWidget {
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
             shape: const Border(),
-            title: Text(question, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            title: Text(question,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
             childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(answer, style: const TextStyle(fontSize: 13.5, height: 1.5, color: Palette.textDim)),
+                child: Text(answer,
+                    style: const TextStyle(
+                        fontSize: 13.5, height: 1.5, color: Palette.textDim)),
               ),
             ],
           ),
@@ -146,7 +164,11 @@ class _ActionRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  const _ActionRow({required this.icon, required this.title, required this.subtitle, required this.onTap});
+  const _ActionRow(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.onTap});
   @override
   Widget build(BuildContext context) => Material(
         color: Colors.transparent,
@@ -160,6 +182,7 @@ class _ActionRow extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                   color: Palette.violet.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(11),
                 ),
@@ -170,9 +193,13 @@ class _ActionRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 14.5, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(fontSize: 12.5, color: Palette.textDim)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 12.5, color: Palette.textDim)),
                   ],
                 ),
               ),

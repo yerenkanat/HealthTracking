@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import '../../domain/baby_size.dart';
 import '../../domain/timeline_content.dart';
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'timeline_content_screen.dart';
@@ -52,18 +53,26 @@ class TimelineContentCard extends StatelessWidget {
             _CardHeader(title: l.t('tl_title')),
             const SizedBox(height: 10),
             Text(l.t('tl_empty'),
-                style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 12.5, height: 1.35)),
           ],
         ),
       );
     }
 
-    final lessons = [for (final i in items) if (i.isLesson) i];
-    final products = [for (final i in items) if (i.isProduct) i];
+    final lessons = [
+      for (final i in items)
+        if (i.isLesson) i
+    ];
+    final products = [
+      for (final i in items)
+        if (i.isProduct) i
+    ];
     // Lessons first: the material is the reason to be here, and what's for sale
     // follows it rather than leading.
     final previewLessons = lessons.take(previewCount - 1).toList();
-    final previewProducts = products.take(previewCount - previewLessons.length).toList();
+    final previewProducts =
+        products.take(previewCount - previewLessons.length).toList();
     final previewed = previewLessons.length + previewProducts.length;
 
     return GlassCard(
@@ -76,7 +85,8 @@ class TimelineContentCard extends StatelessWidget {
           if (previewed == 0) ...[
             const SizedBox(height: 12),
             Text(l.t('tl_none_for_stage'),
-                style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 12.5, height: 1.35)),
           ] else ...[
             if (previewLessons.isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -105,7 +115,8 @@ class TimelineContentCard extends StatelessWidget {
               child: TextButton(
                 onPressed: onSeeAll,
                 child: Text(l.t('tl_see_all'),
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: Palette.violet)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Palette.violet)),
               ),
             ),
           ],
@@ -133,6 +144,7 @@ class StageHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         gradient: LinearGradient(
           colors: [
             Palette.violet.withValues(alpha: 0.10),
@@ -155,19 +167,26 @@ class StageHero extends StatelessWidget {
                         })
                       : l.t('tl_month_progress', {'n': stage.index}),
                   style: const TextStyle(
-                      color: Palette.text, fontSize: 13.5, fontWeight: FontWeight.w700),
+                      color: Palette.text,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700),
                 ),
               ),
               if (h.isHalfway)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
+                    border:
+                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
                     color: Palette.good.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(l.t('tl_halfway'),
                       style: const TextStyle(
-                          color: Palette.goodText, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                          color: Palette.goodText,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700)),
                 ),
             ],
           ),
@@ -185,7 +204,8 @@ class StageHero extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.child_care_rounded, size: 16, color: Palette.pinkText),
+                const Icon(Icons.child_care_rounded,
+                    size: 16, color: Palette.pinkText),
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
@@ -194,7 +214,9 @@ class StageHero extends StatelessWidget {
                       'cm': size.lengthCm.toStringAsFixed(1),
                     }),
                     style: const TextStyle(
-                        color: Palette.text, fontSize: 12.5, fontWeight: FontWeight.w600),
+                        color: Palette.text,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -227,7 +249,9 @@ class _MiniSection extends StatelessWidget {
           ),
           Text('$count',
               style: const TextStyle(
-                  color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                  color: Palette.textDim,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700)),
         ],
       );
 }
@@ -244,10 +268,12 @@ class _CardHeader extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               gradient: Palette.violetPink,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.auto_stories_rounded, size: 17, color: Colors.white),
+            child: const Icon(Icons.auto_stories_rounded,
+                size: 17, color: Colors.white),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -255,13 +281,17 @@ class _CardHeader extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    color: Palette.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                    color: Palette.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700)),
           ),
           if (badge != null)
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
                   color: Palette.violet.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -269,7 +299,9 @@ class _CardHeader extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        color: Palette.violetText, fontWeight: FontWeight.w700, fontSize: 12)),
+                        color: Palette.violetText,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
               ),
             ),
         ],

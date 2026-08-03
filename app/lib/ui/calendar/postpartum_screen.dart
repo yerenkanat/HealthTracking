@@ -19,7 +19,8 @@ import '../theme.dart';
 class PostpartumScreen extends StatelessWidget {
   final DateTime birthDate;
   final DateTime today;
-  const PostpartumScreen({super.key, required this.birthDate, required this.today});
+  const PostpartumScreen(
+      {super.key, required this.birthDate, required this.today});
 
   @override
   Widget build(BuildContext context) {
@@ -38,17 +39,22 @@ class PostpartumScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               color: Palette.glass,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline, size: 17, color: Palette.textDim),
+                const Icon(Icons.info_outline,
+                    size: 17, color: Palette.textDim),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(l.t('pp_disclaimer'),
-                      style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.45)),
+                      style: const TextStyle(
+                          color: Palette.textDim,
+                          fontSize: 12.5,
+                          height: 1.45)),
                 ),
               ],
             ),
@@ -80,7 +86,10 @@ class _Title extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(2, 4, 2, 10),
         child: Text(text.toUpperCase(),
             style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Palette.textDim)),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: Palette.textDim)),
       );
 }
 
@@ -128,6 +137,7 @@ class _NoteRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               color: colour.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(11),
             ),
@@ -140,7 +150,10 @@ class _NoteRow extends StatelessWidget {
               children: [
                 Text(_areaLabel(l, note.area),
                     style: TextStyle(
-                        fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.3, color: colour)),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                        color: colour)),
                 const SizedBox(height: 3),
                 Text(l.t('pp_note_${note.id}'),
                     style: const TextStyle(fontSize: 13.5, height: 1.45)),
@@ -167,7 +180,10 @@ class _CheckCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Palette.violet.withValues(alpha: 0.12), Palette.rose.withValues(alpha: 0.06)],
+          colors: [
+            Palette.violet.withValues(alpha: 0.12),
+            Palette.rose.withValues(alpha: 0.06)
+          ],
         ),
         border: Border.all(color: Palette.violet.withValues(alpha: 0.22)),
       ),
@@ -178,10 +194,12 @@ class _CheckCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               color: Palette.violet.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.event_available_outlined, size: 20, color: Palette.violet),
+            child: const Icon(Icons.event_available_outlined,
+                size: 20, color: Palette.violet),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -189,15 +207,22 @@ class _CheckCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(l.t('pp_check_title'),
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
                 Text(
-                  untilCheck != null ? l.t('pp_check_in', {'n': untilCheck}) : l.t('pp_check_past'),
-                  style: const TextStyle(color: Palette.violet, fontSize: 12, fontWeight: FontWeight.w700),
+                  untilCheck != null
+                      ? l.t('pp_check_in', {'n': untilCheck})
+                      : l.t('pp_check_past'),
+                  style: const TextStyle(
+                      color: Palette.violet,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 5),
                 Text(l.t('pp_check_body'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.4)),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.4)),
               ],
             ),
           ),
@@ -225,17 +250,22 @@ class _WarningBlock extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, size: 19, color: Palette.roseDeep),
+              const Icon(Icons.warning_amber_rounded,
+                  size: 19, color: Palette.roseDeep),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(l.t('pp_warn_title'),
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Palette.roseDeep)),
+                    style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: Palette.roseDeep)),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(l.t('pp_warn_intro'),
-              style: const TextStyle(color: Palette.textDim, fontSize: 12.5, height: 1.4)),
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 12.5, height: 1.4)),
           const SizedBox(height: 10),
           for (final id in warningSigns)
             Padding(
@@ -248,7 +278,8 @@ class _WarningBlock extends StatelessWidget {
                     child: Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(color: Palette.roseDeep, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                          color: Palette.roseDeep, shape: BoxShape.circle),
                     ),
                   ),
                   const SizedBox(width: 10),
