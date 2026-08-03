@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import type { ContentItemRow, Repository, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus } from './repository';
 import { bundleDiscountMinor } from './repository';
-import type { BpCalibration, Geofence, GeofenceEvent } from '@fcs/shared';
+import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
@@ -45,6 +45,8 @@ export function createMemoryRepository(): Repository {
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const medications: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
   const events: GeofenceEvent[] = [];
+  /** Latest fix per child — what lastLocation reads back. */
+  const locations = new Map<string, ChildLocationFix>();
   const healthRows: unknown[] = [];
   // Idempotency for telemetry ingest, mirroring the pg phm_unique_reading
   // constraint: (userId, deviceId, recordedAt) seen before → duplicate resend.
@@ -178,7 +180,10 @@ export function createMemoryRepository(): Repository {
     // Child / geofence
     loadGeofences: async (childId) => geofences.get(childId) ?? [],
     insertGeofenceEvent: async (e) => void events.push(e),
-    insertLocation: async () => {},
+    // Kept, not discarded: lastLocation is the DB fallback for the location
+    // cache, and a repo that threw the fix away could not exercise it.
+    insertLocation: async (fix) => void locations.set(fix.childId, fix),
+    lastLocation: async (childId) => locations.get(childId) ?? null,
     // Push / AI / emergency
     guardianPushTokens: async () => ({ tokens: [], childName: children[0]?.name ?? '', locale: profile?.locale ?? null }),
     guardianPushTokensForUser: async () => ({ tokens: [], locale: profile?.locale ?? null }),

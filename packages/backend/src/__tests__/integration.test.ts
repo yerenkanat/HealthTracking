@@ -39,6 +39,8 @@ function makeDeps(
   const healthRows: unknown[] = [];
   const calRows: unknown[] = [];
   let lastLocation: ChildLocationFix | null = null;
+  /** The durable copy, behind repo.lastLocation — distinct from the cache above. */
+  let storedLocation: ChildLocationFix | null = null;
   const fenceState = new Map<string, 'in' | 'out'>(); // real Redis-like dedup
 
   // In-memory CRUD state
@@ -89,7 +91,8 @@ function makeDeps(
     loadGeofences: async (childId) =>
       childId === CHILD ? [HOME, ...(geofences.get(childId) ?? [])] : (geofences.get(childId) ?? []),
     insertGeofenceEvent: async (e) => void events.push(e),
-    insertLocation: async () => {},
+    insertLocation: async (fix) => void (storedLocation = fix),
+    lastLocation: async () => storedLocation,
     guardianPushTokens: async () => ({ tokens: ['t'], childName: 'Sultan', locale: 'ru-KZ' }),
     guardianPushTokensForUser: async () => ({ tokens: ['t'], locale: 'ru-KZ' }),
     deletePushToken: async () => {},

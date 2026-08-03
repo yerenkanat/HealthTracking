@@ -632,7 +632,21 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     if (!owner || owner.userId !== user.userId) {
       return reply.code(403).send({ error: 'forbidden' });
     }
-    const last = await deps.cacheLastLocation(id);
+    // Redis first (this is the latency-sensitive read the cache exists for),
+    // then the table every fix is also written to on the way in.
+    //
+    // index.ts documents that "Redis failure degrades to the DB path rather
+    // than taking the service down", and leaves Redis out of the readiness
+    // check on that basis. It did not degrade: a cache outage threw straight
+    // out of the handler, so the box reported itself ready while answering
+    // "where is my child" with a 500. Now the outage costs latency only.
+    let last: unknown = null;
+    try {
+      last = await deps.cacheLastLocation(id);
+    } catch (err) {
+      req.log.warn({ err, childId: id }, 'location cache unavailable; falling back to the database');
+    }
+    last ??= await deps.repo.lastLocation(id);
     if (!last) return reply.code(404).send({ error: 'no recent location' });
     return reply.send(last);
   });

@@ -261,6 +261,13 @@ export interface Repository {
   loadGeofences(childId: string): Promise<Geofence[]>;
   insertGeofenceEvent(evt: GeofenceEvent): Promise<void>;
   insertLocation(fix: ChildLocationFix): Promise<void>;
+  /// The most recent stored fix — the durable answer behind the Redis cache.
+  ///
+  /// Every fix is written to location_history on the same request that caches
+  /// it, so this is never *less* current than the cache; it is only slower.
+  /// Without it, a cache outage turned "where is my child" into a 500, which
+  /// is the one question this service exists to answer.
+  lastLocation(childId: string): Promise<ChildLocationFix | null>;
 
   // Push
   /// Push targets for a child's guardian, WITH the language they read in.

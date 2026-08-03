@@ -122,6 +122,30 @@ export function createPgRepository(pool: Pool): Repository {
       );
     },
 
+    async lastLocation(childId) {
+      const { rows } = await pool.query(
+        `SELECT child_id, observed_at, lat, lng, source, accuracy_m
+           FROM location_history
+          WHERE child_id = $1
+          ORDER BY observed_at DESC
+          LIMIT 1`,
+        [childId],
+      );
+      const r = rows[0];
+      if (!r) return null;
+      return {
+        childId: r.child_id,
+        observedAt: new Date(r.observed_at).toISOString(),
+        source: r.source,
+        coords: {
+          lat: Number(r.lat),
+          lng: Number(r.lng),
+          // Nullable in the table; the type wants it absent, not null.
+          ...(r.accuracy_m === null ? {} : { accuracyM: Number(r.accuracy_m) }),
+        },
+      } as ChildLocationFix;
+    },
+
     async guardianPushTokens(childId) {
       const { rows } = await pool.query(
         `SELECT pt.token, c.name, u.locale

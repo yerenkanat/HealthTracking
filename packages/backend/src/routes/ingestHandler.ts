@@ -144,7 +144,19 @@ async function ingestLocation(
       return;
     }
   }
-  await Promise.all([deps.cacheLocation(fix), deps.repo.insertLocation(fix)]);
+  // The durable write is what must succeed. Caching the fix is an optimisation
+  // for the parent's next map open, and its failure used to sink the whole item
+  // via the batch-level catch: the fix came back `rejected`, so the tracker
+  // resent it on every flush — and location_history has no uniqueness
+  // constraint to absorb that, unlike telemetry — while the geofence loop below
+  // never ran at all.
+  await deps.repo.insertLocation(fix);
+  try {
+    await deps.cacheLocation(fix);
+  } catch {
+    // Nothing to do: the fix is stored, and GET /children/:id/location falls
+    // back to the table.
+  }
   summary.locationCount++;
 
   const fences = await deps.repo.loadGeofences(fix.childId);

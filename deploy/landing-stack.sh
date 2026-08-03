@@ -30,6 +30,7 @@ ENV_DIR=/etc/umay
 ENV_FILE="$ENV_DIR/backend.env"
 NODE_IMAGE=node:24-alpine
 PG_IMAGE=postgres:15-alpine
+REDIS_IMAGE=redis:7-alpine
 
 echo "==> Preconditions"
 docker network inspect "$NETWORK" >/dev/null 2>&1 || { echo "network $NETWORK missing"; exit 1; }
@@ -52,6 +53,7 @@ POSTGRES_PASSWORD=$DB_PASS
 # so the only thing that can reach this port is another container on $NETWORK.
 HOST=0.0.0.0
 PORT=8080
+REDIS_URL=redis://umay-redis:6379
 # NODE_ENV is deliberately NOT 'production': the boot guard refuses to start
 # while staff auth is still the x-staff-role header stub. The mitigation is at
 # the edge — the reverse proxy exposes ONLY the landing page and the lead form,
@@ -61,6 +63,19 @@ EOF
 else
   echo "==> Reusing existing $ENV_FILE"
 fi
+
+# Keys added to the template after a box was first provisioned. The branch above
+# only runs on a fresh install, so without this an existing deployment silently
+# keeps the old settings and the new ones look applied because the script
+# succeeded. Each entry is append-if-absent; nothing already set is overwritten.
+add_env() {
+  grep -q "^$1=" "$ENV_FILE" && return 0
+  echo "==> Adding $1 to $ENV_FILE"
+  printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"
+}
+# Without this the client dials 127.0.0.1:6379 inside the container, where
+# nothing listens.
+add_env REDIS_URL "redis://umay-redis:6379"
 # shellcheck disable=SC1090
 set -a; . "$ENV_FILE"; set +a
 
@@ -75,6 +90,38 @@ else
   echo "==> umay-db exists"
   docker start umay-db >/dev/null 2>&1 || true
 fi
+
+# ---- Cache -------------------------------------------------------------------
+# The backend caches the child's last known location, the mother's BP
+# calibration and geofence state here. It survives Redis being absent — the
+# location read falls back to location_history and geofence debouncing falls
+# back to in-process state — but "survives" is not "runs well": without this
+# every map open is a table scan, and the log fills with ECONNREFUSED at the
+# rate the client retries, which is where a real error would have to be seen.
+#
+# Its own container rather than the supabase-redis already on this box: that one
+# belongs to a different stack, and sharing it would make an unrelated team's
+# flushall our outage.
+#
+# No volume on purpose. Everything in here is derived data with a TTL, and the
+# one piece that is not — geofence state — is designed to come back empty
+# safely: an unknown previous position is never reported as a crossing.
+if ! docker ps -a --format '{{.Names}}' | grep -qx umay-redis; then
+  echo "==> Creating umay-redis"
+  docker run -d --name umay-redis --restart unless-stopped --network "$NETWORK" \
+    "$REDIS_IMAGE" redis-server --save "" --appendonly no --maxmemory 256mb \
+    --maxmemory-policy allkeys-lru >/dev/null
+else
+  echo "==> umay-redis exists"
+  docker start umay-redis >/dev/null 2>&1 || true
+fi
+
+echo "==> Waiting for Redis"
+for i in $(seq 1 30); do
+  docker exec umay-redis redis-cli ping 2>/dev/null | grep -q PONG && break
+  [ "$i" = 30 ] && { echo "Redis never answered"; docker logs --tail 30 umay-redis; exit 1; }
+  sleep 1
+done
 
 echo "==> Waiting for Postgres"
 for i in $(seq 1 60); do
@@ -115,6 +162,17 @@ for i in $(seq 1 45); do
   [ "$i" = 45 ] && { echo "backend never answered:"; docker logs --tail 40 umay-backend; exit 1; }
   sleep 2
 done
+
+# The backend is designed to keep serving when the cache is unreachable, so a
+# misconfigured REDIS_URL does not fail any check above — it just degrades
+# quietly and floods the log. That is exactly how it went unnoticed until the
+# log was read for another reason. Assert the client is actually connected.
+if docker logs --tail 200 umay-backend 2>&1 | grep -q 'ECONNREFUSED 127.0.0.1:6379'; then
+  echo "!!  the backend is still dialling 127.0.0.1:6379 — REDIS_URL did not reach it"
+  echo "    env in container: $(docker exec umay-backend printenv REDIS_URL || echo '<unset>')"
+  exit 1
+fi
+echo "    cache OK ($(docker exec umay-backend printenv REDIS_URL))"
 
 echo
 echo "==> Landing page self-check (as the proxy will see it)"

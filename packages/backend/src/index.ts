@@ -15,6 +15,7 @@ import { createMemoryRepository } from './db/memoryRepository';
 import { makeAuthUser } from './http/auth';
 import { registerLanding } from './http/landing';
 import { esc, requestBase } from './http/pageMeta';
+import { createInProcessTransitions, withInProcessFallback } from './geofence/inProcessTransitions';
 import type { BandTelemetry, ChildLocationFix } from '@fcs/shared';
 import { assessTelemetry } from '@fcs/shared';
 
@@ -67,6 +68,13 @@ async function productionDeps(): Promise<ServerDeps> {
   type PushResult = Awaited<ReturnType<typeof sendPush>>;
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const repo = createPgRepository(pool);
+  // Redis normally holds the cross-request geofence state. While it is
+  // refusing connections this carries it instead, for as long as the outage
+  // lasts — a cache being down must not silently switch off the alerts.
+  const fallbackTransitions = withInProcessFallback(
+    (childId, fenceId, inside) => resolveTransition(childId, fenceId, inside),
+    (err) => console.warn(`geofence: Redis unavailable, debouncing in-process — ${err.message}`),
+  );
 
   // Integration keys managed from the admin panel fill in any that the
   // environment doesn't already set (env always wins). Stored keys take effect
@@ -109,7 +117,11 @@ async function productionDeps(): Promise<ServerDeps> {
     guardrail: { callLLM: createAnthropicCaller() },
     ingest: {
       cacheLocation: (fix: ChildLocationFix) => setChildLastLocation(fix),
-      resolveTransition: (childId, fenceId, inside) => resolveTransition(childId, fenceId, inside),
+      // Redis holds the cross-request geofence state. When it is unreachable,
+      // debounce in this process rather than dropping the crossing: a cache
+      // outage must not silently switch off the alerts this product exists to
+      // send. See inProcessTransitions for what that trade costs.
+      resolveTransition: fallbackTransitions,
       sendEmergencyPush: async (userId, triage) => {
         const { tokens, locale } = await repo.guardianPushTokensForUser(userId);
         const res = await sendPush(tokens, emergencyCopy(triage, toPushLocale(locale)));
@@ -167,21 +179,13 @@ async function forwardCry(audio: Buffer, contentType: string): Promise<unknown> 
 function memoryDeps(): ServerDeps {
   const repo = createMemoryRepository();
   const lastLoc = new Map<string, ChildLocationFix>();
-  const fenceState = new Map<string, 'in' | 'out'>();
+  const fences = createInProcessTransitions();
   return {
     repo,
     guardrail: { callLLM: async () => 'Rest and hydrate gently. (dev echo — set an ANTHROPIC key for real replies)' },
     ingest: {
       cacheLocation: async (fix) => void lastLoc.set(fix.childId, fix),
-      resolveTransition: async (childId, fenceId, inside) => {
-        const key = `${childId}:${fenceId}`;
-        const next = inside ? 'in' : 'out';
-        const prev = fenceState.get(key) ?? null;
-        fenceState.set(key, next);
-        if (prev === next) return null;
-        if (prev === null && next === 'out') return null;
-        return inside ? 'enter' : 'exit';
-      },
+      resolveTransition: async (childId, fenceId, inside) => fences.resolve(childId, fenceId, inside),
       sendEmergencyPush: async () => {},
       sendGeofencePush: async () => {},
     },
