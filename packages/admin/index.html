@@ -796,8 +796,8 @@
             <label>Кол-во отзывов<input type="text" id="setRcount" placeholder="1240" autocomplete="off"></label>
             <button class="btn" id="setSave">Сохранить</button>
           </div>
-          <label style="display:block;margin-top:12px;font-weight:600;font-size:13px;color:var(--muted)">Отзывы — JSON-массив [{"name","city","text","stars"}]
-            <textarea id="setReviews" rows="4" placeholder='[{"name":"Айгерім","city":"Алматы","text":"Өте ұнады, қазақша сөйлейді!","stars":5}]' style="width:100%;margin-top:6px;background:var(--surface-2);border:1px solid var(--hair);border-radius:9px;padding:9px 11px;color:var(--ink);font-family:ui-monospace,monospace;font-size:12px"></textarea>
+          <label style="display:block;margin-top:12px;font-weight:600;font-size:13px;color:var(--muted)">Отзывы — JSON-массив [{"name","city","text","stars"}]. Необязательные "text_kz" и "city_kz" показываются посетителям на казахском; без них они увидят русский текст. Пусто — на сайте останутся отзывы, написанные при вёрстке.
+            <textarea id="setReviews" rows="5" placeholder='[{"name":"Айгерім","city":"Алматы","city_kz":"Алматы, екі бала","text":"Очень понравилось, говорит по-казахски!","text_kz":"Өте ұнады, қазақша сөйлейді!","stars":5}]' style="width:100%;margin-top:6px;background:var(--surface-2);border:1px solid var(--hair);border-radius:9px;padding:9px 11px;color:var(--ink);font-family:ui-monospace,monospace;font-size:12px"></textarea>
           </label>
           <div class="audiomsg" id="setMsg"></div>
         </div>

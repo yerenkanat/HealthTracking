@@ -47,7 +47,19 @@ beforeAll(async () => {
   // The number staff would have set in the admin panel. The artifact hardcodes
   // a different one, so this is what proves the setting reaches the page.
   app.get('/shop/config', async (_req, reply) =>
-    reply.send({ whatsapp: '77015550101', kaspiUrl: '', reviews: '', rating: '', reviewCount: '' }));
+    reply.send({
+      whatsapp: '77015550101',
+      kaspiUrl: '',
+      // What staff would have typed into Магазин → Настройки. The artifact
+      // hardcodes three different testimonials, so these names appearing on the
+      // page is the proof the setting reached it.
+      reviews: JSON.stringify([
+        { name: 'Гүлнара Т.', city: 'Шымкент, один ребёнок', text: 'Настроила за вечер, сын носит не снимая.', stars: 5 },
+        { name: 'Асем К.', city: 'Караганда, двое детей', text: 'Спокойнее стало, вижу что дошёл до школы.', stars: 4 },
+      ]),
+      rating: '',
+      reviewCount: '',
+    }));
   await app.listen({ port: 0, host: '127.0.0.1' });
   const addr = app.server.address();
   if (!addr || typeof addr === 'string') throw new Error('no port');
@@ -89,6 +101,59 @@ afterAll(async () => {
   win?.close();
   await app?.close();
 }, 30_000);
+
+/**
+ * Boot a second, independent copy of the landing against a given /shop/config.
+ *
+ * The suite-wide `dom` above is rendered once with one configuration; anything
+ * that depends on a *different* setting (or on the visitor's language) needs
+ * its own page rather than mutating the shared one.
+ */
+async function renderWith(
+  config: Record<string, unknown>,
+  locale?: 'ru' | 'kz',
+): Promise<{ doc: Document; close: () => Promise<void> }> {
+  const server = Fastify({ logger: false });
+  registerLanding(server);
+  server.get('/shop/config', async (_q, reply) => reply.send(config));
+  await server.listen({ port: 0, host: '127.0.0.1' });
+  const port = (server.server.address() as { port: number }).port;
+  const origin = `http://127.0.0.1:${port}`;
+
+  let html = await (await fetch(origin + '/')).text();
+  if (locale) {
+    // The landing keeps the visitor's language here and wire.js reads it. Seed
+    // it before any of the page's own scripts run, which is what a returning
+    // Kazakh visitor's browser hands over.
+    html = html.replace(
+      '<head>',
+      `<head><script>localStorage.setItem('anabala-landing-lang', ${JSON.stringify(locale)})</script>`,
+    );
+  }
+
+  const d = new JSDOM(html, {
+    url: origin + '/',
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+  });
+  (d.window as unknown as { fetch: typeof fetch }).fetch = ((u: string, o: RequestInit) =>
+    fetch(new URL(u, origin), o)) as typeof fetch;
+  await new Promise<void>((r) => d.window.addEventListener('load', () => r(), { once: true }));
+  const deadline = Date.now() + 45_000;
+  while (d.window.document.querySelector('x-dc') && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  await new Promise((r) => setTimeout(r, 400));
+
+  return {
+    doc: d.window.document as unknown as Document,
+    close: async () => {
+      d.window.close();
+      await server.close();
+    },
+  };
+}
 
 describe('landing page renders', () => {
   it('boots React and consumes the template', () => {
@@ -132,6 +197,71 @@ describe('landing page renders', () => {
     // Each link keeps its own pre-filled greeting; the RU and KZ ones differ.
     expect(links.some((a) => a.href.includes('?text='))).toBe(true);
   });
+
+  it('shows the testimonials staff configured, not the ones in the export', () => {
+    // shop_settings.reviews existed, the admin panel edited it, /shop/config
+    // served it — and nothing on the page read it, so entering real customer
+    // quotes changed nothing. Exactly the shape of the callback form before it
+    // was wired.
+    const text = dom.window.document.body.textContent ?? '';
+    expect(text).toContain('Гүлнара Т.');
+    expect(text).toContain('Настроила за вечер');
+    // And the hardcoded ones are gone rather than sitting alongside.
+    expect(text).not.toContain('Дочь ходит в школу сама с первого класса');
+
+    // Both language sections, not just the Russian one — they are found
+    // structurally for this reason.
+    const cards = dom.window.document.querySelectorAll('[data-review="1"]');
+    expect(cards.length).toBeGreaterThanOrEqual(2);
+
+    // A 4-star review renders four filled and one empty, not five.
+    const four = Array.from(cards).find((c) => (c.textContent ?? '').includes('Асем К.'));
+    expect(four?.textContent).toContain('★★★★☆');
+  });
+
+  it('reads a Kazakh visitor the Kazakh text of the same review', async () => {
+    // One setting feeds a bilingual page. The authored page localises both
+    // sections; if the configured reviews only ever rendered `text`, filling
+    // this field in would have handed Kazakh visitors Russian testimonials —
+    // a downgrade caused by wiring the setting up.
+    const cfg = {
+      whatsapp: '',
+      reviews: JSON.stringify([
+        {
+          name: 'Гүлнара Т.',
+          city: 'Шымкент',
+          city_kz: 'Шымкент, бір бала',
+          text: 'Настроила за вечер.',
+          text_kz: 'Бір кеште баптап шықтым.',
+          stars: 5,
+        },
+      ]),
+    };
+    const { doc, close } = await renderWith(cfg, 'kz');
+    const text = doc.body.textContent ?? '';
+    expect(text).toContain('Бір кеште баптап шықтым');
+    expect(text).not.toContain('Настроила за вечер');
+    // The name has no _kz form, so it falls back rather than rendering empty.
+    expect(text).toContain('Гүлнара Т.');
+    await close();
+  }, 60_000);
+
+  it('leaves the authored testimonials alone when the setting is unset', async () => {
+    // The live site has no reviews configured. A page that blanked its social
+    // proof because a field was empty would be worse than one that kept the
+    // copy it shipped with.
+    const { doc, close } = await renderWith({ whatsapp: '', reviews: '' });
+    expect(doc.body.textContent).toContain('Дочь ходит в школу сама с первого класса');
+    await close();
+  }, 60_000);
+
+  it('keeps the authored copy when the field holds something that is not JSON', async () => {
+    // The admin panel's reviews box is a free-text field. A half-typed entry
+    // must not blank the section.
+    const { doc, close } = await renderWith({ whatsapp: '', reviews: '[{"name": "Айг' });
+    expect(doc.body.textContent).toContain('Дочь ходит в школу сама с первого класса');
+    await close();
+  }, 60_000);
 
   it('serves crawler-readable meta in the first byte', async () => {
     // Not from the DOM: from the raw response, which is all a scraper reads.
