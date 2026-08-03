@@ -1,6 +1,59 @@
 <!DOCTYPE html>
 <html><head>
-<script>window.__resources = {"https://unpkg.com/react@18.3.1/umd/react.production.min.js":"/landing/a/68f9d5af-ab2f-4cd9-be7b-f4450c0528ae.js","https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js":"/landing/a/eefcc88b-0435-46d9-b89e-d82beca858ec.js"};</script><title>Ana-Bala — умные часы для мамы и брелок для ребёнка</title>
+<script>window.__resources = {"https://unpkg.com/react@18.3.1/umd/react.production.min.js":"/landing/a/68f9d5af-ab2f-4cd9-be7b-f4450c0528ae.js","https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js":"/landing/a/eefcc88b-0435-46d9-b89e-d82beca858ec.js"};</script><style>
+/* Ana-Bala landing — phone layer, added by tools/build-landing.mjs */
+@media (max-width: 900px) {
+  html, body { overflow-x: hidden !important; max-width: 100vw; }
+
+  /* Every multi-column section becomes one column. */
+  [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+
+  /* Desktop section padding is most of a phone's width. */
+  [style*="padding:96px"], [style*="padding: 96px"] { padding: 48px 16px !important; }
+  [style*="padding:72px"], [style*="padding: 72px"] { padding: 36px 16px !important; }
+  [style*="padding:52px"], [style*="padding: 52px"] { padding: 24px 18px !important; }
+  section { padding-left: 16px !important; padding-right: 16px !important; }
+
+  /* Type. Russian compounds are long, so these are vw-based with a floor. */
+  [style*="font-size:66px"], [style*="font-size: 66px"] { font-size: clamp(30px, 9vw, 46px) !important; }
+  [style*="font-size:62px"], [style*="font-size: 62px"] { font-size: clamp(30px, 9vw, 46px) !important; }
+  [style*="font-size:52px"], [style*="font-size: 52px"] { font-size: clamp(25px, 7.5vw, 36px) !important; }
+  [style*="font-size:50px"], [style*="font-size: 50px"] { font-size: clamp(25px, 7.5vw, 36px) !important; }
+  [style*="font-size:48px"], [style*="font-size: 48px"] { font-size: clamp(25px, 7.5vw, 36px) !important; }
+  [style*="font-size:46px"], [style*="font-size: 46px"] { font-size: clamp(24px, 7vw, 34px) !important; }
+  [style*="font-size:44px"], [style*="font-size: 44px"] { font-size: clamp(24px, 7vw, 34px) !important; }
+  [style*="font-size:42px"], [style*="font-size: 42px"] { font-size: clamp(23px, 6.5vw, 32px) !important; }
+  [style*="font-size:40px"], [style*="font-size: 40px"] { font-size: clamp(22px, 6vw, 30px) !important; }
+  [style*="font-size:38px"], [style*="font-size: 38px"] { font-size: clamp(21px, 5.5vw, 28px) !important; }
+  [style*="font-size:36px"], [style*="font-size: 36px"] { font-size: 22px !important; }
+  [style*="font-size:34px"], [style*="font-size: 34px"] { font-size: 21px !important; }
+  [style*="font-size:30px"], [style*="font-size: 30px"] { font-size: 20px !important; }
+  [style*="font-size:28px"], [style*="font-size: 28px"] { font-size: 19px !important; }
+  [style*="font-size:26px"], [style*="font-size: 26px"] { font-size: 18px !important; }
+  [style*="font-size:24px"], [style*="font-size: 24px"] { font-size: 18px !important; }
+  [style*="font-size:20px"], [style*="font-size: 20px"] { font-size: 16px !important; }
+  [style*="font-size:19px"], [style*="font-size: 19px"] { font-size: 16px !important; }
+
+  /* A single unbreakable word must not widen the page. */
+  h1, h2, h3, p, div, span, a { overflow-wrap: break-word; }
+
+  /* Nothing may be wider than the screen — including the decorative blobs
+     positioned absolutely behind the hero. */
+  img, video, svg, iframe { max-width: 100% !important; height: auto !important; }
+  [style*="position:absolute"], [style*="position: absolute"] { max-width: 100vw !important; }
+
+  /* Rows of chips/links wrap instead of pushing the page wide. */
+  [style*="display:flex"]:not([style*="column"]),
+  [style*="display: flex"]:not([style*="column"]) { flex-wrap: wrap; }
+}
+
+/* The header's in-page anchors do not fit beside the logo and the WhatsApp
+   button. The hero repeats every one of them as a CTA, so hiding the strip
+   costs no navigation. */
+@media (max-width: 720px) {
+  header a[href^="#"], nav a[href^="#"] { display: none !important; }
+}
+</style><title>Ana-Bala — умные часы для мамы и брелок для ребёнка</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/landing/a/b04bc995-624a-4f78-a186-8b971229d745.js"></script>

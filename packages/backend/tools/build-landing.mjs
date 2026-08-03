@@ -136,6 +136,86 @@ template =
   template.slice(0, headEnd) + titleTag[0] +
   template.slice(headEnd).replace(helmet[0], helmet[0].replace(titleTag[0], ''));
 
+// ---- 3c. Make it fit a phone ------------------------------------------------
+//
+// The artifact is authored at desktop width and every rule in it is an INLINE
+// style, so there is no class to override and no breakpoint anywhere: on a
+// 390px screen the page scrolled sideways, headings ran off the edge and the
+// two-column sections stayed two columns.
+//
+// Hence attribute selectors — `[style*="…"]` matches the inline declarations
+// the export actually wrote. Ugly, but it is the only hook a generated page
+// offers, and it survives a re-export because it matches on values (grid,
+// font-size:66px) rather than on markup that could be renamed.
+//
+// Injected here rather than hand-edited into the export for the same reason.
+//
+// One trap, learned the hard way: React RE-SERIALISES every inline style when
+// it renders, so `font-size:66px` in the export becomes `font-size: 66px` in
+// the DOM (and `.95fr` becomes `0.95fr`, `0` becomes `0px`). Selectors written
+// against the compact form match nothing at runtime — the first version of this
+// silently fixed only the rules whose selector named a property and no value.
+// Every value selector below therefore lists both spellings.
+const fs_ = (px, to) =>
+  `  [style*="font-size:${px}px"], [style*="font-size: ${px}px"] { font-size: ${to} !important; }`;
+
+const RESPONSIVE_CSS = `
+/* Ana-Bala landing — phone layer, added by tools/build-landing.mjs */
+@media (max-width: 900px) {
+  html, body { overflow-x: hidden !important; max-width: 100vw; }
+
+  /* Every multi-column section becomes one column. */
+  [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+
+  /* Desktop section padding is most of a phone's width. */
+  [style*="padding:96px"], [style*="padding: 96px"] { padding: 48px 16px !important; }
+  [style*="padding:72px"], [style*="padding: 72px"] { padding: 36px 16px !important; }
+  [style*="padding:52px"], [style*="padding: 52px"] { padding: 24px 18px !important; }
+  section { padding-left: 16px !important; padding-right: 16px !important; }
+
+  /* Type. Russian compounds are long, so these are vw-based with a floor. */
+${fs_(66, 'clamp(30px, 9vw, 46px)')}
+${fs_(62, 'clamp(30px, 9vw, 46px)')}
+${fs_(52, 'clamp(25px, 7.5vw, 36px)')}
+${fs_(50, 'clamp(25px, 7.5vw, 36px)')}
+${fs_(48, 'clamp(25px, 7.5vw, 36px)')}
+${fs_(46, 'clamp(24px, 7vw, 34px)')}
+${fs_(44, 'clamp(24px, 7vw, 34px)')}
+${fs_(42, 'clamp(23px, 6.5vw, 32px)')}
+${fs_(40, 'clamp(22px, 6vw, 30px)')}
+${fs_(38, 'clamp(21px, 5.5vw, 28px)')}
+${fs_(36, '22px')}
+${fs_(34, '21px')}
+${fs_(30, '20px')}
+${fs_(28, '19px')}
+${fs_(26, '18px')}
+${fs_(24, '18px')}
+${fs_(20, '16px')}
+${fs_(19, '16px')}
+
+  /* A single unbreakable word must not widen the page. */
+  h1, h2, h3, p, div, span, a { overflow-wrap: break-word; }
+
+  /* Nothing may be wider than the screen — including the decorative blobs
+     positioned absolutely behind the hero. */
+  img, video, svg, iframe { max-width: 100% !important; height: auto !important; }
+  [style*="position:absolute"], [style*="position: absolute"] { max-width: 100vw !important; }
+
+  /* Rows of chips/links wrap instead of pushing the page wide. */
+  [style*="display:flex"]:not([style*="column"]),
+  [style*="display: flex"]:not([style*="column"]) { flex-wrap: wrap; }
+}
+
+/* The header's in-page anchors do not fit beside the logo and the WhatsApp
+   button. The hero repeats every one of them as a CTA, so hiding the strip
+   costs no navigation. */
+@media (max-width: 720px) {
+  header a[href^="#"], nav a[href^="#"] { display: none !important; }
+}
+`;
+template = template.slice(0, headEnd) + `<style>${RESPONSIVE_CSS}</style>` + template.slice(headEnd);
+headEnd += RESPONSIVE_CSS.length + 15;
+
 // ---- 4. Wire the callback form (ours, not the artifact's) -------------------
 // Appended rather than patched into the artifact's own script so it survives a
 // re-export of the landing unchanged.
