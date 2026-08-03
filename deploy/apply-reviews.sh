@@ -17,9 +17,22 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEED="$HERE/seed-reviews.json"
-API="${API:-http://127.0.0.1:8080}"
 
 [ -f "$SEED" ] || { echo "missing $SEED" >&2; exit 1; }
+
+# The backend publishes no host port: Caddy reaches it over the Docker network,
+# so 127.0.0.1:8080 is refused on this box. Resolve the container's address
+# rather than making every caller remember that.
+if [ -z "${API:-}" ]; then
+  if curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:8080/health 2>/dev/null; then
+    API="http://127.0.0.1:8080"
+  else
+    IP="$(docker inspect umay-backend --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null || true)"
+    [ -n "$IP" ] || { echo "cannot reach the backend; set API=http://host:port" >&2; exit 1; }
+    API="http://$IP:8080"
+  fi
+fi
+echo "  backend: $API" >&2
 
 # The admin API is the only writer of shop_settings, so go through it rather
 # than reaching into the database — it audits who changed what.
