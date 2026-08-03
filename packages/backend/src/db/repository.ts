@@ -178,6 +178,14 @@ export interface AdminUserDetail {
   /** Null when she declined — the panel shows that as "not provided". */
   birthDate: string | null;
   city: string | null;
+  /**
+   * Both repositories return these and the admin drilldown renders them as
+   * "Контакт врача" and "Цикл (база)" — they were just missing from the type,
+   * so the parity test that guards them could not compile.
+   */
+  doctorPhone: string | null;
+  avgCycleLength: number | null;
+  avgPeriodLength: number | null;
   children: Array<{ id: string; name: string; dateOfBirth: string | null; zones: number }>;
   devices: Array<{ id: string; name: string; kind: string; childId: string | null; batteryPct: number | null }>;
   latest: Record<string, number | null>;
