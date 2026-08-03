@@ -44,6 +44,22 @@ const DESC =
   'Оплата при получении, доставка по Казахстану, гарантия 12 месяцев.';
 
 /**
+ * The social card: the Watch S5 product photo the landing itself ships.
+ *
+ * This used to point at `/shop/og.png`, the old storefront's card — which shows
+ * the previous "Umay" brand and the previous prices baked into the artwork. Every
+ * share of the new page was previewing the old product.
+ *
+ * 1500×1500 rather than the conventional 1200×630: it is a real photo from the
+ * page, and a square card that is accurate beats a wide one that is wrong.
+ * Scrapers crop; the declared dimensions below are the real ones so they crop
+ * correctly.
+ */
+const OG_IMAGE = '/landing/a/8dff23ac-cadc-4e5a-9fe7-bb25973d9cf1.jpg';
+const OG_W = 1500;
+const OG_H = 1500;
+
+/**
  * Social tags for the first byte of the response. The artifact applies its own
  * <helmet> only after React boots — too late for a crawler that runs no
  * JavaScript, and too late for a scraper that never waits.
@@ -62,12 +78,12 @@ function headTags(base: string, title: string): string {
     `<meta property="og:title" content="${esc(title)}">` +
     `<meta property="og:description" content="${esc(DESC)}">` +
     `<meta property="og:url" content="${esc(base)}/">` +
-    `<meta property="og:image" content="${esc(base)}/shop/og.png">` +
-    `<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">` +
+    `<meta property="og:image" content="${esc(base)}${OG_IMAGE}">` +
+    `<meta property="og:image:width" content="${OG_W}"><meta property="og:image:height" content="${OG_H}">` +
     `<meta name="twitter:card" content="summary_large_image">` +
     `<meta name="twitter:title" content="${esc(title)}">` +
     `<meta name="twitter:description" content="${esc(DESC)}">` +
-    `<meta name="twitter:image" content="${esc(base)}/shop/og.png">`
+    `<meta name="twitter:image" content="${esc(base)}${OG_IMAGE}">`
   );
 }
 

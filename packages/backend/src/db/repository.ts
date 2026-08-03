@@ -542,7 +542,17 @@ export interface ShopLead {
 /// per matched pair (2 buys of each = 2× off). Recomputed server-side from the
 /// order's own contents at placement — the client never sends a price — so the
 /// saving advertised on the storefront is exactly the saving that is charged.
-export const BUNDLE_DISCOUNT_MINOR = 290000; // 2 900 ₸
+///
+/// **Currently 0.** The landing page — the only place prices are advertised —
+/// no longer sells a discounted hardware pair. Its «Комплект «Мама и ребёнок»»
+/// is 39 000 ₸ for both devices PLUS the Ма!Ма! course (a 40 000 ₸ gift), which
+/// is not a product in this schema and cannot be expressed as a discount on the
+/// two devices. A non-zero value here would make the shop API undercut the
+/// landing's own à-la-carte prices for the same two items.
+///
+/// The mechanism is kept rather than deleted: re-enabling a hardware bundle is a
+/// one-line change plus the storefront copy to advertise it.
+export const BUNDLE_DISCOUNT_MINOR = 0;
 export function bundleDiscountMinor(lines: Array<{ productId: string; qty: number }>): number {
   const qtyOf = (id: string) => lines.filter((l) => l.productId === id).reduce((n, l) => n + l.qty, 0);
   return Math.min(qtyOf('watch'), qtyOf('tracker')) * BUNDLE_DISCOUNT_MINOR;

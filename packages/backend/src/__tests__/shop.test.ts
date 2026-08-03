@@ -56,7 +56,7 @@ describe('the device shop', () => {
     // Now the order goes through.
     const placed = await a.inject({ method: 'POST', url: '/shop/orders', payload: order });
     expect(placed.statusCode).toBe(201);
-    expect(placed.json().totalMinor).toBe(2900000); // 29 000 ₸
+    expect(placed.json().totalMinor).toBe(2490000); // 24 900 ₸ — the landing's price
 
     // Stock is now 2, and the order is visible to admin with its address.
     const variants = (await a.inject({ method: 'GET', url: '/admin/shop/variants' })).json().variants;
@@ -67,7 +67,7 @@ describe('the device shop', () => {
     expect(orders[0].items[0].qty).toBe(1);
   });
 
-  it('applies the family-bundle discount when a watch and a tracker are bought together', async () => {
+  it('charges both devices at the landing prices, with no hardware bundle discount', async () => {
     const a = app();
     const products = (await a.inject({ method: 'GET', url: '/shop/products' })).json().products;
     const watch = products.find((p: { id: string }) => p.id === 'watch').variants[0].id;
@@ -81,17 +81,20 @@ describe('the device shop', () => {
         items: [{ variantId: watch, qty: 1 }, { variantId: tracker, qty: 1 }] },
     });
     expect(placed.statusCode).toBe(201);
-    // 29 000 + 9 900 − 2 900 = 36 000 ₸, with 2 900 ₸ recorded as the saving.
-    expect(placed.json().totalMinor).toBe(3600000);
-    expect(placed.json().discountMinor).toBe(290000);
+    // 24 900 + 4 900 = 29 800 ₸ — exactly the landing's à-la-carte sum. The
+    // «Комплект «Мама и ребёнок»» at 39 000 ₸ is a different offer: it carries
+    // the Ма!Ма! course, which is not a product here, so it cannot be modelled
+    // as a discount on these two lines. See BUNDLE_DISCOUNT_MINOR.
+    expect(placed.json().totalMinor).toBe(2980000);
+    expect(placed.json().discountMinor).toBe(0);
 
     const orders = (await a.inject({ method: 'GET', url: '/admin/shop/orders' })).json().orders;
-    expect(orders[0].totalMinor).toBe(3600000);
-    expect(orders[0].discountMinor).toBe(290000);
+    expect(orders[0].totalMinor).toBe(2980000);
+    expect(orders[0].discountMinor).toBe(0);
     expect(orders[0].items).toHaveLength(2);
   });
 
-  it('does not discount a lone watch — the saving needs both devices', async () => {
+  it('never invents a discount the storefront does not advertise', async () => {
     const a = app();
     const products = (await a.inject({ method: 'GET', url: '/shop/products' })).json().products;
     const watch = products.find((p: { id: string }) => p.id === 'watch').variants[0].id;
@@ -100,7 +103,7 @@ describe('the device shop', () => {
       method: 'POST', url: '/shop/orders',
       payload: { customerName: 'Сауле', phone: '+77006665544', city: 'Алматы', address: 'ул. Сатпаева 3', items: [{ variantId: watch, qty: 1 }] },
     });
-    expect(placed.json().totalMinor).toBe(2900000);
+    expect(placed.json().totalMinor).toBe(2490000);
     expect(placed.json().discountMinor).toBe(0);
   });
 
