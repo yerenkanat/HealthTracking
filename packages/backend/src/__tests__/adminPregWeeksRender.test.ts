@@ -44,6 +44,12 @@ async function boot(): Promise<Rendered> {
       (window as unknown as { CSS: { escape: (s: string) => string } }).CSS = { escape: (s) => s };
       window.fetch = (async (path: string) => {
         const p = String(path);
+        // The panel now opens on a sign-in gate and asks who is signed in
+        // before it renders anything. These tests are about the dashboard,
+        // so they answer as a signed-in admin.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
+        }
         if (p.includes('/pregnancy/weeks')) return { ok: true, status: 200, json: async () => pregnancyCalendar };
         if (p.includes('/admin/users')) {
           return { ok: true, status: 200, json: async () => ({ total: 1, users: [{ id: 'u1', displayName: 'Aigerim S.', phone: '+77073452244', dueDate: '2026-11-14T00:00:00.000Z', lastMetricAt: '2026-07-21T11:30:00.000Z' }] }) };

@@ -146,6 +146,83 @@ export function createPgRepository(pool: Pool): Repository {
       } as ChildLocationFix;
     },
 
+    // ---- Staff sign-in ----
+    async staffByPhone(phone) {
+      const { rows } = await pool.query(
+        `SELECT id, phone, password_hash, role, display_name, disabled_at
+           FROM staff_accounts WHERE phone = $1`,
+        [phone],
+      );
+      const r = rows[0];
+      if (!r) return null;
+      return {
+        id: r.id,
+        phone: r.phone,
+        passwordHash: r.password_hash,
+        role: r.role,
+        displayName: r.display_name,
+        disabled: r.disabled_at !== null,
+      };
+    },
+
+    async upsertStaffAccount(a) {
+      await pool.query(
+        `INSERT INTO staff_accounts (phone, password_hash, role, display_name)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (phone) DO UPDATE
+           SET password_hash = EXCLUDED.password_hash,
+               role          = EXCLUDED.role,
+               display_name  = EXCLUDED.display_name`,
+        [a.phone, a.passwordHash, a.role, a.displayName ?? ''],
+      );
+    },
+
+    async createStaffSession(s) {
+      await pool.query(
+        `INSERT INTO staff_sessions (token_hash, staff_id, expires_at, user_agent)
+         VALUES ($1,$2,$3,$4)`,
+        [s.tokenHash, s.staffId, s.expiresAt, s.userAgent.slice(0, 300)],
+      );
+      // Sweep here rather than on a timer: this runs a few times a day, which is
+      // exactly often enough, and it keeps the table from growing without a
+      // background job nobody would notice had stopped.
+      await pool.query('DELETE FROM staff_sessions WHERE expires_at < now()');
+    },
+
+    async staffBySessionToken(tokenHash) {
+      const { rows } = await pool.query(
+        `SELECT s.staff_id, a.role
+           FROM staff_sessions s
+           JOIN staff_accounts a ON a.id = s.staff_id
+          WHERE s.token_hash = $1
+            AND s.expires_at > now()
+            AND a.disabled_at IS NULL`,
+        [tokenHash],
+      );
+      const r = rows[0];
+      return r ? { staffId: r.staff_id, role: r.role } : null;
+    },
+
+    async deleteStaffSession(tokenHash) {
+      await pool.query('DELETE FROM staff_sessions WHERE token_hash = $1', [tokenHash]);
+    },
+
+    async recentFailedLogins(phone, since) {
+      const { rows } = await pool.query(
+        `SELECT count(*)::int AS n FROM staff_login_attempts
+          WHERE phone = $1 AND at >= $2 AND succeeded = false`,
+        [phone, since],
+      );
+      return rows[0]?.n ?? 0;
+    },
+
+    async recordLoginAttempt(phone, succeeded) {
+      await pool.query(
+        'INSERT INTO staff_login_attempts (phone, succeeded) VALUES ($1,$2)',
+        [phone, succeeded],
+      );
+    },
+
     async guardianPushTokens(childId) {
       const { rows } = await pool.query(
         `SELECT pt.token, c.name, u.locale

@@ -91,6 +91,15 @@ function makeDeps(
     loadGeofences: async (childId) =>
       childId === CHILD ? [HOME, ...(geofences.get(childId) ?? [])] : (geofences.get(childId) ?? []),
     insertGeofenceEvent: async (e) => void events.push(e),
+    // Staff sign-in is exercised by staffLogin.test.ts against the memory
+    // repository; this integration stub only has to satisfy the interface.
+    staffByPhone: async () => null,
+    upsertStaffAccount: async () => {},
+    createStaffSession: async () => {},
+    staffBySessionToken: async () => null,
+    deleteStaffSession: async () => {},
+    recentFailedLogins: async () => 0,
+    recordLoginAttempt: async () => {},
     insertLocation: async (fix) => void (storedLocation = fix),
     lastLocation: async () => storedLocation,
     guardianPushTokens: async () => ({ tokens: ['t'], childName: 'Sultan', locale: 'ru-KZ' }),

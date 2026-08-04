@@ -102,6 +102,12 @@ async function render(bi: unknown, view: string, down: string[] = []): Promise<R
       window.scrollTo = () => {};
       window.fetch = (async (path: string) => {
         const p = String(path);
+        // The panel now opens on a sign-in gate and asks who is signed in
+        // before it renders anything. These tests are about the dashboard,
+        // so they answer as a signed-in admin.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
+        }
         if (down.some((d) => p.includes(d))) {
           return { ok: false, status: 500, json: async () => ({}) };
         }

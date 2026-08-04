@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ContentItemRow, Repository, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus } from './repository';
 import { bundleDiscountMinor } from './repository';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -47,6 +47,14 @@ export function createMemoryRepository(): Repository {
   const events: GeofenceEvent[] = [];
   /** Latest fix per child — what lastLocation reads back. */
   const locations = new Map<string, ChildLocationFix>();
+
+  /** Staff sign-in, keyed by normalised phone. */
+  const staffAccounts = new Map<string, StaffAccount>();
+  const staffSessions = new Map<
+    string,
+    { tokenHash: string; staffId: string; expiresAt: Date; userAgent: string }
+  >();
+  const loginAttempts: Array<{ phone: string; succeeded: boolean; at: Date }> = [];
   const healthRows: unknown[] = [];
   // Idempotency for telemetry ingest, mirroring the pg phm_unique_reading
   // constraint: (userId, deviceId, recordedAt) seen before → duplicate resend.
@@ -177,6 +185,33 @@ export function createMemoryRepository(): Repository {
       const { userId: _omit, ...row } = latest;
       return row;
     },
+    // ---- Staff sign-in ----
+    staffByPhone: async (phone) => staffAccounts.get(phone) ?? null,
+    upsertStaffAccount: async (a) => {
+      const existing = staffAccounts.get(a.phone);
+      staffAccounts.set(a.phone, {
+        id: existing?.id ?? `staff-${staffAccounts.size + 1}`,
+        phone: a.phone,
+        passwordHash: a.passwordHash,
+        role: a.role,
+        displayName: a.displayName ?? '',
+        disabled: false,
+      });
+    },
+    createStaffSession: async (s) => void staffSessions.set(s.tokenHash, s),
+    staffBySessionToken: async (tokenHash) => {
+      const s = staffSessions.get(tokenHash);
+      if (!s || s.expiresAt.getTime() <= Date.now()) return null;
+      const acct = [...staffAccounts.values()].find((a) => a.id === s.staffId);
+      if (!acct || acct.disabled) return null;
+      return { staffId: acct.id, role: acct.role };
+    },
+    deleteStaffSession: async (tokenHash) => void staffSessions.delete(tokenHash),
+    recentFailedLogins: async (phone, since) =>
+      loginAttempts.filter((a) => a.phone === phone && !a.succeeded && a.at >= since).length,
+    recordLoginAttempt: async (phone, succeeded) =>
+      void loginAttempts.push({ phone, succeeded, at: new Date() }),
+
     // Child / geofence
     loadGeofences: async (childId) => geofences.get(childId) ?? [],
     insertGeofenceEvent: async (e) => void events.push(e),

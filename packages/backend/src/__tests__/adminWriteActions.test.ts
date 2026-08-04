@@ -73,6 +73,12 @@ async function openShop(opts: { failWrites?: boolean } = {}) {
       (window as unknown as { alert: (m: string) => void }).alert = (m) => alerts.push(m);
       window.fetch = (async (path: string, init?: RequestInit) => {
         const p = String(path);
+        // The panel now opens on a sign-in gate and asks who is signed in
+        // before it renders anything. These tests are about the dashboard,
+        // so they answer as a signed-in admin.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
+        }
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
           sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });

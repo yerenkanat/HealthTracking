@@ -126,6 +126,12 @@ async function boot(view: string): Promise<Booted> {
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       window.fetch = (async (path: string) => {
         const p = String(path);
+        // The panel now opens on a sign-in gate and asks who is signed in
+        // before it renders anything. These tests are about the dashboard,
+        // so they answer as a signed-in admin.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
+        }
         // Longest match first: /admin/shop/leads must not be answered by
         // /admin/shop.
         const key = Object.keys(FIXTURES)

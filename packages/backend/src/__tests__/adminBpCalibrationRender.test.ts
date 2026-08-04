@@ -61,6 +61,12 @@ async function openDrawer(bpCalibration: unknown, extra: Record<string, unknown>
       (window as unknown as { CSS: unknown }).CSS = { escape: (s: string) => String(s).replace(/["\\]/g, '\\$&') };
       window.fetch = (async (path: string) => {
         const p = String(path);
+        // The panel now opens on a sign-in gate and asks who is signed in
+        // before it renders anything. These tests are about the dashboard,
+        // so they answer as a signed-in admin.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
+        }
         // The BI/analytics dashboards are irrelevant here; let them read as
         // unavailable (a path the panel handles) so the overview KPIs fall back
         // to /admin/stats instead of dereferencing a bi payload we didn't build.

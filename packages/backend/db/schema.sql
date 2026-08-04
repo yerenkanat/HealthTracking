@@ -521,3 +521,36 @@ CREATE TABLE IF NOT EXISTS shop_leads (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_shop_leads_created ON shop_leads (created_at DESC);
+
+-- Staff accounts for the back office: phone number + password, the same two
+-- fields the app asks a mother for. See migration 019 — this block and that one
+-- must stay identical, because schema.sql builds a fresh database and the
+-- migration upgrades an existing one.
+CREATE TABLE IF NOT EXISTS staff_accounts (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  phone         TEXT NOT NULL UNIQUE,          -- digits only, e.g. 77073452244
+  password_hash TEXT NOT NULL,                 -- scrypt, salted
+  role          TEXT NOT NULL DEFAULT 'admin', -- admin | clinician | support
+  display_name  TEXT NOT NULL DEFAULT '',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_login_at TIMESTAMPTZ,
+  disabled_at   TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS staff_sessions (
+  token_hash  TEXT PRIMARY KEY,               -- sha256 of the cookie value
+  staff_id    UUID NOT NULL REFERENCES staff_accounts(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  user_agent  TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS staff_sessions_expiry ON staff_sessions (expires_at);
+
+CREATE TABLE IF NOT EXISTS staff_login_attempts (
+  id         BIGSERIAL PRIMARY KEY,
+  phone      TEXT NOT NULL,
+  at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  succeeded  BOOLEAN NOT NULL DEFAULT false
+);
+CREATE INDEX IF NOT EXISTS staff_login_attempts_phone_at
+  ON staff_login_attempts (phone, at DESC);

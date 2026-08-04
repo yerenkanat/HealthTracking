@@ -424,9 +424,46 @@
     *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
     .card:hover{transform:none}
   }
+
+/* ---- Sign-in gate ---------------------------------------------------- */
+/* Deliberately plain and centred: it is the only screen a signed-out person
+   sees, and it should look like a door rather than a broken dashboard. */
+.loginwrap{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:var(--bg);z-index:50}
+.logincard{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--hair);
+  border-radius:18px;padding:28px 26px 24px;display:flex;flex-direction:column;gap:8px;
+  box-shadow:0 18px 50px rgba(0,0,0,.18)}
+.loginmark{font-weight:800;letter-spacing:.3px;color:var(--accent);margin-bottom:6px}
+.logincard h1{font-size:20px;margin:0}
+.loginsub{color:var(--muted);font-size:13.5px;margin:0 0 10px}
+.logincard label{font-size:12.5px;font-weight:600;color:var(--muted);margin-top:8px}
+.logincard input{font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--hair);
+  background:var(--surface-2);color:var(--ink)}
+.logincard input:focus{outline:2px solid var(--accent);outline-offset:1px}
+/* 48px min, per the same rule the app follows. */
+.logincard .btn{margin-top:16px;min-height:48px;font-size:15px}
+.loginerr{color:var(--crit);font-size:13px;min-height:18px;margin-top:8px}
 </style>
 
-<div class="app">
+<!-- The sign-in gate. Shown until /admin/me confirms a session; the panel
+     itself stays in the DOM behind it so nothing has to be re-rendered on
+     sign-in. Phone + password, the same two fields the app asks a mother for,
+     because the people using this are the same people. -->
+<div class="loginwrap" id="loginGate" hidden>
+  <form class="logincard" id="loginForm" autocomplete="on">
+    <div class="loginmark">Ana-Bala</div>
+    <h1>Вход для персонала</h1>
+    <p class="loginsub">Введите номер телефона и пароль.</p>
+    <label for="loginPhone">Номер телефона</label>
+    <input id="loginPhone" name="username" type="tel" inputmode="tel"
+           autocomplete="username" placeholder="+7 707 345 22 44" required>
+    <label for="loginPass">Пароль</label>
+    <input id="loginPass" name="password" type="password"
+           autocomplete="current-password" required>
+    <button class="btn" id="loginBtn" type="submit">Войти</button>
+    <div class="loginerr" id="loginErr" role="alert" aria-live="polite"></div>
+  </form>
+</div>
+<div class="app" id="appShell" hidden>
   <aside class="side">
     <div class="brand">
       <div class="logo">U</div>
@@ -923,7 +960,7 @@
   class AccessDenied extends Error {}
 
   async function api(path){
-    const r=await fetch(path,{headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
+    const r=await fetch(path,{credentials:"same-origin",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
     // Both used to throw the same thing, and boot() treated any failure as
     // "offline" and quietly showed demo numbers. A staff member whose access
     // had been revoked got a fully populated dashboard of invented data.
@@ -2225,7 +2262,7 @@
   }
   // ---- Shop: inventory + orders ----
   async function apiSend(path, method, body){
-    const r=await fetch(path,{method,headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role,"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
+    const r=await fetch(path,{method,credentials:"same-origin",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role,"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
     if(!r.ok) throw new Error(String(r.status));
     return r.json().catch(()=>({}));
   }
@@ -2562,7 +2599,58 @@
   }catch(e){/* private mode */}
   $("#staffName").textContent=STAFF.name;$("#staffRole").textContent=STAFF.role;$("#staffAv").textContent=STAFF.name.replace("Dr. ","")[0];
 
-  boot();
+  // ---- Sign-in ----------------------------------------------------------
+  //
+  // /admin/me decides which screen to show. Everything behind it needs a
+  // session cookie, so there is no point rendering the dashboard first and
+  // discovering that on the first request — which is what a signed-out staff
+  // member used to get: a dashboard of demo numbers behind a browser dialog.
+  const gate=document.getElementById("loginGate");
+  const shell=document.getElementById("appShell");
+
+  function showLogin(msg){
+    gate.hidden=false; shell.hidden=true;
+    document.getElementById("loginErr").textContent=msg||"";
+    document.getElementById("loginPhone").focus();
+  }
+  function showPanel(){ gate.hidden=true; shell.hidden=false; }
+
+  document.getElementById("loginForm").addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    const btn=document.getElementById("loginBtn"), err=document.getElementById("loginErr");
+    btn.disabled=true; err.textContent="";
+    try{
+      const r=await fetch("/admin/login",{
+        method:"POST", credentials:"same-origin",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({
+          phone:document.getElementById("loginPhone").value,
+          password:document.getElementById("loginPass").value,
+        }),
+      });
+      if(r.ok){
+        document.getElementById("loginPass").value="";
+        showPanel(); await boot(); return;
+      }
+      const body=await r.json().catch(()=>({}));
+      // The lockout is worth naming: the person hitting it is nearly always
+      // the real owner mistyping, and they need to know waiting helps.
+      err.textContent = r.status===429
+        ? "Слишком много попыток. Попробуйте через "+(body.retryAfterMinutes||15)+" мин."
+        : "Неверный номер телефона или пароль.";
+    }catch(e){ err.textContent="Нет связи с сервером."; }
+    finally{ btn.disabled=false; }
+  });
+
+  async function start(){
+    try{
+      const r=await fetch("/admin/me",{credentials:"same-origin"});
+      if(r.ok){ showPanel(); await boot(); }
+      else showLogin();
+    }catch(e){ showLogin("Нет связи с сервером."); }
+  }
+  start();
+
 })();
 </script>
 

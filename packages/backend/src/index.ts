@@ -12,8 +12,10 @@ import { buildServer } from './server';
 import type { ServerDeps } from './server';
 import { authPosture } from './authPosture';
 import { createMemoryRepository } from './db/memoryRepository';
+import type { Repository } from './db/repository';
 import { makeAuthUser } from './http/auth';
 import { registerLanding } from './http/landing';
+import { hashToken, readSessionCookie } from './http/staffAuth';
 import { esc, requestBase } from './http/pageMeta';
 import { createInProcessTransitions, withInProcessFallback } from './geofence/inProcessTransitions';
 import { createLeadNotifier } from './notifications/leadAlert';
@@ -45,8 +47,24 @@ async function initFirebaseAuth(): Promise<void> {
 const authUser = (req: FastifyRequest) =>
   makeAuthUser({ verifyIdToken, allowStubToken: !REAL_AUTH })(req);
 // TODO(auth): verify a staff session/JWT with RBAC claims.
-// Dev stub: trust x-staff-id + x-staff-role headers. DO NOT ship this.
-const authAdmin = async (req: FastifyRequest) => {
+/**
+ * Who is asking, for /admin — the signed-in staff session.
+ *
+ * This used to trust `x-staff-id` and `x-staff-role` outright, so anyone who
+ * could reach the route could name themselves an admin. The only thing stopping
+ * them was Caddy's basic_auth in front of it, which made a reverse-proxy line
+ * the entire authorisation model.
+ *
+ * The header path is kept for LOCAL development only, where there is no
+ * database to hold an account, and it is refused whenever a real one exists.
+ */
+const authAdminFor = (repo: Repository) => async (req: FastifyRequest) => {
+  const token = readSessionCookie(req.headers.cookie);
+  if (token) {
+    const session = await repo.staffBySessionToken(hashToken(token));
+    if (session) return { staffId: session.staffId, role: session.role };
+  }
+  if (!ALLOW_HEADER_STAFF) return null;
   const id = req.headers['x-staff-id'];
   const role = req.headers['x-staff-role'];
   const roles = ['admin', 'clinician', 'support'];
@@ -54,6 +72,16 @@ const authAdmin = async (req: FastifyRequest) => {
     ? { staffId: id, role: role as 'admin' | 'clinician' | 'support' }
     : null;
 };
+
+/**
+ * Whether the x-staff-role dev shortcut is honoured.
+ *
+ * Off wherever a database is configured, which is every deployment. Setting it
+ * by hand in production would hand the back office to anyone who can send a
+ * header, so it is deliberately not a plain boolean env var read.
+ */
+const ALLOW_HEADER_STAFF =
+  process.env.USE_MEMORY_DB === 'true' || !process.env.DATABASE_URL;
 
 /** Real deps: pg + Redis + Anthropic + push (loaded lazily). */
 async function productionDeps(): Promise<ServerDeps> {
@@ -139,7 +167,7 @@ async function productionDeps(): Promise<ServerDeps> {
       },
     },
     authUser,
-    authAdmin,
+    authAdmin: authAdminFor(repo),
     // Readiness: the DB answers a trivial query. (Redis failure degrades to the
     // DB path rather than taking the service down, so it is not gated here.)
     checkReady: async () => {
@@ -204,7 +232,7 @@ function memoryDeps(): ServerDeps {
       sendGeofencePush: async () => {},
     },
     authUser,
-    authAdmin,
+    authAdmin: authAdminFor(repo),
     cacheLastLocation: async (childId) => lastLoc.get(childId) ?? null,
     setBpCalibration: async () => {},
     cryAnalyze: forwardCry, // works in dev too if a CRY_API_URL is reachable
@@ -232,16 +260,20 @@ async function main(): Promise<void> {
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
       `<title>Umay Back-office</title></head><body>${adminBody}</body></html>`;
     app.get('/admin/ui', async (_req, reply) => reply.type('text/html').send(adminHtml));
-    // The page carries the stub staff headers in its own source, so serving it
-    // IS granting admin: anyone who can reach this route can read every
-    // family's data and edit what every user sees. The default bind is
-    // 127.0.0.1 and production refuses to start on stub auth, but neither is
-    // obvious from a log that says nothing.
-    app.log.warn(
-      '/admin/ui is served with NO authentication and the page embeds the ' +
-        'staff header stub — reaching this route is equivalent to admin access. ' +
-        'Local development only.',
-    );
+    // Serving this page grants nothing on its own any more: it opens on the
+    // sign-in form, and every request behind it needs the staff session cookie.
+    // It HAS to be reachable unauthenticated, because it is the login screen.
+    //
+    // That is only true while the x-staff-role shortcut is off, which it is
+    // wherever DATABASE_URL is set — so say so when it is not, rather than
+    // warning unconditionally and training everyone to ignore the line.
+    if (ALLOW_HEADER_STAFF) {
+      app.log.warn(
+        '/admin/ui is served unauthenticated AND the x-staff-role shortcut is ' +
+          'enabled (no DATABASE_URL) — reaching this route is equivalent to ' +
+          'admin access. Local development only.',
+      );
+    }
   } catch {
     app.log.warn('admin dashboard html not found; /admin/ui disabled');
   }

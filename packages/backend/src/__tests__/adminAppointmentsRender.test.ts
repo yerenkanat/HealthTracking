@@ -78,6 +78,12 @@ async function boot() {
       (window as unknown as { CSS: { escape: (s: string) => string } }).CSS = { escape: (s) => s };
       window.fetch = (async (path: string) => {
         const p = String(path);
+        // The panel now opens on a sign-in gate and asks who is signed in
+        // before it renders anything. These tests are about the dashboard,
+        // so they answer as a signed-in admin.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
+        }
         // Only the endpoints this test needs answer; the rest degrade (the panel
         // keeps BI null and falls back rather than crashing on a malformed body).
         const body = p.includes('/admin/users/u1/detail') ? DETAIL

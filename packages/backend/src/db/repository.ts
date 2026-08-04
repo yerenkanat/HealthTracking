@@ -229,6 +229,19 @@ export interface AdminAnalytics {
   contentLinked: number;
 }
 
+/** Who can sign in to the back office, and what they may see. */
+export type StaffRole = 'admin' | 'clinician' | 'support';
+
+/** A staff row as the login path needs it — hash included, so keep it there. */
+export interface StaffAccount {
+  id: string;
+  phone: string;
+  passwordHash: string;
+  role: StaffRole;
+  displayName: string;
+  disabled: boolean;
+}
+
 export interface Repository {
   // Health
   /**
@@ -483,6 +496,33 @@ export interface Repository {
   setShopLeadStatus(leadId: string, status: ShopLeadStatus): Promise<void>;
 
   /// Store settings — WhatsApp number, Kaspi link, and any other keys the admin
+  // ---- Staff sign-in (phone + password) ----
+  /// The account for a normalised phone, or null. Includes the hash, so it is
+  /// only ever called from the login path.
+  staffByPhone(phone: string): Promise<StaffAccount | null>;
+  /// Create or update an account. Used by the seeding script and, later, by an
+  /// admin managing colleagues.
+  upsertStaffAccount(a: {
+    phone: string;
+    passwordHash: string;
+    role: StaffRole;
+    displayName?: string;
+  }): Promise<void>;
+  /// Record a session. [tokenHash] is a sha256 — the token itself never lands
+  /// in the database, so a leaked dump is not a set of live keys.
+  createStaffSession(s: {
+    tokenHash: string;
+    staffId: string;
+    expiresAt: Date;
+    userAgent: string;
+  }): Promise<void>;
+  /// Resolve a session, or null when unknown or expired.
+  staffBySessionToken(tokenHash: string): Promise<{ staffId: string; role: StaffRole } | null>;
+  deleteStaffSession(tokenHash: string): Promise<void>;
+  /// Failed sign-ins for this phone inside the window — the rate limit.
+  recentFailedLogins(phone: string, since: Date): Promise<number>;
+  recordLoginAttempt(phone: string, succeeded: boolean): Promise<void>;
+
   /// adds. A flat key→value store; the public /shop/config only exposes a
   /// whitelist (contact/links), never secrets. get returns all; set upserts.
   getShopSettings(): Promise<Record<string, string>>;
