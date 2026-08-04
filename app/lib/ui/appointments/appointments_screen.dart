@@ -579,19 +579,28 @@ class _AppointmentCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             if (badge != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                    border:
-                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text(badge,
-                    style: TextStyle(
-                        color: accent,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12)),
+              // Flexible: the row is an icon, the title block, this badge and a
+              // menu button, and only the title block could give way. "через 3
+              // дня" grows with the font-size slider, so at 130% on a 360dp
+              // screen the badge pushed the row 12px over and the striped
+              // overflow bar landed across the appointment.
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(badge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12)),
+                ),
               ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded,

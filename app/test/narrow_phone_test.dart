@@ -17,7 +17,7 @@
 /// the widget, rather than comparing an image.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
@@ -31,6 +31,11 @@ import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
 import 'package:fcs_app/ui/advisor/advisor_screen.dart';
+import 'package:fcs_app/ui/appointments/appointments_screen.dart';
+import 'package:fcs_app/ui/calendar/cycle_insights_screen.dart';
+import 'package:fcs_app/ui/calendar/medications_screen.dart';
+import 'package:fcs_app/ui/calendar/postpartum_screen.dart';
+import 'package:fcs_app/ui/settings/legal_screen.dart';
 import 'package:fcs_app/ui/calendar/contraction_timer_screen.dart';
 import 'package:fcs_app/ui/calendar/hospital_bag_screen.dart';
 import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
@@ -431,6 +436,109 @@ void main() {
       'onboarding',
       textScale: 1.3,
     );
+  });
+
+  // ---- The list and history screens --------------------------------------
+  //
+  // All seeded with data. An empty list cannot overflow, and every one of
+  // these has an empty state that would have passed while testing nothing.
+
+  /// A controller with medications, appointments and a weight history.
+  AppController wellUsed() {
+    final c = AppController(now: () => now);
+    // Long names on purpose: a medication is typed in by the user, and the
+    // pharmacy label is what she copies from.
+    c.addMedication('Фолиевая кислота (Фолацин)', dose: '400 мкг', perDay: 1);
+    c.addMedication('Железо + витамин C', dose: '27 мг', perDay: 2);
+    c.addAppointment('Приём у акушера-гинеколога, каб. 214', now.add(const Duration(days: 3)),
+        note: 'Взять результаты анализов');
+    c.addAppointment('УЗИ второго триместра', now.subtract(const Duration(days: 20)));
+    c.logWeight(DateTime(2026, 7, 1), 64.5);
+    c.logWeight(DateTime(2026, 7, 8), 65.1);
+    return c;
+  }
+
+  testWidgets('the medications screen fits', (tester) async {
+    final c = wellUsed();
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => MedicationsScreen(controller: c, now: () => now),
+      'the medications screen',
+    );
+  });
+
+  testWidgets('the medications screen fits at 130%', (tester) async {
+    final c = wellUsed();
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => MedicationsScreen(controller: c, now: () => now),
+      'the medications screen',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('appointments fit', (tester) async {
+    final c = wellUsed();
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => AppointmentsScreen(controller: c, now: () => now),
+      'appointments',
+    );
+  });
+
+  testWidgets('appointments fit at 130%', (tester) async {
+    final c = wellUsed();
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => AppointmentsScreen(controller: c, now: () => now),
+      'appointments',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('cycle insights fit', (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    // Two logged cycles, so the insights have something to summarise.
+    for (final d in ['2026-05-04', '2026-05-05', '2026-06-02', '2026-06-03']) {
+      c.setDayLog(DayLog(date: d, flow: Flow.medium, symptoms: const {Symptom.cramps}));
+    }
+    await fits(
+      tester,
+      () => CycleInsightsScreen(controller: c, now: () => today),
+      'cycle insights',
+    );
+  });
+
+  testWidgets('the postpartum screen fits', (tester) async {
+    await fits(
+      tester,
+      () => PostpartumScreen(
+        birthDate: now.subtract(const Duration(days: 12)),
+        today: now,
+      ),
+      'the postpartum screen',
+    );
+  });
+
+  testWidgets('the postpartum screen fits at 130%', (tester) async {
+    await fits(
+      tester,
+      () => PostpartumScreen(
+        birthDate: now.subtract(const Duration(days: 12)),
+        today: now,
+      ),
+      'the postpartum screen',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('the privacy policy fits', (tester) async {
+    await fits(tester, () => const LegalScreen(doc: LegalDoc.privacy), 'the privacy policy');
   });
 
   // ---- 360dp with the font-size slider turned up -------------------------
