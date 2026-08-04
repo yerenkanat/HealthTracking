@@ -5,8 +5,6 @@
  * logic testable with fakes.
  */
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import type { FastifyRequest } from 'fastify';
 import { buildServer } from './server';
 import type { ServerDeps } from './server';
@@ -15,6 +13,7 @@ import { createMemoryRepository } from './db/memoryRepository';
 import type { Repository } from './db/repository';
 import { makeAuthUser } from './http/auth';
 import { registerLanding } from './http/landing';
+import { registerStaticPages } from './http/staticPages';
 import { hashToken, readSessionCookie } from './http/staffAuth';
 import { esc, requestBase } from './http/pageMeta';
 import { createInProcessTransitions, withInProcessFallback } from './geofence/inProcessTransitions';
@@ -252,108 +251,28 @@ async function main(): Promise<void> {
   const probe = assessTelemetry({ deviceId: 'boot', recordedAt: new Date(0).toISOString(), systolicMmHg: 145 } as BandTelemetry);
   if (!probe.forceEmergencyScreen) throw new Error('Triage self-check failed at boot');
 
-  // Serve the admin dashboard (static HTML) at /admin/ui. It calls the /admin API
-  // same-origin with the staff headers. Loaded once at boot.
-  try {
-    const adminBody = readFileSync(fileURLToPath(new URL('../../admin/index.html', import.meta.url)), 'utf8');
-    const adminHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
-      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>Umay Back-office</title></head><body>${adminBody}</body></html>`;
-    app.get('/admin/ui', async (_req, reply) => reply.type('text/html').send(adminHtml));
+  // The pages a person reaches by typing an address. They used to be written
+  // out here, in the boot file, which no test can import — so /admin/ui, /shop
+  // and the social cards sat outside every guard the rest of the code has, and
+  // two 404s reached production before anyone noticed. See http/staticPages.ts.
+  {
+    const pages = registerStaticPages(app);
+    if (!pages.adminUi) app.log.warn('admin dashboard html not found; /admin/ui disabled');
+    if (!pages.apiDocs) app.log.warn('api docs html not found; /api-docs disabled');
+    if (!pages.shop) app.log.warn('shop storefront images not found; /shop pages disabled');
 
-    // /admin and /admin/ are what a person types and what a browser leaves on a
-    // bookmark. Both answered with a JSON 404 — `{"message":"Route GET:/admin
-    // not found"}` — which reads as a broken site rather than a wrong path,
-    // and there is no reason anyone should have to know the page lives one
-    // segment further along.
-    //
-    // 302, not 301: /admin is the address people will keep using, and a
-    // permanent redirect is cached in a way that is painful to undo if the
-    // panel ever moves to admin.ana-bala.kz.
-    for (const p of ['/admin', '/admin/']) {
-      app.get(p, async (_req, reply) => reply.redirect('/admin/ui', 302));
-    }
-    // Serving this page grants nothing on its own any more: it opens on the
-    // sign-in form, and every request behind it needs the staff session cookie.
-    // It HAS to be reachable unauthenticated, because it is the login screen.
-    //
-    // That is only true while the x-staff-role shortcut is off, which it is
+    // Serving the panel grants nothing on its own: it opens on the sign-in
+    // form, and every request behind it needs the staff session cookie. That
+    // is only true while the x-staff-role shortcut is off, which it is
     // wherever DATABASE_URL is set — so say so when it is not, rather than
     // warning unconditionally and training everyone to ignore the line.
-    if (ALLOW_HEADER_STAFF) {
+    if (pages.adminUi && ALLOW_HEADER_STAFF) {
       app.log.warn(
         '/admin/ui is served unauthenticated AND the x-staff-role shortcut is ' +
           'enabled (no DATABASE_URL) — reaching this route is equivalent to ' +
           'admin access. Local development only.',
       );
     }
-  } catch {
-    app.log.warn('admin dashboard html not found; /admin/ui disabled');
-  }
-
-  // Human-readable API docs at /api-docs — a self-contained page with a live
-  // "try it" console. Served OUTSIDE the /api/v1 key guard so the docs are always
-  // reachable; the console sends x-api-key on requests when the operator enters one.
-  try {
-    const apiDocs = readFileSync(fileURLToPath(new URL('../docs/api.html', import.meta.url)), 'utf8');
-    app.get('/api-docs', async (_req, reply) => reply.type('text/html').send(apiDocs));
-  } catch {
-    app.log.warn('api docs html not found; /api-docs disabled');
-  }
-
-  // What is left of the old storefront: its images, and redirects from its pages
-  // to the Ana-Bala landing that replaced them. The shop API itself lives in
-  // routes/crud.ts and is unaffected.
-  //
-  // The HTML for those pages is still in packages/backend/shop/ — kept rather
-  // than deleted so the copy and layout can be mined when the storefront is
-  // rebuilt in the new brand, but no route serves it any more.
-  try {
-    // Social-preview cards — real PNGs crawlers can fetch (data: URIs and relative
-    // paths are unreliable across scrapers), cached hard; they change only with art.
-    const serveImage = (path: string, file: string, type = 'image/png') => {
-      const bytes = readFileSync(fileURLToPath(new URL(`../shop/${file}`, import.meta.url)));
-      app.get(path, async (_req, reply) => reply.type(type).header('cache-control', 'public, max-age=86400').send(bytes));
-    };
-
-    // ---- The previous generation of product pages, retired -------------------
-    //
-    // These four pages (/shop, /shop/watch, /shop/tracker, /shop/umay-watch) sold
-    // the same two devices under the old "Umay" brand, in the old terracotta
-    // design, at the old prices — 29 000 ₸ for the watch where the Ana-Bala
-    // landing says 24 900. Two prices for one product on one domain is worse
-    // than one page fewer, and it is not fixable by editing numbers: the brand
-    // name is wrong throughout and each page's social card is a PNG with the old
-    // price baked into the artwork.
-    //
-    // So they redirect to the landing, which now carries the whole offer. The
-    // shop *API* is untouched — /shop/products, /shop/orders, /shop/config and
-    // /shop/leads still serve the app, the admin panel and the landing's form.
-    //
-    // 302, not 301: this supersession is a product decision, and a permanent
-    // redirect is cached by browsers in a way that is painful to undo.
-    //
-    // '/shop/' is listed separately because Fastify treats it as a different
-    // route from '/shop' and 404s it. A trailing slash is exactly what a
-    // browser leaves on a bookmarked section, so that 404 was reachable by
-    // anyone who saved the page before the redirect existed.
-    for (const path of ['/shop', '/shop/', '/shop/watch', '/shop/tracker', '/shop/umay-watch']) {
-      app.get(path, async (_req, reply) => reply.redirect('/', 302));
-    }
-    // The cards themselves stay reachable — they are still referenced by links
-    // shared before the redirect, and a dead og:image is worse than a stale one.
-    serveImage('/shop/og.png', 'og.png');
-    serveImage('/shop/watch-og.png', 'watch-og.png');
-    serveImage('/shop/tracker-og.png', 'tracker-og.png');
-    serveImage('/shop/umay-watch-og.png', 'umay-watch-og.png');
-
-    // Real product photos (single watch on white), kept for the admin panel and
-    // any page that still links them. JPEG, cached hard.
-    for (const c of ['black', 'white', 'gray', 'pink', 'red', 'teal', 'army']) {
-      serveImage(`/shop/photos/watch-${c}.jpg`, `photos/watch-${c}.jpg`, 'image/jpeg');
-    }
-  } catch {
-    app.log.warn('shop storefront html not found; /shop pages disabled');
   }
 
   // ---- The Ana-Bala landing page (the site root) ------------------------------
