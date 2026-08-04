@@ -35,6 +35,35 @@ the only navigation in the app, and at 2.9:1 the inactive ones are not readable
 by a large share of the people this product is sold to. `tab_bar_test.dart`
 asserts the contrast ratio rather than the hex, so the reason survives an edit.
 
+## No «замер 60 секунд» screen
+
+The spec's feature list names a 60-second measurement as a core screen. It does
+not exist and is not being built.
+
+The band streams continuously and the app already shows live heart rate, SpO₂,
+temperature and stress from that stream; a "stand still for 60 seconds" flow is
+a different measurement contract with the hardware — what it samples, what it
+rejects, what it does with a reading taken while walking. None of that is
+specified anywhere, and guessing it would produce a screen that looks finished
+and reports numbers nobody has validated. On a health product that is worse than
+not shipping it.
+
+Owner decision, 2026-08-04: not built. Needs a hardware spec first.
+
+## The pregnancy hero keeps its illustration
+
+**Spec:** "No hand-drawn SVG illustrations — real photos or striped
+placeholders."
+
+The pregnancy screen's baby-size disc stays. The rule is aimed at decoration —
+spot illustrations used to warm up a screen that could have shown something
+real — and this is not that: the disc *is* the datum, drawing the current week's
+size the way a chart draws a number. Replacing it with a photo would mean using
+someone else's foetal imagery, and a striped placeholder would say nothing.
+
+Everywhere else the rule holds: the map, the empty states and the content cards
+all use photos or the striped placeholder.
+
 ## The design-system widget set is only partly adopted
 
 `ds_widgets.dart` exports fifteen primitives. As of 2026-08-04 six are in use
