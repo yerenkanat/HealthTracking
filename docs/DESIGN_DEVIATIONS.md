@@ -64,13 +64,22 @@ someone else's foetal imagery, and a striped placeholder would say nothing.
 Everywhere else the rule holds: the map, the empty states and the content cards
 all use photos or the striped placeholder.
 
-## The design-system widget set is only partly adopted
+## Some rows are deliberately not `DsRow`
 
-`ds_widgets.dart` exports fifteen primitives. As of 2026-08-04 six are in use
-(`DsCard`, `DsPrimaryButton`, `DsSecondaryButton`, `DsIconTile`,
-`DsMapPlaceholder`, `DsTabBarSurface`) and the rest are being adopted screen by
-screen, replacing `GlassCard` and hand-built rows.
+`DsRow` is the list row: a leading mark, a label, an optional second line, a
+value or a trailing control. Settings and the reminders centre use it, and
+`GlassCard` is gone — every card in the app is a `DsCard`.
 
-Until that finishes, the same surface can look slightly different on two
-screens. That is migration state, not a decision — a screen still using
-`GlassCard` has simply not been converted yet.
+Several screens keep their own row widget, and should:
+
+| Widget | Screen | Why it is not a list row |
+|---|---|---|
+| `_ItemRow` | hospital bag | a checklist item — the tick IS the control |
+| `_FreqRow` | cycle insights | label plus a proportional frequency bar |
+| `_SignRow` | labour signs | a bullet of prose, not a label/value pair |
+| `_MenuRow` | appointments | a popup-menu entry, not a row in a card |
+| `_CycleRow` | cycle insights | a dated event with a trailing measurement |
+
+Converting these would mean deleting the thing that makes each one useful. A
+shared primitive is worth having where the pattern actually repeats; forcing it
+where it does not is how a design system starts making screens worse.

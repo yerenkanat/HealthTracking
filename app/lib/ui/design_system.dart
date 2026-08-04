@@ -242,8 +242,14 @@ abstract final class DsShape {
     BoxShadow(color: Ds.ink, offset: Offset(5, 5), blurRadius: 0),
   ];
 
-  /// Apple's floor, and the spec's: nothing tappable is smaller than this.
-  static const minTapTarget = 44.0;
+  /// Nothing tappable is smaller than this.
+  ///
+  /// 48, not Apple's 44. The spec is iOS-first and 44 is the iOS floor, but the
+  /// app ships to Android phones as its main audience, where the guideline —
+  /// and docs/UI_REVIEW_CHECKLIST.md §4, which this project treats as
+  /// mandatory — is 48. The two numbers disagreed and the code was quietly
+  /// following the smaller one; 48 satisfies both.
+  static const minTapTarget = 48.0;
 }
 
 /// Layout constants from the device frame section of the spec.

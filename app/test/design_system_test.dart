@@ -139,7 +139,9 @@ void main() {
     });
 
     test('tap targets clear the 44px floor', () {
-      expect(DsShape.minTapTarget, greaterThanOrEqualTo(44.0));
+      // 48, per docs/UI_REVIEW_CHECKLIST.md &sect;4 — see the constant's comment for
+      // why this is not Apple's 44.
+      expect(DsShape.minTapTarget, greaterThanOrEqualTo(48.0));
     });
   });
 

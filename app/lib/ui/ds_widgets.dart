@@ -500,7 +500,8 @@ class DsListCard extends StatelessWidget {
                       Expanded(
                         child: rows[i].subtitle == null
                             ? Text(rows[i].label,
-                                style: t.rowLabel.copyWith(color: rows[i].labelColor))
+                                style: t.rowLabel
+                                    .copyWith(color: rows[i].labelColor))
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -620,32 +621,44 @@ class DsToggle extends StatelessWidget {
       child: InkWell(
         onTap: enabled ? () => onChanged!(!value) : null,
         borderRadius: DsShape.pill,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          width: 48,
-          height: 28,
-          padding: const EdgeInsets.all(2),
-          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-          decoration: BoxDecoration(
-            // Disabled keeps the ink outline and the knob position — it still
-            // reads as a switch showing its state, just not one that can be
-            // moved — and drops the saturated "on" fill so it does not compete
-            // with the toggles that CAN be pressed.
-            color: !enabled
-                ? Ds.chevron
-                : value
-                    ? Ds.mint
-                    : Ds.chevron,
-            borderRadius: DsShape.pill,
-            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-          ),
-          child: Container(
-            width: 20,
-            height: 20,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.fromBorderSide(DsShape.border),
+        // The pill is 48x28 because the spec says so, but 28dp is not a tap
+        // target — the guideline is 48, and the Material Switch this replaced
+        // padded itself out to meet it. Adopting this widget quietly shrank the
+        // target on ten rows. The pill still draws at 28; only the hit area
+        // grows, centred on it.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: DsShape.minTapTarget),
+          child: Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              width: 48,
+              height: 28,
+              padding: const EdgeInsets.all(2),
+              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+              decoration: BoxDecoration(
+                // Disabled keeps the ink outline and the knob position — it still
+                // reads as a switch showing its state, just not one that can be
+                // moved — and drops the saturated "on" fill so it does not compete
+                // with the toggles that CAN be pressed.
+                color: !enabled
+                    ? Ds.chevron
+                    : value
+                        ? Ds.mint
+                        : Ds.chevron,
+                borderRadius: DsShape.pill,
+                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              ),
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.fromBorderSide(DsShape.border),
+                ),
+              ),
             ),
           ),
         ),
