@@ -27,11 +27,9 @@
 /// out against a partial height it asks for itself, so a row that fits the
 /// whole screen can still not fit there.
 ///
-/// The assistant chat is covered too, over a stubbed transport — its empty
-/// state was the sixth overflow this sweep found.
-///
-/// NOT covered: the cry insight screen, which needs a recorder and a
-/// classifier client.
+/// The assistant chat and the cry insight screen are covered too, over stubbed
+/// transports — their overflows were the sixth and seventh this sweep found.
+/// Every screen and sheet in the app is now in here.
 library;
 
 import 'dart:convert';
@@ -40,6 +38,10 @@ import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/data/api_client.dart';
+import 'package:fcs_app/data/cry_classifier_client.dart';
+import 'package:fcs_app/data/cry_recorder.dart';
+import 'package:fcs_app/domain/cry_analysis.dart';
+import 'package:fcs_app/ui/tracking/cry_insight_screen.dart';
 import 'package:fcs_app/domain/ai_chat_service.dart';
 import 'package:fcs_app/domain/chat_controller.dart';
 import 'package:fcs_app/domain/health_monitor.dart';
@@ -819,6 +821,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // ---- The cry insight screen --------------------------------------------
+
+  testWidgets('the cry insight screen fits', (tester) async {
+    await fits(
+      tester,
+      () => CryInsightScreen(
+        recorder: _StubRecorder(),
+        client: _stubCryClient(),
+        history: [
+          CryResult(at: now.subtract(const Duration(hours: 2)), reason: 'hunger', confidence: 0.82),
+          CryResult(at: now.subtract(const Duration(days: 1)), reason: 'discomfort', confidence: 0.61),
+        ],
+      ),
+      'the cry insight screen',
+    );
+  });
+
+  testWidgets('the cry insight screen fits at 130%', (tester) async {
+    await fits(
+      tester,
+      () => CryInsightScreen(
+        recorder: _StubRecorder(),
+        client: _stubCryClient(),
+        history: [
+          CryResult(at: now.subtract(const Duration(hours: 2)), reason: 'hunger', confidence: 0.82),
+        ],
+      ),
+      'the cry insight screen',
+      textScale: 1.3,
+    );
+  });
+
   // ---- 360dp with the font-size slider turned up -------------------------
   //
   // The combination that actually breaks layouts: the narrowest screen and the
@@ -930,3 +964,23 @@ class _StubTransport implements HttpTransport {
         }),
       );
 }
+
+/// A recorder that never touches hardware.
+class _StubRecorder implements CryRecorder {
+  @override
+  Future<bool> start() async => true;
+  @override
+  Future<List<int>?> stopAndRead() async => const [1, 2, 3];
+  @override
+  Future<void> dispose() async {}
+}
+
+/// A classifier that answers without a network, with a long reason label —
+/// the label sits beside a confidence figure on one row, so a short one would
+/// not exercise the layout this sweep is about.
+CryClassifierClient _stubCryClient() => CryClassifierClient(
+      baseUrl: Uri.parse('http://stub.local'),
+      authToken: () async => 'tok',
+      uploader: (url, bytes, name, headers) async =>
+          '{"reason":"discomfort","confidence":0.74}',
+    );

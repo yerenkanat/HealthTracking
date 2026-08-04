@@ -334,13 +334,24 @@ class _HistoryCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(_reasonLabel(l, history[i].reason),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.w700)),
                 ),
-                Text(
-                    '${history[i].confidencePct}%  ·  ${ml.formatMediumDate(history[i].at)}',
-                    style:
-                        const TextStyle(fontSize: 12, color: Palette.textDim)),
+                const SizedBox(width: 8),
+                // Flexible: with only the label side Expanded, this one is laid
+                // out at its natural width first and the row simply overran —
+                // 17px at 130%. "82 % · 15 июл. 2026" is not short text once
+                // the font-size slider is up.
+                Flexible(
+                  child: Text(
+                      '${history[i].confidencePct}%  ·  ${ml.formatMediumDate(history[i].at)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12, color: Palette.textDim)),
+                ),
               ],
             ),
           ],
