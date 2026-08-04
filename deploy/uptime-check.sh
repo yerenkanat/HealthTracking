@@ -28,8 +28,12 @@ fail=()
 # The landing itself, as a visitor sees it — through the proxy and TLS, not
 # against the container. A backend that answers while Caddy is broken is still
 # an outage.
-code="$(curl -s -o /dev/null -m "$TIMEOUT" -w '%{http_code}' "$SITE/" || echo 000)"
-[ "$code" = "200" ] || fail+=("landing HTTP $code")
+# No `|| echo 000` here: curl already prints 000 when it cannot connect, and the
+# fallback appended a second one — the first real alert would have read
+# "landing HTTP 000000", which is the sort of detail that makes someone distrust
+# the whole message at the moment they most need to believe it.
+code="$(curl -s -o /dev/null -m "$TIMEOUT" -w '%{http_code}' "$SITE/")" || true
+[ "$code" = "200" ] || fail+=("landing HTTP ${code:-no response}")
 
 # The database behind it. /ready reports 503 with a per-dependency breakdown, so
 # this catches a backend that is serving cached pages over a dead Postgres.
