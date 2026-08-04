@@ -47,78 +47,69 @@ class RemindersCenterScreen extends StatelessWidget {
                           fontSize: 13,
                           fontWeight: FontWeight.w600)),
                 ),
-                GlassCard(
-                  child: Column(
-                    children: [
-                      _ReminderTile(
-                        icon: Icons.water_drop_rounded,
-                        color: Palette.roseDeep,
-                        title: l.t('period_reminder'),
-                        subtitle: hasCycle
-                            ? l.t('period_reminder_sub')
-                            : l.t('rem_needs_cycle'),
-                        value: c.periodReminderEnabled,
-                        onChanged: hasCycle
-                            ? (on) => _enable(
-                                context, c, on, () => c.setPeriodReminder(on))
-                            : null,
-                      ),
-                      const _ThinDivider(),
-                      _ReminderTile(
-                        icon: Icons.eco_rounded,
-                        color: Palette.teal,
-                        title: l.t('fertile_reminder'),
-                        subtitle: hasCycle
-                            ? l.t('fertile_reminder_sub')
-                            : l.t('rem_needs_cycle'),
-                        value: c.fertileReminderEnabled,
-                        onChanged: hasCycle
-                            ? (on) => _enable(
-                                context, c, on, () => c.setFertileReminder(on))
-                            : null,
-                      ),
-                      const _ThinDivider(),
-                      _ReminderTile(
-                        icon: Icons.local_drink_rounded,
-                        color: Palette.blue,
-                        title: l.t('water_reminder'),
-                        subtitle: c.waterReminderMinutes == null
-                            ? l.t('water_reminder_off')
-                            : l.t('water_reminder_at', {
-                                'time': minutesToHhmm(c.waterReminderMinutes!)
-                              }),
-                        value: c.waterReminderMinutes != null,
-                        onChanged: (on) => _enable(
-                            context, c, on, () => _toggleWater(context, c, on)),
-                        onTapBody: c.waterReminderMinutes == null
-                            ? null
-                            : () => _pickWaterTime(context, c),
-                      ),
-                      const _ThinDivider(),
-                      _ReminderTile(
-                        icon: Icons.medication_rounded,
-                        color: Palette.violet,
-                        title: l.t('med_reminder'),
-                        subtitle: c.medications.isEmpty
-                            ? l.t('rem_needs_meds')
-                            : c.medReminderMinutes == null
-                                ? l.t('med_reminder_off')
-                                : l.t('med_reminder_at', {
-                                    'time': minutesToHhmm(c.medReminderMinutes!)
-                                  }),
-                        value: c.medReminderMinutes != null,
-                        // Nothing to be reminded about until something's tracked.
-                        onChanged: c.medications.isEmpty
-                            ? null
-                            : (on) => _enable(context, c, on,
-                                () => _toggleMed(context, c, on)),
-                        onTapBody: c.medReminderMinutes == null
-                            ? null
-                            : () => _pickMedTime(context, c),
-                      ),
-                    ],
-                  ),
-                ),
+                DsListCard(rows: [
+                  _ReminderTile(
+                    icon: Icons.water_drop_rounded,
+                    color: Palette.roseDeep,
+                    title: l.t('period_reminder'),
+                    subtitle: hasCycle
+                        ? l.t('period_reminder_sub')
+                        : l.t('rem_needs_cycle'),
+                    value: c.periodReminderEnabled,
+                    onChanged: hasCycle
+                        ? (on) => _enable(
+                            context, c, on, () => c.setPeriodReminder(on))
+                        : null,
+                  ).toRow(),
+                  _ReminderTile(
+                    icon: Icons.eco_rounded,
+                    color: Palette.teal,
+                    title: l.t('fertile_reminder'),
+                    subtitle: hasCycle
+                        ? l.t('fertile_reminder_sub')
+                        : l.t('rem_needs_cycle'),
+                    value: c.fertileReminderEnabled,
+                    onChanged: hasCycle
+                        ? (on) => _enable(
+                            context, c, on, () => c.setFertileReminder(on))
+                        : null,
+                  ).toRow(),
+                  _ReminderTile(
+                    icon: Icons.local_drink_rounded,
+                    color: Palette.blue,
+                    title: l.t('water_reminder'),
+                    subtitle: c.waterReminderMinutes == null
+                        ? l.t('water_reminder_off')
+                        : l.t('water_reminder_at',
+                            {'time': minutesToHhmm(c.waterReminderMinutes!)}),
+                    value: c.waterReminderMinutes != null,
+                    onChanged: (on) => _enable(
+                        context, c, on, () => _toggleWater(context, c, on)),
+                    onTapBody: c.waterReminderMinutes == null
+                        ? null
+                        : () => _pickWaterTime(context, c),
+                  ).toRow(),
+                  _ReminderTile(
+                    icon: Icons.medication_rounded,
+                    color: Palette.violet,
+                    title: l.t('med_reminder'),
+                    subtitle: c.medications.isEmpty
+                        ? l.t('rem_needs_meds')
+                        : c.medReminderMinutes == null
+                            ? l.t('med_reminder_off')
+                            : l.t('med_reminder_at',
+                                {'time': minutesToHhmm(c.medReminderMinutes!)}),
+                    value: c.medReminderMinutes != null,
+                    // Nothing to be reminded about until something's tracked.
+                    onChanged: c.medications.isEmpty
+                        ? null
+                        : (on) => _enable(
+                            context, c, on, () => _toggleMed(context, c, on)),
+                    onTapBody: c.medReminderMinutes == null
+                        ? null
+                        : () => _pickMedTime(context, c),
+                  ).toRow(),
+                ]),
                 const SizedBox(height: 18),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
@@ -129,72 +120,64 @@ class RemindersCenterScreen extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5)),
                 ),
-                GlassCard(
-                  child: Column(
-                    children: [
-                      _ReminderTile(
-                        icon: Icons.swap_horiz_rounded,
-                        color: Palette.good,
-                        title: l.t('notif_zone'),
-                        subtitle: l.t('notif_zone_sub'),
-                        value: c.notificationPrefs.zoneEvents,
-                        onChanged: (on) => _enable(
-                            context,
-                            c,
-                            on,
-                            () => c.setNotificationPrefs(
-                                c.notificationPrefs.copyWith(zoneEvents: on))),
-                      ),
-                      const _ThinDivider(),
-                      _ReminderTile(
-                        icon: Icons.how_to_reg_rounded,
-                        color: Palette.blue,
-                        title: l.t('notif_checkin'),
-                        subtitle: l.t('notif_checkin_sub'),
-                        value: c.notificationPrefs.checkIn,
-                        onChanged: (on) => _enable(
-                            context,
-                            c,
-                            on,
-                            () => c.setNotificationPrefs(
-                                c.notificationPrefs.copyWith(checkIn: on))),
-                      ),
-                      const _ThinDivider(),
-                      _ReminderTile(
-                        icon: Icons.battery_alert_rounded,
-                        color: Palette.amber,
-                        title: l.t('notif_lowbattery'),
-                        subtitle: l.t('notif_lowbattery_sub'),
-                        value: c.notificationPrefs.lowBattery,
-                        onChanged: (on) => _enable(
-                            context,
-                            c,
-                            on,
-                            () => c.setNotificationPrefs(
-                                c.notificationPrefs.copyWith(lowBattery: on))),
-                      ),
-                      const _ThinDivider(),
-                      _ReminderTile(
-                        icon: Icons.bedtime_rounded,
-                        color: Palette.violet,
-                        title: l.t('notif_quiet'),
-                        subtitle: c.notificationPrefs.hasQuietHours
-                            ? l.t('notif_quiet_at', {
-                                'from': minutesToHhmm(
-                                    c.notificationPrefs.quietStart!),
-                                'to': minutesToHhmm(
-                                    c.notificationPrefs.quietEnd!),
-                              })
-                            : l.t('notif_quiet_off'),
-                        value: c.notificationPrefs.hasQuietHours,
-                        onChanged: (on) => _toggleQuietHours(context, c, on),
-                        onTapBody: c.notificationPrefs.hasQuietHours
-                            ? () => _pickQuietHours(context, c)
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
+                DsListCard(rows: [
+                  _ReminderTile(
+                    icon: Icons.swap_horiz_rounded,
+                    color: Palette.good,
+                    title: l.t('notif_zone'),
+                    subtitle: l.t('notif_zone_sub'),
+                    value: c.notificationPrefs.zoneEvents,
+                    onChanged: (on) => _enable(
+                        context,
+                        c,
+                        on,
+                        () => c.setNotificationPrefs(
+                            c.notificationPrefs.copyWith(zoneEvents: on))),
+                  ).toRow(),
+                  _ReminderTile(
+                    icon: Icons.how_to_reg_rounded,
+                    color: Palette.blue,
+                    title: l.t('notif_checkin'),
+                    subtitle: l.t('notif_checkin_sub'),
+                    value: c.notificationPrefs.checkIn,
+                    onChanged: (on) => _enable(
+                        context,
+                        c,
+                        on,
+                        () => c.setNotificationPrefs(
+                            c.notificationPrefs.copyWith(checkIn: on))),
+                  ).toRow(),
+                  _ReminderTile(
+                    icon: Icons.battery_alert_rounded,
+                    color: Palette.amber,
+                    title: l.t('notif_lowbattery'),
+                    subtitle: l.t('notif_lowbattery_sub'),
+                    value: c.notificationPrefs.lowBattery,
+                    onChanged: (on) => _enable(
+                        context,
+                        c,
+                        on,
+                        () => c.setNotificationPrefs(
+                            c.notificationPrefs.copyWith(lowBattery: on))),
+                  ).toRow(),
+                  _ReminderTile(
+                    icon: Icons.bedtime_rounded,
+                    color: Palette.violet,
+                    title: l.t('notif_quiet'),
+                    subtitle: c.notificationPrefs.hasQuietHours
+                        ? l.t('notif_quiet_at', {
+                            'from':
+                                minutesToHhmm(c.notificationPrefs.quietStart!),
+                            'to': minutesToHhmm(c.notificationPrefs.quietEnd!),
+                          })
+                        : l.t('notif_quiet_off'),
+                    value: c.notificationPrefs.hasQuietHours,
+                    onChanged: (on) => _toggleQuietHours(context, c, on),
+                    onTapBody: c.notificationPrefs.hasQuietHours
+                        ? () => _pickQuietHours(context, c)
+                        : null,
+                  ).toRow(),
+                ]),
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -323,7 +306,7 @@ class RemindersCenterScreen extends StatelessWidget {
   }
 }
 
-class _ReminderTile extends StatelessWidget {
+class _ReminderTile {
   final IconData icon;
   final Color color;
   final String title;
@@ -341,58 +324,32 @@ class _ReminderTile extends StatelessWidget {
     this.onTapBody,
   });
 
-  @override
-  Widget build(BuildContext context) {
+  /// The row this tile describes, as a [DsRow].
+  ///
+  /// Was a widget with its own Row, its own icon Container and its own text
+  /// styles — one of eleven private row implementations across the app, each
+  /// slightly different from the others and from the spec.
+  DsRow toRow() {
     final disabled = onChanged == null;
-    return InkWell(
-      onTap: onTapBody,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                  color: color.withValues(alpha: disabled ? 0.06 : 0.14),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon,
-                  color: disabled ? Palette.textDim : color, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: disabled ? Palette.textDim : Palette.text)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          color: Palette.textDim, fontSize: 12.5, height: 1.3)),
-                ],
-              ),
-            ),
-            // The per-reminder accent is dropped on purpose: the spec gives the
-            // toggle one "on" colour (#00C48C), so a row's accent stays in its
-            // icon chip and the switches read as one control repeated rather
-            // than five different ones.
-            DsToggle(value: value, onChanged: onChanged, semanticLabel: title),
-          ],
-        ),
+    return DsRow(
+      // Solid accent chip with a white glyph, per the spec, rather than the
+      // tinted fill this screen used. A disabled row's chip goes grey so the
+      // colour still means "this one is doing something".
+      leading: DsIconTile(
+        icon: icon,
+        color: disabled ? Ds.chevron : color,
+        size: 40,
       ),
+      label: title,
+      subtitle: subtitle,
+      labelColor: disabled ? Palette.textDim : null,
+      onTap: onTapBody,
+      // The per-reminder accent is dropped on purpose: the spec gives the
+      // toggle one "on" colour (#00C48C), so a row's accent stays in its icon
+      // chip and the switches read as one control repeated rather than five
+      // different ones.
+      trailing:
+          DsToggle(value: value, onChanged: onChanged, semanticLabel: title),
     );
   }
-}
-
-class _ThinDivider extends StatelessWidget {
-  const _ThinDivider();
-  @override
-  Widget build(BuildContext context) =>
-      const Divider(height: 14, color: Palette.border);
 }

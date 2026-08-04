@@ -238,13 +238,26 @@ class DsSecondaryButton extends StatelessWidget {
 /// A solid accent square with a single white glyph. The spec is explicit that
 /// these are text glyphs (◎ ♥ ▶ ✿ ☺), not custom artwork.
 class DsIconTile extends StatelessWidget {
-  const DsIconTile(
-      {super.key,
-      required this.glyph,
-      this.color = Ds.coralCta,
-      this.size = 42});
+  const DsIconTile({
+    super.key,
+    this.glyph,
+    this.icon,
+    this.color = Ds.coralCta,
+    this.size = 42,
+  }) : assert(glyph != null || icon != null, 'a tile needs a glyph or an icon');
 
-  final String glyph;
+  /// An emoji or short text mark.
+  final String? glyph;
+
+  /// A Material icon, for the chips the app actually builds.
+  ///
+  /// This widget only accepted [glyph], so every icon-based chip in the app —
+  /// the reminder rows, the settings rows, the appointment cards — could not
+  /// use it and hand-rolled its own Container instead. That is why it had no
+  /// callers: not because the chip was unwanted, but because it could only be
+  /// asked for in a form nothing used.
+  final IconData? icon;
+
   final Color color;
   final double size;
 
@@ -260,8 +273,10 @@ class DsIconTile extends StatelessWidget {
             BorderRadius.circular(size < 40 ? 12 : DsShape.radiusTile),
         border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
-      child: Text(glyph,
-          style: context.ds.button(size: size * 0.45, color: Colors.white)),
+      child: icon != null
+          ? Icon(icon, color: Colors.white, size: size * 0.5)
+          : Text(glyph!,
+              style: context.ds.button(size: size * 0.45, color: Colors.white)),
     );
   }
 }
