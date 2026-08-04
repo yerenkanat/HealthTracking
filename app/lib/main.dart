@@ -604,6 +604,12 @@ Future<void> bootstrapRuntime(
             ),
       );
 
+      // Retry a calibration whose push never landed. Every other synced type is
+      // re-pushed wholesale at startup, so a failure there heals itself; this
+      // one is held as a single pending record instead, because it is the only
+      // sync carrying raw values that cannot be rebuilt from what is stored.
+      unawaited(controller.flushPendingBpCalibration());
+
       // Newborn care sync (feed/diaper/sleep), so the admin sees the pattern.
       controller.attachNewbornSync(
         upsert: (childId, e) => api.putNewbornEvent(childId, e.toJson()),

@@ -149,6 +149,16 @@ class PersistedConfig {
   final List<PairedDevice> devices;
   final BpCalibration? bpCalibration;
 
+  /// A calibration whose push to the server has not succeeded yet.
+  ///
+  /// [bpCalibration] keeps only the OFFSET, and the offset cannot be split
+  /// back into the cuff and PPG readings the clinician needs. Those raw values
+  /// existed solely inside one fire-and-forget request: if it failed — she
+  /// calibrated at a clinic with no signal, on an offline-first app — they were
+  /// gone, and the only way back was another cuff measurement. Held here until
+  /// the server confirms it, then cleared.
+  final Map<String, dynamic>? pendingBpCalibration;
+
   /// The signed-in session (phone-OTP), or null when signed out. Persisted so a
   /// sign-in survives a restart.
   final AuthSession? authSession;
@@ -211,6 +221,7 @@ class PersistedConfig {
     required this.children,
     required this.devices,
     this.bpCalibration,
+    this.pendingBpCalibration,
     this.authSession,
     this.dayLogs = const {},
     this.notificationsEnabled = true,
@@ -255,6 +266,7 @@ class PersistedConfig {
         'children': [for (final c in children) childToJson(c)],
         'devices': [for (final d in devices) d.toJson()],
         if (bpCalibration != null) 'bpCalibration': bpCalibration!.toJson(),
+        if (pendingBpCalibration != null) 'pendingBpCalibration': pendingBpCalibration,
         if (authSession != null) 'authSession': authSession!.toJson(),
         if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
         'notificationsEnabled': notificationsEnabled,
@@ -366,6 +378,9 @@ class PersistedConfig {
             : const UserProfile(),
         children: _items(j['children'], childFromJson),
         devices: _items(j['devices'], PairedDevice.fromJson),
+        pendingBpCalibration: j['pendingBpCalibration'] is Map
+            ? (j['pendingBpCalibration'] as Map).cast<String, dynamic>()
+            : null,
         bpCalibration: j['bpCalibration'] is Map
             ? BpCalibration.fromJson((j['bpCalibration'] as Map).cast<String, dynamic>())
             : null,

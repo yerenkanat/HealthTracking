@@ -146,6 +146,9 @@ class AppController {
   String? _selectedChildId;
   final List<PairedDevice> _devices = [];
   BpCalibration? _bpCalibration;
+
+  /// Raw cuff+ppg awaiting a successful push. See [calibrateBp].
+  Map<String, dynamic>? _pendingBpCalibration;
   AuthSession? _authSession;
   int _acceptedLegalVersion = 0;
   bool _notificationsEnabled = true;
@@ -305,6 +308,7 @@ class AppController {
       ..clear()
       ..addAll(cfg.devices);
     _bpCalibration = cfg.bpCalibration;
+    _pendingBpCalibration = cfg.pendingBpCalibration;
     _authSession = cfg.authSession;
     _acceptedLegalVersion = cfg.acceptedLegalVersion;
     _notificationsEnabled = cfg.notificationsEnabled;
@@ -439,6 +443,7 @@ class AppController {
         children: List.of(_children),
         devices: List.of(_devices),
         bpCalibration: _bpCalibration,
+        pendingBpCalibration: _pendingBpCalibration,
         authSession: _authSession,
         acceptedLegalVersion: _acceptedLegalVersion,
         notificationsEnabled: _notificationsEnabled,
@@ -1966,20 +1971,52 @@ class AppController {
     // cuff+ppg, not just the stored offset — the clinician's view needs them and
     // the offset alone can't reconstruct them. Fire-and-forget, like every other
     // sync hook: a failed push must not fail the calibration she just made.
-    unawaited(_onBpCalibration?.call(
-          cuffSystolic: cuffSystolic,
-          cuffDiastolic: cuffDiastolic,
-          ppgSystolic: ppgSystolic,
-          ppgDiastolic: ppgDiastolic,
-          at: when,
-        ) ??
-        Future<void>.value());
+    //
+    // Held on disk until the push is confirmed. Every other synced type is
+    // re-pushed wholesale at startup, so a failure there heals itself on the
+    // next launch; this one cannot be, because only the offset is kept and the
+    // raw values would already be gone. Recording a cuff reading is a deliberate
+    // act at a clinic or a pharmacy — exactly where the signal is worst — so
+    // "the request failed" is a normal outcome, not an edge case.
+    _pendingBpCalibration = {
+      'cuffSystolic': cuffSystolic,
+      'cuffDiastolic': cuffDiastolic,
+      'ppgSystolic': ppgSystolic,
+      'ppgDiastolic': ppgDiastolic,
+      'at': when.toIso8601String(),
+    };
+    unawaited(_flushBpCalibration());
     _persist(immediate: true); // irreversible — do not risk the debounce window
     _notify();
     return true;
   }
 
   /// Wire backend sync for BP calibration (called by main.dart on sign-in).
+  /// Send the held calibration, and clear it only if the server took it.
+  ///
+  /// Safe to call at any time: it is a no-op when nothing is pending, and the
+  /// server's history is append-only with the latest winning, so re-sending the
+  /// same reading is harmless.
+  Future<void> flushPendingBpCalibration() => _flushBpCalibration();
+
+  Future<void> _flushBpCalibration() async {
+    final p = _pendingBpCalibration;
+    if (p == null || _onBpCalibration == null) return;
+    try {
+      await _onBpCalibration!(
+        cuffSystolic: p['cuffSystolic'] as int,
+        cuffDiastolic: p['cuffDiastolic'] as int,
+        ppgSystolic: p['ppgSystolic'] as int,
+        ppgDiastolic: p['ppgDiastolic'] as int,
+        at: DateTime.parse(p['at'] as String),
+      );
+      _pendingBpCalibration = null;
+      _persist(immediate: true);
+    } catch (_) {
+      // Keep it. The next launch, or the next calibration, tries again.
+    }
+  }
+
   void attachBpCalibrationSync({
     required Future<void> Function({
       required int cuffSystolic,
