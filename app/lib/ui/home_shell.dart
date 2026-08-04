@@ -3,6 +3,7 @@
 /// AppController changes via its `changes` stream.
 library;
 
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -18,6 +19,7 @@ import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'chat/assistant_chat_screen.dart';
+import 'ds_widgets.dart';
 import 'theme.dart';
 import 'appointments/appointments_screen.dart';
 import 'calendar/antenatal_plan_screen.dart';
@@ -250,7 +252,8 @@ class _HomeShellState extends State<HomeShell> {
           Expanded(child: IndexedStack(index: _index, children: pages)),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: DsTabBarSurface(
+        child: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
@@ -271,6 +274,7 @@ class _HomeShellState extends State<HomeShell> {
               selectedIcon: const Icon(Icons.person),
               label: l.t('nav_profile')),
         ],
+        ),
       ),
     );
   }

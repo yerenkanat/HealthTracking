@@ -279,16 +279,30 @@ class FcsTheme {
         // The active tab is named by colour and weight, not by a pill behind it.
         indicatorColor: Colors.transparent,
         labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => type
-              .micro(
-                size: 11,
-                color: states.contains(WidgetState.selected) ? Ds.coralText : Ds.textMuted,
-              )
-              .copyWith(letterSpacing: 0),
+          (states) {
+            final selected = states.contains(WidgetState.selected);
+            return type
+                .micro(
+                  size: 11,
+                  // The spec's own colours are not used here: #FF3D71 and
+                  // #A895B3 measure 3.6:1 and 2.9:1 on cream, and an 11px
+                  // label needs 4.5:1. These are the darkened equivalents.
+                  color: selected ? Ds.coralText : Ds.textMuted,
+                  // 800 active / 700 inactive, per the spec. Weight is the
+                  // second signal after colour, and it is the one that still
+                  // works for a colour-blind reader.
+                  weight: selected ? 800 : 700,
+                )
+                .copyWith(letterSpacing: 0);
+          },
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            size: 22,
+            // 19 is the spec's glyph size, against an 11px label. It costs
+            // nothing in reach: the tap target is the whole 66px-tall tab, not
+            // the glyph, so this is legibility only — and the label carries the
+            // meaning either way.
+            size: 19,
             color: states.contains(WidgetState.selected) ? Ds.coral : Ds.textMuted,
           ),
         ),

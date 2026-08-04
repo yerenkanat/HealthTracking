@@ -18,6 +18,8 @@
 ///    anywhere reads as a different product.
 library;
 
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import 'design_system.dart';
@@ -696,4 +698,39 @@ class _StripePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StripePainter oldDelegate) => false;
+}
+
+/// The spec's sticky tab bar surface: a 2px ink top edge over blurred cream.
+///
+/// The design system's one constant is "black-ink 2px outlines on every
+/// surface", and the tab bar — the only surface visible from every screen —
+/// had no edge at all, so it floated against whatever was behind it instead of
+/// sitting on the page.
+///
+/// The blur is deliberate and narrow. The system bans blur everywhere else
+/// ("no gradients, no blur except the sticky tab bar and lock screen"), and it
+/// is what makes a 94%-opaque bar read as glass over content scrolling under
+/// it rather than as a flat strip.
+class DsTabBarSurface extends StatelessWidget {
+  final Widget child;
+  const DsTabBarSurface({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      // ClipRect bounds the filter. Without it BackdropFilter samples the whole
+      // layer and blurs the screen above the bar too.
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: Ds.ink, width: DsShape.borderWidth),
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
 }

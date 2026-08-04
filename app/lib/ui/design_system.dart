@@ -365,10 +365,13 @@ class DsTypography extends ThemeExtension<DsTypography> {
 
   /// Uppercase micro label — 11–12 with wide tracking. Always `.toUpperCase()`
   /// the string; the scale assumes it.
-  TextStyle micro({Color color = Ds.textSecondary, double size = 11}) =>
+  /// [weight] is settable because the tab bar's two states differ by it: the
+  /// spec sets the active label to 800 and the inactive one to 700, and with a
+  /// single weight the only thing separating them was colour.
+  TextStyle micro({Color color = Ds.textSecondary, double size = 11, int weight = 800}) =>
       _v(_body,
           size: size,
-          weight: 800,
+          weight: weight,
           height: 1.2,
           letterSpacing: 0.075 * size,
           color: color);
