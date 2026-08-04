@@ -27,13 +27,27 @@ import 'package:fcs_app/domain/sleep.dart';
 import 'package:fcs_app/domain/wearable_metrics.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/domain/family.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/domain/geofence_alerts.dart';
+import 'package:fcs_app/ui/advisor/advisor_screen.dart';
+import 'package:fcs_app/ui/calendar/contraction_timer_screen.dart';
+import 'package:fcs_app/ui/calendar/hospital_bag_screen.dart';
+import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
+import 'package:fcs_app/ui/calendar/labour_signs_screen.dart';
 import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
+import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
+import 'package:fcs_app/ui/settings/help_support_screen.dart';
+import 'package:fcs_app/ui/settings/journey_screen.dart';
+import 'package:fcs_app/ui/settings/reminders_center_screen.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/ds_widgets.dart';
 import 'package:fcs_app/ui/profile/profile_screen.dart';
 import 'package:fcs_app/ui/settings/settings_screen.dart';
 import 'package:fcs_app/ui/theme.dart';
 import 'package:fcs_app/ui/tracking/alerts_screen.dart';
+import 'package:fcs_app/ui/onboarding/onboarding_flow.dart';
+import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_map_screen.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
 
@@ -66,12 +80,22 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: FcsTheme.light(locale),
-      home: MediaQuery(
-        // The system font-size slider. Its users are not an edge case here —
-        // this app is read by pregnant women and by grandmothers minding the
-        // children, and Android's accessibility settings go well past this.
-        data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-        child: L10nScope(l10n: L10n(locale), child: build()),
+      // copyWith, NOT a fresh MediaQueryData: building one from scratch gives
+      // it Size.zero, and a screen that asks MediaQuery for the width then
+      // lays out against nothing. The first version of this did exactly that,
+      // so every screen here was measured against a zero-size viewport — the
+      // sweep looked like it was passing 34 screens and was not testing the
+      // width it is named after.
+      home: Builder(
+        builder: (context) => MediaQuery(
+          // The system font-size slider. Its users are not an edge case here —
+          // this app is read by pregnant women and by grandmothers minding the
+          // children, and Android's accessibility settings go well past this.
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: L10nScope(l10n: L10n(locale), child: build()),
+        ),
       ),
     ));
     await tester.pumpAndSettle();
@@ -84,6 +108,16 @@ void main() {
           '${textScale == 1.0 ? '' : ' with text at ${(textScale * 100).round()}%'}'
           ' — the striped overflow bar covers this screen on a cheap Android '
           'phone.\n$err',
+    );
+
+    // A screen that rendered nothing cannot overflow, so without this the
+    // whole sweep could pass by testing blank pages — a screen whose data
+    // failed to load, or a constructor given empty fixtures, would read as
+    // "fits". Every screen here shows at least a title and some body copy.
+    expect(
+      find.byType(Text),
+      findsAtLeast(3),
+      reason: '$label rendered almost nothing, so "it fits" means nothing',
     );
   }
 
@@ -146,8 +180,40 @@ void main() {
     await fits(tester, () => ZonesScreen(controller: c, childId: 'demo'), 'safe zones');
   });
 
-  testWidgets('the alerts feed fits', (tester) async {
+  /// The alerts feed WITH alerts in it.
+  ///
+  /// An empty feed is one line of placeholder copy and cannot overflow, so
+  /// testing it proves nothing about the rows that actually render — which is
+  /// what the vacuity check below caught.
+  AppController withAlerts() {
     final c = AppController(now: () => now);
+    c.mergeRemoteAlerts([
+      SafetyAlert(
+        kind: AlertKind.left,
+        childName: 'Сұлтан',
+        // Long, because a zone is named by the parent and "Школа" is the short
+        // case, not the normal one.
+        zoneName: 'Школа-гимназия №158 имени Абая',
+        at: now.subtract(const Duration(minutes: 12)),
+      ),
+      SafetyAlert(
+        kind: AlertKind.entered,
+        childName: 'Сұлтан',
+        zoneName: 'Дом',
+        at: now.subtract(const Duration(hours: 3)),
+      ),
+      SafetyAlert(
+        kind: AlertKind.lowBattery,
+        childName: 'Сұлтан',
+        zoneName: '15',
+        at: now.subtract(const Duration(hours: 5)),
+      ),
+    ]);
+    return c;
+  }
+
+  testWidgets('the alerts feed fits', (tester) async {
+    final c = withAlerts();
     addTearDown(c.dispose);
     await fits(tester, () => AlertsScreen(controller: c), 'the alerts feed');
   });
@@ -197,6 +263,174 @@ void main() {
     final c = AppController(now: () => now);
     addTearDown(c.dispose);
     await fits(tester, () => SettingsScreen(controller: c), 'settings (kk)', locale: AppLocale.kk);
+  });
+
+  // ---- The screens reached from inside the app ---------------------------
+  //
+  // Second batch: the ones a user navigates to rather than lands on. The
+  // emergency screen leads because it is the only one somebody reads while
+  // frightened, and a striped overflow bar across the ambulance number is the
+  // worst version of this bug in the product.
+
+  Widget emergency() => EmergencyRescueScreen(
+        message: 'Обнаружено высокое давление — признак преэклампсии.',
+        details: const ['Ваше давление: 152/96 мм рт. ст.'],
+        callButtons: const [
+          EmergencyCallButton('Вызвать скорую', '103'),
+          EmergencyCallButton('Позвонить врачу', '+77011234567'),
+        ],
+        onCall: (_) async => true,
+        onDismissConfirmed: () async {},
+      );
+
+  testWidgets('the emergency screen fits', (tester) async {
+    await fits(tester, emergency, 'the emergency screen');
+  });
+
+  testWidgets('the emergency screen fits at 130%', (tester) async {
+    // Whoever has the font size turned up is likelier, not less likely, to be
+    // the person who needs this screen legible.
+    await fits(tester, emergency, 'the emergency screen', textScale: 1.3);
+  });
+
+  testWidgets('the emergency screen fits in Kazakh', (tester) async {
+    await fits(tester, emergency, 'the emergency screen (kk)', locale: AppLocale.kk);
+  });
+
+  testWidgets('the hospital bag fits', (tester) async {
+    await fits(
+      tester,
+      () => HospitalBagScreen(checked: const {'docs', 'clothes'}, onToggle: (_) {}),
+      'the hospital bag',
+    );
+  });
+
+  testWidgets('labour signs fit', (tester) async {
+    await fits(tester, () => const LabourSignsScreen(), 'labour signs');
+  });
+
+  testWidgets('labour signs fit at 130%', (tester) async {
+    await fits(tester, () => const LabourSignsScreen(), 'labour signs', textScale: 1.3);
+  });
+
+  testWidgets('help & support fits', (tester) async {
+    await fits(tester, () => const HelpSupportScreen(), 'help & support');
+  });
+
+  testWidgets('the journey screen fits', (tester) async {
+    // With totals in it. Empty, this screen is one line of placeholder copy
+    // that cannot overflow — the tile grid only exists once something has been
+    // tracked, and the grid is the part that has to fit.
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    c.setDayLog(const DayLog(date: '2026-07-10', mood: Mood.happy, note: 'хороший день'));
+    c.setDayLog(const DayLog(date: '2026-07-11', symptoms: {Symptom.cramps}));
+    c.addWater(DateTime(2026, 7, 12), 6);
+    await fits(tester, () => JourneyScreen(controller: c), 'the journey screen');
+  });
+
+  testWidgets('the journey screen fits at 130%', (tester) async {
+    // The tile grid derives its height from the width AND the font scale, so
+    // this is the case that formula exists for.
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    c.setDayLog(const DayLog(date: '2026-07-10', mood: Mood.happy, note: 'хороший день'));
+    c.setDayLog(const DayLog(date: '2026-07-11', symptoms: {Symptom.cramps}));
+    c.addWater(DateTime(2026, 7, 12), 6);
+    await fits(tester, () => JourneyScreen(controller: c), 'the journey screen', textScale: 1.3);
+  });
+
+  testWidgets('the reminders centre fits', (tester) async {
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    await fits(tester, () => RemindersCenterScreen(controller: c), 'the reminders centre');
+  });
+
+  testWidgets('the reminders centre fits at 130%', (tester) async {
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => RemindersCenterScreen(controller: c),
+      'the reminders centre',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('the kick counter fits', (tester) async {
+    await fits(tester, () => KickSessionScreen(onSave: (_, __) {}), 'the kick counter');
+  });
+
+  testWidgets('the contraction timer fits', (tester) async {
+    await fits(tester, () => const ContractionTimerScreen(), 'the contraction timer');
+  });
+
+  testWidgets('the contraction timer fits at 130%', (tester) async {
+    // Read during labour, one-handed. Worth the extra case.
+    await fits(
+      tester,
+      () => const ContractionTimerScreen(),
+      'the contraction timer',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets("the child's detail screen fits", (tester) async {
+    final c = AppController(now: () => now, locale: AppLocale.ru)
+      ..addChild(ChildProfile(id: 'c1', name: 'Сұлтан', dateOfBirth: DateTime(2019, 3, 8)));
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => ChildDetailScreen(controller: c, childId: 'c1', now: () => now),
+      "the child's detail screen",
+    );
+  });
+
+  testWidgets("the child's detail screen fits at 130%", (tester) async {
+    final c = AppController(now: () => now, locale: AppLocale.ru)
+      ..addChild(ChildProfile(id: 'c1', name: 'Сұлтан', dateOfBirth: DateTime(2019, 3, 8)));
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => ChildDetailScreen(controller: c, childId: 'c1', now: () => now),
+      "the child's detail screen",
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('the advisor fits', (tester) async {
+    await fits(tester, () => const AdvisorScreen(samples: []), 'the advisor');
+  });
+
+  testWidgets('onboarding fits', (tester) async {
+    // The very first screen anyone sees. It is also the one shown before the
+    // user has picked a language, so it must survive both.
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => OnboardingFlow(
+        controller: c.onboarding,
+        onLocaleChange: c.setLocale,
+        onComplete: (_) {},
+      ),
+      'onboarding',
+    );
+  });
+
+  testWidgets('onboarding fits at 130%', (tester) async {
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => OnboardingFlow(
+        controller: c.onboarding,
+        onLocaleChange: c.setLocale,
+        onComplete: (_) {},
+      ),
+      'onboarding',
+      textScale: 1.3,
+    );
   });
 
   // ---- 360dp with the font-size slider turned up -------------------------
@@ -275,7 +509,7 @@ void main() {
     });
 
     testWidgets('the alerts feed still fits', (tester) async {
-      final c = AppController(now: () => now);
+      final c = withAlerts();
       addTearDown(c.dispose);
       await fits(tester, () => AlertsScreen(controller: c), 'the alerts feed', textScale: 1.3);
     });
