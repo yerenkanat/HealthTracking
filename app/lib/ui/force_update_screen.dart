@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n_scope.dart';
+import 'ds_widgets.dart';
 import 'theme.dart';
 
 class ForceUpdateScreen extends StatelessWidget {
@@ -50,19 +51,12 @@ class ForceUpdateScreen extends StatelessWidget {
                     style: const TextStyle(fontSize: 14.5, height: 1.5, color: Palette.textDim)),
                 if (onUpdate != null) ...[
                   const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: onUpdate,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Palette.violet,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: Text(l.t('upd_cta'),
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
+                  // Was a violet 14px-radius button with its own padding and
+                  // text style — three overrides that predate the design
+                  // system and left the app's most blocking screen looking
+                  // like a different product. It is the only action here, so
+                  // it is the primary CTA: coral pill, ink outline, hard step.
+                  DsPrimaryButton(label: l.t('upd_cta'), onPressed: onUpdate),
                 ],
               ],
             ),

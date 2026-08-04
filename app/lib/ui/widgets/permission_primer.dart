@@ -16,6 +16,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/l10n_scope.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 
 /// The permissions Umay primes for. Each maps to its own icon and copy.
@@ -85,15 +86,12 @@ class _PrimerSheet extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, height: 1.5, color: Palette.textDim)),
             const SizedBox(height: 24),
-            FilledButton(
+            // Same three pre-design-system overrides as the force-update screen
+            // carried: violet, a 14px radius and its own text style. This is the
+            // "yes, allow it" of the pair, so it is the primary CTA.
+            DsPrimaryButton(
+              label: l.t('prime_continue'),
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: Palette.violet,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: Text(l.t('prime_continue'),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 8),
             TextButton(

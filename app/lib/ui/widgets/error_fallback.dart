@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 
 /// A calm, localized replacement for a subtree that failed to build.
@@ -55,7 +56,10 @@ class ErrorFallback extends StatelessWidget {
                 ),
                 if (onRestart != null) ...[
                   const SizedBox(height: 20),
-                  FilledButton(onPressed: onRestart, child: Text(l.t('err_back'))),
+                  // The spec's primary CTA: coral pill, ink outline, and the
+                  // 4px hard offset shadow a ButtonStyle cannot express — the
+                  // reason DsPrimaryButton exists at all.
+                  DsPrimaryButton(label: l.t('err_back'), onPressed: onRestart),
                 ],
                 // The technical detail is available but not in her face: it is
                 // for the screenshot support asks for, not for her to read.

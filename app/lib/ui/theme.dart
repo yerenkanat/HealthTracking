@@ -172,7 +172,11 @@ class FcsTheme {
           elevation: 0,
           textStyle: type.button(size: 17),
           // Pill + ink outline. A ButtonStyle cannot carry the hard offset
-          // shadow, so a primary CTA that needs it wraps in `DsHardShadow`.
+          // shadow, so a primary CTA that needs it uses `DsPrimaryButton`.
+          //
+          // This used to name `DsHardShadow`, which was never written — a
+          // comment pointing at a widget that does not exist is worse than no
+          // comment, because it reads as a decision someone already made.
           shape: RoundedRectangleBorder(
             borderRadius: DsShape.pill,
             side: DsShape.border,

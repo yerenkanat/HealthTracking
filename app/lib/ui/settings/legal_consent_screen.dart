@@ -11,6 +11,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/l10n_scope.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 import 'legal_screen.dart';
 
@@ -57,10 +58,7 @@ class LegalConsentScreen extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              FilledButton(
-                onPressed: onAccept,
-                child: Text(l.t('legal_update_accept')),
-              ),
+              DsPrimaryButton(label: l.t('legal_update_accept'), onPressed: onAccept),
             ],
           ),
         ),
