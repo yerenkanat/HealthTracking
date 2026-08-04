@@ -272,6 +272,36 @@ describe('landing page renders', () => {
     expect(head).toContain(`og:url" content="${base}/`);
   });
 
+  it('tells crawlers where the sitemap is', async () => {
+    const res = await fetch(base + '/robots.txt');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    const body = await res.text();
+    expect(body).toContain('Allow: /');
+    expect(body).toContain('Disallow: /admin');
+    // The absolute URL, on the host that was asked — a sitemap line naming the
+    // wrong host is worse than no line at all.
+    expect(body).toContain(`Sitemap: ${base}/sitemap.xml`);
+  });
+
+  it('serves a sitemap listing the one page there is', async () => {
+    const res = await fetch(base + '/sitemap.xml');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('xml');
+    const body = await res.text();
+    expect(body).toContain('<?xml');
+    expect(body).toContain(`<loc>${base}/</loc>`);
+    // The two languages share one URL — the toggle is client-side — so a
+    // second <url> would be claiming an address that does not exist.
+    expect((body.match(/<url>/g) ?? []).length).toBe(1);
+  });
+
+  it('states a canonical URL, because the site answers on www too', () => {
+    const links = dom.window.document.head.querySelectorAll('link[rel="canonical"]');
+    expect(links.length).toBe(1);
+    expect((links[0] as HTMLLinkElement).getAttribute('href')).toBe(`${base}/`);
+  });
+
   it('serves every asset the page asks for', async () => {
     const doc = dom.window.document;
     const urls = new Set<string>();

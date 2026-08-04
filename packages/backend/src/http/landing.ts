@@ -72,6 +72,11 @@ function headTags(base: string, title: string): string {
   return (
     `<meta name="description" content="${esc(DESC)}">` +
     `<meta name="theme-color" content="#FFD9E4">` +
+    // The site answers on both ana-bala.kz and www.ana-bala.kz, so without this
+    // a crawler sees two addresses for one page and splits whatever ranking the
+    // page earns between them. `base` is the host that was actually asked, so
+    // this states the canonical form per request rather than hard-coding one.
+    `<link rel="canonical" href="${esc(base)}/">` +
     `<meta property="og:type" content="website">` +
     `<meta property="og:site_name" content="Ana-Bala">` +
     `<meta property="og:locale" content="ru_KZ">` +
@@ -112,6 +117,45 @@ export function registerLanding(app: FastifyInstance, dir?: string): number {
 
   app.get('/', async (req, reply) =>
     reply.type('text/html').send(before + headTags(requestBase(req), title) + after));
+
+  // ---- Crawlers ----------------------------------------------------------
+  //
+  // Both were 404 in production. Neither is decoration for a page whose only
+  // job is to be found: without a sitemap the one URL that matters is left to
+  // be discovered, and without robots.txt every crawler logs a 404 on its
+  // first request to the site.
+  //
+  // Generated per request rather than written to disk so the host is the one
+  // that was actually asked — the site answers on the apex and on www, and a
+  // sitemap that names the wrong one is worse than none.
+  app.get('/robots.txt', async (req, reply) => {
+    const base = requestBase(req);
+    return reply.type('text/plain; charset=utf-8').send(
+      [
+        'User-agent: *',
+        'Allow: /',
+        // Behind basic_auth already; this keeps it out of an index rather than
+        // out of reach, and says nothing a 401 does not.
+        'Disallow: /admin',
+        '',
+        `Sitemap: ${base}/sitemap.xml`,
+        '',
+      ].join('\n'),
+    );
+  });
+
+  app.get('/sitemap.xml', async (req, reply) => {
+    const base = requestBase(req);
+    // One entry, because there is one page. The Russian and Kazakh versions are
+    // the same URL — the language is a client-side toggle, not a path — so
+    // listing them separately would be claiming URLs that do not exist.
+    return reply.type('application/xml; charset=utf-8').send(
+      '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+        `<url><loc>${esc(base)}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>` +
+        '</urlset>',
+    );
+  });
 
   // Our form wiring, not the artifact's. Its URL is stable (unlike the generated
   // assets, which are named by content uuid), so it gets a short cache instead

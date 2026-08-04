@@ -128,7 +128,11 @@ ana-bala.kz, www.ana-bala.kz {
     # matching handle, and /admin is deliberately not in @public.
 $ADMIN_BLOCK
 
-    @public path / /landing/* /shop /shop/* /health /ready
+    # /robots.txt and /sitemap.xml are served by the backend per request, so
+    # they have to be listed here too — the allow-list 404s anything it does
+    # not name, which is how they came to be missing on a site whose whole job
+    # is to be found.
+    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready
     handle @public {
         reverse_proxy $BACKEND
     }
