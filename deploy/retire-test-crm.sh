@@ -32,7 +32,7 @@ BACKUP="$CADDYFILE.bak.before-crm-retire"
 CRM_CONTAINERS=(
   crm_api
   supabase-studio supabase-kong supabase-auth supabase-rest supabase-storage
-  supabase-realtime supabase-meta supabase-pooler supabase-imgproxy
+  realtime-dev.supabase-realtime supabase-meta supabase-pooler supabase-imgproxy
   supabase-edge-functions supabase-redis supabase-db
   wa-session-db whatsapp_ai_bot
 )
@@ -103,6 +103,7 @@ fi
 say "Stopping the CRM containers (volumes kept)"
 for c in "${CRM_CONTAINERS[@]}"; do
   if docker ps --format '{{.Names}}' | grep -qx "$c"; then
+    docker update --restart=no "$c" >/dev/null 2>&1 || true
     docker stop "$c" >/dev/null && printf '    stopped %s\n' "$c"
   fi
 done
