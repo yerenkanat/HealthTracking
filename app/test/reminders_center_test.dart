@@ -7,6 +7,7 @@ import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/ui/ds_widgets.dart';
 import 'package:fcs_app/ui/settings/reminders_center_screen.dart';
 
 void main() {
@@ -31,7 +32,7 @@ void main() {
 
     expect(find.text('0 active'), findsOneWidget);
     // Flip the period reminder on via its switch.
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byType(DsToggle).first);
     await tester.pumpAndSettle();
     expect(c.periodReminderEnabled, isTrue);
     expect(find.text('1 active'), findsOneWidget);
@@ -46,7 +47,7 @@ void main() {
         scrollable: find.byType(Scrollable).first);
     expect(c.notificationPrefs.zoneEvents, isTrue); // default on
     // The safety toggles follow the four reminder switches: index 4 = zone events.
-    await tester.tap(find.byType(Switch).at(4));
+    await tester.tap(find.byType(DsToggle).at(4));
     await tester.pumpAndSettle();
     expect(c.notificationPrefs.zoneEvents, isFalse);
     // The always-on SOS guarantee is stated.
@@ -82,7 +83,7 @@ void main() {
     await tester.pumpWidget(wrap(c));
     expect(find.text('Needs cycle data to schedule'), findsNWidgets(2)); // period + fertile
     // The period switch is disabled (onChanged null) → tapping does nothing.
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byType(DsToggle).first);
     await tester.pumpAndSettle();
     expect(c.periodReminderEnabled, isFalse);
     addTearDown(c.dispose);

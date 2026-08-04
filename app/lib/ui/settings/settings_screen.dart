@@ -16,6 +16,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../calibration/bp_calibration_sheet.dart';
 import '../design_system.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 import 'journey_screen.dart';
 import 'help_support_screen.dart';
@@ -196,13 +197,12 @@ class SettingsScreen extends StatelessWidget {
                 // The switch is its own tappable node, separate from the row's
                 // title — without a label a screen reader announces "switch,
                 // on" and nothing about what it controls.
-                trailing: Semantics(
-                  label: l.t('set_notifications'),
-                  child: Switch(
-                    value: c.notificationsEnabled,
-                    activeThumbColor: Palette.violet,
-                    onChanged: c.setNotificationsEnabled,
-                  ),
+                // DsToggle carries the label itself, so the wrapping Semantics
+                // is gone: two nested labels announce twice.
+                trailing: DsToggle(
+                  value: c.notificationsEnabled,
+                  onChanged: c.setNotificationsEnabled,
+                  semanticLabel: l.t('set_notifications'),
                 ),
                 onTap: () => c.setNotificationsEnabled(!c.notificationsEnabled),
               ),

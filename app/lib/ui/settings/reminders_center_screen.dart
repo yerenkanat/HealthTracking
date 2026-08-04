@@ -9,6 +9,7 @@ import '../../app/app_controller.dart';
 import '../../domain/reminders.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import '../widgets/permission_primer.dart';
@@ -377,7 +378,11 @@ class _ReminderTile extends StatelessWidget {
                 ],
               ),
             ),
-            Switch(value: value, activeThumbColor: color, onChanged: onChanged),
+            // The per-reminder accent is dropped on purpose: the spec gives the
+            // toggle one "on" colour (#00C48C), so a row's accent stays in its
+            // icon chip and the switches read as one control repeated rather
+            // than five different ones.
+            DsToggle(value: value, onChanged: onChanged, semanticLabel: title),
           ],
         ),
       ),

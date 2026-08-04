@@ -523,16 +523,25 @@ class DsToggle extends StatelessWidget {
       this.semanticLabel});
 
   final bool value;
-  final ValueChanged<bool> onChanged;
+
+  /// Null disables the toggle. Several reminders are legitimately unavailable —
+  /// a period reminder with no cycle logged, a medication reminder with no
+  /// medications — and the row still has to show its state while refusing the
+  /// tap. Adopting this widget is what surfaced the omission: it required a
+  /// non-null callback, so every disabled row in the app was still a raw
+  /// Material Switch.
+  final ValueChanged<bool>? onChanged;
   final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onChanged != null;
     return Semantics(
       label: semanticLabel,
       toggled: value,
+      enabled: enabled,
       child: InkWell(
-        onTap: () => onChanged(!value),
+        onTap: enabled ? () => onChanged!(!value) : null,
         borderRadius: DsShape.pill,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
@@ -541,7 +550,15 @@ class DsToggle extends StatelessWidget {
           padding: const EdgeInsets.all(2),
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           decoration: BoxDecoration(
-            color: value ? Ds.mint : Ds.chevron,
+            // Disabled keeps the ink outline and the knob position — it still
+            // reads as a switch showing its state, just not one that can be
+            // moved — and drops the saturated "on" fill so it does not compete
+            // with the toggles that CAN be pressed.
+            color: !enabled
+                ? Ds.chevron
+                : value
+                    ? Ds.mint
+                    : Ds.chevron,
             borderRadius: DsShape.pill,
             border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
           ),

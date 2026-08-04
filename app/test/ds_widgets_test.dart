@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/ui/design_system.dart';
@@ -163,6 +164,33 @@ void main() {
       await pump(tester, DsToggle(value: true, onChanged: (_) {}));
       final d = firstBorderedBox(tester)!;
       expect(d.color, Ds.mint);
+    });
+
+    testWidgets('refuses the tap when disabled, but still shows its state',
+        (tester) async {
+      // Several reminders are legitimately unavailable — a period reminder
+      // with no cycle logged, a medication reminder with no medications — and
+      // the row has to show its state while refusing the tap. The widget had
+      // no disabled state at all, so every such row in the app was still a raw
+      // Material Switch; adopting it is what surfaced that.
+      var taps = 0;
+      await pump(tester, DsToggle(value: true, onChanged: null, semanticLabel: 'x'));
+      await tester.tap(find.byType(DsToggle));
+      await tester.pump();
+      expect(taps, 0);
+
+      // Not mint: a disabled toggle must not compete with the ones that can be
+      // pressed.
+      expect(firstBorderedBox(tester)!.color, isNot(Ds.mint));
+      // But it keeps the outline, so it still reads as a switch.
+      expect(firstBorderedBox(tester)!.border, isNotNull);
+    });
+
+    testWidgets('tells a screen reader it is unavailable', (tester) async {
+      await pump(tester, const DsToggle(value: false, onChanged: null, semanticLabel: 'Напоминание'));
+      final node = tester.getSemantics(find.byType(DsToggle));
+      expect(node.hasFlag(SemanticsFlag.hasEnabledState), isTrue);
+      expect(node.hasFlag(SemanticsFlag.isEnabled), isFalse);
     });
   });
 

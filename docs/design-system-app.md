@@ -1,5 +1,10 @@
 # Ana-Bala Mobile App — Design System
 
+> The built app differs from this spec in a few places on purpose — the tab
+> count and two label colours. They are listed in
+> [DESIGN_DEVIATIONS.md](DESIGN_DEVIATIONS.md); read that before "fixing" a
+> mismatch.
+
 iOS-first, bright "neo-brutalist warm" style: cream screens, black-ink 2px outlines on every surface, hard offset shadows, saturated accent blocks. No dark theme (only the lock-screen/push view is dark), no gradients, no blur except the sticky tab bar and lock screen.
 
 ## Device & frame
