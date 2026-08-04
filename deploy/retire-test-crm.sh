@@ -92,7 +92,15 @@ if grep -q '^:8081 {' "$CADDYFILE"; then
     rm -f "$CADDYFILE.candidate"
     exit 1
   fi
-  mv "$CADDYFILE.candidate" "$CADDYFILE"
+  # cat, not mv. The proxy sees this file through a bind mount, and a
+  # bind-mounted file follows the inode rather than the path — mv gives the
+  # path a new inode and the container silently keeps reading the old one.
+  # That is exactly what this line used to do, and it cost two deploys that
+  # looked applied and were not.
+  cat "$CADDYFILE.candidate" > "$CADDYFILE"
+  rm -f "$CADDYFILE.candidate"
+  # Belt and braces: push it in regardless of whether the mount survived.
+  docker cp "$CADDYFILE" "$PROXY:/etc/caddy/Caddyfile" >/dev/null
   reload_caddy
   check_landing
 else

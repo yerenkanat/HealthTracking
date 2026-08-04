@@ -35,6 +35,8 @@ if [ "${1:-}" = "--revert" ]; then
   [ -n "$latest" ] || { echo "no backup found"; exit 1; }
   echo "==> Restoring $latest"
   cp -a "$latest" "$CADDYFILE"
+  # Pushed in rather than trusted to the mount — see the note further down.
+  docker cp "$CADDYFILE" "$CONTAINER:/etc/caddy/Caddyfile" >/dev/null
   reload
   echo "==> Reverted."
   exit 0
@@ -162,13 +164,38 @@ $KONG_BLOCK
 EOF
 
 echo "==> Wrote the new config"
-if ! docker exec "$CONTAINER" caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
-  echo "!! Does not validate — restoring the backup"
-  docker exec "$CONTAINER" caddy validate --config /etc/caddy/Caddyfile 2>&1 | tail -5
+
+# The container is supposed to see this file through a bind mount, and for a
+# while it did. Then a script replaced the file with mv, which makes a NEW
+# inode — and a bind-mounted *file* follows the inode, not the path. From then
+# on the container kept serving the old contents while every edit landed on a
+# file nothing was reading, and `caddy reload` cheerfully re-loaded the stale
+# config and reported success. Two deploys were verified against a config that
+# was never applied.
+#
+# So the file is pushed in explicitly and the push is checked. This is correct
+# whether the mount is intact or not.
+HOST_SUM="$(sha256sum "$CADDYFILE" | cut -d' ' -f1)"
+
+docker cp "$CADDYFILE" "$CONTAINER:/etc/caddy/Caddyfile.candidate" >/dev/null
+if ! docker exec "$CONTAINER" caddy validate --config /etc/caddy/Caddyfile.candidate >/dev/null 2>&1; then
+  echo "!! Does not validate — restoring the backup, nothing was applied"
+  docker exec "$CONTAINER" caddy validate --config /etc/caddy/Caddyfile.candidate 2>&1 | tail -5
   cp -a "$BACKUP" "$CADDYFILE"
   exit 1
 fi
 echo "==> Config validates"
+
+docker cp "$CADDYFILE" "$CONTAINER:/etc/caddy/Caddyfile" >/dev/null
+IN_SUM="$(docker exec "$CONTAINER" sha256sum /etc/caddy/Caddyfile | cut -d' ' -f1)"
+if [ "$HOST_SUM" != "$IN_SUM" ]; then
+  echo "!! The container is not reading the file we wrote — refusing to claim a deploy"
+  echo "   host:      $HOST_SUM"
+  echo "   container: $IN_SUM"
+  cp -a "$BACKUP" "$CADDYFILE"
+  exit 1
+fi
+echo "==> The container has exactly this file"
 reload
 
 echo
@@ -178,7 +205,13 @@ printf '    landing  : '; curl -sS https://ana-bala.kz/ | grep -o '<title>[^<]*<
 printf '    assets   : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' "https://ana-bala.kz/landing/wire.js"
 printf '    lead API : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -X POST https://ana-bala.kz/shop/leads \
   -H 'content-type: application/json' -d '{"customerName":"","phone":""}'   # expect 400 = reached the app
-printf '    admin    : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/ui   # expect 404
+# The back office: the page is public, its data is not, and the browser
+# password dialog must be gone — a WWW-Authenticate here means the edge is
+# still asking for a password the app now asks for itself.
+printf '    admin ui : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/ui
+printf '    admin API: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/stats   # expect 401
+printf '    basic srv: '; curl -sI https://ana-bala.kz/admin/ui | grep -qi '^www-authenticate' \
+  && echo 'STILL PROMPTING — the edge password did not go away' || echo 'gone (the app signs staff in)'
 # The one that regressed once: a forged user header must NOT reach the backend.
 printf '    forged id: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' \
   -H 'x-user-id: 11111111-1111-1111-1111-111111111111' https://ana-bala.kz/children   # expect 404, never 200
