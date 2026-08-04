@@ -33,6 +33,8 @@ async function boot(opts: Opts = {}) {
   const html = readFileSync(PANEL, 'utf8');
   const vc = new VirtualConsole();
   const posts: string[] = [];
+  /** Request bodies, for asserting what was actually sent. */
+  const bodies: Array<{ path: string; body: unknown }> = [];
   // jsdom will not navigate and will not let Location be stubbed either — it
   // reports the attempt on the virtual console instead, which is the only
   // honest way to observe the reload without shaping the panel around a test.
@@ -60,7 +62,10 @@ async function boot(opts: Opts = {}) {
 
       window.fetch = (async (path: string, init?: RequestInit) => {
         const p = String(path);
-        if (init?.method && init.method !== 'GET') posts.push(p);
+        if (init?.method && init.method !== 'GET') {
+          posts.push(p);
+          bodies.push({ path: p, body: init.body ? JSON.parse(String(init.body)) : null });
+        }
 
         if (p.includes('/admin/me')) {
           return opts.signedOut
@@ -79,7 +84,7 @@ async function boot(opts: Opts = {}) {
 
   const { window } = dom;
   await new Promise((r) => setTimeout(r, 400));
-  return { window, posts, reloaded, jsdomErrors };
+  return { window, posts, bodies, reloaded, jsdomErrors };
 }
 
 const visible = (w: JSDOM['window'], id: string) =>
@@ -154,6 +159,38 @@ describe('signing in the way a person does', () => {
     await new Promise((r) => setTimeout(r, 250));
 
     expect(posts.some((p) => p.includes('/admin/login')), 'the button sent nothing').toBe(true);
+  });
+
+  it('always says something, even with the fields empty', async () => {
+    // The failure mode this closes: with the browser's own validation on, a
+    // click that fails it fires no submit event at all. No request, no
+    // message, nothing in any log — and the person reporting it can only say
+    // "it does not log in", which is true and unfalsifiable.
+    const { window, posts } = await boot({ signedOut: true });
+    (window.document.getElementById('loginBtn') as HTMLButtonElement)
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(posts.some((p) => p.includes('/admin/login')), 'empty fields should not be sent').toBe(false);
+    expect(window.document.getElementById('loginErr')!.textContent, 'the button did nothing visible')
+      .toMatch(/введите/i);
+  });
+
+  it('trims the phone but never the password', async () => {
+    // A pasted number often carries a space. A password might legitimately end
+    // with one, and eating it silently would make this form disagree with
+    // every other place the same password is entered.
+    const { window, posts, bodies } = await boot({ signedOut: true });
+    (window.document.getElementById('loginPhone') as HTMLInputElement).value = '  +7 707 345 22 44 ';
+    (window.document.getElementById('loginPass') as HTMLInputElement).value = 'secret ';
+    (window.document.getElementById('loginBtn') as HTMLButtonElement)
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(posts.some((p) => p.includes('/admin/login'))).toBe(true);
+    const sent = bodies.find((b) => b.path.includes('/admin/login'))!.body as { phone: string; password: string };
+    expect(sent.phone).toBe('+7 707 345 22 44');
+    expect(sent.password).toBe('secret ');
   });
 
   it('the reveal button never submits the form', async () => {

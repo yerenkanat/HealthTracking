@@ -475,7 +475,12 @@
      sign-in. Phone + password, the same two fields the app asks a mother for,
      because the people using this are the same people. -->
 <div class="loginwrap" id="loginGate" hidden>
-  <form class="logincard" id="loginForm" autocomplete="on">
+  <!-- novalidate is deliberate. With the browser's own validation on, a click
+       on Войти that fails it fires NO submit event: no request, no message,
+       nothing in any server log — a button that does nothing, which is exactly
+       how it gets reported and is unfalsifiable from the outside. The handler
+       checks the fields itself and always says something. -->
+  <form class="logincard" id="loginForm" autocomplete="on" novalidate>
     <div class="loginmark">Ana-Bala</div>
     <h1>Вход для персонала</h1>
     <p class="loginsub">Введите номер телефона и пароль.</p>
@@ -2912,15 +2917,20 @@
   document.getElementById("loginForm").addEventListener("submit",async ev=>{
     ev.preventDefault();
     const btn=document.getElementById("loginBtn"), err=document.getElementById("loginErr");
+    const phoneVal=document.getElementById("loginPhone").value.trim();
+    const passVal=document.getElementById("loginPass").value;
+    // Said here rather than left to the browser, so the button never simply
+    // does nothing. The phone is trimmed; the password never is — a trailing
+    // space is a real character, and silently eating it would make this form
+    // disagree with every other place the password is typed.
+    if(!phoneVal){ err.textContent="Введите номер телефона."; return; }
+    if(!passVal){ err.textContent="Введите пароль."; return; }
     btn.disabled=true; err.textContent="";
     try{
       const r=await fetch("/admin/login",{
         method:"POST", credentials:"same-origin",
         headers:{"content-type":"application/json"},
-        body:JSON.stringify({
-          phone:document.getElementById("loginPhone").value,
-          password:document.getElementById("loginPass").value,
-        }),
+        body:JSON.stringify({ phone:phoneVal, password:passVal }),
       });
       if(r.ok){
         document.getElementById("loginPass").value="";
