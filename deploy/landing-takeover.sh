@@ -52,36 +52,42 @@ echo "==> Backed up to $BACKUP"
 KONG_BLOCK="$(awk '/^:8081 \{/,/^\}/' "$CADDYFILE")"
 [ -n "$KONG_BLOCK" ] || KONG_BLOCK=$':8081 {\n    encode zstd gzip\n    reverse_proxy kong:8000\n}'
 
-# ---- /admin: 404, or basic_auth if a credential has been created ------------
+# ---- /admin: the app authenticates it -------------------------------------
 #
-# The panel embeds the staff header stub, so reaching it IS admin over every
-# family's data. Closed by default. deploy/admin-access.sh writes a bcrypt hash
-# to $ADMIN_HASH_FILE, and when that exists the panel is served behind an edge
-# password instead — which is what makes the leads queue readable at all while
-# there is still no real staff verifier.
-ADMIN_HASH_FILE="${ADMIN_HASH_FILE:-/etc/umay/admin-basicauth}"
-if [ -s "$ADMIN_HASH_FILE" ]; then
-  # The file holds "<user> <bcrypt hash>" — the username is the staff phone
-  # number, matching how people sign in to the app.
-  ADMIN_CRED="$(cat "$ADMIN_HASH_FILE")"
-  ADMIN_BLOCK="    # Edge password ONLY. The app behind it still trusts
-    # x-staff-role, so this password is the whole boundary — see
-    # docs/SECURITY_FOLLOWUP.md §2. Belongs on admin.ana-bala.kz once that
-    # DNS record exists; it is here because the record does not.
-    handle /admin* {
-        basic_auth {
-            ${ADMIN_CRED}
-        }
-        reverse_proxy ${BACKEND}
-    }"
-  echo "==> /admin will be served behind basic_auth as ${ADMIN_CRED%% *}"
-else
-  ADMIN_BLOCK="    # No credential created yet, so the back-office is simply not
-    # reachable. Run deploy/admin-access.sh to open it behind a password.
+# The back office asks for a phone number and a password (migration 019,
+# src/routes/staffLogin.ts) and hands out a session cookie. That is the
+# boundary now, so the edge password this block used to carry has been
+# removed: it was there only because the app trusted an x-staff-role header
+# anyone could send, and it no longer does.
+#
+# What stays at the edge is a per-IP limit on the login itself. The app counts
+# failures per phone number; this counts them per source, so one host cannot
+# walk the eleven-digit phone space by trying each number once.
+#
+# Set ADMIN_CLOSED=1 to 404 the whole thing instead — the fast way to shut the
+# back office if a session ever has to be assumed stolen.
+if [ "${ADMIN_CLOSED:-0}" = "1" ]; then
+  ADMIN_BLOCK="    # Closed by hand: ADMIN_CLOSED=1 when this was written.
     handle /admin* {
         respond \"Not found\" 404
     }"
-  echo "==> /admin stays closed (no credential at $ADMIN_HASH_FILE)"
+  echo "==> /admin stays closed (ADMIN_CLOSED=1)"
+else
+  ADMIN_BLOCK="    handle /admin/login {
+        rate_limit {
+            zone admin_login {
+                key    {remote_host}
+                events 12
+                window 5m
+            }
+        }
+        reverse_proxy ${BACKEND}
+    }
+
+    handle /admin* {
+        reverse_proxy ${BACKEND}
+    }"
+  echo "==> /admin is served by the app's own sign-in (phone + password)"
 fi
 
 cat > "$CADDYFILE" <<EOF
