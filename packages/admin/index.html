@@ -442,6 +442,17 @@
 /* 48px min, per the same rule the app follows. */
 .logincard .btn{margin-top:16px;min-height:48px;font-size:15px}
 .loginerr{color:var(--crit);font-size:13px;min-height:18px;margin-top:8px}
+/* The password field and its reveal button share one box, so the eye sits
+   inside the input rather than beside it and cannot be missed. */
+.passwrap{position:relative;display:flex}
+.passwrap input{flex:1;padding-right:44px}
+.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  display:grid;place-items:center;width:38px;height:38px;border:0;border-radius:9px;
+  background:transparent;color:var(--muted);cursor:pointer}
+.eye:hover{color:var(--ink)}
+.eye:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.eye[aria-pressed="true"]{color:var(--accent)}
+.loginhint{color:var(--warn);font-size:12.5px;margin-top:6px}
 
 /* Персонал. Wraps rather than scrolls: this is used on a laptop and, when a
    colleague has to be cut off in a hurry, on a phone. */
@@ -472,8 +483,20 @@
     <input id="loginPhone" name="username" type="tel" inputmode="tel"
            autocomplete="username" placeholder="+7 707 345 22 44" required>
     <label for="loginPass">Пароль</label>
-    <input id="loginPass" name="password" type="password"
-           autocomplete="current-password" required>
+    <!-- The eye exists because of a real hour lost to it: the password was
+         correct, the account was fine, and the field was full of something
+         else — an autofilled old value, or Latin letters typed with the
+         Russian layout active, which a masked field renders as identical
+         dots. "Wrong password" is the only thing the server can say, so the
+         form has to let you look. -->
+    <div class="passwrap">
+      <input id="loginPass" name="password" type="password"
+             autocomplete="current-password" required>
+      <button type="button" class="eye" id="loginEye" aria-label="Показать пароль" aria-pressed="false" title="Показать пароль">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <div class="loginhint" id="capsHint" hidden>Включён Caps Lock</div>
     <button class="btn" id="loginBtn" type="submit">Войти</button>
     <div class="loginerr" id="loginErr" role="alert" aria-live="polite"></div>
   </form>
@@ -2861,6 +2884,30 @@
     document.getElementById("loginPhone").focus();
   }
   function showPanel(){ gate.hidden=true; shell.hidden=false; }
+
+  // Reveal the password. The whole point is to see a layout mistake or a stale
+  // autofill, so it toggles both ways and says which state it is in.
+  const pass=document.getElementById("loginPass"), eye=document.getElementById("loginEye");
+  eye.addEventListener("click",()=>{
+    const show=pass.type==="password";
+    pass.type=show?"text":"password";
+    eye.setAttribute("aria-pressed",show?"true":"false");
+    const label=show?"Скрыть пароль":"Показать пароль";
+    eye.setAttribute("aria-label",label); eye.title=label;
+    pass.focus();
+  });
+
+  // Caps Lock is the other thing a masked field hides. getModifierState is not
+  // available on every event in every browser, so this only ever adds a hint —
+  // it never blocks a submit.
+  const caps=document.getElementById("capsHint");
+  function checkCaps(ev){
+    if(!ev.getModifierState) return;
+    caps.hidden=!ev.getModifierState("CapsLock");
+  }
+  pass.addEventListener("keydown",checkCaps);
+  pass.addEventListener("keyup",checkCaps);
+  pass.addEventListener("blur",()=>{ caps.hidden=true; });
 
   document.getElementById("loginForm").addEventListener("submit",async ev=>{
     ev.preventDefault();

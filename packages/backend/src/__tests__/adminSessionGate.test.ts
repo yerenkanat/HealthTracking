@@ -137,6 +137,43 @@ describe('arriving signed out', () => {
   });
 });
 
+describe('the sign-in form lets you see what you typed', () => {
+  // From an hour lost to exactly this: the account was fine and the password
+  // was right, but the field held something else — a stale autofill, or Latin
+  // letters typed with the Russian layout active. A masked field renders both
+  // as the same row of dots, and "Неверный пароль" is all the server can say.
+  it('reveals the password on demand, and hides it again', async () => {
+    const { window } = await boot({ signedOut: true });
+    const pass = window.document.getElementById('loginPass') as HTMLInputElement;
+    const eye = window.document.getElementById('loginEye') as HTMLButtonElement;
+    expect(eye, 'no way to check what is in the field').not.toBeNull();
+    expect(pass.type).toBe('password');
+
+    eye.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    expect(pass.type, 'the password should be readable').toBe('text');
+    expect(eye.getAttribute('aria-pressed')).toBe('true');
+
+    eye.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    expect(pass.type, 'and hideable again').toBe('password');
+    expect(eye.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('warns about Caps Lock while typing, and stops when the field is left', async () => {
+    const { window } = await boot({ signedOut: true });
+    const pass = window.document.getElementById('loginPass') as HTMLInputElement;
+    const hint = window.document.getElementById('capsHint') as HTMLElement;
+    expect(hint.hidden).toBe(true);
+
+    const ev = new window.KeyboardEvent('keydown', { bubbles: true, key: 'a' });
+    Object.defineProperty(ev, 'getModifierState', { value: () => true });
+    pass.dispatchEvent(ev);
+    expect(hint.hidden, 'Caps Lock was on and nothing said so').toBe(false);
+
+    pass.dispatchEvent(new window.FocusEvent('blur', { bubbles: true }));
+    expect(hint.hidden).toBe(true);
+  });
+});
+
 describe('a broken dashboard is not a sign-in problem', () => {
   it('stays on the panel when a KPI payload is incomplete', async () => {
     // Found by this file: /admin/bi answering without `devices` threw inside
