@@ -113,6 +113,78 @@ async function choose(window: JSDOM['window'], selector: string, value: string) 
   return sel;
 }
 
+describe('settings cannot be wiped by a failed load', () => {
+  /** Open Магазин with GET /admin/settings broken. */
+  async function openWithBrokenSettings() {
+    const html = readFileSync(PANEL, 'utf8');
+    const sent: Sent[] = [];
+    const vc = new VirtualConsole();
+    const dom = new JSDOM(html, {
+      runScripts: 'dangerously',
+      pretendToBeVisual: true,
+      url: 'http://localhost/admin/ui',
+      virtualConsole: vc,
+      beforeParse(window) {
+        window.HTMLCanvasElement.prototype.getContext = ((): unknown => {
+          const noop = () => {};
+          return new Proxy({ canvas: { width: 600, height: 170 }, createLinearGradient: () => ({ addColorStop: noop }), measureText: () => ({ width: 10 }) },
+            { get: (t: Record<string, unknown>, k: string) => (k in t ? t[k] : noop), set: () => true });
+        }) as never;
+        Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
+        window.scrollTo = () => {};
+        Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
+        (window as unknown as { alert: (m: string) => void }).alert = () => {};
+        window.fetch = (async (path: string, init?: RequestInit) => {
+          const p = String(path);
+          const method = init?.method ?? 'GET';
+          if (method !== 'GET') {
+            sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });
+            return { ok: true, status: 200, json: async () => ({ ok: true }) };
+          }
+          // The one that breaks.
+          if (p.includes('/admin/settings')) return { ok: false, status: 503, json: async () => ({}) };
+          const body = p.includes('/admin/shop/leads') ? { leads: [] }
+            : p.includes('/admin/shop/orders') ? { orders: [] }
+            : p.includes('/admin/shop/variants') ? { variants: [] }
+            : p.includes('/admin/stats') ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 }
+            : {};
+          return { ok: true, status: 200, json: async () => body };
+        }) as never;
+      },
+    });
+    const { window } = dom;
+    await new Promise((r) => setTimeout(r, 150));
+    window.document.querySelector('[data-view="shop"]')!
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 300));
+    return { window, sent };
+  }
+
+  it('refuses to save when it never learned what the server holds', async () => {
+    // The path that destroys data: the load fails, every box is left empty —
+    // which reads as "nothing is configured" — and one click of Сохранить
+    // sends "" for every field. The API stores what it is sent, because an
+    // empty string is not undefined, so that single click wipes the Anthropic
+    // key, the Telegram token, the WhatsApp number and the reviews.
+    const { window, sent } = await openWithBrokenSettings();
+
+    const save = window.document.getElementById('setSave') as HTMLButtonElement;
+    expect(save.disabled, 'the save button should be disabled after a failed load').toBe(true);
+
+    // And if it is clicked anyway, nothing is written.
+    save.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(sent.filter((s) => s.path.includes('/admin/settings') && s.method === 'PUT'))
+      .toHaveLength(0);
+
+    // Either message is right — the load failure, or the refusal that replaces
+    // it once the disabled button is clicked anyway. Both say the same thing:
+    // we do not know what is stored, so we will not overwrite it.
+    expect(window.document.getElementById('setMsg')!.textContent)
+      .toMatch(/не удалось загрузить|не загрузились/i);
+  });
+});
+
 describe('the shop tab saves what staff change', () => {
   it('marking a lead as called PATCHes it', async () => {
     const { window, sent } = await openShop();

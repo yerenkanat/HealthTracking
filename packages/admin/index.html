@@ -2260,6 +2260,15 @@
   }
   async function renderSettings(){
     const $=id=>document.getElementById(id), msg=$("setMsg");
+    // Whether we know what the server currently holds.
+    //
+    // This used to be `catch(e){}`: a failed load left every box empty, which
+    // reads as "nothing is configured". The next Сохранить then sent "" for
+    // every field — and the API stores whatever it is sent, because an empty
+    // string is not undefined — wiping the Anthropic key, the Telegram token,
+    // the WhatsApp number and the reviews in one click. Losing the API key
+    // that way takes the AI features down until someone notices.
+    let loaded=false;
     try{
       const {settings}=await api("/admin/settings");
       $("setWhatsapp").value=settings.whatsapp||"";
@@ -2270,7 +2279,12 @@
       $("setReviews").value=settings.reviews||"";
       $("setTgToken").value=settings.telegramBotToken||"";
       $("setTgChat").value=settings.telegramChatId||"";
-    }catch(e){}
+      loaded=true;
+    }catch(e){
+      msg.textContent="Не удалось загрузить настройки. Сохранение отключено, "+
+        "чтобы не стереть то, что уже записано. Обновите страницу.";
+      $("setSave").disabled=true;
+    }
     // Sends a real message through the saved token, so "сохранено" is not
     // mistaken for "работает". A token with a stray space looks identical in
     // the box and silently drops every lead.
@@ -2283,6 +2297,13 @@
     };
     const save=$("setSave");
     save.onclick=async()=>{
+      // Belt as well as braces: the button is disabled above when the load
+      // failed, but a save from an unknown baseline overwrites every field
+      // with whatever is on screen, so refuse it here too.
+      if(!loaded){
+        msg.textContent="Настройки не загрузились — сохранять нельзя, обновите страницу.";
+        return;
+      }
       msg.textContent="Сохранение…"; save.disabled=true;
       // Validate reviews JSON before sending, so a typo can't break the landing.
       const rv=$("setReviews").value.trim();
@@ -2436,7 +2457,13 @@
       }).join("");
       box.querySelectorAll(".adel").forEach(b=>b.onclick=async()=>{
         if(!confirm("Удалить аудио дня "+b.dataset.day+"?")) return;
-        try{ await apiSend(`/admin/audio/${audTrack}/${b.dataset.day}/${audLocale}`,"DELETE"); renderAudio(); }catch(e){}
+        // A delete that fails silently is the worst kind: the operator
+        // confirmed a destructive action, saw nothing happen, and has no way
+        // to tell "already gone" from "did not work".
+        try{
+          await apiSend(`/admin/audio/${audTrack}/${b.dataset.day}/${audLocale}`,"DELETE");
+          renderAudio();
+        }catch(e){ audMsg("Не удалось удалить аудио. Попробуйте ещё раз.","bad"); }
       });
     }catch(e){ box.innerHTML=`<div style="color:var(--muted);padding:14px 0">Не удалось загрузить аудио</div>`; }
   }
