@@ -22,11 +22,13 @@
 /// the same reason: a medication is typed off a pharmacy label and a safe zone
 /// is named by the parent, so "Школа" is the short case, not the normal one.
 ///
-/// NOT covered yet: the assistant chat (needs a ChatController with a stubbed
-/// transport), the cry insight screen (needs a recorder and a client), and the
-/// sheets that open over a screen rather than replacing it — the logging
-/// drawer, the day-log sheet, the vitals and sleep sheets, the BP calibration
-/// sheet. Those are the obvious next slice.
+/// The modal sheets are covered too, via [sheetFits], and were worth it: the
+/// day-log sheet held the worst overflow in the app at 69px. A sheet is laid
+/// out against a partial height it asks for itself, so a row that fits the
+/// whole screen can still not fit there.
+///
+/// NOT covered: the assistant chat (needs a ChatController with a stubbed
+/// transport) and the cry insight screen (needs a recorder and a client).
 library;
 
 import 'package:flutter/material.dart' hide Flow;
@@ -44,6 +46,10 @@ import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
 import 'package:fcs_app/domain/child_growth.dart';
 import 'package:fcs_app/ui/advisor/advisor_screen.dart';
+import 'package:fcs_app/ui/calendar/day_log_sheet.dart';
+import 'package:fcs_app/ui/calibration/bp_calibration_sheet.dart';
+import 'package:fcs_app/ui/dashboard/log_sleep_sheet.dart';
+import 'package:fcs_app/ui/dashboard/log_vitals_sheet.dart';
 import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
 import 'package:fcs_app/ui/calendar/week_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_growth_screen.dart';
@@ -139,6 +145,72 @@ void main() {
       find.byType(Text),
       findsAtLeast(3),
       reason: '$label rendered almost nothing, so "it fits" means nothing',
+    );
+  }
+
+  /// Open a modal sheet on a 360dp phone and fail if it overflowed.
+  ///
+  /// Sheets are the likeliest home for this bug and the hardest to see: they
+  /// are laid out against a PARTIAL height that the sheet itself asks for, so
+  /// a row or column that fits the full screen can still not fit here. None of
+  /// them was covered.
+  Future<void> sheetFits(
+    WidgetTester tester,
+    Future<void> Function(BuildContext context) open,
+    String label, {
+    AppLocale locale = AppLocale.ru,
+    double textScale = 1.0,
+  }) async {
+    tester.view.physicalSize = const Size(kNarrowWidth * 3, kNarrowHeight * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: FcsTheme.light(locale),
+      home: Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: L10nScope(
+            l10n: L10n(locale),
+            // The sheet needs a Navigator BELOW the MediaQuery/L10nScope, or
+            // it is pushed without either and renders at the wrong scale in
+            // the wrong language — which would look like a pass.
+            child: Navigator(
+              onGenerateRoute: (_) => MaterialPageRoute(
+                builder: (inner) => Scaffold(
+                  body: Center(
+                    child: ElevatedButton(
+                      onPressed: () => open(inner),
+                      child: const Text('open'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final err = tester.takeException();
+    expect(
+      err,
+      isNull,
+      reason: '$label overflows at ${kNarrowWidth.toInt()}dp'
+          '${textScale == 1.0 ? '' : ' with text at ${(textScale * 100).round()}%'}'
+          '.\n$err',
+    );
+    // The sheet actually opened — a tap that did nothing would otherwise pass.
+    expect(
+      find.byType(BottomSheet),
+      findsOneWidget,
+      reason: '$label never opened, so "it fits" means nothing',
     );
   }
 
@@ -627,6 +699,63 @@ void main() {
       'the growth chart',
       textScale: 1.3,
     );
+  });
+
+  // ---- The sheets --------------------------------------------------------
+
+  testWidgets('the vitals sheet fits', (tester) async {
+    await sheetFits(tester, (ctx) => showLogVitalsSheet(ctx), 'the vitals sheet');
+  });
+
+  testWidgets('the vitals sheet fits at 130%', (tester) async {
+    await sheetFits(tester, (ctx) => showLogVitalsSheet(ctx), 'the vitals sheet', textScale: 1.3);
+  });
+
+  testWidgets('the vitals sheet fits in Kazakh', (tester) async {
+    await sheetFits(tester, (ctx) => showLogVitalsSheet(ctx), 'the vitals sheet (kk)',
+        locale: AppLocale.kk);
+  });
+
+  testWidgets('the sleep sheet fits', (tester) async {
+    await sheetFits(tester, (ctx) => showLogSleepSheet(ctx, now: now), 'the sleep sheet');
+  });
+
+  testWidgets('the sleep sheet fits at 130%', (tester) async {
+    await sheetFits(tester, (ctx) => showLogSleepSheet(ctx, now: now), 'the sleep sheet',
+        textScale: 1.3);
+  });
+
+  testWidgets('the BP calibration sheet fits', (tester) async {
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    await sheetFits(tester, (ctx) => showCalibrateBpSheet(ctx, c), 'the BP calibration sheet');
+  });
+
+  testWidgets('the BP calibration sheet fits at 130%', (tester) async {
+    final c = AppController(now: () => now);
+    addTearDown(c.dispose);
+    await sheetFits(tester, (ctx) => showCalibrateBpSheet(ctx, c), 'the BP calibration sheet',
+        textScale: 1.3);
+  });
+
+  testWidgets('the day-log sheet fits', (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    await sheetFits(tester, (ctx) => showDayLogSheet(ctx, c, today), 'the day-log sheet');
+  });
+
+  testWidgets('the day-log sheet fits at 130%', (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    await sheetFits(tester, (ctx) => showDayLogSheet(ctx, c, today), 'the day-log sheet',
+        textScale: 1.3);
+  });
+
+  testWidgets('the day-log sheet fits in Kazakh', (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    await sheetFits(tester, (ctx) => showDayLogSheet(ctx, c, today), 'the day-log sheet (kk)',
+        locale: AppLocale.kk);
   });
 
   // ---- 360dp with the font-size slider turned up -------------------------

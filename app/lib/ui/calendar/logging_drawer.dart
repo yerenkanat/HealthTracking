@@ -357,12 +357,24 @@ class _PillButton extends StatelessWidget {
               children: [
                 Icon(icon, size: 22, color: selected ? color : Palette.textDim),
                 const SizedBox(width: 8),
-                Text(label,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Palette.text : Palette.textDim,
-                    )),
+                // Flexible: a Wrap breaks BETWEEN pills, but a single pill
+                // wider than the screen still overflows inside itself. At 130%
+                // one of these ran 69px past a 360dp sheet — the worst overflow
+                // in the app, and on the sheet a woman uses every day to log
+                // how she feels.
+                //
+                // Two lines rather than an ellipsis: these are symptom names,
+                // and half of one is not something to tap with any confidence.
+                Flexible(
+                  child: Text(label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? Palette.text : Palette.textDim,
+                      )),
+                ),
               ],
             ),
           ),
