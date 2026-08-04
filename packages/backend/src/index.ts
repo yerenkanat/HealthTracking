@@ -260,6 +260,19 @@ async function main(): Promise<void> {
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
       `<title>Umay Back-office</title></head><body>${adminBody}</body></html>`;
     app.get('/admin/ui', async (_req, reply) => reply.type('text/html').send(adminHtml));
+
+    // /admin and /admin/ are what a person types and what a browser leaves on a
+    // bookmark. Both answered with a JSON 404 — `{"message":"Route GET:/admin
+    // not found"}` — which reads as a broken site rather than a wrong path,
+    // and there is no reason anyone should have to know the page lives one
+    // segment further along.
+    //
+    // 302, not 301: /admin is the address people will keep using, and a
+    // permanent redirect is cached in a way that is painful to undo if the
+    // panel ever moves to admin.ana-bala.kz.
+    for (const p of ['/admin', '/admin/']) {
+      app.get(p, async (_req, reply) => reply.redirect('/admin/ui', 302));
+    }
     // Serving this page grants nothing on its own any more: it opens on the
     // sign-in form, and every request behind it needs the staff session cookie.
     // It HAS to be reachable unauthenticated, because it is the login screen.

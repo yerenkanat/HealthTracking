@@ -209,6 +209,9 @@ printf '    lead API : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -X POST 
 # password dialog must be gone — a WWW-Authenticate here means the edge is
 # still asking for a password the app now asks for itself.
 printf '    admin ui : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/ui
+# What a person actually types. Both used to answer with a JSON 404.
+printf '    /admin   : HTTP '; curl -s -o /dev/null -w '%{http_code}' https://ana-bala.kz/admin
+printf ' , /admin/ HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/   # both 302
 printf '    admin API: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/stats   # expect 401
 printf '    basic srv: '; curl -sI https://ana-bala.kz/admin/ui | grep -qi '^www-authenticate' \
   && echo 'STILL PROMPTING — the edge password did not go away' || echo 'gone (the app signs staff in)'
