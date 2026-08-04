@@ -18,6 +18,16 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
 
 const STATS = { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 };
+/** The analytics payload the KPI tiles and trend charts read. */
+const BI = {
+  devices: { online: 3, total: 5 },
+  safety: { alerts7d: 2 },
+  dau: 4, wau: 9, mau: 20,
+  dauSeries: [{ date: '2026-08-01', value: 3 }, { date: '2026-08-02', value: 4 }],
+  wauSeries: [{ date: '2026-08-01', value: 8 }, { date: '2026-08-02', value: 9 }],
+  signupSeries: [{ date: '2026-08-01', value: 1 }, { date: '2026-08-02', value: 2 }],
+  retentionCurve: [{ day: 0, pct: 100 }, { day: 1, pct: 60 }],
+};
 const SETTINGS = {
   whatsapp: '77073452244',
   kaspiUrl: '',
@@ -35,6 +45,7 @@ interface Booted {
   saved: Array<Record<string, unknown>>;
   posts: string[];
   errors: string[];
+  rejections: string[];
 }
 
 async function boot(): Promise<Booted> {
@@ -42,8 +53,17 @@ async function boot(): Promise<Booted> {
   const errors: string[] = [];
   const saved: Array<Record<string, unknown>> = [];
   const posts: string[] = [];
+  const rejections: string[] = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
+
+  // The panel boots from an async chain, so a throw inside it rejects a promise
+  // rather than reaching the VirtualConsole. jsdom does not dispatch a window
+  // 'unhandledrejection' event for scripts it runs either — the rejection
+  // escapes to Node, where vitest prints it beside a green run. Catching it here
+  // is the only way a broken boot fails this file instead of decorating it.
+  const onRejection = (reason: unknown) => rejections.push(String(reason));
+  process.on('unhandledRejection', onRejection);
 
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
@@ -74,6 +94,12 @@ async function boot(): Promise<Booted> {
           return { ok: true, status: 200, json: async () => ({ settings: SETTINGS }) };
         }
         if (p.includes('/admin/stats')) return { ok: true, status: 200, json: async () => STATS };
+        // /admin/bi feeds the KPI tiles and the trend charts, which index into
+        // it. The catch-all below used to answer it with {leads,orders,...},
+        // so the panel threw during boot on every run of this test.
+        if (p.includes('/admin/bi')) {
+          return { ok: true, status: 200, json: async () => BI };
+        }
         return { ok: true, status: 200, json: async () => ({ leads: [], orders: [], products: [] }) };
       }) as never;
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
@@ -85,7 +111,10 @@ async function boot(): Promise<Booted> {
   const tab = window.document.querySelector('[data-view="shop"]');
   tab?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 250));
-  return { window, saved, posts, errors };
+  // Node reports a rejection only once the microtask queue has drained past it.
+  await new Promise((r) => setTimeout(r, 50));
+  process.off('unhandledRejection', onRejection);
+  return { window, saved, posts, errors, rejections };
 }
 
 let b: Booted;
@@ -98,6 +127,16 @@ const val = (id: string) => (b.window.document.getElementById(id) as HTMLInputEl
 describe('the shop settings form', () => {
   it('renders without a script error', () => {
     expect(b.errors).toEqual([]);
+  });
+
+  it('boots without an unhandled rejection', () => {
+    // Distinct from the check above, and from "the assertions passed". The
+    // panel boots from an async chain, so a throw inside it rejects a promise
+    // rather than reaching the VirtualConsole — every expectation in this file
+    // can be green while the operator's screen is half-rendered. One missing
+    // field in the /admin/bi payload did exactly that, taking the whole boot
+    // down instead of one chart.
+    expect(b.rejections).toEqual([]);
   });
 
   it('shows every stored setting, including the Telegram credentials', () => {

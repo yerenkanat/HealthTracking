@@ -451,7 +451,10 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       whatsapp: z.string().trim().max(32).optional(),
       kaspiUrl: z.string().trim().max(500).optional(),
       anthropicApiKey: z.string().trim().max(300).optional(),
-      googleMapsApiKey: z.string().trim().max(300).optional(),
+      // No googleMapsApiKey. The app's map key is a build-time input baked into
+      // the Android manifest, so nothing server-side could ever act on one
+      // stored here — see the note in index.ts. A row already in the table is
+      // left alone; it is simply never read.
       // Where a new callback request is announced. SECRET — the bot token lets
       // anyone post as the bot, so like the API keys it must never appear in
       // the public /shop/config.

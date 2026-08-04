@@ -791,12 +791,16 @@
             <label>WhatsApp для заказов<input type="tel" id="setWhatsapp" placeholder="+7 700 123 45 67" autocomplete="off"></label>
             <label>Ссылка Kaspi<input type="url" id="setKaspi" placeholder="https://kaspi.kz/shop/…" autocomplete="off"></label>
             <label>Anthropic API key<input type="password" id="setAnthropic" placeholder="sk-ant-…" autocomplete="off"></label>
-            <label>Google Maps API key<input type="password" id="setGmaps" placeholder="AIza…" autocomplete="off"></label>
             <label>Рейтинг (напр. 4.9)<input type="text" id="setRating" placeholder="4.9" autocomplete="off"></label>
             <label>Кол-во отзывов<input type="text" id="setRcount" placeholder="1240" autocomplete="off"></label>
             <label>Telegram bot token<input type="password" id="setTgToken" placeholder="123456:ABC-DEF…" autocomplete="off"></label>
             <label>Telegram chat ID<input type="text" id="setTgChat" placeholder="-1001234567890" autocomplete="off"></label>
             <button class="btn" id="setSave">Сохранить</button>
+          </div>
+          <div class="t" style="margin-top:10px">
+            Ключ Google Maps сюда не вводится: он вшивается в приложение при сборке
+            (переменная GOOGLE_MAPS_API_KEY, см. android/app/build.gradle.kts). Поле было
+            здесь раньше, но ни на что не влияло — карта оставалась пустой.
           </div>
           <div class="t" style="margin-top:10px">
             Заявки с сайта приходят в Telegram. Создайте бота у @BotFather, добавьте его в рабочую группу
@@ -1599,7 +1603,12 @@
 
     const warn=cs.getPropertyValue("--warn").trim();
     const sub=$(subId);
-    if(!BI||!BI.dauSeries.length){
+    // !BI.dauSeries as well as .length: the guard exists to draw "нет данных",
+    // and a payload that arrives without the array is exactly that case — but
+    // dereferencing it first threw instead, inside the boot() chain, so one
+    // missing field took the whole panel down rather than one chart. The
+    // retention chart above already guards this way.
+    if(!BI||!BI.dauSeries||!BI.dauSeries.length){
       ctx.fillStyle=muted;ctx.font="13px system-ui,sans-serif";ctx.textAlign="center";
       ctx.fillText("нет данных",w/2,h/2);
       if(sub) sub.textContent="—";
@@ -2256,7 +2265,6 @@
       $("setWhatsapp").value=settings.whatsapp||"";
       $("setKaspi").value=settings.kaspiUrl||"";
       $("setAnthropic").value=settings.anthropicApiKey||"";
-      $("setGmaps").value=settings.googleMapsApiKey||"";
       $("setRating").value=settings.rating||"";
       $("setRcount").value=settings.reviewCount||"";
       $("setReviews").value=settings.reviews||"";
@@ -2282,7 +2290,7 @@
       try{
         await apiSend("/admin/settings","PUT",{
           whatsapp:$("setWhatsapp").value, kaspiUrl:$("setKaspi").value,
-          anthropicApiKey:$("setAnthropic").value, googleMapsApiKey:$("setGmaps").value,
+          anthropicApiKey:$("setAnthropic").value,
           rating:$("setRating").value, reviewCount:$("setRcount").value, reviews:rv,
           telegramBotToken:$("setTgToken").value, telegramChatId:$("setTgChat").value
         });

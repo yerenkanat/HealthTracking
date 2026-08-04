@@ -80,12 +80,16 @@ async function productionDeps(): Promise<ServerDeps> {
   // Integration keys managed from the admin panel fill in any that the
   // environment doesn't already set (env always wins). Stored keys take effect
   // on the next restart, which is fine for keys that change rarely.
+  //
+  // GOOGLE_MAPS_API_KEY used to be copied here too, and nothing on this side
+  // has ever read it: the app's map key is a BUILD-time input, baked into the
+  // Android manifest from the environment of `flutter build` (see
+  // android/app/build.gradle.kts). So an owner could paste a real key into the
+  // panel, save it, restart the server, and the map would stay blank with
+  // nothing anywhere saying why. The field is gone from the panel.
   try {
     const stored = await repo.getShopSettings();
-    for (const [envName, key] of [
-      ['ANTHROPIC_API_KEY', 'anthropicApiKey'],
-      ['GOOGLE_MAPS_API_KEY', 'googleMapsApiKey'],
-    ] as const) {
+    for (const [envName, key] of [['ANTHROPIC_API_KEY', 'anthropicApiKey']] as const) {
       if (!process.env[envName] && stored[key]) process.env[envName] = stored[key];
     }
   } catch {

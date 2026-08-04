@@ -80,6 +80,20 @@ describe('shop settings reach the landing', () => {
     expect(Object.keys(res.json()).sort()).toEqual(['kaspiUrl', 'rating', 'reviewCount', 'reviews', 'whatsapp']);
   });
 
+  it('refuses a Google Maps key rather than pretending to store one usefully', async () => {
+    // The app's map key is baked into the Android manifest at BUILD time, so
+    // nothing on this side can ever act on one saved here. The panel used to
+    // offer the field next to the Anthropic key, which does work — so an owner
+    // could paste a real key, save, restart, and watch the map stay blank with
+    // nothing saying why.
+    //
+    // zod strips unknown keys rather than rejecting, so the assertion is that
+    // it never reaches storage.
+    await save({ googleMapsApiKey: 'AIza-REAL-KEY' } as unknown as Record<string, string>);
+    const all = (await app.inject({ method: 'GET', url: '/admin/settings' })).json();
+    expect(all.settings.googleMapsApiKey).toBeUndefined();
+  });
+
   it('leaves untouched keys alone when saving one field', async () => {
     // The panel sends only the boxes it rendered. An implementation that
     // replaced the whole row would wipe the API keys every time someone edited
