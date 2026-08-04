@@ -398,11 +398,36 @@ class DsStatTile extends StatelessWidget {
 
 /// One line of a [DsListCard].
 class DsRow {
-  const DsRow({required this.label, this.value, this.onTap, this.trailing});
+  const DsRow({
+    required this.label,
+    this.value,
+    this.onTap,
+    this.trailing,
+    this.leading,
+    this.subtitle,
+    this.labelColor,
+  });
   final String label;
   final String? value;
   final VoidCallback? onTap;
   final Widget? trailing;
+
+  /// An icon, avatar or badge before the label.
+  ///
+  /// The spec's list row is a bare label/value pair, which turned out to match
+  /// no list in the app: settings rows carry an icon, a subtitle and a trailing
+  /// control, and every screen had grown its own private row widget to say so.
+  /// Adopting a row that could not hold them would have meant deleting content
+  /// to fit the primitive.
+  final Widget? leading;
+
+  /// A quieter second line under [label] — what a device is doing, when a
+  /// reminder fires, why an action is unavailable.
+  final String? subtitle;
+
+  /// Tints the label. Used to mark an irreversible action as such before it is
+  /// tapped, not only in the dialog that follows.
+  final Color? labelColor;
 }
 
 /// A white card of label/value rows separated by hairlines — the hairline is
@@ -434,7 +459,25 @@ class DsListCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   child: Row(
                     children: [
-                      Expanded(child: Text(rows[i].label, style: t.rowLabel)),
+                      if (rows[i].leading != null) ...[
+                        rows[i].leading!,
+                        const SizedBox(width: 14),
+                      ],
+                      Expanded(
+                        child: rows[i].subtitle == null
+                            ? Text(rows[i].label,
+                                style: t.rowLabel.copyWith(color: rows[i].labelColor))
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(rows[i].label,
+                                      style: t.rowLabel
+                                          .copyWith(color: rows[i].labelColor)),
+                                  const SizedBox(height: 2),
+                                  Text(rows[i].subtitle!, style: t.rowValue),
+                                ],
+                              ),
+                      ),
                       if (rows[i].value != null)
                         Text(rows[i].value!, style: t.rowValue),
                       if (rows[i].trailing != null) rows[i].trailing!,

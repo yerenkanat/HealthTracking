@@ -48,12 +48,12 @@ class SettingsScreen extends StatelessWidget {
             // ---- Account (phone-OTP sign-in) ----
             _Section(title: l.t('auth_title'), children: [
               if (c.isSignedIn)
-                _Row(
-                  leading: Icons.verified_user_outlined,
-                  title: l.t(
+                DsRow(
+                  leading: const Icon(Icons.verified_user_outlined, size: 22, color: Palette.textDim),
+                  label: l.t(
                       'auth_signed_in_as', {'phone': c.authSession!.phoneE164}),
                   subtitle: l.t('auth_sign_out'),
-                  titleColor: Palette.teal,
+                  labelColor: Palette.teal,
                   onTap: () async {
                     final ok = await confirmDestructive(
                       context,
@@ -66,9 +66,9 @@ class SettingsScreen extends StatelessWidget {
                   },
                 )
               else
-                _Row(
-                  leading: Icons.login_rounded,
-                  title: l.t('auth_sign_in_cta'),
+                DsRow(
+                  leading: const Icon(Icons.login_rounded, size: 22, color: Palette.textDim),
+                  label: l.t('auth_sign_in_cta'),
                   trailing: const Icon(Icons.chevron_right_rounded,
                       color: Palette.textDim),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
@@ -90,11 +90,12 @@ class SettingsScreen extends StatelessWidget {
                 (AppLocale.kk, 'Қазақша', 'KK'),
                 (AppLocale.en, 'English', 'EN'),
               ])
-                _Row(
-                  leading: Icons.translate,
-                  leadingWidget:
-                      _LangBadge(code: code, selected: c.locale == loc),
-                  title: name,
+                DsRow(
+                  // The badge replaces the icon entirely: three identical
+                  // translate glyphs told the reader nothing about which
+                  // language each row was.
+                  leading: _LangBadge(code: code, selected: c.locale == loc),
+                  label: name,
                   trailing: c.locale == loc
                       ? const Icon(Icons.check_circle, color: Palette.violet)
                       : const Icon(Icons.circle_outlined,
@@ -111,9 +112,8 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => showAddChildSheet(context, c)),
               children: [
                 for (final child in c.children)
-                  _Row(
-                    leading: Icons.child_care,
-                    leadingWidget: PhotoAvatar(
+                  DsRow(
+                    leading: PhotoAvatar(
                         photoPath: child.photoPath,
                         name: child.name,
                         size: 34,
@@ -122,7 +122,7 @@ class SettingsScreen extends StatelessWidget {
                             : child.gender == Gender.girl
                                 ? Icons.girl
                                 : Icons.child_care),
-                    title: child.name,
+                    label: child.name,
                     subtitle: _childSubtitle(l, child),
                     // Row opens the child's overview; editing lives in there, so
                     // each destination has exactly one entry point.
@@ -157,17 +157,20 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => showAddDeviceSheet(context, c)),
               children: c.devices.isEmpty
                   ? [
-                      _Row(
-                          leading: Icons.watch_off_outlined,
-                          title: l.t('set_no_devices'))
+                      DsRow(
+                          leading: const Icon(Icons.watch_off_outlined, size: 22, color: Palette.textDim),
+                          label: l.t('set_no_devices'))
                     ]
                   : [
                       for (final d in c.devices)
-                        _Row(
-                          leading: d.kind == DeviceKind.band
-                              ? Icons.watch
-                              : Icons.sensors,
-                          title: d.name,
+                        DsRow(
+                          leading: Icon(
+                              d.kind == DeviceKind.band
+                                  ? Icons.watch
+                                  : Icons.sensors,
+                              size: 22,
+                              color: Palette.textDim),
+                          label: d.name,
                           subtitle: _deviceSubtitle(l, c, d),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline,
@@ -190,9 +193,9 @@ class SettingsScreen extends StatelessWidget {
 
             // ---- Notifications ----
             _Section(title: l.t('set_notifications'), children: [
-              _Row(
-                leading: Icons.notifications_active_outlined,
-                title: l.t('set_notifications'),
+              DsRow(
+                leading: const Icon(Icons.notifications_active_outlined, size: 22, color: Palette.textDim),
+                label: l.t('set_notifications'),
                 subtitle: l.t('set_notifications_sub'),
                 // The switch is its own tappable node, separate from the row's
                 // title — without a label a screen reader announces "switch,
@@ -206,9 +209,9 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 onTap: () => c.setNotificationsEnabled(!c.notificationsEnabled),
               ),
-              _Row(
-                leading: Icons.notifications_outlined,
-                title: l.t('rem_title'),
+              DsRow(
+                leading: const Icon(Icons.notifications_outlined, size: 22, color: Palette.textDim),
+                label: l.t('rem_title'),
                 subtitle: l.t('rem_active', {
                   'n': activeReminderCount(
                     period: c.periodReminderEnabled,
@@ -240,9 +243,9 @@ class SettingsScreen extends StatelessWidget {
 
             // ---- Data ----
             _Section(title: l.t('set_data'), children: [
-              _Row(
-                leading: Icons.insights_rounded,
-                title: l.t('journey_title'),
+              DsRow(
+                leading: const Icon(Icons.insights_rounded, size: 22, color: Palette.textDim),
+                label: l.t('journey_title'),
                 subtitle: l.t('journey_sub'),
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: Palette.textDim),
@@ -250,9 +253,9 @@ class SettingsScreen extends StatelessWidget {
                   builder: (_) => JourneyScreen(controller: c),
                 )),
               ),
-              _Row(
-                leading: Icons.download_rounded,
-                title: l.t('set_export'),
+              DsRow(
+                leading: const Icon(Icons.download_rounded, size: 22, color: Palette.textDim),
+                label: l.t('set_export'),
                 subtitle: _backupSubtitle(l, c),
                 trailing: shouldNudgeBackup(
                         backupFreshness(c.lastExportAt, DateTime.now()))
@@ -262,9 +265,9 @@ class SettingsScreen extends StatelessWidget {
                         color: Palette.textDim),
                 onTap: () => _openExport(context, c),
               ),
-              _Row(
-                leading: Icons.upload_rounded,
-                title: l.t('set_import'),
+              DsRow(
+                leading: const Icon(Icons.upload_rounded, size: 22, color: Palette.textDim),
+                label: l.t('set_import'),
                 subtitle: l.t('set_import_sub'),
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: Palette.textDim),
@@ -275,24 +278,24 @@ class SettingsScreen extends StatelessWidget {
               // reproductive history — there has to be a way to remove all of
               // it from the phone, before selling it or simply on request.
               // resetApp() existed for this and was wired to nothing.
-              _Row(
-                leading: Icons.delete_forever_outlined,
-                title: l.t('set_erase'),
+              DsRow(
+                leading: const Icon(Icons.delete_forever_outlined, size: 22, color: Palette.textDim),
+                label: l.t('set_erase'),
                 subtitle: l.t('set_erase_sub'),
-                titleColor: Palette.danger,
+                labelColor: Palette.danger,
                 onTap: () => _confirmErase(context, c),
               ),
             ]),
 
             // ---- About ----
             _Section(title: l.t('set_about'), children: [
-              _Row(
-                  leading: Icons.info_outline,
-                  title: 'Umay',
+              DsRow(
+                  leading: const Icon(Icons.info_outline, size: 22, color: Palette.textDim),
+                  label: 'Umay',
                   subtitle: l.t('set_about_body')),
-              _Row(
-                leading: Icons.help_outline_rounded,
-                title: l.t('set_help'),
+              DsRow(
+                leading: const Icon(Icons.help_outline_rounded, size: 22, color: Palette.textDim),
+                label: l.t('set_help'),
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
@@ -300,27 +303,27 @@ class SettingsScreen extends StatelessWidget {
                       HelpSupportScreen(diagnostics: 'locale ${c.locale.name}'),
                 )),
               ),
-              _Row(
-                leading: Icons.privacy_tip_outlined,
-                title: l.t('set_privacy'),
+              DsRow(
+                leading: const Icon(Icons.privacy_tip_outlined, size: 22, color: Palette.textDim),
+                label: l.t('set_privacy'),
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const LegalScreen(doc: LegalDoc.privacy),
                 )),
               ),
-              _Row(
-                leading: Icons.description_outlined,
-                title: l.t('set_terms'),
+              DsRow(
+                leading: const Icon(Icons.description_outlined, size: 22, color: Palette.textDim),
+                label: l.t('set_terms'),
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const LegalScreen(doc: LegalDoc.terms),
                 )),
               ),
-              _Row(
-                  leading: Icons.tag,
-                  title: l.t('set_version'),
+              DsRow(
+                  leading: const Icon(Icons.tag, size: 22, color: Palette.textDim),
+                  label: l.t('set_version'),
                   trailing: const Text('0.1.0',
                       style: TextStyle(color: Palette.textDim))),
             ]),
@@ -720,9 +723,15 @@ class _CalibrateCta extends StatelessWidget {
   }
 }
 
+/// A titled group of rows.
+///
+/// The rows are [DsRow]s rendered by [DsListCard], so this screen no longer
+/// carries its own copy of "a row is an icon, a title, a subtitle and a
+/// trailing control". That copy was the reason the shared primitive could not
+/// express one: nothing was using it, so nobody noticed it was too small.
 class _Section extends StatelessWidget {
   final String title;
-  final List<Widget> children;
+  final List<DsRow> children;
   final Widget? action;
   const _Section({required this.title, required this.children, this.action});
   @override
@@ -747,85 +756,12 @@ class _Section extends StatelessWidget {
             if (action != null) Flexible(child: action!),
           ]),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Palette.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-            boxShadow: Palette.cardShadow,
-          ),
-          child: Column(
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0)
-                  const Divider(height: 1, color: Palette.border, indent: 54),
-                children[i],
-              ],
-            ],
-          ),
-        ),
+        DsListCard(rows: children),
       ],
     );
   }
 }
 
-class _Row extends StatelessWidget {
-  final IconData leading;
-  final Widget? leadingWidget; // overrides [leading] icon when set
-  final String title;
-  final String? subtitle;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  /// Tints the title — used to mark an irreversible action as such before it
-  /// is tapped, not only in the dialog that follows.
-  final Color? titleColor;
-  const _Row(
-      {required this.leading,
-      this.leadingWidget,
-      required this.title,
-      this.subtitle,
-      this.trailing,
-      this.onTap,
-      this.titleColor});
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        child: Row(
-          children: [
-            leadingWidget ?? Icon(leading, size: 22, color: Palette.textDim),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w600,
-                          color: titleColor)),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(subtitle!,
-                        style: const TextStyle(
-                            color: Palette.textDim, fontSize: 12.5)),
-                  ],
-                ],
-              ),
-            ),
-            if (trailing != null) trailing!,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A small 2-letter language-code badge (RU / KK / EN) used in the language list
-/// so each row has a distinct leading marker instead of a repeated translate icon.
 class _LangBadge extends StatelessWidget {
   final String code;
   final bool selected;
