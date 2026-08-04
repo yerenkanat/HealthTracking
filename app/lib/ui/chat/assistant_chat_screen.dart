@@ -227,22 +227,28 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.spa_outlined, size: 48, color: scheme.primary),
-            const SizedBox(height: 12),
-            Text(l.t('chat_empty_title'),
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text(l.t('chat_empty_body'),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: scheme.onSurfaceVariant)),
-          ],
+    // Scrollable, because everything in here scales with the font-size slider
+    // while the 32px padding does not. At 130% on a 360dp phone it ran 15px
+    // past the viewport and painted the striped bar over the one screen whose
+    // whole job is to look calm and inviting.
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.spa_outlined, size: 48, color: scheme.primary),
+              const SizedBox(height: 12),
+              Text(l.t('chat_empty_title'),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Text(l.t('chat_empty_body'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: scheme.onSurfaceVariant)),
+            ],
+          ),
         ),
       ),
     );

@@ -27,13 +27,23 @@
 /// out against a partial height it asks for itself, so a row that fits the
 /// whole screen can still not fit there.
 ///
-/// NOT covered: the assistant chat (needs a ChatController with a stubbed
-/// transport) and the cry insight screen (needs a recorder and a client).
+/// The assistant chat is covered too, over a stubbed transport — its empty
+/// state was the sixth overflow this sweep found.
+///
+/// NOT covered: the cry insight screen, which needs a recorder and a
+/// classifier client.
 library;
+
+import 'dart:convert';
 
 import 'package:flutter/material.dart' hide Flow;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/data/api_client.dart';
+import 'package:fcs_app/domain/ai_chat_service.dart';
+import 'package:fcs_app/domain/chat_controller.dart';
+import 'package:fcs_app/domain/health_monitor.dart';
+import 'package:fcs_app/ui/chat/assistant_chat_screen.dart';
 import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/domain/battery.dart';
 import 'package:fcs_app/domain/health_series.dart';
@@ -758,6 +768,57 @@ void main() {
         locale: AppLocale.kk);
   });
 
+  // ---- The assistant chat ------------------------------------------------
+  //
+  // Needs a ChatController over a stubbed transport, which is why it sat
+  // uncovered. It is also the screen most likely to be read at 130%: someone
+  // asking a health question is often doing it because something is wrong.
+
+  ChatController chatController() {
+    final monitor = HealthMonitor(
+      deviceId: 'd',
+      enqueue: (_, {required urgent}) {},
+      onEmergency: (_, __) {},
+    );
+    return ChatController(
+      service: AiChatService(
+        api: ApiClient(_StubTransport()),
+        userId: 'u',
+        locale: () => 'ru',
+        monitor: monitor,
+        onEmergency: (_) {},
+      ),
+      networkErrorText: () => 'Нет связи',
+      emergencyNoteText: () => 'Открываю экстренную помощь',
+    );
+  }
+
+  testWidgets('the assistant chat fits', (tester) async {
+    final c = chatController();
+    await fits(tester, () => AssistantChatScreen(controller: c), 'the assistant chat');
+  });
+
+  testWidgets('the assistant chat fits at 130%', (tester) async {
+    final c = chatController();
+    await fits(
+      tester,
+      () => AssistantChatScreen(controller: c),
+      'the assistant chat',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('a long answer still fits', (tester) async {
+    // The bubble is the widest thing on the screen and its content comes from
+    // the model, so its length is not something the layout controls.
+    final c = chatController();
+    await fits(tester, () => AssistantChatScreen(controller: c), 'the assistant chat');
+    await tester.enterText(find.byType(TextField).first, 'Почему кружится голова?');
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   // ---- 360dp with the font-size slider turned up -------------------------
   //
   // The combination that actually breaks layouts: the narrowest screen and the
@@ -839,4 +900,33 @@ void main() {
       await fits(tester, () => AlertsScreen(controller: c), 'the alerts feed', textScale: 1.3);
     });
   });
+}
+
+/// Answers every chat request with a long, realistic reply.
+///
+/// Long on purpose: the answer bubble is the widest thing on that screen and
+/// its length comes from the model, not from the layout.
+class _StubTransport implements HttpTransport {
+  @override
+  Future<HttpResponse> get(String path) async => const HttpResponse(404, '');
+
+  @override
+  Future<HttpResponse> delete(String path) async => const HttpResponse(204, '');
+
+  @override
+  Future<HttpResponse> put(String path, Object body) => post(path, body);
+
+  @override
+  Future<HttpResponse> post(String path, Object body) async => HttpResponse(
+        200,
+        jsonEncode({
+          'kind': 'chat',
+          'message': 'Головокружение во втором триместре часто связано с '
+              'падением давления, когда вы резко встаёте. Попробуйте вставать '
+              'медленнее, пить больше воды и не пропускать приёмы пищи. Если '
+              'оно повторяется каждый день или сопровождается потемнением в '
+              'глазах — сообщите об этом врачу на ближайшем приёме.',
+          'grounded': true,
+        }),
+      );
 }
