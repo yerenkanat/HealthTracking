@@ -66,28 +66,73 @@ ls -1t "$DEST/daily"/umay-*.dump 2>/dev/null | tail -n +$((DAILY_KEEP + 1)) | wh
 done
 
 # ---- Optional: verify by actually restoring -------------------------------
+#
+# This block used to compare a hardcoded list of five tables, and it was very
+# nearly a no-op:
+#
+#   * `profiles` does not exist — the table is `users` — and a missing table was
+#     silently skipped, so the list quietly shrank to four without a word;
+#   * three of the four held zero rows, and "0 rows — match" is two empty tables
+#     agreeing with each other. A restore that produced nothing but a schema
+#     would have matched on all three;
+#   * staff_accounts, the table that now decides who can open the back office,
+#     was not among them;
+#   * pg_restore's exit code was discarded with `|| true`.
+#
+# So it now enumerates the live tables instead of naming them, compares every
+# one, and refuses to call an all-empty comparison a verified restore.
 if [ "${1:-}" = "--verify" ]; then
   echo "==> Restoring into a scratch database and comparing"
   scratch="umay_restore_check"
   docker exec "$CONTAINER" psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS $scratch;" >/dev/null
   docker exec "$CONTAINER" psql -U "$DB_USER" -d postgres -c "CREATE DATABASE $scratch;" >/dev/null
-  docker exec -i "$CONTAINER" pg_restore -U "$DB_USER" -d "$scratch" --no-owner < "$out" >/dev/null 2>&1 || true
+
+  # Errors are shown rather than swallowed. Warnings are normal (ownership,
+  # extensions), so the exit code decides, not the presence of output.
+  if ! docker exec -i "$CONTAINER" pg_restore -U "$DB_USER" -d "$scratch" --no-owner < "$out" > /tmp/umay-restore.log 2>&1; then
+    echo "!! pg_restore reported errors:"
+    tail -20 /tmp/umay-restore.log | sed 's/^/       /'
+    docker exec "$CONTAINER" psql -U "$DB_USER" -d postgres -c "DROP DATABASE $scratch;" >/dev/null
+    exit 1
+  fi
+
+  # Every base table in the live database, not a list somebody has to remember
+  # to update. A new table is compared the night it appears.
+  tables="$(docker exec "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -tAc \
+    "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")"
+  [ -n "$tables" ] || { echo "!! no tables found in $DB_NAME — refusing to claim a verified restore"; exit 1; }
 
   fail=0
-  for t in shop_leads shop_orders shop_products profiles children; do
-    a="$(docker exec "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT count(*) FROM $t" 2>/dev/null || echo skip)"
-    [ "$a" = "skip" ] && continue
-    b="$(docker exec "$CONTAINER" psql -U "$DB_USER" -d "$scratch" -tAc "SELECT count(*) FROM $t" 2>/dev/null || echo missing)"
+  compared=0
+  nonempty=0
+  for t in $tables; do
+    a="$(docker exec "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT count(*) FROM \"$t\"" 2>/dev/null || echo error)"
+    b="$(docker exec "$CONTAINER" psql -U "$DB_USER" -d "$scratch" -tAc "SELECT count(*) FROM \"$t\"" 2>/dev/null || echo missing)"
+    compared=$((compared + 1))
     if [ "$a" = "$b" ]; then
-      printf '    %-16s %s rows — match\n' "$t" "$a"
+      [ "$a" != "0" ] && nonempty=$((nonempty + 1))
+      # Only the tables with something in them are worth a line; the rest would
+      # bury them under thirty "0 rows" every night.
+      [ "$a" != "0" ] && printf '    %-24s %s rows — match\n' "$t" "$a"
     else
-      printf '    %-16s live=%s restored=%s — MISMATCH\n' "$t" "$a" "$b"
+      printf '    %-24s live=%s restored=%s — MISMATCH\n' "$t" "$a" "$b"
       fail=1
     fi
   done
+
   docker exec "$CONTAINER" psql -U "$DB_USER" -d postgres -c "DROP DATABASE $scratch;" >/dev/null
   [ "$fail" = 0 ] || { echo "!! the restore does not match the live database"; exit 1; }
-  echo "    restore verified"
+
+  # The guard that makes the rest mean something. Without it, a restore that
+  # recreated the schema and no data would pass every comparison above as long
+  # as the live database were also empty — and it would go on passing every
+  # night until the first time somebody needed the backup.
+  if [ "$nonempty" = 0 ]; then
+    echo "!! every one of the $compared tables was empty on both sides."
+    echo "   That is not a verified restore, it is two empty databases agreeing."
+    exit 1
+  fi
+  echo "    restore verified — $compared tables compared, $nonempty of them with rows"
 fi
 
 echo
