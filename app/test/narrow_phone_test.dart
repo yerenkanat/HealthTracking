@@ -15,6 +15,18 @@
 /// The check is simply "did Flutter report an overflow", which is what
 /// tester.takeException() carries — so this fails for the real reason and names
 /// the widget, rather than comparing an image.
+///
+/// Every screen is given REAL data. An empty list cannot overflow, so a screen
+/// rendered in its empty state passes while testing nothing — two did exactly
+/// that until the vacuity check in [fits] caught them. Fixtures are long for
+/// the same reason: a medication is typed off a pharmacy label and a safe zone
+/// is named by the parent, so "Школа" is the short case, not the normal one.
+///
+/// NOT covered yet: the assistant chat (needs a ChatController with a stubbed
+/// transport), the cry insight screen (needs a recorder and a client), and the
+/// sheets that open over a screen rather than replacing it — the logging
+/// drawer, the day-log sheet, the vitals and sleep sheets, the BP calibration
+/// sheet. Those are the obvious next slice.
 library;
 
 import 'package:flutter/material.dart' hide Flow;
@@ -30,7 +42,11 @@ import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
+import 'package:fcs_app/domain/child_growth.dart';
 import 'package:fcs_app/ui/advisor/advisor_screen.dart';
+import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
+import 'package:fcs_app/ui/calendar/week_detail_screen.dart';
+import 'package:fcs_app/ui/tracking/child_growth_screen.dart';
 import 'package:fcs_app/ui/appointments/appointments_screen.dart';
 import 'package:fcs_app/ui/calendar/cycle_insights_screen.dart';
 import 'package:fcs_app/ui/calendar/medications_screen.dart';
@@ -539,6 +555,78 @@ void main() {
 
   testWidgets('the privacy policy fits', (tester) async {
     await fits(tester, () => const LegalScreen(doc: LegalDoc.privacy), 'the privacy policy');
+  });
+
+  // ---- The content and chart screens -------------------------------------
+
+  testWidgets('the antenatal plan fits', (tester) async {
+    // A long list of visits with expandable detail. Every row carries a week
+    // number, a title and a chip.
+    await fits(
+      tester,
+      () => AntenatalPlanScreen(week: 24, dueDate: today.add(const Duration(days: 112))),
+      'the antenatal plan',
+    );
+  });
+
+  testWidgets('the antenatal plan fits at 130%', (tester) async {
+    await fits(
+      tester,
+      () => AntenatalPlanScreen(week: 24, dueDate: today.add(const Duration(days: 112))),
+      'the antenatal plan',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('the week detail fits', (tester) async {
+    final g = gestationFor(today.add(const Duration(days: 112)), today)!;
+    await fits(tester, () => WeekDetailScreen(gestation: g), 'the week detail');
+  });
+
+  testWidgets('the week detail fits at 130%', (tester) async {
+    final g = gestationFor(today.add(const Duration(days: 112)), today)!;
+    await fits(tester, () => WeekDetailScreen(gestation: g), 'the week detail', textScale: 1.3);
+  });
+
+  testWidgets('the week detail fits in Kazakh', (tester) async {
+    final g = gestationFor(today.add(const Duration(days: 112)), today)!;
+    await fits(tester, () => WeekDetailScreen(gestation: g), 'the week detail (kk)',
+        locale: AppLocale.kk);
+  });
+
+  testWidgets('the growth chart fits', (tester) async {
+    await fits(
+      tester,
+      () => ChildGrowthScreen(
+        childName: 'Сұлтан',
+        points: [
+          GrowthPoint(at: DateTime(2026, 1, 10), weightKg: 3.6, heightCm: 51),
+          GrowthPoint(at: DateTime(2026, 3, 10), weightKg: 5.4, heightCm: 58),
+          GrowthPoint(at: DateTime(2026, 6, 10), weightKg: 7.2, heightCm: 66),
+        ],
+        onAdd: () {},
+        onDelete: (_) {},
+      ),
+      'the growth chart',
+    );
+  });
+
+  testWidgets('the growth chart fits at 130%', (tester) async {
+    await fits(
+      tester,
+      () => ChildGrowthScreen(
+        childName: 'Сұлтан',
+        points: [
+          GrowthPoint(at: DateTime(2026, 1, 10), weightKg: 3.6, heightCm: 51),
+          GrowthPoint(at: DateTime(2026, 3, 10), weightKg: 5.4, heightCm: 58),
+          GrowthPoint(at: DateTime(2026, 6, 10), weightKg: 7.2, heightCm: 66),
+        ],
+        onAdd: () {},
+        onDelete: (_) {},
+      ),
+      'the growth chart',
+      textScale: 1.3,
+    );
   });
 
   // ---- 360dp with the font-size slider turned up -------------------------
