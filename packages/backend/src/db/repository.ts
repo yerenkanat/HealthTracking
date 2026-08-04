@@ -242,6 +242,17 @@ export interface StaffAccount {
   disabled: boolean;
 }
 
+/** An account as the panel's roster shows it — everything except the hash. */
+export interface StaffSummary {
+  id: string;
+  phone: string;
+  role: StaffRole;
+  displayName: string;
+  disabled: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
 export interface Repository {
   // Health
   /**
@@ -500,14 +511,36 @@ export interface Repository {
   /// The account for a normalised phone, or null. Includes the hash, so it is
   /// only ever called from the login path.
   staffByPhone(phone: string): Promise<StaffAccount | null>;
-  /// Create or update an account. Used by the seeding script and, later, by an
-  /// admin managing colleagues.
+  staffById(id: string): Promise<StaffAccount | null>;
+  /// Create or update an account. Used by the seeding script.
   upsertStaffAccount(a: {
     phone: string;
     passwordHash: string;
     role: StaffRole;
     displayName?: string;
   }): Promise<void>;
+  /// Create, and fail if the phone is taken. Deliberately NOT upsert: adding a
+  /// colleague who already has an account must not silently reset their
+  /// password and change their role.
+  createStaffAccount(a: {
+    phone: string;
+    passwordHash: string;
+    role: StaffRole;
+    displayName: string;
+  }): Promise<{ id: string } | null>;
+  /// The roster the panel shows. No password hash: it has no business leaving
+  /// this layer, and the panel has no use for it.
+  listStaffAccounts(): Promise<StaffSummary[]>;
+  /// Only the fields given are touched.
+  updateStaffAccount(
+    id: string,
+    patch: { role?: StaffRole; displayName?: string; passwordHash?: string; disabled?: boolean },
+  ): Promise<void>;
+  /// Sign every device of one account out. A password change or a lockout that
+  /// leaves the old sessions alive has not actually done anything.
+  deleteStaffSessionsFor(staffId: string): Promise<number>;
+  /// Stamp a successful sign-in, so the roster can show who is still using this.
+  touchStaffLogin(staffId: string): Promise<void>;
   /// Record a session. [tokenHash] is a sha256 — the token itself never lands
   /// in the database, so a leaked dump is not a set of live keys.
   createStaffSession(s: {

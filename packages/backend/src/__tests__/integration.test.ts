@@ -94,7 +94,13 @@ function makeDeps(
     // Staff sign-in is exercised by staffLogin.test.ts against the memory
     // repository; this integration stub only has to satisfy the interface.
     staffByPhone: async () => null,
+    staffById: async () => null,
     upsertStaffAccount: async () => {},
+    createStaffAccount: async () => null,
+    listStaffAccounts: async () => [],
+    updateStaffAccount: async () => {},
+    deleteStaffSessionsFor: async () => 0,
+    touchStaffLogin: async () => {},
     createStaffSession: async () => {},
     staffBySessionToken: async () => null,
     deleteStaffSession: async () => {},

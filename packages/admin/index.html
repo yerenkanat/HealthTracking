@@ -442,6 +442,21 @@
 /* 48px min, per the same rule the app follows. */
 .logincard .btn{margin-top:16px;min-height:48px;font-size:15px}
 .loginerr{color:var(--crit);font-size:13px;min-height:18px;margin-top:8px}
+
+/* Персонал. Wraps rather than scrolls: this is used on a laptop and, when a
+   colleague has to be cut off in a hurry, on a phone. */
+.stafform{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.stafform input,.stafform select{font:inherit;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);min-height:44px;flex:1 1 180px}
+.stafform input:focus,.stafform select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.stafform .btn{min-height:44px;flex:0 0 auto}
+.formmsg{font-size:13px;min-height:18px;margin-top:8px;color:var(--muted)}
+.formmsg.bad{color:var(--crit)}
+.formmsg.ok{color:var(--good)}
+.staffrow.off{opacity:.55}
+.staffrow .btn.sm{padding:6px 10px;min-height:36px;font-size:13px}
+.rolesel{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--hair);
+  background:var(--surface-2);color:var(--ink);min-height:36px}
 </style>
 
 <!-- The sign-in gate. Shown until /admin/me confirms a session; the panel
@@ -528,6 +543,10 @@
     <button type="button" class="nav" data-view="audit">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
       Журнал действий
+    </button>
+    <button type="button" class="nav" data-view="staff">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Персонал
     </button>
     <!-- Direct one-click links to public pages (open in a new tab). Not
          data-view items: they're external destinations, not SPA sections. -->
@@ -767,6 +786,52 @@
             <table><thead><tr><th>Когда</th><th>Сотрудник</th><th>Действие</th><th>Объект</th></tr></thead>
             <tbody id="auditBody"></tbody></table>
           </div>
+        </div>
+      </section>
+
+      <!-- ПЕРСОНАЛ — who can sign in to this panel.
+           Two cards: everyone's password (yours), then the roster, which only
+           an admin can see. A clinician opening this tab gets the first card
+           and an explanation instead of an empty table. -->
+      <section class="view" id="staff">
+        <div class="card">
+          <div class="sec-h"><h3>Мой пароль</h3></div>
+          <p style="color:var(--muted);margin:0 0 10px">
+            Смена пароля завершит сессии на других устройствах. Здесь вы останетесь в системе.
+          </p>
+          <form id="pwForm" class="stafform" autocomplete="off">
+            <input id="pwCurrent" type="password" placeholder="Текущий пароль" autocomplete="current-password" required>
+            <input id="pwNew" type="password" placeholder="Новый пароль (от 8 символов)" autocomplete="new-password" minlength="8" required>
+            <button class="btn" id="pwBtn" type="submit">Сменить пароль</button>
+          </form>
+          <div id="pwMsg" class="formmsg"></div>
+        </div>
+
+        <div class="card" id="staffAdminCard" hidden>
+          <div class="sec-h"><h3>Сотрудники</h3></div>
+          <p style="color:var(--muted);margin:0 0 10px">
+            Кто может входить в панель. Отключённый сотрудник теряет доступ сразу,
+            вместе с открытыми сессиями. Учётные записи не удаляются — записи в
+            журнале действий должны и дальше указывать на реального человека.
+          </p>
+          <div class="tablewrap">
+            <table><thead><tr><th>Имя</th><th>Телефон</th><th>Роль</th><th>Последний вход</th><th>Доступ</th></tr></thead>
+            <tbody id="staffBody"></tbody></table>
+          </div>
+
+          <div class="sec-h" style="margin-top:18px"><h3>Добавить сотрудника</h3></div>
+          <form id="staffAddForm" class="stafform" autocomplete="off">
+            <input id="stName" placeholder="Имя" required maxlength="80">
+            <input id="stPhone" placeholder="Телефон, напр. +7 707 345 22 44" required inputmode="tel">
+            <select id="stRole" aria-label="Роль">
+              <option value="support">support — заявки и заказы</option>
+              <option value="clinician">clinician — данные пациенток</option>
+              <option value="admin">admin — полный доступ</option>
+            </select>
+            <input id="stPass" type="password" placeholder="Пароль (от 8 символов)" autocomplete="new-password" minlength="8" required>
+            <button class="btn" id="stAddBtn" type="submit">Добавить</button>
+          </form>
+          <div id="staffMsg" class="formmsg"></div>
         </div>
       </section>
 
@@ -2108,7 +2173,8 @@
     shop:["Магазин","Остатки по цветам и заказы на доставку"],
     audio:["Аудио","Ежедневные аудио для календарей беременности и развития"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
-    audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"]
+    audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"],
+    staff:["Персонал","Кто может входить в панель, и под какой ролью"]
   };
   function go(v){
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
@@ -2137,6 +2203,7 @@
     if(v==="vaccines")renderVaccines();
     if(v==="shop")renderShop();
     if(v==="audio")renderAudio();
+    if(v==="staff")renderStaff();
     // In the URL, so a tab can be bookmarked, shared with a colleague, and
     // survives a refresh. Reloading used to drop whoever was mid-investigation
     // back on «Обзор».
@@ -2487,6 +2554,146 @@
     document.querySelectorAll('#audLocale button').forEach(b=>b.onclick=()=>{audLocale=b.dataset.locale;document.querySelectorAll('#audLocale button').forEach(x=>x.classList.toggle('on',x===b));renderAudio();});
     $("#audUpload").onclick=uploadAudio;
   }
+  // ---- Персонал ----------------------------------------------------------
+  //
+  // The roster is admin-only; the password form is not. A clinician opening
+  // this tab must get their own password form and an explanation, not a
+  // 403-shaped empty table.
+  const roleLbl={admin:"admin — полный доступ",clinician:"clinician — данные пациенток",support:"support — заявки и заказы"};
+  let staffWired=false;
+
+  function staffMsg(text,kind){
+    const el=$("#staffMsg"); el.textContent=text||"";
+    el.className="formmsg"+(kind?" "+kind:"");
+  }
+  function pwMsg(text,kind){
+    const el=$("#pwMsg"); el.textContent=text||"";
+    el.className="formmsg"+(kind?" "+kind:"");
+  }
+
+  function wireStaff(){
+    if(staffWired) return; staffWired=true;
+
+    $("#pwForm").addEventListener("submit",async ev=>{
+      ev.preventDefault();
+      const btn=$("#pwBtn"); btn.disabled=true; pwMsg("Сохранение…");
+      try{
+        const r=await fetch("/admin/staff/me/password",{
+          method:"POST",credentials:"same-origin",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({currentPassword:$("#pwCurrent").value,newPassword:$("#pwNew").value}),
+        });
+        const body=await r.json().catch(()=>({}));
+        if(r.ok){
+          $("#pwCurrent").value=""; $("#pwNew").value="";
+          pwMsg(body.signedOutOtherSessions
+            ? `Пароль изменён ✓ Другие устройства (${body.signedOutOtherSessions}) вышли из системы.`
+            : "Пароль изменён ✓","ok");
+        }else if(r.status===403){ pwMsg("Текущий пароль неверен.","bad"); }
+        else if(body.error==="weak_password"){ pwMsg(`Новый пароль — минимум ${body.minPasswordLength||8} символов.`,"bad"); }
+        else { pwMsg("Не удалось сменить пароль.","bad"); }
+      }catch(e){ pwMsg("Нет связи с сервером.","bad"); }
+      btn.disabled=false;
+    });
+
+    $("#staffAddForm").addEventListener("submit",async ev=>{
+      ev.preventDefault();
+      const btn=$("#stAddBtn"); btn.disabled=true; staffMsg("Сохранение…");
+      try{
+        const r=await fetch("/admin/staff",{
+          method:"POST",credentials:"same-origin",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({
+            phone:$("#stPhone").value, displayName:$("#stName").value,
+            role:$("#stRole").value, password:$("#stPass").value,
+          }),
+        });
+        const body=await r.json().catch(()=>({}));
+        if(r.ok){
+          $("#stName").value=""; $("#stPhone").value=""; $("#stPass").value="";
+          staffMsg("Сотрудник добавлен ✓","ok");
+          renderStaff();
+        }else if(r.status===409){ staffMsg("У этого номера уже есть учётная запись.","bad"); }
+        else if(body.error==="weak_password"){ staffMsg(`Пароль — минимум ${body.minPasswordLength||8} символов.`,"bad"); }
+        else if(body.error==="bad_phone"){ staffMsg("Проверьте номер телефона.","bad"); }
+        else { staffMsg("Не удалось добавить сотрудника.","bad"); }
+      }catch(e){ staffMsg("Нет связи с сервером.","bad"); }
+      btn.disabled=false;
+    });
+  }
+
+  /// One PATCH, with the refusals spelled out. Every one of them is a state the
+  /// panel cannot get itself out of afterwards, so they are named rather than
+  /// reported as "не удалось".
+  async function patchStaff(id,patch){
+    staffMsg("Сохранение…");
+    try{
+      const r=await fetch("/admin/staff/"+encodeURIComponent(id),{
+        method:"PATCH",credentials:"same-origin",
+        headers:{"content-type":"application/json"},body:JSON.stringify(patch),
+      });
+      const body=await r.json().catch(()=>({}));
+      if(r.ok){ staffMsg("Сохранено ✓","ok"); renderStaff(); return true; }
+      staffMsg(
+        body.error==="cannot_lock_yourself_out" ? "Нельзя закрыть доступ самому себе." :
+        body.error==="last_admin" ? "Это последний admin — иначе в панель никто не войдёт." :
+        "Не удалось сохранить.","bad");
+    }catch(e){ staffMsg("Нет связи с сервером.","bad"); }
+    // The row still shows what the operator picked; redraw from the server so
+    // it shows what is actually stored.
+    renderStaff();
+    return false;
+  }
+
+  async function renderStaff(){
+    wireStaff();
+    const card=$("#staffAdminCard"), body=$("#staffBody");
+    let data=null;
+    try{ data=await api("/admin/staff"); }
+    catch(e){ data=null; }
+
+    if(!data){
+      // 403 for a non-admin is the expected case, not a fault.
+      card.hidden=false;
+      body.innerHTML=`<tr><td colspan="5" style="color:var(--muted);padding:14px 0">`+
+        `Список сотрудников доступен только роли admin.</td></tr>`;
+      $("#staffAddForm").hidden=true;
+      return;
+    }
+    card.hidden=false; $("#staffAddForm").hidden=false;
+
+    body.innerHTML=data.staff.map(a=>{
+      const self=a.id===data.me;
+      const opts=Object.keys(roleLbl).map(r=>
+        `<option value="${r}"${r===a.role?" selected":""}>${r}</option>`).join("");
+      return `<tr class="staffrow${a.disabled?" off":""}" data-sid="${esc(a.id)}">
+        <td><b>${esc(a.displayName||"—")}</b>${self?' <span class="t">(вы)</span>':""}</td>
+        <td class="num">${esc(a.phone)}</td>
+        <td><select class="rolesel" data-sid="${esc(a.id)}" aria-label="Роль">${opts}</select></td>
+        <td class="t">${a.lastLoginAt?stamp(a.lastLoginAt):"не входил"}</td>
+        <td><button type="button" class="btn sm ghost staffoff" data-sid="${esc(a.id)}" data-off="${a.disabled?"1":"0"}">
+          ${a.disabled?"Вернуть доступ":"Закрыть доступ"}</button></td>
+      </tr>`;
+    }).join("")||`<tr><td colspan="5" style="color:var(--muted);padding:14px 0">Пока никого.</td></tr>`;
+
+    body.querySelectorAll(".rolesel").forEach(sel=>{
+      sel.addEventListener("change",()=>patchStaff(sel.dataset.sid,{role:sel.value}));
+    });
+    body.querySelectorAll(".staffoff").forEach(btn=>{
+      btn.addEventListener("click",async()=>{
+        const off=btn.dataset.off==="1";
+        // Closing access ends their open sessions immediately — destructive
+        // enough to confirm, and cheap enough to undo that re-opening is not.
+        if(!off){
+          const row=btn.closest("tr");
+          const who=row?.querySelector("b")?.textContent||"сотрудника";
+          if(!window.confirm(`Закрыть доступ: ${who}? Открытые сессии завершатся сразу.`)) return;
+        }
+        await patchStaff(btn.dataset.sid,{disabled:!off});
+      });
+    });
+  }
+
   async function uploadAudio(){
     const day=Math.max(1,Math.min(400,parseInt($("#audDay").value||"0",10)));
     const file=$("#audFile").files[0];

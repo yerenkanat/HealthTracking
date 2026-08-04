@@ -84,6 +84,8 @@ export function createMemoryRepository(): Repository {
     { tokenHash: string; staffId: string; expiresAt: Date; userAgent: string }
   >();
   const loginAttempts: Array<{ phone: string; succeeded: boolean; at: Date }> = [];
+  /** Dates the account row itself does not carry in this map-of-accounts. */
+  const staffMeta = new Map<string, { createdAt: string; lastLoginAt: string | null }>();
   const healthRows: unknown[] = [];
   // Idempotency for telemetry ingest, mirroring the pg phm_unique_reading
   // constraint: (userId, deviceId, recordedAt) seen before → duplicate resend.
@@ -216,6 +218,7 @@ export function createMemoryRepository(): Repository {
     },
     // ---- Staff sign-in ----
     staffByPhone: async (phone) => staffAccounts.get(phone) ?? null,
+    staffById: async (id) => [...staffAccounts.values()].find((a) => a.id === id) ?? null,
     upsertStaffAccount: async (a) => {
       const existing = staffAccounts.get(a.phone);
       staffAccounts.set(a.phone, {
@@ -226,6 +229,41 @@ export function createMemoryRepository(): Repository {
         displayName: a.displayName ?? '',
         disabled: false,
       });
+    },
+    createStaffAccount: async (a) => {
+      if (staffAccounts.has(a.phone)) return null;
+      const id = `staff-${staffAccounts.size + 1}`;
+      staffAccounts.set(a.phone, { id, ...a, disabled: false });
+      staffMeta.set(id, { createdAt: new Date().toISOString(), lastLoginAt: null });
+      return { id };
+    },
+    listStaffAccounts: async () =>
+      [...staffAccounts.values()]
+        .map((a) => ({
+          id: a.id, phone: a.phone, role: a.role,
+          displayName: a.displayName, disabled: a.disabled,
+          createdAt: staffMeta.get(a.id)?.createdAt ?? new Date(0).toISOString(),
+          lastLoginAt: staffMeta.get(a.id)?.lastLoginAt ?? null,
+        }))
+        // Same order as pg: everyone still working, then the disabled.
+        .sort((x, y) => Number(x.disabled) - Number(y.disabled) || x.createdAt.localeCompare(y.createdAt)),
+    updateStaffAccount: async (id, patch) => {
+      const acct = [...staffAccounts.values()].find((a) => a.id === id);
+      if (!acct) return;
+      if (patch.role !== undefined) acct.role = patch.role;
+      if (patch.displayName !== undefined) acct.displayName = patch.displayName;
+      if (patch.passwordHash !== undefined) acct.passwordHash = patch.passwordHash;
+      if (patch.disabled !== undefined) acct.disabled = patch.disabled;
+    },
+    deleteStaffSessionsFor: async (staffId) => {
+      let n = 0;
+      for (const [hash, s] of staffSessions) if (s.staffId === staffId) { staffSessions.delete(hash); n++; }
+      return n;
+    },
+    touchStaffLogin: async (staffId) => {
+      const meta = staffMeta.get(staffId) ?? { createdAt: new Date().toISOString(), lastLoginAt: null };
+      meta.lastLoginAt = new Date().toISOString();
+      staffMeta.set(staffId, meta);
     },
     createStaffSession: async (s) => void staffSessions.set(s.tokenHash, s),
     staffBySessionToken: async (tokenHash) => {

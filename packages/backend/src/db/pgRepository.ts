@@ -165,6 +165,24 @@ export function createPgRepository(pool: Pool): Repository {
       };
     },
 
+    async staffById(id) {
+      const { rows } = await pool.query(
+        `SELECT id, phone, password_hash, role, display_name, disabled_at
+           FROM staff_accounts WHERE id = $1`,
+        [id],
+      );
+      const r = rows[0];
+      if (!r) return null;
+      return {
+        id: r.id,
+        phone: r.phone,
+        passwordHash: r.password_hash,
+        role: r.role,
+        displayName: r.display_name,
+        disabled: r.disabled_at !== null,
+      };
+    },
+
     async upsertStaffAccount(a) {
       await pool.query(
         `INSERT INTO staff_accounts (phone, password_hash, role, display_name)
@@ -175,6 +193,60 @@ export function createPgRepository(pool: Pool): Repository {
                display_name  = EXCLUDED.display_name`,
         [a.phone, a.passwordHash, a.role, a.displayName ?? ''],
       );
+    },
+
+    async createStaffAccount(a) {
+      // DO NOTHING rather than DO UPDATE: a duplicate phone means somebody is
+      // already using this number, and quietly overwriting their password would
+      // lock them out of a back office they are currently signed in to.
+      const { rows } = await pool.query(
+        `INSERT INTO staff_accounts (phone, password_hash, role, display_name)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (phone) DO NOTHING
+         RETURNING id`,
+        [a.phone, a.passwordHash, a.role, a.displayName],
+      );
+      return rows[0] ? { id: rows[0].id } : null;
+    },
+
+    async listStaffAccounts() {
+      const { rows } = await pool.query(
+        `SELECT id, phone, role, display_name, disabled_at, created_at, last_login_at
+           FROM staff_accounts
+          ORDER BY disabled_at NULLS FIRST, created_at`,
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        phone: r.phone,
+        role: r.role,
+        displayName: r.display_name,
+        disabled: r.disabled_at !== null,
+        createdAt: new Date(r.created_at).toISOString(),
+        lastLoginAt: r.last_login_at ? new Date(r.last_login_at).toISOString() : null,
+      }));
+    },
+
+    async updateStaffAccount(id, patch) {
+      // Built rather than written out, so an absent field is left alone instead
+      // of being written as null — which is how a role edit would erase a name.
+      const sets: string[] = [];
+      const vals: unknown[] = [];
+      if (patch.role !== undefined) { vals.push(patch.role); sets.push(`role = $${vals.length}`); }
+      if (patch.displayName !== undefined) { vals.push(patch.displayName); sets.push(`display_name = $${vals.length}`); }
+      if (patch.passwordHash !== undefined) { vals.push(patch.passwordHash); sets.push(`password_hash = $${vals.length}`); }
+      if (patch.disabled !== undefined) sets.push(`disabled_at = ${patch.disabled ? 'now()' : 'NULL'}`);
+      if (sets.length === 0) return;
+      vals.push(id);
+      await pool.query(`UPDATE staff_accounts SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+    },
+
+    async deleteStaffSessionsFor(staffId) {
+      const { rowCount } = await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [staffId]);
+      return rowCount ?? 0;
+    },
+
+    async touchStaffLogin(staffId) {
+      await pool.query('UPDATE staff_accounts SET last_login_at = now() WHERE id = $1', [staffId]);
     },
 
     async createStaffSession(s) {

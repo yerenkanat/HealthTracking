@@ -80,6 +80,7 @@ export function registerStaffLoginRoutes(app: FastifyInstance, repo: Repository)
       expiresAt: new Date(Date.now() + SESSION_TTL_MS),
       userAgent: String(req.headers['user-agent'] ?? ''),
     });
+    await repo.touchStaffLogin(account!.id);
     await repo.writeAudit({ staffId: account!.id, action: 'staff_login' });
 
     return reply

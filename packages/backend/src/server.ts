@@ -24,6 +24,7 @@ import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import type { LeadNotifier } from './notifications/leadAlert';
 import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { registerStaffLoginRoutes } from './routes/staffLogin';
+import { registerStaffAdminRoutes } from './routes/staffAdmin';
 import { registerPublicApiRoutes } from './routes/publicApi';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
@@ -384,6 +385,7 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // registering them here keeps that fact in one place.
   registerStaffLoginRoutes(app, deps.repo);
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
+  if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
   // Public content API (/api/v1) — calendars, protocols, personalised timelines
   // for an external consumer (e.g. a WhatsApp bot). Key-gated when configured.
   registerPublicApiRoutes(app, deps.repo, { apiKey: deps.contentApiKey });
