@@ -1685,7 +1685,22 @@
     view_safety:"Просмотр событий безопасности",
     publish_content:"Изменил(а) контент",
     bulk_content:"Массовая правка контента",
+    // Added with staff sign-in. Without these the log showed the raw action
+    // key next to a raw UUID — technically complete and unreadable.
+    staff_login:"Вход в панель",
+    staff_logout:"Выход из панели",
+    staff_create:"Добавил(а) сотрудника",
+    staff_update:"Изменил(а) сотрудника",
+    staff_password_change:"Сменил(а) свой пароль",
+    ack_emergency:"Принял(а) экстренное событие в работу",
   };
+
+  /// Who did it, as a person. Falls back to the id — an entry from before
+  /// accounts existed, or from an account since removed, must still be visible.
+  function auditWho(a){
+    if(a.staffName) return a.staffName+(a.staffPhone?" · "+a.staffPhone:"");
+    return a.staffId||"—";
+  }
   async function renderAudit(){
     const body=$("#auditBody"); if(!body) return;
     body.innerHTML=tableBusy(4);
@@ -1698,9 +1713,9 @@
     const rows=data.audit||[];
     body.innerHTML=rows.map(a=>`<tr style="cursor:default">
         <td class="num t">${esc(stamp(a.at))}</td>
-        <td>${esc(a.staffId||"—")}</td>
+        <td title="${esc(a.staffId||"")}">${esc(auditWho(a))}</td>
         <td>${esc(AUDIT_ACTIONS[a.action]||a.action)}</td>
-        <td class="t">${esc(a.target||"—")}</td></tr>`).join("")
+        <td class="t" title="${esc(a.target||"")}">${esc(a.targetName||a.target||"—")}</td></tr>`).join("")
       || tableNote(4,"Действий пока не зафиксировано.");
   }
 

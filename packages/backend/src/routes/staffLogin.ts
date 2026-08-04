@@ -93,7 +93,15 @@ export function registerStaffLoginRoutes(app: FastifyInstance, repo: Repository)
 
   app.post('/admin/logout', async (req, reply) => {
     const token = readSessionCookie(req.headers.cookie);
-    if (token) await repo.deleteStaffSession(hashToken(token));
+    if (token) {
+      // Looked up before the delete, so the log can name who left. Sign-ins
+      // were recorded and sign-outs were not, which left the audit log able to
+      // say when someone started but never when they stopped — the question
+      // asked after the fact is usually "was anyone in the system at 02:00".
+      const session = await repo.staffBySessionToken(hashToken(token));
+      await repo.deleteStaffSession(hashToken(token));
+      if (session) await repo.writeAudit({ staffId: session.staffId, action: 'staff_logout' });
+    }
     return reply
       .header('set-cookie', clearedCookie({ secure: isSecure(req) }))
       .send({ ok: true });

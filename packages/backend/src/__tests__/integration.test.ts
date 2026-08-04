@@ -344,7 +344,8 @@ function makeDeps(
       else contentRows.set(stageKey, items);
     },
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
-    listAudit: async () => audit.map((a) => ({ ...a })),
+    listAudit: async () =>
+      audit.map((a) => ({ ...a, staffName: null, staffPhone: null, targetName: null })),
   };
 
   const server = buildServer(

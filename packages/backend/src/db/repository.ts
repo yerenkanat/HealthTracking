@@ -481,7 +481,19 @@ export interface Repository {
   putStageContent(stageKey: string, items: ContentItemRow[]): Promise<void>;
 
   writeAudit(entry: { staffId: string; action: string; target?: string }): Promise<void>;
-  listAudit(limit: number): Promise<Array<{ staffId: string; action: string; target: string | null; at: string }>>;
+  /// staffName/targetName are resolved from the roster where they can be. Null
+  /// means the account is gone or predates accounts existing — the row still
+  /// comes back, because a log that hides what it cannot label is worse than
+  /// one that shows an id.
+  listAudit(limit: number): Promise<Array<{
+    staffId: string;
+    staffName: string | null;
+    staffPhone: string | null;
+    action: string;
+    target: string | null;
+    targetName: string | null;
+    at: string;
+  }>>;
 
   // ---- Shop (device store) ----
   /// Active products with every colour variant (in- and out-of-stock), for the

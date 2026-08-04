@@ -711,8 +711,33 @@ export function createPgRepository(pool: Pool): Repository {
         [entry.staffId, entry.action, entry.target ?? null]);
     },
     async listAudit(limit) {
-      const { rows } = await pool.query(`SELECT staff_id, action, target, at FROM audit_log ORDER BY at DESC LIMIT $1`, [limit]);
-      return rows.map((r) => ({ staffId: r.staff_id, action: r.action, target: r.target, at: new Date(r.at).toISOString() }));
+      // Joined to the roster on both ends. The log's whole purpose is "who
+      // looked at this mother's data", and it answered that with a UUID —
+      // which nobody can read, and which the panel then printed verbatim.
+      //
+      // LEFT JOIN, and the id is still returned: entries written before there
+      // were accounts (or by an account since removed) must stay visible.
+      // Dropping them would make the log lie by omission.
+      const { rows } = await pool.query(
+        `SELECT l.staff_id, l.action, l.target, l.at,
+                a.display_name AS staff_name, a.phone AS staff_phone,
+                t.display_name AS target_name, t.phone AS target_phone
+           FROM audit_log l
+           LEFT JOIN staff_accounts a ON a.id::text = l.staff_id
+           LEFT JOIN staff_accounts t ON t.id::text = l.target
+          ORDER BY l.at DESC
+          LIMIT $1`,
+        [limit],
+      );
+      return rows.map((r) => ({
+        staffId: r.staff_id,
+        staffName: r.staff_name ?? null,
+        staffPhone: r.staff_phone ?? null,
+        action: r.action,
+        target: r.target,
+        targetName: r.target_name ?? null,
+        at: new Date(r.at).toISOString(),
+      }));
     },
 
     // ---- Back-office drilldowns ----

@@ -21,10 +21,24 @@ export interface AdminRoute {
   key: string;
 }
 
-const src = readFileSync(
-  fileURLToPath(new URL('../../routes/admin.ts', import.meta.url)),
-  'utf8',
-).split('\n');
+/**
+ * Every file that registers something under /admin.
+ *
+ * Started as admin.ts alone, which quietly turned both guards off for anything
+ * registered elsewhere: the staff-management routes landed in their own file
+ * and were invisible to the rule whose entire point is to fail a NEW route by
+ * default. A route is not exempt from being audited or authorized because of
+ * which file it lives in.
+ *
+ * staffLogin.ts is here too. Its three routes are the ones that must NOT
+ * require a session — they are how you get one — and the authorization guard
+ * names them explicitly rather than never seeing them.
+ */
+const SOURCES = ['../../routes/admin.ts', '../../routes/staffAdmin.ts', '../../routes/staffLogin.ts'];
+
+const src = SOURCES.flatMap((rel) =>
+  readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').split('\n'),
+);
 
 export function adminRoutes(): AdminRoute[] {
   const starts: Array<{ i: number; method: string; path: string }> = [];

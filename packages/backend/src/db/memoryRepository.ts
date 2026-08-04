@@ -737,7 +737,15 @@ export function createMemoryRepository(): Repository {
     },
 
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: new Date().toISOString() }),
-    listAudit: async (limit) => audit.slice(-limit).reverse(),
+    listAudit: async (limit) => {
+      const byId = new Map([...staffAccounts.values()].map((a) => [a.id, a]));
+      return audit.slice(-limit).reverse().map((e) => ({
+        ...e,
+        staffName: byId.get(e.staffId)?.displayName ?? null,
+        staffPhone: byId.get(e.staffId)?.phone ?? null,
+        targetName: e.target ? byId.get(e.target)?.displayName ?? null : null,
+      }));
+    },
 
     // ---- Shop ----
     shopProducts: async () => shopProds

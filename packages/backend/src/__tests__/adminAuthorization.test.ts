@@ -31,6 +31,31 @@ const ADMIN_ONLY_READS = new Set([
   'GET /admin/audit', // who in the back office looked at whom
 ]);
 
+/**
+ * The three routes that cannot require a session, because they are how a
+ * session is obtained, ended, or reported.
+ *
+ * Listed by name and nothing else: a route is exempt because it is one of
+ * these, not because of a pattern in its path that a future route could
+ * accidentally match. Each carries its own protection — the rate limit and the
+ * constant-time comparison on login, the cookie on logout and me.
+ */
+const NO_SESSION_REQUIRED = new Set([
+  'POST /admin/login',
+  'POST /admin/logout',
+  'GET /admin/me',
+]);
+
+/**
+ * Writes that are deliberately not admin-only, with the reason each is safe.
+ */
+const NOT_ADMIN_ONLY_WRITES = new Set([
+  // Your own password, verified against your current one. Making this
+  // admin-only is how a team ends up sharing one password: nobody can rotate
+  // their own without asking, so nobody does.
+  'POST /admin/staff/me/password',
+]);
+
 describe('back-office authorization', () => {
   it('found the routes to check', () => {
     // Without this every check below passes vacuously the day the regex stops
@@ -42,6 +67,7 @@ describe('back-office authorization', () => {
 
   it('no route is reachable without an identity', () => {
     const open = adminRoutes()
+      .filter((r) => !NO_SESSION_REQUIRED.has(r.key))
       .filter((r) => guardOf(r.body) === null)
       .map((r) => r.key);
     expect(
@@ -56,6 +82,7 @@ describe('back-office authorization', () => {
     // products are put in front of a pregnant woman. Reading a record is part
     // of support; rewriting the catalogue is not.
     const weak = adminRoutes()
+      .filter((r) => !NO_SESSION_REQUIRED.has(r.key) && !NOT_ADMIN_ONLY_WRITES.has(r.key))
       .filter((r) => r.method !== 'GET' && guardOf(r.body) !== 'admin')
       .map((r) => `${r.key} (${guardOf(r.body) ?? 'unguarded'})`);
     expect(weak, `writes not restricted to admins: ${weak.join(', ')}`).toEqual([]);
@@ -87,6 +114,7 @@ describe('back-office authorization', () => {
     // has to bail on that. Without the early return the route replies twice —
     // and the second reply carries the data the first one refused.
     const missing = adminRoutes()
+      .filter((r) => !NO_SESSION_REQUIRED.has(r.key))
       .filter((r) => !/if \(!s\) return;/.test(r.body))
       .map((r) => r.key);
     expect(

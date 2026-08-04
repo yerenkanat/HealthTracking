@@ -31,6 +31,12 @@ const AGGREGATES_ONLY = new Set([
   // audit log makes the log describe mostly itself
   'GET /admin/shop/variants', // product inventory (colours + stock) — names nobody
   'GET /admin/audio', // which calendar days have a clip — content coverage, names nobody
+  // The two reads about the back office itself rather than about a family.
+  // Neither touches PHI, and both are polled: /admin/me runs on every page
+  // load, so auditing it would write a row per refresh and bury the entries
+  // this log exists for.
+  'GET /admin/me', // who am I — the caller reading their own name
+  'GET /admin/staff', // the colleague roster; admin-only, contains no patient
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be
