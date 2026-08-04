@@ -319,7 +319,12 @@ async function main(): Promise<void> {
     //
     // 302, not 301: this supersession is a product decision, and a permanent
     // redirect is cached by browsers in a way that is painful to undo.
-    for (const path of ['/shop', '/shop/watch', '/shop/tracker', '/shop/umay-watch']) {
+    //
+    // '/shop/' is listed separately because Fastify treats it as a different
+    // route from '/shop' and 404s it. A trailing slash is exactly what a
+    // browser leaves on a bookmarked section, so that 404 was reachable by
+    // anyone who saved the page before the redirect existed.
+    for (const path of ['/shop', '/shop/', '/shop/watch', '/shop/tracker', '/shop/umay-watch']) {
       app.get(path, async (_req, reply) => reply.redirect('/', 302));
     }
     // The cards themselves stay reachable — they are still referenced by links

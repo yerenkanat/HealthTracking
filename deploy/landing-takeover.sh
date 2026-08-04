@@ -212,6 +212,10 @@ printf '    admin ui : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://
 printf '    admin API: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/stats   # expect 401
 printf '    basic srv: '; curl -sI https://ana-bala.kz/admin/ui | grep -qi '^www-authenticate' \
   && echo 'STILL PROMPTING — the edge password did not go away' || echo 'gone (the app signs staff in)'
+# Both forms of the retired storefront URL land on the landing. The one with
+# the trailing slash is what a browser leaves on a bookmark, and it 404'd.
+printf '    /shop    : HTTP '; curl -s -o /dev/null -w '%{http_code}' https://ana-bala.kz/shop
+printf ' , /shop/ HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/shop/   # both 302
 # The one that regressed once: a forged user header must NOT reach the backend.
 printf '    forged id: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' \
   -H 'x-user-id: 11111111-1111-1111-1111-111111111111' https://ana-bala.kz/children   # expect 404, never 200
