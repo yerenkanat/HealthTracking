@@ -12,6 +12,7 @@ import '../common/photo_scan_tile.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class MedicationsScreen extends StatelessWidget {
@@ -225,7 +226,7 @@ class _HistoryStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -335,7 +336,7 @@ class _MedRow extends StatelessWidget {
       if (med.perDay > 1) l.t('med_per_day', {'n': med.perDay}),
     ].join(' · ');
 
-    return GlassCard(
+    return DsCard(
       onTap: onEdit,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
@@ -563,7 +564,7 @@ class MedicationCard extends StatelessWidget {
     final done = p.planned > 0 && p.taken >= p.planned;
     final accent = done ? Palette.good : Palette.violet;
 
-    return GlassCard(
+    return DsCard(
       onTap: onOpen,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

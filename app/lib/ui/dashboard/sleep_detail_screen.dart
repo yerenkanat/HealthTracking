@@ -8,6 +8,7 @@ import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import '../ds_widgets.dart';
 import 'sleep_card.dart';
 
 class SleepDetailScreen extends StatelessWidget {
@@ -55,7 +56,7 @@ class SleepDetailScreen extends StatelessWidget {
                     _ConsistencyCard(insight: consistency),
                   ],
                   const SizedBox(height: 16),
-                  GlassCard(
+                  DsCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -95,8 +96,8 @@ class _ConsistencyCard extends StatelessWidget {
       SleepConsistency.irregular => (Palette.roseDeep, Icons.show_chart_rounded, l.t('sleep_cons_irregular')),
       SleepConsistency.insufficient => (Palette.textDim, Icons.hourglass_empty_rounded, ''),
     };
-    return GlassCard(
-      glow: accent,
+    return DsCard(
+      raised: true,
       child: Row(
         children: [
           Container(

@@ -16,6 +16,7 @@ import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
 import '../widgets/glass.dart';
 import '../widgets/photo_picker_sheet.dart';
+import '../ds_widgets.dart';
 import '../widgets/stat_tile.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -156,7 +157,7 @@ class _AppointmentsEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return GlassCard(
+    return DsCard(
       padding: EdgeInsets.zero,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),

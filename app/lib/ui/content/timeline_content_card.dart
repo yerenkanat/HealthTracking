@@ -19,6 +19,7 @@ import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import '../ds_widgets.dart';
 import 'timeline_content_screen.dart';
 
 class TimelineContentCard extends StatelessWidget {
@@ -46,7 +47,7 @@ class TimelineContentCard extends StatelessWidget {
     final s = stage;
 
     if (s == null) {
-      return GlassCard(
+      return DsCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -75,7 +76,7 @@ class TimelineContentCard extends StatelessWidget {
         products.take(previewCount - previewLessons.length).toList();
     final previewed = previewLessons.length + previewProducts.length;
 
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -12,6 +12,7 @@ import '../../l10n/l10n_scope.dart';
 import '../dashboard/sparkline.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class WeightCard extends StatelessWidget {
@@ -42,7 +43,7 @@ class WeightCard extends StatelessWidget {
         if (e.day != null) SeriesPoint(e.day!, e.kg),
     ];
 
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

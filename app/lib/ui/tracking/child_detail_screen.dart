@@ -39,6 +39,7 @@ import '../widgets/glass.dart';
 import '../widgets/confirm.dart';
 import 'alerts_screen.dart';
 import 'family_sheets.dart';
+import '../ds_widgets.dart';
 import 'zones_screen.dart';
 
 /// The backend API base — same default as the transport in main.dart. The cry
@@ -162,7 +163,7 @@ class ChildDetailScreen extends StatelessWidget {
                           const SizedBox(height: 14),
 
                           // ---- Status ----
-                          GlassCard(
+                          DsCard(
                             child: Column(
                               children: [
                                 if (battery != null)
@@ -208,7 +209,7 @@ class ChildDetailScreen extends StatelessWidget {
                           const SizedBox(height: 14),
 
                           // ---- Zones (links to the manager, which owns editing) ----
-                          GlassCard(
+                          DsCard(
                             onTap: () =>
                                 Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => ZonesScreen(
@@ -267,7 +268,7 @@ class ChildDetailScreen extends StatelessWidget {
                           const SizedBox(height: 14),
 
                           // ---- Alerts (links to the feed, which owns filtering) ----
-                          GlassCard(
+                          DsCard(
                             onTap: () =>
                                 Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) =>
@@ -499,7 +500,7 @@ class _CareCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GlassCard(
+  Widget build(BuildContext context) => DsCard(
         onTap: onTap,
         child: Row(children: [
           Container(

@@ -12,6 +12,7 @@ import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/fitted_title.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 /// Human label for a stage: "20-я неделя", "Новорождённый", "4 мес.".
@@ -129,7 +130,7 @@ class ContentTile extends StatelessWidget {
       label:
           '${item.title(locale)}. ${lesson ? l.t('tl_lessons') : l.t('tl_products')}'
           '${price.isEmpty ? '' : ', $price'}',
-      child: GlassCard(
+      child: DsCard(
         onTap: actionable ? () => onOpen!(item) : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

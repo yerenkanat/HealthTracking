@@ -11,6 +11,7 @@ import '../../domain/sleep.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class AdvisorScreen extends StatelessWidget {
@@ -102,7 +103,7 @@ class _AskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return GlassCard(
+    return DsCard(
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -152,8 +153,8 @@ class _AdvisoryCard extends StatelessWidget {
       AdviceTone.info => (Palette.blue, Icons.hourglass_empty),
     };
 
-    return GlassCard(
-      glow: advisory.tone == AdviceTone.watch ? color : null,
+    return DsCard(
+      raised: advisory.tone == AdviceTone.watch,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

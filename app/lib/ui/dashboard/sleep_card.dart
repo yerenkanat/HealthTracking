@@ -9,6 +9,7 @@ import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import '../ds_widgets.dart';
 import 'sleep_detail_screen.dart';
 
 // Stage palette — cool indigo→blue tones so sleep reads distinctly from the
@@ -55,7 +56,7 @@ class SleepCard extends StatelessWidget {
     return Semantics(
       label:
           '${l.t('metric_sleep')}: ${l.duration(last.asleepMin)}, ${l.sleepQuality(last.quality)}',
-      child: GlassCard(
+      child: DsCard(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
               builder: (_) => SleepDetailScreen(nights: nights, onLog: onLog)),
@@ -210,7 +211,7 @@ class _EmptySleepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

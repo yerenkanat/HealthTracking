@@ -10,6 +10,7 @@ import '../../domain/hydration.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class WaterCard extends StatelessWidget {
@@ -38,8 +39,8 @@ class WaterCard extends StatelessWidget {
 
     return Semantics(
       label: '${l.t('water_title')}: $count / $goal',
-      child: GlassCard(
-        glow: accent,
+      child: DsCard(
+        raised: true,
         child: Row(
           children: [
             InkWell(

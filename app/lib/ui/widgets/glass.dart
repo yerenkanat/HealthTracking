@@ -39,45 +39,6 @@ class AuroraBackground extends StatelessWidget {
 /// is reinterpreted rather than removed from ~60 call sites: passing any colour
 /// marks the card as the primary one and gives it the hard offset step. Prefer
 /// [DsCard] in new code, which says `raised: true` outright.
-class GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  /// Any non-null value now means "this is the primary card" — see above.
-  final Color? glow;
-  final VoidCallback? onTap;
-  const GlassCard({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(18),
-    this.glow,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: DsShape.card,
-        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-        boxShadow: glow == null ? null : DsShape.hardShadow,
-      ),
-      child: ClipRRect(
-        // Inset by the border so the ripple cannot paint over the outline.
-        borderRadius: BorderRadius.circular(DsShape.radiusCard - DsShape.borderWidth),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(padding: padding, child: child),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Circular progress ring, in a flat accent.
 ///
 /// This took a [Gradient] and swept it around the arc. The design system has no

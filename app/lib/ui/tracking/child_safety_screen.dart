@@ -10,6 +10,7 @@ import '../../domain/child_tracker_state.dart' show Freshness;
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class ChildSafetyScreen extends StatelessWidget {
@@ -86,8 +87,8 @@ class _TipCard extends StatelessWidget {
     };
     final params = {'name': childName, 'zone': zone ?? ''};
 
-    return GlassCard(
-      glow: tip.tone == TipTone.watch ? color : null,
+    return DsCard(
+      raised: tip.tone == TipTone.watch,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

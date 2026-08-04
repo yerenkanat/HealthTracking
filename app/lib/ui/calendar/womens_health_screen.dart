@@ -52,6 +52,7 @@ import 'logging_drawer.dart';
 import '../../domain/timeline_content.dart';
 import '../content/timeline_content_card.dart';
 import 'pregnancy_hero.dart';
+import '../ds_widgets.dart';
 import 'week_detail_screen.dart';
 
 class WomensHealthScreen extends StatefulWidget {
@@ -580,7 +581,7 @@ class _GestationHeader extends StatelessWidget {
     final g = controller.gestation;
 
     if (g == null) {
-      return GlassCard(
+      return DsCard(
         onTap: onSetDueDate,
         padding: const EdgeInsets.all(18),
         child: Row(
@@ -823,7 +824,7 @@ class _CycleHeader extends StatelessWidget {
       // Postpartum the cycle is paused, not un-started: say so, and don't prompt
       // "log a period" or "expecting a baby?" to someone who just gave birth.
       final postpartum = controller.isPostpartum;
-      return GlassCard(
+      return DsCard(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1172,7 +1173,7 @@ class _MonthCalendar extends StatelessWidget {
     final cells = leadingBlanks + daysInMonth;
     final rows = (cells / 7).ceil();
 
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
       child: Column(
         children: [
@@ -1485,7 +1486,7 @@ class _PregnancyMilestones extends StatelessWidget {
     final l = L10nScope.of(context);
     final current = currentMilestone(week);
     final next = nextMilestone(week);
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1577,7 +1578,7 @@ class _KickHistory extends StatelessWidget {
     final l = L10nScope.of(context);
     final shown = sessions.take(5).toList();
     final summary = kickHistorySummary(sessions);
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1619,7 +1620,7 @@ class SessionHistoryScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           itemCount: rows.length,
           separatorBuilder: (_, __) => const SizedBox(height: 6),
-          itemBuilder: (_, i) => GlassCard(
+          itemBuilder: (_, i) => DsCard(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: rows[i]),
         ),
@@ -1791,7 +1792,7 @@ class _ContractionHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final shown = sessions.take(5).toList();
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2055,7 +2056,7 @@ class _UsualSymptomsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final top = symptoms.take(3).toList();
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.all(14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2184,7 +2185,7 @@ class _CyclePredictions extends StatelessWidget {
             ? (l.t('cyc_period_today'), Palette.roseDeep)
             : (l.t('cyc_period_late', {'n': -until}), Palette.amber);
 
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

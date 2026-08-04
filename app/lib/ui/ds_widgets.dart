@@ -52,8 +52,30 @@ class DsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final body = Container(
-      padding: padding,
+    // A card is a Material surface, even when it is not tappable, and the
+    // Material has to be INSIDE the fill.
+    //
+    // Anything that draws its own ink — a ListTile, a Switch, a nested InkWell
+    // — paints onto its nearest Material ancestor. Put that ancestor outside
+    // this Container and the Container's own colour covers the ink; Flutter
+    // says so directly: "the ListTile is wrapped in a DecoratedBox that has a
+    // background color … this DecoratedBox will hide [the splashes]".
+    //
+    // GlassCard nested it this way and the profile screen depended on it
+    // without anyone knowing until these stopped being GlassCards.
+    final inner = Material(
+      type: MaterialType.transparency,
+      child: onTap == null
+          ? Padding(padding: padding, child: child)
+          : InkWell(
+              onTap: onTap,
+              // Inset by the border so the ripple cannot paint over the outline.
+              borderRadius: BorderRadius.circular(radius - DsShape.borderWidth),
+              child: Padding(padding: padding, child: child),
+            ),
+    );
+
+    return DecoratedBox(
       decoration: BoxDecoration(
         // A raised card must be opaque: the hard shadow is an unblurred ink
         // rectangle behind it, and a translucent pastel would let it read
@@ -63,13 +85,10 @@ class DsCard extends StatelessWidget {
         border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
         boxShadow: raised ? DsShape.hardShadow : null,
       ),
-      child: child,
-    );
-    if (onTap == null) return body;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(radius),
-      child: body,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius - DsShape.borderWidth),
+        child: inner,
+      ),
     );
   }
 }

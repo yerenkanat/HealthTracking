@@ -17,6 +17,7 @@ import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
+import '../ds_widgets.dart';
 import 'visit_summary.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -533,7 +534,7 @@ class _AppointmentCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: GlassCard(
+      child: DsCard(
         onTap: onEdit,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(

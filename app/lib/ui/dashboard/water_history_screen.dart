@@ -8,6 +8,7 @@ import '../../app/app_controller.dart';
 import '../../domain/hydration.dart';
 import '../../l10n/l10n_scope.dart';
 import '../theme.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class WaterHistoryScreen extends StatelessWidget {
@@ -61,7 +62,7 @@ class WaterHistoryScreen extends StatelessWidget {
           children: [
             _StreakCard(streak: streak),
             const SizedBox(height: 14),
-            GlassCard(
+            DsCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -90,7 +91,7 @@ class WaterHistoryScreen extends StatelessWidget {
             ),
             if (controller != null) ...[
               const SizedBox(height: 14),
-              GlassCard(
+              DsCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -173,8 +174,8 @@ class _StreakCard extends StatelessWidget {
     final l = L10nScope.of(context);
     final active = streak > 0;
     final accent = active ? Palette.blue : Palette.textDim;
-    return GlassCard(
-      glow: active ? Palette.blue : null,
+    return DsCard(
+      raised: active,
       child: Row(
         children: [
           Container(
@@ -245,7 +246,7 @@ class _StatTile extends StatelessWidget {
   final String label;
   const _StatTile({required this.value, required this.label});
   @override
-  Widget build(BuildContext context) => GlassCard(
+  Widget build(BuildContext context) => DsCard(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           children: [

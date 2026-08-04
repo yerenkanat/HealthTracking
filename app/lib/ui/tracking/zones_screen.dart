@@ -16,6 +16,7 @@ import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
 import '../widgets/permission_primer.dart';
+import '../ds_widgets.dart';
 import 'map_zone_picker.dart';
 
 /// Google Maps needs a real key to render; the map picker is only offered when
@@ -154,7 +155,7 @@ class _ZoneCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return GlassCard(
+    return DsCard(
       onTap: onEdit,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(

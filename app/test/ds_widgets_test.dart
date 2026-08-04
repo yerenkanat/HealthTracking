@@ -24,10 +24,16 @@ Future<void> pump(WidgetTester tester, Widget child, {AppLocale locale = AppLoca
   await tester.pumpAndSettle();
 }
 
-/// The decoration of the first Container that actually carries a border.
+/// The decoration of the first box that actually carries a border.
+///
+/// Scans DecoratedBox as well as Container: a Container IS a DecoratedBox plus
+/// padding, and which one a widget uses is an implementation detail. Looking
+/// only for Container made these tests fail when DsCard moved its Material
+/// inside the fill — a change with no visual effect at all.
 BoxDecoration? firstBorderedBox(WidgetTester tester) {
-  for (final c in tester.widgetList<Container>(find.byType(Container))) {
-    final d = c.decoration;
+  for (final e in find.byWidgetPredicate((w) => w is Container || w is DecoratedBox).evaluate()) {
+    final w = e.widget;
+    final d = w is Container ? w.decoration : (w as DecoratedBox).decoration;
     if (d is BoxDecoration && d.border != null) return d;
   }
   return null;

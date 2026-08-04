@@ -8,6 +8,7 @@ import '../../domain/health_series.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 enum _Range { d1, d7, all }
@@ -108,7 +109,7 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
             const SizedBox(height: 14),
 
             // Chart
-            GlassCard(
+            DsCard(
               padding: const EdgeInsets.fromLTRB(10, 18, 16, 12),
               child: series.length < 2
                   ? SizedBox(

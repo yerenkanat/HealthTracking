@@ -11,6 +11,7 @@ import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import '../ds_widgets.dart';
 import 'day_log_sheet.dart';
 
 class SymptomDaysScreen extends StatelessWidget {
@@ -98,7 +99,7 @@ class _DayCard extends StatelessWidget {
       for (final s in log.symptoms)
         if (s != Symptom.allGood) l.t('sym_${s.name}')
     ];
-    return GlassCard(
+    return DsCard(
       onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(

@@ -18,6 +18,7 @@ import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../widgets/glass.dart';
+import '../ds_widgets.dart';
 import 'labour_signs_screen.dart';
 
 class ContractionTimerScreen extends StatefulWidget {
@@ -181,7 +182,7 @@ class _StatsBar extends StatelessWidget {
     final l = L10nScope.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: GlassCard(
+      child: DsCard(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
         child: Row(
           children: [
@@ -413,7 +414,7 @@ class _ContractionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: GlassCard(
+      child: DsCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [

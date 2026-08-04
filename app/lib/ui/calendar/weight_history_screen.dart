@@ -10,6 +10,7 @@ import '../../l10n/l10n_scope.dart';
 import '../dashboard/sparkline.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class WeightHistoryScreen extends StatelessWidget {
@@ -43,7 +44,7 @@ class WeightHistoryScreen extends StatelessWidget {
                   if (chrono.length >= 2)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                      child: GlassCard(
+                      child: DsCard(
                         padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +106,7 @@ class _WeightRow extends StatelessWidget {
     final l = L10nScope.of(context);
     final ml = MaterialLocalizations.of(context);
     final date = entry.day;
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [

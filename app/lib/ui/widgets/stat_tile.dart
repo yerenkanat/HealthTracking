@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../design_system.dart';
+import '../ds_widgets.dart';
 import 'glass.dart';
 
 class StatTile extends StatelessWidget {
@@ -51,7 +52,7 @@ class StatTile extends StatelessWidget {
     // parameters stay because 20 call sites pass them; [gradient] contributes
     // its first colour, since the system has no gradients.
     final chip = gradient?.colors.firstOrNull ?? color ?? Ds.coralCta;
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.all(16),
       onTap: onTap,
       child: Column(

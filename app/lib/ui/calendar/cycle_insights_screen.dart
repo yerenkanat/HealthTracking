@@ -13,6 +13,7 @@ import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import 'notes_browser_screen.dart';
+import '../ds_widgets.dart';
 import 'symptom_days_screen.dart';
 
 class CycleInsightsScreen extends StatelessWidget {
@@ -281,8 +282,8 @@ class _StreakBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    return GlassCard(
-      glow: Palette.amber,
+    return DsCard(
+      raised: true,
       child: Row(
         children: [
           Container(
@@ -555,8 +556,8 @@ class _RegularityCard extends StatelessWidget {
           ''
         ),
     };
-    return GlassCard(
-      glow: accent,
+    return DsCard(
+      raised: true,
       child: Row(
         children: [
           Container(
@@ -598,7 +599,7 @@ class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.title, required this.child});
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

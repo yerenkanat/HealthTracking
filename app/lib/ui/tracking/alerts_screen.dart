@@ -10,6 +10,7 @@ import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/confirm.dart';
+import '../ds_widgets.dart';
 import '../widgets/glass.dart';
 
 class AlertsScreen extends StatefulWidget {
@@ -413,7 +414,7 @@ class _AlertCard extends StatelessWidget {
     };
     final age = now.difference(alert.at);
 
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [

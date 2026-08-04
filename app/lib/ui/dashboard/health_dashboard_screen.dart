@@ -31,6 +31,7 @@ import 'health_summary.dart';
 import 'metric_detail_screen.dart';
 import 'sleep_card.dart';
 import 'sparkline.dart';
+import '../ds_widgets.dart';
 import 'water_card.dart';
 
 class MetricSpec {
@@ -507,12 +508,12 @@ class _MetricCard extends StatelessWidget {
     return Semantics(
       label:
           '$label: $value ${spec.unit}${abnormal ? l.t('db_outside_range') : ''}',
-      child: GlassCard(
+      child: DsCard(
         // The raised step now means "this one wants your attention", so only an
         // out-of-range reading gets it. Passing a colour unconditionally — which
         // is what the old soft coloured glow did — put the step on all four
         // cards at once and said nothing.
-        glow: abnormal ? _statusColor(status) : null,
+        raised: abnormal,
         padding: const EdgeInsets.all(16),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MetricDetailScreen(
@@ -633,8 +634,8 @@ class _BloodPressureCard extends StatelessWidget {
       // announce "mmHg" in the middle of a Russian sentence.
       label: '${l.t('metric_bp')}: $sysV / $diaV ${l.t('unit_mmhg')}'
           '${abnormal ? l.t('db_outside_range') : ''}',
-      child: GlassCard(
-        glow: abnormal ? _statusColor(status) : Palette.violet,
+      child: DsCard(
+        raised: true,
         padding: const EdgeInsets.all(16),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MetricDetailScreen(
@@ -869,7 +870,7 @@ class _WearableSummaryCard extends StatelessWidget {
     }
     final preview = bits.take(2).join(' · ');
 
-    return GlassCard(
+    return DsCard(
       onTap: onTap,
       child: Row(
         children: [
@@ -973,7 +974,7 @@ class _ActivityWellnessCard extends StatelessWidget {
             valueColor: _statusColor(metricStatus('glucose', m.bloodSugar!))),
     ];
 
-    return GlassCard(
+    return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1332,7 +1333,7 @@ class _SetupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final next = progress.next!;
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.all(16),
       onTap: onTap == null ? null : () => onTap!(next),
       child: Column(
@@ -1416,7 +1417,7 @@ class _NextAppointmentCard extends StatelessWidget {
       ApptWhen.later => (Palette.textDim, l.t('appt_in_days', {'n': days})),
     };
     final time = TimeOfDay.fromDateTime(appt.at).format(context);
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.all(16),
       onTap: onTap,
       child: Row(
@@ -1504,7 +1505,7 @@ class _AntenatalProtocolCard extends StatelessWidget {
         ? null
         : l.t('an_weeks_range', {'from': lead.fromWeek, 'to': lead.toWeek});
 
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.all(16),
       onTap: onTap,
       child: Column(
@@ -1617,7 +1618,7 @@ class _WeeklyDigestCard extends StatelessWidget {
     // units in a Russian sentence, the same defect found on the child screen.
     final sleepLabel =
         digest.sleepNights == 0 ? '—' : l.duration(digest.avgSleepMin);
-    return GlassCard(
+    return DsCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1755,8 +1756,8 @@ class _EmptyState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
-        child: GlassCard(
-          glow: Palette.violet,
+        child: DsCard(
+          raised: true,
           padding: const EdgeInsets.all(28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
