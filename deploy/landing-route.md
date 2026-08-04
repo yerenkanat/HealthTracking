@@ -99,3 +99,29 @@ should end up. Pick one:
 
 Until that is settled the Flutter app must **not** point `API_BASE` at
 `https://ana-bala.kz` — `/api/v1/*` there is the CRM's, not ours.
+
+## `aiti_caddy` reports "unhealthy". It is not.
+
+`docker ps` has shown the proxy as unhealthy since the day it started — 8928
+consecutive failures and counting. The site is fine; the healthcheck is wrong.
+
+It probes Caddy's admin API:
+
+    wget -q --spider http://localhost:2019/config/ || exit 1
+
+which refuses inside that container, and has never once succeeded. The admin
+API itself works — `docker exec aiti_caddy caddy reload` uses it and that is how
+every config change in this repo is applied.
+
+It is **not** fixed here because the healthcheck is baked into the container's
+config, so changing it means recreating the one container that is serving
+ana-bala.kz — a real outage risk to silence a cosmetic flag on a container
+inherited from the CRM stack.
+
+What matters is covered properly instead: `deploy/uptime-check.sh` requests the
+landing over TLS *through this proxy* every five minutes, which tests what the
+healthcheck was reaching for and more.
+
+If the proxy is ever recreated for another reason, drop the healthcheck or point
+it at `https://ana-bala.kz/` — and until then, do not spend an afternoon on this
+flag the way it invites you to.
