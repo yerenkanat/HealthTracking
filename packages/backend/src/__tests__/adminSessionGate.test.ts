@@ -137,6 +137,38 @@ describe('arriving signed out', () => {
   });
 });
 
+describe('signing in the way a person does', () => {
+  it('clicking Войти sends the credentials', async () => {
+    // Every other test in this file dispatches a synthetic submit event, which
+    // is NOT the path a person takes. A real click runs the browser's own
+    // constraint validation first, and a form that fails it never fires submit
+    // at all — no request, no error, nothing in any server log. That is
+    // indistinguishable from "the button does nothing", which is exactly how
+    // it was reported.
+    const { window, posts } = await boot({ signedOut: true });
+    (window.document.getElementById('loginPhone') as HTMLInputElement).value = '+77073452244';
+    (window.document.getElementById('loginPass') as HTMLInputElement).value = 'a-password';
+
+    (window.document.getElementById('loginBtn') as HTMLButtonElement)
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 250));
+
+    expect(posts.some((p) => p.includes('/admin/login')), 'the button sent nothing').toBe(true);
+  });
+
+  it('the reveal button never submits the form', async () => {
+    // A <button> inside a <form> defaults to type="submit". If the eye were
+    // left as one, looking at your password would post the form.
+    const { window, posts } = await boot({ signedOut: true });
+    expect((window.document.getElementById('loginEye') as HTMLButtonElement).type).toBe('button');
+
+    (window.document.getElementById('loginEye') as HTMLButtonElement)
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(posts.some((p) => p.includes('/admin/login')), 'the eye submitted the form').toBe(false);
+  });
+});
+
 describe('the sign-in form lets you see what you typed', () => {
   // From an hour lost to exactly this: the account was fine and the password
   // was right, but the field held something else — a stale autofill, or Latin

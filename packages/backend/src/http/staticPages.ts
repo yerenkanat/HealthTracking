@@ -53,11 +53,23 @@ const WATCH_COLOURS = ['black', 'white', 'gray', 'pink', 'red', 'teal', 'army'];
 export const RETIRED_SHOP_PAGES = ['/shop', '/shop/', '/shop/watch', '/shop/tracker', '/shop/umay-watch'];
 
 /**
- * Addresses that should open the back office. /admin is what a person types;
- * /admin/ is what a browser leaves on a bookmark. Both answered with a JSON
- * 404 until they were listed here.
+ * Where the back office is served. /admin is the address, because it is what a
+ * person types and what anyone would read out loud; /admin/ is the same place
+ * with the slash a browser leaves on a bookmark.
+ *
+ * It lived at /admin/ui, with /admin redirecting there. The redirect worked and
+ * was still wrong: the URL bar ended up showing a path with a suffix nobody
+ * would have guessed, on the one page in the product whose address gets typed
+ * by hand rather than followed from a link.
  */
-export const ADMIN_ENTRY_PATHS = ['/admin', '/admin/'];
+export const ADMIN_PANEL_PATHS = ['/admin', '/admin/'];
+
+/**
+ * The old address. Kept as a redirect rather than deleted — it has been the
+ * panel's URL for as long as the panel has existed, so it is in browser
+ * histories and autocompletes, and possibly in a message to a colleague.
+ */
+export const ADMIN_LEGACY_PATH = '/admin/ui';
 
 export function registerStaticPages(app: FastifyInstance): StaticPages {
   const done: StaticPages = { adminUi: false, apiDocs: false, shop: false };
@@ -68,14 +80,14 @@ export function registerStaticPages(app: FastifyInstance): StaticPages {
     const adminHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
       `<title>Umay Back-office</title></head><body>${adminBody}</body></html>`;
-    app.get('/admin/ui', async (_req, reply) => reply.type('text/html').send(adminHtml));
-
-    // 302, not 301: /admin is the address that will keep being used, and a
-    // permanent redirect is cached in a way that is painful to undo when the
-    // panel moves to admin.ana-bala.kz.
-    for (const p of ADMIN_ENTRY_PATHS) {
-      app.get(p, async (_req, reply) => reply.redirect('/admin/ui', 302));
+    for (const p of ADMIN_PANEL_PATHS) {
+      app.get(p, async (_req, reply) => reply.type('text/html').send(adminHtml));
     }
+
+    // 302, not 301: the panel is due to move to admin.ana-bala.kz once that DNS
+    // record exists, and a permanent redirect would be cached by every browser
+    // that has ever opened it.
+    app.get(ADMIN_LEGACY_PATH, async (_req, reply) => reply.redirect('/admin', 302));
     done.adminUi = true;
   } catch {
     /* caller logs; see StaticPages */

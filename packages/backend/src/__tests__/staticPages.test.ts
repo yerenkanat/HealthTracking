@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { registerStaticPages, ADMIN_ENTRY_PATHS, RETIRED_SHOP_PAGES, type StaticPages } from '../http/staticPages';
+import { registerStaticPages, ADMIN_PANEL_PATHS, ADMIN_LEGACY_PATH, RETIRED_SHOP_PAGES, type StaticPages } from '../http/staticPages';
 
 let app: FastifyInstance;
 let registered: StaticPages;
@@ -42,11 +42,12 @@ describe('the pages registered at all', () => {
 
   it('has an address list to check', () => {
     // The second vacuity guard, and it is here because the first version of
-    // this file did not have it. Emptying ADMIN_ENTRY_PATHS — which is exactly
-    // the bug that was reported — made `it.each(ADMIN_ENTRY_PATHS)` register
+    // this file did not have it. Emptying the path list — which is exactly the
+    // bug that was reported — made `it.each(thatList)` register
     // ZERO tests, and the suite went green while /admin 404'd. A parameterised
     // test proves nothing about a list nobody checked the contents of.
-    expect(ADMIN_ENTRY_PATHS).toEqual(['/admin', '/admin/']);
+    expect(ADMIN_PANEL_PATHS).toEqual(['/admin', '/admin/']);
+    expect(ADMIN_LEGACY_PATH).toBe('/admin/ui');
     expect(RETIRED_SHOP_PAGES).toEqual(
       expect.arrayContaining(['/shop', '/shop/', '/shop/watch', '/shop/tracker', '/shop/umay-watch']),
     );
@@ -54,8 +55,11 @@ describe('the pages registered at all', () => {
 });
 
 describe('the back office', () => {
-  it('serves the panel at /admin/ui', async () => {
-    const res = await app.inject({ method: 'GET', url: '/admin/ui' });
+  it.each(ADMIN_PANEL_PATHS)('serves the panel at %s', async (path) => {
+    // /admin is the address, not a redirect to one. It is the only page in the
+    // product whose URL is typed by hand, and it used to be a JSON 404 while
+    // the page lived at a suffix nobody would guess.
+    const res = await app.inject({ method: 'GET', url: path });
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/html/);
     // Not merely 200: the page has to be the panel, opening on its sign-in form.
@@ -63,18 +67,18 @@ describe('the back office', () => {
     expect(res.body).toContain('<!doctype html>');
   });
 
-  it.each(ADMIN_ENTRY_PATHS)('%s redirects to the panel', async (path) => {
-    // The reported bug. /admin is what a person types; /admin/ is what a
-    // browser leaves behind. Both used to be a JSON 404.
-    const res = await app.inject({ method: 'GET', url: path });
+  it('keeps the old /admin/ui address working', async () => {
+    // It has been the panel's URL for as long as the panel has existed, so it
+    // is in histories, autocompletes and probably a message to a colleague.
+    const res = await app.inject({ method: 'GET', url: ADMIN_LEGACY_PATH });
     expect(res.statusCode).toBe(302);
-    expect(res.headers.location).toBe('/admin/ui');
+    expect(res.headers.location).toBe('/admin');
   });
 
   it('redirects temporarily, so the panel can move later', async () => {
     // 301 would be cached by every browser that has ever visited, and the plan
     // is to move this to admin.ana-bala.kz.
-    const res = await app.inject({ method: 'GET', url: '/admin' });
+    const res = await app.inject({ method: 'GET', url: ADMIN_LEGACY_PATH });
     expect(res.statusCode).not.toBe(301);
   });
 });
