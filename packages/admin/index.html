@@ -2350,8 +2350,21 @@
       waiting+=fresh;
       document.getElementById("shopOrdersSub").textContent=orders.length?(orders.length+" · новых: "+fresh):"нет заказов";
       owrap.innerHTML=orders.length?orders.map(shopOrderRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заказов пока нет</div>`;
-      owrap.querySelectorAll(".ostatus").forEach(sel=>sel.onchange=async()=>{
-        try{ await apiSend("/admin/shop/orders/"+encodeURIComponent(sel.dataset.oid),"PATCH",{status:sel.value}); renderShop(); }catch(e){}
+      owrap.querySelectorAll(".ostatus").forEach(sel=>{
+        // Remember what the server has, so a failed save can be put back.
+        const was=sel.value;
+        sel.onchange=async()=>{
+          try{
+            await apiSend("/admin/shop/orders/"+encodeURIComponent(sel.dataset.oid),"PATCH",{status:sel.value});
+            renderShop();
+          }catch(e){
+            // Was `catch(e){}`. The select kept the value the user picked while
+            // the server still had the old one — the change looked saved and
+            // was not. Put it back and say so.
+            sel.value=was;
+            alert("Не удалось сохранить статус заказа. Попробуйте ещё раз.");
+          }
+        };
       });
     }catch(e){ owrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить заказы</div>`; }
 
@@ -2362,8 +2375,20 @@
       waiting+=uncalled;
       document.getElementById("shopLeadsSub").textContent=leads.length?(leads.length+" · не обработано: "+uncalled):"нет заявок";
       lwrap.innerHTML=leads.length?leads.map(shopLeadRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заявок пока нет</div>`;
-      lwrap.querySelectorAll(".lstatus").forEach(sel=>sel.onchange=async()=>{
-        try{ await apiSend("/admin/shop/leads/"+encodeURIComponent(sel.dataset.lid),"PATCH",{status:sel.value}); renderShop(); }catch(e){}
+      lwrap.querySelectorAll(".lstatus").forEach(sel=>{
+        const was=sel.value;
+        sel.onchange=async()=>{
+          try{
+            await apiSend("/admin/shop/leads/"+encodeURIComponent(sel.dataset.lid),"PATCH",{status:sel.value});
+            renderShop();
+          }catch(e){
+            // The worst version of the silent-failure bug: staff mark a mother
+            // as called back, the save fails, the dropdown keeps saying
+            // "перезвонили", and nobody ever calls her.
+            sel.value=was;
+            alert("Не удалось сохранить статус заявки. Попробуйте ещё раз.");
+          }
+        };
       });
     }catch(e){ lwrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить заявки</div>`; }
     setBadge(document.getElementById("shopBadge"),waiting);
