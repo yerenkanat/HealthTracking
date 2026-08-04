@@ -559,7 +559,10 @@
       <button class="iconbtn" id="themeBtn" title="Светлая или тёмная тема" aria-label="Переключить тему">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
       </button>
-      <span class="chip"><span class="role" id="staffRole">clinician</span><span id="staffName">Dr. Nurlan</span><span class="avatar" id="staffAv">N</span></span>
+      <span class="chip"><span class="role" id="staffRole">clinician</span><span id="staffName">—</span><span class="avatar" id="staffAv">·</span></span>
+      <button class="iconbtn" id="logoutBtn" title="Выйти из панели" aria-label="Выйти">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
     </div>
 
     <div class="content">
@@ -950,11 +953,16 @@
   // sale — went through as an admin, and the audit log recorded the same id
   // for both. Whichever of the two was right, one of them was wrong.
   //
-  // This is a DEVELOPMENT stub: the backend trusts these headers outright, so
-  // anyone who can reach the port can claim any role. index.ts refuses to boot
-  // in production while that is still true. Replaced by a real session when
-  // sign-in exists.
-  const STAFF = { id: "s1", role: "admin", name: "Dr. Nurlan" };
+  // Filled in from /admin/me once the session is known — see start(). The
+  // header used to read "Dr. Nurlan", a person who does not exist, next to an
+  // audit log recording every action against a made-up id. Now it names whoever
+  // actually signed in.
+  //
+  // The headers below are still sent, and are still worth nothing in
+  // production: the backend accepts x-staff-* only with USE_MEMORY_DB or no
+  // DATABASE_URL. They keep a local dev run against an in-memory database
+  // working without a database to seed accounts into.
+  const STAFF = { id: "", role: "", name: "" };
 
   /// Distinguishes "you are not allowed" from "the server did not answer".
   class AccessDenied extends Error {}
@@ -964,7 +972,12 @@
     // Both used to throw the same thing, and boot() treated any failure as
     // "offline" and quietly showed demo numbers. A staff member whose access
     // had been revoked got a fully populated dashboard of invented data.
-    if(r.status===401||r.status===403) throw new AccessDenied(String(r.status));
+    if(r.status===401||r.status===403){
+      // 401 is "sign in again"; 403 is "signed in, not allowed here". Only the
+      // first one should throw the operator back to the form.
+      if(r.status===401) sessionLost();
+      throw new AccessDenied(String(r.status));
+    }
     if(!r.ok) throw new Error(r.status); return r.json();
   }
   let LIVE=false;
@@ -1137,15 +1150,21 @@
   function renderKpis(){
     const s=MOCK.stats;
     const b=BI;
+    // Every field is reached through ?. on purpose. This read `b.devices.online`
+    // behind a plain `b ?` truthiness check, so a BI payload that arrived
+    // without one key — an older backend, a partial response, a field renamed
+    // on one side of a deploy — threw inside render() and took the entire
+    // dashboard with it. Each tile now falls back to the basic stat or to a
+    // dash, which is what "we could not measure this" should look like.
     const tiles=[
       {lbl:"Устройств онлайн",dot:"var(--good)",
-       val:b?b.devices.online:s.devicesOnline,
-       delta:b&&b.devices.total?pct(b.devices.online/b.devices.total)+" из "+fmt(b.devices.total):"из подключённых"},
+       val:b?.devices?.online??s.devicesOnline,
+       delta:b?.devices?.total?pct(b.devices.online/b.devices.total)+" из "+fmt(b.devices.total):"из подключённых"},
       {lbl:"Тревог сегодня",dot:"var(--crit)",val:s.alertsToday,
-       delta:b?`за 7 дней: ${fmt(b.safety.alerts7d)}`:"за сутки"},
+       delta:b?.safety?.alerts7d!=null?`за 7 дней: ${fmt(b.safety.alerts7d)}`:"за сутки"},
       {lbl:"Приём данных · час",dot:"var(--warn)",val:s.ingestLastHour,delta:"измерений получено"},
-      {lbl:"Активных сегодня",dot:"var(--accent)",val:b?b.dau:"—",
-       delta:b?trend(b.dauSeries):"эндпоинт метрик недоступен"}
+      {lbl:"Активных сегодня",dot:"var(--accent)",val:b?.dau??"—",
+       delta:b?.dauSeries?trend(b.dauSeries):"эндпоинт метрик недоступен"}
     ];
     $("#kpis").innerHTML=tiles.map(kpiTile).join("");
   }
@@ -1488,7 +1507,10 @@
   /// it: the Устройства tab simply painted a header and no rows, which is
   /// exactly what it looked like before any of this was fixed. Passing them
   /// deliberately is better than discovering that again.
-  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF};
+  // sessionLost is declared further down, next to the login gate it shows —
+  // it is a function declaration, so it is hoisted and this is already the
+  // real function rather than undefined.
+  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost};
 
   /// One emergency, as a row.
   ///
@@ -2263,6 +2285,9 @@
   // ---- Shop: inventory + orders ----
   async function apiSend(path, method, body){
     const r=await fetch(path,{method,credentials:"same-origin",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role,"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
+    // A write that fails because the session died must not read as a server
+    // fault — the operator would retry it and watch it fail again.
+    if(r.status===401) sessionLost();
     if(!r.ok) throw new Error(String(r.status));
     return r.json().catch(()=>({}));
   }
@@ -2642,12 +2667,50 @@
     finally{ btn.disabled=false; }
   });
 
+  /** Put the signed-in person in the header. */
+  function setStaff(me){
+    STAFF.id=me.staffId||""; STAFF.role=me.role||"";
+    STAFF.name=me.displayName||me.phone||"";
+    document.getElementById("staffName").textContent=STAFF.name;
+    document.getElementById("staffRole").textContent=STAFF.role;
+    document.getElementById("staffAv").textContent=(STAFF.name.trim()[0]||"·").toUpperCase();
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click",async()=>{
+    try{ await fetch("/admin/logout",{method:"POST",credentials:"same-origin"}); }
+    catch(e){ /* the cookie may outlive this, so say nothing reassuring */ }
+    // Reload rather than just showing the gate: the panel holds loaded rows,
+    // charts and a selected user in memory, and none of that should survive
+    // someone handing the laptop over.
+    location.reload();
+  });
+
+  // A session lasts 12 hours, so it will expire in the middle of a shift. When
+  // it does, every loader gets a 401 and renders its own "нет данных" — which
+  // is the same screen as a working panel with an empty database. Anything that
+  // sees a 401 sends the operator back to the form instead.
+  function sessionLost(){
+    if(gate.hidden===false) return;             // already there
+    showLogin("Сессия истекла. Войдите заново.");
+  }
+
   async function start(){
+    let me;
     try{
       const r=await fetch("/admin/me",{credentials:"same-origin"});
-      if(r.ok){ showPanel(); await boot(); }
-      else showLogin();
-    }catch(e){ showLogin("Нет связи с сервером."); }
+      if(!r.ok){ showLogin(); return; }
+      me=await r.json();
+    }catch(e){ showLogin("Нет связи с сервером."); return; }
+
+    setStaff(me); showPanel();
+
+    // Deliberately outside the try above. It used to be inside it, which meant
+    // any exception while drawing the dashboard — a KPI reading a field the
+    // server had not sent, say — was reported as "Нет связи с сервером" and
+    // replaced the whole panel with a login form. Signing in again cannot fix
+    // a rendering bug, and the real error was swallowed on the way past.
+    try{ await boot(); }
+    catch(e){ console.error("boot failed", e); }
   }
   start();
 
@@ -2677,17 +2740,23 @@
   // The comment that used to sit here said STAFF was "deliberately not
   // redeclared — see the single STAFF identity above". The intent was right and
   // JavaScript does not work that way.
-  const { tableBusy, tableNote, stamp, ago, fmt, setBadge, STAFF } = window.UI;
+  const { tableBusy, tableNote, stamp, ago, fmt, setBadge, STAFF, sessionLost } = window.UI;
 
   async function api(path, opts) {
     const r = await fetch(path, {
       ...opts,
+      credentials: "same-origin",
       headers: {
         "x-staff-id": STAFF.id,
         "x-staff-role": STAFF.role,
         ...(opts && opts.body ? { "content-type": "application/json" } : {}),
       },
     });
+    // Same reason as the dashboard block: these views degrade to "нет данных",
+    // which is indistinguishable from a working panel with an empty database.
+    // Read off window.UI at call time, not destructured at the top: the slot is
+    // filled once the login gate exists, which is after this block is parsed.
+    if (r.status === 401) sessionLost();
     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
     return r.json();
   }

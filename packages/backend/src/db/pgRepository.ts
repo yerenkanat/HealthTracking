@@ -191,7 +191,7 @@ export function createPgRepository(pool: Pool): Repository {
 
     async staffBySessionToken(tokenHash) {
       const { rows } = await pool.query(
-        `SELECT s.staff_id, a.role
+        `SELECT s.staff_id, a.role, a.display_name, a.phone
            FROM staff_sessions s
            JOIN staff_accounts a ON a.id = s.staff_id
           WHERE s.token_hash = $1
@@ -200,7 +200,9 @@ export function createPgRepository(pool: Pool): Repository {
         [tokenHash],
       );
       const r = rows[0];
-      return r ? { staffId: r.staff_id, role: r.role } : null;
+      return r
+        ? { staffId: r.staff_id, role: r.role, displayName: r.display_name ?? '', phone: r.phone }
+        : null;
     },
 
     async deleteStaffSession(tokenHash) {

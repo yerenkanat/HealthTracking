@@ -104,6 +104,11 @@ export function registerStaffLoginRoutes(app: FastifyInstance, repo: Repository)
     const token = readSessionCookie(req.headers.cookie);
     const session = token ? await repo.staffBySessionToken(hashToken(token)) : null;
     if (!session) return reply.code(401).send({ error: 'unauthenticated' });
-    return reply.send({ staffId: session.staffId, role: session.role });
+    return reply.send({
+      staffId: session.staffId,
+      role: session.role,
+      displayName: session.displayName,
+      phone: session.phone,
+    });
   });
 }

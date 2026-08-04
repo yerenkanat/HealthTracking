@@ -5,7 +5,7 @@
  * production: state lives in process memory and is lost on restart.
  */
 
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus } from './repository';
 import { bundleDiscountMinor } from './repository';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
@@ -15,6 +15,17 @@ import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 
 export const DEMO_USER = '11111111-1111-1111-1111-111111111111';
 export const DEMO_CHILD = '33333333-3333-3333-3333-333333333333';
+
+/**
+ * The sign-in a developer uses against the in-memory database.
+ *
+ * Not a secret and not treated as one: this repository is chosen only when
+ * there is no Postgres to talk to, and it forgets everything on restart.
+ * Production has DATABASE_URL and never constructs this repository. Written
+ * down in docs/DEPLOY.md next to the real seeding command.
+ */
+export const DEV_STAFF_PHONE = '77000000000';
+export const DEV_STAFF_PASSWORD = 'dev-password';
 
 export function createMemoryRepository(): Repository {
   const home: Geofence = {
@@ -50,6 +61,24 @@ export function createMemoryRepository(): Repository {
 
   /** Staff sign-in, keyed by normalised phone. */
   const staffAccounts = new Map<string, StaffAccount>();
+
+  // A sign-in that works out of the box, so `npm run dev` reaches the panel
+  // through the real login form rather than through the x-staff-role header
+  // shortcut. This repository is the in-memory one: it is selected only by
+  // USE_MEMORY_DB or a missing DATABASE_URL, and it forgets everything on
+  // restart, so a fixed password here is a fixed password to a database that
+  // holds nothing. Any deployment has Postgres and never reaches this line.
+  {
+    const salt = randomBytes(16);
+    staffAccounts.set(DEV_STAFF_PHONE, {
+      id: 'staff-dev',
+      phone: DEV_STAFF_PHONE,
+      passwordHash: `scrypt$${salt.toString('hex')}$${scryptSync(DEV_STAFF_PASSWORD, salt, 64).toString('hex')}`,
+      role: 'admin',
+      displayName: 'Разработка',
+      disabled: false,
+    });
+  }
   const staffSessions = new Map<
     string,
     { tokenHash: string; staffId: string; expiresAt: Date; userAgent: string }
@@ -204,7 +233,10 @@ export function createMemoryRepository(): Repository {
       if (!s || s.expiresAt.getTime() <= Date.now()) return null;
       const acct = [...staffAccounts.values()].find((a) => a.id === s.staffId);
       if (!acct || acct.disabled) return null;
-      return { staffId: acct.id, role: acct.role };
+      return {
+        staffId: acct.id, role: acct.role,
+        displayName: acct.displayName ?? '', phone: acct.phone,
+      };
     },
     deleteStaffSession: async (tokenHash) => void staffSessions.delete(tokenHash),
     recentFailedLogins: async (phone, since) =>

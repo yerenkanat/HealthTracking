@@ -517,7 +517,11 @@ export interface Repository {
     userAgent: string;
   }): Promise<void>;
   /// Resolve a session, or null when unknown or expired.
-  staffBySessionToken(tokenHash: string): Promise<{ staffId: string; role: StaffRole } | null>;
+  /// displayName and phone come back too: the panel puts the signed-in person
+  /// in its header, and until it could ask, it showed an invented name.
+  staffBySessionToken(
+    tokenHash: string,
+  ): Promise<{ staffId: string; role: StaffRole; displayName: string; phone: string } | null>;
   deleteStaffSession(tokenHash: string): Promise<void>;
   /// Failed sign-ins for this phone inside the window — the rate limit.
   recentFailedLogins(phone: string, since: Date): Promise<number>;
