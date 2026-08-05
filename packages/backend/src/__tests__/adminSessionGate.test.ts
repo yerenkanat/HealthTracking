@@ -106,6 +106,17 @@ async function boot(opts: Opts = {}) {
 const visible = (w: JSDOM['window'], id: string) =>
   !(w.document.getElementById(id) as HTMLElement).hidden;
 
+describe('the panel says which product it belongs to', () => {
+  it('shows Ana-Bala in the sidebar, not the old brand', async () => {
+    // The sidebar read "Umay" with a U for a logo, next to a login card that
+    // already said Ana-Bala. The product was renamed; the back office was not.
+    const { window } = await boot();
+    const brand = window.document.querySelector('.brand')!;
+    expect(brand.textContent).toContain('Ana-Bala');
+    expect(brand.textContent, 'the old brand is still in the sidebar').not.toContain('Umay');
+  });
+});
+
 describe('the header names the person who signed in', () => {
   it('shows the name from /admin/me, not a hardcoded one', async () => {
     // It used to read "Dr. Nurlan" — a person who does not exist — beside an

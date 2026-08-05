@@ -79,7 +79,7 @@ export function registerStaticPages(app: FastifyInstance): StaticPages {
     const adminBody = readFileSync(fileURLToPath(new URL('../../../admin/index.html', import.meta.url)), 'utf8');
     const adminHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>Umay Back-office</title></head><body>${adminBody}</body></html>`;
+      `<title>Ana-Bala Back-office</title></head><body>${adminBody}</body></html>`;
     for (const p of ADMIN_PANEL_PATHS) {
       app.get(p, async (_req, reply) => reply.type('text/html').send(adminHtml));
     }

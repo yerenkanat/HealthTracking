@@ -65,6 +65,10 @@ describe('the back office', () => {
     // Not merely 200: the page has to be the panel, opening on its sign-in form.
     expect(res.body).toContain('id="loginForm"');
     expect(res.body).toContain('<!doctype html>');
+    // The product is Ana-Bala. The tab said "Umay Back-office" — the old brand,
+    // in the one place a person looks to find the window again.
+    expect(res.body).toContain('<title>Ana-Bala Back-office</title>');
+    expect(res.body, 'the old brand is back in the title').not.toContain('Umay Back-office');
   });
 
   it('keeps the old /admin/ui address working', async () => {
