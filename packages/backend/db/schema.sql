@@ -488,6 +488,8 @@ CREATE TABLE IF NOT EXISTS shop_orders (
   total_minor   INTEGER NOT NULL CHECK (total_minor >= 0),
   discount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_minor >= 0),
   status        TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','confirmed','shipped','delivered','cancelled')),
+  -- Digits only, 77xxxxxxxxx — how an order is matched to an app account.
+  phone_normalized TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_shop_orders_created ON shop_orders (created_at DESC);
@@ -621,3 +623,22 @@ CREATE TABLE IF NOT EXISTS user_login_attempts (
 );
 CREATE INDEX IF NOT EXISTS user_login_attempts_phone_at
   ON user_login_attempts (phone, at DESC);
+
+-- ---------------------------------------------------------------------------
+-- What a purchase unlocks in the app (migration 023).
+--
+-- The combo is two devices plus the Ма!Ма! course, so buying it is what opens
+-- the lessons. An order and an account are joined by the PHONE — the order
+-- captures it at checkout, the app signs in with it — because a customer does
+-- not know she has an account id, and there is nothing for her to do.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_entitlements (
+  phone      TEXT NOT NULL,          -- normalised: 77xxxxxxxxx
+  feature    TEXT NOT NULL,          -- 'mama_course'
+  order_id   UUID REFERENCES shop_orders(id) ON DELETE SET NULL,
+  granted_by TEXT,                   -- staff id, or null when an order granted it
+  note       TEXT,
+  at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (phone, feature)
+);
+CREATE INDEX IF NOT EXISTS user_entitlements_feature ON user_entitlements (feature);

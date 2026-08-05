@@ -10,7 +10,8 @@
  * is a helper rather than an empty suite.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export interface AdminRoute {
@@ -34,16 +35,25 @@ export interface AdminRoute {
  * require a session — they are how you get one — and the authorization guard
  * names them explicitly rather than never seeing them.
  */
-const SOURCES = [
-  '../../routes/admin.ts',
-  '../../routes/staffAdmin.ts',
-  '../../routes/staffLogin.ts',
-  '../../routes/inventory.ts',
-];
+/**
+ * Every file in routes/, discovered rather than listed.
+ *
+ * This was a hardcoded array, and it went stale three times in one week —
+ * staffAdmin.ts, inventory.ts and entitlements.ts each added routes that were
+ * invisible to the guard whose entire purpose is to fail a NEW route by
+ * default. Each time the fix was to append one more path, which is the same
+ * mistake with a longer list.
+ *
+ * A directory read cannot go stale. A new routes file is covered the moment it
+ * exists, which is the only version of this that actually holds.
+ */
+const ROUTES_DIR = fileURLToPath(new URL('../../routes', import.meta.url));
+const SOURCES = readdirSync(ROUTES_DIR)
+  .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+  .sort()
+  .map((f) => join(ROUTES_DIR, f));
 
-const src = SOURCES.flatMap((rel) =>
-  readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').split('\n'),
-);
+const src = SOURCES.flatMap((abs) => readFileSync(abs, 'utf8').split('\n'));
 
 export function adminRoutes(): AdminRoute[] {
   const starts: Array<{ i: number; method: string; path: string }> = [];

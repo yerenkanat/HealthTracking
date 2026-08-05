@@ -512,6 +512,28 @@ export interface Repository {
   setShopVariantStock(variantId: string, stock: number, by?: StockMoveAuthor): Promise<void>;
   addShopVariant(productId: string, color: string, colorHex: string, stock: number): Promise<void>;
 
+  // ---- Entitlements (what a purchase unlocks in the app) ----
+  /// Does this phone own [feature]? Phone, not user id: an order is placed
+  /// before an account exists, and the two are joined by the number.
+  hasEntitlement(phone: string, feature: string): Promise<boolean>;
+  grantEntitlement(e: {
+    phone: string;
+    feature: string;
+    orderId?: string;
+    grantedBy?: string;
+    note?: string;
+  }): Promise<void>;
+  /// Taken back after a refund, or when it was granted by mistake.
+  revokeEntitlement(phone: string, feature: string): Promise<void>;
+  listEntitlements(feature: string, limit: number): Promise<Array<{
+    phone: string;
+    feature: string;
+    orderId: string | null;
+    grantedBy: string | null;
+    note: string | null;
+    at: string;
+  }>>;
+
   // ---- Inventory ----
   /// Every product with its price, cost, kind and stock — the warehouse view,
   /// including inactive ones, which is where an archived product has to be

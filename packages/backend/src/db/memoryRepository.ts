@@ -194,6 +194,9 @@ export function createMemoryRepository(): Repository {
     { bundleId: 'combo', partId: 'watch', qty: 1 },
     { bundleId: 'combo', partId: 'tracker', qty: 1 },
   ];
+  /** What a phone owns: normalised phone + feature → how it was granted. */
+  const entitlements = new Map<string, { phone: string; feature: string; orderId: string | null; grantedBy: string | null; note: string | null; at: string }>();
+
   /** The stock ledger. Every change, with its reason — never edited, never deleted. */
   const stockMoves: Array<{
     id: number; variantId: string; delta: number; reason: StockMoveReason;
@@ -866,6 +869,23 @@ export function createMemoryRepository(): Repository {
         });
       }
     },
+
+    // ---- Entitlements ----
+    hasEntitlement: async (phone, feature) => entitlements.has(phone + '|' + feature),
+    grantEntitlement: async (e) => {
+      const key = e.phone + '|' + e.feature;
+      // Idempotent, and the FIRST grant keeps its provenance: re-granting must
+      // not overwrite who gave it and why.
+      if (entitlements.has(key)) return;
+      entitlements.set(key, {
+        phone: e.phone, feature: e.feature, orderId: e.orderId ?? null,
+        grantedBy: e.grantedBy ?? null, note: e.note ?? null,
+        at: new Date().toISOString(),
+      });
+    },
+    revokeEntitlement: async (phone, feature) => void entitlements.delete(phone + '|' + feature),
+    listEntitlements: async (feature, limit) =>
+      [...entitlements.values()].filter((x) => x.feature === feature).slice(-limit).reverse(),
 
     // ---- Inventory ----
     adminProducts: async () => {

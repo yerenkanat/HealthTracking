@@ -1295,6 +1295,40 @@ export function createPgRepository(pool: Pool): Repository {
       }
     },
 
+    // ---- Entitlements ----
+    async hasEntitlement(phone, feature) {
+      const { rows } = await pool.query(
+        'SELECT 1 FROM user_entitlements WHERE phone = $1 AND feature = $2', [phone, feature]);
+      return rows.length > 0;
+    },
+
+    async grantEntitlement(e) {
+      // Idempotent: granting twice is the same as granting once, and the second
+      // attempt keeps the first grant's provenance rather than overwriting who
+      // gave it and why.
+      await pool.query(
+        `INSERT INTO user_entitlements (phone, feature, order_id, granted_by, note)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (phone, feature) DO NOTHING`,
+        [e.phone, e.feature, e.orderId ?? null, e.grantedBy ?? null, e.note ?? null]);
+    },
+
+    async revokeEntitlement(phone, feature) {
+      await pool.query(
+        'DELETE FROM user_entitlements WHERE phone = $1 AND feature = $2', [phone, feature]);
+    },
+
+    async listEntitlements(feature, limit) {
+      const { rows } = await pool.query(
+        `SELECT phone, feature, order_id, granted_by, note, at
+           FROM user_entitlements WHERE feature = $1 ORDER BY at DESC LIMIT $2`,
+        [feature, limit]);
+      return rows.map((r) => ({
+        phone: r.phone, feature: r.feature, orderId: r.order_id,
+        grantedBy: r.granted_by, note: r.note, at: new Date(r.at).toISOString(),
+      }));
+    },
+
     // ---- Inventory ----
     async adminProducts() {
       const { rows } = await pool.query(
