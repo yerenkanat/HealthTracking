@@ -41,6 +41,11 @@ const AGGREGATES_ONLY = new Set([
   // schedule, the pregnancy and child-development calendars. Constants
   // compiled into the server; they name nobody and never change per request.
   'GET /admin/reference/:kind',
+  // Stock levels and the movement ledger. About goods on a shelf, not about a
+  // family — and the ledger already records who moved what, so auditing a READ
+  // of it would only record who looked at the record of who looked.
+  'GET /admin/inventory',
+  'GET /admin/inventory/moves',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

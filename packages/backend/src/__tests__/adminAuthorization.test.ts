@@ -101,6 +101,10 @@ describe('back-office authorization', () => {
     // Requiring it in the opening lines keeps "authorize, then act" visible at
     // a glance rather than buried in a branch.
     const late = adminRoutes()
+      // The three sessionless routes have no guard to be early or late, and
+      // the last route in a file has a 'body' that runs to the end of the
+      // concatenation — so /admin/me was picking up the next file's guard.
+      .filter((r) => !NO_SESSION_REQUIRED.has(r.key))
       .filter((r) => {
         const guardLine = r.body.split('\n').findIndex((l) => /require(Staff|Admin)\(/.test(l));
         return guardLine > 3;

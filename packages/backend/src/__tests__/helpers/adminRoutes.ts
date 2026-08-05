@@ -34,7 +34,12 @@ export interface AdminRoute {
  * require a session — they are how you get one — and the authorization guard
  * names them explicitly rather than never seeing them.
  */
-const SOURCES = ['../../routes/admin.ts', '../../routes/staffAdmin.ts', '../../routes/staffLogin.ts'];
+const SOURCES = [
+  '../../routes/admin.ts',
+  '../../routes/staffAdmin.ts',
+  '../../routes/staffLogin.ts',
+  '../../routes/inventory.ts',
+];
 
 const src = SOURCES.flatMap((rel) =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').split('\n'),

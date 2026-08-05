@@ -26,6 +26,7 @@ import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { registerStaffLoginRoutes } from './routes/staffLogin';
 import { registerPhoneAuthRoutes } from './routes/phoneAuth';
 import { registerStaffAdminRoutes } from './routes/staffAdmin';
+import { registerInventoryRoutes } from './routes/inventory';
 import { registerPublicApiRoutes } from './routes/publicApi';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
@@ -388,6 +389,7 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   registerPhoneAuthRoutes(app, deps.repo);
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
+  if (deps.authAdmin) registerInventoryRoutes(app, deps.repo, deps.authAdmin);
   // Public content API (/api/v1) — calendars, protocols, personalised timelines
   // for an external consumer (e.g. a WhatsApp bot). Key-gated when configured.
   registerPublicApiRoutes(app, deps.repo, { apiKey: deps.contentApiKey });
