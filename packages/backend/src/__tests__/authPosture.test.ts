@@ -26,21 +26,24 @@ describe('authPosture', () => {
     expect(p.safeForProduction).toBe(false);
   });
 
-  it('REAL_AUTH=1 alone does not make the admin path real', () => {
-    // A local run with REAL_AUTH set but no database still honours the staff
-    // header shortcut, because there is no account to sign in to.
+  it('REAL_AUTH=1 with no database is still forgeable on both paths', () => {
+    // REAL_AUTH is about Firebase. It cannot make a run without a database
+    // safe, because that is exactly where the `stub-token:` bearer, the
+    // x-user-id header and the x-staff-role header are all still honoured.
     const p = authPosture(env({ REAL_AUTH: '1' }));
-    expect(p.userStub).toBe(false);
+    expect(p.userStub).toBe(true);
     expect(p.adminStub).toBe(true);
     expect(p.safeForProduction).toBe(false);
   });
 
-  it('a database makes the admin path real — that is where accounts live', () => {
+  it('a database makes BOTH paths real — that is where accounts live', () => {
+    // Staff sign in with a phone and a password; the app signs in with a phone
+    // against POST /auth/phone. Neither needs Firebase, and with Postgres
+    // configured the dev shortcuts are off for both.
     const p = authPosture(env({ ...DB }));
     expect(p.adminStub, 'staff sign-in is real wherever Postgres is configured').toBe(false);
-    // The user path is still a stub, so the server is still not safe to serve.
-    expect(p.userStub).toBe(true);
-    expect(p.safeForProduction).toBe(false);
+    expect(p.userStub, 'app sign-in is real wherever Postgres is configured').toBe(false);
+    expect(p.safeForProduction).toBe(true);
   });
 
   it('USE_MEMORY_DB puts the admin path back to a stub, database or not', () => {
@@ -52,6 +55,8 @@ describe('authPosture', () => {
   });
 
   it('is production-safe only when both paths are real', () => {
+    // REAL_AUTH may or may not be set — Firebase is optional now — but the
+    // database is what decides.
     const p = authPosture(env({ ...DB, REAL_AUTH: '1' }));
     expect(p.userStub).toBe(false);
     expect(p.adminStub).toBe(false);

@@ -46,8 +46,17 @@ async function initFirebaseAuth(): Promise<void> {
 // The session verifier is bound to the repository once it exists (see below);
 // until then only Firebase and the dev paths are available.
 let verifyUserSession: ((token: string) => Promise<{ userId: string } | null>) | undefined;
+// The dev shortcuts — the stub token and the x-user-id header — are gated on
+// the SAME rule as the staff header shortcut: they exist only where there is no
+// database. They used to be gated on !REAL_AUTH, which was about Firebase, so
+// production (which has no Firebase and never will if we keep our own sign-in)
+// left them switched on.
 const authUser = (req: FastifyRequest) =>
-  makeAuthUser({ verifySessionToken: verifyUserSession, verifyIdToken, allowStubToken: !REAL_AUTH })(req);
+  makeAuthUser({
+    verifySessionToken: verifyUserSession,
+    verifyIdToken,
+    allowStubToken: ALLOW_DEV_SHORTCUTS,
+  })(req);
 // TODO(auth): verify a staff session/JWT with RBAC claims.
 /**
  * Who is asking, for /admin — the signed-in staff session.
@@ -82,8 +91,10 @@ const authAdminFor = (repo: Repository) => async (req: FastifyRequest) => {
  * by hand in production would hand the back office to anyone who can send a
  * header, so it is deliberately not a plain boolean env var read.
  */
-const ALLOW_HEADER_STAFF =
+const ALLOW_DEV_SHORTCUTS =
   process.env.USE_MEMORY_DB === 'true' || !process.env.DATABASE_URL;
+/** Kept as the old name for the staff path, which reads better at its use site. */
+const ALLOW_HEADER_STAFF = ALLOW_DEV_SHORTCUTS;
 
 /** Real deps: pg + Redis + Anthropic + push (loaded lazily). */
 async function productionDeps(): Promise<ServerDeps> {
