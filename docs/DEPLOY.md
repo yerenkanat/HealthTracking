@@ -6,8 +6,19 @@ command and env var below is grounded in the code (`packages/backend/src/index.t
 `server.ts`, `db/schema.sql`); nothing here is executed automatically — review,
 then run.
 
-> **Status:** not yet deployed. The target box is recorded outside the repo.
-> Deploy only after the security step below.
+> **Status: live.** ana-bala.kz serves the landing, the storefront API and the
+> back office at `/admin`, from one Node process behind Caddy on the box
+> recorded outside this repo. Nightly backups run with a restore drill; the
+> uptime check runs every few minutes.
+>
+> **Still closed:** every app-API route. `REAL_AUTH` is unset, so the backend
+> still trusts an `x-user-id` header, and the edge allow-list names no app path.
+> The app therefore has no server yet — see `GO_LIVE_APP_API.md` for the ordered
+> procedure, and do not open the edge before the check in step 3 returns 401.
+>
+> **Still on the owner:** rotate the root password (it was shared in plaintext),
+> install SSH keys, and choose an offsite backup destination — the backups
+> currently sit on the machine they are backups of.
 
 ---
 
@@ -18,7 +29,7 @@ Decided config for this deploy. Ready-to-use files live in [`deploy/`](../deploy
 | Public name | Serves | Notes |
 |---|---|---|
 | `ana-bala.kz`, `www.ana-bala.kz` | Landing page (`/`) and the storefront API (`/shop…`) only | Root `/` is the Ana-Bala landing page — no redirect. The **app API is closed** at the edge until real auth exists (§9), so `API_BASE=https://ana-bala.kz` does not work yet. |
-| `admin.ana-bala.kz` | Staff back-office (`/admin/ui` + `/admin/*`) | Basic-auth gated at the edge (no staff RBAC yet). Root `/` → `/admin/ui`. |
+| `admin.ana-bala.kz` | Not created yet | The back office is served from the main name at **`/admin`** (`/admin/ui` redirects there). Moving it here is pending a DNS A record. |
 
 One Node process on `127.0.0.1:8080` serves all of it; **Caddy** terminates TLS
 (auto Let's Encrypt) and routes both names to it.
@@ -31,34 +42,38 @@ admin.ana-bala.kz   A     188.137.231.252
 ```
 (add matching `AAAA` records for the IPv6 address if you use it).
 
-> ### ⚠ The target box is not empty
+> ### The box was not empty, and now is
 >
-> As of **2026-08-03**, `188.137.231.252` is already serving a different, live
-> application — *Aiti.kz — Қойма басқару жүйесі*, a warehouse-management SPA that
-> answers 200 on every path of `ana-bala.kz`. The owner has authorised replacing
-> it, but `bootstrap.sh` assumes a **fresh** box: it overwrites
-> `/etc/caddy/Caddyfile` and takes ports 80/443, which stops that site dead.
->
-> Take a copy you can put back **before** running anything:
-> ```bash
-> ssh root@188.137.231.252 'tar czf /root/preexisting-site-$(date +%F).tgz \
->     /etc/caddy /etc/nginx /var/www /etc/systemd/system/*.service 2>/dev/null; \
->   systemctl list-units --type=service --state=running > /root/preexisting-services.txt'
-> ```
-> Then confirm what that app is and where else it lives. Once Caddy is
-> reconfigured and its service is stopped, the site is down until someone
-> restores it.
+> It ran a TEST deployment of the Aiti.kz CRM, which owned ana-bala.kz in its
+> Caddyfile. That instance was stood down with `deploy/retire-test-crm.sh`
+> (18 containers → 4); the CRM's real production lives on another server and
+> was never touched. The Supabase passthrough on :8081 is still preserved
+> verbatim by landing-takeover.sh, so nothing there breaks.
 
 **Files in `deploy/`:**
-- `Caddyfile` — the two site blocks above (set the admin basic-auth hash).
-- `umay-backend.service` — systemd unit (runs as the `umay` user, env from `/etc/umay/backend.env`).
-- `backend.env.example` — the env matrix, ready to fill.
-- `bootstrap.sh` — a reviewable fresh-box script that does §2–§7 below end to end.
+- `landing-stack.sh` — brings up Postgres, Redis and the backend containers.
+- `landing-takeover.sh` — generates and applies the live Caddy config, then
+  verifies it. `--revert` restores the newest backup. **Use this rather than
+  editing the Caddyfile**; it validates a candidate, checks the container is
+  really reading what was written, and prints a verification block.
+- `backup.sh` + `backup-install.sh` — nightly dump with a restore drill into a
+  scratch database. The drill enumerates the live tables rather than naming
+  them, and refuses to report success if every table was empty on both sides.
+- `uptime-check.sh` + `uptime-install.sh` — the site, `/ready` and TLS expiry,
+  every few minutes, alerting on transitions.
+- `retire-test-crm.sh` — how the previous tenant of this box was stood down.
+- `umay-backend.service`, `backend.env.example`, `bootstrap.sh` — the original
+  fresh-box path, kept for standing up a second environment.
 
-**Blocked on you to run it:** SSH access (rotate the leaked root password, add my
-key or share a fresh one securely) and the DNS records above. Then it's:
-`REPO_URL=… DB_PASS=… ./deploy/bootstrap.sh` on the box, plus the manual steps it
-prints (Firebase for `REAL_AUTH`, the admin hash, the app build).
+**Day-to-day deploy** is a pull and a restart; the backend runs from a bind
+mount, so there is no build step:
+
+```bash
+cd /opt/umay && git pull && docker restart umay-backend
+```
+
+Restart is required for any change to the admin panel HTML, the storefront
+pages or the landing — all three are read once at startup.
 
 The step-by-step sections below explain each piece the script automates.
 
@@ -67,10 +82,15 @@ The step-by-step sections below explain each piece the script automates.
 ## 0. Architecture
 
 - **Backend** — one Node process (`packages/backend`, `tsx src/index.ts`). It
-  serves the JSON API **and** the static pages: the landing page at `/`, admin
-  at `/admin/ui`, the storefront at `/shop`, `/shop/watch`, `/shop/umay-watch`,
-  `/shop/tracker`, and the API docs at `/docs/api`. Static HTML is read **once at
-  startup**, so a content edit needs a process restart to show.
+  serves the JSON API **and** the static pages: the landing at `/`, the back
+  office at `/admin`, the API docs at `/api-docs`, and the retired storefront
+  URLs (`/shop`, `/shop/watch`, `/shop/tracker`, `/shop/umay-watch`), which now
+  redirect to the landing. Static HTML is read **once at startup**, so a content
+  edit needs a process restart to show.
+
+  The panel is served `no-store`: that one file contains every line of its
+  JavaScript, so a cached copy is a stale build of the whole back office. An
+  owner lost an evening to one.
 - **Landing page** — `/` is built from the exported artifact
   `docs/Ana-Bala Landing.html` into `packages/backend/landing/` (tracked in git).
   Rebuild it after every re-export, then restart the backend:
@@ -132,7 +152,7 @@ sudo -u postgres psql -c "CREATE DATABASE umay OWNER umay;"
 ```bash
 psql "postgres://umay:<secret>@127.0.0.1:5432/umay" -f packages/backend/db/schema.sql
 ```
-`schema.sql` creates every table (verified to build cleanly, 32 tables incl.
+`schema.sql` creates every table (36 as of migration 019, incl.
 `cry_results`, `sleep_nights.source/manual_asleep_min`, `cycle_day_logs.note`).
 
 **Upgrading an existing DB instead — apply migrations in order:**
@@ -140,9 +160,12 @@ psql "postgres://umay:<secret>@127.0.0.1:5432/umay" -f packages/backend/db/schem
 for f in packages/backend/db/migrations/0*.sql; do
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"; done
 ```
-Migrations `001`–`016` are each idempotent (`IF NOT EXISTS`). New since the last
-deploy: **014** (sleep source/asleep-total), **015** (day-log note), **016**
-(cry-results history). Note in `001`: on a live DB with real data, add
+Migrations `001`–`019` are each idempotent (`IF NOT EXISTS`). Recent ones:
+**017** (landing leads), **018** (landing prices), **019** (staff accounts,
+sessions and login attempts — what the back-office sign-in runs on).
+
+Apply them with `node db/apply.mjs`, which records what it has run; `schema.sql`
+and the migrations must agree, and `pgSchema.test.ts` fails when they drift. Note in `001`: on a live DB with real data, add
 `CONCURRENTLY` to the index statements so they don't take an exclusive lock.
 
 A fresh `schema.sql` box does **not** need the migrations (they'd no-op).
@@ -196,11 +219,38 @@ or storefront HTML** — those are read at startup.
 
 ## 5. Auth posture
 
-`REAL_AUTH=1` + `initFirebaseAuth()` (a Firebase service account in the env)
-turns on real verification of the **user** path. Caveat from the code
-(`index.ts:334`): the **admin** path is a separate header stub with no real RBAC
-verifier yet — keep `/admin/*` and `/admin/ui` behind the reverse proxy (IP
-allow-list or basic-auth) until staff auth exists.
+Two paths, and they became real at different times. `authPosture()` reports on
+both, and the server refuses to start in production while either is a stub.
+
+**Staff — real.** People sign in at `/admin` with a phone number and a password
+and carry a session cookie (migration 019, `routes/staffLogin.ts`). Sessions
+last 12 hours, failures are rate-limited per phone, and closing someone's access
+deletes their sessions immediately. Create the first account with:
+
+```bash
+STAFF_PHONE=7071234567 STAFF_PASSWORD='…' node db/seed-staff.mjs
+```
+
+Re-running it with a new password is how a password is reset; it signs that
+account's open sessions out. After the first account, staff are managed from the
+panel under **Персонал** — the last enabled admin cannot be disabled or demoted,
+by anyone, because there is no way back from that inside the product.
+
+The `x-staff-id` / `x-staff-role` headers that preceded this are honoured **only**
+with no `DATABASE_URL` or with `USE_MEMORY_DB=true` — i.e. local development.
+Any deployment has Postgres, so they are worth nothing there.
+
+The edge basic_auth this replaced is gone, along with `deploy/admin-access.sh`
+which generated its credential. What remains at the edge is a per-IP rate limit
+on `/admin/login`; the app counts failures per phone, so the two together cover
+both one host trying many numbers and many hosts trying one.
+
+**Users — still a stub.** `REAL_AUTH=1` plus a Firebase service account turns on
+real token verification. Until then the backend accepts a stub token and the
+`x-user-id` header, which is exactly why the edge allow-list does not include a
+single app-API path. **Do not open them first** — see `docs/GO_LIVE_APP_API.md`
+for the ordered procedure and the check that must return 401 before anything is
+opened.
 
 ---
 
@@ -220,15 +270,36 @@ bridge re-runs.
 Terminate TLS at nginx/Caddy and proxy to the backend on localhost. Caddy is the
 shortest path to automatic HTTPS:
 
+The live config is generated by `deploy/landing-takeover.sh`, not written by
+hand — run that rather than editing the Caddyfile, so the allow-list and the
+verification stay together. Its shape:
+
 ```
 your-domain.kz {
-    reverse_proxy 127.0.0.1:8080
-    # optional: restrict the staff console
-    @admin path /admin/ui /admin/*
-    basicauth @admin { <user> <bcrypt-hash> }
+    # The back office authenticates itself; the edge only rate-limits the login.
+    handle /admin/login { rate_limit { zone admin_login { key {remote_host} events 12 window 5m } } 
+                          reverse_proxy umay-backend:8080 }
+    handle /admin*      { reverse_proxy umay-backend:8080 }
+
+    # Deny by default. A new route is closed until it is named here, which is
+    # the opposite of the deny-list this replaced — that one closed /admin and
+    # left every app-API route open.
+    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready /api-docs
+    handle @public { reverse_proxy umay-backend:8080 }
+    handle { respond "Not found" 404 }
 }
 ```
+
+> **The Caddyfile is bind-mounted, and a bind-mounted file follows the inode.**
+> Anything that REPLACES it — `mv`, `cp -a`, an editor writing a new file —
+> detaches the container, which then serves the old config forever while
+> `caddy reload` and `caddy validate` both report success against the stale copy.
+> Two deploys were verified this way and neither had been applied. Rewrite in
+> place (`cat new > Caddyfile`); the script compares host and container
+> checksums afterwards and refuses to claim a deploy if they differ.
+
 Point the app's `API_BASE` and the storefront links at `https://your-domain.kz`.
+`API_BASE` must have no path — see `data/http_transport.dart`.
 
 ---
 
@@ -259,9 +330,9 @@ state; cry **history** still syncs (that path has no model dependency).
 > `/health`, `/ready`. Every route the app needs — `/children`,
 > `/appointments`, `/geofences`, `/devices`, `/vitals`, … — returns **404**.
 >
-> That is deliberate. `authUser` and `authAdmin` are header stubs until
-> `REAL_AUTH=1` and a Firebase service account are configured (§5), so while
-> they are open anyone can read any family's data by typing a header:
+> That is deliberate. `authUser` is a header stub until `REAL_AUTH=1` and a
+> Firebase service account are configured (§5), so while the app routes are
+> open anyone can read any family's data by typing a header:
 >
 > ```bash
 > curl -H 'x-user-id: <any id>' https://ana-bala.kz/children   # was 200
@@ -270,18 +341,13 @@ state; cry **history** still syncs (that path has no model dependency).
 > The backend's own boot guard refuses to start with `NODE_ENV=production` for
 > exactly this reason. The edge allow-list is what lets it run at all.
 >
-> **To point the app at production**, in this order:
+> **The full procedure is `docs/GO_LIVE_APP_API.md`** — six ordered steps with
+> the verification that must return 401 *before* the edge is opened, and a
+> rollback for each. The short version: service account, `REAL_AUTH=1`, confirm
+> the stub is dead, then open the allow-list, then build the app.
 >
-> 1. Put a Firebase service account on the box and set `REAL_AUTH=1` in
->    `/etc/umay/backend.env`.
-> 2. Restart and confirm the boot log no longer warns about stub auth.
-> 3. Add the app's paths to the `@public` matcher in
->    `deploy/landing-takeover.sh`, re-run it, and check the smoke test's
->    `forged id` line still returns 404 for a *user id that is not signed in*.
-> 4. Only then build with `API_BASE=https://ana-bala.kz`.
->
-> Staff auth (`x-staff-role`) has no real verifier at all yet, so `/admin*`
-> stays closed regardless — see §5.
+> Staff auth is no longer a stub — people sign in with a phone and a password
+> (§5) — so `/admin*` is open at the edge and defended by the app itself.
 
 Point the app at this backend and enable maps where wanted:
 ```bash
@@ -296,25 +362,69 @@ the define is required for a real build.
 
 ## 10. Smoke test after deploy
 
+`deploy/landing-takeover.sh` prints a verification block of its own after every
+apply. This is the wider sweep — public surface, the app API staying shut, the
+back office refusing anonymous callers, and the same routes answering once
+signed in:
+
 ```bash
-curl -fsS https://your-domain.kz/health           # liveness → 200
-curl -sS  https://your-domain.kz/ready            # readiness + per-dep status
-curl -s -o /dev/null -w '%{http_code}\n' https://your-domain.kz/cry/results  # 401 (auth), not 500
-open      https://your-domain.kz/                 # landing page renders (not a blank pink screen)
-open      https://your-domain.kz/shop/umay-watch  # storefront renders
-open      https://your-domain.kz/admin/ui         # admin loads (behind allow-list)
+H=https://your-domain.kz
+for p in / /robots.txt /sitemap.xml /health /ready /api-docs /admin /admin/ \
+         /shop /shop/ /shop/og.png /shop/products /shop/config; do
+  printf '%-28s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' $H$p)"
+done                                    # 200, or 302 for the retired /shop pages
+
+# Must stay shut until GO_LIVE_APP_API.md has been followed
+curl -s -o /dev/null -w '%{http_code}\n' -H 'x-user-id: <any uuid>' $H/children   # 404
+
+# Must refuse anonymous callers
+curl -s -o /dev/null -w '%{http_code}\n' $H/admin/stats                            # 401
+
+# And answer a real session
+curl -s -c /tmp/c -o /dev/null -X POST -H 'content-type: application/json' \
+     --data-raw '{"phone":"<staff phone>","password":"<password>"}' $H/admin/login
+curl -s -o /dev/null -w '%{http_code}\n' -b /tmp/c $H/admin/stats                  # 200
 ```
-The landing page paints entirely from JavaScript, so "200 OK" does not mean it
-rendered. Open it in a browser: an unstyled pink page means an asset under
-`/landing/a/` is missing — rebuild it and restart the backend.
+
+Then open it in a browser and sign in. Two failures are invisible to curl:
+- **The landing paints entirely from JavaScript**, so 200 does not mean it
+  rendered. An unstyled pink page means an asset under `/landing/a/` is missing
+  — rebuild it and restart the backend.
+- **The back office can serve a working page you cannot use.** A sign-in card
+  once sat painted on top of a fully loaded dashboard for two days, because a
+  CSS `display` rule outranks the `hidden` attribute. Every request was a 200
+  and every test passed. If sign-in appears to do nothing, check whether the
+  panel is *behind* the card before assuming the login failed — and check the
+  `staff_login_attempts` table, where a successful sign-in with no failures
+  means the login was never the problem.
+
 `/ready` returns 503 with a per-dependency breakdown when a dependency is down —
 use it to confirm Postgres is reachable.
+
+Two harnesses go further than curl can, against the real routes:
+
+```bash
+cd packages/backend
+npx tsx tools/audit-panel.mts     # signs in, walks all 16 tabs, reports what drew
+npx tsx tools/audit-landing.mts   # assets resolve, metadata, lead form, copy check
+```
 
 ---
 
 ## 11. Backups & rollback
 
-- Nightly `pg_dump` of the `umay` DB before each deploy; keep the last N.
-- Deploy is `git pull` + `npm ci` + apply any **new** migrations + restart. To
-  roll back code, check out the previous tag and restart; DB migrations are
-  additive, so a code rollback does not require a schema rollback.
+- **Nightly, installed.** `deploy/backup.sh --verify` runs from a systemd timer:
+  `pg_dump -Fc` outside the Docker volume, 14 daily kept plus one a month
+  forever, and the dump is restored into a scratch database and compared table
+  by table.
+- The drill **enumerates the live tables** rather than naming them, so a new
+  table is covered the night it appears, and it refuses to report success when
+  every table was empty on both sides. Before that it compared five hardcoded
+  tables — one of which no longer existed — and three of the remaining four
+  were empty, so "restore verified" rested on a single table with two rows.
+- **These backups are on the machine they back up.** A dead host takes both.
+  Choosing an offsite destination is an owner item and does not wait on
+  anything else.
+- Deploy is `git pull` + restart; migrations are additive, so a code rollback
+  does not require a schema rollback. The edge config rolls back with
+  `bash deploy/landing-takeover.sh --revert`.
