@@ -5,6 +5,7 @@
 library;
 
 import 'dart:convert';
+import '../domain/course_lesson.dart';
 
 class HttpResponse {
   final int statusCode;
@@ -395,6 +396,18 @@ class ApiClient {
   // ---- Restore on a new device (pull what was pushed) ----
   /// The caller's children ({id, name, gender, dateOfBirth}). For restoring the
   /// family after a reinstall.
+
+  /// The Ма!Ма! course, and whether this account owns it.
+  ///
+  /// The server decides: a non-buyer gets entitled:false and an empty list, so
+  /// the lessons cannot be read out of the response. A paywall the client
+  /// enforces is one anybody can read the JSON around.
+  Future<CourseAccess> getCourse() async {
+    final res = await transport.get('/course/lessons');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return CourseAccess.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
   Future<List<Map<String, dynamic>>> getChildren() async {
     final res = await transport.get('/children');
     if (!res.ok) throw ApiException(res.statusCode, res.body);

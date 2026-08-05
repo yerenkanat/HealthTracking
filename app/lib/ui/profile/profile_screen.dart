@@ -7,6 +7,7 @@ import '../../app/app_controller.dart';
 import '../../data/photo_store.dart';
 import '../../domain/appointment.dart';
 import '../../l10n/l10n.dart';
+import '../content/course_route.dart';
 import '../../l10n/l10n_scope.dart';
 import '../appointments/appointments_screen.dart';
 import '../settings/settings_screen.dart';
@@ -128,6 +129,16 @@ class ProfileScreen extends StatelessWidget {
                       builder: (_) => AppointmentsScreen(controller: c)),
                 ),
               ),
+              const SizedBox(height: 10),
+              // The Ма!Ма! course. Always visible, whether or not she owns it:
+              // the locked screen is the offer, and hiding the entry point
+              // entirely would mean nobody who has not bought the комплект ever
+              // learns the course exists.
+              _CourseEntry(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => CourseRoute(controller: c)),
+                ),
+              ),
             ],
           );
         },
@@ -145,6 +156,41 @@ class ProfileScreen extends StatelessWidget {
             ? l.t('appt_tomorrow')
             : l.t('appt_in_days', {'n': d});
     return '${next.title} · $when';
+  }
+}
+
+
+/// Entry point to the Ма!Ма! course.
+///
+/// Shown to everyone. Somebody who has not bought the комплект sees the offer
+/// behind it — hiding the row would mean she never learns the course exists,
+/// which is the opposite of what a bundled upsell is for.
+class _CourseEntry extends StatelessWidget {
+  final VoidCallback onTap;
+  const _CourseEntry({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return DsCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.pastelPink,
+              borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.play_circle_outline_rounded, color: Ds.ink, size: 22),
+        ),
+        title: Text(l.t('course_title'), style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(l.t('course_entry_sub')),
+        trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        onTap: onTap,
+      ),
+    );
   }
 }
 

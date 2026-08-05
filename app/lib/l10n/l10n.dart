@@ -402,6 +402,30 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'help_q4_a': {AppLocale.ru: 'Откройте «Настройки → Данные → Стереть все данные». Это удалит данные с устройства и с сервера.', AppLocale.kk: '«Баптаулар → Деректер → Барлық деректі өшіру» бөліміне өтіңіз. Бұл деректерді құрылғыдан және серверден өшіреді.', AppLocale.en: 'Go to Settings → Data → Erase all data. This removes your data from the device and the server.'},
   'help_contact_section': {AppLocale.ru: 'Связь с нами', AppLocale.kk: 'Бізбен байланыс', AppLocale.en: 'Get in touch'},
   'help_contact': {AppLocale.ru: 'Написать в поддержку', AppLocale.kk: 'Қолдауға жазу', AppLocale.en: 'Contact support'},
+
+  // ---- Курс Ма!Ма! — the lessons the комплект pays for --------------------
+  'course_title': {AppLocale.ru: 'Курс Ма!Ма!', AppLocale.kk: 'Ма!Ма! курсы', AppLocale.en: 'Ma!Ma! course'},
+  'course_entry_sub': {AppLocale.ru: 'Уроки для мам — входят в комплект', AppLocale.kk: 'Аналарға арналған сабақтар — жинаққа кіреді', AppLocale.en: 'Lessons for mothers — included with the bundle'},
+  'course_locked_title': {
+    AppLocale.ru: 'Курс входит в комплект',
+    AppLocale.kk: 'Курс жинаққа кіреді',
+    AppLocale.en: 'The course comes with the bundle'
+  },
+  'course_locked_body': {
+    AppLocale.ru: 'Уроки Ма!Ма! открываются вместе с комплектом «Мама и ребёнок» — часы и брелок. Если вы уже купили комплект, напишите нам: доступ откроем по номеру телефона.',
+    AppLocale.kk: 'Ма!Ма! сабақтары «Мама и ребёнок» жинағымен бірге ашылады — сағат пен брелок. Егер жинақты сатып алған болсаңыз, бізге жазыңыз: телефон нөмірі бойынша ашамыз.',
+    AppLocale.en: 'The Ma!Ma! lessons come with the «Mother and child» bundle — the watch and the tag. If you have already bought it, message us and we will open access by phone number.'
+  },
+  'course_empty': {
+    AppLocale.ru: 'Уроки скоро появятся. Доступ у вас уже есть — мы добавляем их по одному.',
+    AppLocale.kk: 'Сабақтар жақында қосылады. Қолжетімділік сізде бар — біз оларды бір-бірлеп қосып жатырмыз.',
+    AppLocale.en: 'Lessons are coming. You already have access — we add them one at a time.'
+  },
+  'course_open_failed': {
+    AppLocale.ru: 'Не удалось открыть видео. Проверьте, установлен ли YouTube.',
+    AppLocale.kk: 'Бейнені ашу мүмкін болмады. YouTube орнатылғанын тексеріңіз.',
+    AppLocale.en: 'Could not open the video. Check that YouTube is installed.'
+  },
   'help_email_subject': {AppLocale.ru: 'Вопрос по приложению Ana-Bala', AppLocale.kk: 'Ana-Bala қолданбасы бойынша сұрақ', AppLocale.en: 'Question about Ana-Bala'},
   'help_report': {AppLocale.ru: 'Сообщить о проблеме', AppLocale.kk: 'Ақаулық туралы хабарлау', AppLocale.en: 'Report a problem'},
   'help_report_sub': {AppLocale.ru: 'Опишите, что пошло не так', AppLocale.kk: 'Не болғанын сипаттаңыз', AppLocale.en: 'Tell us what went wrong'},
