@@ -33,9 +33,18 @@ describe('the device shop', () => {
     const a = app();
     const r = await a.inject({ method: 'GET', url: '/shop/products' });
     expect(r.statusCode).toBe(200);
-    const products = r.json().products as Array<{ id: string; variants: unknown[] }>;
-    expect(products.map((p) => p.id).sort()).toEqual(['tracker', 'watch']);
+    const products = r.json().products as Array<{ id: string; kind: string; variants: unknown[]; parts: Array<{ partId: string }> }>;
+    // The комплект is in the catalogue too: it is a product a customer buys,
+    // and leaving it out is why it could not be ordered from the storefront.
+    expect(products.map((p) => p.id).sort()).toEqual(['combo', 'tracker', 'watch']);
     expect(products.find((p) => p.id === 'watch')!.variants.length).toBeGreaterThan(0);
+
+    // A bundle has no colours of its own — it says which products the buyer
+    // picks a colour of instead.
+    const combo = products.find((p) => p.id === 'combo')!;
+    expect(combo.kind).toBe('bundle');
+    expect(combo.variants).toEqual([]);
+    expect(combo.parts.map((p) => p.partId).sort()).toEqual(['tracker', 'watch']);
   });
 
   it('refuses an order when the colour is out of stock, then accepts it once stocked', async () => {

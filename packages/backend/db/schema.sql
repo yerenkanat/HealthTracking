@@ -465,7 +465,12 @@ CREATE TABLE IF NOT EXISTS shop_products (
   sku         TEXT,
   cost_minor  INTEGER CHECK (cost_minor IS NULL OR cost_minor >= 0),
   kind        TEXT NOT NULL DEFAULT 'simple' CHECK (kind IN ('simple','bundle')),
-  low_stock_threshold INTEGER NOT NULL DEFAULT 3 CHECK (low_stock_threshold >= 0)
+  low_stock_threshold INTEGER NOT NULL DEFAULT 3 CHECK (low_stock_threshold >= 0),
+  -- What fulfilling an order for this product unlocks in the app (migration
+  -- 025), e.g. 'mama_course' on the комплект. On the product rather than
+  -- hardcoded against the id: a second bundle carrying a second course should
+  -- be a row, not a branch in the code.
+  grants_feature TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS shop_products_sku_unique
   ON shop_products (sku) WHERE sku IS NOT NULL;
@@ -490,9 +495,14 @@ CREATE TABLE IF NOT EXISTS shop_orders (
   status        TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','confirmed','shipped','delivered','cancelled')),
   -- Digits only, 77xxxxxxxxx — how an order is matched to an app account.
   phone_normalized TEXT,
+  -- Sold as this set (migration 025). The line items are still the PARTS —
+  -- that is what leaves the warehouse — and this says which bundle priced them
+  -- and whose entitlement the sale carries.
+  bundle_id     TEXT REFERENCES shop_products(id) ON DELETE SET NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_shop_orders_created ON shop_orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS shop_orders_bundle ON shop_orders (bundle_id);
 CREATE TABLE IF NOT EXISTS shop_order_items (
   order_id         UUID NOT NULL REFERENCES shop_orders(id) ON DELETE CASCADE,
   variant_id       UUID NOT NULL REFERENCES shop_variants(id),

@@ -132,12 +132,16 @@
 <section id="products"><div class="wrap">
   <div class="kicker">Наши устройства</div><h2>Выберите цвет и оформите заказ</h2>
   <div class="products" id="productGrid"><div style="color:var(--muted);padding:20px 0">Загрузка…</div></div>
-  <div class="bundle">
-    <div><div style="font-weight:800;font-size:13px;opacity:.9">🎁 Экономия 2 900 ₸</div>
-      <h2 style="color:#fff;margin-top:8px">Полный комплект для семьи</h2>
-      <div style="opacity:.9;margin-top:6px">Часы + трекер вместе</div></div>
+  <!-- The комплект. Price and name come from the API (/shop/products), never
+       from this markup: a number typed here is a number that goes stale on the
+       day someone changes it in the panel, and the page would advertise a price
+       the server refuses to charge. Hidden until the API confirms it exists. -->
+  <div class="bundle" id="bundleBlock" hidden>
+    <div><div style="font-weight:800;font-size:13px;opacity:.9">🎁 Курс «Ма!Ма!» в подарок</div>
+      <h2 style="color:#fff;margin-top:8px" id="bundleName">Комплект «Мама и ребёнок»</h2>
+      <div style="opacity:.9;margin-top:6px">Часы для мамы + трекер для ребёнка и полный видеокурс о материнстве</div></div>
     <div style="text-align:right;display:grid;gap:10px;justify-items:end">
-      <div><div class="was num">38 900 ₸</div><div class="now">36 000 ₸</div></div>
+      <div><div class="now" id="bundlePrice">—</div></div>
       <button class="btn ghost" id="bundleBtn" type="button">Заказать комплект</button>
     </div>
   </div>
@@ -150,13 +154,13 @@
       <p>Оплата при получении. Курьер привезёт устройство — вы платите, только когда всё у вас в руках. Гарантия 1 год, возврат 14 дней.</p>
       <div class="summary" style="margin-top:16px">
         <div class="line"><span id="sumLabel">Выберите товар</span><span class="num" id="sumSub">—</span></div>
-        <div class="line disc" id="sumDiscRow" hidden><span>Скидка за комплект</span><span class="num" id="sumDisc">—</span></div>
+        <div class="line disc" id="sumDiscRow" hidden><span id="sumDiscLabel">Скидка за комплект</span><span class="num" id="sumDisc">—</span></div>
         <div class="line grand"><span>Итого</span><b id="sumTotal">—</b></div>
       </div>
     </div>
     <form id="orderForm" novalidate>
       <div class="modeBanner" id="modeBanner" hidden>
-        <span>🎁 Комплект: часы + трекер — экономия 2 900 ₸</span>
+        <span id="modeBannerText">🎁 Комплект: часы + трекер + курс «Ма!Ма!»</span>
         <button type="button" class="linkbtn" id="modeSingle">обычный заказ</button>
       </div>
       <div class="row2">
@@ -204,9 +208,14 @@
   const fmt=n=>Number(n).toLocaleString("ru-RU");
   const tng=minor=>fmt(Math.round(minor/100))+" ₸";
   let PRODUCTS=[];
-  let MODE="single"; // "single" — one product+colour · "bundle" — watch + tracker together
-  const BUNDLE_DISCOUNT=290000; // 2 900 ₸ — mirrors BUNDLE_DISCOUNT_MINOR on the server, which is authoritative
+  let MODE="single"; // "single" — one product+colour · "bundle" — the комплект
   const prod=id=>PRODUCTS.find(x=>x.id===id);
+  // The bundle as the server describes it: id, price and which products the
+  // buyer picks a colour of. No price is hardcoded on this page — the server
+  // recomputes the total from the bundle row and would refuse to charge a
+  // figure typed here anyway.
+  const bundleOf=()=>PRODUCTS.find(x=>x.kind==="bundle");
+  const bundleParts=()=>{const b=bundleOf();return b?b.parts.map(p=>prod(p.partId)).filter(Boolean):[];};
   // WhatsApp order number from the admin panel (/shop/config).
   let WHATSAPP="", KASPI="";
   function waText(){
@@ -234,7 +243,11 @@
 
   function renderProducts(){
     const grid=$("productGrid"); grid.innerHTML="";
-    for(const p of PRODUCTS){
+    // Bundles are not cards: they have no colours of their own, so a card with
+    // an empty swatch row and a "Заказать" button leading to an empty colour
+    // list is the one thing worse than not showing them. They get the banner
+    // below, which asks for both parts' colours.
+    for(const p of PRODUCTS.filter(x=>x.kind!=="bundle")){
       const m=meta[p.id]||{tag:"",svg:watchSvg,desc:""};
       const sl=stockLabel(p.variants);
       const swatches=p.variants.map(v=>`<span class="swatch" title="${v.color}${v.stock<=0?' — нет':''}" style="background:${v.colorHex}" data-oos="${v.stock<=0?1:0}"></span>`).join("");
@@ -249,6 +262,19 @@
       grid.appendChild(el);
     }
     grid.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ selectProduct(b.dataset.pick); location.hash="#order"; });
+    renderBundle();
+  }
+
+  // The комплект banner, filled from the API. Stays hidden when the catalogue
+  // has no bundle or is missing one of its parts — offering a set we cannot
+  // assemble is a promise the checkout would then refuse.
+  function renderBundle(){
+    const b=bundleOf(), parts=bundleParts();
+    const ok=!!b && parts.length>0 && parts.length===b.parts.length;
+    $("bundleBlock").hidden=!ok;
+    if(!ok) return;
+    $("bundleName").textContent=b.name;
+    $("bundlePrice").textContent=tng(b.priceMinor);
   }
 
   // Populate a colour <select> from a product's variants; out-of-stock colours
@@ -274,8 +300,12 @@
     $("lblProduct").hidden=bundle;
     $("lblQty").hidden=bundle;
     $("lblColor2").hidden=!bundle;
-    $("lblColor").querySelector(".lt").textContent=bundle?"Цвет часов":"Цвет";
-    if(bundle){ fillSelect($("fColor"),prod("watch")); fillSelect($("fColor2"),prod("tracker")); }
+    const parts=bundleParts();
+    $("lblColor").querySelector(".lt").textContent=bundle&&parts[0]?("Цвет: "+parts[0].name):"Цвет";
+    if(bundle){
+      if(parts[1]) $("lblColor2").childNodes[0].nodeValue="Цвет: "+parts[1].name;
+      fillSelect($("fColor"),parts[0]); fillSelect($("fColor2"),parts[1]);
+    }
     else { fillSelect($("fColor"),prod($("fProduct").value)); }
     updateSummary();
   }
@@ -285,13 +315,18 @@
   function updateSummary(){
     const lbl=$("sumLabel"),sub=$("sumSub"),discRow=$("sumDiscRow"),disc=$("sumDisc"),tot=$("sumTotal");
     if(MODE==="bundle"){
-      const w=prod("watch"),t=prod("tracker");
-      if(!w||!t){ lbl.textContent="Комплект недоступен"; sub.textContent="—"; discRow.hidden=true; tot.textContent="—"; return; }
-      const s=w.priceMinor+t.priceMinor;
-      lbl.textContent="Часы + трекер"; sub.textContent=tng(s);
-      discRow.hidden=false; disc.textContent="−"+tng(BUNDLE_DISCOUNT);
-      tot.textContent=tng(s-BUNDLE_DISCOUNT); return;
+      const b=bundleOf(), parts=bundleParts();
+      if(!b||parts.length!==b.parts.length){ lbl.textContent="Комплект недоступен"; sub.textContent="—"; discRow.hidden=true; tot.textContent="—"; return; }
+      // The set costs MORE than its hardware, because the course comes with it.
+      // Showing a struck-out "was" here would invent a discount that the server
+      // will not apply, and the customer would notice at the door.
+      lbl.textContent=parts.map(p=>p.name).join(" + "); sub.textContent=tng(parts.reduce((n,p)=>n+p.priceMinor,0));
+      discRow.hidden=false;
+      $("sumDiscLabel").textContent="Курс «Ма!Ма!»";
+      disc.textContent="в подарок";
+      tot.textContent=tng(b.priceMinor); return;
     }
+    $("sumDiscLabel").textContent="Скидка за комплект";
     const p=prod($("fProduct").value); const qty=Math.max(1,parseInt($("fQty").value||"1",10));
     discRow.hidden=true;
     if(!p){ lbl.textContent="Выберите товар"; sub.textContent="—"; tot.textContent="—"; return; }
@@ -306,7 +341,10 @@
     }catch(e){ PRODUCTS=[]; }
     if(!PRODUCTS.length){ $("productGrid").innerHTML='<div style="color:var(--muted);padding:20px 0">Товары временно недоступны</div>'; return; }
     renderProducts();
-    const psel=$("fProduct"); psel.innerHTML=PRODUCTS.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+    // Bundles are excluded here too: picking one in the single-product select
+    // would leave the colour list empty with nothing explaining why. The
+    // комплект is ordered through its own button, which asks for both colours.
+    const psel=$("fProduct"); psel.innerHTML=PRODUCTS.filter(p=>p.kind!=="bundle").map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
     applyMode();
     psel.onchange=()=>{ if(MODE==="single"){ fillSelect($("fColor"),prod(psel.value)); updateSummary(); } };
     $("fColor").onchange=updateSummary; $("fColor2").onchange=updateSummary; $("fQty").oninput=updateSummary;
@@ -324,12 +362,18 @@
     if(phone.replace(/\D/g,"").length<10) return fail("Укажите корректный телефон","fPhone");
     if(!city) return fail("Укажите город","fCity");
     if(!addr) return fail("Укажите адрес доставки","fAddr");
-    let items;
+    let items, bundleId;
     if(MODE==="bundle"){
+      const parts=bundleParts();
       const w=$("fColor").value,t=$("fColor2").value;
-      if(!w) return fail("Выберите цвет часов","fColor");
-      if(!t) return fail("Выберите цвет трекера","fColor2");
+      if(!w) return fail("Выберите цвет: "+((parts[0]||{}).name||"первый товар"),"fColor");
+      if(!t) return fail("Выберите цвет: "+((parts[1]||{}).name||"второй товар"),"fColor2");
       items=[{variantId:w,qty:1},{variantId:t,qty:1}];
+      // What makes this order the комплект rather than two devices: the server
+      // prices it at the bundle's price and grants the course when it ships.
+      // Without it the same two lines are just two devices — cheaper, and
+      // without the course.
+      bundleId=(bundleOf()||{}).id;
     } else {
       const variantId=$("fColor").value; const qty=Math.max(1,parseInt($("fQty").value||"1",10));
       if(!variantId) return fail("Выберите цвет — этот товар сейчас недоступен","fColor");
@@ -338,11 +382,15 @@
     const btn=$("submitBtn"); btn.disabled=true; btn.textContent="Оформляем…";
     try{
       const r=await fetch("/shop/orders",{method:"POST",headers:{"content-type":"application/json"},
-        body:JSON.stringify({customerName:name,phone,city,address:addr,items})});
+        body:JSON.stringify({customerName:name,phone,city,address:addr,items,bundleId})});
       if(r.status===201){
         const d=await r.json().catch(()=>({}));
         const saved=(d&&d.discountMinor>0)?" Вы сэкономили "+tng(d.discountMinor)+".":"";
-        msg.className="msg ok"; msg.textContent="Спасибо! Заказ принят — мы скоро перезвоним для подтверждения."+saved;
+        // The course is tied to the phone on the order, and it opens when the
+        // parcel goes out — so say both, or she signs in tonight and finds
+        // nothing where the gift was promised.
+        const gift=bundleId?" Курс «Ма!Ма!» откроется в приложении по этому номеру, когда заказ будет отправлен.":"";
+        msg.className="msg ok"; msg.textContent="Спасибо! Заказ принят — мы скоро перезвоним для подтверждения."+saved+gift;
         $("orderForm").reset(); MODE="single"; await load();
       } else if(r.status===409){
         msg.className="msg err"; msg.textContent="К сожалению, выбранный цвет только что закончился. Выберите другой.";

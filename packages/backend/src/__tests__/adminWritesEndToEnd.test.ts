@@ -115,6 +115,94 @@ describe('storefront settings', () => {
   });
 });
 
+/**
+ * Taking an order over the phone.
+ *
+ * The public storefront is retired, so for a while nothing anywhere could
+ * create an order: sales came in on WhatsApp and went into a notebook. Stock
+ * never moved, revenue was zero on every report, and the комплект could not
+ * hand over the course it is sold with, because no order for it existed.
+ */
+describe('an order taken by hand', () => {
+  /** Stock the first colour of a product and return that variant id. */
+  async function stocked(productId: string, qty = 5): Promise<string> {
+    const p = (await repo.adminProducts()).find((x) => x.id === productId)!;
+    const v = p.variants[0].id;
+    await repo.moveStock({ variantId: v, delta: qty, reason: 'receipt' });
+    return v;
+  }
+  const customer = {
+    customerName: 'Мадина', phone: '+7 (701) 555-11-22',
+    city: 'Астана', address: 'пр. Кабанбай батыра 5, кв 12',
+  };
+
+  it('reaches the order list and takes the stock with it', async () => {
+    const v = await stocked('watch');
+
+    const res = await send('POST', '/admin/shop/orders', {
+      ...customer, items: [{ variantId: v, qty: 1 }], note: 'звонок с WhatsApp',
+    });
+    expect(res.statusCode).toBe(201);
+
+    const orders = await repo.adminShopOrders(50);
+    expect(orders, 'the panel said "заказ создан" and nothing was written').toHaveLength(1);
+    expect(orders[0].city).toBe('Астана');
+    // Read the shelf back, not the response: an order that does not move stock
+    // is a number in a list.
+    expect((await repo.adminShopVariants()).find((x) => x.id === v)!.stock).toBe(4);
+  });
+
+  it('sells the комплект at its own price and opens the course when it ships', async () => {
+    const w = await stocked('watch');
+    const t = await stocked('tracker');
+
+    const res = await send('POST', '/admin/shop/orders', {
+      ...customer, items: [{ variantId: w, qty: 1 }, { variantId: t, qty: 1 }], bundleId: 'combo',
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().totalMinor, 'the комплект is 39 000, not the parts sum').toBe(3900000);
+
+    const order = (await repo.adminShopOrders(50))[0];
+    expect(await repo.hasEntitlement('77015551122', 'mama_course')).toBe(false);
+
+    const patched = await send('PATCH', `/admin/shop/orders/${order.id}`, { status: 'shipped' });
+    expect(patched.statusCode).toBe(200);
+
+    expect(await repo.hasEntitlement('77015551122', 'mama_course'),
+      'the course was sold with the комплект and never handed over').toBe(true);
+  });
+
+  it('refuses to call it a комплект when the parts are not in it', async () => {
+    const t = await stocked('tracker');
+    const res = await send('POST', '/admin/shop/orders', {
+      ...customer, items: [{ variantId: t, qty: 1 }], bundleId: 'combo',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe('incomplete_bundle');
+    expect(await repo.adminShopOrders(50)).toHaveLength(0);
+  });
+
+  it('answers 409, not 400, when the shelf is short — staff can act on that', async () => {
+    const p = (await repo.adminProducts()).find((x) => x.id === 'watch')!;
+    const res = await send('POST', '/admin/shop/orders', {
+      ...customer, items: [{ variantId: p.variants[0].id, qty: 1 }],
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe('out_of_stock');
+  });
+
+  it('is not something a viewer can do', async () => {
+    // Creating an order moves stock and can grant a paid course.
+    const v = await stocked('watch');
+    const res = await app.inject({
+      method: 'POST', url: '/admin/shop/orders',
+      payload: { ...customer, items: [{ variantId: v, qty: 1 }] },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(await repo.adminShopOrders(50)).toHaveLength(0);
+  });
+});
+
 describe('staff management', () => {
   it('adding a colleague creates an account that can sign in', async () => {
     const res = await send('POST', '/admin/staff', {

@@ -1078,6 +1078,44 @@
           </div>
           <div class="card">
             <div class="sec-h"><h3>Заказы</h3><span class="sub" id="shopOrdersSub">—</span></div>
+            <!-- Taking an order by hand.
+                 Sales come in on WhatsApp and Kaspi: someone calls, staff write
+                 the address down. Without this there was nowhere to put it —
+                 stock never moved, revenue never appeared, and the комплект
+                 could not hand over the course it is sold with, because no
+                 order for it could be created anywhere. -->
+            <details id="newOrderBox" style="margin-bottom:14px;border:1px solid var(--hair);border-radius:11px;padding:10px 12px">
+              <summary style="cursor:pointer;font-weight:700;font-size:13.5px">+ Новый заказ (звонок, WhatsApp, Kaspi)</summary>
+              <div style="margin-top:10px;display:grid;gap:8px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <label style="font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px"><input type="radio" name="noKind" value="single" checked> Один товар</label>
+                  <label style="font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px"><input type="radio" name="noKind" value="bundle"> Комплект</label>
+                </div>
+                <div id="noSingle" style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px">
+                  <select id="noProduct" aria-label="Товар"></select>
+                  <select id="noColor" aria-label="Цвет"></select>
+                  <input id="noQty" type="number" min="1" max="20" value="1" aria-label="Количество">
+                </div>
+                <div id="noBundle" hidden style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <select id="noColorA" aria-label="Цвет первого товара"></select>
+                  <select id="noColorB" aria-label="Цвет второго товара"></select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <input id="noName" type="text" placeholder="Имя покупателя" autocomplete="off">
+                  <input id="noPhone" type="tel" placeholder="+7 700 000 00 00" autocomplete="off">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px">
+                  <input id="noCity" type="text" placeholder="Город" autocomplete="off">
+                  <input id="noAddr" type="text" placeholder="Адрес доставки" autocomplete="off">
+                </div>
+                <input id="noNote" type="text" placeholder="Комментарий (необязательно)" autocomplete="off">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                  <span class="t" id="noTotal">Итого: —</span>
+                  <button class="btn primary" id="noSave">Создать заказ</button>
+                </div>
+                <div class="audiomsg" id="noMsg"></div>
+              </div>
+            </details>
             <div id="shopOrders"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
           </div>
         </div>
@@ -2640,8 +2678,125 @@
       save.disabled=false;
     };
   }
+  /**
+   * The "Новый заказ" form: the catalogue as the server describes it, the two
+   * shapes an order can take, and one POST.
+   *
+   * No price is computed here beyond a preview. The server reprices the whole
+   * order from its own rows — a комплект is 39 000 because the bundle row says
+   * so, not because this panel added anything up — so a stale catalogue in a
+   * tab left open overnight cannot overcharge or undercharge anyone.
+   */
+  async function renderNewOrder(){
+    const $=id=>document.getElementById(id), msg=$("noMsg");
+    let PRODUCTS=[];
+    try{ PRODUCTS=(await api("/admin/inventory")).products||[]; }
+    catch(e){ msg.textContent="Каталог не загрузился — заказ создать нельзя."; msg.className="audiomsg err"; return; }
+
+    const simple=PRODUCTS.filter(p=>p.kind!=="bundle");
+    const bundle=PRODUCTS.find(p=>p.kind==="bundle");
+    const prod=id=>PRODUCTS.find(p=>p.id===id);
+    // A bundle whose parts are missing from the catalogue cannot be assembled,
+    // and offering it would produce an order the server refuses.
+    const parts=bundle?bundle.parts.map(x=>prod(x.partId)).filter(Boolean):[];
+    const bundleOk=!!bundle&&parts.length>0&&parts.length===bundle.parts.length;
+
+    const money=m=>fmt(Math.round(m/100))+" ₸";
+    // Out-of-stock colours stay listed but disabled: hiding a colour that will
+    // restock makes staff think it was discontinued.
+    function fillColors(sel,p){
+      sel.innerHTML="";
+      if(!p) return;
+      for(const v of p.variants){
+        const o=document.createElement("option");
+        o.value=v.id; o.textContent=v.color+(v.stock<=0?" — нет":" ("+v.stock+")");
+        o.disabled=v.stock<=0; sel.appendChild(o);
+      }
+      const first=p.variants.find(v=>v.stock>0);
+      if(first) sel.value=first.id;
+    }
+    const mode=()=>document.querySelector('input[name="noKind"]:checked').value;
+
+    function applyKind(){
+      const b=mode()==="bundle";
+      $("noSingle").hidden=b; $("noSingle").style.display=b?"none":"grid";
+      $("noBundle").hidden=!b; $("noBundle").style.display=b?"grid":"none";
+      if(b){ fillColors($("noColorA"),parts[0]); fillColors($("noColorB"),parts[1]); }
+      else { fillColors($("noColor"),prod($("noProduct").value)); }
+      updateTotal();
+    }
+    function updateTotal(){
+      if(mode()==="bundle"){
+        $("noTotal").textContent=bundleOk?("Итого: "+money(bundle.priceMinor)+" · "+bundle.name):"Комплект недоступен";
+        return;
+      }
+      const p=prod($("noProduct").value), qty=Math.max(1,parseInt($("noQty").value||"1",10));
+      $("noTotal").textContent=p?("Итого: "+money(p.priceMinor*qty)):"Итого: —";
+    }
+
+    $("noProduct").innerHTML=simple.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+    // The комплект option is only offered when it can actually be fulfilled.
+    document.querySelector('input[name="noKind"][value="bundle"]').disabled=!bundleOk;
+    if(bundleOk){
+      $("noColorA").setAttribute("aria-label","Цвет: "+(parts[0]||{}).name);
+      $("noColorB").setAttribute("aria-label","Цвет: "+(parts[1]||{}).name);
+    }
+    document.querySelectorAll('input[name="noKind"]').forEach(r=>r.onchange=applyKind);
+    $("noProduct").onchange=()=>{ fillColors($("noColor"),prod($("noProduct").value)); updateTotal(); };
+    $("noQty").oninput=updateTotal;
+    applyKind();
+
+    $("noSave").onclick=async()=>{
+      const g=id=>($(id).value||"").trim();
+      const fail=t=>{ msg.className="audiomsg err"; msg.textContent=t; };
+      msg.className="audiomsg"; msg.textContent="";
+      const name=g("noName"), phone=g("noPhone"), city=g("noCity"), addr=g("noAddr");
+      if(!name) return fail("Укажите имя покупателя");
+      // The phone is what the course is granted against later — a mistyped one
+      // means the buyer signs in and finds nothing.
+      if(phone.replace(/\D/g,"").length<10) return fail("Укажите корректный телефон");
+      if(!city) return fail("Укажите город");
+      if(addr.length<3) return fail("Укажите адрес доставки");
+
+      let items, bundleId;
+      if(mode()==="bundle"){
+        const a=$("noColorA").value, b=$("noColorB").value;
+        if(!a||!b) return fail("Выберите цвета — часть товаров сейчас недоступна");
+        items=[{variantId:a,qty:1},{variantId:b,qty:1}];
+        bundleId=bundle.id;
+      } else {
+        const v=$("noColor").value;
+        if(!v) return fail("Выберите цвет — этот товар сейчас недоступен");
+        items=[{variantId:v,qty:Math.max(1,parseInt($("noQty").value||"1",10))}];
+      }
+      const body={customerName:name,phone,city,address:addr,items};
+      const note=g("noNote"); if(note) body.note=note;
+      if(bundleId) body.bundleId=bundleId;
+
+      $("noSave").disabled=true; $("noSave").textContent="Создаём…";
+      try{
+        const r=await apiSend("/admin/shop/orders","POST",body);
+        msg.className="audiomsg ok";
+        msg.textContent="Заказ создан на "+money(r.totalMinor)+"."+
+          (bundleId?" Курс «Ма!Ма!» откроется у покупателя, когда заказ будет отправлен.":"");
+        ["noName","noPhone","noCity","noAddr","noNote"].forEach(id=>$(id).value="");
+        renderShop();
+      }catch(e){
+        // Say which of the two it is: "нет на складе" is something staff can
+        // act on right now, a rejected order shape is not.
+        const t=String((e&&e.message)||"");
+        msg.className="audiomsg err";
+        msg.textContent=/409/.test(t)?"Этого цвета не хватает на складе — обновите остатки или выберите другой."
+          :"Не удалось создать заказ. Проверьте данные и попробуйте ещё раз.";
+      }finally{
+        $("noSave").disabled=false; $("noSave").textContent="Создать заказ";
+      }
+    };
+  }
+
   async function renderShop(){
     renderSettings();
+    renderNewOrder();
     const vwrap=document.getElementById("shopVariants");
     try{
       const {variants}=await api("/admin/shop/variants");

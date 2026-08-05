@@ -100,8 +100,19 @@ describe('GET /api/v1 (index + gate)', () => {
     expect(Array.isArray(watch.colours)).toBe(true);
     expect((await a.inject({ url: '/api/v1/shop/products/tracker' })).statusCode).toBe(200);
     expect((await a.inject({ url: '/api/v1/shop/products/nope' })).statusCode).toBe(404);
+
+    // The комплект is in the catalogue as a bundle: 39 000, no colours of its
+    // own, and made of the two devices whose colours the buyer picks.
+    const combo = j.products.find((p: { id: string }) => p.id === 'combo');
+    expect(combo.priceTenge).toBe(39000);
+    expect(combo.kind).toBe('bundle');
+    expect(combo.parts.map((p: { partId: string }) => p.partId).sort()).toEqual(['tracker', 'watch']);
+    // A set holds no stock of its own; unsold parts, not an empty colour list,
+    // are what makes it unavailable.
+    expect(combo.inStock, 'nothing is stocked in a fresh store').toBe(false);
+
     // and the index reflects the product count
-    expect((await a.inject({ url: '/api/v1' })).json().coverage.shopProducts).toBe(2);
+    expect((await a.inject({ url: '/api/v1' })).json().coverage.shopProducts).toBe(3);
     await a.close();
   });
 

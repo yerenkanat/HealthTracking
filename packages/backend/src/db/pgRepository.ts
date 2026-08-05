@@ -7,7 +7,7 @@
 
 import { Pool } from 'pg';
 import { computeChildrenStats } from '../analytics/childStats.js';
-import type { ContentItemRow, InventoryProduct } from './repository';
+import type { ContentItemRow, InventoryProduct, ShopProduct } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -19,6 +19,21 @@ import type {
 import type { Repository } from './repository';
 import { bundleDiscountMinor } from './repository';
 import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
+
+
+/**
+ * The same normalisation http/staffAuth.ts uses, applied to an order's phone.
+ *
+ * Orders are taken over WhatsApp and typed by hand; the app signs in with the
+ * same number. If '+7 707…' and '8707…' were different customers the
+ * entitlement would be a lottery, so both sides have to agree on one form.
+ */
+function normalizeOrderPhone(input: string): string {
+  const digits = String(input ?? '').replace(/D/g, '');
+  if (digits.length === 11 && digits.startsWith('8')) return '7' + digits.slice(1);
+  if (digits.length === 10) return '7' + digits;
+  return digits;
+}
 
 export function createPgRepository(pool: Pool): Repository {
   return {
@@ -1184,19 +1199,25 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Shop ----
     async shopProducts() {
       const { rows } = await pool.query(
-        `SELECT p.id, p.name, p.price_minor,
+        `SELECT p.id, p.name, p.price_minor, COALESCE(p.kind, 'simple') AS kind,
                 v.id AS vid, v.color, v.color_hex, v.stock
          FROM shop_products p
          LEFT JOIN shop_variants v ON v.product_id = p.id
          WHERE p.active = TRUE
          ORDER BY p.sort, v.sort, v.color`,
       );
-      const byId = new Map<string, { id: string; name: string; priceMinor: number; variants: Array<{ id: string; color: string; colorHex: string; stock: number }> }>();
+      const { rows: partRows } = await pool.query(
+        'SELECT bundle_id, part_id, qty FROM shop_bundle_items');
+      const byId = new Map<string, ShopProduct>();
       for (const r of rows) {
         let p = byId.get(r.id);
-        if (!p) { p = { id: r.id, name: r.name, priceMinor: r.price_minor, variants: [] }; byId.set(r.id, p); }
+        if (!p) {
+          p = { id: r.id, name: r.name, priceMinor: r.price_minor, variants: [], kind: r.kind, parts: [] };
+          byId.set(r.id, p);
+        }
         if (r.vid) p.variants.push({ id: r.vid, color: r.color, colorHex: r.color_hex, stock: r.stock });
       }
+      for (const r of partRows) byId.get(r.bundle_id)?.parts.push({ partId: r.part_id, qty: r.qty });
       return [...byId.values()];
     },
 
@@ -1223,12 +1244,40 @@ export function createPgRepository(pool: Pool): Repository {
           lines.push({ productId: v.product_id, qty: it.qty });
           snap.push({ variantId: v.id, productName: v.name, color: v.color, qty: it.qty, unit: v.price_minor });
         }
-        const discount = bundleDiscountMinor(lines);
-        const total = subtotal - discount;
+        let discount = bundleDiscountMinor(lines);
+        let total = subtotal - discount;
+
+        // Sold as a bundle: the parts are what left the warehouse, but the
+        // PRICE is the bundle's. The parts must actually be the bundle's parts
+        // — otherwise "sold as the combo" could be claimed over one tracker and
+        // buy the course for 4 900.
+        if (o.bundleId) {
+          const { rows: bundle } = await client.query(
+            'SELECT price_minor FROM shop_products WHERE id = $1 AND kind = $2',
+            [o.bundleId, 'bundle']);
+          if (!bundle.length) { await client.query('ROLLBACK'); return { ok: false, error: 'not_found', variantId: o.bundleId }; }
+
+          const { rows: parts } = await client.query(
+            'SELECT part_id, qty FROM shop_bundle_items WHERE bundle_id = $1', [o.bundleId]);
+          const ordered = new Map<string, number>();
+          for (const l of lines) ordered.set(l.productId, (ordered.get(l.productId) ?? 0) + l.qty);
+          const complete = parts.length > 0
+            && parts.every((p) => (ordered.get(p.part_id) ?? 0) >= p.qty);
+          if (!complete) { await client.query('ROLLBACK'); return { ok: false, error: 'incomplete_bundle', variantId: o.bundleId }; }
+
+          total = bundle[0].price_minor;
+          // Recorded as a discount only when it IS one. The комплект costs MORE
+          // than its parts because it carries the course, so this is normally
+          // zero rather than a negative "discount" nobody could read.
+          discount = Math.max(0, subtotal - total);
+        }
+
         const { rows: orows } = await client.query(
-          `INSERT INTO shop_orders (customer_name, phone, city, address, note, total_minor, discount_minor)
-           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-          [o.customerName, o.phone, o.city, o.address, o.note ?? null, total, discount]);
+          `INSERT INTO shop_orders (customer_name, phone, city, address, note,
+                                    total_minor, discount_minor, bundle_id, phone_normalized)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+          [o.customerName, o.phone, o.city, o.address, o.note ?? null, total, discount,
+           o.bundleId ?? null, normalizeOrderPhone(o.phone)]);
         const orderId = orows[0].id as string;
         for (const s of snap) {
           await client.query(
@@ -1566,6 +1615,27 @@ export function createPgRepository(pool: Pool): Repository {
         if (!prev[0]) { await client.query('ROLLBACK'); return; }
         const was = prev[0].status as string;
         await client.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
+
+        // Fulfilling a bundle grants what the bundle promises.
+        //
+        // On shipped/delivered, not on 'new': these are cash on delivery, and a
+        // 'new' order is a promise that may never be collected. Unlocking a
+        // 40 000 ₸ course on the strength of one would be giving it away.
+        if ((status === 'shipped' || status === 'delivered') && was !== 'shipped' && was !== 'delivered') {
+          const { rows } = await client.query(
+            `SELECT o.phone_normalized, p.grants_feature
+               FROM shop_orders o
+               JOIN shop_products p ON p.id = o.bundle_id
+              WHERE o.id = $1 AND p.grants_feature IS NOT NULL`, [orderId]);
+          const row = rows[0];
+          if (row?.phone_normalized) {
+            await client.query(
+              `INSERT INTO user_entitlements (phone, feature, order_id, note)
+               VALUES ($1,$2,$3,'выдано автоматически при отправке заказа')
+               ON CONFLICT (phone, feature) DO NOTHING`,
+              [row.phone_normalized, row.grants_feature, orderId]);
+          }
+        }
 
         // Only on the transition INTO cancelled, and only once: setting an
         // already-cancelled order to cancelled again must not return the stock

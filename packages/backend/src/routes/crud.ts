@@ -48,6 +48,11 @@ const shopOrderBody = z.object({
   address: z.string().trim().min(3).max(400),
   note: z.string().trim().max(500).optional(),
   items: z.array(z.object({ variantId: z.string().min(1).max(64), qty: z.number().int().min(1).max(20) })).min(1).max(10),
+  // Sold as a set: the lines are still the parts (that is what leaves the
+  // warehouse and what stock comes off), and this says which bundle priced
+  // them. The server checks the lines really contain the bundle's parts, so
+  // claiming it over one tracker cannot buy the course for 4 900.
+  bundleId: z.string().min(1).max(64).optional(),
 });
 // A landing-page callback request. Looser than an order on purpose: the visitor
 // typed two fields on their way past, and a rejected lead is a lost customer.

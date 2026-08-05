@@ -700,10 +700,34 @@ export interface DailyAudioInput {
 }
 
 export interface ShopVariant { id: string; color: string; colorHex: string; stock: number }
-export interface ShopProduct { id: string; name: string; priceMinor: number; variants: ShopVariant[] }
+export interface ShopProduct {
+  id: string;
+  name: string;
+  priceMinor: number;
+  variants: ShopVariant[];
+  /**
+   * 'bundle' means the row is a SET, not a thing on a shelf: it has no colours
+   * of its own, and `parts` says which products a buyer must choose a colour of.
+   * The storefront needs it to render the комплект at all — before this it was
+   * returned with an empty `variants` array and looked like a product nobody
+   * could pick, which is why the combo was unsellable.
+   */
+  kind: 'simple' | 'bundle';
+  parts: Array<{ partId: string; qty: number }>;
+}
 export interface ShopOrderInput {
   customerName: string; phone: string; city: string; address: string; note?: string;
   items: Array<{ variantId: string; qty: number }>;
+  /**
+   * Sold as this bundle, e.g. 'combo'.
+   *
+   * The items are still the PARTS — she picks a watch colour and a tracker
+   * colour, and stock comes off both — but the order is priced at the bundle's
+   * price and grants whatever the bundle grants. Two devices bought separately
+   * are NOT the комплект: they cost 29 800 rather than 39 000 and unlock
+   * nothing, which is the only reason the bundle is worth offering.
+   */
+  bundleId?: string;
 }
 export type ShopOrderStatus = 'new' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
 export interface ShopOrder {
@@ -713,7 +737,11 @@ export interface ShopOrder {
 }
 export type ShopOrderResult =
   | { ok: true; id: string; totalMinor: number; discountMinor: number }
-  | { ok: false; error: 'empty' | 'not_found' | 'out_of_stock'; variantId?: string };
+  // 'incomplete_bundle': the order claimed to be a bundle but its lines do not
+  // contain the bundle's parts. Refused rather than silently priced as a
+  // bundle, which would sell a 39 000 ₸ комплект — and the course with it — for
+  // whatever one tracker costs.
+  | { ok: false; error: 'empty' | 'not_found' | 'out_of_stock' | 'incomplete_bundle'; variantId?: string };
 
 /// A callback request from the landing page: a name and a number, nothing more.
 /// Not an order — no address, no variant, no stock reserved. See migration 017.

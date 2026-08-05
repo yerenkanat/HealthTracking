@@ -27,6 +27,14 @@ export const DEMO_CHILD = '33333333-3333-3333-3333-333333333333';
 export const DEV_STAFF_PHONE = '77000000000';
 export const DEV_STAFF_PASSWORD = 'dev-password';
 
+/** Matches staffAuth.normalizePhone and the pg side: one form, both ends. */
+function normalizePhoneForOrder(input: string): string {
+  const d = String(input ?? '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('8')) return '7' + d.slice(1);
+  if (d.length === 10) return '7' + d;
+  return d;
+}
+
 export function createMemoryRepository(): Repository {
   const home: Geofence = {
     id: '44444444-4444-4444-4444-444444444444',
@@ -181,6 +189,8 @@ export function createMemoryRepository(): Repository {
     id: string; name: string; priceMinor: number; sort: number;
     sku?: string | null; costMinor?: number | null;
     kind?: 'simple' | 'bundle'; lowStockThreshold?: number; active?: boolean;
+    /** What fulfilling an order for this product unlocks in the app (migration 025). */
+    grantsFeature?: string | null;
   }
   const shopProds: ShopProdRow[] = [
     { id: 'watch', name: 'Смарт-часы Ana-Bala', priceMinor: 2490000, sort: 1, kind: 'simple' },
@@ -188,7 +198,7 @@ export function createMemoryRepository(): Repository {
     // The two devices PLUS the Ма!Ма! course, which the landing presents as a
     // 40 000 ₸ gift — so it costs MORE than the hardware sum, not less. A
     // bundle here is an upsell carrying content, not a volume discount.
-    { id: 'combo', name: 'Комплект «Мама и ребёнок»', priceMinor: 3900000, sort: 3, kind: 'bundle' },
+    { id: 'combo', name: 'Комплект «Мама и ребёнок»', priceMinor: 3900000, sort: 3, kind: 'bundle', grantsFeature: 'mama_course' },
   ];
   const bundleItems: Array<{ bundleId: string; partId: string; qty: number }> = [
     { bundleId: 'combo', partId: 'watch', qty: 1 },
@@ -213,7 +223,7 @@ export function createMemoryRepository(): Repository {
     { id: 'v-t-blue', productId: 'tracker', color: 'Синий', colorHex: '#3B82F6', stock: 0, sort: 2 },
     { id: 'v-t-pink', productId: 'tracker', color: 'Розовый', colorHex: '#E85C8A', stock: 0, sort: 3 },
   ];
-  type ShopOrderRow = { id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
+  type ShopOrderRow = { bundleId?: string | null; phoneNormalized?: string; id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
   const shopOrders: ShopOrderRow[] = [];
   type ShopLeadRow = { id: string; customerName: string; phone: string; package: string; locale: ShopLeadLocale; status: ShopLeadStatus; createdAt: string };
   const shopLeads: ShopLeadRow[] = [];
@@ -807,13 +817,16 @@ export function createMemoryRepository(): Repository {
     },
 
     // ---- Shop ----
-    // Simple products only — see the note in pgRepository.shopProducts.
-    shopProducts: async () => shopProds.filter((p) => (p.kind ?? 'simple') === 'simple')
+    // Bundles included, marked as such and carrying their parts: the storefront
+    // has to be able to offer the комплект, and it has no colours of its own.
+    shopProducts: async () => shopProds
+      .slice()
       .sort((a, b) => a.sort - b.sort)
       .map((p) => ({
-        id: p.id, name: p.name, priceMinor: p.priceMinor,
+        id: p.id, name: p.name, priceMinor: p.priceMinor, kind: p.kind ?? 'simple',
         variants: shopVars.filter((v) => v.productId === p.id).sort((a, b) => a.sort - b.sort)
           .map((v) => ({ id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock })),
+        parts: bundleItems.filter((b) => b.bundleId === p.id).map((b) => ({ partId: b.partId, qty: b.qty })),
       })),
     placeShopOrder: async (o) => {
       if (!o.items.length) return { ok: false as const, error: 'empty' as const };
@@ -831,8 +844,26 @@ export function createMemoryRepository(): Repository {
         lines.push({ productId: v.productId, qty: it.qty });
         snap.push({ productName: p.name, color: v.color, qty: it.qty, unitPriceMinor: p.priceMinor, variant: v });
       }
-      const discount = bundleDiscountMinor(lines);
-      const total = subtotal - discount;
+      let discount = bundleDiscountMinor(lines);
+      let total = subtotal - discount;
+
+      // Sold as a bundle: the parts are what leaves the warehouse, the PRICE is
+      // the bundle's. The lines must really contain the bundle's parts, or
+      // "sold as the combo" could be claimed over one tracker and buy the
+      // course for 4 900.
+      if (o.bundleId) {
+        const bundle = shopProds.find((p) => p.id === o.bundleId && p.kind === 'bundle');
+        if (!bundle) return { ok: false as const, error: 'not_found' as const, variantId: o.bundleId };
+        const parts = bundleItems.filter((x) => x.bundleId === o.bundleId);
+        const ordered = new Map<string, number>();
+        for (const l of lines) ordered.set(l.productId, (ordered.get(l.productId) ?? 0) + l.qty);
+        const complete = parts.length > 0 && parts.every((p) => (ordered.get(p.partId) ?? 0) >= p.qty);
+        if (!complete) return { ok: false as const, error: 'incomplete_bundle' as const, variantId: o.bundleId };
+        total = bundle.priceMinor;
+        // A "discount" only when it is one: the комплект costs MORE than its
+        // parts because it carries the course.
+        discount = Math.max(0, subtotal - total);
+      }
       const id = randomUUID();
       // The sale goes in the ledger with the stock it took. Without it, sales
       // were the one movement that left no trace: the count fell and the
@@ -848,6 +879,7 @@ export function createMemoryRepository(): Repository {
       shopOrders.push({
         id, customerName: o.customerName, phone: o.phone, city: o.city, address: o.address,
         note: o.note ?? null, totalMinor: total, discountMinor: discount, status: 'new', createdAt: new Date().toISOString(),
+        bundleId: o.bundleId ?? null, phoneNormalized: normalizePhoneForOrder(o.phone),
         items: snap.map((s) => ({ productName: s.productName, color: s.color, qty: s.qty, unitPriceMinor: s.unitPriceMinor })),
       });
       return { ok: true as const, id, totalMinor: total, discountMinor: discount };
@@ -1019,6 +1051,24 @@ export function createMemoryRepository(): Repository {
       if (!o) return;
       const was = o.status;
       o.status = status;
+
+      // What the sale promised is handed over when the goods are — not when the
+      // order is placed. A 'new' order is a promise that may never be
+      // collected; unlocking a 40 000 ₸ course on one would be giving it away.
+      if ((status === 'shipped' || status === 'delivered') && was !== 'shipped' && was !== 'delivered') {
+        const bundle = o.bundleId ? shopProds.find((p) => p.id === o.bundleId) : undefined;
+        const phone = o.phoneNormalized ?? normalizePhoneForOrder(o.phone);
+        if (bundle?.grantsFeature && phone) {
+          const key = phone + '|' + bundle.grantsFeature;
+          if (!entitlements.has(key)) {
+            entitlements.set(key, {
+              phone, feature: bundle.grantsFeature, orderId, grantedBy: null,
+              note: 'выдано автоматически при отправке заказа', at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
       // Cancelling puts the goods back on the shelf. Only on the transition
       // INTO cancelled, so cancelling twice cannot return the stock twice.
       if (status === 'cancelled' && was !== 'cancelled') {
