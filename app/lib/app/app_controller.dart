@@ -558,7 +558,9 @@ class AppController {
   String exportJson() {
     final at = _now();
     final map = <String, dynamic>{
-      'app': 'Umay',
+      // New exports carry the current name; looksLikeBackup() still accepts
+      // 'Umay' so files written before the rename keep restoring.
+      'app': 'Ana-Bala',
       'appVersion': appVersion,
       'exportedAt': at.toIso8601String(),
       ..._snapshot().toJson(),

@@ -291,7 +291,7 @@ class SettingsScreen extends StatelessWidget {
             _Section(title: l.t('set_about'), children: [
               DsRow(
                   leading: const Icon(Icons.info_outline, size: 22, color: Palette.textDim),
-                  label: 'Umay',
+                  label: 'Ana-Bala',
                   subtitle: l.t('set_about_body')),
               DsRow(
                 leading: const Icon(Icons.help_outline_rounded, size: 22, color: Palette.textDim),

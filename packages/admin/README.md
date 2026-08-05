@@ -1,6 +1,6 @@
-# Umay Back-office (admin dashboard)
+# Ana-Bala Back-office (admin dashboard)
 
-A self-contained staff/clinician dashboard for the Umay backend.
+A self-contained staff/clinician dashboard for the Ana-Bala backend.
 
 - **Overview** — ops KPIs (active users, devices online, alerts today, ingest rate),
   a 7-day alerts sparkline, and the live emergency feed.

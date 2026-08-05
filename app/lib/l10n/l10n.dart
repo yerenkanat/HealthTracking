@@ -42,7 +42,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'nav_profile': {AppLocale.ru: 'Профиль', AppLocale.kk: 'Профиль', AppLocale.en: 'Profile'},
 
   // Assistant chat
-  'chat_title': {AppLocale.ru: 'Умай — помощник', AppLocale.kk: 'Умай — көмекші', AppLocale.en: 'Umay — assistant'},
+  'chat_title': {AppLocale.ru: 'Ana-Bala — помощник', AppLocale.kk: 'Ana-Bala — көмекші', AppLocale.en: 'Ana-Bala — assistant'},
   'chat_hint': {AppLocale.ru: 'Спросите о самочувствии…', AppLocale.kk: 'Хал-жағдайыңызды сұраңыз…', AppLocale.en: 'Ask about how you feel…'},
   'link_open_failed': {
     AppLocale.ru: 'Не удалось открыть ссылку',
@@ -73,7 +73,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'nav_advisor': {AppLocale.ru: 'Советник', AppLocale.kk: 'Кеңесші', AppLocale.en: 'Advisor'},
   'adv_title': {AppLocale.ru: 'Советник здоровья', AppLocale.kk: 'Денсаулық кеңесшісі', AppLocale.en: 'Health advisor'},
   'adv_intro': {AppLocale.ru: 'На основе данных вашего браслета', AppLocale.kk: 'Білезік деректері негізінде', AppLocale.en: 'Based on your band data'},
-  'adv_ask_sub': {AppLocale.ru: 'Задайте вопрос ассистенту Umay', AppLocale.kk: 'Umay ассистентіне сұрақ қойыңыз', AppLocale.en: 'Ask the Umay assistant a question'},
+  'adv_ask_sub': {AppLocale.ru: 'Задайте вопрос ассистенту Ana-Bala', AppLocale.kk: 'Ana-Bala ассистентіне сұрақ қойыңыз', AppLocale.en: 'Ask the Ana-Bala assistant a question'},
   'ADV_GATHERING': {AppLocale.ru: 'Собираем данные', AppLocale.kk: 'Деректер жиналуда', AppLocale.en: 'Gathering data'},
   'ADV_GATHERING_b': {AppLocale.ru: 'Наденьте браслет — советы появятся после нескольких измерений.', AppLocale.kk: 'Білезікті тағыңыз — бірнеше өлшеуден кейін кеңестер пайда болады.', AppLocale.en: 'Wear your band — advice appears after a few readings.'},
   'ADV_ALL_STEADY': {AppLocale.ru: 'Всё стабильно', AppLocale.kk: 'Барлығы тұрақты', AppLocale.en: 'All steady'},
@@ -108,7 +108,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ADV_SLEEP_OK_b': {AppLocale.ru: 'Во сне показатели были стабильны — хороший отдых.', AppLocale.kk: 'Ұйқы кезінде көрсеткіштер тұрақты болды — жақсы демалыс.', AppLocale.en: 'Your readings were stable during sleep — a good rest.'},
 
   // Onboarding
-  'onb_welcome_title': {AppLocale.ru: 'Добро пожаловать в Умай', AppLocale.kk: 'Умайға қош келдіңіз', AppLocale.en: 'Welcome to Umay'},
+  'onb_welcome_title': {AppLocale.ru: 'Добро пожаловать в Ana-Bala', AppLocale.kk: 'Ana-Balaға қош келдіңіз', AppLocale.en: 'Welcome to Ana-Bala'},
   'onb_welcome_body': {AppLocale.ru: 'Спокойный уход за беременностью и безопасность ребёнка в одном приложении.', AppLocale.kk: 'Жүктілікке қамқорлық пен бала қауіпсіздігі бір қолданбада.', AppLocale.en: 'Calm pregnancy care and child safety in one app.'},
   'offline_banner': {AppLocale.ru: 'Нет подключения к интернету', AppLocale.kk: 'Интернет байланысы жоқ', AppLocale.en: 'No internet connection'},
   'onb_consent_label': {
@@ -361,9 +361,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'The file could not be saved. Please try again.'
   },
   'set_export_subject': {
-    AppLocale.ru: 'Резервная копия Umay',
-    AppLocale.kk: 'Umay сақтық көшірмесі',
-    AppLocale.en: 'Umay backup'
+    AppLocale.ru: 'Резервная копия Ana-Bala',
+    AppLocale.kk: 'Ana-Bala сақтық көшірмесі',
+    AppLocale.en: 'Ana-Bala backup'
   },
   'set_import': {AppLocale.ru: 'Импорт данных', AppLocale.kk: 'Деректерді импорттау', AppLocale.en: 'Import data'},
   'set_import_sub': {AppLocale.ru: 'Восстановить из резервной копии', AppLocale.kk: 'Сақтық көшірмеден қалпына келтіру', AppLocale.en: 'Restore from a backup'},
@@ -381,9 +381,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'set_import_fail': {AppLocale.ru: 'Не удалось прочитать резервную копию', AppLocale.kk: 'Сақтық көшірмені оқу мүмкін болмады', AppLocale.en: "Couldn't read that backup"},
   'set_about': {AppLocale.ru: 'О приложении', AppLocale.kk: 'Қолданба туралы', AppLocale.en: 'About'},
   'set_about_body': {
-    AppLocale.ru: 'Умай — уход за беременностью и безопасность ребёнка. Не является медицинским прибором.',
-    AppLocale.kk: 'Умай — жүктілікке қамқорлық және бала қауіпсіздігі. Медициналық құрал емес.',
-    AppLocale.en: 'Umay — pregnancy care and child safety. Not a medical device.'
+    AppLocale.ru: 'Ana-Bala — уход за беременностью и безопасность ребёнка. Не является медицинским прибором.',
+    AppLocale.kk: 'Ana-Bala — жүктілікке қамқорлық және бала қауіпсіздігі. Медициналық құрал емес.',
+    AppLocale.en: 'Ana-Bala — pregnancy care and child safety. Not a medical device.'
   },
   'set_version': {AppLocale.ru: 'Версия', AppLocale.kk: 'Нұсқа', AppLocale.en: 'Version'},
 
@@ -402,18 +402,18 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'help_q4_a': {AppLocale.ru: 'Откройте «Настройки → Данные → Стереть все данные». Это удалит данные с устройства и с сервера.', AppLocale.kk: '«Баптаулар → Деректер → Барлық деректі өшіру» бөліміне өтіңіз. Бұл деректерді құрылғыдан және серверден өшіреді.', AppLocale.en: 'Go to Settings → Data → Erase all data. This removes your data from the device and the server.'},
   'help_contact_section': {AppLocale.ru: 'Связь с нами', AppLocale.kk: 'Бізбен байланыс', AppLocale.en: 'Get in touch'},
   'help_contact': {AppLocale.ru: 'Написать в поддержку', AppLocale.kk: 'Қолдауға жазу', AppLocale.en: 'Contact support'},
-  'help_email_subject': {AppLocale.ru: 'Вопрос по приложению Umay', AppLocale.kk: 'Umay қолданбасы бойынша сұрақ', AppLocale.en: 'Question about Umay'},
+  'help_email_subject': {AppLocale.ru: 'Вопрос по приложению Ana-Bala', AppLocale.kk: 'Ana-Bala қолданбасы бойынша сұрақ', AppLocale.en: 'Question about Ana-Bala'},
   'help_report': {AppLocale.ru: 'Сообщить о проблеме', AppLocale.kk: 'Ақаулық туралы хабарлау', AppLocale.en: 'Report a problem'},
   'help_report_sub': {AppLocale.ru: 'Опишите, что пошло не так', AppLocale.kk: 'Не болғанын сипаттаңыз', AppLocale.en: 'Tell us what went wrong'},
-  'help_report_subject': {AppLocale.ru: 'Проблема в приложении Umay', AppLocale.kk: 'Umay қолданбасындағы ақаулық', AppLocale.en: 'Problem in Umay'},
+  'help_report_subject': {AppLocale.ru: 'Проблема в приложении Ana-Bala', AppLocale.kk: 'Ana-Bala қолданбасындағы ақаулық', AppLocale.en: 'Problem in Ana-Bala'},
   'help_report_diag': {AppLocale.ru: 'Тех. данные', AppLocale.kk: 'Техникалық деректер', AppLocale.en: 'Diagnostics'},
   'help_share': {AppLocale.ru: 'Поделиться приложением', AppLocale.kk: 'Қолданбамен бөлісу', AppLocale.en: 'Share the app'},
   'help_share_sub': {AppLocale.ru: 'Расскажите близким', AppLocale.kk: 'Жақындарыңызға айтыңыз', AppLocale.en: 'Tell someone close to you'},
-  'help_share_text': {AppLocale.ru: 'Umay — спокойный уход за беременностью и безопасность ребёнка в одном приложении.', AppLocale.kk: 'Umay — жүктілікке қамқорлық пен бала қауіпсіздігі бір қолданбада.', AppLocale.en: 'Umay — calm pregnancy care and child safety in one app.'},
+  'help_share_text': {AppLocale.ru: 'Ana-Bala — спокойный уход за беременностью и безопасность ребёнка в одном приложении.', AppLocale.kk: 'Ana-Bala — жүктілікке қамқорлық пен бала қауіпсіздігі бір қолданбада.', AppLocale.en: 'Ana-Bala — calm pregnancy care and child safety in one app.'},
   'help_emergency_note': {AppLocale.ru: 'Поддержка — не служба экстренной помощи. При угрозе жизни звоните 103 или 112.', AppLocale.kk: 'Қолдау — жедел жәрдем қызметі емес. Өмірге қауіп төнгенде 103 немесе 112-ге қоңырау шалыңыз.', AppLocale.en: 'Support is not an emergency service. If life is at risk, call 103 or 112.'},
   // Brand line at the foot of Help — the name is a proper noun, identical in
   // every locale; through l10n only so no user-facing text bypasses it.
-  'help_app_line': {AppLocale.ru: 'Umay · {v}', AppLocale.kk: 'Umay · {v}', AppLocale.en: 'Umay · {v}'},
+  'help_app_line': {AppLocale.ru: 'Ana-Bala · {v}', AppLocale.kk: 'Ana-Bala · {v}', AppLocale.en: 'Ana-Bala · {v}'},
 
   // Cry analysis — record a short clip, get the likely reason + advice.
   'cry_title': {AppLocale.ru: 'Почему малыш плачет', AppLocale.kk: 'Бала неге жылайды', AppLocale.en: 'Why is baby crying'},
@@ -441,13 +441,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'prime_continue': {AppLocale.ru: 'Продолжить', AppLocale.kk: 'Жалғастыру', AppLocale.en: 'Continue'},
   'prime_not_now': {AppLocale.ru: 'Не сейчас', AppLocale.kk: 'Қазір емес', AppLocale.en: 'Not now'},
   'prime_loc_title': {AppLocale.ru: 'Доступ к геопозиции', AppLocale.kk: 'Геолокацияға рұқсат', AppLocale.en: 'Location access'},
-  'prime_loc_body': {AppLocale.ru: 'Umay использует геопозицию телефона, чтобы отметить безопасные зоны — дом, школу — и предупредить вас, если ребёнок их покидает. Мы запрашиваем её только для этого. На следующем шаге система спросит разрешение.', AppLocale.kk: 'Umay қауіпсіз аймақтарды — үй, мектеп — белгілеу және бала одан шыққанда сізге хабарлау үшін телефонның геолокациясын пайдаланады. Оны тек осы үшін сұраймыз. Келесі қадамда жүйе рұқсат сұрайды.', AppLocale.en: 'Umay uses your phone’s location to mark safe zones — home, school — and warn you if your child leaves them. That’s the only thing we use it for. Next, the system will ask for permission.'},
+  'prime_loc_body': {AppLocale.ru: 'Ana-Bala использует геопозицию телефона, чтобы отметить безопасные зоны — дом, школу — и предупредить вас, если ребёнок их покидает. Мы запрашиваем её только для этого. На следующем шаге система спросит разрешение.', AppLocale.kk: 'Ana-Bala қауіпсіз аймақтарды — үй, мектеп — белгілеу және бала одан шыққанда сізге хабарлау үшін телефонның геолокациясын пайдаланады. Оны тек осы үшін сұраймыз. Келесі қадамда жүйе рұқсат сұрайды.', AppLocale.en: 'Ana-Bala uses your phone’s location to mark safe zones — home, school — and warn you if your child leaves them. That’s the only thing we use it for. Next, the system will ask for permission.'},
   'prime_notif_title': {AppLocale.ru: 'Уведомления', AppLocale.kk: 'Хабарландырулар', AppLocale.en: 'Notifications'},
-  'prime_notif_body': {AppLocale.ru: 'Чтобы вовремя сообщать о выходе из зоны, сигналах SOS и ваших напоминаниях, Umay нужны уведомления. Экстренные оповещения приходят всегда. Дальше система спросит разрешение.', AppLocale.kk: 'Аймақтан шығу, SOS дабылдары және еске салулар туралы уақтылы хабарлау үшін Umay-ге хабарландырулар қажет. Шұғыл ескертулер әрқашан келеді. Әрі қарай жүйе рұқсат сұрайды.', AppLocale.en: 'To alert you about zone exits, SOS signals and your reminders in time, Umay needs notifications. Emergency alerts always come through. Next, the system will ask for permission.'},
+  'prime_notif_body': {AppLocale.ru: 'Чтобы вовремя сообщать о выходе из зоны, сигналах SOS и ваших напоминаниях, Ana-Bala нужны уведомления. Экстренные оповещения приходят всегда. Дальше система спросит разрешение.', AppLocale.kk: 'Аймақтан шығу, SOS дабылдары және еске салулар туралы уақтылы хабарлау үшін Ana-Bala-ге хабарландырулар қажет. Шұғыл ескертулер әрқашан келеді. Әрі қарай жүйе рұқсат сұрайды.', AppLocale.en: 'To alert you about zone exits, SOS signals and your reminders in time, Ana-Bala needs notifications. Emergency alerts always come through. Next, the system will ask for permission.'},
 
   // Force-update gate — shown when this build is below the server's minimum.
   'upd_title': {AppLocale.ru: 'Пора обновить приложение', AppLocale.kk: 'Қолданбаны жаңарту қажет', AppLocale.en: 'Time to update the app'},
-  'upd_body': {AppLocale.ru: 'Эта версия Umay больше не поддерживается. Обновите приложение, чтобы продолжить — это займёт минуту и сохранит ваши данные в безопасности.', AppLocale.kk: 'Umay-дің бұл нұсқасы бұдан былай қолдау таппайды. Жалғастыру үшін қолданбаны жаңартыңыз — бұл бір минут алады және деректеріңіз қауіпсіз қалады.', AppLocale.en: 'This version of Umay is no longer supported. Please update to continue — it takes a minute and keeps your data safe.'},
+  'upd_body': {AppLocale.ru: 'Эта версия Ana-Bala больше не поддерживается. Обновите приложение, чтобы продолжить — это займёт минуту и сохранит ваши данные в безопасности.', AppLocale.kk: 'Ana-Bala-дің бұл нұсқасы бұдан былай қолдау таппайды. Жалғастыру үшін қолданбаны жаңартыңыз — бұл бір минут алады және деректеріңіз қауіпсіз қалады.', AppLocale.en: 'This version of Ana-Bala is no longer supported. Please update to continue — it takes a minute and keeps your data safe.'},
   'upd_cta': {AppLocale.ru: 'Обновить', AppLocale.kk: 'Жаңарту', AppLocale.en: 'Update'},
 
   'set_privacy': {AppLocale.ru: 'Политика конфиденциальности', AppLocale.kk: 'Құпиялылық саясаты', AppLocale.en: 'Privacy policy'},
@@ -864,7 +864,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Device not connected — these readings may be out of date.',
   },
   'db_share_copied': {AppLocale.ru: 'Сводка скопирована', AppLocale.kk: 'Қорытынды көшірілді', AppLocale.en: 'Summary copied to clipboard'},
-  'share_summary_title': {AppLocale.ru: 'Сводка здоровья · Umay', AppLocale.kk: 'Денсаулық қорытындысы · Umay', AppLocale.en: 'Health summary · Umay'},
+  'share_summary_title': {AppLocale.ru: 'Сводка здоровья · Ana-Bala', AppLocale.kk: 'Денсаулық қорытындысы · Ana-Bala', AppLocale.en: 'Health summary · Ana-Bala'},
   'share_summary_notes': {AppLocale.ru: 'Заметки', AppLocale.kk: 'Ескертпелер', AppLocale.en: 'Notes'},
   'share_summary_nodata': {AppLocale.ru: 'Пока нет данных', AppLocale.kk: 'Әзірге дерек жоқ', AppLocale.en: 'No readings yet'},
   'share_status_pregnancy': {AppLocale.ru: 'Беременность · {week} нед.', AppLocale.kk: 'Жүктілік · {week} апта', AppLocale.en: 'Pregnancy · week {week}'},
@@ -1052,7 +1052,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'db_peace_stable': {AppLocale.ru: 'Всё стабильно, {name}', AppLocale.kk: 'Барлығы тұрақты, {name}', AppLocale.en: 'Everything is stable, {name}'},
   'db_peace_stable_noname': {AppLocale.ru: 'Всё выглядит стабильно', AppLocale.kk: 'Барлығы тұрақты көрінеді', AppLocale.en: 'Everything looks stable'},
   'db_peace_stable_b': {AppLocale.ru: 'Ваши показатели в пределах нормы.', AppLocale.kk: 'Көрсеткіштеріңіз қалыпты шамада.', AppLocale.en: 'Your readings are within a healthy range.'},
-  'db_advisor_cta': {AppLocale.ru: 'Спросите Умай о ваших данных', AppLocale.kk: 'Умайдан деректеріңіз туралы сұраңыз', AppLocale.en: 'Ask Umay about your readings'},
+  'db_advisor_cta': {AppLocale.ru: 'Спросите Ana-Bala о ваших данных', AppLocale.kk: 'Ana-Balaдан деректеріңіз туралы сұраңыз', AppLocale.en: 'Ask Ana-Bala about your readings'},
   'db_advisor_sub': {AppLocale.ru: 'Аналитика по данным браслета', AppLocale.kk: 'Білезік деректеріне талдау', AppLocale.en: 'Insights from your band data'},
 
   // Women's-health calendar
@@ -2205,7 +2205,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'med_reminder_off': {AppLocale.ru: 'Выключено', AppLocale.kk: 'Өшірулі', AppLocale.en: 'Off'},
   'med_reminder_at': {AppLocale.ru: 'Каждый день в {time}', AppLocale.kk: 'Күн сайын {time}', AppLocale.en: 'Every day at {time}'},
   'med_reminder_title': {AppLocale.ru: 'Время принять витамины', AppLocale.kk: 'Дәрумен қабылдау уақыты', AppLocale.en: 'Time for your vitamins'},
-  'med_reminder_body': {AppLocale.ru: 'Отметьте сегодняшние приёмы в Umay.', AppLocale.kk: 'Бүгінгі қабылдауды Umay-да белгілеңіз.', AppLocale.en: 'Tick off today\'s doses in Umay.'},
+  'med_reminder_body': {AppLocale.ru: 'Отметьте сегодняшние приёмы в Ana-Bala.', AppLocale.kk: 'Бүгінгі қабылдауды Ana-Bala-да белгілеңіз.', AppLocale.en: 'Tick off today\'s doses in Ana-Bala.'},
   'rem_footer': {AppLocale.ru: 'Напоминания приходят как обычные уведомления. Их можно отключить в любой момент здесь.', AppLocale.kk: 'Еске салулар қарапайым хабарландыру ретінде келеді. Оларды кез келген уақытта осы жерде өшіруге болады.', AppLocale.en: 'Reminders arrive as ordinary notifications. You can turn any of them off here at any time.'},
   // Safety-notification categories + quiet hours (notif_*).
   'notif_safety_section': {AppLocale.ru: 'Уведомления безопасности', AppLocale.kk: 'Қауіпсіздік хабарламалары', AppLocale.en: 'Safety notifications'},
@@ -2319,7 +2319,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'phase_luteal_note': {AppLocale.ru: 'Возможен ПМС. Прислушивайтесь к своему телу.', AppLocale.kk: 'ПМС мүмкін. Денеңізді тыңдаңыз.', AppLocale.en: 'PMS symptoms may appear. Listen to your body.'},
   'cyc_share': {AppLocale.ru: 'Поделиться прогнозом', AppLocale.kk: 'Болжаммен бөлісу', AppLocale.en: 'Share cycle'},
   'cyc_share_copied': {AppLocale.ru: 'Прогноз скопирован', AppLocale.kk: 'Болжам көшірілді', AppLocale.en: 'Cycle summary copied to clipboard'},
-  'cyc_share_title': {AppLocale.ru: 'Прогноз цикла · Umay', AppLocale.kk: 'Цикл болжамы · Umay', AppLocale.en: 'Cycle forecast · Umay'},
+  'cyc_share_title': {AppLocale.ru: 'Прогноз цикла · Ana-Bala', AppLocale.kk: 'Цикл болжамы · Ana-Bala', AppLocale.en: 'Cycle forecast · Ana-Bala'},
   'cyc_share_nodata': {AppLocale.ru: 'Пока недостаточно данных для прогноза', AppLocale.kk: 'Болжам үшін дерек әлі жеткіліксіз', AppLocale.en: 'Not enough data to predict yet'},
   'cyc_share_disclaimer': {AppLocale.ru: 'Оценка для самочувствия, не средство контрацепции.', AppLocale.kk: 'Бұл — болжам, контрацепция құралы емес.', AppLocale.en: 'Wellness estimate, not contraception guidance.'},
   'cyc_insights_title': {AppLocale.ru: 'Аналитика цикла', AppLocale.kk: 'Цикл аналитикасы', AppLocale.en: 'Cycle insights'},
@@ -2441,9 +2441,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'tr_stale': {AppLocale.ru: 'Местоположение {name} {phrase} — последний раз {ago}', AppLocale.kk: '{name} орналасуы {phrase} — соңғы рет {ago}', AppLocale.en: "{name}'s location is {phrase} — last seen {ago}"},
   'tr_waiting': {AppLocale.ru: 'Ожидание местоположения {name}…', AppLocale.kk: '{name} орналасуын күту…', AppLocale.en: "Waiting for {name}'s location…"},
   'tr_clock_skew': {
-    AppLocale.ru: 'Umay не может определить, насколько свежие данные о местоположении {name} — часы телефона и трекера расходятся',
-    AppLocale.kk: 'Umay {name} орналасуының қаншалықты жаңа екенін анықтай алмайды — телефон мен трекердің уақыты сәйкес келмейді',
-    AppLocale.en: "Umay can't tell how old {name}'s location is — the phone and the tracker disagree about the time",
+    AppLocale.ru: 'Ana-Bala не может определить, насколько свежие данные о местоположении {name} — часы телефона и трекера расходятся',
+    AppLocale.kk: 'Ana-Bala {name} орналасуының қаншалықты жаңа екенін анықтай алмайды — телефон мен трекердің уақыты сәйкес келмейді',
+    AppLocale.en: "Ana-Bala can't tell how old {name}'s location is — the phone and the tracker disagree about the time",
   },
   'stale_delayed': {AppLocale.ru: 'задерживается', AppLocale.kk: 'кешігуде', AppLocale.en: 'delayed'},
   'stale_outdated': {AppLocale.ru: 'устарело', AppLocale.kk: 'ескірген', AppLocale.en: 'out of date'},

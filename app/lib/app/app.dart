@@ -82,7 +82,7 @@ class FcsApp extends StatelessWidget {
           child: L10nScope(
           l10n: l,
           child: MaterialApp(
-            title: 'Umay',
+            title: 'Ana-Bala',
             debugShowCheckedModeBanner: false,
             // The locale is a real theme input: Unbounded carries no Kazakh
             // glyphs, so the display family switches to Rubik on kk. Passing it

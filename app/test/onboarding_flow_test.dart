@@ -33,7 +33,7 @@ void main() {
     ));
 
     // Welcome → Get started.
-    expect(find.text('Welcome to Umay'), findsOneWidget);
+    expect(find.text('Welcome to Ana-Bala'), findsOneWidget);
     await tester.tap(find.byType(Checkbox)); // accept privacy + terms
     await tester.pump();
     await tester.tap(find.text('Get started'));
@@ -117,7 +117,7 @@ void main() {
     expect(start().onPressed, isNull);
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome to Umay'), findsOneWidget); // did not advance
+    expect(find.text('Welcome to Ana-Bala'), findsOneWidget); // did not advance
 
     // Ticking the box (or its label) enables it.
     await tester.tap(find.byType(Checkbox));

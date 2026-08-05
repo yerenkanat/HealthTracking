@@ -167,8 +167,8 @@ export function createMemoryRepository(): Repository {
 
   // ---- Shop (mirrors migrations/009_shop.sql seed) ----
   const shopProds = [
-    { id: 'watch', name: 'Смарт-часы Umay', priceMinor: 2490000, sort: 1 },
-    { id: 'tracker', name: 'Детский трекер Umay', priceMinor: 490000, sort: 2 },
+    { id: 'watch', name: 'Смарт-часы Ana-Bala', priceMinor: 2490000, sort: 1 },
+    { id: 'tracker', name: 'Детский трекер Ana-Bala', priceMinor: 490000, sort: 2 },
   ];
   const shopVars: Array<{ id: string; productId: string; color: string; colorHex: string; stock: number; sort: number }> = [
     { id: 'v-w-black', productId: 'watch', color: 'Чёрный', colorHex: '#1C1E2A', stock: 0, sort: 1 },
@@ -517,7 +517,7 @@ export function createMemoryRepository(): Repository {
         return {
           id,
           userId,
-          displayName: profile?.displayName ?? 'Umay user',
+          displayName: profile?.displayName ?? 'Ana-Bala user',
           code: 'EMERGENCY',
           severity: 'emergency',
           at,

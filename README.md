@@ -1,4 +1,4 @@
-# Umay — FemTech & Child Safety MVP
+# Ana-Bala — FemTech & Child Safety MVP
 
 A dual-purpose mobile app: **(1) a pregnancy & cycle health tracker** (BLE smart band →
 proactive medical AI assistant) and **(2) a child safety tracker** (BLE/GPS/Wi-Fi/LBS

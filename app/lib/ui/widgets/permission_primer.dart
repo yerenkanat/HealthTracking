@@ -4,7 +4,7 @@
 /// The OS dialog is a one-shot: deny it and the system remembers "no" for good,
 /// after which the only fix is a trip to Settings that most people never make.
 /// So the moment before that dialog is the most valuable UI in the app for these
-/// features. This sheet explains, in the user's words, exactly why Umay needs
+/// features. This sheet explains, in the user's words, exactly why Ana-Bala needs
 /// the permission and what it will and won't do with it — then hands off to the
 /// real OS prompt only if she taps Continue.
 ///
@@ -19,7 +19,7 @@ import '../../l10n/l10n_scope.dart';
 import '../ds_widgets.dart';
 import '../theme.dart';
 
-/// The permissions Umay primes for. Each maps to its own icon and copy.
+/// The permissions Ana-Bala primes for. Each maps to its own icon and copy.
 enum PermissionKind {
   location(Icons.location_on_outlined, 'prime_loc_title', 'prime_loc_body'),
   notifications(Icons.notifications_active_outlined, 'prime_notif_title', 'prime_notif_body');

@@ -37,8 +37,8 @@ void main() {
     final scrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(find.text('Not calibrated'), 250, scrollable: scrollable);
     expect(find.text('Not calibrated'), findsOneWidget); // BP calibration status
-    await tester.scrollUntilVisible(find.text('Umay'), 250, scrollable: scrollable);
-    expect(find.text('Umay'), findsOneWidget); // about
+    await tester.scrollUntilVisible(find.text('Ana-Bala'), 250, scrollable: scrollable);
+    expect(find.text('Ana-Bala'), findsOneWidget); // about
     addTearDown(c.dispose);
   });
 

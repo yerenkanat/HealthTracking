@@ -19,7 +19,7 @@ void main() {
 
     // Leads with backup metadata; the extra keys don't break restore.
     final decoded = jsonDecode(json) as Map<String, dynamic>;
-    expect(decoded['app'], 'Umay');
+    expect(decoded['app'], 'Ana-Bala');
     expect(decoded['appVersion'], AppController.appVersion);
     expect(decoded['exportedAt'], DateTime(2026, 7, 15).toIso8601String());
 

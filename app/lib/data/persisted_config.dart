@@ -123,17 +123,22 @@ List<Geofence> geofencesFromJson(Object? raw) {
   return out;
 }
 
-/// Does this decoded JSON actually look like an Umay backup?
+/// Does this decoded JSON actually look like one of our backups?
 ///
 /// Every field of [PersistedConfig] is optional with a default, so ANY JSON
 /// object decodes into a valid-but-empty config. Applying one of those would
 /// wipe the user's data — so an import must check the payload is ours first.
 ///
-/// Accepts either the export marker, or the two keys `toJson` always writes
-/// (so backups made before the marker existed still restore).
+/// Accepts either export marker, or the two keys `toJson` always writes (so
+/// backups made before the marker existed still restore).
+///
+/// 'Umay' is the marker every backup written before the rename carries. It is
+/// accepted forever: those files are on people's phones, and the failure mode
+/// of dropping it is not an error message but a refusal to restore a health
+/// record that is perfectly valid.
 bool looksLikeBackup(Object? decoded) {
   if (decoded is! Map) return false;
-  if (decoded['app'] == 'Umay') return true;
+  if (decoded['app'] == 'Ana-Bala' || decoded['app'] == 'Umay') return true;
   return decoded.containsKey('locale') && decoded.containsKey('profile');
 }
 

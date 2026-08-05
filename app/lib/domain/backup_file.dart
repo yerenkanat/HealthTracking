@@ -19,12 +19,18 @@ String backupFileName(DateTime at, {int seq = 0}) {
   final m = at.month.toString().padLeft(2, '0');
   final d = at.day.toString().padLeft(2, '0');
   final suffix = seq > 0 ? '-$seq' : '';
-  return 'umay-backup-$y-$m-$d$suffix.json';
+  return 'ana-bala-backup-$y-$m-$d$suffix.json';
 }
 
 /// Whether [name] is one of ours, used when cleaning up old exports.
 ///
 /// Anchored at both ends: a loose match would let a cleanup routine delete a
 /// file that merely mentioned the app's name.
+///
+/// Both prefixes are recognised. New exports are `ana-bala-backup-…`, but
+/// `umay-backup-…` files are sitting in people's Downloads folders from every
+/// version before the rename, and they are the only copy of a health record
+/// some of them have. Forgetting the old name would not delete those files —
+/// it would do something quieter and worse: stop offering to restore them.
 bool isBackupFileName(String name) =>
-    RegExp(r'^umay-backup-\d{4}-\d{2}-\d{2}(-\d+)?\.json$').hasMatch(name);
+    RegExp(r'^(ana-bala|umay)-backup-\d{4}-\d{2}-\d{2}(-\d+)?\.json$').hasMatch(name);

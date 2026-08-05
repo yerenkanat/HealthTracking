@@ -52,7 +52,7 @@ emergency-acknowledge action (needs emergencies to become first-class event rows
 Worked the doable items one by one; full app suite **613 green** throughout.
 
 - [x] **Assistant chat had no entry point** → surfaced from the advisor (app-bar
-      action + "Ask Umay" card), shown only when the chat controller is attached.
+      action + "Ask Ana-Bala" card), shown only when the chat controller is attached.
 - [x] **Privacy Policy + Terms screens** built and linked from Settings ▸ About,
       plus **onboarding consent** (accept before "Get started").
 - [x] **Advisor reply language** now follows the in-app switch at runtime (was
@@ -81,7 +81,7 @@ Detailed remaining backlog below.
 ## A. NOT WORKING / BROKEN — fix first
 
 - [x] **AI Assistant chat has no entry point (orphaned screen).** ✅ FIXED 2026-07-22 —
-      surfaced from `AdvisorScreen` (app-bar forum action + an "Ask Umay" card), shown only
+      surfaced from `AdvisorScreen` (app-bar forum action + an "Ask Ana-Bala" card), shown only
       when the chat controller is attached. `AssistantChatScreen` is now reachable.
 - [ ] **Child live-location never returns a fix (403 / id mismatch).** The 45s poll
       (`main.dart:459-483`) calls `api.lastLocation(controller.selectedChild.id)` with a

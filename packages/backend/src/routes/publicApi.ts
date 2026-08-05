@@ -60,7 +60,7 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
 
       // Self-describing index — so whoever integrates can discover the surface.
       api.get('/', async () => ({
-        service: 'Umay content API',
+        service: 'Ana-Bala content API',
         version: 'v1',
         docs: '/api-docs',
         authRequired: requireKey,

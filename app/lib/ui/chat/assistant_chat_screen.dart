@@ -1,4 +1,4 @@
-/// Assistant chat screen — the guardrailed wellness companion ("Umay").
+/// Assistant chat screen — the guardrailed wellness companion ("Ana-Bala").
 /// Renders the ChatController's message list and an input bar. A persistent
 /// disclaimer keeps the "not a diagnosis" boundary visible. Blocked/emergency
 /// messages get distinct styling. Strings via L10nScope.

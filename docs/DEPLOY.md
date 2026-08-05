@@ -1,6 +1,6 @@
 # Production deploy runbook
 
-How to stand up the Umay backend (API + admin + storefront) on a fresh Linux
+How to stand up the Ana-Bala backend (API + admin + storefront) on a fresh Linux
 server, plus the optional cry-classifier service and the app build flags. Every
 command and env var below is grounded in the code (`packages/backend/src/index.ts`,
 `server.ts`, `db/schema.sql`); nothing here is executed automatically — review,
@@ -175,7 +175,7 @@ Env file (`/etc/umay/backend.env`, `chmod 600`):
 systemd unit (`/etc/systemd/system/umay-backend.service`):
 ```ini
 [Unit]
-Description=Umay backend
+Description=Ana-Bala backend
 After=network.target postgresql.service
 
 [Service]

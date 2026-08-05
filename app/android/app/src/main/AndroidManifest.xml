@@ -15,7 +15,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
     <application
-        android:label="Umay"
+        android:label="Ana-Bala"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Google Maps (child tracking). Set GOOGLE_MAPS_API_KEY env var to a real

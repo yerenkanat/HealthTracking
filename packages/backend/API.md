@@ -1,4 +1,4 @@
-# Umay public content API (`/api/v1`)
+# Ana-Bala public content API (`/api/v1`)
 
 Read-only API over the **pregnancy calendar**, the **child-development calendar**,
 and the **MoH medical protocols** (antenatal + vaccination), for another service

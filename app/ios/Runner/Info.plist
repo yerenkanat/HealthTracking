@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Umay</string>
+	<string>Ana-Bala</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -67,12 +67,12 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Umay uses location to show where your child is and to trigger safe-zone alerts.</string>
+	<string>Ana-Bala uses location to show where your child is and to trigger safe-zone alerts.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Umay uses location in the background to keep child safe-zone alerts working.</string>
+	<string>Ana-Bala uses location in the background to keep child safe-zone alerts working.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Umay connects to your smart band and your child's tracker over Bluetooth.</string>
+	<string>Ana-Bala connects to your smart band and your child's tracker over Bluetooth.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Umay connects to your smart band and your child's tracker over Bluetooth.</string>
+	<string>Ana-Bala connects to your smart band and your child's tracker over Bluetooth.</string>
 </dict>
 </plist>

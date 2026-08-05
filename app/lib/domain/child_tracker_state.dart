@@ -133,7 +133,7 @@ ChildStatus deriveChildStatus({
   final headline = switch ((fresh, zone)) {
     // Clock disagreement first: with no trustworthy age there is no "last
     // seen", and saying so is the only true thing available.
-    _ when ago == null => "Umay can't tell how old $childName's location is — "
+    _ when ago == null => "Ana-Bala can't tell how old $childName's location is — "
         'the phone and the tracker disagree about the time',
     (Freshness.stale, _) => "$childName's location is ${_stalePhrase(age)} — last seen $ago",
     (_, final z?) => '$childName is at $z',
