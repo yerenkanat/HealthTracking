@@ -892,7 +892,7 @@
           <div class="sec-h"><h3>Стандартный план — не менее 8 визитов</h3></div>
           <p style="color:var(--muted);margin:0 0 4px">
             Клинический протокол МЗ РК «Антенатальный уход» (2025). Тот же график, что видит пациентка в приложении —
-            единый источник (<code>/antenatal/protocol</code>).</p>
+            единый источник (<code>/admin/reference/antenatal</code>).</p>
           <div id="anBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
         </div>
       </section>
@@ -927,7 +927,7 @@
         <div class="card">
           <div class="sec-h"><h3>Национальный календарь прививок</h3></div>
           <p style="color:var(--muted);margin:0 0 4px">
-            Тот же график, что видит родитель в приложении по возрасту ребёнка — единый источник (<code>/vaccination/schedule</code>).</p>
+            Тот же график, что видит родитель в приложении по возрасту ребёнка — единый источник (<code>/admin/reference/vaccination</code>).</p>
           <div id="vacBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
         </div>
       </section>
@@ -2321,10 +2321,15 @@
   async function renderAntenatal(){
     const box=$("#anBody"); if(!box) return;
     if(!PROTOCOL){
-      try{ const r=await fetch("/antenatal/protocol"); if(r.ok) PROTOCOL=await r.json(); }catch(e){/* offline/mock */}
+      try{ const r=await fetch("/admin/reference/antenatal",{credentials:"same-origin"}); if(r.ok) PROTOCOL=await r.json(); }catch(e){/* offline/mock */}
     }
-    if(!PROTOCOL){
-      box.innerHTML=`<div style="color:var(--muted);padding:16px 0">Протокол доступен, когда панель обслуживается сервером (<code>/antenatal/protocol</code>).</div>`;
+    // `visits` is checked, not just PROTOCOL. A response that arrives without
+    // it — an older server, a partial payload — used to throw inside
+    // PROTOCOL.visits.map and take the whole tab down with an unhandled
+    // rejection, where an empty object is truthy. categories and windows were
+    // already guarded; this was the one that was not.
+    if(!PROTOCOL||!Array.isArray(PROTOCOL.visits)){
+      box.innerHTML=`<div style="color:var(--muted);padding:16px 0">Протокол доступен, когда панель обслуживается сервером (<code>/admin/reference/antenatal</code>).</div>`;
       return;
     }
     const cats=PROTOCOL.categories||{};
@@ -2348,7 +2353,7 @@
   let PREG=null, pwWeek=12, pwLang="ru";
   async function loadPreg(){
     if(PREG) return PREG;
-    try{ const r=await fetch("/pregnancy/weeks"); if(r.ok){ const d=await r.json(); PREG=d.weeks||[]; } }catch(e){/* offline */}
+    try{ const r=await fetch("/admin/reference/pregnancy",{credentials:"same-origin"}); if(r.ok){ const d=await r.json(); PREG=d.weeks||[]; } }catch(e){/* offline */}
     return PREG;
   }
   async function renderPregWeeks(){
@@ -2376,7 +2381,7 @@
   let CDEV=null, cdNote=null, cdWeek=24, cdLang="ru";
   async function loadCdev(){
     if(CDEV) return CDEV;
-    try{ const r=await fetch("/child/development"); if(r.ok){ const d=await r.json(); CDEV=d.weeks||[]; cdNote=d.note||null; } }catch(e){/* offline */}
+    try{ const r=await fetch("/admin/reference/childdev",{credentials:"same-origin"}); if(r.ok){ const d=await r.json(); CDEV=d.weeks||[]; cdNote=d.note||null; } }catch(e){/* offline */}
     return CDEV;
   }
   function ordWeekLabel(n){ return cdLang==="kk"?`${n}-апта`:`${n}-я неделя`; }
@@ -2801,8 +2806,8 @@
 
   async function renderVaccines(){
     const box=$("#vacBody"); if(!box) return;
-    if(!VACC){ try{ const r=await fetch("/vaccination/schedule"); if(r.ok){ VACC=(await r.json()).vaccines||[]; } }catch(e){} }
-    if(!VACC||!VACC.length){ box.innerHTML=`<div style="color:var(--muted);padding:16px 0">График доступен, когда панель обслуживается сервером (<code>/vaccination/schedule</code>).</div>`; return; }
+    if(!VACC){ try{ const r=await fetch("/admin/reference/vaccination",{credentials:"same-origin"}); if(r.ok){ VACC=(await r.json()).vaccines||[]; } }catch(e){} }
+    if(!VACC||!VACC.length){ box.innerHTML=`<div style="color:var(--muted);padding:16px 0">График доступен, когда панель обслуживается сервером (<code>/admin/reference/vaccination</code>).</div>`; return; }
     const byAge={}; VACC.forEach(v=>{ (byAge[v.atMonth]=byAge[v.atMonth]||[]).push(v); });
     const ages=Object.keys(byAge).map(Number).sort((a,b)=>a-b);
     box.innerHTML=`<div class="an-grid">`+ages.map(m=>`

@@ -90,7 +90,7 @@ async function boot() {
           : p.includes('/admin/users/u1/wellness') ? WELLNESS
           : p.includes('/admin/users') ? USERS
           : p.includes('/admin/stats') ? STATS
-          : p.includes('/pregnancy/weeks') ? { weeks: [] }
+          : p.includes('/admin/reference/pregnancy') ? { weeks: [] }
           : null;
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };

@@ -1,7 +1,7 @@
 /**
  * Render the admin panel's antenatal tab and patient drawer for real (jsdom),
  * not just grep the HTML. The protocol view must fill with the 8 visits served
- * by GET /antenatal/protocol, and a patient's drawer must show which visit she
+ * by GET /admin/reference/antenatal, and a patient's drawer must show which visit she
  * is due — the "window into the app" the panel is supposed to be.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -21,7 +21,7 @@ interface Rendered {
   window: import('jsdom').DOMWindow;
 }
 
-/** Boot the real panel; only /antenatal/protocol answers, so it stays on MOCK
+/** Boot the real panel; only /admin/reference/antenatal answers, so it stays on MOCK
  * users (which carry gestational weeks) for the drawer. */
 async function boot(): Promise<Rendered> {
   const html = readFileSync(PANEL, 'utf8');
@@ -54,7 +54,7 @@ async function boot(): Promise<Rendered> {
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
         }
-        if (p.includes('/antenatal/protocol')) {
+        if (p.includes('/admin/reference/antenatal')) {
           return { ok: true, status: 200, json: async () => antenatalProtocol };
         }
         // The users list is API-driven; answer it so rows render. The panel

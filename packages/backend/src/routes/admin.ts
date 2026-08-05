@@ -10,6 +10,10 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { sendTelegramTest } from '../notifications/leadAlert';
 import { createAuditThrottle } from '../http/auditThrottle';
+import { antenatalProtocol } from '../antenatal/protocol';
+import { vaccinationSchedule } from '../vaccination/schedule';
+import { pregnancyCalendar } from '../pregnancy/weeks';
+import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
 
 /// Pregnancy weeks 1..40 and child months 0..60 (birth to five years). Content
@@ -161,6 +165,38 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     }
     return s;
   }
+
+  // ---- Reference data the panel draws ------------------------------------
+  //
+  // The same constants the app's content API serves, under /admin so the panel
+  // can reach them.
+  //
+  // Four tabs — Антенатальный уход, Календарь беременности, Календарь
+  // развития, Вакцинация — fetched /antenatal/protocol and friends directly.
+  // Those are app-API paths, and the app API is closed at the edge until it
+  // has real authentication, so all four answered 404 in production and each
+  // tab showed "доступно, когда панель обслуживается сервером". Four of
+  // sixteen tabs were an apology. Every one of them has a render test, and all
+  // four passed, because the tests stub fetch.
+  //
+  // Staff-only rather than public: this is the product's content catalogue,
+  // and opening it is a decision for when the app API opens, not a side effect
+  // of fixing the panel.
+  const REFERENCE = {
+    antenatal: antenatalProtocol,
+    vaccination: vaccinationSchedule,
+    pregnancy: pregnancyCalendar,
+    childdev: childDevCalendar,
+  } as const;
+
+  app.get('/admin/reference/:kind', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const { kind } = req.params as { kind: string };
+    const data = REFERENCE[kind as keyof typeof REFERENCE];
+    if (!data) return reply.code(404).send({ error: 'unknown_reference' });
+    return reply.send(data);
+  });
 
   // ---- Ops dashboard KPIs ----
   app.get('/admin/stats', async (req, reply) => {

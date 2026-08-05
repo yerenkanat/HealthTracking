@@ -1,7 +1,7 @@
 /**
  * Render the admin panel's pregnancy-calendar tab and patient drawer for real
  * (jsdom). The tab must fill with week chips and the selected week's content
- * from GET /pregnancy/weeks, switch language, and the patient drawer must show
+ * from GET /admin/reference/pregnancy, switch language, and the patient drawer must show
  * "this week" content for the mother's gestational week.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -50,7 +50,7 @@ async function boot(): Promise<Rendered> {
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
         }
-        if (p.includes('/pregnancy/weeks')) return { ok: true, status: 200, json: async () => pregnancyCalendar };
+        if (p.includes('/admin/reference/pregnancy')) return { ok: true, status: 200, json: async () => pregnancyCalendar };
         if (p.includes('/admin/users')) {
           return { ok: true, status: 200, json: async () => ({ total: 1, users: [{ id: 'u1', displayName: 'Aigerim S.', phone: '+77073452244', dueDate: '2026-11-14T00:00:00.000Z', lastMetricAt: '2026-07-21T11:30:00.000Z' }] }) };
         }

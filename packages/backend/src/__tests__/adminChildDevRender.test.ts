@@ -1,7 +1,7 @@
 /**
  * Render the admin panel's baby-development-calendar tab for real (jsdom). The
  * tab must fill with week chips and the selected week's motor/speech/cognition
- * content from GET /child/development, show the WHO weight/height chips and the
+ * content from GET /admin/reference/childdev, show the WHO weight/height chips and the
  * disclaimer note, and switch language to Kazakh.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -50,7 +50,7 @@ async function boot(): Promise<Rendered> {
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
         }
-        if (p.includes('/child/development')) return { ok: true, status: 200, json: async () => childDevCalendar };
+        if (p.includes('/admin/reference/childdev')) return { ok: true, status: 200, json: async () => childDevCalendar };
         return { ok: false, status: 500, json: async () => ({}) };
       }) as never;
     },

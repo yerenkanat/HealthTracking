@@ -37,6 +37,10 @@ const AGGREGATES_ONLY = new Set([
   // this log exists for.
   'GET /admin/me', // who am I — the caller reading their own name
   'GET /admin/staff', // the colleague roster; admin-only, contains no patient
+  // Published reference data — the MOH antenatal protocol, the vaccination
+  // schedule, the pregnancy and child-development calendars. Constants
+  // compiled into the server; they name nobody and never change per request.
+  'GET /admin/reference/:kind',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

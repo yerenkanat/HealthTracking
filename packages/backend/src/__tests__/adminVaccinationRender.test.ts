@@ -1,6 +1,6 @@
 /**
  * Render the admin panel's vaccination tab for real (jsdom). It must fill with
- * the immunisation schedule served by GET /vaccination/schedule, grouped by age.
+ * the immunisation schedule served by GET /admin/reference/vaccination, grouped by age.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
@@ -47,7 +47,7 @@ async function boot(): Promise<Rendered> {
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
         }
-        if (p.includes('/vaccination/schedule')) return { ok: true, status: 200, json: async () => vaccinationSchedule };
+        if (p.includes('/admin/reference/vaccination')) return { ok: true, status: 200, json: async () => vaccinationSchedule };
         return { ok: false, status: 500, json: async () => ({}) };
       }) as never;
     },

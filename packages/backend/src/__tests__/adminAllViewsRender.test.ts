@@ -86,9 +86,9 @@ const FIXTURES: Record<string, unknown> = {
   '/admin/shop/leads': { leads: [] },
   // NOT an /admin route: the Дородовое наблюдение tab reads the public
   // protocol the app uses. Worth noting because an audit of "endpoints with
-  // no caller" earlier flagged /antenatal/protocol as unwired — it is not,
+  // no caller" earlier flagged /admin/reference/antenatal as unwired — it is not,
   // the admin panel is its caller.
-  '/antenatal/protocol': antenatalProtocol,
+  '/admin/reference/antenatal': antenatalProtocol,
   '/admin/settings': { settings: { whatsapp: '77073452244', reviews: '', rating: '', reviewCount: '', kaspiUrl: '' } },
 };
 
