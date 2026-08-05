@@ -578,6 +578,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/></svg>
       Безопасность
     </button>
+    <button type="button" class="nav" data-view="course">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m10 8 6 4-6 4V8z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
+      Курс Ма!Ма!
+    </button>
     <button type="button" class="nav" data-view="stock">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
       Склад
@@ -955,6 +959,50 @@
       </section>
 
       <!-- SHOP: inventory (per-colour stock) + orders to fulfil -->
+      <!-- КУРС МА!МА! — the lessons the combo pays for.
+           Sold at 39 000 against 29 800 of hardware, so this is the 9 200 the
+           customer is actually buying. Only people with the entitlement see it
+           in the app; the gate is on the server. -->
+      <section class="view" id="course">
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Добавить урок</h3>
+            <span class="sub">Название и ссылка на YouTube · черновик не виден в приложении</span></div>
+          <form id="lessonForm" class="stafform" autocomplete="off">
+            <input type="hidden" id="lessonId">
+            <input id="lessonTitle" placeholder="Название урока" required maxlength="200">
+            <input id="lessonUrl" placeholder="https://youtu.be/…" required maxlength="500">
+            <input id="lessonTitleKk" placeholder="Атауы (қазақша, необязательно)" maxlength="200">
+            <input id="lessonSort" type="number" min="0" step="10" placeholder="Порядок" value="0">
+            <label class="t" style="display:flex;align-items:center;gap:6px">
+              <input type="checkbox" id="lessonPub"> опубликовать
+            </label>
+            <button class="btn" id="lessonBtn" type="submit">Сохранить</button>
+            <button class="btn ghost" id="lessonCancel" type="button" hidden>Отмена</button>
+          </form>
+          <div id="lessonMsg" class="formmsg"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Уроки</h3></div>
+          <div id="lessonList"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+
+        <div class="card">
+          <div class="sec-h"><h3>Кому открыт курс</h3>
+            <span class="sub">Комплект открывает доступ · можно выдать вручную по номеру</span></div>
+          <form id="entForm" class="stafform" autocomplete="off">
+            <input id="entPhone" placeholder="+7 700 000 00 00" required inputmode="tel">
+            <input id="entNote" placeholder="Основание: заказ, подарок…" maxlength="300">
+            <button class="btn" id="entBtn" type="submit">Открыть доступ</button>
+          </form>
+          <div id="entMsg" class="formmsg"></div>
+          <div class="tablewrap" style="margin-top:12px">
+            <table><thead><tr><th>Телефон</th><th>Когда</th><th>Основание</th><th></th></tr></thead>
+            <tbody id="entBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
       <!-- СКЛАД — stock as a ledger, not a number.
            The Магазин tab still edits the storefront (settings, orders, colour
            counts). This is the warehouse: what each product costs, what it
@@ -2302,7 +2350,8 @@
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
     audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"],
     staff:["Персонал","Кто может входить в панель, и под какой ролью"],
-    stock:["Склад","Товары, цены и остатки — с историей каждого движения"]
+    stock:["Склад","Товары, цены и остатки — с историей каждого движения"],
+    course:["Курс Ма!Ма!","Уроки, которые открываются при покупке комплекта"]
   };
   function go(v){
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
@@ -2333,6 +2382,7 @@
     if(v==="audio")renderAudio();
     if(v==="staff")renderStaff();
     if(v==="stock")renderStock();
+    if(v==="course")renderCourse();
     // Экстренные had no branch here at all, so the tab drew only whatever
     // renderFeeds() had left behind from the overview. Against a real server
     // with no emergencies that was an empty card — not the "Экстренных
@@ -2695,6 +2745,140 @@
     document.querySelectorAll('#audLocale button').forEach(b=>b.onclick=()=>{audLocale=b.dataset.locale;document.querySelectorAll('#audLocale button').forEach(x=>x.classList.toggle('on',x===b));renderAudio();});
     $("#audUpload").onclick=uploadAudio;
   }
+  // ---- Курс Ма!Ма! --------------------------------------------------------
+  //
+  // The lessons the combo pays for. Everything here is admin-only and the app
+  // only ever sees published lessons, and only for people with the entitlement
+  // — enforced on the server, so this screen cannot leak the course by mistake.
+  let courseWired = false;
+
+  const msgTo = (id, text, kind) => {
+    const el = $(id); el.textContent = text || "";
+    el.className = "formmsg" + (kind ? " " + kind : "");
+  };
+
+  function resetLessonForm(){
+    $("#lessonId").value = ""; $("#lessonTitle").value = ""; $("#lessonUrl").value = "";
+    $("#lessonTitleKk").value = ""; $("#lessonSort").value = "0"; $("#lessonPub").checked = false;
+    $("#lessonBtn").textContent = "Сохранить";
+    $("#lessonCancel").hidden = true;
+  }
+
+  function wireCourse(){
+    if(courseWired) return; courseWired = true;
+
+    $("#lessonCancel").addEventListener("click", resetLessonForm);
+
+    $("#lessonForm").addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const btn = $("#lessonBtn"); btn.disabled = true; msgTo("#lessonMsg","Сохранение…");
+      const body = {
+        titleRu: $("#lessonTitle").value.trim(),
+        titleKk: $("#lessonTitleKk").value.trim() || null,
+        youtubeUrl: $("#lessonUrl").value.trim(),
+        sort: Number($("#lessonSort").value || 0),
+        published: $("#lessonPub").checked,
+      };
+      if($("#lessonId").value) body.id = $("#lessonId").value;
+      try{
+        const r = await fetch("/admin/course/lessons", {
+          method:"PUT", credentials:"same-origin",
+          headers:{"content-type":"application/json"}, body: JSON.stringify(body),
+        });
+        const res = await r.json().catch(()=>({}));
+        if(r.ok){ resetLessonForm(); msgTo("#lessonMsg","Урок сохранён ✓","ok"); renderCourse(); }
+        // The server names this one: only a YouTube link is accepted, and a
+        // mis-paste has to be fixable here rather than in the app.
+        else if(res.detail){ msgTo("#lessonMsg", res.detail, "bad"); }
+        else { msgTo("#lessonMsg","Не удалось сохранить урок.","bad"); }
+      }catch(e){ msgTo("#lessonMsg","Нет связи с сервером.","bad"); }
+      btn.disabled = false;
+    });
+
+    $("#entForm").addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const btn = $("#entBtn"); btn.disabled = true; msgTo("#entMsg","Сохранение…");
+      try{
+        const r = await fetch("/admin/entitlements", {
+          method:"POST", credentials:"same-origin",
+          headers:{"content-type":"application/json"},
+          body: JSON.stringify({
+            phone: $("#entPhone").value.trim(),
+            feature: "mama_course",
+            note: $("#entNote").value.trim() || undefined,
+          }),
+        });
+        if(r.ok){ $("#entPhone").value=""; $("#entNote").value="";
+          msgTo("#entMsg","Доступ открыт ✓","ok"); renderCourse(); }
+        else { msgTo("#entMsg","Проверьте номер телефона.","bad"); }
+      }catch(e){ msgTo("#entMsg","Нет связи с сервером.","bad"); }
+      btn.disabled = false;
+    });
+  }
+
+  async function renderCourse(){
+    wireCourse();
+
+    let data = null;
+    try{ data = await api("/admin/course/lessons"); }catch(e){ data = null; }
+    const list = $("#lessonList");
+    if(!data){ list.innerHTML = `<div style="color:var(--muted);padding:16px 0">Не удалось загрузить уроки.</div>`; }
+    else if(!data.lessons.length){
+      list.innerHTML = `<div style="color:var(--muted);padding:16px 0">Уроков пока нет. Добавьте первый — он появится у тех, кто купил комплект.</div>`;
+    } else {
+      list.innerHTML = data.lessons.map(l => `
+        <div class="row" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair)">
+          <span class="t" style="min-width:34px">${l.sort}</span>
+          <div style="flex:1">
+            <b>${esc(l.titleRu)}</b>${l.published?"":' <span class="t">· черновик</span>'}
+            <div class="t"><a href="${esc(l.youtubeUrl)}" target="_blank" rel="noopener">${esc(l.youtubeUrl)}</a></div>
+          </div>
+          <button type="button" class="btn sm ghost led" data-id="${esc(l.id)}">Изменить</button>
+          <button type="button" class="btn sm ghost ldel" data-id="${esc(l.id)}">Удалить</button>
+        </div>`).join("");
+
+      list.querySelectorAll(".led").forEach(b => b.addEventListener("click", () => {
+        const l = data.lessons.find(x => x.id === b.dataset.id);
+        $("#lessonId").value = l.id; $("#lessonTitle").value = l.titleRu;
+        $("#lessonTitleKk").value = l.titleKk || ""; $("#lessonUrl").value = l.youtubeUrl;
+        $("#lessonSort").value = l.sort; $("#lessonPub").checked = l.published;
+        $("#lessonBtn").textContent = "Обновить"; $("#lessonCancel").hidden = false;
+        window.scrollTo(0,0);
+      }));
+
+      list.querySelectorAll(".ldel").forEach(b => b.addEventListener("click", async () => {
+        const l = data.lessons.find(x => x.id === b.dataset.id);
+        // Deleting a lesson takes it away from people who paid for it, so it
+        // asks, and it names what is going.
+        if(!window.confirm(`Удалить урок «${l.titleRu}»? Он исчезнет у всех, кто купил комплект.`)) return;
+        try{
+          await fetch(`/admin/course/lessons/${encodeURIComponent(l.id)}`,
+            { method:"DELETE", credentials:"same-origin" });
+        }catch(e){ /* redraw below shows the truth either way */ }
+        renderCourse();
+      }));
+    }
+
+    try{
+      const { entitlements } = await api("/admin/entitlements");
+      $("#entBody").innerHTML = entitlements.map(e => `<tr>
+        <td class="num">${esc(e.phone)}</td>
+        <td class="t">${esc(stamp(e.at))}</td>
+        <td class="t">${esc(e.note || (e.orderId ? "заказ" : "вручную"))}</td>
+        <td><button type="button" class="btn sm ghost erev" data-p="${esc(e.phone)}">Закрыть</button></td>
+      </tr>`).join("") || tableNote(4,"Пока никому не открыт.");
+
+      $("#entBody").querySelectorAll(".erev").forEach(b => b.addEventListener("click", async () => {
+        if(!window.confirm(`Закрыть доступ к курсу для ${b.dataset.p}?`)) return;
+        try{
+          await fetch(`/admin/entitlements/mama_course/${encodeURIComponent(b.dataset.p)}`,
+            { method:"DELETE", credentials:"same-origin" });
+        }catch(e){ /* redraw shows the truth */ }
+        renderCourse();
+      }));
+    }catch(e){ $("#entBody").innerHTML = tableNote(4,"Не удалось загрузить список."); }
+  }
+
   // ---- Склад --------------------------------------------------------------
   //
   // Stock as a ledger. Every change here names a reason and an author, because
