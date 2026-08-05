@@ -121,17 +121,13 @@ ana-bala.kz, www.ana-bala.kz {
     #
     #     curl -H 'x-user-id: <any id>' https://ana-bala.kz/children
     #
-    # answered 200 with that family's children. Both authUser and authAdmin are
-    # header stubs until REAL_AUTH=1 and a Firebase service account are wired
-    # (docs/DEPLOY.md §5), so every user-data route is forgeable by anyone who
-    # can reach it. Nothing leaked — the database has no families in it yet —
-    # but the door was open on the public internet.
+    # answered 200 with that family's children, because the dev shortcuts were
+    # live. They are off now — gated on the presence of a database rather than
+    # on Firebase, which this deployment does not use — so the same request
+    # returns 401 and the app API below is open, defended by the app itself.
     #
-    # An allow-list also cannot rot the same way: a new route is closed by
-    # default rather than exposed by default.
-    #
-    # To open the app API, set REAL_AUTH=1 with a service account, confirm the
-    # boot guard is satisfied, and add the paths here — not before.
+    # An allow-list still cannot rot the same way: a new route is closed by
+    # default rather than exposed by default. Anything not named here 404s.
 
     # The back-office. Must come BEFORE the allow-list: Caddy takes the first
     # matching handle, and /admin is deliberately not in @public.
@@ -147,6 +143,39 @@ $ADMIN_BLOCK
     # product look broken to anyone who followed the link. Documentation for an
     # API nobody can open yet is still documentation.
     @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready /api-docs
+
+    # ---- The app ------------------------------------------------------------
+    #
+    # Opened 2026-08-05, and only because the thing that made it unsafe is
+    # fixed. Until today `curl -H 'x-user-id: <any uuid>' /children` answered
+    # 200: the dev shortcuts were gated on REAL_AUTH, which is about Firebase,
+    # and this deployment has no Firebase — so they were never off. They are now
+    # gated on the presence of a database, and the same request returns 401.
+    #
+    # /auth/phone is how a session is obtained, so it cannot require one. It is
+    # rate-limited per number in the handler and per source below.
+    #
+    # If this ever needs closing in a hurry, delete this block and re-run the
+    # script; the app degrades to its local store rather than breaking.
+    handle /auth/phone {
+        rate_limit {
+            zone app_signin {
+                key    {remote_host}
+                events 30
+                window 10m
+            }
+        }
+        reverse_proxy ${BACKEND}
+    }
+
+    @app path /auth/logout /account* /ai/* /alerts* /app/* /appointments* \
+              /calibration/* /children* /content* /contraction-sessions* \
+              /cry/* /cycle* /devices* /doses* /geofences* /growth* \
+              /ingest/* /kick-sessions* /medications* /newborn-events* \
+              /profile* /sleep* /vaccines* /vitals* /weight*
+    handle @app {
+        reverse_proxy ${BACKEND}
+    }
     handle @public {
         reverse_proxy $BACKEND
     }
@@ -258,6 +287,9 @@ printf '    basic srv: '; curl -sI https://ana-bala.kz/admin/ui | grep -qi '^www
 printf '    /shop    : HTTP '; curl -s -o /dev/null -w '%{http_code}' https://ana-bala.kz/shop
 printf ' , /shop/ HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/shop/   # both 302
 # The one that regressed once: a forged user header must NOT reach the backend.
+printf '    app signin: HTTP '; curl -s -o /dev/null -w '%{http_code}' -X POST https://ana-bala.kz/auth/phone -H 'content-type: application/json' -d '{"phone":"77000000000"}'
+printf ' , app data unauth: HTTP '; curl -s -o /dev/null -w '%{http_code}
+' https://ana-bala.kz/children   # 401
 printf '    forged id: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' \
   -H 'x-user-id: 11111111-1111-1111-1111-111111111111' https://ana-bala.kz/children   # expect 404, never 200
 echo
