@@ -165,3 +165,59 @@ describe('running out', () => {
     expect((await productById('watch')).lowStock).toBe(false);
   });
 });
+
+describe('orders and the ledger', () => {
+  it('a sale is recorded, not just subtracted', async () => {
+    // Sales were the one movement that left no trace: the count fell and the
+    // history said nothing, so the two disagreed by everything ever sold.
+    const v = await variantOf('watch');
+    await repo.moveStock({ variantId: v, delta: 10, reason: 'receipt' });
+
+    const order = await repo.placeShopOrder({
+      customerName: 'Айгерім', phone: '+7 707 000 00 00', city: 'Алматы',
+      address: 'Абая 1', items: [{ variantId: v, qty: 2 }],
+    });
+    expect(order.ok).toBe(true);
+
+    const moves = await repo.stockMoves(50, v);
+    const sale = moves.find((m) => m.reason === 'sale');
+    expect(sale, 'the sale left no ledger row').toBeTruthy();
+    expect(sale!.delta).toBe(-2);
+    expect(sale!.orderId, 'a sale that cannot be traced to its order').toBeTruthy();
+
+    const summed = moves.reduce((n, m) => n + m.delta, 0);
+    const p = await productById('watch');
+    expect(summed).toBe(p.variants.find((x) => x.id === v)!.stock);
+  });
+
+  it('cancelling an order puts the goods back', async () => {
+    // It did not, before: the order was marked cancelled and the stock stayed
+    // gone, so every cancellation quietly shrank the sellable inventory.
+    const v = await variantOf('watch');
+    await repo.moveStock({ variantId: v, delta: 10, reason: 'receipt' });
+    const order = await repo.placeShopOrder({
+      customerName: 'X', phone: '+7 700 000 00 00', city: 'Алматы',
+      address: 'Абая 1', items: [{ variantId: v, qty: 3 }],
+    });
+    expect((await productById('watch')).variants.find((x) => x.id === v)!.stock).toBe(7);
+
+    await repo.setShopOrderStatus((order as { id: string }).id, 'cancelled');
+    expect((await productById('watch')).variants.find((x) => x.id === v)!.stock).toBe(10);
+
+    const back = (await repo.stockMoves(50, v)).find((m) => m.reason === 'return');
+    expect(back!.delta).toBe(3);
+  });
+
+  it('cancelling twice does not return the stock twice', async () => {
+    const v = await variantOf('watch');
+    await repo.moveStock({ variantId: v, delta: 5, reason: 'receipt' });
+    const order = await repo.placeShopOrder({
+      customerName: 'X', phone: '+7 700 000 00 00', city: 'Алматы',
+      address: 'Абая 1', items: [{ variantId: v, qty: 1 }],
+    });
+    const id = (order as { id: string }).id;
+    await repo.setShopOrderStatus(id, 'cancelled');
+    await repo.setShopOrderStatus(id, 'cancelled');
+    expect((await productById('watch')).variants.find((x) => x.id === v)!.stock).toBe(5);
+  });
+});

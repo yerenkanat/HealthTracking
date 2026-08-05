@@ -1235,6 +1235,19 @@ export function createPgRepository(pool: Pool): Repository {
             `INSERT INTO shop_order_items (order_id, variant_id, product_name, color, qty, unit_price_minor)
              VALUES ($1,$2,$3,$4,$5,$6)`,
             [orderId, s.variantId, s.productName, s.color, s.qty, s.unit]);
+          // The sale goes in the ledger, inside the same transaction that took
+          // the stock. Written here rather than through moveStock() because the
+          // decrement above already happened under this transaction's lock —
+          // calling out would take a second lock and could deadlock against
+          // another order holding them in the other order.
+          //
+          // Without this, sales were the one kind of stock movement that left
+          // no trace: the count fell and the ledger said nothing, so the two
+          // disagreed by exactly everything ever sold.
+          await client.query(
+            `INSERT INTO shop_stock_moves (variant_id, delta, reason, order_id)
+             VALUES ($1,$2,'sale',$3)`,
+            [s.variantId, -s.qty, orderId]);
         }
         await client.query('COMMIT');
         return { ok: true, id: orderId, totalMinor: total, discountMinor: discount };
@@ -1462,7 +1475,42 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
     async setShopOrderStatus(orderId, status) {
-      await pool.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
+      // Cancelling puts the goods back on the shelf.
+      //
+      // It did not, before: the order was marked cancelled and the stock stayed
+      // gone, so every cancellation quietly shrank the sellable inventory until
+      // somebody noticed the shop was "out" of something sitting in the room.
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows: prev } = await client.query(
+          'SELECT status FROM shop_orders WHERE id = $1 FOR UPDATE', [orderId]);
+        if (!prev[0]) { await client.query('ROLLBACK'); return; }
+        const was = prev[0].status as string;
+        await client.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
+
+        // Only on the transition INTO cancelled, and only once: setting an
+        // already-cancelled order to cancelled again must not return the stock
+        // twice.
+        if (status === 'cancelled' && was !== 'cancelled') {
+          const { rows: items } = await client.query(
+            'SELECT variant_id, qty FROM shop_order_items WHERE order_id = $1', [orderId]);
+          for (const it of items) {
+            await client.query(
+              'UPDATE shop_variants SET stock = stock + $2 WHERE id = $1', [it.variant_id, it.qty]);
+            await client.query(
+              `INSERT INTO shop_stock_moves (variant_id, delta, reason, note, order_id)
+               VALUES ($1,$2,'return','заказ отменён',$3)`,
+              [it.variant_id, it.qty, orderId]);
+          }
+        }
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
     },
 
     async recordShopLead(lead) {

@@ -825,8 +825,18 @@ export function createMemoryRepository(): Repository {
       }
       const discount = bundleDiscountMinor(lines);
       const total = subtotal - discount;
-      for (const s of snap) s.variant.stock -= s.qty;
       const id = randomUUID();
+      // The sale goes in the ledger with the stock it took. Without it, sales
+      // were the one movement that left no trace: the count fell and the
+      // history said nothing, so the two disagreed by everything ever sold.
+      for (const s of snap) {
+        s.variant.stock -= s.qty;
+        stockMoves.push({
+          id: stockMoves.length + 1, variantId: s.variant.id, delta: -s.qty,
+          reason: 'sale', note: null, staffId: null, orderId: id,
+          at: new Date().toISOString(),
+        });
+      }
       shopOrders.push({
         id, customerName: o.customerName, phone: o.phone, city: o.city, address: o.address,
         note: o.note ?? null, totalMinor: total, discountMinor: discount, status: 'new', createdAt: new Date().toISOString(),
@@ -949,7 +959,24 @@ export function createMemoryRepository(): Repository {
     adminShopOrders: async (limit) => shopOrders.slice(-limit).reverse().map((o) => ({ ...o, status: o.status as ShopOrderStatus })),
     setShopOrderStatus: async (orderId, status) => {
       const o = shopOrders.find((x) => x.id === orderId);
-      if (o) o.status = status;
+      if (!o) return;
+      const was = o.status;
+      o.status = status;
+      // Cancelling puts the goods back on the shelf. Only on the transition
+      // INTO cancelled, so cancelling twice cannot return the stock twice.
+      if (status === 'cancelled' && was !== 'cancelled') {
+        for (const it of o.items) {
+          const v = shopVars.find((x) => x.color === it.color
+            && shopProds.find((p) => p.id === x.productId)?.name === it.productName);
+          if (!v) continue;
+          v.stock += it.qty;
+          stockMoves.push({
+            id: stockMoves.length + 1, variantId: v.id, delta: it.qty,
+            reason: 'return', note: 'заказ отменён', staffId: null, orderId,
+            at: new Date().toISOString(),
+          });
+        }
+      }
     },
 
     recordShopLead: async (lead) => {
