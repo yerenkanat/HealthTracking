@@ -642,3 +642,23 @@ CREATE TABLE IF NOT EXISTS user_entitlements (
   PRIMARY KEY (phone, feature)
 );
 CREATE INDEX IF NOT EXISTS user_entitlements_feature ON user_entitlements (feature);
+
+-- ---------------------------------------------------------------------------
+-- The Ма!Ма! course (migration 024). A standalone ordered series, not timeline
+-- content: it does not move with a due date, so it is not filed under a week.
+-- Videos are on YouTube and open externally — their terms require their player.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS course_lessons (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  course      TEXT NOT NULL DEFAULT 'mama',
+  title_ru    TEXT NOT NULL,
+  title_kk    TEXT,                     -- optional: Russian first, app falls back
+  youtube_url TEXT NOT NULL,
+  summary_ru  TEXT,
+  summary_kk  TEXT,
+  sort        INTEGER NOT NULL DEFAULT 0,   -- sparse, so one can be inserted between
+  published   BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS course_lessons_order ON course_lessons (course, sort, created_at);

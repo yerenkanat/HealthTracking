@@ -1295,6 +1295,50 @@ export function createPgRepository(pool: Pool): Repository {
       }
     },
 
+    // ---- The Ма!Ма! course ----
+    async courseLessons(course, publishedOnly) {
+      const { rows } = await pool.query(
+        `SELECT id, course, title_ru, title_kk, youtube_url, summary_ru, summary_kk,
+                sort, published, created_at
+           FROM course_lessons
+          WHERE course = $1 ${publishedOnly ? 'AND published = TRUE' : ''}
+          ORDER BY sort, created_at`,
+        [course]);
+      return rows.map((r) => ({
+        id: r.id, course: r.course, titleRu: r.title_ru, titleKk: r.title_kk,
+        youtubeUrl: r.youtube_url, summaryRu: r.summary_ru, summaryKk: r.summary_kk,
+        sort: r.sort, published: r.published,
+        createdAt: new Date(r.created_at).toISOString(),
+      }));
+    },
+
+    async upsertCourseLesson(l) {
+      if (l.id) {
+        const { rows } = await pool.query(
+          `UPDATE course_lessons
+              SET title_ru = $2, title_kk = $3, youtube_url = $4,
+                  summary_ru = $5, summary_kk = $6, sort = $7, published = $8,
+                  updated_at = now()
+            WHERE id = $1 RETURNING id`,
+          [l.id, l.titleRu, l.titleKk ?? null, l.youtubeUrl, l.summaryRu ?? null,
+           l.summaryKk ?? null, l.sort ?? 0, l.published ?? false]);
+        if (rows[0]) return { id: rows[0].id };
+        // Falls through to an insert: editing something that no longer exists
+        // becomes a create rather than silently doing nothing.
+      }
+      const { rows } = await pool.query(
+        `INSERT INTO course_lessons (course, title_ru, title_kk, youtube_url,
+                                     summary_ru, summary_kk, sort, published)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+        [l.course, l.titleRu, l.titleKk ?? null, l.youtubeUrl, l.summaryRu ?? null,
+         l.summaryKk ?? null, l.sort ?? 0, l.published ?? false]);
+      return { id: rows[0].id };
+    },
+
+    async deleteCourseLesson(id) {
+      await pool.query('DELETE FROM course_lessons WHERE id = $1', [id]);
+    },
+
     // ---- Entitlements ----
     async hasEntitlement(phone, feature) {
       const { rows } = await pool.query(

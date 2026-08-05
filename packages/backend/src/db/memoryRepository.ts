@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson } from './repository';
 import { bundleDiscountMinor } from './repository';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -194,6 +194,9 @@ export function createMemoryRepository(): Repository {
     { bundleId: 'combo', partId: 'watch', qty: 1 },
     { bundleId: 'combo', partId: 'tracker', qty: 1 },
   ];
+  /** The Ма!Ма! course, added one lesson at a time from the panel. */
+  const lessons: CourseLesson[] = [];
+
   /** What a phone owns: normalised phone + feature → how it was granted. */
   const entitlements = new Map<string, { phone: string; feature: string; orderId: string | null; grantedBy: string | null; note: string | null; at: string }>();
 
@@ -868,6 +871,38 @@ export function createMemoryRepository(): Repository {
           at: new Date().toISOString(),
         });
       }
+    },
+
+    // ---- The Ма!Ма! course ----
+    courseLessons: async (course, publishedOnly) =>
+      lessons
+        .filter((l) => l.course === course && (!publishedOnly || l.published))
+        .sort((a, b) => a.sort - b.sort || a.createdAt.localeCompare(b.createdAt)),
+
+    upsertCourseLesson: async (l) => {
+      const existing = l.id ? lessons.find((x) => x.id === l.id) : undefined;
+      if (existing) {
+        Object.assign(existing, {
+          titleRu: l.titleRu, titleKk: l.titleKk ?? null, youtubeUrl: l.youtubeUrl,
+          summaryRu: l.summaryRu ?? null, summaryKk: l.summaryKk ?? null,
+          sort: l.sort ?? existing.sort, published: l.published ?? existing.published,
+        });
+        return { id: existing.id };
+      }
+      const row = {
+        id: randomUUID(), course: l.course, titleRu: l.titleRu,
+        titleKk: l.titleKk ?? null, youtubeUrl: l.youtubeUrl,
+        summaryRu: l.summaryRu ?? null, summaryKk: l.summaryKk ?? null,
+        sort: l.sort ?? 0, published: l.published ?? false,
+        createdAt: new Date().toISOString(),
+      };
+      lessons.push(row);
+      return { id: row.id };
+    },
+
+    deleteCourseLesson: async (id) => {
+      const i = lessons.findIndex((x) => x.id === id);
+      if (i >= 0) lessons.splice(i, 1);
     },
 
     // ---- Entitlements ----

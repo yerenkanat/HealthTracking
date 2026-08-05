@@ -93,6 +93,9 @@ function makeDeps(
     insertGeofenceEvent: async (e) => void events.push(e),
     // Staff sign-in is exercised by staffLogin.test.ts against the memory
     // repository; this integration stub only has to satisfy the interface.
+    courseLessons: async () => [],
+    upsertCourseLesson: async () => ({ id: 'lesson-1' }),
+    deleteCourseLesson: async () => {},
     hasEntitlement: async () => false,
     grantEntitlement: async () => {},
     revokeEntitlement: async () => {},

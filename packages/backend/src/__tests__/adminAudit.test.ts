@@ -46,6 +46,9 @@ const AGGREGATES_ONLY = new Set([
   // of it would only record who looked at the record of who looked.
   'GET /admin/inventory',
   'GET /admin/inventory/moves',
+  // The course catalogue as the panel edits it — lesson titles and YouTube
+  // links. Content, not people.
+  'GET /admin/course/lessons',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

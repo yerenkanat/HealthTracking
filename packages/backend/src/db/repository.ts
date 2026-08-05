@@ -512,6 +512,23 @@ export interface Repository {
   setShopVariantStock(variantId: string, stock: number, by?: StockMoveAuthor): Promise<void>;
   addShopVariant(productId: string, color: string, colorHex: string, stock: number): Promise<void>;
 
+  // ---- The Ма!Ма! course ----
+  /// [publishedOnly] is what the app asks for; the panel asks for everything so
+  /// a draft can be worked on without appearing half-finished to a buyer.
+  courseLessons(course: string, publishedOnly: boolean): Promise<CourseLesson[]>;
+  upsertCourseLesson(l: {
+    id?: string;
+    course: string;
+    titleRu: string;
+    titleKk?: string | null;
+    youtubeUrl: string;
+    summaryRu?: string | null;
+    summaryKk?: string | null;
+    sort?: number;
+    published?: boolean;
+  }): Promise<{ id: string }>;
+  deleteCourseLesson(id: string): Promise<void>;
+
   // ---- Entitlements (what a purchase unlocks in the app) ----
   /// Does this phone own [feature]? Phone, not user id: an order is placed
   /// before an account exists, and the two are joined by the number.
@@ -708,6 +725,21 @@ export type ShopOrderResult =
  * stock control exists for ("we counted forty and it says thirty-seven")
  * unanswerable.
  */
+/** One lesson of the Ма!Ма! course. */
+export interface CourseLesson {
+  id: string;
+  course: string;
+  titleRu: string;
+  /** Optional: lessons go up in Russian first, and the app falls back to it. */
+  titleKk: string | null;
+  youtubeUrl: string;
+  summaryRu: string | null;
+  summaryKk: string | null;
+  sort: number;
+  published: boolean;
+  createdAt: string;
+}
+
 export type StockMoveReason = 'receipt' | 'sale' | 'return' | 'writeoff' | 'correction';
 
 /** Who moved it. Absent for automatic moves, e.g. an order taking stock. */

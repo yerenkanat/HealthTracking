@@ -32,6 +32,20 @@ export type AuthAdmin = (
 ) => Promise<{ staffId: string; role: StaffRole } | null>;
 export type AuthUser = (req: FastifyRequest) => Promise<{ userId: string } | null>;
 
+const lessonBody = z.object({
+  id: z.string().uuid().optional(),
+  titleRu: z.string().trim().min(1).max(200),
+  titleKk: z.string().trim().max(200).nullable().optional(),
+  // Only a YouTube link. The owner has YouTube; accepting anything else would
+  // let a broken paste through and fail in the app, where nobody can fix it.
+  youtubeUrl: z.string().trim().url().max(500)
+    .refine((u) => /(?:youtube\.com|youtu\.be)/i.test(u), 'нужна ссылка на YouTube'),
+  summaryRu: z.string().trim().max(1000).nullable().optional(),
+  summaryKk: z.string().trim().max(1000).nullable().optional(),
+  sort: z.number().int().min(0).max(100000).optional(),
+  published: z.boolean().optional(),
+});
+
 const grantBody = z.object({
   phone: z.string().min(4).max(32),
   feature: z.enum(FEATURES),
@@ -70,6 +84,57 @@ export function registerEntitlementRoutes(
       if (await repo.hasEntitlement(phone, f)) features.push(f);
     }
     return reply.send({ features });
+  });
+
+  // ---- The course itself ---------------------------------------------------
+  //
+  // Gated on the entitlement, not merely hidden in the app. A paywall the client
+  // enforces is a paywall anyone can read the JSON around.
+  app.get('/course/lessons', async (req, reply) => {
+    const u = await authUser(req);
+    if (!u) return reply.code(401).send({ error: 'unauthorized' });
+
+    const profile = await repo.getProfile(u.userId).catch(() => null);
+    const phone = normalizePhone(profile?.phone ?? '');
+    const entitled = phone ? await repo.hasEntitlement(phone, MAMA_COURSE) : false;
+
+    // 200 with entitled:false rather than 403. The app needs to SAY what this
+    // is and how to get it — a locked door with a sign on it sells the combo;
+    // a locked door with no sign looks broken.
+    if (!entitled) return reply.send({ entitled: false, lessons: [] });
+
+    return reply.send({
+      entitled: true,
+      lessons: await repo.courseLessons('mama', true),
+    });
+  });
+
+  app.get('/admin/course/lessons', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    // Everything, including drafts: this is where they are written.
+    return reply.send({ lessons: await repo.courseLessons('mama', false) });
+  });
+
+  app.put('/admin/course/lessons', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const parsed = lessonBody.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
+    }
+    const { id } = await repo.upsertCourseLesson({ course: 'mama', ...parsed.data });
+    await repo.writeAudit({ staffId: s.staffId, action: 'course_lesson_save', target: id });
+    return reply.send({ ok: true, id });
+  });
+
+  app.delete('/admin/course/lessons/:id', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    await repo.deleteCourseLesson(id);
+    await repo.writeAudit({ staffId: s.staffId, action: 'course_lesson_delete', target: id });
+    return reply.send({ ok: true });
   });
 
   // ---- Staff grant and revoke ----------------------------------------------
