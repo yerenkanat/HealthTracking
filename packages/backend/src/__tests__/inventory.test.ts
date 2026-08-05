@@ -121,12 +121,23 @@ describe('the combo', () => {
     expect(combo.priceMinor).toBeGreaterThan(0);
   });
 
-  it('is cheaper than buying the parts separately', async () => {
-    // If it is not, it is not a bundle, it is a rounding error with a name.
+  it('is priced at what the landing sells it for', async () => {
+    // 39 000 ₸, «Комплект «Мама и ребёнок»». The first version of this shipped
+    // 27 900 under a made-up name, because I assumed a bundle must be a
+    // discount and never opened the page. It is the opposite: the combo is the
+    // two devices PLUS the Ма!Ма! course, which the landing presents as a
+    // 40 000 ₸ gift — so it costs MORE than the hardware sum, and that extra is
+    // exactly what unlocks the lessons in the app.
+    const combo = await productById('combo');
+    expect(combo.priceMinor).toBe(3900000);
+    expect(combo.name).toContain('Мама и ребёнок');
+  });
+
+  it('costs more than the hardware alone, because it carries the course', async () => {
     const [watch, tracker, combo] = await Promise.all([
       productById('watch'), productById('tracker'), productById('combo'),
     ]);
-    expect(combo.priceMinor).toBeLessThan(watch.priceMinor + tracker.priceMinor);
+    expect(combo.priceMinor).toBeGreaterThan(watch.priceMinor + tracker.priceMinor);
   });
 
   it('is worth as many sets as its scarcest part allows', async () => {

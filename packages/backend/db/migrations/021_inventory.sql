@@ -98,10 +98,12 @@ CREATE INDEX IF NOT EXISTS shop_stock_moves_order ON shop_stock_moves (order_id)
 -- The combo the landing already sells
 -- ---------------------------------------------------------------------------
 --
--- Priced separately on purpose: a bundle is cheaper than its parts, which is
--- the whole reason to offer one. The price here is the one the landing shows.
+-- The price the landing shows. NOT a discount: this is the two devices plus
+-- the Ма!Ма! course, presented on the page as a 40 000 ₸ gift, so it costs more
+-- than the hardware sum (24 900 + 4 900). Corrected in 022 after 021 shipped an
+-- invented 27 900.
 INSERT INTO shop_products (id, name, price_minor, kind, active, sort)
-VALUES ('combo', 'Комплект: часы + брелок', 2790000, 'bundle', TRUE, 3)
+VALUES ('combo', 'Комплект «Мама и ребёнок»', 3900000, 'bundle', TRUE, 3)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO shop_bundle_items (bundle_id, part_id, qty) VALUES

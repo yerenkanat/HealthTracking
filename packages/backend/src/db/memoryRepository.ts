@@ -185,8 +185,10 @@ export function createMemoryRepository(): Repository {
   const shopProds: ShopProdRow[] = [
     { id: 'watch', name: 'Смарт-часы Ana-Bala', priceMinor: 2490000, sort: 1, kind: 'simple' },
     { id: 'tracker', name: 'Детский трекер Ana-Bala', priceMinor: 490000, sort: 2, kind: 'simple' },
-    // Cheaper than the parts bought separately — the whole reason to offer one.
-    { id: 'combo', name: 'Комплект: часы + брелок', priceMinor: 2790000, sort: 3, kind: 'bundle' },
+    // The two devices PLUS the Ма!Ма! course, which the landing presents as a
+    // 40 000 ₸ gift — so it costs MORE than the hardware sum, not less. A
+    // bundle here is an upsell carrying content, not a volume discount.
+    { id: 'combo', name: 'Комплект «Мама и ребёнок»', priceMinor: 3900000, sort: 3, kind: 'bundle' },
   ];
   const bundleItems: Array<{ bundleId: string; partId: string; qty: number }> = [
     { bundleId: 'combo', partId: 'watch', qty: 1 },
