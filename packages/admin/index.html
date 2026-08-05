@@ -578,6 +578,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/></svg>
       Безопасность
     </button>
+    <button type="button" class="nav" data-view="stock">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+      Склад
+    </button>
     <button type="button" class="nav" data-view="shop">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       Магазин <span class="badge" id="shopBadge" hidden></span>
@@ -951,6 +955,45 @@
       </section>
 
       <!-- SHOP: inventory (per-colour stock) + orders to fulfil -->
+      <!-- СКЛАД — stock as a ledger, not a number.
+           The Магазин tab still edits the storefront (settings, orders, colour
+           counts). This is the warehouse: what each product costs, what it
+           sells for, how many are really there, and why that changed. -->
+      <section class="view" id="stock">
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Товары и остатки</h3>
+            <span class="sub">Приход, списание и пересчёт пишутся в историю — с автором и причиной</span></div>
+          <div id="stockLow" class="alertwarn" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            <div><b>Заканчивается</b><div class="sub" id="stockLowList"></div></div>
+          </div>
+          <div id="stockBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Добавить товар</h3>
+            <span class="sub">Код латиницей — он попадёт в ссылки и накладные</span></div>
+          <form id="prodForm" class="stafform" autocomplete="off">
+            <input id="prodId" placeholder="код: strap" required maxlength="40">
+            <input id="prodName" placeholder="Название" required maxlength="120">
+            <input id="prodPrice" type="number" min="0" step="1" placeholder="Цена, ₸" required>
+            <input id="prodCost" type="number" min="0" step="1" placeholder="Себестоимость, ₸">
+            <input id="prodLow" type="number" min="0" step="1" placeholder="Порог остатка" value="3">
+            <button class="btn" id="prodBtn" type="submit">Добавить</button>
+          </form>
+          <div id="prodMsg" class="formmsg"></div>
+        </div>
+
+        <div class="card">
+          <div class="sec-h"><h3>История движений</h3>
+            <span class="sub">Записи не редактируются: ошибка исправляется новой строкой</span></div>
+          <div class="tablewrap">
+            <table><thead><tr><th>Когда</th><th>Товар</th><th>Цвет</th><th>Что</th><th>Кол-во</th><th>Кто</th><th>Примечание</th></tr></thead>
+            <tbody id="movesBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="shop">
         <div class="card" style="margin-bottom:16px">
           <div class="sec-h"><h3>Настройки и ключи</h3><span class="sub">WhatsApp и Kaspi показываются на лендинге · API-ключи используются на сервере</span></div>
@@ -2258,7 +2301,8 @@
     audio:["Аудио","Ежедневные аудио для календарей беременности и развития"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
     audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"],
-    staff:["Персонал","Кто может входить в панель, и под какой ролью"]
+    staff:["Персонал","Кто может входить в панель, и под какой ролью"],
+    stock:["Склад","Товары, цены и остатки — с историей каждого движения"]
   };
   function go(v){
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
@@ -2288,6 +2332,7 @@
     if(v==="shop")renderShop();
     if(v==="audio")renderAudio();
     if(v==="staff")renderStaff();
+    if(v==="stock")renderStock();
     // Экстренные had no branch here at all, so the tab drew only whatever
     // renderFeeds() had left behind from the overview. Against a real server
     // with no emergencies that was an empty card — not the "Экстренных
@@ -2650,6 +2695,138 @@
     document.querySelectorAll('#audLocale button').forEach(b=>b.onclick=()=>{audLocale=b.dataset.locale;document.querySelectorAll('#audLocale button').forEach(x=>x.classList.toggle('on',x===b));renderAudio();});
     $("#audUpload").onclick=uploadAudio;
   }
+  // ---- Склад --------------------------------------------------------------
+  //
+  // Stock as a ledger. Every change here names a reason and an author, because
+  // "the number is different now" cannot answer the question stock control
+  // exists for: we counted forty and it says thirty-seven, what happened.
+  const MOVE_LABEL = {
+    receipt: "Приход", sale: "Продажа", return: "Возврат",
+    writeoff: "Списание", correction: "Пересчёт",
+  };
+  let stockWired = false;
+
+  const tenge = n => (n/100).toLocaleString("ru-RU") + " ₸";
+
+  function stockMsg(text, kind){
+    const el = $("#prodMsg"); el.textContent = text || "";
+    el.className = "formmsg" + (kind ? " " + kind : "");
+  }
+
+  function wireStock(){
+    if(stockWired) return; stockWired = true;
+    $("#prodForm").addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const btn = $("#prodBtn"); btn.disabled = true; stockMsg("Сохранение…");
+      try{
+        const r = await fetch("/admin/inventory/products", {
+          method:"PUT", credentials:"same-origin",
+          headers:{"content-type":"application/json"},
+          body: JSON.stringify({
+            id: $("#prodId").value.trim(),
+            name: $("#prodName").value.trim(),
+            // Entered in tenge, stored in tiyn — money in floating point drifts.
+            priceMinor: Math.round(Number($("#prodPrice").value || 0) * 100),
+            costMinor: $("#prodCost").value ? Math.round(Number($("#prodCost").value) * 100) : null,
+            lowStockThreshold: Number($("#prodLow").value || 3),
+          }),
+        });
+        const body = await r.json().catch(()=>({}));
+        if(r.ok){
+          $("#prodId").value=""; $("#prodName").value=""; $("#prodPrice").value=""; $("#prodCost").value="";
+          stockMsg("Товар сохранён ✓","ok"); renderStock();
+        } else if(body.detail){ stockMsg(body.detail,"bad"); }
+        else { stockMsg("Не удалось сохранить товар.","bad"); }
+      }catch(e){ stockMsg("Нет связи с сервером.","bad"); }
+      btn.disabled = false;
+    });
+  }
+
+  /// One stock movement. Refusals are named: "нельзя списать больше, чем есть"
+  /// is a different problem from a broken request, and the operator has to know
+  /// which one they hit.
+  async function moveStock(variantId, delta, reason, note){
+    try{
+      const r = await fetch("/admin/inventory/moves", {
+        method:"POST", credentials:"same-origin",
+        headers:{"content-type":"application/json"},
+        body: JSON.stringify({ variantId, delta, reason, note }),
+      });
+      const body = await r.json().catch(()=>({}));
+      if(r.ok){ renderStock(); return true; }
+      stockMsg(body.error === "insufficient_stock"
+        ? "Нельзя списать больше, чем есть на складе."
+        : "Не удалось провести движение.", "bad");
+    }catch(e){ stockMsg("Нет связи с сервером.","bad"); }
+    renderStock();
+    return false;
+  }
+
+  async function renderStock(){
+    wireStock();
+    const box = $("#stockBody");
+    let data = null;
+    try{ data = await api("/admin/inventory"); }catch(e){ data = null; }
+    if(!data){
+      box.innerHTML = `<div style="color:var(--muted);padding:16px 0">Не удалось загрузить склад.</div>`;
+      return;
+    }
+
+    const low = data.products.filter(p => p.lowStock);
+    $("#stockLow").hidden = low.length === 0;
+    $("#stockLowList").textContent = low.map(p => `${p.name} — ${p.stock} шт.`).join(" · ");
+
+    box.innerHTML = data.products.map(p => {
+      const margin = p.costMinor != null
+        ? `<span class="t">маржа ${tenge(p.priceMinor - p.costMinor)}</span>` : "";
+      // A bundle has no shelf of its own: it is an arithmetic statement about
+      // its parts, so it gets a count and no editable rows.
+      const rows = p.kind === "bundle"
+        ? `<div class="t" style="padding:8px 0">Комплект из: ${p.parts.map(x=>esc(x.partName)).join(" + ")}
+             — можно собрать <b>${p.stock}</b> шт.</div>`
+        : p.variants.map(v => `
+            <div class="row" data-vid="${esc(v.id)}" style="display:flex;gap:8px;align-items:center;padding:6px 0">
+              <span class="dot" style="background:${esc(v.colorHex)};width:12px;height:12px;border-radius:50%;display:inline-block"></span>
+              <span style="flex:1">${esc(v.color)}</span>
+              <b style="min-width:44px;text-align:right">${v.stock}</b>
+              <button type="button" class="btn sm ghost mv" data-vid="${esc(v.id)}" data-d="1">+1</button>
+              <button type="button" class="btn sm ghost mv" data-vid="${esc(v.id)}" data-d="10">+10</button>
+              <button type="button" class="btn sm ghost off" data-vid="${esc(v.id)}">Списать</button>
+            </div>`).join("")
+          || `<div class="t" style="padding:6px 0">Цветов пока нет.</div>`;
+      return `<div style="margin-bottom:18px">
+        <div class="sec-h"><h3>${esc(p.name)}${p.active?"":" · архив"}</h3>
+          <span class="sub">${tenge(p.priceMinor)} ${margin}</span></div>
+        ${rows}
+      </div>`;
+    }).join("");
+
+    box.querySelectorAll(".mv").forEach(btn => btn.addEventListener("click", () =>
+      moveStock(btn.dataset.vid, Number(btn.dataset.d), "receipt", "приход через панель")));
+
+    box.querySelectorAll(".off").forEach(btn => btn.addEventListener("click", () => {
+      // A write-off is not reversible by setting the number back — it is a
+      // separate row in a financial record — so it asks, and it asks why.
+      const why = window.prompt("Причина списания (брак, потеря, подарок):", "");
+      if(why === null) return;
+      moveStock(btn.dataset.vid, -1, "writeoff", why || "без причины");
+    }));
+
+    // History, newest first.
+    try{
+      const { moves } = await api("/admin/inventory/moves?limit=50");
+      $("#movesBody").innerHTML = moves.map(m => `<tr>
+        <td class="num t">${esc(stamp(m.at))}</td>
+        <td>${esc(m.productName)}</td>
+        <td class="t">${esc(m.color)}</td>
+        <td>${esc(MOVE_LABEL[m.reason] || m.reason)}</td>
+        <td class="num"><b style="color:${m.delta>0?"var(--good-text)":"var(--crit-text)"}">${m.delta>0?"+":""}${m.delta}</b></td>
+        <td class="t">${esc(m.staffId||"—")}</td>
+        <td class="t">${esc(m.note||"")}</td>
+      </tr>`).join("") || tableNote(7,"Движений пока не было.");
+    }catch(e){ $("#movesBody").innerHTML = tableNote(7,"Не удалось загрузить историю."); }
+  }
+
   // ---- Персонал ----------------------------------------------------------
   //
   // The roster is admin-only; the password form is not. A clinician opening
