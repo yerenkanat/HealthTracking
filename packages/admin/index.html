@@ -14,6 +14,12 @@
      !important because the point is to outrank every display rule in the file,
      including ones not written yet. */
   [hidden]{display:none!important}
+  /* Shown when nobody would hear about an outage. Warm rather than alarming:
+     it is a configuration gap, not a fire. */
+  .alertwarn{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;margin:0 0 14px;
+    border:1px solid var(--warn);background:var(--warn-soft);border-radius:12px}
+  .alertwarn svg{width:20px;height:20px;color:var(--warn-text);flex:0 0 auto;margin-top:1px}
+  .alertwarn b{color:var(--warn-text)}
 
   :root{
     --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
@@ -635,6 +641,18 @@
            same numbers on both screens means showing two different values for
            one thing on the day a query changes. -->
       <section class="view active" id="overview">
+        <!-- Shown only when nobody would be told about an outage. The site is
+             checked every few minutes and the result goes to Telegram; without
+             those credentials the checks still run and report to a journal
+             nobody reads, so silence looks exactly like health. -->
+        <div class="alertwarn" id="alertsOff" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <div>
+            <b>Оповещения не настроены</b>
+            <div class="sub">Сайт проверяется автоматически, но сообщить о сбое некому.
+              Укажите Telegram-бота в <span class="link" data-view="shop">Магазин → Настройки</span>.</div>
+          </div>
+        </div>
         <div class="kpis" id="kpis"></div>
         <div class="grid2">
           <div class="card">
@@ -1093,6 +1111,10 @@
   async function boot(){
     try{
       const s=await api("/admin/stats"); MOCK.stats=s; LIVE=true;
+      // Only meaningful against a real server; in demo mode the field is absent
+      // and the banner stays hidden rather than crying wolf.
+      const warn=document.getElementById("alertsOff");
+      if(warn) warn.hidden = s.alertsConfigured!==false;
       const m=document.getElementById("modePill"); m.textContent="Live"; m.className="modepill live";
       const lw=document.getElementById("liveWrap"); if(lw) lw.hidden=false;
     }catch(e){

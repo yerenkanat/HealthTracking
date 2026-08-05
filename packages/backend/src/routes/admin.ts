@@ -202,7 +202,27 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   app.get('/admin/stats', async (req, reply) => {
     const s = await requireStaff(req, reply);
     if (!s) return;
-    return reply.send(await repo.adminStats());
+    const stats = await repo.adminStats();
+
+    // Whether anyone would be TOLD about an outage.
+    //
+    // deploy/uptime-check.sh watches the site every few minutes and sends
+    // through the same Telegram credentials the lead notifier uses. With no
+    // token it still records state and exits non-zero — so the monitoring is
+    // working perfectly and reporting to a journal nobody reads. Silence then
+    // looks exactly like health, which is the worst thing a monitor can do.
+    //
+    // A boolean, never the credentials: this route is polled every 20 seconds
+    // by every open panel.
+    let alertsConfigured = false;
+    try {
+      const settings = await repo.getShopSettings();
+      alertsConfigured = Boolean(settings.telegramBotToken && settings.telegramChatId);
+    } catch {
+      /* settings table absent on an unmigrated database — reported as not configured */
+    }
+
+    return reply.send({ ...stats, alertsConfigured });
   });
 
   // ---- Live emergency feed ----
