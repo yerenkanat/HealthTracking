@@ -81,7 +81,26 @@ export function registerStaticPages(app: FastifyInstance): StaticPages {
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
       `<title>Ana-Bala Back-office</title></head><body>${adminBody}</body></html>`;
     for (const p of ADMIN_PANEL_PATHS) {
-      app.get(p, async (_req, reply) => reply.type('text/html').send(adminHtml));
+      app.get(p, async (_req, reply) =>
+        reply
+          .type('text/html')
+          // no-store, and it is not a nicety.
+          //
+          // This one file IS the application: every line of the panel's
+          // JavaScript is inline in it. With no cache header at all, browsers
+          // fall back to heuristic caching and happily reuse an old copy — so
+          // a person can be running a build from before a fix while the server
+          // has served the fix a dozen times. That is not hypothetical: an
+          // owner spent an evening unable to sign in, on a cached build whose
+          // login form still let the browser's own validation block the submit
+          // silently. Nothing reached the server, so nothing could be
+          // diagnosed from it.
+          //
+          // no-store rather than no-cache: this page also renders patients'
+          // names and health data, and a back office has no business being
+          // written to a shared laptop's disk cache.
+          .header('cache-control', 'no-store, must-revalidate')
+          .send(adminHtml));
     }
 
     // 302, not 301: the panel is due to move to admin.ana-bala.kz once that DNS

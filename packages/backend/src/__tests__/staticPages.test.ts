@@ -71,6 +71,17 @@ describe('the back office', () => {
     expect(res.body, 'the old brand is back in the title').not.toContain('Umay Back-office');
   });
 
+  it.each(ADMIN_PANEL_PATHS)('%s is never cached', async (path) => {
+    // This file IS the application — every line of the panel's JavaScript is
+    // inline in it. It was served with no cache header at all, so browsers
+    // applied heuristic caching and could run a build from before a fix while
+    // the server had served the fix a dozen times. An owner lost an evening to
+    // exactly that: a cached login form whose submit the browser blocked
+    // silently, so nothing ever reached the server to be diagnosed.
+    const res = await app.inject({ method: 'GET', url: path });
+    expect(res.headers['cache-control'], 'the panel may be cached').toMatch(/no-store/);
+  });
+
   it('keeps the old /admin/ui address working', async () => {
     // It has been the panel's URL for as long as the panel has existed, so it
     // is in histories, autocompletes and probably a message to a colleague.

@@ -115,8 +115,18 @@ export function registerLanding(app: FastifyInstance, dir?: string): number {
   if (!titleTag) throw new Error('landing/index.html has no <title> — rebuild it with tools/build-landing.mjs');
   const title = titleTag[1].trim();
 
+  // The HTML is what points at the content-addressed asset URLs, so a browser
+  // holding an old copy is holding an old site — new build, same page. It had
+  // no cache header at all, which leaves browsers free to invent one.
+  //
+  // Revalidate every time rather than no-store: this page is public, it is the
+  // most-hit URL on the domain, and 304s are nearly free. The assets it points
+  // at stay immutable for a year, which is where the caching actually matters.
   app.get('/', async (req, reply) =>
-    reply.type('text/html').send(before + headTags(requestBase(req), title) + after));
+    reply
+      .type('text/html')
+      .header('cache-control', 'no-cache')
+      .send(before + headTags(requestBase(req), title) + after));
 
   // ---- Crawlers ----------------------------------------------------------
   //
