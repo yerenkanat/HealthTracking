@@ -140,7 +140,12 @@ $ADMIN_BLOCK
     # they have to be listed here too — the allow-list 404s anything it does
     # not name, which is how they came to be missing on a site whose whole job
     # is to be found.
-    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready
+    # /api-docs is a static documentation page — no data, no database, and the
+    # "try it" console only sends a key the reader supplies themselves. It was
+    # 404ing because it is not under any of the prefixes above, which made the
+    # product look broken to anyone who followed the link. Documentation for an
+    # API nobody can open yet is still documentation.
+    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready /api-docs
     handle @public {
         reverse_proxy $BACKEND
     }
