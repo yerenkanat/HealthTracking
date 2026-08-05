@@ -35,6 +35,16 @@ async function boot(opts: Opts = {}) {
   const posts: string[] = [];
   /** Request bodies, for asserting what was actually sent. */
   const bodies: Array<{ path: string; body: unknown }> = [];
+  /** Every GET, for watching the poll loop. */
+  const gets: string[] = [];
+  /**
+   * Every repeating timer the panel starts, with its callback.
+   *
+   * Captured because the live poll runs every 20 seconds and no test is going
+   * to wait that long: a test that merely lets 200ms pass proves nothing about
+   * whether a tick was skipped, and passed with the guard removed.
+   */
+  const intervals: Array<{ ms: number; fn: () => void }> = [];
   // jsdom will not navigate and will not let Location be stubbed either — it
   // reports the attempt on the virtual console instead, which is the only
   // honest way to observe the reload without shaping the panel around a test.
@@ -59,9 +69,15 @@ async function boot(opts: Opts = {}) {
       window.scrollTo = () => {};
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
+      const realSetInterval = window.setInterval.bind(window);
+      (window as unknown as { setInterval: unknown }).setInterval = ((fn: () => void, ms: number, ...rest: unknown[]) => {
+        intervals.push({ ms, fn });
+        return realSetInterval(fn as never, ms, ...(rest as never[]));
+      }) as never;
 
       window.fetch = (async (path: string, init?: RequestInit) => {
         const p = String(path);
+        if (!init?.method || init.method === 'GET') gets.push(p);
         if (init?.method && init.method !== 'GET') {
           posts.push(p);
           bodies.push({ path: p, body: init.body ? JSON.parse(String(init.body)) : null });
@@ -84,7 +100,7 @@ async function boot(opts: Opts = {}) {
 
   const { window } = dom;
   await new Promise((r) => setTimeout(r, 400));
-  return { window, posts, bodies, reloaded, jsdomErrors };
+  return { window, posts, bodies, gets, intervals, reloaded, jsdomErrors };
 }
 
 const visible = (w: JSDOM['window'], id: string) =>
@@ -243,6 +259,65 @@ describe('the sign-in form lets you see what you typed', () => {
   });
 });
 
+describe('the live feed in a background tab', () => {
+  /** The panel's live poll — the slow repeating timer, not the "Ns ago" ticker. */
+  const liveTicker = (intervals: Array<{ ms: number; fn: () => void }>) => {
+    const t = intervals.filter((i) => i.ms >= 10_000).pop();
+    // Without this, a renamed or removed timer would leave the tests below
+    // asserting nothing at all, quietly.
+    expect(t, 'no live poll timer was started — these tests would prove nothing').toBeTruthy();
+    return t!;
+  };
+
+  const emergencyCalls = (gets: string[]) => gets.filter((p) => p.includes('/admin/emergencies')).length;
+
+  it('skips the tick while the tab is hidden', async () => {
+    // liveTick guards this itself. The guard is old and untested, and it is
+    // what stops a laptop left open on this page from polling all night —
+    // /admin/emergencies is audited, so those polls would also be audit rows.
+    //
+    // The tick is invoked directly. Waiting for it is not an option at a
+    // twenty-second interval, and a test that just lets 200ms pass proves
+    // nothing: the first version of this passed with the guard removed.
+    const { window, gets, intervals } = await boot();
+    const tick = liveTicker(intervals);
+
+    Object.defineProperty(window.document, 'hidden', { configurable: true, get: () => true });
+    const before = emergencyCalls(gets);
+    tick.fn();
+    tick.fn();
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(emergencyCalls(gets), 'a hidden tab kept polling').toBe(before);
+  });
+
+  it('polls normally while the tab is in front', async () => {
+    // The mirror image, and the thing that stops the fix above from being
+    // "switch the live feed off".
+    const { window, gets, intervals } = await boot();
+    const tick = liveTicker(intervals);
+
+    Object.defineProperty(window.document, 'hidden', { configurable: true, get: () => false });
+    const before = emergencyCalls(gets);
+    tick.fn();
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(emergencyCalls(gets), 'a visible tab stopped polling').toBeGreaterThan(before);
+  });
+
+  it('refreshes the moment you come back to it', async () => {
+    // Pausing must not mean stale numbers on the screen you just returned to.
+    const { window, gets } = await boot();
+    Object.defineProperty(window.document, 'hidden', { configurable: true, get: () => false });
+
+    const before = emergencyCalls(gets);
+    window.document.dispatchEvent(new window.Event('visibilitychange'));
+    await new Promise((r) => setTimeout(r, 200));
+
+    expect(emergencyCalls(gets), 'coming back should refresh immediately').toBeGreaterThan(before);
+  });
+});
+
 describe('a broken dashboard is not a sign-in problem', () => {
   it('stays on the panel when a KPI payload is incomplete', async () => {
     // Found by this file: /admin/bi answering without `devices` threw inside
@@ -259,3 +334,4 @@ describe('a broken dashboard is not a sign-in problem', () => {
     expect(window.document.getElementById('kpis')!.textContent).toMatch(/Устройств онлайн/);
   });
 });
+

@@ -9,6 +9,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { sendTelegramTest } from '../notifications/leadAlert';
+import { createAuditThrottle } from '../http/auditThrottle';
 import type { ContentItemRow, Repository } from '../db/repository';
 
 /// Pregnancy weeks 1..40 and child months 0..60 (birth to five years). Content
@@ -139,6 +140,10 @@ export type StaffRole = 'admin' | 'clinician' | 'support';
 export type AuthAdmin = (req: FastifyRequest) => Promise<{ staffId: string; role: StaffRole } | null>;
 
 export function registerAdminRoutes(app: FastifyInstance, repo: Repository, authAdmin: AuthAdmin): void {
+  // Shared by the routes the panel polls. One per server, so it survives across
+  // requests — which is the whole point.
+  const auditThrottle = createAuditThrottle();
+
   async function requireStaff(req: FastifyRequest, reply: FastifyReply) {
     const s = await authAdmin(req);
     if (!s) {
@@ -169,7 +174,12 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     const s = await requireStaff(req, reply);
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 50, 200);
-    await repo.writeAudit({ staffId: s.staffId, action: 'view_emergencies' });
+    // Throttled, not dropped: this is a live feed the panel re-fetches every
+    // 20 seconds, so an unthrottled write turned one open tab into ~4 300
+    // audit rows a day. See http/auditThrottle.ts.
+    if (auditThrottle.shouldWrite(s.staffId, 'view_emergencies')) {
+      await repo.writeAudit({ staffId: s.staffId, action: 'view_emergencies' });
+    }
     return reply.send({ emergencies: await repo.recentEmergencies(limit) });
   });
 

@@ -1184,6 +1184,9 @@
     if(agoTimer) clearInterval(agoTimer);
     if(!LIVE) return;
     lastUpdated=Date.now(); paintUpdated();
+    // liveTick already returns early when the tab is hidden — see its first
+    // line. Do not add the same check here: two copies of one rule is how they
+    // come to disagree.
     liveTimer=setInterval(liveTick, LIVE_MS);
     // A separate, cheap ticker keeps the "updated Ns ago" text honest between polls.
     agoTimer=setInterval(paintUpdated, 5000);
