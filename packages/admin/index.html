@@ -1,4 +1,20 @@
 <style>
+  /* hidden means hidden.
+     ------------------------------------------------------------------------
+     The `hidden` attribute works only through the user-agent stylesheet's
+     `display:none`, which ANY author rule setting `display` overrides. So
+     `.loginwrap{display:grid}` quietly outranked it, and the sign-in card kept
+     being painted over a fully working, fully loaded dashboard: /admin/me
+     returned 200, boot() fetched every panel, the page polled every 20
+     seconds — and the owner sat looking at a login form for two days, typing
+     a correct password into a screen that had no reason to respond.
+     Two spot fixes for this already existed further down (.nav .badge[hidden],
+     .livewrap[hidden]), each written the moment it bit somebody. This is the
+     rule they should have been.
+     !important because the point is to outrank every display rule in the file,
+     including ones not written yet. */
+  [hidden]{display:none!important}
+
   :root{
     --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
     --hair:#ECEDF3; --accent:#C15A47; --accent-soft:#F6E7E1;

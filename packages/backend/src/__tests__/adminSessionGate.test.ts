@@ -106,6 +106,7 @@ async function boot(opts: Opts = {}) {
 const visible = (w: JSDOM['window'], id: string) =>
   !(w.document.getElementById(id) as HTMLElement).hidden;
 
+
 describe('the panel says which product it belongs to', () => {
   it('shows Ana-Bala in the sidebar, not the old brand', async () => {
     // The sidebar read "Umay" with a U for a logo, next to a login card that
