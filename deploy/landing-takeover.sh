@@ -156,10 +156,20 @@ $ADMIN_BLOCK
     }
 
     header {
-        # Start HSTS at 0 and raise it only after HTTPS has been stable for a
-        # week. A bad cert with a live max-age traps every visitor on a broken
-        # site for the cached duration.
-        Strict-Transport-Security "max-age=0"
+        # HSTS, raised in stages. The risk is asymmetric: a bad certificate with
+        # a long max-age traps every visitor who has ever loaded the site on a
+        # broken page for the whole cached duration, and there is nothing the
+        # server can do about it — the browser stops asking.
+        #
+        #   0        first days, while the cert and the redirect settle
+        #   86400    now (2026-08-05): two days stable, auto-renewal working,
+        #            and uptime-check.sh watches expiry with 10 days' warning.
+        #            A mistake self-heals within a day.
+        #   31536000 after about a week at 86400 with nothing going wrong.
+        #
+        # Do not add `preload` at any point without meaning it: that one is a
+        # hardcoded browser list and getting off it takes months.
+        Strict-Transport-Security "max-age=86400"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
     }
