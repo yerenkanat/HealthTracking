@@ -10,10 +10,10 @@
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { buildServer } from './src/server';
-import { createMemoryRepository, DEMO_USER } from './src/db/memoryRepository';
+import { buildServer } from '../src/server';
+import { createMemoryRepository, DEMO_USER, DEV_STAFF_PHONE, DEV_STAFF_PASSWORD } from '../src/db/memoryRepository';
 
-const PANEL = fileURLToPath(new URL('../admin/index.html', import.meta.url));
+const PANEL = fileURLToPath(new URL('../../admin/index.html', import.meta.url));
 const repo = createMemoryRepository();
 
 const app = buildServer(
@@ -31,8 +31,34 @@ const app = buildServer(
   },
   { logger: false },
 );
+/**
+ * The session cookie the panel carries.
+ *
+ * The first version of this tool did not sign in. /admin/me answered 401, the
+ * panel sat on its login gate for the whole run, and boot() never fetched
+ * /admin/stats, /admin/bi, /admin/users or /admin/audit. Every tab still drew —
+ * clicking a nav item renders a view whether or not anyone is signed in — so
+ * the report read "16 of 16 render" while the dashboard data had never been
+ * loaded, and analytics was reported broken when it had simply never been
+ * asked for. An audit that authenticates as nobody measures nothing.
+ */
+let cookie = '';
+
+async function signIn() {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/admin/login',
+    payload: { phone: DEV_STAFF_PHONE, password: DEV_STAFF_PASSWORD },
+  });
+  if (res.statusCode !== 200) throw new Error(`sign-in failed: ${res.statusCode} ${res.body}`);
+  cookie = String(res.headers['set-cookie'] ?? '').split(';')[0];
+  if (!cookie) throw new Error('sign-in returned no cookie');
+  console.log(`signed in as ${DEV_STAFF_PHONE}`);
+}
+
 async function main() {
 await app.ready();
+await signIn();
 
 const html = readFileSync(PANEL, 'utf8');
 const vc = new VirtualConsole();
@@ -66,7 +92,7 @@ const dom = new JSDOM(html, {
         method: (init?.method ?? 'GET') as 'GET',
         url: String(path),
         payload: init?.body as string | undefined,
-        headers: init?.headers as Record<string, string>,
+        headers: { ...(init?.headers as Record<string, string>), cookie },
       });
       requests.push({ url: String(path), status: res.statusCode });
       return {
@@ -107,7 +133,18 @@ for (const v of views) {
   if (flags.length) console.log(`    ${text.slice(0, 200)}`);
 }
 
-const failed = requests.filter((r) => r.status >= 400);
+// Re-open analytics after everything has settled: if it renders the second
+// time, the first was a race against BI loading rather than a broken tab.
+  (window.document.querySelector(`.nav[data-view="analytics"]`) as HTMLElement)
+    .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 800));
+  const again = (window.document.getElementById('analytics')?.textContent ?? '').replace(/\s+/g, ' ');
+  console.log(`\nanalytics on second open: ${/недоступ/.test(again) ? 'STILL unavailable' : 'renders'} (${again.length} chars)`);
+
+  console.log('\nrequests made:');
+  for (const r of requests) console.log(`   ${r.status}  ${r.url}`);
+
+  const failed = requests.filter((r) => r.status >= 400);
 console.log(`${'─'.repeat(72)}`);
 console.log(`requests: ${requests.length}, failed: ${failed.length}`);
 for (const f of failed.slice(0, 10)) console.log(`   ${f.status}  ${f.url}`);
