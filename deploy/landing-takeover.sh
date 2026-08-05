@@ -34,9 +34,10 @@ if [ "${1:-}" = "--revert" ]; then
   latest="$(ls -1t "$CADDYFILE".bak.before-umay-* 2>/dev/null | head -1 || true)"
   [ -n "$latest" ] || { echo "no backup found"; exit 1; }
   echo "==> Restoring $latest"
-  cp -a "$latest" "$CADDYFILE"
-  # Pushed in rather than trusted to the mount — see the note further down.
-  docker cp "$CADDYFILE" "$CONTAINER:/etc/caddy/Caddyfile" >/dev/null
+  # cat, not cp -a: rewriting the file keeps its inode, and the container's
+  # bind mount follows the inode. Replacing it would detach the mount and the
+  # revert would look applied while changing nothing — see the note further down.
+  cat "$latest" > "$CADDYFILE"
   reload
   echo "==> Reverted."
   exit 0
@@ -186,18 +187,40 @@ docker cp "$CADDYFILE" "$CONTAINER:/etc/caddy/Caddyfile.candidate" >/dev/null
 if ! docker exec "$CONTAINER" caddy validate --config /etc/caddy/Caddyfile.candidate >/dev/null 2>&1; then
   echo "!! Does not validate — restoring the backup, nothing was applied"
   docker exec "$CONTAINER" caddy validate --config /etc/caddy/Caddyfile.candidate 2>&1 | tail -5
-  cp -a "$BACKUP" "$CADDYFILE"
+  cat "$BACKUP" > "$CADDYFILE"   # rewrite, not replace: keeps the inode the mount follows
   exit 1
 fi
 echo "==> Config validates"
 
-docker cp "$CADDYFILE" "$CONTAINER:/etc/caddy/Caddyfile" >/dev/null
-IN_SUM="$(docker exec "$CONTAINER" sha256sum /etc/caddy/Caddyfile | cut -d' ' -f1)"
+# Getting the file INTO the container.
+#
+# Not `docker cp` onto /etc/caddy/Caddyfile: that path is a bind-mount point,
+# and Docker refuses with "device or resource busy". (An earlier version of this
+# script did exactly that and died here every run, after reporting that the
+# config validated — so it looked like a deploy right up to the point it wasn't.)
+#
+# The mount is the delivery mechanism. It works, as long as it still points at
+# the inode we just wrote: a bind-mounted FILE follows the inode, not the path,
+# and anything that replaces the file rather than rewriting it detaches the
+# container silently. So: compare, and if they differ, restart to re-resolve the
+# mount and compare again. A restart costs about two seconds of 502s.
+container_sum() { docker exec "$CONTAINER" sha256sum /etc/caddy/Caddyfile | cut -d' ' -f1; }
+
+if [ "$HOST_SUM" != "$(container_sum)" ]; then
+  echo "==> The container is reading a stale inode — restarting to re-resolve the mount"
+  docker restart "$CONTAINER" >/dev/null
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 2
+    curl -sf -o /dev/null "https://ana-bala.kz/health" && break
+  done
+fi
+
+IN_SUM="$(container_sum)"
 if [ "$HOST_SUM" != "$IN_SUM" ]; then
-  echo "!! The container is not reading the file we wrote — refusing to claim a deploy"
+  echo "!! The container is still not reading the file we wrote — refusing to claim a deploy"
   echo "   host:      $HOST_SUM"
   echo "   container: $IN_SUM"
-  cp -a "$BACKUP" "$CADDYFILE"
+  cat "$BACKUP" > "$CADDYFILE"   # rewrite, not replace: keeps the inode the mount follows
   exit 1
 fi
 echo "==> The container has exactly this file"
