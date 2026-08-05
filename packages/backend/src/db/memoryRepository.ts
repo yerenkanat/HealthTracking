@@ -231,7 +231,10 @@ export function createMemoryRepository(): Repository {
   const dailyAudio = new Map<string, AudioRow>(); // key: `${track}|${day}|${locale}`
   const shopSettings = new Map<string, string>();
 
-  return {
+  // Named rather than returned anonymously so a method can call a sibling —
+  // the dashboard snapshot reuses adminBiMetrics and adminProducts instead of
+  // restating how "active" and "low stock" are defined.
+  const repository: Repository = {
     // Health
     insertHealthMetric: async (m) => {
       const key = `${m.userId}|${m.deviceId}|${m.recordedAt}`;
@@ -772,6 +775,87 @@ export function createMemoryRepository(): Repository {
       return computeBiMetrics({ ...pop, now });
     },
 
+    dashboardSnapshot: async (asOf) => {
+      // Everything below is counted off the rows this process actually holds,
+      // EXCEPT the activity figures, which come from adminBiMetrics and are
+      // synthetic here (one account cannot produce a retention curve). Keeping
+      // the counts real means an order placed in development moves the revenue
+      // on the screen, which is the whole point of having this in memory mode.
+      const bi = await repository.adminBiMetrics();
+      const n = (v: number) => v;
+      const kidsByUser = new Map<string, number>();
+      for (const c of children) kidsByUser.set(c.userId, (kidsByUser.get(c.userId) ?? 0) + 1);
+
+      const today = asOf.slice(0, 10);
+      const users = [...new Set([...usersByPhone.values(), DEMO_USER])];
+      const dueDate = profile?.dueDate ?? null;
+      const isPregnant = !!dueDate && dueDate >= today;
+      const hasKids = (kidsByUser.get(DEMO_USER) ?? 0) > 0;
+
+      const revenue = shopOrders
+        .filter((o) => o.status === 'shipped' || o.status === 'delivered')
+        .reduce((t, o) => t + o.totalMinor, 0);
+      const shipped = shopOrders.filter((o) => o.status === 'shipped' || o.status === 'delivered').length;
+      const countStatus = (s: string) => shopOrders.filter((o) => o.status === s).length;
+
+      // Bundles hold no stock of their own; counting them double-counts parts.
+      const simpleIds = new Set(shopProds.filter((p) => (p.kind ?? 'simple') !== 'bundle').map((p) => p.id));
+      let units = 0, retail = 0, cost = 0, unitsNoCost = 0;
+      for (const v of shopVars) {
+        if (!simpleIds.has(v.productId)) continue;
+        const p = shopProds.find((x) => x.id === v.productId)!;
+        units += v.stock;
+        retail += v.stock * p.priceMinor;
+        if (p.costMinor != null) cost += v.stock * p.costMinor;
+        else unitsNoCost += v.stock;
+      }
+
+      const cityOf = (profile?.city ?? '').trim();
+      return {
+        asOf,
+        users: {
+          total: users.length,
+          newToday: 0, new7d: 0, new30d: 0,
+          dau: bi.dau, wau: bi.wau, mau: bi.mau,
+          retentionD7: bi.retention.d7.cohort > 0 ? bi.retention.d7.rate : null,
+        },
+        mothers: {
+          pregnant: isPregnant ? 1 : 0,
+          mothers: hasKids ? 1 : 0,
+          both: isPregnant && hasKids ? 1 : 0,
+          unknown: !isPregnant && !hasKids ? users.length : Math.max(0, users.length - 1),
+        },
+        children: computeChildrenStats(
+          children.map((c) => ({ gender: c.gender ?? null, dateOfBirth: c.dateOfBirth ?? null })),
+          asOf,
+        ),
+        devices: {
+          total: devices.length,
+          online: 0,
+          watches: devices.filter((d) => d.kind === 'band').length,
+          trackers: devices.filter((d) => d.kind === 'tag').length,
+          unassigned: devices.filter((d) => d.kind === 'tag' && !d.childId).length,
+        },
+        cities: cityOf ? [{ city: cityOf, users: 1 }] : [],
+        citiesUnknown: cityOf ? Math.max(0, users.length - 1) : users.length,
+        commerce: {
+          leads: { total: shopLeads.length, new: shopLeads.filter((l) => l.status === 'new').length },
+          orders: {
+            total: shopOrders.length, new: countStatus('new'), confirmed: countStatus('confirmed'),
+            shipped: countStatus('shipped'), delivered: countStatus('delivered'),
+            cancelled: countStatus('cancelled'),
+          },
+          revenueMinor: revenue,
+          pipelineMinor: shopOrders
+            .filter((o) => o.status === 'new' || o.status === 'confirmed')
+            .reduce((t, o) => t + o.totalMinor, 0),
+          avgOrderMinor: shipped > 0 ? Math.round(revenue / shipped) : null,
+          stock: { units: n(units), retailMinor: retail, costMinor: cost, unitsWithoutCost: unitsNoCost },
+          lowStock: (await repository.adminProducts()).filter((p) => p.lowStock).map((p) => p.id),
+        },
+      };
+    },
+
     adminAnalytics: async () => {
       let items = 0, linked = 0;
       for (const list of content.values()) {
@@ -1120,4 +1204,5 @@ export function createMemoryRepository(): Repository {
     },
     deleteDailyAudio: async (track, day, locale) => void dailyAudio.delete(`${track}|${day}|${locale}`),
   };
+  return repository;
 }

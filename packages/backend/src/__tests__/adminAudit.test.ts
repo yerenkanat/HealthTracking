@@ -49,6 +49,11 @@ const AGGREGATES_ONLY = new Set([
   // The course catalogue as the panel edits it — lesson titles and YouTube
   // links. Content, not people.
   'GET /admin/course/lessons',
+  // The business snapshot behind the Dashboard: counts of users, children,
+  // devices and cities, plus shop totals. Every field is an aggregate — no row
+  // here identifies anybody — and it is the panel's landing screen, so
+  // auditing it would write a row every time somebody opens the back office.
+  'GET /admin/dashboard',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

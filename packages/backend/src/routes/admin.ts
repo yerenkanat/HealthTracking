@@ -356,6 +356,20 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.send(await repo.adminBiMetrics());
   });
 
+  /**
+   * The Dashboard: what this business is, as of one instant.
+   *
+   * Admin rather than staff, unlike /admin/bi. Nothing here identifies a
+   * person, but revenue, margin and stock value together are the commercial
+   * position of the company, which is not the same category of thing as a
+   * retention curve.
+   */
+  app.get('/admin/dashboard', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    return reply.send(await repo.dashboardSnapshot(new Date().toISOString()));
+  });
+
   // ---- Timeline content (the CMS) ----
   // Reading the catalogue is open to any staff; CHANGING what every user sees
   // — including what is offered for sale — is an admin action and is audited.

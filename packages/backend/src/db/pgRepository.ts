@@ -983,6 +983,129 @@ export function createPgRepository(pool: Pool): Repository {
       });
     },
 
+    async dashboardSnapshot(asOf) {
+      // One round trip per subject area rather than per number: the panel used
+      // to stitch six endpoints together and the totals on screen were as of
+      // six different instants, so "12 users, 13 cities" was reachable and
+      // looked like a bug in the arithmetic.
+      const [users, mothers, devices, cities, leads, orders, stock, childRows] = await Promise.all([
+        pool.query(`
+          SELECT count(*) AS total,
+                 count(*) FILTER (WHERE created_at >= date_trunc('day', now())) AS new_today,
+                 count(*) FILTER (WHERE created_at > now() - interval '7 days') AS new_7d,
+                 count(*) FILTER (WHERE created_at > now() - interval '30 days') AS new_30d,
+                 -- Counted here, not by subtracting the top-N city list: with
+                 -- more cities than that list shows, the subtraction reports
+                 -- every user beyond the 12th city as "city unknown".
+                 count(*) FILTER (WHERE city IS NULL OR btrim(city) = '') AS no_city
+            FROM users`),
+        // Pregnant and mother deliberately overlap — see DashboardSnapshot.
+        pool.query(`
+          SELECT count(*) FILTER (WHERE u.due_date IS NOT NULL AND u.due_date >= current_date) AS pregnant,
+                 count(*) FILTER (WHERE k.n > 0) AS mothers,
+                 count(*) FILTER (WHERE u.due_date IS NOT NULL AND u.due_date >= current_date AND k.n > 0) AS both,
+                 count(*) FILTER (WHERE (u.due_date IS NULL OR u.due_date < current_date) AND k.n = 0) AS unknown
+            FROM users u
+            LEFT JOIN LATERAL (SELECT count(*) AS n FROM children c WHERE c.guardian_id = u.id) k ON TRUE`),
+        pool.query(`
+          SELECT count(*) AS total,
+                 count(*) FILTER (WHERE last_seen > now() - interval '24 hours') AS online,
+                 count(*) FILTER (WHERE kind = 'band') AS watches,
+                 count(*) FILTER (WHERE kind = 'tag') AS trackers,
+                 count(*) FILTER (WHERE kind = 'tag' AND child_id IS NULL) AS unassigned
+            FROM devices`),
+        // Trimmed and case-folded: "Алматы", "алматы " and "Алматы" are one
+        // city, and three rows of the same place is not a distribution.
+        pool.query(`
+          SELECT initcap(btrim(city)) AS city, count(*)::int AS users
+            FROM users
+           WHERE city IS NOT NULL AND btrim(city) <> ''
+           GROUP BY initcap(btrim(city))
+           ORDER BY users DESC, city ASC
+           LIMIT 12`),
+        pool.query(`
+          SELECT count(*) AS total, count(*) FILTER (WHERE status = 'new') AS fresh
+            FROM shop_leads`),
+        pool.query(`
+          SELECT count(*) AS total,
+                 count(*) FILTER (WHERE status = 'new') AS s_new,
+                 count(*) FILTER (WHERE status = 'confirmed') AS s_confirmed,
+                 count(*) FILTER (WHERE status = 'shipped') AS s_shipped,
+                 count(*) FILTER (WHERE status = 'delivered') AS s_delivered,
+                 count(*) FILTER (WHERE status = 'cancelled') AS s_cancelled,
+                 -- Earned means it left the building. A 'new' order is a phone
+                 -- call, and counting it as revenue overstates the month.
+                 COALESCE(sum(total_minor) FILTER (WHERE status IN ('shipped','delivered')), 0) AS revenue,
+                 COALESCE(sum(total_minor) FILTER (WHERE status IN ('new','confirmed')), 0) AS pipeline
+            FROM shop_orders`),
+        // Bundles hold no stock of their own, so counting them would count
+        // their parts twice.
+        pool.query(`
+          SELECT COALESCE(sum(v.stock), 0)::int AS units,
+                 COALESCE(sum(v.stock * p.price_minor), 0)::bigint AS retail,
+                 COALESCE(sum(v.stock * p.cost_minor) FILTER (WHERE p.cost_minor IS NOT NULL), 0)::bigint AS cost,
+                 COALESCE(sum(v.stock) FILTER (WHERE p.cost_minor IS NULL), 0)::int AS units_no_cost
+            FROM shop_variants v
+            JOIN shop_products p ON p.id = v.product_id
+           WHERE COALESCE(p.kind, 'simple') <> 'bundle'`),
+        pool.query(`SELECT gender, date_of_birth FROM children`),
+      ]);
+
+      const u = users.rows[0] ?? {}, m = mothers.rows[0] ?? {}, d = devices.rows[0] ?? {};
+      const l = leads.rows[0] ?? {}, o = orders.rows[0] ?? {}, s = stock.rows[0] ?? {};
+      const n = (v: unknown) => Number(v ?? 0);
+
+      // DAU/WAU/MAU and retention come from the same definitions the Аналитика
+      // tab uses — two dashboards disagreeing about "active" is worse than one
+      // extra query.
+      const bi = await this.adminBiMetrics();
+      const shipped = n(o.s_shipped) + n(o.s_delivered);
+
+      // Which products are at or below their threshold. adminProducts already
+      // derives bundle stock from parts and flags low stock one way.
+      const lowStock = (await this.adminProducts()).filter((p) => p.lowStock).map((p) => p.id);
+
+      return {
+        asOf,
+        users: {
+          total: n(u.total), newToday: n(u.new_today), new7d: n(u.new_7d), new30d: n(u.new_30d),
+          dau: bi.dau, wau: bi.wau, mau: bi.mau,
+          retentionD7: bi.retention.d7.cohort > 0 ? bi.retention.d7.rate : null,
+        },
+        mothers: {
+          pregnant: n(m.pregnant), mothers: n(m.mothers), both: n(m.both), unknown: n(m.unknown),
+        },
+        children: computeChildrenStats(
+          childRows.rows.map((r) => ({
+            gender: r.gender as string | null,
+            dateOfBirth: r.date_of_birth ? new Date(r.date_of_birth as string).toISOString().slice(0, 10) : null,
+          })),
+          asOf,
+        ),
+        devices: {
+          total: n(d.total), online: n(d.online), watches: n(d.watches),
+          trackers: n(d.trackers), unassigned: n(d.unassigned),
+        },
+        cities: cities.rows.map((r) => ({ city: String(r.city), users: n(r.users) })),
+        citiesUnknown: n(u.no_city),
+        commerce: {
+          leads: { total: n(l.total), new: n(l.fresh) },
+          orders: {
+            total: n(o.total), new: n(o.s_new), confirmed: n(o.s_confirmed),
+            shipped: n(o.s_shipped), delivered: n(o.s_delivered), cancelled: n(o.s_cancelled),
+          },
+          revenueMinor: n(o.revenue),
+          pipelineMinor: n(o.pipeline),
+          avgOrderMinor: shipped > 0 ? Math.round(n(o.revenue) / shipped) : null,
+          stock: {
+            units: n(s.units), retailMinor: n(s.retail), costMinor: n(s.cost),
+            unitsWithoutCost: n(s.units_no_cost),
+          },
+          lowStock,
+        },
+      };
+    },
+
     async adminAnalytics() {
       const { rows } = await pool.query(`
         SELECT (SELECT count(*) FROM users) AS total_users,

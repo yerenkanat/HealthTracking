@@ -536,7 +536,7 @@
     </div>
     <button type="button" class="nav active" data-view="overview" aria-current="page">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-      Обзор
+      Dashboard
     </button>
     <button type="button" class="nav" data-view="emergencies">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
@@ -624,7 +624,7 @@
   <div class="main">
     <div class="top">
       <div>
-        <h1 id="pageTitle">Обзор</h1>
+        <h1 id="pageTitle">Dashboard</h1>
         <!-- Filled from `titles` on every navigation. Static text here is what
              the very first paint shows, and it was the one English sentence
              left on the default screen. -->
@@ -661,6 +661,47 @@
               Укажите Telegram-бота в <span class="link" data-view="shop">Магазин → Настройки</span>.</div>
           </div>
         </div>
+        <!-- The business, top to bottom: how many people, who they are, what
+             they own, where they are, and what the shop has done. Every number
+             on this screen comes from ONE call and is stamped with one instant
+             — the panel used to stitch six endpoints together, so two cards
+             could disagree and it looked like an arithmetic bug. -->
+        <div class="kpis" id="dashKpis"></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Кто пользуется приложением</h3><span class="sub">беременность и материнство</span></div>
+            <div class="cardbody" id="dashAudience"><div class="sub">Загрузка…</div></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Дети</h3><span class="link" data-view="kids">Подробно</span></div>
+            <div class="cardbody" id="dashKids"><div class="sub">Загрузка…</div></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>География</h3><span class="sub">где живут пользователи</span></div>
+            <div class="cardbody" id="dashCities"><div class="sub">Загрузка…</div></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Устройства</h3><span class="link" data-view="devices">Парк</span></div>
+            <div class="cardbody" id="dashDevices"><div class="sub">Загрузка…</div></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Продажи</h3><span class="link" data-view="shop">Магазин</span></div>
+            <div class="cardbody" id="dashCommerce"><div class="sub">Загрузка…</div></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Склад</h3><span class="link" data-view="stock">Остатки</span></div>
+            <div class="cardbody" id="dashStock"><div class="sub">Загрузка…</div></div>
+          </div>
+        </div>
+
+        <!-- Operations: what is happening this minute, as opposed to what this
+             business is. Different question, different reader, so it sits
+             below rather than mixed into the numbers above. -->
+        <div class="sec-h" style="padding-left:0;margin-top:26px"><h3>Что происходит сейчас</h3><span class="sub" id="dashAsOf">—</span></div>
         <div class="kpis" id="kpis"></div>
         <div class="grid2">
           <div class="card">
@@ -1430,6 +1471,214 @@
        delta:b?.dauSeries?trend(b.dauSeries):"эндпоинт метрик недоступен"}
     ];
     $("#kpis").innerHTML=tiles.map(kpiTile).join("");
+  }
+
+  // ---- Dashboard: the business, not the product ----
+  //
+  // Аналитика below answers "how is the product being used" — DAU, retention,
+  // funnels. This answers "what is this business": how many mothers, what they
+  // own, where they live, and what the shop has taken. Two different questions
+  // read by two different people, so they are two screens.
+  //
+  // One fetch, one instant. Every card here reads the same snapshot, because
+  // six endpoints rendered together produced totals that disagreed with each
+  // other and looked like broken arithmetic.
+  let DASH=null;
+
+  const tng=m=>fmt(Math.round((m||0)/100))+" ₸";
+  /** "нет данных" that says WHY, so an empty card is not read as a broken one. */
+  const dashEmpty=t=>`<div class="sub">${t}</div>`;
+
+  /**
+   * Is this a snapshot we can draw, or something else that happened to be 200?
+   *
+   * A backend one deploy behind — or any handler that answers `{}` — used to
+   * pass the truthiness check and then throw inside the first card, taking the
+   * rest of the screen with it. Checked once here so each renderer can trust
+   * the shape it reads.
+   */
+  function dashUsable(d){
+    return !!d && !!d.users && !!d.mothers && !!d.children && !!d.devices
+      && !!d.commerce && !!d.commerce.orders && !!d.commerce.stock;
+  }
+
+  async function loadDashboard(){
+    try{
+      const d=await api("/admin/dashboard");
+      // Deliberately null rather than a partial object: every renderer below
+      // says "недоступно" instead of painting zeroes, which on a business
+      // dashboard would read as "we sold nothing".
+      DASH=dashUsable(d)?d:null;
+    }
+    catch(e){ DASH=null; }
+    renderDashboard();
+  }
+
+  function renderDashboard(){
+    renderDashKpis();
+    renderDashAudience();
+    renderDashKids();
+    renderDashCities();
+    renderDashDevices();
+    renderDashCommerce();
+    renderDashStock();
+    const el=$("#dashAsOf");
+    if(el) el.textContent=DASH?("данные на "+new Date(DASH.asOf).toLocaleString("ru-RU")):"—";
+  }
+
+  const DASH_OFF=`<div class="sub">Сводка недоступна — бэкенд не ответил на /admin/dashboard.</div>`;
+
+  function renderDashKpis(){
+    const el=$("#dashKpis"); if(!el) return;
+    if(!DASH){ el.innerHTML=`<div class="card kpi">${DASH_OFF}</div>`; return; }
+    const d=DASH, c=d.commerce;
+    const unshipped=c.orders.new+c.orders.confirmed;
+    el.innerHTML=[
+      {lbl:"Пользователей",dot:"var(--accent)",val:d.users.total,
+       delta:d.users.new30d?`+${fmt(d.users.new30d)} за 30 дней`:"новых за 30 дней нет"},
+      {lbl:"Выручка · отгружено",dot:"var(--good)",val:tng(c.revenueMinor),
+       delta:c.avgOrderMinor!=null?`средний чек ${tng(c.avgOrderMinor)}`:"продаж ещё не было"},
+      {lbl:"Заказы в работе",dot:unshipped?"var(--warn)":"var(--muted)",val:unshipped,
+       delta:c.pipelineMinor?`на ${tng(c.pipelineMinor)}`:"всё отгружено"},
+      {lbl:"Устройств у семей",dot:"var(--accent)",val:d.devices.total,
+       delta:`часы ${fmt(d.devices.watches)} · трекеры ${fmt(d.devices.trackers)}`}
+    ].map(kpiTile).join("");
+  }
+
+  function renderDashAudience(){
+    const el=$("#dashAudience"); if(!el) return;
+    if(!DASH){ el.innerHTML=DASH_OFF; return; }
+    const m=DASH.mothers, total=DASH.users.total;
+    if(!total){ el.innerHTML=dashEmpty("Пока нет ни одного аккаунта."); return; }
+    // Shares of the whole base, not of each other: these three categories
+    // overlap, so they do not add to 100% and must not be drawn as if they do.
+    el.innerHTML=
+      mrow("Ждут ребёнка",{value:`${fmt(m.pregnant)} <span class="unit">· ${pct(m.pregnant/total)}</span>`,
+        frac:m.pregnant/total,color:"var(--accent)"})+
+      mrow("Уже мамы",{value:`${fmt(m.mothers)} <span class="unit">· ${pct(m.mothers/total)}</span>`,
+        frac:m.mothers/total,color:"var(--good)"})+
+      mrow("И то, и другое",{value:fmt(m.both),note:"беременны, и ребёнок уже есть",
+        frac:m.both/total,color:"var(--warn)"})+
+      mrow("Ничего не указано",{value:`${fmt(m.unknown)} <span class="unit">· ${pct(m.unknown/total)}</span>`,
+        frac:m.unknown/total,color:"var(--muted)"})+
+      note(`Доли считаются от всей базы и НЕ складываются в 100%: мама, ждущая
+            второго, попадает в обе строки. Столбец «ничего не указано» — это
+            те, кто не заполнил ни срок родов, ни ребёнка, а не бездетные.`);
+  }
+
+  function renderDashKids(){
+    const el=$("#dashKids"); if(!el) return;
+    if(!DASH){ el.innerHTML=DASH_OFF; return; }
+    const k=DASH.children;
+    if(!k.total){ el.innerHTML=dashEmpty("Детей в аккаунтах пока нет."); return; }
+    const scale=Math.max(1,k.boys,k.girls,k.unknown);
+    let html=
+      mrow("Мальчики",{value:`${fmt(k.boys)} <span class="unit">· ${pct(k.boys/k.total)}</span>`,frac:k.boys/scale,color:"var(--accent)"})+
+      mrow("Девочки",{value:`${fmt(k.girls)} <span class="unit">· ${pct(k.girls/k.total)}</span>`,frac:k.girls/scale,color:"var(--crit)"});
+    if(k.unknown) html+=mrow("Пол не указан",{value:fmt(k.unknown),frac:k.unknown/scale,color:"var(--muted)"});
+    if(k.withDob){
+      const amax=Math.max(1,...k.byAge.map(b=>b.count));
+      html+=`<div class="dsec" style="margin-top:14px">По возрасту · лет</div>`+
+        k.byAge.map(b=>mrow(b.bucket,{value:fmt(b.count),frac:b.count/amax,color:"var(--good)"})).join("");
+    }
+    html+=note(`Возраст считается только по детям с датой рождения — их
+                ${fmt(k.withDob)} из ${fmt(k.total)}. Остальные не распределены
+                по возрастам, а не отнесены к младшей группе.`);
+    el.innerHTML=html;
+  }
+
+  function renderDashCities(){
+    const el=$("#dashCities"); if(!el) return;
+    if(!DASH){ el.innerHTML=DASH_OFF; return; }
+    const cs=DASH.cities||[], unknown=DASH.citiesUnknown||0;
+    if(!cs.length){
+      el.innerHTML=dashEmpty(unknown
+        ?`Город не указан ни у кого из ${fmt(unknown)} пользователей — поле в профиле необязательное.`
+        :"Пока нет пользователей.");
+      return;
+    }
+    const max=Math.max(1,...cs.map(c=>c.users));
+    el.innerHTML=cs.map(c=>mrow(c.city,{value:fmt(c.users),frac:c.users/max,color:"var(--accent)"})).join("")+
+      (unknown?mrow("Не указан",{value:fmt(unknown),frac:unknown/max,color:"var(--muted)"}):"")+
+      note(`Город — необязательное поле профиля, поэтому это распределение тех,
+            кто его заполнил, а не всей базы. Показаны 12 крупнейших.`);
+  }
+
+  function renderDashDevices(){
+    const el=$("#dashDevices"); if(!el) return;
+    if(!DASH){ el.innerHTML=DASH_OFF; return; }
+    const d=DASH.devices;
+    if(!d.total){ el.innerHTML=dashEmpty("Ни одно устройство ещё не подключено."); return; }
+    const scale=Math.max(1,d.watches,d.trackers);
+    let html=
+      mrow("Часы мамы",{value:fmt(d.watches),frac:d.watches/scale,color:"var(--accent)"})+
+      mrow("Детские трекеры",{value:fmt(d.trackers),frac:d.trackers/scale,color:"var(--good)"})+
+      mrow("На связи за сутки",{value:`${fmt(d.online)} <span class="unit">· ${pct(d.online/d.total)}</span>`,
+        frac:d.online/d.total,color:d.online?"var(--good)":"var(--muted)"});
+    // A tracker attached to no child is a device nobody is being watched by —
+    // worth naming, because it looks like coverage in every other count.
+    if(d.unassigned){
+      html+=mrow("Трекер без ребёнка",{value:fmt(d.unassigned),note:"никого не отслеживает",
+        frac:d.unassigned/scale,color:"var(--warn)"});
+    }
+    el.innerHTML=html+note(`«На связи» — устройства, приславшие что-либо за
+      последние 24 часа. Часы, лежащие в коробке, остаются в общем счётчике,
+      но не здесь.`);
+  }
+
+  function renderDashCommerce(){
+    const el=$("#dashCommerce"); if(!el) return;
+    if(!DASH){ el.innerHTML=DASH_OFF; return; }
+    const c=DASH.commerce, o=c.orders;
+    if(!o.total&&!c.leads.total){ el.innerHTML=dashEmpty("Заказов и заявок пока нет."); return; }
+    const scale=Math.max(1,o.new,o.confirmed,o.shipped,o.delivered,o.cancelled);
+    el.innerHTML=
+      mrow("Новые",{value:fmt(o.new),frac:o.new/scale,color:"var(--warn)"})+
+      mrow("Подтверждены",{value:fmt(o.confirmed),frac:o.confirmed/scale,color:"var(--accent)"})+
+      mrow("Отправлены",{value:fmt(o.shipped),frac:o.shipped/scale,color:"var(--good)"})+
+      mrow("Доставлены",{value:fmt(o.delivered),frac:o.delivered/scale,color:"var(--good)"})+
+      mrow("Отменены",{value:fmt(o.cancelled),frac:o.cancelled/scale,color:"var(--crit)"})+
+      `<div class="mtotal"><span>Выручка · отгружено и доставлено</span><span class="v">${tng(c.revenueMinor)}</span></div>`+
+      `<div class="mtotal"><span>В работе · ещё не отгружено</span><span class="v">${tng(c.pipelineMinor)}</span></div>`+
+      `<div class="mtotal"><span>Заявки с сайта · не обработано</span><span class="v">${fmt(c.leads.new)} из ${fmt(c.leads.total)}</span></div>`+
+      note(`Выручкой считается только то, что уехало к покупателю: новый заказ —
+            это телефонный звонок, а не деньги. Отменённые не учитываются
+            нигде, и их товар вернулся на склад.`);
+  }
+
+  function renderDashStock(){
+    const el=$("#dashStock"); if(!el) return;
+    if(!DASH){ el.innerHTML=DASH_OFF; return; }
+    const s=DASH.commerce.stock, low=DASH.commerce.lowStock||[];
+    if(!s.units){
+      el.innerHTML=dashEmpty("На складе пусто — оприходуйте поставку во вкладке «Склад».");
+      return;
+    }
+    // Margin only over stock whose purchase price is recorded. Reporting the
+    // whole retail value as profit because a cost is missing is how a company
+    // convinces itself it is doing better than it is.
+    const known=s.units-s.unitsWithoutCost;
+    const margin=s.costMinor>0?s.retailMinor-s.costMinor:null;
+    let html=
+      `<div class="mtotal"><span>Единиц на складе</span><span class="v">${fmt(s.units)}</span></div>`+
+      `<div class="mtotal"><span>В розничных ценах</span><span class="v">${tng(s.retailMinor)}</span></div>`;
+    if(margin!=null){
+      html+=`<div class="mtotal"><span>Закупочная стоимость</span><span class="v">${tng(s.costMinor)}</span></div>`+
+        `<div class="mtotal"><span>Наценка${s.unitsWithoutCost?" · по части товара":""}</span>`+
+        `<span class="v" style="color:var(--good-text)">${tng(margin)}</span></div>`;
+    }
+    if(low.length){
+      html+=`<div class="dsec" style="margin-top:14px">Заканчивается</div>`+
+        low.map(id=>`<div class="mrow"><div class="mrow-head"><span class="mrow-label">${esc(id)}</span>`+
+          `<span class="mrow-value" style="color:var(--warn-text,var(--warn))">пора заказывать</span></div></div>`).join("");
+    }
+    html+=note(s.unitsWithoutCost
+      ? `Закупочная цена указана не у всех товаров: наценка посчитана по
+         ${fmt(known)} единицам из ${fmt(s.units)}. Заполните себестоимость во
+         вкладке «Склад», чтобы цифра стала полной.`
+      : `Комплекты не считаются отдельно — их запас это запас их частей, иначе
+         одни и те же устройства попали бы в стоимость дважды.`);
+    el.innerHTML=html;
   }
 
   // ---- Аналитика: the product BI module ----
@@ -2372,7 +2621,7 @@
 
   // Navigation
   const titles={
-    overview:["Обзор","Мониторинг беременности и безопасности детей"],
+    overview:["Dashboard","Люди, устройства и продажи — всё, что известно о проекте"],
     emergencies:["Экстренные","Активные тревоги, самые серьёзные сверху"],
     users:["Пользователи","Поиск и карточка пациентки"],
     content:["Контент","Уроки и товары для каждой недели беременности и месяца жизни ребёнка"],
@@ -2409,7 +2658,7 @@
     // than throwing and leaving the panel half-switched.
     const t=titles[v]||[v,""];
     $("#pageTitle").textContent=t[0];$("#pageSub").innerHTML=t[1];
-    if(v==="overview")drawOps();
+    if(v==="overview"){drawOps();loadDashboard();}
     if(v==="analytics")renderAnalytics();
     if(v==="kids")renderKids();
     if(v==="antenatal")renderAntenatal();

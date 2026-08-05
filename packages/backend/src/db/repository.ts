@@ -138,6 +138,84 @@ export interface ChildrenStats {
   withDob: number; // how many have a date of birth (age buckets are over these)
 }
 
+/**
+ * The business snapshot behind the Dashboard.
+ *
+ * Separate from BiMetrics, which answers "how is the product being used" —
+ * DAU, retention, funnels. This answers "what is this business", and the two
+ * are read by different people for different decisions: one drives what to
+ * build next, the other whether to order more stock.
+ *
+ * Every count here is a count of rows that exist. Nothing is estimated,
+ * projected or filled in, so a field reading 0 means zero and can be shown as
+ * such rather than dressed up.
+ */
+export interface DashboardSnapshot {
+  asOf: string;
+  users: {
+    total: number;
+    newToday: number;
+    new7d: number;
+    new30d: number;
+    /** Signed in / sent data in the last 1, 7 and 30 days. */
+    dau: number;
+    wau: number;
+    mau: number;
+    /** Came back on day 7 out of the cohort that could have. 0..1, null if no cohort yet. */
+    retentionD7: number | null;
+  };
+  /**
+   * Who the users are. Pregnant and mothers OVERLAP on purpose — a mother
+   * expecting her second child is both, and forcing her into one bucket would
+   * misstate whichever number someone happens to read.
+   */
+  mothers: {
+    /** Expecting: a due date that has not passed. */
+    pregnant: number;
+    /** Has at least one child on the account. */
+    mothers: number;
+    /** Both — pregnant with a child already. */
+    both: number;
+    /** Neither recorded. Not "childless": most of these simply filled nothing in. */
+    unknown: number;
+  };
+  children: ChildrenStats;
+  devices: {
+    total: number;
+    /** Seen in the last 24 hours. */
+    online: number;
+    /** Mother's watch vs child's tracker — the two things we sell. */
+    watches: number;
+    trackers: number;
+    /** Registered but attached to no child, so nothing is watching anyone. */
+    unassigned: number;
+  };
+  /** Where they are, biggest first. Only users who gave a city. */
+  cities: Array<{ city: string; users: number }>;
+  citiesUnknown: number;
+  commerce: {
+    leads: { total: number; new: number };
+    orders: { total: number; new: number; confirmed: number; shipped: number; delivered: number; cancelled: number };
+    /** Money actually earned: shipped + delivered, cancellations excluded. */
+    revenueMinor: number;
+    /** Money promised but not yet shipped — new + confirmed. */
+    pipelineMinor: number;
+    /** Average order value over the orders counted in revenue. Null with none. */
+    avgOrderMinor: number | null;
+    stock: {
+      units: number;
+      /** What the shelf is worth at the price we sell it for. */
+      retailMinor: number;
+      /** What it cost us. Only over products whose cost is recorded. */
+      costMinor: number;
+      /** Units whose cost is unknown, so costMinor understates the real one. */
+      unitsWithoutCost: number;
+    };
+    /** Product ids at or below their low-stock threshold. */
+    lowStock: string[];
+  };
+}
+
 /** A dated appointment/reminder. Mirrors the app's Appointment (domain/appointment.dart). */
 export interface Appointment {
   id: string;
@@ -472,6 +550,12 @@ export interface Repository {
   /// implementation and the in-memory one cannot drift apart on what
   /// "retention" means.
   adminBiMetrics(): Promise<BiMetrics>;
+
+  /// The business snapshot behind the Dashboard: who the users are, what they
+  /// own, where they are, and what the shop has done. One call rather than the
+  /// panel stitching six endpoints together, so every number on the screen is
+  /// as of the same instant.
+  dashboardSnapshot(asOf: string): Promise<DashboardSnapshot>;
 
   // ---- Timeline content (the CMS) ----
   /// The whole catalogue, keyed by stage (`w1`..`w40`, `m0`..`m60`).

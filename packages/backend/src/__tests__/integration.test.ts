@@ -359,6 +359,25 @@ function makeDeps(
         devices: { total: devices.length, online: devices.length },
         now: new Date('2026-07-15T08:00:00Z'),
       }),
+    // An empty business, stated as an empty business. This fixture exists for
+    // the health/safety routes; a dashboard number invented here would be a
+    // number some other test could then assert on.
+    dashboardSnapshot: async (asOf: string) => ({
+      asOf,
+      users: { total: 1, newToday: 0, new7d: 0, new30d: 0, dau: 0, wau: 0, mau: 0, retentionD7: null },
+      mothers: { pregnant: 0, mothers: 0, both: 0, unknown: 1 },
+      children: { total: 0, boys: 0, girls: 0, unknown: 0, byAge: [], withDob: 0 },
+      devices: { total: devices.length, online: 0, watches: 0, trackers: 0, unassigned: 0 },
+      cities: [],
+      citiesUnknown: 1,
+      commerce: {
+        leads: { total: 0, new: 0 },
+        orders: { total: 0, new: 0, confirmed: 0, shipped: 0, delivered: 0, cancelled: 0 },
+        revenueMinor: 0, pipelineMinor: 0, avgOrderMinor: null,
+        stock: { units: 0, retailMinor: 0, costMinor: 0, unitsWithoutCost: 0 },
+        lowStock: [],
+      },
+    }),
     contentCatalog: async () => Object.fromEntries(contentRows),
     putStageContent: async (stageKey, items) => {
       if (items.length === 0) contentRows.delete(stageKey);
