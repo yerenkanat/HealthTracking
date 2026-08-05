@@ -22,12 +22,17 @@ import 'journey_screen.dart';
 import 'help_support_screen.dart';
 import 'legal_screen.dart';
 import 'reminders_center_screen.dart';
+import '../../data/server_phone_auth.dart';
 import '../../domain/phone_auth.dart';
 import '../auth/sign_in_screen.dart';
 import '../tracking/child_detail_screen.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
 import '../widgets/confirm.dart';
+
+/// The server this build points at. Empty in a dev build with no define, and
+/// that is what selects the local stub over real sign-in.
+const _apiBase = String.fromEnvironment('API_BASE');
 
 class SettingsScreen extends StatelessWidget {
   final AppController controller;
@@ -73,7 +78,13 @@ class SettingsScreen extends StatelessWidget {
                       color: Palette.textDim),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => SignInScreen(
-                      provider: const StubPhoneAuthProvider(now: DateTime.now),
+                      // Real sign-in when the app knows a server; the stub
+                      // only when it does not (a dev build with no API_BASE).
+                      // The stub mints an account that lives on this handset
+                      // alone — reinstall and everything recorded is gone.
+                      provider: _apiBase.isEmpty
+                          ? const StubPhoneAuthProvider(now: DateTime.now)
+                          : ServerPhoneAuthProvider(baseUrl: _apiBase, now: DateTime.now),
                       onSignedIn: (session) {
                         c.signIn(session);
                         Navigator.of(context).pop();

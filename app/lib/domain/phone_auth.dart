@@ -90,6 +90,19 @@ abstract interface class PhoneAuthProvider {
   /// Verify [code] against [challenge]; returns a session or throws
   /// [AuthException]('invalid-code').
   Future<AuthSession> verifyCode(OtpChallenge challenge, String code);
+
+  /// Whether this provider actually sends a code the user must type back.
+  ///
+  /// False for the server provider: there is no SMS gateway, so the number is
+  /// claimed rather than verified and asking for a code would mean asking for
+  /// something nobody was sent. The controller skips straight to signed-in, and
+  /// the code screen — which is written and tested — comes back the day this
+  /// returns true again.
+  ///
+  /// Deliberately NOT defaulted here. A provider that sends a code and one that
+  /// does not are different products, and a default would let a future
+  /// implementation inherit the wrong one silently.
+  bool get requiresCode;
 }
 
 /// A deterministic, offline stand-in for real phone auth, so the whole flow is
@@ -101,6 +114,9 @@ class StubPhoneAuthProvider implements PhoneAuthProvider {
   final String testCode;
   final DateTime Function() now;
   const StubPhoneAuthProvider({this.testCode = '123456', required this.now});
+
+  @override
+  bool get requiresCode => true;
 
   @override
   Future<OtpChallenge> requestCode(String phoneE164) async {
@@ -174,7 +190,15 @@ class PhoneAuthController {
     _emit();
     try {
       _challenge = await provider.requestCode(phoneE164.trim());
-      step = AuthStep.code;
+      if (provider.requiresCode) {
+        step = AuthStep.code;
+      } else {
+        // No SMS was sent, so there is no code to ask for. verifyCode is still
+        // the call that signs in — the provider decides what a session costs,
+        // not this controller — it simply has nothing to check.
+        session = await provider.verifyCode(_challenge!, '');
+        step = AuthStep.done;
+      }
     } on AuthException catch (e) {
       errorCode = e.code;
     } catch (_) {
