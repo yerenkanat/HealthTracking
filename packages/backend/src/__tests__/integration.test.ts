@@ -93,6 +93,12 @@ function makeDeps(
     insertGeofenceEvent: async (e) => void events.push(e),
     // Staff sign-in is exercised by staffLogin.test.ts against the memory
     // repository; this integration stub only has to satisfy the interface.
+    adminProducts: async () => [],
+    upsertProduct: async () => {},
+    bundleParts: async () => [],
+    setBundleParts: async () => {},
+    moveStock: async () => ({ ok: false as const, error: 'unknown_variant' as const }),
+    stockMoves: async () => [],
     userByPhone: async () => null,
     createUserWithPhone: async (a: { phone: string; displayName: string }) =>
       ({ id: 'user-1', displayName: a.displayName }),

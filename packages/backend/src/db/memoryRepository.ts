@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason } from './repository';
 import { bundleDiscountMinor } from './repository';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -175,10 +175,28 @@ export function createMemoryRepository(): Repository {
   let accountDeleted = false;
 
   // ---- Shop (mirrors migrations/009_shop.sql seed) ----
-  const shopProds = [
-    { id: 'watch', name: 'Смарт-часы Ana-Bala', priceMinor: 2490000, sort: 1 },
-    { id: 'tracker', name: 'Детский трекер Ana-Bala', priceMinor: 490000, sort: 2 },
+  // Mirrors migration 021: each product carries its own price, and the combo is
+  // a BUNDLE whose stock is derived from its parts rather than stored.
+  interface ShopProdRow {
+    id: string; name: string; priceMinor: number; sort: number;
+    sku?: string | null; costMinor?: number | null;
+    kind?: 'simple' | 'bundle'; lowStockThreshold?: number; active?: boolean;
+  }
+  const shopProds: ShopProdRow[] = [
+    { id: 'watch', name: 'Смарт-часы Ana-Bala', priceMinor: 2490000, sort: 1, kind: 'simple' },
+    { id: 'tracker', name: 'Детский трекер Ana-Bala', priceMinor: 490000, sort: 2, kind: 'simple' },
+    // Cheaper than the parts bought separately — the whole reason to offer one.
+    { id: 'combo', name: 'Комплект: часы + брелок', priceMinor: 2790000, sort: 3, kind: 'bundle' },
   ];
+  const bundleItems: Array<{ bundleId: string; partId: string; qty: number }> = [
+    { bundleId: 'combo', partId: 'watch', qty: 1 },
+    { bundleId: 'combo', partId: 'tracker', qty: 1 },
+  ];
+  /** The stock ledger. Every change, with its reason — never edited, never deleted. */
+  const stockMoves: Array<{
+    id: number; variantId: string; delta: number; reason: StockMoveReason;
+    note: string | null; staffId: string | null; orderId: string | null; at: string;
+  }> = [];
   const shopVars: Array<{ id: string; productId: string; color: string; colorHex: string; stock: number; sort: number }> = [
     { id: 'v-w-black', productId: 'watch', color: 'Чёрный', colorHex: '#1C1E2A', stock: 0, sort: 1 },
     { id: 'v-w-rose', productId: 'watch', color: 'Розовое золото', colorHex: '#E8B4A0', stock: 0, sort: 2 },
@@ -781,7 +799,8 @@ export function createMemoryRepository(): Repository {
     },
 
     // ---- Shop ----
-    shopProducts: async () => shopProds
+    // Simple products only — see the note in pgRepository.shopProducts.
+    shopProducts: async () => shopProds.filter((p) => (p.kind ?? 'simple') === 'simple')
       .sort((a, b) => a.sort - b.sort)
       .map((p) => ({
         id: p.id, name: p.name, priceMinor: p.priceMinor,
@@ -819,10 +838,109 @@ export function createMemoryRepository(): Repository {
       id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock,
       productId: v.productId, productName: shopProds.find((p) => p.id === v.productId)?.name ?? v.productId,
     })),
-    setShopVariantStock: async (variantId, stock) => {
+    setShopVariantStock: async (variantId, stock, by) => {
       const v = shopVars.find((x) => x.id === variantId);
-      if (v) v.stock = Math.max(0, Math.trunc(stock));
+      if (!v) return;
+      const target = Math.max(0, Math.trunc(stock));
+      const delta = target - v.stock;
+      v.stock = target;
+      // The ledger gets the delta even for an absolute set, so the running
+      // total and the history cannot drift apart.
+      if (delta !== 0) {
+        stockMoves.push({
+          id: stockMoves.length + 1, variantId, delta, reason: 'correction',
+          note: by?.note ?? null, staffId: by?.staffId ?? null, orderId: null,
+          at: new Date().toISOString(),
+        });
+      }
     },
+
+    // ---- Inventory ----
+    adminProducts: async () => {
+      const products: InventoryProduct[] = shopProds.map((p) => {
+        const variants = shopVars
+          .filter((v) => v.productId === p.id)
+          .map((v) => ({ id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock }));
+        return {
+          id: p.id, name: p.name, sku: p.sku ?? null, priceMinor: p.priceMinor,
+          costMinor: p.costMinor ?? null, kind: p.kind ?? 'simple',
+          active: p.active ?? true, sort: p.sort,
+          lowStockThreshold: p.lowStockThreshold ?? 3,
+          stock: variants.reduce((n, v) => n + v.stock, 0),
+          lowStock: false, variants,
+        };
+      });
+      // A bundle can be assembled as many times as its scarcest part allows.
+      const stockOf = new Map(products.map((p) => [p.id, p.stock]));
+      for (const p of products) {
+        if (p.kind !== 'bundle') continue;
+        const mine = bundleItems.filter((b) => b.bundleId === p.id);
+        p.stock = mine.length === 0
+          ? 0
+          : Math.min(...mine.map((b) => Math.floor((stockOf.get(b.partId) ?? 0) / b.qty)));
+      }
+      for (const p of products) p.lowStock = p.active && p.stock <= p.lowStockThreshold;
+      return products;
+    },
+
+    upsertProduct: async (p) => {
+      const existing = shopProds.find((x) => x.id === p.id);
+      const row = {
+        id: p.id, name: p.name, priceMinor: Math.max(0, Math.trunc(p.priceMinor)),
+        costMinor: p.costMinor ?? null, sku: p.sku ?? null, kind: p.kind ?? 'simple',
+        lowStockThreshold: p.lowStockThreshold ?? 3, active: p.active ?? true,
+        sort: p.sort ?? shopProds.length + 1,
+      };
+      if (existing) Object.assign(existing, row);
+      else shopProds.push(row);
+    },
+
+    bundleParts: async (bundleId) =>
+      bundleItems.filter((b) => b.bundleId === bundleId).map((b) => ({
+        partId: b.partId, qty: b.qty,
+        partName: shopProds.find((p) => p.id === b.partId)?.name ?? b.partId,
+      })),
+
+    setBundleParts: async (bundleId, parts) => {
+      for (let i = bundleItems.length - 1; i >= 0; i--) {
+        if (bundleItems[i].bundleId === bundleId) bundleItems.splice(i, 1);
+      }
+      for (const part of parts) {
+        if (part.partId === bundleId) continue; // a bundle cannot contain itself
+        bundleItems.push({ bundleId, partId: part.partId, qty: Math.max(1, Math.trunc(part.qty)) });
+      }
+    },
+
+    moveStock: async (m) => {
+      const delta = Math.trunc(m.delta);
+      if (delta === 0) return { ok: false as const, error: 'insufficient_stock' as const };
+      const v = shopVars.find((x) => x.id === m.variantId);
+      if (!v) return { ok: false as const, error: 'unknown_variant' as const };
+      const next = v.stock + delta;
+      // The ledger must never describe an impossible state.
+      if (next < 0) return { ok: false as const, error: 'insufficient_stock' as const };
+      v.stock = next;
+      stockMoves.push({
+        id: stockMoves.length + 1, variantId: m.variantId, delta, reason: m.reason,
+        note: m.note ?? null, staffId: m.staffId ?? null, orderId: m.orderId ?? null,
+        at: new Date().toISOString(),
+      });
+      return { ok: true as const, stock: next };
+    },
+
+    stockMoves: async (limit, variantId) =>
+      stockMoves
+        .filter((m) => !variantId || m.variantId === variantId)
+        .slice(-limit)
+        .reverse()
+        .map((m) => {
+          const v = shopVars.find((x) => x.id === m.variantId);
+          return {
+            ...m,
+            color: v?.color ?? '',
+            productName: shopProds.find((p) => p.id === v?.productId)?.name ?? '',
+          };
+        }),
     addShopVariant: async (productId, color, colorHex, stock) => {
       const existing = shopVars.find((v) => v.productId === productId && v.color === color);
       if (existing) { existing.colorHex = colorHex; existing.stock = Math.max(0, Math.trunc(stock)); return; }

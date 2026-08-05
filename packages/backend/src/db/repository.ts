@@ -506,8 +506,43 @@ export interface Repository {
   /// or a typed failure (empty cart / unknown variant / insufficient stock).
   placeShopOrder(o: ShopOrderInput): Promise<ShopOrderResult>;
   adminShopVariants(): Promise<Array<ShopVariant & { productId: string; productName: string }>>;
-  setShopVariantStock(variantId: string, stock: number): Promise<void>;
+  /// Set an absolute count. Kept because a stocktake genuinely knows the total
+  /// rather than the difference; it writes a 'correction' move for the delta so
+  /// the ledger and the running total cannot drift apart.
+  setShopVariantStock(variantId: string, stock: number, by?: StockMoveAuthor): Promise<void>;
   addShopVariant(productId: string, color: string, colorHex: string, stock: number): Promise<void>;
+
+  // ---- Inventory ----
+  /// Every product with its price, cost, kind and stock — the warehouse view,
+  /// including inactive ones, which is where an archived product has to be
+  /// visible to be un-archived.
+  adminProducts(): Promise<InventoryProduct[]>;
+  upsertProduct(p: {
+    id: string;
+    name: string;
+    priceMinor: number;
+    costMinor?: number | null;
+    sku?: string | null;
+    kind?: 'simple' | 'bundle';
+    lowStockThreshold?: number;
+    active?: boolean;
+    sort?: number;
+  }): Promise<void>;
+  /// What a bundle is made of. Empty for a simple product.
+  bundleParts(bundleId: string): Promise<Array<{ partId: string; partName: string; qty: number }>>;
+  setBundleParts(bundleId: string, parts: Array<{ partId: string; qty: number }>): Promise<void>;
+  /// Move stock by a signed delta, writing the ledger row. Refuses to take a
+  /// variant below zero — the ledger must never describe an impossible state.
+  moveStock(m: {
+    variantId: string;
+    delta: number;
+    reason: StockMoveReason;
+    note?: string;
+    staffId?: string;
+    orderId?: string;
+  }): Promise<{ ok: true; stock: number } | { ok: false; error: 'insufficient_stock' | 'unknown_variant' }>;
+  /// The ledger, newest first, optionally for one variant.
+  stockMoves(limit: number, variantId?: string): Promise<StockMove[]>;
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
   setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
 
@@ -643,6 +678,57 @@ export type ShopOrderResult =
 
 /// A callback request from the landing page: a name and a number, nothing more.
 /// Not an order — no address, no variant, no stock reserved. See migration 017.
+/**
+ * Why a stock level changed.
+ *
+ * A bare number told you the count and nothing else, so a delivery, a sale, a
+ * breakage and a miscount were indistinguishable — which makes the one question
+ * stock control exists for ("we counted forty and it says thirty-seven")
+ * unanswerable.
+ */
+export type StockMoveReason = 'receipt' | 'sale' | 'return' | 'writeoff' | 'correction';
+
+/** Who moved it. Absent for automatic moves, e.g. an order taking stock. */
+export interface StockMoveAuthor {
+  staffId?: string;
+  note?: string;
+}
+
+export interface StockMove {
+  id: number;
+  variantId: string;
+  productName: string;
+  color: string;
+  /** Signed: +50 received, −1 sold. Sums to the stock level with no case analysis. */
+  delta: number;
+  reason: StockMoveReason;
+  note: string | null;
+  staffId: string | null;
+  orderId: string | null;
+  at: string;
+}
+
+export interface InventoryProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  priceMinor: number;
+  costMinor: number | null;
+  kind: 'simple' | 'bundle';
+  active: boolean;
+  sort: number;
+  lowStockThreshold: number;
+  /**
+   * Units on hand. For a bundle this is DERIVED — how many complete sets its
+   * parts can make — because a bundle with its own count drifts from the parts
+   * it is assembled from within a week.
+   */
+  stock: number;
+  /** Below the threshold, and worth saying so before a customer finds out. */
+  lowStock: boolean;
+  variants: Array<{ id: string; color: string; colorHex: string; stock: number }>;
+}
+
 export type ShopLeadLocale = 'ru' | 'kz';
 export type ShopLeadStatus = 'new' | 'called' | 'ordered' | 'dropped';
 export interface ShopLeadInput {

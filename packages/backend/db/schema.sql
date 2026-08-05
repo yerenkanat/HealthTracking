@@ -459,8 +459,16 @@ CREATE TABLE IF NOT EXISTS shop_products (
   name        TEXT NOT NULL,
   price_minor INTEGER NOT NULL CHECK (price_minor >= 0),
   active      BOOLEAN NOT NULL DEFAULT TRUE,
-  sort        INTEGER NOT NULL DEFAULT 0
+  sort        INTEGER NOT NULL DEFAULT 0,
+  -- Inventory (migration 021). What goes on a box and an invoice; what we pay
+  -- for it; whether it is stocked in its own right or assembled from others.
+  sku         TEXT,
+  cost_minor  INTEGER CHECK (cost_minor IS NULL OR cost_minor >= 0),
+  kind        TEXT NOT NULL DEFAULT 'simple' CHECK (kind IN ('simple','bundle')),
+  low_stock_threshold INTEGER NOT NULL DEFAULT 3 CHECK (low_stock_threshold >= 0)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS shop_products_sku_unique
+  ON shop_products (sku) WHERE sku IS NOT NULL;
 CREATE TABLE IF NOT EXISTS shop_variants (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   product_id TEXT NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
@@ -492,6 +500,33 @@ CREATE TABLE IF NOT EXISTS shop_order_items (
   unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0)
 );
 CREATE INDEX IF NOT EXISTS idx_shop_items_order ON shop_order_items (order_id);
+
+-- A bundle holds no stock of its own: it is worth as many sets as its scarcest
+-- part allows. Storing a count here would drift from the parts within a week.
+CREATE TABLE IF NOT EXISTS shop_bundle_items (
+  bundle_id TEXT NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
+  part_id   TEXT NOT NULL REFERENCES shop_products(id) ON DELETE RESTRICT,
+  qty       INTEGER NOT NULL DEFAULT 1 CHECK (qty > 0),
+  PRIMARY KEY (bundle_id, part_id),
+  CHECK (bundle_id <> part_id)
+);
+
+-- The stock ledger. shop_variants.stock is the running total; this says WHY it
+-- changed. Rows are never updated or deleted — a miscount is corrected by
+-- another row, so what somebody believed survives beside what was true.
+CREATE TABLE IF NOT EXISTS shop_stock_moves (
+  id         BIGSERIAL PRIMARY KEY,
+  variant_id UUID NOT NULL REFERENCES shop_variants(id) ON DELETE CASCADE,
+  delta      INTEGER NOT NULL CHECK (delta <> 0),
+  reason     TEXT NOT NULL CHECK (reason IN ('receipt','sale','return','writeoff','correction')),
+  note       TEXT,
+  staff_id   TEXT,
+  order_id   UUID REFERENCES shop_orders(id) ON DELETE SET NULL,
+  at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS shop_stock_moves_variant_at ON shop_stock_moves (variant_id, at DESC);
+CREATE INDEX IF NOT EXISTS shop_stock_moves_at ON shop_stock_moves (at DESC);
+CREATE INDEX IF NOT EXISTS shop_stock_moves_order ON shop_stock_moves (order_id);
 
 -- Daily audio for the pregnancy + child-development calendars (see migration 012).
 CREATE TABLE IF NOT EXISTS daily_audio (

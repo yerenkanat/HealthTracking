@@ -7,7 +7,7 @@
 
 import { Pool } from 'pg';
 import { computeChildrenStats } from '../analytics/childStats.js';
-import type { ContentItemRow } from './repository';
+import type { ContentItemRow, InventoryProduct } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -1253,8 +1253,185 @@ export function createPgRepository(pool: Pool): Repository {
          ORDER BY p.sort, v.sort, v.color`);
       return rows.map((r) => ({ id: r.id, color: r.color, colorHex: r.color_hex, stock: r.stock, productId: r.product_id, productName: r.product_name }));
     },
-    async setShopVariantStock(variantId, stock) {
-      await pool.query('UPDATE shop_variants SET stock = $2 WHERE id = $1', [variantId, Math.max(0, Math.trunc(stock))]);
+    async setShopVariantStock(variantId, stock, by) {
+      // An absolute count, because a stocktake knows the total rather than the
+      // difference. The ledger still gets the delta, so the running total and
+      // the history cannot drift apart — which they would if this wrote the
+      // column directly, as it used to.
+      const target = Math.max(0, Math.trunc(stock));
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows } = await client.query(
+          'SELECT stock FROM shop_variants WHERE id = $1 FOR UPDATE', [variantId]);
+        if (!rows[0]) { await client.query('ROLLBACK'); return; }
+        const delta = target - rows[0].stock;
+        if (delta !== 0) {
+          await client.query('UPDATE shop_variants SET stock = $2 WHERE id = $1', [variantId, target]);
+          await client.query(
+            `INSERT INTO shop_stock_moves (variant_id, delta, reason, note, staff_id)
+             VALUES ($1,$2,'correction',$3,$4)`,
+            [variantId, delta, by?.note ?? null, by?.staffId ?? null]);
+        }
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    // ---- Inventory ----
+    async adminProducts() {
+      const { rows } = await pool.query(
+        `SELECT p.id, p.name, p.sku, p.price_minor, p.cost_minor, p.kind, p.active,
+                p.sort, p.low_stock_threshold,
+                v.id AS vid, v.color, v.color_hex, v.stock
+           FROM shop_products p
+           LEFT JOIN shop_variants v ON v.product_id = p.id
+          ORDER BY p.sort, p.name, v.sort, v.color`);
+
+      const byId = new Map<string, InventoryProduct>();
+      for (const r of rows) {
+        let p = byId.get(r.id);
+        if (!p) {
+          p = {
+            id: r.id, name: r.name, sku: r.sku, priceMinor: r.price_minor,
+            costMinor: r.cost_minor, kind: r.kind, active: r.active, sort: r.sort,
+            lowStockThreshold: r.low_stock_threshold,
+            stock: 0, lowStock: false, variants: [],
+          };
+          byId.set(r.id, p);
+        }
+        if (r.vid) p.variants.push({ id: r.vid, color: r.color, colorHex: r.color_hex, stock: r.stock });
+      }
+
+      const products = [...byId.values()];
+      for (const p of products) p.stock = p.variants.reduce((n, v) => n + v.stock, 0);
+
+      // A bundle holds no stock of its own: it can be assembled as many times
+      // as its scarcest part allows. Computed here rather than stored, so it
+      // cannot disagree with the parts it is made of.
+      const { rows: parts } = await pool.query(
+        'SELECT bundle_id, part_id, qty FROM shop_bundle_items');
+      const stockOf = new Map(products.map((p) => [p.id, p.stock]));
+      for (const p of products) {
+        if (p.kind !== 'bundle') continue;
+        const mine = parts.filter((b) => b.bundle_id === p.id);
+        p.stock = mine.length === 0
+          ? 0
+          : Math.min(...mine.map((b) => Math.floor((stockOf.get(b.part_id) ?? 0) / b.qty)));
+      }
+      for (const p of products) p.lowStock = p.active && p.stock <= p.lowStockThreshold;
+      return products;
+    },
+
+    async upsertProduct(p) {
+      await pool.query(
+        `INSERT INTO shop_products (id, name, price_minor, cost_minor, sku, kind,
+                                    low_stock_threshold, active, sort)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           price_minor = EXCLUDED.price_minor,
+           cost_minor = EXCLUDED.cost_minor,
+           sku = EXCLUDED.sku,
+           kind = EXCLUDED.kind,
+           low_stock_threshold = EXCLUDED.low_stock_threshold,
+           active = EXCLUDED.active,
+           sort = EXCLUDED.sort`,
+        [p.id, p.name, Math.max(0, Math.trunc(p.priceMinor)),
+         p.costMinor == null ? null : Math.max(0, Math.trunc(p.costMinor)),
+         p.sku ?? null, p.kind ?? 'simple',
+         p.lowStockThreshold ?? 3, p.active ?? true, p.sort ?? 0]);
+    },
+
+    async bundleParts(bundleId) {
+      const { rows } = await pool.query(
+        `SELECT b.part_id, b.qty, p.name
+           FROM shop_bundle_items b JOIN shop_products p ON p.id = b.part_id
+          WHERE b.bundle_id = $1
+          ORDER BY p.sort, p.name`, [bundleId]);
+      return rows.map((r) => ({ partId: r.part_id, partName: r.name, qty: r.qty }));
+    },
+
+    async setBundleParts(bundleId, parts) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM shop_bundle_items WHERE bundle_id = $1', [bundleId]);
+        for (const part of parts) {
+          // A bundle containing itself makes its stock unanswerable, and the
+          // CHECK in the migration refuses it — this skips rather than throws so
+          // one bad row cannot lose the rest of an otherwise valid edit.
+          if (part.partId === bundleId) continue;
+          await client.query(
+            'INSERT INTO shop_bundle_items (bundle_id, part_id, qty) VALUES ($1,$2,$3)',
+            [bundleId, part.partId, Math.max(1, Math.trunc(part.qty))]);
+        }
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    async moveStock(m) {
+      const delta = Math.trunc(m.delta);
+      if (delta === 0) return { ok: false as const, error: 'insufficient_stock' as const };
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Locked, so two people receiving the same delivery at once cannot both
+        // read the old total and write the same new one.
+        const { rows } = await client.query(
+          'SELECT stock FROM shop_variants WHERE id = $1 FOR UPDATE', [m.variantId]);
+        if (!rows[0]) {
+          await client.query('ROLLBACK');
+          return { ok: false as const, error: 'unknown_variant' as const };
+        }
+        const next = rows[0].stock + delta;
+        if (next < 0) {
+          // The ledger must never describe an impossible state. Refusing is the
+          // whole reason this is a transaction.
+          await client.query('ROLLBACK');
+          return { ok: false as const, error: 'insufficient_stock' as const };
+        }
+        await client.query('UPDATE shop_variants SET stock = $2 WHERE id = $1', [m.variantId, next]);
+        await client.query(
+          `INSERT INTO shop_stock_moves (variant_id, delta, reason, note, staff_id, order_id)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [m.variantId, delta, m.reason, m.note ?? null, m.staffId ?? null, m.orderId ?? null]);
+        await client.query('COMMIT');
+        return { ok: true as const, stock: next };
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    async stockMoves(limit, variantId) {
+      const { rows } = await pool.query(
+        `SELECT m.id, m.variant_id, m.delta, m.reason, m.note, m.staff_id, m.order_id, m.at,
+                v.color, p.name AS product_name
+           FROM shop_stock_moves m
+           JOIN shop_variants v ON v.id = m.variant_id
+           JOIN shop_products p ON p.id = v.product_id
+          ${variantId ? 'WHERE m.variant_id = $2' : ''}
+          ORDER BY m.at DESC, m.id DESC
+          LIMIT $1`,
+        variantId ? [limit, variantId] : [limit]);
+      return rows.map((r) => ({
+        id: Number(r.id), variantId: r.variant_id, productName: r.product_name,
+        color: r.color, delta: r.delta, reason: r.reason, note: r.note,
+        staffId: r.staff_id, orderId: r.order_id,
+        at: new Date(r.at).toISOString(),
+      }));
     },
     async addShopVariant(productId, color, colorHex, stock) {
       await pool.query(
