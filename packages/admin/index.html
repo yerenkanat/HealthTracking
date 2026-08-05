@@ -2266,6 +2266,13 @@
     if(v==="shop")renderShop();
     if(v==="audio")renderAudio();
     if(v==="staff")renderStaff();
+    // Экстренные had no branch here at all, so the tab drew only whatever
+    // renderFeeds() had left behind from the overview. Against a real server
+    // with no emergencies that was an empty card — not the "Экстренных
+    // событий нет" panel that exists a few lines below and was never reached.
+    // A blank screen on the emergencies tab reads as "failed to load", on the
+    // one screen where "nothing is wrong" is the thing to be certain about.
+    if(v==="emergencies")renderFeeds();
     // In the URL, so a tab can be bookmarked, shared with a colleague, and
     // survives a refresh. Reloading used to drop whoever was mid-investigation
     // back on «Обзор».
