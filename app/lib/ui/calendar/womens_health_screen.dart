@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart' hide Flow;
+import 'package:intl/intl.dart';
 import 'package:flutter/services.dart'
     show Clipboard, ClipboardData, HapticFeedback;
 import '../../app/app_controller.dart';
@@ -1144,6 +1145,33 @@ class _DayChip extends StatelessWidget {
 
 /// Elegant, low-profile month grid. Days with logged metrics show a soft pastel
 /// circle; today is ringed. Tapping any day opens the logging drawer.
+
+/// Two-letter weekday name for column [dowIndex] (0 = Sunday, Material's order).
+///
+/// MaterialLocalizations only offers narrowWeekdays, which in Russian is a
+/// single letter: В П В С Ч П С. Three pairs collide, so the header cannot be
+/// read on its own — you have to count columns to know whether В is Tuesday or
+/// Sunday. intl's short names are unambiguous and already localised.
+String _weekdayLabel(MaterialLocalizations ml, int dowIndex) {
+  // 2024-01-07 was a Sunday, so adding dowIndex lands on the right weekday.
+  final sample = DateTime(2024, 1, 7 + dowIndex);
+  final short = DateFormat.E(Intl.getCurrentLocale()).format(sample).replaceAll('.', '');
+  // Trimmed to two so every column is the same width and nothing wraps at 360dp.
+  return short.length <= 2 ? short : short.substring(0, 2);
+}
+
+
+/// Which column the 1st of the month falls in, given the locale's first weekday.
+///
+/// Pure so the arithmetic can be tested without a widget. It was inline and
+/// Sunday-first (`first.weekday % 7`), which put every date one column left of
+/// where a Russian or Kazakh reader expects it.
+///
+/// [firstDayOfWeekIndex] is Material's: 0 = Sunday, 1 = Monday. DateTime.weekday
+/// is 1..7 with Monday = 1 and Sunday = 7.
+int leadingBlanksFor(DateTime firstOfMonth, int firstDayOfWeekIndex) =>
+    (firstOfMonth.weekday % 7 - firstDayOfWeekIndex + 7) % 7;
+
 class _MonthCalendar extends StatelessWidget {
   final DateTime month;
   final DateTime today;
@@ -1169,7 +1197,21 @@ class _MonthCalendar extends StatelessWidget {
     final ml = MaterialLocalizations.of(context);
     final first = DateTime(month.year, month.month, 1);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final leadingBlanks = first.weekday % 7; // 0 = Sunday-first column
+
+    // The week starts where the LOCALE says it starts.
+    //
+    // This was `first.weekday % 7`, which is Sunday-first — the US convention.
+    // Russian and Kazakh weeks start on Monday, so every date sat one column to
+    // the left of where a reader here expects it, under a header that also
+    // began at Sunday. The numbers were right and the shape of the month was
+    // wrong, which is the kind of error you feel rather than notice.
+    //
+    // firstDayOfWeekIndex is 1 (Monday) for ru/kk and 0 for en_US, so this
+    // stays correct if the app is ever read in another locale.
+    final firstDow = ml.firstDayOfWeekIndex;
+    // DateTime.weekday is 1..7 (Mon..Sun); narrowWeekdays is indexed 0..6
+    // (Sun..Sat). This maps a date to its column under the rotated header.
+    final leadingBlanks = leadingBlanksFor(first, firstDow);
     final cells = leadingBlanks + daysInMonth;
     final rows = (cells / 7).ceil();
 
@@ -1200,12 +1242,22 @@ class _MonthCalendar extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
+              // Rotated to start on the locale's first day, and TWO letters.
+              // The single-letter Russian narrow names are В П В С Ч П С — two
+              // Вs, two Пs and two Сs, so three of the seven columns cannot be
+              // told apart from their header alone.
               for (var i = 0; i < 7; i++)
                 Expanded(
-                  child: Text(ml.narrowWeekdays[i],
+                  child: Text(
+                      _weekdayLabel(ml, (firstDow + i) % 7),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Palette.textDim,
+                      style: TextStyle(
+                          // The weekend reads differently from the working week
+                          // at a glance, which is most of what a month grid is
+                          // scanned for.
+                          color: ((firstDow + i) % 7 == 0 || (firstDow + i) % 7 == 6)
+                              ? Palette.textDim.withValues(alpha: 0.75)
+                              : Palette.textDim,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600)),
                 ),
