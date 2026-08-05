@@ -29,7 +29,10 @@ CREATE EXTENSION IF NOT EXISTS citext;     -- case-insensitive email uniqueness
 -- -----------------------------------------------------------------------------
 CREATE TABLE users (                       -- Mothers / primary caregivers
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email          CITEXT UNIQUE NOT NULL,
+  -- Nullable: a mother who signs up with her phone has no email to give, and
+  -- inventing one to satisfy a constraint would put fake addresses in the
+  -- column somebody later tries to send mail to (migration 020).
+  email          CITEXT UNIQUE,
   phone_e164     TEXT,
   display_name   TEXT NOT NULL,
   locale         TEXT NOT NULL DEFAULT 'ru-KZ',   -- Localization Specialist: CIS default
@@ -554,3 +557,32 @@ CREATE TABLE IF NOT EXISTS staff_login_attempts (
 );
 CREATE INDEX IF NOT EXISTS staff_login_attempts_phone_at
   ON staff_login_attempts (phone, at DESC);
+
+-- ---------------------------------------------------------------------------
+-- App sign-in with a phone number (migration 020).
+--
+-- The number IS the identity: `users.email` is nullable and the unique index
+-- below is what stops two accounts sharing a number. No SMS — a number is
+-- claimed, not verified — so this is also the only place a code check would
+-- later go.
+-- ---------------------------------------------------------------------------
+CREATE UNIQUE INDEX IF NOT EXISTS users_phone_e164_unique
+  ON users (phone_e164) WHERE phone_e164 IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+  token_hash  TEXT PRIMARY KEY,               -- sha256 of the bearer token
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL,           -- 90 days; a phone is personal
+  user_agent  TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS user_sessions_expiry ON user_sessions (expires_at);
+CREATE INDEX IF NOT EXISTS user_sessions_user ON user_sessions (user_id);
+
+CREATE TABLE IF NOT EXISTS user_login_attempts (
+  id     BIGSERIAL PRIMARY KEY,
+  phone  TEXT NOT NULL,
+  at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS user_login_attempts_phone_at
+  ON user_login_attempts (phone, at DESC);

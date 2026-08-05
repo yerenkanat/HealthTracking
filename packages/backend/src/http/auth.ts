@@ -37,6 +37,11 @@ export function bearerToken(req: HeaderCarrier): string | null {
 }
 
 export interface AuthUserOptions {
+  /**
+   * Our own phone sign-in: looks the bearer token up in `user_sessions`.
+   * Present whenever a database is configured, and tried before anything else.
+   */
+  verifySessionToken?: (token: string) => Promise<{ userId: string } | null>;
   /** Verifies a real ID token → userId, or null if invalid. Firebase in prod. */
   verifyIdToken?: (token: string) => Promise<string | null>;
   /** Honour the dev stub token `stub-token:<uid>`. False in production. */
@@ -48,6 +53,17 @@ export function makeAuthUser(opts: AuthUserOptions) {
   return async (req: HeaderCarrier): Promise<{ userId: string } | null> => {
     const token = bearerToken(req);
     if (token) {
+      // Our own phone sign-in, tried FIRST. It is the only real user auth the
+      // product has: a token minted by POST /auth/phone and looked up in
+      // user_sessions. A stub token can never be mistaken for one — these are
+      // random and stored as a sha256, so an attacker would have to guess the
+      // token itself.
+      if (opts.verifySessionToken) {
+        const session = await opts.verifySessionToken(token).catch(() => null);
+        if (session) return session;
+        // Fall through: a Firebase deployment may also be running, and a token
+        // that is not one of ours may still be one of theirs.
+      }
       if (opts.verifyIdToken) {
         const uid = await opts.verifyIdToken(token).catch(() => null);
         return uid ? { userId: uid } : null;
@@ -59,7 +75,21 @@ export function makeAuthUser(opts: AuthUserOptions) {
       // A token we were given no way to verify — refuse rather than trust it.
       return null;
     }
-    // Legacy dev header, only when no token was presented.
+    // Legacy dev header — DEV ONLY, and gated on the same flag as the stub
+    // token.
+    //
+    // This used to be unconditional: reached whenever no bearer token was
+    // presented, whatever the auth posture. So a production server with
+    // REAL_AUTH=1 and a Firebase service account still answered
+    //
+    //     curl -H 'x-user-id: <any uuid>' https://…/children
+    //
+    // with that family's data. Every part of the system that was supposed to
+    // make this safe — the boot guard, the token verifier — was looking at the
+    // bearer path, and this one sat underneath it. The edge allow-list was the
+    // only thing in the way, which means opening the app API for Firebase would
+    // have published every record.
+    if (!opts.allowStubToken) return null;
     const id = header(req, 'x-user-id');
     return id ? { userId: id } : null;
   };

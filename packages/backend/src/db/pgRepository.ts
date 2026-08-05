@@ -146,6 +146,60 @@ export function createPgRepository(pool: Pool): Repository {
       } as ChildLocationFix;
     },
 
+    // ---- App sign-in (phone number) ----
+    async userByPhone(phone) {
+      const { rows } = await pool.query(
+        'SELECT id, display_name FROM users WHERE phone_e164 = $1', [phone]);
+      return rows[0] ? { id: rows[0].id, displayName: rows[0].display_name } : null;
+    },
+
+    async createUserWithPhone(a) {
+      // ON CONFLICT so two taps of the button in quick succession — which a
+      // slow connection invites — cannot create two accounts for one number.
+      const { rows } = await pool.query(
+        `INSERT INTO users (phone_e164, display_name)
+         VALUES ($1, $2)
+         ON CONFLICT (phone_e164) WHERE phone_e164 IS NOT NULL
+         DO UPDATE SET phone_e164 = EXCLUDED.phone_e164
+         RETURNING id, display_name`,
+        [a.phone, a.displayName],
+      );
+      return { id: rows[0].id, displayName: rows[0].display_name };
+    },
+
+    async createUserSession(s) {
+      await pool.query(
+        `INSERT INTO user_sessions (token_hash, user_id, expires_at, user_agent)
+         VALUES ($1,$2,$3,$4)`,
+        [s.tokenHash, s.userId, s.expiresAt, s.userAgent.slice(0, 300)],
+      );
+      await pool.query('DELETE FROM user_sessions WHERE expires_at < now()');
+    },
+
+    async userBySessionToken(tokenHash) {
+      const { rows } = await pool.query(
+        `SELECT user_id FROM user_sessions WHERE token_hash = $1 AND expires_at > now()`,
+        [tokenHash],
+      );
+      return rows[0] ? { userId: rows[0].user_id } : null;
+    },
+
+    async deleteUserSession(tokenHash) {
+      await pool.query('DELETE FROM user_sessions WHERE token_hash = $1', [tokenHash]);
+    },
+
+    async recentPhoneClaims(phone, since) {
+      const { rows } = await pool.query(
+        'SELECT count(*)::int AS n FROM user_login_attempts WHERE phone = $1 AND at >= $2',
+        [phone, since],
+      );
+      return rows[0]?.n ?? 0;
+    },
+
+    async recordPhoneClaim(phone) {
+      await pool.query('INSERT INTO user_login_attempts (phone) VALUES ($1)', [phone]);
+    },
+
     // ---- Staff sign-in ----
     async staffByPhone(phone) {
       const { rows } = await pool.query(

@@ -24,6 +24,7 @@ import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import type { LeadNotifier } from './notifications/leadAlert';
 import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
 import { registerStaffLoginRoutes } from './routes/staffLogin';
+import { registerPhoneAuthRoutes } from './routes/phoneAuth';
 import { registerStaffAdminRoutes } from './routes/staffAdmin';
 import { registerPublicApiRoutes } from './routes/publicApi';
 import { RateLimiter } from './http/rateLimit';
@@ -384,6 +385,7 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // Sign-in first: these three are the only /admin paths without a session, and
   // registering them here keeps that fact in one place.
   registerStaffLoginRoutes(app, deps.repo);
+  registerPhoneAuthRoutes(app, deps.repo);
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
   // Public content API (/api/v1) — calendars, protocols, personalised timelines

@@ -522,6 +522,25 @@ export interface Repository {
   // ---- Staff sign-in (phone + password) ----
   /// The account for a normalised phone, or null. Includes the hash, so it is
   /// only ever called from the login path.
+  // ---- App sign-in (phone number, no SMS) ----
+  /// The account for this normalised phone, or null.
+  userByPhone(phone: string): Promise<{ id: string; displayName: string } | null>;
+  /// Create one. The phone IS the identity; email is left null on purpose
+  /// rather than invented (migration 020).
+  createUserWithPhone(a: { phone: string; displayName: string }): Promise<{ id: string; displayName: string }>;
+  createUserSession(s: {
+    tokenHash: string;
+    userId: string;
+    expiresAt: Date;
+    userAgent: string;
+  }): Promise<void>;
+  /// Who is holding this token — the app's equivalent of staffBySessionToken.
+  userBySessionToken(tokenHash: string): Promise<{ userId: string } | null>;
+  deleteUserSession(tokenHash: string): Promise<void>;
+  /// Claims from this phone inside the window — the rate limit on registering.
+  recentPhoneClaims(phone: string, since: Date): Promise<number>;
+  recordPhoneClaim(phone: string): Promise<void>;
+
   staffByPhone(phone: string): Promise<StaffAccount | null>;
   staffById(id: string): Promise<StaffAccount | null>;
   /// Create or update an account. Used by the seeding script.

@@ -43,8 +43,11 @@ async function initFirebaseAuth(): Promise<void> {
 // Verifies a Bearer token (Firebase in prod) and, in dev, honours the app's
 // stub session token so real sign-in works against the in-memory backend. Falls
 // back to the x-user-id dev header. See http/auth.ts.
+// The session verifier is bound to the repository once it exists (see below);
+// until then only Firebase and the dev paths are available.
+let verifyUserSession: ((token: string) => Promise<{ userId: string } | null>) | undefined;
 const authUser = (req: FastifyRequest) =>
-  makeAuthUser({ verifyIdToken, allowStubToken: !REAL_AUTH })(req);
+  makeAuthUser({ verifySessionToken: verifyUserSession, verifyIdToken, allowStubToken: !REAL_AUTH })(req);
 // TODO(auth): verify a staff session/JWT with RBAC claims.
 /**
  * Who is asking, for /admin — the signed-in staff session.
@@ -96,6 +99,9 @@ async function productionDeps(): Promise<ServerDeps> {
   type PushResult = Awaited<ReturnType<typeof sendPush>>;
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const repo = createPgRepository(pool);
+  // Phone sign-in for the app: a token minted by POST /auth/phone, looked up in
+  // user_sessions. This is what makes authUser real without Firebase.
+  verifyUserSession = async (token) => repo.userBySessionToken(hashToken(token));
   // Redis normally holds the cross-request geofence state. While it is
   // refusing connections this carries it instead, for as long as the outage
   // lasts — a cache being down must not silently switch off the alerts.

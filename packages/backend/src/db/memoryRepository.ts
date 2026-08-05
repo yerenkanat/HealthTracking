@@ -59,6 +59,15 @@ export function createMemoryRepository(): Repository {
   /** Latest fix per child — what lastLocation reads back. */
   const locations = new Map<string, ChildLocationFix>();
 
+  /** App sign-in: normalised phone → user id, and that user's name. */
+  const usersByPhone = new Map<string, string>();
+  const userNames = new Map<string, string>();
+  const userSessions = new Map<
+    string,
+    { tokenHash: string; userId: string; expiresAt: Date; userAgent: string }
+  >();
+  const phoneClaims: Array<{ phone: string; at: Date }> = [];
+
   /** Staff sign-in, keyed by normalised phone. */
   const staffAccounts = new Map<string, StaffAccount>();
 
@@ -216,6 +225,30 @@ export function createMemoryRepository(): Repository {
       const { userId: _omit, ...row } = latest;
       return row;
     },
+    // ---- App sign-in (phone number) ----
+    userByPhone: async (phone) => {
+      const id = usersByPhone.get(phone);
+      return id ? { id, displayName: userNames.get(id) ?? '' } : null;
+    },
+    createUserWithPhone: async (a) => {
+      const existing = usersByPhone.get(a.phone);
+      if (existing) return { id: existing, displayName: userNames.get(existing) ?? '' };
+      const id = randomUUID();
+      usersByPhone.set(a.phone, id);
+      userNames.set(id, a.displayName);
+      return { id, displayName: a.displayName };
+    },
+    createUserSession: async (s) => void userSessions.set(s.tokenHash, s),
+    userBySessionToken: async (tokenHash) => {
+      const s = userSessions.get(tokenHash);
+      if (!s || s.expiresAt.getTime() <= Date.now()) return null;
+      return { userId: s.userId };
+    },
+    deleteUserSession: async (tokenHash) => void userSessions.delete(tokenHash),
+    recentPhoneClaims: async (phone, since) =>
+      phoneClaims.filter((c) => c.phone === phone && c.at >= since).length,
+    recordPhoneClaim: async (phone) => void phoneClaims.push({ phone, at: new Date() }),
+
     // ---- Staff sign-in ----
     staffByPhone: async (phone) => staffAccounts.get(phone) ?? null,
     staffById: async (id) => [...staffAccounts.values()].find((a) => a.id === id) ?? null,

@@ -93,6 +93,14 @@ function makeDeps(
     insertGeofenceEvent: async (e) => void events.push(e),
     // Staff sign-in is exercised by staffLogin.test.ts against the memory
     // repository; this integration stub only has to satisfy the interface.
+    userByPhone: async () => null,
+    createUserWithPhone: async (a: { phone: string; displayName: string }) =>
+      ({ id: 'user-1', displayName: a.displayName }),
+    createUserSession: async () => {},
+    userBySessionToken: async () => null,
+    deleteUserSession: async () => {},
+    recentPhoneClaims: async () => 0,
+    recordPhoneClaim: async () => {},
     staffByPhone: async () => null,
     staffById: async () => null,
     upsertStaffAccount: async () => {},
