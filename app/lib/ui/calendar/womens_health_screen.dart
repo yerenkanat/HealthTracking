@@ -26,6 +26,10 @@ import '../../domain/cycle_insights.dart'
         symptomsInPhase,
         PredictionConfidence;
 import '../../domain/cycle_predictions.dart';
+import '../../domain/child_development.dart' show ageInMonths;
+import '../../domain/baby_development_content.dart' show childAgeWeeks, childAgeDays;
+import '../../domain/family.dart' show ChildProfile;
+import '../tracking/child_development_screen.dart' show ChildDevelopmentTimeline;
 import '../../domain/kick_session.dart';
 import '../../domain/postpartum.dart';
 import '../../domain/pregnancy_milestones.dart';
@@ -82,15 +86,45 @@ class WomensHealthScreen extends StatefulWidget {
   State<WomensHealthScreen> createState() => _WomensHealthScreenState();
 }
 
+/// Which of the three calendars is on screen.
+///
+/// The app used to decide this alone: pregnant → the pregnancy calendar,
+/// otherwise → the cycle calendar, and the child-development calendar was not
+/// on this tab at all (it lived behind Настройки → ребёнок → Развитие). So a
+/// mother could not look at her cycle history while pregnant, could not read
+/// ahead in the pregnancy calendar before her due date was set, and had no
+/// reason to suspect the third calendar existed.
+enum CalendarMode { cycle, pregnancy, child }
+
 class _WomensHealthScreenState extends State<WomensHealthScreen> {
   late DateTime _month; // first day of the visible month
   late DateTime _today;
+
+  /// Null until she picks one — until then the screen follows her state, which
+  /// is right on the first open and stops being right the moment she wants to
+  /// look at something else.
+  CalendarMode? _picked;
 
   @override
   void initState() {
     super.initState();
     _today = _dayOnly(widget.now());
     _month = DateTime(_today.year, _today.month, 1);
+  }
+
+  /// The mode actually shown: her choice, or the one her state implies.
+  CalendarMode _modeFor(AppController c) =>
+      _picked ?? (c.isPregnant ? CalendarMode.pregnancy : CalendarMode.cycle);
+
+  /// The child whose development calendar is shown — the selected one when it
+  /// has a birth date, otherwise the first child that does.
+  ChildProfile? _devChild(AppController c) {
+    final sel = c.selectedChild;
+    if (sel != null && sel.dateOfBirth != null) return sel;
+    for (final ch in c.children) {
+      if (ch.dateOfBirth != null) return ch;
+    }
+    return null;
   }
 
   DateTime _dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -119,7 +153,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     return StreamBuilder<void>(
       stream: c.changes,
       builder: (context, _) {
-        final cycleMode = !c.isPregnant;
+        final mode = _modeFor(c);
+        final cycleMode = mode == CalendarMode.cycle;
+        final pregMode = mode == CalendarMode.pregnancy;
+        final childMode = mode == CalendarMode.child;
         final periodToday = c.logFor(_today).hasPeriod;
         return AuroraBackground(
           child: Scaffold(
@@ -127,7 +164,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
             appBar: AppBar(
               title: FittedTitle(l.t('cal_screen_title')),
               actions: [
-                if (!cycleMode)
+                if (pregMode)
                   IconButton(
                     icon: const Icon(Icons.timer_outlined),
                     tooltip: l.t('contr_title'),
@@ -143,7 +180,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 // Safety content, always one tap from the main pregnancy view —
                 // not buried inside a week's detail. Same card, shown here on
                 // its own screen.
-                if (!cycleMode)
+                if (pregMode)
                   IconButton(
                     icon: const Icon(Icons.health_and_safety_outlined),
                     tooltip: l.t('preg_warn_title'),
@@ -202,6 +239,56 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
             body: ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
               children: [
+                // All three calendars, always visible. Which one opens first
+                // still follows her state — that is right on the first open —
+                // but the other two are now one tap away instead of being
+                // decided for her.
+                _CalendarModeBar(
+                  mode: mode,
+                  onPick: (m) => setState(() => _picked = m),
+                ),
+                const SizedBox(height: 12),
+
+                if (childMode) ...[
+                  if (_devChild(c) case final child?) ...[
+                    // Which child this is about — invisible with one child,
+                    // essential with two.
+                    if (c.children.length > 1)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(l.t('cal_child_of', {'name': child.name}),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                      ),
+                    // The same timeline the standalone screen shows, including
+                    // its own daily audio clip — adding a second one here
+                    // would put two players for the same day on one page.
+                    ChildDevelopmentTimeline(
+                      embedded: true,
+                      ageMonths: ageInMonths(child.dateOfBirth!, _today),
+                      ageWeeks: childAgeWeeks(child.dateOfBirth!, _today),
+                      ageDays: childAgeDays(child.dateOfBirth!, _today),
+                      childName: child.name,
+                    ),
+                  ] else
+                    // Empty because there is no birth date to count from —
+                    // said plainly, rather than an empty calendar that looks
+                    // broken.
+                    DsCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l.t('cal_child_empty_title'),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 15.5)),
+                          const SizedBox(height: 8),
+                          Text(l.t('cal_child_empty_body'),
+                              style: const TextStyle(
+                                  color: Palette.textDim, height: 1.4)),
+                        ],
+                      ),
+                    ),
+                ] else ...[
                 if (cycleMode)
                   _CycleHeader(
                       controller: c, today: _today, onSetDueDate: _pickDueDate)
@@ -212,7 +299,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 // Daily audio for this exact day of the calendar, right under the
                 // week/day header. Renders nothing (and adds no gap) when the day
                 // has no clip.
-                if (!cycleMode && c.gestation != null)
+                if (pregMode && c.gestation != null)
                   DailyAudioCard(
                       track: 'pregnancy',
                       day: c.gestation!.totalDays,
@@ -242,7 +329,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 // Only in pregnancy mode: the cycle calendar has its own
                 // content elsewhere, and showing an empty shelf on it would be
                 // clutter. Hidden entirely when nothing is wired.
-                if (!cycleMode && c.isPregnant && widget.onOpenTip != null) ...[
+                if (pregMode && c.isPregnant && widget.onOpenTip != null) ...[
                   const SizedBox(height: 14),
                   TimelineContentCard(
                     stage: c.gestation == null
@@ -284,7 +371,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     );
                   }),
                 ],
-                if (!cycleMode && c.gestation != null) ...[
+                if (pregMode && c.gestation != null) ...[
                   // The baby-size + weekly highlight live on the "Подробнее" week
                   // detail page, so they're not repeated here.
                   const SizedBox(height: 14),
@@ -307,7 +394,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     ),
                   ],
                 ],
-                if (!cycleMode) ...[
+                if (pregMode) ...[
                   const SizedBox(height: 14),
                   WeightCard(
                     entries: c.weights,
@@ -358,7 +445,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   const SizedBox(height: 14),
                   const _CycleLegend(),
                 ],
-                if (!cycleMode && c.kickSessions.isNotEmpty) ...[
+                if (pregMode && c.kickSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   _KickHistory(
                       sessions: c.kickSessions,
@@ -371,7 +458,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                               _KickHistoryRow(record: s, now: _today)
                           ])),
                 ],
-                if (!cycleMode && c.contractionSessions.isNotEmpty) ...[
+                if (pregMode && c.contractionSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   _ContractionHistory(
                       sessions: c.contractionSessions,
@@ -383,6 +470,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                             for (final s in c.contractionSessions)
                               _ContractionHistoryRow(record: s, now: _today)
                           ])),
+                ],
                 ],
               ],
             ),
@@ -552,6 +640,109 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
 
 /// Gestation header: a "Week N, Day D" progress card + a 7-day horizontal strip
 /// centred on today. When no due date is set, invites the mother to add one.
+/// The three calendars, side by side.
+///
+/// Every segment is always enabled. A calendar with nothing to show yet opens
+/// and explains what it needs — a due date, a child's birth date — which is
+/// how somebody finds out it exists. Greying one out would leave a mother who
+/// has not filled in a due date unable to discover the pregnancy calendar at
+/// all, which is the position this screen was in before.
+class _CalendarModeBar extends StatelessWidget {
+  final CalendarMode mode;
+  final ValueChanged<CalendarMode> onPick;
+  const _CalendarModeBar({required this.mode, required this.onPick});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    const items = <(CalendarMode, String, IconData)>[
+      (CalendarMode.cycle, 'cal_mode_cycle', Icons.water_drop_outlined),
+      (CalendarMode.pregnancy, 'cal_mode_pregnancy', Icons.pregnant_woman_rounded),
+      (CalendarMode.child, 'cal_mode_child', Icons.child_care_rounded),
+    ];
+    return Row(
+      children: [
+        for (final (m, key, icon) in items) ...[
+          Expanded(
+            child: _ModeChip(
+              label: l.t(key),
+              icon: icon,
+              selected: m == mode,
+              onTap: () => onPick(m),
+            ),
+          ),
+          if (m != items.last.$1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ModeChip(
+      {required this.label,
+      required this.icon,
+      required this.selected,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    // Selected state carries a border and a filled background, not colour
+    // alone: on a small phone in daylight a tint difference is not a reliable
+    // signal, and it is no signal at all to somebody who cannot see it.
+    final fg = selected ? Colors.white : Palette.text;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? darkenForText(Palette.roseDeep) : Palette.surface,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            // 48, the Android minimum tap target. It is the control that
+            // switches between the three calendars, at the very top of the
+            // screen — a mis-tap here sends her to the wrong calendar.
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: selected ? Colors.transparent : Palette.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 17, color: fg),
+                const SizedBox(width: 6),
+                // Three labels on a 360dp screen: let the longest shrink
+                // rather than overflow or be cut off mid-word.
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: fg,
+                        fontSize: 13,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GestationHeader extends StatelessWidget {
   final AppController controller;
   final DateTime today;

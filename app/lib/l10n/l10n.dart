@@ -1082,6 +1082,19 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Women's-health calendar
   'nav_calendar': {AppLocale.ru: 'Календарь', AppLocale.kk: 'Күнтізбе', AppLocale.en: 'Calendar'},
   'cal_screen_title': {AppLocale.ru: 'Женское здоровье', AppLocale.kk: 'Әйел денсаулығы', AppLocale.en: "Women's health"},
+  // The three calendars, and what to say when one of them has nothing to
+  // stand on yet. Never hidden: a calendar she cannot see is a calendar she
+  // does not know exists.
+  'cal_mode_cycle': {AppLocale.ru: 'Цикл', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycle'},
+  'cal_mode_pregnancy': {AppLocale.ru: 'Беременность', AppLocale.kk: 'Жүктілік', AppLocale.en: 'Pregnancy'},
+  'cal_mode_child': {AppLocale.ru: 'Ребёнок', AppLocale.kk: 'Бала', AppLocale.en: 'Child'},
+  'cal_child_empty_title': {AppLocale.ru: 'Календарь развития ребёнка', AppLocale.kk: 'Бала дамуының күнтізбесі', AppLocale.en: 'Child development calendar'},
+  'cal_child_empty_body': {
+    AppLocale.ru: 'Добавьте ребёнка и его дату рождения — и здесь появится, что он умеет сейчас и что будет дальше.',
+    AppLocale.kk: 'Баланы және оның туған күнін қосыңыз — осында қазір не істей алатыны және әрі қарай не болатыны шығады.',
+    AppLocale.en: 'Add a child and their date of birth, and this will show what they can do now and what comes next.',
+  },
+  'cal_child_of': {AppLocale.ru: 'Календарь для: {name}', AppLocale.kk: 'Күнтізбе: {name}', AppLocale.en: 'Calendar for {name}'},
   'cal_no_due_title': {AppLocale.ru: 'Добавьте срок беременности', AppLocale.kk: 'Жүктілік мерзімін қосыңыз', AppLocale.en: 'Add your due date'},
   'cal_no_due_body': {
     AppLocale.ru: 'Укажите предполагаемую дату родов, чтобы отслеживать неделю беременности.',

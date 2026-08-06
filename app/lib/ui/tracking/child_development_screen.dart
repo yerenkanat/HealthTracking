@@ -53,7 +53,7 @@ class ChildDevelopmentScreen extends StatelessWidget {
       ),
       body: dob == null
           ? _NoBirthdate(message: l.t('dev_no_birthdate'))
-          : _Timeline(
+          : ChildDevelopmentTimeline(
               ageMonths: ageInMonths(dob, today),
               ageWeeks: childAgeWeeks(dob, today),
               ageDays: childAgeDays(dob, today),
@@ -80,16 +80,28 @@ class _NoBirthdate extends StatelessWidget {
       );
 }
 
-class _Timeline extends StatelessWidget {
+/// The development calendar itself, without a Scaffold.
+///
+/// Public so the Calendar tab can show it as one of its three calendars: the
+/// child-development calendar existed but was reachable only through
+/// Настройки → ребёнок → Развитие, which is not where anybody looks for a
+/// calendar.
+class ChildDevelopmentTimeline extends StatelessWidget {
   final int ageMonths;
   final int ageWeeks;
   final int ageDays;
   final String childName;
-  const _Timeline(
-      {required this.ageMonths,
+
+  /// Shown as a section of another scrolling page rather than as a whole
+  /// screen — the Calendar tab's «Ребёнок» calendar.
+  final bool embedded;
+  const ChildDevelopmentTimeline(
+      {super.key,
+      required this.ageMonths,
       required this.ageWeeks,
       required this.ageDays,
-      required this.childName});
+      required this.childName,
+      this.embedded = false});
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +111,14 @@ class _Timeline extends StatelessWidget {
     final ask = worthAsking(ageMonths);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      // Inside the Calendar tab this is one section of a longer page, so it
+      // must not scroll itself or add a second set of margins — a scrollable
+      // inside a scrollable has no height to expand into and throws.
+      shrinkWrap: embedded,
+      physics: embedded ? const NeverScrollableScrollPhysics() : null,
+      padding: embedded
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
         _AgeHeader(ageMonths: ageMonths, name: childName),
         const SizedBox(height: 12),

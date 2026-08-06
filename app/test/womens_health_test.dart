@@ -430,5 +430,78 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  /// All three calendars, from any state.
+  ///
+  /// This tab used to be one calendar chosen for her: pregnant → pregnancy,
+  /// otherwise → cycle, and the child-development calendar was not here at all
+  /// (it lived behind Настройки → ребёнок → Развитие). So a pregnant mother
+  /// could not look back at her cycle history, nobody could read ahead in the
+  /// pregnancy calendar before setting a due date, and the third calendar was
+  /// undiscoverable from the screen called "Calendar".
+  group('all three calendars are reachable', () {
+    testWidgets('the switch offers all three, whatever her state', (tester) async {
+      final c = controllerFor(); // not pregnant, no children
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
 
+      for (final label in ['Cycle', 'Pregnancy', 'Child']) {
+        expect(find.text(label), findsOneWidget, reason: '$label is not offered');
+      }
+    });
+
+    testWidgets('a pregnant mother can still open her cycle calendar', (tester) async {
+      final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      // Opens on the calendar her state implies…
+      expect(find.text('Week 20, Day 0'), findsOneWidget);
+
+      await tester.tap(find.text('Cycle'));
+      await tester.pumpAndSettle();
+
+      // …and switching does not change her state, only what is on screen.
+      expect(find.text('Track your cycle'), findsOneWidget);
+      expect(c.isPregnant, true, reason: 'looking at a calendar is not a decision');
+    });
+
+    testWidgets('the pregnancy calendar can be read before a due date is set', (tester) async {
+      final c = controllerFor(); // no due date
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+
+      await tester.tap(find.text('Pregnancy'));
+      await tester.pumpAndSettle();
+
+      // It says what it needs rather than being greyed out — a disabled tab
+      // teaches nobody that the calendar exists.
+      expect(find.text('Add your due date'), findsOneWidget);
+    });
+
+    testWidgets('the child calendar shows what the baby can do now', (tester) async {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      c.addChild(ChildProfile(
+          id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 270))));
+      await tester.pumpWidget(wrap(c));
+
+      await tester.tap(find.text('Child'));
+      await tester.pumpAndSettle();
+
+      // The development timeline, not the cycle grid.
+      expect(find.text('Track your cycle'), findsNothing);
+      expect(find.textContaining('Baby'), findsWidgets);
+    });
+
+    testWidgets('with no child it says what it needs instead of showing nothing', (tester) async {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+
+      await tester.tap(find.text('Child'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Child development calendar'), findsOneWidget);
+      expect(find.textContaining('date of birth'), findsOneWidget);
+    });
+  });
 }
