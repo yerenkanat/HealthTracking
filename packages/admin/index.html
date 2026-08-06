@@ -1062,8 +1062,15 @@
             <button class="btn" id="entBtn" type="submit">Открыть доступ</button>
           </form>
           <div id="entMsg" class="formmsg"></div>
+          <!-- Прогресс, beside the access it belongs to.
+               Access answers "did she pay". It does not answer the question
+               that decides whether the комплект's 9 200 ₸ premium delivers
+               anything: is she actually watching it. Somebody who was given the
+               course three weeks ago and has opened nothing is a call worth
+               making, and until this column existed nobody could see it. -->
           <div class="tablewrap" style="margin-top:12px">
-            <table><thead><tr><th>Телефон</th><th>Когда</th><th>Основание</th><th></th></tr></thead>
+            <table><thead><tr><th>Телефон</th><th>Когда</th><th>Основание</th>
+              <th>Прогресс</th><th>Последний урок</th><th></th></tr></thead>
             <tbody id="entBody"></tbody></table>
           </div>
         </div>
@@ -3302,6 +3309,25 @@
     });
   }
 
+  /**
+   * "3 / 12", or the fact that she has never opened it.
+   *
+   * Not started is the cell that matters most and the one an empty string
+   * would hide. Somebody handed a 39 000 ₸ комплект three weeks ago who has
+   * watched nothing is a call worth making today; the same row rendered blank
+   * reads as "no data" and gets scrolled past.
+   */
+  function courseProgressCell(p, total){
+    if(!p) return `<span class="pill warn">не начинала</span>`;
+    const done = p.completed || 0;
+    const cls = total > 0 && done >= total ? "good" : "";
+    const of = total > 0 ? ` / ${total}` : "";
+    // started is "opened", completed is "watched through". Both, because
+    // 0 watched out of 8 opened is a very different customer from 0 out of 0.
+    return `<span class="pill ${cls}">${done}${of}</span>`
+      + (p.started > done ? ` <span class="sub">начато ${p.started}</span>` : "");
+  }
+
   async function renderCourse(){
     wireCourse();
 
@@ -3396,13 +3422,31 @@
     }
 
     try{
-      const { entitlements } = await api("/admin/entitlements");
-      $("#entBody").innerHTML = entitlements.map(e => `<tr>
+      // Access and progress together. Two separate tables would put "she has
+      // it" and "she has not started it" on different screens, which is the
+      // pair of facts that has to be read as one.
+      const [{ entitlements }, prog] = await Promise.all([
+        api("/admin/entitlements"),
+        // Progress is the newer half. On a server that has not been migrated
+        // yet this 404s, and the access list — the older, more important half —
+        // must still draw.
+        api("/admin/course/progress").catch(() => ({ progress: [] })),
+      ]);
+      const byPhone = new Map((prog.progress || []).map(p => [p.phone, p]));
+      // Out of the PUBLISHED lessons: a draft is not something anyone can
+      // watch, so counting it would show every customer permanently behind.
+      const total = ((data && data.lessons) || []).filter(l => l.published).length;
+
+      $("#entBody").innerHTML = entitlements.map(e => {
+        const p = byPhone.get(e.phone);
+        return `<tr>
         <td class="num">${esc(e.phone)}</td>
         <td class="t">${esc(stamp(e.at))}</td>
         <td class="t">${esc(e.note || (e.orderId ? "заказ" : "вручную"))}</td>
+        <td>${courseProgressCell(p, total)}</td>
+        <td class="t">${p ? esc(p.lastLessonTitle || "—") + `<br><span class="sub">${esc(stamp(p.lastAt))}</span>` : "—"}</td>
         <td><button type="button" class="btn sm ghost erev" data-p="${esc(e.phone)}">Закрыть</button></td>
-      </tr>`).join("") || tableNote(4,"Пока никому не открыт.");
+      </tr>`; }).join("") || tableNote(6,"Пока никому не открыт.");
 
       $("#entBody").querySelectorAll(".erev").forEach(b => b.addEventListener("click", async () => {
         if(!window.confirm(`Закрыть доступ к курсу для ${b.dataset.p}?`)) return;
@@ -3412,7 +3456,7 @@
         }catch(e){ /* redraw shows the truth */ }
         renderCourse();
       }));
-    }catch(e){ $("#entBody").innerHTML = tableNote(4,"Не удалось загрузить список."); }
+    }catch(e){ $("#entBody").innerHTML = tableNote(6,"Не удалось загрузить список."); }
   }
 
   // ---- Склад --------------------------------------------------------------

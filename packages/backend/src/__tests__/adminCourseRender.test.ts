@@ -48,6 +48,27 @@ const LESSONS = {
     },
     lesson('22222222-2222-2222-2222-222222222222', 'Грудное вскармливание', 20),
     lesson('33333333-3333-3333-3333-333333333333', 'Сон малыша', 30),
+    // A draft. Nobody can watch it, so nobody's progress may be measured
+    // against it — three published lessons is the denominator, not four.
+    { ...lesson('44444444-4444-4444-4444-444444444444', 'Черновик', 40), published: false },
+  ],
+};
+
+/// Three customers who bought the same thing and did three different things
+/// with it: one finished it, one opened one lesson and stopped, one has never
+/// pressed play. Telling those apart is the entire point of the column.
+const ENTITLEMENTS = {
+  entitlements: [
+    { phone: '77001112233', feature: 'mama_course', orderId: null, grantedBy: 's', note: 'заказ', at: '2026-07-01T10:00:00.000Z' },
+    { phone: '77002223344', feature: 'mama_course', orderId: null, grantedBy: 's', note: null, at: '2026-07-02T10:00:00.000Z' },
+    { phone: '77003334455', feature: 'mama_course', orderId: null, grantedBy: 's', note: null, at: '2026-07-03T10:00:00.000Z' },
+  ],
+};
+
+const PROGRESS = {
+  progress: [
+    { phone: '77001112233', started: 3, completed: 3, lastLessonId: '33333333-3333-3333-3333-333333333333', lastLessonTitle: 'Сон малыша', lastAt: '2026-07-20T09:00:00.000Z' },
+    { phone: '77002223344', started: 1, completed: 0, lastLessonId: '11111111-1111-1111-1111-111111111111', lastLessonTitle: 'Первые 40 дней', lastAt: '2026-07-05T09:00:00.000Z' },
   ],
 };
 
@@ -86,10 +107,13 @@ async function render(): Promise<Page> {
           saved.push(JSON.parse(opts.body ?? '{}'));
           return { ok: true, status: 200, json: async () => ({ ok: true, id: 'new' }) };
         }
+        if (p.includes('/admin/course/progress')) {
+          return { ok: true, status: 200, json: async () => PROGRESS };
+        }
         const body = p.includes('/admin/course/lessons')
           ? LESSONS
           : p.includes('/admin/entitlements')
-            ? { entitlements: [] }
+            ? ENTITLEMENTS
             : { };
         return { ok: true, status: 200, json: async () => body };
       }) as never;
@@ -243,6 +267,81 @@ describe('authoring a lesson', () => {
       expect(moved.summaryRu).toBe('Что происходит с телом и когда обращаться к врачу.');
       expect(moved.published).toBe(true);
       expect(moved.youtubeUrl).toBe('https://youtu.be/dQw4w9WgXcQ');
+    });
+  });
+
+  /// Who is actually watching what they bought.
+  ///
+  /// Access answers "did she pay". It never answered the question the
+  /// комплект's 9 200 ₸ premium rests on: is she watching it. Somebody handed
+  /// the course three weeks ago who has opened nothing is a call worth making,
+  /// and that row was indistinguishable from every other row.
+  describe('progress beside access', () => {
+    const rows = (page: Page) =>
+      [...page.window.document.querySelectorAll('#entBody tr')] as HTMLElement[];
+
+    it('shows how far each customer has got', async () => {
+      const cells = rows(page).map((r) => r.textContent ?? '');
+      expect(cells[0], 'the one who finished').toContain('3 / 3');
+      expect(cells[1], 'the one who opened one lesson').toContain('0 / 3');
+    });
+
+    it('says outright that somebody has never started', async () => {
+      // The row that matters most, and the one an empty cell would hide: blank
+      // reads as "no data" and gets scrolled past.
+      expect(rows(page)[2].textContent).toMatch(/не начинала/i);
+    });
+
+    it('distinguishes opened from watched through', async () => {
+      // 0 finished out of 8 opened is a different customer from 0 out of 0.
+      expect(rows(page)[1].textContent).toMatch(/начато 1/i);
+      expect(rows(page)[0].textContent, 'nothing to add when they match')
+        .not.toMatch(/начато/i);
+    });
+
+    it('names the last lesson she was on, and when', async () => {
+      expect(rows(page)[0].textContent).toContain('Сон малыша');
+      expect(rows(page)[1].textContent).toContain('Первые 40 дней');
+    });
+
+    it('counts against published lessons only', async () => {
+      // Four lessons exist; one is a draft nobody can watch. Counting it would
+      // show every customer permanently behind, for a reason no one can see.
+      const done = rows(page)[0].textContent ?? '';
+      expect(done).toContain('3 / 3');
+      expect(done, 'the draft was counted').not.toContain('3 / 4');
+    });
+
+    it('still draws the access list when progress is unavailable', async () => {
+      // The older half of this table is the more important one. A server not
+      // yet migrated 404s the progress route, and "who has access" must survive
+      // that rather than going blank.
+      const html = readFileSync(PANEL, 'utf8');
+      const dom = new JSDOM(html, {
+        runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/admin',
+        beforeParse(window) {
+          window.HTMLCanvasElement.prototype.getContext = (() => null) as never;
+          window.scrollTo = () => {};
+          window.fetch = (async (path: string) => {
+            const p = String(path);
+            if (p.includes('/admin/course/progress')) {
+              return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) };
+            }
+            const body = p.includes('/admin/course/lessons') ? LESSONS
+              : p.includes('/admin/entitlements') ? ENTITLEMENTS : {};
+            return { ok: true, status: 200, json: async () => body };
+          }) as never;
+        },
+      });
+      const w = dom.window;
+      await new Promise((r) => setTimeout(r, 120));
+      w.document.querySelector('[data-view="course"]')!
+        .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 250));
+
+      const body = w.document.querySelector('#entBody')!.textContent ?? '';
+      expect(body, 'the access list went blank').toContain('77001112233');
+      expect(body).toMatch(/не начинала/i);
     });
   });
 
