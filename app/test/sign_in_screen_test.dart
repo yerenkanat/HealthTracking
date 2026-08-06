@@ -84,4 +84,73 @@ void main() {
     // Still on the phone step.
     expect(find.text(ru.t('auth_phone_intro')), findsOneWidget);
   });
+
+  /// What the screen says when there is no SMS to send.
+  ///
+  /// The production build has no gateway: `POST /auth/phone` finds or creates
+  /// the account and the code step is skipped entirely. The screen still read
+  /// «мы отправим код подтверждения» over a button saying «Отправить код», so
+  /// she was signed in instantly and then sat waiting for a message nobody
+  /// sent — and the natural next move is to retype the number, thinking she
+  /// got it wrong.
+  group('when the build has no SMS gateway', () {
+    testWidgets('promises no code, and offers to continue instead', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: L10nScope(
+          l10n: ru,
+          child: SignInScreen(
+            provider: _NoCodeProvider(),
+            onSignedIn: (_) {},
+          ),
+        ),
+      ));
+
+      expect(find.text(ru.t('auth_phone_intro_nocode')), findsOneWidget);
+      expect(find.text(ru.t('auth_phone_intro')), findsNothing);
+      expect(find.widgetWithText(FilledButton, ru.t('auth_continue')), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, ru.t('auth_send_code')), findsNothing);
+    });
+
+    testWidgets('a number is enough to be signed in', (tester) async {
+      AuthSession? signedIn;
+      await tester.pumpWidget(MaterialApp(
+        home: L10nScope(
+          l10n: ru,
+          child: SignInScreen(
+            provider: _NoCodeProvider(),
+            onSignedIn: (s) => signedIn = s,
+          ),
+        ),
+      ));
+
+      await tester.enterText(find.byType(TextField), '+77001234567');
+      await tester.tap(find.widgetWithText(FilledButton, ru.t('auth_continue')));
+      await tester.pumpAndSettle();
+
+      expect(signedIn, isNotNull);
+      expect(signedIn!.phoneE164, '+77001234567');
+    });
+  });
+}
+
+/// Mirrors ServerPhoneAuthProvider's contract — no SMS, so no code step —
+/// without reaching the network.
+class _NoCodeProvider implements PhoneAuthProvider {
+  @override
+  bool get requiresCode => false;
+
+  @override
+  Future<OtpChallenge> requestCode(String phoneE164) async {
+    if (!isValidE164(phoneE164)) throw const AuthException('invalid-phone');
+    return OtpChallenge(verificationId: 'server:$phoneE164', phoneE164: phoneE164);
+  }
+
+  @override
+  Future<AuthSession> verifyCode(OtpChallenge challenge, String code) async =>
+      AuthSession(
+        userId: 'u-1',
+        phoneE164: challenge.phoneE164,
+        token: 't-1',
+        signedInAt: DateTime.utc(2026, 8, 6),
+      );
 }

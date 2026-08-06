@@ -127,6 +127,18 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   'auth_phone_label': {AppLocale.ru: 'Номер телефона', AppLocale.kk: 'Телефон нөмірі', AppLocale.en: 'Phone number'},
   'auth_send_code': {AppLocale.ru: 'Отправить код', AppLocale.kk: 'Код жіберу', AppLocale.en: 'Send code'},
+  // What this build actually does. There is no SMS gateway: the number is
+  // claimed, not verified, and the code screen is skipped entirely. The screen
+  // still said «мы отправим код подтверждения» over a button reading
+  // «Отправить код», so she signed in instantly and then sat waiting for a
+  // message that was never sent — and the next thing she does is retype her
+  // number, thinking she got it wrong.
+  'auth_phone_intro_nocode': {
+    AppLocale.ru: 'Введите номер телефона — по нему сохраняются ваши данные. Код подтверждения не нужен.',
+    AppLocale.kk: 'Телефон нөмірін енгізіңіз — деректеріңіз осы нөмірге сақталады. Растау коды қажет емес.',
+    AppLocale.en: 'Enter your phone number — your data is kept against it. No confirmation code needed.',
+  },
+  'auth_continue': {AppLocale.ru: 'Продолжить', AppLocale.kk: 'Жалғастыру', AppLocale.en: 'Continue'},
   'auth_code_intro': {
     AppLocale.ru: 'Введите код, отправленный на {phone}.',
     AppLocale.kk: '{phone} нөміріне жіберілген кодты енгізіңіз.',

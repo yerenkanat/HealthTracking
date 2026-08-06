@@ -96,7 +96,12 @@ class _SignInScreenState extends State<SignInScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          Text(onCode ? l.t('auth_code_intro', {'phone': c.session?.phoneE164 ?? _phone.text}) : l.t('auth_phone_intro'),
+                    // The copy has to match what the build DOES. With no SMS gateway the
+          // code screen is skipped, so promising a confirmation code leaves her
+          // waiting for a message nobody sent.
+          Text(onCode
+                  ? l.t('auth_code_intro', {'phone': c.session?.phoneE164 ?? _phone.text})
+                  : l.t(widget.provider.requiresCode ? 'auth_phone_intro' : 'auth_phone_intro_nocode'),
               style: const TextStyle(color: Palette.textDim, fontSize: 14, height: 1.45)),
           const SizedBox(height: 20),
           if (!onCode) ...[
@@ -152,7 +157,9 @@ class _SignInScreenState extends State<SignInScreen> {
             onPressed: c.busy ? null : (onCode ? _submitCode : _submitPhone),
             child: c.busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(onCode ? l.t('auth_verify') : l.t('auth_send_code')),
+                : Text(onCode
+                    ? l.t('auth_verify')
+                    : l.t(widget.provider.requiresCode ? 'auth_send_code' : 'auth_continue')),
           ),
         ],
       ),
