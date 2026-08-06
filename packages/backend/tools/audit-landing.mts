@@ -14,9 +14,32 @@ import { createMemoryRepository, DEMO_USER } from '../src/db/memoryRepository';
 import { registerLanding } from '../src/http/landing';
 import { registerStaticPages } from '../src/http/staticPages';
 
+/** The host the page is actually served under, so it renders as it ships. */
+const PROD_HOST = 'ana-bala.kz';
+
+/**
+ * External hosts the page is MEANT to reach.
+ *
+ * mama.nureke.kz is the Ма!Ма! course's own site: the landing links to it for
+ * "Всё о курсе" and embeds its trailer, deliberately. It sat on the
+ * placeholder blacklist as "old domain", so the audit reported a failure on
+ * every single run — and a check that always fails is a check nobody reads,
+ * which costs the day something genuinely stale does appear.
+ *
+ * An allow-list is also the stronger check: it catches a link to a host we
+ * never intended, which is the thing actually worth knowing about.
+ */
+const EXPECTED_HOSTS = new Set([
+  'wa.me', // the order button
+  'mama.nureke.kz', // the course partner
+  'fonts.googleapis.com',
+  'fonts.gstatic.com',
+]);
+
+const repo = createMemoryRepository();
 const app = buildServer(
   {
-    repo: createMemoryRepository(),
+    repo,
     guardrail: { callLLM: async () => 'ok' },
     ingest: {
       cacheLocation: async () => {}, resolveTransition: async () => null,
@@ -39,7 +62,14 @@ async function main() {
   registerStaticPages(app);
   await app.ready();
 
-  const page = await app.inject({ method: 'GET', url: '/' });
+  // With the real Host header. The page builds og:url and rel=canonical from
+  // the request, so fetching it as "localhost" makes every absolute URL on the
+  // page say localhost — which then trips the audit's own placeholder check
+  // and reports a shipped bug that does not exist.
+  const page = await app.inject({
+    method: 'GET', url: '/',
+    headers: { host: PROD_HOST, 'x-forwarded-proto': 'https' },
+  });
   console.log(`\nGET /  →  ${page.statusCode}, ${page.body.length} bytes`);
   if (page.statusCode !== 200) { console.log('the landing does not load'); process.exit(1); }
 
@@ -64,7 +94,12 @@ async function main() {
     try { const h = new URL(u).host; hosts.set(h, (hosts.get(h) ?? 0) + 1); } catch { /* ignore */ }
   }
   console.log(`\noutbound links: ${external.length}`);
-  for (const [h, n] of [...hosts].sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(3)}  ${h}`);
+  for (const [h, n] of [...hosts].sort((a, b) => b[1] - a[1])) {
+    // Flagged by whether we MEANT to link there, not by a blacklist of things
+    // that were once wrong.
+    const known = EXPECTED_HOSTS.has(h) || h === PROD_HOST;
+    console.log(`  ${known ? ' ' : '!'} ${String(n).padStart(3)}  ${h}${known ? '' : '   UNEXPECTED'}`);
+  }
 
   // ---- 3. Placeholders and leftovers ---------------------------------------
   const smells: Array<[string, RegExp]> = [
@@ -72,8 +107,11 @@ async function main() {
     ['lorem', /lorem ipsum/i],
     ['TODO/FIXME', /TODO|FIXME|PLACEHOLDER/],
     ['example.com', /example\.(com|org)/i],
+    // A dev origin left in the copy. Checked against the page as SERVED,
+    // which is why the fetch above sends the production Host header — read
+    // over localhost, every absolute URL on the page said localhost and this
+    // reported a shipped bug that did not exist.
     ['localhost', /localhost:\d+/],
-    ['old domain', /nureke\.kz/i],
   ];
   console.log('\ncopy check:');
   for (const [name, re] of smells) {
@@ -96,7 +134,13 @@ async function main() {
     method: 'POST', url: '/shop/leads',
     payload: { customerName: 'Аудит', phone: '+7 707 000 00 00', package: 'Комплект', locale: 'ru' },
   });
-  console.log(`\nlead form: POST /shop/leads → ${lead.statusCode} ${lead.statusCode === 200 ? '✓' : '✗'}`);
+  // 201, not 200: a lead is CREATED, and that is what the route has always
+  // answered. Checking for 200 marked a working form as broken on every run.
+  console.log(`\nlead form: POST /shop/leads → ${lead.statusCode} ${lead.statusCode === 201 ? '✓' : '✗'}`);
+  // And the row has to exist. A 201 proves the route answered, not that the
+  // lead was kept — which is the failure this whole file exists to catch.
+  const leads = await repo.adminShopLeads(5);
+  console.log(`  stored: ${leads.some((l) => l.customerName === 'Аудит') ? '✓' : '✗ the 201 was not a row'}`);
   const bad = await app.inject({ method: 'POST', url: '/shop/leads', payload: { customerName: '', phone: '' } });
   console.log(`  empty submission refused: ${bad.statusCode === 400 ? '✓ 400' : `✗ ${bad.statusCode}`}`);
 
