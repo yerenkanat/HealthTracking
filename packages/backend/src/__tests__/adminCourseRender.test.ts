@@ -21,6 +21,18 @@ import { dirname, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
 
+const lesson = (id: string, titleRu: string, sort: number) => ({
+  id,
+  course: 'mama',
+  titleRu,
+  titleKk: null,
+  youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
+  summaryRu: null,
+  summaryKk: null,
+  sort,
+  published: true,
+});
+
 const LESSONS = {
   lessons: [
     {
@@ -28,12 +40,14 @@ const LESSONS = {
       course: 'mama',
       titleRu: 'Первые 40 дней',
       titleKk: 'Алғашқы 40 күн',
-      youtubeUrl: 'https://youtu.be/aaaaaaaaaaa',
+      youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
       summaryRu: 'Что происходит с телом и когда обращаться к врачу.',
       summaryKk: 'Денеде не болады және қашан дәрігерге бару керек.',
       sort: 10,
       published: true,
     },
+    lesson('22222222-2222-2222-2222-222222222222', 'Грудное вскармливание', 20),
+    lesson('33333333-3333-3333-3333-333333333333', 'Сон малыша', 30),
   ],
 };
 
@@ -178,6 +192,57 @@ describe('authoring a lesson', () => {
 
     it('shows nothing at all before anything is typed', async () => {
       expect((page.$('#lessonPreview') as HTMLElement).hidden).toBe(true);
+    });
+  });
+
+  /// Putting the lessons in order.
+  ///
+  /// A course is a sequence, and ordering it meant typing sort numbers —
+  /// working out that "between 20 and 30" is 25 to slip a lesson in, for
+  /// thirty of them. The numbers are still there for a wholesale renumber;
+  /// day to day it is a pair of arrows.
+  describe('reordering', () => {
+    it('shows position, not the raw sort value', async () => {
+      // 10 / 20 / 30 tells a reader nothing about which is second.
+      const list = page.$('#lessonList')!.textContent ?? '';
+      expect(list).toContain('1');
+      expect(list).toContain('2');
+    });
+
+    it('cannot move the first lesson up or the last one down', async () => {
+      const ups = page.window.document.querySelectorAll('.lup');
+      const downs = page.window.document.querySelectorAll('.ldn');
+      expect((ups[0] as HTMLButtonElement).disabled, 'the first can move up').toBe(true);
+      expect((downs[downs.length - 1] as HTMLButtonElement).disabled,
+        'the last can move down').toBe(true);
+    });
+
+    it('swaps a lesson with the one below it', async () => {
+      // Second row down: it and the third swap sort values.
+      const downs = page.window.document.querySelectorAll('.ldn');
+      (downs[1] as HTMLElement).dispatchEvent(
+        new page.window.MouseEvent('click', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 80));
+
+      expect(page.saved).toHaveLength(2);
+      const byId = Object.fromEntries(page.saved.map((s) => [s.id, s.sort]));
+      expect(byId['22222222-2222-2222-2222-222222222222']).toBe(30);
+      expect(byId['33333333-3333-3333-3333-333333333333']).toBe(20);
+    });
+
+    it('carries the rest of the lesson through the move', async () => {
+      // The save is a full upsert, so a move that forgot a field would blank
+      // the title or unpublish the lesson.
+      const downs = page.window.document.querySelectorAll('.ldn');
+      (downs[0] as HTMLElement).dispatchEvent(
+        new page.window.MouseEvent('click', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 80));
+
+      const moved = page.saved.find((s) => s.id === '11111111-1111-1111-1111-111111111111')!;
+      expect(moved.titleRu).toBe('Первые 40 дней');
+      expect(moved.summaryRu).toBe('Что происходит с телом и когда обращаться к врачу.');
+      expect(moved.published).toBe(true);
+      expect(moved.youtubeUrl).toBe('https://youtu.be/dQw4w9WgXcQ');
     });
   });
 

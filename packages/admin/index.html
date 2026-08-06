@@ -3312,9 +3312,16 @@
     else if(!data.lessons.length){
       list.innerHTML = `<div style="color:var(--muted);padding:16px 0">Уроков пока нет. Добавьте первый — он появится у тех, кто купил комплект.</div>`;
     } else {
-      list.innerHTML = data.lessons.map(l => `
+      list.innerHTML = data.lessons.map((l, i) => `
         <div class="row" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair)">
-          <span class="t" style="min-width:34px">${l.sort}</span>
+          <!-- Order by moving, not by arithmetic. The sort field is still
+               there for a wholesale renumber, but nobody should have to work
+               out that "between 20 and 30" means 25 to slip a lesson in. -->
+          <span style="display:flex;flex-direction:column;gap:2px">
+            <button type="button" class="btn sm ghost lup" data-id="${esc(l.id)}" title="Выше" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button type="button" class="btn sm ghost ldn" data-id="${esc(l.id)}" title="Ниже" ${i === data.lessons.length - 1 ? "disabled" : ""}>↓</button>
+          </span>
+          <span class="t" style="min-width:26px">${i + 1}</span>
           <div style="flex:1">
             <b>${esc(l.titleRu)}</b>${l.published?"":' <span class="t">· черновик</span>'}
             <div class="t"><a href="${esc(l.youtubeUrl)}" target="_blank" rel="noopener">${esc(l.youtubeUrl)}</a></div>
@@ -3323,6 +3330,47 @@
           <button type="button" class="btn sm ghost ldel" data-id="${esc(l.id)}">Удалить</button>
         </div>`).join("");
 
+      /**
+       * Swap a lesson with the one above or below it.
+       *
+       * Two saves, because sort lives on the lesson and there is no
+       * reorder endpoint. Sequential rather than parallel: they are two
+       * writes to the same list, and interleaving them can leave both rows
+       * holding the same number.
+       *
+       * If the second save fails the first has already landed, so the list
+       * is redrawn from the server either way — what is on screen is then
+       * what is really stored, rather than the move we hoped for.
+       */
+      async function moveLesson(id, delta){
+        const i = data.lessons.findIndex(x => x.id === id);
+        const j = i + delta;
+        if(i < 0 || j < 0 || j >= data.lessons.length) return;
+        const a = data.lessons[i], bb = data.lessons[j];
+
+        // Equal sorts would make the swap a no-op and leave the order to
+        // whatever the database returns, so give them distinct ones first.
+        let sa = bb.sort, sb = a.sort;
+        if(sa === sb){ sa = sb + (delta > 0 ? 1 : -1); }
+
+        const put = (lesson, sort) => fetch("/admin/course/lessons", {
+          method:"PUT", credentials:"same-origin",
+          headers:{"content-type":"application/json"},
+          body: JSON.stringify({
+            id: lesson.id, titleRu: lesson.titleRu, titleKk: lesson.titleKk,
+            youtubeUrl: lesson.youtubeUrl, summaryRu: lesson.summaryRu,
+            summaryKk: lesson.summaryKk, published: lesson.published, sort,
+          }),
+        });
+        try{ await put(a, sa); await put(bb, sb); }
+        catch(e){ /* the redraw below shows what actually stuck */ }
+        renderCourse();
+      }
+
+      list.querySelectorAll(".lup").forEach(b =>
+        b.addEventListener("click", () => moveLesson(b.dataset.id, -1)));
+      list.querySelectorAll(".ldn").forEach(b =>
+        b.addEventListener("click", () => moveLesson(b.dataset.id, 1)));
       list.querySelectorAll(".led").forEach(b => b.addEventListener("click", () => {
         const l = data.lessons.find(x => x.id === b.dataset.id);
         $("#lessonId").value = l.id; $("#lessonTitle").value = l.titleRu;
