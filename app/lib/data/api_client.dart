@@ -408,6 +408,29 @@ class ApiClient {
     return CourseAccess.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  /// Revoke the session on the SERVER, not just on this phone.
+  ///
+  /// Signing out used to clear the token locally and tell nobody, so the
+  /// session row stayed valid for its full ninety days. Anyone still holding
+  /// that token — a phone handed on, sold, or restored from a backup — kept
+  /// reading her account, her children and their locations, from an app that
+  /// had said "Выйти".
+  ///
+  /// The token is passed IN, not read from the session: by the time this is
+  /// called the app has already forgotten it, and it has to, because a sign-out
+  /// that waits for the network is a sign-out that fails on a dead one.
+  ///
+  /// Never throws. The local sign-out has already happened and must stand
+  /// whatever the server says.
+  Future<bool> logout(String token) async {
+    try {
+      final res = await transport.post('/auth/logout', {'token': token});
+      return res.ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Records where the player got to.
   ///
   /// Never throws: this fires while a video is playing, and a failed write must

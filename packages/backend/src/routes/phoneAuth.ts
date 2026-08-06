@@ -80,8 +80,30 @@ export function registerPhoneAuthRoutes(app: FastifyInstance, repo: Repository):
     });
   });
 
+  /**
+   * Revoke this session.
+   *
+   * The token may arrive in the Authorization header OR in the body, and the
+   * body is not a convenience — it is what makes the client able to call this
+   * at all.
+   *
+   * The app reads its bearer token fresh out of the signed-in session on every
+   * request. Signing out clears that session, so a logout fired after the
+   * clear carries no header, and one fired before it races the clear: the
+   * header is built in a microtask that runs after the synchronous sign-out
+   * has already emptied the field. Either way the request arrived
+   * unauthenticated and revoked nothing — which is exactly how the session
+   * survived every sign-out until now.
+   *
+   * Presenting a token in a body is no weaker than presenting it in a header:
+   * it is the same secret, and holding it is the whole authorisation this
+   * needs. Always 200, so a client can never learn from the answer whether a
+   * token it guessed was real.
+   */
   app.post('/auth/logout', async (req, reply) => {
-    const token = bearer(req);
+    const fromBody = (req.body as { token?: unknown } | null)?.token;
+    const token = bearer(req)
+      ?? (typeof fromBody === 'string' && fromBody.trim() ? fromBody.trim() : null);
     if (token) await repo.deleteUserSession(hashToken(token));
     return reply.send({ ok: true });
   });

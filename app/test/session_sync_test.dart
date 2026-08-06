@@ -5,14 +5,18 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/data/api_client.dart';
+import 'package:fcs_app/domain/phone_auth.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 
 class _FakeTransport implements HttpTransport {
   final List<(String, Object?)> calls = [];
+  /// Simulates a dead network: the sign-out must stand regardless.
+  bool throwOnPost = false;
   @override
   Future<HttpResponse> get(String path) async => const HttpResponse(200, '{}');
   @override
   Future<HttpResponse> post(String path, Object body) async {
+    if (throwOnPost) throw Exception('no network');
     calls.add(('POST $path', body));
     return const HttpResponse(201, '{"ok":true}');
   }
@@ -38,6 +42,73 @@ void main() {
       await ApiClient(t).putContractionSession({'endedAt': '2026-07-22T02:00:00.000Z', 'count': 6, 'avgDurationSec': 55, 'avgIntervalSec': 300});
       final body = t.calls.firstWhere((c) => c.$1 == 'POST /contraction-sessions').$2 as Map;
       expect(body['avgIntervalSec'], 300);
+    });
+  });
+
+  /// Signing out has to reach the server.
+  ///
+  /// It used to clear the token here and tell nobody, so the session stayed
+  /// valid for its full ninety days: a phone handed on, sold or restored from
+  /// a backup still carried a working key to her account, her children and
+  /// their locations, after the app had said "Выйти".
+  group('signing out', () {
+    AppController signedIn(_FakeTransport t) {
+      final c = AppController(now: () => DateTime.utc(2026, 8, 6, 12), locale: AppLocale.ru);
+      c.attachRuntime(api: ApiClient(t));
+      c.signIn(AuthSession(
+        userId: 'u1',
+        phoneE164: '+77001112233',
+        token: 'the-session-token',
+        signedInAt: DateTime.utc(2026, 8, 1),
+      ));
+      return c;
+    }
+
+    test('revokes the session on the server', () async {
+      final t = _FakeTransport();
+      final c = signedIn(t);
+      addTearDown(c.dispose);
+
+      c.signOut();
+      await Future<void>.delayed(Duration.zero);
+
+      final call = t.calls.where((x) => x.$1 == 'POST /auth/logout');
+      expect(call, hasLength(1), reason: 'the server was never told');
+      // The token goes in the BODY: by now the app has forgotten it, so a
+      // transport building an Authorization header would find nothing there.
+      expect((call.single.$2 as Map)['token'], 'the-session-token');
+    });
+
+    test('signs out locally at once, without waiting for the server', () {
+      // A dead network must not keep her signed in.
+      final t = _FakeTransport();
+      final c = signedIn(t);
+      addTearDown(c.dispose);
+
+      c.signOut();
+      expect(c.isSignedIn, isFalse);
+      expect(c.authSession, isNull);
+    });
+
+    test('stays signed out when the server cannot be reached', () async {
+      final t = _FakeTransport()..throwOnPost = true;
+      final c = signedIn(t);
+      addTearDown(c.dispose);
+
+      c.signOut();
+      await Future<void>.delayed(Duration.zero);
+      expect(c.isSignedIn, isFalse, reason: 'a failed revoke undid the sign-out');
+    });
+
+    test('signing out twice does not call it twice', () async {
+      final t = _FakeTransport();
+      final c = signedIn(t);
+      addTearDown(c.dispose);
+
+      c.signOut();
+      c.signOut();
+      await Future<void>.delayed(Duration.zero);
+      expect(t.calls.where((x) => x.$1 == 'POST /auth/logout'), hasLength(1));
     });
   });
 

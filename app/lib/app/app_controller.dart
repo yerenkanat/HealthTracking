@@ -2044,11 +2044,25 @@ class AppController {
   }
 
   /// Clear the session. Keeps local data — signing out is not erasing.
+  ///
+  /// Also revokes it on the SERVER. This used to drop the token here and tell
+  /// nobody, leaving the session row valid for its full ninety days: a phone
+  /// handed to a relative, sold, or restored from a backup still carried a
+  /// working key to her account, her children and their locations, after she
+  /// had signed out.
+  ///
+  /// The token is handed to the request rather than read back out of this
+  /// field, because the field is already empty by the time the request builds
+  /// its headers — and it has to be. Signing out is instant and local; waiting
+  /// on the network would mean a dead connection could keep her signed in.
   void signOut() {
-    if (_authSession == null) return;
+    final session = _authSession;
+    if (session == null) return;
     _authSession = null;
     _persist(immediate: true);
     _notify();
+    final client = api;
+    if (client != null) unawaited(client.logout(session.token));
   }
 
   // ---- Blood-pressure calibration (weekly manual tonometer reading) ----

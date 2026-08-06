@@ -145,6 +145,47 @@ describe('the token is what gets the data', () => {
     expect((await app.inject({ method: 'GET', url: '/children', headers: auth })).statusCode).toBe(401);
   });
 
+  /// Signing out from the app, which cannot send the header.
+  ///
+  /// The app reads its bearer token out of the signed-in session on every
+  /// request, and signing out clears that session — so a logout fired after
+  /// the clear carries no header, and one fired before it loses the race with
+  /// it. The request arrived unauthenticated, revoked nothing, and the session
+  /// stayed valid for its full ninety days on a phone that had been handed on,
+  /// sold or restored from a backup.
+  it('revokes a token presented in the body, not only in the header', async () => {
+    const { token } = (await signIn('77073452244')).json();
+    const auth = { authorization: `Bearer ${token}` };
+
+    const out = await app.inject({ method: 'POST', url: '/auth/logout', payload: { token } });
+    expect(out.statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/children', headers: auth })).statusCode,
+      'the session outlived the sign-out').toBe(401);
+  });
+
+  it('revokes only the session it was given', async () => {
+    // Two devices, one account. Signing out of the tablet must not sign her
+    // out of the phone she is holding.
+    const a = (await signIn('77073452244')).json();
+    const b = (await signIn('77073452244')).json();
+    await app.inject({ method: 'POST', url: '/auth/logout', payload: { token: a.token } });
+
+    expect((await app.inject({
+      method: 'GET', url: '/children', headers: { authorization: `Bearer ${a.token}` },
+    })).statusCode).toBe(401);
+    expect((await app.inject({
+      method: 'GET', url: '/children', headers: { authorization: `Bearer ${b.token}` },
+    })).statusCode, 'the other device was signed out too').toBe(200);
+  });
+
+  it('says the same thing to a token that was never real', async () => {
+    // A different answer here would let somebody test guesses against it.
+    for (const payload of [{ token: 'never-issued' }, { token: '' }, {}]) {
+      expect((await app.inject({ method: 'POST', url: '/auth/logout', payload })).statusCode,
+        JSON.stringify(payload)).toBe(200);
+    }
+  });
+
   it('two people get two separate accounts, and cannot see each other', async () => {
     const a = (await signIn('77073452244')).json();
     const b = (await signIn('77011112233')).json();
