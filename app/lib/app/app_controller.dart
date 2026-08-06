@@ -43,6 +43,7 @@ import '../domain/geofence_alerts.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/hydration.dart';
+import '../domain/legacy_ids.dart';
 import '../domain/kick_session.dart';
 import '../domain/manual_vitals.dart';
 import '../domain/medication.dart';
@@ -300,13 +301,31 @@ class AppController {
     _onboarded = cfg.onboarded;
     _locale = cfg.locale;
     _profile = cfg.profile;
+
+    // Re-issue any id the server can never accept, ONCE, on the way in.
+    //
+    // Onboarding used to mint the literal strings 'child-1', 'home' and
+    // 'school'. A child and a geofence both have to be UUIDs server-side, so
+    // every one of those was refused with a 400 that nothing surfaced — the
+    // child never reached the back office, the safe zones never synced, and
+    // none of it survived a change of phone. Fixing onboarding helps the next
+    // install and does nothing for a handset that already has one.
+    //
+    // A no-op after the first run, and a no-op for a child that already has a
+    // UUID — re-issuing that one would orphan the copy the server holds and
+    // duplicate her in the back office.
+    final reissued = reissueUnsyncableIds(cfg.children);
+    final renamed = reissued.childIds;
+
     _children
       ..clear()
-      ..addAll(cfg.children);
-    _selectedChildId = cfg.children.isNotEmpty ? cfg.children.first.id : null;
+      ..addAll(reissued.children);
+    _selectedChildId = reissued.children.isNotEmpty ? reissued.children.first.id : null;
     _devices
       ..clear()
-      ..addAll(cfg.devices);
+      // A tag points at a child by id; leaving it on the old one detaches the
+      // tracker from the child it is strapped to.
+      ..addAll(remapDeviceChildIds(cfg.devices, renamed));
     _bpCalibration = cfg.bpCalibration;
     _pendingBpCalibration = cfg.pendingBpCalibration;
     _authSession = cfg.authSession;
@@ -338,16 +357,16 @@ class AppController {
     _weightGoalKg = cfg.weightGoalKg;
     _childBattery
       ..clear()
-      ..addAll(cfg.childBattery);
+      ..addAll(remapKeys(cfg.childBattery, renamed));
     _batteryHistory
       ..clear()
-      ..addAll({for (final e in cfg.childBatteryHistory.entries) e.key: List.of(e.value)});
+      ..addAll(remapKeys({for (final e in cfg.childBatteryHistory.entries) e.key: List.of(e.value)}, renamed));
     _childGrowth
       ..clear()
-      ..addAll({for (final e in cfg.childGrowth.entries) e.key: List.of(e.value)});
+      ..addAll(remapKeys({for (final e in cfg.childGrowth.entries) e.key: List.of(e.value)}, renamed));
     _newbornLog
       ..clear()
-      ..addAll({for (final e in cfg.newbornLog.entries) e.key: List.of(e.value)});
+      ..addAll(remapKeys({for (final e in cfg.newbornLog.entries) e.key: List.of(e.value)}, renamed));
     _waterReminderMinutes = cfg.waterReminderMinutes;
     _medReminderMinutes = cfg.medReminderMinutes;
     _periodReminderEnabled = cfg.periodReminderEnabled;
@@ -387,7 +406,7 @@ class AppController {
       ..addAll(cfg.childEmergency);
     _vaccinesDone
       ..clear()
-      ..addAll({for (final e in cfg.vaccinesDone.entries) e.key: e.value.toSet()});
+      ..addAll(remapKeys({for (final e in cfg.vaccinesDone.entries) e.key: e.value.toSet()}, renamed));
     _lastChildZone = cfg.lastChildZone;
     // NOT `_onboarded = true` — that was here because restore() only ever
     // called this with an already-onboarded config, so forcing it looked
