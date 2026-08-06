@@ -44,14 +44,22 @@ describe('ownership lookups with an id that cannot exist', () => {
   for (const id of MALFORMED) {
     it(`answers "not ours" for ${JSON.stringify(id)} without touching the database`, async () => {
       // Every one of these gates a route: a throw here is a 500 on
-      // /children/:id/location, /devices/:id, /geofences/:id and the rest.
+      // /children/:id/location, /geofences/:id and the rest.
       expect(await repo.childOwner(id)).toBeNull();
-      expect(await repo.deviceOwner(id)).toBeNull();
       expect(await repo.geofenceOwner(id)).toBeNull();
       expect(await repo.appointmentOwner(id)).toBeNull();
       expect(await repo.medicationOwner(id)).toBeNull();
     });
   }
+
+  it('does NOT guard deviceOwner, whose key is not a UUID', async () => {
+    // A device is keyed by its physical identifier — a BLE MAC or a serial,
+    // in a TEXT column — so there is nothing for Postgres to misparse and
+    // nothing to guard. Guarding it anyway would refuse every real device,
+    // which is a worse outcome than the 500 the guard exists to prevent.
+    await expect(repo.deviceOwner('AA:BB:CC:DD:EE:FF'))
+      .rejects.toThrow(/database was queried/);
+  });
 
   it('still asks the database about a well-formed id', async () => {
     // The guard must not swallow real lookups — if it did, every ownership

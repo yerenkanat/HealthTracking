@@ -47,6 +47,21 @@ function looksLikeUuid(id: unknown): boolean {
 }
 
 export function createPgRepository(pool: Pool): Repository {
+  /**
+   * The `devices.id` UUID behind a physical device id, or null.
+   *
+   * Telemetry names the band by what is printed on it; the metrics table
+   * references devices by their row id. Null for a manual reading (no device)
+   * and for a band that has not been registered — both of which the column
+   * allows, so a reading is kept even when we cannot say which band took it.
+   */
+  async function deviceRowId(userId: string, deviceId: string | undefined): Promise<string | null> {
+    if (!deviceId) return null;
+    const { rows } = await pool.query(
+      'SELECT id FROM devices WHERE user_id = $1 AND ble_mac = $2', [userId, deviceId]);
+    return rows[0]?.id ?? null;
+  }
+
   return {
     async insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }) {
       // ON CONFLICT DO NOTHING against the phm_unique_reading constraint makes a
@@ -63,7 +78,14 @@ export function createPgRepository(pool: Pool): Repository {
           // A manual reading carries deviceId '' (no device); store it as NULL so
           // it satisfies the FK and the nullable column, instead of failing the
           // uuid cast.
-          m.deviceId || null, m.userId, m.recordedAt, m.coreTempC ?? null, m.skinTempC ?? null,
+          //
+          // A band sends its PHYSICAL id — a MAC — and this column is the UUID
+          // primary key of `devices`, so writing it straight in raised 22P02
+          // and every reading from a real band was a 500. Resolved through
+          // ble_mac; unknown device → NULL, which the column allows and which
+          // reads as "we have this reading but not which band took it" rather
+          // than losing it.
+          await deviceRowId(m.userId, m.deviceId), m.userId, m.recordedAt, m.coreTempC ?? null, m.skinTempC ?? null,
           m.heartRateBpm ?? null, m.spo2Pct ?? null, m.systolicMmHg ?? null,
           m.diastolicMmHg ?? null, m.glucoseMmol ?? null, m.duringSleep ?? false, m.triageSeverity,
         ],
@@ -426,9 +448,11 @@ export function createPgRepository(pool: Pool): Repository {
     },
 
     async deviceOwner(deviceId) {
-      // A malformed id is an id we do not have, not a server fault.
-      if (!looksLikeUuid(deviceId)) return null;
-      const { rows } = await pool.query(`SELECT user_id FROM devices WHERE id = $1`, [deviceId]);
+      // NO uuid guard here, unlike its neighbours: a device is keyed by its
+      // physical identifier, which is a MAC or a serial and a TEXT column. The
+      // guard belongs on the lookups that compare against a UUID column, and
+      // putting it here would refuse every real device.
+      const { rows } = await pool.query(`SELECT user_id FROM devices WHERE ble_mac = $1`, [deviceId]);
       return rows[0] ? { userId: rows[0].user_id } : null;
     },
 
@@ -472,19 +496,29 @@ export function createPgRepository(pool: Pool): Repository {
 
     async listDevices(userId) {
       const { rows } = await pool.query(
-        `SELECT id, ble_mac, model, name, kind, child_id FROM devices WHERE user_id = $1 ORDER BY paired_at`, [userId]);
+        `SELECT ble_mac, model, name, kind, child_id FROM devices WHERE user_id = $1 ORDER BY paired_at`, [userId]);
       return rows.map((r) => ({
-        id: r.id, name: r.name ?? r.model ?? r.ble_mac, kind: r.kind ?? 'band', childId: r.child_id ?? null,
+        // ble_mac, not id: the app stores a device under its physical
+        // identifier, so anything else comes back as a device it does not
+        // recognise and it registers a duplicate on the next sync.
+        id: r.ble_mac, name: r.name ?? r.model ?? r.ble_mac, kind: r.kind ?? 'band', childId: r.child_id ?? null,
       }));
     },
+    // A device id from the app is a PHYSICAL identifier — a BLE MAC or a
+    // serial, whatever is printed on the tracker — and that is what `ble_mac`
+    // is for. This wrote it into `id` as well, which is a UUID column, so
+    // registering a device raised 22P02 and the app got a 500: pairing a
+    // tracker, the thing the hardware is sold for, could not reach the server
+    // at all. The UUID is ours to mint; the MAC is hers to keep.
     async createDevice(userId, d) {
       await pool.query(
-        `INSERT INTO devices (id, user_id, ble_mac, model, kind, name, child_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING`,
-        [d.id, userId, d.id, d.name, d.kind, d.name, d.childId ?? null]);
+        `INSERT INTO devices (user_id, ble_mac, model, kind, name, child_id)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (user_id, ble_mac) DO NOTHING`,
+        [userId, d.id, d.name, d.kind, d.name, d.childId ?? null]);
     },
     async deleteDevice(deviceId) {
-      await pool.query(`DELETE FROM devices WHERE id = $1`, [deviceId]);
+      await pool.query(`DELETE FROM devices WHERE ble_mac = $1`, [deviceId]);
     },
 
     async listAppointments(userId) {
@@ -1337,7 +1371,7 @@ export function createPgRepository(pool: Pool): Repository {
 
     // ---- Device reassignment ----
     async reassignDevice(deviceId, childId) {
-      await pool.query(`UPDATE devices SET child_id = $2 WHERE id = $1`, [deviceId, childId]);
+      await pool.query(`UPDATE devices SET child_id = $2 WHERE ble_mac = $1`, [deviceId, childId]);
     },
 
     // ---- Shop ----
