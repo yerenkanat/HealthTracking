@@ -71,6 +71,52 @@ class CourseLesson {
   }
 }
 
+/// How far she got in one lesson.
+///
+/// Kept by the server against her PHONE, so a reinstall or a new device finds
+/// its place again. Thirty lessons with no memory of any of them is a course
+/// nobody finishes.
+class LessonProgress {
+  final String lessonId;
+  final int positionSeconds;
+
+  /// YouTube's, as the player measured it. Null until a player has loaded the
+  /// video once, so the bar cannot be drawn from the first tap.
+  final int? durationSeconds;
+  final bool completed;
+
+  const LessonProgress({
+    required this.lessonId,
+    this.positionSeconds = 0,
+    this.durationSeconds,
+    this.completed = false,
+  });
+
+  /// 0..1, or null when the length is not known yet — which draws no bar at all
+  /// rather than a full or empty one, both of which would be a lie.
+  double? get fraction {
+    final d = durationSeconds;
+    if (completed) return 1;
+    if (d == null || d <= 0) return null;
+    return (positionSeconds / d).clamp(0.0, 1.0);
+  }
+
+  /// Worth offering to resume. Under a minute is where she was still deciding
+  /// whether to watch, and "continue from 0:12" is noise.
+  bool get resumable => !completed && positionSeconds >= 60;
+
+  static LessonProgress? fromJson(Map<String, dynamic> j) {
+    final id = j['lessonId'] as String?;
+    if (id == null || id.isEmpty) return null;
+    return LessonProgress(
+      lessonId: id,
+      positionSeconds: (j['positionSeconds'] as num?)?.toInt() ?? 0,
+      durationSeconds: (j['durationSeconds'] as num?)?.toInt(),
+      completed: j['completed'] == true,
+    );
+  }
+}
+
 /// What the server said about the course: whether this account owns it, and the
 /// lessons if so.
 ///
@@ -81,7 +127,32 @@ class CourseLesson {
 class CourseAccess {
   final bool entitled;
   final List<CourseLesson> lessons;
-  const CourseAccess({required this.entitled, required this.lessons});
+
+  /// One entry per lesson she has opened, keyed by lesson id. Sent with the
+  /// lessons in the same response so nothing paints as unwatched first.
+  final Map<String, LessonProgress> progress;
+
+  const CourseAccess({
+    required this.entitled,
+    required this.lessons,
+    this.progress = const {},
+  });
+
+  /// The lesson to offer as "continue" — the one she was last in the middle of,
+  /// or the first she has not finished. Null when she has finished everything,
+  /// which is the one case where there is nothing to continue.
+  CourseLesson? get resume {
+    for (final l in lessons) {
+      if (progress[l.id]?.resumable == true) return l;
+    }
+    for (final l in lessons) {
+      if (progress[l.id]?.completed != true) return l;
+    }
+    return null;
+  }
+
+  int get completedCount =>
+      lessons.where((l) => progress[l.id]?.completed == true).length;
 
   static CourseAccess fromJson(Map<String, dynamic> j) {
     final raw = (j['lessons'] as List?) ?? const [];
@@ -91,8 +162,26 @@ class CourseAccess {
         .whereType<CourseLesson>()
         .toList()
       ..sort((a, b) => a.sort.compareTo(b.sort));
-    return CourseAccess(entitled: j['entitled'] == true, lessons: lessons);
+
+    final progress = <String, LessonProgress>{};
+    for (final p in ((j['progress'] as List?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(LessonProgress.fromJson)
+        .whereType<LessonProgress>()) {
+      progress[p.lessonId] = p;
+    }
+    return CourseAccess(
+        entitled: j['entitled'] == true, lessons: lessons, progress: progress);
   }
+
+  /// The same course with one lesson's progress replaced — what the list is
+  /// rebuilt from when she comes back from the player, so the tick appears
+  /// without a round trip.
+  CourseAccess withProgress(LessonProgress p) => CourseAccess(
+        entitled: entitled,
+        lessons: lessons,
+        progress: {...progress, p.lessonId: p},
+      );
 
   static const none = CourseAccess(entitled: false, lessons: []);
 }

@@ -656,7 +656,8 @@ CREATE INDEX IF NOT EXISTS user_entitlements_feature ON user_entitlements (featu
 -- ---------------------------------------------------------------------------
 -- The Ма!Ма! course (migration 024). A standalone ordered series, not timeline
 -- content: it does not move with a due date, so it is not filed under a week.
--- Videos are on YouTube and open externally — their terms require their player.
+-- Videos are on YouTube and play through YouTube's own embedded IFrame player,
+-- which is what their terms require: their player, their branding.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS course_lessons (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -672,3 +673,18 @@ CREATE TABLE IF NOT EXISTS course_lessons (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS course_lessons_order ON course_lessons (course, sort, created_at);
+
+-- How far she got (migration 026). Keyed by PHONE, like user_entitlements and
+-- for the same reason: the account and the purchase are joined by the number,
+-- so a reinstall or a new phone finds her place again.
+CREATE TABLE IF NOT EXISTS course_progress (
+  phone            TEXT NOT NULL,
+  lesson_id        UUID NOT NULL REFERENCES course_lessons(id) ON DELETE CASCADE,
+  position_seconds INTEGER NOT NULL DEFAULT 0,
+  duration_seconds INTEGER,                    -- YouTube's; unknown until a player loads
+  completed        BOOLEAN NOT NULL DEFAULT FALSE,  -- set once, never unset
+  first_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (phone, lesson_id)
+);
+CREATE INDEX IF NOT EXISTS course_progress_recent ON course_progress (updated_at DESC);

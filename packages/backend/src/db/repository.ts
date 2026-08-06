@@ -613,6 +613,33 @@ export interface Repository {
   }): Promise<{ id: string }>;
   deleteCourseLesson(id: string): Promise<void>;
 
+  /// How far this phone has got, one row per lesson she has opened.
+  ///
+  /// Phone-keyed like the entitlement: a reinstall or a new device signs in
+  /// with the same number and finds its place again.
+  courseProgress(phone: string): Promise<CourseProgress[]>;
+  /// Records a position. [completed] only ever goes false→true — rewatching the
+  /// opening of a finished lesson must not un-finish it — and the stored
+  /// position never moves backwards on its own, so a player that reports 0 while
+  /// it is still loading cannot erase where she was.
+  saveCourseProgress(p: {
+    phone: string;
+    lessonId: string;
+    positionSeconds: number;
+    durationSeconds?: number | null;
+    completed?: boolean;
+  }): Promise<void>;
+  /// The back-office read: everyone who has started the course, most recent
+  /// first, with enough to answer "is she actually watching it?".
+  courseProgressSummary(limit: number): Promise<Array<{
+    phone: string;
+    started: number;
+    completed: number;
+    lastLessonId: string | null;
+    lastLessonTitle: string | null;
+    lastAt: string;
+  }>>;
+
   // ---- Entitlements (what a purchase unlocks in the app) ----
   /// Does this phone own [feature]? Phone, not user id: an order is placed
   /// before an account exists, and the two are joined by the number.
@@ -850,6 +877,16 @@ export interface CourseLesson {
   sort: number;
   published: boolean;
   createdAt: string;
+}
+
+/** One lesson's worth of "where she got to". */
+export interface CourseProgress {
+  lessonId: string;
+  positionSeconds: number;
+  /** YouTube's, as the player measured it; unknown until a player has loaded. */
+  durationSeconds: number | null;
+  completed: boolean;
+  updatedAt: string;
 }
 
 export type StockMoveReason = 'receipt' | 'sale' | 'return' | 'writeoff' | 'correction';

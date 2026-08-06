@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress } from './repository';
 import { bundleDiscountMinor } from './repository';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
@@ -203,7 +203,12 @@ export function createMemoryRepository(): Repository {
     { bundleId: 'combo', partId: 'tracker', qty: 1 },
   ];
   /** The Ма!Ма! course, added one lesson at a time from the panel. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   const lessons: CourseLesson[] = [];
+  /// Keyed phone|lessonId, the primary key of course_progress.
+  const progress = new Map<string, CourseProgress & { phone: string }>();
 
   /** What a phone owns: normalised phone + feature → how it was granted. */
   const entitlements = new Map<string, { phone: string; feature: string; orderId: string | null; grantedBy: string | null; note: string | null; at: string }>();
@@ -1069,6 +1074,64 @@ export function createMemoryRepository(): Repository {
     deleteCourseLesson: async (id) => {
       const i = lessons.findIndex((x) => x.id === id);
       if (i >= 0) lessons.splice(i, 1);
+      // The real table cascades. A fake that kept orphan progress rows would
+      // hide a deleted lesson still counting towards somebody's "12 started".
+      for (const k of [...progress.keys()]) {
+        if (k.endsWith('|' + id)) progress.delete(k);
+      }
+    },
+
+    courseProgress: async (phone) =>
+      [...progress.values()].filter((p) => p.phone === phone).map(({ phone: _p, ...rest }) => rest),
+
+    saveCourseProgress: async (p) => {
+      // Postgres rejects a non-UUID lesson id outright; a fake that accepted
+      // one would let a test pass against production behaviour it never has.
+      if (!UUID_RE.test(p.lessonId)) return;
+      const key = p.phone + '|' + p.lessonId;
+      const now = new Date().toISOString();
+      const seconds = Math.max(0, Math.round(p.positionSeconds));
+      const duration = p.durationSeconds == null
+        ? null : Math.max(0, Math.round(p.durationSeconds));
+      const existing = progress.get(key);
+      if (!existing) {
+        progress.set(key, {
+          phone: p.phone, lessonId: p.lessonId, positionSeconds: seconds,
+          durationSeconds: duration, completed: p.completed ?? false, updatedAt: now,
+        });
+        return;
+      }
+      // Same three rules as the ON CONFLICT clause: the position never goes
+      // backwards, a known duration is never replaced by null, and completed
+      // never returns to false.
+      existing.positionSeconds = Math.max(existing.positionSeconds, seconds);
+      existing.durationSeconds = duration ?? existing.durationSeconds;
+      existing.completed = existing.completed || (p.completed ?? false);
+      existing.updatedAt = now;
+    },
+
+    courseProgressSummary: async (limit) => {
+      const byPhone = new Map<string, {
+        phone: string; started: number; completed: number;
+        lastLessonId: string | null; lastLessonTitle: string | null; lastAt: string;
+      }>();
+      for (const p of progress.values()) {
+        const row = byPhone.get(p.phone) ?? {
+          phone: p.phone, started: 0, completed: 0,
+          lastLessonId: null, lastLessonTitle: null, lastAt: '',
+        };
+        row.started += 1;
+        if (p.completed) row.completed += 1;
+        if (p.updatedAt >= row.lastAt) {
+          row.lastAt = p.updatedAt;
+          row.lastLessonId = p.lessonId;
+          row.lastLessonTitle = lessons.find((l) => l.id === p.lessonId)?.titleRu ?? null;
+        }
+        byPhone.set(p.phone, row);
+      }
+      return [...byPhone.values()]
+        .sort((a, b) => b.lastAt.localeCompare(a.lastAt))
+        .slice(0, limit);
     },
 
     // ---- Entitlements ----

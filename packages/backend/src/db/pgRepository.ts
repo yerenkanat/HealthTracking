@@ -1570,6 +1570,72 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query('DELETE FROM course_lessons WHERE id = $1', [id]);
     },
 
+    async courseProgress(phone) {
+      const { rows } = await pool.query(
+        `SELECT lesson_id, position_seconds, duration_seconds, completed, updated_at
+           FROM course_progress WHERE phone = $1`,
+        [phone]);
+      return rows.map((r) => ({
+        lessonId: r.lesson_id,
+        positionSeconds: r.position_seconds,
+        durationSeconds: r.duration_seconds,
+        completed: r.completed,
+        updatedAt: new Date(r.updated_at).toISOString(),
+      }));
+    },
+
+    async saveCourseProgress(p) {
+      // A lesson id that is not a UUID would raise 22P02 rather than simply not
+      // matching, turning a stale id in an old app into a 500.
+      if (!looksLikeUuid(p.lessonId)) return;
+      await pool.query(
+        `INSERT INTO course_progress
+           (phone, lesson_id, position_seconds, duration_seconds, completed)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (phone, lesson_id) DO UPDATE SET
+           -- GREATEST, not the new value: the player reports 0 while it is still
+           -- loading, and a stray beat of that would throw away where she was.
+           position_seconds = GREATEST(course_progress.position_seconds, EXCLUDED.position_seconds),
+           duration_seconds = COALESCE(EXCLUDED.duration_seconds, course_progress.duration_seconds),
+           -- OR, not assignment: watched is a fact about the past.
+           completed        = course_progress.completed OR EXCLUDED.completed,
+           updated_at       = now()`,
+        [p.phone, p.lessonId, Math.max(0, Math.round(p.positionSeconds)),
+         p.durationSeconds == null ? null : Math.max(0, Math.round(p.durationSeconds)),
+         p.completed ?? false]);
+    },
+
+    async courseProgressSummary(limit) {
+      // DISTINCT ON gives the most recent lesson per phone in the same pass as
+      // the counts, rather than a second query per person.
+      const { rows } = await pool.query(
+        `WITH agg AS (
+           SELECT phone,
+                  COUNT(*)::int                                  AS started,
+                  COUNT(*) FILTER (WHERE completed)::int         AS completed,
+                  MAX(updated_at)                                AS last_at
+             FROM course_progress GROUP BY phone
+         ), last AS (
+           SELECT DISTINCT ON (p.phone) p.phone, p.lesson_id, l.title_ru
+             FROM course_progress p
+             LEFT JOIN course_lessons l ON l.id = p.lesson_id
+            ORDER BY p.phone, p.updated_at DESC
+         )
+         SELECT agg.phone, agg.started, agg.completed, agg.last_at,
+                last.lesson_id, last.title_ru
+           FROM agg LEFT JOIN last ON last.phone = agg.phone
+          ORDER BY agg.last_at DESC LIMIT $1`,
+        [limit]);
+      return rows.map((r) => ({
+        phone: r.phone,
+        started: r.started,
+        completed: r.completed,
+        lastLessonId: r.lesson_id ?? null,
+        lastLessonTitle: r.title_ru ?? null,
+        lastAt: new Date(r.last_at).toISOString(),
+      }));
+    },
+
     // ---- Entitlements ----
     async hasEntitlement(phone, feature) {
       const { rows } = await pool.query(

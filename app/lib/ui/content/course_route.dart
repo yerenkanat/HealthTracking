@@ -61,7 +61,31 @@ class _CourseRouteState extends State<CourseRoute> {
     }
   }
 
+  /// Where the player got to.
+  ///
+  /// Two things at once, and both matter. The local state is updated first, so
+  /// coming back from a lesson shows the tick immediately instead of after a
+  /// round trip. Then it is sent, and the send is allowed to fail silently —
+  /// this fires while a video is playing and an error over it would be worse
+  /// than losing ten seconds of position.
+  void _onProgress(LessonProgress p) {
+    final a = _access;
+    if (a != null && mounted) setState(() => _access = a.withProgress(p));
+    final api = widget.controller.api;
+    if (api == null) return;
+    unawaited(api.putCourseProgress(
+      lessonId: p.lessonId,
+      positionSeconds: p.positionSeconds,
+      durationSeconds: p.durationSeconds,
+      completed: p.completed,
+    ));
+  }
+
   @override
-  Widget build(BuildContext context) =>
-      MamaCourseScreen(access: _access, onRetry: _load, whatsapp: _whatsapp);
+  Widget build(BuildContext context) => MamaCourseScreen(
+        access: _access,
+        onRetry: _load,
+        onProgress: _onProgress,
+        whatsapp: _whatsapp,
+      );
 }

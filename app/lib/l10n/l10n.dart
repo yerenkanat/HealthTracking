@@ -447,6 +447,20 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Бұл сабақтың сілтемесі ашылмайды. Бізге белгілі — шұғыл болса, жазыңыз.',
     AppLocale.en: 'The link for this lesson does not open. We know about it — message us if it is urgent.',
   },
+  // Where she got to. {done}/{total} rather than a built string, because the
+  // word order is not the same in all three.
+  'course_progress_of': {
+    AppLocale.ru: 'Пройдено {done} из {total}',
+    AppLocale.kk: '{total} сабақтың {done} өтілді',
+    AppLocale.en: '{done} of {total} watched',
+  },
+  'course_continue': {AppLocale.ru: 'Продолжить', AppLocale.kk: 'Жалғастыру', AppLocale.en: 'Continue'},
+  'course_start': {AppLocale.ru: 'Начать', AppLocale.kk: 'Бастау', AppLocale.en: 'Start'},
+  'course_resumed_at': {
+    AppLocale.ru: 'Продолжаем с {time}',
+    AppLocale.kk: '{time} уақытынан жалғастырамыз',
+    AppLocale.en: 'Resuming from {time}',
+  },
   'course_ask_access': {
     AppLocale.ru: 'Написать в WhatsApp',
     AppLocale.kk: 'WhatsApp-қа жазу',

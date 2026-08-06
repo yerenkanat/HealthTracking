@@ -53,6 +53,18 @@ const lessonBody = z.object({
   published: z.boolean().optional(),
 });
 
+/// One "I am here" from the player.
+///
+/// Everything is bounded: a 12-hour cap on a position stops a broken client
+/// writing nonsense into a column staff read, and neither field is trusted to
+/// only ever grow — the repository enforces that, not the caller.
+const progressBody = z.object({
+  lessonId: z.string().uuid(),
+  positionSeconds: z.number().int().min(0).max(12 * 3600),
+  durationSeconds: z.number().int().min(0).max(12 * 3600).nullable().optional(),
+  completed: z.boolean().optional(),
+});
+
 const grantBody = z.object({
   phone: z.string().min(4).max(32),
   feature: z.enum(FEATURES),
@@ -110,10 +122,54 @@ export function registerEntitlementRoutes(
     // a locked door with no sign looks broken.
     if (!entitled) return reply.send({ entitled: false, lessons: [] });
 
-    return reply.send({
-      entitled: true,
-      lessons: await repo.courseLessons('mama', true),
-    });
+    // Lessons and progress together, in one round trip. Two requests would
+    // mean a first paint with every lesson looking unwatched, which is the
+    // exact thing this is meant to stop.
+    const [lessons, progress] = await Promise.all([
+      repo.courseLessons('mama', true),
+      repo.courseProgress(phone).catch(() => []),
+    ]);
+    return reply.send({ entitled: true, lessons, progress });
+  });
+
+  // ---- Where she got to ----------------------------------------------------
+  //
+  // The app posts this as the player runs. Fire-and-forget from the app's side,
+  // so it answers quickly and never blocks playback.
+  app.post('/course/progress', async (req, reply) => {
+    const u = await authUser(req);
+    if (!u) return reply.code(401).send({ error: 'unauthorized' });
+
+    const parsed = progressBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'bad_request' });
+
+    // Same gate as the lessons themselves. Progress through a course nobody
+    // owns is not a thing to record — and this is a write keyed by phone, so
+    // accepting it ungated would let any account write rows for its own number
+    // against lessons it cannot see.
+    const profile = await repo.getProfile(u.userId).catch(() => null);
+    const phone = normalizePhone(profile?.phone ?? '');
+    if (!phone || !(await repo.hasEntitlement(phone, MAMA_COURSE))) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
+
+    await repo.saveCourseProgress({ phone, ...parsed.data });
+    return reply.send({ ok: true });
+  });
+
+  // Who is actually working through the course.
+  //
+  // Access answers "did she pay"; this answers "is she watching it" — the
+  // question that decides whether the комплект's 9 200 ₸ premium is delivering
+  // anything, and the one nobody could ask before.
+  app.get('/admin/course/progress', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const limit = Math.min(500, Math.max(1, Number((req.query as { limit?: string }).limit) || 100));
+    // Audited for the same reason as the entitlement list: it is a list of
+    // customers' phone numbers, not an aggregate.
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_course_progress' });
+    return reply.send({ progress: await repo.courseProgressSummary(limit) });
   });
 
   app.get('/admin/course/lessons', async (req, reply) => {

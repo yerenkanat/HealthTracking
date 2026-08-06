@@ -283,4 +283,115 @@ describe('the course behind the gate', () => {
     });
     expect(res.statusCode).toBe(403);
   });
+
+  /// Where she got to.
+  ///
+  /// A thirty-lesson course with no memory of any of it is a course nobody
+  /// finishes: she closes the app in the middle of lesson 7 and comes back to
+  /// an undifferentiated list. Progress is keyed by PHONE, like the
+  /// entitlement — a reinstall or a new device signs in with the same number
+  /// and finds its place.
+  describe('how far she got', () => {
+    const save = (body: Record<string, unknown>) =>
+      app.inject({ method: 'POST', url: '/course/progress', payload: body as never });
+
+    const lessonId = async () => {
+      const id = (await saveLesson(lesson())).json().id;
+      await grant(MY_PHONE);
+      return id as string;
+    };
+
+    it('comes back with the lessons, in the same request', async () => {
+      // Two round trips would paint every lesson unwatched first, which is the
+      // exact thing this exists to stop.
+      const id = await lessonId();
+      await save({ lessonId: id, positionSeconds: 125 });
+
+      const body = (await asApp()).json();
+      expect(body.progress).toHaveLength(1);
+      expect(body.progress[0].lessonId).toBe(id);
+      expect(body.progress[0].positionSeconds).toBe(125);
+      expect(body.progress[0].completed).toBe(false);
+    });
+
+    it('never moves her position backwards', async () => {
+      // The player reports 0 while it is still loading. One stray beat of that
+      // would throw away twenty minutes of watching.
+      const id = await lessonId();
+      await save({ lessonId: id, positionSeconds: 1200 });
+      await save({ lessonId: id, positionSeconds: 0 });
+
+      expect((await asApp()).json().progress[0].positionSeconds).toBe(1200);
+    });
+
+    it('never un-finishes a finished lesson', async () => {
+      // Watched is a fact about the past. Reopening it to check something must
+      // not take the tick away.
+      const id = await lessonId();
+      await save({ lessonId: id, positionSeconds: 600, completed: true });
+      await save({ lessonId: id, positionSeconds: 5, completed: false });
+
+      expect((await asApp()).json().progress[0].completed).toBe(true);
+    });
+
+    it('keeps a duration it already knows when the player does not report one', async () => {
+      const id = await lessonId();
+      await save({ lessonId: id, positionSeconds: 10, durationSeconds: 900 });
+      await save({ lessonId: id, positionSeconds: 20 });
+
+      expect((await asApp()).json().progress[0].durationSeconds).toBe(900);
+    });
+
+    it('is refused to somebody who has not bought the course', async () => {
+      // It is a write keyed by phone. Ungated, any account could write rows
+      // against lessons it cannot even see.
+      const id = (await saveLesson(lesson())).json().id;
+      expect((await save({ lessonId: id, positionSeconds: 10 })).statusCode).toBe(403);
+    });
+
+    it('refuses nonsense rather than storing it', async () => {
+      const id = await lessonId();
+      expect((await save({ lessonId: id, positionSeconds: -5 })).statusCode).toBe(400);
+      expect((await save({ lessonId: id, positionSeconds: 99999999 })).statusCode).toBe(400);
+      // A lesson id from an older app that is not a UUID: the column is one, so
+      // this must be a 400 and never a 500 from Postgres.
+      expect((await save({ lessonId: 'lesson-3', positionSeconds: 10 })).statusCode).toBe(400);
+    });
+
+    it('goes away with the lesson it belongs to', async () => {
+      // The row cascades. An orphan would keep counting towards her "12 started"
+      // for a lesson that no longer exists.
+      const id = await lessonId();
+      await save({ lessonId: id, positionSeconds: 60 });
+      await app.inject({ method: 'DELETE', url: `/admin/course/lessons/${id}`, headers: { cookie } });
+
+      expect((await asApp()).json().progress).toEqual([]);
+    });
+
+    it('tells the back office who is actually watching', async () => {
+      // Access answers "did she pay". This answers "is she watching it" — the
+      // question that decides whether the комплект's premium delivers anything.
+      const one = (await saveLesson(lesson({ titleRu: 'Первый', sort: 10 }))).json().id;
+      const two = (await saveLesson(lesson({ titleRu: 'Второй', sort: 20 }))).json().id;
+      await grant(MY_PHONE);
+      await save({ lessonId: one, positionSeconds: 900, completed: true });
+      await save({ lessonId: two, positionSeconds: 30 });
+
+      const res = await app.inject({
+        method: 'GET', url: '/admin/course/progress', headers: { cookie },
+      });
+      expect(res.statusCode).toBe(200);
+      const rows = res.json().progress;
+      expect(rows).toHaveLength(1);
+      expect(rows[0].phone).toBe('77001112233');
+      expect(rows[0].started).toBe(2);
+      expect(rows[0].completed).toBe(1);
+      expect(rows[0].lastLessonTitle).toBe('Второй');
+    });
+
+    it('does not hand that list to anyone without a session', async () => {
+      expect((await app.inject({ method: 'GET', url: '/admin/course/progress' })).statusCode)
+        .toBe(401);
+    });
+  });
 });

@@ -408,6 +408,31 @@ class ApiClient {
     return CourseAccess.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  /// Records where the player got to.
+  ///
+  /// Never throws: this fires while a video is playing, and a failed write must
+  /// not interrupt the lesson or show an error over it. Losing a position is
+  /// recoverable — the next tick sends a later one — so silence is right here
+  /// and nowhere else.
+  Future<bool> putCourseProgress({
+    required String lessonId,
+    required int positionSeconds,
+    int? durationSeconds,
+    bool completed = false,
+  }) async {
+    try {
+      final res = await transport.post('/course/progress', {
+        'lessonId': lessonId,
+        'positionSeconds': positionSeconds,
+        if (durationSeconds != null) 'durationSeconds': durationSeconds,
+        'completed': completed,
+      });
+      return res.ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// The public storefront contact — the WhatsApp number staff set in the back
   /// office, and the Kaspi link.
   ///

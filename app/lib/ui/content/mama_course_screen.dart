@@ -35,6 +35,10 @@ class MamaCourseScreen extends StatelessWidget {
   /// browser.
   final Future<bool> Function(Uri url)? launch;
 
+  /// Where the player got to, on its way to the server. Null in a test or a
+  /// build with no API configured, which simply does not remember.
+  final void Function(LessonProgress)? onProgress;
+
   /// The WhatsApp number from the back office, for the offer's contact button.
   /// Empty (the default, and what a failed /shop/config gives) hides it.
   final String whatsapp;
@@ -44,6 +48,7 @@ class MamaCourseScreen extends StatelessWidget {
       required this.access,
       this.onRetry,
       this.launch,
+      this.onProgress,
       this.whatsapp = ''});
 
   /// Open the lesson IN the app.
@@ -59,7 +64,12 @@ class MamaCourseScreen extends StatelessWidget {
   /// stays as the fallback for a device that cannot run it.
   void _open(BuildContext context, CourseLesson lesson) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => CourseVideoScreen(lesson: lesson, launch: launch),
+      builder: (_) => CourseVideoScreen(
+        lesson: lesson,
+        progress: access?.progress[lesson.id],
+        onProgress: onProgress,
+        launch: launch,
+      ),
     ));
   }
 
@@ -170,32 +180,161 @@ class _Lessons extends StatelessWidget {
     }
 
     final lang = l.locale.name;
+    final resume = access.resume;
+    final done = access.completedCount;
+
     return RefreshIndicator(
       onRefresh: () async => onRetry?.call(),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        itemCount: access.lessons.length,
+        // One header above the lessons.
+        itemCount: access.lessons.length + 1,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) {
+        itemBuilder: (_, index) {
+          if (index == 0) {
+            return _Header(
+              done: done,
+              total: access.lessons.length,
+              resume: resume,
+              lang: lang,
+              onTap: onTap,
+            );
+          }
+          final i = index - 1;
           final lesson = access.lessons[i];
           final summary = lesson.summary(lang);
+          final p = access.progress[lesson.id];
+          final fraction = p?.fraction;
+          final completed = p?.completed == true;
+
           return DsCard(
             padding: EdgeInsets.zero,
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              leading: CircleAvatar(
-                backgroundColor: Palette.pink,
-                child: Text('${i + 1}',
-                    style: const TextStyle(color: Palette.rose, fontWeight: FontWeight.w700)),
-              ),
-              title: Text(lesson.title(lang),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: summary == null ? null : Text(summary),
-              trailing: const Icon(Icons.open_in_new_rounded, size: 20, color: Palette.textDim),
-              onTap: () => onTap(lesson),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  leading: CircleAvatar(
+                    // A finished lesson stops being a number and becomes a tick:
+                    // the whole list can be read at a glance rather than
+                    // remembered.
+                    backgroundColor: completed ? Palette.rose : Palette.pink,
+                    child: completed
+                        ? const Icon(Icons.check_rounded, size: 20, color: Colors.white)
+                        : Text('${i + 1}',
+                            style: const TextStyle(
+                                color: Palette.rose, fontWeight: FontWeight.w700)),
+                  ),
+                  title: Text(lesson.title(lang),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: summary == null ? null : Text(summary),
+                  trailing: Icon(
+                      p == null || completed
+                          ? Icons.play_circle_outline_rounded
+                          : Icons.play_arrow_rounded,
+                      size: 22,
+                      color: completed ? Palette.textDim : Palette.rose),
+                  onTap: () => onTap(lesson),
+                ),
+                // Only where it means something: part-watched, and the length
+                // known. A bar at 0 or 100 on every row is noise.
+                if (!completed && fraction != null && fraction > 0)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        key: Key('lesson-bar-${lesson.id}'),
+                        value: fraction,
+                        minHeight: 4,
+                        backgroundColor: Palette.pink,
+                        valueColor: const AlwaysStoppedAnimation(Palette.rose),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// "You are 4 of 12 in", and the one tap that matters.
+///
+/// Without it a returning customer faces the same undifferentiated list she
+/// left, and has to remember which lesson she was on. That is where a bought
+/// course stops being watched.
+class _Header extends StatelessWidget {
+  final int done;
+  final int total;
+  final CourseLesson? resume;
+  final String lang;
+  final void Function(CourseLesson) onTap;
+  const _Header({
+    required this.done,
+    required this.total,
+    required this.resume,
+    required this.lang,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final r = resume;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l.t('course_progress_of')
+                      .replaceFirst('{done}', '$done')
+                      .replaceFirst('{total}', '$total'),
+                  key: const Key('course-progress-line'),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600, color: Palette.textDim),
+                ),
+              ),
+              if (done == total && total > 0)
+                const Icon(Icons.emoji_events_rounded, size: 18, color: Palette.rose),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : done / total,
+              minHeight: 6,
+              backgroundColor: Palette.pink,
+              valueColor: const AlwaysStoppedAnimation(Palette.rose),
+            ),
+          ),
+          if (r != null) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('course-continue'),
+              onPressed: () => onTap(r),
+              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+              // "Continue" when she is mid-lesson, "start" when she is not:
+              // offering to continue something never opened reads as a bug.
+              label: Text('${l.t(done == 0 ? 'course_start' : 'course_continue')} · '
+                  '${r.title(lang)}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              style: FilledButton.styleFrom(
+                backgroundColor: darkenForText(Palette.rose),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(46),
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+        ],
       ),
     );
   }

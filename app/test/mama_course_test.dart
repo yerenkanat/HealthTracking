@@ -239,6 +239,53 @@ void main() {
       expect(find.text('Открыть на YouTube'), findsNothing);
     });
 
+    testWidgets('reports where she stopped on the way out', (tester) async {
+      // People close a lesson the moment it ends, which is exactly when the
+      // ten-second tick that would have marked it finished has not fired.
+      // Without this write, every lesson finishes at 90-something per cent.
+      final reported = <LessonProgress>[];
+      await tester.pumpWidget(_wrap(CourseVideoScreen(
+        lesson: _lesson(url: 'https://youtu.be/dQw4w9WgXcQ'),
+        debugWithoutPlayer: true,
+        progress: const LessonProgress(
+            lessonId: 'l1', positionSeconds: 754, durationSeconds: 900),
+        onProgress: reported.add,
+      )));
+      await tester.pumpAndSettle();
+
+      // Leaving the screen.
+      await tester.pumpWidget(_wrap(const SizedBox()));
+      await tester.pumpAndSettle();
+
+      expect(reported, hasLength(1));
+      expect(reported.single.positionSeconds, 754);
+      expect(reported.single.lessonId, 'l1');
+    });
+
+    testWidgets('says out loud that it resumed, so seeking looks deliberate',
+        (tester) async {
+      await tester.pumpWidget(_wrap(CourseVideoScreen(
+        lesson: _lesson(url: 'https://youtu.be/dQw4w9WgXcQ'),
+        debugWithoutPlayer: true,
+        progress: const LessonProgress(lessonId: 'l1', positionSeconds: 754),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('12:34'), findsOneWidget);
+    });
+
+    testWidgets('does not offer to resume a lesson barely started', (tester) async {
+      // "Continue from 0:12" is where she was still deciding whether to watch.
+      await tester.pumpWidget(_wrap(CourseVideoScreen(
+        lesson: _lesson(url: 'https://youtu.be/dQw4w9WgXcQ'),
+        debugWithoutPlayer: true,
+        progress: const LessonProgress(lessonId: 'l1', positionSeconds: 12),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Продолжаем'), findsNothing);
+    });
+
     testWidgets('shows the lesson summary under the video', (tester) async {
       // Written in the back office and, until the player existed, shown only as
       // a subtitle in the list.
@@ -255,6 +302,151 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Что происходит с телом.'), findsOneWidget);
+    });
+  });
+
+  /// What the list tells her about her own progress.
+  ///
+  /// Thirty lessons and no memory of any of them is a course nobody finishes:
+  /// she comes back to the same undifferentiated list and has to remember which
+  /// one she was on.
+  group('how far she got', () {
+    CourseAccess _course(Map<String, LessonProgress> p) => CourseAccess(
+          entitled: true,
+          lessons: [
+            _lesson(id: 'a', titleRu: 'Первый', sort: 10),
+            _lesson(id: 'b', titleRu: 'Второй', sort: 20),
+            _lesson(id: 'c', titleRu: 'Третий', sort: 30),
+          ],
+          progress: p,
+        );
+
+    testWidgets('a finished lesson is a tick, not a number', (tester) async {
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: _course({'a': const LessonProgress(lessonId: 'a', completed: true)}),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      // Its number is gone; the others keep theirs.
+      expect(find.text('1'), findsNothing);
+      expect(find.text('2'), findsOneWidget);
+    });
+
+    testWidgets('counts what is done against what there is', (tester) async {
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: _course({
+          'a': const LessonProgress(lessonId: 'a', completed: true),
+          'b': const LessonProgress(lessonId: 'b', completed: true),
+        }),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Пройдено 2 из 3'), findsOneWidget);
+    });
+
+    testWidgets('offers the lesson she was in the middle of', (tester) async {
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: _course({
+          'a': const LessonProgress(lessonId: 'a', completed: true),
+          'b': const LessonProgress(
+              lessonId: 'b', positionSeconds: 400, durationSeconds: 900),
+        }),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Продолжить · Второй'), findsOneWidget);
+    });
+
+    testWidgets('offers to START when she has watched nothing', (tester) async {
+      // "Continue" on a course never opened reads as a bug.
+      await tester.pumpWidget(_wrap(MamaCourseScreen(access: _course(const {}))));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Начать · Первый'), findsOneWidget);
+      expect(find.textContaining('Продолжить'), findsNothing);
+    });
+
+    testWidgets('offers nothing to continue once everything is done', (tester) async {
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: _course({
+          for (final id in ['a', 'b', 'c'])
+            id: LessonProgress(lessonId: id, completed: true),
+        }),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('course-continue')), findsNothing);
+      expect(find.text('Пройдено 3 из 3'), findsOneWidget);
+    });
+
+    testWidgets('draws a bar only where the length is known', (tester) async {
+      // A bar needs a denominator. YouTube's length is unknown until a player
+      // has loaded the video once, and a bar drawn without it is a guess shown
+      // as a fact.
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: _course({
+          'a': const LessonProgress(
+              lessonId: 'a', positionSeconds: 450, durationSeconds: 900),
+          'b': const LessonProgress(lessonId: 'b', positionSeconds: 450),
+        }),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('lesson-bar-a')), findsOneWidget);
+      expect(find.byKey(const Key('lesson-bar-b')), findsNothing);
+      final bar = tester.widget<LinearProgressIndicator>(
+          find.byKey(const Key('lesson-bar-a')));
+      expect(bar.value, closeTo(0.5, 0.001));
+    });
+
+    testWidgets('the continue button opens that lesson', (tester) async {
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: _course({
+          'a': const LessonProgress(lessonId: 'a', completed: true),
+        }),
+      )));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('course-continue')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CourseVideoScreen), findsOneWidget);
+      // The second one, not the finished first.
+      expect(find.widgetWithText(AppBar, 'Второй'), findsOneWidget);
+    });
+
+    test('a finished lesson is never un-finished by reopening it', () {
+      // The server enforces this too; the model must not disagree with it,
+      // because the list is redrawn from the model before any round trip.
+      final a = CourseAccess(entitled: true, lessons: [_lesson(id: 'a')], progress: {
+        'a': const LessonProgress(lessonId: 'a', completed: true),
+      });
+      expect(a.completedCount, 1);
+      expect(a.resume, isNull);
+    });
+
+    test('progress arrives with the lessons in one response', () {
+      final a = CourseAccess.fromJson({
+        'entitled': true,
+        'lessons': [
+          {'id': 'a', 'titleRu': 'Первый', 'youtubeUrl': 'https://youtu.be/a', 'sort': 10},
+        ],
+        'progress': [
+          {'lessonId': 'a', 'positionSeconds': 300, 'durationSeconds': 600, 'completed': false},
+        ],
+      });
+      expect(a.progress['a']!.positionSeconds, 300);
+      expect(a.progress['a']!.fraction, closeTo(0.5, 0.001));
+    });
+
+    test('progress for a lesson that no longer exists is simply ignored', () {
+      // A deleted lesson cascades server-side, but an app holding an older
+      // response must not count it towards "3 of 12".
+      final a = CourseAccess(entitled: true, lessons: [_lesson(id: 'a')], progress: {
+        'gone': const LessonProgress(lessonId: 'gone', completed: true),
+      });
+      expect(a.completedCount, 0);
     });
   });
 }
