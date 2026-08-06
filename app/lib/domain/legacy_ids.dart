@@ -167,6 +167,62 @@ Map<String, V> normaliseDayKeys<V>(
   return out;
 }
 
+/// Collapse children that are the same person under different ids.
+///
+/// A restore that matches only on id will duplicate a family the moment an id
+/// changes, and one did: an intermediate build re-issued legacy ids on every
+/// launch without saving them, so the server accumulated several copies and
+/// each launch pulled the older ones back. The restore is fixed, but the rows
+/// it already wrote are on the handset and will not remove themselves.
+///
+/// Keeps the RICHEST record of each child — the one with the most safe zones,
+/// then the one with a birth date — because that is the one still wired to
+/// something. Ties keep the earliest, so the order she is used to seeing does
+/// not shuffle.
+///
+/// Returns the survivors plus dropped id → kept id, so side tables can be
+/// carried over with [remapKeys] rather than orphaned.
+ReissuedIds dedupeChildren(List<ChildProfile> children) {
+  String identity(ChildProfile c) =>
+      '${c.name.trim().toLowerCase()}|${c.dateOfBirth?.toIso8601String() ?? ''}';
+
+  /// More zones wins; then having a birth date; then whichever came first.
+  bool richer(ChildProfile a, ChildProfile b) {
+    if (a.geofences.length != b.geofences.length) {
+      return a.geofences.length > b.geofences.length;
+    }
+    if ((a.dateOfBirth != null) != (b.dateOfBirth != null)) {
+      return a.dateOfBirth != null;
+    }
+    return false;
+  }
+
+  final best = <String, ChildProfile>{};
+  final order = <String>[];
+  for (final c in children) {
+    final key = identity(c);
+    final incumbent = best[key];
+    if (incumbent == null) {
+      best[key] = c;
+      order.add(key);
+    } else if (richer(c, incumbent)) {
+      best[key] = c;
+    }
+  }
+
+  final dropped = <String, String>{};
+  for (final c in children) {
+    final kept = best[identity(c)]!;
+    if (kept.id != c.id) dropped[c.id] = kept.id;
+  }
+
+  return ReissuedIds(
+    children: [for (final k in order) best[k]!],
+    childIds: dropped,
+    geofenceIds: const {},
+  );
+}
+
 /// Point devices at the child's new id.
 List<PairedDevice> remapDeviceChildIds(
     List<PairedDevice> devices, Map<String, String> renamed) {

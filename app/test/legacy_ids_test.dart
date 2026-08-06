@@ -304,6 +304,102 @@ void main() {
     });
   });
 
+  /// Duplicates a broken restore already wrote.
+  ///
+  /// Matching only on id duplicated the family whenever an id changed, and an
+  /// intermediate build changed them on every launch. The restore is fixed;
+  /// the rows it wrote are on the handset and will not remove themselves.
+  group('the same child stored twice', () {
+    ChildProfile sultan(String id, {List<Geofence> zones = const []}) => ChildProfile(
+          id: id,
+          name: 'Сұлтан',
+          dateOfBirth: DateTime(2019, 3, 8),
+          geofences: zones,
+        );
+
+    test('collapses to one', () {
+      final out = dedupeChildren([sultan('a'), sultan('b')]);
+      expect(out.children, hasLength(1));
+      expect(out.childIds, {'b': 'a'});
+    });
+
+    test('keeps the copy still wired to something', () {
+      // The one with her safe zones is the one alerts are built on; keeping
+      // the bare copy would silently switch "arrived home" off.
+      final out = dedupeChildren([
+        sultan('bare'),
+        sultan('withZones', zones: [circle('z1', 'Дом'), circle('z2', 'Школа')]),
+      ]);
+
+      expect(out.children.single.id, 'withZones');
+      expect(out.children.single.geofences, hasLength(2));
+      expect(out.childIds, {'bare': 'withZones'});
+    });
+
+    test('and keeps the order she is used to seeing', () {
+      final out = dedupeChildren([
+        sultan('a'),
+        const ChildProfile(id: 'b', name: 'Аружан', geofences: []),
+        sultan('c'),
+      ]);
+      expect(out.children.map((c) => c.name), ['Сұлтан', 'Аружан']);
+    });
+
+    test('leaves a family with no duplicates completely alone', () {
+      final family = [
+        sultan('a'),
+        const ChildProfile(id: 'b', name: 'Аружан', geofences: []),
+      ];
+      final out = dedupeChildren(family);
+      expect(out.isEmpty, isTrue, reason: 'nothing changed, so nothing should be re-saved');
+      expect(out.children.map((c) => c.id), ['a', 'b']);
+    });
+
+    test('a real sibling is not a duplicate', () {
+      final out = dedupeChildren([
+        sultan('a'),
+        ChildProfile(id: 'b', name: 'Сұлтан', dateOfBirth: DateTime(2023, 1, 1)),
+      ]);
+      expect(out.children, hasLength(2));
+    });
+
+    test('a duplicate\'s records follow the copy that survives', () async {
+      // Her weight chart and vaccination record were written against whichever
+      // id the app was using that day; dropping a row must not orphan them.
+      final store = InMemoryAppStore();
+      await store.save(PersistedConfig(
+        onboarded: true,
+        locale: AppLocale.ru,
+        profile: const UserProfile(),
+        children: [
+          ChildProfile(
+              id: '11111111-1111-1111-1111-111111111111',
+              name: 'Сұлтан',
+              dateOfBirth: DateTime(2019, 3, 8),
+              geofences: [circle('22222222-2222-2222-2222-222222222222', 'Дом')]),
+          ChildProfile(
+              id: '33333333-3333-3333-3333-333333333333',
+              name: 'Сұлтан',
+              dateOfBirth: DateTime(2019, 3, 8)),
+        ],
+        devices: const [],
+        // Recorded against the copy that is about to be dropped.
+        childBattery: const {'33333333-3333-3333-3333-333333333333': 61},
+        vaccinesDone: const {'33333333-3333-3333-3333-333333333333': ['bcg']},
+      ));
+
+      final c = AppController(persistStore: store);
+      addTearDown(c.dispose);
+      await c.restore();
+
+      expect(c.children, hasLength(1));
+      final kept = c.children.single;
+      expect(kept.geofences, hasLength(1), reason: 'the copy with her zones should survive');
+      expect(c.batteryFor(kept.id), 61, reason: 'the battery was orphaned');
+      expect(c.vaccinesDoneFor(kept.id), contains('bcg'), reason: 'the record was orphaned');
+    });
+  });
+
   group('what counts as syncable', () {
     test('the ids the server actually accepts', () {
       expect(isSyncableId('11111111-2222-3333-4444-555555555555'), isTrue);

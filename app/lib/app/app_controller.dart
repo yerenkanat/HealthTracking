@@ -341,9 +341,19 @@ class AppController {
     // A no-op after the first run, and a no-op for a child that already has a
     // UUID — re-issuing that one would orphan the copy the server holds and
     // duplicate her in the back office.
-    final reissued = reissueUnsyncableIds(cfg.children);
-    final renamed = reissued.childIds;
-    if (!reissued.isEmpty) _migratedOnLoad = true;
+    // Collapse duplicates BEFORE re-issuing ids: two copies of one child would
+    // otherwise be given two fresh ids and stay two children for ever.
+    final deduped = dedupeChildren(cfg.children);
+    final reissued = reissueUnsyncableIds(deduped.children);
+    // Both passes rename, and everything keyed by a child id has to follow
+    // both — a dropped duplicate's battery and growth rows belong to the copy
+    // that survived.
+    final renamed = <String, String>{
+      for (final e in deduped.childIds.entries)
+        e.key: reissued.childIds[e.value] ?? e.value,
+      ...reissued.childIds,
+    };
+    if (!reissued.isEmpty || !deduped.isEmpty) _migratedOnLoad = true;
 
     _children
       ..clear()
