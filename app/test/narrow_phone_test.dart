@@ -51,6 +51,7 @@ import 'package:fcs_app/data/cry_recorder.dart';
 import 'package:fcs_app/domain/cry_analysis.dart';
 import 'package:fcs_app/ui/tracking/cry_insight_screen.dart';
 import 'package:fcs_app/domain/course_lesson.dart';
+import 'package:fcs_app/ui/content/course_video_screen.dart';
 import 'package:fcs_app/ui/content/mama_course_screen.dart';
 import 'package:fcs_app/domain/ai_chat_service.dart';
 import 'package:fcs_app/domain/chat_controller.dart';
@@ -474,6 +475,85 @@ void main() {
         launch: (_) async => true,
       ),
       'the Ма!Ма! course (entitled)',
+    );
+  });
+
+  /// The state a returning customer actually opens: a progress line, a bar and
+  /// a Continue button carrying a lesson title staff typed at whatever length
+  /// they felt like. Every one of those is new width on a row that already fit
+  /// only just, and the case above has no progress at all — so none of it was
+  /// being measured.
+  testWidgets('the Ма!Ма! course fits once she has watched some of it',
+      (tester) async {
+    await fits(
+      tester,
+      () => MamaCourseScreen(
+        access: CourseAccess(
+          entitled: true,
+          lessons: courseLessons,
+          progress: const {
+            'l1': LessonProgress(lessonId: 'l1', completed: true),
+            'l2': LessonProgress(
+                lessonId: 'l2', positionSeconds: 450, durationSeconds: 1200),
+          },
+        ),
+      ),
+      'the Ма!Ма! course (in progress)',
+    );
+  });
+
+  testWidgets('the Ма!Ма! course in progress fits at 130%', (tester) async {
+    // "Продолжить · Первые 40 дней: восстановление…" at 130% is the longest
+    // single line the course has.
+    await fits(
+      tester,
+      () => MamaCourseScreen(
+        access: CourseAccess(
+          entitled: true,
+          lessons: courseLessons,
+          progress: const {'l1': LessonProgress(lessonId: 'l1', completed: true)},
+        ),
+      ),
+      'the Ма!Ма! course (in progress, 130%)',
+      textScale: 1.3,
+    );
+  });
+
+  testWidgets('the lesson player fits', (tester) async {
+    // debugWithoutPlayer: the real IFrame player needs a webview, which needs a
+    // device. Everything laid out AROUND it is what can overflow.
+    await fits(
+      tester,
+      () => CourseVideoScreen(
+        lesson: courseLessons.first,
+        progress: const LessonProgress(
+            lessonId: 'l1', positionSeconds: 754, durationSeconds: 1200),
+        debugWithoutPlayer: true,
+        launch: (_) async => true,
+      ),
+      'the lesson player',
+    );
+  });
+
+  testWidgets('the lesson player fits with a link we cannot play', (tester) async {
+    // The longest copy on the screen, and the state a customer hits when a
+    // lesson was authored before links were validated.
+    await fits(
+      tester,
+      () => CourseVideoScreen(
+        lesson: const CourseLesson(
+          id: 'l9',
+          titleRu: 'Первые 40 дней: восстановление после родов и уход за собой',
+          // A lesson authored before links were validated: the summary is
+          // there, the link is a channel page, and there is nothing to play.
+          summaryRu: 'Что происходит с телом, чего ждать и когда обращаться к врачу.',
+          youtubeUrl: 'https://www.youtube.com/@anabala',
+          sort: 9,
+        ),
+        launch: (_) async => true,
+      ),
+      'the lesson player (bad link)',
+      textScale: 1.3,
     );
   });
 

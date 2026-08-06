@@ -16,7 +16,6 @@ import 'package:flutter/material.dart';
 
 import '../design_system.dart';
 import '../ds_widgets.dart';
-import 'glass.dart';
 
 class StatTile extends StatelessWidget {
   final IconData icon;

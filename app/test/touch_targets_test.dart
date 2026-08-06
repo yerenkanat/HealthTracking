@@ -7,10 +7,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/domain/course_lesson.dart';
 import 'package:fcs_app/domain/weight.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/weight_card.dart';
+import 'package:fcs_app/ui/content/mama_course_screen.dart';
 import 'package:fcs_app/ui/dashboard/water_card.dart';
 import 'package:fcs_app/ui/ds_widgets.dart';
 import 'package:fcs_app/ui/theme.dart';
@@ -49,6 +51,27 @@ void main() {
       onSetGoal: (_) {},
     )));
     expect(tapHeightOf(tester, '3 of 8 glasses'), greaterThanOrEqualTo(_minTarget));
+  });
+
+  /// The course list's "Continue" button.
+  ///
+  /// Shipped at 46dp. Two under the minimum is invisible by eye and exactly the
+  /// kind of thing this file exists for — and this is the one button the course
+  /// is meant to be driven from, tapped by somebody holding a baby.
+  testWidgets('the course continue button clears 48dp', (tester) async {
+    final lessons = [
+      const CourseLesson(id: 'a', titleRu: 'Первые дни', youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', sort: 10),
+    ];
+    await tester.pumpWidget(MaterialApp(
+      home: L10nScope(
+        l10n: const L10n(AppLocale.ru),
+        child: MamaCourseScreen(access: CourseAccess(entitled: true, lessons: lessons)),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final size = tester.getSize(find.byKey(const Key('course-continue')));
+    expect(size.height, greaterThanOrEqualTo(_minTarget));
   });
 
   _dsControls();

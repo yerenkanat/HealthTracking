@@ -329,7 +329,7 @@ class _Header extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: darkenForText(Palette.rose),
                 foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(46),
+                minimumSize: const Size.fromHeight(48),
               ),
             ),
           ],

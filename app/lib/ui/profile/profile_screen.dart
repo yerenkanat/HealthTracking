@@ -16,7 +16,6 @@ import '../design_system.dart';
 import '../theme.dart';
 import '../tracking/family_sheets.dart';
 import '../widgets/avatar.dart';
-import '../widgets/glass.dart';
 import '../widgets/photo_picker_sheet.dart';
 import '../ds_widgets.dart';
 import '../widgets/stat_tile.dart';

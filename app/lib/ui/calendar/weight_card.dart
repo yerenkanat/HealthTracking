@@ -13,7 +13,6 @@ import '../dashboard/sparkline.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../ds_widgets.dart';
-import '../widgets/glass.dart';
 
 class WeightCard extends StatelessWidget {
   final List<WeightEntry> entries;

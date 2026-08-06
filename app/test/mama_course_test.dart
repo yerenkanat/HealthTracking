@@ -416,6 +416,46 @@ void main() {
       expect(find.widgetWithText(AppBar, 'Второй'), findsOneWidget);
     });
 
+    testWidgets('the continue button keeps its verb when the title is long',
+        (tester) async {
+      // Lesson titles are typed by staff at whatever length they like, and this
+      // label is "Продолжить · <title>" on one line. Ellipsis is not an
+      // overflow, so nothing else in the suite would notice the button reading
+      // "Продол…" — a button whose verb has been truncated is a button nobody
+      // can identify. Asserted structurally, at the width the cheap Android
+      // phones this is sold to actually have.
+      tester.view.physicalSize = const Size(360 * 3, 640 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: CourseAccess(
+          entitled: true,
+          lessons: [
+            _lesson(id: 'a', titleRu: 'Первый', sort: 10),
+            _lesson(
+                id: 'b',
+                titleRu: 'Первые 40 дней: восстановление после родов и уход за собой',
+                sort: 20),
+          ],
+          progress: const {
+            'a': LessonProgress(lessonId: 'a', completed: true),
+            'b': LessonProgress(lessonId: 'b', positionSeconds: 400, durationSeconds: 900),
+          },
+        ),
+      )));
+      await tester.pumpAndSettle();
+
+      final label = tester.widget<Text>(find.descendant(
+        of: find.byKey(const Key('course-continue')),
+        matching: find.byType(Text),
+      ));
+      expect(label.data, startsWith('Продолжить · '),
+          reason: 'the verb must survive whatever staff typed');
+      expect(label.overflow, TextOverflow.ellipsis,
+          reason: 'the title, not the layout, is what gives way');
+    });
+
     test('a finished lesson is never un-finished by reopening it', () {
       // The server enforces this too; the model must not disagree with it,
       // because the list is redrawn from the model before any round trip.
