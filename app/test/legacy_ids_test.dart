@@ -20,6 +20,7 @@ import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/data/app_store.dart';
 import 'package:fcs_app/data/persisted_config.dart';
 import 'package:fcs_app/domain/child_growth.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/legacy_ids.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 
@@ -199,6 +200,108 @@ void main() {
           reason: 'the tag came unstrapped from the child');
       expect(loaded.selectedChild?.id, child.id);
     });
+
+    test('the migration is written back, not just held in memory', () async {
+      // It used to survive only until some unrelated edit happened to trigger
+      // a save, so two shapes of the truth sat on disk indefinitely. Every
+      // read went through the migrated state, so it worked — and it is the
+      // kind of works that stops working.
+      final store = InMemoryAppStore();
+      await store.save(PersistedConfig(
+        onboarded: true,
+        locale: AppLocale.ru,
+        profile: const UserProfile(),
+        children: const [ChildProfile(id: 'child-1', name: 'Сұлтан', geofences: [])],
+        devices: const [],
+        dayLogs: const {
+          '2026-05-21T00:00:00.000Z':
+              DayLog(date: '2026-05-21T00:00:00.000Z', flow: Flow.medium),
+        },
+      ));
+
+      final first = AppController(persistStore: store);
+      await first.restore();
+      await first.dispose();
+
+      // Read the raw saved config back: the old shapes must be gone from disk.
+      final saved = (await store.load())!;
+      expect(saved.children.single.id, isNot('child-1'));
+      expect(saved.dayLogs.keys, ['2026-05-21']);
+      expect(saved.dayLogs['2026-05-21']!.date, '2026-05-21');
+    });
+
+    test('a config with nothing to migrate is not rewritten', () async {
+      // Saving on every launch would churn storage for no reason, and would
+      // hide whether the migration ever actually ran.
+      final store = _CountingStore(InMemoryAppStore());
+      await store.save(const PersistedConfig(
+        onboarded: true,
+        locale: AppLocale.ru,
+        profile: UserProfile(),
+        children: [
+          ChildProfile(id: '11111111-2222-3333-4444-555555555555', name: 'Аружан', geofences: []),
+        ],
+        devices: [],
+      ));
+      store.saves = 0;
+
+      final c = AppController(persistStore: store);
+      await c.restore();
+      await c.dispose();
+
+      expect(store.saves, 0, reason: 'nothing needed migrating, so nothing should be saved');
+    });
+  });
+
+  /// Day logs written by an older build.
+  ///
+  /// Found on a real handset: some entries are keyed `2026-05-21` and others
+  /// `2026-05-21T00:00:00.000Z`. The server requires yyyy-MM-dd, so every ISO
+  /// one was refused with a 400 — months of her cycle diary that could never
+  /// reach the back office, reported once per log as an uncaught async error
+  /// nobody was reading.
+  group('day logs an older build wrote', () {
+    test('an ISO timestamp becomes the day it was recorded on', () {
+      expect(normaliseDayKey('2026-05-21T00:00:00.000Z'), '2026-05-21');
+      // Not converted across zones: that would move an entry over midnight and
+      // rewrite the day she recorded something on.
+      expect(normaliseDayKey('2026-05-21T23:30:00.000+06:00'), '2026-05-21');
+    });
+
+    test('a key already in the right shape is untouched', () {
+      expect(normaliseDayKey('2026-05-21'), '2026-05-21');
+    });
+
+    test('something that is not a date at all is dropped, not sent', () {
+      expect(normaliseDayKey('yesterday'), isNull);
+      expect(normaliseDayKey(''), isNull);
+    });
+
+    test('the value carries the day too, and is rewritten with it', () {
+      // A DayLog holds its date twice. Fixing only the key would send a body
+      // the server refuses for exactly the same reason.
+      final out = normaliseDayKeys<String>(
+        {'2026-05-21T00:00:00.000Z': 'old'},
+        (v, day) => '$v@$day',
+      );
+      expect(out, {'2026-05-21': 'old@2026-05-21'});
+    });
+
+    test('when both forms of a day exist, the current one wins', () {
+      final out = normaliseDayKeys<String>(
+        {'2026-05-21': 'plain', '2026-05-21T00:00:00.000Z': 'legacy'},
+        (v, day) => v,
+      );
+      expect(out, {'2026-05-21': 'plain'});
+    });
+
+    test('and the same holds whichever order they are stored in', () {
+      final out = normaliseDayKeys<String>(
+        {'2026-05-21T00:00:00.000Z': 'legacy', '2026-05-21': 'plain'},
+        (v, day) => v,
+      );
+      expect(out, {'2026-05-21': 'plain'});
+    });
   });
 
   group('what counts as syncable', () {
@@ -219,4 +322,23 @@ void main() {
       }
     });
   });
+}
+
+/// Counts saves, so "nothing to migrate writes nothing" can be asserted.
+class _CountingStore implements AppStore {
+  final AppStore inner;
+  int saves = 0;
+  _CountingStore(this.inner);
+
+  @override
+  Future<PersistedConfig?> load() => inner.load();
+
+  @override
+  Future<void> save(PersistedConfig cfg) {
+    saves++;
+    return inner.save(cfg);
+  }
+
+  @override
+  Future<void> clear() => inner.clear();
 }

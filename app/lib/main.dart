@@ -548,9 +548,12 @@ Future<void> bootstrapRuntime(
 
       // Push-only women's-health day-log sync (flow / mood / symptoms / kicks),
       // so the admin wellness diary mirrors hers.
-      controller.attachCycleSync(upsert: (log) => api.putDayLog(log.toJson()));
+      controller.attachCycleSync(
+          upsert: (log) => pushed('day log', () => api.putDayLog(log.toJson()), errorLog: controller.errorLog));
       for (final log in controller.dayLogs.values) {
-        if (log.isNotEmpty) unawaited(api.putDayLog(log.toJson()));
+        if (log.isNotEmpty) {
+          unawaited(pushed('day log', () => api.putDayLog(log.toJson()), errorLog: controller.errorLog));
+        }
       }
 
       // Push-only child sync, so the back-office kids dashboard is built from
@@ -666,7 +669,7 @@ Future<void> bootstrapRuntime(
       // Push-only weight sync, so the admin wellness view mirrors her trend.
       controller.attachWeightSync(upsert: (w) => api.putWeight(date: w.date, kg: w.kg));
       for (final w in controller.weights) {
-        unawaited(api.putWeight(date: w.date, kg: w.kg));
+        unawaited(pushed('weight', () => api.putWeight(date: w.date, kg: w.kg), errorLog: controller.errorLog));
       }
 
       // Device sync (register + unregister), so the admin fleet shows real

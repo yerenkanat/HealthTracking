@@ -286,7 +286,34 @@ class AppController {
     final cfg = await _persistStore?.load();
     if (cfg == null || !cfg.onboarded) return;
     _applyConfig(cfg);
+    // Write back if the load MIGRATED anything.
+    //
+    // _applyConfig rewrites ids and day keys the server would refuse, but only
+    // in memory: on disk the old shapes survived until some unrelated edit
+    // happened to trigger a save. That works — every read goes through the
+    // migrated state — and it is the kind of works that stops working, because
+    // it leaves two shapes of the truth around for the next person to hit.
+    // Saved once, here, when there was actually something to save.
+    if (_migratedOnLoad) {
+      _migratedOnLoad = false;
+      _persist();
+    }
     _notify();
+  }
+
+  /// Set by [_applyConfig] when it had to rewrite stored data.
+  bool _migratedOnLoad = false;
+
+  /// Pass [after] through, noting whether the migration changed anything.
+  ///
+  /// Compared by key count and by key set: a normalisation either drops a key
+  /// (two forms of one day collapsing) or replaces one, and both show up here.
+  Map<String, V> _noteIfChanged<V>(Map<String, V> before, Map<String, V> after) {
+    if (before.length != after.length ||
+        !before.keys.every(after.containsKey)) {
+      _migratedOnLoad = true;
+    }
+    return after;
   }
 
   /// Replace all in-memory state from [cfg]. Shared by restore(), import and
@@ -316,6 +343,7 @@ class AppController {
     // duplicate her in the back office.
     final reissued = reissueUnsyncableIds(cfg.children);
     final renamed = reissued.childIds;
+    if (!reissued.isEmpty) _migratedOnLoad = true;
 
     _children
       ..clear()
@@ -336,7 +364,22 @@ class AppController {
     _avgPeriodLength = cfg.avgPeriodLength;
     _dayLogs
       ..clear()
-      ..addAll(cfg.dayLogs);
+      // An older build stored day logs under full ISO timestamps
+      // ('2026-05-21T00:00:00.000Z'). The server wants yyyy-MM-dd, so every
+      // one of those was refused with a 400 — months of her cycle diary that
+      // could never reach the back office. The day is carried inside the value
+      // as well as in the key, so both are rewritten.
+      ..addAll(_noteIfChanged(cfg.dayLogs, normaliseDayKeys(
+        cfg.dayLogs,
+        (log, day) => DayLog(
+          date: day,
+          mood: log.mood,
+          symptoms: log.symptoms,
+          kicks: log.kicks,
+          flow: log.flow,
+          note: log.note,
+        ),
+      )));
     _kickSessions
       ..clear()
       ..addAll(cfg.kickSessions);

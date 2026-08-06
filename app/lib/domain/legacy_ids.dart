@@ -121,6 +121,52 @@ Map<String, V> remapKeys<V>(Map<String, V> byChildId, Map<String, String> rename
   };
 }
 
+/// A day the server will accept, out of whatever an older build wrote.
+///
+/// A day log is keyed by `yyyy-MM-dd`, and both places that write one today
+/// use [dateKey]. An older build stored full ISO timestamps —
+/// `2026-05-21T00:00:00.000Z` — and those rows are still on the handset. The
+/// server requires `^\d{4}-\d{2}-\d{2}$`, so every one of them is refused with
+/// a 400: months of her cycle diary that can never reach the back office.
+///
+/// Returns null for anything that is not a date at all, so a corrupt key is
+/// dropped rather than sent.
+String? normaliseDayKey(String key) {
+  if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(key)) return key;
+  // Take the calendar day, in whatever zone it was written in. The alternative
+  // — parsing and converting — moves entries across midnight and rewrites the
+  // day she recorded something on.
+  final m = RegExp(r'^(\d{4}-\d{2}-\d{2})T').firstMatch(key);
+  return m?.group(1);
+}
+
+/// Rewrite a day-keyed map so every key is one the server accepts.
+///
+/// [withDate] rebuilds a value whose own `date` field has to match its key —
+/// a DayLog carries the day twice, and fixing only the key would send a body
+/// the server refuses for the same reason.
+///
+/// When both forms of the same day exist, the one already in the accepted
+/// format wins: it was written by the current code and is the later of the
+/// two.
+Map<String, V> normaliseDayKeys<V>(
+  Map<String, V> byDay,
+  V Function(V value, String day) withDate,
+) {
+  final out = <String, V>{};
+  final wasAlreadyFine = <String>{};
+  for (final e in byDay.entries) {
+    final day = normaliseDayKey(e.key);
+    if (day == null) continue; // not a date; nothing can be done with it
+    final alreadyFine = day == e.key;
+    if (out.containsKey(day) && !alreadyFine) continue;
+    if (out.containsKey(day) && wasAlreadyFine.contains(day)) continue;
+    if (alreadyFine) wasAlreadyFine.add(day);
+    out[day] = alreadyFine ? e.value : withDate(e.value, day);
+  }
+  return out;
+}
+
 /// Point devices at the child's new id.
 List<PairedDevice> remapDeviceChildIds(
     List<PairedDevice> devices, Map<String, String> renamed) {
