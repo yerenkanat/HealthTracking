@@ -119,6 +119,8 @@ export function createMemoryRepository(): Repository {
   const bpCalibrations: Array<BpCalRow & { userId: string }> = [];
   const dayLogs = new Map<string, DayLogRow>();
   const alerts: SafetyAlertRow[] = [];
+  /** Profiles by user id — what the pg repository stores on `users`. */
+  const profiles = new Map<string, ProfileRow>();
   let profile: ProfileRow | null = {
     displayName: 'Aigerim',
     phone: '+77001112233',
@@ -551,8 +553,37 @@ export function createMemoryRepository(): Repository {
     recordAlert: async (_u, a) => void alerts.unshift(a),
     listAlerts: async (_u, limit) => alerts.slice(0, limit),
     // Profile + device reassignment
-    getProfile: async () => (profile ? { ...profile } : null),
-    upsertProfile: async (_u, p) => void (profile = { ...p }),
+    // Per USER, like the real one.
+    //
+    // This returned a single global profile whatever userId it was handed, so
+    // in memory mode everybody was Aigerim on +7 700 111 22 33. The pg version
+    // selects from `users WHERE id = $1` and the phone it returns is
+    // `phone_e164` — the number she signed in with, which is the key an
+    // entitlement is stored under. With one shared profile a locally-signed-in
+    // account looked up somebody else's number, so a комплект bought and
+    // shipped in dev never opened the course and the bug looked like it was in
+    // the entitlement.
+    getProfile: async (userId) => {
+      const own = profiles.get(userId);
+      if (own) return { ...own };
+      // A user created by phone sign-in has no profile row yet; the phone
+      // itself is what identifies the account, so answer with it.
+      const phone = [...usersByPhone.entries()].find(([, id]) => id === userId)?.[0];
+      if (phone) {
+        return {
+          displayName: userNames.get(userId) ?? '',
+          phone,
+          dueDate: null, locale: 'ru-KZ', birthDate: null, city: null,
+          doctorPhone: null, avgCycleLength: null, avgPeriodLength: null,
+        };
+      }
+      // The seeded demo account, for everything that runs without signing in.
+      return profile ? { ...profile } : null;
+    },
+    upsertProfile: async (userId, p) => {
+      profiles.set(userId, { ...p });
+      profile = { ...p };
+    },
     reassignDevice: async (id, childId) => {
       const d = devices.find((x) => x.id === id);
       if (d) d.childId = childId;

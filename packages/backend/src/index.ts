@@ -238,6 +238,15 @@ function memoryDeps(): ServerDeps {
   const repo = createMemoryRepository();
   const lastLoc = new Map<string, ChildLocationFix>();
   const fences = createInProcessTransitions();
+  // The same line productionDeps runs, and it was missing here.
+  //
+  // POST /auth/phone works in memory mode — it mints a real token and stores a
+  // real session — but nothing was ever wired to CHECK one, so every token it
+  // handed out was rejected by every endpoint that needed it. Sign-in
+  // succeeded and then the whole app API answered 401, which is the most
+  // confusing possible shape for a bug: the thing that authenticates works,
+  // and everything downstream says you are not authenticated.
+  verifyUserSession = async (token) => repo.userBySessionToken(hashToken(token));
   return {
     repo,
     guardrail: { callLLM: async () => 'Rest and hydrate gently. (dev echo — set an ANTHROPIC key for real replies)' },
