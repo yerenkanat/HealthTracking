@@ -117,6 +117,25 @@ void main() {
     }
   });
 
+  testWidgets('a school-age child is told the calendar is behind them', (tester) async {
+    // The milestone table stops around three years. At eight, all three
+    // sections are empty and the screen rendered a name, a disclaimer, and
+    // then a page of nothing — indistinguishable from data that failed to
+    // load. This was found by opening the app on a real account.
+    await pumpScreen(tester, childAged(96));
+
+    expect(find.text(ru.t('dev_now')), findsNothing);
+    expect(find.text(ru.t('dev_next')), findsNothing);
+    expect(find.text(ru.t('dev_outgrown_title')), findsOneWidget);
+    // And it points somewhere rather than dead-ending.
+    expect(find.textContaining('Прививки'), findsOneWidget);
+  });
+
+  testWidgets('a child inside the range is not told they have outgrown it', (tester) async {
+    await pumpScreen(tester, childAged(9));
+    expect(find.text(ru.t('dev_outgrown_title')), findsNothing);
+  });
+
   testWidgets('golden: the calendar at nine months', (tester) async {
     tester.view.physicalSize = const Size(880, 1800);
     tester.view.devicePixelRatio = 2.0;

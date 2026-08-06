@@ -189,6 +189,37 @@ class ChildDevelopmentTimeline extends StatelessWidget {
             _MilestoneCard(m: m, status: DevStatus.worthAsking),
           const SizedBox(height: 18),
         ],
+
+        // The child has outgrown the calendar.
+        //
+        // The milestone table stops at 33 months, so for a school-age child
+        // all three sections above are empty and this screen rendered a name,
+        // a disclaimer, and then a page of nothing — which reads as data that
+        // failed to load. Say what happened, and point at what IS still
+        // tracked for an older child rather than leaving a dead end.
+        if (now.isEmpty && next.isEmpty && ask.isEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.pastelMint,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.t('dev_outgrown_title'),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 15.5)),
+                const SizedBox(height: 8),
+                Text(l.t('dev_outgrown_body'),
+                    style: const TextStyle(
+                        color: Palette.textDim, height: 1.45, fontSize: 13.5)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
       ],
     );
   }

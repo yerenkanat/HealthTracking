@@ -221,23 +221,48 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 const SizedBox(width: 4),
               ],
             ),
-            // Quick, discoverable one-tap period logging (cycle mode only).
-            floatingActionButton: cycleMode
-                ? FloatingActionButton.extended(
-                    onPressed: _logPeriodToday,
-                    // White label on roseDeep measures 3.58:1. Darkened so the
-                    // most-used control on this screen is legible.
-                    backgroundColor: darkenForText(Palette.roseDeep),
-                    foregroundColor: Colors.white,
-                    icon: Icon(periodToday
-                        ? Icons.check_rounded
-                        : Icons.water_drop_rounded),
-                    label: Text(l.t(
-                        periodToday ? 'cyc_period_logged' : 'cyc_log_period')),
+            // One-tap period logging, in a bar rather than a floating button.
+            //
+            // As a FAB it sat ON the month grid: at rest — which is how this
+            // screen is nearly always seen, the content being barely taller
+            // than the viewport — it covered the last week of the month. A
+            // floating control over whitespace is fine; one parked over the
+            // dates it is about is not. In the layout it is always visible,
+            // never covers anything, and is a wider target besides.
+            bottomNavigationBar: cycleMode
+                ? SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                      child: FilledButton.icon(
+                        onPressed: _logPeriodToday,
+                        // White on roseDeep measures 3.58:1. Darkened so the
+                        // most-used control on this screen is legible.
+                        style: FilledButton.styleFrom(
+                          backgroundColor: darkenForText(Palette.roseDeep),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(52),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        icon: Icon(periodToday
+                            ? Icons.check_rounded
+                            : Icons.water_drop_rounded),
+                        label: Text(
+                          l.t(periodToday
+                              ? 'cyc_period_logged'
+                              : 'cyc_log_period'),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 15),
+                        ),
+                      ),
+                    ),
                   )
                 : null,
             body: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+              // 24 at the bottom, not 90: nothing floats over the list any
+              // more, so the padding no longer has to clear a button.
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
               children: [
                 // All three calendars, always visible. Which one opens first
                 // still follows her state — that is right on the first open —

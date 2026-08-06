@@ -2017,6 +2017,20 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Children develop at very different rates. These ranges are where most land — not a schedule.',
   },
   'dev_no_birthdate': {AppLocale.ru: 'Добавьте дату рождения ребёнка, чтобы увидеть его календарь развития.', AppLocale.kk: 'Даму күнтізбесін көру үшін баланың туған күнін қосыңыз.', AppLocale.en: 'Add your child’s date of birth to see their development calendar.'},
+  // Past the calendar's range (the milestone table stops around three years).
+  // Without this the screen showed a name, a disclaimer and then nothing,
+  // which reads as data that failed to load rather than as a child who has
+  // grown out of it.
+  'dev_outgrown_title': {
+    AppLocale.ru: 'Этот календарь — для первых лет',
+    AppLocale.kk: 'Бұл күнтізбе — алғашқы жылдарға',
+    AppLocale.en: 'This calendar covers the early years',
+  },
+  'dev_outgrown_body': {
+    AppLocale.ru: 'Ваш ребёнок уже прошёл все вехи раннего развития — здесь больше нечего отмечать. Прививки, рост и вес по-прежнему на его карточке во вкладке «Ребёнок».',
+    AppLocale.kk: 'Балаңыз ерте дамудың барлық кезеңдерінен өтті — мұнда белгілейтін ештеңе қалмады. Егулер, бой мен салмақ «Бала» бөліміндегі карточкасында сақталады.',
+    AppLocale.en: 'Your child has passed every early-development milestone, so there is nothing left to track here. Vaccinations, height and weight are still on their card in the Child tab.',
+  },
 
   // Week-by-week growth & skills card (baby_development calendar, first year)
   'cdw_title': {AppLocale.ru: 'Ваш малыш на этой неделе', AppLocale.kk: 'Балаңыз осы аптада', AppLocale.en: 'Your baby this week'},

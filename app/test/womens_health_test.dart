@@ -284,12 +284,22 @@ void main() {
   });
 
   testWidgets('predictions show a confidence chip that grows with history', (tester) async {
+    /// Scroll the calendar until [label] is built.
+    ///
+    /// The predictions card sits below the fold on a 600px test viewport, and
+    /// a ListView only builds what is near the visible window — so asserting
+    /// on it directly passed only by accident of how much room was left over.
+    Future<void> scrollTo(WidgetTester tester, String label) =>
+        tester.scrollUntilVisible(find.text(label), 200,
+            scrollable: find.byType(Scrollable).first);
+
     // One logged period → no completed cycles → low confidence.
     final c1 = controllerFor();
     for (final d in [DateTime(2026, 7, 10), DateTime(2026, 7, 11)]) {
       c1.toggleFlowFor(d, Flow.medium);
     }
     await tester.pumpWidget(wrap(c1));
+    await scrollTo(tester, 'low data');
     expect(find.text('low data'), findsOneWidget);
     addTearDown(c1.dispose);
 
@@ -301,8 +311,28 @@ void main() {
       }
     }
     await tester.pumpWidget(wrap(c2));
+    await scrollTo(tester, 'building');
     expect(find.text('building'), findsOneWidget);
     addTearDown(c2.dispose);
+  });
+
+  testWidgets('the period button never covers the month grid', (tester) async {
+    // It used to be a FloatingActionButton, parked on the last week of the
+    // month. This screen is barely taller than a phone, so at rest — which is
+    // how it is nearly always seen — the dates underneath were unreadable and
+    // untappable.
+    final c = controllerFor(); // cycle mode
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+
+    expect(find.byType(FloatingActionButton), findsNothing);
+    final button = find.widgetWithText(FilledButton, 'Log period');
+    expect(button, findsOneWidget);
+
+    // Below the scrolling list, not on top of it.
+    final listBottom = tester.getRect(find.byType(ListView).first).bottom;
+    expect(tester.getRect(button).top, greaterThanOrEqualTo(listBottom),
+        reason: 'the period button overlaps the calendar it belongs to');
   });
 
   testWidgets('cycle mode with data can share a copied summary', (tester) async {
