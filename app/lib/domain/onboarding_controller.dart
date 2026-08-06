@@ -11,6 +11,7 @@ library;
 import 'dart:async';
 
 import '../core/geofence.dart';
+import '../core/uuid.dart';
 import '../l10n/l10n.dart';
 import 'country_codes.dart';
 import 'family.dart';
@@ -143,9 +144,14 @@ class OnboardingController {
   /// would put a nameless entry in her family list and a nameless chip on the
   /// tracking screen.
   OnboardingResult build() {
+    // UUIDs here too. PUT /children/:id/geofences requires one, so zones
+    // called 'home' and 'school' were refused with the same silent 400 as the
+    // child — and these are the two zones every "arrived home / left school"
+    // alert is built on, so the feature the tracker is sold for could not
+    // reach the server from the onboarding path at all.
     final fences = <Geofence>[
-      if (_home != null) _home!.toGeofence('home'),
-      if (_school != null) _school!.toGeofence('school'),
+      if (_home != null) _home!.toGeofence(uuidV4()),
+      if (_school != null) _school!.toGeofence(uuidV4()),
     ];
     return OnboardingResult(
       locale: _locale,
@@ -158,7 +164,18 @@ class OnboardingController {
       bandId: _bandId,
       child: hasChild
           ? ChildProfile(
-              id: 'child-1',
+              // A real UUID, for the same reason the add-child sheet uses one:
+              // POST /children and /ingest/batch both require one, so a child
+              // named 'child-1' is refused by the server with a 400 that
+              // nothing surfaces.
+              //
+              // This is the FIRST child most mothers ever add — the onboarding
+              // step — so the common case was the one that could never sync.
+              // Her child was missing from the back office, missing from the
+              // Dashboard's counts, and gone the moment she changed phones;
+              // its safe zones could not sync either, because they are grouped
+              // under the child's id; and its location could never be fetched.
+              id: uuidV4(),
               name: _childName.trim(),
               dateOfBirth: _childDob,
               gender: _childGender,

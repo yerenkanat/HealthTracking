@@ -256,4 +256,58 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.bandId, 'CC:DD');
   });
+
+  /// The ids onboarding mints have to be ids the server will accept.
+  ///
+  /// It used to hand out the literal strings 'child-1', 'home' and 'school'.
+  /// POST /children and PUT /children/:id/geofences both require a UUID, so
+  /// every one of them was refused with a 400 — and the push is fire-and-
+  /// forget, so nothing anywhere said so.
+  ///
+  /// This is the FIRST child most mothers ever add, and those two zones are
+  /// what every "arrived home" and "left school" alert is built on. So the
+  /// common path was the one that could never sync: her child was absent from
+  /// the back office and from the Dashboard's counts, gone when she changed
+  /// phones, and its location could never be fetched.
+  group('the ids onboarding produces', () {
+    final uuid = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
+
+    test('the child gets one the server will take', () {
+      final c = OnboardingController()
+        ..setDisplayName('Айгерим')
+        ..setChildName('Сұлтан')
+        ..setHome(const ZoneInput('Дом', 43.2, 76.8));
+
+      final child = c.build().child!;
+      expect(child.id, matches(uuid), reason: 'POST /children refuses anything else');
+    });
+
+    test('so do the zones every alert is built on', () {
+      final c = OnboardingController()
+        ..setChildName('Сұлтан')
+        ..setHome(const ZoneInput('Дом', 43.2, 76.8))
+        ..setSchool(const ZoneInput('Школа', 43.25, 76.95));
+
+      final fences = c.build().child!.geofences;
+      expect(fences, hasLength(2));
+      for (final f in fences) {
+        expect(f.id, matches(uuid), reason: '${f.name} could not sync');
+      }
+      // Still two DIFFERENT zones, not one id used twice.
+      expect(fences[0].id, isNot(fences[1].id));
+      expect(fences.map((f) => f.name), ['Дом', 'Школа']);
+    });
+
+    test('two mothers setting up do not collide', () {
+      ZoneInput home() => const ZoneInput('Дом', 43.2, 76.8);
+      OnboardingController set() => OnboardingController()
+        ..setChildName('Сұлтан')
+        ..setHome(home());
+
+      // Fixed ids meant every account in the database claimed the same child
+      // id and the same zone ids.
+      expect(set().build().child!.id, isNot(set().build().child!.id));
+    });
+  });
 }
