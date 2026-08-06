@@ -125,6 +125,34 @@ describe('products', () => {
     expect(strap.costMinor).toBe(120000);
   });
 
+  /// The article code.
+  ///
+  /// The column has existed since migration 021, uniquely indexed and
+  /// documented as "what goes on a box, an invoice and a courier's manifest".
+  /// The API has accepted it the whole time and the panel had nowhere to type
+  /// one, so every manifest was written from the product name.
+  it('keeps the article code it was given', async () => {
+    await send('PUT', '/admin/inventory/products', {
+      id: 'strap', name: 'Ремешок', priceMinor: 350000, sku: 'AB-STRAP-01',
+    });
+    const { products } = (await get('/admin/inventory')).json();
+    expect(products.find((p: { id: string }) => p.id === 'strap').sku).toBe('AB-STRAP-01');
+  });
+
+  it('takes null for a product that has no code, rather than an empty one', async () => {
+    // The index is UNIQUE. Two products saved with '' would collide on a code
+    // neither of them has, and the second save would be refused for a reason
+    // nobody could see.
+    for (const id of ['strap', 'strap-2']) {
+      const res = await send('PUT', '/admin/inventory/products', {
+        id, name: 'Ремешок', priceMinor: 350000, sku: null,
+      });
+      expect(res.statusCode, id).toBe(200);
+    }
+    const { products } = (await get('/admin/inventory')).json();
+    expect(products.find((p: { id: string }) => p.id === 'strap-2').sku).toBeNull();
+  });
+
   it('refuses an id that would not survive a URL', async () => {
     const res = await send('PUT', '/admin/inventory/products', {
       id: 'Ремешок 2!', name: 'x', priceMinor: 1,

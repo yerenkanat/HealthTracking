@@ -1111,6 +1111,13 @@
           <form id="prodForm" class="stafform" autocomplete="off">
             <input id="prodId" placeholder="код: strap" required maxlength="40">
             <input id="prodName" placeholder="Название" required maxlength="120">
+            <!-- The supplier's article code, not ours. The column has been
+                 there since migration 021, uniquely indexed and documented as
+                 what goes on a box and an invoice, with nowhere to type one —
+                 so every manifest was written from the product name. -->
+            <!-- 60, matching the server. A longer one would type cleanly and be
+                 refused on save for a reason the form never showed. -->
+            <input id="prodSku" placeholder="Артикул (необязательно)" maxlength="60">
             <input id="prodPrice" type="number" min="0" step="1" placeholder="Цена, ₸" required>
             <input id="prodCost" type="number" min="0" step="1" placeholder="Себестоимость, ₸">
             <input id="prodLow" type="number" min="0" step="1" placeholder="Порог остатка" value="3">
@@ -3593,6 +3600,10 @@
           body: JSON.stringify({
             id: $("#prodId").value.trim(),
             name: $("#prodName").value.trim(),
+            // null, not "": the column is nullable and uniquely indexed, so a
+            // second product saved with an empty string would collide with the
+            // first and be refused for a code neither of them has.
+            sku: $("#prodSku").value.trim() || null,
             // Entered in tenge, stored in tiyn — money in floating point drifts.
             priceMinor: Math.round(Number($("#prodPrice").value || 0) * 100),
             costMinor: $("#prodCost").value ? Math.round(Number($("#prodCost").value) * 100) : null,
@@ -3601,7 +3612,7 @@
         });
         const body = await r.json().catch(()=>({}));
         if(r.ok){
-          $("#prodId").value=""; $("#prodName").value=""; $("#prodPrice").value=""; $("#prodCost").value="";
+          $("#prodId").value=""; $("#prodName").value=""; $("#prodSku").value=""; $("#prodPrice").value=""; $("#prodCost").value="";
           stockMsg("Товар сохранён ✓","ok"); renderStock();
         } else if(body.detail){ stockMsg(body.detail,"bad"); }
         else { stockMsg("Не удалось сохранить товар.","bad"); }
@@ -3662,9 +3673,15 @@
               <button type="button" class="btn sm ghost off" data-vid="${esc(v.id)}">Списать</button>
             </div>`).join("")
           || `<div class="t" style="padding:6px 0">Цветов пока нет.</div>`;
+      // The article code, where somebody packing a box can read it.
+      //
+      // The column exists, is uniquely indexed, and is documented as "what goes
+      // on a box, an invoice and a courier's manifest" — and it was never shown
+      // anywhere, so a manifest was written from the product name.
+      const sku = p.sku ? ` · <span class="num">${esc(p.sku)}</span>` : "";
       return `<div style="margin-bottom:18px">
         <div class="sec-h"><h3>${esc(p.name)}${p.active?"":" · архив"}</h3>
-          <span class="sub">${tenge(p.priceMinor)} ${margin}</span></div>
+          <span class="sub">${tenge(p.priceMinor)} ${margin}${sku}</span></div>
         ${rows}
       </div>`;
     }).join("");
