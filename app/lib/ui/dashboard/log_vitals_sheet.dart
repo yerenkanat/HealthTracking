@@ -184,7 +184,11 @@ class _Field extends StatelessWidget {
       ],
       decoration: InputDecoration(
         labelText: label,
-        suffixText: unit,
+        // helperText, not suffixText: Material paints a suffix only once the
+        // field has focus or content, so at rest the unit was not merely cut
+        // short — it was absent. A helper line is always drawn. Not both, or
+        // the unit appears twice the moment she starts typing.
+        helperText: unit,
         border: const OutlineInputBorder(),
       ),
       onChanged: (_) => onChanged(),
