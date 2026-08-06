@@ -152,17 +152,21 @@ sudo -u postgres psql -c "CREATE DATABASE umay OWNER umay;"
 ```bash
 psql "postgres://umay:<secret>@127.0.0.1:5432/umay" -f packages/backend/db/schema.sql
 ```
-`schema.sql` creates every table (36 as of migration 019, incl.
-`cry_results`, `sleep_nights.source/manual_asleep_min`, `cycle_day_logs.note`).
+`schema.sql` creates every table (43 as of migration 026, incl.
+`cry_results`, `sleep_nights.source/manual_asleep_min`, `cycle_day_logs.note`,
+the inventory ledger and the Ма!Ма! course tables).
 
 **Upgrading an existing DB instead — apply migrations in order:**
 ```bash
 for f in packages/backend/db/migrations/0*.sql; do
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"; done
 ```
-Migrations `001`–`019` are each idempotent (`IF NOT EXISTS`). Recent ones:
-**017** (landing leads), **018** (landing prices), **019** (staff accounts,
-sessions and login attempts — what the back-office sign-in runs on).
+Migrations `001`–`026` are each idempotent (`IF NOT EXISTS`). Recent ones:
+**019** (staff accounts, sessions and login attempts — what the back-office
+sign-in runs on), **020** (phone sign-in for the app), **021** (the stock
+ledger, bundles, cost and SKU), **023**–**024** (Ма!Ма! course entitlements and
+lessons), **025** (bundle orders, and a product carrying what its sale grants),
+**026** (course progress — how far each customer has got, keyed by phone).
 
 Apply them with `node db/apply.mjs`, which records what it has run; `schema.sql`
 and the migrations must agree, and `pgSchema.test.ts` fails when they drift. Note in `001`: on a live DB with real data, add

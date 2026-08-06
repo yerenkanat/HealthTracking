@@ -80,6 +80,15 @@ legal layout:
 - **A hand-rolled formatter is not a missing translation.** verify_ui_strings
   checks literals in the source; it cannot see `'${h}h ${m}m'` built at
   runtime, which printed "уже 1m" inside a Russian sentence.
+- **Two texts at the same weight are one paragraph.** Every lesson in the
+  Ма!Ма! course took the default body style for both its title and its
+  summary, so a two-line title ran straight into its summary and a
+  thirty-item list could not be scanned. Nothing overflowed, nothing was
+  truncated, every test was green. The fixtures were the reason: each was
+  short enough to fit one line, so the two never met. **Give a list fixture
+  the longest real content it will ever hold, then look at it** — staff type
+  lesson titles, zone names and medication labels at whatever length they
+  like, and one-line fixtures test a layout nobody will see.
 
 And conversely, **the emulator is not a small phone**. The AVD here is 411dp
 wide; the five real overflow bugs only appear at 360dp. Neither the eye nor the
