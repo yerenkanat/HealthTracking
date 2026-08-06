@@ -95,7 +95,17 @@ class ChildDetailScreen extends StatelessWidget {
             }
 
             final alerts = controller.alerts;
-            final battery = controller.batteryFor(child.id);
+            // A battery belongs to a DEVICE.
+            //
+            // With no tracker linked, the last stored reading is about a
+            // tracker that is not on this child, and this screen showed
+            // «Заряд трекера 8%» for a family whose device list is empty. The
+            // same contradiction was fixed on the tracking card; it lived here
+            // too, one screen away, saying the opposite of what that one now
+            // says.
+            final hasTracker = controller.devices
+                .any((d) => d.kind == DeviceKind.tag && d.childId == child.id);
+            final battery = hasTracker ? controller.batteryFor(child.id) : null;
             final checkIn = lastCheckIn(alerts, child.name);
             final activity = lastActivityAt(alerts, child.name);
             final visits = zoneVisitCounts(alerts, child.name);

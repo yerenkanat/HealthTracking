@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
+import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
 import 'package:fcs_app/domain/phone_auth.dart';
 import 'package:fcs_app/l10n/l10n.dart';
@@ -47,6 +48,11 @@ void main() {
 
   testWidgets('surfaces battery, check-in and visited zones', (tester) async {
     final c = seeded();
+    // A battery belongs to a device, so the fixture has to have one — this
+    // used to seed a reading with no tracker anywhere, which is the exact
+    // state the screen was lying about.
+    c.addDevice(const PairedDevice(
+        id: 'AA:BB', name: 'Tracker', kind: DeviceKind.tag, childId: 'child-1'));
     c.setChildBattery('child-1', 62);
     c.logChildEvent(AlertKind.checkIn);
     // Two fixes: a zone change is confirmed, not taken on one reading.
@@ -62,6 +68,21 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('1 visits'), findsOneWidget);
     addTearDown(c.dispose);
+  });
+
+  testWidgets('says nothing about a battery when no tracker is linked', (tester) async {
+    // Found by opening this screen: it read «Заряд трекера 8%» for a family
+    // whose device list is empty. The reading is left over from a tracker
+    // that has since been unpaired, and it is about a device that is not on
+    // this child. The tracking card was fixed for exactly this; the same
+    // contradiction lived here, one screen away, saying the opposite.
+    final c = seeded();
+    addTearDown(c.dispose);
+    c.setChildBattery('child-1', 8); // stored, but nothing is paired
+    await tester.pumpWidget(wrap(c));
+
+    expect(find.text('Tracker battery'), findsNothing);
+    expect(find.text('8%'), findsNothing);
   });
 
   testWidgets('alert count reflects only this child', (tester) async {
