@@ -11,6 +11,7 @@ import 'package:fcs_app/domain/course_lesson.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/content/course_video_screen.dart';
+import 'package:fcs_app/ui/theme.dart';
 import 'package:fcs_app/ui/content/mama_course_screen.dart';
 
 CourseLesson _lesson({
@@ -454,6 +455,37 @@ void main() {
           reason: 'the verb must survive whatever staff typed');
       expect(label.overflow, TextOverflow.ellipsis,
           reason: 'the title, not the layout, is what gives way');
+    });
+
+    testWidgets('a lesson summary is visibly quieter than its title',
+        (tester) async {
+      // Both took the default body style, so a two-line title ran straight into
+      // its summary and the pair read as one paragraph. Nothing overflowed and
+      // nothing was truncated — it was legal layout that could not be scanned,
+      // and only looking at it with real titles showed it.
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: CourseAccess(entitled: true, lessons: [
+          const CourseLesson(
+            id: 'a',
+            titleRu: 'Первые 40 дней: восстановление после родов',
+            summaryRu: 'Что происходит с телом и когда обращаться к врачу.',
+            youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
+            sort: 10,
+          ),
+        ]),
+      )));
+      await tester.pumpAndSettle();
+
+      final title = tester.widget<Text>(find.text('Первые 40 дней: восстановление после родов'));
+      final summary = tester.widget<Text>(find.byKey(const Key('lesson-summary-a')));
+
+      expect(summary.style?.color, Palette.textDim,
+          reason: 'the summary must not be as loud as the title');
+      expect(summary.style?.fontSize, lessThan(15.0));
+      expect(title.style?.fontWeight, FontWeight.w600);
+      // Neither may run away down the card.
+      expect(title.maxLines, 2);
+      expect(summary.maxLines, 2);
     });
 
     test('a finished lesson is never un-finished by reopening it', () {

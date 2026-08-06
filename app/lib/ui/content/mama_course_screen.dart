@@ -225,9 +225,31 @@ class _Lessons extends StatelessWidget {
                             style: const TextStyle(
                                 color: Palette.rose, fontWeight: FontWeight.w700)),
                   ),
+                  // Two lines each, and the summary visibly quieter than the
+                  // title.
+                  //
+                  // Both took the default body style, so a two-line title
+                  // followed straight into its summary and the pair read as one
+                  // run-on paragraph — a lesson list nobody could scan. Only
+                  // visible with real titles on a real screen: the fixtures
+                  // were short enough to fit one line each.
                   title: Text(lesson.title(lang),
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: summary == null ? null : Text(summary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600, height: 1.25)),
+                  subtitle: summary == null
+                      ? null
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(summary,
+                              key: Key('lesson-summary-${lesson.id}'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.35,
+                                  color: Palette.textDim)),
+                        ),
                   trailing: Icon(
                       p == null || completed
                           ? Icons.play_circle_outline_rounded
