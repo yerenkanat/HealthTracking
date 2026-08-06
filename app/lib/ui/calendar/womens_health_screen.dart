@@ -10,7 +10,6 @@
 library;
 
 import 'package:flutter/material.dart' hide Flow;
-import 'package:intl/intl.dart';
 import 'package:flutter/services.dart'
     show Clipboard, ClipboardData, HapticFeedback;
 import '../../app/app_controller.dart';
@@ -1381,13 +1380,13 @@ class _DayChip extends StatelessWidget {
 /// single letter: В П В С Ч П С. Three pairs collide, so the header cannot be
 /// read on its own — you have to count columns to know whether В is Tuesday or
 /// Sunday. intl's short names are unambiguous and already localised.
-String _weekdayLabel(MaterialLocalizations ml, int dowIndex) {
-  // 2024-01-07 was a Sunday, so adding dowIndex lands on the right weekday.
-  final sample = DateTime(2024, 1, 7 + dowIndex);
-  final short = DateFormat.E(Intl.getCurrentLocale()).format(sample).replaceAll('.', '');
-  // Trimmed to two so every column is the same width and nothing wraps at 360dp.
-  return short.length <= 2 ? short : short.substring(0, 2);
-}
+/// The column header for a weekday, index 0 = Sunday.
+///
+/// From OUR catalogue rather than DateFormat, which reads Intl's GLOBAL locale
+/// — something this app never sets. A Russian screen was headed
+/// «Mo Tu We Th Fr Sa Su» under «август 2026 г.». See cal_dow_* for why the
+/// platform's narrow names are not usable either.
+String _weekdayLabel(L10n l, int dowIndex) => l.t('cal_dow_$dowIndex');
 
 
 /// Which column the 1st of the month falls in, given the locale's first weekday.
@@ -1424,6 +1423,7 @@ class _MonthCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ml = MaterialLocalizations.of(context);
+    final l = L10nScope.of(context);
     final first = DateTime(month.year, month.month, 1);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
 
@@ -1478,7 +1478,7 @@ class _MonthCalendar extends StatelessWidget {
               for (var i = 0; i < 7; i++)
                 Expanded(
                   child: Text(
-                      _weekdayLabel(ml, (firstDow + i) % 7),
+                      _weekdayLabel(l, (firstDow + i) % 7),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           // The weekend reads differently from the working week

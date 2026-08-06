@@ -1133,6 +1133,24 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // The three calendars, and what to say when one of them has nothing to
   // stand on yet. Never hidden: a calendar she cannot see is a calendar she
   // does not know exists.
+  // Weekday column headers for the month grid, index 0 = Sunday.
+  //
+  // Ours, not the platform's, for two reasons. MaterialLocalizations offers
+  // only NARROW names, and the Russian ones are В П В С Ч П С — two Вs, two Пs
+  // and two Сs, so three of the seven columns cannot be told apart from their
+  // header. And DateFormat.E reads Intl's GLOBAL locale, which nothing in this
+  // app ever sets: a Russian screen was headed 'Mo Tu We Th Fr Sa Su' under a
+  // Russian month name.
+  //
+  // The two-letter forms below are the standard abbreviations in each language
+  // and are all distinct.
+  'cal_dow_0': {AppLocale.ru: 'Вс', AppLocale.kk: 'Жс', AppLocale.en: 'Su'},
+  'cal_dow_1': {AppLocale.ru: 'Пн', AppLocale.kk: 'Дс', AppLocale.en: 'Mo'},
+  'cal_dow_2': {AppLocale.ru: 'Вт', AppLocale.kk: 'Сс', AppLocale.en: 'Tu'},
+  'cal_dow_3': {AppLocale.ru: 'Ср', AppLocale.kk: 'Ср', AppLocale.en: 'We'},
+  'cal_dow_4': {AppLocale.ru: 'Чт', AppLocale.kk: 'Бс', AppLocale.en: 'Th'},
+  'cal_dow_5': {AppLocale.ru: 'Пт', AppLocale.kk: 'Жм', AppLocale.en: 'Fr'},
+  'cal_dow_6': {AppLocale.ru: 'Сб', AppLocale.kk: 'Сб', AppLocale.en: 'Sa'},
   'cal_mode_cycle': {AppLocale.ru: 'Цикл', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycle'},
   'cal_mode_pregnancy': {AppLocale.ru: 'Беременность', AppLocale.kk: 'Жүктілік', AppLocale.en: 'Pregnancy'},
   'cal_mode_child': {AppLocale.ru: 'Ребёнок', AppLocale.kk: 'Бала', AppLocale.en: 'Child'},

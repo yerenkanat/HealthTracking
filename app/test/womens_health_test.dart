@@ -460,6 +460,56 @@ void main() {
     addTearDown(c.dispose);
   });
 
+  /// The month grid's column headers.
+  ///
+  /// They came from DateFormat.E(Intl.getCurrentLocale()) — Intl's GLOBAL
+  /// locale, which this app never sets — so a Russian screen was headed
+  /// «Mo Tu We Th Fr Sa Su» underneath «август 2026 г.». Invisible to anyone
+  /// developing in English, which is everyone who looked at it.
+  group('the month grid speaks her language', () {
+    Widget inLocale(AppController c, AppLocale locale) => MaterialApp(
+          home: L10nScope(
+            l10n: L10n(locale),
+            child: WomensHealthScreen(controller: c, now: () => today),
+          ),
+        );
+
+    testWidgets('Russian headers on a Russian screen', (tester) async {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      await tester.pumpWidget(inLocale(c, AppLocale.ru));
+
+      for (final day in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']) {
+        expect(find.text(day), findsOneWidget, reason: '$day is missing');
+      }
+      expect(find.text('Mo'), findsNothing, reason: 'English leaked onto a Russian screen');
+    });
+
+    testWidgets('and Kazakh on a Kazakh one', (tester) async {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      await tester.pumpWidget(inLocale(c, AppLocale.kk));
+
+      // Дс Сс Ср Бс Жм Сб Жс — and all seven distinct, which the platform's
+      // narrow names are not.
+      for (final day in ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс']) {
+        expect(find.text(day), findsOneWidget, reason: '$day is missing');
+      }
+    });
+
+    testWidgets('seven columns, none of them the same', (tester) async {
+      // The reason these are ours and not MaterialLocalizations.narrowWeekdays:
+      // the Russian narrow set is В П В С Ч П С, and three columns cannot be
+      // told apart from their header.
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      await tester.pumpWidget(inLocale(c, AppLocale.ru));
+
+      final labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      expect(labels.toSet(), hasLength(7));
+    });
+  });
+
   /// All three calendars, from any state.
   ///
   /// This tab used to be one calendar chosen for her: pregnant → pregnancy,
