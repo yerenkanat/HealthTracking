@@ -1013,6 +1013,13 @@
             <input id="lessonTitle" placeholder="Название урока" required maxlength="200">
             <input id="lessonUrl" placeholder="https://youtu.be/…" required maxlength="500">
             <input id="lessonTitleKk" placeholder="Атауы (қазақша, необязательно)" maxlength="200">
+            <!-- The one-line summary under the title in the app.
+                 The API has accepted summaryRu/summaryKk since the course
+                 shipped and the app renders it under every lesson, but there
+                 was nowhere to type it — so every lesson went out as a bare
+                 title and the field looked like it did not exist. -->
+            <input id="lessonSummary" placeholder="Короткое описание (необязательно)" maxlength="1000">
+            <input id="lessonSummaryKk" placeholder="Қысқаша сипаттама (қазақша, необязательно)" maxlength="1000">
             <input id="lessonSort" type="number" min="0" step="10" placeholder="Порядок" value="0">
             <label class="t" style="display:flex;align-items:center;gap:6px">
               <input type="checkbox" id="lessonPub"> опубликовать
@@ -3163,7 +3170,9 @@
 
   function resetLessonForm(){
     $("#lessonId").value = ""; $("#lessonTitle").value = ""; $("#lessonUrl").value = "";
-    $("#lessonTitleKk").value = ""; $("#lessonSort").value = "0"; $("#lessonPub").checked = false;
+    $("#lessonTitleKk").value = "";
+    $("#lessonSummary").value = ""; $("#lessonSummaryKk").value = "";
+    $("#lessonSort").value = "0"; $("#lessonPub").checked = false;
     $("#lessonBtn").textContent = "Сохранить";
     $("#lessonCancel").hidden = true;
   }
@@ -3179,6 +3188,8 @@
       const body = {
         titleRu: $("#lessonTitle").value.trim(),
         titleKk: $("#lessonTitleKk").value.trim() || null,
+        summaryRu: $("#lessonSummary").value.trim() || null,
+        summaryKk: $("#lessonSummaryKk").value.trim() || null,
         youtubeUrl: $("#lessonUrl").value.trim(),
         sort: Number($("#lessonSort").value || 0),
         published: $("#lessonPub").checked,
@@ -3245,6 +3256,7 @@
         const l = data.lessons.find(x => x.id === b.dataset.id);
         $("#lessonId").value = l.id; $("#lessonTitle").value = l.titleRu;
         $("#lessonTitleKk").value = l.titleKk || ""; $("#lessonUrl").value = l.youtubeUrl;
+        $("#lessonSummary").value = l.summaryRu || ""; $("#lessonSummaryKk").value = l.summaryKk || "";
         $("#lessonSort").value = l.sort; $("#lessonPub").checked = l.published;
         $("#lessonBtn").textContent = "Обновить"; $("#lessonCancel").hidden = false;
         window.scrollTo(0,0);
