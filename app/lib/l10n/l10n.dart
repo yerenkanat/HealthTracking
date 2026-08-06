@@ -229,6 +229,10 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Geofence zones management
   'zones_title': {AppLocale.ru: 'Зоны {name}', AppLocale.kk: '{name} аймақтары', AppLocale.en: "{name}'s zones"},
   'zones_empty': {AppLocale.ru: 'Пока нет зон. Добавьте дом, школу или другое безопасное место.', AppLocale.kk: 'Әзірге аймақ жоқ. Үй, мектеп немесе басқа қауіпсіз орын қосыңыз.', AppLocale.en: 'No zones yet. Add home, school, or any safe place.'},
+  // How many safe zones a child has, for the Settings list. The count used
+  // to be labelled with nav_child ('Ребёнок'), the name of the Child TAB, so
+  // the row read '8 г. · 2 · Ребёнок' and the 2 belonged to nothing.
+  'child_zone_count': {AppLocale.ru: '{n} зон', AppLocale.kk: '{n} аймақ', AppLocale.en: '{n} zones'},
   'zone_add': {AppLocale.ru: 'Добавить зону', AppLocale.kk: 'Аймақ қосу', AppLocale.en: 'Add zone'},
   'zone_edit': {AppLocale.ru: 'Изменить зону', AppLocale.kk: 'Аймақты өзгерту', AppLocale.en: 'Edit zone'},
   'zone_name_hint': {AppLocale.ru: 'Название зоны', AppLocale.kk: 'Аймақ атауы', AppLocale.en: 'Zone name'},

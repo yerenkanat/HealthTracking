@@ -547,7 +547,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   String _childSubtitle(L10n l, ChildProfile child) {
-    final zones = '${child.geofences.length} · ${l.t('nav_child')}';
+    final zones = l.t('child_zone_count', {'n': child.geofences.length});
     if (!child.hasDateOfBirth) return zones;
     return '${l.childAge(child.ageInMonths(DateTime.now()))} · $zones';
   }
@@ -790,7 +790,15 @@ class _AddButton extends StatelessWidget {
     return TextButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.add, size: 18),
-      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      // scaleDown, not ellipsis. «Добавить ребёнка» rendered as «Добавить
+      // ребё…» beside its section heading on a 360dp phone — a button whose
+      // verb survives and whose object does not. Shrinking keeps the whole
+      // word, which is the only thing that makes it a button rather than a
+      // guess.
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(label, maxLines: 1),
+      ),
       style: TextButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 8)),
     );

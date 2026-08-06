@@ -189,6 +189,57 @@ void main() {
       expect(restored.geofences, hasLength(1)); // zones restored too
     });
 
+    /// The same child under a different id is still the same child.
+    ///
+    /// Matching on id alone means any id change duplicates the whole family.
+    /// An intermediate build re-issued legacy ids on every launch without
+    /// saving them and pushed a new set each time; the restore then pulled the
+    /// older sets back as new children, and Settings showed two Sultans and
+    /// two Edige. The id change was the bug, but a restore that cannot tell a
+    /// person from a primary key will find another way to do this.
+    test('the same child under a new id is not added twice', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.addChild(ChildProfile(
+          id: uuidV4(), name: 'Сұлтан', dateOfBirth: DateTime(2019, 3, 8)));
+
+      c.mergeRemoteChildren([
+        ChildProfile(id: uuidV4(), name: 'Сұлтан', dateOfBirth: DateTime(2019, 3, 8)),
+      ]);
+
+      expect(c.children, hasLength(1), reason: 'she was added a second time');
+    });
+
+    test('and neither is she when her name was typed differently', () {
+      final c = make();
+      addTearDown(c.dispose);
+      c.addChild(ChildProfile(
+          id: uuidV4(), name: 'Сұлтан ', dateOfBirth: DateTime(2019, 3, 8)));
+
+      c.mergeRemoteChildren([
+        ChildProfile(id: uuidV4(), name: 'сұлтан', dateOfBirth: DateTime(2019, 3, 8)),
+      ]);
+
+      expect(c.children, hasLength(1));
+    });
+
+    test('but a real sibling still arrives', () {
+      // The guard must not swallow a genuine second child — same house, same
+      // name is a twin nobody has; same name and a different birthday is two
+      // children.
+      final c = make();
+      addTearDown(c.dispose);
+      c.addChild(ChildProfile(
+          id: uuidV4(), name: 'Сұлтан', dateOfBirth: DateTime(2019, 3, 8)));
+
+      c.mergeRemoteChildren([
+        ChildProfile(id: uuidV4(), name: 'Аружан', dateOfBirth: DateTime(2024, 9, 1)),
+        ChildProfile(id: uuidV4(), name: 'Сұлтан', dateOfBirth: DateTime(2023, 1, 1)),
+      ]);
+
+      expect(c.children, hasLength(3));
+    });
+
     test('mergeRemoteMedications adds missing, keeps local', () {
       final c = make();
       addTearDown(c.dispose);

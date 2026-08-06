@@ -1220,7 +1220,27 @@ class AppController {
   /// Local children are kept untouched — local is the source of truth.
   void mergeRemoteChildren(List<ChildProfile> remote) {
     final have = _children.map((c) => c.id).toSet();
-    final added = [for (final c in remote) if (!have.contains(c.id)) c];
+    // Matched by WHO SHE IS as well as by id.
+    //
+    // Id alone means any id change duplicates the whole family. That is not
+    // hypothetical: an intermediate build re-issued legacy ids on every launch
+    // without saving them, pushed a new set each time, and the restore then
+    // pulled the older sets back as new children — a mother opened Settings to
+    // find two Sultans and two Edige.
+    //
+    // The id is still what matches first; this is the fallback for when it
+    // cannot. Name and date of birth together are what a person means by "the
+    // same child", and merging a genuine second child of the same name and
+    // birthday is the one case this gets wrong — twins with one name, which
+    // does not happen.
+    String identity(ChildProfile c) =>
+        '${c.name.trim().toLowerCase()}|${c.dateOfBirth?.toIso8601String() ?? ''}';
+    final haveIdentity = _children.map(identity).toSet();
+
+    final added = [
+      for (final c in remote)
+        if (!have.contains(c.id) && !haveIdentity.contains(identity(c))) c
+    ];
     if (added.isEmpty) return;
     _children.addAll(added);
     _selectedChildId ??= _children.isNotEmpty ? _children.first.id : null;
