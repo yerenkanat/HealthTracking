@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../data/photo_store.dart';
 import '../../domain/appointment.dart';
+import '../../domain/course_lesson.dart';
 import '../../l10n/l10n.dart';
 import '../content/course_route.dart';
 import '../../l10n/l10n_scope.dart';
@@ -135,6 +136,7 @@ class ProfileScreen extends StatelessWidget {
               // entirely would mean nobody who has not bought the комплект ever
               // learns the course exists.
               _CourseEntry(
+                load: c.api?.getCourse,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => CourseRoute(controller: c)),
                 ),
@@ -165,13 +167,56 @@ class ProfileScreen extends StatelessWidget {
 /// Shown to everyone. Somebody who has not bought the комплект sees the offer
 /// behind it — hiding the row would mean she never learns the course exists,
 /// which is the opposite of what a bundled upsell is for.
-class _CourseEntry extends StatelessWidget {
+/// It also has to say something different to somebody who OWNS it. This row
+/// read "входят в комплект" to every single person — a customer who had paid
+/// 39 000 ₸ was pitched the thing she had already bought, every time she opened
+/// her profile, with no sign that she was four lessons into it. The server knew
+/// both facts and neither reached the screen.
+class _CourseEntry extends StatefulWidget {
   final VoidCallback onTap;
-  const _CourseEntry({required this.onTap});
+
+  /// How to find out what she owns and how far she has got. Null in a test or
+  /// a build with no API, which falls back to the offer line — the honest
+  /// thing to show when we cannot check.
+  final Future<CourseAccess> Function()? load;
+
+  const _CourseEntry({required this.onTap, this.load});
+
+  @override
+  State<_CourseEntry> createState() => _CourseEntryState();
+}
+
+class _CourseEntryState extends State<_CourseEntry> {
+  CourseAccess? _access;
+
+  @override
+  void initState() {
+    super.initState();
+    final load = widget.load;
+    if (load == null) return;
+    // Unawaited and unguarded: a failed request leaves the offer line, which is
+    // what this row said before it could check at all. A profile screen must
+    // not break because the course could not be reached.
+    load().then((a) {
+      if (mounted) setState(() => _access = a);
+    }).catchError((_) {});
+  }
+
+  /// The one line under the title. Ordered by what it is worth saying:
+  /// how far she has got beats "you own this" beats the sales pitch.
+  String _subtitle(L10n l) {
+    final a = _access;
+    if (a == null || !a.entitled) return l.t('course_entry_sub');
+    if (a.lessons.isEmpty) return l.t('course_entry_owned');
+    return l.t('course_progress_of')
+        .replaceFirst('{done}', '${a.completedCount}')
+        .replaceFirst('{total}', '${a.lessons.length}');
+  }
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final entitled = _access?.entitled == true;
     return DsCard(
       padding: EdgeInsets.zero,
       child: ListTile(
@@ -183,12 +228,17 @@ class _CourseEntry extends StatelessWidget {
               border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
               color: Ds.pastelPink,
               borderRadius: BorderRadius.circular(12)),
-          child: const Icon(Icons.play_circle_outline_rounded, color: Ds.ink, size: 22),
+          child: Icon(
+              entitled
+                  ? Icons.play_arrow_rounded
+                  : Icons.play_circle_outline_rounded,
+              color: Ds.ink,
+              size: 22),
         ),
         title: Text(l.t('course_title'), style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(l.t('course_entry_sub')),
+        subtitle: Text(_subtitle(l), key: const Key('course-entry-sub')),
         trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
-        onTap: onTap,
+        onTap: widget.onTap,
       ),
     );
   }

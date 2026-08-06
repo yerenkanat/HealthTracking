@@ -454,6 +454,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: '{total} сабақтың {done} өтілді',
     AppLocale.en: '{done} of {total} watched',
   },
+  'course_entry_owned': {
+    AppLocale.ru: 'Доступ открыт — начните первый урок',
+    AppLocale.kk: 'Қолжетімді — бірінші сабақтан бастаңыз',
+    AppLocale.en: 'Yours — start the first lesson',
+  },
   'course_continue': {AppLocale.ru: 'Продолжить', AppLocale.kk: 'Жалғастыру', AppLocale.en: 'Continue'},
   'course_start': {AppLocale.ru: 'Начать', AppLocale.kk: 'Бастау', AppLocale.en: 'Start'},
   'course_resumed_at': {
