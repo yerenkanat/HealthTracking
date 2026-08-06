@@ -619,6 +619,12 @@ Future<void> bootstrapRuntime(
       // sync carrying raw values that cannot be rebuilt from what is stored.
       unawaited(controller.flushPendingBpCalibration());
 
+      // And the sign-outs the server never heard about. Same reasoning, higher
+      // stakes: a revoke that never landed leaves a working key to her account
+      // on a phone she has already stopped using, for ninety days, and nothing
+      // else will ever retry it.
+      unawaited(controller.flushPendingLogouts());
+
       // Newborn care sync (feed/diaper/sleep), so the admin sees the pattern.
       controller.attachNewbornSync(
         upsert: (childId, e) => api.putNewbornEvent(childId, e.toJson()),

@@ -164,6 +164,22 @@ class PersistedConfig {
   /// the server confirms it, then cleared.
   final Map<String, dynamic>? pendingBpCalibration;
 
+  /// Session tokens signed out of but not yet revoked on the server.
+  ///
+  /// Signing out is local and instant on purpose — a dead network must never
+  /// keep her signed in — so the revoke is fired and forgotten. If it never
+  /// lands, nothing will ever revoke that session again: she has already
+  /// forgotten the token, and the server holds it for ninety days. A phone
+  /// handed on, sold or restored from a backup then still carries a working key
+  /// to her account and her children's locations.
+  ///
+  /// Held here and retried at the next launch, then dropped. Same shape as
+  /// [pendingBpCalibration] and for the same reason: it is a write whose
+  /// failure cannot be repaired by anything that happens later.
+  ///
+  /// A list, because she may sign out twice while offline.
+  final List<String> pendingLogouts;
+
   /// The signed-in session (phone-OTP), or null when signed out. Persisted so a
   /// sign-in survives a restart.
   final AuthSession? authSession;
@@ -227,6 +243,7 @@ class PersistedConfig {
     required this.devices,
     this.bpCalibration,
     this.pendingBpCalibration,
+    this.pendingLogouts = const [],
     this.authSession,
     this.dayLogs = const {},
     this.notificationsEnabled = true,
@@ -272,6 +289,7 @@ class PersistedConfig {
         'devices': [for (final d in devices) d.toJson()],
         if (bpCalibration != null) 'bpCalibration': bpCalibration!.toJson(),
         if (pendingBpCalibration != null) 'pendingBpCalibration': pendingBpCalibration,
+        if (pendingLogouts.isNotEmpty) 'pendingLogouts': pendingLogouts,
         if (authSession != null) 'authSession': authSession!.toJson(),
         if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
         'notificationsEnabled': notificationsEnabled,
@@ -383,6 +401,10 @@ class PersistedConfig {
             : const UserProfile(),
         children: _items(j['children'], childFromJson),
         devices: _items(j['devices'], PairedDevice.fromJson),
+        pendingLogouts: [
+          for (final t in (j['pendingLogouts'] as List?) ?? const [])
+            if (t is String && t.isNotEmpty) t,
+        ],
         pendingBpCalibration: j['pendingBpCalibration'] is Map
             ? (j['pendingBpCalibration'] as Map).cast<String, dynamic>()
             : null,

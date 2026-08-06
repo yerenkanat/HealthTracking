@@ -5,6 +5,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/data/api_client.dart';
+import 'package:fcs_app/data/app_store.dart';
 import 'package:fcs_app/domain/phone_auth.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 
@@ -98,6 +99,79 @@ void main() {
       c.signOut();
       await Future<void>.delayed(Duration.zero);
       expect(c.isSignedIn, isFalse, reason: 'a failed revoke undid the sign-out');
+    });
+
+    test('keeps the token when the revoke fails, and retries it', () async {
+      // The one write nothing else repairs. Every other synced type is
+      // re-pushed wholesale at startup; after signing out, nothing will ever
+      // revoke this session again — so a failed revoke would leave a working
+      // key to her account on a phone she has stopped using, for ninety days.
+      final t = _FakeTransport()..throwOnPost = true;
+      final c = signedIn(t);
+      addTearDown(c.dispose);
+
+      c.signOut();
+      await Future<void>.delayed(Duration.zero);
+      expect(t.calls, isEmpty, reason: 'the fake refused the request');
+
+      // Network back.
+      t.throwOnPost = false;
+      await c.flushPendingLogouts();
+
+      final call = t.calls.where((x) => x.$1 == 'POST /auth/logout');
+      expect(call, hasLength(1), reason: 'the revoke was never retried');
+      expect((call.single.$2 as Map)['token'], 'the-session-token');
+    });
+
+    test('stops retrying once the server has taken it', () async {
+      final t = _FakeTransport();
+      final c = signedIn(t);
+      addTearDown(c.dispose);
+
+      c.signOut();
+      await Future<void>.delayed(Duration.zero);
+      await c.flushPendingLogouts();
+      await c.flushPendingLogouts();
+
+      expect(t.calls.where((x) => x.$1 == 'POST /auth/logout'), hasLength(1));
+    });
+
+    test('the pending revoke survives a restart', () async {
+      // Written to storage, not held in memory: the failure case is a phone
+      // that is offline now and may not be opened again for days.
+      final store = InMemoryAppStore();
+      final t = _FakeTransport()..throwOnPost = true;
+      final first = AppController(
+          now: () => DateTime.utc(2026, 8, 6, 12),
+          locale: AppLocale.ru,
+          persistStore: store);
+      first.attachRuntime(api: ApiClient(t));
+      // restore() bails on a config that never finished onboarding, so the
+      // fixture has to be a real account rather than a bare session.
+      first.debugMarkOnboarded();
+      first.signIn(AuthSession(
+        userId: 'u1', phoneE164: '+77001112233',
+        token: 'the-session-token', signedInAt: DateTime.utc(2026, 8, 1),
+      ));
+      first.signOut();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await first.dispose();
+
+      expect((await store.load())!.pendingLogouts, ['the-session-token']);
+
+      // Next launch, network back: it goes out without her doing anything.
+      final t2 = _FakeTransport();
+      final second = AppController(
+          now: () => DateTime.utc(2026, 8, 7, 12),
+          locale: AppLocale.ru,
+          persistStore: store);
+      addTearDown(second.dispose);
+      second.attachRuntime(api: ApiClient(t2));
+      await second.restore();
+      await second.flushPendingLogouts();
+
+      expect(t2.calls.where((x) => x.$1 == 'POST /auth/logout'), hasLength(1));
+      expect((await store.load())!.pendingLogouts, isEmpty);
     });
 
     test('signing out twice does not call it twice', () async {

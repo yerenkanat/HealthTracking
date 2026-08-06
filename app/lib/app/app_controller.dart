@@ -150,6 +150,9 @@ class AppController {
 
   /// Raw cuff+ppg awaiting a successful push. See [calibrateBp].
   Map<String, dynamic>? _pendingBpCalibration;
+
+  /// Session tokens signed out of but not yet revoked on the server.
+  final List<String> _pendingLogouts = [];
   AuthSession? _authSession;
   int _acceptedLegalVersion = 0;
   bool _notificationsEnabled = true;
@@ -372,6 +375,9 @@ class AppController {
       ..addAll(remapDeviceChildIds(cfg.devices, renamed));
     _bpCalibration = cfg.bpCalibration;
     _pendingBpCalibration = cfg.pendingBpCalibration;
+    _pendingLogouts
+      ..clear()
+      ..addAll(cfg.pendingLogouts);
     _authSession = cfg.authSession;
     _acceptedLegalVersion = cfg.acceptedLegalVersion;
     _notificationsEnabled = cfg.notificationsEnabled;
@@ -526,6 +532,7 @@ class AppController {
         devices: List.of(_devices),
         bpCalibration: _bpCalibration,
         pendingBpCalibration: _pendingBpCalibration,
+        pendingLogouts: List.unmodifiable(_pendingLogouts),
         authSession: _authSession,
         acceptedLegalVersion: _acceptedLegalVersion,
         notificationsEnabled: _notificationsEnabled,
@@ -2059,10 +2066,30 @@ class AppController {
     final session = _authSession;
     if (session == null) return;
     _authSession = null;
+    // Held until the server confirms the revoke. A fire-and-forget write that
+    // never lands can be repaired by the next one for every other synced type,
+    // because main.dart re-pushes them all at startup — but nothing will ever
+    // revoke this session again, so it is kept like the BP calibration is.
+    if (!_pendingLogouts.contains(session.token)) _pendingLogouts.add(session.token);
     _persist(immediate: true);
     _notify();
+    unawaited(flushPendingLogouts());
+  }
+
+  /// Retry the revokes that never landed. Called at startup and after signing
+  /// out; a no-op when nothing is pending.
+  ///
+  /// Safe to repeat: revoking a token that is already gone answers 200, and the
+  /// server says the same thing to a token that was never real, so this cannot
+  /// be used to learn anything either.
+  Future<void> flushPendingLogouts() async {
     final client = api;
-    if (client != null) unawaited(client.logout(session.token));
+    if (client == null || _pendingLogouts.isEmpty) return;
+    // A copy: the list is mutated as each one succeeds.
+    for (final token in [..._pendingLogouts]) {
+      if (await client.logout(token)) _pendingLogouts.remove(token);
+    }
+    _persist(immediate: true);
   }
 
   // ---- Blood-pressure calibration (weekly manual tonometer reading) ----
