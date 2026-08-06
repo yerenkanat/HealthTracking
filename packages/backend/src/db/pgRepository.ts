@@ -1211,6 +1211,43 @@ export function createPgRepository(pool: Pool): Repository {
                (SELECT count(*) FROM safety_alerts WHERE at > now() - interval '7 days') AS alerts_7d,
                (SELECT count(*) FROM safety_alerts WHERE kind = 'sos') AS sos_all_time`);
       const r = rows[0] ?? {};
+
+      // Where the users actually are, in the CMS's own stage keys.
+      //
+      // This field was declared, documented and hardcoded to `{}` in both
+      // repositories, so nothing ever had a value to draw. It is the other half
+      // of the content counts beside it: knowing 47 stages have material is
+      // only useful next to which stages people are standing in. Otherwise the
+      // authoring backlog is ordered by guesswork.
+      //
+      // An account can appear in more than one stage, exactly as the pregnant /
+      // mothers counts already overlap — a mother expecting her second reads
+      // her week AND her toddler's month, and forcing her into one would
+      // misstate whichever number somebody happens to read.
+      const { rows: stageRows } = await pool.query(
+        `WITH preg AS (
+           SELECT DISTINCT id AS uid,
+                  'w' || GREATEST(1, LEAST(40, 40 - ((due_date - CURRENT_DATE) / 7))) AS stage
+             FROM users
+            WHERE due_date IS NOT NULL
+              -- A due date in the past is not week 41; it is a birth nobody
+              -- recorded. Counting it would pile every stale account onto w40.
+              AND due_date >= CURRENT_DATE
+         ), kids AS (
+           SELECT DISTINCT guardian_id AS uid,
+                  'm' || LEAST(60, GREATEST(0,
+                    (EXTRACT(YEAR FROM age(CURRENT_DATE, date_of_birth)) * 12
+                     + EXTRACT(MONTH FROM age(CURRENT_DATE, date_of_birth)))::int)) AS stage
+             FROM children
+            WHERE date_of_birth IS NOT NULL AND guardian_id IS NOT NULL
+              AND date_of_birth <= CURRENT_DATE
+         )
+         SELECT stage, COUNT(*)::int AS n
+           FROM (SELECT * FROM preg UNION ALL SELECT * FROM kids) both
+          GROUP BY stage`);
+      const stageDistribution: Record<string, number> = {};
+      for (const s of stageRows) stageDistribution[String(s.stage)] = Number(s.n);
+
       const catalog = await this.contentCatalog();
       let items = 0, linked = 0;
       for (const list of Object.values(catalog)) {
@@ -1224,8 +1261,9 @@ export function createPgRepository(pool: Pool): Repository {
         devices: Number(r.devices ?? 0),
         alerts7d: Number(r.alerts_7d ?? 0),
         sosAllTime: Number(r.sos_all_time ?? 0),
-        stageDistribution: {},
+        stageDistribution,
         contentStages: Object.keys(catalog).length,
+        contentStageKeys: Object.keys(catalog).filter((k) => catalog[k].length > 0),
         contentItems: items,
         contentLinked: linked,
       };

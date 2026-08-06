@@ -219,6 +219,53 @@ const UUID_RE =
    * finish. A fake more forgiving than the query would let a test bless a
    * number the real dashboard never shows.
    */
+  /**
+   * Where the users are, in the CMS's stage keys.
+   *
+   * Mirrors the SQL, including the two rules that keep the numbers honest: a
+   * due date in the PAST is a birth nobody recorded rather than "week 41" —
+   * counting it would pile every stale account onto w40 — and one account can
+   * stand in more than one stage, because a mother expecting her second reads
+   * her week and her toddler's month both.
+   */
+  function stageDistribution(): Record<string, number> {
+    const out: Record<string, number> = {};
+    const bump = (k: string) => { out[k] = (out[k] ?? 0) + 1; };
+
+    // Whole DAYS, both sides, like Postgres subtracting two `date` columns.
+    //
+    // Comparing a yyyy-MM-dd parsed as UTC midnight against `new Date()` mixes
+    // a date with a timestamp: a due date seventy days out came back sixty-nine
+    // and a bit, floored to sixty-nine, and put her in week 31 where the query
+    // says week 30. A fake that is a week off is worse than no fake — it blesses
+    // an answer production never gives.
+    const ymd = (s: string): number | null => {
+      const [y, m, d] = s.split('-').map(Number);
+      return Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)
+        ? Date.UTC(y, m - 1, d) : null;
+    };
+    const n = new Date();
+    const today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+
+    const due = profile?.dueDate ? ymd(profile.dueDate) : null;
+    if (due != null && due >= today) {
+      const daysLeft = Math.round((due - today) / 86400_000);
+      bump('w' + Math.max(1, Math.min(40, 40 - Math.floor(daysLeft / 7))));
+    }
+    for (const c of children) {
+      if (!c.dateOfBirth) continue;
+      const dob = ymd(c.dateOfBirth);
+      if (dob == null || dob > today) continue;
+      const b = new Date(dob), t = new Date(today);
+      let months = (t.getUTCFullYear() - b.getUTCFullYear()) * 12
+          + (t.getUTCMonth() - b.getUTCMonth());
+      // age() counts whole months: the day of the month has to have come round.
+      if (t.getUTCDate() < b.getUTCDate()) months -= 1;
+      bump('m' + Math.max(0, Math.min(60, months)));
+    }
+    return out;
+  }
+
   function courseSnapshot(asOf: string) {
     const published = new Set(
       lessons.filter((l) => l.course === 'mama' && l.published).map((l) => l.id));
@@ -967,8 +1014,9 @@ const UUID_RE =
         // SafetyAlertRow only carries zone transitions today; SOS arrives via
         // the ingest path, so this stays 0 until that is persisted here.
         sosAllTime: 0,
-        stageDistribution: {},
+        stageDistribution: stageDistribution(),
         contentStages: content.size,
+        contentStageKeys: [...content.keys()],
         contentItems: items,
         contentLinked: linked,
       };

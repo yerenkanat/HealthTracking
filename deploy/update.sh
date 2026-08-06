@@ -128,6 +128,7 @@ check "/admin" 'dashKpis'                "the panel serves the new Dashboard"
 check "/admin" 'newOrderBox'             "the panel can take an order"
 check "/admin" 'dashCourse'              "the Dashboard shows the course"
 check "/admin" 'courseProgressCell'      "the access list shows who is watching"
+check "/admin" 'stageGapRows'            "Аналитика shows where the users are"
 
 echo
 echo "==> A malformed id must be refused, not 500"

@@ -326,6 +326,15 @@ export interface AdminAnalytics {
   /** Stage key → how many accounts sit there right now. */
   stageDistribution: Record<string, number>;
   contentStages: number;
+  /**
+   * WHICH stages have at least one item, not just how many.
+   *
+   * Sent so the panel can put coverage beside [stageDistribution] without
+   * reading the catalogue itself — the CMS lives in a different script block
+   * and cannot be reached from the analytics one. Deriving it there twice is
+   * also how the two counts would drift apart.
+   */
+  contentStageKeys: string[];
   contentItems: number;
   contentLinked: number;
 }

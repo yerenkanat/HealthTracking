@@ -350,7 +350,7 @@ function makeDeps(
       })),
     adminAnalytics: async () => ({
       totalUsers: 1, pregnant: 1, withChildren: children.length, devices: devices.length,
-      alerts7d: alertRows.length, sosAllTime: 0, stageDistribution: {},
+      alerts7d: alertRows.length, sosAllTime: 0, stageDistribution: {}, contentStageKeys: [],
       contentStages: contentRows.size, contentItems: 0, contentLinked: 0,
     }),
     // Computed rather than hand-written, so the fixture cannot claim a shape

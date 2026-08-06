@@ -903,7 +903,8 @@
             <div class="cardbody" id="anComposition"></div>
           </div>
           <div class="card">
-            <div class="sec-h"><h3>Охват контента</h3></div>
+            <div class="sec-h"><h3>Охват контента</h3>
+              <span class="sub">где стоят пользователи · и есть ли там материал</span></div>
             <div class="cardbody" id="anContent"></div>
           </div>
         </div>
@@ -1945,8 +1946,53 @@
         ? `<div class="sub">${fmt(a.contentStages)} из 101 этапа с контентом · ${fmt(a.contentItems)} материалов ·
              <b>${fmt(a.contentLinked)}</b> со ссылкой (${a.contentItems?Math.round(a.contentLinked/a.contentItems*100):0}%).
              Без ссылки материал показывается как «Скоро».</div>`
+             + stageGapRows(a)
         : `<div class="sub">API аналитики недоступен.</div>`;
     }
+  }
+
+  /**
+   * The stages people are standing in, biggest first — and whether we have
+   * anything to show them there.
+   *
+   * "47 of 101 stages have content" never said WHICH 47, so the authoring
+   * backlog was ordered by guesswork: a beautifully covered week 8 is worth
+   * nothing if everybody is at month 3. The count came back from
+   * /admin/analytics as an empty object for as long as the field has existed,
+   * so nobody could have drawn this.
+   *
+   * Leads with the gaps, because that is the list somebody acts on. A stage
+   * with users and no material is the next thing to write.
+   */
+  function stageGapRows(a){
+    const dist=a && a.stageDistribution;
+    if(!dist || !Object.keys(dist).length) return "";
+    // The covered stages come from the SERVER, not from the CMS block's
+    // `catalog`: that lives in a different script block this one cannot see.
+    // Reaching for it is the same mistake that left three whole tabs empty for
+    // months — see the STAFF note in the other block.
+    const covered=new Set(a.contentStageKeys||[]);
+    const label=(k)=> k[0]==="w" ? `${k.slice(1)}-я неделя`
+      : (k==="m0" ? "Новорождённый" : `${k.slice(1)} мес.`);
+    const rows=Object.entries(dist)
+      .map(([k,n])=>({ key:k, users:n, covered:covered.has(k) }))
+      .sort((x,y)=>y.users-x.users);
+    const gaps=rows.filter(r=>!r.covered);
+    const top=(gaps.length?gaps:rows).slice(0,8);
+    const scale=Math.max(1,...top.map(r=>r.users));
+
+    return `<div class="dsec" style="margin-top:14px">`
+      + (gaps.length ? `Есть пользователи, нет материала` : `Больше всего пользователей`)
+      + `</div>`
+      + top.map(r=>mrow(label(r.key),{
+          value:fmt(r.users),
+          frac:r.users/scale,
+          color:r.covered?"var(--good)":"var(--warn)",
+        })).join("")
+      + note(gaps.length
+          ? `Этапы, на которых сейчас стоят пользователи, а показать им нечего.
+             Это и есть очередь на контент — начинать стоит сверху.`
+          : `На каждом этапе, где есть пользователи, материал уже подготовлен.`);
   }
 
   // The retention curve. A single D7 number says whether users come back; the

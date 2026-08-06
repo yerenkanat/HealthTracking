@@ -81,6 +81,15 @@ function cteNames(): Set<string> {
  */
 function referencedTables(): Set<string> {
   const out = new Set<string>();
+
+  // EXTRACT(YEAR FROM age(...)) is not a read of a table called "age".
+  //
+  // The FROM inside EXTRACT is part of its syntax, not a clause, and the sweep
+  // below cannot tell the two apart. Stripped rather than added to the noise
+  // list, because "age" IS a plausible table name and silencing the word would
+  // hide a real missing table the day somebody creates one.
+  const sql = repo.replace(/\bextract\s*\(\s*[a-z_]+\s+from\b/gi, 'extract(');
+
   const patterns = [
     /\bfrom\s+([a-z_][a-z0-9_]*)/gi,
     /\bjoin\s+([a-z_][a-z0-9_]*)/gi,
@@ -89,7 +98,7 @@ function referencedTables(): Set<string> {
     /\bdelete\s+from\s+([a-z_][a-z0-9_]*)/gi,
   ];
   for (const re of patterns) {
-    for (const m of repo.matchAll(re)) out.add(m[1].toLowerCase());
+    for (const m of sql.matchAll(re)) out.add(m[1].toLowerCase());
   }
   // Subquery aliases and SQL keywords that survive the sweep.
   for (const noise of ['select', 'lateral', 'unnest', 'values', 'only']) out.delete(noise);
