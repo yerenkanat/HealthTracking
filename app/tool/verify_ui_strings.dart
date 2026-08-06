@@ -27,6 +27,7 @@ const _allowed = <String, String>{
   'Қазақша': 'a language name is written in its own language, never translated',
   'English': 'a language name is written in its own language, never translated',
   '0.1.0': 'a version number is not language-dependent',
+  'Ana-Bala': 'the name of the product, spelled the same in all three languages',
 };
 
 final _letter = RegExp(r'[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]');

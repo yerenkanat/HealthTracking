@@ -8,6 +8,7 @@ import '../lib/domain/child_growth.dart';
 import '../lib/domain/newborn_log.dart';
 
 import '../lib/app/app_controller.dart';
+import '../lib/domain/legacy_ids.dart';
 import '../lib/core/geofence.dart';
 import '../lib/data/app_store.dart';
 import '../lib/data/persisted_config.dart';
@@ -250,8 +251,18 @@ void main() async {
   await ctl4.restore();
   _chk('new controller restores session', ctl4.onboarded && ctl4.children.length == 2 && ctl4.locale == AppLocale.kk);
 
+  // The ids are NOT the ones written above, and this runner crashed because it
+  // assumed they were. A legacy id such as "child-1" cannot be synced — the
+  // server keys children by UUID — so restore re-issues it. Look them up by
+  // name, and pin the migration itself while we are here.
+  String idOf(String name) => ctl4.children.firstWhere((c) => c.name == name).id;
+  final kid1 = idOf('Kid'), kid2 = idOf('Aida');
+  _chk('legacy ids are re-issued on restore',
+      kid1 != 'child-1' && kid2 != 'child-2' &&
+          isSyncableId(kid1) && isSyncableId(kid2));
+
   // ---- add device, then remove ----
-  ctl4.addDevice(const PairedDevice(id: 'TAG-1', name: 'Tag', kind: DeviceKind.tag, childId: 'child-1'));
+  ctl4.addDevice(PairedDevice(id: 'TAG-1', name: 'Tag', kind: DeviceKind.tag, childId: kid1));
   await settled();
   _chk('device added', ctl4.devices.any((d) => d.id == 'TAG-1'));
   ctl4.removeDevice('TAG-1');
@@ -260,24 +271,24 @@ void main() async {
       (await store3.load())?.devices.any((d) => d.id == 'TAG-1') == false);
 
   // ---- geofence zones CRUD on a child ----
-  ctl4.upsertGeofence('child-2', Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 150));
+  ctl4.upsertGeofence(kid2, Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 150));
   await settled();
-  _chk('zone added', ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
-  _chk('zone persisted', (await store3.load())!.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
+  _chk('zone added', ctl4.children.firstWhere((c) => c.id == kid2).geofences.any((f) => f.id == 'z1'));
+  _chk('zone persisted', (await store3.load())!.children.firstWhere((c) => c.id == kid2).geofences.any((f) => f.id == 'z1'));
   // upsert same id updates in place (no duplicate)
-  ctl4.upsertGeofence('child-2', Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 250));
+  ctl4.upsertGeofence(kid2, Geofence.circle('z1', 'Grandma', const Coordinates(43.3, 76.9), 250));
   await settled();
-  final z = ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.where((f) => f.id == 'z1').toList();
+  final z = ctl4.children.firstWhere((c) => c.id == kid2).geofences.where((f) => f.id == 'z1').toList();
   _chk('zone updated in place', z.length == 1 && z.first.radiusM == 250);
-  ctl4.removeGeofence('child-2', 'z1');
+  ctl4.removeGeofence(kid2, 'z1');
   await settled();
-  _chk('zone removed + persisted', !ctl4.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1') &&
-      !(await store3.load())!.children.firstWhere((c) => c.id == 'child-2').geofences.any((f) => f.id == 'z1'));
+  _chk('zone removed + persisted', !ctl4.children.firstWhere((c) => c.id == kid2).geofences.any((f) => f.id == 'z1') &&
+      !(await store3.load())!.children.firstWhere((c) => c.id == kid2).geofences.any((f) => f.id == 'z1'));
 
   // ---- remove a child reselects remaining ----
-  ctl4.removeChild('child-1'); // currently selected; child-2 remains
+  ctl4.removeChild(kid1); // currently selected; the other remains
   await settled();
-  _chk('child removed', ctl4.children.length == 1 && ctl4.children.first.id == 'child-2');
+  _chk('child removed', ctl4.children.length == 1 && ctl4.children.first.id == kid2);
   _chk('reselected remaining child', ctl4.childName == 'Aida');
 
   // ---- BP calibration stored + persisted + restored ----
@@ -333,7 +344,7 @@ void main() async {
   src.takeMedicationDose(src.medications.single.id, DateTime(2026, 7, 20));
   src.logKickSession(DateTime(2026, 7, 20), 10, const Duration(seconds: 600));
   src.logContractionSession(6, const Duration(seconds: 55), const Duration(seconds: 300));
-  src.setChildBattery('child-1', 62);
+  src.setChildBattery(src.children.single.id, 62);
   src.logChildEvent(AlertKind.checkIn);
   src.setWaterReminder(20 * 60);
   src.setMedReminder(9 * 60);
@@ -344,7 +355,14 @@ void main() async {
 
   final restored = AppController(now: () => DateTime(2026, 7, 20, 9));
   _chk('a backup imports cleanly', restored.importJson(src.exportJson()));
+  // Keyed by each controller's OWN child id, not by a literal.
+  //
+  // Importing migrates a legacy id like "child-1" to a syncable one and remaps
+  // everything filed under it, battery included. Reading both sides through
+  // 'child-1' compared a migrated copy against an unmigrated original and
+  // reported a lost field on every run — the export was fine the whole time.
   String fingerprint(AppController c) => [
+        c.children.isEmpty ? '-' : c.children.first.name,
         c.displayName, c.profile.e164, '${c.children.length}',
         '${c.children.isEmpty ? 0 : c.children.first.geofences.length}',
         '${c.dayLogs.length}', '${c.waterFor(DateTime(2026, 7, 20))}', '${c.waterGoal}',
@@ -354,7 +372,8 @@ void main() async {
         '${c.waterReminderMinutes}', '${c.medReminderMinutes}',
         '${c.periodReminderEnabled}', '${c.fertileReminderEnabled}',
         '${c.manualSamples.length}', '${c.avgCycleLength}', c.locale.name,
-        '${c.batteryFor('child-1')}', '${c.batteryHistoryFor('child-1').length}',
+        '${c.batteryFor(c.children.isEmpty ? '' : c.children.first.id)}',
+        '${c.batteryHistoryFor(c.children.isEmpty ? '' : c.children.first.id).length}',
       ].join('|');
   _chk('a backup restores every tracked field', fingerprint(src) == fingerprint(restored));
   await src.dispose();
