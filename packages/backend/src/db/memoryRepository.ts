@@ -8,6 +8,7 @@
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson } from './repository';
 import { bundleDiscountMinor } from './repository';
+import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
@@ -26,14 +27,6 @@ export const DEMO_CHILD = '33333333-3333-3333-3333-333333333333';
  */
 export const DEV_STAFF_PHONE = '77000000000';
 export const DEV_STAFF_PASSWORD = 'dev-password';
-
-/** Matches staffAuth.normalizePhone and the pg side: one form, both ends. */
-function normalizePhoneForOrder(input: string): string {
-  const d = String(input ?? '').replace(/\D/g, '');
-  if (d.length === 11 && d.startsWith('8')) return '7' + d.slice(1);
-  if (d.length === 10) return '7' + d;
-  return d;
-}
 
 export function createMemoryRepository(): Repository {
   const home: Geofence = {
@@ -963,7 +956,7 @@ export function createMemoryRepository(): Repository {
       shopOrders.push({
         id, customerName: o.customerName, phone: o.phone, city: o.city, address: o.address,
         note: o.note ?? null, totalMinor: total, discountMinor: discount, status: 'new', createdAt: new Date().toISOString(),
-        bundleId: o.bundleId ?? null, phoneNormalized: normalizePhoneForOrder(o.phone),
+        bundleId: o.bundleId ?? null, phoneNormalized: normalizePhone(o.phone),
         items: snap.map((s) => ({ productName: s.productName, color: s.color, qty: s.qty, unitPriceMinor: s.unitPriceMinor })),
       });
       return { ok: true as const, id, totalMinor: total, discountMinor: discount };
@@ -1141,7 +1134,7 @@ export function createMemoryRepository(): Repository {
       // collected; unlocking a 40 000 ₸ course on one would be giving it away.
       if ((status === 'shipped' || status === 'delivered') && was !== 'shipped' && was !== 'delivered') {
         const bundle = o.bundleId ? shopProds.find((p) => p.id === o.bundleId) : undefined;
-        const phone = o.phoneNormalized ?? normalizePhoneForOrder(o.phone);
+        const phone = o.phoneNormalized ?? normalizePhone(o.phone);
         if (bundle?.grantsFeature && phone) {
           const key = phone + '|' + bundle.grantsFeature;
           if (!entitlements.has(key)) {

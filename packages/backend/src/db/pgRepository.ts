@@ -18,21 +18,32 @@ import type {
 } from '@fcs/shared';
 import type { Repository } from './repository';
 import { bundleDiscountMinor } from './repository';
+import { normalizePhone } from '../phone.js';
 import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
 
 
 /**
- * The same normalisation http/staffAuth.ts uses, applied to an order's phone.
+ * Does this look like a UUID?
  *
- * Orders are taken over WhatsApp and typed by hand; the app signs in with the
- * same number. If '+7 707…' and '8707…' were different customers the
- * entitlement would be a lottery, so both sides have to agree on one form.
+ * Every ownership check below compares a CLIENT-SUPPLIED id against a UUID
+ * column. Postgres parses the parameter before it compares anything, so an id
+ * that is not a UUID raises 22P02 (invalid_text_representation) — an exception,
+ * not an empty result. Nothing caught it, so the answer to "may I see this
+ * child's location" was a 500.
+ *
+ * Two things made that worse than a stray error. It is reachable by anyone:
+ * any string in the path 500s the API. And it is reached constantly by our own
+ * app, which creates children locally during onboarding with ids like
+ * `child-1` and polls for their location every few seconds — a fresh install
+ * signed in against production is a 500 generator.
+ *
+ * A malformed id is not a server fault. It is an id we do not have, and these
+ * lookups now say so.
  */
-function normalizeOrderPhone(input: string): string {
-  const digits = String(input ?? '').replace(/D/g, '');
-  if (digits.length === 11 && digits.startsWith('8')) return '7' + digits.slice(1);
-  if (digits.length === 10) return '7' + digits;
-  return digits;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function looksLikeUuid(id: unknown): boolean {
+  return typeof id === 'string' && UUID_RE.test(id);
 }
 
 export function createPgRepository(pool: Pool): Repository {
@@ -415,16 +426,22 @@ export function createPgRepository(pool: Pool): Repository {
     },
 
     async deviceOwner(deviceId) {
+      // A malformed id is an id we do not have, not a server fault.
+      if (!looksLikeUuid(deviceId)) return null;
       const { rows } = await pool.query(`SELECT user_id FROM devices WHERE id = $1`, [deviceId]);
       return rows[0] ? { userId: rows[0].user_id } : null;
     },
 
     async childOwner(childId) {
+      // A malformed id is an id we do not have, not a server fault.
+      if (!looksLikeUuid(childId)) return null;
       const { rows } = await pool.query(`SELECT guardian_id FROM children WHERE id = $1`, [childId]);
       return rows[0] ? { userId: rows[0].guardian_id } : null;
     },
 
     async geofenceOwner(geofenceId) {
+      // A malformed id is an id we do not have, not a server fault.
+      if (!looksLikeUuid(geofenceId)) return null;
       const { rows } = await pool.query(`SELECT guardian_id FROM geofences WHERE id = $1`, [geofenceId]);
       return rows[0] ? { userId: rows[0].guardian_id } : null;
     },
@@ -485,6 +502,8 @@ export function createPgRepository(pool: Pool): Repository {
         [a.id, userId, a.title, a.at, a.note ?? '']);
     },
     async appointmentOwner(id) {
+      // A malformed id is an id we do not have, not a server fault.
+      if (!looksLikeUuid(id)) return null;
       const { rows } = await pool.query(`SELECT user_id FROM appointments WHERE id = $1`, [id]);
       return rows[0] ? { userId: rows[0].user_id } : null;
     },
@@ -505,6 +524,8 @@ export function createPgRepository(pool: Pool): Repository {
         [m.id, userId, m.name, m.dose, m.perDay]);
     },
     async medicationOwner(id) {
+      // A malformed id is an id we do not have, not a server fault.
+      if (!looksLikeUuid(id)) return null;
       const { rows } = await pool.query(`SELECT user_id FROM medications WHERE id = $1`, [id]);
       return rows[0] ? { userId: rows[0].user_id } : null;
     },
@@ -1400,7 +1421,7 @@ export function createPgRepository(pool: Pool): Repository {
                                     total_minor, discount_minor, bundle_id, phone_normalized)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
           [o.customerName, o.phone, o.city, o.address, o.note ?? null, total, discount,
-           o.bundleId ?? null, normalizeOrderPhone(o.phone)]);
+           o.bundleId ?? null, normalizePhone(o.phone)]);
         const orderId = orows[0].id as string;
         for (const s of snap) {
           await client.query(

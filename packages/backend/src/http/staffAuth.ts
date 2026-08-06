@@ -45,12 +45,7 @@ export const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
  * The leading 8 is the domestic prefix for the same number; Kazakh mobiles are
  * 11 digits starting 7.
  */
-export function normalizePhone(input: string): string {
-  const digits = (input ?? '').replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('8')) return `7${digits.slice(1)}`;
-  if (digits.length === 10) return `7${digits}`;
-  return digits;
-}
+export { normalizePhone } from '../phone';
 
 /** `scrypt$<salt-hex>$<hash-hex>` — self-describing, so the format can change. */
 export async function hashPassword(password: string): Promise<string> {
