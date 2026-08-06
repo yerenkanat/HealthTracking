@@ -91,7 +91,8 @@ console.log(r.rows.length ? 'FOUND' : 'ABSENT');
 await c.end();
 " "$1"; }
 
-for col in "shop_orders bundle_id" "shop_orders phone_normalized" "shop_products grants_feature"; do
+for col in "shop_orders bundle_id" "shop_orders phone_normalized" "shop_products grants_feature" \
+           "course_progress phone" "course_progress completed"; do
   table="${col%% *}"; column="${col##* }"
   if q "SELECT 1 FROM information_schema.columns WHERE table_name='$table' AND column_name='$column'" | grep -qx FOUND; then
     echo "    $table.$column OK"
@@ -125,6 +126,8 @@ check "/shop/products" '"parts"'         "its parts are listed"
 # the one being served.
 check "/admin" 'dashKpis'                "the panel serves the new Dashboard"
 check "/admin" 'newOrderBox'             "the panel can take an order"
+check "/admin" 'dashCourse'              "the Dashboard shows the course"
+check "/admin" 'courseProgressCell'      "the access list shows who is watching"
 
 echo
 echo "==> A malformed id must be refused, not 500"

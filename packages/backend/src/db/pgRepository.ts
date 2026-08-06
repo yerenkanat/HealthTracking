@@ -1124,6 +1124,38 @@ export function createPgRepository(pool: Pool): Repository {
       // derives bundle stock from parts and flags low stock one way.
       const lowStock = (await this.adminProducts()).filter((p) => p.lowStock).map((p) => p.id);
 
+      // The course. One query, because the interesting number is a comparison:
+      // how many were given it against how many have ever pressed play.
+      //
+      // "Finished" is measured against the count of published lessons, so
+      // publishing a new lesson correctly moves people out of finished — they
+      // have not watched it yet. Nobody is finished while there is nothing to
+      // finish, which is why the count is guarded rather than defaulting to 0.
+      const { rows: cr } = await pool.query(
+        `WITH pub AS (
+           SELECT COUNT(*)::int AS n FROM course_lessons
+            WHERE course = 'mama' AND published = TRUE
+         ), per AS (
+           SELECT p.phone,
+                  COUNT(*) FILTER (WHERE l.published)::int                    AS started,
+                  COUNT(*) FILTER (WHERE l.published AND p.completed)::int    AS done,
+                  MAX(p.updated_at)                                           AS last_at
+             FROM course_progress p
+             JOIN course_lessons l ON l.id = p.lesson_id
+            GROUP BY p.phone
+         )
+         SELECT (SELECT n FROM pub)                                            AS lessons,
+                (SELECT COUNT(*)::int FROM user_entitlements
+                  WHERE feature = 'mama_course')                               AS granted,
+                (SELECT COUNT(*)::int FROM per WHERE started > 0)              AS started,
+                (SELECT COUNT(*)::int FROM per
+                  WHERE (SELECT n FROM pub) > 0 AND done >= (SELECT n FROM pub)) AS finished,
+                (SELECT COALESCE(SUM(done), 0)::int FROM per)                   AS lessons_completed,
+                (SELECT COUNT(*)::int FROM per
+                  WHERE last_at >= $1::timestamptz - INTERVAL '7 days')         AS active_7d`,
+        [asOf]);
+      const c = cr[0] ?? {};
+
       return {
         asOf,
         users: {
@@ -1161,6 +1193,11 @@ export function createPgRepository(pool: Pool): Repository {
             unitsWithoutCost: n(s.units_no_cost),
           },
           lowStock,
+        },
+        course: {
+          lessons: n(c.lessons), granted: n(c.granted), started: n(c.started),
+          finished: n(c.finished), lessonsCompleted: n(c.lessons_completed),
+          active7d: n(c.active_7d),
         },
       };
     },

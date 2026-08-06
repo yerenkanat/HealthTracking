@@ -214,6 +214,29 @@ export interface DashboardSnapshot {
     /** Product ids at or below their low-stock threshold. */
     lowStock: string[];
   };
+  /**
+   * The Ма!Ма! course — the thing the комплект charges 9 200 ₸ over the
+   * hardware for.
+   *
+   * The dashboard could say what was sold and never whether it was used, which
+   * is the only evidence that the premium is worth paying twice. [granted] and
+   * [started] are the pair that matters: the gap between them is customers who
+   * bought the course and have never pressed play.
+   */
+  course: {
+    /** Lessons published, i.e. what a buyer can actually watch today. */
+    lessons: number;
+    /** Phones the course is open to. */
+    granted: number;
+    /** Of those, how many have opened at least one lesson. */
+    started: number;
+    /** Of those, how many have finished every published lesson. */
+    finished: number;
+    /** Lessons watched through, summed over everyone. */
+    lessonsCompleted: number;
+    /** Watched at least one lesson in the last 7 days. */
+    active7d: number;
+  };
 }
 
 /** A dated appointment/reminder. Mirrors the app's Appointment (domain/appointment.dart). */

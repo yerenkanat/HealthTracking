@@ -43,6 +43,9 @@ const SNAPSHOT = {
     stock: { units: 120, retailMinor: 200_000_00, costMinor: 130_000_00, unitsWithoutCost: 20 },
     lowStock: ['tracker'],
   },
+  // Given to 40, opened by 25, finished by 9 — the fifteen who never pressed
+  // play are the point of the card.
+  course: { lessons: 12, granted: 40, started: 25, finished: 9, lessonsCompleted: 180, active7d: 14 },
 };
 
 /** Nothing has happened yet. Every card has to say so in its own words. */
@@ -60,6 +63,7 @@ const EMPTY = {
     stock: { units: 0, retailMinor: 0, costMinor: 0, unitsWithoutCost: 0 },
     lowStock: [],
   },
+  course: { lessons: 0, granted: 0, started: 0, finished: 0, lessonsCompleted: 0, active7d: 0 },
 };
 
 interface Page {
@@ -221,6 +225,63 @@ describe('an empty business', () => {
   });
 });
 
+/// The course, as a business fact.
+///
+/// The комплект charges 9 200 ₸ over the two devices for this course, and the
+/// dashboard could say what was sold and never whether it was used. Sold is
+/// not used, and only one of those is evidence the premium is worth paying.
+describe('the course card', () => {
+  let page: Page;
+  beforeAll(async () => { page = await render(SNAPSHOT); });
+
+  it('shows access against use, not access alone', () => {
+    const t = page.text('#dashCourse');
+    expect(t).toContain('40');   // granted
+    expect(t).toContain('25');   // started
+    expect(t).toContain('9');    // finished
+  });
+
+  it('names the fifteen who have never pressed play', () => {
+    // granted − started. The number that is a task rather than a statistic,
+    // and the one nobody could see before: these customers paid for a course
+    // and have not opened it.
+    const t = page.text('#dashCourse');
+    expect(t).toContain('Ни одного урока');
+    expect(t).toContain('15');
+    expect(t).toMatch(/стоит написать/i);
+  });
+
+  it('says nothing is sold yet rather than painting a wall of zeroes', async () => {
+    const p = await render({
+      ...SNAPSHOT,
+      course: { lessons: 12, granted: 0, started: 0, finished: 0, lessonsCompleted: 0, active7d: 0 },
+    });
+    expect(p.text('#dashCourse')).toMatch(/никому не открыт/i);
+  });
+
+  it('says there are no lessons rather than blaming the customers', async () => {
+    // 40 people with access and nothing to watch is our problem, not theirs.
+    const p = await render({
+      ...SNAPSHOT,
+      course: { lessons: 0, granted: 40, started: 0, finished: 0, lessonsCompleted: 0, active7d: 0 },
+    });
+    expect(p.text('#dashCourse')).toMatch(/Уроков ещё нет/i);
+  });
+
+  it('does not take the rest of the screen down on an older backend', async () => {
+    // A server one deploy behind answers a snapshot with no `course` key. That
+    // must grey out this card and leave every other one alone.
+    const withoutCourse: Record<string, unknown> = { ...SNAPSHOT };
+    delete withoutCourse.course;
+    const p = await render(withoutCourse);
+
+    expect(p.errors).toEqual([]);
+    expect(p.text('#dashCourse')).toMatch(/недоступна/i);
+    expect(p.text('#dashCommerce'), 'the commerce card went down with it')
+      .toContain('65 000 ₸');
+  });
+});
+
 describe('when the backend answers something else', () => {
   it('survives a 200 that is not a snapshot', async () => {
     // A backend one deploy behind, or any handler that answers `{}`, passed
@@ -240,7 +301,7 @@ describe('when the snapshot cannot be loaded', () => {
     // The failure mode this guards: a dashboard that renders 0 ₸ revenue and
     // 0 users because a request failed is indistinguishable from a business
     // that has none, and somebody acts on it.
-    for (const sel of ['#dashAudience', '#dashKids', '#dashCities', '#dashDevices', '#dashCommerce', '#dashStock']) {
+    for (const sel of ['#dashAudience', '#dashKids', '#dashCities', '#dashDevices', '#dashCommerce', '#dashStock', '#dashCourse']) {
       expect(page.text(sel), sel).toMatch(/недоступна/i);
     }
   });

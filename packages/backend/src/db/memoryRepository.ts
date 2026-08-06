@@ -210,6 +210,46 @@ const UUID_RE =
   /// Keyed phone|lessonId, the primary key of course_progress.
   const progress = new Map<string, CourseProgress & { phone: string }>();
 
+  /**
+   * The dashboard's course numbers, mirroring the SQL exactly — including the
+   * parts that are easy to get subtly wrong.
+   *
+   * Progress against an UNPUBLISHED lesson does not count (the JOIN in the
+   * query filters it), and nobody is "finished" while nothing is published to
+   * finish. A fake more forgiving than the query would let a test bless a
+   * number the real dashboard never shows.
+   */
+  function courseSnapshot(asOf: string) {
+    const published = new Set(
+      lessons.filter((l) => l.course === 'mama' && l.published).map((l) => l.id));
+    const per = new Map<string, { started: number; done: number; lastAt: string }>();
+    for (const p of progress.values()) {
+      // The row exists as soon as she has progress on ANY lesson — the query's
+      // GROUP BY does the same — but only published lessons are counted. That
+      // difference is exactly why "finished" has to be guarded below: somebody
+      // whose only progress is on a draft has a row of zeros, and 0 >= 0 would
+      // otherwise declare her finished.
+      const row = per.get(p.phone) ?? { started: 0, done: 0, lastAt: '' };
+      if (published.has(p.lessonId)) {
+        row.started += 1;
+        if (p.completed) row.done += 1;
+      }
+      if (p.updatedAt > row.lastAt) row.lastAt = p.updatedAt;
+      per.set(p.phone, row);
+    }
+    const rows = [...per.values()];
+    const weekAgo = new Date(Date.parse(asOf) - 7 * 86400_000).toISOString();
+    return {
+      lessons: published.size,
+      granted: [...entitlements.values()].filter((e) => e.feature === 'mama_course').length,
+      started: rows.filter((r) => r.started > 0).length,
+      finished: published.size === 0
+        ? 0 : rows.filter((r) => r.done >= published.size).length,
+      lessonsCompleted: rows.reduce((t, r) => t + r.done, 0),
+      active7d: rows.filter((r) => r.lastAt >= weekAgo).length,
+    };
+  }
+
   /** What a phone owns: normalised phone + feature → how it was granted. */
   const entitlements = new Map<string, { phone: string; feature: string; orderId: string | null; grantedBy: string | null; note: string | null; at: string }>();
 
@@ -908,6 +948,7 @@ const UUID_RE =
           stock: { units: n(units), retailMinor: retail, costMinor: cost, unitsWithoutCost: unitsNoCost },
           lowStock: (await repository.adminProducts()).filter((p) => p.lowStock).map((p) => p.id),
         },
+        course: courseSnapshot(asOf),
       };
     },
 

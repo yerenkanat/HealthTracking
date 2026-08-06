@@ -380,6 +380,7 @@ function makeDeps(
         stock: { units: 0, retailMinor: 0, costMinor: 0, unitsWithoutCost: 0 },
         lowStock: [],
       },
+      course: { lessons: 0, granted: 0, started: 0, finished: 0, lessonsCompleted: 0, active7d: 0 },
     }),
     contentCatalog: async () => Object.fromEntries(contentRows),
     putStageContent: async (stageKey, items) => {

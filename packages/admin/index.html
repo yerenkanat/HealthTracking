@@ -704,6 +704,19 @@
           </div>
         </div>
 
+        <!-- Курс Ма!Ма! — the 9 200 ₸ the комплект charges over the hardware.
+             The dashboard could say what was sold and never whether it was
+             used, which is the only evidence the premium is worth paying
+             twice. The gap between "открыт" and "начали" is the number to
+             watch: those are customers who bought the course and have never
+             pressed play. -->
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Курс Ма!Ма!</h3><span class="link" data-view="course">Уроки и доступ</span></div>
+            <div class="cardbody" id="dashCourse"><div class="sub">Загрузка…</div></div>
+          </div>
+        </div>
+
         <!-- Operations: what is happening this minute, as opposed to what this
              business is. Different question, different reader, so it sits
              below rather than mixed into the numbers above. -->
@@ -1554,6 +1567,7 @@
     renderDashDevices();
     renderDashCommerce();
     renderDashStock();
+    renderDashCourse();
     const el=$("#dashAsOf");
     if(el) el.textContent=DASH?("данные на "+new Date(DASH.asOf).toLocaleString("ru-RU")):"—";
   }
@@ -1676,6 +1690,50 @@
       note(`Выручкой считается только то, что уехало к покупателю: новый заказ —
             это телефонный звонок, а не деньги. Отменённые не учитываются
             нигде, и их товар вернулся на склад.`);
+  }
+
+  /**
+   * The Ма!Ма! course, as a business fact rather than a content list.
+   *
+   * Sold is not used. The комплект charges 9 200 ₸ over the two devices for
+   * this course, and until now nothing on this screen said whether a single
+   * person had watched a minute of it — so the one number the card leads with
+   * is the gap: how many were given access and have never pressed play.
+   *
+   * Guarded on its own key, not on DASH, because a backend one deploy behind
+   * answers a snapshot with no `course` in it. That must show "недоступно"
+   * here and leave every other card alone.
+   */
+  function renderDashCourse(){
+    const el=$("#dashCourse"); if(!el) return;
+    if(!DASH||!DASH.course){ el.innerHTML=DASH_OFF; return; }
+    const c=DASH.course;
+    if(!c.lessons){
+      el.innerHTML=dashEmpty("Уроков ещё нет — добавьте первый во вкладке «Курс».");
+      return;
+    }
+    if(!c.granted){
+      el.innerHTML=dashEmpty("Курс пока никому не открыт. Он входит в комплект.");
+      return;
+    }
+    const never=Math.max(0,c.granted-c.started);
+    const scale=Math.max(1,c.granted);
+    el.innerHTML=
+      mrow("Открыт доступ",{value:fmt(c.granted),frac:1,color:"var(--accent)"})+
+      mrow("Начали смотреть",{value:fmt(c.started),frac:c.started/scale,color:"var(--good)"})+
+      mrow("Прошли полностью",{value:fmt(c.finished),frac:c.finished/scale,color:"var(--good)"})+
+      // The one that is a task rather than a statistic.
+      mrow("Ни одного урока",{value:fmt(never),frac:never/scale,color:"var(--warn)"})+
+      `<div class="mtotal"><span>Смотрели за 7 дней</span><span class="v">${fmt(c.active7d)}</span></div>`+
+      `<div class="mtotal"><span>Уроков пройдено · всего</span><span class="v">${fmt(c.lessonsCompleted)}</span></div>`+
+      `<div class="mtotal"><span>Опубликовано уроков</span><span class="v">${fmt(c.lessons)}</span></div>`+
+      note(never
+        ? `${fmt(never)} из ${fmt(c.granted)} купивших комплект не открыли ни одного
+           урока. Это те, кому стоит написать: курс — та самая разница между
+           комплектом и двумя устройствами, и за неё уже заплачено.`
+        : `Все, кому открыт курс, его начали. «Прошли полностью» считается по
+           опубликованным урокам, поэтому новый урок закономерно выводит людей
+           из этого числа — они его ещё не смотрели.`);
   }
 
   function renderDashStock(){

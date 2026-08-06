@@ -140,6 +140,73 @@ describe('who the users are', () => {
   });
 });
 
+/// The course, which is the 9 200 ₸ the комплект charges over the hardware.
+///
+/// The interesting number is a comparison: given against ever watched. Sold is
+/// not used, and only the second of those is evidence the premium is earning
+/// anything.
+describe('the course', () => {
+  const lesson = (titleRu: string, published = true) =>
+    repo.upsertCourseLesson({
+      course: 'mama', titleRu, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
+      sort: 10, published,
+    }).then((r) => r.id);
+
+  it('counts who was given it against who has ever watched it', async () => {
+    const a = await lesson('Первый');
+    await repo.grantEntitlement({ phone: '77001112233', feature: 'mama_course' });
+    await repo.grantEntitlement({ phone: '77002223344', feature: 'mama_course' });
+    await repo.saveCourseProgress({ phone: '77001112233', lessonId: a, positionSeconds: 60 });
+
+    const snap = await repo.dashboardSnapshot(NOW);
+    expect(snap.course.granted).toBe(2);
+    expect(snap.course.started, 'the gap is the whole point').toBe(1);
+  });
+
+  it('does not count a draft towards anything', async () => {
+    // Nobody can watch it. Counting it would put every customer permanently
+    // behind, and its viewers would be people who cannot exist.
+    await lesson('Опубликован');
+    const draft = await lesson('Черновик', false);
+    await repo.grantEntitlement({ phone: '77001112233', feature: 'mama_course' });
+    await repo.saveCourseProgress({
+      phone: '77001112233', lessonId: draft, positionSeconds: 60, completed: true });
+
+    const snap = await repo.dashboardSnapshot(NOW);
+    expect(snap.course.lessons).toBe(1);
+    expect(snap.course.started, 'a draft made her look like a viewer').toBe(0);
+    expect(snap.course.lessonsCompleted).toBe(0);
+  });
+
+  it('counts finished against the lessons that exist today', async () => {
+    // Publishing a lesson correctly moves people out of "finished": they have
+    // not watched the new one yet. A count frozen at the old total would say
+    // the course was done by people who are now behind.
+    const a = await lesson('Первый');
+    await repo.grantEntitlement({ phone: '77001112233', feature: 'mama_course' });
+    await repo.saveCourseProgress({
+      phone: '77001112233', lessonId: a, positionSeconds: 900, completed: true });
+    expect((await repo.dashboardSnapshot(NOW)).course.finished).toBe(1);
+
+    await lesson('Второй');
+    expect((await repo.dashboardSnapshot(NOW)).course.finished).toBe(0);
+  });
+
+  it('has nobody finished when there is nothing to finish', async () => {
+    // Zero out of zero is not everybody. Somebody whose only progress is on a
+    // draft counts nothing published — and "0 watched out of 0 published"
+    // would otherwise declare her through the whole course.
+    const draft = await lesson('Черновик', false);
+    await repo.grantEntitlement({ phone: '77001112233', feature: 'mama_course' });
+    await repo.saveCourseProgress({
+      phone: '77001112233', lessonId: draft, positionSeconds: 60, completed: true });
+
+    const snap = await repo.dashboardSnapshot(NOW);
+    expect(snap.course.lessons).toBe(0);
+    expect(snap.course.finished).toBe(0);
+  });
+});
+
 describe('the snapshot as a whole', () => {
   it('is stamped with the instant every number is as of', async () => {
     // The panel used to stitch six endpoints together, so "12 users" and
