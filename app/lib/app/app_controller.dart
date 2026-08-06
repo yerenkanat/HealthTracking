@@ -304,6 +304,12 @@ class AppController {
   /// Set by [_applyConfig] when it had to rewrite stored data.
   bool _migratedOnLoad = false;
 
+  /// Pass [after] through, noting whether anything was collapsed away.
+  List<T> _noteIfShorter<T>(List<T> before, List<T> after) {
+    if (after.length != before.length) _migratedOnLoad = true;
+    return after;
+  }
+
   /// Pass [after] through, noting whether the migration changed anything.
   ///
   /// Compared by key count and by key set: a normalisation either drops a key
@@ -447,7 +453,11 @@ class AppController {
     }
     _alerts
       ..clear()
-      ..addAll(cfg.alerts);
+      // Clear out the repeated low-battery warnings earlier builds wrote. The
+      // rule in setChildBattery stops new ones; these are already on the
+      // handset, and a feed that is twelve copies of one fact is a feed
+      // nobody reads — which matters because it is also where an SOS lands.
+      ..addAll(_noteIfShorter(cfg.alerts, collapseBatteryAlerts(cfg.alerts)));
     _hospitalBagChecked
       ..clear()
       ..addAll(cfg.hospitalBagChecked);
@@ -1831,10 +1841,17 @@ class AppController {
           break;
         }
       }
-      final alert = SafetyAlert(kind: AlertKind.lowBattery, childName: name, zoneName: '$next', at: _now());
-      _alerts.insert(0, alert);
-      _trimAlerts();
-      if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
+      // …and only if it tells her something. "No previous reading" counts as
+      // worsening, which is right the first time and wrong the twelfth: a new
+      // child id, a reinstall or a restore that lost the battery all reset it,
+      // and each one raised the same warning again until the feed was nothing
+      // but «Низкий заряд трекера (8%)».
+      if (batteryAlertIsNews(_alerts, name, '$next', _now())) {
+        final alert = SafetyAlert(kind: AlertKind.lowBattery, childName: name, zoneName: '$next', at: _now());
+        _alerts.insert(0, alert);
+        _trimAlerts();
+        if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
+      }
     }
     _persist();
     _notify();

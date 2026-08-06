@@ -197,6 +197,63 @@ AlertKind alertKindFromName(String? s) => switch (s) {
       _ => AlertKind.left,
     };
 
+/// How long "the tracker battery is low" stays old news for one child.
+///
+/// A battery that has been low since this morning is not a new fact this
+/// afternoon, and the alert feed is where a parent looks for an SOS.
+const batteryAlertQuietPeriod = Duration(hours: 12);
+
+/// Would this low-battery warning tell her anything she was not already told?
+///
+/// The raiser has hysteresis on the READING — it fires when the level worsens
+/// — but a first reading with no previous one counts as worsening, and that is
+/// correct: a tracker already at 8% when the app first sees it deserves to be
+/// mentioned. What was missing is that "no previous reading" happens far more
+/// often than once. A new child id, a reinstall, a restore that did not carry
+/// the battery across: each one resets it, and each one raised the same
+/// warning again. A real feed accumulated twelve identical
+/// «Низкий заряд трекера (8%)» entries and buried everything else.
+bool batteryAlertIsNews(
+  List<SafetyAlert> recent,
+  String childName,
+  String level,
+  DateTime now,
+) {
+  for (final a in recent) {
+    if (a.kind != AlertKind.lowBattery || a.childName != childName) continue;
+    // Newest-first, so the first match for this child is the last thing she
+    // was told about it.
+    if (a.zoneName != level) return true; // it got worse — that IS news
+    return now.difference(a.at) >= batteryAlertQuietPeriod;
+  }
+  return true; // never warned about this child
+}
+
+/// Collapse a run of identical low-battery warnings already in the feed.
+///
+/// The rule above stops new ones; this clears what earlier builds wrote. Only
+/// low-battery alerts are touched — a repeated SOS or a repeated zone crossing
+/// is a real sequence of events, and collapsing those would hide exactly what
+/// the feed is for.
+///
+/// Keeps the NEWEST of each run, which is the one whose timestamp is still
+/// true.
+List<SafetyAlert> collapseBatteryAlerts(List<SafetyAlert> alerts) {
+  final out = <SafetyAlert>[];
+  for (final a in alerts) {
+    if (a.kind == AlertKind.lowBattery && out.isNotEmpty) {
+      final prev = out.last;
+      if (prev.kind == AlertKind.lowBattery &&
+          prev.childName == a.childName &&
+          prev.zoneName == a.zoneName) {
+        continue; // same child, same level, already shown
+      }
+    }
+    out.add(a);
+  }
+  return out;
+}
+
 class SafetyAlert {
   final AlertKind kind;
   final String childName;
