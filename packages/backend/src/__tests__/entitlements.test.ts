@@ -174,7 +174,7 @@ describe('who may grant it', () => {
 describe('the course behind the gate', () => {
   const lesson = (over: Record<string, unknown> = {}) => ({
     titleRu: 'Первые дни дома',
-    youtubeUrl: 'https://youtu.be/abc123',
+    youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
     published: true,
     ...over,
   });
@@ -230,11 +230,28 @@ describe('the course behind the gate', () => {
     expect((await saveLesson(lesson({ youtubeUrl: 'не ссылка' }))).statusCode).toBe(400);
   });
 
+  it('refuses a YouTube link that is not a VIDEO', async () => {
+    // The check used to ask only whether the string contained "youtube.com",
+    // so a channel page, a playlist and a mistyped path all saved cleanly,
+    // published to paying customers, and failed in the app.
+    for (const url of [
+      'https://www.youtube.com/@anabala',
+      'https://www.youtube.com/playlist?list=PL123456',
+      'https://www.youtube.com/results?search_query=роды',
+      'https://youtu.be/',
+      'https://youtu.be/tooshort',
+      // The one that matters most: a lookalike host that contains the string.
+      'https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ',
+    ]) {
+      expect((await saveLesson(lesson({ youtubeUrl: url }))).statusCode, url).toBe(400);
+    }
+  });
+
   it('accepts the shapes a person actually pastes', async () => {
     for (const url of [
-      'https://www.youtube.com/watch?v=abc123',
-      'https://youtu.be/abc123',
-      'https://www.youtube.com/watch?v=abc123&t=90s',
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      'https://youtu.be/dQw4w9WgXcQ',
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90s',
     ]) {
       expect((await saveLesson(lesson({ youtubeUrl: url }))).statusCode, url).toBe(200);
     }

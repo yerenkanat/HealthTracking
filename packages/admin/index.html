@@ -484,6 +484,12 @@
 .stafform input:focus,.stafform select:focus{outline:2px solid var(--accent);outline-offset:1px}
 .stafform .btn{min-height:44px;flex:0 0 auto}
 .formmsg{font-size:13px;min-height:18px;margin-top:8px;color:var(--muted)}
+/* The link check. Grid-column 1/-1 so it spans the form rather than sitting in
+   a field slot; the thumbnail is fixed-size so a slow image cannot reflow the
+   form under the cursor. */
+.lessonpreview{grid-column:1/-1;display:flex;gap:12px;align-items:center;margin-top:4px;padding:10px;border:1px solid var(--hair);border-radius:10px}
+.lessonpreview img{border-radius:6px;object-fit:cover;background:var(--surface-2)}
+.lessonpreview .link{color:var(--accent-text);font-weight:600;font-size:12.5px;text-decoration:none}
 .formmsg.bad{color:var(--crit)}
 .formmsg.ok{color:var(--good)}
 .staffrow.off{opacity:.55}
@@ -1012,6 +1018,18 @@
             <input type="hidden" id="lessonId">
             <input id="lessonTitle" placeholder="Название урока" required maxlength="200">
             <input id="lessonUrl" placeholder="https://youtu.be/…" required maxlength="500">
+            <!-- What that link actually points at.
+                 A mistyped or wrong-video URL saved cleanly, published to
+                 paying customers, and failed in the app where nobody can fix
+                 it. YouTube's own still for the id is the cheapest possible
+                 check: if the right video appears, the link is right. -->
+            <div id="lessonPreview" class="lessonpreview" hidden>
+              <img id="lessonThumb" alt="" width="120" height="90">
+              <div>
+                <div id="lessonPreviewMsg" class="t"></div>
+                <a id="lessonOpen" target="_blank" rel="noopener" class="link">Открыть на YouTube →</a>
+              </div>
+            </div>
             <input id="lessonTitleKk" placeholder="Атауы (қазақша, необязательно)" maxlength="200">
             <!-- The one-line summary under the title in the app.
                  The API has accepted summaryRu/summaryKk since the course
@@ -3173,14 +3191,67 @@
     $("#lessonTitleKk").value = "";
     $("#lessonSummary").value = ""; $("#lessonSummaryKk").value = "";
     $("#lessonSort").value = "0"; $("#lessonPub").checked = false;
+    $("#lessonPreview").hidden = true;
     $("#lessonBtn").textContent = "Сохранить";
     $("#lessonCancel").hidden = true;
+  }
+
+  /**
+   * The video id inside a YouTube link, or null.
+   *
+   * Deliberately the same rules as the server's src/youtube.ts, so the panel
+   * refuses exactly what the API refuses and staff learn the boundary here
+   * rather than from a 400 after typing everything else.
+   */
+  function ytId(input){
+    const raw = (input || "").trim();
+    if(!raw) return null;
+    let u; try{ u = new URL(raw); }catch(e){ return null; }
+    if(u.protocol !== "http:" && u.protocol !== "https:") return null;
+    const host = u.hostname.toLowerCase().replace(/^www./, "");
+    const seg = u.pathname.split("/").filter(Boolean);
+    const ok = id => /^[A-Za-z0-9_-]{11}$/.test(id || "") ? id : null;
+    if(host === "youtu.be") return ok(seg[0]);
+    if(host !== "youtube.com" && host !== "m.youtube.com" && host !== "music.youtube.com") return null;
+    const v = ok(u.searchParams.get("v"));
+    if(v) return v;
+    if(seg.length >= 2 && ["embed","shorts","live","v"].includes(seg[0].toLowerCase())) return ok(seg[1]);
+    return null;
+  }
+
+  /** Show what the pasted link points at, so a wrong video is visible now. */
+  function previewLesson(){
+    const box = $("#lessonPreview"), img = $("#lessonThumb");
+    const msg = $("#lessonPreviewMsg"), open = $("#lessonOpen");
+    const raw = $("#lessonUrl").value.trim();
+    const id = ytId(raw);
+    if(!raw){ box.hidden = true; return; }
+    if(!id){
+      box.hidden = false;
+      img.removeAttribute("src");
+      msg.textContent = "Это не ссылка на конкретное видео YouTube.";
+      open.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    open.hidden = false;
+    open.href = "https://www.youtube.com/watch?v=" + id;
+    msg.textContent = "Проверьте, что это нужное видео.";
+    // mqdefault 404s on an unknown id, where hqdefault serves a grey
+    // placeholder that looks like a real thumbnail — so a wrong id is visible
+    // rather than merely dull.
+    img.onerror = () => {
+      img.removeAttribute("src");
+      msg.textContent = "YouTube не знает такого видео — проверьте ссылку.";
+    };
+    img.src = "https://img.youtube.com/vi/" + id + "/mqdefault.jpg";
   }
 
   function wireCourse(){
     if(courseWired) return; courseWired = true;
 
     $("#lessonCancel").addEventListener("click", resetLessonForm);
+    $("#lessonUrl").addEventListener("input", previewLesson);
 
     $("#lessonForm").addEventListener("submit", async ev => {
       ev.preventDefault();
@@ -3257,6 +3328,7 @@
         $("#lessonId").value = l.id; $("#lessonTitle").value = l.titleRu;
         $("#lessonTitleKk").value = l.titleKk || ""; $("#lessonUrl").value = l.youtubeUrl;
         $("#lessonSummary").value = l.summaryRu || ""; $("#lessonSummaryKk").value = l.summaryKk || "";
+        previewLesson();
         $("#lessonSort").value = l.sort; $("#lessonPub").checked = l.published;
         $("#lessonBtn").textContent = "Обновить"; $("#lessonCancel").hidden = false;
         window.scrollTo(0,0);

@@ -21,6 +21,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository, StaffRole } from '../db/repository';
 import { normalizePhone } from '../http/staffAuth';
+import { youtubeVideoId } from '../youtube.js';
 
 /** The only feature today. Named rather than free text so a typo cannot grant
  *  something nobody will ever check for. */
@@ -36,10 +37,16 @@ const lessonBody = z.object({
   id: z.string().uuid().optional(),
   titleRu: z.string().trim().min(1).max(200),
   titleKk: z.string().trim().max(200).nullable().optional(),
-  // Only a YouTube link. The owner has YouTube; accepting anything else would
-  // let a broken paste through and fail in the app, where nobody can fix it.
+  // Only a YouTube link, and only one a video id can be read out of.
+  //
+  // This used to ask whether the string CONTAINED "youtube.com" or "youtu.be",
+  // which accepts a channel page, a playlist, a search result, a mistyped path
+  // and https://youtube.com.evil.example/… — all of which save cleanly,
+  // publish to paying customers, and fail in the app where nobody can fix
+  // them.
   youtubeUrl: z.string().trim().url().max(500)
-    .refine((u) => /(?:youtube\.com|youtu\.be)/i.test(u), 'нужна ссылка на YouTube'),
+    .refine((u) => youtubeVideoId(u) !== null,
+      'нужна ссылка на конкретное видео YouTube'),
   summaryRu: z.string().trim().max(1000).nullable().optional(),
   summaryKk: z.string().trim().max(1000).nullable().optional(),
   sort: z.number().int().min(0).max(100000).optional(),

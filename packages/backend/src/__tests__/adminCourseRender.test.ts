@@ -135,6 +135,52 @@ describe('authoring a lesson', () => {
     expect(page.saved[0].summaryKk).toBe('Денеде не болады.');
   });
 
+  /// Checking the link before it reaches a paying customer.
+  ///
+  /// A mistyped or simply wrong URL saved cleanly, published, and failed in
+  /// the app — where the person who can fix it never sees it. YouTube's own
+  /// still for the id is the cheapest possible check: if the right video
+  /// appears, the link is right.
+  describe('the link preview', () => {
+    it('shows the video the link points at', async () => {
+      type(page, 'lessonUrl', 'https://youtu.be/dQw4w9WgXcQ');
+      await new Promise((r) => setTimeout(r, 30));
+
+      expect((page.$('#lessonPreview') as HTMLElement).hidden).toBe(false);
+      expect((page.$('#lessonThumb') as HTMLImageElement).getAttribute('src'))
+        .toBe('https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg');
+      expect((page.$('#lessonOpen') as HTMLAnchorElement).getAttribute('href'))
+        .toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    });
+
+    it('reads the id out of every shape a person pastes', async () => {
+      for (const url of [
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=share',
+        'https://www.youtube.com/shorts/dQw4w9WgXcQ',
+        'https://m.youtube.com/watch?v=dQw4w9WgXcQ',
+      ]) {
+        type(page, 'lessonUrl', url);
+        await new Promise((r) => setTimeout(r, 20));
+        expect((page.$('#lessonThumb') as HTMLImageElement).getAttribute('src'),
+          url).toContain('dQw4w9WgXcQ');
+      }
+    });
+
+    it('says so when the link is not a video at all', async () => {
+      // A channel page and a playlist both used to save cleanly.
+      type(page, 'lessonUrl', 'https://www.youtube.com/@anabala');
+      await new Promise((r) => setTimeout(r, 30));
+
+      expect((page.$('#lessonPreview') as HTMLElement).hidden).toBe(false);
+      expect(page.$('#lessonPreviewMsg')!.textContent).toMatch(/не ссылка на конкретное видео/i);
+      expect((page.$('#lessonThumb') as HTMLImageElement).hasAttribute('src')).toBe(false);
+    });
+
+    it('shows nothing at all before anything is typed', async () => {
+      expect((page.$('#lessonPreview') as HTMLElement).hidden).toBe(true);
+    });
+  });
+
   it('sends null rather than an empty string when it is left blank', async () => {
     // The column is nullable and the app checks for null; '' would render an
     // empty second line under the title.
