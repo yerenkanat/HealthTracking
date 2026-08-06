@@ -112,6 +112,46 @@ void main() {
     expect(find.text('62%'), findsOneWidget);
   });
 
+  /// What the card says about a child with no tracker.
+  ///
+  /// Found by opening the app: the card read «8 %» and «Задержка» directly
+  /// above «Трекер ещё не привязан». Both numbers were about a device that is
+  /// not on this child — a stored reading from a tracker that was unpaired,
+  /// and a freshness verdict on reports nothing was ever going to send. The
+  /// card contradicted itself, and the half a worried parent is likeliest to
+  /// believe is the half with a number in it.
+  group('with no tracker linked', () {
+    testWidgets('shows no battery for a device that is not there', (tester) async {
+      await tester.pumpWidget(harness(
+          loc: null, updated: null, batteryPct: 8, hasPairedTracker: false));
+
+      expect(find.text('8%'), findsNothing);
+      // And it says what to do instead.
+      expect(find.textContaining('tracker'), findsWidgets);
+    });
+
+    testWidgets('does not judge the freshness of reports nobody sent', (tester) async {
+      await tester.pumpWidget(
+          harness(loc: null, updated: null, hasPairedTracker: false));
+
+      // Asserted on the badge itself, not on its label: the label with no
+      // location is neither "Delayed" nor "Live", so checking for those words
+      // would have passed with the badge still on screen.
+      expect(find.byKey(const Key('freshness-badge')), findsNothing);
+      expect(find.textContaining('Waiting for'), findsOneWidget);
+    });
+
+    testWidgets('a linked tracker still reports both', (tester) async {
+      // The guard must not swallow the real case.
+      await tester.pumpWidget(harness(
+          loc: home.center, updated: now, batteryPct: 8, hasPairedTracker: true));
+
+      expect(find.text('8%'), findsOneWidget);
+      expect(find.byKey(const Key('freshness-badge')), findsOneWidget);
+      expect(find.text('Live'), findsOneWidget);
+    });
+  });
+
   testWidgets('no battery chip when battery is unknown', (tester) async {
     await tester.pumpWidget(harness(loc: home.center, updated: now));
     expect(find.textContaining('%'), findsNothing);

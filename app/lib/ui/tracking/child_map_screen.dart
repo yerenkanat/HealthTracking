@@ -229,8 +229,13 @@ class ChildMapScreen extends StatelessWidget {
                       ? null
                       : l.distanceFromHome(status.distanceFromHomeM!),
                   freshnessLabel: l.freshnessLabel(status.freshness),
-                  batteryPct: batteryPct,
-                  batteryHistory: batteryHistory,
+                  // A battery belongs to a DEVICE. With no tracker linked,
+                  // the last stored reading is about a tracker that is not on
+                  // this child — and the card showed «8 %» directly above
+                  // «Трекер ещё не привязан», which reads as a contradiction
+                  // and quietly invites her to trust a number about nothing.
+                  batteryPct: hasPairedTracker ? batteryPct : null,
+                  batteryHistory: hasPairedTracker ? batteryHistory : const [],
                   now: now,
                   zoneEnteredAt: zoneEnteredAt,
                   lastCheckInAt: lastCheckInAt,
@@ -239,6 +244,7 @@ class ChildMapScreen extends StatelessWidget {
                   hint: (childLocation == null && !hasPairedTracker)
                       ? l.t('tr_no_tracker_hint')
                       : null,
+                  trackerLinked: hasPairedTracker,
                 ),
               ],
             ),
@@ -400,6 +406,13 @@ class MinimalTrackingStatusBar extends StatelessWidget {
   /// read as an arrival that is merely late. Null hides it.
   final String? hint;
 
+  /// Whether a tracker is actually linked to this child.
+  ///
+  /// With none, "Задержка" is describing a device that does not exist — it
+  /// says a report is late when nothing was ever going to report. The badge is
+  /// hidden in that case; the hint under the headline is the honest answer.
+  final bool trackerLinked;
+
   const MinimalTrackingStatusBar({
     super.key,
     required this.freshness,
@@ -413,6 +426,7 @@ class MinimalTrackingStatusBar extends StatelessWidget {
     this.zoneEnteredAt,
     this.lastCheckInAt,
     this.hint,
+    this.trackerLinked = true,
   });
 
   // Warm, low-anxiety palette: live = calm green, recent = calm blue, delayed =
@@ -451,31 +465,33 @@ class MinimalTrackingStatusBar extends StatelessWidget {
               // and this one was already at the edge of the width — it
               // overflowed by 64px with a long Russian freshness label. The
               // badge now gives way before the row does.
-              Flexible(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                  decoration: BoxDecoration(
-                    border:
-                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                    color: _accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(_icon, size: 14, color: _accent),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(freshnessLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: _accent,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13)),
+              if (trackerLinked)
+                Flexible(
+                  child: Container(
+                    key: const Key('freshness-badge'),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                    decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                      color: _accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                  ]),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(_icon, size: 14, color: _accent),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(freshnessLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: _accent,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13)),
+                      ),
+                    ]),
+                  ),
                 ),
-              ),
               if (batteryPct != null) ...[
                 const SizedBox(width: 8),
                 _BatteryChip(
