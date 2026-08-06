@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/course_lesson.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/ui/content/course_video_screen.dart';
 import 'package:fcs_app/ui/content/mama_course_screen.dart';
 
 CourseLesson _lesson({
@@ -164,34 +165,96 @@ void main() {
       expect(find.text('Курс входит в комплект'), findsNothing);
     });
 
-    testWidgets('tapping a lesson opens its YouTube link', (tester) async {
-      Uri? opened;
+    testWidgets('tapping a lesson plays it inside the app, not in YouTube', (tester) async {
+      // The course is the entire difference between 39 000 ₸ and 29 800. This
+      // used to hand the customer to the YouTube app, where she landed among
+      // recommendations for everything else and usually did not come back.
+      Uri? launched;
       final access = CourseAccess(entitled: true, lessons: [
-        _lesson(url: 'https://youtu.be/xyz789'),
+        _lesson(url: 'https://youtu.be/dQw4w9WgXcQ'),
       ]);
       await tester.pumpWidget(_wrap(MamaCourseScreen(
         access: access,
-        launch: (u) async { opened = u; return true; },
+        launch: (u) async { launched = u; return true; },
       )));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Первые дни дома'));
       await tester.pumpAndSettle();
-      expect(opened.toString(), 'https://youtu.be/xyz789');
+
+      expect(find.byType(CourseVideoScreen), findsOneWidget,
+          reason: 'the lesson must open on our own screen');
+      expect(launched, isNull, reason: 'nothing may leave the app on a tap');
+    });
+  });
+
+  /// The player screen itself.
+  ///
+  /// [CourseVideoScreen.debugWithoutPlayer] skips building the real IFrame
+  /// player, which needs a webview and therefore a device. Everything the
+  /// customer can do around it is still on this screen and still testable.
+  group('the lesson player', () {
+    testWidgets('keeps the way out to YouTube', (tester) async {
+      // Their terms are satisfied either way; leaving is her choice, not ours.
+      Uri? opened;
+      await tester.pumpWidget(_wrap(CourseVideoScreen(
+        lesson: _lesson(url: 'https://youtu.be/dQw4w9WgXcQ'),
+        debugWithoutPlayer: true,
+        launch: (u) async { opened = u; return true; },
+      )));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.open_in_new_rounded).first);
+      await tester.pumpAndSettle();
+      expect(opened.toString(), 'https://youtu.be/dQw4w9WgXcQ');
     });
 
     testWidgets('says something when the video will not open', (tester) async {
       // Otherwise the tap does nothing, which reads as a broken lesson rather
       // than a missing YouTube app.
-      await tester.pumpWidget(_wrap(MamaCourseScreen(
-        access: CourseAccess(entitled: true, lessons: [_lesson()]),
+      await tester.pumpWidget(_wrap(CourseVideoScreen(
+        lesson: _lesson(),
+        debugWithoutPlayer: true,
         launch: (_) async => false,
       )));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Первые дни дома'));
+      await tester.tap(find.byIcon(Icons.open_in_new_rounded).first);
       await tester.pumpAndSettle();
       expect(find.textContaining('Не удалось открыть'), findsOneWidget);
+    });
+
+    testWidgets('a link that is not a video says so instead of playing nothing',
+        (tester) async {
+      // A channel or playlist URL saved before the server validated links. It
+      // must read as a link we have to fix, not as a dead tap.
+      await tester.pumpWidget(_wrap(CourseVideoScreen(
+        lesson: _lesson(url: 'https://www.youtube.com/@anabala'),
+        launch: (_) async => true,
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Ссылка на этот урок не открывается'), findsOneWidget);
+      // And no "open on YouTube" button, because there is nothing to open.
+      expect(find.text('Открыть на YouTube'), findsNothing);
+    });
+
+    testWidgets('shows the lesson summary under the video', (tester) async {
+      // Written in the back office and, until the player existed, shown only as
+      // a subtitle in the list.
+      await tester.pumpWidget(_wrap(CourseVideoScreen(
+        lesson: CourseLesson(
+          id: 'l1',
+          titleRu: 'Первые дни дома',
+          youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
+          summaryRu: 'Что происходит с телом.',
+          sort: 10,
+        ),
+        debugWithoutPlayer: true,
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Что происходит с телом.'), findsOneWidget);
     });
   });
 }

@@ -5,13 +5,14 @@
 ///   * NOT entitled — this is an offer, not an error. It says what the course
 ///     is and that the комплект includes it. A locked door with a sign sells
 ///     the bundle; a locked door with no sign looks broken and costs a sale.
-///   * Entitled — the lessons, in order, each opening on YouTube.
+///   * Entitled — the lessons, in order, each playing inside the app.
 ///
 /// The gate is the SERVER's answer, not a flag this screen decides. It asks
 /// GET /course/lessons and draws what comes back.
 ///
-/// YouTube opens externally on purpose: their terms require their player and
-/// their branding, which is the same rule the timeline content already follows.
+/// The lesson opens in [CourseVideoScreen], which embeds YouTube's own IFrame
+/// player with their branding intact — the rule their terms set. It used to
+/// launch the YouTube app, which satisfied the same rule and lost the customer.
 library;
 
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../domain/course_lesson.dart';
 import '../../l10n/l10n_scope.dart';
 import '../ds_widgets.dart';
+import 'course_video_screen.dart';
 import '../theme.dart';
 
 class MamaCourseScreen extends StatelessWidget {
@@ -44,18 +46,21 @@ class MamaCourseScreen extends StatelessWidget {
       this.launch,
       this.whatsapp = ''});
 
-  Future<void> _open(BuildContext context, CourseLesson lesson) async {
-    final uri = Uri.tryParse(lesson.youtubeUrl);
-    if (uri == null) return;
-    final opener = launch ?? (u) => launchUrl(u, mode: LaunchMode.externalApplication);
-    final ok = await opener(uri);
-    if (!ok && context.mounted) {
-      // Saying nothing here leaves a tap that did nothing, which reads as a
-      // broken lesson rather than a missing YouTube app.
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(L10nScope.of(context).t('course_open_failed'))),
-      );
-    }
+  /// Open the lesson IN the app.
+  ///
+  /// This used to launch YouTube. The course is the entire difference between
+  /// the комплект at 39 000 ₸ and two devices at 29 800, and handing it to
+  /// another app put it among recommendations for everything else on the
+  /// internet — she rarely came back, and the product got no credit for the
+  /// thing it charges for.
+  ///
+  /// Still YouTube's own player, embedded, with their branding: the terms
+  /// require that, and the IFrame player is that player. The external route
+  /// stays as the fallback for a device that cannot run it.
+  void _open(BuildContext context, CourseLesson lesson) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => CourseVideoScreen(lesson: lesson, launch: launch),
+    ));
   }
 
   @override

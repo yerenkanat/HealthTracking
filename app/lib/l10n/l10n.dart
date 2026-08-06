@@ -435,6 +435,18 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // The button under that paragraph. It told her to message us and gave her no
   // way to — the whole pitch for a 39 000 ₸ комплект dead-ending on its last
   // line.
+  // The in-app player, and what to say when it cannot run.
+  'course_open_youtube': {AppLocale.ru: 'Открыть на YouTube', AppLocale.kk: 'YouTube-та ашу', AppLocale.en: 'Open on YouTube'},
+  'course_player_unavailable': {
+    AppLocale.ru: 'Видео не удалось открыть здесь. Его можно посмотреть на YouTube — урок тот же.',
+    AppLocale.kk: 'Бейнені осында ашу мүмкін болмады. Оны YouTube-та көруге болады — сабақ сол.',
+    AppLocale.en: 'The video could not open here. You can watch it on YouTube — it is the same lesson.',
+  },
+  'course_bad_link': {
+    AppLocale.ru: 'Ссылка на этот урок не открывается. Мы уже знаем об этом — напишите нам, если это срочно.',
+    AppLocale.kk: 'Бұл сабақтың сілтемесі ашылмайды. Бізге белгілі — шұғыл болса, жазыңыз.',
+    AppLocale.en: 'The link for this lesson does not open. We know about it — message us if it is urgent.',
+  },
   'course_ask_access': {
     AppLocale.ru: 'Написать в WhatsApp',
     AppLocale.kk: 'WhatsApp-қа жазу',
