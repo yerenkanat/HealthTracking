@@ -52,7 +52,10 @@ export function createMemoryRepository(): Repository {
     { id: 'demo-c6', name: 'Yerlan', userId: DEMO_USER, gender: 'boy', dateOfBirth: '2017-01-05' },
     { id: 'demo-c7', name: 'Baby', userId: DEMO_USER, gender: null, dateOfBirth: null },
   ];
-  const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
+  // Devices carry their OWNER, for the same reason children do: without it
+  // every account in this process shares one fleet, and an authorisation
+  // regression passes every dev check.
+  const devices: Array<{ id: string; name: string; kind: string; childId: string | null; userId: string }> = [];
   const geofences = new Map<string, Geofence[]>([[DEMO_CHILD, [home]]]);
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const medications: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
@@ -362,10 +365,17 @@ export function createMemoryRepository(): Repository {
     deletePushToken: async () => {},
     retrieveRagPassages: async () => [],
     emergencyContacts: async () => [{ label: 'Ambulance', tel: '103' }],
-    deviceOwner: async (id) => (devices.some((d) => d.id === id) ? { userId: DEMO_USER } : null),
-    // The in-memory store is single-tenant, so anything that exists belongs to
-    // the demo user — but the checks still have to run, or the routes would be
-    // exercised unguarded in every test that uses this repository.
+    // The device's real owner — the same correction childOwner already had.
+    //
+    // This answered DEMO_USER for any device that existed, so ownership was
+    // fiction: a signed-in mother was never the owner of her own tracker and
+    // could not reassign it (403), while an IDOR regression would have passed
+    // every test in the suite. A fake that agrees with whatever the code does
+    // cannot fail on the thing it is there to check.
+    deviceOwner: async (id) => {
+      const d = devices.find((x) => x.id === id);
+      return d ? { userId: d.userId } : null;
+    },
     childOwner: async (id) => {
       const c = children.find((x) => x.id === id);
       return c ? { userId: c.userId } : null;
@@ -436,8 +446,21 @@ export function createMemoryRepository(): Repository {
       const i = medications.findIndex((m) => m.id === id);
       if (i >= 0) medications.splice(i, 1);
     },
-    listDevices: async () => devices.map((d) => ({ ...d })),
-    createDevice: async (_u, d) => void devices.push({ ...d, childId: d.childId ?? null }),
+    // Scoped to the OWNER, like the real one.
+    //
+    // This ignored userId and handed back every device in the process, so in
+    // memory mode each account saw every other account's trackers. A fake that
+    // is more permissive than production cannot fail on an authorisation
+    // regression — it agrees with whatever the code does.
+    listDevices: async (userId) =>
+      devices.filter((d) => d.userId === userId).map(({ userId: _u, ...d }) => ({ ...d })),
+    createDevice: async (userId, d) => {
+      // A device id is physical: the same tracker registered twice is one
+      // tracker. pg does this with ON CONFLICT (user_id, ble_mac) DO NOTHING,
+      // and without it here a re-sync doubled the fleet.
+      if (devices.some((x) => x.userId === userId && x.id === d.id)) return;
+      devices.push({ ...d, childId: d.childId ?? null, userId });
+    },
     deleteDevice: async (id) => {
       const i = devices.findIndex((d) => d.id === id);
       if (i >= 0) devices.splice(i, 1);
@@ -732,8 +755,11 @@ export function createMemoryRepository(): Repository {
         id: d.id,
         name: d.name,
         kind: d.kind,
-        userId: DEMO_USER,
-        displayName: profile?.displayName ?? '',
+        // The device's real owner, not a constant. Answering DEMO_USER for
+        // every row made the fleet view's "whose device is this" column
+        // fiction, and fiction that always agrees with the code.
+        userId: d.userId,
+        displayName: userNames.get(d.userId) ?? profile?.displayName ?? '',
         childName: children.find((c) => c.id === d.childId)?.name ?? null,
         batteryPct: batteryByDevice.get(d.id) ?? null,
         lastSeen: null,

@@ -922,14 +922,18 @@ export function createPgRepository(pool: Pool): Repository {
 
     async adminDevices(limit) {
       const { rows } = await pool.query(
-        `SELECT d.id, d.name, d.kind, d.user_id, d.battery_pct, d.last_seen,
+        `SELECT d.ble_mac, d.name, d.kind, d.user_id, d.battery_pct, d.last_seen,
                 u.display_name, c.name AS child_name
            FROM devices d
            JOIN users u ON u.id = d.user_id
            LEFT JOIN children c ON c.id = d.child_id
           ORDER BY d.last_seen DESC NULLS LAST LIMIT $1`, [limit]);
       return rows.map((r) => ({
-        id: r.id, name: r.name, kind: r.kind, userId: r.user_id,
+        // The identifier printed on the hardware, not our internal UUID. This
+        // table is read by somebody on a support call asking "what does it say
+        // on the back of the tracker" — a UUID we invented answers nothing,
+        // and it is what the row falls back to when a device has no name.
+        id: r.ble_mac, name: r.name, kind: r.kind, userId: r.user_id,
         displayName: r.display_name ?? '', childName: r.child_name ?? null,
         batteryPct: r.battery_pct === null ? null : Number(r.battery_pct),
         lastSeen: r.last_seen ? new Date(r.last_seen).toISOString() : null,
