@@ -5,6 +5,8 @@
 /// This is the only part that knows there is a network.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_controller.dart';
@@ -22,6 +24,11 @@ class CourseRoute extends StatefulWidget {
 class _CourseRouteState extends State<CourseRoute> {
   CourseAccess? _access;
 
+  /// The WhatsApp number the offer's contact button opens. Empty until the
+  /// public storefront config answers, and empty for good if it never does —
+  /// which hides the button rather than opening a chat with nobody.
+  String _whatsapp = '';
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +44,12 @@ class _CourseRouteState extends State<CourseRoute> {
       if (mounted) setState(() => _access = CourseAccess.none);
       return;
     }
+    // Fetched alongside, not after: the contact is only needed when she is NOT
+    // entitled, but waiting for the entitlement answer first would leave the
+    // offer's button missing for a beat and then appear under her thumb.
+    unawaited(api.getShopContact().then((c) {
+      if (mounted && c.whatsapp.isNotEmpty) setState(() => _whatsapp = c.whatsapp);
+    }));
     try {
       final access = await api.getCourse();
       if (mounted) setState(() => _access = access);
@@ -50,5 +63,5 @@ class _CourseRouteState extends State<CourseRoute> {
 
   @override
   Widget build(BuildContext context) =>
-      MamaCourseScreen(access: _access, onRetry: _load);
+      MamaCourseScreen(access: _access, onRetry: _load, whatsapp: _whatsapp);
 }

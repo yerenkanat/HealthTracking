@@ -33,7 +33,16 @@ class MamaCourseScreen extends StatelessWidget {
   /// browser.
   final Future<bool> Function(Uri url)? launch;
 
-  const MamaCourseScreen({super.key, required this.access, this.onRetry, this.launch});
+  /// The WhatsApp number from the back office, for the offer's contact button.
+  /// Empty (the default, and what a failed /shop/config gives) hides it.
+  final String whatsapp;
+
+  const MamaCourseScreen(
+      {super.key,
+      required this.access,
+      this.onRetry,
+      this.launch,
+      this.whatsapp = ''});
 
   Future<void> _open(BuildContext context, CourseLesson lesson) async {
     final uri = Uri.tryParse(lesson.youtubeUrl);
@@ -61,18 +70,22 @@ class MamaCourseScreen extends StatelessWidget {
           ? const Center(child: CircularProgressIndicator())
           : a.entitled
               ? _Lessons(access: a, onTap: (x) => _open(context, x), onRetry: onRetry)
-              : const _Offer(),
+              : _Offer(whatsapp: whatsapp, launch: launch),
     );
   }
 }
 
 /// What somebody who has not bought the комплект sees.
 class _Offer extends StatelessWidget {
-  const _Offer();
+  /// The WhatsApp number from the back office. Empty hides the button.
+  final String whatsapp;
+  final Future<bool> Function(Uri url)? launch;
+  const _Offer({this.whatsapp = '', this.launch});
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final number = whatsapp.replaceAll(RegExp(r'\D'), '');
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
       children: [
@@ -87,6 +100,40 @@ class _Offer extends StatelessWidget {
               const SizedBox(height: 8),
               Text(l.t('course_locked_body'),
                   style: const TextStyle(color: Palette.textDim, height: 1.45)),
+
+              // The way to act on it.
+              //
+              // This card told her to get in touch and then gave her no way to,
+              // which is the whole pitch for a 39 000 ₸ product dead-ending on
+              // its last line. The number is the one staff set in the back
+              // office, so it is never stale and never invented here; with no
+              // number configured the button is hidden rather than opening a
+              // chat with nobody.
+              if (number.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse(
+                        'https://wa.me/$number?text=${Uri.encodeComponent(l.t('course_wa_text'))}');
+                    final opener = launch ??
+                        (u) => launchUrl(u, mode: LaunchMode.externalApplication);
+                    final ok = await opener(uri);
+                    if (!ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l.t('course_open_failed'))),
+                      );
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: darkenForText(Palette.rose),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 19),
+                  label: Text(l.t('course_ask_access'),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
             ],
           ),
         ),

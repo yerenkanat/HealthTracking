@@ -81,6 +81,53 @@ void main() {
       expect(find.textContaining('комплект'), findsWidgets);
     });
 
+    /// The offer has to be actionable, not just informative.
+    ///
+    /// Opened on a real phone, this card told her to message us and then gave
+    /// her nothing to tap: the entire pitch for a 39 000 ₸ комплект ended on
+    /// a sentence. The number is whatever staff set in the back office, so it
+    /// cannot go stale here and is never invented.
+    testWidgets('not bought: offers a way to actually get in touch', (tester) async {
+      Uri? opened;
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+        access: CourseAccess.none,
+        whatsapp: '+7 (701) 555-11-22',
+        launch: (u) async {
+          opened = u;
+          return true;
+        },
+      )));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Написать в WhatsApp'));
+      await tester.pumpAndSettle();
+
+      expect(opened, isNotNull);
+      // Digits only — wa.me rejects anything else.
+      expect(opened!.toString(), startsWith('https://wa.me/77015551122'));
+      // And the chat opens saying what she wants, so staff need not ask.
+      expect(Uri.decodeComponent(opened!.query), contains('Ма!Ма!'));
+    });
+
+    testWidgets('not bought: no button when no number is configured', (tester) async {
+      // A button that opens a chat with nobody is worse than no button.
+      await tester.pumpWidget(_wrap(const MamaCourseScreen(access: CourseAccess.none)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Написать в WhatsApp'), findsNothing);
+      // The explanation still stands on its own.
+      expect(find.text('Курс входит в комплект'), findsOneWidget);
+    });
+
+    testWidgets('bought: no sales button over the lessons she paid for', (tester) async {
+      final access = CourseAccess(entitled: true, lessons: [_lesson()]);
+      await tester.pumpWidget(_wrap(MamaCourseScreen(
+          access: access, whatsapp: '+77015551122')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Написать в WhatsApp'), findsNothing);
+    });
+
     testWidgets('bought: the lessons, numbered', (tester) async {
       final access = CourseAccess(entitled: true, lessons: [
         _lesson(id: 'a', titleRu: 'Первый', sort: 10),

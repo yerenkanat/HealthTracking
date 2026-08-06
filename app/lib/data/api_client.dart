@@ -408,6 +408,28 @@ class ApiClient {
     return CourseAccess.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  /// The public storefront contact — the WhatsApp number staff set in the back
+  /// office, and the Kaspi link.
+  ///
+  /// Public and unauthenticated, like the landing page reads it. The app needs
+  /// it for one thing: the course offer tells somebody who has not bought the
+  /// комплект to get in touch, and until this existed it gave her no way to.
+  /// Never throws — a missing contact hides a button, it does not break a
+  /// screen.
+  Future<({String whatsapp, String kaspiUrl})> getShopContact() async {
+    try {
+      final res = await transport.get('/shop/config');
+      if (!res.ok) return (whatsapp: '', kaspiUrl: '');
+      final j = jsonDecode(res.body) as Map<String, dynamic>;
+      return (
+        whatsapp: (j['whatsapp'] as String?) ?? '',
+        kaspiUrl: (j['kaspiUrl'] as String?) ?? '',
+      );
+    } catch (_) {
+      return (whatsapp: '', kaspiUrl: '');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getChildren() async {
     final res = await transport.get('/children');
     if (!res.ok) throw ApiException(res.statusCode, res.body);

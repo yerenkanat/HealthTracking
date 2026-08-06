@@ -416,6 +416,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Ма!Ма! сабақтары «Мама и ребёнок» жинағымен бірге ашылады — сағат пен брелок. Егер жинақты сатып алған болсаңыз, бізге жазыңыз: телефон нөмірі бойынша ашамыз.',
     AppLocale.en: 'The Ma!Ma! lessons come with the «Mother and child» bundle — the watch and the tag. If you have already bought it, message us and we will open access by phone number.'
   },
+  // The button under that paragraph. It told her to message us and gave her no
+  // way to — the whole pitch for a 39 000 ₸ комплект dead-ending on its last
+  // line.
+  'course_ask_access': {
+    AppLocale.ru: 'Написать в WhatsApp',
+    AppLocale.kk: 'WhatsApp-қа жазу',
+    AppLocale.en: 'Message us on WhatsApp',
+  },
+  // What the chat opens with, so staff know what she is asking about without
+  // her having to explain.
+  'course_wa_text': {
+    AppLocale.ru: 'Здравствуйте! Хочу открыть курс Ма!Ма! в приложении Ana-Bala.',
+    AppLocale.kk: 'Сәлеметсіз бе! Ana-Bala қосымшасында Ма!Ма! курсын ашқым келеді.',
+    AppLocale.en: 'Hello! I would like access to the Ma!Ma! course in the Ana-Bala app.',
+  },
   'course_empty': {
     AppLocale.ru: 'Уроки скоро появятся. Доступ у вас уже есть — мы добавляем их по одному.',
     AppLocale.kk: 'Сабақтар жақында қосылады. Қолжетімділік сізде бар — біз оларды бір-бірлеп қосып жатырмыз.',
