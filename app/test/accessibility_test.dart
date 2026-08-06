@@ -38,6 +38,8 @@ import 'package:fcs_app/ui/calendar/cycle_insights_screen.dart';
 import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
 import 'package:fcs_app/ui/calendar/weight_history_screen.dart';
 import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
+import 'package:fcs_app/domain/course_lesson.dart';
+import 'package:fcs_app/ui/content/mama_course_screen.dart';
 import 'package:fcs_app/ui/dashboard/water_history_screen.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/domain/onboarding_controller.dart';
@@ -279,6 +281,39 @@ void main() {
 
   testWidgets("the women's health screen meets the guidelines", (tester) async {
     await audit(tester, screen(WomensHealthScreen(controller: seededA11y(), now: () => today)));
+  });
+
+  testWidgets("the women's health screen meets them in child mode too", (tester) async {
+    // The calendar switch is three chips on one line — the tightest tap
+    // targets on the screen, and the control that reaches the other two
+    // calendars.
+    final c = seededA11y();
+    await audit(tester, screen(WomensHealthScreen(controller: c, now: () => today)));
+    await tester.tap(find.text('Child'));
+    await tester.pumpAndSettle();
+    final handle = tester.ensureSemantics();
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('the Ма!Ма! course meets the guidelines', (tester) async {
+    await audit(tester, screen(MamaCourseScreen(
+      access: CourseAccess(entitled: true, lessons: [
+        const CourseLesson(
+            id: 'l1',
+            titleRu: 'Первые 40 дней',
+            youtubeUrl: 'https://youtu.be/aaaaaaaaaaa',
+            sort: 1),
+      ]),
+      launch: (_) async => true,
+    )));
+  });
+
+  testWidgets('the Ма!Ма! course offer meets the guidelines', (tester) async {
+    // The state somebody who has NOT bought the комплект sees. It is the
+    // pitch, so its contrast and its button matter commercially.
+    await audit(tester, screen(const MamaCourseScreen(access: CourseAccess.none)));
   });
 
   testWidgets('the child detail screen meets the guidelines', (tester) async {

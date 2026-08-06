@@ -30,6 +30,14 @@
 /// The assistant chat and the cry insight screen are covered too, over stubbed
 /// transports — their overflows were the sixth and seventh this sweep found.
 /// Every screen and sheet in the app is now in here.
+///
+/// Two things overflow cannot catch, and which are checked here anyway:
+///   * a screen with more than one state proves only the state it opened in,
+///     so [fits] takes an `afterPump` to tap into the others — the Calendar
+///     tab's three calendars are three different screens behind one widget;
+///   * a label that ELLIPSISES has degraded gracefully as far as the overflow
+///     check is concerned, while «Беременность» rendered as «Беременно…» is a
+///     control nobody can identify. That one is asserted structurally.
 library;
 
 import 'dart:convert';
@@ -42,6 +50,8 @@ import 'package:fcs_app/data/cry_classifier_client.dart';
 import 'package:fcs_app/data/cry_recorder.dart';
 import 'package:fcs_app/domain/cry_analysis.dart';
 import 'package:fcs_app/ui/tracking/cry_insight_screen.dart';
+import 'package:fcs_app/domain/course_lesson.dart';
+import 'package:fcs_app/ui/content/mama_course_screen.dart';
 import 'package:fcs_app/domain/ai_chat_service.dart';
 import 'package:fcs_app/domain/chat_controller.dart';
 import 'package:fcs_app/domain/health_monitor.dart';
@@ -111,6 +121,9 @@ void main() {
     String label, {
     AppLocale locale = AppLocale.ru,
     double textScale = 1.0,
+    /// Drive the screen before measuring — tap into a tab, open a section.
+    /// A screen with more than one state only proves the state it opened in.
+    Future<void> Function(WidgetTester tester)? afterPump,
   }) async {
     tester.view.physicalSize = const Size(kNarrowWidth * 3, kNarrowHeight * 3);
     tester.view.devicePixelRatio = 3;
@@ -138,6 +151,7 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+    if (afterPump != null) await afterPump(tester);
 
     final err = tester.takeException();
     expect(
@@ -340,6 +354,145 @@ void main() {
       tester,
       () => WomensHealthScreen(controller: c, now: () => today),
       "women's health (pregnancy)",
+    );
+  });
+
+  /// A controller with a child old enough to have a development calendar.
+  AppController withToddler() {
+    final c = AppController(now: () => today);
+    c.addChild(ChildProfile(
+      id: 'k1',
+      name: 'Сұлтан',
+      dateOfBirth: today.subtract(const Duration(days: 400)),
+    ));
+    return c;
+  }
+
+  testWidgets("women's health fits in child-development mode", (tester) async {
+    final c = withToddler();
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => WomensHealthScreen(controller: c, now: () => today),
+      "women's health (child)",
+      afterPump: (tester) async {
+        await tester.tap(find.text('Ребёнок'));
+        await tester.pumpAndSettle();
+      },
+    );
+  });
+
+  testWidgets("women's health fits in child mode in Kazakh", (tester) async {
+    final c = withToddler();
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => WomensHealthScreen(controller: c, now: () => today),
+      "women's health (child, kk)",
+      locale: AppLocale.kk,
+      afterPump: (tester) async {
+        await tester.tap(find.text('Бала'));
+        await tester.pumpAndSettle();
+      },
+    );
+  });
+
+  testWidgets("women's health fits with the text slider at 130%", (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => WomensHealthScreen(controller: c, now: () => today),
+      "women's health (cycle, 130%)",
+      textScale: 1.3,
+    );
+  });
+
+  /// The calendar switch is the one row that must read in full.
+  ///
+  /// Three chips share a 360dp line and the default language's word for the
+  /// middle one — «Беременность» — is twelve characters. Ellipsised it reads
+  /// «Беременно…», a control nobody can identify at a glance. The overflow
+  /// check above does not catch it: ellipsis IS the graceful degradation, so
+  /// the screen passes every other guard while the label is unreadable.
+  ///
+  /// Asserted STRUCTURALLY, on purpose. Measuring the painted width here
+  /// proves nothing: flutter_test substitutes a font whose every glyph is a
+  /// full em square, so «Беременность» measures 144dp at 12px and every label
+  /// in every language would look truncated. What can be checked, and is
+  /// stronger than a measurement, is that the label is laid out in a way that
+  /// mathematically cannot truncate — scaled down to fit rather than clipped.
+  for (final (locale, labels) in [
+    (AppLocale.ru, ['Цикл', 'Беременность', 'Ребёнок']),
+    (AppLocale.kk, ['Цикл', 'Жүктілік', 'Бала']),
+  ]) {
+    testWidgets('the calendar switch cannot be cut short in ${locale.name}', (tester) async {
+      final c = AppController(now: () => today);
+      addTearDown(c.dispose);
+      await fits(
+        tester,
+        () => WomensHealthScreen(controller: c, now: () => today),
+        'the calendar switch (${locale.name})',
+        locale: locale,
+      );
+      for (final label in labels) {
+        expect(find.text(label), findsOneWidget,
+            reason: '«$label» is not on the switch at all');
+        final box = tester.widget<FittedBox>(find.ancestor(
+            of: find.text(label), matching: find.byType(FittedBox)).first);
+        expect(box.fit, BoxFit.scaleDown,
+            reason: '«$label» can be clipped instead of shrunk — '
+                'a segment nobody can read is a segment nobody taps');
+      }
+    });
+  }
+
+  /// Lesson titles are typed by staff in the back office, so they are as long
+  /// as somebody felt like making them — not as long as this layout wants.
+  final courseLessons = [
+    const CourseLesson(
+      id: 'l1',
+      titleRu: 'Первые 40 дней: восстановление после родов и уход за собой',
+      titleKk: 'Алғашқы 40 күн: босанғаннан кейінгі қалпына келу',
+      youtubeUrl: 'https://youtu.be/aaaaaaaaaaa',
+      summaryRu: 'Что происходит с телом, чего ждать и когда обращаться к врачу.',
+      sort: 1,
+    ),
+    const CourseLesson(
+      id: 'l2',
+      titleRu: 'Грудное вскармливание без боли',
+      youtubeUrl: 'https://youtu.be/bbbbbbbbbbb',
+      sort: 2,
+    ),
+  ];
+
+  testWidgets('the Ма!Ма! course fits when she owns it', (tester) async {
+    await fits(
+      tester,
+      () => MamaCourseScreen(
+        access: CourseAccess(entitled: true, lessons: courseLessons),
+        launch: (_) async => true,
+      ),
+      'the Ма!Ма! course (entitled)',
+    );
+  });
+
+  testWidgets('the Ма!Ма! course offer fits when she does not', (tester) async {
+    // The commercially important state: this is the pitch for the комплект,
+    // and a broken-looking one costs a 39 000 ₸ sale.
+    await fits(
+      tester,
+      () => const MamaCourseScreen(access: CourseAccess.none),
+      'the Ма!Ма! course (offer)',
+    );
+  });
+
+  testWidgets('the Ма!Ма! course offer fits at 130%', (tester) async {
+    await fits(
+      tester,
+      () => const MamaCourseScreen(access: CourseAccess.none),
+      'the Ма!Ма! course (offer, 130%)',
+      textScale: 1.3,
     );
   });
 

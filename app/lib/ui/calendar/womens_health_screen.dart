@@ -715,21 +715,34 @@ class _ModeChip extends StatelessWidget {
               border: Border.all(
                   color: selected ? Colors.transparent : Palette.border),
             ),
-            child: Row(
+            // Icon ABOVE the label, not beside it. Three chips across a 360dp
+            // phone leave ~92dp inside each one; an icon and a 6dp gap take a
+            // quarter of that, and «Беременность» — the default language's
+            // word — then renders as «Беременно…». Stacked, the label gets the
+            // full width and reads in full on the narrowest phone we sell to.
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 17, color: fg),
-                const SizedBox(width: 6),
-                // Three labels on a 360dp screen: let the longest shrink
-                // rather than overflow or be cut off mid-word.
-                Flexible(
+                Icon(icon, size: 18, color: fg),
+                const SizedBox(height: 3),
+                // scaleDown, not ellipsis. «Беременность» fits at the default
+                // size, but the system font-size slider is not an edge case in
+                // this app — it is read by pregnant women and by grandmothers
+                // — and at 130% the word runs past the chip. Ellipsised it
+                // becomes «Беременно…», a control nobody can identify. Shrunk
+                // it stays a word. So the label never gets cut, at any text
+                // scale, in any of the three languages.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
                   child: Text(
                     label,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                         color: fg,
-                        fontSize: 13,
+                        fontSize: 12,
+                        height: 1.1,
                         fontWeight:
                             selected ? FontWeight.w700 : FontWeight.w600),
                   ),
