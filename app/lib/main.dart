@@ -47,6 +47,7 @@ import 'domain/chat_controller.dart';
 import 'domain/family.dart' show UserProfile, ChildProfile, PairedDevice, genderFromName;
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
+import 'data/sync_push.dart';
 import 'data/http_transport.dart';
 import 'l10n/l10n.dart';
 import 'net/telemetry_batcher.dart';
@@ -553,18 +554,23 @@ Future<void> bootstrapRuntime(
       }
 
       // Push-only child sync, so the back-office kids dashboard is built from
-      // real children (name / gender / DOB). Children created before UUID ids
-      // (legacy 'child-…') fail the server's UUID check and are skipped — the
-      // push is fire-and-forget, so that never surfaces to the user.
+      // real children (name / gender / DOB).
+      //
+      // Legacy 'child-1' ids used to fail the server's UUID check and be
+      // dropped in silence — this comment used to describe that as a permanent
+      // condition. They are re-issued on load now (domain/legacy_ids.dart), and
+      // a refusal goes through pushed(), so the next contract mismatch shows up
+      // on the first run rather than after months of an empty dashboard.
       Map<String, dynamic> childBody(ChildProfile ch) => {
             'id': ch.id,
             'name': ch.name,
             if (ch.gender != null) 'gender': ch.gender!.name,
             if (ch.dateOfBirth != null) 'dateOfBirth': isoDay(ch.dateOfBirth!),
           };
-      controller.attachChildSync(upsert: (ch) => api.putChild(childBody(ch)));
+      controller.attachChildSync(
+          upsert: (ch) => pushed('child', () => api.putChild(childBody(ch)), errorLog: controller.errorLog));
       for (final ch in controller.children) {
-        unawaited(api.putChild(childBody(ch)));
+        unawaited(pushed('child', () => api.putChild(childBody(ch)), errorLog: controller.errorLog));
       }
 
       // Safe-zone (geofence) sync. The server groups zones under the child's id,
@@ -585,7 +591,7 @@ Future<void> bootstrapRuntime(
       );
       for (final ch in controller.children) {
         for (final g in ch.geofences) {
-          unawaited(api.putGeofence(ch.id, geofenceBody(g)));
+          unawaited(pushed('safe zone', () => api.putGeofence(ch.id, geofenceBody(g)), errorLog: controller.errorLog));
         }
       }
 
@@ -627,7 +633,7 @@ Future<void> bootstrapRuntime(
       );
       for (final ch in controller.children) {
         for (final p in controller.growthFor(ch.id)) {
-          unawaited(api.putGrowth(ch.id, p.toJson()));
+          unawaited(pushed('growth measurement', () => api.putGrowth(ch.id, p.toJson()), errorLog: controller.errorLog));
         }
       }
 
@@ -638,7 +644,7 @@ Future<void> bootstrapRuntime(
       );
       for (final ch in controller.children) {
         for (final key in controller.vaccinesDoneFor(ch.id)) {
-          unawaited(api.putVaccine(ch.id, key, done: true));
+          unawaited(pushed('vaccination', () => api.putVaccine(ch.id, key, done: true), errorLog: controller.errorLog));
         }
       }
 
@@ -670,7 +676,7 @@ Future<void> bootstrapRuntime(
         delete: (id) => api.deleteDevice(id),
       );
       for (final d in controller.devices) {
-        unawaited(api.putDevice(d.toJson()));
+        unawaited(pushed('device', () => api.putDevice(d.toJson()), errorLog: controller.errorLog));
       }
 
       // Timed-session sync: fetal movement + labour timing → clinician trend.
