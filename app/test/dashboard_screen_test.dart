@@ -216,11 +216,62 @@ void main() {
       home: HealthDashboardView(
         samples: const [],
         setupProgress: computeSetupProgress(
-          hasName: false, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
+          signedIn: true, hasName: false, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
       ),
     ));
     expect(find.text('No readings yet'), findsOneWidget); // still the empty state
     expect(find.text('Finish setting up'), findsOneWidget); // ...plus the guidance
+    expect(find.text('Add your name in your profile'), findsOneWidget);
+  });
+
+  /// Signing in, on the one screen everybody opens.
+  ///
+  /// The app is offline-first and works perfectly signed out, so nothing
+  /// visibly breaks — her readings, her children and her zones simply never
+  /// reach the server, every sync answers 401, and a new phone starts empty.
+  /// The only way in was Настройки → Вход, three taps down a screen nobody
+  /// opens on their first day.
+  testWidgets('signing in is the first thing the checklist asks for', (tester) async {
+    SetupStep? opened;
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: const [],
+        setupProgress: computeSetupProgress(
+            signedIn: false,
+            hasName: true,
+            hasHealthData: true,
+            hasChild: true,
+            hasZone: true,
+            hasDetails: true,
+            hasBackup: true),
+        onOpenSetup: (step) => opened = step,
+      ),
+    ));
+
+    // Everything else is done and it still is not finished, because the one
+    // step that makes the rest durable has not happened.
+    expect(find.text('Sign in with your phone so nothing is lost'), findsOneWidget);
+    expect(find.text('6/7'), findsOneWidget);
+
+    await tester.tap(find.text('Sign in with your phone so nothing is lost'));
+    expect(opened, SetupStep.signIn);
+  });
+
+  testWidgets('a signed-in user is not nudged to sign in', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: HealthDashboardView(
+        samples: const [],
+        setupProgress: computeSetupProgress(
+            signedIn: true,
+            hasName: false,
+            hasHealthData: false,
+            hasChild: false,
+            hasZone: false,
+            hasDetails: false,
+            hasBackup: false),
+      ),
+    ));
+    expect(find.text('Sign in with your phone so nothing is lost'), findsNothing);
     expect(find.text('Add your name in your profile'), findsOneWidget);
   });
 
@@ -230,7 +281,7 @@ void main() {
       home: HealthDashboardView(
         samples: samples,
         setupProgress: computeSetupProgress(
-          hasName: true, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
+          signedIn: true, hasName: true, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
       ),
     ));
     // Visible without scrolling, and above the first metric card.
@@ -247,12 +298,14 @@ void main() {
       home: HealthDashboardView(
         samples: samples,
         setupProgress: computeSetupProgress(
-          hasName: true, hasHealthData: true, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
+          signedIn: true, hasName: true, hasHealthData: true, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
         onOpenSetup: (step) => opened = (step == SetupStep.child),
       ),
     ));
     await tester.scrollUntilVisible(find.text('Finish setting up'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.text('2/6'), findsOneWidget); // 6 steps since birth date + city joined
+    // 7 steps: signing in joined them, because until it happens nothing
+    // recorded leaves the handset.
+    expect(find.text('3/7'), findsOneWidget);
     expect(find.text('Add a child'), findsOneWidget); // the next step
     await tester.tap(find.text('Finish setting up'));
     await tester.pump();
@@ -266,7 +319,7 @@ void main() {
       home: HealthDashboardView(
         samples: samples,
         setupProgress: computeSetupProgress(
-          hasName: true, hasHealthData: true, hasChild: true, hasZone: true, hasDetails: true, hasBackup: true),
+          signedIn: true, hasName: true, hasHealthData: true, hasChild: true, hasZone: true, hasDetails: true, hasBackup: true),
       ),
     ));
     expect(find.text('Finish setting up'), findsNothing);

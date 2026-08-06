@@ -8,7 +8,13 @@ library;
 /// Order is the order shown.  sits after the essentials: the app is
 /// fully usable without a birth date or city, and asking for them before the
 /// user has anything working would be asking for data in exchange for nothing.
-enum SetupStep { profileName, healthMode, child, zone, details, backup }
+/// [signIn] is first because everything after it is only kept on this handset
+/// until it happens. The app is offline-first and works signed out, so nothing
+/// visibly breaks — the readings, the children and the zones simply never
+/// reach the server, every sync answers 401, and a new phone starts empty. The
+/// only way in was Настройки → Вход, three taps down a screen nobody opens on
+/// their first day, so in practice nobody signed in at all.
+enum SetupStep { signIn, profileName, healthMode, child, zone, details, backup }
 
 class SetupProgress {
   final List<SetupStep> done;
@@ -28,6 +34,9 @@ class SetupProgress {
 
 /// Work out which steps are done. Each flag maps to one [SetupStep].
 SetupProgress computeSetupProgress({
+  /// Signed in with a phone number, so anything recorded reaches the server
+  /// and survives this handset.
+  required bool signedIn,
   required bool hasName,
   required bool hasHealthData, // a due date, or any logged period
   required bool hasChild,
@@ -39,6 +48,7 @@ SetupProgress computeSetupProgress({
   required bool hasBackup, // exported at least once
 }) {
   final byStep = <SetupStep, bool>{
+    SetupStep.signIn: signedIn,
     SetupStep.profileName: hasName,
     SetupStep.healthMode: hasHealthData,
     SetupStep.child: hasChild,

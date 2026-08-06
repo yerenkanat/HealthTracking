@@ -1321,6 +1321,7 @@ class _SetupCard extends StatelessWidget {
   const _SetupCard({required this.progress, this.onTap});
 
   static String _key(SetupStep s) => switch (s) {
+        SetupStep.signIn => 'setup_signin',
         SetupStep.profileName => 'setup_name',
         SetupStep.healthMode => 'setup_health',
         SetupStep.child => 'setup_child',

@@ -1054,6 +1054,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'scan_none': {AppLocale.ru: 'Не удалось распознать — введите вручную', AppLocale.kk: 'Тани алмадық — қолмен енгізіңіз', AppLocale.en: 'Couldn\'t read it — enter it by hand'},
   'scan_error': {AppLocale.ru: 'Не удалось обработать фото. Попробуйте ещё раз.', AppLocale.kk: 'Фотоны өңдеу мүмкін болмады. Қайталап көріңіз.', AppLocale.en: 'Couldn\'t process the photo. Please try again.'},
   'setup_title': {AppLocale.ru: 'Завершите настройку', AppLocale.kk: 'Баптауды аяқтаңыз', AppLocale.en: 'Finish setting up'},
+  // Says what it is FOR, not "sign in". Nobody signs in to be signed in; she
+  // does it so the app stops being one phone's worth of notes.
+  'setup_signin': {
+    AppLocale.ru: 'Войдите по номеру телефона — чтобы данные сохранились',
+    AppLocale.kk: 'Телефон нөмірімен кіріңіз — деректер сақталуы үшін',
+    AppLocale.en: 'Sign in with your phone so nothing is lost',
+  },
   'setup_name': {AppLocale.ru: 'Добавьте своё имя в профиле', AppLocale.kk: 'Профильде атыңызды қосыңыз', AppLocale.en: 'Add your name in your profile'},
   'setup_health': {AppLocale.ru: 'Укажите срок родов или отметьте месячные', AppLocale.kk: 'Босану мерзімін немесе етеккірді белгілеңіз', AppLocale.en: 'Set a due date or log your period'},
   'setup_child': {AppLocale.ru: 'Добавьте ребёнка', AppLocale.kk: 'Бала қосыңыз', AppLocale.en: 'Add a child'},

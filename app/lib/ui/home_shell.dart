@@ -22,6 +22,7 @@ import 'chat/assistant_chat_screen.dart';
 import 'ds_widgets.dart';
 import 'theme.dart';
 import 'appointments/appointments_screen.dart';
+import 'auth/sign_in_route.dart';
 import 'calendar/antenatal_plan_screen.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
@@ -86,6 +87,7 @@ class _HomeShellState extends State<HomeShell> {
           waterGoal: c.waterGoal,
         ),
         setupProgress: computeSetupProgress(
+          signedIn: c.isSignedIn,
           hasName: c.displayName.trim().isNotEmpty,
           hasHealthData: c.dueDate != null || c.periodDays.isNotEmpty,
           hasChild: c.children.isNotEmpty,
@@ -97,6 +99,8 @@ class _HomeShellState extends State<HomeShell> {
         // catch-all Profile tab (tapping "add a child" used to open Profile).
         onOpenSetup: (step) {
           switch (step) {
+            case SetupStep.signIn:
+              openSignIn(context, c);
             case SetupStep.profileName:
             case SetupStep.details: // birth date + city live in the same editor
               showEditProfileSheet(context, c);
