@@ -146,7 +146,7 @@ void main() {
     c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 30))));
     addTearDown(c.dispose);
     await tester.pumpWidget(wrap(c));
-    expect(find.text('Recovery after birth'), findsOneWidget);
+    expect(find.textContaining('Recovery after birth'), findsOneWidget);
   });
 
   testWidgets('no recovery card once the postpartum window has passed', (tester) async {
@@ -155,7 +155,7 @@ void main() {
     c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: DateTime(2024, 1, 1)));
     addTearDown(c.dispose);
     await tester.pumpWidget(wrap(c));
-    expect(find.text('Recovery after birth'), findsNothing);
+    expect(find.textContaining('Recovery after birth'), findsNothing);
   });
 
   testWidgets('opening the recovery card reaches the guide', (tester) async {
@@ -170,7 +170,7 @@ void main() {
       home: WomensHealthScreen(controller: c, now: () => today),
     ));
 
-    await tester.tap(find.text('Recovery after birth'));
+    await tester.tap(find.textContaining('Recovery after birth'));
     await tester.pumpAndSettle();
     // The recovery screen's app-bar title is a reliable landing marker that
     // sits at the top, above the fold on the default test viewport.
@@ -221,7 +221,7 @@ void main() {
       addTearDown(c.dispose);
       await tester.pumpWidget(wrap(c));
       expect(find.text('Cycle paused after birth'), findsOneWidget);
-      expect(find.text('Recovery after birth'), findsOneWidget); // both, correctly
+      expect(find.textContaining('Recovery after birth'), findsOneWidget); // both, correctly
     });
 
     test('adding a newborn while still marked pregnant ends the pregnancy', () {
@@ -458,6 +458,90 @@ void main() {
     expect(c.children, isEmpty, reason: 'this path creates no child');
     expect(find.text('Track your cycle'), findsOneWidget);
     addTearDown(c.dispose);
+  });
+
+  /// One subject, one card.
+  ///
+  /// After a birth the screen opened with «Цикл на паузе после родов» and then
+  /// «Восстановление после родов» directly under it — "после родов" twice
+  /// before she reached anything she could act on, and two cards for one
+  /// thought: why the calendar is quiet, and where to read about it.
+  testWidgets('the postpartum explanation and its guide are one card', (tester) async {
+    final c = controllerFor();
+    addTearDown(c.dispose);
+    c.addChild(ChildProfile(
+        id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 30))));
+    await tester.pumpWidget(wrap(c));
+
+    // Both still said, and both still reachable…
+    expect(find.text('Cycle paused after birth'), findsOneWidget);
+    expect(find.textContaining('Recovery after birth'), findsOneWidget);
+
+    // …but the guide now lives INSIDE the card that explains the pause, so it
+    // is the same card rather than a second one repeating the subject.
+    expect(
+      find.ancestor(
+        of: find.textContaining('Recovery after birth'),
+        matching: find.ancestor(
+          of: find.text('Cycle paused after birth'),
+          matching: find.byType(Column),
+        ),
+      ),
+      findsWidgets,
+      reason: 'the recovery link is not inside the cycle-paused card',
+    );
+  });
+
+  /// An empty month grid explains itself.
+  ///
+  /// With nothing logged it is thirty grey numbers and one circle, taking
+  /// nearly half the screen, with no legend under it — because there is
+  /// nothing to explain. So it reads as broken rather than empty, and nothing
+  /// tells her that tapping a day is how anything gets into it.
+  group('the month grid with nothing in it', () {
+    /// The hint sits below the grid, and a ListView only builds what is near
+    /// the viewport — so asserting on it without scrolling proves nothing in
+    /// either direction. The first version of these tests did exactly that.
+    Future<void> toBottom(WidgetTester tester) async {
+      final list = find.byType(Scrollable).first;
+      for (var i = 0; i < 12; i++) {
+        await tester.drag(list, const Offset(0, -400));
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('says how to fill it', (tester) async {
+      final c = controllerFor(); // cycle mode, nothing logged
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      await toBottom(tester);
+
+      expect(find.textContaining('Tap a day'), findsOneWidget);
+    });
+
+    testWidgets('and stops saying it once there is something to show', (tester) async {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      for (final d in [DateTime(2026, 7, 10), DateTime(2026, 7, 11)]) {
+        c.toggleFlowFor(d, Flow.medium);
+      }
+      await tester.pumpWidget(wrap(c));
+      await toBottom(tester);
+
+      // The legend replaces it — an explanation of what the colours mean is
+      // more use than an invitation she has already accepted.
+      expect(find.textContaining('Tap a day'), findsNothing);
+    });
+
+    testWidgets('never in pregnancy mode, which has no grid to fill', (tester) async {
+      final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      await toBottom(tester);
+
+      expect(find.textContaining('Tap a day'), findsNothing);
+    });
   });
 
   /// The month grid's column headers.

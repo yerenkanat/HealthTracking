@@ -315,7 +315,23 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 ] else ...[
                 if (cycleMode)
                   _CycleHeader(
-                      controller: c, today: _today, onSetDueDate: _pickDueDate)
+                    controller: c,
+                    today: _today,
+                    onSetDueDate: _pickDueDate,
+                    // After a recent birth the recovery guide is the one thing
+                    // worth doing from this screen, so it lives IN the card
+                    // explaining why the calendar is quiet, rather than in a
+                    // second card underneath repeating «после родов».
+                    onOpenRecovery: _recentBirth(c) == null
+                        ? null
+                        : () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => PostpartumScreen(
+                                  birthDate: _recentBirth(c)!, today: _today),
+                            )),
+                    recoveryInDays: _recentBirth(c) == null
+                        ? null
+                        : daysUntilCheck(daysSinceBirth(_recentBirth(c)!, _today)),
+                  )
                 else
                   _GestationHeader(
                       controller: c, today: _today, onSetDueDate: _pickDueDate),
@@ -328,25 +344,6 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                       track: 'pregnancy',
                       day: c.gestation!.totalDays,
                       margin: const EdgeInsets.only(top: 14)),
-
-                // After a recent birth the app is in cycle mode but her body is
-                // still recovering. Surface the recovery guide until the window
-                // passes — the one place the app speaks to the mother, not the
-                // baby, in these weeks.
-                if (cycleMode) ...[
-                  if (_recentBirth(c) case final birth?) ...[
-                    const SizedBox(height: 14),
-                    _PostpartumCard(
-                      birthDate: birth,
-                      today: _today,
-                      onOpen: () =>
-                          Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) =>
-                            PostpartumScreen(birthDate: birth, today: _today),
-                      )),
-                    ),
-                  ],
-                ],
 
                 // Daily tips, right under the pregnancy hero — the same
                 // published catalogue the dashboard shows, keyed to her week.
@@ -468,6 +465,29 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
                   const _CycleLegend(),
+                ]
+                // Nothing to colour in yet. The grid is thirty grey numbers
+                // and one circle taking half the screen, with no legend under
+                // it because there is nothing to explain — so it reads as
+                // broken rather than as empty, and nothing says that tapping a
+                // day is how anything gets in there.
+                else if (cycleMode) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.touch_app_outlined,
+                          size: 17, color: Palette.textDim),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(l.t('cal_grid_empty'),
+                            style: const TextStyle(
+                                color: Palette.textDim,
+                                fontSize: 12.5,
+                                height: 1.45)),
+                      ),
+                    ],
+                  ),
                 ],
                 if (pregMode && c.kickSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
@@ -1039,10 +1059,24 @@ class _CycleHeader extends StatelessWidget {
   final AppController controller;
   final DateTime today;
   final VoidCallback onSetDueDate;
+
+  /// Open the recovery guide, when there is a recent birth to recover from.
+  ///
+  /// Inside this card rather than in one below it. Postpartum the screen
+  /// opened with two stacked cards, «Цикл на паузе после родов» and
+  /// «Восстановление после родов», saying "после родов" twice in a row before
+  /// she reached anything she could act on. They are one subject: why the
+  /// calendar is quiet, and where to read about it. This mirrors what the card
+  /// already does for the not-postpartum case with _ExpectingLink.
+  final VoidCallback? onOpenRecovery;
+  final int? recoveryInDays;
+
   const _CycleHeader(
       {required this.controller,
       required this.today,
-      required this.onSetDueDate});
+      required this.onSetDueDate,
+      this.onOpenRecovery,
+      this.recoveryInDays});
 
   @override
   Widget build(BuildContext context) {
@@ -1100,6 +1134,9 @@ class _CycleHeader extends StatelessWidget {
             if (!postpartum) ...[
               const SizedBox(height: 6),
               _ExpectingLink(onTap: onSetDueDate),
+            ] else if (onOpenRecovery != null) ...[
+              const SizedBox(height: 10),
+              _RecoveryLink(onTap: onOpenRecovery!, inDays: recoveryInDays),
             ],
           ],
         ),
@@ -1201,6 +1238,47 @@ class _PhasePill extends StatelessWidget {
       child: Text(label,
           style: TextStyle(
               color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+    );
+  }
+}
+
+/// The way into the recovery guide, from inside the cycle-paused card.
+///
+/// Same shape as [_ExpectingLink], because it plays the same role: the one
+/// thing worth doing next from a header that is otherwise explaining why there
+/// is nothing to show.
+class _RecoveryLink extends StatelessWidget {
+  final VoidCallback onTap;
+
+  /// Days until the postpartum check-up, when that is still ahead. Null just
+  /// drops the clause rather than inventing a date.
+  final int? inDays;
+  const _RecoveryLink({required this.onTap, this.inDays});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final days = inDays;
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.spa_outlined, size: 15, color: Palette.violet),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            days == null
+                ? l.t('pp_card_title')
+                : '${l.t('pp_card_title')} · ${l.t('pp_check_in', {'n': days})}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                color: Palette.violetText,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600),
+          ),
+        ),
+        const Icon(Icons.chevron_right_rounded, size: 16, color: Palette.violetText),
+      ]),
     );
   }
 }
@@ -1613,79 +1691,6 @@ class _MonthCalendar extends StatelessWidget {
         ),
       CycleDayType.none => (fill: Colors.transparent, text: null),
     };
-
-/// Pregnancy timeline milestones (non-medical): current stage + what's next.
-/// Weekly "baby is about the size of a …" card — an approximate length and a
-/// friendly everyday comparison for the current pregnancy week. Illustrative,
-/// not medical.
-/// The entry to the postpartum recovery guide, shown in cycle mode after a
-/// recent birth. Leads with the six-week countdown when there is one, since
-/// that is the actionable date.
-class _PostpartumCard extends StatelessWidget {
-  final DateTime birthDate;
-  final DateTime today;
-  final VoidCallback onOpen;
-  const _PostpartumCard(
-      {required this.birthDate, required this.today, required this.onOpen});
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L10nScope.of(context);
-    final until = daysUntilCheck(daysSinceBirth(birthDate, today));
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Palette.violet.withValues(alpha: 0.14),
-            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                  color: Palette.violet.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(Icons.spa_outlined,
-                    color: Palette.violet, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l.t('pp_card_title'),
-                        style: const TextStyle(
-                            fontSize: 15.5, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(
-                      until != null
-                          ? l.t('pp_check_in', {'n': until})
-                          : l.t('pp_card_sub'),
-                      style: const TextStyle(
-                          color: Palette.textDim,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// The third-trimester hospital-bag entry: how much is packed, and a tap to the
 /// checklist.

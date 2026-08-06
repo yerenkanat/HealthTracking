@@ -1151,6 +1151,17 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cal_dow_4': {AppLocale.ru: 'Чт', AppLocale.kk: 'Бс', AppLocale.en: 'Th'},
   'cal_dow_5': {AppLocale.ru: 'Пт', AppLocale.kk: 'Жм', AppLocale.en: 'Fr'},
   'cal_dow_6': {AppLocale.ru: 'Сб', AppLocale.kk: 'Сб', AppLocale.en: 'Sa'},
+  // Under the month grid when there is nothing to colour in yet.
+  //
+  // With no logged days the grid is thirty grey numbers and one circle, taking
+  // nearly half the screen and explaining none of itself — a reader cannot
+  // tell whether it is empty, still loading, or simply not for her. It is also
+  // the way a day is opened, and nothing said so.
+  'cal_grid_empty': {
+    AppLocale.ru: 'Нажмите на день, чтобы отметить самочувствие. Когда появятся отмеченные месячные, календарь начнёт показывать прогнозы.',
+    AppLocale.kk: 'Күй-жағдайды белгілеу үшін күнді басыңыз. Етеккір күндері белгіленген соң, күнтізбе болжам көрсете бастайды.',
+    AppLocale.en: 'Tap a day to log how you feel. Once some period days are marked, the calendar starts showing predictions.',
+  },
   'cal_mode_cycle': {AppLocale.ru: 'Цикл', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycle'},
   'cal_mode_pregnancy': {AppLocale.ru: 'Беременность', AppLocale.kk: 'Жүктілік', AppLocale.en: 'Pregnancy'},
   'cal_mode_child': {AppLocale.ru: 'Ребёнок', AppLocale.kk: 'Бала', AppLocale.en: 'Child'},
