@@ -186,6 +186,45 @@ describe('the family sections in the user drawer', () => {
       expect(drawer).toContain('бодр.'); // awake minutes now surfaced
     });
 
+    /// A night she typed in herself.
+    ///
+    /// A hand-entered night carries a TOTAL and no stage breakdown, so the
+    /// panel's deep + REM + light came to zero: every mother who logs sleep by
+    /// hand — the entire point of the manual path for anyone without a band —
+    /// read as sleeping 0 minutes every night, with a flat sparkline to match.
+    /// The number was in the payload the whole time.
+    it('counts a hand-entered night by what she actually typed', async () => {
+      const { drawer, errors } = await openDrawer({}, {
+        sleep: [{ night: '2026-07-20', deepMin: 0, remMin: 0, lightMin: 0,
+                  awakeMin: 20, source: 'manual', manualAsleepMin: 430 }],
+      });
+      expect(errors).toEqual([]);
+      // 430 minutes is 7h 10m, not zero.
+      expect(drawer).toMatch(/7\s*ч/);
+      expect(drawer).not.toMatch(/0\s*м\s*<\/span>\s*$/);
+    });
+
+    it('does not invent a stage breakdown nobody measured', async () => {
+      // "глуб. 0м · быстр. 0м" reads as a measurement that came back zero
+      // rather than one that was never taken.
+      const { drawer, errors } = await openDrawer({}, {
+        sleep: [{ night: '2026-07-20', deepMin: 0, remMin: 0, lightMin: 0,
+                  awakeMin: 20, source: 'manual', manualAsleepMin: 430 }],
+      });
+      expect(errors).toEqual([]);
+      expect(drawer).toContain('записано вручную');
+      expect(drawer).not.toContain('глуб.');
+    });
+
+    it('still shows the stages for a night the band measured', async () => {
+      const { drawer } = await openDrawer({}, {
+        sleep: [{ night: '2026-07-21', deepMin: 90, remMin: 80, lightMin: 200,
+                  awakeMin: 35, source: 'band', manualAsleepMin: null }],
+      });
+      expect(drawer).toContain('глуб.');
+      expect(drawer).not.toContain('записано вручную');
+    });
+
     it('shows how much history exists (nights + diary days)', async () => {
       const { drawer, errors } = await openDrawer({ sleepNights: 23, loggedDays: 8 });
       expect(errors).toEqual([]);

@@ -2450,14 +2450,30 @@
       const pts=vals.map((v,i)=>`${(2+i*step).toFixed(1)},${(h-2-((v-min)/span)*(h-4)).toFixed(1)}`).join(" ");
       return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/></svg>`;
     };
-    const sleepSpark=sparkline([...sleep].reverse().map(n=>(n.deepMin||0)+(n.remMin||0)+(n.lightMin||0)));
+    /**
+     * How long she slept — the same rule the app uses.
+     *
+     * A hand-entered night carries a TOTAL and no stage breakdown, so summing
+     * deep + REM + light gave zero: every mother who logs sleep by hand, which
+     * is the entire point of the manual path for anyone without a band, showed
+     * as sleeping 0 minutes every single night, with a flat sparkline to match.
+     * The number was in the payload the whole time.
+     */
+    const asleepOf=(n)=> n.manualAsleepMin!=null
+      ? n.manualAsleepMin
+      : (n.deepMin||0)+(n.remMin||0)+(n.lightMin||0);
+    const sleepSpark=sparkline([...sleep].reverse().map(asleepOf));
     const sleepSection=sleep.length?`
       <div class="dsec">Сон (последние ночи)</div>
       ${sleepSpark?`<div class="sparkrow">${sleepSpark}</div>`:""}
       <div class="tl">${sleep.slice(0,7).map(n=>{
-        const asleep=(n.deepMin||0)+(n.remMin||0)+(n.lightMin||0);
         const awake=n.awakeMin?` · бодр. ${hm(n.awakeMin)}`:"";
-        return `<div class="tli"><span><b>${esc(fmtDate(n.night))}</b> <span class="t">глуб. ${hm(n.deepMin||0)} · быстр. ${hm(n.remMin||0)}${awake}</span></span><span class="t num">${hm(asleep)}</span></div>`;
+        // No stage breakdown for a hand-entered night: "глуб. 0м · быстр. 0м"
+        // reads as a measurement that came back zero, not as one nobody took.
+        const detail=n.manualAsleepMin!=null
+          ? `записано вручную${awake}`
+          : `глуб. ${hm(n.deepMin||0)} · быстр. ${hm(n.remMin||0)}${awake}`;
+        return `<div class="tli"><span><b>${esc(fmtDate(n.night))}</b> <span class="t">${detail}</span></span><span class="t num">${hm(asleepOf(n))}</span></div>`;
       }).join("")}</div>`:"";
     // Women's-health diary: flow / mood / kicks / symptoms, newest first, only
     // days that actually carry something.
