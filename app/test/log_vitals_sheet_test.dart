@@ -44,7 +44,7 @@ void main() {
     await tester.pumpWidget(host((r) => result = r));
     await openSheet(tester);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Temperature (°C)'), '36.8');
+    await tester.enterText(find.widgetWithText(TextField, 'Temperature'), '36.8');
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
@@ -57,7 +57,7 @@ void main() {
     await tester.pumpWidget(host((_) {}));
     await openSheet(tester);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Systolic (mmHg)'), '120');
+    await tester.enterText(find.widgetWithText(TextField, 'Systolic'), '120');
     await tester.pumpAndSettle();
     expect(find.textContaining('Enter both blood-pressure values'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save')).onPressed, isNull);
@@ -67,8 +67,8 @@ void main() {
     await tester.pumpWidget(host((_) {}));
     await openSheet(tester);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Systolic (mmHg)'), '80');
-    await tester.enterText(find.widgetWithText(TextField, 'Diastolic (mmHg)'), '120');
+    await tester.enterText(find.widgetWithText(TextField, 'Systolic'), '80');
+    await tester.enterText(find.widgetWithText(TextField, 'Diastolic'), '120');
     await tester.pumpAndSettle();
     expect(find.textContaining('they may be swapped'), findsOneWidget);
   });
@@ -77,7 +77,7 @@ void main() {
     await tester.pumpWidget(host((_) {}));
     await openSheet(tester);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Heart rate (bpm)'), '900');
+    await tester.enterText(find.widgetWithText(TextField, 'Heart rate'), '900');
     await tester.pumpAndSettle();
     expect(find.textContaining('outside the plausible range'), findsOneWidget);
   });
@@ -105,5 +105,39 @@ void main() {
       ),
     ));
     expect(find.widgetWithText(FilledButton, 'Log a reading'), findsNothing);
+  });
+
+  /// The unit has to be readable on the phone this is used on.
+  ///
+  /// Baked into the label, it was the half a 360dp two-column layout dropped
+  /// first: «Верхнее (мм рт. …» and «Глюкоза (ммоль…». That is the half that
+  /// decides what the number means — a glucometer read in mg/dL and typed
+  /// into a mmol/L field records a value eighteen times too large, and the app
+  /// triages on it. Found by opening the sheet on a phone.
+  ///
+  /// Asserted as a suffix rather than by measuring text: the substitute font
+  /// in flutter_test makes every glyph a full em square, so a width check here
+  /// would fail for every label in every language. A suffix is drawn beside
+  /// the value, not inside the label, and cannot be ellipsised away.
+  testWidgets('every unit is a suffix, not part of a label that can be cut', (tester) async {
+    await tester.pumpWidget(host((_) {}));
+    await openSheet(tester);
+
+    const expected = {
+      'Systolic': 'mmHg',
+      'Diastolic': 'mmHg',
+      'Heart rate': 'bpm',
+      'Blood oxygen': '%',
+      'Temperature': '°C',
+      'Glucose': 'mmol/L',
+    };
+    for (final entry in expected.entries) {
+      final field = tester.widget<TextField>(
+          find.widgetWithText(TextField, entry.key).first);
+      expect(field.decoration?.suffixText, entry.value,
+          reason: '${entry.key} does not show its unit where it cannot be cut');
+      expect(field.decoration?.labelText, isNot(contains('(')),
+          reason: '${entry.key} put its unit back in the label');
+    }
   });
 }

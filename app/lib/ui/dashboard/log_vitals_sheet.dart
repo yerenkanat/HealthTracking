@@ -117,21 +117,21 @@ class _LogVitalsSheetState extends State<_LogVitalsSheet> {
               const SizedBox(height: 14),
             ],
             Row(children: [
-              Expanded(child: _Field(controller: _sys, label: l.t('vitals_systolic'), onChanged: _rebuild)),
+              Expanded(child: _Field(controller: _sys, label: l.t('vitals_systolic'), unit: l.t('vitals_u_mmhg'), onChanged: _rebuild)),
               const SizedBox(width: 10),
-              Expanded(child: _Field(controller: _dia, label: l.t('vitals_diastolic'), onChanged: _rebuild)),
+              Expanded(child: _Field(controller: _dia, label: l.t('vitals_diastolic'), unit: l.t('vitals_u_mmhg'), onChanged: _rebuild)),
             ]),
             const SizedBox(height: 12),
             Row(children: [
-              Expanded(child: _Field(controller: _hr, label: l.t('vitals_hr'), onChanged: _rebuild)),
+              Expanded(child: _Field(controller: _hr, label: l.t('vitals_hr'), unit: l.t('vitals_u_bpm'), onChanged: _rebuild)),
               const SizedBox(width: 10),
-              Expanded(child: _Field(controller: _spo2, label: l.t('vitals_spo2'), onChanged: _rebuild)),
+              Expanded(child: _Field(controller: _spo2, label: l.t('vitals_spo2'), unit: l.t('vitals_u_pct'), onChanged: _rebuild)),
             ]),
             const SizedBox(height: 12),
             Row(children: [
-              Expanded(child: _Field(controller: _temp, label: l.t('vitals_temp'), decimal: true, onChanged: _rebuild)),
+              Expanded(child: _Field(controller: _temp, label: l.t('vitals_temp'), unit: l.t('vitals_u_celsius'), decimal: true, onChanged: _rebuild)),
               const SizedBox(width: 10),
-              Expanded(child: _Field(controller: _glucose, label: l.t('vitals_glucose'), decimal: true, onChanged: _rebuild)),
+              Expanded(child: _Field(controller: _glucose, label: l.t('vitals_glucose'), unit: l.t('vitals_u_mmol'), decimal: true, onChanged: _rebuild)),
             ]),
             if (showError) ...[
               const SizedBox(height: 12),
@@ -165,9 +165,14 @@ class _LogVitalsSheetState extends State<_LogVitalsSheet> {
 class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+
+  /// Rendered INSIDE the field, so the unit cannot be ellipsised out of the
+  /// label — which on a 360dp phone is exactly what happened to «мм рт. ст.»
+  /// and «ммоль/л», the halves that decide whether a number means anything.
+  final String unit;
   final bool decimal;
   final VoidCallback onChanged;
-  const _Field({required this.controller, required this.label, required this.onChanged, this.decimal = false});
+  const _Field({required this.controller, required this.label, required this.unit, required this.onChanged, this.decimal = false});
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +182,11 @@ class _Field extends StatelessWidget {
       inputFormatters: [
         FilteringTextInputFormatter.allow(decimal ? RegExp(r'[0-9.,]') : RegExp(r'[0-9]')),
       ],
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      decoration: InputDecoration(
+        labelText: label,
+        suffixText: unit,
+        border: const OutlineInputBorder(),
+      ),
       onChanged: (_) => onChanged(),
     );
   }

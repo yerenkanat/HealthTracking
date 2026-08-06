@@ -1041,12 +1041,22 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sleep_manual_tag': {AppLocale.ru: 'Вручную', AppLocale.kk: 'Қолмен', AppLocale.en: 'Manual'},
   'vitals_title': {AppLocale.ru: 'Записать показатели', AppLocale.kk: 'Көрсеткіштерді жазу', AppLocale.en: 'Log a reading'},
   'vitals_sub': {AppLocale.ru: 'Заполните то, что измерили — остальное можно пропустить.', AppLocale.kk: 'Өлшегеніңізді толтырыңыз — қалғанын өткізіп жіберуге болады.', AppLocale.en: 'Fill in whatever you measured — the rest can stay empty.'},
-  'vitals_systolic': {AppLocale.ru: 'Верхнее (мм рт. ст.)', AppLocale.kk: 'Жоғарғы (мм с.б.)', AppLocale.en: 'Systolic (mmHg)'},
-  'vitals_diastolic': {AppLocale.ru: 'Нижнее (мм рт. ст.)', AppLocale.kk: 'Төменгі (мм с.б.)', AppLocale.en: 'Diastolic (mmHg)'},
-  'vitals_hr': {AppLocale.ru: 'Пульс (уд/мин)', AppLocale.kk: 'Тамыр соғуы (соқ/мин)', AppLocale.en: 'Heart rate (bpm)'},
-  'vitals_spo2': {AppLocale.ru: 'Сатурация (%)', AppLocale.kk: 'Қанықтық (%)', AppLocale.en: 'Blood oxygen (%)'},
-  'vitals_temp': {AppLocale.ru: 'Температура (°C)', AppLocale.kk: 'Температура (°C)', AppLocale.en: 'Temperature (°C)'},
-  'vitals_glucose': {AppLocale.ru: 'Глюкоза (ммоль/л)', AppLocale.kk: 'Глюкоза (ммоль/л)', AppLocale.en: 'Glucose (mmol/L)'},
+  // Name and unit are SEPARATE. Baked into one label, the unit is what a
+  // 360dp two-column layout drops first: «Верхнее (мм рт. …» and «Глюкоза
+  // (ммоль…». The unit is the half that must survive — somebody reading a
+  // glucometer in mg/dL and typing it into a mmol/L field records a number
+  // eighteen times too large, and the app triages on these values.
+  'vitals_systolic': {AppLocale.ru: 'Верхнее', AppLocale.kk: 'Жоғарғы', AppLocale.en: 'Systolic'},
+  'vitals_diastolic': {AppLocale.ru: 'Нижнее', AppLocale.kk: 'Төменгі', AppLocale.en: 'Diastolic'},
+  'vitals_hr': {AppLocale.ru: 'Пульс', AppLocale.kk: 'Тамыр соғуы', AppLocale.en: 'Heart rate'},
+  'vitals_spo2': {AppLocale.ru: 'Сатурация', AppLocale.kk: 'Қанықтық', AppLocale.en: 'Blood oxygen'},
+  'vitals_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Температура', AppLocale.en: 'Temperature'},
+  'vitals_glucose': {AppLocale.ru: 'Глюкоза', AppLocale.kk: 'Глюкоза', AppLocale.en: 'Glucose'},
+  'vitals_u_mmhg': {AppLocale.ru: 'мм рт. ст.', AppLocale.kk: 'мм с.б.', AppLocale.en: 'mmHg'},
+  'vitals_u_bpm': {AppLocale.ru: 'уд/мин', AppLocale.kk: 'соқ/мин', AppLocale.en: 'bpm'},
+  'vitals_u_pct': {AppLocale.ru: '%', AppLocale.kk: '%', AppLocale.en: '%'},
+  'vitals_u_celsius': {AppLocale.ru: '°C', AppLocale.kk: '°C', AppLocale.en: '°C'},
+  'vitals_u_mmol': {AppLocale.ru: 'ммоль/л', AppLocale.kk: 'ммоль/л', AppLocale.en: 'mmol/L'},
   'vitals_err_range': {AppLocale.ru: 'Одно из значений вне допустимого диапазона — проверьте ввод.', AppLocale.kk: 'Мәндердің бірі рұқсат етілген ауқымнан тыс — тексеріңіз.', AppLocale.en: 'One of the values is outside the plausible range — please check it.'},
   'vitals_err_bp_pair': {AppLocale.ru: 'Укажите оба значения давления — верхнее и нижнее.', AppLocale.kk: 'Қысымның екі мәнін де көрсетіңіз.', AppLocale.en: 'Enter both blood-pressure values, upper and lower.'},
   'vitals_err_bp_order': {AppLocale.ru: 'Нижнее давление должно быть меньше верхнего — возможно, они переставлены.', AppLocale.kk: 'Төменгі қысым жоғарғыдан кіші болуы керек — орындары ауысып кеткен шығар.', AppLocale.en: 'The lower value must be below the upper one — they may be swapped.'},
