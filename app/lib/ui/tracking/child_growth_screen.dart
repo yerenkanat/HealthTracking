@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../../domain/child_growth.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 
 class ChildGrowthScreen extends StatelessWidget {
@@ -48,14 +49,17 @@ class ChildGrowthScreen extends StatelessWidget {
               label: Text(l.t('grw_add')),
             ),
       body: points.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(l.t('grw_empty'),
-                    textAlign: TextAlign.center,
-                    style:
-                        const TextStyle(color: Palette.textDim, height: 1.45)),
-              ),
+          // DsEmptyState, like every other empty screen in the app. This was
+          // one grey sentence adrift in the middle of a blank page, with the
+          // only way forward a floating button in the far corner — the two
+          // halves of the same thought at opposite ends of the screen. The
+          // shared widget puts the explanation and the action together and
+          // makes an empty slot look deliberate rather than unfinished.
+          ? ListView(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 96),
+              children: [
+                DsEmptyState(label: l.t('grw_empty'), onTap: onAdd),
+              ],
             )
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
