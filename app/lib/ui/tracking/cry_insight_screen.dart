@@ -112,6 +112,25 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
               Text(l.t('cry_intro'),
                   style: const TextStyle(
                       color: Palette.textDim, fontSize: 13.5, height: 1.5)),
+              const SizedBox(height: 10),
+              // Above the button, not below the result. This is the only screen
+              // in the app that records audio — inside somebody's home, of
+              // their baby — and where it goes has to be readable BEFORE the
+              // microphone opens. Consent that arrives afterwards is not
+              // consent.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.lock_outline_rounded,
+                      size: 14, color: Palette.textDim),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(l.t('cry_privacy'),
+                        style: const TextStyle(
+                            color: Palette.textDim, fontSize: 12, height: 1.45)),
+                  ),
+                ],
+              ),
               const SizedBox(height: 22),
               _MicButton(
                   phase: _phase,

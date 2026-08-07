@@ -535,6 +535,14 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cry_reason_discomfort': {AppLocale.ru: 'Дискомфорт', AppLocale.kk: 'Ыңғайсыздық', AppLocale.en: 'Discomfort'},
   'cry_reason_burping': {AppLocale.ru: 'Газы / срыгивание', AppLocale.kk: 'Газдар / кекіру', AppLocale.en: 'Burping / gas'},
   'cry_reason_unknown': {AppLocale.ru: 'Не определено', AppLocale.kk: 'Анықталмады', AppLocale.en: 'Undetermined'},
+  // Said where the microphone is, not only in a policy nobody opens before
+  // pressing a red button. Consent that arrives after the recording is not
+  // consent, and this is the one screen in the app that captures audio.
+  'cry_privacy': {
+    AppLocale.ru: 'Запись уходит на наш сервер только для разбора и не сохраняется — после ответа файла не остаётся.',
+    AppLocale.kk: 'Жазба тек талдау үшін біздің серверге жіберіледі және сақталмайды — жауаптан кейін файл қалмайды.',
+    AppLocale.en: 'The recording goes to our server for analysis only and is not stored — no file remains once you have the answer.',
+  },
   'cry_disclaimer': {AppLocale.ru: 'Подсказка носит справочный характер и не заменяет консультацию педиатра.', AppLocale.kk: 'Кеңес анықтамалық сипатта және педиатр кеңесін алмастырмайды.', AppLocale.en: 'This hint is for reference only and does not replace a paediatrician.'},
   'cry_history_title': {AppLocale.ru: 'Недавние проверки', AppLocale.kk: 'Соңғы тексерулер', AppLocale.en: 'Recent checks'},
   'cry_last': {AppLocale.ru: 'Последняя проверка: {reason}', AppLocale.kk: 'Соңғы тексеру: {reason}', AppLocale.en: 'Last check: {reason}'},
@@ -585,10 +593,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'By default your data stays on your phone. You can export a backup to a file — it is yours; keep it like a personal document.',
   },
   'legal_priv_cloud_h': {AppLocale.ru: 'Что уходит в облако', AppLocale.kk: 'Бұлтқа не жіберіледі', AppLocale.en: 'What goes to the cloud'},
+  // The cry recording was missing from this list.
+  //
+  // A privacy policy that names chat messages and band readings and stays
+  // silent about five seconds of audio recorded inside somebody's home, of
+  // their baby, is not a small omission — it is the most sensitive thing this
+  // app sends anywhere, and it was the one thing not disclosed.
+  //
+  // Written to what the code ACTUALLY does today: the clip is uploaded, decoded
+  // in memory and answered; neither the backend nor the classifier writes it to
+  // disk. docs/CLAUDE-app-design.md wants that analysis on the phone instead —
+  // until it is, this says where the audio goes rather than implying it stays.
   'legal_priv_cloud_b': {
-    AppLocale.ru: 'Только когда вы пользуетесь облачными функциями: сообщения ассистенту и показатели браслета для анализа. Мы не продаём ваши данные.',
-    AppLocale.kk: 'Тек бұлттық функцияларды пайдаланғанда: ассистентке жіберілген хабарлар мен талдауға арналған білезік көрсеткіштері. Деректеріңізді сатпаймыз.',
-    AppLocale.en: 'Only when you use cloud features: messages to the assistant and band readings for analysis. We do not sell your data.',
+    AppLocale.ru: 'Только когда вы пользуетесь облачными функциями: сообщения ассистенту, показатели браслета для анализа и запись плача — она отправляется на наш сервер, разбирается там и НЕ сохраняется: после ответа файла не остаётся ни у нас, ни у третьих лиц. Мы не продаём ваши данные.',
+    AppLocale.kk: 'Тек бұлттық функцияларды пайдаланғанда: ассистентке жіберілген хабарлар, талдауға арналған білезік көрсеткіштері және жылау жазбасы — ол біздің серверге жіберіледі, сонда талданады және САҚТАЛМАЙДЫ: жауаптан кейін файл бізде де, үшінші тұлғаларда да қалмайды. Деректеріңізді сатпаймыз.',
+    AppLocale.en: 'Only when you use cloud features: messages to the assistant, band readings for analysis, and the cry recording — it is sent to our server, analysed there and NOT stored: once you have the answer no file remains, with us or with anyone else. We do not sell your data.',
   },
   'legal_priv_medical_h': {AppLocale.ru: 'Не медицинский прибор', AppLocale.kk: 'Медициналық құрал емес', AppLocale.en: 'Not a medical device'},
   'legal_priv_medical_b': {
