@@ -268,14 +268,30 @@ describe('the course behind the gate', () => {
     }
   });
 
-  it('can be edited and removed', async () => {
+  it('can be edited, and taken down by unpublishing rather than deleting', async () => {
     const id = (await saveLesson(lesson())).json().id;
     await saveLesson(lesson({ id, titleRu: 'Переименовано' }));
     await grant(MY_PHONE);
     expect((await asApp()).json().lessons[0].titleRu).toBe('Переименовано');
 
-    await app.inject({ method: 'DELETE', url: `/admin/course/lessons/${id}`, headers: { cookie } });
+    // Published: deleting it is refused. Customers paid for this course, and a
+    // lesson vanishing from it mid-week is a refund conversation.
+    const refused = await app.inject({
+      method: 'DELETE', url: `/admin/course/lessons/${id}`, headers: { cookie },
+    });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json().error).toBe('has_history');
+    expect((await asApp()).json().lessons).toHaveLength(1);
+
+    // Unpublishing is what somebody actually wants, and it is reversible.
+    await saveLesson(lesson({ id, titleRu: 'Переименовано', published: false }));
     expect((await asApp()).json().lessons).toEqual([]);
+
+    // A draft nobody has watched has no history, so it can go for good.
+    const gone = await app.inject({
+      method: 'DELETE', url: `/admin/course/lessons/${id}`, headers: { cookie },
+    });
+    expect(gone.statusCode, gone.body).toBe(200);
   });
 
   it('cannot be written by a support account', async () => {
@@ -369,13 +385,33 @@ describe('the course behind the gate', () => {
       expect((await save({ lessonId: 'lesson-3', positionSeconds: 10 })).statusCode).toBe(400);
     });
 
-    it('goes away with the lesson it belongs to', async () => {
-      // The row cascades. An orphan would keep counting towards her "12 started"
-      // for a lesson that no longer exists.
+    it('is what stops the lesson being deleted at all', async () => {
+      // This used to delete the lesson through the route and assert her
+      // progress cascaded away with it. The cascade is real and still tested
+      // below — but it is the REASON the route now refuses. Her rows point at
+      // this id, so removing the lesson takes away a place she got to, and her
+      // "6 of 12 completed" quietly becomes 5 of 11.
       const id = await lessonId();
       await save({ lessonId: id, positionSeconds: 60 });
-      await app.inject({ method: 'DELETE', url: `/admin/course/lessons/${id}`, headers: { cookie } });
+      // Unpublish first, to isolate the watch-history rule from the
+      // published rule — otherwise this passes for the wrong reason.
+      await saveLesson(lesson({ id, published: false }));
 
+      const res = await app.inject({
+        method: 'DELETE', url: `/admin/course/lessons/${id}`, headers: { cookie },
+      });
+      expect(res.statusCode).toBe(409);
+      expect(res.json()).toMatchObject({ error: 'has_history', published: false, watchers: 1 });
+      expect(res.json().message).toContain('прогресс');
+    });
+
+    it('cascades when a lesson really is removed', async () => {
+      // The rule above is enforced at the route. The storage layer still has to
+      // cascade, or the day somebody deletes a lesson by hand in psql an orphan
+      // row keeps counting towards a "12 started" for a lesson that is gone.
+      const id = await lessonId();
+      await save({ lessonId: id, positionSeconds: 60 });
+      await repo.deleteCourseLesson(id);
       expect((await asApp()).json().progress).toEqual([]);
     });
 

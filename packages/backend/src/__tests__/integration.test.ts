@@ -117,6 +117,7 @@ function makeDeps(
     moveStock: async () => ({ ok: false as const, error: 'unknown_variant' as const }),
     stockMoves: async () => [],
     soldUnitsSince: async () => ({}),
+    courseLessonWatchers: async () => 0,
     userByPhone: async () => null,
     createUserWithPhone: async (a: { phone: string; displayName: string }) =>
       ({ id: 'user-1', displayName: a.displayName }),

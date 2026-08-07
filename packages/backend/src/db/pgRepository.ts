@@ -1798,6 +1798,12 @@ export function createPgRepository(pool: Pool): Repository {
       return { id: rows[0].id };
     },
 
+    async courseLessonWatchers(lessonId) {
+      const { rows } = await pool.query(
+        'SELECT count(*)::int AS n FROM course_progress WHERE lesson_id = $1', [lessonId]);
+      return Number(rows[0]?.n ?? 0);
+    },
+
     async deleteCourseLesson(id) {
       await pool.query('DELETE FROM course_lessons WHERE id = $1', [id]);
     },

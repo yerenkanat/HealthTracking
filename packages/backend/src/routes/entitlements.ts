@@ -214,6 +214,38 @@ export function registerEntitlementRoutes(
     const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const { id } = req.params as { id: string };
+
+    // «Ничего не удаляется … Полное удаление доступно только для сущностей без
+    // истории (неопубликованный урок, черновик).»
+    //
+    // Two different histories make a lesson undeletable, and they fail
+    // differently, so they are reported differently:
+    //
+    //   - it is PUBLISHED. Customers paid 9 200 ₸ over the hardware for this
+    //     course; a lesson vanishing from it mid-week is a refund conversation.
+    //     Unpublishing is reversible and is what somebody actually wants.
+    //   - somebody has WATCHED it. Her progress rows point at this id, so
+    //     removing it takes away a place she got to. The table cascades, which
+    //     means the rows go silently and her "6 of 12 completed" quietly
+    //     becomes 5 of 11.
+    const lessons = await repo.courseLessons('mama', false).catch(() => []);
+    const lesson = lessons.find((l) => l.id === id);
+    if (!lesson) return reply.code(404).send({ error: 'not_found' });
+
+    const watchers = await repo.courseLessonWatchers(id).catch(() => 0);
+    if (lesson.published || watchers > 0) {
+      return reply.code(409).send({
+        error: 'has_history',
+        published: lesson.published,
+        watchers,
+        message: lesson.published
+          ? 'Опубликованный урок нельзя удалить. Снимите с публикации — ' +
+            'он исчезнет у покупателей, но история просмотров сохранится.'
+          : `Урок смотрели ${watchers} чел. Удаление сотрёт их прогресс. ` +
+            'Снимите с публикации вместо удаления.',
+      });
+    }
+
     await repo.deleteCourseLesson(id);
     await repo.writeAudit({ staffId: s.staffId, action: 'course_lesson_delete', target: id });
     return reply.send({ ok: true });

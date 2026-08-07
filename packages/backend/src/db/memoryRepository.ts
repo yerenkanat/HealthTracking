@@ -1268,6 +1268,9 @@ const UUID_RE =
       return { id: row.id };
     },
 
+    courseLessonWatchers: async (lessonId) =>
+      [...progress.keys()].filter((k) => k.endsWith('|' + lessonId)).length,
+
     deleteCourseLesson: async (id) => {
       const i = lessons.findIndex((x) => x.id === id);
       if (i >= 0) lessons.splice(i, 1);

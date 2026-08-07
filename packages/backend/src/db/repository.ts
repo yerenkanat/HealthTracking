@@ -671,6 +671,16 @@ export interface Repository {
     published?: boolean;
   }): Promise<{ id: string }>;
   deleteCourseLesson(id: string): Promise<void>;
+  /**
+   * How many people have watch history against this lesson.
+   *
+   * The one question that decides whether a lesson may be deleted at all.
+   * «Ничего не удаляется … Полное удаление доступно только для сущностей без
+   * истории (неопубликованный урок, черновик)» — and a lesson somebody has
+   * watched has history: her progress rows point at it by id, so removing it
+   * leaves her course showing a place she got to in a lesson that is gone.
+   */
+  courseLessonWatchers(lessonId: string): Promise<number>;
 
   /// How far this phone has got, one row per lesson she has opened.
   ///

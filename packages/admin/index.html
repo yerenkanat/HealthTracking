@@ -3964,13 +3964,22 @@
 
       list.querySelectorAll(".ldel").forEach(b => b.addEventListener("click", async () => {
         const l = data.lessons.find(x => x.id === b.dataset.id);
-        // Deleting a lesson takes it away from people who paid for it, so it
-        // asks, and it names what is going.
-        if(!window.confirm(`Удалить урок «${l.titleRu}»? Он исчезнет у всех, кто купил комплект.`)) return;
+        // «Ничего не удаляется»: the server refuses a published lesson and one
+        // anybody has watched, and says which. Only a draft with no history
+        // gets this far, so the question is about a draft.
+        if(!window.confirm(`Удалить черновик «${l.titleRu}»? Это навсегда.`)) return;
         try{
-          await fetch(`/admin/course/lessons/${encodeURIComponent(l.id)}`,
+          const r = await fetch(`/admin/course/lessons/${encodeURIComponent(l.id)}`,
             { method:"DELETE", credentials:"same-origin" });
-        }catch(e){ /* redraw below shows the truth either way */ }
+          // Checked, not assumed. A silent 409 redrew an unchanged list and
+          // read as "nothing happened because there was nothing to do".
+          if(!r.ok){
+            const body = await r.json().catch(()=>({}));
+            msgTo("#lessonMsg", body.message || "Не удалось удалить урок.", "bad");
+            return;
+          }
+          msgTo("#lessonMsg", "Черновик удалён ✓", "ok");
+        }catch(e){ msgTo("#lessonMsg","Нет связи с сервером.","bad"); return; }
         renderCourse();
       }));
     }
