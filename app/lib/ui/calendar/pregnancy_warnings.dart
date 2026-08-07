@@ -16,6 +16,7 @@ import '../../domain/pregnancy_guide.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../widgets/call_ambulance.dart';
 
 /// The warning list in its own warm frame, set apart so surrounding reassurance
 /// never softens it. Always shows every sign, whatever the week.
@@ -89,7 +90,14 @@ class PregnancyWarningsScreen extends StatelessWidget {
       appBar: AppBar(backgroundColor: Palette.bg, title: Text(l.t('preg_warn_title'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: const [PregnancyWarningsCard()],
+        children: const [
+          PregnancyWarningsCard(),
+          SizedBox(height: 16),
+          // «Внизу — 103.» The list of signs ended here and left her to leave
+          // the app, find the dialler and remember the number — in the state of
+          // mind the list she has just read creates.
+          CallAmbulanceFooter(),
+        ],
       ),
     );
   }

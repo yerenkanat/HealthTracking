@@ -798,6 +798,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
 
   // Emergency screen
   'em_title': {AppLocale.ru: 'Срочное предупреждение о здоровье', AppLocale.kk: 'Шұғыл денсаулық ескертуі', AppLocale.en: 'Urgent health alert'},
+  // Under the call button on every red-flag screen. The digits are shown as
+  // well as dialled: if the dialler cannot open, she has still read them.
+  'em_ambulance_hint': {
+    AppLocale.ru: 'Скорая — {tel}. Звоните, если увидели у себя любой из этих признаков.',
+    AppLocale.kk: 'Жедел жәрдем — {tel}. Осы белгілердің кез келгенін байқасаңыз, қоңырау шалыңыз.',
+    AppLocale.en: 'Ambulance — {tel}. Call if you notice any of these signs.',
+  },
   'em_call_ambulance': {AppLocale.ru: 'Вызвать скорую', AppLocale.kk: 'Жедел жәрдем шақыру', AppLocale.en: 'Call ambulance'},
   // Spoken by a screen reader after the button's own label, so it has to be in
   // the same language as the rest of the sentence.

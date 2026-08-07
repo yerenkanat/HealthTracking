@@ -9,7 +9,11 @@ import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/tracking/child_illness_screen.dart';
 
 Future<void> pump(WidgetTester tester, int ageMonths, [AppLocale loc = AppLocale.ru]) async {
-  tester.view.physicalSize = const Size(880, 2600);
+  // Tall enough to build the whole list. A ListView does not build what is off
+  // screen, so a viewport that ends mid-page makes `find.text` report a widget
+  // as absent when it is merely below the fold — which is what adding the
+  // «Вызвать скорую» footer at the bottom did to the disclaimer under it.
+  tester.view.physicalSize = const Size(880, 3400);
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(

@@ -13,6 +13,7 @@ import '../../domain/child_illness.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../widgets/call_ambulance.dart';
 
 class ChildIllnessScreen extends StatelessWidget {
   final int ageMonths;
@@ -120,6 +121,13 @@ class ChildIllnessScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
+          // «Внизу — 103.» A parent who has just recognised her child in that
+          // list of red flags should not have to leave the app to find the
+          // number. Above the disclaimer, not below it: the action outranks
+          // the small print.
+          const CallAmbulanceFooter(),
           const SizedBox(height: 16),
 
           Text(l.t('ill_disclaimer'),
