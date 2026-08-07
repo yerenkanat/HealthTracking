@@ -213,12 +213,24 @@ void main() {
       expect(c.cycle.hasData, isTrue);
     });
 
-    testWidgets('the header shows the cycle-paused notice after a birth', (tester) async {
+    testWidgets('the cycle-paused notice is on the cycle calendar, where the gap is', (tester) async {
+      // A birth now opens the calendar on the child's development timeline —
+      // «родила — развитие вместо беременности». The paused notice explains why
+      // there are no predictions, and there are none to explain until she opens
+      // the cycle calendar, so that is where it lives.
       final c = controllerFor();
       logPeriod(c, DateTime(2025, 9, 1));
       c.addChild(ChildProfile(id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 2))));
       addTearDown(c.dispose);
       await tester.pumpWidget(wrap(c));
+
+      // Her recovery is on the screen she actually lands on — it is about HER,
+      // not about which calendar she is reading.
+      expect(find.textContaining('Recovery after birth'), findsOneWidget);
+      expect(find.text('Cycle paused after birth'), findsNothing);
+
+      await tester.tap(find.text('Cycle'));
+      await tester.pumpAndSettle();
       expect(find.text('Cycle paused after birth'), findsOneWidget);
       expect(find.textContaining('Recovery after birth'), findsOneWidget); // both, correctly
     });
@@ -471,6 +483,10 @@ void main() {
     c.addChild(ChildProfile(
         id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 30))));
     await tester.pumpWidget(wrap(c));
+    // The calendar opens on the child's development timeline after a birth, so
+    // reach the cycle screen — which is the screen this rule is about.
+    await tester.tap(find.text('Cycle'));
+    await tester.pumpAndSettle();
 
     // Both still said, and both still reachable…
     expect(find.text('Cycle paused after birth'), findsOneWidget);
@@ -601,6 +617,58 @@ void main() {
   /// could not look back at her cycle history, nobody could read ahead in the
   /// pregnancy calendar before setting a due date, and the third calendar was
   /// undiscoverable from the screen called "Calendar".
+  /// Which one opens, when more than one could.
+  ///
+  /// docs/CLAUDE-app-design.md: «Приоритет при конфликте: беременность →
+  /// развитие → цикл.» The screen used to skip the middle rung entirely —
+  /// `isPregnant ? pregnancy : cycle` — so a mother of a four-month-old opened
+  /// on a cycle that has not restarted, reading predictions for a body that is
+  /// not producing them yet, while the timeline she wanted sat behind a bar she
+  /// had no reason to look at.
+  group('the calendar opens on the stage she is at', () {
+    testWidgets('pregnant outranks everything', (tester) async {
+      final c = controllerFor(dueDate: today.add(const Duration(days: 140)));
+      c.addChild(ChildProfile(
+          id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 400))));
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      expect(find.text('Week 20, Day 0'), findsOneWidget);
+    });
+
+    testWidgets('a child with a birth date outranks the cycle', (tester) async {
+      final c = controllerFor();
+      c.addChild(ChildProfile(
+          id: 'k', name: 'Baby', dateOfBirth: today.subtract(const Duration(days: 120))));
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      // The development timeline, not the month grid: no cycle legend is drawn
+      // because no cycle calendar is on screen.
+      expect(find.text('Cycle paused after birth'), findsNothing);
+      expect(find.textContaining('Recovery after birth'), findsOneWidget);
+    });
+
+    testWidgets('a child with no birth date falls through to the cycle', (tester) async {
+      // There is no age to place her on the timeline, so a development calendar
+      // is not possible — falling through is right rather than a hole.
+      final c = controllerFor();
+      c.addChild(ChildProfile(id: 'k', name: 'Baby'));
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      // 'Log period' is the cycle screen's own action — it is rendered only in
+      // cycle mode, so it is a marker that cannot be true of the other two.
+      expect(find.text('Log period'), findsOneWidget);
+    });
+
+    testWidgets('neither: the cycle', (tester) async {
+      final c = controllerFor();
+      addTearDown(c.dispose);
+      await tester.pumpWidget(wrap(c));
+      // 'Log period' is the cycle screen's own action — it is rendered only in
+      // cycle mode, so it is a marker that cannot be true of the other two.
+      expect(find.text('Log period'), findsOneWidget);
+    });
+  });
+
   group('all three calendars are reachable', () {
     testWidgets('the switch offers all three, whatever her state', (tester) async {
       final c = controllerFor(); // not pregnant, no children

@@ -112,8 +112,25 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
   }
 
   /// The mode actually shown: her choice, or the one her state implies.
-  CalendarMode _modeFor(AppController c) =>
-      _picked ?? (c.isPregnant ? CalendarMode.pregnancy : CalendarMode.cycle);
+  ///
+  /// docs/CLAUDE-app-design.md: «Режим определяется этапом … родила — развитие
+  /// вместо беременности; цикл возвращается после первых месячных. Приоритет
+  /// при конфликте: беременность → развитие → цикл.»
+  ///
+  /// This was `isPregnant ? pregnancy : cycle`, which skipped the middle rung
+  /// entirely: a mother of a four-month-old opened the calendar on a cycle that
+  /// has not restarted, showing predictions for a body that is not producing
+  /// them yet — and the development timeline she actually wants was a tap away
+  /// behind a bar she has no reason to look at.
+  CalendarMode _modeFor(AppController c) {
+    if (_picked != null) return _picked!;
+    if (c.isPregnant) return CalendarMode.pregnancy;
+    // A child with a birth date is what makes a development calendar possible;
+    // without one there is no age to place her on the timeline, so falling
+    // through to cycle is right rather than a hole.
+    if (_devChild(c) != null) return CalendarMode.child;
+    return CalendarMode.cycle;
+  }
 
   /// The child whose development calendar is shown — the selected one when it
   /// has a birth date, otherwise the first child that does.
@@ -272,6 +289,29 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                   onPick: (m) => setState(() => _picked = m),
                 ),
                 const SizedBox(height: 12),
+
+                // Her recovery follows HER, not whichever calendar she happens
+                // to be reading.
+                //
+                // It lived inside the cycle header, so the moment a newborn
+                // made the development timeline the default — which is what
+                // «родила — развитие вместо беременности» asks for — the one
+                // thing on this screen that is about the MOTHER disappeared
+                // behind a tab, on exactly the screen a woman six weeks after
+                // giving birth opens most.
+                if (childMode && _recentBirth(c) != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: DsCard(
+                      child: _RecoveryLink(
+                        inDays: daysUntilCheck(daysSinceBirth(_recentBirth(c)!, _today)),
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => PostpartumScreen(
+                              birthDate: _recentBirth(c)!, today: _today),
+                        )),
+                      ),
+                    ),
+                  ),
 
                 if (childMode) ...[
                   if (_devChild(c) case final child?) ...[
