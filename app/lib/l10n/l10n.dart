@@ -2602,6 +2602,17 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'CS_PRETEEN_LOCATION_b': {AppLocale.ru: 'Договоритесь о чётких правилах: геолокация остаётся включённой.', AppLocale.kk: 'Айқын келісіңіз: геолокация қосулы қалады.', AppLocale.en: 'Set clear expectations about keeping location sharing on.'},
 
   // Tracking
+  // No child added yet — the ordinary state for a first-time expectant
+  // mother. Written out rather than substituting a noun into the sentences
+  // above: Russian needs the nominative in one and the genitive in the other,
+  // and Kazakh has the same problem.
+  'child_generic': {AppLocale.ru: 'ребёнок', AppLocale.kk: 'бала', AppLocale.en: 'your child'},
+  'tr_title_nochild': {AppLocale.ru: 'Где ребёнок?', AppLocale.kk: 'Бала қайда?', AppLocale.en: 'Where is your child?'},
+  'tr_waiting_nochild': {
+    AppLocale.ru: 'Ожидание местоположения…',
+    AppLocale.kk: 'Орналасуын күту…',
+    AppLocale.en: 'Waiting for a location…',
+  },
   'tr_title': {AppLocale.ru: 'Где {name}?', AppLocale.kk: '{name} қайда?', AppLocale.en: 'Where is {name}?'},
   'fresh_live': {AppLocale.ru: 'В сети', AppLocale.kk: 'Желіде', AppLocale.en: 'Live'},
   'fresh_recent': {AppLocale.ru: 'Недавно', AppLocale.kk: 'Жақында', AppLocale.en: 'Recent'},
@@ -2758,9 +2769,13 @@ class L10n {
       : t('tr_dist_m', {'m': meters.round()});
 
   /// Localized tracking headline composed from structured status fields.
-  String trackingHeadline(ChildStatus status, String childName, DateTime now) {
+  String trackingHeadline(ChildStatus status, String childName, DateTime now,
+      {bool named = true}) {
     if (status.location == null || status.updatedAt == null) {
-      return t('tr_waiting', {'name': childName});
+      // With no child added there is no name to decline into the sentence, so
+      // the waiting line is written without one rather than reading
+      // "Ожидание местоположения ребёнок…".
+      return named ? t('tr_waiting', {'name': childName}) : t('tr_waiting_nochild');
     }
     final age = now.difference(status.updatedAt!);
     final agoStr = agoIfKnown(age);

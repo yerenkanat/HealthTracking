@@ -27,6 +27,12 @@ typedef ChildOption = ({String id, String name});
 
 class ChildMapScreen extends StatelessWidget {
   final String childName;
+
+  /// False when no child has been added yet, which is the ordinary state for a
+  /// first-time expectant mother. The title and the waiting line then use
+  /// wording that needs no name, because no generic noun declines correctly in
+  /// both Russian sentences.
+  final bool hasNamedChild;
   final Coordinates? childLocation;
   final DateTime? updatedAt;
   final List<Geofence> fences;
@@ -58,6 +64,7 @@ class ChildMapScreen extends StatelessWidget {
   const ChildMapScreen({
     super.key,
     required this.childName,
+    this.hasNamedChild = true,
     required this.childLocation,
     required this.updatedAt,
     required this.fences,
@@ -99,7 +106,9 @@ class ChildMapScreen extends StatelessWidget {
       backgroundColor: Palette.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: _FloatingTitle(l.t('tr_title', {'name': childName})),
+        title: _FloatingTitle(hasNamedChild
+            ? l.t('tr_title', {'name': childName})
+            : l.t('tr_title_nochild')),
         actions: [
           if (onOpenAlerts != null)
             Padding(
@@ -221,7 +230,7 @@ class ChildMapScreen extends StatelessWidget {
                 ],
                 MinimalTrackingStatusBar(
                   freshness: status.freshness,
-                  headline: l.trackingHeadline(status, childName, now),
+                  headline: l.trackingHeadline(status, childName, now, named: hasNamedChild),
                   zoneLabel: status.currentZone == null
                       ? null
                       : l.t('tr_inside_zone', {'zone': status.currentZone}),

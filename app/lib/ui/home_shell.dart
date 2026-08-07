@@ -192,6 +192,7 @@ class _HomeShellState extends State<HomeShell> {
       ),
       ChildMapScreen(
         childName: c.childName,
+        hasNamedChild: c.hasNamedChild,
         childLocation: loc?.coords,
         updatedAt: loc?.at,
         fences: c.geofences,

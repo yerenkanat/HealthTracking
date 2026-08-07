@@ -695,7 +695,27 @@ class AppController {
     return _children.firstWhere((c) => c.id == _selectedChildId, orElse: () => _children.first);
   }
 
-  String get childName => selectedChild?.name ?? 'your child';
+  /// Is there actually a child to name?
+  ///
+  /// The screens that put the name INTO a sentence need to know, because no
+  /// single generic noun fits: Russian wants "Где ребёнок?" in the nominative
+  /// and "местоположения ребёнка" in the genitive, and Kazakh has the same
+  /// problem. They use their own no-child wording instead of declining a word
+  /// we substituted.
+  bool get hasNamedChild => selectedChild != null;
+
+  /// The selected child's name, or a generic one in HER language.
+  ///
+  /// The fallback used to be the English literal 'your child', dropped
+  /// untranslated into Russian and Kazakh sentences — so the Child tab greeted
+  /// a Russian-speaking mother with "Где your child?" and "Ожидание
+  /// местоположения your child…". That is the default state for anyone who has
+  /// not added a child yet, which includes every first-time expectant mother:
+  /// the most likely person to have just installed a pregnancy app.
+  ///
+  /// verify_ui_strings could not see it — it reads literals at their use site,
+  /// and this one is built at runtime three files away.
+  String get childName => selectedChild?.name ?? L10n(_locale).t('child_generic');
   List<Geofence> get geofences => selectedChild?.geofences ?? const [];
 
   void selectChild(String id) {
