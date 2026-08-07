@@ -187,6 +187,14 @@ export function createPgRepository(pool: Pool): Repository {
       );
     },
 
+    async pruneLocationHistory(cutoffIso) {
+      // The DELETE that has lived in db/schema.sql as a comment since the
+      // Timescale retention policy was dropped. A comment prunes nothing.
+      const { rowCount } = await pool.query(
+        'DELETE FROM location_history WHERE observed_at < $1', [cutoffIso]);
+      return rowCount ?? 0;
+    },
+
     async lastLocation(childId) {
       const { rows } = await pool.query(
         `SELECT child_id, observed_at, lat, lng, source, accuracy_m

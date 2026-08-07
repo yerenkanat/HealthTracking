@@ -428,6 +428,22 @@ export interface Repository {
   /// Without it, a cache outage turned "where is my child" into a 500, which
   /// is the one question this service exists to answer.
   lastLocation(childId: string): Promise<ChildLocationFix | null>;
+  /**
+   * Delete location fixes observed before [cutoffIso]. Returns how many went.
+   *
+   * The privacy promise the app makes — «Маршруты хранятся 90 дней» — and the
+   * only one of its promises that has to be kept by DOING something on a
+   * schedule rather than by not doing something. db/schema.sql has carried the
+   * DELETE as a comment since the Timescale retention policy was dropped, and
+   * a comment prunes nothing: every child's trail has been accumulating since
+   * the first fix.
+   *
+   * Deliberately takes the cutoff rather than computing it. A retention window
+   * that reads the clock cannot be tested against a fixed set of rows, and
+   * "90 days" is exactly the kind of number that has to be exercised at its
+   * boundary.
+   */
+  pruneLocationHistory(cutoffIso: string): Promise<number>;
 
   // Push
   /// Push targets for a child's guardian, WITH the language they read in.

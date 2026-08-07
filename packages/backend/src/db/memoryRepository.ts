@@ -555,6 +555,26 @@ const UUID_RE =
     // cache, and a repo that threw the fix away could not exercise it.
     insertLocation: async (fix) => void locations.set(fix.childId, fix),
     lastLocation: async (childId) => locations.get(childId) ?? null,
+    /**
+     * The dev fake keeps only the newest fix per child rather than a trail, so
+     * pruning here drops a cached fix that has aged past the window.
+     *
+     * Not a pretend implementation: what a caller can OBSERVE is the same —
+     * ask for a location older than the retention window and it is gone. A
+     * fake that returned 0 and kept the row would let the sweep's wiring pass
+     * a test while doing nothing against Postgres, which is the failure this
+     * whole feature is.
+     */
+    pruneLocationHistory: async (cutoffIso) => {
+      let removed = 0;
+      for (const [childId, fix] of [...locations.entries()]) {
+        if (fix.observedAt < cutoffIso) {
+          locations.delete(childId);
+          removed++;
+        }
+      }
+      return removed;
+    },
     // Push / AI / emergency
     guardianPushTokens: async () => ({ tokens: [], childName: children[0]?.name ?? '', locale: profile?.locale ?? null }),
     guardianPushTokensForUser: async () => ({ tokens: [], locale: profile?.locale ?? null }),

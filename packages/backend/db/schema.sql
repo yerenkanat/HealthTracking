@@ -254,9 +254,17 @@ CREATE TABLE location_history (                    -- child location timeseries
 -- (Was a Timescale hypertable on observed_at; a plain table with the same index
 -- is equivalent. Prune > 90d with a scheduled DELETE rather than a drop policy.)
 CREATE INDEX idx_loc_child_time ON location_history (child_id, observed_at DESC);
--- Privacy retention: prune location trails older than 90 days. This was a
--- Timescale retention policy; on plain Postgres run the equivalent as a scheduled
--- job (pg_cron, or an app cron):
+-- Privacy retention: location trails older than 90 days are deleted, which is
+-- what the app's privacy policy promises every user.
+--
+-- This was a Timescale retention policy. When that went, the DELETE was left
+-- here as a COMMENT with a note to run it "as a scheduled job (pg_cron, or an
+-- app cron)" — and neither was ever set up, so every child's trail accumulated
+-- from the first fix. A note is not a job.
+--
+-- It now runs in the backend: src/privacy/retention.ts, started by buildServer
+-- and swept every six hours. Nothing needs to be scheduled by hand. If you ever
+-- want to run it manually, this is the same statement:
 --   DELETE FROM location_history WHERE observed_at < now() - INTERVAL '90 days';
 
 -- Debounced geofence crossing log (written only on real state transitions).
