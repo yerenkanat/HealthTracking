@@ -120,6 +120,8 @@ function makeDeps(
     deviceRegistryEntry: async () => null,
     addDeviceSerials: async () => ({ added: 0, skipped: 0 }),
     markDeviceActivated: async () => true,
+    assignDevicesToOrder: async () => ({ linked: [], unknown: [] }),
+    devicesForOrder: async () => [],
     setDeviceRegistryStatus: async () => {},
     listDeviceRegistry: async () => [],
     deviceByActivationCode: async () => null,

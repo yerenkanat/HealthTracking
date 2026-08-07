@@ -427,6 +427,27 @@ const UUID_RE =
       if (row) row.status = status;
     },
 
+    assignDevicesToOrder: async (orderId, serials) => {
+      const linked: string[] = [];
+      const unknown: string[] = [];
+      for (const raw of serials) {
+        const serial = normalizeSerial(raw);
+        if (!serial) continue;
+        const row = registry.get(serial);
+        // Reported back rather than swallowed: an unrecognised serial is almost
+        // always a typo on the packing slip, and catching it at dispatch is the
+        // difference between a correction and a support case.
+        if (!row) { unknown.push(serial); continue; }
+        row.orderId = orderId;
+        linked.push(serial);
+      }
+      return { linked, unknown };
+    },
+
+    devicesForOrder: async (orderId) => [...registry.values()]
+        .filter((r) => r.orderId === orderId)
+        .sort((a, b) => a.serial.localeCompare(b.serial)),
+
     listDeviceRegistry: async (limit) => [...registry.values()]
         .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
         .slice(0, limit),

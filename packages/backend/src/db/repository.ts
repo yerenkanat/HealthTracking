@@ -776,6 +776,17 @@ export interface Repository {
   /// single-use.
   markDeviceActivated(serial: string, phone: string): Promise<boolean>;
   setDeviceRegistryStatus(serial: string, status: 'stock' | 'sold' | 'blocked'): Promise<void>;
+  /// Record which physical units went out with an order.
+  ///
+  /// Done at DISPATCH, not at intake: at intake there is no order yet. This is
+  /// the link that lets support answer "she says her tracker is broken — which
+  /// one did we send her, and when?", which nothing could answer before.
+  ///
+  /// Returns the serials it did NOT recognise, so the packer is told rather
+  /// than a typo being swallowed into a row nobody will ever look at.
+  assignDevicesToOrder(orderId: string, serials: string[]): Promise<{ linked: string[]; unknown: string[] }>;
+  /// The units sent with an order. The other direction of the same question.
+  devicesForOrder(orderId: string): Promise<DeviceRegistryRow[]>;
   listDeviceRegistry(limit: number): Promise<DeviceRegistryRow[]>;
   /// The unit carrying this activation code, or null. For the fallback path:
   /// units already in the wild whose serial nobody captured.

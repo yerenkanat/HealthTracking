@@ -224,3 +224,55 @@ describe('the back office can see and block a unit', () => {
     expect(audit.some((a) => a.action === 'device_blocked')).toBe(true);
   });
 });
+
+/// Which units went out with which order.
+///
+/// The registry knew the unit and the order knew the customer, and the two
+/// never met — so "she says her tracker is broken; which one did we send her?"
+/// had no answer anywhere in the system.
+describe('linking a unit to the order it shipped with', () => {
+  const ORDER = '11111111-1111-1111-1111-111111111111';
+
+  const assign = (serials: string) =>
+    app.inject({
+      method: 'POST', url: `/admin/shop/orders/${ORDER}/devices`,
+      payload: { serials }, headers: { cookie },
+    });
+
+  it('answers both directions of the question', async () => {
+    await receive('AA:BB:CC:00:01:01\nAA:BB:CC:00:01:02');
+    const res = await assign('AA:BB:CC:00:01:01, AA:BB:CC:00:01:02');
+    expect(res.json().linked).toHaveLength(2);
+
+    // order -> devices
+    const forOrder = await app.inject({
+      method: 'GET', url: `/admin/shop/orders/${ORDER}/devices`, headers: { cookie },
+    });
+    expect(forOrder.json().devices.map((d: { serial: string }) => d.serial))
+      .toEqual(['AABBCC000101', 'AABBCC000102']);
+
+    // device -> order
+    expect((await repo.deviceRegistryEntry('AABBCC000101'))?.orderId).toBe(ORDER);
+  });
+
+  it('reports a serial it does not recognise instead of swallowing it', async () => {
+    // A typo on a packing slip that is silently accepted becomes a warranty
+    // case nobody can trace. Catching it at dispatch is a correction.
+    await receive('AA:BB:CC:00:01:03');
+    const res = await assign('AA:BB:CC:00:01:03\nAA:BB:CC:99:99:99');
+
+    expect(res.json().linked).toEqual(['AABBCC000103']);
+    expect(res.json().unknown).toEqual(['AABBCC999999']);
+  });
+
+  it('takes the serial however the packer wrote it', async () => {
+    await receive('aa-bb-cc-00-01-04');
+    expect((await assign('AA:BB:CC:00:01:04')).json().linked).toEqual(['AABBCC000104']);
+  });
+
+  it('is admin-only', async () => {
+    expect((await app.inject({
+      method: 'POST', url: `/admin/shop/orders/${ORDER}/devices`, payload: { serials: 'AA' },
+    })).statusCode).toBe(401);
+  });
+});

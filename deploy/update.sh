@@ -132,6 +132,7 @@ check "/admin" 'courseProgressCell'      "the access list shows who is watching"
 check "/admin" 'stageGapRows'            "Аналитика shows where the users are"
 check "/admin" 'prodSku'                 "the warehouse can record an article code"
 check "/admin" 'serialForm'              "the warehouse can record device serials"
+check "/admin" 'oserial'                 "an order can record what shipped in it"
 
 echo
 echo "==> Routes the PROXY must pass through"

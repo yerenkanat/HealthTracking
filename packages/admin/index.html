@@ -436,6 +436,10 @@
   .addbtn.okflash{border-color:var(--good-text);color:var(--good-text)}
   .ordercard{border:1px solid var(--hair);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--surface-2)}
   .ordertop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  /* Serials recorded at dispatch. Wraps on a narrow screen rather than pushing
+     the button off the card — orders get packed on a phone. */
+  .orderdev{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+  .orderdev input{flex:1;min-width:180px;font-family:ui-monospace,monospace;font-size:12px}
   .ostatus{font:inherit;font-size:12.5px;font-weight:600;padding:5px 8px;border-radius:8px;border:1px solid var(--hair);background:var(--surface);color:var(--ink)}
   .audiobar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
   .seg{display:inline-flex;border:1px solid var(--hair);border-radius:11px;overflow:hidden;background:var(--surface-2);padding:3px;gap:3px}
@@ -3103,6 +3107,17 @@
       <div class="t" style="margin:6px 0">${items}</div>
       <div class="ordertop"><span class="t">${stamp(o.createdAt)}</span>
         <select class="ostatus" data-oid="${esc(o.id)}" aria-label="Статус заказа">${opts}</select></div>
+      <!-- Which physical units went in the box.
+           Recorded when it is packed, because at intake there is no order yet.
+           Without it the registry knows the unit and the order knows the
+           customer, and nothing connects them — so "её трекер сломался, какой
+           именно мы ей отправили?" has no answer. -->
+      <div class="orderdev">
+        <input class="oserial" data-oid="${esc(o.id)}" placeholder="Серийные номера в посылке"
+               aria-label="Серийные номера, отправленные с заказом">
+        <button type="button" class="btn sm ghost osave" data-oid="${esc(o.id)}">Привязать</button>
+        <span class="t osmsg" data-oid="${esc(o.id)}"></span>
+      </div>
     </div>`;
   }
   async function renderSettings(){
@@ -3335,6 +3350,32 @@
       waiting+=fresh;
       document.getElementById("shopOrdersSub").textContent=orders.length?(orders.length+" · новых: "+fresh):"нет заказов";
       owrap.innerHTML=orders.length?orders.map(shopOrderRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заказов пока нет</div>`;
+      // Recording what went in the box. The unrecognised serials come back and
+      // are shown: a typo on a packing slip that is silently accepted becomes a
+      // warranty case nobody can trace.
+      owrap.querySelectorAll(".osave").forEach(btn=>{
+        btn.onclick=async()=>{
+          const oid=btn.dataset.oid;
+          const input=owrap.querySelector(`.oserial[data-oid="${CSS.escape(oid)}"]`);
+          const msg=owrap.querySelector(`.osmsg[data-oid="${CSS.escape(oid)}"]`);
+          if(!input || !input.value.trim()) return;
+          btn.disabled=true; msg.textContent="Сохранение…";
+          try{
+            const r=await apiSend("/admin/shop/orders/"+encodeURIComponent(oid)+"/devices",
+              "POST",{serials:input.value});
+            const bad=(r.unknown||[]).length;
+            msg.textContent=`Привязано: ${(r.linked||[]).length}`
+              + (bad ? ` · не найдены: ${r.unknown.join(", ")}` : "");
+            msg.style.color = bad ? "var(--warn-text)" : "var(--good-text)";
+            if(!bad) input.value="";
+          }catch(e){
+            msg.textContent="Не удалось сохранить.";
+            msg.style.color="var(--crit-text)";
+          }
+          btn.disabled=false;
+        };
+      });
+
       owrap.querySelectorAll(".ostatus").forEach(sel=>{
         // Remember what the server has, so a failed save can be put back.
         const was=sel.value;

@@ -313,6 +313,30 @@ export function createPgRepository(pool: Pool): Repository {
         [normalizeSerial(serial), status]);
     },
 
+    async assignDevicesToOrder(orderId, serials) {
+      const linked: string[] = [];
+      const unknown: string[] = [];
+      for (const raw of serials) {
+        const serial = normalizeSerial(raw);
+        if (!serial) continue;
+        const res = await pool.query(
+          'UPDATE device_registry SET order_id = $2 WHERE serial = $1', [serial, orderId]);
+        // A serial we do not recognise is reported back, not swallowed: it is
+        // almost always a typo on the packing slip, and finding that out at
+        // dispatch is the difference between a correction and a support case.
+        (res.rowCount ? linked : unknown).push(serial);
+      }
+      return { linked, unknown };
+    },
+
+    async devicesForOrder(orderId) {
+      const { rows } = await pool.query(
+        `SELECT serial, status, kind, activation_code, order_id, received_at,
+                activated_by_phone, activated_at, note
+           FROM device_registry WHERE order_id = $1 ORDER BY serial`, [orderId]);
+      return rows.map(toRegistryRow);
+    },
+
     async listDeviceRegistry(limit) {
       const { rows } = await pool.query(
         `SELECT serial, status, kind, activation_code, order_id, received_at,

@@ -627,6 +627,42 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.send({ ok: true });
   });
 
+  /**
+   * Which physical units went out with this order.
+   *
+   * Recorded at DISPATCH — at intake there is no order yet. It is the link that
+   * answers "she says her tracker is broken; which one did we send her, and
+   * when?", which nothing in the system could answer before: the registry knew
+   * the unit and the order knew the customer, and the two never met.
+   */
+  app.get('/admin/shop/orders/:id/devices', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    // Audited: an order names a customer, so "which devices went to this order"
+    // is a read about a person, not an aggregate.
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_order_devices', target: id });
+    return reply.send({ devices: await repo.devicesForOrder(id) });
+  });
+
+  app.post('/admin/shop/orders/:id/devices', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const parsed = z.object({ serials: z.string().min(1).max(5000) }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'bad_request' });
+
+    const serials = parsed.data.serials.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+    if (serials.length === 0) return reply.code(400).send({ error: 'no_serials' });
+
+    const result = await repo.assignDevicesToOrder(id, serials);
+    await repo.writeAudit({ staffId: s.staffId, action: 'order_devices', target: id });
+    // The unrecognised ones come back so the packer sees them. A typo on a
+    // packing slip that is silently accepted becomes a warranty case nobody
+    // can trace.
+    return reply.send({ ok: true, ...result });
+  });
+
   // Landing-page callback requests ("перезвоним сами"). A queue of phone numbers
   // to work through, not orders — staff call, then mark what came of it.
   app.get('/admin/shop/leads', async (req, reply) => {

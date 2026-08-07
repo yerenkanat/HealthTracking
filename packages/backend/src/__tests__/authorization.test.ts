@@ -71,6 +71,8 @@ function makeApp(callerId: string) {
     // the case the route must survive — see the try/catch there.
     deviceRegistryEntry: async () => null,
     markDeviceActivated: async () => true,
+    assignDevicesToOrder: async () => ({ linked: [], unknown: [] }),
+    devicesForOrder: async () => [],
     insertHealthMetric: async () => false,
     insertBpCalibration: async () => {},
     latestBpCalibration: async () => null,
