@@ -838,6 +838,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'db_share': {AppLocale.ru: 'Поделиться сводкой', AppLocale.kk: 'Қорытындымен бөлісу', AppLocale.en: 'Share summary'},
   // ---- Watch activity & wellness metrics (wm_*) ----
   'wm_title': {AppLocale.ru: 'Активность и самочувствие', AppLocale.kk: 'Белсенділік және көңіл-күй', AppLocale.en: 'Activity & wellness'},
+  // «Свежесть данных подписана всегда» — a heart rate with no time on it is
+  // read as 'now', and a reading six hours old is a different fact entirely.
+  'db_vitals_as_of': {
+    AppLocale.ru: 'Показания: {when}',
+    AppLocale.kk: 'Көрсеткіштер: {when}',
+    AppLocale.en: 'Readings: {when}',
+  },
   'db_vitals_section': {AppLocale.ru: 'Показатели', AppLocale.kk: 'Көрсеткіштер', AppLocale.en: 'Vital signs'},
   'db_zone_care': {AppLocale.ru: 'Наблюдение', AppLocale.kk: 'Бақылау', AppLocale.en: 'Care'},
   'db_zone_tools': {AppLocale.ru: 'Инструменты', AppLocale.kk: 'Құралдар', AppLocale.en: 'Tools'},

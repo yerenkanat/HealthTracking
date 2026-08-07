@@ -254,6 +254,16 @@ class HealthDashboardView extends StatelessWidget {
                   // of cards. The not-measuring note sits under it, since it is
                   // about these readings.
                   _SectionLabel(L10nScope.of(context).t('db_vitals_section')),
+                  const SizedBox(height: 6),
+                  // «Свежесть данных подписана всегда («2 минуты назад»).»
+                  //
+                  // The four cards below showed a number and no time, so a
+                  // heart rate of 118 read as "now" whether it was measured a
+                  // minute ago or last night. One line for the group rather
+                  // than four timestamps: they all come off the same sample,
+                  // and repeating it four times is noise that stops being read.
+                  _VitalsFreshness(
+                      samples: samples, now: nowForAppointment ?? DateTime.now()),
                   const SizedBox(height: 10),
                   if (bandNotMeasuring) ...[
                     const _NotMeasuringChip(),
@@ -1159,6 +1169,51 @@ class _StatTile extends StatelessWidget {
 
 /// A quiet amber line telling her the wearable is not delivering readings right
 /// now, so the numbers below may be stale — not an error, just honesty.
+/// When the vitals below were measured.
+///
+/// «Свежесть данных подписана всегда» — and the case that matters most is the
+/// one with no readings at all, where four cards of dashes used to say nothing
+/// about why. It is amber past a day: stale, and «Батарейка, потеря связи,
+/// пропущенный скрининг — янтарные» is the same family of "something needs
+/// attention and nobody is in danger".
+class _VitalsFreshness extends StatelessWidget {
+  final List<HealthSample> samples;
+  final DateTime now;
+  const _VitalsFreshness({required this.samples, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    // No empty branch: this whole section only renders when there is at least
+    // one sample — a dashboard with none shows _EmptyState instead, which
+    // already gives the reason and the one action. A second empty state here
+    // would be unreachable code pretending to be a safety net.
+    if (samples.isEmpty) return const SizedBox.shrink();
+    // The newest sample, not the last in the list: nothing guarantees the order
+    // of what the band flushed, and sorting by hand here is cheaper than
+    // trusting every producer to.
+    final at = samples.map((s) => s.at).reduce((a, b) => a.isAfter(b) ? a : b);
+    final age = now.difference(at);
+    // A clock that disagrees returns null rather than «через 3 часа», and a
+    // reading with no describable age is better left unlabelled than mislabelled.
+    final when = l.agoIfKnown(age.isNegative ? Duration.zero : age);
+    if (when == null) return const SizedBox.shrink();
+
+    final stale = age.inHours >= 24;
+    return Text(
+      l.t('db_vitals_as_of', {'when': when}),
+      style: TextStyle(
+        // Ds.amberText, not Palette.amber: the bright amber is a FILL, and at
+        // 12px on white it measures 2.51:1 — the accessibility sweep caught it.
+        color: stale ? Ds.amberText : Palette.textDim,
+        fontSize: 12,
+        height: 1.4,
+        fontWeight: stale ? FontWeight.w600 : FontWeight.w400,
+      ),
+    );
+  }
+}
+
 class _NotMeasuringChip extends StatelessWidget {
   const _NotMeasuringChip();
 
