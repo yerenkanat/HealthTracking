@@ -1,3 +1,13 @@
+<!-- docs/CLAUDE-admin-design.md §3. Manrope for the interface, JetBrains Mono
+     for anything an operator reads character by character: order numbers,
+     article codes, serials, timestamps, API keys.
+
+     preconnect + display=swap so a slow or blocked CDN costs nothing — the
+     --sans/--mono custom properties keep system fallbacks behind these, and the
+     panel renders identically in shape if the fonts never arrive. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   /* hidden means hidden.
      ------------------------------------------------------------------------
@@ -21,35 +31,59 @@
   .alertwarn svg{width:20px;height:20px;color:var(--warn-text);flex:0 0 auto;margin-top:1px}
   .alertwarn b{color:var(--warn-text)}
 
+  /* docs/CLAUDE-admin-design.md.
+     Deliberately NOT the app's warm palette: an operator looks at this for
+     eight hours and works from the keyboard, so it is dense tables, small
+     radii, tabular figures and colour only where it means something. */
   :root{
-    --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
-    --hair:#ECEDF3; --accent:#C15A47; --accent-soft:#F6E7E1;
-    --crit:#E5484D; --warn:#E0930B; --good:#17A672;
-    --crit-soft:#FCECEC; --warn-soft:#FBF1E1; --good-soft:#E6F5EE;
-    /* Text-safe (WCAG AA on white/tints): darkened for foreground use; the base
-       --accent/--good/--warn/--crit stay bright for fills, dots and bars. */
-    --accent-text:#A5482F; --good-text:#0B7A50; --warn-text:#8A5A00; --crit-text:#C0362F;
-    --shadow:0 8px 24px -12px rgba(27,29,40,.14);
-    --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
-    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
-    --r:16px;
+    --bg:#E8E4E0; --work:#F4F1EE; --surface:#FFFFFF; --surface-2:#FAF8F6;
+    --ink:#1E1A1D; --muted:#544C51; --muted-2:#7A7076;
+    --hair:#D8D2CE; --row:#F2EEEB;
+    --accent:#C2003F; --accent-soft:#FBF0F3; --danger:#A8002F;
+    --crit:#C2003F; --warn:#E0A33C; --good:#1E7A54;
+    --crit-soft:#FBF0F3; --warn-soft:#FDF6EA; --good-soft:#EDF5F1;
+    --crit-line:#E8C3CF; --warn-line:#EBD9B8;
+    /* Foreground variants. The bases above are fills, dots and bars. */
+    --accent-text:#C2003F; --good-text:#1E7A54; --warn-text:#8A5A00; --crit-text:#C2003F;
+    /* Sidebar is dark: it is chrome, and taking it out of the reading area is
+       what lets the tables be this quiet. */
+    --side:#1E1A1D; --side-text:#B3AAAF; --side-group:#6B6067;
+    /* Charts: combo / watch / tag / content. */
+    --c-combo:#C2003F; --c-watch:#E0A33C; --c-tag:#3D8C6E; --c-content:#4C31C4;
+    --shadow:0 1px 2px rgba(30,20,26,.05);
+    --shadow-modal:0 18px 44px rgba(30,20,26,.22);
+    --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    /* 10, not 16. A card here is a container, not a pillow. */
+    --r:10px;
   }
   @media (prefers-color-scheme:dark){
     :root{
-      --bg:#0E0F16; --surface:#171922; --surface-2:#1C1F2A; --ink:#EDEEF4; --muted:#9BA0B5;
-      --hair:#262A38; --accent:#D98A76; --accent-soft:#34231D;
-      --crit-soft:#2A1A1D; --warn-soft:#2A2113; --good-soft:#132720;
-      /* On the dark surfaces the base colours already clear AA, so text = base. */
-      --accent-text:#D98A76; --good-text:#17A672; --warn-text:#E0930B; --crit-text:#E5484D;
-      --shadow:0 10px 30px -14px rgba(0,0,0,.6);
+      --bg:#141114; --work:#1A161A; --surface:#221E22; --surface-2:#2A252A;
+      --ink:#F0EBEE; --muted:#B5AAB0; --muted-2:#8F868C;
+      --hair:#383137; --row:#2E282E;
+      --accent:#E2547F; --accent-soft:#3A1D28; --danger:#E2547F;
+      --crit:#E2547F; --warn:#E0A33C; --good:#3FBE8C;
+      --crit-soft:#3A1D28; --warn-soft:#33280F; --good-soft:#16301F;
+      --crit-line:#5A2E3E; --warn-line:#4A3A1C;
+      --accent-text:#E2547F; --good-text:#3FBE8C; --warn-text:#E0A33C; --crit-text:#E2547F;
+      --side:#141114; --side-text:#B5AAB0; --side-group:#7A6F76;
+      --shadow:0 1px 2px rgba(0,0,0,.5);
+      --shadow-modal:0 18px 44px rgba(0,0,0,.6);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#0E0F16; --surface:#171922; --surface-2:#1C1F2A; --ink:#EDEEF4; --muted:#9BA0B5;
-    --hair:#262A38; --accent:#D98A76; --accent-soft:#34231D;
-    --crit-soft:#2A1A1D; --warn-soft:#2A2113; --good-soft:#132720;
-    --accent-text:#D98A76; --good-text:#17A672; --warn-text:#E0930B; --crit-text:#E5484D;
-    --shadow:0 10px 30px -14px rgba(0,0,0,.6);
+    --bg:#141114; --work:#1A161A; --surface:#221E22; --surface-2:#2A252A;
+      --ink:#F0EBEE; --muted:#B5AAB0; --muted-2:#8F868C;
+      --hair:#383137; --row:#2E282E;
+      --accent:#E2547F; --accent-soft:#3A1D28; --danger:#E2547F;
+      --crit:#E2547F; --warn:#E0A33C; --good:#3FBE8C;
+      --crit-soft:#3A1D28; --warn-soft:#33280F; --good-soft:#16301F;
+      --crit-line:#5A2E3E; --warn-line:#4A3A1C;
+      --accent-text:#E2547F; --good-text:#3FBE8C; --warn-text:#E0A33C; --crit-text:#E2547F;
+      --side:#141114; --side-text:#B5AAB0; --side-group:#7A6F76;
+      --shadow:0 1px 2px rgba(0,0,0,.5);
+      --shadow-modal:0 18px 44px rgba(0,0,0,.6);
   }
   :root[data-theme="light"]{
     --bg:#F6F7FB; --surface:#FFFFFF; --surface-2:#FBFBFE; --ink:#1B1D28; --muted:#6E7180;
@@ -61,8 +95,10 @@
     --shadow:0 8px 24px -12px rgba(27,29,40,.14);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
-  .app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+  /* 13px, and tabular figures. Numbers live in columns here and have to line
+     up; proportional digits make a stock count unreadable at a glance. */
+  body{margin:0;background:var(--work);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .app{display:grid;grid-template-columns:216px 1fr;min-height:100vh}
   a{color:inherit;text-decoration:none}
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
@@ -73,20 +109,24 @@
      the main column: pointing at the menu and scrolling moved the report next
      to it. overscroll-behavior stops the chain at the end of the list too, so
      reaching the bottom of the menu does not then start scrolling the page. */
-  .side{background:var(--surface);border-right:1px solid var(--hair);padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;
+  /* Dark chrome. Taking the navigation out of the reading area is what lets
+     the tables beside it be as quiet as they are. */
+  .side{background:var(--side);border-right:0;padding:16px 12px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;
         overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
   .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
-  .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#E39A72);display:grid;place-items:center;color:#fff;font-weight:800}
-  .brand b{font-size:15px;letter-spacing:-.2px}
-  .brand span{display:block;font-size:11px;color:var(--muted);font-weight:500}
+  .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:800}
+  .brand b{font-size:15px;letter-spacing:-.2px;color:#fff}
+  .brand span{display:block;font-size:11px;color:var(--side-group);font-weight:500}
   /* Real <button>s, not divs. As divs they took no focus and answered no
      keyboard, so the entire panel could only be navigated with a mouse — and
      a screen reader announced eight anonymous groups. The rules below undo the
      browser's button styling; the behaviour they bring is the point. */
-  .nav{display:flex;gap:11px;align-items:center;padding:10px 12px;border-radius:11px;color:var(--muted);font-weight:600;cursor:pointer;border:1px solid transparent;
+  .nav{display:flex;gap:10px;align-items:center;padding:8px 11px;border-radius:8px;color:var(--side-text);font-weight:600;cursor:pointer;border:1px solid transparent;
        width:100%;text-align:left;background:none;font-family:inherit;font-size:inherit;line-height:inherit}
-  .nav:hover{background:var(--surface-2)}
-  .nav.active{background:var(--accent-soft);color:var(--accent-text);border-color:color-mix(in srgb,var(--accent) 22%,transparent)}
+  .nav:hover{background:rgba(255,255,255,.06);color:#fff}
+  /* The active item is a white plate, per the spec — not a tinted pill. On a
+     dark rail that is the only treatment that reads at a glance. */
+  .nav.active{background:#fff;color:var(--ink);border-color:transparent}
   .nav .ic{width:18px;height:18px;flex:0 0 auto}
   .nav .badge[hidden]{display:none}
   .nav .badge{margin-left:auto;background:var(--crit);color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700}
@@ -130,13 +170,14 @@
   .btn.danger{color:var(--crit-text)}
   .savebar{margin-top:10px;font-size:13px;font-weight:600;min-height:18px}
   .savebar.ok{color:var(--good-text)} .savebar.err{color:var(--crit-text)}
-  .side .foot{margin-top:auto;font-size:11px;color:var(--muted);padding:8px}
+  .side .foot{margin-top:auto;font-size:11px;color:var(--side-group);padding:8px}
 
   /* Main */
   .main{min-width:0;display:flex;flex-direction:column}
-  .top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--hair);padding:16px 26px;display:flex;align-items:center;gap:16px}
-  .top h1{font-size:19px;margin:0;letter-spacing:-.4px}
-  .top .sub{color:var(--muted);font-size:12.5px}
+  /* 56px, per the spec. It is chrome; the operator reads the table under it. */
+  .top{position:sticky;top:0;z-index:5;min-height:56px;box-sizing:border-box;background:var(--work);border-bottom:1px solid var(--hair);padding:10px 22px;display:flex;align-items:center;gap:16px}
+  .top h1{font-size:17px;font-weight:700;margin:0;letter-spacing:-.2px}
+  .top .sub{color:var(--muted-2);font-size:12px}
   .spacer{flex:1}
   .chip{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--hair);border-radius:30px;padding:5px 6px 5px 12px;font-weight:600;font-size:12.5px}
   .chip .role{background:var(--accent-soft);color:var(--accent-text);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;text-transform:capitalize}
@@ -256,12 +297,16 @@
   .stripe.warn{background:var(--warn)}
   .frow .who{font-weight:700}
   .frow .meta{color:var(--muted);font-size:12.5px}
-  .pill{font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+  /* A status chip, not a badge: radius 5, no uppercase. It sits inside a dense
+     table row and has to be legible without shouting. */
+  .pill{font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;letter-spacing:0}
+  /* Nothing to flag: neutral rather than absent, so the column stays aligned. */
+  .pill.neutral{background:#F0EDEA;color:var(--muted)}
   .pill.crit{background:var(--crit-soft);color:var(--crit-text)}
   .pill.warn{background:var(--warn-soft);color:var(--warn-text)}
   .pill.good{background:var(--good-soft);color:var(--good-text)}
   .frow .act{display:flex;gap:8px;align-items:center}
-  .btn{border:1px solid var(--hair);background:var(--surface);color:var(--ink);border-radius:9px;padding:6px 12px;font-weight:600;font-size:12.5px;cursor:pointer;font-family:var(--sans)}
+  .btn{border:1px solid var(--hair);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 13px;font-weight:600;font-size:12.5px;cursor:pointer;font-family:var(--sans)}
   .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
   .btn:hover{border-color:var(--accent-text)}
   .btn.primary:hover{filter:brightness(1.05)}
@@ -277,13 +322,19 @@
   /* Tables */
   .tablewrap{overflow-x:auto}
   table{width:100%;border-collapse:collapse;min-width:560px}
-  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;padding:12px 18px;border-bottom:1px solid var(--hair)}
-  td{padding:13px 18px;border-bottom:1px solid var(--hair);font-size:13.5px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);font-weight:700;padding:8px 16px;background:var(--surface-2);border-bottom:1px solid var(--hair)}
+  /* 40px rows. An operator scans hundreds of these; the app's 68px list row
+     would put a third as many on screen. */
+  td{padding:10px 16px;border-bottom:1px solid var(--row);font-size:13px}
   tr:last-child td{border-bottom:none}
   tbody tr{cursor:pointer}
   tbody tr:hover{background:var(--surface-2)}
+  /* A row needing attention is TINTED, never recoloured text — colour on text
+     competes with the status chip that is already saying it. */
+  tbody tr.attn-warn{background:var(--warn-soft)}
+  tbody tr.attn-crit{background:var(--crit-soft)}
   .search{display:flex;gap:10px;padding:14px 18px;align-items:center}
-  .search input{flex:1;background:var(--surface-2);border:1px solid var(--hair);border-radius:10px;padding:9px 13px;color:var(--ink);font-size:13.5px;font-family:var(--sans)}
+  .search input{flex:1;background:var(--surface-2);border:1px solid var(--hair);border-radius:8px;padding:8px 12px;color:var(--ink);font-size:13px;font-family:var(--sans)}
   .search input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
 
   /* Drawer */
