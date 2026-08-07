@@ -18,6 +18,7 @@ import '../settings/legal_screen.dart';
 import '../design_system.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
+import '../widgets/phone_format.dart';
 
 /// A discovered band the user can pick during onboarding.
 typedef DiscoveredBand = ({String id, String name});
@@ -327,6 +328,10 @@ class _ProfilePage extends StatelessWidget {
             Expanded(
               child: TextField(
                 keyboardType: TextInputType.phone,
+                // Grouped as she types. Eleven unbroken digits cannot be
+                // checked at a glance, and this is the number her whole
+                // account hangs off.
+                inputFormatters: [PhoneGroupFormatter(dial: controller.dialCode)],
                 decoration: InputDecoration(labelText: l.t('onb_phone_hint')),
                 onChanged: controller.setPhoneNumber,
               ),
