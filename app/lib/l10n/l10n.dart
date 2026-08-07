@@ -726,6 +726,28 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Барлық деректер жойылып, баптау қайтадан басталады.',
     AppLocale.en: 'All data will be erased and setup will start over.'
   },
+  // Why the primary button will not advance. Named one at a time: a list of
+  // everything the step wants reads as a wall.
+  'onb_need_consent': {
+    AppLocale.ru: 'Отметьте согласие, чтобы продолжить',
+    AppLocale.kk: 'Жалғастыру үшін келісімді белгілеңіз',
+    AppLocale.en: 'Tick the box to continue',
+  },
+  'onb_need_name': {
+    AppLocale.ru: 'Введите имя, чтобы продолжить',
+    AppLocale.kk: 'Жалғастыру үшін атыңызды жазыңыз',
+    AppLocale.en: 'Enter your name to continue',
+  },
+  'onb_need_phone': {
+    AppLocale.ru: 'Проверьте номер телефона',
+    AppLocale.kk: 'Телефон нөмірін тексеріңіз',
+    AppLocale.en: 'Check the phone number',
+  },
+  'onb_need_child_zone': {
+    AppLocale.ru: 'Укажите домашнюю зону для ребёнка',
+    AppLocale.kk: 'Бала үшін үй аймағын көрсетіңіз',
+    AppLocale.en: 'Add a home zone for your child',
+  },
   'onb_next': {AppLocale.ru: 'Далее', AppLocale.kk: 'Келесі', AppLocale.en: 'Next'},
   'onb_back': {AppLocale.ru: 'Назад', AppLocale.kk: 'Артқа', AppLocale.en: 'Back'},
   'onb_finish': {AppLocale.ru: 'Готово', AppLocale.kk: 'Дайын', AppLocale.en: 'Finish'},

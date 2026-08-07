@@ -85,7 +85,41 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           bottomNavigationBar: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: FilledButton(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Why the button is grey.
+                  //
+                  // It was grey and silent on two of the five steps — the
+                  // consent step and the name/phone step — and a disabled
+                  // control that gives no reason is where onboarding is
+                  // abandoned: she cannot tell whether she missed something or
+                  // the app is broken. The checkbox sits far left of its label
+                  // and the phone field looks filled in the moment it has any
+                  // digits at all, so neither cause is obvious.
+                  //
+                  // Said BEFORE she taps, not after: a message that only
+                  // appears on a dead tap has already cost her the guess.
+                  if (_blockReason(c, l, blockedForConsent) case final why?) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        key: const Key('onb-block-reason'),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              size: 16, color: Palette.textDim),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(why,
+                                style: const TextStyle(
+                                    fontSize: 13, color: Palette.textDim, height: 1.35)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  FilledButton(
                 onPressed: (c.canProceed && !blockedForConsent) ? () => _advance(c) : null,
                 // On the child step the label depends on whether she is adding
                 // one. Saying "Finish" over an untouched form reads as though
@@ -97,6 +131,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                     : c.step == OnboardingStep.welcome
                         ? l.t('onb_get_started')
                         : l.t('onb_next')),
+                  ),
+                ],
               ),
             ),
           ),
@@ -599,4 +635,25 @@ class _ZoneTileState extends State<_ZoneTile> {
       ),
     );
   }
+}
+
+/// Why the primary button will not move her on, in her own language — or null
+/// when nothing is blocking it.
+///
+/// Names the ONE thing to fix rather than listing everything the step wants:
+/// "enter your name and a phone number and accept the terms" over a form where
+/// only the phone is short reads as a wall, and she has to work out which part
+/// applies to her.
+String? _blockReason(OnboardingController c, L10n l, bool blockedForConsent) {
+  if (blockedForConsent) return l.t('onb_need_consent');
+  if (c.canProceed) return null;
+  return switch (c.step) {
+    OnboardingStep.profile => c.displayName.trim().isEmpty
+        ? l.t('onb_need_name')
+        : l.t('onb_need_phone'),
+    // Half a child: she has started naming one, and the home zone is what
+    // makes it trackable.
+    OnboardingStep.child => l.t('onb_need_child_zone'),
+    _ => null,
+  };
 }
