@@ -54,6 +54,7 @@ import '../domain/weight.dart';
 import '../domain/manual_sleep.dart';
 import '../domain/sleep.dart';
 import '../domain/onboarding_controller.dart';
+import '../domain/device_pairing.dart';
 import '../l10n/l10n.dart';
 import '../net/telemetry_batcher.dart';
 
@@ -761,11 +762,53 @@ class AppController {
     _onDeviceDelete = delete;
   }
 
-  void addDevice(PairedDevice device) {
+  /// Pair a device, and say whether the server accepted it.
+  ///
+  /// This used to be fire-and-forget, which was fine while the server accepted
+  /// every device. It refuses now — a unit that is not in our registry, or one
+  /// blocked as stolen — and a refusal nobody surfaces leaves her holding a
+  /// watch that sits in her list reporting nothing, with no idea why.
+  ///
+  /// The device is added locally FIRST so the list responds immediately, and
+  /// taken back out only if the server refuses OUTRIGHT. An offline push keeps
+  /// it: main.dart re-pushes every device at startup, so a pairing made on the
+  /// underground works when she surfaces. Removing it there would delete a
+  /// device she really does own because her train went into a tunnel.
+  Future<DevicePairOutcome> addDevice(PairedDevice device) async {
     _devices.add(device);
-    unawaited(_onDeviceUpsert?.call(device) ?? Future<void>.value());
     _persist();
     _notify();
+
+    final push = _onDeviceUpsert;
+    if (push == null) return DevicePairOutcome.ok; // no server in this build
+    try {
+      await push(device);
+      return DevicePairOutcome.ok;
+    } catch (e) {
+      final outcome = _pairOutcome(e);
+      if (outcome == DevicePairOutcome.notOurs || outcome == DevicePairOutcome.blocked) {
+        // Refused, not merely undelivered. Keeping it would show her a device
+        // that will never report anything and never explain itself.
+        _devices.removeWhere((d) => d.id == device.id);
+        _persist();
+        _notify();
+      }
+      return outcome;
+    }
+  }
+
+  /// Which refusal this was, or [DevicePairOutcome.offline] for anything that
+  /// is not the server saying no.
+  DevicePairOutcome _pairOutcome(Object error) {
+    if (error is! ApiException || error.statusCode != 403) {
+      return DevicePairOutcome.offline;
+    }
+    // The server names the reason so the app can say what to do about it:
+    // "this did not come from us" and "this was reported stolen" need
+    // different words and different next steps.
+    if (error.message.contains('device_blocked')) return DevicePairOutcome.blocked;
+    if (error.message.contains('device_not_ours')) return DevicePairOutcome.notOurs;
+    return DevicePairOutcome.offline;
   }
 
   /// Replace an existing child (edit name / DOB / photo / zones).

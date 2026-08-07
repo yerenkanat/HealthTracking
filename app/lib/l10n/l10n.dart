@@ -255,6 +255,19 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'zone_meters': {AppLocale.ru: '{m} м', AppLocale.kk: '{m} м', AppLocale.en: '{m} m'},
   'confirm_remove_zone_title': {AppLocale.ru: 'Удалить зону?', AppLocale.kk: 'Аймақты жою керек пе?', AppLocale.en: 'Remove zone?'},
   'confirm_remove_zone_body': {AppLocale.ru: 'Зона «{name}» будет удалена. Оповещения о входе/выходе прекратятся.', AppLocale.kk: '«{name}» аймағы жойылады. Кіру/шығу туралы ескертулер тоқтайды.', AppLocale.en: 'The {name} zone will be removed. Enter/exit alerts for it will stop.'},
+  // A device the server would not take. Both say what to DO — somebody
+  // holding a tag from another marketplace still wants the service, and a bare
+  // refusal costs the customer and the support conversation both.
+  'dev_not_ours': {
+    AppLocale.ru: 'Это устройство не из нашей поставки, поэтому подключить его не получилось. Напишите нам в WhatsApp — разберёмся.',
+    AppLocale.kk: 'Бұл құрылғы біздің жеткізілімнен емес, сондықтан қосу мүмкін болмады. WhatsApp-қа жазыңыз — шешеміз.',
+    AppLocale.en: 'This device did not come from us, so it could not be connected. Message us on WhatsApp and we will sort it out.',
+  },
+  'dev_blocked': {
+    AppLocale.ru: 'Это устройство заблокировано. Если вы купили его у нас, напишите нам в WhatsApp.',
+    AppLocale.kk: 'Бұл құрылғы бұғатталған. Егер оны бізден сатып алсаңыз, WhatsApp-қа жазыңыз.',
+    AppLocale.en: 'This device is blocked. If you bought it from us, message us on WhatsApp.',
+  },
   'dev_band': {AppLocale.ru: 'Умный браслет', AppLocale.kk: 'Ақылды білезік', AppLocale.en: 'Smart band'},
   'dev_tag': {AppLocale.ru: 'Трекер-метка', AppLocale.kk: 'Трекер-белгі', AppLocale.en: 'Tracker tag'},
   'dev_id_hint': {AppLocale.ru: 'ID устройства', AppLocale.kk: 'Құрылғы ID', AppLocale.en: 'Device ID'},

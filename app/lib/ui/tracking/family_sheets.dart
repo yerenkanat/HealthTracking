@@ -2,12 +2,15 @@
 /// Wired from the Child tab's "+" menu and Settings.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../core/geofence.dart';
 import '../../core/uuid.dart';
 import '../../data/photo_store.dart';
 import '../../domain/country_codes.dart';
+import '../../domain/device_pairing.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
@@ -389,14 +392,34 @@ Future<void> showAddDeviceSheet(
           if (id.isEmpty) return false;
           // A tag must be linked to a child; block saving one with no child.
           if (kind == DeviceKind.tag && tagChildId == null) return false;
-          controller.addDevice(PairedDevice(
-            id: id,
-            name: nameCtl.text.trim().isEmpty
-                ? l.t(kind == DeviceKind.band ? 'dev_band' : 'dev_tag')
-                : nameCtl.text.trim(),
-            kind: kind,
-            childId: kind == DeviceKind.tag ? tagChildId : null,
-          ));
+          // The sheet closes straight away — the device is in her list by then
+          // and waiting on the network here would freeze it. If the server
+          // REFUSES the unit, the controller takes it back out and this tells
+          // her why: a device that silently vanishes from the list is worse
+          // than one that was never added.
+          unawaited(() async {
+            final outcome = await controller.addDevice(PairedDevice(
+              id: id,
+              name: nameCtl.text.trim().isEmpty
+                  ? l.t(kind == DeviceKind.band ? 'dev_band' : 'dev_tag')
+                  : nameCtl.text.trim(),
+              kind: kind,
+              childId: kind == DeviceKind.tag ? tagChildId : null,
+            ));
+            final key = switch (outcome) {
+              DevicePairOutcome.notOurs => 'dev_not_ours',
+              DevicePairOutcome.blocked => 'dev_blocked',
+              // Offline keeps the device and re-pushes at the next launch, so
+              // there is nothing to apologise for and nothing to explain.
+              _ => null,
+            };
+            if (key != null && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(l.t(key)),
+                duration: const Duration(seconds: 8), // long enough to read and act on
+              ));
+            }
+          }());
           return true;
         },
       ),
