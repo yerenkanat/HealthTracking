@@ -17,6 +17,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../widgets/battery_colors.dart';
 import '../widgets/confirm.dart';
 import 'child_safety_screen.dart';
 
@@ -627,11 +628,15 @@ class _BatteryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final level = batteryLevel(pct);
-    final (color, icon) = switch (level) {
-      BatteryLevel.critical => (Palette.danger, Icons.battery_alert_rounded),
-      BatteryLevel.low => (Palette.amber, Icons.battery_2_bar_rounded),
-      BatteryLevel.ok => (Palette.textDim, Icons.battery_5_bar_rounded),
-      BatteryLevel.full => (Palette.good, Icons.battery_full_rounded),
+    // The colour comes from one place for every screen; the ICON is what
+    // separates critical from low, because they share amber on purpose —
+    // «Красный только SOS».
+    final color = batteryColor(pct);
+    final icon = switch (level) {
+      BatteryLevel.critical => Icons.battery_alert_rounded,
+      BatteryLevel.low => Icons.battery_2_bar_rounded,
+      BatteryLevel.ok => Icons.battery_5_bar_rounded,
+      BatteryLevel.full => Icons.battery_full_rounded,
     };
     final tappable = history.length >= 2;
     final chip = Semantics(
@@ -711,13 +716,10 @@ class _BatteryChip extends StatelessWidget {
                       const Divider(height: 14, color: Palette.border),
                   itemBuilder: (_, i) {
                     final r = recent[i];
-                    final level = batteryLevel(r.pct);
-                    final color = switch (level) {
-                      BatteryLevel.critical => Palette.danger,
-                      BatteryLevel.low => Palette.amber,
-                      BatteryLevel.ok => Palette.textDim,
-                      BatteryLevel.full => Palette.good,
-                    };
+                    // A third copy of the same table lived here — which is
+                    // exactly how one of them stays red after the others are
+                    // fixed.
+                    final color = batteryColor(r.pct);
                     final age = now.difference(r.at);
                     return Row(
                       children: [

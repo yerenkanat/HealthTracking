@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../data/cry_classifier_client.dart';
 import '../../data/cry_recorder.dart';
-import '../../domain/battery.dart';
 import '../../domain/cry_analysis.dart';
 import '../../domain/family.dart';
 import '../../domain/geofence_alerts.dart';
@@ -21,6 +20,7 @@ import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import '../widgets/battery_colors.dart';
 import 'child_development_screen.dart';
 import 'cry_insight_screen.dart';
 import 'vaccination_screen.dart';
@@ -459,12 +459,10 @@ class ChildDetailScreen extends StatelessWidget {
     );
   }
 
-  static Color _batteryColor(int pct) => switch (batteryLevel(pct)) {
-        BatteryLevel.critical => Palette.danger,
-        BatteryLevel.low => Palette.amber,
-        BatteryLevel.ok => Palette.textDim,
-        BatteryLevel.full => Palette.good,
-      };
+  /// One rule, in one place. This used to be its own switch with `danger` on
+  /// critical, and the map screen had a second copy of the same table — which
+  /// is how one of them stays red after the other is fixed.
+  static Color _batteryColor(int pct) => batteryColor(pct);
 }
 
 /// A one-line summary for the development card: what is happening now, or the
