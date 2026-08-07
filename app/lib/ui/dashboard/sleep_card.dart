@@ -94,14 +94,25 @@ class SleepCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(l.duration(last.asleepMin),
-                    style: const TextStyle(
-                      fontFamily: 'JetBrainsMono',
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                      color: Palette.text,
-                    )),
+                // Shrinks rather than clips. «8 ч 15 мин» at 30px monospace is
+                // 59px too wide for a 320dp card, and this is the headline
+                // number of the whole card — a striped overflow bar across it
+                // is worse than the same figure a few points smaller.
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(l.duration(last.asleepMin),
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 30,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                          color: Palette.text,
+                        )),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 // Flexible because the label is markedly longer in ru/kk than
                 // in the English this row was laid out against.
@@ -274,8 +285,16 @@ class _Legend extends StatelessWidget {
           decoration: BoxDecoration(
               color: color, borderRadius: BorderRadius.circular(3))),
       const SizedBox(width: 6),
-      Text('$label ',
-          style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+      // The LABEL gives way, never the value. «Глубокий 1 ч 35 мин» is 8px too
+      // wide for one legend slot at 320dp, and of the two halves the duration
+      // is the one worth reading — the colour beside it already says which
+      // stage this is.
+      Flexible(
+        child: Text('$label ',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Palette.textDim, fontSize: 12)),
+      ),
       Text(value,
           style: const TextStyle(
               color: Palette.text, fontSize: 12, fontWeight: FontWeight.w600)),

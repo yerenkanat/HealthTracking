@@ -105,6 +105,15 @@ import 'package:fcs_app/ui/tracking/zones_screen.dart';
 const double kNarrowWidth = 360;
 const double kNarrowHeight = 640;
 
+/// The OTHER floor the spec names — «360 dp и 320 dp — ничего не обрезано».
+///
+/// Almost no phone reports 320 logical pixels today, which is why it is easy
+/// to dismiss. It is what a 360dp phone BECOMES when its owner turns Android's
+/// display size up, and the people who turn display size up are the people
+/// this app is for: pregnant women reading it at arm's length and grandmothers
+/// minding the children.
+const double kTinyWidth = 320;
+
 void main() {
   final today = DateTime.utc(2026, 7, 15);
   final now = DateTime.utc(2026, 7, 15, 9, 0);
@@ -122,11 +131,12 @@ void main() {
     String label, {
     AppLocale locale = AppLocale.ru,
     double textScale = 1.0,
+    double width = kNarrowWidth,
     /// Drive the screen before measuring — tap into a tab, open a section.
     /// A screen with more than one state only proves the state it opened in.
     Future<void> Function(WidgetTester tester)? afterPump,
   }) async {
-    tester.view.physicalSize = const Size(kNarrowWidth * 3, kNarrowHeight * 3);
+    tester.view.physicalSize = Size(width * 3, kNarrowHeight * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
@@ -158,7 +168,7 @@ void main() {
     expect(
       err,
       isNull,
-      reason: '$label overflows at ${kNarrowWidth.toInt()}dp'
+      reason: '$label overflows at ${width.toInt()}dp'
           '${textScale == 1.0 ? '' : ' with text at ${(textScale * 100).round()}%'}'
           ' — the striped overflow bar covers this screen on a cheap Android '
           'phone.\n$err',
@@ -1165,6 +1175,97 @@ void main() {
       final c = withAlerts();
       addTearDown(c.dispose);
       await fits(tester, () => AlertsScreen(controller: c), 'the alerts feed', textScale: 1.3);
+    });
+  });
+
+  /// The other width the checklist names: «360 dp и 320 dp — ничего не
+  /// обрезано».
+  ///
+  /// Not every screen — the 360dp sweep above is already the long one, and
+  /// running all of it twice buys a slower suite rather than more information.
+  /// These are the four a woman opens every day plus the one she opens when
+  /// something is wrong, which is where a clipped row costs the most.
+  ///
+  /// 320dp is where the layout actually breaks rather than bends: 40dp is a
+  /// column of a metric grid, so a row that fits 360 with nothing to spare
+  /// fails here — which is the point of testing it separately.
+  group('320dp — a phone with the display size turned up', () {
+    testWidgets('the dashboard fits', (tester) async {
+      final samples = [
+        for (var i = 0; i < 12; i++)
+          HealthSample(
+            at: DateTime.utc(2026, 7, 15, 8, i * 5),
+            heartRate: 70 + i % 7,
+            spo2: 97 + i % 2,
+            coreTemp: 36.5 + (i % 3) * 0.1,
+          ),
+      ];
+      await fits(
+        tester,
+        () => HealthDashboardView(
+          samples: samples,
+          greetingName: 'Айгерім-Гүлнұр',
+          sleepNights: [
+            SleepSummary(night: today, deepMin: 95, remMin: 70, lightMin: 280, awakeMin: 12),
+          ],
+          currentLocale: AppLocale.ru,
+        ),
+        'the dashboard',
+        width: kTinyWidth,
+      );
+    });
+
+    testWidgets('the calendar fits in cycle mode', (tester) async {
+      final c = AppController(now: () => today);
+      addTearDown(c.dispose);
+      await fits(
+        tester,
+        () => WomensHealthScreen(controller: c, now: () => today),
+        'the calendar (cycle)',
+        width: kTinyWidth,
+      );
+    });
+
+    testWidgets('the calendar fits in pregnancy mode', (tester) async {
+      // The gestation hero is the widest single element in the app — a week
+      // number, a day count and a countdown on one row.
+      final c = AppController(now: () => today);
+      c.setDueDate(today.add(const Duration(days: 140)));
+      addTearDown(c.dispose);
+      await fits(
+        tester,
+        () => WomensHealthScreen(controller: c, now: () => today),
+        'the calendar (pregnancy)',
+        width: kTinyWidth,
+      );
+    });
+
+    testWidgets('settings fit', (tester) async {
+      final c = AppController(now: () => now);
+      addTearDown(c.dispose);
+      await fits(tester, () => SettingsScreen(controller: c), 'settings',
+          width: kTinyWidth);
+    });
+
+    testWidgets('the alerts feed fits', (tester) async {
+      final c = withAlerts();
+      addTearDown(c.dispose);
+      await fits(tester, () => AlertsScreen(controller: c), 'the alerts feed',
+          width: kTinyWidth);
+    });
+
+    testWidgets('and in Kazakh, which is the longer language', (tester) async {
+      // 320dp AND the language whose words are longest AND the locale nobody
+      // on the team reads back. Three things that each hide a clipped row.
+      final c = AppController(now: () => today);
+      addTearDown(c.dispose);
+      await fits(
+        tester,
+        () => WomensHealthScreen(controller: c, now: () => today),
+        'the calendar in Kazakh',
+        locale: AppLocale.kk,
+        width: kTinyWidth,
+      );
     });
   });
 }
