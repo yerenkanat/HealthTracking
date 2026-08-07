@@ -758,6 +758,21 @@ export interface Repository {
   recentPhoneClaims(phone: string, since: Date): Promise<number>;
   recordPhoneClaim(phone: string): Promise<void>;
 
+  /// Store the code we just sent, replacing any live one for this number.
+  ///
+  /// Hashed, like a password: this row is readable by anything that can read
+  /// the database, and a six-digit code in plaintext beside a phone number is a
+  /// working key to that account.
+  putPhoneCode(c: { phone: string; codeHash: string; expiresAt: Date }): Promise<void>;
+
+  /// Check a code and, if it matches, CONSUME it so it cannot be replayed.
+  ///
+  /// Returns why it failed rather than a bare boolean, because the three
+  /// reasons need different words on screen: 'expired' asks her to send a new
+  /// one, 'too_many' has locked the code, and 'wrong' is a typo.
+  usePhoneCode(phone: string, codeHash: string, now: Date):
+    Promise<'ok' | 'wrong' | 'expired' | 'too_many' | 'none'>;
+
   staffByPhone(phone: string): Promise<StaffAccount | null>;
   staffById(id: string): Promise<StaffAccount | null>;
   /// Create or update an account. Used by the seeding script.

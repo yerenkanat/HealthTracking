@@ -7,6 +7,7 @@
 
 import { Pool } from 'pg';
 import { computeChildrenStats } from '../analytics/childStats.js';
+import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
 import type { ContentItemRow, InventoryProduct, ShopProduct } from './repository';
 import type {
   BandTelemetry,
@@ -246,6 +247,40 @@ export function createPgRepository(pool: Pool): Repository {
 
     async recordPhoneClaim(phone) {
       await pool.query('INSERT INTO user_login_attempts (phone) VALUES ($1)', [phone]);
+    },
+
+    async putPhoneCode(c) {
+      // One live code per number. Asking for a second invalidates the first, so
+      // a code somebody read over her shoulder stops working the moment she
+      // asks again.
+      await pool.query(
+        `INSERT INTO phone_codes (phone, code_hash, expires_at, attempts, created_at)
+         VALUES ($1,$2,$3,0,now())
+         ON CONFLICT (phone) DO UPDATE SET
+           code_hash = EXCLUDED.code_hash,
+           expires_at = EXCLUDED.expires_at,
+           attempts = 0,
+           created_at = now()`,
+        [c.phone, c.codeHash, c.expiresAt]);
+    },
+
+    async usePhoneCode(phone, codeHash, now) {
+      const { rows } = await pool.query(
+        'SELECT code_hash, expires_at, attempts FROM phone_codes WHERE phone = $1', [phone]);
+      const row = rows[0];
+      if (!row) return 'none';
+      if (row.attempts >= MAX_CODE_ATTEMPTS) return 'too_many';
+      if (new Date(row.expires_at) <= now) return 'expired';
+      if (row.code_hash !== codeHash) {
+        // Count the miss BEFORE answering, so a bot cannot outrun the counter
+        // by firing guesses in parallel.
+        await pool.query(
+          'UPDATE phone_codes SET attempts = attempts + 1 WHERE phone = $1', [phone]);
+        return 'wrong';
+      }
+      // Consumed: a correct code is worth exactly one sign-in.
+      await pool.query('DELETE FROM phone_codes WHERE phone = $1', [phone]);
+      return 'ok';
     },
 
     // ---- Staff sign-in ----

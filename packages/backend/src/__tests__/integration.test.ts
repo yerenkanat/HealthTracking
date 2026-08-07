@@ -117,6 +117,8 @@ function makeDeps(
     deleteUserSession: async () => {},
     recentPhoneClaims: async () => 0,
     recordPhoneClaim: async () => {},
+    putPhoneCode: async () => {},
+    usePhoneCode: async () => 'ok' as const,
     staffByPhone: async () => null,
     staffById: async () => null,
     upsertStaffAccount: async () => {},

@@ -10,6 +10,7 @@ import { buildServer } from './server';
 import type { ServerDeps } from './server';
 import { authPosture } from './authPosture';
 import { createMemoryRepository } from './db/memoryRepository';
+import { logOnlySmsSender, type SmsSender } from './routes/phoneAuth';
 import type { Repository } from './db/repository';
 import { makeAuthUser } from './http/auth';
 import { registerLanding } from './http/landing';
@@ -95,6 +96,29 @@ const ALLOW_DEV_SHORTCUTS =
   process.env.USE_MEMORY_DB === 'true' || !process.env.DATABASE_URL;
 /** Kept as the old name for the staff path, which reads better at its use site. */
 const ALLOW_HEADER_STAFF = ALLOW_DEV_SHORTCUTS;
+
+/**
+ * How a sign-in code reaches her phone.
+ *
+ * There is no gateway account yet, so there is no real sender yet. The choice
+ * is deliberate and narrow:
+ *
+ *   * on a dev box (no DATABASE_URL / USE_MEMORY_DB) the code is written to the
+ *     server log, so the whole flow can be exercised without a provider;
+ *   * anywhere else, returning `undefined` leaves buildServer with its refusing
+ *     sender, and `/auth/phone/start` answers 503 `sms_unavailable`.
+ *
+ * That second branch is the important one. Signing in used to require nothing
+ * at all, and the tempting "fallback" — let her in when no SMS can be sent —
+ * would put the hole straight back. Better that nobody signs in on a box with
+ * no gateway than that anybody does.
+ *
+ * Adding a provider means returning its sender here and nothing else.
+ */
+function smsSender(): SmsSender | undefined {
+  if (!ALLOW_DEV_SHORTCUTS) return undefined;
+  return logOnlySmsSender((msg) => console.warn(msg));
+}
 
 /** Real deps: pg + Redis + Anthropic + push (loaded lazily). */
 async function productionDeps(): Promise<ServerDeps> {
@@ -217,6 +241,7 @@ async function productionDeps(): Promise<ServerDeps> {
     extractMedication: process.env.ANTHROPIC_API_KEY ? createAnthropicMedicationExtractor() : undefined,
     extractAppointment: process.env.ANTHROPIC_API_KEY ? createAnthropicAppointmentExtractor() : undefined,
     contentApiKey: process.env.CONTENT_API_KEY,
+    sms: smsSender(),
   };
 }
 
@@ -262,6 +287,7 @@ function memoryDeps(): ServerDeps {
     setBpCalibration: async () => {},
     cryAnalyze: forwardCry, // works in dev too if a CRY_API_URL is reachable
     contentApiKey: process.env.CONTENT_API_KEY,
+    sms: smsSender(),
   };
 }
 

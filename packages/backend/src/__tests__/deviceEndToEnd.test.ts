@@ -19,6 +19,10 @@ import { createMemoryRepository } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
 import { hashToken } from '../http/staffAuth';
 
+/** The code the server just "sent", so these tests can type it back. */
+let lastSmsCode = '';
+let smsSeq = 0;
+
 let repo: Repository;
 let app: FastifyInstance;
 
@@ -37,6 +41,12 @@ beforeEach(() => {
       },
       cacheLastLocation: async () => null,
       setBpCalibration: async () => {},
+      // A capturing sender: these tests sign in for real, and the real senders
+      // deliberately never reveal the code.
+      sms: {
+        newCode: () => String(424242 + smsSeq++),
+        send: async (_p: string, code: string) => { lastSmsCode = code; return true; },
+      },
       authUser: async (req) => {
         const h = String(req.headers.authorization ?? '');
         const token = h.startsWith('Bearer ') ? h.slice(7) : '';
@@ -49,7 +59,14 @@ beforeEach(() => {
 });
 
 async function signIn(phone: string): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/auth/phone', payload: { phone } });
+  // Two steps now: ask for a code, then prove it arrived.
+  const started = await app.inject({
+    method: 'POST', url: '/auth/phone/start', payload: { phone },
+  });
+  expect(started.statusCode, 'requesting a code failed').toBe(200);
+  const res = await app.inject({
+    method: 'POST', url: '/auth/phone/verify', payload: { phone, code: lastSmsCode },
+  });
   expect(res.statusCode).toBe(200);
   return res.json().token as string;
 }

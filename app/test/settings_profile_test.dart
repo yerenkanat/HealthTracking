@@ -32,9 +32,13 @@ void main() {
     final c = _onboarded();
     await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));
 
-    expect(find.text('English'), findsOneWidget); // language option
     expect(find.text('Sultan'), findsOneWidget); // child row
     final scrollable = find.byType(Scrollable).first;
+    // Language is ONE row now, showing the current choice as its subtitle, and
+    // it sits DOWN here rather than second on the screen — it is chosen once,
+    // and it was pushing her children and devices below the fold.
+    await tester.scrollUntilVisible(find.text('Language'), 250, scrollable: scrollable);
+    expect(find.text('English'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Not calibrated'), 250, scrollable: scrollable);
     expect(find.text('Not calibrated'), findsOneWidget); // BP calibration status
     await tester.scrollUntilVisible(find.text('Ana-Bala'), 250, scrollable: scrollable);
@@ -84,8 +88,15 @@ void main() {
     final c = _onboarded();
     await tester.pumpWidget(_wrap(SettingsScreen(controller: c)));
     expect(c.locale, AppLocale.en);
+
+    // The row opens a picker; the choice is made in there.
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Language'), 250, scrollable: scrollable);
+    await tester.tap(find.text('Language'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Қазақша'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(c.locale, AppLocale.kk);
     addTearDown(c.dispose);
   });

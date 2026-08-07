@@ -67,7 +67,14 @@
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
   /* Sidebar */
-  .side{background:var(--surface);border-right:1px solid var(--hair);padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+  /* The sidebar scrolls ITSELF.
+     It is 100vh and sticky but had no overflow rule, so once the nav grew past
+     the viewport the last items were unreachable and the wheel fell through to
+     the main column: pointing at the menu and scrolling moved the report next
+     to it. overscroll-behavior stops the chain at the end of the list too, so
+     reaching the bottom of the menu does not then start scrolling the page. */
+  .side{background:var(--surface);border-right:1px solid var(--hair);padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;
+        overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
   .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
   .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#E39A72);display:grid;place-items:center;color:#fff;font-weight:800}
   .brand b{font-size:15px;letter-spacing:-.2px}
@@ -300,9 +307,21 @@
   .tld{width:8px;height:8px;border-radius:50%}
   .disc{margin:16px 22px 26px;padding:12px 14px;background:var(--warn-soft);color:var(--warn-text);border-radius:12px;font-size:12px;font-weight:600}
 
+  /* The menu button exists only where the sidebar is hidden. */
+  .menubtn{display:none;margin-right:4px}
+  /* Its own scrim: #scrim belongs to the user drawer, and sharing one would
+     have each close the other. */
+  .navscrim{position:fixed;inset:0;background:rgba(10,11,18,.42);opacity:0;pointer-events:none;transition:opacity .2s;z-index:39;border:0;padding:0}
+  .navscrim.open{opacity:1;pointer-events:auto}
+
   @media (max-width:900px){
     .app{grid-template-columns:1fr}
-    .side{position:fixed;left:-260px}
+    .menubtn{display:inline-flex}
+    /* Slid off, not parked at a negative left: the sidebar was at -260px with
+       nothing anywhere to bring it back, so on a phone the back office was
+       whichever tab loaded first and no way to reach another. */
+    .side{position:fixed;left:0;top:0;width:260px;z-index:40;transform:translateX(-100%);transition:transform .18s ease}
+    .side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.25)}
     .kpis{grid-template-columns:1fr 1fr}
     .grid2{grid-template-columns:1fr}
   }
@@ -535,7 +554,7 @@
   </form>
 </div>
 <div class="app" id="appShell" hidden>
-  <aside class="side">
+  <aside class="side" id="sideNav">
     <div class="brand">
       <div class="logo">A</div>
       <div><b>Ana-Bala</b><span>Back-office</span></div>
@@ -629,6 +648,13 @@
 
   <div class="main">
     <div class="top">
+      <!-- Below 900px the sidebar is parked off-screen, and until now nothing
+           brought it back: on a phone the entire back office was whichever tab
+           happened to load first, with no way to reach another. Staff take
+           orders on their phones. -->
+      <button class="iconbtn menubtn" id="menuBtn" aria-label="Меню" aria-expanded="false" aria-controls="sideNav">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
       <div>
         <h1 id="pageTitle">Dashboard</h1>
         <!-- Filled from `titles` on every navigation. Static text here is what
@@ -1254,6 +1280,7 @@
 </div>
 
 <div class="scrim" id="scrim"></div>
+<div class="navscrim" id="navScrim"></div>
 <aside class="drawer" id="drawer" aria-label="Patient detail"></aside>
 
 <script>
@@ -2799,7 +2826,26 @@
     stock:["Склад","Товары, цены и остатки — с историей каждого движения"],
     course:["Курс Ма!Ма!","Уроки, которые открываются при покупке комплекта"]
   };
+  /**
+   * Open or close the navigation drawer (narrow screens only).
+   *
+   * aria-expanded on the button and focus moving into the drawer are the parts
+   * that make it a menu rather than a decoration: without them a keyboard or
+   * screen-reader user is told nothing happened.
+   */
+  function setNav(open){
+    const side=$("#sideNav"), btn=$("#menuBtn"), scrim=$("#navScrim");
+    if(!side||!btn||!scrim) return;
+    side.classList.toggle("open",open);
+    scrim.classList.toggle("open",open);
+    btn.setAttribute("aria-expanded",open?"true":"false");
+    if(open) side.querySelector(".nav")?.focus();
+  }
+
   function go(v){
+    // Picking a destination closes the menu. Leaving it open would cover the
+    // thing she just asked to see.
+    setNav(false);
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
     // Replay the entrance animation for the view just opened (nav only, not on
     // live refresh). Restarting requires a reflow between remove and add.
@@ -2850,6 +2896,16 @@
   }
   // Back and forward should move between tabs, not out of the panel.
   window.addEventListener("hashchange",()=>{const v=viewFromHash(); if(v)go(v);});
+
+  // The drawer's three ways out: the button, the scrim, and Escape. A menu you
+  // can open and not close is worse than one that never opened.
+  $("#menuBtn")?.addEventListener("click",()=>
+    setNav(!$("#sideNav").classList.contains("open")));
+  $("#navScrim")?.addEventListener("click",()=>setNav(false));
+  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") setNav(false); });
+  // Dragging the window back to desktop width must not leave the drawer state
+  // stuck on — the sidebar is permanent there and `.open` would be meaningless.
+  window.addEventListener("resize",()=>{ if(window.innerWidth>900) setNav(false); });
 
   // Canvases size themselves from their container, which is 0 wide while the
   // section is hidden — so each chart is drawn when its view becomes visible,

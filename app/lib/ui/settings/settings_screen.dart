@@ -76,26 +76,6 @@ class SettingsScreen extends StatelessWidget {
                 ),
             ]),
 
-            // ---- Language (distinct code badge per language) ----
-            _Section(title: l.t('set_language'), children: [
-              for (final (loc, name, code) in const [
-                (AppLocale.ru, 'Русский', 'RU'),
-                (AppLocale.kk, 'Қазақша', 'KK'),
-                (AppLocale.en, 'English', 'EN'),
-              ])
-                DsRow(
-                  // The badge replaces the icon entirely: three identical
-                  // translate glyphs told the reader nothing about which
-                  // language each row was.
-                  leading: _LangBadge(code: code, selected: c.locale == loc),
-                  label: name,
-                  trailing: c.locale == loc
-                      ? const Icon(Icons.check_circle, color: Palette.violet)
-                      : const Icon(Icons.circle_outlined,
-                          color: Palette.border),
-                  onTap: () => c.setLocale(loc),
-                ),
-            ]),
 
             // ---- Children ----
             _Section(
@@ -277,6 +257,25 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: l.t('set_erase_sub'),
                 labelColor: Palette.danger,
                 onTap: () => _confirmErase(context, c),
+              ),
+            ]),
+
+            // ---- Language ----
+            //
+            // One row that says which language is on, opening a picker — not
+            // three rows of radio buttons.
+            //
+            // It used to sit second on the screen, above her children and her
+            // devices, taking a third of the first screenful to offer a choice
+            // made once and never again. The things she actually manages were
+            // pushed below the fold by a setting she had already set.
+            _Section(title: l.t('set_language'), children: [
+              DsRow(
+                leading: _LangBadge(code: _langCode(c.locale), selected: true),
+                label: l.t('set_language'),
+                subtitle: _langName(c.locale),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+                onTap: () => _pickLanguage(context, c),
               ),
             ]),
 
@@ -803,4 +802,68 @@ class _AddButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8)),
     );
   }
+}
+
+/// The three languages, in one place so the row and the picker cannot disagree.
+///
+/// Each name is written in its OWN language — a Kazakh reader looks for
+/// «Қазақша», not for whatever the current interface calls Kazakh.
+const _languages = <(AppLocale, String, String)>[
+  (AppLocale.ru, 'Русский', 'RU'),
+  (AppLocale.kk, 'Қазақша', 'KK'),
+  (AppLocale.en, 'English', 'EN'),
+];
+
+String _langName(AppLocale l) =>
+    _languages.firstWhere((e) => e.$1 == l, orElse: () => _languages.first).$2;
+String _langCode(AppLocale l) =>
+    _languages.firstWhere((e) => e.$1 == l, orElse: () => _languages.first).$3;
+
+/// Choose the interface language.
+///
+/// A sheet rather than three permanent rows: it is chosen once, and the screen
+/// belongs to the things she comes back to — her children, her devices, her
+/// reminders.
+Future<void> _pickLanguage(BuildContext context, AppController c) {
+  final l = L10nScope.of(context);
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Palette.bg,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(l.t('set_language'),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+          for (final (loc, name, code) in _languages)
+            ListTile(
+              // The badge replaces the icon entirely: three identical translate
+              // glyphs told the reader nothing about which language each row was.
+              leading: _LangBadge(code: code, selected: c.locale == loc),
+              title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+              trailing: c.locale == loc
+                  ? const Icon(Icons.check_circle, color: Palette.violet)
+                  : const Icon(Icons.circle_outlined, color: Palette.border),
+              onTap: () {
+                c.setLocale(loc);
+                Navigator.of(sheetContext).pop();
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
 }

@@ -41,28 +41,47 @@ class ServerPhoneAuthProvider implements PhoneAuthProvider {
   }) : _client = client ?? http.Client();
 
   @override
-  bool get requiresCode => false;
+  bool get requiresCode => true;
 
   @override
   Future<OtpChallenge> requestCode(String phoneE164) async {
-    // Nothing is sent, so this only checks the shape. Doing the sign-in here
-    // instead would mean a number is claimed the moment somebody types it and
-    // then backs out.
     final phone = phoneE164.trim();
     if (!isValidE164(phone)) throw const AuthException('invalid-phone');
+
+    late final http.Response res;
+    try {
+      res = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/phone/start'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({'phone': phone}),
+          )
+          .timeout(timeout);
+    } catch (_) {
+      throw const AuthException('network');
+    }
+
+    if (res.statusCode == 429) throw const AuthException('too-many-attempts');
+    if (res.statusCode == 400) throw const AuthException('invalid-phone');
+    // No gateway configured, or it refused the message. Distinct from a network
+    // failure on purpose: nothing is coming, so "check your signal" would send
+    // her to wait for a message that was never sent.
+    if (res.statusCode == 503) throw const AuthException('sms-unavailable');
+    if (res.statusCode != 200) throw const AuthException('network');
+
     return OtpChallenge(verificationId: 'server:$phone', phoneE164: phone);
   }
 
   @override
   Future<AuthSession> verifyCode(OtpChallenge challenge, String code) async {
-    final uri = Uri.parse('$baseUrl/auth/phone');
+    final uri = Uri.parse('$baseUrl/auth/phone/verify');
     late final http.Response res;
     try {
       res = await _client
           .post(
             uri,
             headers: const {'content-type': 'application/json'},
-            body: jsonEncode({'phone': challenge.phoneE164}),
+            body: jsonEncode({'phone': challenge.phoneE164, 'code': code.trim()}),
           )
           .timeout(timeout);
     } catch (_) {
@@ -72,7 +91,17 @@ class ServerPhoneAuthProvider implements PhoneAuthProvider {
     }
 
     if (res.statusCode == 429) throw const AuthException('too-many-attempts');
-    if (res.statusCode == 400) throw const AuthException('invalid-phone');
+    if (res.statusCode == 400) throw const AuthException('invalid-code');
+    if (res.statusCode == 401) {
+      // Which of the three it is changes what she should do next, so it is not
+      // collapsed into one message.
+      final err = _errorOf(res.body);
+      throw AuthException(err == 'too_many_attempts'
+          ? 'too-many-attempts'
+          : err == 'code_expired'
+              ? 'code-expired'
+              : 'invalid-code');
+    }
     if (res.statusCode != 200) throw const AuthException('network');
 
     final Map<String, dynamic> body;
@@ -96,5 +125,18 @@ class ServerPhoneAuthProvider implements PhoneAuthProvider {
       token: token,
       signedInAt: now(),
     );
+  }
+}
+
+/// The `error` field of a JSON body, or empty when there is not one.
+///
+/// Tolerant on purpose: this runs on an error path, and failing to parse the
+/// explanation of a failure must not replace it with a crash.
+String _errorOf(String body) {
+  try {
+    final j = jsonDecode(body);
+    return j is Map && j['error'] is String ? j['error'] as String : '';
+  } catch (_) {
+    return '';
   }
 }

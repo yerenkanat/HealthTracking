@@ -23,6 +23,10 @@ import { createMemoryRepository, DEV_STAFF_PHONE, DEV_STAFF_PASSWORD } from '../
 import type { Repository } from '../db/repository';
 import { hashToken, readSessionCookie } from '../http/staffAuth';
 
+/** The code the server just "sent", so these tests can type it back. */
+let lastSmsCode = '';
+let smsSeq = 0;
+
 let repo: Repository;
 let app: FastifyInstance;
 let staffCookie: string;
@@ -44,6 +48,12 @@ beforeEach(async () => {
       },
       cacheLastLocation: async () => null,
       setBpCalibration: async () => {},
+      // A capturing sender: these tests sign in for real, and the real senders
+      // deliberately never reveal the code.
+      sms: {
+        newCode: () => String(424242 + smsSeq++),
+        send: async (_p: string, code: string) => { lastSmsCode = code; return true; },
+      },
       // Exactly what index.ts wires: a bearer token is a row in user_sessions.
       // Nothing else authenticates — no header shortcut, as in production.
       authUser: async (req) => {
@@ -71,7 +81,15 @@ const asStaff = (method: 'POST' | 'PUT' | 'PATCH' | 'GET', url: string, payload?
 
 /** Sign the app in the way the phone does, and hand back its bearer token. */
 async function signInApp(phone: string): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/auth/phone', payload: { phone } });
+  // Two steps now: ask for a code, then prove it arrived. The number alone is
+  // no longer a credential — see routes/phoneAuth.ts.
+  const started = await app.inject({
+    method: 'POST', url: '/auth/phone/start', payload: { phone },
+  });
+  expect(started.statusCode, 'requesting a code failed').toBe(200);
+  const res = await app.inject({
+    method: 'POST', url: '/auth/phone/verify', payload: { phone, code: lastSmsCode },
+  });
   expect(res.statusCode, 'phone sign-in failed').toBe(200);
   const token = res.json().token as string;
   expect(token, 'sign-in returned no token').toBeTruthy();

@@ -11,6 +11,7 @@ import { bundleDiscountMinor } from './repository';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
+import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 
@@ -71,6 +72,8 @@ export function createMemoryRepository(): Repository {
     { tokenHash: string; userId: string; expiresAt: Date; userAgent: string }
   >();
   const phoneClaims: Array<{ phone: string; at: Date }> = [];
+  /// phone -> the one live sign-in code, hashed. Mirrors the phone_codes table.
+  const phoneCodes = new Map<string, { codeHash: string; expiresAt: Date; attempts: number }>();
 
   /** Staff sign-in, keyed by normalised phone. */
   const staffAccounts = new Map<string, StaffAccount>();
@@ -377,6 +380,28 @@ const UUID_RE =
     recentPhoneClaims: async (phone, since) =>
       phoneClaims.filter((c) => c.phone === phone && c.at >= since).length,
     recordPhoneClaim: async (phone) => void phoneClaims.push({ phone, at: new Date() }),
+
+    putPhoneCode: async (c) => void phoneCodes.set(c.phone, {
+      codeHash: c.codeHash, expiresAt: c.expiresAt, attempts: 0,
+    }),
+
+    /// Mirrors the SQL exactly, including the order of the checks: a code that
+    /// is BOTH expired and out of attempts answers 'too_many', and a wrong
+    /// guess is counted before the answer is returned, so firing guesses in
+    /// parallel cannot outrun the counter.
+    usePhoneCode: async (phone, codeHash, now) => {
+      const row = phoneCodes.get(phone);
+      if (!row) return 'none';
+      if (row.attempts >= MAX_CODE_ATTEMPTS) return 'too_many';
+      if (row.expiresAt <= now) return 'expired';
+      if (row.codeHash !== codeHash) {
+        row.attempts += 1;
+        return 'wrong';
+      }
+      // Consumed: a correct code is worth exactly one sign-in.
+      phoneCodes.delete(phone);
+      return 'ok';
+    },
 
     // ---- Staff sign-in ----
     staffByPhone: async (phone) => staffAccounts.get(phone) ?? null,

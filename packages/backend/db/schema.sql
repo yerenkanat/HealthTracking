@@ -634,6 +634,24 @@ CREATE TABLE IF NOT EXISTS user_login_attempts (
 CREATE INDEX IF NOT EXISTS user_login_attempts_phone_at
   ON user_login_attempts (phone, at DESC);
 
+-- The one-time sign-in code (migration 027).
+--
+-- Signing in used to be `POST /auth/phone` with a number and nothing else: the
+-- number WAS the credential. A customer's number is on every parcel, every
+-- WhatsApp order and every delivery manifest, so anyone holding one could read
+-- her pregnancy, her children and their live locations.
+--
+-- Hashed, like a password: this row is readable by anything that can read the
+-- database, and a six-digit code in plaintext beside a phone number is a key.
+CREATE TABLE IF NOT EXISTS phone_codes (
+  phone       TEXT PRIMARY KEY,        -- one live code per number
+  code_hash   TEXT NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  attempts    INTEGER NOT NULL DEFAULT 0,  -- five wrong guesses and it is dead
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS phone_codes_expiry ON phone_codes (expires_at);
+
 -- ---------------------------------------------------------------------------
 -- What a purchase unlocks in the app (migration 023).
 --

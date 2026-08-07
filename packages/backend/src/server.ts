@@ -29,6 +29,7 @@ import { registerStaffAdminRoutes } from './routes/staffAdmin';
 import { registerInventoryRoutes } from './routes/inventory';
 import { registerEntitlementRoutes } from './routes/entitlements';
 import { registerPublicApiRoutes } from './routes/publicApi';
+import type { SmsSender } from './routes/phoneAuth';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
 import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
@@ -84,6 +85,12 @@ export interface ServerDeps {
   /** API key for the public content API (/api/v1/*). When set, every request must
    * carry it as `x-api-key`; omitted = the API is open (dev). */
   contentApiKey?: string;
+  /**
+   * How the sign-in code is sent. Omitted means NO gateway is configured, and
+   * /auth/phone/start answers 503 rather than letting anyone in — the failure
+   * this replaced was exactly a sign-in that asked for nothing.
+   */
+  sms?: SmsSender;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -387,7 +394,12 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // Sign-in first: these three are the only /admin paths without a session, and
   // registering them here keeps that fact in one place.
   registerStaffLoginRoutes(app, deps.repo);
-  registerPhoneAuthRoutes(app, deps.repo);
+  registerPhoneAuthRoutes(app, deps.repo, deps.sms ?? {
+    newCode: () => '000000',
+    // No gateway: refuse, loudly and every time. Falling back to "let her in"
+    // is the hole this whole flow exists to close.
+    send: async () => false,
+  });
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerInventoryRoutes(app, deps.repo, deps.authAdmin);
