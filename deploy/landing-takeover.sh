@@ -142,7 +142,15 @@ $ADMIN_BLOCK
     # 404ing because it is not under any of the prefixes above, which made the
     # product look broken to anyone who followed the link. Documentation for an
     # API nobody can open yet is still documentation.
-    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready /api-docs
+    # /api/v1* is the public CONTENT api — pregnancy and child calendars,
+    # protocols, the vaccination schedule, shop products. Read-only, key-gated
+    # when CONTENT_API_KEY is set, and the thing /api-docs documents.
+    #
+    # It was missing from this list, so every endpoint on that page answered a
+    # Caddy 404 while the docs beside them loaded fine: the API looked empty
+    # and broken to anyone who followed the link. It carries no user data —
+    # everything user-scoped is in @app behind a session.
+    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready /api-docs /api/v1 /api/v1/*
 
     # ---- The app ------------------------------------------------------------
     #
@@ -152,12 +160,18 @@ $ADMIN_BLOCK
     # and this deployment has no Firebase — so they were never off. They are now
     # gated on the presence of a database, and the same request returns 401.
     #
-    # /auth/phone is how a session is obtained, so it cannot require one. It is
+    # /auth/phone* is how a session is obtained, so it cannot require one. It is
     # rate-limited per number in the handler and per source below.
+    #
+    # The GLOB matters. Sign-in became two steps — /auth/phone/start sends a
+    # code, /auth/phone/verify redeems it — and `handle /auth/phone` matches
+    # that one exact path and nothing beneath it. Left as it was, both new
+    # endpoints would have fallen through to the catch-all 404 and nobody could
+    # have signed in at all, while every test on the box passed.
     #
     # If this ever needs closing in a hurry, delete this block and re-run the
     # script; the app degrades to its local store rather than breaking.
-    handle /auth/phone {
+    handle /auth/phone* {
         rate_limit {
             zone app_signin {
                 key    {remote_host}

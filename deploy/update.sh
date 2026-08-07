@@ -132,6 +132,39 @@ check "/admin" 'stageGapRows'            "Аналитика shows where the use
 check "/admin" 'prodSku'                 "the warehouse can record an article code"
 
 echo
+echo "==> Routes the PROXY must pass through"
+#
+# Every check above talks to the backend directly, so it cannot see the one
+# thing that actually breaks a release here: Caddy serves an explicit allowlist
+# and answers a plain-text 404 to anything missing from it. /api/v1 was absent
+# for its whole life — the docs page loaded and every endpoint on it 404ed —
+# and `handle /auth/phone` matched one exact path, so the two-step sign-in
+# would have died the moment it shipped, with the backend answering perfectly.
+#
+# Checked against the PUBLIC name, which is the only place the difference shows.
+PUBLIC="${PUBLIC_URL:-https://ana-bala.kz}"
+proxy() { # path, label, expected-codes...
+  local path="$1" label="$2"; shift 2
+  local code
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$PUBLIC$path" || echo 000)"
+  for want in "$@"; do
+    if [ "$code" = "$want" ]; then echo "    $label OK ($code)"; return 0; fi
+  done
+  echo "!!  $label FAILED — $PUBLIC$path answered $code, expected one of: $*"
+  echo "    If this is 404 from Caddy, the path is missing from @public/@app in"
+  echo "    deploy/landing-takeover.sh — re-run that script."
+  return 1
+}
+FAILED=0
+proxy /api/v1                 "the content API is reachable"   200 401 || FAILED=1
+proxy /api/v1/pregnancy/weeks "the pregnancy calendar"         200 401 || FAILED=1
+proxy /api-docs               "the API docs"                   200     || FAILED=1
+# 400/503 both mean it REACHED the handler; 404 means Caddy swallowed it.
+proxy /auth/phone/start       "sign-in step one is routed"     400 429 503 || FAILED=1
+proxy /shop/products          "the storefront"                 200     || FAILED=1
+[ "$FAILED" = 0 ] || { echo "!!  the proxy is not passing everything through"; exit 1; }
+
+echo
 echo "==> A malformed id must be refused, not 500"
 # Any string in a path used to raise 22P02 out of the ownership check. 401 is
 # the right answer here (no credentials); the failure being guarded against is
