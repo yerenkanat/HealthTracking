@@ -1081,6 +1081,10 @@ const UUID_RE =
           watches: devices.filter((d) => d.kind === 'band').length,
           trackers: devices.filter((d) => d.kind === 'tag').length,
           unassigned: devices.filter((d) => d.kind === 'tag' && !d.childId).length,
+          // Normalised on both sides, exactly like the query: a device counted
+          // as grey-market over punctuation sends somebody hunting a problem
+          // that does not exist.
+          unregistered: devices.filter((d) => !registry.has(normalizeSerial(d.id))).length,
         },
         cities: cityOf ? [{ city: cityOf, users: 1 }] : [],
         citiesUnknown: cityOf ? Math.max(0, users.length - 1) : users.length,

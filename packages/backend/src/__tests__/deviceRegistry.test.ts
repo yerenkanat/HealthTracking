@@ -276,3 +276,40 @@ describe('linking a unit to the order it shipped with', () => {
     })).statusCode).toBe(401);
   });
 });
+
+/// The number that decides whether enforcement can be switched on.
+///
+/// Two very different things look identical in it — units genuinely bought
+/// elsewhere, and units we sold whose serial nobody recorded at intake — which
+/// is exactly why it has to be visible rather than assumed. Turning enforcement
+/// on while it is large refuses paying customers.
+describe('the grey-market count on the dashboard', () => {
+  const NOW = '2026-08-07T10:00:00.000Z';
+
+  it('counts a paired device that is not in the registry', async () => {
+    await pair('11:22:33:44:55:66');
+    const snap = await repo.dashboardSnapshot(NOW);
+    expect(snap.devices.unregistered).toBe(1);
+  });
+
+  it('does not count one we received', async () => {
+    await receive('AA:BB:CC:00:02:01');
+    await pair('AA:BB:CC:00:02:01');
+    expect((await repo.dashboardSnapshot(NOW)).devices.unregistered).toBe(0);
+  });
+
+  it('does not count a unit as foreign over punctuation', async () => {
+    // The warehouse types dashes and the phone reports colons. Counting that as
+    // grey-market sends somebody hunting a problem that does not exist — which
+    // is the same normalisation bug, showing up as a wrong business number
+    // instead of a refused customer.
+    await receive('aa-bb-cc-00-02-02');
+    await pair('AA:BB:CC:00:02:02');
+    expect((await repo.dashboardSnapshot(NOW)).devices.unregistered).toBe(0);
+  });
+
+  it('is zero when nothing is paired at all', async () => {
+    // Not "unknown", and not the total device count.
+    expect((await repo.dashboardSnapshot(NOW)).devices.unregistered).toBe(0);
+  });
+});

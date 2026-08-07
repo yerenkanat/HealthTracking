@@ -189,6 +189,16 @@ export interface DashboardSnapshot {
     trackers: number;
     /** Registered but attached to no child, so nothing is watching anyone. */
     unassigned: number;
+    /**
+     * Paired devices that are NOT in our device registry — the grey-market
+     * number, and the one that decides whether enforcement can be switched on.
+     *
+     * Two very different things look identical here, which is exactly why it
+     * has to be visible rather than assumed: units genuinely bought elsewhere,
+     * and units we sold whose serial nobody recorded at intake. Turning
+     * enforcement on while this number is large refuses paying customers.
+     */
+    unregistered: number;
   };
   /** Where they are, biggest first. Only users who gave a city. */
   cities: Array<{ city: string; users: number }>;

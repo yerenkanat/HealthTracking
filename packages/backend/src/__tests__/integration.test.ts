@@ -380,7 +380,7 @@ function makeDeps(
       users: { total: 1, newToday: 0, new7d: 0, new30d: 0, dau: 0, wau: 0, mau: 0, retentionD7: null },
       mothers: { pregnant: 0, mothers: 0, both: 0, unknown: 1 },
       children: { total: 0, boys: 0, girls: 0, unknown: 0, byAge: [], withDob: 0 },
-      devices: { total: devices.length, online: 0, watches: 0, trackers: 0, unassigned: 0 },
+      devices: { total: devices.length, online: 0, watches: 0, trackers: 0, unassigned: 0, unregistered: 0 },
       cities: [],
       citiesUnknown: 1,
       commerce: {

@@ -31,7 +31,7 @@ const SNAPSHOT = {
     byAge: [{ bucket: '0–1', count: 40 }, { bucket: '1–3', count: 55 },
       { bucket: '3–7', count: 30 }, { bucket: '7+', count: 15 }],
   },
-  devices: { total: 96, online: 61, watches: 54, trackers: 42, unassigned: 7 },
+  devices: { total: 96, online: 61, watches: 54, trackers: 42, unassigned: 7, unregistered: 9 },
   cities: [{ city: 'Алматы', users: 88 }, { city: 'Астана', users: 51 }, { city: 'Шымкент', users: 24 }],
   citiesUnknown: 77,
   commerce: {
@@ -54,7 +54,7 @@ const EMPTY = {
   users: { total: 0, newToday: 0, new7d: 0, new30d: 0, dau: 0, wau: 0, mau: 0, retentionD7: null },
   mothers: { pregnant: 0, mothers: 0, both: 0, unknown: 0 },
   children: { total: 0, boys: 0, girls: 0, unknown: 0, withDob: 0, byAge: [] },
-  devices: { total: 0, online: 0, watches: 0, trackers: 0, unassigned: 0 },
+  devices: { total: 0, online: 0, watches: 0, trackers: 0, unassigned: 0, unregistered: 0 },
   cities: [], citiesUnknown: 0,
   commerce: {
     leads: { total: 0, new: 0 },
@@ -304,5 +304,44 @@ describe('when the snapshot cannot be loaded', () => {
     for (const sel of ['#dashAudience', '#dashKids', '#dashCities', '#dashDevices', '#dashCommerce', '#dashStock', '#dashCourse']) {
       expect(page.text(sel), sel).toMatch(/недоступна/i);
     }
+  });
+});
+
+/// The grey-market number, where the person who decides about enforcement
+/// will actually see it.
+describe('devices not in the registry', () => {
+  it('is shown, with what it might mean', async () => {
+    const page = await render(SNAPSHOT);
+    const t = page.text('#dashDevices');
+    expect(t).toContain('Нет в реестре');
+    expect(t).toContain('9');
+    // Two very different things look the same in this number, so the wording
+    // must not accuse: half of them may be ours with an unrecorded serial.
+    expect(t).toMatch(/не записан/i);
+  });
+
+  it('says outright that blocking is unsafe while it is high', async () => {
+    // The decision this number exists for.
+    expect(await render(SNAPSHOT).then((p) => p.text('#dashDevices')))
+      .toMatch(/блокировку нельзя/i);
+  });
+
+  it('says nothing at all when every paired device is ours', async () => {
+    // A row reading "0" invites somebody to go looking for the zero.
+    const page = await render({
+      ...SNAPSHOT,
+      devices: { ...SNAPSHOT.devices, unregistered: 0 },
+    });
+    expect(page.text('#dashDevices')).not.toContain('Нет в реестре');
+  });
+
+  it('survives a backend that does not send it yet', async () => {
+    const devices: Record<string, unknown> = { ...SNAPSHOT.devices };
+    delete devices.unregistered;
+    const page = await render({ ...SNAPSHOT, devices });
+    expect(page.errors).toEqual([]);
+    // The rest of the card still draws — 54 watches, not a greyed-out panel.
+    expect(page.text('#dashDevices')).toContain('54');
+    expect(page.text('#dashDevices')).not.toContain('Нет в реестре');
   });
 });

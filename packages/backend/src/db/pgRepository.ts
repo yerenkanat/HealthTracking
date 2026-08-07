@@ -1216,7 +1216,17 @@ export function createPgRepository(pool: Pool): Repository {
                  count(*) FILTER (WHERE last_seen > now() - interval '24 hours') AS online,
                  count(*) FILTER (WHERE kind = 'band') AS watches,
                  count(*) FILTER (WHERE kind = 'tag') AS trackers,
-                 count(*) FILTER (WHERE kind = 'tag' AND child_id IS NULL) AS unassigned
+                 count(*) FILTER (WHERE kind = 'tag' AND child_id IS NULL) AS unassigned,
+                 -- Paired, but not one of ours. The MAC is normalised on BOTH
+                 -- sides of the comparison for the same reason the registry
+                 -- normalises on the way in: a device counted as grey-market
+                 -- because the warehouse typed dashes and the phone reported
+                 -- colons is a number that would send somebody hunting a
+                 -- problem that does not exist.
+                 count(*) FILTER (
+                   WHERE UPPER(REGEXP_REPLACE(ble_mac, '[^0-9A-Za-z]', '', 'g'))
+                     NOT IN (SELECT serial FROM device_registry)
+                 ) AS unregistered
             FROM devices`),
         // Trimmed and case-folded: "Алматы", "алматы " and "Алматы" are one
         // city, and three rows of the same place is not a distribution.
@@ -1321,6 +1331,7 @@ export function createPgRepository(pool: Pool): Repository {
         devices: {
           total: n(d.total), online: n(d.online), watches: n(d.watches),
           trackers: n(d.trackers), unassigned: n(d.unassigned),
+          unregistered: n(d.unregistered),
         },
         cities: cities.rows.map((r) => ({ city: String(r.city), users: n(r.users) })),
         citiesUnknown: n(u.no_city),
