@@ -1887,7 +1887,7 @@
     const el=$("#dashAudience"); if(!el) return;
     if(!DASH){ el.innerHTML=DASH_OFF; return; }
     const m=DASH.mothers, total=DASH.users.total;
-    if(!total){ el.innerHTML=dashEmpty("Пока нет ни одного аккаунта."); return; }
+    if(!total){ el.innerHTML=dashEmpty("Пока нет ни одного аккаунта. Он появляется, когда мама впервые входит в приложение — до этого здесь считать нечего."); return; }
     // Shares of the whole base, not of each other: these three categories
     // overlap, so they do not add to 100% and must not be drawn as if they do.
     el.innerHTML=
@@ -1908,7 +1908,7 @@
     const el=$("#dashKids"); if(!el) return;
     if(!DASH){ el.innerHTML=DASH_OFF; return; }
     const k=DASH.children;
-    if(!k.total){ el.innerHTML=dashEmpty("Детей в аккаунтах пока нет."); return; }
+    if(!k.total){ el.innerHTML=dashEmpty("Детей в аккаунтах пока нет. Ребёнок появляется здесь, когда мама заводит его в приложении, — добавить его отсюда нельзя."); return; }
     const scale=Math.max(1,k.boys,k.girls,k.unknown);
     let html=
       mrow("Мальчики",{value:`${fmt(k.boys)} <span class="unit">· ${pct(k.boys/k.total)}</span>`,frac:k.boys/scale,color:"var(--accent)"})+
@@ -1946,7 +1946,7 @@
     const el=$("#dashDevices"); if(!el) return;
     if(!DASH){ el.innerHTML=DASH_OFF; return; }
     const d=DASH.devices;
-    if(!d.total){ el.innerHTML=dashEmpty("Ни одно устройство ещё не подключено."); return; }
+    if(!d.total){ el.innerHTML=dashEmpty("Ни одно устройство ещё не подключено. Часы и брелоки появляются здесь после того, как мама привяжет их в приложении."); return; }
     const scale=Math.max(1,d.watches,d.trackers);
     let html=
       mrow("Часы мамы",{value:fmt(d.watches),frac:d.watches/scale,color:"var(--accent)"})+
@@ -1984,7 +1984,7 @@
     const el=$("#dashCommerce"); if(!el) return;
     if(!DASH){ el.innerHTML=DASH_OFF; return; }
     const c=DASH.commerce, o=c.orders;
-    if(!o.total&&!c.leads.total){ el.innerHTML=dashEmpty("Заказов и заявок пока нет."); return; }
+    if(!o.total&&!c.leads.total){ el.innerHTML=dashEmpty("Заказов и заявок пока нет. Заявки приходят с лендинга сами; заказ можно завести вручную во вкладке «Магазин»."); return; }
     const scale=Math.max(1,o.new,o.confirmed,o.shipped,o.delivered,o.cancelled);
     el.innerHTML=
       mrow("Новые",{value:fmt(o.new),frac:o.new/scale,color:"var(--warn)"})+
@@ -2607,7 +2607,7 @@
         <td>${esc(AUDIT_ACTIONS[a.action]||a.action)}</td>
         <td class="t" title="${esc(a.target||"")}">${esc(a.targetName||a.target||"—")}</td>
         <td class="t">${a.reason?esc(a.reason):"<span style=\"color:var(--muted)\">—</span>"}</td></tr>`).join("")
-      || tableNote(5,"Действий пока не зафиксировано.");
+      || tableNote(5,"Действий пока не зафиксировано. Здесь появятся просмотры карт пациенток и изменения в панели — с автором, временем и причиной.");
   }
 
   // Daily actives as a line, signups as bars behind it, on a shared 30-day axis.
@@ -4030,7 +4030,7 @@
         <td>${courseProgressCell(p, total)}</td>
         <td class="t">${p ? esc(p.lastLessonTitle || "—") + `<br><span class="sub">${esc(stamp(p.lastAt))}</span>` : "—"}</td>
         <td><button type="button" class="btn sm ghost erev" data-p="${esc(e.phone)}">Закрыть</button></td>
-      </tr>`; }).join("") || tableNote(6,"Пока никому не открыт.");
+      </tr>`; }).join("") || tableNote(6,"Курс пока никому не открыт. Он входит в комплект — или откройте доступ вручную по номеру телефона в форме выше.");
 
       $("#entBody").querySelectorAll(".erev").forEach(b => b.addEventListener("click", async () => {
         if(!window.confirm(`Закрыть доступ к курсу для ${b.dataset.p}?`)) return;
@@ -4151,7 +4151,7 @@
         <td><button type="button" class="btn sm ghost sblk"
               data-s="${esc(d.serial)}" data-next="${next}">${action}</button></td>
       </tr>`;
-    }).join("") || tableNote(5, "Ни одного серийного номера ещё не записано.");
+    }).join("") || tableNote(5, "Ни одного серийного номера ещё не записано. Записывайте их при приёмке поставки — пока серийника здесь нет, устройство из чужой коробки работает с приложением так же, как наше.");
 
     body.querySelectorAll(".sblk").forEach(b => b.addEventListener("click", async () => {
       const blocking = b.dataset.next === "blocked";
@@ -4519,7 +4519,7 @@
         <td class="num"><b style="color:${m.delta>0?"var(--good-text)":"var(--crit-text)"}">${m.delta>0?"+":""}${m.delta}</b></td>
         <td class="t">${esc(m.staffId||"—")}</td>
         <td class="t">${esc(m.note||"")}</td>
-      </tr>`).join("") || tableNote(7,"Движений пока не было.");
+      </tr>`).join("") || tableNote(7,"Движений пока не было. Первая строка появится после приёмки поставки во вкладке «Приёмка поставки» выше.");
     }catch(e){ $("#movesBody").innerHTML = tableNote(7,"Не удалось загрузить историю."); }
   }
 
