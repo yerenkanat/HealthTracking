@@ -40,8 +40,20 @@ class ServerPhoneAuthProvider implements PhoneAuthProvider {
     this.timeout = const Duration(seconds: 20),
   }) : _client = client ?? http.Client();
 
+  /// Set from the server's answer to [requestCode].
+  ///
+  /// The SERVER decides whether a code is needed, not a compile-time flag in
+  /// here: there is no SMS gateway today, and when one is added the switch is
+  /// thrown on the backend and this app follows on the next sign-in — no
+  /// release, no version of the app left demanding a code nobody sends.
+  bool _codeRequired = false;
+
+  /// The session minted during [requestCode] when no code was required. Held
+  /// for one step only, then handed to the caller and cleared.
+  AuthSession? _immediate;
+
   @override
-  bool get requiresCode => true;
+  bool get requiresCode => _codeRequired;
 
   @override
   Future<OtpChallenge> requestCode(String phoneE164) async {
@@ -69,11 +81,37 @@ class ServerPhoneAuthProvider implements PhoneAuthProvider {
     if (res.statusCode == 503) throw const AuthException('sms-unavailable');
     if (res.statusCode != 200) throw const AuthException('network');
 
+    Map<String, dynamic> body;
+    try {
+      body = jsonDecode(res.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw const AuthException('network');
+    }
+
+    // No code needed: the session came back with this very answer, so there is
+    // nothing to type and nothing to wait for.
+    _codeRequired = body['codeRequired'] == true;
+    _immediate = _codeRequired ? null : _sessionFrom(body, phone);
+    if (!_codeRequired && _immediate == null) {
+      // codeRequired:false with no session is not a sign-in. Accepting it would
+      // strand her on a code screen for a code that is never coming.
+      throw const AuthException('network');
+    }
+
     return OtpChallenge(verificationId: 'server:$phone', phoneE164: phone);
   }
 
   @override
   Future<AuthSession> verifyCode(OtpChallenge challenge, String code) async {
+    // Already signed in during the first step, because the server asked for no
+    // code. The screen still calls this, so hand it back here rather than
+    // making the screen know which mode it is in.
+    final ready = _immediate;
+    if (ready != null) {
+      _immediate = null;
+      return ready;
+    }
+
     final uri = Uri.parse('$baseUrl/auth/phone/verify');
     late final http.Response res;
     try {
@@ -111,17 +149,24 @@ class ServerPhoneAuthProvider implements PhoneAuthProvider {
       throw const AuthException('network');
     }
 
+    final session = _sessionFrom(body, challenge.phoneE164);
+    if (session == null) throw const AuthException('network');
+    return session;
+  }
+
+  /// A session from a server answer, or null when it does not carry one.
+  ///
+  /// A 200 with no token is not a sign-in. Accepting it would store a session
+  /// that authenticates nothing and fail later, somewhere unrelated.
+  AuthSession? _sessionFrom(Map<String, dynamic> body, String fallbackPhone) {
     final userId = body['userId'] as String?;
     final token = body['token'] as String?;
-    // A 200 that carries no token is not a sign-in. Accepting it would store a
-    // session that authenticates nothing and fail later, somewhere unrelated.
     if (userId == null || userId.isEmpty || token == null || token.isEmpty) {
-      throw const AuthException('network');
+      return null;
     }
-
     return AuthSession(
       userId: userId,
-      phoneE164: (body['phone'] as String?) ?? challenge.phoneE164,
+      phoneE164: (body['phone'] as String?) ?? fallbackPhone,
       token: token,
       signedInAt: now(),
     );

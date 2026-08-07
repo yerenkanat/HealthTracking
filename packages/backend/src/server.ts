@@ -91,6 +91,15 @@ export interface ServerDeps {
    * this replaced was exactly a sign-in that asked for nothing.
    */
   sms?: SmsSender;
+  /**
+   * Require an SMS code to sign in. Off today — there is no gateway, and
+   * demanding a code nobody can receive locks every customer out.
+   *
+   * The whole verified flow is built and tested behind this; turning it on is
+   * this flag plus a real [sms], with no app release. See routes/phoneAuth.ts
+   * for what leaving it off costs.
+   */
+  requirePhoneCode?: boolean;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -394,12 +403,17 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   // Sign-in first: these three are the only /admin paths without a session, and
   // registering them here keeps that fact in one place.
   registerStaffLoginRoutes(app, deps.repo);
-  registerPhoneAuthRoutes(app, deps.repo, deps.sms ?? {
-    newCode: () => '000000',
-    // No gateway: refuse, loudly and every time. Falling back to "let her in"
-    // is the hole this whole flow exists to close.
-    send: async () => false,
-  });
+  registerPhoneAuthRoutes(
+    app,
+    deps.repo,
+    deps.sms ?? {
+      newCode: () => '000000',
+      // Only reached when a code IS required and no gateway exists, which is a
+      // misconfiguration: refuse rather than inventing a code nobody receives.
+      send: async () => false,
+    },
+    deps.requirePhoneCode ?? false,
+  );
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerInventoryRoutes(app, deps.repo, deps.authAdmin);

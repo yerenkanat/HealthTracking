@@ -93,6 +93,14 @@ export function registerPhoneAuthRoutes(
   app: FastifyInstance,
   repo: Repository,
   sms: SmsSender,
+  /**
+   * Whether a code is required to sign in.
+   *
+   * False today, on purpose: there is no SMS gateway, and demanding a code
+   * nobody can receive would lock every customer out. See the note inside
+   * /auth/phone/start for exactly what that costs and what turns it on.
+   */
+  requireCode = false,
 ): void {
   /**
    * Step one: send a code to the number.
@@ -120,6 +128,26 @@ export function registerPhoneAuthRoutes(
     }
     await repo.recordPhoneClaim(phone);
 
+    // ---- No code required: sign her in here -------------------------------
+    //
+    // The product decision, taken deliberately: there is no SMS gateway, and
+    // sending nobody a code they cannot receive would lock everybody out.
+    //
+    // What it costs, stated plainly rather than buried: the number IS the
+    // credential. A customer's number is on every parcel, every WhatsApp order
+    // and every delivery manifest, so anyone holding one can open her account —
+    // her pregnancy, her children, their live locations. The mitigations are
+    // narrow: numbers are normalised so one person is one account, and claims
+    // are rate-limited per number so the Kazakh mobile space cannot be walked.
+    //
+    // Everything needed to close this is finished and tested below. Set
+    // REQUIRE_PHONE_CODE=1 with a real sender and it turns on, with no app
+    // release: the app shows its code screen when this answers codeRequired.
+    if (!requireCode) {
+      const session = await issueSession(req, phone, parsed.data.displayName);
+      return reply.send({ ok: true, codeRequired: false, ...session });
+    }
+
     const code = sms.newCode();
     await repo.putPhoneCode({
       phone,
@@ -134,7 +162,13 @@ export function registerPhoneAuthRoutes(
       // like, and it must not be mistaken for "wrong number".
       return reply.code(503).send({ error: 'sms_unavailable' });
     }
-    return reply.send({ ok: true, expiresInSec: Math.floor(CODE_TTL_MS / 1000) });
+    return reply.send({
+      ok: true,
+      // The app reads this to decide whether to show its code screen, so
+      // turning verification on is a server change, not an app release.
+      codeRequired: true,
+      expiresInSec: Math.floor(CODE_TTL_MS / 1000),
+    });
   });
 
   /**
@@ -167,8 +201,23 @@ export function registerPhoneAuthRoutes(
     // Find or create. Signing in and registering are the same act here: there
     // is no separate "register" screen in the app, and asking a tired person to
     // remember which one she did last time would be a worse product.
+    return reply.send(await issueSession(req, phone, parsed.data.displayName));
+  });
+
+  /**
+   * Find-or-create the account and mint a session.
+   *
+   * Shared by both doors — the verified one and, while there is no gateway,
+   * the unverified one — so the two can never drift into issuing different
+   * kinds of session.
+   *
+   * Signing in and registering are the same act here: there is no separate
+   * "register" screen in the app, and asking a tired person to remember which
+   * one she did last time would be a worse product.
+   */
+  async function issueSession(req: FastifyRequest, phone: string, displayName?: string) {
     const user = await repo.userByPhone(phone)
-      ?? await repo.createUserWithPhone({ phone, displayName: parsed.data.displayName ?? '' });
+      ?? await repo.createUserWithPhone({ phone, displayName: displayName ?? '' });
 
     const { token, hash } = newSessionToken();
     await repo.createUserSession({
@@ -180,14 +229,14 @@ export function registerPhoneAuthRoutes(
 
     // The token goes in the body, not a cookie: the caller is a mobile app that
     // will send it as `Authorization: Bearer`, and it has no cookie jar.
-    return reply.send({
+    return {
       userId: user.id,
       phone,
       displayName: user.displayName,
       token,
       expiresInMs: USER_SESSION_TTL_MS,
-    });
-  });
+    };
+  }
 
   /**
    * Revoke this session.

@@ -37,8 +37,14 @@ let lastCode = '';
 /// got the same digits.
 let codeSeq = 0;
 
-/** Wired exactly as index.ts wires it once a database exists. */
-function build(): FastifyInstance {
+/**
+ * Wired exactly as index.ts wires it once a database exists.
+ *
+ * [requireCode] defaults to FALSE because that is what ships: there is no SMS
+ * gateway, so a number is all it takes. The verified flow is built and tested
+ * below with it switched on, which is the only change needed to turn it on.
+ */
+function build(requireCode = false): FastifyInstance {
   return buildServer(
     {
       repo,
@@ -55,6 +61,7 @@ function build(): FastifyInstance {
         allowStubToken: false,
       })(req),
       authAdmin: async () => null,
+      requirePhoneCode: requireCode,
       sms: {
         newCode: () => String(100000 + (codeSeq++)),
         send: async (_phone, code) => { lastCode = code; return true; },
@@ -70,10 +77,17 @@ const start = (phone: string, displayName?: string) =>
 const verify = (phone: string, code: string, displayName?: string) =>
   app.inject({ method: 'POST', url: '/auth/phone/verify', payload: { phone, code, displayName } });
 
-/** The whole flow, for tests that care about what a signed-in account can do. */
+/**
+ * The whole flow, for tests that care about what a signed-in account can do.
+ *
+ * Mirrors the app exactly: ask, and if the answer already carries a session
+ * (no code required, which is what ships today) that IS the sign-in. Only when
+ * the server says a code is needed is there a second step.
+ */
 async function signIn(phone: string, displayName?: string) {
   const started = await start(phone, displayName);
   if (started.statusCode !== 200) return started;
+  if (started.json().codeRequired !== true) return started;
   return verify(phone, lastCode, displayName);
 }
 
@@ -127,11 +141,53 @@ describe('signing in', () => {
   });
 });
 
+/// What SHIPS today: no code.
+///
+/// A deliberate product decision, not an oversight — there is no SMS gateway,
+/// and demanding a code nobody can receive locks every customer out. Written
+/// down as a test so the posture is stated somewhere that fails when it
+/// changes, rather than being inferred from a config file.
+///
+/// What it costs: the number IS the credential. A customer's number is on
+/// every parcel, every WhatsApp order and every delivery manifest.
+describe('with no gateway, the number alone signs her in', () => {
+  it('answers step one with a session and asks for nothing', async () => {
+    const res = await start('77073452244', 'Айгерім');
+    expect(res.statusCode).toBe(200);
+    expect(res.json().codeRequired).toBe(false);
+    expect(res.json().token, 'no session came back').toBeTruthy();
+  });
+
+  it('sends no SMS at all', async () => {
+    await start('77073452244');
+    expect(lastCode, 'a code was sent nobody asked for').toBe('');
+  });
+
+  it('is still one account per number', async () => {
+    // The one thing the unverified flow must still get right, or reinstalling
+    // the app orphans everything she recorded.
+    const first = (await start('77073452244')).json();
+    const again = (await start('+7 (707) 345-22-44')).json();
+    expect(again.userId).toBe(first.userId);
+  });
+
+  it('is still rate-limited', async () => {
+    // Without a code to get wrong, this is the only thing between a script and
+    // the whole eleven-digit Kazakh mobile space.
+    for (let i = 0; i < MAX_CLAIMS; i++) await start('77073452244');
+    expect((await start('77073452244')).statusCode).toBe(429);
+  });
+});
+
 /// The gate itself.
 ///
 /// Every one of these was true before and is false now: typing a number was
 /// the whole sign-in.
 describe('the code is what proves it is her number', () => {
+  // Switched ON here. Everything in this block is what production gets the day
+  // a gateway exists; today it is off and the block above documents that.
+  beforeEach(() => { app = build(true); });
+
   it('a number alone gets no session', async () => {
     const res = await start('77073452244');
     expect(res.statusCode).toBe(200);
@@ -225,7 +281,9 @@ describe('when no SMS can be sent', () => {
         setBpCalibration: async () => {},
         authUser: async () => null,
         authAdmin: async () => null,
-        // sms omitted — exactly what index.ts passes off a dev box.
+        requirePhoneCode: true,
+        // sms omitted — the misconfiguration this guards: a code is demanded
+        // and there is nothing to send it with.
       },
       { logger: false },
     );

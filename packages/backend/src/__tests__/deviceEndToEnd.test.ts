@@ -64,6 +64,8 @@ async function signIn(phone: string): Promise<string> {
     method: 'POST', url: '/auth/phone/start', payload: { phone },
   });
   expect(started.statusCode, 'requesting a code failed').toBe(200);
+  // No code required is what ships: step one already carries the session.
+  if (started.json().codeRequired !== true) return started.json().token as string;
   const res = await app.inject({
     method: 'POST', url: '/auth/phone/verify', payload: { phone, code: lastSmsCode },
   });

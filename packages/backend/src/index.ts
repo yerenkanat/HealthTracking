@@ -242,6 +242,10 @@ async function productionDeps(): Promise<ServerDeps> {
     extractAppointment: process.env.ANTHROPIC_API_KEY ? createAnthropicAppointmentExtractor() : undefined,
     contentApiKey: process.env.CONTENT_API_KEY,
     sms: smsSender(),
+    // Off unless explicitly switched on WITH a gateway. Both, because turning
+    // it on without a sender would lock everybody out instead of protecting
+    // them.
+    requirePhoneCode: process.env.REQUIRE_PHONE_CODE === '1' && !!smsSender(),
   };
 }
 
@@ -288,6 +292,10 @@ function memoryDeps(): ServerDeps {
     cryAnalyze: forwardCry, // works in dev too if a CRY_API_URL is reachable
     contentApiKey: process.env.CONTENT_API_KEY,
     sms: smsSender(),
+    // Off unless explicitly switched on WITH a gateway. Both, because turning
+    // it on without a sender would lock everybody out instead of protecting
+    // them.
+    requirePhoneCode: process.env.REQUIRE_PHONE_CODE === '1' && !!smsSender(),
   };
 }
 
