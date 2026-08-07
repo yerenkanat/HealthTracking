@@ -22,7 +22,7 @@
                         <!-- Ds.cream #FFF7F0 — the design system's canvas. This was pure
                              white, so iOS opened on a white screen and then became cream,
                              while Android already opened on cream. -->
-                        <color key="backgroundColor" red="1" green="0.96862745098039216" blue="0.94117647058823528" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.98431372549019602" green="0.96470588235294119" blue="0.95294117647058818" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="1a2-6s-vTC"/>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="4X2-HB-R7a"/>

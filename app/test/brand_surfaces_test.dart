@@ -37,7 +37,15 @@ void main() {
           .map((m) => m.group(1)!.toUpperCase())
           .toList();
       expect(fills, isNotEmpty);
-      expect(fills, everyElement(equals('#FF3D71')));
+      // Derived from the token, not written out again. This was the literal
+      // '#FF3D71', so moving the palette to docs/CLAUDE-app-design.md turned a
+      // correct native file into a failing test — the assertion was pinning the
+      // old brand rather than the rule "the splash mark matches Ds.coral".
+      final coral = '#${(Ds.coral.toARGB32() & 0xFFFFFF)
+          .toRadixString(16)
+          .padLeft(6, '0')
+          .toUpperCase()}';
+      expect(fills, everyElement(equals(coral)));
     });
 
     test('the notification accent is the CTA coral', () {

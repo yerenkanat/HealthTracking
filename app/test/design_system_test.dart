@@ -126,16 +126,24 @@ void main() {
   });
 
   group('the shape language', () {
-    test('borders are 2px ink', () {
-      expect(DsShape.border.width, 2.0);
-      expect(DsShape.border.color, Ds.ink);
+    test('surfaces carry a hairline, not a 2px outline', () {
+      // This asserted 2px of ink, which was the old neo-brutalist signature.
+      // docs/CLAUDE-app-design.md retires it by name: at 130% system font the
+      // outline and its hard shadow tear the card open, and on the cheap
+      // Android phones this is sold to, an enlarged font is ordinary.
+      expect(DsShape.border.width, 1.0);
+      expect(DsShape.border.color, Ds.hairline);
+      expect(DsShape.border.color, isNot(Ds.ink));
     });
 
-    test('the shadow is a hard offset with no blur', () {
-      // A blurred shadow reads as a different product entirely.
-      expect(DsShape.hardShadow.single.blurRadius, 0);
-      expect(DsShape.hardShadow.single.offset, const Offset(4, 4));
-      expect(DsShape.hardShadow.single.color, Ds.ink);
+    test('there is ONE soft shadow, and it is not ink', () {
+      // A hard ink rectangle behind every card is what stopped working at
+      // large font sizes. One elevation, softly blurred, barely visible.
+      expect(DsShape.hardShadow, hasLength(1));
+      expect(DsShape.hardShadow.single.blurRadius, greaterThan(0));
+      expect(DsShape.hardShadow.single.color, isNot(Ds.ink));
+      // Straight down, not diagonal: an offset shadow reads as a sticker.
+      expect(DsShape.hardShadow.single.offset.dx, 0);
     });
 
     test('tap targets clear the 44px floor', () {
@@ -202,10 +210,10 @@ void main() {
       // primary fills buttons that print white labels, so it is the CTA coral.
       expect(theme.colorScheme.primary, Ds.coralCta);
 
-      // Cards are outlined, not shadowed.
+      // Cards carry a hairline, not the old 2px ink outline.
       final cardShape = theme.cardTheme.shape as RoundedRectangleBorder;
       expect(cardShape.side.width, DsShape.borderWidth);
-      expect(cardShape.side.color, Ds.ink);
+      expect(cardShape.side.color, Ds.hairline);
       expect(theme.cardTheme.elevation, 0);
 
       // The typography extension travels with the theme, which is what makes

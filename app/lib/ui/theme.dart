@@ -78,7 +78,7 @@ class Palette {
   /// Secondary text — 4.9:1 on cream, above the 4.5:1 WCAG floor.
   static const textDim = Ds.textSecondary;
 
-  /// NOTE: in this system a *card* border is 2px [Ds.ink]. This value is the
+  /// NOTE: a *card* border is a 1px [Ds.hairline]. This value is the
   /// hairline BETWEEN list rows. Reach for [DsShape.border] when outlining a
   /// surface, not for this.
   static const border = Ds.divider;
@@ -211,7 +211,9 @@ class FcsTheme {
         // outline is structural here, not decorative.
         focusedBorder: OutlineInputBorder(
           borderRadius: DsShape.input,
-          borderSide: const BorderSide(color: Ds.ink, width: 3),
+          // The focused input outline. Was 3px of ink; the system is hairlines now,
+          // so focus reads as the ACTION colour rather than as a thicker black box.
+          borderSide: const BorderSide(color: Ds.coralDeep, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: DsShape.input,

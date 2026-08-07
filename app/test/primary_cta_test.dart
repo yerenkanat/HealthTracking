@@ -37,7 +37,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// The step under the button — the part a ButtonStyle cannot carry.
+  /// The elevation under the button — the part a ButtonStyle cannot carry.
+  ///
+  /// This used to assert the hard 4x4 ink step of the old neo-brutalist system.
+  /// docs/CLAUDE-app-design.md replaces it with a single soft shadow, so what
+  /// is worth pinning is that the primary CTA still SITS above the page —
+  /// not the exact rectangle it used to cast.
   void expectHardStep(WidgetTester tester) {
     final box = tester
         .widgetList<DecoratedBox>(
@@ -45,9 +50,10 @@ void main() {
         )
         .firstWhere((d) => (d.decoration as BoxDecoration).boxShadow != null);
     final shadow = (box.decoration as BoxDecoration).boxShadow!.single;
-    expect(shadow.offset, const Offset(4, 4));
-    expect(shadow.blurRadius, 0, reason: 'a blurred shadow is not the hard step the spec draws');
-    expect(shadow.color, Ds.ink);
+    expect(shadow.offset.dx, 0, reason: 'straight down; an offset shadow reads as a sticker');
+    expect(shadow.offset.dy, greaterThan(0));
+    expect(shadow.blurRadius, greaterThan(0), reason: 'one soft elevation, not an ink rectangle');
+    expect(shadow.color, isNot(Ds.ink));
   }
 
   testWidgets('the force-update screen', (tester) async {

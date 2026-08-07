@@ -73,12 +73,16 @@ void main() {
       expect(firstBorderedBox(tester)!.color!.a, closeTo(0.16, 0.01));
     });
 
-    testWidgets('raised adds the hard offset shadow, never a blur', (tester) async {
+    testWidgets('raised adds the single soft shadow, not an ink rectangle',
+        (tester) async {
+      // This asserted a 4x4 ink offset with no blur — the old neo-brutalist
+      // signature, which docs/CLAUDE-app-design.md retires because at 130%
+      // system font the outline and its shadow tear the card open.
       await pump(tester, const DsCard(raised: true, child: Text('hello')));
       final s = firstBorderedBox(tester)!.boxShadow!;
-      expect(s.single.blurRadius, 0);
-      expect(s.single.offset, const Offset(4, 4));
-      expect(s.single.color, Ds.ink);
+      expect(s.single.blurRadius, greaterThan(0));
+      expect(s.single.offset.dx, 0, reason: 'straight down, not diagonal');
+      expect(s.single.color, isNot(Ds.ink));
     });
   });
 

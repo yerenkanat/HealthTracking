@@ -34,13 +34,17 @@ void main() {
 
     expect(find.text('Sultan'), findsOneWidget); // child row
     final scrollable = find.byType(Scrollable).first;
+    // Asserted in the order they appear. scrollUntilVisible only scrolls
+    // FORWARD, so checking a row that sits above one already passed scrolls to
+    // the end looking for it and dies there — which is what moving Language
+    // down the screen turned this into.
+    await tester.scrollUntilVisible(find.text('Not calibrated'), 250, scrollable: scrollable);
+    expect(find.text('Not calibrated'), findsOneWidget); // BP calibration status
     // Language is ONE row now, showing the current choice as its subtitle, and
-    // it sits DOWN here rather than second on the screen — it is chosen once,
+    // it sits down here rather than second on the screen — it is chosen once,
     // and it was pushing her children and devices below the fold.
     await tester.scrollUntilVisible(find.text('Language'), 250, scrollable: scrollable);
     expect(find.text('English'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Not calibrated'), 250, scrollable: scrollable);
-    expect(find.text('Not calibrated'), findsOneWidget); // BP calibration status
     await tester.scrollUntilVisible(find.text('Ana-Bala'), 250, scrollable: scrollable);
     expect(find.text('Ana-Bala'), findsOneWidget); // about
     addTearDown(c.dispose);
