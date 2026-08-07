@@ -67,6 +67,32 @@ const statusBody = z.object({
   status: z.enum(['stock', 'sold', 'blocked']),
 });
 
+/// A shipment arriving: how many, of what, and which physical units.
+const receiptBody = z.object({
+  variantId: z.string().trim().min(1),
+  qty: z.number().int().min(1).max(100000),
+  /// Optional. A shipment of straps has no serials; a shipment of watches does.
+  serials: z.string().max(20000).optional(),
+  kind: z.enum(['band', 'tag']).optional(),
+  note: z.string().trim().max(300).optional(),
+});
+
+/// A counted shelf. The cap is the whole catalogue several times over.
+const stocktakeBody = z.object({
+  counts: z.array(z.object({
+    variantId: z.string().trim().min(1),
+    counted: z.number().int().min(0).max(100000),
+  })).min(1).max(500),
+  note: z.string().trim().max(300).optional(),
+});
+
+/// Serials as they are pasted: one per line, or comma separated, or both.
+/// Nobody types forty MACs into forty fields, and a UI that made them would
+/// simply not be used.
+function splitSerials(raw: string): string[] {
+  return raw.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+}
+
 const moveBody = z.object({
   variantId: z.string().trim().min(1),
   // Signed, and non-zero: "changed by nothing" is not an event.
@@ -116,12 +142,9 @@ export function registerInventoryRoutes(
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
     }
-    // Pasted from a packing list, one per line: nobody types forty MACs into
-    // forty separate fields, and a UI that made them would simply not be used.
-    const rows = parsed.data.serials
-      .split(/[\s,;]+/)
-      .map((x) => x.trim())
-      .filter(Boolean)
+    // Pasted from a packing list. Same parser as Приёмка uses, so a list that
+    // splits one way here cannot split another way there.
+    const rows = splitSerials(parsed.data.serials)
       .map((serial) => ({
         serial,
         kind: parsed.data.kind ?? null,
@@ -236,6 +259,150 @@ export function registerInventoryRoutes(
     }
     await repo.writeAudit({ staffId: s.staffId, action: 'stock_move', target: parsed.data.variantId });
     return reply.send({ ok: true, stock: res.stock });
+  });
+
+  /**
+   * Приёмка — a shipment arriving, as ONE action.
+   *
+   * It was two, done in different places, and nothing tied them together: you
+   * typed +10 against a colour on the Склад tab, then pasted forty MACs into
+   * the device registry box further down. Whichever half somebody forgot was
+   * invisible until it mattered — a shelf count that disagrees with the ledger,
+   * or a customer whose brand-new watch the pairing check does not recognise.
+   *
+   * The quantity and the serials are now the same request. When both are given
+   * they must AGREE: forty serials against a quantity of thirty means the
+   * packing list and the box disagree, and the right answer is to stop and look
+   * rather than to book whichever number was typed second.
+   */
+  app.post('/admin/inventory/receipt', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    const parsed = receiptBody.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
+    }
+    const { variantId, qty, kind, note } = parsed.data;
+    const serials = splitSerials(parsed.data.serials ?? '');
+
+    if (serials.length && serials.length !== qty) {
+      return reply.code(409).send({
+        error: 'serial_count_mismatch',
+        qty,
+        serials: serials.length,
+        message: `В поставке ${qty} шт., а серийных номеров ${serials.length}. ` +
+          'Проверьте упаковочный лист — расхождение здесь означает, что на полке ' +
+          'и в журнале будут разные числа.',
+      });
+    }
+
+    // Stock first. If the serial write fails afterwards the shelf is right and
+    // the registry is short, which a second Приёмка fixes because
+    // addDeviceSerials is idempotent per serial. The other order would book
+    // serials for units that never went onto the shelf.
+    const moved = await repo.moveStock({
+      variantId, delta: qty, reason: 'receipt', staffId: s.staffId,
+      note: note ?? 'приёмка',
+    });
+    if (!moved.ok) return reply.code(409).send({ error: moved.error });
+
+    let added = 0;
+    let skipped = 0;
+    if (serials.length) {
+      const res = await repo.addDeviceSerials(serials.map((serial) => ({
+        serial, kind: kind ?? null, note: note ?? null, addedBy: s.staffId,
+      })));
+      added = res.added;
+      skipped = res.skipped;
+    }
+
+    await repo.writeAudit({ staffId: s.staffId, action: 'stock_receipt', target: variantId });
+    return reply.send({
+      ok: true,
+      stock: moved.stock,
+      serialsAdded: added,
+      // Not an error. Receiving the same packing list twice is a normal thing
+      // to do when somebody is unsure whether the first attempt went through,
+      // and reporting the number is how they find out.
+      serialsSkipped: skipped,
+    });
+  });
+
+  /**
+   * Инвентаризация — count the shelf, book the difference.
+   *
+   * The panel could only say "set this to 12", which loses the one fact a
+   * stocktake exists to record: that it USED to say 15 and three are gone. The
+   * difference is written as a `correction` row with the counted number in its
+   * note, so the history answers "when did we last count, and what did we
+   * find" rather than showing an unexplained edit.
+   *
+   * Variants that match are reported and NOT written. A ledger row saying
+   * "changed by nothing" is noise in the one place noise is expensive.
+   */
+  app.post('/admin/inventory/stocktake', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    const parsed = stocktakeBody.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
+    }
+
+    // One snapshot of the shelf, read before anything is written.
+    const before = new Map<string, number>();
+    for (const p of await repo.adminProducts()) {
+      for (const v of p.variants) before.set(v.id, v.stock);
+    }
+
+    const unknown = parsed.data.counts.filter((c) => !before.has(c.variantId)).map((c) => c.variantId);
+    if (unknown.length) {
+      // All-or-nothing: half a stocktake is worse than none, because the half
+      // that applied looks like a completed count.
+      return reply.code(400).send({ error: 'unknown_variant', variants: unknown });
+    }
+
+    const lines: Array<{
+      variantId: string; before: number; counted: number; delta: number; applied: boolean;
+    }> = [];
+    const refused: string[] = [];
+    for (const { variantId, counted } of parsed.data.counts) {
+      const was = before.get(variantId)!;
+      const delta = counted - was;
+      // A row saying "changed by nothing" is noise in the one place noise is
+      // expensive. (The repository refuses a zero delta too — this is here so
+      // the skip is a decision rather than a swallowed error.)
+      if (delta === 0) {
+        lines.push({ variantId, before: was, counted, delta, applied: false });
+        continue;
+      }
+      const moved = await repo.moveStock({
+        variantId, delta, reason: 'correction', staffId: s.staffId,
+        note: `инвентаризация: было ${was}, посчитано ${counted}` +
+          (parsed.data.note ? ` — ${parsed.data.note}` : ''),
+      });
+      // Not assumed. A correction the ledger rejected — a variant deleted
+      // between the snapshot and the write — would otherwise be reported back
+      // as a completed count of a shelf nothing was written for.
+      if (!moved.ok) refused.push(variantId);
+      lines.push({ variantId, before: was, counted, delta, applied: moved.ok });
+    }
+
+    await repo.writeAudit({
+      staffId: s.staffId, action: 'stocktake',
+      target: `${lines.filter((l) => l.delta !== 0).length}/${lines.length}`,
+    });
+    return reply.send({
+      // False when any correction was rejected. The panel says so rather than
+      // reporting a count that did not fully happen as done.
+      ok: refused.length === 0,
+      refused,
+      lines,
+      // The two numbers somebody actually reads afterwards: how much of the
+      // shelf disagreed, and by how much in total. Counted over what was
+      // APPLIED, so a rejected line cannot inflate either.
+      changed: lines.filter((l) => l.applied).length,
+      netDelta: lines.reduce((n, l) => n + (l.applied ? l.delta : 0), 0),
+    });
   });
 
   app.get('/admin/inventory/moves', async (req, reply) => {

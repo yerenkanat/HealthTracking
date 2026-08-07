@@ -1218,6 +1218,48 @@
           <div id="prodMsg" class="formmsg"></div>
         </div>
 
+        <!-- ПРИЁМКА — a shipment arriving, as one action.
+             It was two, in two places, with nothing tying them together: type
+             +10 against a colour up there, then paste forty MACs down here.
+             Whichever half somebody forgot stayed invisible until it mattered
+             — a shelf that disagrees with the ledger, or a customer whose new
+             watch the pairing check does not recognise. -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Приёмка поставки</h3>
+            <span class="sub">Количество и серийные номера — одной записью</span></div>
+          <form id="recvForm" class="stafform" autocomplete="off" style="align-items:flex-start">
+            <select id="recvVariant" aria-label="Товар и цвет" style="min-width:220px"></select>
+            <input id="recvQty" type="number" min="1" step="1" placeholder="Сколько штук" required style="max-width:150px">
+            <textarea id="recvSerials" rows="3" placeholder="MAC-адреса из накладной — по одному в строке (необязательно)"
+              style="flex:1;min-width:260px;font-family:ui-monospace,monospace;font-size:12px"></textarea>
+            <select id="recvKind" aria-label="Тип устройства">
+              <option value="">без серийников</option>
+              <option value="tag">Брелок</option>
+              <option value="band">Часы</option>
+            </select>
+            <input id="recvNote" placeholder="Накладная / примечание" maxlength="300" style="min-width:180px">
+            <button class="btn primary" id="recvBtn" type="submit">Оприходовать</button>
+          </form>
+          <div class="metricnote" id="recvCheck"></div>
+          <div id="recvMsg" class="formmsg"></div>
+        </div>
+
+        <!-- ИНВЕНТАРИЗАЦИЯ — count the shelf, book the difference.
+             The panel could only say "set this to 12", which loses the one
+             fact a stocktake exists to record: that it used to say 15 and
+             three are gone. -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Инвентаризация</h3>
+            <span class="sub">Впишите пересчитанное — разница уйдёт в историю как корректировка</span></div>
+          <div id="takeBody"><div class="sub">Загрузка…</div></div>
+          <form id="takeForm" class="stafform" autocomplete="off" style="margin-top:10px">
+            <input id="takeNote" placeholder="Кто считал / примечание" maxlength="300" style="flex:1;min-width:220px">
+            <button class="btn primary" id="takeBtn" type="submit" disabled>Провести пересчёт</button>
+          </form>
+          <div class="metricnote" id="takeDiff"></div>
+          <div id="takeMsg" class="formmsg"></div>
+        </div>
+
         <!-- Серийные номера устройств.
              Те же часы и брелоки продаются на других маркетплейсах. Пока
              серийник не записан здесь, устройство из чужой коробки работает с
@@ -4065,8 +4107,164 @@
       : `хватит на ${p.daysOfCover} дн. · ${rate}`;
   }
 
+  /**
+   * Every colour of every simple product, as one flat list.
+   *
+   * Both warehouse forms need it and neither cares which product a colour
+   * belongs to beyond the label, so it is built once from the same
+   * /admin/inventory response the shelf is drawn from. A bundle is excluded:
+   * it has no shelf of its own, and "receiving 10 combos" would put stock
+   * against a row whose count is an arithmetic statement about its parts.
+   */
+  function flatVariants(data){
+    const out=[];
+    for(const p of data.products||[]){
+      if(p.kind==="bundle") continue;
+      for(const v of p.variants||[]) out.push({ id:v.id, label:`${p.name} · ${v.color}`, stock:v.stock });
+    }
+    return out;
+  }
+
+  let VARIANTS=[];
+
+  function wireReceipt(){
+    const form=$("#recvForm");
+    if(!form || form.dataset.wired) return;
+    form.dataset.wired="1";
+
+    // Say the mismatch BEFORE the button is pressed. The server refuses a
+    // quantity that disagrees with the serial count, and finding that out
+    // after typing forty MACs is finding it out too late to be useful.
+    const check=()=>{
+      const qty=Number($("#recvQty").value||0);
+      const n=($("#recvSerials").value||"").split(/[\s,;]+/).filter(Boolean).length;
+      const note=$("#recvCheck");
+      if(!n || !qty){ note.textContent=""; return; }
+      note.textContent = n===qty
+        ? `Серийных номеров: ${n} — совпадает с количеством.`
+        : `Серийных номеров ${n}, а в поставке ${qty}. Проверьте упаковочный лист.`;
+      note.style.color = n===qty ? "var(--muted)" : "var(--warn-text,var(--warn))";
+    };
+    $("#recvQty").addEventListener("input",check);
+    $("#recvSerials").addEventListener("input",check);
+
+    form.addEventListener("submit", async ev=>{
+      ev.preventDefault();
+      const btn=$("#recvBtn"); btn.disabled=true; msgTo("#recvMsg","Записываем…");
+      try{
+        const kind=$("#recvKind").value;
+        const res=await apiSend("/admin/inventory/receipt","POST",{
+          variantId:$("#recvVariant").value,
+          qty:Number($("#recvQty").value||0),
+          serials:$("#recvSerials").value.trim()||undefined,
+          kind:kind||undefined,
+          note:$("#recvNote").value.trim()||undefined,
+        });
+        // Both halves reported. "Записано" that hid a skipped serial is how
+        // somebody believes a unit is registered when it is not.
+        const parts=[`на складе ${res.stock} шт.`];
+        if(res.serialsAdded) parts.push(`серийников записано ${res.serialsAdded}`);
+        if(res.serialsSkipped) parts.push(`уже были в базе: ${res.serialsSkipped}`);
+        msgTo("#recvMsg","Поставка оприходована ✓ · "+parts.join(" · "),"ok");
+        $("#recvQty").value=""; $("#recvSerials").value=""; $("#recvNote").value="";
+        $("#recvCheck").textContent="";
+        renderStock();
+      }catch(e){
+        // 409 with a body is the count mismatch, which has its own sentence.
+        const raw=String(e.message||e);
+        msgTo("#recvMsg", raw.includes("serial_count_mismatch")
+          ? "Количество и число серийных номеров не совпадают — поставка не записана."
+          : "Не удалось оприходовать поставку.", "bad");
+      }
+      btn.disabled=false;
+    });
+  }
+
+  function renderStocktake(){
+    const box=$("#takeBody");
+    if(!box) return;
+    box.innerHTML=VARIANTS.map(v=>`
+      <div class="row" style="display:flex;gap:8px;align-items:center;padding:5px 0">
+        <span style="flex:1">${esc(v.label)}</span>
+        <span class="t" style="min-width:96px;text-align:right">в базе ${v.stock}</span>
+        <input class="takecount" data-vid="${esc(v.id)}" data-was="${v.stock}" type="number" min="0" step="1"
+               placeholder="посчитано" aria-label="Посчитано: ${esc(v.label)}"
+               style="width:110px;font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--hair);border-radius:5px;background:var(--bg);color:inherit">
+      </div>`).join("") || `<div class="sub">Пока нечего пересчитывать.</div>`;
+
+    const summarise=()=>{
+      const lines=takeLines();
+      const changed=lines.filter(l=>l.counted!==l.was);
+      $("#takeBtn").disabled=lines.length===0;
+      const note=$("#takeDiff");
+      if(!lines.length){ note.textContent=""; return; }
+      if(!changed.length){ note.textContent=`Пересчитано ${lines.length} — расхождений нет.`; note.style.color="var(--muted)"; return; }
+      // The number that matters is the discrepancy, not the count.
+      const net=changed.reduce((n,l)=>n+(l.counted-l.was),0);
+      note.textContent=`Расхождений: ${changed.length} из ${lines.length}, итого ${net>0?"+":""}${net} шт. ` +
+        changed.slice(0,3).map(l=>`${l.label}: ${l.was}→${l.counted}`).join("; ") +
+        (changed.length>3?` и ещё ${changed.length-3}`:"");
+      note.style.color="var(--warn-text,var(--warn))";
+    };
+    box.querySelectorAll(".takecount").forEach(i=>i.addEventListener("input",summarise));
+    summarise();
+  }
+
+  /** Only the rows somebody actually counted. A blank field is "not counted",
+   *  which is a different thing from zero — and treating it as zero would write
+   *  off the whole shelf. */
+  function takeLines(){
+    const out=[];
+    document.querySelectorAll("#takeBody .takecount").forEach(i=>{
+      if(i.value==="") return;
+      const v=VARIANTS.find(x=>x.id===i.dataset.vid);
+      out.push({ variantId:i.dataset.vid, counted:Number(i.value), was:Number(i.dataset.was), label:v?v.label:i.dataset.vid });
+    });
+    return out;
+  }
+
+  function wireStocktake(){
+    const form=$("#takeForm");
+    if(!form || form.dataset.wired) return;
+    form.dataset.wired="1";
+    form.addEventListener("submit", async ev=>{
+      ev.preventDefault();
+      const lines=takeLines();
+      if(!lines.length) return;
+      const changed=lines.filter(l=>l.counted!==l.was);
+      // A stocktake writes irreversible ledger rows. It asks, and it says how
+      // many rows it is about to write.
+      if(changed.length && !window.confirm(
+        `Провести пересчёт? Будет записано ${changed.length} корректировок — их нельзя отменить, только исправить новой записью.`)) return;
+
+      const btn=$("#takeBtn"); btn.disabled=true; msgTo("#takeMsg","Проводим…");
+      try{
+        const res=await apiSend("/admin/inventory/stocktake","POST",{
+          counts:lines.map(l=>({ variantId:l.variantId, counted:l.counted })),
+          note:$("#takeNote").value.trim()||undefined,
+        });
+        // The server says which corrections it could not write. Reporting a
+        // partial count as done is how somebody believes a shelf was fixed.
+        if(res.ok===false){
+          msgTo("#takeMsg",
+            `Пересчёт прошёл не полностью: ${(res.refused||[]).length} позиций не записаны. Повторите по ним.`,
+            "bad");
+        } else {
+          msgTo("#takeMsg", res.changed
+            ? `Пересчёт проведён ✓ · расхождений ${res.changed}, итого ${res.netDelta>0?"+":""}${res.netDelta} шт.`
+            : "Пересчёт проведён ✓ · расхождений нет.", "ok");
+        }
+        $("#takeNote").value="";
+        renderStock();
+      }catch(e){ msgTo("#takeMsg","Не удалось провести пересчёт.","bad"); }
+      btn.disabled=false;
+    });
+  }
+
   async function renderStock(){
     wireSerials();
+    wireReceipt();
+    wireStocktake();
     renderSerials();
     wireStock();
     const box = $("#stockBody");
@@ -4080,6 +4278,18 @@
     // Defaults only for a backend that predates the runway fields, so an
     // old server shows the shelf without the sentence rather than "NaN дн.".
     const W = { windowDays: data.windowDays ?? 30, leadTimeDays: data.leadTimeDays ?? 14 };
+
+    // Both warehouse forms read the same shelf the table below is drawn from,
+    // so a colour added a minute ago is receivable and countable immediately.
+    VARIANTS = flatVariants(data);
+    const recvSel = $("#recvVariant");
+    if (recvSel) {
+      const keep = recvSel.value;
+      recvSel.innerHTML = VARIANTS.map(v =>
+        `<option value="${esc(v.id)}">${esc(v.label)} — ${v.stock} шт.</option>`).join("");
+      if (keep) recvSel.value = keep;
+    }
+    renderStocktake();
 
     // The banner now leads with what is running out by SALES rate, falling
     // back to the hand-set threshold. A threshold cannot know that watches
