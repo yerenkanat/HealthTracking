@@ -137,6 +137,18 @@ check "/admin" 'stageGapRows'            "Аналитика shows where the use
 check "/admin" 'prodSku'                 "the warehouse can record an article code"
 check "/admin" 'serialForm'              "the warehouse can record device serials"
 check "/admin" 'oserial'                 "an order can record what shipped in it"
+# Everything added since the last deploy. The panel is ONE file read at
+# startup, so a stale copy serves an old build of all of it at once — and the
+# failure is silent: every tab renders, just the previous version of itself.
+# One marker per feature is what makes that impossible to miss.
+check "/admin" 'ROLE_CAPS'               "the panel knows what each role may do"
+check "/admin" 'queueBoard'              "the operator has her own dashboard"
+check "/admin" 'recvForm'                "Приёмка takes a shipment in one action"
+check "/admin" 'takeBody'                "инвентаризация can count the shelf"
+check "/admin" 'reasonWrap'              "opening a health record asks why"
+check "/admin" 'publishBlocked'          "publishing needs both languages"
+check "/admin" 'reviewBody'              "a clinician can sign off medical text"
+check "/admin" 'metricnote'              "stock says how long it lasts"
 
 echo
 echo "==> Routes the PROXY must pass through"
@@ -162,13 +174,38 @@ proxy() { # path, label, expected-codes...
   echo "    deploy/landing-takeover.sh — re-run that script."
   return 1
 }
+
+# A POST-only route cannot be checked with `proxy`: a GET to one answers 404
+# from FASTIFY, which is indistinguishable by status code from Caddy answering
+# 404 because the path is missing from the allowlist. The release would have
+# failed on a healthy server, pointing whoever ran it at the wrong file.
+#
+# So this asks WHO answered instead of what. Caddy's 404 for an unlisted path
+# is text/plain "Not found"; ours is JSON. Pinned by
+# src/__tests__/wrongMethod.test.ts, so the marker cannot drift.
+reaches() { # path, label
+  local body
+  body="$(curl -s --max-time 15 "$PUBLIC$1" || echo '')"
+  case "$body" in
+    *'{'*) echo "    $2 OK (reached the backend)"; return 0 ;;
+  esac
+  echo "!!  $2 FAILED — $PUBLIC$1 was answered by the proxy, not the backend."
+  echo "    Caddy serves an explicit allowlist: add the path to @public/@app in"
+  echo "    deploy/landing-takeover.sh and re-run it."
+  echo "    body: $(printf '%s' "$body" | head -c 120)"
+  return 1
+}
 FAILED=0
 proxy /api/v1                 "the content API is reachable"   200 401 || FAILED=1
 proxy /api/v1/pregnancy/weeks "the pregnancy calendar"         200 401 || FAILED=1
 proxy /api-docs               "the API docs"                   200     || FAILED=1
-# 400/503 both mean it REACHED the handler; 404 means Caddy swallowed it.
-proxy /auth/phone/start       "sign-in step one is routed"     400 429 503 || FAILED=1
 proxy /shop/products          "the storefront"                 200     || FAILED=1
+# Both POST-only — see `reaches` above for why these cannot use `proxy`.
+reaches /auth/phone/start     "sign-in step one is routed"             || FAILED=1
+# The way a customer proves a genuine device is ours when its serial was never
+# recorded at intake. It is the ONLY route out of a `device_not_ours` refusal,
+# so DEVICE_REGISTRY_ENFORCE must not be switched on until this passes.
+reaches /devices/claim        "the activation-code fallback"           || FAILED=1
 [ "$FAILED" = 0 ] || { echo "!!  the proxy is not passing everything through"; exit 1; }
 
 echo
