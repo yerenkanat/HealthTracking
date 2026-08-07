@@ -5,6 +5,7 @@
  * she is actually keeping.
  */
 import { describe, it, expect } from 'vitest';
+import { answerReasonPromptIfShown } from './helpers/reasonPrompt.js';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -105,7 +106,12 @@ async function boot() {
     count: (sel: string) => window.document.querySelectorAll(sel).length,
     errors,
     window,
-    click: async (sel: string) => { window.document.querySelector(sel)!.dispatchEvent(new window.MouseEvent('click', { bubbles: true })); await wait(150); },
+    click: async (sel: string) => {
+      window.document.querySelector(sel)!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      await wait(150);
+      // Clicking a user row now raises the 'why are you opening this?' prompt.
+      await answerReasonPromptIfShown(window);
+    },
   };
 }
 

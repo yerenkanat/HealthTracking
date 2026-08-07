@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
+import { answerReasonPromptIfShown } from './helpers/reasonPrompt.js';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -97,6 +98,9 @@ async function openDrawer(detailExtra: Record<string, unknown>, wellnessExtra: R
   if (!row) throw new Error('no user row rendered');
   row.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await wait(200);
+  // Opening a mother's record now asks why first, and the drawer does not
+  // fetch anything until it is answered.
+  await answerReasonPromptIfShown(window);
 
   return { drawer: (window.document.querySelector('#drawer')?.textContent ?? '').replace(/\s+/g, ' ').trim(), errors };
 }

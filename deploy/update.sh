@@ -93,12 +93,16 @@ await c.end();
 
 for col in "shop_orders bundle_id" "shop_orders phone_normalized" "shop_products grants_feature" \
            "course_progress phone" "course_progress completed" \
-           "device_registry serial" "device_registry status"; do
+           "device_registry serial" "device_registry status" \
+           "audit_log reason"; do
   table="${col%% *}"; column="${col##* }"
   if q "SELECT 1 FROM information_schema.columns WHERE table_name='$table' AND column_name='$column'" | grep -qx FOUND; then
     echo "    $table.$column OK"
   else
-    echo "!!  $table.$column MISSING — migration 025 did not apply"; exit 1
+    # Named individually rather than blamed on one migration: this list spans
+    # 025 through 029, and "migration 025 did not apply" sent somebody to the
+    # wrong file the last time a later one was the problem.
+    echo "!!  $table.$column MISSING — a migration did not apply"; exit 1
   fi
 done
 

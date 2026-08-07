@@ -614,7 +614,16 @@ export interface Repository {
   /// never partially apply across stages.
   putStageContent(stageKey: string, items: ContentItemRow[]): Promise<void>;
 
-  writeAudit(entry: { staffId: string; action: string; target?: string }): Promise<void>;
+  /**
+   * Record a back-office action.
+   *
+   * [reason] is why a person opened somebody's health record or last known
+   * location — required by the routes that serve those, optional here because
+   * most actions (listing orders, editing a lesson) are self-explaining.
+   * Nullable in the column too: rows written before it existed have no reason,
+   * and inventing one for them would make the old log look answered.
+   */
+  writeAudit(entry: { staffId: string; action: string; target?: string; reason?: string }): Promise<void>;
   /// staffName/targetName are resolved from the roster where they can be. Null
   /// means the account is gone or predates accounts existing — the row still
   /// comes back, because a log that hides what it cannot label is worse than

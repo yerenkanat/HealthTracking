@@ -276,6 +276,11 @@ CREATE TABLE audit_log (
   staff_id    TEXT NOT NULL,
   action      TEXT NOT NULL,
   target      TEXT,
+  -- Why the record was opened. Nullable: most actions (listing orders, editing
+  -- a lesson) explain themselves, and rows written before migration 029 have
+  -- no reason and never will. The routes that serve health and location refuse
+  -- to answer without one, so those rows are never blank.
+  reason      TEXT,
   at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_audit_at ON audit_log (at DESC);

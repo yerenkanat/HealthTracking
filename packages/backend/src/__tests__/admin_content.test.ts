@@ -13,6 +13,13 @@ import type { InjectPayload, Response as InjectResponse } from 'light-my-request
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 
+/**
+ * Opening one person's health record now needs a stated reason — it goes into
+ * the audit log beside the name of whoever looked. Appended to every
+ * per-person read below; the rule itself is covered in auditReason.test.ts.
+ */
+const WHY = '?reason=' + encodeURIComponent('Обращение клиента');
+
 type StaffRole = 'admin' | 'clinician' | 'support';
 
 function makeApp(role: StaffRole | null) {
@@ -157,7 +164,7 @@ describe('drilldowns and fleet', () => {
   });
 
   it('a user detail assembles the whole family', async () => {
-    const r = await get(`/admin/users/${DEMO_USER}/detail`);
+    const r = await get(`/admin/users/${DEMO_USER}/detail${WHY}`);
     expect(r.statusCode).toBe(200);
     const d = r.json();
     expect(d.displayName).toBeTruthy();
@@ -167,19 +174,19 @@ describe('drilldowns and fleet', () => {
   });
 
   it('viewing a user is audited as PHI access', async () => {
-    await get(`/admin/users/${DEMO_USER}/detail`);
+    await get(`/admin/users/${DEMO_USER}/detail${WHY}`);
     app = makeApp('admin');
     await app.ready();
     // A fresh app has its own repo, so just assert the route records for its own.
     const own = makeApp('admin');
     await own.ready();
-    await own.inject({ method: 'GET', url: `/admin/users/${DEMO_USER}/detail` });
+    await own.inject({ method: 'GET', url: `/admin/users/${DEMO_USER}/detail${WHY}` });
     const audit = (await own.inject({ method: 'GET', url: '/admin/audit' })).json().audit;
     expect(audit.some((a: { action: string }) => a.action === 'view_user_detail')).toBe(true);
   });
 
   it('an unknown user is a 404, not an empty shell', async () => {
-    expect((await get('/admin/users/00000000-0000-0000-0000-000000000000/detail')).statusCode).toBe(404);
+    expect((await get(`/admin/users/00000000-0000-0000-0000-000000000000/detail${WHY}`)).statusCode).toBe(404);
   });
 
   it('the fleet and safety feed answer', async () => {
@@ -197,7 +204,7 @@ describe('drilldowns and fleet', () => {
   it('none of it is readable without staff credentials', async () => {
     app = makeApp(null);
     await app.ready();
-    for (const path of ['/admin/devices', '/admin/safety', '/admin/analytics', `/admin/users/${DEMO_USER}/detail`]) {
+    for (const path of ['/admin/devices', '/admin/safety', '/admin/analytics', `/admin/users/${DEMO_USER}/detail${WHY}`]) {
       expect((await get(path)).statusCode).toBe(401);
     }
   });

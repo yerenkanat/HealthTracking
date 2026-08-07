@@ -1,0 +1,16 @@
+-- Why somebody opened a mother's health record.
+--
+-- docs/CLAUDE-admin-design.md §"Доступ к чувствительному": «Показатели здоровья
+-- и геолокация — … каждый просмотр в журнале с указанием причины.»
+--
+-- The log recorded WHO looked at WHOM and WHEN, which answers the question
+-- after something has gone wrong and answers nothing before. A row saying
+-- "s-4 viewed health of u-91" is indistinguishable between a clinician
+-- returning a call and somebody reading a neighbour's blood pressure. The
+-- reason is what makes the log reviewable rather than merely complete.
+--
+-- NULLABLE, deliberately. Every row written before this column existed has no
+-- reason and never will; a default of 'не указана' would invent one and make
+-- the old rows look like they were answered. Reads that require a reason are
+-- refused at the route, so new rows cannot be blank — see routes/admin.ts.
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS reason TEXT;

@@ -113,7 +113,7 @@ export function createMemoryRepository(): Repository {
   // the emergencies themselves are still derived from the health rows, so
   // acknowledging one needs no change to the ingest/triage path.
   const emergencyAcks = new Map<string, { staffId: string; at: string }>();
-  const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
+  const audit: Array<{ staffId: string; action: string; target: string | null; reason: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
   const cryResults: CryRow[] = [];
   const weights: WeightRow[] = [];
@@ -1141,7 +1141,7 @@ const UUID_RE =
       }
     },
 
-    writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: new Date().toISOString() }),
+    writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, reason: e.reason ?? null, at: new Date().toISOString() }),
     listAudit: async (limit) => {
       const byId = new Map([...staffAccounts.values()].map((a) => [a.id, a]));
       return audit.slice(-limit).reverse().map((e) => ({

@@ -976,8 +976,8 @@ export function createPgRepository(pool: Pool): Repository {
       };
     },
     async writeAudit(entry) {
-      await pool.query(`INSERT INTO audit_log (staff_id, action, target) VALUES ($1,$2,$3)`,
-        [entry.staffId, entry.action, entry.target ?? null]);
+      await pool.query(`INSERT INTO audit_log (staff_id, action, target, reason) VALUES ($1,$2,$3,$4)`,
+        [entry.staffId, entry.action, entry.target ?? null, entry.reason ?? null]);
     },
     async listAudit(limit) {
       // Joined to the roster on both ends. The log's whole purpose is "who
@@ -988,7 +988,7 @@ export function createPgRepository(pool: Pool): Repository {
       // were accounts (or by an account since removed) must stay visible.
       // Dropping them would make the log lie by omission.
       const { rows } = await pool.query(
-        `SELECT l.staff_id, l.action, l.target, l.at,
+        `SELECT l.staff_id, l.action, l.target, l.reason, l.at,
                 a.display_name AS staff_name, a.phone AS staff_phone,
                 t.display_name AS target_name, t.phone AS target_phone
            FROM audit_log l
@@ -1005,6 +1005,7 @@ export function createPgRepository(pool: Pool): Repository {
         action: r.action,
         target: r.target,
         targetName: r.target_name ?? null,
+        reason: r.reason ?? null,
         at: new Date(r.at).toISOString(),
       }));
     },

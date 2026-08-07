@@ -15,6 +15,13 @@ import { computeBiMetrics } from '../analytics/biMetrics.js';
 import type { Repository, SleepNight, CryRow, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
+/**
+ * Opening one person's health record now needs a stated reason — it goes into
+ * the audit log beside the name of whoever looked. Appended to every
+ * per-person read below; the rule itself is covered in auditReason.test.ts.
+ */
+const WHY = '?reason=' + encodeURIComponent('Обращение клиента');
+
 const USER = '11111111-1111-1111-1111-111111111111';
 const CHILD = '33333333-3333-3333-3333-333333333333';
 const DEVICE = '22222222-2222-2222-2222-222222222222';
@@ -747,7 +754,7 @@ describe('server wiring (in-process)', () => {
     expect(got.diastolicOffset).toBe(5); // 85 − 80
     expect(got.cuffSystolic).toBe(130);
     // ...and it surfaces in the clinician's wellness view.
-    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    const wellness = (await get(`/admin/users/${USER}/wellness${WHY}`)).json();
     expect(wellness.bpCalibration.diastolicOffset).toBe(5);
   });
 
@@ -917,7 +924,7 @@ describe('CRUD + history routes (in-process)', () => {
       payload: { at: '2026-07-21T08:00:00.000Z', kind: 'feed', detail: 'left' } })).statusCode).toBe(201);
     await app.inject({ method: 'POST', url: `/children/${CHILD}/newborn-events`,
       payload: { at: '2026-07-21T10:00:00.000Z', kind: 'diaper', detail: 'wet' } });
-    const evs = (await get(`/admin/users/${USER}/wellness`)).json().newbornEvents;
+    const evs = (await get(`/admin/users/${USER}/wellness${WHY}`)).json().newbornEvents;
     expect(evs.length).toBeGreaterThanOrEqual(2);
     expect(evs[0].kind).toBe('diaper'); // newest first
     expect(evs[0].childName).toBeTruthy();
@@ -953,7 +960,7 @@ describe('CRUD + history routes (in-process)', () => {
     expect(d20.childName).toBeTruthy();
 
     // ...and it reaches the clinician's wellness view.
-    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    const wellness = (await get(`/admin/users/${USER}/wellness${WHY}`)).json();
     expect(wellness.growth.some((g: { at: string; heightCm: number }) => g.at === '2026-07-27' && g.heightCm === 67)).toBe(true);
   });
 
@@ -984,7 +991,7 @@ describe('CRUD + history routes (in-process)', () => {
     expect(doses.find((d: { date: string }) => d.date === '2026-07-22').count).toBe(2);
 
     // ...and adherence reaches the clinician's wellness view.
-    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    const wellness = (await get(`/admin/users/${USER}/wellness${WHY}`)).json();
     expect(wellness.doses.some((d: { medId: string; count: number }) => d.medId === MED && d.count === 2)).toBe(true);
   });
 
@@ -1018,7 +1025,7 @@ describe('CRUD + history routes (in-process)', () => {
     expect(recorded.map((v: { vaccineKey: string }) => v.vaccineKey)).toEqual(['dtp/1']);
 
     // ...and it reaches the clinician's wellness view.
-    const wellness = (await get(`/admin/users/${USER}/wellness`)).json();
+    const wellness = (await get(`/admin/users/${USER}/wellness${WHY}`)).json();
     expect(wellness.vaccines.some((v: { vaccineKey: string }) => v.vaccineKey === 'dtp/1')).toBe(true);
   });
 
@@ -1036,7 +1043,7 @@ describe('CRUD + history routes (in-process)', () => {
     });
     expect(r.statusCode).toBe(200);
     // The admin drawer reads it back joined with the child's name.
-    const ids = (await get(`/admin/users/${USER}/wellness`)).json().medicalIds;
+    const ids = (await get(`/admin/users/${USER}/wellness${WHY}`)).json().medicalIds;
     const card = ids.find((m: { childId: string }) => m.childId === CHILD);
     expect(card.bloodType).toBe('O+');
     expect(card.allergies).toBe('penicillin');
@@ -1299,12 +1306,12 @@ describe('admin API (in-process, RBAC + audit)', () => {
   });
 
   it('patient health view is audited; unknown user 404', async () => {
-    const r = await get(`/admin/users/${USER}/health`);
+    const r = await get(`/admin/users/${USER}/health${WHY}`);
     expect(r.statusCode).toBe(200);
     expect(r.json().latest.systolic).toBe(138);
     const audit = (await get('/admin/audit')).json().audit;
     expect(audit.some((a: { action: string; target: string }) => a.action === 'view_health' && a.target === USER)).toBe(true);
-    expect((await get('/admin/users/00000000-0000-0000-0000-000000000000/health')).statusCode).toBe(404);
+    expect((await get(`/admin/users/00000000-0000-0000-0000-000000000000/health${WHY}`)).statusCode).toBe(404);
   });
 
   it('a clinician reaches patients and not the audit log', async () => {
@@ -1341,7 +1348,7 @@ describe('admin API (in-process, RBAC + audit)', () => {
     await app.inject({ method: 'PUT', url: '/cycle/days', payload: { date: '2026-07-15', mood: 'calm', symptoms: [], kicks: 2 } });
     await post('/alerts', { childId: CHILD, kind: 'entered', zoneName: 'School', at: '2026-07-16T09:00:00Z' });
 
-    const r = await get(`/admin/users/${USER}/wellness`);
+    const r = await get(`/admin/users/${USER}/wellness${WHY}`);
     expect(r.statusCode).toBe(200);
     expect(r.json().sleep[0].deepMin).toBe(95);
     expect(r.json().days[0].mood).toBe('calm');
@@ -1353,7 +1360,7 @@ describe('admin API (in-process, RBAC + audit)', () => {
   it('a clinician can view wellness but not the audit log', async () => {
     const clinician = makeDeps(undefined, async () => ({ staffId: 'c1', role: 'clinician' as const })).server;
     await clinician.ready();
-    expect((await clinician.inject({ method: 'GET', url: `/admin/users/${USER}/wellness` })).statusCode).toBe(200);
+    expect((await clinician.inject({ method: 'GET', url: `/admin/users/${USER}/wellness${WHY}` })).statusCode).toBe(200);
     expect((await clinician.inject({ method: 'GET', url: '/admin/audit' })).statusCode).toBe(403);
   });
 });

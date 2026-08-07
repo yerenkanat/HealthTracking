@@ -204,6 +204,16 @@
      Same 12px as .kpi .delta on purpose: it is the same sentence doing the
      same job, and two sizes for it would read as two kinds of note. */
   .metricnote{font-size:12px;color:var(--muted);margin:2px 0 8px}
+  .reasonwrap{position:fixed;inset:0;background:rgba(30,20,26,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+  .reasonwrap[hidden]{display:none}
+  .reasonbox{background:var(--bg);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow-modal);padding:22px;width:min(440px,100%)}
+  .reasonbox h3{margin:0 0 6px;font-size:16px}
+  .reasonbox .sub{margin:0 0 14px}
+  .reasonpresets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .reasonpresets button{font:inherit;font-size:12px;padding:6px 11px;border-radius:5px;border:1px solid var(--hair);background:var(--surface-2);color:inherit;cursor:pointer}
+  .reasonpresets button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent-text);background:var(--accent-soft)}
+  .reasonbox input{width:100%;font:inherit;font-size:13px;padding:9px 11px;border:1px solid var(--hair);border-radius:5px;background:var(--bg);color:inherit}
+  .reasonact{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 
   /* align-items:start so a card is as tall as its contents. Grid stretches
      rows by default, so a short card beside a tall one grew a large empty
@@ -1000,7 +1010,7 @@
       <section class="view" id="audit">
         <div class="card">
           <div class="tablewrap">
-            <table><thead><tr><th>Когда</th><th>Сотрудник</th><th>Действие</th><th>Объект</th></tr></thead>
+            <table><thead><tr><th>Когда</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Причина</th></tr></thead>
             <tbody id="auditBody"></tbody></table>
           </div>
         </div>
@@ -1362,6 +1372,24 @@
 
 <div class="scrim" id="scrim"></div>
 <div class="navscrim" id="navScrim"></div>
+
+<!-- Why somebody is opening a mother's record.
+     «Показатели здоровья и геолокация — каждый просмотр в журнале с указанием
+     причины.» The log recorded who and when, which answers everything after
+     something has gone wrong and nothing before. -->
+<div class="reasonwrap" id="reasonWrap" hidden>
+  <div class="reasonbox" role="dialog" aria-modal="true" aria-labelledby="reasonH">
+    <h3 id="reasonH">Зачем открываете карту?</h3>
+    <p class="sub">Причина попадёт в журнал действий рядом с вашим именем.
+      Здесь показатели здоровья и геолокация — их видно только с указанной причиной.</p>
+    <div class="reasonpresets" id="reasonPresets"></div>
+    <input id="reasonText" maxlength="200" placeholder="Или напишите свою причину">
+    <div class="reasonact">
+      <button type="button" class="btn ghost" id="reasonCancel">Отмена</button>
+      <button type="button" class="btn primary" id="reasonOk" disabled>Открыть карту</button>
+    </div>
+  </div>
+</div>
 <aside class="drawer" id="drawer" aria-label="Patient detail"></aside>
 
 <script>
@@ -2417,11 +2445,11 @@
   }
   async function renderAudit(){
     const body=$("#auditBody"); if(!body) return;
-    body.innerHTML=tableBusy(4);
+    body.innerHTML=tableBusy(5);
     let data=null;
     try{ data=await api("/admin/audit?limit=100"); }catch(e){ data=null; }
     if(!data){
-      body.innerHTML=tableNote(4,"Не удалось загрузить журнал. Проверьте доступ и соединение.");
+      body.innerHTML=tableNote(5,"Не удалось загрузить журнал. Проверьте доступ и соединение.");
       return;
     }
     const rows=data.audit||[];
@@ -2429,8 +2457,9 @@
         <td class="num t">${esc(stamp(a.at))}</td>
         <td title="${esc(a.staffId||"")}">${esc(auditWho(a))}</td>
         <td>${esc(AUDIT_ACTIONS[a.action]||a.action)}</td>
-        <td class="t" title="${esc(a.target||"")}">${esc(a.targetName||a.target||"—")}</td></tr>`).join("")
-      || tableNote(4,"Действий пока не зафиксировано.");
+        <td class="t" title="${esc(a.target||"")}">${esc(a.targetName||a.target||"—")}</td>
+        <td class="t">${a.reason?esc(a.reason):"<span style=\"color:var(--muted)\">—</span>"}</td></tr>`).join("")
+      || tableNote(5,"Действий пока не зафиксировано.");
   }
 
   // Daily actives as a line, signups as bars behind it, on a shared 30-day axis.
@@ -2532,6 +2561,69 @@
   // and city — appeared nowhere in the back-office. Adding a field to the app
   // and stopping there leaves the people who answer support questions blind to
   // it, and the data team unable to see it at all.
+  /**
+   * The reasons somebody actually has. Presets rather than a bare text box:
+   * a required field with no suggestions is a field that fills up with "-".
+   */
+  const REASON_PRESETS = [
+    "Обращение клиента",
+    "Проверка тревоги",
+    "Разбор жалобы",
+    "Медицинская консультация",
+  ];
+
+  /**
+   * Asked once per person per session, not once per click.
+   *
+   * Her card fires three requests — detail, wellness, health — and re-asking on
+   * each would teach everyone to click through the prompt without reading it,
+   * which is worse than not asking. One deliberate answer, reused for as long
+   * as that card stays open in this session.
+   */
+  const reasonFor = new Map();
+
+  function askReason(personName){
+    return new Promise((resolve)=>{
+      const wrap=$("#reasonWrap"), text=$("#reasonText"), ok=$("#reasonOk");
+      const presets=$("#reasonPresets");
+      presets.innerHTML=REASON_PRESETS.map(r=>
+        `<button type="button" aria-pressed="false">${esc(r)}</button>`).join("");
+      text.value=""; ok.disabled=true; wrap.hidden=false;
+      $("#reasonH").textContent=personName
+        ? `Зачем открываете карту: ${personName}?` : "Зачем открываете карту?";
+
+      // 8 characters, matching the server. A prompt that accepts "ok" and then
+      // watches the server refuse it is worse than no prompt.
+      const check=()=>{ ok.disabled=text.value.trim().length<8; };
+      const onPreset=(ev)=>{
+        const b=ev.target.closest("button"); if(!b) return;
+        presets.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+        text.value=b.textContent; check();
+      };
+      const finish=(value)=>{
+        wrap.hidden=true;
+        text.removeEventListener("input",check);
+        presets.removeEventListener("click",onPreset);
+        ok.removeEventListener("click",onOk);
+        $("#reasonCancel").removeEventListener("click",onCancel);
+        document.removeEventListener("keydown",onKey);
+        resolve(value);
+      };
+      const onOk=()=>finish(text.value.trim());
+      const onCancel=()=>finish(null);
+      // Escape closes it. A modal you can open and not close is worse than one
+      // that never opened.
+      const onKey=(e)=>{ if(e.key==="Escape") onCancel(); };
+
+      text.addEventListener("input",check);
+      presets.addEventListener("click",onPreset);
+      ok.addEventListener("click",onOk);
+      $("#reasonCancel").addEventListener("click",onCancel);
+      document.addEventListener("keydown",onKey);
+      text.focus();
+    });
+  }
+
   async function openUser(id){
     // Seed from the row that was clicked, so the drawer has a name to show
     // while the detail request is in flight.
@@ -2555,14 +2647,23 @@
     let vaccines=[]; // child vaccination record (parent-marked keys), per child
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
+      // Asked BEFORE the first request, not after: a reason collected once the
+      // record is already on screen is a record already read.
+      let reason=reasonFor.get(id);
+      if(!reason){
+        reason=await askReason(u.displayName);
+        if(reason==null) return;      // cancelled — nothing opened, nothing logged
+        reasonFor.set(id,reason);
+      }
+      const withReason=(path)=>`${path}?reason=${encodeURIComponent(reason)}`;
       try{
-        const d=await api(`/admin/users/${id}/detail`);
+        const d=await api(withReason(`/admin/users/${id}/detail`));
         u={...u,...d};
         if(d.latest) h={latest:d.latest,triage:d.triage||[],alert:[]};
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
-      try{ const w=await api(`/admin/users/${id}/wellness`); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; vaccines=(w&&w.vaccines)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; vaccines=[]; }
+      try{ const w=await api(withReason(`/admin/users/${id}/wellness`)); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; vaccines=(w&&w.vaccines)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; vaccines=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };

@@ -178,6 +178,40 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return s;
   }
 
+  /**
+   * Why this person is opening this person's record.
+   *
+   * «Показатели здоровья и геолокация — … каждый просмотр в журнале с указанием
+   * причины.» The log answered who looked at whom and when, which is everything
+   * you need AFTER something has gone wrong and nothing before: a row reading
+   * "s-4 viewed health of u-91" is identical whether a clinician was returning
+   * a call or somebody was reading a neighbour's blood pressure.
+   *
+   * Refused rather than defaulted. A reason of "не указана" written
+   * automatically is worse than none — it makes an unreviewable log look
+   * reviewed. Eight characters, so «ok» and «.» do not pass as answers while
+   * «звонок» and «жалоба» do.
+   *
+   * Applies to the three per-person reads. The feeds (/admin/safety,
+   * /admin/devices) stay audited without one: they are lists the panel polls,
+   * not a decision to open one family's record, and prompting on a poll would
+   * train everyone to click through the prompt.
+   */
+  const MIN_REASON = 8;
+
+  function readReason(req: FastifyRequest, reply: FastifyReply): string | null {
+    const raw = String((req.query as { reason?: string }).reason ?? '').trim();
+    if (raw.length < MIN_REASON) {
+      reply.code(400).send({
+        error: 'reason_required',
+        minLength: MIN_REASON,
+        message: 'Укажите причину просмотра — она попадёт в журнал действий.',
+      });
+      return null;
+    }
+    return raw.slice(0, 300);
+  }
+
   // ---- Reference data the panel draws ------------------------------------
   //
   // The same constants the app's content API serves, under /admin so the panel
@@ -285,8 +319,10 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   app.get('/admin/users/:id/health', async (req, reply) => {
     const s = await requireCap(req, reply, 'health');
     if (!s) return;
+    const reason = readReason(req, reply);
+    if (reason == null) return;
     const userId = (req.params as { id: string }).id;
-    await repo.writeAudit({ staffId: s.staffId, action: 'view_health', target: userId });
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_health', target: userId, reason });
     const health = await repo.adminUserHealth(userId);
     if (!health) return reply.code(404).send({ error: 'not found' });
     return reply.send(health);
@@ -296,8 +332,10 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   app.get('/admin/users/:id/wellness', async (req, reply) => {
     const s = await requireCap(req, reply, 'health');
     if (!s) return;
+    const reason = readReason(req, reply);
+    if (reason == null) return;
     const userId = (req.params as { id: string }).id;
-    await repo.writeAudit({ staffId: s.staffId, action: 'view_wellness', target: userId });
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_wellness', target: userId, reason });
     const [sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration, growth, doses, vaccines] = await Promise.all([
       repo.listSleep(userId, 14),
       repo.listDayLogs(userId, '1970-01-01', '2999-12-31'),
@@ -320,8 +358,10 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   app.get('/admin/users/:id/detail', async (req, reply) => {
     const s = await requireCap(req, reply, 'health');
     if (!s) return;
+    const reason = readReason(req, reply);
+    if (reason == null) return;
     const userId = (req.params as { id: string }).id;
-    await repo.writeAudit({ staffId: s.staffId, action: 'view_user_detail', target: userId });
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_user_detail', target: userId, reason });
     const detail = await repo.adminUserDetail(userId);
     if (!detail) return reply.code(404).send({ error: 'not found' });
     // Her upcoming visits, so staff can see the antenatal plan she is actually
