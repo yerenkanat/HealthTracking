@@ -16,6 +16,7 @@ import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
+import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 
 /// Pregnancy weeks 1..40 and child months 0..60 (birth to five years). Content
 /// under any other key is unreachable by the app, so it is refused on write
@@ -420,6 +421,71 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     const s = await requireCap(req, reply, 'finance');
     if (!s) return;
     return reply.send(await repo.dashboardSnapshot(new Date().toISOString()));
+  });
+
+  /**
+   * The operator's dashboard: what is waiting, and how long it has waited.
+   *
+   * «Дашбордов два … Оператору — очереди задач. Не смешивать.» /admin/dashboard
+   * is the other one, and it is the owner's — revenue, margin, stock value. An
+   * operator was being shown it for want of anything else, and once `finance`
+   * became a capability she was being shown it with the numbers blanked.
+   *
+   * Guarded per SECTION rather than as a whole. A seller has `orders` and not
+   * `emergencies`, and the honest answer to "what is waiting for me" is her two
+   * queues rather than a 403 — so a missing capability drops that queue from
+   * the response instead of refusing the screen. `available` says which ones
+   * were computed, so an empty queue and an unavailable one cannot look alike.
+   */
+  app.get('/admin/queues', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+
+    const mayOrders = can(s.role, 'orders');
+    const mayEmergencies = can(s.role, 'emergencies');
+    if (!mayOrders && !mayEmergencies) {
+      // Nothing queues for a warehouse hand or a content editor: their work
+      // arrives as a shipment or a brief, not as a list of people waiting.
+      return reply.send({ available: [], queues: null });
+    }
+
+    const [leads, orders, emergencies] = await Promise.all([
+      mayOrders ? repo.adminShopLeads(200).catch(() => []) : Promise.resolve([]),
+      mayOrders ? repo.adminShopOrders(200).catch(() => []) : Promise.resolve([]),
+      mayEmergencies ? repo.recentEmergencies(200).catch(() => []) : Promise.resolve([]),
+    ]);
+
+    // One instant for the whole board. Measuring each queue against its own
+    // Date.now() lets two of them disagree about what "now" is, which shows up
+    // as an off-by-one hour nobody can reproduce.
+    const q = buildQueues({ leads, orders, emergencies }, Date.now());
+
+    // Audited: every row on this board carries a customer's name, and the
+    // emergency queue carries the names of women who pressed an SOS. Reaching
+    // that through a summary is the same read as reaching it through the feed.
+    //
+    // Throttled, because the dashboard polls this — the same reason
+    // /admin/emergencies is throttled. Unthrottled it would turn one open tab
+    // into thousands of audit rows a day and bury the reads that matter.
+    if (auditThrottle.shouldWrite(s.staffId, 'view_queues')) {
+      await repo.writeAudit({ staffId: s.staffId, action: 'view_queues' });
+    }
+
+    const available: string[] = [];
+    if (mayOrders) available.push('leads', 'orders');
+    if (mayEmergencies) available.push('emergencies');
+
+    return reply.send({
+      available,
+      queues: {
+        ...(mayOrders ? { leads: q.leads, orders: q.orders } : {}),
+        ...(mayEmergencies ? { emergencies: q.emergencies } : {}),
+      },
+      // Only over the queues this person can actually see, so a seller is never
+      // told something is late that she is not allowed to look at.
+      overdue: overdue(q).filter((k) => available.includes(k)),
+      slaHours: SLA_HOURS,
+    });
   });
 
   // ---- Timeline content (the CMS) ----

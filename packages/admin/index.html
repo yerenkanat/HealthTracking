@@ -767,9 +767,24 @@
              on this screen comes from ONE call and is stamped with one instant
              — the panel used to stitch six endpoints together, so two cards
              could disagree and it looked like an arithmetic bug. -->
-        <div class="kpis" id="dashKpis"></div>
+<!-- ОЧЕРЕДИ — the operator's dashboard.
+             «Дашбордов два … Оператору — очереди задач. Не смешивать.» The
+             block below this is the owner's: revenue, margin, stock value. An
+             operator was shown it for want of anything else, and once finance
+             became a capability she was shown it with the numbers blanked. -->
+        <div id="queueBoard" hidden>
+          <div class="sec-h" style="padding-left:0"><h3>Что ждёт</h3>
+            <span class="sub" id="queueAsOf">—</span></div>
+          <div class="kpis" id="queueKpis"></div>
+          <div class="grid2" id="queueLists"></div>
+        </div>
+
+        <!-- Everything from here down comes from /admin/dashboard, which is the
+             finance capability: revenue, margin and stock value together are
+             the commercial position of the company. -->
+        <div class="kpis" id="dashKpis" data-cap="finance"></div>
         <div class="grid2">
-          <div class="card">
+          <div class="card" data-cap="finance">
             <div class="sec-h"><h3>Кто пользуется приложением</h3><span class="sub">беременность и материнство</span></div>
             <div class="cardbody" id="dashAudience"><div class="sub">Загрузка…</div></div>
           </div>
@@ -779,7 +794,7 @@
           </div>
         </div>
         <div class="grid2">
-          <div class="card">
+          <div class="card" data-cap="finance">
             <div class="sec-h"><h3>География</h3><span class="sub">где живут пользователи</span></div>
             <div class="cardbody" id="dashCities"><div class="sub">Загрузка…</div></div>
           </div>
@@ -1776,6 +1791,78 @@
        delta:`часы ${fmt(d.devices.watches)} · трекеры ${fmt(d.devices.trackers)}`}
     ].map(kpiTile).join("");
   }
+
+  /**
+   * The queue board.
+   *
+   * The number on a queue card is the AGE of the oldest item, not the length.
+   * Three callbacks sitting for four days is a worse morning than twelve from
+   * the last hour, and a count alone cannot tell those apart — so the count is
+   * the explaining line underneath, which is the way round this screen is
+   * useful.
+   */
+  const QUEUE_LBL = {
+    leads:       { title:"Заявки без звонка", unit:"заявк", view:"shop" },
+    orders:      { title:"Заказы к отгрузке", unit:"заказ", view:"shop" },
+    emergencies: { title:"Тревоги без ответа", unit:"событи", view:"emergencies" },
+  };
+
+  /** "4 ч" / "2 дн." — hours are unreadable past a day and a half. */
+  function waited(h){
+    if(h==null) return "—";
+    if(h<1) return "меньше часа";
+    if(h<36) return `${h} ч`;
+    return `${Math.floor(h/24)} дн.`;
+  }
+
+  async function renderQueues(){
+    const board=$("#queueBoard");
+    if(!board) return;
+    let data=null;
+    try{ data=await api("/admin/queues"); }catch(e){ data=null; }
+
+    // Nothing queues for a warehouse hand or a content editor: their work
+    // arrives as a shipment or a brief, not as a list of people waiting.
+    if(!data || !data.available || !data.available.length){ board.hidden=true; return; }
+    board.hidden=false;
+    $("#queueAsOf").textContent="обновлено "+new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+
+    const over=new Set(data.overdue||[]);
+    const keys=Object.keys(QUEUE_LBL).filter(k=>data.queues && data.queues[k]);
+    $("#queueKpis").innerHTML=keys.map(k=>{
+      const q=data.queues[k], lbl=QUEUE_LBL[k];
+      const late=over.has(k);
+      // Crimson is for action and lateness only — that is the spec's rule for
+      // this colour, and a board where everything is red says nothing.
+      const dot=late?"var(--crit)":(q.waiting?"var(--warn)":"var(--good)");
+      const delta=q.waiting===0
+        ? "очередь пуста"
+        : `${q.waiting} ${lbl.unit}${q.waiting===1?"а":"ов"} · норма ${data.slaHours[k]} ч`;
+      return `<div class="card kpi" data-queue="${k}" style="cursor:pointer">
+        <div class="lbl"><span class="dot" style="background:${dot}"></span>${esc(lbl.title)}</div>
+        <div class="val" style="${late?"color:var(--crit-text)":""}">${esc(waited(q.oldestHours))}</div>
+        <div class="delta">${esc(delta)}</div>
+      </div>`;
+    }).join("");
+    $("#queueKpis").querySelectorAll("[data-queue]").forEach(el=>
+      el.addEventListener("click",()=>go(QUEUE_LBL[el.dataset.queue].view)));
+
+    // The front of each queue, oldest first — the actual next thing to do.
+    $("#queueLists").innerHTML=keys.filter(k=>data.queues[k].waiting).map(k=>{
+      const q=data.queues[k], lbl=QUEUE_LBL[k];
+      return `<div class="card">
+        <div class="sec-h"><h3>${esc(lbl.title)}</h3>
+          <span class="link" data-view="${lbl.view}">Открыть</span></div>
+        <div class="cardbody">${q.next.map(it=>`
+          <div class="mrow"><div class="mrow-head">
+            <span class="mrow-label">${esc(it.who)}</span>
+            <span class="mrow-value t">ждёт ${esc(waited(hoursAgo(it.since)))}</span>
+          </div><div class="sub">${esc(it.detail)} · ${esc(stamp(it.since))}</div></div>`).join("")}
+        </div></div>`;
+    }).join("") || `<div class="card"><div class="cardbody sub">Ничего не ждёт — все очереди пусты.</div></div>`;
+  }
+
+  const hoursAgo=(iso)=>Math.max(0,Math.floor((Date.now()-Date.parse(iso))/3600000));
 
   function renderDashAudience(){
     const el=$("#dashAudience"); if(!el) return;
@@ -4660,7 +4747,7 @@
       <div class="k-ages">${ageRows}</div>`;
   }
 
-  function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawOps();}
+  function render(){renderKpis();renderFeeds();renderUsers();renderAudit();drawOps();renderQueues();}
 
   // Events
   document.addEventListener("click",e=>{

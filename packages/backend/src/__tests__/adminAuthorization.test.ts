@@ -59,6 +59,12 @@ const ANY_STAFF = new Map<string, string>([
   // Reading the catalogue. A seller quoting what a lesson covers needs it;
   // CHANGING it is `content`.
   ['GET /admin/content', 'the catalogue as published, read-only'],
+  // The operator's board. Guarded PER SECTION inside the handler rather than
+  // at the door: a seller has `orders` and not `emergencies`, and the honest
+  // answer to "what is waiting for me" is her two queues rather than a 403 on
+  // the whole screen. A role with neither gets an empty board.
+  // queues.test.ts drives all eight roles against it.
+  ['GET /admin/queues', 'each queue is gated on its own capability inside'],
 ]);
 
 /**
