@@ -24,6 +24,10 @@ import 'theme.dart';
 import 'appointments/appointments_screen.dart';
 import 'auth/sign_in_route.dart';
 import 'calendar/antenatal_plan_screen.dart';
+import 'calendar/kick_session_screen.dart';
+import 'calendar/day_log_sheet.dart';
+import 'calendar/pregnancy_weight_screen.dart';
+import '../domain/weight.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -168,6 +172,23 @@ class _HomeShellState extends State<HomeShell> {
                     onOpen: _openContent,
                   ),
                 )),
+        // Screen 53's hero and its three quick actions. Passing the data AND
+        // the handlers together: a hero wired to nothing is the defect this
+        // screen already had once.
+        gestation: c.gestation,
+        kicksToday: c.logFor(DateTime.now()).kicks,
+        loggedWellbeingToday: c.logFor(DateTime.now()).mood != null,
+        latestWeightKg: c.weights.isEmpty ? null : c.weights.last.kg,
+        onLogKick: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => KickSessionScreen(
+                  onSave: (n, elapsed) =>
+                      c.logKickSession(DateTime.now(), n, elapsed)),
+            )),
+        onLogDay: () => showDayLogSheet(context, c, DateTime.now()),
+        onLogWeight: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => PregnancyWeightScreen(
+                  weeklyRateKg: weeklyGainRate(c.weights)),
+            )),
         onLogSleep: () => _logSleep(context, c),
         onAddWater: () => c.addWater(DateTime.now()),
         onRemoveWater: () => c.addWater(DateTime.now(), -1),

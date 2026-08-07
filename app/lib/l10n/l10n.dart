@@ -2333,6 +2333,29 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'log_title': {AppLocale.ru: 'Как вы себя чувствуете?', AppLocale.kk: 'Өзіңізді қалай сезінесіз?', AppLocale.en: 'How are you feeling?'},
   'log_mood': {AppLocale.ru: 'Настроение', AppLocale.kk: 'Көңіл-күй', AppLocale.en: 'Mood'},
   'log_symptoms': {AppLocale.ru: 'Симптомы', AppLocale.kk: 'Симптомдар', AppLocale.en: 'Symptoms'},
+  // Screen 53's hero — §2.4. The caption, the white pill and the size line.
+  'hero_week_trimester': {
+    AppLocale.ru: '{w} неделя · {t}-й триместр',
+    AppLocale.kk: '{w} апта · {t}-триместр',
+    AppLocale.en: 'Week {w} · trimester {t}',
+  },
+  'hero_weeks_left': {
+    AppLocale.ru: 'осталось {n} нед.',
+    AppLocale.kk: '{n} апта қалды',
+    AppLocale.en: '{n} weeks to go',
+  },
+  'hero_length': {AppLocale.ru: '{cm} см', AppLocale.kk: '{cm} см', AppLocale.en: '{cm} cm'},
+  // Before week 4 no size comparison is honest, so the hero says the week.
+  'hero_early': {
+    AppLocale.ru: 'Самое начало пути',
+    AppLocale.kk: 'Жолдың басы',
+    AppLocale.en: 'The very beginning',
+  },
+  // The three quick actions under it.
+  'qa_wellbeing': {AppLocale.ru: 'Самочувствие', AppLocale.kk: 'Көңіл күй', AppLocale.en: 'How you feel'},
+  'qa_weight': {AppLocale.ru: 'Вес', AppLocale.kk: 'Салмақ', AppLocale.en: 'Weight'},
+  'qa_logged_today': {AppLocale.ru: 'отмечено', AppLocale.kk: 'белгіленді', AppLocale.en: 'logged'},
+  'qa_not_yet': {AppLocale.ru: 'ещё нет', AppLocale.kk: 'әлі жоқ', AppLocale.en: 'not yet'},
   'log_kicks': {AppLocale.ru: 'Счётчик шевелений', AppLocale.kk: 'Тебіну санауышы', AppLocale.en: 'Kick counter'},
   'log_note': {AppLocale.ru: 'Заметка', AppLocale.kk: 'Ескертпе', AppLocale.en: 'Note'},
   'log_note_hint': {AppLocale.ru: 'Как прошёл день?', AppLocale.kk: 'Күн қалай өтті?', AppLocale.en: 'How was your day?'},

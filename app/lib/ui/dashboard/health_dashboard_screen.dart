@@ -17,8 +17,10 @@ import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
+import '../../domain/cycle_log.dart';
 import '../../domain/timeline_content.dart';
 import '../content/timeline_content_card.dart';
+import 'stage_hero.dart';
 import '../../domain/weekly_digest.dart';
 import '../../domain/wearable_metrics.dart';
 import '../../l10n/l10n.dart';
@@ -105,6 +107,19 @@ class HealthDashboardView extends StatelessWidget {
   final int waterGoal;
 
   /// Timeline content: the stage the family is at, and its lessons/products.
+  /// Her pregnancy, when there is one. Drives screen 53's hero — the app's
+  /// first block, because it is what she opened it for.
+  final GestationInfo? gestation;
+
+  /// Today's figures for the three quick actions. Null means «ещё нет» rather
+  /// than a zero, which reads as a measurement.
+  final int? kicksToday;
+  final bool loggedWellbeingToday;
+  final double? latestWeightKg;
+  final VoidCallback? onLogKick;
+  final VoidCallback? onLogDay;
+  final VoidCallback? onLogWeight;
+
   final TimelineStage? timelineStage;
   final List<ContentItem> timelineItems;
   final void Function(ContentItem item)? onOpenContent;
@@ -143,6 +158,13 @@ class HealthDashboardView extends StatelessWidget {
     this.awaitingRepeat,
     this.waterCount = 0,
     this.waterGoal = 8,
+    this.gestation,
+    this.kicksToday,
+    this.loggedWellbeingToday = false,
+    this.latestWeightKg,
+    this.onLogKick,
+    this.onLogDay,
+    this.onLogWeight,
     this.timelineStage,
     this.timelineItems = const [],
     this.onOpenContent,
@@ -263,6 +285,47 @@ class HealthDashboardView extends StatelessWidget {
                   // With no due date and no child it explains what to add
                   // rather than drawing an empty shelf, so it is safe to lead
                   // with in every state.
+                  // Screen 53's hero, when she is expecting: the week, how big
+                  // the baby is, and how far along. This is what she opened the
+                  // app for, so it is the first thing under the greeting.
+                  if (gestation != null) ...[
+                    PregnancyHero(gestation: gestation!, onTap: onOpenStatus),
+                    const SizedBox(height: 12),
+                    // «Три быстрых действия (Шевеления / Самочувствие / Вес)».
+                    QuickActionRow(actions: [
+                      QuickAction(
+                        icon: Icons.child_care_rounded,
+                        tint: Ds.pastelMint,
+                        iconColor: Ds.mintText,
+                        label: L10nScope.of(context).t('log_kicks'),
+                        value: kicksToday == null
+                            ? null
+                            : '$kicksToday ${L10nScope.of(context).t('kick_today')}',
+                        onTap: onLogKick,
+                      ),
+                      QuickAction(
+                        icon: Icons.mood_rounded,
+                        tint: Ds.pastelLilac,
+                        iconColor: Ds.coralText,
+                        label: L10nScope.of(context).t('qa_wellbeing'),
+                        value: L10nScope.of(context)
+                            .t(loggedWellbeingToday ? 'qa_logged_today' : 'qa_not_yet'),
+                        onTap: onLogDay,
+                      ),
+                      QuickAction(
+                        icon: Icons.monitor_weight_outlined,
+                        tint: Ds.pastelPink,
+                        iconColor: Ds.coralText,
+                        label: L10nScope.of(context).t('qa_weight'),
+                        value: latestWeightKg == null
+                            ? L10nScope.of(context).t('qa_not_yet')
+                            : '${latestWeightKg!.toStringAsFixed(1)} кг',
+                        onTap: onLogWeight,
+                      ),
+                    ]),
+                    const SizedBox(height: 16),
+                  ],
+
                   TimelineContentCard(
                     stage: timelineStage,
                     items: timelineItems,
