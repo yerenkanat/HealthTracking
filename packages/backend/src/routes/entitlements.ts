@@ -192,6 +192,19 @@ export function registerEntitlementRoutes(
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
     }
+    // A lesson may be SAVED half-translated — that is a draft, and drafts are
+    // how anything gets written. It may not be PUBLISHED that way: the app's
+    // player falls back to Russian without saying so, and a Kazakh-speaking
+    // mother who paid for this course would find that out one lesson at a time.
+    if (parsed.data.published && !(parsed.data.titleKk ?? '').trim()) {
+      return reply.code(400).send({
+        error: 'translation_required',
+        field: 'titleKk',
+        message: 'Нельзя опубликовать урок без казахского названия. ' +
+          'Сохраните как черновик и вернитесь, когда перевод будет готов.',
+      });
+    }
+
     const { id } = await repo.upsertCourseLesson({ course: 'mama', ...parsed.data });
     await repo.writeAudit({ staffId: s.staffId, action: 'course_lesson_save', target: id });
     return reply.send({ ok: true, id });

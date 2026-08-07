@@ -871,6 +871,7 @@
               <button class="btn" id="addLesson" disabled>+ Урок</button>
               <button class="btn" id="addProduct" disabled>+ Товар</button>
               <button class="btn primary" id="saveStage" disabled>Опубликовать</button>
+              <div class="metricnote" id="publishBlocked" hidden></div>
             </span>
           </div>
           <div id="stageItems"><div class="sub">Выберите неделю или месяц выше, чтобы изменить содержимое.</div></div>
@@ -3601,6 +3602,10 @@
         if(r.ok){ resetLessonForm(); msgTo("#lessonMsg","Урок сохранён ✓","ok"); renderCourse(); }
         // The server names this one: only a YouTube link is accepted, and a
         // mis-paste has to be fixable here rather than in the app.
+        // `message` carries the publish-without-Kazakh refusal and says what
+        // to do instead (save it as a draft); `detail` carries the YouTube
+        // link rule. Both are written for the person reading them.
+        else if(res.message){ msgTo("#lessonMsg", res.message, "bad"); }
         else if(res.detail){ msgTo("#lessonMsg", res.detail, "bad"); }
         else { msgTo("#lessonMsg","Не удалось сохранить урок.","bad"); }
       }catch(e){ msgTo("#lessonMsg","Нет связи с сервером.","bad"); }
@@ -4762,9 +4767,13 @@
     const box = $("#stageItems");
     if (!box) return;
     $("#stageTitle").textContent = selected ? `${stageLabel(selected)} · ${selected}` : "Pick a stage";
-    for (const id of ["#addLesson", "#addProduct", "#saveStage"]) {
+    for (const id of ["#addLesson", "#addProduct"]) {
       const b = $(id); if (b) b.disabled = !selected;
     }
+    // «Опубликовать» is disabled until every card has both languages, which is
+    // the spec's own wording. The server refuses it either way; what this adds
+    // is finding out BEFORE writing three cards and losing the round trip.
+    updatePublishState();
     if (!selected) {
       box.innerHTML = `<div class="sub">Выберите неделю или месяц выше, чтобы изменить содержимое.</div>`;
       return;
@@ -4773,6 +4782,57 @@
       ? draft.map(itemHtml).join("")
       : `<div class="sub">Для «${esc(stageLabel(selected))}» ничего не опубликовано на самом этапе.</div>`;
     box.innerHTML = own + sharedIntoHtml(selected);
+    // Re-check as they type, so the button unlocks the moment the last Kazakh
+    // field is filled rather than on some later re-render.
+    box.querySelectorAll("[data-f]").forEach((el) =>
+      el.addEventListener("input", updatePublishState));
+    updatePublishState();
+  }
+
+  /**
+   * What is still missing before this stage can go live.
+   *
+   * Russian AND Kazakh, in the title and the summary of every card — the same
+   * rule content/bilingual.ts enforces on the server. Duplicated on purpose and
+   * not as a shortcut: this one exists so a person sees the requirement while
+   * they are typing, and the server's exists because a browser check protects
+   * nothing.
+   */
+  function untranslated() {
+    const bad = [];
+    for (const item of draft) {
+      for (const field of ["title", "summary"]) {
+        for (const loc of ["ru", "kk"]) {
+          if (!String((item[field] || {})[loc] || "").trim()) {
+            bad.push({ id: item.id, field, loc });
+          }
+        }
+      }
+    }
+    return bad;
+  }
+
+  const LOC_NAME = { ru: "русский", kk: "казахский" };
+  const FIELD_NAME = { title: "заголовок", summary: "описание" };
+
+  function updatePublishState() {
+    const btn = $("#saveStage");
+    if (!btn) return;
+    if (!selected) { btn.disabled = true; return; }
+    readDraftFromDom();
+    const bad = untranslated();
+    btn.disabled = bad.length > 0;
+    const note = $("#publishBlocked");
+    if (!note) return;
+    note.hidden = bad.length === 0;
+    if (bad.length) {
+      // Named card by card. "Заполните все поля" makes somebody hunt through
+      // fourteen cards for the one empty box.
+      const first = bad.slice(0, 3).map((b) =>
+        `«${esc(b.id)}» — ${FIELD_NAME[b.field]}, ${LOC_NAME[b.loc]}`).join("; ");
+      note.textContent = `Нельзя опубликовать без обеих версий: ${first}` +
+        (bad.length > 3 ? ` и ещё ${bad.length - 3}` : "");
+    }
   }
 
   function selectStage(k) {
@@ -4854,9 +4914,15 @@
       renderMap();
       setMsg(`Опубликовано: ${res.items} — ${stageLabel(selected)}.`, "ok");
     } catch (e) {
-      // Surface the server's reason verbatim — "duplicate id", "unknown stage"
-      // are exactly what the author needs to see.
-      setMsg(String(e.message || e), "err");
+      // Surface the server's reason — "duplicate id", "unknown stage", or the
+      // named list of cards missing a translation. api() throws
+      // `400 {"error":...}`, and showing that raw is how a content editor ends
+      // up asking a developer what a 400 is.
+      const raw = String(e.message || e);
+      let shown = raw;
+      const json = raw.slice(raw.indexOf("{"));
+      try { shown = JSON.parse(json).message || raw; } catch (_) { /* not JSON */ }
+      setMsg(shown, "err");
     }
   }
 

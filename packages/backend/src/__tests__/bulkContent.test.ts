@@ -16,8 +16,11 @@ import type { Repository, ContentItemRow } from '../db/repository';
 const lesson = (id: string): ContentItemRow => ({
   id,
   kind: 'lesson',
-  title: { ru: 'Урок' },
-  summary: { ru: 'Описание' },
+  // Both languages. Publishing without Kazakh is refused now — the app falls
+  // back to Russian and says nothing, so a fixture that skipped it was
+  // exercising a path the product no longer allows.
+  title: { ru: 'Урок', kk: 'Сабақ' },
+  summary: { ru: 'Описание', kk: 'Сипаттама' },
 });
 
 function makeRepo() {

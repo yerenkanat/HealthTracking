@@ -184,6 +184,7 @@ describe('who may grant it', () => {
 describe('the course behind the gate', () => {
   const lesson = (over: Record<string, unknown> = {}) => ({
     titleRu: 'Первые дни дома',
+    titleKk: 'Үйдегі алғашқы күндер',
     youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
     published: true,
     ...over,

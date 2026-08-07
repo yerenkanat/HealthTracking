@@ -15,6 +15,7 @@ import { vaccinationSchedule } from '../vaccination/schedule';
 import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
+import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 
 /// Pregnancy weeks 1..40 and child months 0..60 (birth to five years). Content
 /// under any other key is unreachable by the app, so it is refused on write
@@ -411,6 +412,19 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       ids.add(item.id);
     }
 
+    // Both languages, or it does not go live. The app falls back to Russian
+    // and says nothing about it, so a half-translated card reads to a Kazakh
+    // mother as the app ignoring the language she chose. See content/bilingual.
+    const problems = parsed.data.items.flatMap(bilingualProblems);
+    if (problems.length) {
+      return reply.code(400).send({
+        error: 'translation_required',
+        stage,
+        problems,
+        message: bilingualMessage(problems),
+      });
+    }
+
     await repo.putStageContent(stage, parsed.data.items as ContentItemRow[]);
     await repo.writeAudit({ staffId: s.staffId, action: 'edit_content', target: stage });
     return reply.send({ ok: true, stage, items: parsed.data.items.length });
@@ -437,6 +451,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     const keys = Object.keys(stages);
 
     // Validate every key and every id BEFORE the first write.
+    const untranslated: Array<BilingualProblem & { stage: string }> = [];
     for (const key of keys) {
       if (!isStageKey(key)) {
         return reply.code(400).send({ error: `"${key}" is not a stage (w1-w40, m0-m60)` });
@@ -447,7 +462,20 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
           return reply.code(400).send({ error: `duplicate id "${item.id}" in ${key}` });
         }
         ids.add(item.id);
+        // Collected across the WHOLE file rather than thrown on the first one.
+        // An import is a spreadsheet somebody spent a day on; being told about
+        // one missing translation per upload is how a day becomes a week.
+        for (const p of bilingualProblems(item)) untranslated.push({ stage: key, ...p });
       }
+    }
+    if (untranslated.length) {
+      return reply.code(400).send({
+        error: 'translation_required',
+        problems: untranslated,
+        message: `${untranslated.length} материалов без перевода — ничего не записано. ` +
+          bilingualMessage(untranslated.slice(0, 5)) +
+          (untranslated.length > 5 ? ` и ещё ${untranslated.length - 5}` : ''),
+      });
     }
 
     // 'replace' clears every stage absent from the file. It is destructive in a

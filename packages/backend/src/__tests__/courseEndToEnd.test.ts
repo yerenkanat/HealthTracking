@@ -201,7 +201,7 @@ describe('the комплект, from the order desk to her phone', () => {
 
     // Staff add a lesson in the panel.
     const added = await asStaff('PUT', '/admin/course/lessons', {
-      titleRu: 'Первые 40 дней',
+      titleRu: 'Первые 40 дней', titleKk: 'Алғашқы 40 күн',
       youtubeUrl: 'https://youtu.be/aaaaaaaaaaa', sort: 1, published: true,
     });
     expect(added.statusCode, 'the lesson editor refused a valid lesson').toBe(200);
@@ -226,7 +226,7 @@ describe('the комплект, from the order desk to her phone', () => {
     const orderId = (await repo.adminShopOrders(10))[0].id;
     await asStaff('PATCH', `/admin/shop/orders/${orderId}`, { status: 'shipped' });
     await asStaff('PUT', '/admin/course/lessons', {
-      titleRu: 'Первые 40 дней',
+      titleRu: 'Первые 40 дней', titleKk: 'Алғашқы 40 күн',
       youtubeUrl: 'https://youtu.be/aaaaaaaaaaa', sort: 1, published: true,
     });
 
