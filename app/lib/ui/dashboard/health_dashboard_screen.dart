@@ -18,6 +18,7 @@ import '../../domain/health_series.dart';
 import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
 import '../../domain/timeline_content.dart';
+import '../content/timeline_content_card.dart';
 import '../../domain/weekly_digest.dart';
 import '../../domain/wearable_metrics.dart';
 import '../../l10n/l10n.dart';
@@ -247,6 +248,27 @@ class HealthDashboardView extends StatelessWidget {
                     const SizedBox(height: 14),
                   ],
                   _PeaceOfMindBanner(samples: samples, name: greetingName),
+                  const SizedBox(height: 18),
+
+                  // «Главная зависит от этапа … Показатели браслета всегда
+                  // ниже — они не главные.»
+                  //
+                  // This screen opened on four band readings and never
+                  // mentioned that she is twenty weeks pregnant. The stage, its
+                  // content and both callbacks were passed in from home_shell
+                  // and dropped: four constructor parameters read by nothing.
+                  // TimelineContentCard was already built and tested for
+                  // exactly this and was mounted only on the calendar.
+                  //
+                  // With no due date and no child it explains what to add
+                  // rather than drawing an empty shelf, so it is safe to lead
+                  // with in every state.
+                  TimelineContentCard(
+                    stage: timelineStage,
+                    items: timelineItems,
+                    onOpen: onOpenContent,
+                    onSeeAll: onSeeAllContent,
+                  ),
                   const SizedBox(height: 18),
                   // A section label so the vitals read as one named group, in
                   // parallel with the Activity & Wellness header below — the

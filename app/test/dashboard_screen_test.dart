@@ -29,6 +29,11 @@ void main() {
     await tester.scrollUntilVisible(find.text('Activity & wellness'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('Steps'), findsNothing); // detail isn't on the home page
     // Tap through to the dedicated wearable-detail screen.
+    // ensureVisible first: the home page grew a stage-content card at the top,
+    // so scrollUntilVisible can leave the target at the very edge where a tap
+    // lands outside the viewport.
+    await tester.ensureVisible(find.text('Activity & wellness'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Activity & wellness'));
     await tester.pumpAndSettle();
     expect(find.text('Steps'), findsOneWidget);
@@ -62,6 +67,11 @@ void main() {
     final w = WearableMetrics(at: t(0), steps: 500, worn: false);
     await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples, wearable: w)));
     await tester.scrollUntilVisible(find.text('Activity & wellness'), 200, scrollable: find.byType(Scrollable).first);
+    // ensureVisible first: the home page grew a stage-content card at the top,
+    // so scrollUntilVisible can leave the target at the very edge where a tap
+    // lands outside the viewport.
+    await tester.ensureVisible(find.text('Activity & wellness'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Activity & wellness'));
     await tester.pumpAndSettle();
     expect(find.text('Watch is off the wrist — data may be incomplete.'), findsOneWidget);
