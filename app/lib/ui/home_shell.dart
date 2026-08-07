@@ -265,7 +265,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
               icon: const Icon(Icons.favorite_outline),
               selectedIcon: const Icon(Icons.favorite),
-              label: l.t('nav_health')),
+              label: l.t('nav_today')),
           NavigationDestination(
               icon: const Icon(Icons.calendar_today_outlined),
               selectedIcon: const Icon(Icons.calendar_month),

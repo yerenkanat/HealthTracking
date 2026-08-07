@@ -36,7 +36,11 @@ AppLocale resolveInitialLocale(String? savedPref) =>
 /// key → { locale → string }. Missing (locale) falls back to en, then to the key.
 const Map<String, Map<AppLocale, String>> _catalog = {
   // Navigation
-  'nav_health': {AppLocale.ru: 'Здоровье', AppLocale.kk: 'Денсаулық', AppLocale.en: 'Health'},
+  // The first tab. docs/CLAUDE-app-design.md names the four: «Сегодня ·
+  // Календарь · Ребёнок · Профиль». It was «Здоровье», which describes the
+  // data the screen holds rather than what a woman opens the app for — she
+  // opens it to find out what today needs, and the screen already answers that.
+  'nav_today': {AppLocale.ru: 'Сегодня', AppLocale.kk: 'Бүгін', AppLocale.en: 'Today'},
   'nav_assistant': {AppLocale.ru: 'Помощник', AppLocale.kk: 'Көмекші', AppLocale.en: 'Assistant'},
   'nav_child': {AppLocale.ru: 'Ребёнок', AppLocale.kk: 'Бала', AppLocale.en: 'Child'},
   'nav_profile': {AppLocale.ru: 'Профиль', AppLocale.kk: 'Профиль', AppLocale.en: 'Profile'},
