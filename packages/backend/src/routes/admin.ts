@@ -140,7 +140,7 @@ const bulkContentBody = z.object({
   mode: z.enum(['merge', 'replace']).default('merge'),
 });
 
-export type StaffRole = 'admin' | 'clinician' | 'support';
+import { can, type Capability, type StaffRole } from '../auth/capabilities';
 export type AuthAdmin = (req: FastifyRequest) => Promise<{ staffId: string; role: StaffRole } | null>;
 
 export function registerAdminRoutes(app: FastifyInstance, repo: Repository, authAdmin: AuthAdmin): void {
@@ -156,11 +156,22 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     }
     return s;
   }
-  async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+  /**
+   * Guard on what the job needs, not on which role somebody happens to hold.
+   *
+   * What stood here was `requireAdmin` — "are you the owner?" — the only
+   * question this panel could ask. It is the right question for staff
+   * management and the wrong one for everything else: it makes every new role
+   * either an owner or useless, and it is why every signed-in member of staff,
+   * a warehouse hand included, could open a customer's health record.
+   *
+   * See auth/capabilities.ts for the matrix. An unknown role gets nothing.
+   */
+  async function requireCap(req: FastifyRequest, reply: FastifyReply, cap: Capability) {
     const s = await requireStaff(req, reply);
     if (!s) return null;
-    if (s.role !== 'admin') {
-      reply.code(403).send({ error: 'forbidden' });
+    if (!can(s.role, cap)) {
+      reply.code(403).send({ error: 'forbidden', need: cap });
       return null;
     }
     return s;
@@ -227,7 +238,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Live emergency feed ----
   app.get('/admin/emergencies', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'emergencies');
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 50, 200);
     // Throttled, not dropped: this is a live feed the panel re-fetches every
@@ -242,7 +253,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   // Acknowledge an emergency — admin-only (an accountable write), audited.
   // Idempotent: a second ack reports 409 rather than pretending it was first.
   app.post('/admin/emergencies/:id/ack', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'emergencies');
     if (!s) return;
     const id = (req.params as { id: string }).id;
     const first = await repo.acknowledgeEmergency(id, s.staffId, new Date().toISOString());
@@ -252,7 +263,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Children demographics (admin only) ----
   app.get('/admin/children/stats', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'health');
     if (!s) return;
     await repo.writeAudit({ staffId: s.staffId, action: 'view_children_stats' });
     return reply.send(await repo.childrenStats(new Date().toISOString()));
@@ -260,7 +271,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- User list (admin only) ----
   app.get('/admin/users', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'customers');
     if (!s) return;
     const q = (req.query as { q?: string }).q ?? '';
     const limit = clampLimit((req.query as { limit?: string }).limit, 25, 100);
@@ -271,7 +282,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Patient health (clinician/admin) — audited PHI access ----
   app.get('/admin/users/:id/health', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'health');
     if (!s) return;
     const userId = (req.params as { id: string }).id;
     await repo.writeAudit({ staffId: s.staffId, action: 'view_health', target: userId });
@@ -282,7 +293,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Patient wellness (sleep / cycle / safety alerts) — audited ----
   app.get('/admin/users/:id/wellness', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'health');
     if (!s) return;
     const userId = (req.params as { id: string }).id;
     await repo.writeAudit({ staffId: s.staffId, action: 'view_wellness', target: userId });
@@ -306,7 +317,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- One family, assembled (clinician/admin) — audited PHI access ----
   app.get('/admin/users/:id/detail', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'health');
     if (!s) return;
     const userId = (req.params as { id: string }).id;
     await repo.writeAudit({ staffId: s.staffId, action: 'view_user_detail', target: userId });
@@ -320,7 +331,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Device fleet ----
   app.get('/admin/devices', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'health');
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
     // The fleet view is not a list of hardware: every row carries the
@@ -333,7 +344,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Safety feed across all families ----
   app.get('/admin/safety', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'health');
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
     await repo.writeAudit({ staffId: s.staffId, action: 'view_safety_feed' });
@@ -365,7 +376,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
    * retention curve.
    */
   app.get('/admin/dashboard', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'finance');
     if (!s) return;
     return reply.send(await repo.dashboardSnapshot(new Date().toISOString()));
   });
@@ -381,7 +392,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   });
 
   app.put('/admin/content/:stage', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const stage = (req.params as { stage: string }).stage;
     if (!isStageKey(stage)) {
@@ -416,7 +427,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   // nobody can reason about, and the person importing cannot tell how far it
   // got. One bad stage rejects the whole file, naming the stage.
   app.put('/admin/content', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
 
     const parsed = bulkContentBody.safeParse(req.body);
@@ -470,7 +481,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Audit log (admin only) ----
   app.get('/admin/audit', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
     return reply.send({ audit: await repo.listAudit(limit) });
@@ -478,12 +489,12 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // ---- Shop: inventory (per-colour stock) + orders to fulfil ----
   app.get('/admin/shop/variants', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     return reply.send({ variants: await repo.adminShopVariants() });
   });
   app.patch('/admin/shop/variants/:id', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const parsed = z.object({ stock: z.number().int().min(0).max(100000) }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -492,7 +503,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.send({ ok: true });
   });
   app.post('/admin/shop/variants', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const parsed = z.object({
       productId: z.string().min(1).max(64),
@@ -507,7 +518,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     return reply.code(201).send({ ok: true });
   });
   app.get('/admin/shop/orders', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
     await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_orders' });
@@ -518,14 +529,14 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   // landing) plus secret API keys (Anthropic, Google Maps) used server-side.
   // Editable by staff; the public /shop/config exposes ONLY the public keys.
   app.get('/admin/settings', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     // Auditable: this exposes the stored API keys, so record who read them.
     await repo.writeAudit({ staffId: s.staffId, action: 'view_settings' });
     return reply.send({ settings: await repo.getShopSettings() });
   });
   app.put('/admin/settings', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     const parsed = z.object({
       whatsapp: z.string().trim().max(32).optional(),
@@ -564,7 +575,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   // this the first sign of a typo is a customer who was never called back. The
   // whole point is to fail here, loudly, in front of the person who can fix it.
   app.post('/admin/settings/test-telegram', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     const cfg = await repo.getShopSettings();
     if (!cfg.telegramBotToken?.trim() || !cfg.telegramChatId?.trim()) {
@@ -590,7 +601,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
    * priced and validated by the server rather than by whoever is typing.
    */
   app.post('/admin/shop/orders', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const parsed = z.object({
       customerName: z.string().trim().min(1).max(120),
@@ -618,7 +629,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   });
 
   app.patch('/admin/shop/orders/:id', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const parsed = z.object({ status: z.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']) }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -636,7 +647,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
    * the unit and the order knew the customer, and the two never met.
    */
   app.get('/admin/shop/orders/:id/devices', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const { id } = req.params as { id: string };
     // Audited: an order names a customer, so "which devices went to this order"
@@ -646,7 +657,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   });
 
   app.post('/admin/shop/orders/:id/devices', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const { id } = req.params as { id: string };
     const parsed = z.object({ serials: z.string().min(1).max(5000) }).safeParse(req.body);
@@ -666,14 +677,14 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   // Landing-page callback requests ("перезвоним сами"). A queue of phone numbers
   // to work through, not orders — staff call, then mark what came of it.
   app.get('/admin/shop/leads', async (req, reply) => {
-    const s = await requireStaff(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
     await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_leads' });
     return reply.send({ leads: await repo.adminShopLeads(limit) });
   });
   app.patch('/admin/shop/leads/:id', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const parsed = z.object({ status: z.enum(['new', 'called', 'ordered', 'dropped']) }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
@@ -691,7 +702,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
 
   // Coverage list for a track (metadata only — which days have a clip).
   app.get('/admin/audio', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const track = (req.query as { track?: string }).track;
     if (track !== 'pregnancy' && track !== 'child') return reply.code(400).send({ error: 'bad_track' });
@@ -701,7 +712,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   // Upload/replace a day's clip. Raw audio bytes in the body (content-type is the
   // audio mime); the day/locale come from the path and an optional ?title=.
   app.post('/admin/audio/:track/:day/:locale', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const p = audioParams.safeParse(req.params);
     if (!p.success) return reply.code(400).send({ error: p.error.flatten() });
@@ -716,7 +727,7 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   });
 
   app.delete('/admin/audio/:track/:day/:locale', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const p = audioParams.safeParse(req.params);
     if (!p.success) return reply.code(400).send({ error: p.error.flatten() });

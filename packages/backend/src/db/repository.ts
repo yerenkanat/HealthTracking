@@ -349,8 +349,16 @@ export interface AdminAnalytics {
   contentLinked: number;
 }
 
-/** Who can sign in to the back office, and what they may see. */
-export type StaffRole = 'admin' | 'clinician' | 'support';
+/**
+ * Who can sign in to the back office.
+ *
+ * Defined once, in ../auth/capabilities, together with what each role may
+ * actually do. It used to be spelled out here as a three-name union, which is
+ * how the storage layer ended up being the thing that decided policy: adding a
+ * `seller` meant editing a database module.
+ */
+export type { StaffRole } from '../auth/capabilities';
+import type { StaffRole } from '../auth/capabilities';
 
 /** A staff row as the login path needs it — hash included, so keep it there. */
 export interface StaffAccount {

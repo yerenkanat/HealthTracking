@@ -9,6 +9,7 @@ import type { FastifyRequest } from 'fastify';
 import { buildServer } from './server';
 import type { ServerDeps } from './server';
 import { authPosture } from './authPosture';
+import { isStaffRole } from './auth/capabilities';
 import { createMemoryRepository } from './db/memoryRepository';
 import { logOnlySmsSender, type SmsSender } from './routes/phoneAuth';
 import type { Repository } from './db/repository';
@@ -79,9 +80,8 @@ const authAdminFor = (repo: Repository) => async (req: FastifyRequest) => {
   if (!ALLOW_HEADER_STAFF) return null;
   const id = req.headers['x-staff-id'];
   const role = req.headers['x-staff-role'];
-  const roles = ['admin', 'clinician', 'support'];
-  return typeof id === 'string' && id.length > 0 && typeof role === 'string' && roles.includes(role)
-    ? { staffId: id, role: role as 'admin' | 'clinician' | 'support' }
+  return typeof id === 'string' && id.length > 0 && isStaffRole(role)
+    ? { staffId: id, role }
     : null;
 };
 

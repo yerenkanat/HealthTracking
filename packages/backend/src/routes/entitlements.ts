@@ -20,6 +20,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository, StaffRole } from '../db/repository';
+import { can, type Capability } from '../auth/capabilities';
 import { normalizePhone } from '../http/staffAuth';
 import { youtubeVideoId } from '../youtube.js';
 
@@ -77,10 +78,15 @@ export function registerEntitlementRoutes(
   authAdmin: AuthAdmin,
   authUser: AuthUser,
 ): void {
-  async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+  /**
+   * Two different jobs live in this file, and `role !== 'admin'` could not tell
+   * them apart: authoring the course is content work, and granting somebody
+   * access to it is fulfilling an order. Guard each on what it is.
+   */
+  async function requireCap(req: FastifyRequest, reply: FastifyReply, cap: Capability) {
     const s = await authAdmin(req);
     if (!s) { reply.code(401).send({ error: 'unauthorized' }); return null; }
-    if (s.role !== 'admin') { reply.code(403).send({ error: 'forbidden' }); return null; }
+    if (!can(s.role, cap)) { reply.code(403).send({ error: 'forbidden', need: cap }); return null; }
     return s;
   }
 
@@ -163,7 +169,7 @@ export function registerEntitlementRoutes(
   // question that decides whether the комплект's 9 200 ₸ premium is delivering
   // anything, and the one nobody could ask before.
   app.get('/admin/course/progress', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const limit = Math.min(500, Math.max(1, Number((req.query as { limit?: string }).limit) || 100));
     // Audited for the same reason as the entitlement list: it is a list of
@@ -173,14 +179,14 @@ export function registerEntitlementRoutes(
   });
 
   app.get('/admin/course/lessons', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     // Everything, including drafts: this is where they are written.
     return reply.send({ lessons: await repo.courseLessons('mama', false) });
   });
 
   app.put('/admin/course/lessons', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const parsed = lessonBody.safeParse(req.body);
     if (!parsed.success) {
@@ -192,7 +198,7 @@ export function registerEntitlementRoutes(
   });
 
   app.delete('/admin/course/lessons/:id', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'content');
     if (!s) return;
     const { id } = req.params as { id: string };
     await repo.deleteCourseLesson(id);
@@ -202,7 +208,7 @@ export function registerEntitlementRoutes(
 
   // ---- Staff grant and revoke ----------------------------------------------
   app.get('/admin/entitlements', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const q = req.query as { feature?: string; limit?: string };
     const feature = (FEATURES as readonly string[]).includes(q.feature ?? '')
@@ -215,7 +221,7 @@ export function registerEntitlementRoutes(
   });
 
   app.post('/admin/entitlements', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const parsed = grantBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'bad_request' });
@@ -232,7 +238,7 @@ export function registerEntitlementRoutes(
   });
 
   app.delete('/admin/entitlements/:feature/:phone', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'orders');
     if (!s) return;
     const { feature, phone } = req.params as { feature: string; phone: string };
     if (!(FEATURES as readonly string[]).includes(feature)) {

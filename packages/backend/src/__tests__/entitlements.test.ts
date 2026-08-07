@@ -138,10 +138,20 @@ describe('who may grant it', () => {
     expect(await mine()).toEqual([]);
   });
 
-  it('not a support account — this gives away a 40 000 ₸ course', async () => {
+  // Granting needs the `orders` capability, not an owner login.
+  //
+  // This used to be admin-only, and the reason was sound — it gives away a
+  // 40 000 ₸ course. But the whole point of granting by hand is the WhatsApp
+  // order paid on delivery with no row in shop_orders, and that is the
+  // operator's job every day. Admin-only meant they asked the owner or the
+  // owner's password got shared, which is worse than either. What actually
+  // bounds it is the capability plus the audit row naming who granted it.
+  //
+  // A warehouse hand still cannot: they have `stock` and nothing else.
+  it('not a warehouse account — this gives away a 40 000 ₸ course', async () => {
     await app.inject({
       method: 'POST', url: '/admin/staff', headers: { cookie },
-      payload: { phone: '77011112233', displayName: 'Айгерім', role: 'support', password: 'nurse-password' },
+      payload: { phone: '77011112233', displayName: 'Айгерім', role: 'warehouse', password: 'nurse-password' },
     });
     const login = await app.inject({
       method: 'POST', url: '/admin/login',

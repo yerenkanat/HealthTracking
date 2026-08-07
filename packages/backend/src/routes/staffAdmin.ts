@@ -25,6 +25,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository, StaffRole } from '../db/repository';
+import { can, type Capability, STAFF_ROLES } from '../auth/capabilities';
 import {
   hashPassword,
   hashToken,
@@ -36,7 +37,14 @@ import {
 /** Long enough to be worth hashing; the panel says the same thing. */
 export const MIN_PASSWORD = 8;
 
-const ROLES = ['admin', 'clinician', 'support'] as const;
+/**
+ * Every role that can be assigned, from the one place the matrix lives.
+ *
+ * This was a literal three-name list, so the panel could offer only the three
+ * roles that existed before there were capabilities — a `seller` was a role you
+ * could write a guard for and not a role you could give anybody.
+ */
+const ROLES = STAFF_ROLES;
 
 const createBody = z.object({
   phone: z.string().min(4).max(32),
@@ -71,29 +79,38 @@ export function registerStaffAdminRoutes(
     if (!s) { reply.code(401).send({ error: 'unauthorized' }); return null; }
     return s;
   }
-  async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+  /** Managing colleagues is the `staff` capability — owner and admin hold it. */
+  async function requireCap(req: FastifyRequest, reply: FastifyReply, cap: Capability) {
     const s = await requireStaff(req, reply);
     if (!s) return null;
-    if (s.role !== 'admin') { reply.code(403).send({ error: 'forbidden' }); return null; }
+    if (!can(s.role, cap)) { reply.code(403).send({ error: 'forbidden', need: cap }); return null; }
     return s;
   }
 
-  /** Enabled admins other than [exceptId] — what the last-admin guard counts. */
+  /**
+   * Enabled accounts other than [exceptId] that could still manage staff — what
+   * the last-admin guard counts.
+   *
+   * It counted `role === 'admin'` exactly. With `owner` also holding the
+   * capability that reads as zero on a company whose only owner is an `owner`,
+   * so the guard would refuse a legitimate demotion; and the day `admin` is
+   * retired it would refuse every one of them. Count the capability.
+   */
   async function otherEnabledAdmins(exceptId: string): Promise<number> {
     const all = await repo.listStaffAccounts();
-    return all.filter((a) => a.role === 'admin' && !a.disabled && a.id !== exceptId).length;
+    return all.filter((a) => can(a.role, 'staff') && !a.disabled && a.id !== exceptId).length;
   }
 
   // ---- The roster ----------------------------------------------------------
   app.get('/admin/staff', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     return reply.send({ staff: await repo.listStaffAccounts(), me: s.staffId });
   });
 
   // ---- Add a colleague -----------------------------------------------------
   app.post('/admin/staff', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     const parsed = createBody.safeParse(req.body);
     if (!parsed.success) {
@@ -126,7 +143,7 @@ export function registerStaffAdminRoutes(
 
   // ---- Change a colleague's role, name, password, or access ----------------
   app.patch('/admin/staff/:id', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     const { id } = req.params as { id: string };
     const parsed = patchBody.safeParse(req.body);
@@ -142,11 +159,12 @@ export function registerStaffAdminRoutes(
     const target = await repo.staffById(id);
     if (!target) return reply.code(404).send({ error: 'not_found' });
 
-    const losesAdmin = patch.disabled === true || (patch.role !== undefined && patch.role !== 'admin');
+    const losesAdmin =
+      patch.disabled === true || (patch.role !== undefined && !can(patch.role, 'staff'));
     if (losesAdmin && target.id === s.staffId) {
       return reply.code(409).send({ error: 'cannot_lock_yourself_out' });
     }
-    if (losesAdmin && target.role === 'admin' && !target.disabled) {
+    if (losesAdmin && can(target.role, 'staff') && !target.disabled) {
       if ((await otherEnabledAdmins(target.id)) === 0) {
         return reply.code(409).send({ error: 'last_admin' });
       }

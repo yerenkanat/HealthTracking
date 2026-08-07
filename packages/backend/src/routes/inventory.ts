@@ -18,6 +18,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository, StaffRole } from '../db/repository';
+import { can, type Capability } from '../auth/capabilities';
 
 export type AuthAdmin = (
   req: FastifyRequest,
@@ -66,10 +67,15 @@ export function registerInventoryRoutes(
   repo: Repository,
   authAdmin: AuthAdmin,
 ): void {
-  async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+  /**
+   * The warehouse. Guarded on `stock`, so the hand who receives shipments and
+   * counts shelves can do the job without also being an owner — which is what
+   * `role !== 'admin'` forced, and why in practice one person did everything.
+   */
+  async function requireCap(req: FastifyRequest, reply: FastifyReply, cap: Capability) {
     const s = await authAdmin(req);
     if (!s) { reply.code(401).send({ error: 'unauthorized' }); return null; }
-    if (s.role !== 'admin') { reply.code(403).send({ error: 'forbidden' }); return null; }
+    if (!can(s.role, cap)) { reply.code(403).send({ error: 'forbidden', need: cap }); return null; }
     return s;
   }
 
@@ -80,7 +86,7 @@ export function registerInventoryRoutes(
   // goes onto the ledger. That is the only new warehouse work, and it is what
   // decides whether the pairing check protects anything or refuses customers.
   app.get('/admin/device-registry', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const limit = Math.min(1000, Math.max(1, Number((req.query as { limit?: string }).limit) || 200));
     // Audited, like the entitlement list and for the same reason: every sold
@@ -91,7 +97,7 @@ export function registerInventoryRoutes(
   });
 
   app.post('/admin/device-registry', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const parsed = serialsBody.safeParse(req.body);
     if (!parsed.success) {
@@ -117,7 +123,7 @@ export function registerInventoryRoutes(
   });
 
   app.post('/admin/device-registry/:serial/status', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const { serial } = req.params as { serial: string };
     const parsed = statusBody.safeParse(req.body);
@@ -132,7 +138,7 @@ export function registerInventoryRoutes(
   });
 
   app.get('/admin/inventory', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const products = await repo.adminProducts();
     // Bundle composition travels with the product, so the panel can show what a
@@ -148,7 +154,7 @@ export function registerInventoryRoutes(
   });
 
   app.put('/admin/inventory/products', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const parsed = productBody.safeParse(req.body);
     if (!parsed.success) {
@@ -160,7 +166,7 @@ export function registerInventoryRoutes(
   });
 
   app.put('/admin/inventory/products/:id/parts', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const { id } = req.params as { id: string };
     const parsed = partsBody.safeParse(req.body);
@@ -176,7 +182,7 @@ export function registerInventoryRoutes(
 
   // ---- Moving stock ---------------------------------------------------------
   app.post('/admin/inventory/moves', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const parsed = moveBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'bad_request' });
@@ -193,7 +199,7 @@ export function registerInventoryRoutes(
   });
 
   app.get('/admin/inventory/moves', async (req, reply) => {
-    const s = await requireAdmin(req, reply);
+    const s = await requireCap(req, reply, 'stock');
     if (!s) return;
     const q = req.query as { variantId?: string; limit?: string };
     const limit = Math.min(500, Math.max(1, Number(q.limit) || 100));

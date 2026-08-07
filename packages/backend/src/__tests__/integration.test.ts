@@ -1306,12 +1306,18 @@ describe('admin API (in-process, RBAC + audit)', () => {
     expect((await get('/admin/users/00000000-0000-0000-0000-000000000000/health')).statusCode).toBe(404);
   });
 
-  it('user list + audit require the admin role (clinician → 403)', async () => {
+  it('a clinician reaches patients and not the audit log', async () => {
     const clinician = makeDeps(undefined, async () => ({ staffId: 'c1', role: 'clinician' })).server;
     await clinician.ready();
-    expect((await clinician.inject({ method: 'GET', url: '/admin/users' })).statusCode).toBe(403);
+    // The audit log is who-looked-at-whom, including at her. `staff`, not
+    // `health` — being able to read records is not being able to read the
+    // record of everyone else reading them.
     expect((await clinician.inject({ method: 'GET', url: '/admin/audit' })).statusCode).toBe(403);
-    // but a clinician can still view stats + patient health
+    // Money is not hers either.
+    expect((await clinician.inject({ method: 'GET', url: '/admin/dashboard' })).statusCode).toBe(403);
+    // The user list WAS 403 here, which made the health view unusable: you
+    // cannot open a patient's record without first finding the patient.
+    expect((await clinician.inject({ method: 'GET', url: '/admin/users' })).statusCode).toBe(200);
     expect((await clinician.inject({ method: 'GET', url: '/admin/stats' })).statusCode).toBe(200);
   });
 
