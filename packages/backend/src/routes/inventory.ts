@@ -67,10 +67,31 @@ const statusBody = z.object({
   status: z.enum(['stock', 'sold', 'blocked']),
 });
 
-/// A shipment arriving: how many, of what, and which physical units.
+/**
+ * A shipment arriving.
+ *
+ * «Приёмка принимает факт, а не накладную.» [qty] is what is in the box, and it
+ * is what goes on the shelf. [invoiceQty] is what the supplier says they sent,
+ * and the gap between them is a CLAIM against the supplier rather than a reason
+ * to refuse the delivery — a warehouse hand who cannot book a short shipment
+ * types the invoice number instead, and from then on the shelf and the ledger
+ * disagree with nothing to explain why.
+ */
 const receiptBody = z.object({
   variantId: z.string().trim().min(1),
+  /// Units actually in the box, defective ones included. They arrived.
   qty: z.number().int().min(1).max(100000),
+  /// What the packing list claims. Absent when nobody is checking against one.
+  invoiceQty: z.number().int().min(0).max(100000).optional(),
+  /// Of [qty], how many are unsellable. They are counted, and not stocked.
+  defective: z.number().int().min(0).max(100000).optional(),
+  /**
+   * What the whole batch cost, in tiyn. «Себестоимость партии пересчитывается с
+   * учётом брака»: paying for thirty and being able to sell twenty-eight makes
+   * each sellable unit cost more, and a cost that ignores that reports a margin
+   * the business is not earning.
+   */
+  batchCostMinor: z.number().int().min(0).optional(),
   /// Optional. A shipment of straps has no serials; a shipment of watches does.
   serials: z.string().max(20000).optional(),
   kind: z.enum(['band', 'tag']).optional(),
@@ -270,10 +291,19 @@ export function registerInventoryRoutes(
    * invisible until it mattered — a shelf count that disagrees with the ledger,
    * or a customer whose brand-new watch the pairing check does not recognise.
    *
-   * The quantity and the serials are now the same request. When both are given
-   * they must AGREE: forty serials against a quantity of thirty means the
-   * packing list and the box disagree, and the right answer is to stop and look
-   * rather than to book whichever number was typed second.
+   * «Приёмка принимает факт, а не накладную.» What is in the box goes on the
+   * shelf. What the supplier billed is recorded beside it, and a shortfall is a
+   * CLAIM against them rather than a reason to refuse the delivery — a
+   * warehouse hand who cannot book a short shipment types the invoice number
+   * instead, and from then on the shelf and the ledger disagree with nothing
+   * anywhere to explain why. That is the failure this route used to cause: it
+   * refused any mismatch, which made the honest answer the impossible one.
+   *
+   * Serials are the exception, and not for the same reason. A serial IS a unit,
+   * so twenty-eight of them against a quantity of thirty is not a discrepancy
+   * with a supplier — it is two units nobody has identified yet, and booking it
+   * would leave two watches on the shelf that the pairing check will not
+   * recognise. That one is still refused.
    */
   app.post('/admin/inventory/receipt', async (req, reply) => {
     const s = await requireCap(req, reply, 'stock');
@@ -282,7 +312,8 @@ export function registerInventoryRoutes(
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
     }
-    const { variantId, qty, kind, note } = parsed.data;
+    const { variantId, qty, invoiceQty, batchCostMinor, kind, note } = parsed.data;
+    const defective = Math.min(parsed.data.defective ?? 0, qty);
     const serials = splitSerials(parsed.data.serials ?? '');
 
     if (serials.length && serials.length !== qty) {
@@ -290,19 +321,41 @@ export function registerInventoryRoutes(
         error: 'serial_count_mismatch',
         qty,
         serials: serials.length,
-        message: `В поставке ${qty} шт., а серийных номеров ${serials.length}. ` +
-          'Проверьте упаковочный лист — расхождение здесь означает, что на полке ' +
-          'и в журнале будут разные числа.',
+        message: `В коробке ${qty} шт., а серийных номеров ${serials.length}. ` +
+          'Серийник — это единица товара, а не строка накладной: без него устройство ' +
+          'не отличить от чужого. Допишите недостающие или укажите фактическое количество.',
       });
     }
+
+    // What can be sold. Defective units arrived — they are a fact, and they are
+    // counted — but putting them on the shelf sells one to somebody.
+    const usable = qty - defective;
+    if (usable <= 0) {
+      return reply.code(409).send({
+        error: 'nothing_usable',
+        message: `Вся поставка (${qty} шт.) в браке — принимать на склад нечего. ` +
+          'Оформите претензию поставщику.',
+      });
+    }
+
+    // The claim against the supplier. Recorded, never a refusal.
+    const shortfall = invoiceQty != null ? invoiceQty - qty : 0;
+
+    const parts = [note ?? 'приёмка'];
+    if (invoiceQty != null && shortfall !== 0) {
+      parts.push(shortfall > 0
+        ? `недостача ${shortfall} шт. против накладной (${invoiceQty})`
+        : `излишек ${-shortfall} шт. против накладной (${invoiceQty})`);
+    }
+    if (defective) parts.push(`брак ${defective} шт., на склад не поставлен`);
 
     // Stock first. If the serial write fails afterwards the shelf is right and
     // the registry is short, which a second Приёмка fixes because
     // addDeviceSerials is idempotent per serial. The other order would book
     // serials for units that never went onto the shelf.
     const moved = await repo.moveStock({
-      variantId, delta: qty, reason: 'receipt', staffId: s.staffId,
-      note: note ?? 'приёмка',
+      variantId, delta: usable, reason: 'receipt', staffId: s.staffId,
+      note: parts.join(' · '),
     });
     if (!moved.ok) return reply.code(409).send({ error: moved.error });
 
@@ -316,10 +369,39 @@ export function registerInventoryRoutes(
       skipped = res.skipped;
     }
 
+    // «Себестоимость партии пересчитывается с учётом брака.» Paying for thirty
+    // and being able to sell twenty-eight makes each sellable unit cost more.
+    // Dividing by what arrived instead reports a margin the business is not
+    // earning, and margin is what the owner's dashboard is built on.
+    let unitCostMinor: number | null = null;
+    if (batchCostMinor != null) {
+      unitCostMinor = Math.round(batchCostMinor / usable);
+      const product = (await repo.adminProducts().catch(() => []))
+        .find((p) => p.variants.some((v) => v.id === variantId));
+      if (product) {
+        // Checked, not assumed: a cost that silently failed to save would leave
+        // the dashboard quoting the old one with no sign anything went wrong.
+        await repo.upsertProduct({ ...product, costMinor: unitCostMinor });
+      }
+    }
+
     await repo.writeAudit({ staffId: s.staffId, action: 'stock_receipt', target: variantId });
     return reply.send({
       ok: true,
       stock: moved.stock,
+      /// What went on the shelf, which is not what arrived when some was broken.
+      received: qty,
+      stocked: usable,
+      defective,
+      /**
+       * Positive: the supplier billed for more than turned up. Negative: they
+       * sent more. Zero or absent: nothing to claim.
+       *
+       * Returned rather than raised as an error, because the delivery is a fact
+       * and the claim is a separate conversation with somebody else.
+       */
+      shortfall,
+      unitCostMinor,
       serialsAdded: added,
       // Not an error. Receiving the same packing list twice is a normal thing
       // to do when somebody is unsure whether the first attempt went through,

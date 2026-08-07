@@ -1260,10 +1260,13 @@
              watch the pairing check does not recognise. -->
         <div class="card" style="margin-bottom:16px">
           <div class="sec-h"><h3>Приёмка поставки</h3>
-            <span class="sub">Количество и серийные номера — одной записью</span></div>
+            <span class="sub">Принимаем факт, а не накладную: расхождение — претензия поставщику, а не повод не принять</span></div>
           <form id="recvForm" class="stafform" autocomplete="off" style="align-items:flex-start">
             <select id="recvVariant" aria-label="Товар и цвет" style="min-width:220px"></select>
-            <input id="recvQty" type="number" min="1" step="1" placeholder="Сколько штук" required style="max-width:150px">
+            <input id="recvQty" type="number" min="1" step="1" placeholder="Фактически в коробке" required style="max-width:170px">
+            <input id="recvInvoice" type="number" min="0" step="1" placeholder="По накладной" style="max-width:150px">
+            <input id="recvDefect" type="number" min="0" step="1" placeholder="Из них брак" style="max-width:140px">
+            <input id="recvCost" type="number" min="0" step="1" placeholder="Стоимость партии, ₸" style="max-width:190px">
             <textarea id="recvSerials" rows="3" placeholder="MAC-адреса из накладной — по одному в строке (необязательно)"
               style="flex:1;min-width:260px;font-family:ui-monospace,monospace;font-size:12px"></textarea>
             <select id="recvKind" aria-label="Тип устройства">
@@ -4254,25 +4257,57 @@
     // after typing forty MACs is finding it out too late to be useful.
     const check=()=>{
       const qty=Number($("#recvQty").value||0);
+      const inv=$("#recvInvoice").value===""?null:Number($("#recvInvoice").value);
+      const bad=Number($("#recvDefect").value||0);
+      const cost=$("#recvCost").value===""?null:Number($("#recvCost").value);
       const n=($("#recvSerials").value||"").split(/[\s,;]+/).filter(Boolean).length;
       const note=$("#recvCheck");
-      if(!n || !qty){ note.textContent=""; return; }
-      note.textContent = n===qty
-        ? `Серийных номеров: ${n} — совпадает с количеством.`
-        : `Серийных номеров ${n}, а в поставке ${qty}. Проверьте упаковочный лист.`;
-      note.style.color = n===qty ? "var(--muted)" : "var(--warn-text,var(--warn))";
+      if(!qty){ note.textContent=""; return; }
+
+      const lines=[];
+      let warn=false;
+      // The serial rule is the only hard one, and it is not about the supplier:
+      // a serial IS a unit, so a missing one is a watch the pairing check will
+      // not recognise sitting on our own shelf.
+      if(n && n!==qty){
+        lines.push(`серийных номеров ${n}, а в коробке ${qty} — допишите недостающие`);
+        warn=true;
+      }
+      const usable=Math.max(0,qty-bad);
+      lines.push(`на склад встанет ${usable} шт.` + (bad?` (брак ${bad} шт. — считаем, но не продаём)`:""));
+      if(inv!=null && inv!==qty){
+        const d=inv-qty;
+        lines.push(d>0
+          ? `недостача ${d} шт. против накладной — оформится претензия поставщику`
+          : `излишек ${-d} шт. против накладной`);
+        warn=true;
+      }
+      if(cost!=null && usable>0){
+        // «Себестоимость партии пересчитывается с учётом брака.»
+        lines.push(`себестоимость ${tenge(Math.round(cost*100/usable))} за шт.`);
+      }
+      note.textContent=lines.join(" · ");
+      note.style.color = warn ? "var(--warn-text,var(--warn))" : "var(--muted)";
     };
-    $("#recvQty").addEventListener("input",check);
-    $("#recvSerials").addEventListener("input",check);
+    for(const id of ["#recvQty","#recvInvoice","#recvDefect","#recvCost","#recvSerials"]){
+      $(id).addEventListener("input",check);
+    }
 
     form.addEventListener("submit", async ev=>{
       ev.preventDefault();
       const btn=$("#recvBtn"); btn.disabled=true; msgTo("#recvMsg","Записываем…");
       try{
         const kind=$("#recvKind").value;
+        const num=(sel)=>$(sel).value===""?undefined:Number($(sel).value);
         const res=await apiSend("/admin/inventory/receipt","POST",{
           variantId:$("#recvVariant").value,
           qty:Number($("#recvQty").value||0),
+          invoiceQty:num("#recvInvoice"),
+          defective:num("#recvDefect"),
+          // Tenge in the form, tiyn on the wire — the whole backend is minor
+          // units, and one place converting and another not is how a price ends
+          // up a hundred times wrong.
+          batchCostMinor:$("#recvCost").value===""?undefined:Math.round(Number($("#recvCost").value)*100),
           serials:$("#recvSerials").value.trim()||undefined,
           kind:kind||undefined,
           note:$("#recvNote").value.trim()||undefined,
@@ -4280,10 +4315,19 @@
         // Both halves reported. "Записано" that hid a skipped serial is how
         // somebody believes a unit is registered when it is not.
         const parts=[`на складе ${res.stock} шт.`];
+        if(res.defective) parts.push(`брак ${res.defective} шт. не оприходован`);
+        if(res.unitCostMinor!=null) parts.push(`себестоимость ${tenge(res.unitCostMinor)} за шт.`);
         if(res.serialsAdded) parts.push(`серийников записано ${res.serialsAdded}`);
         if(res.serialsSkipped) parts.push(`уже были в базе: ${res.serialsSkipped}`);
-        msgTo("#recvMsg","Поставка оприходована ✓ · "+parts.join(" · "),"ok");
-        $("#recvQty").value=""; $("#recvSerials").value=""; $("#recvNote").value="";
+        // The claim is the thing somebody has to act on, so it leads rather
+        // than trailing a list of successes.
+        const head = res.shortfall
+          ? (res.shortfall>0
+              ? `Принято с недостачей ${res.shortfall} шт. — оформите претензию поставщику`
+              : `Принято с излишком ${-res.shortfall} шт. против накладной`)
+          : "Поставка оприходована ✓";
+        msgTo("#recvMsg", head+" · "+parts.join(" · "), res.shortfall ? "bad" : "ok");
+        for(const id of ["#recvQty","#recvInvoice","#recvDefect","#recvCost","#recvSerials","#recvNote"]) $(id).value="";
         $("#recvCheck").textContent="";
         renderStock();
       }catch(e){

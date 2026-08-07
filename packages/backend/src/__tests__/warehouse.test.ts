@@ -98,16 +98,73 @@ describe('Приёмка: the shelf and the registry move together', () => {
     expect(await stockOf(variantId)).toBe(stock + 12);
   });
 
-  it('refuses when the count and the serials disagree', async () => {
-    // The packing list and the box disagree. Booking whichever number was
-    // typed second is how a shelf and a ledger drift apart silently.
+  it('accepts a short shipment and records the claim', async () => {
+    // «Приёмка принимает факт, а не накладную.» This route used to refuse any
+    // mismatch, which made the honest answer the impossible one: a warehouse
+    // hand who cannot book a short delivery types the invoice number instead,
+    // and from then on the shelf and the ledger disagree with no explanation.
+    const { variantId, stock } = await aVariant();
+    const res = await post('/admin/inventory/receipt', { variantId, qty: 28, invoiceQty: 30 });
+
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.json().shortfall).toBe(2);
+    expect(res.json().stocked).toBe(28);
+    // What arrived is on the shelf — the fact, not the invoice.
+    expect(await stockOf(variantId)).toBe(stock + 28);
+    expect((await moves())[0].note).toContain('недостача 2 шт.');
+  });
+
+  it('an over-shipment is recorded too, and is not a refusal either', async () => {
+    const { variantId, stock } = await aVariant();
+    const res = await post('/admin/inventory/receipt', { variantId, qty: 32, invoiceQty: 30 });
+    expect(res.json().shortfall).toBe(-2);
+    expect(await stockOf(variantId)).toBe(stock + 32);
+    expect((await moves())[0].note).toContain('излишек 2 шт.');
+  });
+
+  it('defective units are counted and not stocked', async () => {
+    // They arrived — that is a fact — but shelving them sells one to somebody.
+    const { variantId, stock } = await aVariant();
+    const res = await post('/admin/inventory/receipt', { variantId, qty: 30, defective: 2 });
+    expect(res.json()).toMatchObject({ received: 30, stocked: 28, defective: 2 });
+    expect(await stockOf(variantId)).toBe(stock + 28);
+    expect((await moves())[0].note).toContain('брак 2 шт.');
+  });
+
+  it('recomputes unit cost over what can be SOLD, not what arrived', async () => {
+    // «Себестоимость партии пересчитывается с учётом брака.» 280 000 ₸ over 28
+    // sellable units is 10 000 each; dividing by the 30 that turned up would
+    // report a margin the business is not earning — and margin is what the
+    // owner's dashboard is built on.
+    const { variantId, productId } = await aVariant();
+    const res = await post('/admin/inventory/receipt', {
+      variantId, qty: 30, defective: 2, batchCostMinor: 28_000_000,
+    });
+    expect(res.json().unitCostMinor).toBe(1_000_000);
+    const product = (await repo.adminProducts()).find((p) => p.id === productId)!;
+    expect(product.costMinor, 'the recomputed cost never reached the product').toBe(1_000_000);
+  });
+
+  it('a wholly defective delivery has nothing to stock, and says so', async () => {
+    const { variantId, stock } = await aVariant();
+    const res = await post('/admin/inventory/receipt', { variantId, qty: 4, defective: 4 });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe('nothing_usable');
+    expect(res.json().message).toContain('претензию');
+    expect(await stockOf(variantId)).toBe(stock);
+  });
+
+  it('refuses when the count and the SERIALS disagree — a serial is a unit', async () => {
+    // Not the same thing as an invoice discrepancy, and not a claim against
+    // anybody: it is two watches on our own shelf that the pairing check will
+    // not recognise as ours.
     const { variantId, stock } = await aVariant();
     const res = await post('/admin/inventory/receipt', {
       variantId, qty: 5, serials: 'AA:BB:CC:00:00:01\nAA:BB:CC:00:00:02',
     });
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toBe('serial_count_mismatch');
-    expect(res.json().message).toContain('упаковочный лист');
+    expect(res.json().message).toContain('Серийник — это единица товара');
     // And nothing was written — not the stock, not the serials.
     expect(await stockOf(variantId)).toBe(stock);
     expect(await registry()).toEqual([]);

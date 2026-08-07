@@ -127,15 +127,63 @@ describe('Приёмка in the panel', () => {
     const { $, type } = await openStock();
     type('#recvQty', '5');
     type('#recvSerials', 'AA:01\nAA:02');
-    expect($('#recvCheck').textContent).toContain('Серийных номеров 2');
-    expect($('#recvCheck').textContent).toContain('упаковочный лист');
+    expect($('#recvCheck').textContent).toContain('серийных номеров 2');
+    expect($('#recvCheck').textContent).toContain('допишите недостающие');
   });
 
   it('says so when they agree, rather than staying silent', async () => {
     const { $, type } = await openStock();
     type('#recvQty', '2');
     type('#recvSerials', 'AA:01, AA:02');
-    expect($('#recvCheck').textContent).toContain('совпадает');
+    expect($('#recvCheck').textContent).toContain('на склад встанет 2 шт.');
+  });
+
+  it('spells out the claim and the cost before anything is sent', async () => {
+    // «Приёмка принимает факт, а не накладную.» What somebody needs to know at
+    // this moment is that the delivery WILL be accepted and what it will cost
+    // — not that the form is about to refuse them.
+    const { $, type } = await openStock();
+    type('#recvQty', '28');
+    type('#recvInvoice', '30');
+    type('#recvDefect', '2');
+    type('#recvCost', '2600'); // ₸ for the batch
+    const note = $('#recvCheck').textContent ?? '';
+    expect(note).toContain('на склад встанет 26 шт.');
+    expect(note).toContain('брак 2 шт.');
+    expect(note).toContain('недостача 2 шт.');
+    expect(note).toContain('претензия');
+    // 2 600 ₸ over 26 sellable units is 100 ₸ each.
+    expect(note).toContain('100 ₸ за шт.');
+  });
+
+  it('sends tenge as tiyn, because the whole backend is minor units', async () => {
+    // One place converting and another not is how a price ends up a hundred
+    // times wrong, on the number the owner's margin is computed from.
+    const { type, submit, sent } = await openStock();
+    type('#recvQty', '10');
+    type('#recvCost', '2600');
+    await submit('#recvForm');
+    const req = sent.find((r) => r.path.includes('/receipt'));
+    expect(req!.body!.batchCostMinor).toBe(260000);
+  });
+
+  it('leads with the claim when there is one', async () => {
+    const { window, type, submit, $ } = await openStock();
+    (window as unknown as { fetch: unknown }).fetch = (async (path: string) => {
+      const p = String(path);
+      const body =
+        p.includes('/receipt') ? { ok: true, stock: 28, received: 28, stocked: 28, defective: 0, shortfall: 2 }
+        : p.includes('/admin/inventory/moves') ? { moves: [] }
+        : p.includes('/admin/inventory') ? INVENTORY
+        : p.includes('/admin/device-registry') ? { devices: [] }
+        : {};
+      return { ok: true, status: 200, text: async () => '', json: async () => body };
+    }) as never;
+    type('#recvQty', '28');
+    await submit('#recvForm');
+    // Not buried after a list of successes: it is the thing somebody has to act
+    // on, and «Поставка оприходована ✓» first reads as "all fine".
+    expect(($('#recvMsg').textContent ?? '').startsWith('Принято с недостачей 2 шт.')).toBe(true);
   });
 
   it('sends the quantity and the serials in one request', async () => {
