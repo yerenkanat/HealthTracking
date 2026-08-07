@@ -277,6 +277,14 @@ export interface ContentItemRow {
   /// Other stages this same item also serves; it is stored once, under the
   /// stage it is filed in. See the zod schema in routes/admin.ts.
   alsoStages?: string[];
+  /// Medical guidance, so it may not be published without a clinician's
+  /// sign-off. See content/medicalReview.ts.
+  medical?: boolean;
+  /// Work in progress; never served to the app.
+  draft?: boolean;
+  /// Who checked it, when, and what they read. Back-office only — stripped
+  /// before the catalogue reaches a phone, because it names a member of staff.
+  review?: { by: string; at: string; fingerprint: string };
 }
 
 /** A whole family, assembled for the back-office drilldown. */

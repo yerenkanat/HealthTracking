@@ -17,6 +17,10 @@ import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
+import {
+  carryReview, reviewIsCurrent, reviewMessage, textFingerprint, unreviewed,
+  type ReviewableItem,
+} from '../content/medicalReview';
 
 /// Pregnancy weeks 1..40 and child months 0..60 (birth to five years). Content
 /// under any other key is unreachable by the app, so it is refused on write
@@ -124,6 +128,32 @@ const contentItem = z.object({
   // of these. Capped at the whole timeline, so a bad import cannot make one
   // item claim an unbounded number of places.
   alsoStages: z.array(z.string().regex(/^[wm]\d{1,2}$/)).max(101).optional(),
+  /**
+   * This card gives medical guidance, so «только после проверки врачом».
+   *
+   * Marked by whoever writes it. Getting it wrong in the safe direction — a
+   * nursery-decoration card marked medical — costs one clinician a minute;
+   * wrong the other way publishes unreviewed advice, so nothing here tries to
+   * infer it from the text.
+   */
+  medical: z.boolean().optional(),
+  /**
+   * Not published. A draft is how an unfinished medical card gets written at
+   * all: without one, the review rule would push the work into a document
+   * nobody can review.
+   */
+  draft: z.boolean().optional(),
+  /**
+   * Who signed it off. Accepted in the body and then IGNORED — the stored value
+   * comes from what is already in the database, and the only way to set one is
+   * POST /admin/content/:stage/:id/review, which needs `health`. A client that
+   * could send its own review would be self-approval by JSON.
+   */
+  review: z.object({
+    by: z.string().max(80),
+    at: z.string().max(40),
+    fingerprint: z.string().max(20000),
+  }).optional(),
 }).refine((i) => i.minAgeYears == null || i.maxAgeYears == null || i.minAgeYears <= i.maxAgeYears, {
   // An inverted range matches nobody, so the item would vanish with no error
   // anywhere. Rejecting it at the edge is the only place a person sees why.
@@ -531,9 +561,103 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       });
     }
 
-    await repo.putStageContent(stage, parsed.data.items as ContentItemRow[]);
+    // Medical guidance is checked by a clinician before anybody reads it, and
+    // editing approved text takes the approval away — approve-then-rewrite is
+    // the obvious way round the rule and the one that happens by accident.
+    // See content/medicalReview.ts.
+    const catalog: Record<string, ContentItemRow[]> =
+      await repo.contentCatalog().catch(() => ({}));
+    const previousById = new Map<string, ReviewableItem>(
+      (catalog[stage] ?? []).map((i) => [i.id, i as ReviewableItem]),
+    );
+    const needReview = unreviewed(parsed.data.items, previousById);
+    if (needReview.length) {
+      return reply.code(409).send({
+        error: 'review_required',
+        stage,
+        problems: needReview,
+        message: reviewMessage(needReview) +
+          '. Отправьте на проверку врачу или сохраните как черновик.',
+      });
+    }
+
+    // The review that gets stored is the one already in the database, never the
+    // one in the request body.
+    const toStore = parsed.data.items.map((i) => carryReview(i, previousById.get(i.id)));
+
+    await repo.putStageContent(stage, toStore as ContentItemRow[]);
     await repo.writeAudit({ staffId: s.staffId, action: 'edit_content', target: stage });
-    return reply.send({ ok: true, stage, items: parsed.data.items.length });
+    return reply.send({ ok: true, stage, items: toStore.length });
+  });
+
+  /**
+   * A clinician signs off one medical card.
+   *
+   * Guarded on `health`, not `content`. That is the whole mechanism: authoring
+   * needs `content`, approving needs `health`, and no role but an owner holds
+   * both — so the rule is two people rather than a checkbox the author ticks.
+   *
+   * The signature records WHAT was read, so a later edit to the same card
+   * invalidates it automatically. Nobody has to remember to un-approve.
+   */
+  app.post('/admin/content/:stage/:id/review', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const { stage, id } = req.params as { stage: string; id: string };
+    if (!isStageKey(stage)) return reply.code(400).send({ error: 'unknown_stage' });
+
+    const catalog: Record<string, ContentItemRow[]> = await repo.contentCatalog().catch(() => ({}));
+    const items = catalog[stage] ?? [];
+    const item = items.find((i) => i.id === id) as ReviewableItem | undefined;
+    if (!item) return reply.code(404).send({ error: 'not_found' });
+    if (!item.medical) {
+      // Not an error worth blocking on, but not a silent success either: a
+      // review recorded against a card nobody will ever gate on is a signature
+      // that means nothing, and whoever gave it should know.
+      return reply.code(409).send({
+        error: 'not_medical',
+        message: 'Эта карточка не помечена как медицинская — проверка не требуется.',
+      });
+    }
+
+    const review = { by: s.staffId, at: new Date().toISOString(), fingerprint: textFingerprint(item) };
+    const next = items.map((i) => (i.id === id ? { ...i, review } : i));
+    await repo.putStageContent(stage, next as ContentItemRow[]);
+    // Named as its own action rather than folded into edit_content: this is the
+    // record that a clinician took responsibility for a piece of advice.
+    await repo.writeAudit({ staffId: s.staffId, action: 'content_review', target: `${stage}/${id}` });
+    return reply.send({ ok: true, review });
+  });
+
+  /**
+   * Everything waiting on a clinician — the queue that makes the rule workable.
+   *
+   * Without it the review rule is a wall: an author is refused and a clinician
+   * has no way to find what is refused. `stale` items are listed first because
+   * they are the dangerous kind — the card is LIVE and its text has moved since
+   * anybody checked it.
+   */
+  app.get('/admin/content/review-queue', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const catalog = await repo.contentCatalog().catch(() => ({}));
+    const waiting: Array<{ stage: string; id: string; title: string; reason: string; draft: boolean }> = [];
+    for (const [stage, items] of Object.entries(catalog)) {
+      for (const raw of items) {
+        const item = raw as ReviewableItem;
+        if (!item.medical) continue;
+        if (reviewIsCurrent(item)) continue;
+        waiting.push({
+          stage,
+          id: item.id,
+          title: item.title?.ru ?? item.title?.kk ?? item.id,
+          reason: item.review ? 'stale' : 'never',
+          draft: item.draft === true,
+        });
+      }
+    }
+    waiting.sort((a, b) => (a.reason === b.reason ? 0 : a.reason === 'stale' ? -1 : 1));
+    return reply.send({ waiting });
   });
 
   // ---- Bulk import (admin only) ----
@@ -574,6 +698,17 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
         for (const p of bilingualProblems(item)) untranslated.push({ stage: key, ...p });
       }
     }
+    // Same medical rule as the per-stage save, over the whole file. An import
+    // is the easy way to publish a hundred unreviewed cards at once, which is
+    // exactly why it cannot be the exception.
+    const existingCatalog: Record<string, ContentItemRow[]> =
+      await repo.contentCatalog().catch(() => ({}));
+    const unreviewedRows: Array<{ stage: string; id: string; reason: string }> = [];
+    for (const key of keys) {
+      const prior = new Map(((existingCatalog[key] ?? []) as ReviewableItem[]).map((i) => [i.id, i]));
+      for (const p of unreviewed(stages[key], prior)) unreviewedRows.push({ stage: key, ...p });
+    }
+
     if (untranslated.length) {
       return reply.code(400).send({
         error: 'translation_required',
@@ -584,16 +719,26 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       });
     }
 
+    if (unreviewedRows.length) {
+      return reply.code(409).send({
+        error: 'review_required',
+        problems: unreviewedRows,
+        message: `${unreviewedRows.length} медицинских материалов без проверки врачом — ` +
+          'ничего не записано. ' + reviewMessage(unreviewedRows.slice(0, 5) as never),
+      });
+    }
+
     // 'replace' clears every stage absent from the file. It is destructive in a
     // way 'merge' is not — a file covering ten stages would wipe the other
     // ninety-one — so it only ever happens when asked for by name.
-    const existing = mode === 'replace' ? await repo.contentCatalog() : {};
     const toClear = mode === 'replace'
-      ? Object.keys(existing).filter((k) => !(k in stages))
+      ? Object.keys(existingCatalog).filter((k) => !(k in stages))
       : [];
 
     for (const key of keys) {
-      await repo.putStageContent(key, stages[key] as ContentItemRow[]);
+      const prior = new Map(((existingCatalog[key] ?? []) as ReviewableItem[]).map((i) => [i.id, i]));
+      const toStore = stages[key].map((i) => carryReview(i, prior.get(i.id)));
+      await repo.putStageContent(key, toStore as ContentItemRow[]);
     }
     for (const key of toClear) {
       await repo.putStageContent(key, []);

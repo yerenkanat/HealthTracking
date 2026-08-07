@@ -204,6 +204,10 @@
      Same 12px as .kpi .delta on purpose: it is the same sentence doing the
      same job, and two sizes for it would read as two kinds of note. */
   .metricnote{font-size:12px;color:var(--muted);margin:2px 0 8px}
+  .itemflags{gap:16px;align-items:center;font-size:12px;color:var(--muted)}
+  .itemflags label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .chip.warn{background:var(--warn-soft,var(--surface-2));color:var(--warn-text,var(--muted))}
+  .chip.ok{background:var(--good-soft,var(--surface-2));color:var(--good-text,var(--muted))}
   .reasonwrap{position:fixed;inset:0;background:rgba(30,20,26,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
   .reasonwrap[hidden]{display:none}
   .reasonbox{background:var(--bg);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow-modal);padding:22px;width:min(440px,100%)}
@@ -643,6 +647,10 @@
     <button type="button" class="nav" data-view="content" data-cap="content">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
       Контент <span class="badge" id="navContentBadge" style="background:var(--muted)" hidden></span>
+    </button>
+    <button type="button" class="nav" data-view="review" data-cap="health">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+      Проверка врачом <span class="badge" id="reviewBadgeCount" hidden></span>
     </button>
     <button type="button" class="nav" data-view="kids" data-cap="health">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>
@@ -1194,6 +1202,17 @@
               <th>Прогресс</th><th>Последний урок</th><th></th></tr></thead>
             <tbody id="entBody"></tbody></table>
           </div>
+        </div>
+      </section>
+
+      <!-- ПРОВЕРКА ВРАЧОМ — the queue that makes the rule workable.
+           Without it the rule is a wall: an author is refused and a clinician
+           has no way to find what is refused. -->
+      <section class="view" id="review">
+        <div class="card">
+          <div class="sec-h"><h3>Материалы на проверку</h3>
+            <span class="sub">Медицинский текст публикуется только после вашей проверки</span></div>
+          <div id="reviewBody"><div class="sub">Загрузка…</div></div>
         </div>
       </section>
 
@@ -3138,6 +3157,7 @@
     emergencies:["Экстренные","Активные тревоги, самые серьёзные сверху"],
     users:["Пользователи","Поиск и карточка пациентки"],
     content:["Контент","Уроки и товары для каждой недели беременности и месяца жизни ребёнка"],
+    review:["Проверка врачом","Медицинский текст ждёт вашей подписи перед публикацией"],
     kids:["Дети","Демография детей под наблюдением: пол и возраст"],
     antenatal:["Антенатальный уход","График визитов, обследований и скринингов по протоколу МЗ РК"],
     pregweeks:["Календарь беременности","Развитие малыша, изменения и рекомендации по неделям (RU/KZ)"],
@@ -3201,6 +3221,7 @@
     if(v==="audio")renderAudio();
     if(v==="staff")renderStaff();
     if(v==="stock")renderStock();
+    if(v==="review")renderReview();
     if(v==="course")renderCourse();
     // Экстренные had no branch here at all, so the tab drew only whatever
     // renderFeeds() had left behind from the overview. Against a real server
@@ -4357,6 +4378,51 @@
     });
   }
 
+  const REVIEW_REASON = {
+    never: "ещё не проверялся",
+    stale: "текст изменён после проверки — материал опубликован",
+  };
+
+  async function renderReview(){
+    const box=$("#reviewBody");
+    if(!box) return;
+    let data=null;
+    try{ data=await api("/admin/content/review-queue"); }catch(e){ data=null; }
+    if(!data){
+      box.innerHTML=`<div class="sub">Не удалось загрузить очередь.</div>`;
+      return;
+    }
+    const rows=data.waiting||[];
+    const badge=$("#reviewBadgeCount");
+    if(badge){ badge.hidden=rows.length===0; badge.textContent=String(rows.length); }
+
+    if(!rows.length){
+      // «Пустые состояния говорят причину и одно действие.»
+      box.innerHTML=`<div class="sub">Ничего не ждёт проверки — весь медицинский текст подписан.
+        Материалы появляются здесь, когда редактор помечает карточку как медицинскую.</div>`;
+      return;
+    }
+    box.innerHTML=rows.map(r=>`
+      <div class="mrow" data-review="${esc(r.stage)}|${esc(r.id)}">
+        <div class="mrow-head">
+          <span class="mrow-label">${esc(r.title)}</span>
+          <button type="button" class="btn sm" data-approve="${esc(r.stage)}|${esc(r.id)}">Подтвердить</button>
+        </div>
+        <div class="sub">${esc(r.stage)} · ${esc(r.id)} · ${esc(REVIEW_REASON[r.reason]||r.reason)}${r.draft?" · черновик":""}</div>
+      </div>`).join("");
+
+    box.querySelectorAll("[data-approve]").forEach(b=>b.addEventListener("click",async()=>{
+      const [stage,id]=b.dataset.approve.split("|");
+      // Signing off medical advice is a named, recorded act, not a click.
+      if(!window.confirm("Подтвердить, что этот текст проверен вами? Ваше имя попадёт в журнал.")) return;
+      b.disabled=true;
+      try{
+        await apiSend(`/admin/content/${encodeURIComponent(stage)}/${encodeURIComponent(id)}/review`,"POST");
+      }catch(e){ b.disabled=false; window.alert("Не удалось записать проверку."); return; }
+      renderReview();
+    }));
+  }
+
   async function renderStock(){
     wireSerials();
     wireReceipt();
@@ -5068,6 +5134,22 @@
     return out;
   }
 
+  /**
+   * Where this card stands with the doctor.
+   *
+   * Three states worth telling apart, and the middle one is the dangerous one:
+   * a card that WAS approved and has been edited since is live, and nobody has
+   * read what it now says.
+   */
+  function reviewBadge(item) {
+    if (!item.medical) return "";
+    const r = item.review;
+    if (!r) return `<span class="chip warn">ждёт проверки врача</span>`;
+    // The panel cannot recompute the fingerprint (the server owns that rule),
+    // so it reports what the server last stored and when.
+    return `<span class="chip ok">проверено ${esc(stamp(r.at))}</span>`;
+  }
+
   function itemHtml(item, idx) {
     const isProduct = item.kind === "product";
     return `<div class="item" data-idx="${idx}">
@@ -5079,6 +5161,14 @@
              <input data-f="currency" style="width:80px" value="${esc(item.currency || "KZT")}" aria-label="currency">`
           : `<input data-f="durationMin" type="number" style="width:110px" value="${item.durationMin ?? ""}" placeholder="минут" aria-label="минут">`}
         <button class="btn danger" data-del="${idx}">Удалить</button>
+      </div>
+      <!-- «Медицинский текст — только после проверки врачом.» Marked by hand:
+           getting it wrong the safe way costs a clinician a minute, wrong the
+           other way publishes unreviewed advice. -->
+      <div class="row itemflags">
+        <label><input type="checkbox" data-f="medical"${item.medical ? " checked" : ""}> медицинский текст</label>
+        <label><input type="checkbox" data-f="draft"${item.draft ? " checked" : ""}> черновик</label>
+        <span class="reviewstate">${reviewBadge(item)}</span>
       </div>
       <div class="row"><span class="lang">url</span>
         <input class="grow" data-f="url" value="${esc(item.url || "")}" placeholder="https://… (пусто → в приложении «Скоро»)" aria-label="url"></div>
@@ -5267,6 +5357,12 @@
       // only saw inputs would drop it silently on every publish.
       el.querySelectorAll("input[data-f], select[data-f]").forEach((inp) => {
         const f = inp.dataset.f;
+        // A checkbox has no useful .value — reading one as text set every card
+        // to the string "on", which is truthy for medical AND for draft.
+        if (inp.type === "checkbox") {
+          if (inp.checked) item[f] = true; else delete item[f];
+          return;
+        }
         const v = inp.value.trim();
         if (f.startsWith("title.") || f.startsWith("summary.")) {
           const [group, loc] = f.split(".");

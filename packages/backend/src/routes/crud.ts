@@ -472,7 +472,27 @@ export function registerCrudRoutes(
   app.get('/content', async (req, reply) => {
     const u = await requireUser(req, reply);
     if (!u) return;
-    return reply.send({ stages: await repo.contentCatalog() });
+    const catalog = await repo.contentCatalog();
+
+    // Drafts never reach a reader, and neither does the reviewer's signature.
+    //
+    // The draft flag is what lets an unfinished medical card be written at all
+    // — see content/medicalReview.ts — and it exists in the same store the app
+    // reads, so filtering it here is the only thing standing between a
+    // half-written paragraph about bleeding in pregnancy and somebody's phone.
+    //
+    // `review` is stripped because it names a member of staff. It is a
+    // back-office record of who took responsibility, not a byline.
+    const published: Record<string, unknown[]> = {};
+    for (const [stage, items] of Object.entries(catalog)) {
+      published[stage] = items
+        .filter((i) => (i as { draft?: boolean }).draft !== true)
+        .map((i) => {
+          const { review: _staffOnly, ...rest } = i;
+          return rest;
+        });
+    }
+    return reply.send({ stages: published });
   });
 
   // ---- Geofences (per child) ----

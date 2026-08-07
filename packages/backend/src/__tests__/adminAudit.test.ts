@@ -27,6 +27,10 @@ const AGGREGATES_ONLY = new Set([
   'GET /admin/analytics', // totals and content coverage
   'GET /admin/bi', // DAU/WAU/MAU, retention, engagement — all counts
   'GET /admin/content', // the published catalogue; about content, not people
+  // What is waiting on a clinician: stage keys, card ids and titles. The same
+  // catalogue as above, filtered — it names staff at most, and only the
+  // reviewer whose own signature is on the card.
+  'GET /admin/content/review-queue',
   'GET /admin/audit', // the log itself; admin-only, and auditing reads of the
   // audit log makes the log describe mostly itself
   'GET /admin/shop/variants', // product inventory (colours + stock) — names nobody
