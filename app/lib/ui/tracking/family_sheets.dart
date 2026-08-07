@@ -15,6 +15,7 @@ import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+import 'claim_device_sheet.dart';
 import '../widgets/avatar.dart';
 import '../widgets/photo_picker_sheet.dart';
 
@@ -417,6 +418,22 @@ Future<void> showAddDeviceSheet(
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(l.t(key)),
                 duration: const Duration(seconds: 8), // long enough to read and act on
+                // «Not ours» is not a dead end. Most units refused today are
+                // genuine ones whose serial nobody recorded at intake, and the
+                // code on the box is how she proves it. Without this the
+                // registry check cannot be switched on at all: it would refuse
+                // paying customers with nothing to offer them.
+                action: outcome == DevicePairOutcome.notOurs && controller.canClaimDevice
+                    ? SnackBarAction(
+                        label: l.t('dev_have_code'),
+                        onPressed: () => showClaimDeviceSheet(
+                          context, controller,
+                          kind: kind,
+                          childId: kind == DeviceKind.tag ? tagChildId : null,
+                          name: nameCtl.text.trim(),
+                        ),
+                      )
+                    : null,
               ));
             }
           }());

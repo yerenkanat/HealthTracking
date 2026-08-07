@@ -657,6 +657,23 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Prove a device is ours with the code printed on its box.
+  ///
+  /// The way through a `device_not_ours` refusal for a genuine unit whose
+  /// serial nobody recorded at intake. Returns the serial the server knows it
+  /// by, so pairing can be retried without asking a customer to read a MAC
+  /// address off a sticker.
+  ///
+  /// Returns null when the code matches nothing — the one refusal she can fix
+  /// by looking at the box again. Everything else throws, because "already
+  /// claimed" and "blocked" need different words and a different next step.
+  Future<Map<String, dynamic>?> claimDevice(String code) async {
+    final res = await transport.post('/devices/claim', {'code': code});
+    if (res.ok) return jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 404) return null;
+    throw ApiException(res.statusCode, res.body);
+  }
+
   /// Register a paired device (band/tag) so it appears in the back-office fleet.
   /// Create-once server-side: a 409 that is "mine" means it is already synced, so
   /// that counts as done; a 409 that is someone else's is a real conflict.

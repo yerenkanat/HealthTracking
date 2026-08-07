@@ -13,6 +13,7 @@ import type { Repository } from '../db/repository';
 import type { Geofence } from '@fcs/shared';
 import type { LeadNotifier } from '../notifications/leadAlert';
 import { normalizePhone } from '../http/staffAuth';
+import { CLAIM_WINDOW_MS, MAX_CLAIMS } from './phoneAuth';
 
 export type AuthUser = (req: FastifyRequest) => Promise<{ userId: string } | null>;
 
@@ -456,6 +457,77 @@ export function registerCrudRoutes(
       if (phone) await repo.markDeviceActivated(parsed.data.id, phone).catch(() => false);
     }
     return reply.code(201).send({ ok: true });
+  });
+
+  /**
+   * "This really is our device — here is the code on the box."
+   *
+   * The way through the pairing gate for a unit the registry does not recognise
+   * by its BLE address. `deviceByActivationCode` was written for exactly this —
+   * documented as "the fallback path: units already in the wild whose serial
+   * nobody captured" — and had no route, so it was reachable only from tests.
+   *
+   * That is not a tidiness problem. The pairing gate refuses `device_not_ours`
+   * the day DEVICE_REGISTRY_ENFORCE=1 is switched on, and the reason that
+   * switch is still off is precisely that flipping it would refuse real
+   * customers with no recourse. This is the recourse. Without it the choice was
+   * between an unenforced gate and refusing people who paid us.
+   *
+   * Claiming BINDS the unit to her number, so the same code cannot walk onto a
+   * second account — which is what stops the code itself becoming the
+   * grey-market product.
+   */
+  app.post('/devices/claim', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+
+    const parsed = z.object({ code: z.string().trim().min(3).max(40) }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'bad_request' });
+
+    const profile = await repo.getProfile(u.userId).catch(() => null);
+    const phone = normalizePhone(profile?.phone ?? '');
+    if (!phone) {
+      // Nothing to bind the unit to. Better to say so than to consume the
+      // code against an account that cannot own it.
+      return reply.code(409).send({ error: 'no_phone_on_account' });
+    }
+
+    // Rate limited on the PHONE, reusing the counter the sign-in path uses.
+    // These codes are short enough to guess, and a claim endpoint with no
+    // ceiling is a way to enumerate our whole stock from a phone.
+    const since = new Date(Date.now() - CLAIM_WINDOW_MS);
+    if ((await repo.recentPhoneClaims(phone, since).catch(() => 0)) >= MAX_CLAIMS) {
+      return reply.code(429).send({
+        error: 'too_many_attempts',
+        retryAfterMinutes: Math.ceil(CLAIM_WINDOW_MS / 60000),
+      });
+    }
+    await repo.recordPhoneClaim(phone).catch(() => {});
+
+    const unit = await repo.deviceByActivationCode(parsed.data.code).catch(() => null);
+    // Same answer for "no such code" as for a code belonging to a blocked
+    // unit would tell somebody probing which of their guesses exist. It does
+    // not: a blocked unit is a support conversation with its own answer, and
+    // the person holding it is far more often a customer than an attacker.
+    if (!unit) return reply.code(404).send({ error: 'unknown_code' });
+    if (unit.status === 'blocked') return reply.code(403).send({ error: 'device_blocked' });
+
+    if (unit.activatedByPhone && unit.activatedByPhone !== phone) {
+      // Single use is the whole point. Without it one code posted in a chat
+      // group unlocks every unit somebody cares to pair.
+      return reply.code(409).send({ error: 'already_claimed' });
+    }
+
+    // Idempotent: re-claiming her own unit after a reinstall must work rather
+    // than telling her the watch she is holding belongs to somebody else.
+    const bound = unit.activatedByPhone === phone
+      ? true
+      : await repo.markDeviceActivated(unit.serial, phone).catch(() => false);
+    if (!bound) return reply.code(409).send({ error: 'already_claimed' });
+
+    // The serial comes back so the app can pair without the customer reading a
+    // MAC address off a sticker.
+    return reply.send({ ok: true, serial: unit.serial, kind: unit.kind });
   });
 
   app.delete('/devices/:id', async (req, reply) => {

@@ -757,9 +757,63 @@ class AppController {
   void attachDeviceSync({
     required Future<void> Function(PairedDevice) upsert,
     required Future<void> Function(String id) delete,
+    /// Claim a unit by the code on its box. Optional so builds without a
+    /// server (and every existing caller) keep working unchanged.
+    Future<Map<String, dynamic>?> Function(String code)? claim,
   }) {
     _onDeviceUpsert = upsert;
     _onDeviceDelete = delete;
+    _onDeviceClaim = claim;
+  }
+
+  Future<Map<String, dynamic>?> Function(String code)? _onDeviceClaim;
+
+  /// Whether this build can offer the activation-code route out of a refusal.
+  bool get canClaimDevice => _onDeviceClaim != null;
+
+  /**/
+
+  /// Prove a device is ours with the code printed on its box, then pair it.
+  ///
+  /// The way out of [DevicePairOutcome.notOurs] for a genuine unit whose serial
+  /// nobody recorded at intake — which, until every box has been through
+  /// Приёмка, is most of them. Without this the refusal is a dead end and the
+  /// registry check cannot be switched on at all.
+  ///
+  /// Returns the outcome of the PAIRING, because that is what she was trying to
+  /// do; the claim is a step on the way. [DeviceClaimResult.unknownCode] is the
+  /// one answer she can fix herself by re-reading the box.
+  Future<DeviceClaimResult> claimDevice(String code, {required DeviceKind kind, String? childId, String? name}) async {
+    final claim = _onDeviceClaim;
+    if (claim == null) return DeviceClaimResult.offline;
+    Map<String, dynamic>? unit;
+    try {
+      unit = await claim(code.trim());
+    } catch (e) {
+      // 409 already_claimed, 403 device_blocked, 429 too_many_attempts — all
+      // need their own words, and none of them is "no such code".
+      final body = e.toString();
+      if (body.contains('already_claimed')) return DeviceClaimResult.alreadyClaimed;
+      if (body.contains('device_blocked')) return DeviceClaimResult.blocked;
+      if (body.contains('too_many_attempts')) return DeviceClaimResult.tooManyAttempts;
+      return DeviceClaimResult.offline;
+    }
+    if (unit == null) return DeviceClaimResult.unknownCode;
+
+    final serial = '${unit['serial'] ?? ''}';
+    if (serial.isEmpty) return DeviceClaimResult.offline;
+
+    // Pair with the serial the SERVER knows it by, not with whatever the phone
+    // scanned: the mismatch between those two is the whole reason she is here.
+    final outcome = await addDevice(PairedDevice(
+      id: serial,
+      name: name ?? '',
+      kind: kind,
+      childId: kind == DeviceKind.tag ? childId : null,
+    ));
+    return outcome == DevicePairOutcome.ok
+        ? DeviceClaimResult.ok
+        : DeviceClaimResult.offline;
   }
 
   /// Pair a device, and say whether the server accepted it.

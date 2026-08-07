@@ -262,6 +262,42 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // A device the server would not take. Both say what to DO — somebody
   // holding a tag from another marketplace still wants the service, and a bare
   // refusal costs the customer and the support conversation both.
+  // The way out of a «not ours» refusal: the code printed on the box.
+  'dev_have_code': {AppLocale.ru: 'У меня есть код', AppLocale.kk: 'Менде код бар', AppLocale.en: 'I have a code'},
+  'dev_claim_title': {AppLocale.ru: 'Код с коробки', AppLocale.kk: 'Қораптағы код', AppLocale.en: 'Code from the box'},
+  'dev_claim_body': {
+    AppLocale.ru: 'Найдите код на коробке или на гарантийном талоне — он подтвердит, что устройство наше, и часы заработают.',
+    AppLocale.kk: 'Қораптан немесе кепілдік талонынан кодты табыңыз — ол құрылғының біздікі екенін растайды, сағат жұмыс істей бастайды.',
+    AppLocale.en: 'Find the code on the box or the warranty card — it confirms the device is ours and the watch will start working.',
+  },
+  'dev_claim_hint': {AppLocale.ru: 'Например, KZ-1234', AppLocale.kk: 'Мысалы, KZ-1234', AppLocale.en: 'For example, KZ-1234'},
+  'dev_claim_action': {AppLocale.ru: 'Подтвердить', AppLocale.kk: 'Растау', AppLocale.en: 'Confirm'},
+  'dev_claim_ok': {AppLocale.ru: 'Готово — устройство подключено.', AppLocale.kk: 'Дайын — құрылғы қосылды.', AppLocale.en: 'Done — the device is connected.'},
+  'dev_claim_unknown': {
+    AppLocale.ru: 'Такой код не найден. Проверьте, не спутаны ли 0 и O, и попробуйте ещё раз.',
+    AppLocale.kk: 'Мұндай код табылмады. 0 мен O-ны шатастырмағаныңызды тексеріп, қайта көріңіз.',
+    AppLocale.en: 'No such code. Check whether 0 and O got mixed up, and try again.',
+  },
+  'dev_claim_taken': {
+    AppLocale.ru: 'Этот код уже использован на другом номере. Напишите нам — разберёмся.',
+    AppLocale.kk: 'Бұл код басқа нөмірде қолданылған. Бізге жазыңыз — шешеміз.',
+    AppLocale.en: 'This code has already been used on another number. Write to us and we will sort it out.',
+  },
+  'dev_claim_blocked': {
+    AppLocale.ru: 'Это устройство заблокировано. Напишите нам, если купили его у нас.',
+    AppLocale.kk: 'Бұл құрылғы бұғатталған. Бізден сатып алған болсаңыз, жазыңыз.',
+    AppLocale.en: 'This device is blocked. Write to us if you bought it from us.',
+  },
+  'dev_claim_too_many': {
+    AppLocale.ru: 'Слишком много попыток. Попробуйте через час.',
+    AppLocale.kk: 'Тым көп әрекет. Бір сағаттан кейін көріңіз.',
+    AppLocale.en: 'Too many attempts. Try again in an hour.',
+  },
+  'dev_claim_offline': {
+    AppLocale.ru: 'Нет связи с сервером. Код не потрачен — попробуйте позже.',
+    AppLocale.kk: 'Сервермен байланыс жоқ. Код жұмсалмады — кейінірек көріңіз.',
+    AppLocale.en: 'No connection. The code was not used — try again later.',
+  },
   'dev_not_ours': {
     AppLocale.ru: 'Это устройство не из нашей поставки, поэтому подключить его не получилось. Напишите нам в WhatsApp — разберёмся.',
     AppLocale.kk: 'Бұл құрылғы біздің жеткізілімнен емес, сондықтан қосу мүмкін болмады. WhatsApp-қа жазыңыз — шешеміз.',

@@ -699,6 +699,11 @@ Future<void> bootstrapRuntime(
       controller.attachDeviceSync(
         upsert: (d) => api.putDevice(d.toJson()),
         delete: (id) => api.deleteDevice(id),
+        // The way out of a «not ours» refusal. Wired here, or the sheet, the
+        // controller method and the route are three finished pieces with
+        // nothing joining them — which is exactly the defect this feature was
+        // built to fix.
+        claim: (code) => api.claimDevice(code),
       );
       for (final d in controller.devices) {
         unawaited(pushed('device', () => api.putDevice(d.toJson()), errorLog: controller.errorLog));

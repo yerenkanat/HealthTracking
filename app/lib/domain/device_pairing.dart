@@ -22,3 +22,30 @@ enum DevicePairOutcome {
   /// locally and is re-pushed at the next launch.
   offline,
 }
+
+/// What happened when she typed the code from the box.
+///
+/// Five outcomes because each needs different words and a different next step,
+/// and collapsing them into "it did not work" is what makes a customer give up
+/// on a device she legitimately owns.
+enum DeviceClaimResult {
+  /// Claimed and paired.
+  ok,
+
+  /// No unit carries that code. The one she can fix herself, by looking at the
+  /// box again — so it is phrased as a typo, not as an accusation.
+  unknownCode,
+
+  /// Someone else got there first. Either a second-hand unit, or somebody
+  /// shared the code — support, not self-service.
+  alreadyClaimed,
+
+  /// Ours, and blocked: reported stolen, returned, or replaced under warranty.
+  blocked,
+
+  /// Too many guesses from this number in an hour. Says when to come back.
+  tooManyAttempts,
+
+  /// No signal, or no server in this build. Nothing was consumed.
+  offline,
+}
