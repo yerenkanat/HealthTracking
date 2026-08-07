@@ -8,7 +8,8 @@
 import { Pool } from 'pg';
 import { computeChildrenStats } from '../analytics/childStats.js';
 import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
-import type { ContentItemRow, InventoryProduct, ShopProduct } from './repository';
+import { normalizeSerial } from '../deviceSerial.js';
+import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopProduct } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -45,6 +46,21 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function looksLikeUuid(id: unknown): boolean {
   return typeof id === 'string' && UUID_RE.test(id);
+}
+
+/** One device_registry row, in the shape the interface promises. */
+function toRegistryRow(r: Record<string, unknown>): DeviceRegistryRow {
+  return {
+    serial: String(r.serial),
+    status: r.status as DeviceRegistryRow['status'],
+    kind: (r.kind ?? null) as DeviceRegistryRow['kind'],
+    activationCode: (r.activation_code ?? null) as string | null,
+    orderId: (r.order_id ?? null) as string | null,
+    receivedAt: new Date(r.received_at as string).toISOString(),
+    activatedByPhone: (r.activated_by_phone ?? null) as string | null,
+    activatedAt: r.activated_at ? new Date(r.activated_at as string).toISOString() : null,
+    note: (r.note ?? null) as string | null,
+  };
 }
 
 export function createPgRepository(pool: Pool): Repository {
@@ -243,6 +259,76 @@ export function createPgRepository(pool: Pool): Repository {
         [phone, since],
       );
       return rows[0]?.n ?? 0;
+    },
+
+    // ---- Which devices are ours ----
+    async deviceRegistryEntry(serial) {
+      const { rows } = await pool.query(
+        `SELECT serial, status, kind, activation_code, order_id, received_at,
+                activated_by_phone, activated_at, note
+           FROM device_registry WHERE serial = $1`,
+        [normalizeSerial(serial)]);
+      return rows[0] ? toRegistryRow(rows[0]) : null;
+    },
+
+    async addDeviceSerials(rows) {
+      let added = 0;
+      for (const r of rows) {
+        const serial = normalizeSerial(r.serial);
+        if (!serial) continue;
+        // DO NOTHING, not DO UPDATE: receiving the same shipment twice must not
+        // reset a unit that has already been sold back to stock, which would
+        // hand it to whoever pairs it next.
+        const res = await pool.query(
+          `INSERT INTO device_registry (serial, kind, activation_code, note, added_by)
+           VALUES ($1,$2,$3,$4,$5) ON CONFLICT (serial) DO NOTHING`,
+          [serial, r.kind ?? null, r.activationCode ?? null, r.note ?? null, r.addedBy ?? null]);
+        if (res.rowCount) added += 1;
+      }
+      return { added, skipped: rows.length - added };
+    },
+
+    async markDeviceActivated(serial, phone) {
+      // Only from `stock`, and only when unclaimed. That WHERE clause is what
+      // makes an activation code single-use: the second redemption changes no
+      // rows and comes back false.
+      const res = await pool.query(
+        `UPDATE device_registry
+            SET status = 'sold', activated_by_phone = $2, activated_at = now()
+          WHERE serial = $1
+            AND status = 'stock'
+            AND activated_by_phone IS NULL`,
+        [normalizeSerial(serial), phone]);
+      if (res.rowCount) return true;
+      // Already hers is success — re-pairing after a reinstall must work.
+      const { rows } = await pool.query(
+        'SELECT activated_by_phone FROM device_registry WHERE serial = $1',
+        [normalizeSerial(serial)]);
+      return rows[0]?.activated_by_phone === phone;
+    },
+
+    async setDeviceRegistryStatus(serial, status) {
+      await pool.query(
+        'UPDATE device_registry SET status = $2 WHERE serial = $1',
+        [normalizeSerial(serial), status]);
+    },
+
+    async listDeviceRegistry(limit) {
+      const { rows } = await pool.query(
+        `SELECT serial, status, kind, activation_code, order_id, received_at,
+                activated_by_phone, activated_at, note
+           FROM device_registry ORDER BY received_at DESC LIMIT $1`, [limit]);
+      return rows.map(toRegistryRow);
+    },
+
+    async deviceByActivationCode(code) {
+      const c = normalizeSerial(code);
+      if (!c) return null;
+      const { rows } = await pool.query(
+        `SELECT serial, status, kind, activation_code, order_id, received_at,
+                activated_by_phone, activated_at, note
+           FROM device_registry WHERE activation_code = $1`, [c]);
+      return rows[0] ? toRegistryRow(rows[0]) : null;
     },
 
     async recordPhoneClaim(phone) {

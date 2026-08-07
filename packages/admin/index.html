@@ -1152,6 +1152,31 @@
           <div id="prodMsg" class="formmsg"></div>
         </div>
 
+        <!-- Серийные номера устройств.
+             Те же часы и брелоки продаются на других маркетплейсах. Пока
+             серийник не записан здесь, устройство из чужой коробки работает с
+             приложением так же, как наше. Записывайте при приёмке — это тот же
+             момент, когда товар ставится на склад. -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Серийные номера устройств</h3>
+            <span class="sub">пока только считаем · блокировка включается отдельно</span></div>
+          <form id="serialForm" class="stafform" autocomplete="off" style="align-items:flex-start">
+            <textarea id="serialList" rows="3" placeholder="MAC-адреса из накладной — по одному в строке"
+              style="flex:1;min-width:260px;font-family:ui-monospace,monospace;font-size:12px"></textarea>
+            <select id="serialKind">
+              <option value="tag">Брелок</option>
+              <option value="band">Часы</option>
+            </select>
+            <button class="btn" id="serialBtn" type="submit">Записать</button>
+          </form>
+          <div id="serialMsg" class="formmsg"></div>
+          <div class="tablewrap" style="margin-top:12px">
+            <table><thead><tr><th>Серийный номер</th><th>Тип</th><th>Статус</th>
+              <th>У кого</th><th></th></tr></thead>
+            <tbody id="serialBody"></tbody></table>
+          </div>
+        </div>
+
         <div class="card">
           <div class="sec-h"><h3>История движений</h3>
             <span class="sub">Записи не редактируются: ошибка исправляется новой строкой</span></div>
@@ -3713,7 +3738,95 @@
     return false;
   }
 
+  /**
+   * The device registry: what we received, and what became of each unit.
+   *
+   * Serials are pasted from a packing list rather than typed one per field —
+   * nobody enters forty MAC addresses into forty inputs, and a form that asked
+   * them to would simply not be used, which would leave the registry empty and
+   * the whole check worthless.
+   */
+  const SERIAL_STATUS = {
+    stock:   ['На складе', ''],
+    sold:    ['Активировано', 'good'],
+    blocked: ['Заблокировано', 'crit'],
+  };
+
+  async function renderSerials(){
+    const body = $("#serialBody");
+    if(!body) return;
+    let data = null;
+    try{ data = await api("/admin/device-registry"); }catch(e){ data = null; }
+    if(!data){
+      body.innerHTML = tableNote(5, "Не удалось загрузить список.");
+      return;
+    }
+    body.innerHTML = data.devices.map(d => {
+      const [label, cls] = SERIAL_STATUS[d.status] || [d.status, ''];
+      // Blocking is how a stolen or replaced unit stops working; unblocking
+      // exists because the commonest reason to block is a mistake.
+      const next = d.status === 'blocked' ? 'stock' : 'blocked';
+      const action = d.status === 'blocked' ? 'Разблокировать' : 'Заблокировать';
+      return `<tr>
+        <td class="num">${esc(d.serial)}</td>
+        <td class="t">${d.kind === 'band' ? 'Часы' : d.kind === 'tag' ? 'Брелок' : '—'}</td>
+        <td><span class="pill ${cls}">${label}</span></td>
+        <td class="num t">${esc(d.activatedByPhone || '—')}</td>
+        <td><button type="button" class="btn sm ghost sblk"
+              data-s="${esc(d.serial)}" data-next="${next}">${action}</button></td>
+      </tr>`;
+    }).join("") || tableNote(5, "Ни одного серийного номера ещё не записано.");
+
+    body.querySelectorAll(".sblk").forEach(b => b.addEventListener("click", async () => {
+      const blocking = b.dataset.next === "blocked";
+      if(blocking && !window.confirm(
+          `Заблокировать ${b.dataset.s}? Устройство перестанет привязываться к аккаунтам.`)) return;
+      try{
+        await fetch(`/admin/device-registry/${encodeURIComponent(b.dataset.s)}/status`, {
+          method:"POST", credentials:"same-origin",
+          headers:{"content-type":"application/json"},
+          body: JSON.stringify({ status: b.dataset.next }),
+        });
+      }catch(e){ /* the redraw below shows the truth either way */ }
+      renderSerials();
+    }));
+  }
+
+  function wireSerials(){
+    const form = $("#serialForm");
+    if(!form || form.dataset.wired) return;
+    form.dataset.wired = "1";
+    form.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const btn = $("#serialBtn"); btn.disabled = true;
+      msgTo("#serialMsg", "Сохранение…");
+      try{
+        const r = await fetch("/admin/device-registry", {
+          method:"POST", credentials:"same-origin",
+          headers:{"content-type":"application/json"},
+          body: JSON.stringify({
+            serials: $("#serialList").value,
+            kind: $("#serialKind").value,
+          }),
+        });
+        const body = await r.json().catch(()=>({}));
+        if(r.ok){
+          // Says how many were SKIPPED as well as added: re-pasting the same
+          // packing list is normal, and "added 0" without the rest reads as a
+          // failure when it is the correct answer.
+          $("#serialList").value = "";
+          msgTo("#serialMsg",
+            `Записано: ${body.added}${body.skipped ? ` · уже были: ${body.skipped}` : ""} ✓`, "ok");
+          renderSerials();
+        } else { msgTo("#serialMsg", body.detail || "Не удалось сохранить.", "bad"); }
+      }catch(e){ msgTo("#serialMsg","Нет связи с сервером.","bad"); }
+      btn.disabled = false;
+    });
+  }
+
   async function renderStock(){
+    wireSerials();
+    renderSerials();
     wireStock();
     const box = $("#stockBody");
     let data = null;

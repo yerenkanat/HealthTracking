@@ -42,6 +42,17 @@ const partsBody = z.object({
   })).max(20),
 });
 
+/// Serials pasted from a packing list: one per line, or comma separated.
+const serialsBody = z.object({
+  serials: z.string().min(1).max(20000),
+  kind: z.enum(['band', 'tag']).optional(),
+  note: z.string().trim().max(200).optional(),
+});
+
+const statusBody = z.object({
+  status: z.enum(['stock', 'sold', 'blocked']),
+});
+
 const moveBody = z.object({
   variantId: z.string().trim().min(1),
   // Signed, and non-zero: "changed by nothing" is not an event.
@@ -63,6 +74,63 @@ export function registerInventoryRoutes(
   }
 
   // ---- The warehouse view ---------------------------------------------------
+  // ---- Which devices are ours (migration 028) -----------------------------
+  //
+  // Serials are recorded when a shipment is received — the same moment stock
+  // goes onto the ledger. That is the only new warehouse work, and it is what
+  // decides whether the pairing check protects anything or refuses customers.
+  app.get('/admin/device-registry', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const limit = Math.min(1000, Math.max(1, Number((req.query as { limit?: string }).limit) || 200));
+    // Audited, like the entitlement list and for the same reason: every sold
+    // row carries the phone number of the customer who activated it. This is a
+    // read of personal data, not an aggregate.
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_device_registry' });
+    return reply.send({ devices: await repo.listDeviceRegistry(limit) });
+  });
+
+  app.post('/admin/device-registry', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const parsed = serialsBody.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
+    }
+    // Pasted from a packing list, one per line: nobody types forty MACs into
+    // forty separate fields, and a UI that made them would simply not be used.
+    const rows = parsed.data.serials
+      .split(/[\s,;]+/)
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .map((serial) => ({
+        serial,
+        kind: parsed.data.kind ?? null,
+        note: parsed.data.note ?? null,
+        addedBy: s.staffId,
+      }));
+    if (rows.length === 0) return reply.code(400).send({ error: 'no_serials' });
+
+    const result = await repo.addDeviceSerials(rows);
+    await repo.writeAudit({ staffId: s.staffId, action: 'device_serials_add', target: `${result.added}` });
+    return reply.send({ ok: true, ...result });
+  });
+
+  app.post('/admin/device-registry/:serial/status', async (req, reply) => {
+    const s = await requireAdmin(req, reply);
+    if (!s) return;
+    const { serial } = req.params as { serial: string };
+    const parsed = statusBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'bad_request' });
+    await repo.setDeviceRegistryStatus(serial, parsed.data.status);
+    // Blocking a unit is how a stolen or warranty-swapped device stops working,
+    // so it is a named action in the log rather than an anonymous edit.
+    await repo.writeAudit({
+      staffId: s.staffId, action: `device_${parsed.data.status}`, target: serial,
+    });
+    return reply.send({ ok: true });
+  });
+
   app.get('/admin/inventory', async (req, reply) => {
     const s = await requireAdmin(req, reply);
     if (!s) return;

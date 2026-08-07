@@ -100,6 +100,14 @@ export interface ServerDeps {
    * for what leaving it off costs.
    */
   requirePhoneCode?: boolean;
+  /**
+   * Refuse pairing for a device that is not in our registry.
+   *
+   * OFF by default. The day it goes on, every unit missing from the registry
+   * is a paying customer who cannot use what she bought — so it ships in
+   * log-only mode and somebody reads that log first.
+   */
+  enforceDeviceRegistry?: boolean;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -398,7 +406,10 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
   });
 
   // Client CRUD + history routes (require an authUser resolver).
-  if (deps.authUser) registerCrudRoutes(app, deps.repo, deps.authUser, deps.notifyLead);
+  if (deps.authUser) {
+    registerCrudRoutes(app, deps.repo, deps.authUser, deps.notifyLead,
+      deps.enforceDeviceRegistry ?? false);
+  }
   // Admin / back-office routes (require an authAdmin resolver).
   // Sign-in first: these three are the only /admin paths without a session, and
   // registering them here keeps that fact in one place.

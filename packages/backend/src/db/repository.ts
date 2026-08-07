@@ -755,6 +755,32 @@ export interface Repository {
   userBySessionToken(tokenHash: string): Promise<{ userId: string } | null>;
   deleteUserSession(tokenHash: string): Promise<void>;
   /// Claims from this phone inside the window — the rate limit on registering.
+  // ---- Which devices are ours (migration 028) ----
+  /// What the registry knows about this serial, or null when it is not ours.
+  ///
+  /// [serial] is normalised by [normalizeSerial] before it gets here, because a
+  /// MAC is printed six different ways and a registry that misses a unit over
+  /// punctuation refuses a real customer.
+  deviceRegistryEntry(serial: string): Promise<DeviceRegistryRow | null>;
+  /// Add units received into stock. Idempotent per serial: receiving the same
+  /// shipment twice must not create a second row or reset a unit already sold.
+  addDeviceSerials(rows: Array<{
+    serial: string;
+    kind?: 'band' | 'tag' | null;
+    activationCode?: string | null;
+    note?: string | null;
+    addedBy?: string | null;
+  }>): Promise<{ added: number; skipped: number }>;
+  /// Bind a unit to the account that just paired it. Returns false when it was
+  /// already taken by somebody else, which is what makes an activation code
+  /// single-use.
+  markDeviceActivated(serial: string, phone: string): Promise<boolean>;
+  setDeviceRegistryStatus(serial: string, status: 'stock' | 'sold' | 'blocked'): Promise<void>;
+  listDeviceRegistry(limit: number): Promise<DeviceRegistryRow[]>;
+  /// The unit carrying this activation code, or null. For the fallback path:
+  /// units already in the wild whose serial nobody captured.
+  deviceByActivationCode(code: string): Promise<DeviceRegistryRow | null>;
+
   recentPhoneClaims(phone: string, since: Date): Promise<number>;
   recordPhoneClaim(phone: string): Promise<void>;
 
@@ -924,6 +950,24 @@ export interface CourseLesson {
   sort: number;
   published: boolean;
   createdAt: string;
+}
+
+/**
+ * One unit we bought, and what became of it.
+ *
+ * `stock` — received, unsold. `sold` — paired to [activatedByPhone].
+ * `blocked` — stolen, returned or replaced under warranty; never pairs again.
+ */
+export interface DeviceRegistryRow {
+  serial: string;
+  status: 'stock' | 'sold' | 'blocked';
+  kind: 'band' | 'tag' | null;
+  activationCode: string | null;
+  orderId: string | null;
+  receivedAt: string;
+  activatedByPhone: string | null;
+  activatedAt: string | null;
+  note: string | null;
 }
 
 /** One lesson's worth of "where she got to". */

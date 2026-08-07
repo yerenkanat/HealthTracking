@@ -6,12 +6,13 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow } from './repository';
 import { bundleDiscountMinor } from './repository';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
+import { normalizeSerial } from '../deviceSerial.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 
@@ -72,6 +73,8 @@ export function createMemoryRepository(): Repository {
     { tokenHash: string; userId: string; expiresAt: Date; userAgent: string }
   >();
   const phoneClaims: Array<{ phone: string; at: Date }> = [];
+  /// serial -> what we know about that unit. Mirrors device_registry.
+  const registry = new Map<string, DeviceRegistryRow>();
   /// phone -> the one live sign-in code, hashed. Mirrors the phone_codes table.
   const phoneCodes = new Map<string, { codeHash: string; expiresAt: Date; attempts: number }>();
 
@@ -379,6 +382,61 @@ const UUID_RE =
     deleteUserSession: async (tokenHash) => void userSessions.delete(tokenHash),
     recentPhoneClaims: async (phone, since) =>
       phoneClaims.filter((c) => c.phone === phone && c.at >= since).length,
+    // ---- Which devices are ours ----
+    deviceRegistryEntry: async (serial) => registry.get(normalizeSerial(serial)) ?? null,
+
+    addDeviceSerials: async (rows) => {
+      let added = 0;
+      for (const r of rows) {
+        const serial = normalizeSerial(r.serial);
+        // Skipped, not overwritten: receiving the same shipment twice must not
+        // reset a sold unit back to stock and hand it to whoever pairs next.
+        if (!serial || registry.has(serial)) continue;
+        registry.set(serial, {
+          serial,
+          status: 'stock',
+          kind: r.kind ?? null,
+          activationCode: r.activationCode ? normalizeSerial(r.activationCode) : null,
+          orderId: null,
+          receivedAt: new Date().toISOString(),
+          activatedByPhone: null,
+          activatedAt: null,
+          note: r.note ?? null,
+        });
+        added += 1;
+      }
+      return { added, skipped: rows.length - added };
+    },
+
+    markDeviceActivated: async (serial, phone) => {
+      const row = registry.get(normalizeSerial(serial));
+      if (!row) return false;
+      // Already hers is success: re-pairing after a reinstall has to work.
+      if (row.activatedByPhone === phone) return true;
+      // Anything else claimed, or blocked, is refused — this is what makes an
+      // activation code worth exactly one redemption.
+      if (row.status !== 'stock' || row.activatedByPhone != null) return false;
+      row.status = 'sold';
+      row.activatedByPhone = phone;
+      row.activatedAt = new Date().toISOString();
+      return true;
+    },
+
+    setDeviceRegistryStatus: async (serial, status) => {
+      const row = registry.get(normalizeSerial(serial));
+      if (row) row.status = status;
+    },
+
+    listDeviceRegistry: async (limit) => [...registry.values()]
+        .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+        .slice(0, limit),
+
+    deviceByActivationCode: async (code) => {
+      const c = normalizeSerial(code);
+      if (!c) return null;
+      return [...registry.values()].find((r) => r.activationCode === c) ?? null;
+    },
+
     recordPhoneClaim: async (phone) => void phoneClaims.push({ phone, at: new Date() }),
 
     putPhoneCode: async (c) => void phoneCodes.set(c.phone, {

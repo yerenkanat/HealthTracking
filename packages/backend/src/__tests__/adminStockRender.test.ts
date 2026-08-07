@@ -37,6 +37,18 @@ const INVENTORY = {
   ],
 };
 
+/// Two units: one still on the shelf, one activated by a customer.
+const REGISTRY = {
+  devices: [
+    { serial: 'AABBCC000001', status: 'sold', kind: 'tag', activationCode: null,
+      orderId: null, receivedAt: '2026-08-01T10:00:00.000Z',
+      activatedByPhone: '77001112233', activatedAt: '2026-08-03T10:00:00.000Z', note: null },
+    { serial: 'AABBCC000002', status: 'stock', kind: 'band', activationCode: null,
+      orderId: null, receivedAt: '2026-08-01T10:00:00.000Z',
+      activatedByPhone: null, activatedAt: null, note: null },
+  ],
+};
+
 interface Page {
   window: JSDOM['window'];
   errors: string[];
@@ -75,6 +87,9 @@ async function render(): Promise<Page> {
         if (opts?.method === 'PUT' && p.includes('/admin/inventory/products')) {
           saved.push(JSON.parse(opts.body ?? '{}'));
           return { ok: true, status: 200, json: async () => ({ ok: true }) };
+        }
+        if (p.includes('/admin/device-registry')) {
+          return { ok: true, status: 200, json: async () => REGISTRY };
         }
         const body = p.includes('/admin/inventory/moves')
           ? { moves: [] }
@@ -162,5 +177,43 @@ describe('the article code', () => {
     // 60 on both sides. A longer code would type cleanly and be refused on
     // save, for a reason the form never showed.
     expect((page.$('#prodSku') as HTMLInputElement).maxLength).toBe(60);
+  });
+});
+
+/// The device registry, in the warehouse tab where serials are actually
+/// recorded — the same moment stock goes onto the ledger.
+///
+/// If this form is awkward the registry stays empty, and an empty registry
+/// makes the pairing check either useless (log-only) or catastrophic
+/// (enforcing, refusing every real customer). So the UI is the feature.
+describe('the device registry', () => {
+  let page: Page;
+  beforeEach(async () => { page = await render(); });
+
+  it('takes a whole packing list, not one field per device', () => {
+    // Nobody types forty MAC addresses into forty inputs.
+    const box = page.$('#serialList') as HTMLTextAreaElement;
+    expect(box, 'no paste box for serials').not.toBeNull();
+    expect(box.tagName).toBe('TEXTAREA');
+  });
+
+  it('shows what became of each unit', () => {
+    const t = page.text('#serialBody');
+    expect(t).toContain('AABBCC000001');
+    expect(t).toContain('Активировано');
+    expect(t).toContain('AABBCC000002');
+    expect(t).toContain('На складе');
+  });
+
+  it('names the customer holding an activated unit', () => {
+    // The warranty conversation nobody could previously have.
+    expect(page.text('#serialBody')).toContain('77001112233');
+  });
+
+  it('offers to block a unit, and to undo it', () => {
+    // Blocking is how a stolen or replaced device stops working; unblocking
+    // exists because the commonest reason to block is a mistake.
+    const t = page.text('#serialBody');
+    expect(t).toContain('Заблокировать');
   });
 });

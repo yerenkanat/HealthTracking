@@ -67,6 +67,10 @@ function makeApp(callerId: string) {
     listDevices: async () => [],
     upsertChild: async () => {},
     createDevice: async () => {},
+    // Registry lookups the pairing route now makes. A partial fake is exactly
+    // the case the route must survive — see the try/catch there.
+    deviceRegistryEntry: async () => null,
+    markDeviceActivated: async () => true,
     insertHealthMetric: async () => false,
     insertBpCalibration: async () => {},
     latestBpCalibration: async () => null,

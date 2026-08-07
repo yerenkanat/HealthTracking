@@ -92,7 +92,8 @@ await c.end();
 " "$1"; }
 
 for col in "shop_orders bundle_id" "shop_orders phone_normalized" "shop_products grants_feature" \
-           "course_progress phone" "course_progress completed"; do
+           "course_progress phone" "course_progress completed" \
+           "device_registry serial" "device_registry status"; do
   table="${col%% *}"; column="${col##* }"
   if q "SELECT 1 FROM information_schema.columns WHERE table_name='$table' AND column_name='$column'" | grep -qx FOUND; then
     echo "    $table.$column OK"
@@ -130,6 +131,7 @@ check "/admin" 'dashCourse'              "the Dashboard shows the course"
 check "/admin" 'courseProgressCell'      "the access list shows who is watching"
 check "/admin" 'stageGapRows'            "Аналитика shows where the users are"
 check "/admin" 'prodSku'                 "the warehouse can record an article code"
+check "/admin" 'serialForm'              "the warehouse can record device serials"
 
 echo
 echo "==> Routes the PROXY must pass through"

@@ -12,6 +12,7 @@ import { z } from 'zod';
 import type { Repository } from '../db/repository';
 import type { Geofence } from '@fcs/shared';
 import type { LeadNotifier } from '../notifications/leadAlert';
+import { normalizePhone } from '../http/staffAuth';
 
 export type AuthUser = (req: FastifyRequest) => Promise<{ userId: string } | null>;
 
@@ -185,7 +186,22 @@ const profileBody = z.object({
 });
 const reassignBody = z.object({ childId: z.string().min(1).nullable() });
 
-export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authUser: AuthUser, notifyLead?: LeadNotifier): void {
+export function registerCrudRoutes(
+  app: FastifyInstance,
+  repo: Repository,
+  authUser: AuthUser,
+  notifyLead?: LeadNotifier,
+  /**
+   * Refuse a device that is not in our registry, or only record that we would
+   * have.
+   *
+   * A parameter rather than an env read at module load: this is the switch that
+   * decides whether a real customer can use what she bought, so it has to be
+   * settable per server — which is also the only way a test can cover both
+   * sides of it.
+   */
+  enforceDeviceRegistry = false,
+): void {
   // Guard: resolve the user or 401.
   async function requireUser(req: FastifyRequest, reply: import('fastify').FastifyReply) {
     const u = await authUser(req);
@@ -383,7 +399,62 @@ export function registerCrudRoutes(app: FastifyInstance, repo: Repository, authU
         .send({ error: 'device_already_registered', mine: existing.userId === u.userId });
     }
 
+    // ---- Is this one of OUR devices? --------------------------------------
+    //
+    // The same watches and tags are sold on other marketplaces. Pairing used to
+    // ask only whether the id was already taken, so any compatible unit from
+    // any seller got the app, the tracking backend and the course — the
+    // hardware is generic, the service is the product, and the service was
+    // going out in somebody else's box.
+    //
+    // LOG-ONLY until DEVICE_REGISTRY_ENFORCE=1. The day this starts refusing,
+    // every unit missing from the registry becomes a paying customer who cannot
+    // use what she bought — and we would hear about it through angry WhatsApp
+    // messages rather than a log. So it records what it WOULD have refused
+    // first, and somebody looks at that number before switching it on.
+    // try/catch, not .catch(): a repository that does not implement this at all
+    // throws SYNCHRONOUSLY, before there is a promise to attach to, and that
+    // turned a failed lookup into a 500 on the one route a customer uses to
+    // make her new watch work. This check is an addition to pairing; it must
+    // never be the reason pairing fails.
+    let registered: Awaited<ReturnType<Repository['deviceRegistryEntry']>> = null;
+    let registryReadable = true;
+    try {
+      registered = await repo.deviceRegistryEntry(parsed.data.id);
+    } catch {
+      registryReadable = false;
+    }
+    // A registry we could not read is not evidence against the device. Refusing
+    // on a failed lookup would turn a database blip into every customer being
+    // told her watch is counterfeit.
+    const refuse = registryReadable
+        && (registered == null || registered.status === 'blocked');
+    if (refuse) {
+      req.log.warn({
+        deviceId: parsed.data.id,
+        reason: registered == null ? 'not_in_registry' : 'blocked',
+        enforcing: enforceDeviceRegistry,
+      }, 'device pairing not in registry');
+    }
+    if (refuse && enforceDeviceRegistry) {
+      // Says what to do next. A bare refusal costs the customer AND the support
+      // conversation; somebody holding a grey-market tag still wants the
+      // service, and that is a sale to have rather than a review to lose.
+      return reply.code(403).send({
+        error: registered == null ? 'device_not_ours' : 'device_blocked',
+      });
+    }
+
     await repo.createDevice(u.userId, { ...parsed.data, childId: parsed.data.childId ?? null });
+
+    // Bind it, so the same unit cannot be activated on a second account. Best
+    // effort: the device is already registered above, and failing to record
+    // provenance must not undo a pairing that worked.
+    if (registered != null) {
+      const profile = await repo.getProfile(u.userId).catch(() => null);
+      const phone = normalizePhone(profile?.phone ?? '');
+      if (phone) await repo.markDeviceActivated(parsed.data.id, phone).catch(() => false);
+    }
     return reply.code(201).send({ ok: true });
   });
 
