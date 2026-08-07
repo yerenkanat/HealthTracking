@@ -717,6 +717,21 @@ export interface Repository {
   /// including inactive ones, which is where an archived product has to be
   /// visible to be un-archived.
   adminProducts(): Promise<InventoryProduct[]>;
+  /**
+   * Units SOLD per product since [sinceIso] — how fast the shelf is emptying.
+   *
+   * Read off the stock ledger's `sale` rows rather than off orders: a unit
+   * handed over the counter and booked as a sale counts the same as one
+   * shipped against an order, and both are already recorded there.
+   *
+   * Positive counts. The ledger stores −3 for three sold; a caller asking "how
+   * many went out" should not have to remember the sign.
+   *
+   * Products with no sales in the window are simply absent from the result —
+   * absent and zero mean the same thing here, and materialising a row for every
+   * product in the catalogue to say "none" is work with no reader.
+   */
+  soldUnitsSince(sinceIso: string): Promise<Record<string, number>>;
   upsertProduct(p: {
     id: string;
     name: string;

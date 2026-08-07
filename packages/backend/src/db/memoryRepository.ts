@@ -1421,6 +1421,18 @@ const UUID_RE =
       return { ok: true as const, stock: next };
     },
 
+    soldUnitsSince: async (sinceIso) => {
+      const out: Record<string, number> = {};
+      for (const m of stockMoves) {
+        if (m.reason !== 'sale' || m.at < sinceIso) continue;
+        const productId = shopVars.find((v) => v.id === m.variantId)?.productId;
+        if (!productId) continue;
+        // The ledger stores a sale as a negative delta; callers want a count.
+        out[productId] = (out[productId] ?? 0) + Math.max(0, -m.delta);
+      }
+      return out;
+    },
+
     stockMoves: async (limit, variantId) =>
       stockMoves
         .filter((m) => !variantId || m.variantId === variantId)

@@ -19,6 +19,19 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository, StaffRole } from '../db/repository';
 import { can, type Capability } from '../auth/capabilities';
+import { needsReorder, runwayOf } from '../inventory/runway';
+
+/**
+ * How far back to look when measuring how fast something sells, and how long a
+ * resupply takes.
+ *
+ * 30 days because this catalogue is six products and a week's window on a
+ * business this size is mostly noise; 14 because the shipments come from
+ * abroad. Both travel to the panel in the response, so the sentence it writes
+ * («хватит на 9 дней») can say which numbers it was computed from.
+ */
+const SALES_WINDOW_DAYS = 30;
+const LEAD_TIME_DAYS = 14;
 
 export type AuthAdmin = (
   req: FastifyRequest,
@@ -143,13 +156,40 @@ export function registerInventoryRoutes(
     const products = await repo.adminProducts();
     // Bundle composition travels with the product, so the panel can show what a
     // combo is made of without a request per product.
-    const withParts = await Promise.all(products.map(async (p) => ({
-      ...p,
-      parts: p.kind === 'bundle' ? await repo.bundleParts(p.id) : [],
-    })));
+    // How fast the shelf is emptying, so a level can be read as a date.
+    //
+    // The panel's only reorder signal was a threshold somebody typed in once:
+    // one number, right for one sales rate and wrong for every other, and
+    // silent about whether what is left survives the two weeks a shipment
+    // takes. Absent on an unmigrated database rather than fatal — a missing
+    // ledger should cost the runway column, not the whole warehouse screen.
+    const since = new Date(Date.now() - SALES_WINDOW_DAYS * 86400_000).toISOString();
+    const sold = await repo.soldUnitsSince(since).catch(() => ({} as Record<string, number>));
+
+    const withParts = await Promise.all(products.map(async (p) => {
+      const runway = runwayOf(p.stock, sold[p.id] ?? 0, SALES_WINDOW_DAYS);
+      return {
+        ...p,
+        parts: p.kind === 'bundle' ? await repo.bundleParts(p.id) : [],
+        soldInWindow: sold[p.id] ?? 0,
+        // JSON has no Infinity — it serialises as null, which would be
+        // indistinguishable from "not computed". `noSales` carries that case.
+        daysOfCover: runway && Number.isFinite(runway.days) ? runway.days : null,
+        perDay: runway ? Number(runway.perDay.toFixed(2)) : null,
+        noSales: runway ? runway.noSales : true,
+        reorder: needsReorder(runway),
+      };
+    }));
+
     return reply.send({
       products: withParts,
+      windowDays: SALES_WINDOW_DAYS,
+      leadTimeDays: LEAD_TIME_DAYS,
+      // The threshold list stays: it is what a warehouse hand set by hand for
+      // the things they know about. `reorder` is the computed opinion, and the
+      // two disagreeing is information rather than a bug.
       lowStock: withParts.filter((p) => p.lowStock).map((p) => p.id),
+      reorder: withParts.filter((p) => p.reorder).map((p) => p.id),
     });
   });
 

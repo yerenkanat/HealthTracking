@@ -2034,6 +2034,22 @@ export function createPgRepository(pool: Pool): Repository {
       }
     },
 
+    async soldUnitsSince(sinceIso) {
+      const { rows } = await pool.query(
+        `SELECT v.product_id AS id, -SUM(m.delta)::int AS sold
+           FROM shop_stock_moves m
+           JOIN shop_variants v ON v.id = m.variant_id
+          WHERE m.reason = 'sale' AND m.at >= $1
+          GROUP BY v.product_id`,
+        [sinceIso]);
+      const out: Record<string, number> = {};
+      // A 'sale' row is negative, so the negated sum is positive. Clamped
+      // anyway: a correction miskeyed as a sale could make it negative, and a
+      // negative sales rate would report a shelf that fills itself.
+      for (const r of rows) out[r.id] = Math.max(0, Number(r.sold) || 0);
+      return out;
+    },
+
     async stockMoves(limit, variantId) {
       const { rows } = await pool.query(
         `SELECT m.id, m.variant_id, m.delta, m.reason, m.note, m.staff_id, m.order_id, m.at,

@@ -200,6 +200,10 @@
   .kpi .delta{font-size:12px;color:var(--muted);margin-top:2px}
   .kpi .delta b{color:var(--good-text)}
   .kpi .delta b.down{color:var(--crit-text)}
+  /* The explaining line under a number, wherever it is not a .kpi tile.
+     Same 12px as .kpi .delta on purpose: it is the same sentence doing the
+     same job, and two sizes for it would read as two kinds of note. */
+  .metricnote{font-size:12px;color:var(--muted);margin:2px 0 8px}
 
   /* align-items:start so a card is as tall as its contents. Grid stretches
      rows by default, so a short card beside a tall one grew a large empty
@@ -3931,6 +3935,30 @@
     });
   }
 
+  /**
+   * A stock level as a date: «хватит на 9 дней · 1.4 шт/день».
+   *
+   * docs/CLAUDE-admin-design.md is explicit that a metric card without its
+   * explaining line is not a metric card — «26 шт» ничего не значит. This is
+   * the line for every number on the Склад screen, and it is the only thing
+   * on that screen that answers the question a buyer actually has.
+   *
+   * @param p product row from /admin/inventory, carrying daysOfCover/noSales
+   * @param w the response's windowDays / leadTimeDays
+   */
+  function runwayLine(p, w){
+    if(!p.stock) return "нет на складе";
+    if(p.noSales) return `продаж за ${w.windowDays} дн. не было`;
+    if(p.daysOfCover == null) return "";
+    const rate=`${p.perDay} шт/день`;
+    // The lead time is the whole point of saying it: 9 days of cover is fine
+    // for a shelf restocked in three and a stockout for one restocked in
+    // fourteen. Naming the number a person can act on beats a colour.
+    return p.reorder
+      ? `хватит на ${p.daysOfCover} дн. · ${rate} — поставка идёт ${w.leadTimeDays} дн., пора заказывать`
+      : `хватит на ${p.daysOfCover} дн. · ${rate}`;
+  }
+
   async function renderStock(){
     wireSerials();
     renderSerials();
@@ -3943,9 +3971,19 @@
       return;
     }
 
-    const low = data.products.filter(p => p.lowStock);
+    // Defaults only for a backend that predates the runway fields, so an
+    // old server shows the shelf without the sentence rather than "NaN дн.".
+    const W = { windowDays: data.windowDays ?? 30, leadTimeDays: data.leadTimeDays ?? 14 };
+
+    // The banner now leads with what is running out by SALES rate, falling
+    // back to the hand-set threshold. A threshold cannot know that watches
+    // sell four times faster than tags, which is the case it was silent on.
+    const low = data.products.filter(p => p.reorder || p.lowStock);
     $("#stockLow").hidden = low.length === 0;
-    $("#stockLowList").textContent = low.map(p => `${p.name} — ${p.stock} шт.`).join(" · ");
+    $("#stockLowList").textContent = low.map(p =>
+      p.reorder && p.daysOfCover != null
+        ? `${p.name} — ${p.stock} шт., хватит на ${p.daysOfCover} дн.`
+        : `${p.name} — ${p.stock} шт.`).join(" · ");
 
     box.innerHTML = data.products.map(p => {
       const margin = p.costMinor != null
@@ -3971,9 +4009,12 @@
       // on a box, an invoice and a courier's manifest" — and it was never shown
       // anywhere, so a manifest was written from the product name.
       const sku = p.sku ? ` · <span class="num">${esc(p.sku)}</span>` : "";
+      const run = runwayLine(p, W);
+      const runCls = p.reorder ? "var(--warn-text,var(--warn))" : "var(--muted)";
       return `<div style="margin-bottom:18px">
         <div class="sec-h"><h3>${esc(p.name)}${p.active?"":" · архив"}</h3>
           <span class="sub">${tenge(p.priceMinor)} ${margin}${sku}</span></div>
+        <div class="metricnote" style="color:${runCls}">${esc(run)}</div>
         ${rows}
       </div>`;
     }).join("");
