@@ -47,6 +47,8 @@ import 'domain/chat_controller.dart';
 import 'domain/family.dart' show UserProfile, ChildProfile, PairedDevice, genderFromName;
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
+import 'data/server_phone_auth.dart';
+import 'ui/auth/sign_in_route.dart' show apiBaseForAuth;
 import 'data/sync_push.dart';
 import 'data/http_transport.dart';
 import 'l10n/l10n.dart';
@@ -453,6 +455,20 @@ Future<void> bootstrapRuntime(
     );
 
     controller.attachRuntime(monitor: monitor, batcher: batcher, api: api);
+
+    // Claim the number she typed during onboarding, so finishing setup signs
+    // her in rather than asking again for something she just gave. The same
+    // provider the sign-in screen uses — one answer to "what does a session
+    // cost", not two.
+    controller.onPhoneSignIn = (phone, displayName) async {
+      final provider = ServerPhoneAuthProvider(
+          baseUrl: apiBaseForAuth, now: DateTime.now);
+      final challenge = await provider.requestCode(phone);
+      // Nothing to type while codes are switched off; when they are switched
+      // on this returns early and the checklist asks her to sign in properly.
+      if (provider.requiresCode) return null;
+      return provider.verifyCode(challenge, '');
+    };
 
     // Connectivity: drive the offline banner, and flush the batcher the moment
     // the network returns — the onConnectivityRestored hook that nothing called,

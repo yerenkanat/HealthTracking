@@ -2291,6 +2291,45 @@ class AppController {
     _onboarding = null;
     _persist(immediate: true); // irreversible — do not risk the debounce window
     _notify();
+
+    // She has just given her number — use it.
+    //
+    // Onboarding collected a phone and then did nothing with it, so the very
+    // first thing the app said to a woman who had just typed her number was
+    // "sign in with your phone number" (setup checklist, step 1 of 7). She has
+    // no way to know those are the same number and two different acts; it
+    // reads as the app not having listened.
+    //
+    // It is not cosmetic. Until she signs in, nothing she records leaves the
+    // handset — so the step she is most likely to dismiss as a repeat is the
+    // one that decides whether her pregnancy survives a lost phone.
+    unawaited(_signInWithOnboardedPhone());
+  }
+
+  /// Claim the number given during onboarding, quietly.
+  ///
+  /// Failure is silent and leaves the checklist nudge exactly as it was: that
+  /// nudge is the honest fallback, and an error over a freshly finished setup
+  /// would be the first thing she ever saw from us.
+  Future<void> _signInWithOnboardedPhone() async {
+    if (isSignedIn) return;
+    final claim = _onPhoneSignIn;
+    final phone = _profile.e164;
+    if (claim == null || phone.isEmpty) return;
+    try {
+      final session = await claim(phone, _profile.displayName);
+      if (session != null && !isSignedIn) signIn(session);
+    } catch (_) {
+      // Offline during setup is ordinary. The checklist still asks.
+    }
+  }
+
+  /// How to claim a phone number, injected by main.dart so the controller does
+  /// not know there is a network. Null in a build with no API configured.
+  Future<AuthSession?> Function(String phoneE164, String displayName)? _onPhoneSignIn;
+  set onPhoneSignIn(
+      Future<AuthSession?> Function(String phoneE164, String displayName)? f) {
+    _onPhoneSignIn = f;
   }
 
   /// Record a hand-entered reading (cuff, thermometer, oximeter) for users
