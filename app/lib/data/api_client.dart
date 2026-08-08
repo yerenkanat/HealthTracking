@@ -850,6 +850,25 @@ class ApiClient {
     throw ApiException(res.statusCode, res.body);
   }
 
+  /// Her own orders — screen 42.
+  Future<Map<String, dynamic>> myOrders() async {
+    final res = await transport.get('/shop/my-orders');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Call one off. Returns the server's verdict: `too_late` means the courier
+  /// already has it, which needs different words from a failure.
+  Future<({bool ok, String? reason})> cancelMyOrder(String orderId) async {
+    final res = await transport.post('/shop/my-orders/$orderId/cancel', const {});
+    if (res.ok) return (ok: true, reason: null);
+    if (res.statusCode == 409) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return (ok: false, reason: '${body['error']}');
+    }
+    return (ok: false, reason: null);
+  }
+
   // ---- Family access (screen 40) ----
 
   /// Who has been let in, the open invitations, and whose children I can see.

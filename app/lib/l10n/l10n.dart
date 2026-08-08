@@ -230,6 +230,39 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 42 · «Мой заказ» --------------------------------------------
+  'ord_title': {AppLocale.ru: 'Мой заказ', AppLocale.kk: 'Менің тапсырысым', AppLocale.en: 'My order'},
+  'ord_step_placed': {AppLocale.ru: 'Заказ принят', AppLocale.kk: 'Тапсырыс қабылданды', AppLocale.en: 'Order placed'},
+  'ord_step_confirmed': {AppLocale.ru: 'Подтверждён', AppLocale.kk: 'Расталды', AppLocale.en: 'Confirmed'},
+  'ord_step_shipped': {AppLocale.ru: 'Передан курьеру', AppLocale.kk: 'Курьерге берілді', AppLocale.en: 'With the courier'},
+  'ord_step_delivered': {AppLocale.ru: 'Доставлен', AppLocale.kk: 'Жеткізілді', AppLocale.en: 'Delivered'},
+  // The headline card. One line, and it is the answer to the question she
+  // opened the screen with.
+  'ord_now_placed': {AppLocale.ru: 'Заказ принят — скоро подтвердим', AppLocale.kk: 'Тапсырыс қабылданды — жақында растаймыз', AppLocale.en: 'Order placed — we will confirm it shortly'},
+  'ord_now_confirmed': {AppLocale.ru: 'Подтверждён — готовим к отправке', AppLocale.kk: 'Расталды — жөнелтуге дайындаудамыз', AppLocale.en: 'Confirmed — getting it ready'},
+  'ord_now_shipped': {AppLocale.ru: 'Курьер везёт заказ', AppLocale.kk: 'Курьер тапсырысты әкеле жатыр', AppLocale.en: 'The courier is on the way'},
+  'ord_now_delivered': {AppLocale.ru: 'Доставлен', AppLocale.kk: 'Жеткізілді', AppLocale.en: 'Delivered'},
+  'ord_now_cancelled': {AppLocale.ru: 'Заказ отменён', AppLocale.kk: 'Тапсырыс тоқтатылды', AppLocale.en: 'Order cancelled'},
+  'ord_contents': {AppLocale.ru: 'Что в заказе', AppLocale.kk: 'Тапсырыста не бар', AppLocale.en: 'What is in it'},
+  'ord_total': {AppLocale.ru: 'Итого', AppLocale.kk: 'Барлығы', AppLocale.en: 'Total'},
+  'ord_qty': {AppLocale.ru: '{n} шт', AppLocale.kk: '{n} дана', AppLocale.en: '{n} pcs'},
+  'ord_deliver_to': {AppLocale.ru: 'Доставка: {city}, {address}', AppLocale.kk: 'Жеткізу: {city}, {address}', AppLocale.en: 'Delivery: {city}, {address}'},
+  'ord_write': {AppLocale.ru: 'Написать', AppLocale.kk: 'Жазу', AppLocale.en: 'Message us'},
+  'ord_cancel': {AppLocale.ru: 'Отменить заказ', AppLocale.kk: 'Тапсырысты тоқтату', AppLocale.en: 'Cancel the order'},
+  'ord_cancel_confirm': {AppLocale.ru: 'Отменить заказ?', AppLocale.kk: 'Тапсырысты тоқтату керек пе?', AppLocale.en: 'Cancel the order?'},
+  'ord_cancel_body': {AppLocale.ru: 'Мы не будем его собирать. Заказать снова можно в любой момент.', AppLocale.kk: 'Біз оны жинамаймыз. Қайта тапсырыс беруге болады.', AppLocale.en: 'We will not pack it. You can order again at any time.'},
+  'ord_cancelled_ok': {AppLocale.ru: 'Заказ отменён', AppLocale.kk: 'Тапсырыс тоқтатылды', AppLocale.en: 'Order cancelled'},
+  // Refused because the courier already has it — a different message from a
+  // failure, and it needs a different next step.
+  'ord_cancel_too_late': {AppLocale.ru: 'Курьер уже забрал заказ. Напишите нам — отменим вручную.', AppLocale.kk: 'Курьер тапсырысты алып кетті. Бізге жазыңыз — қолмен тоқтатамыз.', AppLocale.en: 'The courier already has it. Message us and we will sort it out.'},
+  'ord_none': {AppLocale.ru: 'Заказов пока нет', AppLocale.kk: 'Әзірге тапсырыс жоқ', AppLocale.en: 'No orders yet'},
+  'ord_none_why': {AppLocale.ru: 'Здесь появится заказ, как только вы его оформите — со статусом доставки и составом.', AppLocale.kk: 'Тапсырыс бергеннен кейін ол осында жеткізу күйімен бірге пайда болады.', AppLocale.en: 'An order appears here once you place one, with its delivery status.'},
+  // The case that must not read as «у вас нет заказов».
+  'ord_no_phone': {AppLocale.ru: 'Мы не знаем вашего номера', AppLocale.kk: 'Біз сіздің нөміріңізді білмейміз', AppLocale.en: 'We do not know your number'},
+  'ord_no_phone_why': {AppLocale.ru: 'Заказы находятся по номеру телефона. Добавьте свой в профиле — и заказ появится здесь.', AppLocale.kk: 'Тапсырыстар телефон нөмірі бойынша табылады. Профильде нөміріңізді қосыңыз.', AppLocale.en: 'Orders are found by phone number. Add yours in your profile.'},
+  'ord_add_phone': {AppLocale.ru: 'Добавить номер', AppLocale.kk: 'Нөмір қосу', AppLocale.en: 'Add a number'},
+  'ord_failed': {AppLocale.ru: 'Не удалось загрузить заказы', AppLocale.kk: 'Тапсырыстарды жүктеу мүмкін болмады', AppLocale.en: 'Could not load your orders'},
+
   // --- Screen 20 · «Офлайн» -----------------------------------------------
   'off_no_internet': {AppLocale.ru: 'Нет интернета', AppLocale.kk: 'Интернет жоқ', AppLocale.en: 'No internet'},
   'off_data_from': {AppLocale.ru: 'Данные от {time} · {n} мин назад', AppLocale.kk: 'Дерек {time} · {n} мин бұрын', AppLocale.en: 'Data from {time} · {n} min ago'},

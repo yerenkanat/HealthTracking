@@ -42,10 +42,12 @@ import 'dashboard/log_sleep_sheet.dart';
 import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
 import 'profile/family_access_screen.dart';
+import 'profile/my_order_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
 import '../domain/day_history.dart';
 import '../domain/family_access.dart';
+import '../domain/my_order.dart';
 import 'tracking/child_map_screen.dart';
 import 'tracking/day_history_screen.dart';
 import 'tracking/family_sheets.dart';
@@ -302,6 +304,8 @@ class _HomeShellState extends State<HomeShell> {
         // absent rather than opening a screen that can only fail.
         onOpenFamilyAccess:
             c.api == null ? null : () => _openFamilyAccess(context, c),
+        // Screen 42. The orders live on the server, matched on her phone.
+        onOpenMyOrder: c.api == null ? null : () => _openMyOrder(context, c),
       ),
     ];
 
@@ -373,6 +377,20 @@ class _HomeShellState extends State<HomeShell> {
           : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
     }
     return '';
+  }
+
+  /// Screen 42 — «Мой заказ».
+  ///
+  /// «Написать» opens WhatsApp on the number the admin panel configured. It is
+  /// fetched rather than compiled in, and the button is absent when there is
+  /// none — a contact button that opens nothing is worse than no button on the
+  /// screen somebody reaches when a delivery has gone wrong.
+  void _openMyOrder(BuildContext context, AppController c) {
+    final api = c.api;
+    if (api == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _MyOrderRoute(controller: c),
+    ));
   }
 
   /// Screen 40 — «Семейный доступ».
@@ -625,6 +643,63 @@ class _HomeShellState extends State<HomeShell> {
       markers: {
         if (child != null)
           Marker(markerId: const MarkerId('child'), position: LatLng(child.lat, child.lng)),
+      },
+    );
+  }
+}
+
+/// Screen 42, with its WhatsApp number resolved before the screen is built.
+///
+/// A small stateful wrapper rather than a FutureBuilder inside the screen: the
+/// number decides whether a BUTTON exists, and a screen that grows a contact
+/// button a second after it opens is one somebody taps by accident.
+class _MyOrderRoute extends StatefulWidget {
+  final AppController controller;
+  const _MyOrderRoute({required this.controller});
+
+  @override
+  State<_MyOrderRoute> createState() => _MyOrderRouteState();
+}
+
+class _MyOrderRouteState extends State<_MyOrderRoute> {
+  String _whatsapp = '';
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final contact = await widget.controller.api?.getShopContact();
+    if (!mounted) return;
+    setState(() {
+      _whatsapp = contact?.whatsapp ?? '';
+      _ready = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final api = widget.controller.api;
+    if (!_ready || api == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final digits = _whatsapp.replaceAll(RegExp(r'\D'), '');
+    return MyOrderScreen(
+      load: () async => MyOrders.fromJson(await api.myOrders()),
+      onCancel: (o) => api.cancelMyOrder(o.orderId),
+      onWrite: digits.isEmpty
+          ? null
+          : () => launchUrl(
+                Uri.parse('https://wa.me/$digits'),
+                mode: LaunchMode.externalApplication,
+              ),
+      // The only fix for a missing number is the profile editor.
+      onAddPhone: () {
+        Navigator.of(context).pop();
+        showEditProfileSheet(context, widget.controller);
       },
     );
   }
