@@ -230,6 +230,16 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 44 · «Аудио дня · плеер» -------------------------------------
+  'aud_title': {AppLocale.ru: 'Аудио дня', AppLocale.kk: 'Күн аудиосы', AppLocale.en: 'Audio of the day'},
+  'aud_back15': {AppLocale.ru: 'Назад 15 секунд', AppLocale.kk: '15 секунд артқа', AppLocale.en: 'Back 15 seconds'},
+  'aud_fwd15': {AppLocale.ru: 'Вперёд 15 секунд', AppLocale.kk: '15 секунд алға', AppLocale.en: 'Forward 15 seconds'},
+  'aud_play': {AppLocale.ru: 'Слушать', AppLocale.kk: 'Тыңдау', AppLocale.en: 'Play'},
+  'aud_pause': {AppLocale.ru: 'Пауза', AppLocale.kk: 'Кідірту', AppLocale.en: 'Pause'},
+  // The promise the screen has to be able to keep: stayAwake is set on the
+  // player, so the clip continues while the display is off.
+  'aud_screen_off': {AppLocale.ru: 'Экран погаснет — запись не остановится', AppLocale.kk: 'Экран сөнеді — жазба тоқтамайды', AppLocale.en: 'The screen will dim — the recording keeps playing'},
+  'aud_all': {AppLocale.ru: 'Все записи · {n}', AppLocale.kk: 'Барлық жазба · {n}', AppLocale.en: 'All recordings · {n}'},
   // --- Screen 41 · «Магазин» ----------------------------------------------
   'shop_title': {AppLocale.ru: 'Магазин', AppLocale.kk: 'Дүкен', AppLocale.en: 'Shop'},
   'shop_for_your_stage': {AppLocale.ru: 'Для вашего этапа', AppLocale.kk: 'Сіздің кезеңіңізге', AppLocale.en: 'For where you are now'},

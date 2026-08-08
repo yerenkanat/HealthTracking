@@ -82,6 +82,25 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
     }
     _subs.clear();
     final player = _player ??= AudioPlayer();
+    // «Экран погаснет — запись не остановится», which screen 44 prints as a
+    // promise. stayAwake holds the CPU while a clip plays, so switching the
+    // display off does not cut it short. Set here rather than on the player
+    // screen because this card owns the only AudioPlayer the app creates —
+    // configuring it in one place is what makes the promise true everywhere
+    // it is made.
+    unawaited(player.setAudioContext(AudioContext(
+      android: const AudioContextAndroid(
+        isSpeakerphoneOn: false,
+        stayAwake: true,
+        contentType: AndroidContentType.speech,
+        usageType: AndroidUsageType.media,
+        audioFocus: AndroidAudioFocus.gain,
+      ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.playback,
+        options: const {AVAudioSessionOptions.mixWithOthers},
+      ),
+    )));
     _subs.add(player.onDurationChanged.listen((d) {
       if (mounted) setState(() { _dur = d; _st = _St.ready; }); // a duration means it's playable
     }));
