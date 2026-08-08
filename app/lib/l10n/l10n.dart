@@ -268,6 +268,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'fam_refused_revoked': {AppLocale.ru: 'Ссылку отозвали.', AppLocale.kk: 'Сілтеме кері қайтарылған.', AppLocale.en: 'The link was revoked.'},
   'fam_refused_own': {AppLocale.ru: 'Это ваша собственная ссылка.', AppLocale.kk: 'Бұл сіздің өз сілтемеңіз.', AppLocale.en: 'This is your own link.'},
   'fam_refused_unknown': {AppLocale.ru: 'Ссылка не подошла.', AppLocale.kk: 'Сілтеме келмеді.', AppLocale.en: 'The link did not work.'},
+  // The other side of the invitation: pasting the code you were sent.
+  'fam_have_code': {AppLocale.ru: 'У меня есть приглашение', AppLocale.kk: 'Менде шақыру бар', AppLocale.en: 'I have an invitation'},
+  'fam_paste_code': {AppLocale.ru: 'Вставьте код из приглашения', AppLocale.kk: 'Шақырудағы кодты қойыңыз', AppLocale.en: 'Paste the code from the invitation'},
+  'fam_accept': {AppLocale.ru: 'Принять', AppLocale.kk: 'Қабылдау', AppLocale.en: 'Accept'},
+  'fam_accepted': {AppLocale.ru: 'Готово — ребёнок появится на вкладке карты', AppLocale.kk: 'Дайын — бала карта бетінде көрінеді', AppLocale.en: 'Done — the child appears on the map tab'},
 
   // --- Screens 47/48 · «История дня» -------------------------------------
   'day_history': {AppLocale.ru: 'История дня', AppLocale.kk: 'Күн тарихы', AppLocale.en: 'Day history'},

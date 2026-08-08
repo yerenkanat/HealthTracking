@@ -150,7 +150,16 @@ $ADMIN_BLOCK
     # Caddy 404 while the docs beside them loaded fine: the API looked empty
     # and broken to anyone who followed the link. It carries no user data —
     # everything user-scoped is in @app behind a session.
-    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready /api-docs /api/v1 /api/v1/*
+    # /join/* is where a family invitation link lands (screen 40). Public by
+    # necessity: the relative tapping it has no session yet, and the page only
+    # shows the code and says what to do with it — it accepts nothing.
+    # Published reference data — the MOH antenatal protocol, the vaccination
+    # calendar, the pregnancy and child-development weeks, the daily audio.
+    # Constants compiled into the server: they name nobody, never vary by
+    # caller, and are the same rows /api/v1 already serves publicly.
+    @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready \
+                 /api-docs /api/v1 /api/v1/* /join/* \
+                 /antenatal/* /pregnancy/* /child/development* /vaccination/* /audio/*
 
     # ---- The app ------------------------------------------------------------
     #
@@ -182,11 +191,26 @@ $ADMIN_BLOCK
         reverse_proxy ${BACKEND}
     }
 
+    # Every session-scoped route the app calls. This list is written by hand
+    # and the routes are not, so it drifts silently — a path absent here gets
+    # Caddy's catch-all 404 and the app reads that as the server being down.
+    # src/__tests__/edgeAllowlist.test.ts compares the two sides and fails when
+    # they part company; it was written after this drift was found, and it
+    # found more.
+    #
+    #   /course*  — the Ма!Ма! course. The app calls /course/lessons on the
+    #               profile tab and /course/progress on every lesson, and
+    #               NEITHER has ever been allowed through: the thing the
+    #               комплект charges 9 200 ₸ extra for could not load in
+    #               production while working perfectly on the box.
+    #   /family*  — screen 40, added with family access.
+    #   /metrics* — the vitals history query. Registered since long before this
+    #               file; no app caller today, allowed so the next one works.
     @app path /auth/logout /account* /ai/* /alerts* /app/* /appointments* \
               /calibration/* /children* /content* /contraction-sessions* \
-              /cry/* /cycle* /devices* /doses* /geofences* /growth* \
-              /ingest/* /kick-sessions* /medications* /newborn-events* \
-              /profile* /sleep* /vaccines* /vitals* /weight*
+              /course* /cry/* /cycle* /devices* /doses* /family* /geofences* \
+              /growth* /ingest/* /kick-sessions* /medications* /metrics* \
+              /newborn-events* /profile* /sleep* /vaccines* /vitals* /weight*
     handle @app {
         reverse_proxy ${BACKEND}
     }

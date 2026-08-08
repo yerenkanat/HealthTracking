@@ -395,6 +395,15 @@ class _HomeShellState extends State<HomeShell> {
         },
         onRemove: (m) => api.removeFamilyMember(m.memberUserId),
         onRevoke: (i) => api.revokeFamilyInvite(i.tokenHash),
+        // The other side of the invitation. Without it a relative who was sent
+        // a link has nowhere to put the code and the path dead-ends.
+        onAccept: (token) async {
+          try {
+            return await api.acceptFamilyInvite(token);
+          } catch (_) {
+            return (ok: false, reason: null);
+          }
+        },
         // The link somebody actually receives. A path on the site rather than
         // a custom scheme, so it opens for a relative who has not installed
         // the app yet — which is most of them, the first time.

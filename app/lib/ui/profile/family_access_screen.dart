@@ -34,6 +34,11 @@ class FamilyAccessScreen extends StatefulWidget {
   /// does not have to know the deep-link scheme.
   final String Function(String token) linkFor;
 
+  /// Accepting a code somebody sent you. Returns the server's verdict — the
+  /// refusal reason matters, because an expired link and a used one need
+  /// different words.
+  final Future<({bool ok, String? reason})> Function(String token)? onAccept;
+
   final DateTime now;
 
   const FamilyAccessScreen({
@@ -44,6 +49,7 @@ class FamilyAccessScreen extends StatefulWidget {
     required this.onRevoke,
     required this.linkFor,
     required this.now,
+    this.onAccept,
   });
 
   @override
@@ -107,6 +113,25 @@ class _FamilyAccessScreenState extends State<FamilyAccessScreen> {
     }
     setState(() => _freshToken = token);
     await _reload();
+  }
+
+  Future<void> _acceptCode() async {
+    final l = L10nScope.of(context);
+    final code = await showDialog<String>(
+      context: context,
+      builder: (_) => const _AcceptDialog(),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+    final r = await widget.onAccept!(code);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      // Each refusal has its own words: an expired link needs a new one, a
+      // used one probably means somebody else already joined. «Не получилось»
+      // for all of them helps nobody.
+      content: Text(r.ok ? l.t('fam_accepted') : l.t(inviteRefusalKey(r.reason))),
+      behavior: SnackBarBehavior.floating,
+    ));
+    if (r.ok) await _reload();
   }
 
   Future<void> _remove(FamilyMember m) async {
@@ -211,6 +236,21 @@ class _FamilyAccessScreenState extends State<FamilyAccessScreen> {
               _EmptyCard(
                 title: l.t('fam_i_see'),
                 body: l.t('fam_i_see_body', {'n': d.memberships.length}),
+              ),
+            ],
+
+            // The other side of the feature. Without it a father who was sent
+            // a link has nowhere to put the code, and the whole invitation
+            // path dead-ends in his hand.
+            if (widget.onAccept != null) ...[
+              const SizedBox(height: 22),
+              OutlinedButton.icon(
+                onPressed: _acceptCode,
+                icon: const Icon(Icons.link_rounded),
+                label: Text(l.t('fam_have_code')),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(DsShape.minTapTarget),
+                ),
               ),
             ],
 
@@ -484,6 +524,54 @@ class _InviteSheetState extends State<_InviteSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Pasting a code from an invitation.
+///
+/// A dialog rather than a screen: it is three seconds of work and the person
+/// doing it has the code on their clipboard already.
+class _AcceptDialog extends StatefulWidget {
+  const _AcceptDialog();
+  @override
+  State<_AcceptDialog> createState() => _AcceptDialogState();
+}
+
+class _AcceptDialogState extends State<_AcceptDialog> {
+  final _code = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return AlertDialog(
+      title: Text(l.t('fam_have_code')),
+      content: TextField(
+        controller: _code,
+        autofocus: true,
+        decoration: InputDecoration(labelText: l.t('fam_paste_code')),
+        onChanged: (_) => setState(() {}),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l.t('act_cancel')),
+        ),
+        FilledButton(
+          // Disabled on an empty field: sending nothing gets a refusal that
+          // says the link did not work, which is true and useless.
+          onPressed: _code.text.trim().isEmpty
+              ? null
+              : () => Navigator.pop(context, _code.text.trim()),
+          child: Text(l.t('fam_accept')),
+        ),
+      ],
     );
   }
 }

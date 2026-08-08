@@ -23,6 +23,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
+import { registerJoinPage } from './joinPage';
 
 export interface StaticPages {
   /** The admin panel HTML and the /admin → /admin/ui redirects. */
@@ -73,6 +74,12 @@ export const ADMIN_LEGACY_PATH = '/admin/ui';
 
 export function registerStaticPages(app: FastifyInstance): StaticPages {
   const done: StaticPages = { adminUi: false, apiDocs: false, shop: false };
+
+  // Where a family invitation link lands. Registered here with the other pages
+  // people reach by typing or tapping an address, rather than beside the API
+  // routes it is not one of. Built from a string, so unlike the panel it
+  // cannot fail to load from disk.
+  registerJoinPage(app);
 
   // ---- The back office ------------------------------------------------------
   try {
