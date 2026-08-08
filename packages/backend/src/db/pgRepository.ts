@@ -187,6 +187,31 @@ export function createPgRepository(pool: Pool): Repository {
       );
     },
 
+    async locationHistory(childId, fromIso, toIso, limit) {
+      // ASC: a trail is read in the order it was walked, and reversing 2 000
+      // points in the route handler to draw a line is work the index already
+      // did. idx_loc_child_time is (child_id, observed_at DESC), which serves
+      // either direction.
+      const { rows } = await pool.query(
+        `SELECT child_id, observed_at, lat, lng, source, accuracy_m
+           FROM location_history
+          WHERE child_id = $1 AND observed_at >= $2 AND observed_at < $3
+          ORDER BY observed_at ASC
+          LIMIT $4`,
+        [childId, fromIso, toIso, limit],
+      );
+      return rows.map((r) => ({
+        childId: r.child_id,
+        observedAt: new Date(r.observed_at).toISOString(),
+        source: r.source,
+        coords: {
+          lat: Number(r.lat),
+          lng: Number(r.lng),
+          accuracyM: r.accuracy_m == null ? undefined : Number(r.accuracy_m),
+        },
+      }));
+    },
+
     async pruneLocationHistory(cutoffIso) {
       // The DELETE that has lived in db/schema.sql as a comment since the
       // Timescale retention policy was dropped. A comment prunes nothing.

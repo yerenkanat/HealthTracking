@@ -64,6 +64,15 @@ export function createMemoryRepository(): Repository {
   const events: GeofenceEvent[] = [];
   /** Latest fix per child — what lastLocation reads back. */
   const locations = new Map<string, ChildLocationFix>();
+  /**
+   * The whole trail per child, oldest first — not just the newest fix.
+   *
+   * It used to be newest-only, which was honest while nothing could read a
+   * trail. «История дня» reads one, and a fake that cannot hold two points
+   * would let the screen pass its tests against a repository that can never
+   * feed it.
+   */
+  const locationTrail = new Map<string, ChildLocationFix[]>();
 
   /** App sign-in: normalised phone → user id, and that user's name. */
   const usersByPhone = new Map<string, string>();
@@ -553,25 +562,44 @@ const UUID_RE =
     insertGeofenceEvent: async (e) => void events.push(e),
     // Kept, not discarded: lastLocation is the DB fallback for the location
     // cache, and a repo that threw the fix away could not exercise it.
-    insertLocation: async (fix) => void locations.set(fix.childId, fix),
+    insertLocation: async (fix) => {
+      locations.set(fix.childId, fix);
+      const trail = locationTrail.get(fix.childId) ?? [];
+      trail.push(fix);
+      // Kept sorted on insert: fixes arrive out of order after an offline
+      // tracker flushes its buffer, and a trail drawn in arrival order is a
+      // line that doubles back on itself.
+      trail.sort((a, b) => a.observedAt.localeCompare(b.observedAt));
+      locationTrail.set(fix.childId, trail);
+    },
     lastLocation: async (childId) => locations.get(childId) ?? null,
+    /** The day's trail, half-open on [fromIso, toIso) as Postgres reads it. */
+    locationHistory: async (childId, fromIso, toIso, limit) =>
+      (locationTrail.get(childId) ?? [])
+        .filter((f) => f.observedAt >= fromIso && f.observedAt < toIso)
+        .slice(0, limit),
     /**
-     * The dev fake keeps only the newest fix per child rather than a trail, so
-     * pruning here drops a cached fix that has aged past the window.
+     * Drop every fix observed before the cutoff, and report how many went.
      *
-     * Not a pretend implementation: what a caller can OBSERVE is the same —
-     * ask for a location older than the retention window and it is gone. A
-     * fake that returned 0 and kept the row would let the sweep's wiring pass
-     * a test while doing nothing against Postgres, which is the failure this
-     * whole feature is.
+     * Not a pretend implementation: what a caller can OBSERVE is the same as
+     * against Postgres — ask for a fix older than the retention window and it
+     * is gone, and the count is one per fix. A fake that returned 0 and kept
+     * the rows would let the sweep's wiring pass a test while deleting nothing
+     * in production, which is the failure this whole feature is.
      */
     pruneLocationHistory: async (cutoffIso) => {
       let removed = 0;
+      for (const [childId, trail] of [...locationTrail.entries()]) {
+        const kept = trail.filter((f) => f.observedAt >= cutoffIso);
+        removed += trail.length - kept.length;
+        if (kept.length) locationTrail.set(childId, kept);
+        else locationTrail.delete(childId);
+      }
+      // The newest-fix cache is a VIEW of the trail, not a second row, so
+      // dropping an aged entry here must not add to the count — Postgres
+      // deletes one row per fix and the fake has to report the same number.
       for (const [childId, fix] of [...locations.entries()]) {
-        if (fix.observedAt < cutoffIso) {
-          locations.delete(childId);
-          removed++;
-        }
+        if (fix.observedAt < cutoffIso) locations.delete(childId);
       }
       return removed;
     },

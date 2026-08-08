@@ -101,9 +101,21 @@ export interface DayLogRow {
   note?: string; // free-text note the user typed for the day; '' / absent = none
 }
 
+/** The kinds the app's AlertKind sends. See migration 030. */
+export const SAFETY_ALERT_KINDS = ['entered', 'left', 'checkIn', 'sos', 'lowBattery'] as const;
+export type SafetyAlertKind = (typeof SAFETY_ALERT_KINDS)[number];
+
 export interface SafetyAlertRow {
   childId: string;
-  kind: 'entered' | 'left';
+  /**
+   * Was 'entered' | 'left' here and CHECK IN ('entered','left') in the schema,
+   * while the app has sent five kinds all along — so an SOS press, a check-in
+   * and a low-battery warning were refused by the constraint on insert. The
+   * table meanwhile carried an index and two counters over `kind = 'sos'`,
+   * rows it would not accept, which is why every SOS total read zero.
+   */
+  kind: SafetyAlertKind;
+  /** The zone, for a crossing. An SOS happens anywhere, so it may be empty. */
   zoneName: string;
   at: string; // ISO timestamp
 }
@@ -444,6 +456,25 @@ export interface Repository {
    * boundary.
    */
   pruneLocationHistory(cutoffIso: string): Promise<number>;
+  /**
+   * Every fix for one child between two instants, oldest first.
+   *
+   * The read side of the trail. `insertLocation` has been writing to
+   * location_history since the first fix and `pruneLocationHistory` has been
+   * deleting from it, and between the two there was no way to look: the app's
+   * «История дня» could not be built because nothing could answer "where was
+   * she today". Retaining data nobody can read is the worst of both — the
+   * privacy cost without the use.
+   *
+   * Bounded by [limit] because a tracker reporting every thirty seconds makes
+   * 2 880 points a day, and a map drawing all of them is a map of nothing.
+   */
+  locationHistory(
+    childId: string,
+    fromIso: string,
+    toIso: string,
+    limit: number,
+  ): Promise<ChildLocationFix[]>;
 
   // Push
   /// Push targets for a child's guardian, WITH the language they read in.

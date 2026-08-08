@@ -413,7 +413,11 @@ CREATE TABLE safety_alerts (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   child_id    UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
-  kind        TEXT NOT NULL CHECK (kind IN ('entered','left')),
+  -- The five the app's AlertKind sends. It was ('entered','left') while the
+  -- app already sent checkIn/sos/lowBattery, so those were refused on insert
+  -- while an index and two counters read rows the table would not accept.
+  -- See migration 030.
+  kind        TEXT NOT NULL CHECK (kind IN ('entered','left','checkIn','sos','lowBattery')),
   zone_name   TEXT NOT NULL,
   at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );

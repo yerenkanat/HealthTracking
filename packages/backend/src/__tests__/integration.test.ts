@@ -46,6 +46,8 @@ function makeDeps(
   const healthRows: unknown[] = [];
   const calRows: unknown[] = [];
   let lastLocation: ChildLocationFix | null = null;
+  /** Every fix ever inserted, for locationHistory. */
+  const locationTrail: ChildLocationFix[] = [];
   /** The durable copy, behind repo.lastLocation — distinct from the cache above. */
   let storedLocation: ChildLocationFix | null = null;
   const fenceState = new Map<string, 'in' | 'out'>(); // real Redis-like dedup
@@ -150,8 +152,19 @@ function makeDeps(
     deleteStaffSession: async () => {},
     recentFailedLogins: async () => 0,
     recordLoginAttempt: async () => {},
-    insertLocation: async (fix) => void (storedLocation = fix),
+    insertLocation: async (fix) => {
+      storedLocation = fix;
+      locationTrail.push(fix);
+    },
     lastLocation: async () => storedLocation,
+    // A real trail, filtered the way Postgres filters it. A fake returning []
+    // would let «История дня» pass its wiring test against a repository that
+    // can never feed it.
+    locationHistory: async (childId, fromIso, toIso, limit) =>
+      locationTrail
+        .filter((f) => f.childId === childId && f.observedAt >= fromIso && f.observedAt < toIso)
+        .sort((a, b) => a.observedAt.localeCompare(b.observedAt))
+        .slice(0, limit),
     guardianPushTokens: async () => ({ tokens: ['t'], childName: 'Sultan', locale: 'ru-KZ' }),
     guardianPushTokensForUser: async () => ({ tokens: ['t'], locale: 'ru-KZ' }),
     deletePushToken: async () => {},

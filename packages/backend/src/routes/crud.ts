@@ -14,6 +14,8 @@ import type { Geofence } from '@fcs/shared';
 import type { LeadNotifier } from '../notifications/leadAlert';
 import { normalizePhone } from '../http/staffAuth';
 import { CLAIM_WINDOW_MS, MAX_CLAIMS } from './phoneAuth';
+import { buildDayHistory } from '../safety/dayHistory';
+import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
 
 export type AuthUser = (req: FastifyRequest) => Promise<{ userId: string } | null>;
 
@@ -166,10 +168,17 @@ const isoDate = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
 const dayLogQuery = z
   .object({ from: isoDate, to: isoDate })
   .refine((q) => q.from <= q.to, { message: 'from must not be after to' });
+// The third place the same two-kind restriction lived. The app's AlertKind has
+// five and its alerts screen offers a filter chip for each; this schema, the
+// SafetyAlertRow type and the table's CHECK all admitted two, so a synced SOS,
+// check-in or low-battery alert was rejected with a 400 before it ever reached
+// the constraint that would also have rejected it. See migration 030.
 const alertBody = z.object({
   childId: z.string().min(1),
-  kind: z.enum(['entered', 'left']),
-  zoneName: z.string().min(1).max(80),
+  kind: z.enum(['entered', 'left', 'checkIn', 'sos', 'lowBattery']),
+  // An SOS happens wherever she is, not in a zone, so the name may be empty —
+  // min(1) here is what would have refused every SOS the app tried to sync.
+  zoneName: z.string().max(80).default(''),
   at: z.string(),
 });
 const profileBody = z.object({
@@ -730,6 +739,65 @@ export function registerCrudRoutes(
     if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
     const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
     return reply.send({ events: await repo.listGeofenceEvents(id, limit) });
+  });
+
+  /**
+   * Frame 47 — «История дня». Where she went, and what happened.
+   *
+   * The trail has been written on every fix since the first one and deleted at
+   * ninety days, and nothing could read it in between: retention cost without
+   * the use. This is the read.
+   *
+   * `day` is a calendar date (YYYY-MM-DD) rather than a range, because that is
+   * the question — «где она была сегодня» — and a from/to pair invites a client
+   * to ask for the whole ninety days at once.
+   */
+  app.get('/children/:id/day', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+
+    const q = req.query as { day?: string };
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? '')
+      ? q.day!
+      : new Date().toISOString().slice(0, 10);
+    const from = `${day}T00:00:00.000Z`;
+    const to = new Date(Date.parse(from) + 86_400_000).toISOString();
+
+    // A tracker reporting every thirty seconds makes 2 880 fixes a day. The cap
+    // is generous enough to hold a real day and low enough that a misbehaving
+    // device cannot pull an unbounded read.
+    // Alerts are stored per USER, so the owner has to be resolved first. The
+    // ownership guard above already proved the caller is that owner.
+    const owner = await repo.childOwner(id).catch(() => null);
+    const [fixes, crossings, alerts] = await Promise.all([
+      repo.locationHistory(id, from, to, 5000).catch(() => []),
+      repo.listGeofenceEvents(id, 200).catch(() => []),
+      owner ? repo.listAlerts(owner.userId, 500).catch(() => []) : Promise.resolve([]),
+    ]);
+
+    const inDay = (at: string) => at >= from && at < to;
+    const history = buildDayHistory({
+      fixes,
+      crossings: crossings
+        .filter((c) => inDay(c.at))
+        .map((c) => ({
+          at: c.at,
+          transition: c.transition === 'enter' ? ('enter' as const) : ('exit' as const),
+          zoneName: c.geofenceName || null,
+        })),
+      // listAlerts is per USER, so it carries this child's siblings too.
+      sos: alerts
+        .filter((a) => a.childId === id && a.kind === 'sos' && inDay(a.at))
+        .map((a) => ({ at: a.at })),
+    });
+
+    return reply.send({
+      day,
+      ...history,
+      // The promise the screen prints, from the constant the sweep uses — so
+      // «маршруты хранятся 90 дней» cannot drift from what actually happens.
+      retentionDays: ROUTE_RETENTION_DAYS,
+    });
   });
 
   // ---- Sleep (nightly summaries) ----
