@@ -15,7 +15,6 @@ import '../../domain/kick_session.dart' show formatElapsed;
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
-import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../ds_widgets.dart';
 import 'labour_signs_screen.dart';
@@ -92,16 +91,20 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
         : '0:00';
 
     return Scaffold(
-      backgroundColor: Palette.bg,
+      backgroundColor: Ds.nightBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l.t('contr_title')),
+        // The theme sets titleTextStyle explicitly, so foregroundColor alone
+        // does not reach the title — it stayed ink on the night canvas at
+        // 1.08:1, which the accessibility sweep caught.
+        title: Text(l.t('contr_title'),
+            style: const TextStyle(color: Ds.nightText)),
         actions: [
           // "Am I in labour / should I go in?" — the question this screen exists
           // to help answer, one tap away.
           IconButton(
             icon:
-                const Icon(Icons.info_outline_rounded, color: Palette.textDim),
+                const Icon(Icons.info_outline_rounded, color: Ds.nightTextDim),
             tooltip: l.t('lab_title'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const LabourSignsScreen()),
@@ -110,7 +113,7 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
           if (_contractions.isNotEmpty || active)
             IconButton(
               icon:
-                  const Icon(Icons.restart_alt_rounded, color: Palette.textDim),
+                  const Icon(Icons.restart_alt_rounded, color: Ds.nightTextDim),
               tooltip: l.t('contr_reset'),
               onPressed: _reset,
             ),
@@ -137,7 +140,7 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
                       child: Text(l.t('contr_empty'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                              color: Palette.textDim, height: 1.4)))
+                              color: Ds.nightTextDim, height: 1.4)))
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
                       itemCount: _contractions.length,
@@ -202,7 +205,7 @@ class _StatsBar extends StatelessWidget {
     );
   }
 
-  Widget _divider() => Container(width: 1, height: 34, color: Palette.border);
+  Widget _divider() => Container(width: 1, height: 34, color: Ds.nightTextDim.withValues(alpha: 0.3));
 }
 
 /// Informational 5-1-1 progress: three criteria taught in childbirth classes,
@@ -215,7 +218,7 @@ class _FiveOneOneCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final accent = progress.allMet ? Palette.roseDeep : Palette.violet;
+    final accent = progress.allMet ? Ds.nightAction : Ds.nightTextDim;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Container(
@@ -223,7 +226,7 @@ class _FiveOneOneCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: accent.withValues(alpha: 0.07),
-          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+          border: Border.all(color: Ds.nightTextDim.withValues(alpha: 0.25), width: DsShape.borderWidth),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +268,7 @@ class _FiveOneOneCard extends StatelessWidget {
                     ? l.t('contr_511_ready')
                     : l.t('contr_511_note'),
                 style: const TextStyle(
-                    color: Palette.textDim, fontSize: 11.5, height: 1.35)),
+                    color: Ds.nightTextDim, fontSize: 11.5, height: 1.35)),
           ],
         ),
       ),
@@ -289,13 +292,13 @@ class _Criterion extends StatelessWidget {
                   : Icons.radio_button_unchecked_rounded,
               size: 18,
               color:
-                  met ? Palette.good : Palette.textDim.withValues(alpha: 0.5)),
+                  met ? Ds.mint : Ds.nightTextDim.withValues(alpha: 0.5)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(label,
                 style: TextStyle(
                     fontSize: 13.5,
-                    color: met ? Palette.text : Palette.textDim,
+                    color: met ? Ds.nightText : Ds.nightTextDim,
                     fontWeight: met ? FontWeight.w600 : FontWeight.w400)),
           ),
         ],
@@ -317,11 +320,11 @@ class _Stat extends StatelessWidget {
                     fontFamily: 'JetBrainsMono',
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: Palette.text)),
+                    color: Ds.nightText)),
             const SizedBox(height: 2),
             Text(label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
+                style: const TextStyle(color: Ds.nightTextDim, fontSize: 11.5)),
           ],
         ),
       );
@@ -343,8 +346,8 @@ class _BigButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gradient = active
-        ? Palette.roseDeep
-        : Ds.coralCta;
+        ? Ds.nightAction
+        : Ds.nightAction;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -373,12 +376,12 @@ class _BigButton extends StatelessWidget {
                               fontFamily: active ? 'JetBrainsMono' : null,
                               fontSize: active ? 40 : 26,
                               fontWeight: FontWeight.w700,
-                              color: Colors.white)),
+                              color: Ds.nightActionText)),
                       if (active) ...[
                         const SizedBox(height: 4),
                         Text(label,
                             style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: Ds.nightActionText.withValues(alpha: 0.82),
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600)),
                       ],
@@ -391,7 +394,7 @@ class _BigButton extends StatelessWidget {
           const SizedBox(height: 12),
           Text(sub,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Palette.textDim, fontSize: 13)),
+              style: const TextStyle(color: Ds.nightTextDim, fontSize: 13)),
         ],
       ),
     );
@@ -422,12 +425,12 @@ class _ContractionRow extends StatelessWidget {
               height: 34,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                  color: Palette.violet.withValues(alpha: 0.12),
+                  border: Border.all(color: Ds.nightTextDim.withValues(alpha: 0.25), width: DsShape.borderWidth),
+                  color: Ds.nightSurface,
                   borderRadius: BorderRadius.circular(10)),
               child: Text('$number',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w700, color: Palette.violet)),
+                      fontWeight: FontWeight.w700, color: Ds.nightAction)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -435,13 +438,13 @@ class _ContractionRow extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Palette.text)),
+                      color: Ds.nightText)),
             ),
             Text(
                 interval == null
                     ? l.t('contr_first')
                     : l.t('contr_apart', {'i': formatElapsed(interval!)}),
-                style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+                style: const TextStyle(color: Ds.nightTextDim, fontSize: 12.5)),
           ],
         ),
       ),

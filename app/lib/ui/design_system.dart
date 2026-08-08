@@ -142,6 +142,36 @@ abstract final class Ds {
   static const pastelSky = Color(0xFFE2ECFF);
   static const pastelLilac = Color(0xFFEAE2FF);
 
+  // -- Night theme (§2.17) ---------------------------------------------------
+  //
+  // «Тёмная тема только там, где ей место: таймер схваток, ночное кормление,
+  // пуши на локскрине. Остальное — светлое.»
+  //
+  // These four are the whole palette. A woman timing contractions at 3am, or
+  // feeding at 4, is holding a phone at arm's length in a dark room next to
+  // someone asleep — the light theme in that moment is a torch in the face.
+
+  /// The night canvas.
+  static const nightBg = Color(0xFF171218);
+
+  /// A card on it.
+  static const nightSurface = Color(0xFF221A22);
+
+  /// Body text on the night canvas. 12.9:1 on [nightBg].
+  static const nightText = Color(0xFFF5EBF0);
+
+  /// Secondary text — labels above the big numbers. 5.5:1 on [nightBg].
+  static const nightTextDim = Color(0xFF9C8B96);
+
+  /// The one action, in the bottom third. Deliberately a soft rose rather than
+  /// the daytime coral: at night a saturated red IS the alarm colour, and this
+  /// button is pressed every few minutes by someone who is not in danger.
+  static const nightAction = Color(0xFFFF89A9);
+
+  /// Text on [nightAction]. 8.6:1 — it has to be readable at a glance by
+  /// someone mid-contraction.
+  static const nightActionText = Color(0xFF3A0E1F);
+
   // -- Map placeholder stripes --
   static const mapStripeA = Color(0xFFE4EEE8);
   static const mapStripeB = Color(0xFFD5E4DC);
