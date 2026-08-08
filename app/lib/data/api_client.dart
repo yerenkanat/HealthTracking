@@ -850,6 +850,17 @@ class ApiClient {
     throw ApiException(res.statusCode, res.body);
   }
 
+  /// One day of a child's movements — screens 47/48.
+  ///
+  /// [day] is YYYY-MM-DD. The server thins the trail and sums the distance, so
+  /// the number the screen prints is the length of the line the screen draws;
+  /// re-deriving either here would give a second answer to the same question.
+  Future<Map<String, dynamic>> childDay(String childId, String day) async {
+    final res = await transport.get('/children/$childId/day?day=$day');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   /// Returns null on 404 (no recent fix), throws on other errors.
   Future<Map<String, dynamic>?> lastLocation(String childId) async {
     final res = await transport.get('/children/$childId/location');

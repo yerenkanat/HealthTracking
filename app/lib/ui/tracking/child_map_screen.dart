@@ -56,6 +56,9 @@ class ChildMapScreen extends StatelessWidget {
   final DateTime? lastCheckInAt; // when the child last checked in
   final VoidCallback? onCheckIn; // manual "arrived / all good" event
   final VoidCallback? onSos; // manual emergency signal (confirmed first)
+  /// Opens screen 47, «История дня». Null where nothing can load a trail —
+  /// the row then shows two buttons rather than a dead third.
+  final VoidCallback? onDayHistory;
 
   /// Whether a tracker is linked to this child. When false and there is no
   /// location, the status bar guides her to pair one instead of implying a
@@ -86,6 +89,7 @@ class ChildMapScreen extends StatelessWidget {
     this.lastCheckInAt,
     this.onCheckIn,
     this.onSos,
+    this.onDayHistory,
     this.hasPairedTracker = true,
   });
 
@@ -222,10 +226,11 @@ class ChildMapScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (onCheckIn != null || onSos != null) ...[
+                if (onCheckIn != null || onSos != null || onDayHistory != null) ...[
                   _ChildActionRow(
                     onCheckIn: onCheckIn,
                     onSos: onSos == null ? null : () => _confirmSos(context, l),
+                    onDayHistory: onDayHistory,
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -287,7 +292,8 @@ class ChildMapScreen extends StatelessWidget {
 class _ChildActionRow extends StatelessWidget {
   final VoidCallback? onCheckIn;
   final VoidCallback? onSos;
-  const _ChildActionRow({this.onCheckIn, this.onSos});
+  final VoidCallback? onDayHistory;
+  const _ChildActionRow({this.onCheckIn, this.onSos, this.onDayHistory});
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +317,22 @@ class _ChildActionRow extends StatelessWidget {
               },
             ),
           ),
-        if (onCheckIn != null && onSos != null) const SizedBox(width: 10),
+        // «История дня» — the spec's second button on this row. The trail has
+        // been recorded and pruned all along with no way in; this is it.
+        if (onDayHistory != null) ...[
+          if (onCheckIn != null) const SizedBox(width: 10),
+          Expanded(
+            child: _ActionButton(
+              icon: Icons.timeline_rounded,
+              label: l.t('day_history'),
+              foreground: Palette.blue,
+              filled: false,
+              onTap: onDayHistory!,
+            ),
+          ),
+        ],
+        if ((onCheckIn != null || onDayHistory != null) && onSos != null)
+          const SizedBox(width: 10),
         if (onSos != null)
           Expanded(
             child: _ActionButton(

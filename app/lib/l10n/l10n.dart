@@ -230,6 +230,38 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screens 47/48 · «История дня» -------------------------------------
+  'day_history': {AppLocale.ru: 'История дня', AppLocale.kk: 'Күн тарихы', AppLocale.en: 'Day history'},
+  'day_calendar': {AppLocale.ru: 'Календарь', AppLocale.kk: 'Күнтізбе', AppLocale.en: 'Calendar'},
+  // «3,2 км · 4 точки» — the badge over the route.
+  'day_route_badge': {AppLocale.ru: '{d} · {n} точек', AppLocale.kk: '{d} · {n} нүкте', AppLocale.en: '{d} · {n} points'},
+  'day_timeline': {AppLocale.ru: 'Что было', AppLocale.kk: 'Не болды', AppLocale.en: 'What happened'},
+  'day_left_zone': {AppLocale.ru: 'Вышла из зоны «{zone}»', AppLocale.kk: '«{zone}» аймағынан шықты', AppLocale.en: 'Left «{zone}»'},
+  'day_entered_zone': {AppLocale.ru: 'Пришла в зону «{zone}»', AppLocale.kk: '«{zone}» аймағына келді', AppLocale.en: 'Arrived at «{zone}»'},
+  // The zone was deleted after the crossing happened. The crossing still did.
+  'day_left_unknown': {AppLocale.ru: 'Вышла из зоны', AppLocale.kk: 'Аймақтан шықты', AppLocale.en: 'Left a zone'},
+  'day_entered_unknown': {AppLocale.ru: 'Пришла в зону', AppLocale.kk: 'Аймаққа келді', AppLocale.en: 'Arrived at a zone'},
+  'day_sos': {AppLocale.ru: 'Нажала кнопку SOS', AppLocale.kk: 'SOS түймесін басты', AppLocale.en: 'Pressed SOS'},
+  'day_retention': {AppLocale.ru: 'Маршруты хранятся {n} дней, потом удаляются автоматически', AppLocale.kk: 'Маршруттар {n} күн сақталады, содан кейін автоматты түрде жойылады', AppLocale.en: 'Routes are kept for {n} days, then deleted automatically'},
+  'day_simplified': {AppLocale.ru: 'Линия упрощена: {raw} отметок сведены к {n}', AppLocale.kk: 'Сызық жеңілдетілді: {raw} белгі {n} нүктеге сыйды', AppLocale.en: 'Simplified: {raw} fixes drawn as {n} points'},
+  'day_empty': {AppLocale.ru: 'В этот день браслет ничего не записал', AppLocale.kk: 'Бұл күні білезік ештеңе жазбаған', AppLocale.en: 'The tracker recorded nothing this day'},
+  'day_empty_why': {AppLocale.ru: 'Обычно так бывает, когда браслет был выключен или без связи. Данные появятся, как только он снова выйдет на связь.', AppLocale.kk: 'Әдетте білезік өшірулі болғанда немесе байланыс болмағанда солай болады. Байланыс қалпына келгенде деректер пайда болады.', AppLocale.en: 'Usually the tracker was off or out of range. Data appears once it reconnects.'},
+  'day_failed': {AppLocale.ru: 'Не удалось загрузить историю', AppLocale.kk: 'Тарихты жүктеу мүмкін болмады', AppLocale.en: 'Could not load the history'},
+  'day_retry': {AppLocale.ru: 'Повторить', AppLocale.kk: 'Қайталау', AppLocale.en: 'Retry'},
+
+  // Screen 48 — one event from the day.
+  'sos_event_title': {AppLocale.ru: 'SOS · {time}', AppLocale.kk: 'SOS · {time}', AppLocale.en: 'SOS · {time}'},
+  'sos_event_card': {AppLocale.ru: '{name} нажала кнопку SOS', AppLocale.kk: '{name} SOS түймесін басты', AppLocale.en: '{name} pressed the SOS button'},
+  'sos_whats_next': {AppLocale.ru: 'Что было дальше', AppLocale.kk: 'Одан кейін не болды', AppLocale.en: 'What happened next'},
+  'sos_how_ended': {AppLocale.ru: 'Чем закончилось', AppLocale.kk: 'Немен аяқталды', AppLocale.en: 'How it ended'},
+  'sos_out_false': {AppLocale.ru: 'Случайное нажатие', AppLocale.kk: 'Кездейсоқ басу', AppLocale.en: 'Pressed by accident'},
+  'sos_out_scared': {AppLocale.ru: 'Испугалась, всё хорошо', AppLocale.kk: 'Қорықты, бәрі жақсы', AppLocale.en: 'Got scared, all fine'},
+  'sos_out_help': {AppLocale.ru: 'Нужна была помощь', AppLocale.kk: 'Көмек қажет болды', AppLocale.en: 'Help was needed'},
+  'sos_out_unknown': {AppLocale.ru: 'Не удалось выяснить', AppLocale.kk: 'Анықтай алмадық', AppLocale.en: 'Could not find out'},
+  'sos_save_mark': {AppLocale.ru: 'Сохранить отметку', AppLocale.kk: 'Белгіні сақтау', AppLocale.en: 'Save'},
+  'sos_mark_saved': {AppLocale.ru: 'Отметка сохранена', AppLocale.kk: 'Белгі сақталды', AppLocale.en: 'Saved'},
+  'sos_no_events': {AppLocale.ru: 'После сигнала больше ничего не записано', AppLocale.kk: 'Сигналдан кейін ештеңе жазылмаған', AppLocale.en: 'Nothing was recorded after the alert'},
+
   // Geofence zones management
   'zones_title': {AppLocale.ru: 'Зоны {name}', AppLocale.kk: '{name} аймақтары', AppLocale.en: "{name}'s zones"},
   'zones_empty': {AppLocale.ru: 'Пока нет зон. Добавьте дом, школу или другое безопасное место.', AppLocale.kk: 'Әзірге аймақ жоқ. Үй, мектеп немесе басқа қауіпсіз орын қосыңыз.', AppLocale.en: 'No zones yet. Add home, school, or any safe place.'},
