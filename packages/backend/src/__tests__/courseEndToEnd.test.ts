@@ -142,8 +142,12 @@ describe('the комплект, from the order desk to her phone', () => {
   it('opens the course when the parcel goes out, and not before', async () => {
     const token = await signInApp(BUYER_DIALLED);
 
-    // Nothing owned yet.
-    expect((await course(token)).json()).toEqual({ entitled: false, lessons: [] });
+    // Nothing owned yet. `lessons` — the playable list — stays empty; the
+    // response now also carries a `preview` for screen 34, which is titles
+    // only plus the one free video. Asserted on the field that matters here.
+    const before = (await course(token)).json();
+    expect(before.entitled).toBe(false);
+    expect(before.lessons).toEqual([]);
 
     const w = await stock('watch', 5);
     const t = await stock('tracker', 5);
@@ -160,7 +164,9 @@ describe('the комплект, from the order desk to her phone', () => {
     expect(placed.json().totalMinor, 'the комплект is 39 000').toBe(3900000);
 
     // Placed is not paid-for-and-collected.
-    expect((await course(token)).json()).toEqual({ entitled: false, lessons: [] });
+    const stillLocked = (await course(token)).json();
+    expect(stillLocked.entitled).toBe(false);
+    expect(stillLocked.lessons).toEqual([]);
 
     const orderId = (await repo.adminShopOrders(10))[0].id;
     expect((await asStaff('PATCH', `/admin/shop/orders/${orderId}`, { status: 'shipped' })).statusCode).toBe(200);

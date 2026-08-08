@@ -18,6 +18,7 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { FREE_LESSONS, previewLessons } from '../course/preview';
 import { z } from 'zod';
 import type { Repository, StaffRole } from '../db/repository';
 import { can, type Capability } from '../auth/capabilities';
@@ -126,7 +127,22 @@ export function registerEntitlementRoutes(
     // 200 with entitled:false rather than 403. The app needs to SAY what this
     // is and how to get it — a locked door with a sign on it sells the combo;
     // a locked door with no sign looks broken.
-    if (!entitled) return reply.send({ entitled: false, lessons: [] });
+    //
+    // Screen 34: the sign now carries the actual lesson list. «Двенадцать
+    // уроков» is an assertion; the titles are evidence — she can see the one
+    // about sleep and the one she needs this week. The first plays free.
+    //
+    // previewLessons strips youtubeUrl from everything but the free one, so
+    // the response cannot ship the thing it is charging for.
+    if (!entitled) {
+      const all = await repo.courseLessons('mama', true).catch(() => []);
+      return reply.send({
+        entitled: false,
+        lessons: [],
+        preview: previewLessons(all),
+        freeLessons: FREE_LESSONS,
+      });
+    }
 
     // Lessons and progress together, in one round trip. Two requests would
     // mean a first paint with every lesson looking unwatched, which is the
