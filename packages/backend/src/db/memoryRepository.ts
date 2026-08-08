@@ -1584,6 +1584,15 @@ const UUID_RE =
       shopVars.push({ id: randomUUID(), productId, color, colorHex, stock: Math.max(0, Math.trunc(stock)), sort: shopVars.length });
     },
     adminShopOrders: async (limit) => shopOrders.slice(-limit).reverse().map((o) => ({ ...o, status: o.status as ShopOrderStatus })),
+    shopOrdersByPhone: async (phone, limit) =>
+      shopOrders
+        // phoneNormalized, like the pg query. Filtering on the raw `phone`
+        // would make this fake answer where Postgres answers nothing, and the
+        // screen would pass its tests and show an empty list in production.
+        .filter((o) => o.phoneNormalized === phone)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit)
+        .map((o) => ({ ...o, status: o.status as ShopOrderStatus })),
     setShopOrderStatus: async (orderId, status) => {
       const o = shopOrders.find((x) => x.id === orderId);
       if (!o) return;

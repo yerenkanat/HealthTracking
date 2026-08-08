@@ -2264,6 +2264,44 @@ export function createPgRepository(pool: Pool): Repository {
         createdAt: new Date(r.created_at).toISOString(), items: byOrder.get(r.id) ?? [],
       }));
     },
+    async shopOrdersByPhone(phone, limit) {
+      // Same shape as adminShopOrders, filtered to one customer. Kept as its
+      // own query rather than fetching everything and filtering in Node: this
+      // is a customer-facing read, and pulling every order in the shop to
+      // answer it would leak nothing but would scale terribly and log badly.
+      //
+      // Matched on phone_normalized, NOT on `phone`. The raw column holds what
+      // the customer typed — «+7 (707) 345-22-44», «8 707 345 22 44» — and the
+      // normalised one exists precisely because those are one number. Matching
+      // on the raw form would show an empty screen to a woman with a charge on
+      // her card, which is the class of bug src/phone.ts was written to end.
+      const { rows } = await pool.query(
+        `SELECT id, customer_name, phone, city, address, note, total_minor,
+                discount_minor, status, created_at
+           FROM shop_orders
+          WHERE phone_normalized = $1
+          ORDER BY created_at DESC
+          LIMIT $2`,
+        [phone, limit],
+      );
+      if (!rows.length) return [];
+      const ids = rows.map((r) => r.id);
+      const { rows: items } = await pool.query(
+        `SELECT order_id, product_name, color, qty, unit_price_minor
+           FROM shop_order_items WHERE order_id = ANY($1)`, [ids]);
+      const byOrder = new Map<string, Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }>>();
+      for (const it of items) {
+        const arr = byOrder.get(it.order_id) ?? [];
+        arr.push({ productName: it.product_name, color: it.color, qty: it.qty, unitPriceMinor: it.unit_price_minor });
+        byOrder.set(it.order_id, arr);
+      }
+      return rows.map((r) => ({
+        id: r.id, customerName: r.customer_name, phone: r.phone, city: r.city, address: r.address,
+        note: r.note, totalMinor: r.total_minor, discountMinor: r.discount_minor, status: r.status,
+        createdAt: new Date(r.created_at).toISOString(), items: byOrder.get(r.id) ?? [],
+      }));
+    },
+
     async setShopOrderStatus(orderId, status) {
       // Cancelling puts the goods back on the shelf.
       //

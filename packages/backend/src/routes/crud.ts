@@ -16,6 +16,7 @@ import { normalizePhone } from '../http/staffAuth';
 import { CLAIM_WINDOW_MS, MAX_CLAIMS } from './phoneAuth';
 import { buildDayHistory } from '../safety/dayHistory';
 import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
+import { orderProgress, visibleOrders } from '../shop/orderProgress';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   ACCESS_LEVELS, canWrite, checkInvite, grantCovers, inviteExpiry, isAccessLevel,
@@ -770,6 +771,64 @@ export function registerCrudRoutes(
     }
     return reply.code(201).send({ id: res.id, totalMinor: res.totalMinor, discountMinor: res.discountMinor });
   });
+  /**
+   * Screen 42 — «Мой заказ». Her own orders.
+   *
+   * POST /shop/orders existed and nothing could read one back: a woman paid
+   * 39 000 ₸ through the app and the app never mentioned it again. The only
+   * way to find out where the parcel was, was to message somebody on WhatsApp.
+   *
+   * Matched on her PHONE, not on a user id, because that is what an order
+   * carries — the shop takes orders from the landing page too, and the woman
+   * who ordered on a laptop before installing anything is the same customer.
+   */
+  app.get('/shop/my-orders', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const profile = await repo.getProfile(u.userId).catch(() => null);
+    const phone = normalizePhone(profile?.phone ?? '');
+    // No number on the profile means nothing can be matched. An empty list is
+    // the honest answer — and `phone: null` lets the screen say WHY rather
+    // than implying she has never ordered anything.
+    if (!phone) return reply.send({ orders: [], phone: null });
+
+    const orders = await repo.shopOrdersByPhone(phone, 20).catch(() => []);
+    return reply.send({
+      phone,
+      orders: visibleOrders(orders, new Date()).map(orderProgress),
+    });
+  });
+
+  /**
+   * Call off an order that has not shipped.
+   *
+   * Guarded on the same rule the screen uses to decide whether to offer the
+   * button — a client that offered it anyway must still be refused here, and
+   * `cancellable` on the response is a courtesy to the UI, not the check.
+   */
+  app.post('/shop/my-orders/:id/cancel', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const { id } = req.params as { id: string };
+    const profile = await repo.getProfile(u.userId).catch(() => null);
+    const phone = normalizePhone(profile?.phone ?? '');
+    if (!phone) return reply.code(403).send({ error: 'forbidden' });
+
+    // Hers, or nobody's. Without this an id from someone else's order would
+    // cancel a stranger's delivery.
+    const mine = await repo.shopOrdersByPhone(phone, 50).catch(() => []);
+    const order = mine.find((o) => o.id === id);
+    if (!order) return reply.code(404).send({ error: 'not_found' });
+
+    if (!orderProgress(order).cancellable) {
+      // Already with a courier. Cancelling in an app does not stop a van, and
+      // saying it did would be found out on the doorstep.
+      return reply.code(409).send({ error: 'too_late', status: order.status });
+    }
+    await repo.setShopOrderStatus(id, 'cancelled');
+    return reply.send({ ok: true });
+  });
+
   // "Оставьте номер — перезвоним сами" on the landing page. Public and
   // unauthenticated like the rest of the storefront: whoever fills this in is a
   // prospective customer, not a user of the app.

@@ -911,6 +911,17 @@ export interface Repository {
   stockMoves(limit: number, variantId?: string): Promise<StockMove[]>;
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
   setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
+  /**
+   * One customer's own orders, newest first — screen 42.
+   *
+   * By PHONE, because that is what an order carries: the shop takes orders
+   * from the landing page as well as the app, and the woman who ordered on a
+   * laptop before installing anything is the same customer. Matching on a
+   * user id would show her an empty screen and a charge on her card.
+   *
+   * [phone] must already be normalised; the caller holds the one normaliser.
+   */
+  shopOrdersByPhone(phone: string, limit: number): Promise<ShopOrder[]>;
 
   /// Landing-page callback requests. Recording one can never fail on stock or
   /// availability — the whole point is to capture the number before the visitor

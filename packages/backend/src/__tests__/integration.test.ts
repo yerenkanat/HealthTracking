@@ -155,6 +155,8 @@ function makeDeps(
     // No family sharing in this fixture: it drives the single-account flow, and
     // an empty grant table is the honest state for it. Every method answers
     // "nobody has been let in" rather than throwing.
+    // This fixture drives the single-account flow and places no orders.
+    shopOrdersByPhone: async () => [],
     familyMembers: async () => [],
     familyMemberships: async () => [],
     familyLevel: async () => null,
