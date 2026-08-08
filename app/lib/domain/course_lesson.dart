@@ -117,6 +117,77 @@ class LessonProgress {
   }
 }
 
+/// One lesson as somebody who has NOT bought the course sees it — screen 34.
+///
+/// Titles and summaries, and a video only on the free one. The server strips
+/// the rest; this models what arrives rather than deciding anything, because a
+/// client that decided what was free would be a paywall anyone can edit.
+class CoursePreviewLesson {
+  final String id;
+  final String titleRu;
+  final String? titleKk;
+  final String? summaryRu;
+  final String? summaryKk;
+  final int sort;
+
+  /// Playable without buying. Comes from the server.
+  final bool free;
+
+  /// Present only when [free]. Absent on a locked lesson, which is the point.
+  final String? youtubeUrl;
+
+  const CoursePreviewLesson({
+    required this.id,
+    required this.titleRu,
+    required this.sort,
+    required this.free,
+    this.titleKk,
+    this.summaryRu,
+    this.summaryKk,
+    this.youtubeUrl,
+  });
+
+  /// The title for [languageCode], falling back to Russian. Same signature as
+  /// [CourseLesson.title] on purpose — two shapes for one question is how a
+  /// caller ends up passing the wrong one and never noticing.
+  String title(String languageCode) {
+    if (languageCode == 'kk') {
+      final kk = titleKk?.trim();
+      if (kk != null && kk.isNotEmpty) return kk;
+    }
+    return titleRu;
+  }
+
+  String? summary(String languageCode) {
+    if (languageCode == 'kk') {
+      final kk = summaryKk?.trim();
+      if (kk != null && kk.isNotEmpty) return kk;
+    }
+    final ru = summaryRu?.trim();
+    return (ru == null || ru.isEmpty) ? null : ru;
+  }
+
+  static CoursePreviewLesson? fromJson(Map<String, dynamic> j) {
+    final id = j['id'] as String?;
+    final titleRu = j['titleRu'] as String?;
+    if (id == null || titleRu == null || titleRu.isEmpty) return null;
+    final free = j['free'] == true;
+    final url = j['youtubeUrl'] as String?;
+    return CoursePreviewLesson(
+      id: id,
+      titleRu: titleRu,
+      titleKk: j['titleKk'] as String?,
+      summaryRu: j['summaryRu'] as String?,
+      summaryKk: j['summaryKk'] as String?,
+      sort: (j['sort'] as num?)?.toInt() ?? 0,
+      free: free,
+      // Belt and braces: even if a future server sent a URL on a locked
+      // lesson, this build will not carry one into the player.
+      youtubeUrl: free ? url : null,
+    );
+  }
+}
+
 /// What the server said about the course: whether this account owns it, and the
 /// lessons if so.
 ///
@@ -128,6 +199,10 @@ class CourseAccess {
   final bool entitled;
   final List<CourseLesson> lessons;
 
+  /// What the course contains, for somebody who has not bought it. Empty when
+  /// she owns it — the real [lessons] are the list then.
+  final List<CoursePreviewLesson> preview;
+
   /// One entry per lesson she has opened, keyed by lesson id. Sent with the
   /// lessons in the same response so nothing paints as unwatched first.
   final Map<String, LessonProgress> progress;
@@ -136,6 +211,7 @@ class CourseAccess {
     required this.entitled,
     required this.lessons,
     this.progress = const {},
+    this.preview = const [],
   });
 
   /// The lesson to offer as "continue" — the one she was last in the middle of,
@@ -171,7 +247,15 @@ class CourseAccess {
       progress[p.lessonId] = p;
     }
     return CourseAccess(
-        entitled: j['entitled'] == true, lessons: lessons, progress: progress);
+      entitled: j['entitled'] == true,
+      lessons: lessons,
+      progress: progress,
+      preview: [
+        for (final p in ((j['preview'] as List?) ?? const []))
+          if (p is Map<String, dynamic>)
+            if (CoursePreviewLesson.fromJson(p) case final v?) v,
+      ]..sort((a, b) => a.sort.compareTo(b.sort)),
+    );
   }
 
   /// The same course with one lesson's progress replaced — what the list is
@@ -180,6 +264,7 @@ class CourseAccess {
   CourseAccess withProgress(LessonProgress p) => CourseAccess(
         entitled: entitled,
         lessons: lessons,
+        preview: preview,
         progress: {...progress, p.lessonId: p},
       );
 

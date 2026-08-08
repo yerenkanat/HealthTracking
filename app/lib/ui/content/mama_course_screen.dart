@@ -19,7 +19,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../domain/course_lesson.dart';
+import '../../domain/course_prices.dart';
+import '../../domain/my_order.dart' show formatTenge;
 import '../../l10n/l10n_scope.dart';
+import '../design_system.dart';
 import '../ds_widgets.dart';
 import 'course_video_screen.dart';
 import '../theme.dart';
@@ -73,6 +76,31 @@ class MamaCourseScreen extends StatelessWidget {
     ));
   }
 
+  /// Play the ONE free lesson, for somebody who has not bought the course.
+  ///
+  /// Goes through the same player as a paid lesson. Progress is deliberately
+  /// NOT reported: the server refuses progress for an account with no
+  /// entitlement, and posting it anyway would put a 403 in the log on every
+  /// preview — noise that would eventually hide a real one.
+  void _openFree(BuildContext context, CoursePreviewLesson p) {
+    final url = p.youtubeUrl;
+    if (url == null || url.isEmpty) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => CourseVideoScreen(
+        lesson: CourseLesson(
+          id: p.id,
+          titleRu: p.titleRu,
+          titleKk: p.titleKk,
+          youtubeUrl: url,
+          summaryRu: p.summaryRu,
+          summaryKk: p.summaryKk,
+          sort: p.sort,
+        ),
+        launch: launch,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -85,7 +113,12 @@ class MamaCourseScreen extends StatelessWidget {
           ? const Center(child: CircularProgressIndicator())
           : a.entitled
               ? _Lessons(access: a, onTap: (x) => _open(context, x), onRetry: onRetry)
-              : _Offer(whatsapp: whatsapp, launch: launch),
+              : _Offer(
+                  whatsapp: whatsapp,
+                  launch: launch,
+                  preview: a.preview,
+                  onPlayFree: (p) => _openFree(context, p),
+                ),
     );
   }
 }
@@ -95,7 +128,20 @@ class _Offer extends StatelessWidget {
   /// The WhatsApp number from the back office. Empty hides the button.
   final String whatsapp;
   final Future<bool> Function(Uri url)? launch;
-  const _Offer({this.whatsapp = '', this.launch});
+
+  /// What the course contains, from the server. Titles only, plus a video on
+  /// the one free lesson.
+  final List<CoursePreviewLesson> preview;
+
+  /// Play the free lesson. Null where nothing can play it.
+  final void Function(CoursePreviewLesson)? onPlayFree;
+
+  const _Offer({
+    this.whatsapp = '',
+    this.launch,
+    this.preview = const [],
+    this.onPlayFree,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +196,275 @@ class _Offer extends StatelessWidget {
                 ),
               ],
             ],
+          ),
+        ),
+
+        // Screen 34: what is actually in the course.
+        //
+        // «Двенадцать уроков» is a claim; the titles are evidence — she can see
+        // the one about sleep and the one she needs this week. The first plays
+        // free, and the server is what decides that: locked rows arrive with no
+        // video at all, so this list cannot leak one however it is rendered.
+        if (preview.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                Text(l.t('crs_contents'),
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Text(l.t('crs_lessons_n', {'n': preview.length}),
+                    style: const TextStyle(
+                        fontSize: 13, color: Palette.textDim)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (final lesson in preview)
+            _PreviewRow(
+              lesson: lesson,
+              lang: l.locale.name,
+              onPlayFree: onPlayFree,
+            ),
+        ],
+
+        const SizedBox(height: 20),
+        _PriceCard(number: number, launch: launch),
+      ],
+    );
+  }
+}
+
+/// One row of the preview list: a title, and a lock or a play button.
+class _PreviewRow extends StatelessWidget {
+  final CoursePreviewLesson lesson;
+  final String lang;
+  final void Function(CoursePreviewLesson)? onPlayFree;
+
+  const _PreviewRow({
+    required this.lesson,
+    required this.lang,
+    this.onPlayFree,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final summary = lesson.summary(lang);
+    // Playable only when the SERVER said free AND actually sent a video. Both,
+    // because either alone would be the client deciding what is paid for.
+    final playable =
+        lesson.free && (lesson.youtubeUrl?.isNotEmpty ?? false) && onPlayFree != null;
+
+    final row = Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(14, 13, 10, 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            lesson.free ? Icons.play_circle_fill_rounded : Icons.lock_rounded,
+            size: 22,
+            color: lesson.free ? Ds.mintText : Palette.textDim,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(lesson.title(lang),
+                          style: const TextStyle(
+                              fontSize: 14.5, fontWeight: FontWeight.w700)),
+                    ),
+                    if (lesson.free) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Ds.pastelMint,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(l.t('crs_free_badge'),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Ds.mintText)),
+                      ),
+                    ],
+                  ],
+                ),
+                if (summary != null) ...[
+                  const SizedBox(height: 3),
+                  Text(summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12.5, color: Palette.textDim)),
+                ],
+              ],
+            ),
+          ),
+          if (playable)
+            const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        ],
+      ),
+    );
+
+    if (!playable) return row;
+    // The whole row, not a button beside the title. «Посмотреть первый урок»
+    // next to a lesson name overflowed a 390 dp phone by 77 px in Russian —
+    // and the row already carries a play icon, so a second affordance saying
+    // the same thing was a duplicate control as well as too wide.
+    return Semantics(
+      button: true,
+      label: '${lesson.title(lang)}. ${l.t('crs_watch_free')}',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => onPlayFree!(lesson),
+        child: row,
+      ),
+    );
+  }
+}
+
+/// «карточка цены (39 000 ₸ / 69 800 ₸)» and the two ways to buy.
+///
+/// The comparison IS the offer: the комплект includes the whole course and
+/// costs less than the two devices and the course bought separately. Stating
+/// both numbers is what makes that visible, rather than asking her to work it
+/// out from a price list on another page.
+class _PriceCard extends StatelessWidget {
+  final String number;
+  final Future<bool> Function(Uri url)? launch;
+  const _PriceCard({required this.number, this.launch});
+
+  Future<void> _write(BuildContext context, String text) async {
+    final opener =
+        launch ?? (u) => launchUrl(u, mode: LaunchMode.externalApplication);
+    final ok = await opener(Uri.parse(
+        'https://wa.me/$number?text=${Uri.encodeComponent(text)}'));
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(L10nScope.of(context).t('course_open_failed'))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return DsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('crs_price_title'),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 14),
+
+          _PriceRow(
+            name: l.t('crs_bundle_name'),
+            detail: l.t('crs_bundle_what'),
+            price: formatTenge(coursePrices.bundleMinor),
+            highlight: true,
+          ),
+          const SizedBox(height: 10),
+          _PriceRow(
+            name: l.t('crs_separate_name'),
+            detail: '',
+            price: formatTenge(coursePrices.separatelyMinor),
+            struck: true,
+          ),
+          const SizedBox(height: 10),
+          _PriceRow(
+            name: l.t('crs_course_only'),
+            detail: '',
+            price: formatTenge(coursePrices.courseOnlyMinor),
+          ),
+
+          if (number.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: DsShape.minTapTarget,
+              child: FilledButton.icon(
+                onPressed: () => _write(context, l.t('course_wa_text')),
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 19),
+                label: Text(l.t('crs_order_wa'),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              height: DsShape.minTapTarget,
+              child: TextButton(
+                onPressed: () => _write(context, l.t('crs_wa_course')),
+                child: Text(l.t('crs_buy_course_wa')),
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+          Text(l.t('crs_already_bought'),
+              style: const TextStyle(
+                  fontSize: 12.5, height: 1.4, color: Palette.textDim)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PriceRow extends StatelessWidget {
+  final String name;
+  final String detail;
+  final String price;
+  final bool highlight;
+  final bool struck;
+
+  const _PriceRow({
+    required this.name,
+    required this.detail,
+    required this.price,
+    this.highlight = false,
+    this.struck = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: highlight ? FontWeight.w700 : FontWeight.w500)),
+              if (detail.isNotEmpty)
+                Text(detail,
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Palette.textDim)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          price,
+          style: TextStyle(
+            fontSize: highlight ? 18 : 15,
+            fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
+            color: struck ? Palette.textDim : null,
+            decoration: struck ? TextDecoration.lineThrough : null,
           ),
         ),
       ],

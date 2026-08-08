@@ -230,6 +230,24 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 34 · «Курс · без комплекта» ---------------------------------
+  'crs_contents': {AppLocale.ru: 'Что в курсе', AppLocale.kk: 'Курста не бар', AppLocale.en: 'What is in the course'},
+  'crs_free_badge': {AppLocale.ru: 'Бесплатно', AppLocale.kk: 'Тегін', AppLocale.en: 'Free'},
+  'crs_watch_free': {AppLocale.ru: 'Посмотреть первый урок', AppLocale.kk: 'Бірінші сабақты көру', AppLocale.en: 'Watch the first lesson'},
+  'crs_lessons_n': {AppLocale.ru: '{n} уроков', AppLocale.kk: '{n} сабақ', AppLocale.en: '{n} lessons'},
+  // The price card. The комплект includes the course and costs LESS than the
+  // course alone — that is the offer, stated plainly rather than buried.
+  'crs_price_title': {AppLocale.ru: 'Как получить курс', AppLocale.kk: 'Курсты қалай алуға болады', AppLocale.en: 'How to get the course'},
+  'crs_bundle_name': {AppLocale.ru: 'Комплект «Мама и ребёнок»', AppLocale.kk: '«Ана мен бала» жинағы', AppLocale.en: 'The «Mother and child» set'},
+  'crs_bundle_what': {AppLocale.ru: 'Часы + брелок + курс целиком', AppLocale.kk: 'Сағат + брелок + толық курс', AppLocale.en: 'Watch + tracker + the whole course'},
+  'crs_separate_name': {AppLocale.ru: 'То же по отдельности', AppLocale.kk: 'Бөлек алғанда', AppLocale.en: 'The same, bought separately'},
+  'crs_course_only': {AppLocale.ru: 'Только курс', AppLocale.kk: 'Тек курс', AppLocale.en: 'The course alone'},
+  'crs_order_wa': {AppLocale.ru: 'Заказать комплект в WhatsApp', AppLocale.kk: 'WhatsApp арқылы жинақ тапсырыс беру', AppLocale.en: 'Order the set on WhatsApp'},
+  'crs_buy_course_wa': {AppLocale.ru: 'Купить только курс', AppLocale.kk: 'Тек курсты сатып алу', AppLocale.en: 'Buy the course alone'},
+  'crs_already_bought': {AppLocale.ru: 'Уже купили комплект? Напишите нам — откроем доступ по номеру телефона.', AppLocale.kk: 'Жинақты сатып алдыңыз ба? Бізге жазыңыз — телефон нөмірі бойынша ашамыз.', AppLocale.en: 'Already bought the set? Message us and we will open it by phone number.'},
+  'crs_wa_course': {AppLocale.ru: 'Здравствуйте! Хочу купить только курс Ма!Ма!.', AppLocale.kk: 'Сәлеметсіз бе! Тек Ма!Ма! курсын сатып алғым келеді.', AppLocale.en: 'Hello! I would like to buy the Ма!Ма! course on its own.'},
+  'crs_empty': {AppLocale.ru: 'Уроки скоро появятся', AppLocale.kk: 'Сабақтар жақында пайда болады', AppLocale.en: 'Lessons are coming soon'},
+
   // --- Screen 39 · «Центр уведомлений» ------------------------------------
   'ntf_title': {AppLocale.ru: 'Уведомления', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Notifications'},
   'ntf_read_all': {AppLocale.ru: 'Прочитать всё', AppLocale.kk: 'Барлығын оқу', AppLocale.en: 'Mark all read'},
