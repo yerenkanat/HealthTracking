@@ -10,6 +10,7 @@ library;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../domain/contraction.dart';
 import '../../domain/kick_session.dart' show formatElapsed;
 import '../../l10n/l10n.dart';
@@ -19,12 +20,43 @@ import '../widgets/confirm.dart';
 import '../ds_widgets.dart';
 import 'labour_signs_screen.dart';
 
+/// Hold the screen on, or let it sleep again. Injected so a widget test can
+/// assert the screen asks — the real one talks to the platform.
+typedef KeepAwake = Future<void> Function(bool on);
+
+/// Ask the platform, and carry on if it refuses.
+///
+/// A wakelock is a convenience; the timer is the point. If the platform channel
+/// is missing — an OS that declines it, a widget test with no plugins — the
+/// screen must still count contractions. Letting this throw would crash the one
+/// screen a woman is holding during labour, to avoid the lesser problem of the
+/// display dimming.
+Future<void> _defaultKeepAwake(bool on) async {
+  try {
+    await WakelockPlus.toggle(enable: on);
+  } catch (_) {
+    // Deliberately swallowed. Nothing the user could do about it, and nothing
+    // worth interrupting her for.
+  }
+}
+
 class ContractionTimerScreen extends StatefulWidget {
   /// Called with the session summary when the screen closes (if any contractions
   /// were recorded), so it can be added to history.
   final void Function(int count, Duration avgDuration, Duration avgInterval)?
       onSave;
-  const ContractionTimerScreen({super.key, this.onSave});
+
+  /// «Экран не гаснет». A phone that sleeps mid-labour loses the interval she
+  /// is timing, and she is in no position to keep tapping it awake — the whole
+  /// value of this screen is the gap between contractions, which is exactly
+  /// what a screen timeout destroys.
+  final KeepAwake keepAwake;
+
+  const ContractionTimerScreen({
+    super.key,
+    this.onSave,
+    this.keepAwake = _defaultKeepAwake,
+  });
   @override
   State<ContractionTimerScreen> createState() => _ContractionTimerScreenState();
 }
@@ -35,8 +67,18 @@ class _ContractionTimerScreenState extends State<ContractionTimerScreen> {
   Timer? _ticker;
 
   @override
+  void initState() {
+    super.initState();
+    widget.keepAwake(true);
+  }
+
+  @override
   void dispose() {
     _ticker?.cancel();
+    // Released on the way out, and NOT conditionally: leaving the wakelock on
+    // because the session had no contractions would flatten the battery of a
+    // phone she is relying on to call somebody.
+    widget.keepAwake(false);
     // Persist the session on the way out (reset clears the list, so a reset
     // session won't be saved).
     if (_contractions.isNotEmpty) {

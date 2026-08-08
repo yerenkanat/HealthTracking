@@ -1,8 +1,25 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+/**
+ * Release signing, read from android/key.properties.
+ *
+ * That file is gitignored and holds the upload keystore's passwords, so it
+ * never enters the repository — see docs/RELEASE.md for how to create it.
+ * Absent, the release build falls back to the debug key and SAYS SO at build
+ * time: the previous arrangement signed release with the debug key silently,
+ * which produces an .aab the Play Store rejects after the upload, not before.
+ */
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasReleaseKey = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.fcs.fcs_app"
@@ -31,11 +48,43 @@ android {
             System.getenv("GOOGLE_MAPS_API_KEY") ?: "YOUR_GOOGLE_MAPS_API_KEY"
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else {
+                // Loud, not silent. A release .aab signed with the debug key
+                // uploads and is then rejected, which wastes the slowest loop
+                // in the whole project — and the old comment said "for now" in
+                // a file nobody opens on release day.
+                logger.warn(
+                    "\n*** RELEASE IS SIGNED WITH THE DEBUG KEY ***\n" +
+                    "    android/key.properties is missing, so this build " +
+                    "CANNOT be published.\n" +
+                    "    See docs/RELEASE.md to create the upload keystore.\n"
+                )
+                signingConfigs.getByName("debug")
+            }
+            // R8 on, with the Flutter defaults. Off, the .aab is ~30% larger
+            // for no benefit; on without the Flutter rules it strips code the
+            // engine looks up reflectively.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

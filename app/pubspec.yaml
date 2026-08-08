@@ -30,6 +30,10 @@ dependencies:
   flutter_timezone: ^5.1.0
   video_player: ^2.13.0
   share_plus: ^13.2.1
+  # Screen 10: the contraction timer must keep the screen on. A phone that
+  # sleeps mid-labour loses the interval she is timing, and she is not in a
+  # position to keep tapping it awake.
+  wakelock_plus: ^1.7.0
   record: ^6.0.0                # short mic recording for cry analysis (6.x: the
   youtube_player_iframe: ^6.0.2
                                # linux/platform-interface impls are version-
