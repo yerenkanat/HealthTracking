@@ -230,6 +230,23 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 39 · «Центр уведомлений» ------------------------------------
+  'ntf_title': {AppLocale.ru: 'Уведомления', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Notifications'},
+  'ntf_read_all': {AppLocale.ru: 'Прочитать всё', AppLocale.kk: 'Барлығын оқу', AppLocale.en: 'Mark all read'},
+  'ntf_today': {AppLocale.ru: 'Сегодня', AppLocale.kk: 'Бүгін', AppLocale.en: 'Today'},
+  'ntf_earlier': {AppLocale.ru: 'Раньше', AppLocale.kk: 'Бұрын', AppLocale.en: 'Earlier'},
+  'ntf_empty': {AppLocale.ru: 'Пока ничего не произошло', AppLocale.kk: 'Әзірге ештеңе болған жоқ', AppLocale.en: 'Nothing has happened yet'},
+  'ntf_empty_why': {AppLocale.ru: 'Здесь появятся выходы из зон, отметки «всё хорошо» и сигналы SOS.', AppLocale.kk: 'Мұнда аймақтан шығу, «бәрі жақсы» белгілері және SOS сигналдары пайда болады.', AppLocale.en: 'Zone crossings, check-ins and SOS signals appear here.'},
+  // The card that cannot be argued with.
+  'ntf_emergency_locked': {AppLocale.ru: 'Экстренные отключить нельзя', AppLocale.kk: 'Төтенше хабарламаларды өшіруге болмайды', AppLocale.en: 'Emergency alerts cannot be turned off'},
+  'ntf_emergency_why': {AppLocale.ru: 'SOS и выход ребёнка из безопасной зоны придут всегда — даже если всё остальное выключено.', AppLocale.kk: 'SOS және баланың қауіпсіз аймақтан шығуы әрқашан келеді — қалғаны өшірулі болса да.', AppLocale.en: 'An SOS and a child leaving a safe zone always arrive — even with everything else off.'},
+  'ntf_configure_rest': {AppLocale.ru: 'Настроить остальные', AppLocale.kk: 'Қалғанын баптау', AppLocale.en: 'Configure the rest'},
+  'ntf_ch_emergency': {AppLocale.ru: 'Экстренные', AppLocale.kk: 'Төтенше', AppLocale.en: 'Emergency'},
+  'ntf_ch_zones': {AppLocale.ru: 'Зоны и отметки', AppLocale.kk: 'Аймақтар мен белгілер', AppLocale.en: 'Zones and check-ins'},
+  'ntf_ch_battery': {AppLocale.ru: 'Заряд браслета', AppLocale.kk: 'Білезік заряды', AppLocale.en: 'Tracker battery'},
+  'ntf_ch_reminders': {AppLocale.ru: 'Напоминания', AppLocale.kk: 'Еске салғыштар', AppLocale.en: 'Reminders'},
+  'ntf_ch_updates': {AppLocale.ru: 'Новости и курс', AppLocale.kk: 'Жаңалықтар мен курс', AppLocale.en: 'News and the course'},
+
   // --- Screen 42 · «Мой заказ» --------------------------------------------
   'ord_title': {AppLocale.ru: 'Мой заказ', AppLocale.kk: 'Менің тапсырысым', AppLocale.en: 'My order'},
   'ord_step_placed': {AppLocale.ru: 'Заказ принят', AppLocale.kk: 'Тапсырыс қабылданды', AppLocale.en: 'Order placed'},

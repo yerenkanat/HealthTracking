@@ -40,6 +40,7 @@ import '../domain/cycle_log.dart';
 import '../domain/cycle_predictions.dart';
 import '../domain/family.dart';
 import '../domain/geofence_alerts.dart';
+import '../domain/notification_centre.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/hydration.dart';
@@ -438,6 +439,7 @@ class AppController {
     _periodReminderEnabled = cfg.periodReminderEnabled;
     _fertileReminderEnabled = cfg.fertileReminderEnabled;
     _lastExportAt = cfg.lastExportAt;
+    _alertsReadUpTo = cfg.alertsReadUpTo;
     _medications
       ..clear()
       ..addAll(cfg.medications);
@@ -560,6 +562,7 @@ class AppController {
         periodReminderEnabled: _periodReminderEnabled,
         fertileReminderEnabled: _fertileReminderEnabled,
         lastExportAt: _lastExportAt,
+        alertsReadUpTo: _alertsReadUpTo,
         medications: List.of(_medications),
         medLog: {for (final e in _medLog.entries) e.key: Map<String, int>.from(e.value)},
         manualSamples: List.of(_manualSamples),
@@ -674,6 +677,32 @@ class AppController {
 
   /// When the user last exported (backed up) their data; null if never.
   DateTime? get lastExportAt => _lastExportAt;
+
+  DateTime? _alertsReadUpTo;
+
+  /// Everything at or before this instant has been seen — screen 39.
+  ///
+  /// A watermark rather than a flag per alert. «Прочитать всё» is the only way
+  /// to mark anything read, so one instant expresses it exactly; per-item flags
+  /// would need syncing and could disagree with the badge, and a badge that
+  /// says 3 over a list with nothing new is how people stop reading badges.
+  DateTime? get alertsReadUpTo => _alertsReadUpTo;
+
+  /// How many alerts she has not seen. What the badge shows.
+  int get unreadAlertCount => groupNotifications(
+        alerts, _now(), readUpTo: _alertsReadUpTo,
+      ).unreadCount;
+
+  void markAlertsRead(DateTime upTo) {
+    // Never moves BACKWARDS. Reading an old screen after a newer one — or a
+    // stale widget calling with a watermark it captured a minute ago — must not
+    // resurrect alerts she has already dismissed.
+    final current = _alertsReadUpTo;
+    if (current != null && !upTo.isAfter(current)) return;
+    _alertsReadUpTo = upTo;
+    _persist();
+    _notify();
+  }
 
   static const appVersion = '0.1.0';
 

@@ -207,6 +207,10 @@ class PersistedConfig {
   final bool periodReminderEnabled; // remind ~2 days before the predicted period
   final bool fertileReminderEnabled; // remind when the fertile window opens
   final DateTime? lastExportAt; // when data was last exported (= backed up)
+
+  /// Screen 39: everything at or before this has been seen. Persisted, so
+  /// «Прочитать всё» is not undone by closing the app.
+  final DateTime? alertsReadUpTo;
   final List<Medication> medications; // supplements/medicines the user tracks
   final MedLog medLog; // dateKey → medId → doses taken
   /// Hand-entered readings only. Band telemetry stays transient because the band
@@ -269,6 +273,7 @@ class PersistedConfig {
     this.periodReminderEnabled = false,
     this.fertileReminderEnabled = false,
     this.lastExportAt,
+    this.alertsReadUpTo,
     this.medications = const [],
     this.medLog = const {},
     this.manualSamples = const [],
@@ -324,6 +329,7 @@ class PersistedConfig {
         if (periodReminderEnabled) 'periodReminderEnabled': periodReminderEnabled,
         if (fertileReminderEnabled) 'fertileReminderEnabled': fertileReminderEnabled,
         if (lastExportAt != null) 'lastExportAt': lastExportAt!.toIso8601String(),
+        if (alertsReadUpTo != null) 'alertsReadUpTo': alertsReadUpTo!.toIso8601String(),
         if (medications.isNotEmpty) 'medications': [for (final m in medications) m.toJson()],
         if (medLog.isNotEmpty) 'medLog': medLogToJson(medLog),
         if (manualSamples.isNotEmpty) 'manualSamples': [for (final s in manualSamples) s.toJson()],
@@ -460,6 +466,7 @@ class PersistedConfig {
         periodReminderEnabled: (j['periodReminderEnabled'] as bool?) ?? false,
         fertileReminderEnabled: (j['fertileReminderEnabled'] as bool?) ?? false,
         lastExportAt: j['lastExportAt'] is String ? DateTime.tryParse(j['lastExportAt'] as String) : null,
+        alertsReadUpTo: j['alertsReadUpTo'] is String ? DateTime.tryParse(j['alertsReadUpTo'] as String) : null,
         medications: [
           for (final m in (j['medications'] as List? ?? const []))
             Medication.fromJson((m as Map).cast<String, dynamic>())

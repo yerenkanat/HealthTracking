@@ -45,6 +45,7 @@ import 'profile/family_access_screen.dart';
 import 'profile/my_order_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
+import 'tracking/notification_centre_screen.dart';
 import '../domain/day_history.dart';
 import '../domain/family_access.dart';
 import '../domain/my_order.dart';
@@ -272,10 +273,29 @@ class _HomeShellState extends State<HomeShell> {
             : () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => ZonesScreen(controller: c, childId: c.selectedChild!.id),
                 )),
-        alertCount: c.alerts.length,
-        onOpenAlerts: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
-        ),
+        // UNREAD, not total. The badge counted everything that had ever
+        // happened, so it never went down and stopped meaning anything —
+        // which is the state a badge is worst in, because it also stops
+        // meaning anything on the day something is actually wrong.
+        alertCount: c.unreadAlertCount,
+        onOpenAlerts: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => NotificationCentreScreen(
+            alerts: c.alerts,
+            now: DateTime.now(),
+            readUpTo: c.alertsReadUpTo,
+            onReadAll: c.markAlertsRead,
+            // The per-channel switches are screen 25 and do not exist yet.
+            // Null hides the button rather than opening nothing.
+            onConfigure: null,
+            // The old alerts view, kept for what it alone does: per-child
+            // counts and «сколько дней без SOS». Reached from here rather
+            // than left unreferenced — deleting a working screen to tidy an
+            // import is worse than either.
+            onOpenStats: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
+            ),
+          ),
+        )),
         batteryPct: c.selectedChildBattery,
         batteryHistory: c.selectedChildBatteryHistory,
         zoneEnteredAt: zoneEnteredAt,
