@@ -230,6 +230,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 41 · «Магазин» ----------------------------------------------
+  'shop_title': {AppLocale.ru: 'Магазин', AppLocale.kk: 'Дүкен', AppLocale.en: 'Shop'},
+  'shop_for_your_stage': {AppLocale.ru: 'Для вашего этапа', AppLocale.kk: 'Сіздің кезеңіңізге', AppLocale.en: 'For where you are now'},
+  'shop_why_pregnant': {AppLocale.ru: 'Вы ждёте малыша — часы следят за давлением и пульсом, а брелок пригодится позже', AppLocale.kk: 'Сіз бала күтудесіз — сағат қысым мен пульсті бақылайды, брелок кейін керек болады', AppLocale.en: 'You are expecting — the watch follows your blood pressure and pulse; the tracker matters later'},
+  'shop_why_baby': {AppLocale.ru: 'Малыш ещё никуда не уходит — брелок пригодится, когда начнёт гулять сам', AppLocale.kk: 'Балаңыз әзірге еш жаққа кетпейді — брелок өзі жүре бастағанда керек болады', AppLocale.en: 'Your baby is not going anywhere yet — the tracker earns its place once they walk'},
+  'shop_why_moving': {AppLocale.ru: 'Ребёнок уже ходит сам — брелок показывает, где он', AppLocale.kk: 'Балаңыз өзі жүреді — брелок оның қайда екенін көрсетеді', AppLocale.en: 'Your child walks on their own now — the tracker shows where they are'},
+  'shop_why_unknown': {AppLocale.ru: 'Заполните профиль — подскажем, что подойдёт именно вам', AppLocale.kk: 'Профильді толтырыңыз — сізге не қолайлы екенін айтамыз', AppLocale.en: 'Fill in your profile and we will suggest what fits'},
+  'shop_item_watch': {AppLocale.ru: 'Смарт-часы Ana-Bala', AppLocale.kk: 'Ana-Bala смарт-сағаты', AppLocale.en: 'Ana-Bala smart watch'},
+  'shop_item_tracker': {AppLocale.ru: 'Детский брелок Kid', AppLocale.kk: 'Балаларға арналған Kid брелогы', AppLocale.en: 'Kid tracker'},
+  'shop_item_watch_what': {AppLocale.ru: 'Давление, пульс, сон и SOS на запястье', AppLocale.kk: 'Қысым, пульс, ұйқы және SOS', AppLocale.en: 'Blood pressure, pulse, sleep and SOS'},
+  'shop_item_tracker_what': {AppLocale.ru: 'Где ребёнок, зоны и кнопка SOS', AppLocale.kk: 'Бала қайда, аймақтар және SOS түймесі', AppLocale.en: 'Where the child is, zones and an SOS button'},
+  'shop_wa_note': {AppLocale.ru: 'Заказы принимаем в WhatsApp: подтвердим наличие, цвет и адрес доставки. Оплата при получении.', AppLocale.kk: 'Тапсырыстарды WhatsApp арқылы қабылдаймыз: бар-жоғын, түсін және мекенжайды растаймыз. Төлем — алған кезде.', AppLocale.en: 'We take orders on WhatsApp: we confirm stock, colour and delivery. Pay on delivery.'},
+  'shop_order_bundle': {AppLocale.ru: 'Заказать комплект', AppLocale.kk: 'Жинаққа тапсырыс беру', AppLocale.en: 'Order the set'},
+  'shop_wa_item': {AppLocale.ru: 'Здравствуйте! Хочу заказать: {item}.', AppLocale.kk: 'Сәлеметсіз бе! Тапсырыс бергім келеді: {item}.', AppLocale.en: 'Hello! I would like to order: {item}.'},
+  'shop_saving': {AppLocale.ru: 'Выгода {amount}', AppLocale.kk: 'Үнемдеу {amount}', AppLocale.en: 'You save {amount}'},
   // --- Screen 34 · «Курс · без комплекта» ---------------------------------
   'crs_contents': {AppLocale.ru: 'Что в курсе', AppLocale.kk: 'Курста не бар', AppLocale.en: 'What is in the course'},
   'crs_free_badge': {AppLocale.ru: 'Бесплатно', AppLocale.kk: 'Тегін', AppLocale.en: 'Free'},

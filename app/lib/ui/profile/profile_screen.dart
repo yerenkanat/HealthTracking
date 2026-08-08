@@ -35,13 +35,17 @@ class ProfileScreen extends StatelessWidget {
 
   /// Screen 42 — «Мой заказ». Null without a server: the orders live there.
   final VoidCallback? onOpenMyOrder;
+
+  /// Screen 41 — «Магазин».
+  final VoidCallback? onOpenShop;
   const ProfileScreen(
       {super.key,
       required this.controller,
       this.onOpenChildren,
       this.onOpenDevices,
       this.onOpenFamilyAccess,
-      this.onOpenMyOrder});
+      this.onOpenMyOrder,
+      this.onOpenShop});
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +160,10 @@ class ProfileScreen extends StatelessWidget {
                 _MyOrderEntry(onTap: onOpenMyOrder!),
                 const SizedBox(height: 10),
               ],
+              if (onOpenShop != null) ...[
+                _ShopEntry(onTap: onOpenShop!),
+                const SizedBox(height: 10),
+              ],
               // The Ма!Ма! course. Always visible, whether or not she owns it:
               // the locked screen is the offer, and hiding the entry point
               // entirely would mean nobody who has not bought the комплект ever
@@ -186,6 +194,37 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+
+/// Entry point to screen 41 — «Магазин».
+class _ShopEntry extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ShopEntry({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return DsCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.yellow,
+              borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.storefront_rounded, color: Ds.ink, size: 22),
+        ),
+        title: Text(l.t('shop_title'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        onTap: onTap,
+      ),
+    );
+  }
+}
 
 /// Entry point to screen 42 — «Мой заказ».
 class _MyOrderEntry extends StatelessWidget {

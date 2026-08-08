@@ -43,6 +43,7 @@ import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
 import 'profile/family_access_screen.dart';
 import 'profile/my_order_screen.dart';
+import 'shop/shop_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
 import 'tracking/notification_centre_screen.dart';
@@ -326,6 +327,9 @@ class _HomeShellState extends State<HomeShell> {
             c.api == null ? null : () => _openFamilyAccess(context, c),
         // Screen 42. The orders live on the server, matched on her phone.
         onOpenMyOrder: c.api == null ? null : () => _openMyOrder(context, c),
+        // Screen 41. Always available — the offer does not need a server, and
+        // the WhatsApp number is fetched when the screen opens.
+        onOpenShop: () => _openShop(context, c),
       ),
     ];
 
@@ -397,6 +401,17 @@ class _HomeShellState extends State<HomeShell> {
           : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
     }
     return '';
+  }
+
+/// Screen 41 — «Магазин».
+  ///
+  /// The whole offer inside the app. Until now the only way to buy anything was
+  /// the landing page in a browser, which a customer who already has the app is
+  /// unlikely to be looking at.
+  void _openShop(BuildContext context, AppController c) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _ShopRoute(controller: c),
+    ));
   }
 
   /// Screen 42 — «Мой заказ».
@@ -664,6 +679,63 @@ class _HomeShellState extends State<HomeShell> {
         if (child != null)
           Marker(markerId: const MarkerId('child'), position: LatLng(child.lat, child.lng)),
       },
+    );
+  }
+}
+
+/// Screen 41, with its WhatsApp number resolved before the screen is built.
+///
+/// Same reason as screen 42: the number decides whether the buy BUTTONS exist,
+/// and a shop that grows its buy buttons a second after opening is one somebody
+/// taps by accident.
+class _ShopRoute extends StatefulWidget {
+  final AppController controller;
+  const _ShopRoute({required this.controller});
+
+  @override
+  State<_ShopRoute> createState() => _ShopRouteState();
+}
+
+class _ShopRouteState extends State<_ShopRoute> {
+  String _whatsapp = '';
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final contact = await widget.controller.api?.getShopContact();
+    if (!mounted) return;
+    setState(() {
+      _whatsapp = contact?.whatsapp ?? '';
+      _ready = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final c = widget.controller;
+    final digits = _whatsapp.replaceAll(RegExp(r'\D'), '');
+    final now = DateTime.now();
+    return ShopScreen(
+      pregnant: c.isPregnant,
+      childAgesMonths: [
+        for (final ch in c.children)
+          if (ch.hasDateOfBirth) ch.ageInMonths(now),
+      ],
+      onOrder: digits.isEmpty
+          ? null
+          : (message) => launchUrl(
+                Uri.parse(
+                    'https://wa.me/$digits?text=${Uri.encodeComponent(message)}'),
+                mode: LaunchMode.externalApplication,
+              ),
     );
   }
 }
