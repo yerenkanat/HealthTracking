@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import '../../domain/newborn_log.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
+import 'night_feed_screen.dart';
 import '../theme.dart';
 import 'safe_sleep_screen.dart';
 
@@ -93,6 +94,21 @@ class NewbornLogScreen extends StatelessWidget {
                     colour: Palette.violet)),
           ]),
           const SizedBox(height: 18),
+
+          // Screen 22 — the night timer. Separate from «Кормление» below,
+          // which records that one HAPPENED: at 4am the question is not «did I
+          // feed her» but «how long has she been on this side», and that needs
+          // a running clock on a screen that is not a torch.
+          _NightFeedEntry(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => NightFeedScreen(
+                childName: childName,
+                events: events,
+                onLog: onLog,
+              ),
+            )),
+          ),
+          const SizedBox(height: 12),
 
           // The three big buttons. Large and few, for a one-handed 3am tap.
           Row(children: [
@@ -424,6 +440,67 @@ class _EventRow extends StatelessWidget {
           ),
           Text(time, style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
         ]),
+      ),
+    );
+  }
+}
+
+/// The way into screen 22 — the night feed timer.
+///
+/// Drawn in the night palette on a light screen deliberately: it is a door to a
+/// dark room, and it should look like one before she taps it at 4am.
+class _NightFeedEntry extends StatelessWidget {
+  final VoidCallback onTap;
+  const _NightFeedEntry({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Semantics(
+      button: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(DsShape.radiusCard),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Ds.nightBg,
+            borderRadius: BorderRadius.circular(DsShape.radiusCard),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Ds.nightSurface,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(Icons.bedtime_outlined,
+                    size: 20, color: Ds.nightAction),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.t('nightfeed_entry_title'),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            color: Ds.nightText)),
+                    const SizedBox(height: 2),
+                    Text(l.t('nightfeed_entry_body'),
+                        style: const TextStyle(
+                            fontSize: 12.5, height: 1.35, color: Ds.nightTextDim)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 20, color: Ds.nightTextDim),
+            ],
+          ),
+        ),
       ),
     );
   }
