@@ -676,9 +676,13 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
       Устройства
     </button>
+    <!-- «SOS и зоны», not «Безопасность»: this is the feed of alarms and
+         geofence crossings. The spec's «Безопасность» (frame 22) is the
+         privacy screen further down, and two tabs sharing a name is how
+         somebody looking for the access log lands on a map of children. -->
     <button type="button" class="nav" data-view="safety" data-cap="health">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/></svg>
-      Безопасность
+      SOS и зоны
     </button>
     <button type="button" class="nav" data-view="course" data-cap="content">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m10 8 6 4-6 4V8z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
@@ -707,6 +711,14 @@
     <button type="button" class="nav" data-view="staff" data-cap="staff">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Персонал
+    </button>
+    <button type="button" class="nav" data-view="security" data-cap="staff">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Безопасность
+    </button>
+    <button type="button" class="nav" data-view="roles" data-cap="staff">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+      Роли и права
     </button>
     <!-- Direct one-click links to public pages (open in a new tab). Not
          data-view items: they're external destinations, not SPA sections. -->
@@ -1036,6 +1048,78 @@
             <table><thead><tr><th>Когда</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Причина</th></tr></thead>
             <tbody id="auditBody"></tbody></table>
           </div>
+        </div>
+      </section>
+
+      <!-- БЕЗОПАСНОСТЬ (frame 22) — who has been reading special-category data.
+           Metrics, then the access log with its reason, then who looks most,
+           then what is kept and for how long, then the open question. Every
+           number here is computed on the server from the audit log; nothing on
+           this screen is a figure typed into HTML. -->
+      <section class="view" id="security">
+        <div class="kpis" id="secKpis"></div>
+
+        <div class="card">
+          <div class="sec-h">
+            <h3>Журнал доступа</h3>
+            <!-- The window is the first thing challenged when these numbers are
+                 questioned, so it is adjustable and always stated. -->
+            <label class="t" style="color:var(--muted)">Период
+              <select id="secDays" class="btn" style="margin-left:6px">
+                <option value="7">7 дней</option>
+                <option value="30" selected>30 дней</option>
+                <option value="90">90 дней</option>
+                <option value="365">365 дней</option>
+              </select>
+            </label>
+          </div>
+          <div class="tablewrap">
+            <table><thead><tr><th>Когда</th><th>Кто</th><th>Что открыл(а)</th><th>Чью запись</th><th>Основание</th></tr></thead>
+            <tbody id="secBody"></tbody></table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sec-h"><h3>Кто что видит</h3></div>
+          <div class="tablewrap">
+            <table><thead><tr><th>Сотрудник</th><th class="num">Просмотров</th></tr></thead>
+            <tbody id="secStaffBody"></tbody></table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sec-h"><h3>Хранение</h3></div>
+          <div class="tl" id="secRetention"></div>
+        </div>
+
+        <!-- «Открытый вопрос» — the spec ends every system frame with the thing
+             still undecided, so it is asked of a person instead of quietly
+             settled by whoever writes the next line of code. -->
+        <div class="card">
+          <div class="sec-h"><h3>Открытый вопрос</h3></div>
+          <p style="color:var(--muted);margin:0">
+            Показывать ли маме, кто из сотрудников открывал её карту? Это честно
+            и это её право по закону — но список из десяти просмотров за месяц
+            пугает сильнее, чем объясняет, а половина из них это доставка заказа.
+          </p>
+        </div>
+      </section>
+
+      <!-- РОЛИ И ПРАВА (frame 23a) — the permission matrix.
+           Drawn from GET /admin/roles, which serves it from the same ROLE_CAPS
+           the guards read. A matrix maintained here in HTML would tell a
+           manager one thing while the server enforced another. -->
+      <section class="view" id="roles">
+        <div class="card">
+          <div class="tablewrap">
+            <table id="rolesTable"><thead id="rolesHead"></thead><tbody id="rolesBody"></tbody></table>
+          </div>
+          <p class="t" style="color:var(--muted);margin:12px 0 0">
+            Розовым отмечены права на особые данные: здоровье, дети и их
+            геолокация. Каждое их использование попадает в журнал доступа с
+            основанием. Новая роль начинается с пустой строки и добирает права
+            поштучно.
+          </p>
         </div>
       </section>
 
@@ -2569,15 +2653,51 @@
   /// and a full timestamp rather than a bare "09:41" that is ambiguous the
   /// moment yesterday exists.
   const AUDIT_ACTIONS={
+    // Keys are the strings the server actually writes. Three entries here —
+    // view_detail, view_safety, publish_content, bulk_content — named actions
+    // nothing has ever recorded, so the log printed the raw key beside a raw
+    // UUID for the reads that matter most. The names below were taken from the
+    // writeAudit calls, not from memory.
     view_health:"Открыл(а) медданные",
     view_wellness:"Открыл(а) дневник самочувствия",
-    view_detail:"Открыл(а) карточку",
+    view_user_detail:"Открыл(а) карточку пациентки",
+    view_children_stats:"Просмотр данных о детях",
     list_users:"Просмотр списка пользователей",
     view_emergencies:"Просмотр экстренных событий",
     view_devices:"Просмотр устройств",
-    view_safety:"Просмотр событий безопасности",
-    publish_content:"Изменил(а) контент",
-    bulk_content:"Массовая правка контента",
+    view_device_registry:"Просмотр реестра устройств",
+    view_safety_feed:"Просмотр событий безопасности",
+    edit_content:"Изменил(а) контент",
+    bulk_import_content:"Массовая правка контента",
+    content_review:"Подписал(а) медицинский текст",
+    view_queues:"Просмотр очередей",
+    view_settings:"Просмотр настроек",
+    set_settings:"Изменил(а) настройки",
+    view_shop_orders:"Просмотр заказов",
+    view_shop_leads:"Просмотр заявок",
+    shop_order_create:"Создал(а) заказ",
+    shop_order_status:"Изменил(а) статус заказа",
+    shop_lead_status:"Изменил(а) статус заявки",
+    shop_set_stock:"Изменил(а) остаток",
+    shop_add_variant:"Добавил(а) вариант товара",
+    product_upsert:"Изменил(а) товар",
+    stock_move:"Движение по складу",
+    stock_receipt:"Приёмка товара",
+    stocktake:"Инвентаризация",
+    bundle_parts:"Изменил(а) состав комплекта",
+    device_serials_add:"Добавил(а) серийные номера",
+    order_devices:"Привязал(а) устройства к заказу",
+    view_order_devices:"Просмотр устройств заказа",
+    view_entitlements:"Просмотр доступов",
+    entitlement_grant:"Выдал(а) доступ",
+    entitlement_revoke:"Отозвал(а) доступ",
+    view_course_progress:"Просмотр прогресса по курсу",
+    course_lesson_save:"Изменил(а) урок",
+    course_lesson_delete:"Удалил(а) урок",
+    audio_upload:"Загрузил(а) аудио",
+    audio_delete:"Удалил(а) аудио",
+    test_telegram:"Проверка Telegram-оповещений",
+    view_security:"Открыл(а) журнал доступа",
     // Added with staff sign-in. Without these the log showed the raw action
     // key next to a raw UUID — technically complete and unreadable.
     staff_login:"Вход в панель",
@@ -2611,6 +2731,145 @@
         <td class="t" title="${esc(a.target||"")}">${esc(a.targetName||a.target||"—")}</td>
         <td class="t">${a.reason?esc(a.reason):"<span style=\"color:var(--muted)\">—</span>"}</td></tr>`).join("")
       || tableNote(5,"Действий пока не зафиксировано. Здесь появятся просмотры карт пациенток и изменения в панели — с автором, временем и причиной.");
+  }
+
+  // ---- Frame 22 · «Безопасность» ------------------------------------------
+  //
+  // The audit log, asked a question rather than merely listed. Every figure is
+  // computed by the server from the same rows the «Журнал действий» tab shows;
+  // nothing here is counted in the browser, so the panel cannot report a total
+  // that the database would not agree with.
+
+  /// How long ago, in words. «2 часа назад» is what somebody checking a log at
+  /// speed actually reads; the exact stamp stays in the cell beside it.
+  function agoRu(iso){
+    const t=Date.parse(iso); if(!Number.isFinite(t)) return "—";
+    const m=Math.max(0,Math.round((Date.now()-t)/60000));
+    if(m<1) return "только что";
+    if(m<60) return m+" мин назад";
+    const h=Math.round(m/60);
+    if(h<24) return h+" ч назад";
+    return Math.round(h/24)+" дн назад";
+  }
+
+  async function renderSecurity(){
+    const kpis=$("#secKpis"), body=$("#secBody"), staffBody=$("#secStaffBody");
+    if(!kpis||!body) return;
+    const days=Number($("#secDays")?.value)||30;
+    body.innerHTML=tableBusy(5);
+    let d=null;
+    try{ d=await api("/admin/security?days="+days); }catch(e){ d=null; }
+    if(!d){
+      // Not an empty state. A screen that says "0 просмотров" when it failed to
+      // load is worse than one that says nothing — this is the page somebody
+      // opens precisely to be sure nothing is wrong.
+      kpis.innerHTML="";
+      body.innerHTML=tableNote(5,"Не удалось загрузить журнал доступа. Проверьте доступ и соединение.");
+      if(staffBody) staffBody.innerHTML="";
+      return;
+    }
+
+    // «Без основания» is the number that should be zero, so it is coloured only
+    // when it is not — a permanently red tile stops being read.
+    const bad=d.withoutReason>0;
+    kpis.innerHTML=[
+      ["Просмотров защищённых данных",d.protectedReads,"за "+d.windowDays+" дн.",""],
+      ["Здоровье",d.health,"показатели, дневник, дети",""],
+      ["Геолокация",d.location,"устройства и SOS",""],
+      ["Без основания",d.withoutReason,bad?"нужно разобраться":"как и должно быть",
+        bad?"var(--crit-text)":"var(--good-text)"],
+    ].map(([lbl,val,sub,col])=>`<div class="card kpi">
+        <div class="lbl">${esc(lbl)}</div>
+        <div class="val"${col?` style="color:${col}"`:""}>${esc(String(val))}</div>
+        <div class="delta">${esc(sub)}</div>
+      </div>`).join("");
+
+    const rows=d.recent||[];
+    body.innerHTML=rows.map(a=>`<tr style="cursor:default">
+        <td class="num t" title="${esc(stamp(a.at))}">${esc(agoRu(a.at))}</td>
+        <td>${esc(a.staffName||a.staffId||"—")}</td>
+        <td>${esc(AUDIT_ACTIONS[a.action]||a.action)}</td>
+        <td class="t" title="${esc(a.target||"")}">${esc(a.targetName||a.target||"—")}</td>
+        <td class="t">${a.reason&&a.reason.trim()
+          ?esc(a.reason)
+          :`<span style="color:var(--crit-text);font-weight:600">не указано</span>`}</td></tr>`).join("")
+      || tableNote(5,"За выбранный период никто не открывал здоровье или геолокацию. Записи появятся, как только сотрудник откроет карту пациентки — с именем, временем и причиной.");
+
+    if(staffBody){
+      staffBody.innerHTML=(d.byStaff||[]).map(s=>`<tr style="cursor:default">
+          <td title="${esc(s.staffId||"")}">${esc(s.staffName||s.staffId||"—")}</td>
+          <td class="num">${esc(String(s.reads))}</td></tr>`).join("")
+        || tableNote(2,"Пока никто не открывал защищённые данные. Сотрудник появится здесь после первого такого просмотра.");
+    }
+
+    const ret=$("#secRetention");
+    if(ret&&d.retention){
+      // Read from the server, which reads it from the constants the sweep uses.
+      // Typing «90 дней» here is how this page ends up promising a regulator
+      // something the job does not do.
+      ret.innerHTML=`
+        <div class="tli"><span><b>Маршруты детей</b></span>
+          <span class="t" style="color:var(--muted)">удаляются автоматически</span>
+          <span class="num">${esc(String(d.retention.routeDays))} дн.</span></div>
+        <div class="tli"><span><b>Журнал доступа</b></span>
+          <span class="t" style="color:var(--muted)">хранится для проверок</span>
+          <span class="num">${esc(String(d.retention.auditYears))} года</span></div>`;
+    }
+  }
+  // Changing the period re-asks the server rather than filtering what is drawn:
+  // the tiles count over the window, and filtering here would leave them stating
+  // a total for a different period than the table below them.
+  $("#secDays")?.addEventListener("change",renderSecurity);
+
+  // ---- Frame 23a · «Роли и права» -----------------------------------------
+
+  const CAP_RU={
+    orders:"Заказы, заявки, витрина",
+    customers:"Клиенты: имена, телефоны, города",
+    health:"Здоровье, дети и геолокация",
+    finance:"Деньги: себестоимость, маржа, выручка",
+    stock:"Склад, приёмка, реестр устройств",
+    content:"Контент, курс, аудио",
+    staff:"Сотрудники и журнал действий",
+    emergencies:"Экстренные события и SOS",
+  };
+  const ROLE_RU={
+    owner:"Владелец", operator:"Оператор", seller:"Продавец",
+    warehouse:"Склад", content:"Контент-редактор",
+    admin:"Админ", clinician:"Врач", support:"Поддержка",
+  };
+
+  async function renderRoles(){
+    const head=$("#rolesHead"), body=$("#rolesBody");
+    if(!head||!body) return;
+    body.innerHTML=tableBusy(6);
+    let d=null;
+    try{ d=await api("/admin/roles"); }catch(e){ d=null; }
+    if(!d||!d.roles||!d.caps){
+      head.innerHTML="";
+      body.innerHTML=tableNote(6,"Не удалось загрузить матрицу прав. Проверьте доступ и соединение.");
+      return;
+    }
+    const roles=d.roles;
+    head.innerHTML=`<tr><th>Право</th>${roles.map(r=>
+      `<th class="num"${r.role===d.you?' style="color:var(--accent)"':""}>${esc(ROLE_RU[r.role]||r.role)}${
+        r.role===d.you?" ·&nbsp;вы":""}</th>`).join("")}</tr>`;
+    body.innerHTML=d.caps.map(c=>{
+      // «строки здоровья и геолокации подсвечены #FBF0F3» — the rows carrying
+      // special-category data are marked so the eye lands on them first.
+      const tint=c.special?' style="background:#FBF0F3"':"";
+      return `<tr${tint}>
+        <td><b>${esc(CAP_RU[c.cap]||c.cap)}</b>${c.special
+          ?` <span class="t" style="color:var(--muted)">· в журнале</span>`:""}</td>
+        ${roles.map(r=>{
+          const yes=(r.caps||[]).indexOf(c.cap)>=0;
+          return `<td class="num" title="${esc((ROLE_RU[r.role]||r.role)+": "+(yes?"да":"нет"))}">${
+            // A tick and a dash, each with a word behind it in the title: colour
+            // alone would say nothing to a screen reader or a printed copy.
+            yes?'<span style="color:var(--good-text);font-weight:700">✓</span>'
+               :'<span style="color:var(--muted)">—</span>'}</td>`;
+        }).join("")}</tr>`;
+    }).join("");
   }
 
   // Daily actives as a line, signups as bars behind it, on a shared 30-day axis.
@@ -3167,7 +3426,9 @@
     childdev:["Календарь развития","Рост, вес и навыки ребёнка по неделям первого года (RU/KZ)"],
     vaccines:["Вакцинация","Национальный календарь прививок по возрасту ребёнка"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
-    safety:["Безопасность","SOS и события зон по всем семьям"],
+    safety:["SOS и зоны","Тревоги и пересечения зон по всем семьям"],
+    security:["Безопасность","Кто открывал здоровье и геолокацию, когда и на каком основании"],
+    roles:["Роли и права","Что может каждая роль — из тех же правил, по которым проверяет сервер"],
     shop:["Магазин","Остатки по цветам и заказы на доставку"],
     audio:["Аудио","Ежедневные аудио для календарей беременности и развития"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
@@ -3223,6 +3484,8 @@
     if(v==="shop")renderShop();
     if(v==="audio")renderAudio();
     if(v==="staff")renderStaff();
+    if(v==="security")renderSecurity();
+    if(v==="roles")renderRoles();
     if(v==="stock")renderStock();
     if(v==="review")renderReview();
     if(v==="course")renderCourse();

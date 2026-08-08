@@ -51,9 +51,18 @@ export type Capability =
   /** The emergency feed and acknowledging an SOS. */
   | 'emergencies';
 
-const ALL: readonly Capability[] = [
+/**
+ * Every capability there is, in the order the permission matrix draws them.
+ *
+ * Exported because frame 23a serves the matrix from this file. A panel holding
+ * its own list is a panel that shows a manager one set of rules while the
+ * guards enforce another.
+ */
+export const ALL_CAPABILITIES: readonly Capability[] = [
   'orders', 'customers', 'health', 'finance', 'stock', 'content', 'staff', 'emergencies',
 ];
+
+const ALL = ALL_CAPABILITIES;
 
 /**
  * Role → what it may do.

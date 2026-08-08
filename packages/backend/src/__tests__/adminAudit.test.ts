@@ -41,6 +41,9 @@ const AGGREGATES_ONLY = new Set([
   // this log exists for.
   'GET /admin/me', // who am I — the caller reading their own name
   'GET /admin/staff', // the colleague roster; admin-only, contains no patient
+  // The permission matrix. ROLE_CAPS and nothing else — no customer, no
+  // patient, no order. Auditing it would record who read a table of rules.
+  'GET /admin/roles',
   // Published reference data — the MOH antenatal protocol, the vaccination
   // schedule, the pregnancy and child-development calendars. Constants
   // compiled into the server; they name nobody and never change per request.

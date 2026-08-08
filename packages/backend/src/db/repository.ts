@@ -659,6 +659,12 @@ export interface Repository {
     action: string;
     target: string | null;
     targetName: string | null;
+    /**
+     * Why the record was opened, for the reads that demand one. Null on
+     * everything older than migration 029 and on actions that explain
+     * themselves.
+     */
+    reason: string | null;
     at: string;
   }>>;
 

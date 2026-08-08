@@ -17,6 +17,8 @@ import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
+import { summarizeSecurity } from '../admin/security';
+import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
 import {
   carryReview, reviewIsCurrent, reviewMessage, textFingerprint, unreviewed,
   type ReviewableItem,
@@ -172,7 +174,10 @@ const bulkContentBody = z.object({
   mode: z.enum(['merge', 'replace']).default('merge'),
 });
 
-import { can, type Capability, type StaffRole } from '../auth/capabilities';
+import {
+  ALL_CAPABILITIES, can, ROLE_CAPS, STAFF_ROLES,
+  type Capability, type StaffRole,
+} from '../auth/capabilities';
 export type AuthAdmin = (req: FastifyRequest) => Promise<{ staffId: string; role: StaffRole } | null>;
 
 export function registerAdminRoutes(app: FastifyInstance, repo: Repository, authAdmin: AuthAdmin): void {
@@ -515,6 +520,71 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       // told something is late that she is not allowed to look at.
       overdue: overdue(q).filter((k) => available.includes(k)),
       slaHours: SLA_HOURS,
+    });
+  });
+
+  /**
+   * Frame 22 — «Безопасность». Who has been reading special-category data.
+   *
+   * Every part of this existed and none of it was on a screen: the log records
+   * who opened whose record and why, the matrix decides who may, and the
+   * retention sweep deletes routes at 90 days. What was missing was the page
+   * that lets somebody ASK whether it is being abused.
+   *
+   * `staff`, like the audit log itself — being able to read health records is
+   * not the same as being able to read the record of everyone reading them.
+   */
+  app.get('/admin/security', async (req, reply) => {
+    const s = await requireCap(req, reply, 'staff');
+    if (!s) return;
+    const days = Math.min(365, Math.max(1, Number((req.query as { days?: string }).days) || 30));
+    // A wide slice, because the summary counts over it and the panel shows the
+    // hundred newest. Bounded so a year cannot pull the whole table.
+    const audit = await repo.listAudit(5000).catch(() => []);
+    // This page lists patients by name — «кто открывал карту Айгерім и почему»
+    // — so reading it is itself a read of special-category data and is
+    // recorded. Unlike GET /admin/audit, which returns the raw log and is
+    // exempt because auditing it makes the log describe mostly itself, this
+    // one is opened rarely and deliberately: the row is worth having.
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_security' });
+    return reply.send({
+      ...summarizeSecurity(audit, new Date(), days),
+      // The retention promises this page reports on, from the one place each
+      // is defined — so the screen cannot drift from what actually runs.
+      retention: {
+        routeDays: ROUTE_RETENTION_DAYS,
+        auditYears: 3,
+      },
+    });
+  });
+
+  /**
+   * Frame 23a — «Роли и права». The permission matrix, as data.
+   *
+   * Served from ROLE_CAPS rather than re-typed in the panel's HTML. A matrix
+   * the panel draws from its own copy is a matrix that tells a manager one
+   * thing while the guards do another, and the whole point of the screen is
+   * that somebody can trust it when deciding what a new hire may see.
+   *
+   * The spec draws 18 permission rows against 5 roles. The guards enforce 8
+   * capabilities across 8 roles, so the rows here are the capabilities — every
+   * one true, and every one backed by a `requireCap` somewhere — instead of 18
+   * invented names the server would not honour. `special` marks the rows the
+   * spec highlights: the ones carrying health or a child's whereabouts.
+   */
+  app.get('/admin/roles', async (req, reply) => {
+    const s = await requireCap(req, reply, 'staff');
+    if (!s) return;
+    return reply.send({
+      roles: STAFF_ROLES.map((role) => ({ role, caps: ROLE_CAPS[role] })),
+      caps: ALL_CAPABILITIES.map((cap) => ({
+        cap,
+        // Health readings, children and their locations travel under `health`;
+        // an SOS carries a live position with a name beside it.
+        special: cap === 'health' || cap === 'emergencies',
+      })),
+      /** Who is signed in, so the panel can mark their own row. */
+      you: s.role,
     });
   });
 

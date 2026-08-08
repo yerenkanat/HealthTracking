@@ -409,7 +409,12 @@ function makeDeps(
     },
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
     listAudit: async () =>
-      audit.map((a) => ({ ...a, staffName: null, staffPhone: null, targetName: null })),
+      // reason included: the interface declares it, and a fake that omits it
+      // was how the security summary compiled against a shape nothing returns.
+      audit.map((a) => ({
+        ...a, staffName: null, staffPhone: null, targetName: null,
+        reason: (a as {reason?: string | null}).reason ?? null,
+      })),
   };
 
   const server = buildServer(
