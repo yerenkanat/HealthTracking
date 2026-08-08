@@ -230,6 +230,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 20 · «Офлайн» -----------------------------------------------
+  'off_no_internet': {AppLocale.ru: 'Нет интернета', AppLocale.kk: 'Интернет жоқ', AppLocale.en: 'No internet'},
+  'off_data_from': {AppLocale.ru: 'Данные от {time} · {n} мин назад', AppLocale.kk: 'Дерек {time} · {n} мин бұрын', AppLocale.en: 'Data from {time} · {n} min ago'},
+  'off_data_from_h': {AppLocale.ru: 'Данные от {time} · {n} ч назад', AppLocale.kk: 'Дерек {time} · {n} сағ бұрын', AppLocale.en: 'Data from {time} · {n} h ago'},
+  'off_no_data': {AppLocale.ru: 'Последних данных нет', AppLocale.kk: 'Соңғы дерек жоқ', AppLocale.en: 'No recent data'},
+  'off_what_now': {AppLocale.ru: 'Что можно сделать', AppLocale.kk: 'Не істеуге болады', AppLocale.en: 'What you can do'},
+  'off_refresh': {AppLocale.ru: 'Обновить', AppLocale.kk: 'Жаңарту', AppLocale.en: 'Refresh'},
+  'off_refresh_failed': {AppLocale.ru: 'Пока не получается. Связь не восстановилась.', AppLocale.kk: 'Әзірге болмайды. Байланыс қалпына келмеді.', AppLocale.en: 'Not yet — the connection is still down.'},
+  // The most important line on the sheet: the tracker is on the child's wrist
+  // and does not go through this phone.
+  'off_act_sos': {AppLocale.ru: 'Кнопка SOS на браслете работает — она не зависит от вашего телефона', AppLocale.kk: 'Білезіктегі SOS түймесі жұмыс істейді — ол сіздің телефоныңызға байланысты емес', AppLocale.en: 'The SOS button on the tracker still works — it does not go through your phone'},
+  'off_act_call': {AppLocale.ru: 'Позвонить по номеру из карточки ребёнка', AppLocale.kk: 'Бала картасындағы нөмірге қоңырау шалу', AppLocale.en: 'Call the number on the child’s card'},
+  'off_act_read': {AppLocale.ru: 'Читать календари и прививки — они уже сохранены', AppLocale.kk: 'Күнтізбелер мен екпелерді оқу — олар сақталған', AppLocale.en: 'Read the calendars and vaccinations — already saved'},
+  'off_act_log': {AppLocale.ru: 'Записывать в дневник — отправится, когда появится связь', AppLocale.kk: 'Күнделікке жазу — байланыс пайда болғанда жіберіледі', AppLocale.en: 'Write in the diary — it sends when the connection returns'},
+
   // --- Screen 40 · «Семейный доступ» --------------------------------------
   'fam_title': {AppLocale.ru: 'Семейный доступ', AppLocale.kk: 'Отбасылық қолжетімділік', AppLocale.en: 'Family access'},
   'fam_who': {AppLocale.ru: 'Кто видит ребёнка', AppLocale.kk: 'Баланы кім көреді', AppLocale.en: 'Who can see the child'},

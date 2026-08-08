@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../../core/geofence.dart';
 import '../../domain/battery.dart';
 import '../../domain/child_tracker_state.dart';
+import '../../domain/offline.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
@@ -60,6 +61,13 @@ class ChildMapScreen extends StatelessWidget {
   /// the row then shows two buttons rather than a dead third.
   final VoidCallback? onDayHistory;
 
+  /// Screen 20. No connection, from the connectivity service.
+  final bool isOffline;
+
+  /// Try again. Returns false when it still could not reach the server, so the
+  /// button can say so instead of pretending it refreshed.
+  final Future<bool> Function()? onRefresh;
+
   /// Whether a tracker is linked to this child. When false and there is no
   /// location, the status bar guides her to pair one instead of implying a
   /// fix is on its way. Defaults true so existing callers/tests are unchanged.
@@ -90,8 +98,20 @@ class ChildMapScreen extends StatelessWidget {
     this.onCheckIn,
     this.onSos,
     this.onDayHistory,
+    this.isOffline = false,
+    this.onRefresh,
     this.hasPairedTracker = true,
   });
+
+  /// Screen 20's condition: the map must stop looking live.
+  ///
+  /// Two separate causes, one consequence — no connection, or a fix too old to
+  /// call current. Treating only the first would leave a phone with four bars
+  /// and a tracker that stopped reporting an hour ago drawing a confident pin.
+  bool get _staleMap => mapShouldLookStale(
+        offline: isOffline,
+        sinceLastFix: updatedAt == null ? null : now.difference(updatedAt!),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +210,27 @@ class ChildMapScreen extends StatelessWidget {
       body: Stack(
         children: [
           // Full-bleed map surface.
-          Positioned.fill(child: mapBuilder(context, childLocation, fences)),
+          //
+          // Screen 20: when there is no connection, or the last fix is too old
+          // to call current, the colour comes out of it. A map that looks
+          // exactly the same at one minute and at forty is how «она дома» gets
+          // said about a position from half an hour ago.
+          Positioned.fill(
+            child: _staleMap
+                ? ColorFiltered(
+                    // Fully desaturated, not merely dimmed: a dimmed map still
+                    // reads as a map at night, and this has to be unmistakable
+                    // in daylight on a phone held at arm's length.
+                    colorFilter: const ColorFilter.matrix(<double>[
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0, 0, 0, 1, 0,
+                    ]),
+                    child: mapBuilder(context, childLocation, fences),
+                  )
+                : mapBuilder(context, childLocation, fences),
+          ),
 
           // Floating top layer: child selector + geofence zone pills.
           Positioned(
@@ -212,6 +252,19 @@ class ChildMapScreen extends StatelessWidget {
                       ),
                     if (fences.isNotEmpty)
                       _ZonePills(fences: fences, childLocation: childLocation),
+                    // Screen 20's two amber plates. The first says why, the
+                    // second says how old what is on screen actually is —
+                    // stated in words, because a timestamp on its own gets
+                    // read as "recent" by anyone not doing arithmetic.
+                    if (_staleMap) ...[
+                      const SizedBox(height: 10),
+                      _OfflinePlate(
+                        offline: isOffline,
+                        age: dataAge(updatedAt, now),
+                        onRefresh: onRefresh,
+                        onWhatNow: () => _showOfflineHelp(context),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -235,7 +288,11 @@ class ChildMapScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                 ],
                 MinimalTrackingStatusBar(
-                  freshness: status.freshness,
+                  // Offline forces stale. Without it the card said «В сети ·
+                  // обновлено только что» directly beneath an amber «Нет
+                  // интернета» — two of the app's own elements contradicting
+                  // each other about the one fact the screen exists to state.
+                  freshness: _staleMap ? Freshness.stale : status.freshness,
                   headline: l.trackingHeadline(status, childName, now, named: hasNamedChild),
                   zoneLabel: status.currentZone == null
                       ? null
@@ -243,7 +300,11 @@ class ChildMapScreen extends StatelessWidget {
                   distanceLabel: status.distanceFromHomeM == null
                       ? null
                       : l.distanceFromHome(status.distanceFromHomeM!),
-                  freshnessLabel: l.freshnessLabel(status.freshness),
+                  // Same override as the dot above it: the label is passed
+                  // separately, so fixing only one left «В сети» beside a grey
+                  // map and an amber «Нет интернета».
+                  freshnessLabel:
+                      l.freshnessLabel(_staleMap ? Freshness.stale : status.freshness),
                   // A battery belongs to a DEVICE. With no tracker linked,
                   // the last stored reading is about a tracker that is not on
                   // this child — and the card showed «8 %» directly above
@@ -283,6 +344,176 @@ class ChildMapScreen extends StatelessWidget {
           content: Text(l.t('sos_sent')),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Palette.danger),
+    );
+  }
+}
+
+/// Screen 20 — «Что можно сделать».
+///
+/// Opened from the amber plate. Four lines, and the first one is the one that
+/// matters: the tracker's SOS button does not go through this phone. A parent
+/// who has just found out she has no connection is working out whether her
+/// child is protected, and that is the answer.
+void _showOfflineHelp(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (ctx) {
+      final l = L10nScope.of(ctx);
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.t('off_what_now'),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 14),
+              for (final a in offlineActions)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        a == OfflineAction.childSosStillWorks
+                            ? Icons.shield_rounded
+                            : Icons.check_rounded,
+                        size: 18,
+                        color: a == OfflineAction.childSosStillWorks
+                            ? Ds.mintText
+                            : Palette.textDim,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(l.t(a.l10nKey),
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              fontWeight: a == OfflineAction.childSosStillWorks
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            )),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// The amber plate: why the map is grey, how old what is on it is, and the two
+/// things to do about it.
+class _OfflinePlate extends StatefulWidget {
+  final bool offline;
+  final DataAge? age;
+  final Future<bool> Function()? onRefresh;
+  final VoidCallback onWhatNow;
+
+  const _OfflinePlate({
+    required this.offline,
+    required this.age,
+    required this.onRefresh,
+    required this.onWhatNow,
+  });
+
+  @override
+  State<_OfflinePlate> createState() => _OfflinePlateState();
+}
+
+class _OfflinePlateState extends State<_OfflinePlate> {
+  bool _busy = false;
+
+  Future<void> _refresh() async {
+    if (_busy || widget.onRefresh == null) return;
+    setState(() => _busy = true);
+    final ok = await widget.onRefresh!();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) {
+      // Said out loud. A refresh button that quietly does nothing teaches her
+      // the app is broken rather than that the connection is.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(L10nScope.of(context).t('off_refresh_failed')),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  String _ageLine(L10n l) {
+    final a = widget.age;
+    if (a == null) return l.t('off_no_data');
+    final time = '${a.at.hour.toString().padLeft(2, '0')}:'
+        '${a.at.minute.toString().padLeft(2, '0')}';
+    // Past an hour, minutes stop being the useful unit — «Данные от 14:32 ·
+    // 190 минут назад» is arithmetic homework.
+    return a.overAnHour
+        ? l.t('off_data_from_h', {'time': time, 'n': a.hoursAgo})
+        : l.t('off_data_from', {'time': time, 'n': a.minutesAgo});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Ds.pastelButter,
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.offline)
+            Row(
+              children: [
+                const Icon(Icons.wifi_off_rounded, size: 17, color: Ds.amberText),
+                const SizedBox(width: 8),
+                Text(l.t('off_no_internet'),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Ds.amberText)),
+              ],
+            ),
+          if (widget.offline) const SizedBox(height: 6),
+          Text(_ageLine(l),
+              style: const TextStyle(fontSize: 13, color: Ds.text)),
+          const SizedBox(height: 10),
+          // Stacked, not side by side. «Что можно сделать» and «Обновить»
+          // together overflowed a 390 dp phone by 115 px in Russian, which put
+          // the refresh button off the right edge where nothing could reach
+          // it — on the screen a parent opens when she cannot find her child.
+          if (widget.onRefresh != null)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _busy ? null : _refresh,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, DsShape.minTapTarget),
+                ),
+                child: Text(l.t('off_refresh')),
+              ),
+            ),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: widget.onWhatNow,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, DsShape.minTapTarget),
+                foregroundColor: Ds.text,
+              ),
+              child: Text(l.t('off_what_now')),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

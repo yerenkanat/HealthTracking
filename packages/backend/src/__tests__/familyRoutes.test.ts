@@ -254,6 +254,41 @@ describe('what a relative can reach', () => {
     await app.close();
   });
 
+  it('where she is NOW — the whole point of the feature', async () => {
+    // /children/:id/location lives in server.ts rather than crud.ts, so it did
+    // not get the shared guard with the others: a father could read the day's
+    // trail and the zones and not the live pin, which is the one thing he
+    // opened the app for.
+    await share('viewer');
+    await repo.insertLocation({
+      childId: DEMO_CHILD,
+      observedAt: new Date().toISOString(),
+      source: 'gps',
+      coords: { lat: 43.238, lng: 76.889 },
+    });
+    caller = FATHER;
+    const r = await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/location`,
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().coords.lat).toBeCloseTo(43.238, 3);
+    await app.close();
+  });
+
+  it('and a stranger still cannot have it', async () => {
+    await repo.insertLocation({
+      childId: DEMO_CHILD,
+      observedAt: new Date().toISOString(),
+      source: 'gps',
+      coords: { lat: 43.238, lng: 76.889 },
+    });
+    caller = AUNT;
+    expect((await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/location`,
+    })).statusCode).toBe(403);
+    await app.close();
+  });
+
   it('a viewer may look at a zone and not move it', async () => {
     await share('viewer');
     caller = FATHER;

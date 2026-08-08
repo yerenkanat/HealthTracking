@@ -13,6 +13,7 @@
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { grantCovers } from './family/access';
 import { checkGeofenceBoundary } from './geofence/geofence';
 import { scheduleRouteRetention, type RetentionResult } from './privacy/retention';
 import { handleIngestBatch, type IngestDeps } from './routes/ingestHandler';
@@ -700,8 +701,18 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     const user = deps.authUser ? await deps.authUser(req) : null;
     if (!user) return reply.code(401).send({ error: 'unauthorized' });
     const owner = await deps.repo.childOwner(id);
-    if (!owner || owner.userId !== user.userId) {
-      return reply.code(403).send({ error: 'forbidden' });
+    if (!owner) return reply.code(403).send({ error: 'forbidden' });
+    if (owner.userId !== user.userId) {
+      // A relative let in on screen 40. This route lives here rather than in
+      // crud.ts, so it did not get requireChildAccess with the others — and
+      // "where is she now" is the single thing family access exists for. A
+      // father could read the day's trail and the zones and not the live pin.
+      const level = await deps.repo
+        .familyLevel(owner.userId, user.userId)
+        .catch(() => null);
+      if (!grantCovers(level ?? '', 'child_location')) {
+        return reply.code(403).send({ error: 'forbidden' });
+      }
     }
     // Redis first (this is the latency-sensitive read the cache exists for),
     // then the table every fix is also written to on the way in.

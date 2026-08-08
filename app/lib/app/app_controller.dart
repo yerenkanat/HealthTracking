@@ -2756,6 +2756,43 @@ class AppController {
   /// of order, and a late reply carrying an earlier position would walk the
   /// child backwards on the map and could re-fire a zone alert they already
   /// left.
+  /// Ask the server for the selected child's position right now — screen 20's
+  /// «Обновить».
+  ///
+  /// Returns whether it actually got one. False is not a detail: a refresh
+  /// button that reports success over a request that never landed teaches a
+  /// parent that the app is broken rather than that the connection is, and it
+  /// leaves the same stale pin on screen under a fresh-looking banner.
+  ///
+  /// The fix goes through [onChildLocation], so it carries the SERVER's
+  /// observation time and is discarded if it is older than what is already
+  /// held — a refresh must not walk the child backwards.
+  Future<bool> refreshChildLocation() async {
+    final api = _api;
+    final child = selectedChild;
+    if (api == null || child == null) return false;
+    try {
+      final body = await api.lastLocation(child.id);
+      if (body == null) return false;
+      // The route answers a ChildLocationFix: the position is under `coords`,
+      // not at the top level. Reading body['lat'] compiles, always yields
+      // null, and turns the refresh button into one that reports failure
+      // forever against a server that answered perfectly.
+      final coords = body['coords'];
+      if (coords is! Map) return false;
+      final lat = (coords['lat'] as num?)?.toDouble();
+      final lng = (coords['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) return false;
+      onChildLocation(
+        Coordinates(lat, lng),
+        at: DateTime.tryParse('${body['observedAt']}')?.toLocal(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   void onChildLocation(Coordinates coords, {DateTime? at}) {
     final observedAt = at ?? _now();
     final current = _childLocation;

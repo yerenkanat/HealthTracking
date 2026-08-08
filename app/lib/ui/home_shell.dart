@@ -286,6 +286,11 @@ class _HomeShellState extends State<HomeShell> {
         onDayHistory: (c.selectedChild == null || c.api == null)
             ? null
             : () => _openDayHistory(context, c),
+        // Screen 20. The strip at the top of the shell says the app is
+        // offline; this is what the MAP does about it, which is the screen
+        // where being wrong about staleness costs something.
+        isOffline: c.isOffline,
+        onRefresh: c.api == null ? null : () => c.refreshChildLocation(),
       ),
       ProfileScreen(
         controller: c,
