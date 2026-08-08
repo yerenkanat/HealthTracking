@@ -41,9 +41,11 @@ import 'content/timeline_content_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
 import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
+import 'profile/family_access_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
 import '../domain/day_history.dart';
+import '../domain/family_access.dart';
 import 'tracking/child_map_screen.dart';
 import 'tracking/day_history_screen.dart';
 import 'tracking/family_sheets.dart';
@@ -291,6 +293,10 @@ class _HomeShellState extends State<HomeShell> {
         // and trackers are actually managed — previously they were dead cards.
         onOpenChildren: () => setState(() => _index = 2),
         onOpenDevices: () => setState(() => _index = 2),
+        // Screen 40. The grants live on the server; without one the row is
+        // absent rather than opening a screen that can only fail.
+        onOpenFamilyAccess:
+            c.api == null ? null : () => _openFamilyAccess(context, c),
       ),
     ];
 
@@ -362,6 +368,39 @@ class _HomeShellState extends State<HomeShell> {
           : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
     }
     return '';
+  }
+
+  /// Screen 40 — «Семейный доступ».
+  ///
+  /// Every callback reports what the SERVER answered. A remove that returns
+  /// true on a failed request would leave a mother believing she had shut
+  /// somebody out of her child's location when she had not.
+  void _openFamilyAccess(BuildContext context, AppController c) {
+    final api = c.api;
+    if (api == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => FamilyAccessScreen(
+        now: DateTime.now(),
+        load: () async => FamilyAccess.fromJson(await api.familyAccess()),
+        onInvite: (level, label) async {
+          try {
+            final r = await api.createFamilyInvite(level: level.wire, label: label);
+            final token = r['token'];
+            return token is String && token.isNotEmpty ? token : null;
+          } catch (_) {
+            // Null, so the screen says the link could not be made. Silence
+            // here leaves her waiting for one that was never created.
+            return null;
+          }
+        },
+        onRemove: (m) => api.removeFamilyMember(m.memberUserId),
+        onRevoke: (i) => api.revokeFamilyInvite(i.tokenHash),
+        // The link somebody actually receives. A path on the site rather than
+        // a custom scheme, so it opens for a relative who has not installed
+        // the app yet — which is most of them, the first time.
+        linkFor: (token) => 'https://ana-bala.kz/join/$token',
+      ),
+    ));
   }
 
   /// Screen 47 — «История дня» for the selected child.

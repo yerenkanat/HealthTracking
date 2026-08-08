@@ -850,6 +850,48 @@ class ApiClient {
     throw ApiException(res.statusCode, res.body);
   }
 
+  // ---- Family access (screen 40) ----
+
+  /// Who has been let in, the open invitations, and whose children I can see.
+  Future<Map<String, dynamic>> familyAccess() async {
+    final res = await transport.get('/family/access');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// «Пригласить». The token comes back ONCE and is never recoverable — the
+  /// server stores only its hash — so the caller must show it immediately.
+  Future<Map<String, dynamic>> createFamilyInvite({
+    required String level,
+    String label = '',
+  }) async {
+    final res = await transport.post('/family/invites', {'level': level, 'label': label});
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Accepting a link. Returns the refusal reason on 409 rather than throwing:
+  /// an expired link and a used one need different words on screen.
+  Future<({bool ok, String? reason})> acceptFamilyInvite(String token) async {
+    final res = await transport.post('/family/invites/accept', {'token': token});
+    if (res.ok) return (ok: true, reason: null);
+    if (res.statusCode == 409) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return (ok: false, reason: '${body['error']}');
+    }
+    throw ApiException(res.statusCode, res.body);
+  }
+
+  Future<bool> revokeFamilyInvite(String tokenHash) async {
+    final res = await transport.delete('/family/invites/$tokenHash');
+    return res.ok;
+  }
+
+  Future<bool> removeFamilyMember(String memberUserId) async {
+    final res = await transport.delete('/family/access/$memberUserId');
+    return res.ok;
+  }
+
   /// One day of a child's movements — screens 47/48.
   ///
   /// [day] is YYYY-MM-DD. The server thins the trail and sums the distance, so

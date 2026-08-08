@@ -27,11 +27,17 @@ class ProfileScreen extends StatelessWidget {
   /// Null in tests/standalone use leaves the summary tiles as plain readouts.
   final VoidCallback? onOpenChildren;
   final VoidCallback? onOpenDevices;
+
+  /// Screen 40 — «Семейный доступ». Null without a server: the grants live
+  /// there, so the entry is absent rather than opening a screen that can only
+  /// fail.
+  final VoidCallback? onOpenFamilyAccess;
   const ProfileScreen(
       {super.key,
       required this.controller,
       this.onOpenChildren,
-      this.onOpenDevices});
+      this.onOpenDevices,
+      this.onOpenFamilyAccess});
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +136,16 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
+              // Screen 40. Only where a server can answer — the grants live
+              // there, and offering it offline opens a screen that can only
+              // fail.
+              if (onOpenFamilyAccess != null) ...[
+                _FamilyAccessEntry(
+                  subtitle: l.t('fam_privacy'),
+                  onTap: onOpenFamilyAccess!,
+                ),
+                const SizedBox(height: 10),
+              ],
               // The Ма!Ма! course. Always visible, whether or not she owns it:
               // the locked screen is the offer, and hiding the entry point
               // entirely would mean nobody who has not bought the комплект ever
@@ -160,6 +176,48 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+
+/// Entry point to screen 40 — «Семейный доступ».
+///
+/// The subtitle is the privacy promise rather than a count of relatives: what
+/// stops a mother opening this screen is not knowing whether letting the father
+/// see the child also lets him see her, and answering that on the row is worth
+/// more than telling her a number she is about to see anyway.
+class _FamilyAccessEntry extends StatelessWidget {
+  final String subtitle;
+  final VoidCallback onTap;
+  const _FamilyAccessEntry({required this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return DsCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.mint,
+              borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.diversity_3_rounded,
+              color: Colors.white, size: 22),
+        ),
+        title: Text(l.t('fam_title'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        onTap: onTap,
+      ),
+    );
+  }
+}
 
 /// Entry point to the Ма!Ма! course.
 ///
