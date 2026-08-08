@@ -28,6 +28,8 @@ import 'calendar/kick_session_screen.dart';
 import 'calendar/day_log_sheet.dart';
 import 'calendar/pregnancy_weight_screen.dart';
 import '../domain/weight.dart';
+import '../domain/child_development.dart';
+import '../domain/family.dart';
 import '../domain/cycle_predictions.dart';
 import '../domain/cycle_insights.dart';
 import 'calendar/womens_health_screen.dart';
@@ -181,6 +183,15 @@ class _HomeShellState extends State<HomeShell> {
         // Screen 55: her cycle, and the three routers that let her tell the app
         // her stage changed — «Тест положительный» had no entry point at all.
         hasChild: c.children.isNotEmpty,
+        // Screen 54's block. Only a child with a birth date has an age to
+        // place her on the timeline, so one without falls through to the
+        // cycle — the same rule the calendar follows.
+        childHeroName: _heroChild(c)?.name,
+        childHeroAgeMonths: _heroChild(c) == null
+            ? null
+            : ageInMonths(_heroChild(c)!.dateOfBirth!, DateTime.now()),
+        childGrowth: _heroChild(c) == null ? const [] : c.growthFor(_heroChild(c)!.id),
+        onOpenChild: () => setState(() => _index = 2),
         cycleInfo: c.cycle,
         cyclePhase: cyclePhaseFor(c.cycle),
         cycleConfidence: () {
@@ -421,6 +432,18 @@ class _HomeShellState extends State<HomeShell> {
         SnackBar(content: Text(l.t('link_open_failed')), behavior: SnackBarBehavior.floating),
       );
     }
+  }
+
+  /// The child the home block is about: the selected one when it has a birth
+  /// date, otherwise the first that does. Null when none has one — there is no
+  /// age to count from, and guessing is worse than falling through.
+  ChildProfile? _heroChild(AppController c) {
+    final sel = c.selectedChild;
+    if (sel?.dateOfBirth != null) return sel;
+    for (final ch in c.children) {
+      if (ch.dateOfBirth != null) return ch;
+    }
+    return null;
   }
 
   /// «Тест положительный» — she tells the app she is pregnant.

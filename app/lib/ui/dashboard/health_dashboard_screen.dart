@@ -17,11 +17,13 @@ import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
+import '../../domain/child_growth.dart';
 import '../../domain/cycle_insights.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/cycle_predictions.dart';
 import '../../domain/timeline_content.dart';
 import '../content/timeline_content_card.dart';
+import 'child_hero.dart';
 import 'cycle_hero.dart';
 import 'stage_hero.dart';
 import '../../domain/weekly_digest.dart';
@@ -124,6 +126,13 @@ class HealthDashboardView extends StatelessWidget {
   final VoidCallback? onLogWeight;
 
   /// Her cycle, when she is neither expecting nor a mother. Drives screen 55.
+  /// The child screen 54's block is about — the selected one with a birth
+  /// date. Null when she has no child, or none with a date to count from.
+  final String? childHeroName;
+  final int? childHeroAgeMonths;
+  final List<GrowthPoint> childGrowth;
+  final VoidCallback? onOpenChild;
+
   /// True once she has a child, which retires the «Есть ребёнок» router.
   final bool hasChild;
 
@@ -182,6 +191,10 @@ class HealthDashboardView extends StatelessWidget {
     this.onLogKick,
     this.onLogDay,
     this.onLogWeight,
+    this.childHeroName,
+    this.childHeroAgeMonths,
+    this.childGrowth = const [],
+    this.onOpenChild,
     this.hasChild = false,
     this.cycleInfo,
     this.cyclePhase,
@@ -350,11 +363,24 @@ class HealthDashboardView extends StatelessWidget {
                     const SizedBox(height: 16),
                   ],
 
+                  // Screen 54: she has a child and is not expecting. Age,
+                  // skills and her own growth corridor — «Есть ребёнок →
+                  // возраст, навыки, перцентили».
+                  if (gestation == null && childHeroName != null) ...[
+                    ChildHero(
+                      childName: childHeroName!,
+                      ageMonths: childHeroAgeMonths ?? 0,
+                      growth: childGrowth,
+                      onTap: onOpenChild,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Screen 55: neither expecting nor a mother yet. The cycle
                   // leads, and «Что дальше» is how she tells the app her state
                   // changed — including «Тест положительный», which the app had
                   // no entry point for at all.
-                  if (gestation == null && cycleInfo != null) ...[
+                  if (gestation == null && childHeroName == null && cycleInfo != null) ...[
                     CycleHero(
                       info: cycleInfo!,
                       phase: cyclePhase,

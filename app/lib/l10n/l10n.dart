@@ -2592,6 +2592,22 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Құттықтаймыз! Күнтізбе енді жүктілікті көрсетеді.',
     AppLocale.en: 'Congratulations! The calendar now follows your pregnancy.',
   },
+  // Screen 54's home block.
+  'childhero_age': {AppLocale.ru: '{name} · {n} мес.', AppLocale.kk: '{name} · {n} ай', AppLocale.en: '{name} · {n} months'},
+  'childhero_growing': {AppLocale.ru: 'Растёт по-своему', AppLocale.kk: 'Өзінше өсуде', AppLocale.en: 'Growing her own way'},
+  'childhero_weight': {AppLocale.ru: 'Вес {kg} кг', AppLocale.kk: 'Салмағы {kg} кг', AppLocale.en: 'Weight {kg} kg'},
+  // «растёт по своему коридору» — her against herself, which is the comparison
+  // this app can stand behind. See child_hero.dart on why not WHO percentiles.
+  'childhero_own_corridor': {
+    AppLocale.ru: 'Растёт по своему коридору',
+    AppLocale.kk: 'Өз дәлізімен өсуде',
+    AppLocale.en: 'Growing along her own corridor',
+  },
+  'childhero_gained': {
+    AppLocale.ru: '+{g} г за {d} дн. · свой коридор',
+    AppLocale.kk: '{d} күнде +{g} г · өз дәлізі',
+    AppLocale.en: '+{g} g in {d} days · her own corridor',
+  },
   'cyc_day_n': {AppLocale.ru: 'День цикла {n}', AppLocale.kk: 'Цикл күні {n}', AppLocale.en: 'Cycle day {n}'},
   'cyc_ovulation_today': {AppLocale.ru: 'Овуляция сегодня', AppLocale.kk: 'Бүгін овуляция', AppLocale.en: 'Ovulation today'},
   'cyc_band_follicular': {AppLocale.ru: 'Спокойные дни', AppLocale.kk: 'Тыныш күндер', AppLocale.en: 'Quiet days'},
