@@ -79,7 +79,7 @@ void main() {
     // version of this was, and what this test caught.
     await pump(tester, const []);
     const l = L10n(AppLocale.ru);
-    expect(find.text(l.t('db_empty_title')), findsOneWidget);
+    expect(find.text(l.t('noband_title')), findsOneWidget);
     expect(freshness(tester, AppLocale.ru), '');
   });
 

@@ -90,9 +90,10 @@ void main() {
         child: HealthDashboardView(samples: const [], onLogVitals: () => opened = true),
       ),
     ));
-    expect(find.text('No readings yet'), findsOneWidget);
-    // The empty state is otherwise a dead end without hardware.
-    await tester.tap(find.widgetWithText(FilledButton, 'Log a reading'));
+    expect(find.text('Log it yourself'), findsOneWidget);
+    // Screen 05 is otherwise a dead end without hardware. The four entry chips
+    // replaced the single button — «Апселла браслета здесь нет».
+    await tester.tap(find.text('Pressure'));
     await tester.pump();
     expect(opened, isTrue);
   });

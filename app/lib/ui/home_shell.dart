@@ -123,6 +123,11 @@ class _HomeShellState extends State<HomeShell> {
           }
         },
         onLogVitals: () => _logVitals(context, c),
+        // Screen 05's dark card. The vitals sheet already owns the camera path;
+        // this surfaces it on the screen of somebody with no band, where it is
+        // the fastest way to get a blood pressure in. Null with no server, so
+        // the card is not offered when it cannot work.
+        onScanMonitor: c.api == null ? null : () => _logVitals(context, c),
         awaitingRepeat: c.awaitingRepeat,
         nextAppointment: nextAppointment(c.appointments, DateTime.now()),
         nowForAppointment: DateTime.now(),

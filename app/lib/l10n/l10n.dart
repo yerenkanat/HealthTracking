@@ -1246,6 +1246,33 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'metric_systolic': {AppLocale.ru: 'Систолическое', AppLocale.kk: 'Систолалық', AppLocale.en: 'Systolic'},
   'metric_diastolic': {AppLocale.ru: 'Диастолическое', AppLocale.kk: 'Диастолалық', AppLocale.en: 'Diastolic'},
   'metric_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Температура', AppLocale.en: 'Temperature'},
+  // Screen 05 — «Здоровье · браслета нет». «Апселла браслета здесь нет»:
+  // for most users this is the permanent state of the app, not a step towards
+  // buying one.
+  'noband_title': {
+    AppLocale.ru: 'Записывайте вручную',
+    AppLocale.kk: 'Қолмен жазыңыз',
+    AppLocale.en: 'Log it yourself',
+  },
+  'noband_body': {
+    AppLocale.ru: 'Приложение работает и без браслета: дневник, календари и напоминания — всё то же самое.',
+    AppLocale.kk: 'Қолданба білезіксіз де жұмыс істейді: күнделік, күнтізбелер және еске салулар — бәрі сол күйінде.',
+    AppLocale.en: 'The app works without a band: the diary, the calendars and the reminders are all the same.',
+  },
+  'noband_bp': {AppLocale.ru: 'Давление', AppLocale.kk: 'Қысым', AppLocale.en: 'Pressure'},
+  'noband_pulse': {AppLocale.ru: 'Пульс', AppLocale.kk: 'Тамыр соғысы', AppLocale.en: 'Pulse'},
+  'noband_weight': {AppLocale.ru: 'Вес', AppLocale.kk: 'Салмақ', AppLocale.en: 'Weight'},
+  'noband_sleep': {AppLocale.ru: 'Сон', AppLocale.kk: 'Ұйқы', AppLocale.en: 'Sleep'},
+  'noband_scan_title': {
+    AppLocale.ru: 'Сфотографировать тонометр',
+    AppLocale.kk: 'Тонометрді суретке түсіру',
+    AppLocale.en: 'Photograph your monitor',
+  },
+  'noband_scan_body': {
+    AppLocale.ru: 'Снимок экрана прибора — цифры подставятся сами',
+    AppLocale.kk: 'Аспап экранының суреті — сандар өздігінен қойылады',
+    AppLocale.en: 'A photo of the display — the numbers fill themselves in',
+  },
   'db_empty_title': {AppLocale.ru: 'Пока нет данных', AppLocale.kk: 'Әзірге деректер жоқ', AppLocale.en: 'No readings yet'},
   'db_empty_body': {AppLocale.ru: 'Наденьте браслет — и данные появятся здесь.', AppLocale.kk: 'Білезікті тағыңыз — деректер осында пайда болады.', AppLocale.en: 'Put on your band and readings will appear here.'},
   'db_stats': {AppLocale.ru: 'мин {min} · макс {max} · сред {avg}', AppLocale.kk: 'мин {min} · макс {max} · орт {avg}', AppLocale.en: 'min {min} · max {max} · avg {avg}'},

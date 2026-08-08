@@ -104,7 +104,8 @@ void main() {
 
   testWidgets('renders empty state with no samples', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: HealthDashboardView(samples: [])));
-    expect(find.text('No readings yet'), findsOneWidget);
+    // Screen 05: manual entry, not «Наденьте браслет».
+    expect(find.text('Log it yourself'), findsOneWidget);
   });
 
   testWidgets('renders metric cards (incl. merged blood pressure) and latest values', (tester) async {
@@ -229,7 +230,7 @@ void main() {
           signedIn: true, hasName: false, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
       ),
     ));
-    expect(find.text('No readings yet'), findsOneWidget); // still the empty state
+    expect(find.text('Log it yourself'), findsOneWidget); // still the no-band screen
     expect(find.text('Finish setting up'), findsOneWidget); // ...plus the guidance
     expect(find.text('Add your name in your profile'), findsOneWidget);
   });

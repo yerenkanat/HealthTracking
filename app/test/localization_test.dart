@@ -16,17 +16,18 @@ void main() {
 
   testWidgets('empty state renders in Russian by default scope', (tester) async {
     await tester.pumpWidget(wrap(AppLocale.ru, const HealthDashboardView(samples: [])));
-    expect(find.text('Пока нет данных'), findsOneWidget);
+    expect(find.text('Записывайте вручную'), findsOneWidget);
   });
 
   testWidgets('empty state renders in Kazakh', (tester) async {
     await tester.pumpWidget(wrap(AppLocale.kk, const HealthDashboardView(samples: [])));
-    expect(find.text('Әзірге деректер жоқ'), findsOneWidget);
+    // Screen 05 replaced the band upsell: «Қолмен жазыңыз».
+    expect(find.text('Қолмен жазыңыз'), findsOneWidget);
   });
 
   testWidgets('falls back to English with no scope', (tester) async {
     await tester.pumpWidget(wrap(null, const HealthDashboardView(samples: [])));
-    expect(find.text('No readings yet'), findsOneWidget);
+    expect(find.text('Log it yourself'), findsOneWidget);
   });
 
   testWidgets('language switcher fires onLocaleChange', (tester) async {

@@ -24,6 +24,7 @@ import '../../domain/cycle_predictions.dart';
 import '../../domain/timeline_content.dart';
 import '../content/timeline_content_card.dart';
 import 'child_hero.dart';
+import 'no_band_card.dart';
 import 'cycle_hero.dart';
 import 'stage_hero.dart';
 import '../../domain/weekly_digest.dart';
@@ -126,6 +127,10 @@ class HealthDashboardView extends StatelessWidget {
   final VoidCallback? onLogWeight;
 
   /// Her cycle, when she is neither expecting nor a mother. Drives screen 55.
+  /// Opens the vitals sheet on its camera path. Null with no server: the dark
+  /// card then stays off the screen rather than offering what cannot work.
+  final VoidCallback? onScanMonitor;
+
   /// The child screen 54's block is about — the selected one with a birth
   /// date. Null when she has no child, or none with a date to count from.
   final String? childHeroName;
@@ -191,6 +196,7 @@ class HealthDashboardView extends StatelessWidget {
     this.onLogKick,
     this.onLogDay,
     this.onLogWeight,
+    this.onScanMonitor,
     this.childHeroName,
     this.childHeroAgeMonths,
     this.childGrowth = const [],
@@ -277,7 +283,19 @@ class HealthDashboardView extends StatelessWidget {
                     _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
                     const SizedBox(height: 20),
                   ],
-                  _EmptyState(onLogVitals: onLogVitals),
+                  // Screen 05. This used to be a watch icon and «Наденьте
+                  // браслет — и данные появятся здесь»: the band upsell the
+                  // spec forbids by name, shown to a woman who has not bought
+                  // one — and for most of them that is the permanent state of
+                  // this app, not a step on the way to buying.
+                  //
+                  // «Без устройства приложение полноценно.»
+                  NoBandCard(
+                    onLogVitals: onLogVitals,
+                    onLogWeight: onLogWeight,
+                    onLogSleep: onLogSleep,
+                    onScanMonitor: onScanMonitor,
+                  ),
                 ],
               )
             : ListView(
@@ -1962,59 +1980,4 @@ class _AvatarButton extends StatelessWidget {
     );
   }
 }
-
-class _EmptyState extends StatelessWidget {
-  final VoidCallback? onLogVitals;
-  const _EmptyState({this.onLogVitals});
-  @override
-  Widget build(BuildContext context) {
-    final l = L10nScope.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: DsCard(
-          raised: true,
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(
-                    color: Ds.coralCta, shape: BoxShape.circle),
-                child: const Icon(Icons.watch_outlined,
-                    size: 30, color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              Text(l.t('db_empty_title'),
-                  style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                      color: Palette.text)),
-              const SizedBox(height: 8),
-              Text(l.t('db_empty_body'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Palette.textDim, height: 1.4)),
-              // Without a band this is the only way in — so offer it here
-              // rather than leaving the screen a dead end.
-              if (onLogVitals != null) ...[
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: onLogVitals,
-                  icon: const Icon(Icons.add_rounded),
-                  label: Text(l.t('vitals_log')),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Palette.violet,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+
