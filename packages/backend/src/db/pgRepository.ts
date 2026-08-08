@@ -63,6 +63,22 @@ function toRegistryRow(r: Record<string, unknown>): DeviceRegistryRow {
   };
 }
 
+/** One row of family_invites, as the Repository declares it. */
+function inviteRow(r: Record<string, unknown>) {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : null);
+  return {
+    tokenHash: String(r.token_hash),
+    ownerUserId: String(r.owner_user_id),
+    level: String(r.level),
+    label: (r.label ?? '') as string,
+    createdAt: iso(r.created_at)!,
+    expiresAt: iso(r.expires_at)!,
+    usedAt: iso(r.used_at),
+    usedBy: (r.used_by ?? null) as string | null,
+    revokedAt: iso(r.revoked_at),
+  };
+}
+
 export function createPgRepository(pool: Pool): Repository {
   /**
    * The `devices.id` UUID behind a physical device id, or null.
@@ -185,6 +201,118 @@ export function createPgRepository(pool: Pool): Repository {
          VALUES ($1,$2,$3,$4,$5,$6)`,
         [fix.childId, fix.observedAt, fix.coords.lat, fix.coords.lng, fix.source, fix.coords.accuracyM ?? null],
       );
+    },
+
+    // ---- Family access (screen 40) ----
+
+    async familyMembers(ownerUserId) {
+      const { rows } = await pool.query(
+        `SELECT f.member_user_id, f.label, f.level, f.created_at,
+                u.display_name, u.phone
+           FROM family_access f
+           LEFT JOIN users u ON u.id = f.member_user_id
+          WHERE f.owner_user_id = $1
+          ORDER BY f.created_at DESC`,
+        [ownerUserId],
+      );
+      return rows.map((r) => ({
+        memberUserId: r.member_user_id,
+        label: r.label ?? '',
+        displayName: r.display_name ?? null,
+        phone: r.phone ?? null,
+        level: r.level,
+        createdAt: new Date(r.created_at).toISOString(),
+      }));
+    },
+
+    async familyMemberships(memberUserId) {
+      const { rows } = await pool.query(
+        `SELECT owner_user_id, level FROM family_access
+          WHERE member_user_id = $1 ORDER BY created_at DESC`,
+        [memberUserId],
+      );
+      return rows.map((r) => ({ ownerUserId: r.owner_user_id, level: r.level }));
+    },
+
+    async familyLevel(ownerUserId, memberUserId) {
+      const { rows } = await pool.query(
+        `SELECT level FROM family_access
+          WHERE owner_user_id = $1 AND member_user_id = $2`,
+        [ownerUserId, memberUserId],
+      );
+      return rows[0]?.level ?? null;
+    },
+
+    async upsertFamilyAccess(g) {
+      // One row per pair: a second invitation accepted by the same person
+      // re-levels rather than granting twice, so one revoke really revokes.
+      await pool.query(
+        `INSERT INTO family_access (owner_user_id, member_user_id, level, label)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (owner_user_id, member_user_id)
+         DO UPDATE SET level = EXCLUDED.level, label = EXCLUDED.label`,
+        [g.ownerUserId, g.memberUserId, g.level, g.label],
+      );
+    },
+
+    async removeFamilyAccess(ownerUserId, memberUserId) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM family_access
+          WHERE owner_user_id = $1 AND member_user_id = $2`,
+        [ownerUserId, memberUserId],
+      );
+      return (rowCount ?? 0) > 0;
+    },
+
+    async createFamilyInvite(i) {
+      await pool.query(
+        `INSERT INTO family_invites
+           (owner_user_id, token_hash, level, label, expires_at)
+         VALUES ($1,$2,$3,$4,$5)`,
+        [i.ownerUserId, i.tokenHash, i.level, i.label, i.expiresAt],
+      );
+    },
+
+    async familyInviteByHash(tokenHash) {
+      const { rows } = await pool.query(
+        `SELECT * FROM family_invites WHERE token_hash = $1`, [tokenHash]);
+      return rows[0] ? inviteRow(rows[0]) : null;
+    },
+
+    async familyInvites(ownerUserId, limit) {
+      const { rows } = await pool.query(
+        `SELECT * FROM family_invites WHERE owner_user_id = $1
+          ORDER BY created_at DESC LIMIT $2`,
+        [ownerUserId, limit],
+      );
+      return rows.map(inviteRow);
+    },
+
+    async claimFamilyInvite(tokenHash, byUserId, atIso) {
+      // The check and the claim are ONE statement. Reading the row, deciding it
+      // is unused and then writing it is how two people accept one «одноразовая»
+      // link from the same family chat within a second of each other — the
+      // WHERE clause is what makes the second one lose.
+      const { rowCount } = await pool.query(
+        `UPDATE family_invites
+            SET used_at = $3, used_by = $2
+          WHERE token_hash = $1
+            AND used_at IS NULL
+            AND revoked_at IS NULL
+            AND expires_at > $3`,
+        [tokenHash, byUserId, atIso],
+      );
+      return (rowCount ?? 0) > 0;
+    },
+
+    async revokeFamilyInvite(ownerUserId, tokenHash) {
+      const { rowCount } = await pool.query(
+        `UPDATE family_invites SET revoked_at = now()
+          WHERE owner_user_id = $1 AND token_hash = $2
+            AND used_at IS NULL AND revoked_at IS NULL`,
+        [ownerUserId, tokenHash],
+      );
+      return (rowCount ?? 0) > 0;
     },
 
     async locationHistory(childId, fromIso, toIso, limit) {

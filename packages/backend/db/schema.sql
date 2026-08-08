@@ -767,3 +767,52 @@ CREATE INDEX IF NOT EXISTS device_registry_phone ON device_registry (activated_b
   WHERE activated_by_phone IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS device_registry_code ON device_registry (activation_code)
   WHERE activation_code IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- Family access (screen 40 · «Семейный доступ»). See migration 031.
+--
+-- A father, a grandmother and an aunt all want to know the child got to
+-- school. Note what is NOT here: neither table names anything of the MOTHER's.
+-- A grant is over her children, and the app's green banner — «здоровье и цикл
+-- не видит никто» — is kept by there being no column here that could say
+-- otherwise. The levels and the shareable subjects live in
+-- src/family/access.ts.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE family_access (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  -- Whose children. Not "which child": a relative invited into a family sees
+  -- the family, and per-child grants would mean re-inviting the grandmother
+  -- every time a baby is born.
+  owner_user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  member_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  level          TEXT NOT NULL CHECK (level IN ('viewer', 'guardian')),
+  -- The owner's label for them — «Папа», «Бабушка». Hers, not their profile
+  -- name, because the list is read by her.
+  label          TEXT NOT NULL DEFAULT '',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- One grant per pair, so a second acceptance re-levels rather than granting
+  -- twice and one revoke really revokes.
+  UNIQUE (owner_user_id, member_user_id),
+  CHECK (owner_user_id <> member_user_id)
+);
+CREATE INDEX idx_family_access_member ON family_access (member_user_id);
+
+-- Outstanding invitations. «24 ч, одноразовая».
+CREATE TABLE family_invites (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  owner_user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- The HASH. The token lives in the link and is never stored, so a copy of
+  -- this table is not a set of working invitations.
+  token_hash     TEXT NOT NULL UNIQUE,
+  level          TEXT NOT NULL CHECK (level IN ('viewer', 'guardian')),
+  label          TEXT NOT NULL DEFAULT '',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at     TIMESTAMPTZ NOT NULL,
+  -- Spent, not deleted: "somebody already joined with this link" is a
+  -- different message from "this link never existed".
+  used_at        TIMESTAMPTZ,
+  used_by        UUID REFERENCES users(id) ON DELETE SET NULL,
+  revoked_at     TIMESTAMPTZ
+);
+CREATE INDEX idx_family_invites_owner ON family_invites (owner_user_id, created_at DESC);

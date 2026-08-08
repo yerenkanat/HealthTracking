@@ -506,6 +506,77 @@ export interface Repository {
   // Being signed in is not the same as being this child's parent, and without
   // these any account could read or delete another family's data by id.
   childOwner(childId: string): Promise<{ userId: string } | null>;
+
+  // ---- Family access (screen 40) ----
+  //
+  // Note what is NOT here: no method takes or returns anything of the mother's
+  // own — no health, no cycle, no appointments. A grant is over her children,
+  // and «здоровье и цикл не видит никто» is kept by there being nothing here
+  // that could break it. See src/family/access.ts.
+
+  /// Everyone this account has let in, newest first.
+  familyMembers(ownerUserId: string): Promise<Array<{
+    memberUserId: string;
+    /// What the owner calls them — «Папа», «Бабушка».
+    label: string;
+    /// Their own profile name, so the list can show who actually accepted.
+    displayName: string | null;
+    phone: string | null;
+    level: string;
+    createdAt: string;
+  }>>;
+  /// The accounts whose children this person can see. The inverse direction —
+  /// what a father's app asks on launch.
+  familyMemberships(memberUserId: string): Promise<Array<{
+    ownerUserId: string;
+    level: string;
+  }>>;
+  /// This person's level over that account's children, or null. The guard.
+  familyLevel(ownerUserId: string, memberUserId: string): Promise<string | null>;
+  /// Grant or update. One row per pair, so accepting twice re-levels rather
+  /// than granting twice.
+  upsertFamilyAccess(g: {
+    ownerUserId: string;
+    memberUserId: string;
+    level: string;
+    label: string;
+  }): Promise<void>;
+  removeFamilyAccess(ownerUserId: string, memberUserId: string): Promise<boolean>;
+
+  createFamilyInvite(i: {
+    ownerUserId: string;
+    tokenHash: string;
+    level: string;
+    label: string;
+    expiresAt: string;
+  }): Promise<void>;
+  /// By hash — the token itself is in the link and never stored.
+  familyInviteByHash(tokenHash: string): Promise<{
+    tokenHash: string;
+    ownerUserId: string;
+    level: string;
+    label: string;
+    createdAt: string;
+    expiresAt: string;
+    usedAt: string | null;
+    usedBy: string | null;
+    revokedAt: string | null;
+  } | null>;
+  familyInvites(ownerUserId: string, limit: number): Promise<Array<{
+    tokenHash: string;
+    ownerUserId: string;
+    level: string;
+    label: string;
+    createdAt: string;
+    expiresAt: string;
+    usedAt: string | null;
+    usedBy: string | null;
+    revokedAt: string | null;
+  }>>;
+  /// Mark spent. Returns false if somebody got there first — the check and the
+  /// claim have to be one step, or two people share one «одноразовая» link.
+  claimFamilyInvite(tokenHash: string, byUserId: string, atIso: string): Promise<boolean>;
+  revokeFamilyInvite(ownerUserId: string, tokenHash: string): Promise<boolean>;
   geofenceOwner(geofenceId: string): Promise<{ userId: string } | null>;
 
   // ---- CRUD + history (client API) ----

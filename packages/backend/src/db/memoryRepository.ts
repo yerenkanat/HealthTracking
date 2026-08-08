@@ -73,6 +73,17 @@ export function createMemoryRepository(): Repository {
    * feed it.
    */
   const locationTrail = new Map<string, ChildLocationFix[]>();
+  /** Family grants, keyed `owner|member` like the UNIQUE constraint. */
+  const familyGrants = new Map<string, {
+    ownerUserId: string; memberUserId: string; level: string;
+    label: string; createdAt: string;
+  }>();
+  /** Invitations, keyed by token hash. The token itself is never stored. */
+  const familyInviteRows = new Map<string, {
+    tokenHash: string; ownerUserId: string; level: string; label: string;
+    createdAt: string; expiresAt: string;
+    usedAt: string | null; usedBy: string | null; revokedAt: string | null;
+  }>();
 
   /** App sign-in: normalised phone → user id, and that user's name. */
   const usersByPhone = new Map<string, string>();
@@ -573,6 +584,76 @@ const UUID_RE =
       locationTrail.set(fix.childId, trail);
     },
     lastLocation: async (childId) => locations.get(childId) ?? null,
+    // ---- Family access (screen 40) ----
+
+    familyMembers: async (ownerUserId) =>
+      [...familyGrants.values()]
+        .filter((g) => g.ownerUserId === ownerUserId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((g) => ({
+          memberUserId: g.memberUserId,
+          label: g.label,
+          // The dev fake has one profile, so a member's own name is only
+          // known when the member happens to be that profile.
+          displayName: g.memberUserId === DEMO_USER ? profile?.displayName ?? null : null,
+          phone: g.memberUserId === DEMO_USER ? profile?.phone ?? null : null,
+          level: g.level,
+          createdAt: g.createdAt,
+        })),
+    familyMemberships: async (memberUserId) =>
+      [...familyGrants.values()]
+        .filter((g) => g.memberUserId === memberUserId)
+        .map((g) => ({ ownerUserId: g.ownerUserId, level: g.level })),
+    familyLevel: async (ownerUserId, memberUserId) =>
+      familyGrants.get(`${ownerUserId}|${memberUserId}`)?.level ?? null,
+    upsertFamilyAccess: async (g) => {
+      // Keyed on the pair, like the UNIQUE constraint: accepting twice
+      // re-levels rather than granting twice, so one revoke really revokes.
+      const key = `${g.ownerUserId}|${g.memberUserId}`;
+      familyGrants.set(key, {
+        ...g,
+        createdAt: familyGrants.get(key)?.createdAt ?? new Date().toISOString(),
+      });
+    },
+    removeFamilyAccess: async (ownerUserId, memberUserId) =>
+      familyGrants.delete(`${ownerUserId}|${memberUserId}`),
+
+    createFamilyInvite: async (i) => {
+      familyInviteRows.set(i.tokenHash, {
+        ...i,
+        createdAt: new Date().toISOString(),
+        usedAt: null,
+        usedBy: null,
+        revokedAt: null,
+      });
+    },
+    familyInviteByHash: async (tokenHash) => familyInviteRows.get(tokenHash) ?? null,
+    familyInvites: async (ownerUserId, limit) =>
+      [...familyInviteRows.values()]
+        .filter((i) => i.ownerUserId === ownerUserId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit),
+    claimFamilyInvite: async (tokenHash, byUserId, atIso) => {
+      // The same conditions Postgres puts in the WHERE clause, checked and
+      // applied without an await between them. A fake that read, decided and
+      // then wrote would let two people accept one «одноразовая» link and
+      // still pass — which is the bug this is guarding.
+      const row = familyInviteRows.get(tokenHash);
+      if (!row) return false;
+      if (row.usedAt || row.revokedAt) return false;
+      if (Date.parse(row.expiresAt) <= Date.parse(atIso)) return false;
+      row.usedAt = atIso;
+      row.usedBy = byUserId;
+      return true;
+    },
+    revokeFamilyInvite: async (ownerUserId, tokenHash) => {
+      const row = familyInviteRows.get(tokenHash);
+      if (!row || row.ownerUserId !== ownerUserId) return false;
+      if (row.usedAt || row.revokedAt) return false;
+      row.revokedAt = new Date().toISOString();
+      return true;
+    },
+
     /** The day's trail, half-open on [fromIso, toIso) as Postgres reads it. */
     locationHistory: async (childId, fromIso, toIso, limit) =>
       (locationTrail.get(childId) ?? [])

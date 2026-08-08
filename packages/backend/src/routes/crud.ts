@@ -16,6 +16,22 @@ import { normalizePhone } from '../http/staffAuth';
 import { CLAIM_WINDOW_MS, MAX_CLAIMS } from './phoneAuth';
 import { buildDayHistory } from '../safety/dayHistory';
 import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
+import { createHash, randomBytes } from 'node:crypto';
+import {
+  ACCESS_LEVELS, canWrite, checkInvite, grantCovers, inviteExpiry, isAccessLevel,
+  isOpen, MAX_OPEN_INVITES, SHAREABLE, type Shareable,
+} from '../family/access';
+
+/**
+ * Only the hash is stored, so the table is not a set of working links.
+ *
+ * SHA-256 without a salt on purpose: this is a 256-bit random token, not a
+ * password. There is no dictionary to attack, and a per-row salt would make
+ * the lookup-by-token the accept route needs impossible.
+ */
+function hashInviteToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 export type AuthUser = (req: FastifyRequest) => Promise<{ userId: string } | null>;
 
@@ -240,6 +256,45 @@ export function registerCrudRoutes(
     if (!u) return null;
     const owner = await lookup(id);
     if (!owner || owner.userId !== u.userId) {
+      reply.code(403).send({ error: 'forbidden' });
+      return null;
+    }
+    return u;
+  }
+
+  /**
+   * The caller may see this child — as its owner, OR as a relative let in on
+   * screen 40.
+   *
+   * DELIBERATELY SEPARATE from [requireOwned], which stays owner-only. Every
+   * route keeps the strict guard unless somebody moves it here on purpose, so
+   * a route added next year is private by default. Widening this list is a
+   * visible act; forgetting to narrow a shared default is not, and the thing
+   * being protected is a child's location.
+   *
+   * [write] distinguishes the two levels: a viewer looks, a guardian acts.
+   * Returns the caller, or null having already answered 403.
+   */
+  async function requireChildAccess(
+    req: FastifyRequest,
+    reply: import('fastify').FastifyReply,
+    childId: string,
+    what: Shareable,
+    write = false,
+  ) {
+    const u = await requireUser(req, reply);
+    if (!u) return null;
+    const owner = await repo.childOwner(childId);
+    if (!owner) {
+      reply.code(403).send({ error: 'forbidden' });
+      return null;
+    }
+    if (owner.userId === u.userId) return u;
+
+    const level = await repo.familyLevel(owner.userId, u.userId).catch(() => null);
+    const allowed = level != null
+      && (write ? isAccessLevel(level) && canWrite(level, what) : grantCovers(level, what));
+    if (!allowed) {
       reply.code(403).send({ error: 'forbidden' });
       return null;
     }
@@ -579,13 +634,14 @@ export function registerCrudRoutes(
   // ---- Geofences (per child) ----
   app.get('/children/:id/geofences', async (req, reply) => {
     const { id } = req.params as { id: string };
-    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    if (!(await requireChildAccess(req, reply, id, 'child_zones'))) return;
     return reply.send({ geofences: await repo.loadGeofences(id) });
   });
 
   app.post('/children/:id/geofences', async (req, reply) => {
     const { id } = req.params as { id: string };
-    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    // A guardian may move a zone; a viewer may not touch somebody else's.
+    if (!(await requireChildAccess(req, reply, id, 'child_zones', true))) return;
     const parsed = geofenceBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     await repo.upsertGeofence(id, parsed.data as unknown as Geofence);
@@ -736,7 +792,7 @@ export function registerCrudRoutes(
 
   app.get('/children/:id/events', async (req, reply) => {
     const { id } = req.params as { id: string };
-    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    if (!(await requireChildAccess(req, reply, id, 'child_zones'))) return;
     const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
     return reply.send({ events: await repo.listGeofenceEvents(id, limit) });
   });
@@ -754,7 +810,7 @@ export function registerCrudRoutes(
    */
   app.get('/children/:id/day', async (req, reply) => {
     const { id } = req.params as { id: string };
-    if (!(await requireOwned(req, reply, id, repo.childOwner))) return;
+    if (!(await requireChildAccess(req, reply, id, 'child_location'))) return;
 
     const q = req.query as { day?: string };
     const day = /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? '')
@@ -798,6 +854,136 @@ export function registerCrudRoutes(
       // «маршруты хранятся 90 дней» cannot drift from what actually happens.
       retentionDays: ROUTE_RETENTION_DAYS,
     });
+  });
+
+  // ---- Family access (screen 40) ----
+  //
+  // «здоровье и цикл не видит никто». Nothing under this heading reads the
+  // mother's own record, and there is no level that could — see
+  // src/family/access.ts, where that is a property of the code rather than a
+  // sentence on a screen.
+
+  /** Who I have let in, and my outstanding invitations. */
+  app.get('/family/access', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const now = new Date();
+    const [members, invites, memberships] = await Promise.all([
+      repo.familyMembers(u.userId).catch(() => []),
+      repo.familyInvites(u.userId, 50).catch(() => []),
+      repo.familyMemberships(u.userId).catch(() => []),
+    ]);
+    return reply.send({
+      members,
+      // Expired links are dropped rather than shown dead: reading a link that
+      // no longer works and not being told is worse than not seeing it.
+      invites: invites
+        .filter((i) => isAccessLevel(i.level) && isOpen({ ...i, level: i.level }, now))
+        .map((i) => ({
+          tokenHash: i.tokenHash,
+          level: i.level,
+          label: i.label,
+          createdAt: i.createdAt,
+          expiresAt: i.expiresAt,
+        })),
+      /// The other direction — whose children I can see. A father's app asks
+      /// this on launch, and without it his account looks empty.
+      memberships,
+      /// What a grant can ever cover, so the app's green banner is a statement
+      /// about the server rather than a claim typed into the screen.
+      shareable: SHAREABLE,
+    });
+  });
+
+  /** «Пригласить» — a one-time link, good for 24 hours. */
+  app.post('/family/invites', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = z.object({
+      level: z.enum(ACCESS_LEVELS),
+      label: z.string().trim().max(40).default(''),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const now = new Date();
+    const open = (await repo.familyInvites(u.userId, 100).catch(() => []))
+      .filter((i) => isAccessLevel(i.level) && isOpen({ ...i, level: i.level }, now));
+    if (open.length >= MAX_OPEN_INVITES) {
+      return reply.code(429).send({ error: 'too_many_invites', max: MAX_OPEN_INVITES });
+    }
+
+    // The token is returned ONCE, in this response, and only its hash is
+    // stored — so a copy of the table is not a set of working invitations, and
+    // a link cannot be recovered from the server if she loses it. She makes a
+    // new one, which is also the safer behaviour.
+    const token = randomBytes(32).toString('base64url');
+    await repo.createFamilyInvite({
+      ownerUserId: u.userId,
+      tokenHash: hashInviteToken(token),
+      level: parsed.data.level,
+      label: parsed.data.label,
+      expiresAt: inviteExpiry(now),
+    });
+    return reply.code(201).send({
+      token,
+      level: parsed.data.level,
+      label: parsed.data.label,
+      expiresAt: inviteExpiry(now),
+    });
+  });
+
+  /** Accepting one. The person tapping the link is already signed in. */
+  app.post('/family/invites/accept', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = z.object({ token: z.string().min(10).max(200) }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const hash = hashInviteToken(parsed.data.token);
+    const row = await repo.familyInviteByHash(hash).catch(() => null);
+    const verdict = checkInvite(
+      row && isAccessLevel(row.level) ? { ...row, level: row.level } : null,
+      u.userId,
+      new Date(),
+    );
+    // Distinct reasons, because they need different words: an expired link
+    // needs a new one, a used one probably means somebody else already joined.
+    if (!verdict.ok) return reply.code(409).send({ error: verdict.reason });
+
+    // Claim FIRST, then grant. The claim is one conditional write, so two
+    // people opening the same link from a family chat cannot both win it; if
+    // this loses, nothing was granted.
+    const claimed = await repo.claimFamilyInvite(hash, u.userId, new Date().toISOString());
+    if (!claimed) return reply.code(409).send({ error: 'already_used' });
+
+    await repo.upsertFamilyAccess({
+      ownerUserId: row!.ownerUserId,
+      memberUserId: u.userId,
+      level: verdict.level,
+      label: row!.label,
+    });
+    return reply.send({ ok: true, ownerUserId: row!.ownerUserId, level: verdict.level });
+  });
+
+  app.delete('/family/invites/:tokenHash', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const { tokenHash } = req.params as { tokenHash: string };
+    const ok = await repo.revokeFamilyInvite(u.userId, tokenHash).catch(() => false);
+    // 404 rather than a cheerful ok: "I revoked it" over a link that is still
+    // live is the one wrong answer this route can give.
+    if (!ok) return reply.code(404).send({ error: 'not_found' });
+    return reply.send({ ok: true });
+  });
+
+  /** Take somebody's access away. */
+  app.delete('/family/access/:memberUserId', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const { memberUserId } = req.params as { memberUserId: string };
+    const ok = await repo.removeFamilyAccess(u.userId, memberUserId).catch(() => false);
+    if (!ok) return reply.code(404).send({ error: 'not_found' });
+    return reply.send({ ok: true });
   });
 
   // ---- Sleep (nightly summaries) ----

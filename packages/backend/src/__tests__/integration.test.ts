@@ -152,6 +152,19 @@ function makeDeps(
     deleteStaffSession: async () => {},
     recentFailedLogins: async () => 0,
     recordLoginAttempt: async () => {},
+    // No family sharing in this fixture: it drives the single-account flow, and
+    // an empty grant table is the honest state for it. Every method answers
+    // "nobody has been let in" rather than throwing.
+    familyMembers: async () => [],
+    familyMemberships: async () => [],
+    familyLevel: async () => null,
+    upsertFamilyAccess: async () => {},
+    removeFamilyAccess: async () => false,
+    createFamilyInvite: async () => {},
+    familyInviteByHash: async () => null,
+    familyInvites: async () => [],
+    claimFamilyInvite: async () => false,
+    revokeFamilyInvite: async () => false,
     insertLocation: async (fix) => {
       storedLocation = fix;
       locationTrail.push(fix);

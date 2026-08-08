@@ -108,6 +108,12 @@ function makeApp(callerId: string) {
     adminUserHealth: async () => null,
     writeAudit: async () => {},
     listAudit: async () => [],
+    // Nobody has been let in. This file is about a STRANGER reaching another
+    // family's child, and the honest answer to "what is his level here" is
+    // none — without it the shared-access guard called a method the fake did
+    // not have and the refusal came back as a 500, which is a different bug
+    // wearing the same clothes.
+    familyLevel: async () => null,
   } as unknown as Repository;
 
   const server = buildServer(
