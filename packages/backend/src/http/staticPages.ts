@@ -24,6 +24,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
 import { registerJoinPage } from './joinPage';
+import { registerLegalPages } from './legalPages';
 
 export interface StaticPages {
   /** The admin panel HTML and the /admin → /admin/ui redirects. */
@@ -31,6 +32,8 @@ export interface StaticPages {
   apiDocs: boolean;
   /** The retired storefront: redirects to the landing, plus its images. */
   shop: boolean;
+  /** /privacy and /terms, served from legal/legal.json. */
+  legal: boolean;
 }
 
 /** Colours with a real product photo on disk. */
@@ -73,13 +76,17 @@ export const ADMIN_PANEL_PATHS = ['/admin', '/admin/'];
 export const ADMIN_LEGACY_PATH = '/admin/ui';
 
 export function registerStaticPages(app: FastifyInstance): StaticPages {
-  const done: StaticPages = { adminUi: false, apiDocs: false, shop: false };
+  const done: StaticPages = { adminUi: false, apiDocs: false, shop: false, legal: false };
 
   // Where a family invitation link lands. Registered here with the other pages
   // people reach by typing or tapping an address, rather than beside the API
   // routes it is not one of. Built from a string, so unlike the panel it
   // cannot fail to load from disk.
   registerJoinPage(app);
+
+  // /privacy and /terms. A store listing needs a public URL for these, and so
+  // does anyone deciding whether to install an app that tracks their child.
+  done.legal = registerLegalPages(app);
 
   // ---- The back office ------------------------------------------------------
   try {

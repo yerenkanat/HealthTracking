@@ -1,0 +1,159 @@
+{
+  "strings": {
+    "legal_privacy_title": {
+      "ru": "Конфиденциальность",
+      "kk": "Құпиялылық",
+      "en": "Privacy"
+    },
+    "legal_terms_title": {
+      "ru": "Условия использования",
+      "kk": "Пайдалану шарттары",
+      "en": "Terms of use"
+    },
+    "legal_draft_note": {
+      "ru": "Черновик. Текст описывает, как приложение работает сегодня, и ожидает юридической проверки перед публикацией.",
+      "kk": "Жоба. Мәтін қолданбаның бүгінгі жұмысын сипаттайды және жарияланар алдында заңгерлік тексеруден өтеді.",
+      "en": "Draft. This text describes how the app works today and is pending legal review before publication."
+    },
+    "legal_updated": {
+      "ru": "Обновлено: июль 2026",
+      "kk": "Жаңартылды: шілде 2026",
+      "en": "Updated: July 2026"
+    },
+    "legal_update_title": {
+      "ru": "Мы обновили документы",
+      "kk": "Құжаттарды жаңарттық",
+      "en": "We’ve updated our documents"
+    },
+    "legal_update_body": {
+      "ru": "Политика конфиденциальности и условия использования изменились. Пожалуйста, ознакомьтесь и примите их, чтобы продолжить.",
+      "kk": "Құпиялылық саясаты мен пайдалану шарттары өзгерді. Жалғастыру үшін оларды оқып, қабылдаңыз.",
+      "en": "Our privacy policy and terms of use have changed. Please review and accept them to continue."
+    },
+    "legal_update_accept": {
+      "ru": "Принять и продолжить",
+      "kk": "Қабылдап, жалғастыру",
+      "en": "Accept and continue"
+    },
+    "legal_priv_collect_h": {
+      "ru": "Какие данные мы обрабатываем",
+      "kk": "Қандай деректерді өңдейміз",
+      "en": "What data we handle"
+    },
+    "legal_priv_collect_b": {
+      "ru": "Ваш профиль (имя, телефон), данные о беременности и цикле, имя и дату рождения ребёнка, зоны (дом, школа) и показатели здоровья с подключённого браслета.",
+      "kk": "Профиліңіз (аты, телефоны), жүктілік пен цикл деректері, баланың аты мен туған күні, аймақтар (үй, мектеп) және жалғанған білезіктен келетін денсаулық көрсеткіштері.",
+      "en": "Your profile (name, phone), pregnancy and cycle data, your child’s name and date of birth, zones (home, school), and health readings from a paired band."
+    },
+    "legal_priv_storage_h": {
+      "ru": "Хранение на устройстве",
+      "kk": "Құрылғыда сақтау",
+      "en": "Stored on your device"
+    },
+    "legal_priv_storage_b": {
+      "ru": "По умолчанию данные хранятся на вашем телефоне. Резервную копию можно выгрузить в файл — он ваш, храните его как личный документ.",
+      "kk": "Әдепкі бойынша деректер телефоныңызда сақталады. Сақтық көшірмені файлға шығаруға болады — ол сіздікі, оны жеке құжат ретінде сақтаңыз.",
+      "en": "By default your data stays on your phone. You can export a backup to a file — it is yours; keep it like a personal document."
+    },
+    "legal_priv_cloud_h": {
+      "ru": "Что уходит в облако",
+      "kk": "Бұлтқа не жіберіледі",
+      "en": "What goes to the cloud"
+    },
+    "legal_priv_cloud_b": {
+      "ru": "Только когда вы пользуетесь облачными функциями: сообщения ассистенту, показатели браслета для анализа и запись плача — она отправляется на наш сервер, разбирается там и НЕ сохраняется: после ответа файла не остаётся ни у нас, ни у третьих лиц. Мы не продаём ваши данные.",
+      "kk": "Тек бұлттық функцияларды пайдаланғанда: ассистентке жіберілген хабарлар, талдауға арналған білезік көрсеткіштері және жылау жазбасы — ол біздің серверге жіберіледі, сонда талданады және САҚТАЛМАЙДЫ: жауаптан кейін файл бізде де, үшінші тұлғаларда да қалмайды. Деректеріңізді сатпаймыз.",
+      "en": "Only when you use cloud features: messages to the assistant, band readings for analysis, and the cry recording — it is sent to our server, analysed there and NOT stored: once you have the answer no file remains, with us or with anyone else. We do not sell your data."
+    },
+    "legal_priv_medical_h": {
+      "ru": "Не медицинский прибор",
+      "kk": "Медициналық құрал емес",
+      "en": "Not a medical device"
+    },
+    "legal_priv_medical_b": {
+      "ru": "Приложение помогает следить за самочувствием, но не ставит диагноз и не заменяет врача. При тревожных признаках обращайтесь к врачу.",
+      "kk": "Қолданба әл-ауқатты қадағалауға көмектеседі, бірақ диагноз қоймайды және дәрігердің орнын баспайды. Қауіпті белгілерде дәрігерге жүгініңіз.",
+      "en": "The app helps you follow your wellbeing but does not diagnose and does not replace a doctor. See a doctor if you have warning signs."
+    },
+    "legal_priv_controls_h": {
+      "ru": "Ваш контроль",
+      "kk": "Сіздің бақылауыңыз",
+      "en": "Your controls"
+    },
+    "legal_priv_controls_b": {
+      "ru": "В любой момент вы можете выгрузить копию всех данных или полностью стереть их в разделе «Данные».",
+      "kk": "Кез келген уақытта барлық деректердің көшірмесін шығаруға немесе «Деректер» бөлімінде толық жоюға болады.",
+      "en": "At any time you can export a copy of all your data or erase it completely in the “Data” section."
+    },
+    "legal_priv_contact_h": {
+      "ru": "Связь с нами",
+      "kk": "Бізбен байланыс",
+      "en": "Contact us"
+    },
+    "legal_priv_contact_b": {
+      "ru": "По вопросам о ваших данных напишите нам через раздел поддержки в приложении.",
+      "kk": "Деректеріңіз туралы сұрақтар бойынша қолданбадағы қолдау бөлімі арқылы жазыңыз.",
+      "en": "For questions about your data, contact us through the in-app support section."
+    },
+    "legal_terms_use_h": {
+      "ru": "Использование приложения",
+      "kk": "Қолданбаны пайдалану",
+      "en": "Using the app"
+    },
+    "legal_terms_use_b": {
+      "ru": "Пользуясь приложением, вы соглашаетесь с этими условиями. Приложение предназначено для личного, некоммерческого использования.",
+      "kk": "Қолданбаны пайдалану арқылы осы шарттармен келісесіз. Қолданба жеке, коммерциялық емес пайдалануға арналған.",
+      "en": "By using the app you agree to these terms. The app is for personal, non-commercial use."
+    },
+    "legal_terms_medical_h": {
+      "ru": "Не медицинская помощь",
+      "kk": "Медициналық көмек емес",
+      "en": "Not medical advice"
+    },
+    "legal_terms_medical_b": {
+      "ru": "Информация в приложении носит справочный характер и не является медицинской консультацией, диагнозом или назначением.",
+      "kk": "Қолданбадағы ақпарат анықтамалық сипатта және медициналық кеңес, диагноз немесе тағайындау болып табылмайды.",
+      "en": "Information in the app is for reference only and is not medical advice, a diagnosis, or a prescription."
+    },
+    "legal_terms_emergency_h": {
+      "ru": "В экстренных случаях",
+      "kk": "Төтенше жағдайларда",
+      "en": "In an emergency"
+    },
+    "legal_terms_emergency_b": {
+      "ru": "Приложение не служба экстренной помощи. При угрозе жизни звоните в скорую (103) или единую службу (112).",
+      "kk": "Қолданба — жедел жәрдем қызметі емес. Өмірге қауіп төнгенде жедел жәрдемге (103) немесе бірыңғай қызметке (112) қоңырау шалыңыз.",
+      "en": "The app is not an emergency service. If life is at risk, call an ambulance (103) or the single emergency line (112)."
+    },
+    "legal_terms_responsib_h": {
+      "ru": "Ваша ответственность",
+      "kk": "Сіздің жауапкершілігіңіз",
+      "en": "Your responsibilities"
+    },
+    "legal_terms_responsib_b": {
+      "ru": "Вводите достоверные данные и берегите доступ к телефону — приложение хранит личную информацию о вас и вашем ребёнке.",
+      "kk": "Дұрыс деректер енгізіңіз және телефонға қолжетімділікті сақтаңыз — қолданба сіз бен балаңыз туралы жеке ақпаратты сақтайды.",
+      "en": "Enter accurate data and keep your phone secure — the app holds personal information about you and your child."
+    },
+    "legal_terms_warranty_h": {
+      "ru": "Без гарантий",
+      "kk": "Кепілдіксіз",
+      "en": "No warranty"
+    },
+    "legal_terms_warranty_b": {
+      "ru": "Приложение предоставляется «как есть». Мы стремимся к точности, но не гарантируем бесперебойную работу и отсутствие ошибок.",
+      "kk": "Қолданба «бар күйінде» ұсынылады. Дәлдікке ұмтыламыз, бірақ үздіксіз жұмысқа және қателердің болмауына кепілдік бермейміз.",
+      "en": "The app is provided “as is”. We aim for accuracy but do not guarantee uninterrupted, error-free operation."
+    },
+    "legal_terms_law_h": {
+      "ru": "Применимое право",
+      "kk": "Қолданылатын құқық",
+      "en": "Governing law"
+    },
+    "legal_terms_law_b": {
+      "ru": "Условия регулируются законодательством Республики Казахстан.",
+      "kk": "Шарттар Қазақстан Республикасының заңнамасымен реттеледі.",
+      "en": "These terms are governed by the laws of the Republic of Kazakhstan."
+    }
+  }
+}

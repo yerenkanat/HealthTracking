@@ -159,7 +159,8 @@ $ADMIN_BLOCK
     # caller, and are the same rows /api/v1 already serves publicly.
     @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready \
                  /api-docs /api/v1 /api/v1/* /join/* \
-                 /antenatal/* /pregnancy/* /child/development* /vaccination/* /audio/*
+                 /antenatal/* /pregnancy/* /child/development* /vaccination/* /audio/* \
+                 /privacy /terms
 
     # ---- The app ------------------------------------------------------------
     #
