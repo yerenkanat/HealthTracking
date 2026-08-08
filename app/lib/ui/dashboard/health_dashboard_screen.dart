@@ -17,9 +17,12 @@ import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
+import '../../domain/cycle_insights.dart';
 import '../../domain/cycle_log.dart';
+import '../../domain/cycle_predictions.dart';
 import '../../domain/timeline_content.dart';
 import '../content/timeline_content_card.dart';
+import 'cycle_hero.dart';
 import 'stage_hero.dart';
 import '../../domain/weekly_digest.dart';
 import '../../domain/wearable_metrics.dart';
@@ -120,6 +123,20 @@ class HealthDashboardView extends StatelessWidget {
   final VoidCallback? onLogDay;
   final VoidCallback? onLogWeight;
 
+  /// Her cycle, when she is neither expecting nor a mother. Drives screen 55.
+  /// True once she has a child, which retires the «Есть ребёнок» router.
+  final bool hasChild;
+
+  final CycleInfo? cycleInfo;
+  final CyclePhaseInfo? cyclePhase;
+  final PredictionConfidence cycleConfidence;
+
+  /// «Что дальше» — the three routers. Shown under the wellness zone so the
+  /// screen does not open on a question.
+  final VoidCallback? onPlanning;
+  final VoidCallback? onPregnant;
+  final VoidCallback? onHasChild;
+
   final TimelineStage? timelineStage;
   final List<ContentItem> timelineItems;
   final void Function(ContentItem item)? onOpenContent;
@@ -165,6 +182,13 @@ class HealthDashboardView extends StatelessWidget {
     this.onLogKick,
     this.onLogDay,
     this.onLogWeight,
+    this.hasChild = false,
+    this.cycleInfo,
+    this.cyclePhase,
+    this.cycleConfidence = PredictionConfidence.low,
+    this.onPlanning,
+    this.onPregnant,
+    this.onHasChild,
     this.timelineStage,
     this.timelineItems = const [],
     this.onOpenContent,
@@ -326,6 +350,20 @@ class HealthDashboardView extends StatelessWidget {
                     const SizedBox(height: 16),
                   ],
 
+                  // Screen 55: neither expecting nor a mother yet. The cycle
+                  // leads, and «Что дальше» is how she tells the app her state
+                  // changed — including «Тест положительный», which the app had
+                  // no entry point for at all.
+                  if (gestation == null && cycleInfo != null) ...[
+                    CycleHero(
+                      info: cycleInfo!,
+                      phase: cyclePhase,
+                      confidence: cycleConfidence,
+                      onTap: onOpenStatus,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   TimelineContentCard(
                     stage: timelineStage,
                     items: timelineItems,
@@ -421,6 +459,17 @@ class HealthDashboardView extends StatelessWidget {
                       onAddWater != null ||
                       onOpenAdvisor != null) ...[
                     const SizedBox(height: 22),
+                    // «Что дальше» — only for the state screen 55 describes:
+                    // not expecting, no children. Asking a mother of two
+                    // whether she has a child is noise.
+                    if (gestation == null && cycleInfo != null && !hasChild) ...[
+                      WhatNextRouters(
+                        onPlanning: onPlanning,
+                        onPregnant: onPregnant,
+                        onHasChild: onHasChild,
+                      ),
+                      const SizedBox(height: 18),
+                    ],
                     _SectionLabel(l.t('db_zone_tools')),
                     if (weeklyDigest?.hasData ?? false) ...[
                       const SizedBox(height: 12),

@@ -28,6 +28,8 @@ import 'calendar/kick_session_screen.dart';
 import 'calendar/day_log_sheet.dart';
 import 'calendar/pregnancy_weight_screen.dart';
 import '../domain/weight.dart';
+import '../domain/cycle_predictions.dart';
+import '../domain/cycle_insights.dart';
 import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -176,6 +178,21 @@ class _HomeShellState extends State<HomeShell> {
         // the handlers together: a hero wired to nothing is the defect this
         // screen already had once.
         gestation: c.gestation,
+        // Screen 55: her cycle, and the three routers that let her tell the app
+        // her stage changed — «Тест положительный» had no entry point at all.
+        hasChild: c.children.isNotEmpty,
+        cycleInfo: c.cycle,
+        cyclePhase: cyclePhaseFor(c.cycle),
+        cycleConfidence: () {
+          final reg = cycleRegularity(cycleHistory(c.periodDays));
+          return predictionConfidence(
+            completedCycles: reg.cyclesConsidered,
+            variationDays: reg.variationDays,
+          );
+        }(),
+        onPlanning: () => setState(() => _index = 1), // the cycle calendar
+        onPregnant: () => _recordPositiveTest(context, c),
+        onHasChild: () => showAddChildSheet(context, c),
         kicksToday: c.logFor(DateTime.now()).kicks,
         loggedWellbeingToday: c.logFor(DateTime.now()).mood != null,
         latestWeightKg: c.weights.isEmpty ? null : c.weights.last.kg,
@@ -404,6 +421,41 @@ class _HomeShellState extends State<HomeShell> {
         SnackBar(content: Text(l.t('link_open_failed')), behavior: SnackBarBehavior.floating),
       );
     }
+  }
+
+  /// «Тест положительный» — she tells the app she is pregnant.
+  ///
+  /// The design system asks for stage changes to happen as EVENTS rather than
+  /// through a date picker, and this one had no entry point anywhere: the only
+  /// way to become pregnant in this app was to find «срок родов» in the
+  /// calendar and set a date.
+  ///
+  /// It still needs a due date — every pregnancy calculation is anchored to one
+  /// — so it asks for the last period instead, which is the date she actually
+  /// knows, and derives the rest. Nothing is saved until she picks.
+  Future<void> _recordPositiveTest(BuildContext context, AppController c) async {
+    final l = L10nScope.of(context);
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      helpText: l.t('preg_lmp_help'),
+      initialDate: c.cycle.lastPeriodStart ?? now.subtract(const Duration(days: 42)),
+      // A pregnancy runs 40 weeks from the last period; anything older than
+      // that is not a start date, and a future one is a mis-set picker.
+      firstDate: now.subtract(const Duration(days: 280)),
+      lastDate: now,
+    );
+    if (picked == null || !context.mounted) return;
+
+    // 280 days from the last period is the standard estimate — the same
+    // arithmetic gestationFor already runs in reverse.
+    c.setDueDate(picked.add(const Duration(days: 280)));
+    if (!context.mounted) return;
+    // Land her on the calendar, which is now the pregnancy one: the change is
+    // large enough that showing it beats announcing it.
+    setState(() => _index = 1);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l.t('preg_started'))));
   }
 
   /// Open the sleep sheet and record the night. Unlike band summaries this is

@@ -2579,6 +2579,30 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_period_in': {AppLocale.ru: 'Месячные через {n} дн.', AppLocale.kk: 'Етеккірге {n} күн', AppLocale.en: 'Period in {n} days'},
   'cyc_period_today': {AppLocale.ru: 'Месячные ожидаются сегодня', AppLocale.kk: 'Бүгін етеккір күтіледі', AppLocale.en: 'Period expected today'},
   'cyc_period_late': {AppLocale.ru: 'Задержка {n} дн.', AppLocale.kk: '{n} күн кешігу', AppLocale.en: '{n} days late'},
+  // Screen 55's cycle hero and its «Что дальше» routers.
+  // «Тест положительный» asks for the date she knows — the last period — and
+  // derives the due date from it.
+  'preg_lmp_help': {
+    AppLocale.ru: 'Первый день последних месячных',
+    AppLocale.kk: 'Соңғы етеккірдің бірінші күні',
+    AppLocale.en: 'First day of your last period',
+  },
+  'preg_started': {
+    AppLocale.ru: 'Поздравляем! Календарь теперь показывает беременность.',
+    AppLocale.kk: 'Құттықтаймыз! Күнтізбе енді жүктілікті көрсетеді.',
+    AppLocale.en: 'Congratulations! The calendar now follows your pregnancy.',
+  },
+  'cyc_day_n': {AppLocale.ru: 'День цикла {n}', AppLocale.kk: 'Цикл күні {n}', AppLocale.en: 'Cycle day {n}'},
+  'cyc_ovulation_today': {AppLocale.ru: 'Овуляция сегодня', AppLocale.kk: 'Бүгін овуляция', AppLocale.en: 'Ovulation today'},
+  'cyc_band_follicular': {AppLocale.ru: 'Спокойные дни', AppLocale.kk: 'Тыныш күндер', AppLocale.en: 'Quiet days'},
+  'cyc_band_luteal': {AppLocale.ru: 'Вторая половина цикла', AppLocale.kk: 'Циклдің екінші жартысы', AppLocale.en: 'Second half of the cycle'},
+  // The accuracy claim in words. The app has no percentage to show and will not
+  // invent one — see cycle_hero.dart.
+  'cyc_forecast_is': {AppLocale.ru: 'прогноз: {v}', AppLocale.kk: 'болжам: {v}', AppLocale.en: 'forecast: {v}'},
+  'whatnext_title': {AppLocale.ru: 'Что дальше', AppLocale.kk: 'Әрі қарай не', AppLocale.en: 'What next'},
+  'whatnext_planning': {AppLocale.ru: 'Планирую беременность', AppLocale.kk: 'Жүктілікті жоспарлаймын', AppLocale.en: 'Planning a pregnancy'},
+  'whatnext_pregnant': {AppLocale.ru: 'Тест положительный — я беременна', AppLocale.kk: 'Тест оң — мен жүктімін', AppLocale.en: 'The test is positive — I am pregnant'},
+  'whatnext_haschild': {AppLocale.ru: 'У меня уже есть ребёнок', AppLocale.kk: 'Менде бала бар', AppLocale.en: 'I already have a child'},
   'cyc_phase_period': {AppLocale.ru: 'Менструация', AppLocale.kk: 'Етеккір', AppLocale.en: 'Period'},
   'cyc_phase_fertile': {AppLocale.ru: 'Фертильное окно', AppLocale.kk: 'Құнарлы кезең', AppLocale.en: 'Fertile window'},
   'cyc_phase_ovulation': {AppLocale.ru: 'Овуляция', AppLocale.kk: 'Овуляция', AppLocale.en: 'Ovulation'},
