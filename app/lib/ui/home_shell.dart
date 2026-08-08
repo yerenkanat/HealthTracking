@@ -43,7 +43,9 @@ import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
+import '../domain/day_history.dart';
 import 'tracking/child_map_screen.dart';
+import 'tracking/day_history_screen.dart';
 import 'tracking/family_sheets.dart';
 import 'tracking/zones_screen.dart';
 
@@ -276,6 +278,12 @@ class _HomeShellState extends State<HomeShell> {
         lastCheckInAt: lastCheckIn(c.alerts, c.childName),
         onCheckIn: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.checkIn),
         onSos: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.sos),
+        // Screen 47. Needs a child AND a server — the trail lives only on the
+        // server, so offline the button is absent rather than opening a screen
+        // that can never load.
+        onDayHistory: (c.selectedChild == null || c.api == null)
+            ? null
+            : () => _openDayHistory(context, c),
       ),
       ProfileScreen(
         controller: c,
@@ -354,6 +362,25 @@ class _HomeShellState extends State<HomeShell> {
           : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
     }
     return '';
+  }
+
+  /// Screen 47 — «История дня» for the selected child.
+  ///
+  /// The loader THROWS on failure rather than returning null: the screen shows
+  /// a failed load differently from an empty day, and it cannot tell the two
+  /// apart from a null.
+  void _openDayHistory(BuildContext context, AppController c) {
+    final api = c.api;
+    final child = c.selectedChild;
+    if (api == null || child == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => DayHistoryScreen(
+        childName: c.childName,
+        now: DateTime.now(),
+        load: (day) async => DayHistory.fromJson(await api.childDay(child.id, day)),
+        routeMapBuilder: _buildRouteMap,
+      ),
+    ));
   }
 
   /// Open the hand-entry sheet and record whatever comes back. The controller
@@ -548,6 +575,62 @@ class _HomeShellState extends State<HomeShell> {
       },
     );
   }
+}
+
+/// The day's route, for screen 47.
+///
+/// A polyline through the thinned points with a dot at each, and a distinct
+/// marker where an SOS was pressed. Camera on the first point rather than on
+/// the child's current position: this screen is about where she WAS.
+Widget _buildRouteMap(
+  BuildContext context,
+  List<RoutePoint> points,
+  List<DayEvent> events,
+) {
+  if (!_mapsEnabled) {
+    return const _MapPlaceholder(fences: [], child: null);
+  }
+  // The first point of the day; failing that, an event that carries a
+  // position (screen 48 opens with no trail at all, only the SOS); failing
+  // that, Almaty, the same fallback the live map uses.
+  final located = events.where((e) => e.lat != null && e.lng != null);
+  final anchor = points.isNotEmpty
+      ? LatLng(points.first.lat, points.first.lng)
+      : located.isNotEmpty
+          ? LatLng(located.first.lat!, located.first.lng!)
+          : const LatLng(43.238949, 76.889709);
+  return GoogleMap(
+    initialCameraPosition: CameraPosition(target: anchor, zoom: 14),
+    myLocationButtonEnabled: false,
+    polylines: {
+      if (points.length >= 2)
+        Polyline(
+          polylineId: const PolylineId('route'),
+          width: 4,
+          color: Palette.violet,
+          points: [for (final p in points) LatLng(p.lat, p.lng)],
+        ),
+    },
+    markers: {
+      for (final (i, p) in points.indexed)
+        Marker(
+          markerId: MarkerId('p$i'),
+          position: LatLng(p.lat, p.lng),
+          // Only the ends are labelled. A tooltip on every one of forty points
+          // is a map you cannot tap through.
+          infoWindow: i == 0 || i == points.length - 1
+              ? InfoWindow(title: '${p.at.hour}:${p.at.minute.toString().padLeft(2, '0')}')
+              : InfoWindow.noText,
+        ),
+      for (final (i, e) in events.indexed)
+        if (e.kind == DayEventKind.sos && e.lat != null && e.lng != null)
+          Marker(
+            markerId: MarkerId('sos$i'),
+            position: LatLng(e.lat!, e.lng!),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          ),
+    },
+  );
 }
 
 /// Shown in place of GoogleMap when no Maps key is configured. Just a calm
