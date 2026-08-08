@@ -223,6 +223,23 @@
      rows by default, so a short card beside a tall one grew a large empty
      area under its data — which reads as content that failed to load. */
   .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:16px;align-items:start}
+
+  /* Frame 00 — the owner's screen. «Доброе утро, Диас» + дата: the one place
+     in the panel that addresses a person by name, because this screen is read
+     by exactly one. */
+  .ownergreet{font-size:22px;font-weight:700;letter-spacing:-.4px;margin:0 0 14px}
+  .ownergreet .date{display:block;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0;margin-top:3px}
+  /* «тёмная карточка». Dark in both themes on purpose — it is the one element
+     that must not blend into the page it ends. Its own text colours, since the
+     panel's --ink is near-black and would vanish here. */
+  .ownerdecision{margin-top:16px;background:#241E23;color:#F5EFF2;border-color:#241E23;padding:22px}
+  .ownerdecision .dlabel{font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#E2547F}
+  .ownerdecision h3{margin:8px 0 6px;font-size:19px;color:#F5EFF2}
+  .ownerdecision p{margin:0 0 14px;color:#B9AEB4;font-size:13.5px}
+  .ownerdecision ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+  .ownerdecision li{color:#F5EFF2;font-size:14px;line-height:1.45}
+  /* An estimate must not be printed in the same weight as a fact. */
+  .kpi .est{font-size:11.5px;color:var(--warn-text);margin-top:2px;font-weight:600}
   .sec-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 6px}
   .sec-h h3{margin:0;font-size:15px;letter-spacing:-.2px}
   .sec-h .link{color:var(--accent-text);font-weight:600;font-size:12.5px;cursor:pointer}
@@ -636,6 +653,13 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
       Dashboard
     </button>
+    <!-- «Дашбордов два … Не смешивать.» This is the owner's: money, what is on
+         fire, and one decision. Dashboard above is the snapshot it is built
+         from, and Очереди is the operator's. -->
+    <button type="button" class="nav" data-view="owner" data-cap="finance">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Владелец
+    </button>
     <button type="button" class="nav" data-view="emergencies" data-cap="emergencies">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
       Экстренные <span class="badge" id="navBadge" hidden></span>
@@ -1048,6 +1072,49 @@
             <table><thead><tr><th>Когда</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Причина</th></tr></thead>
             <tbody id="auditBody"></tbody></table>
           </div>
+        </div>
+      </section>
+
+      <!-- ВЛАДЕЛЕЦ (frame 00) — «Дашборд владельца».
+           Four rows: the money, what is on fire beside the 14-day chart and
+           where the money came from, who is with us, and one decision.
+           Deliberately no «Новый заказ» button: this screen is for deciding,
+           and the owner has an operator for doing. -->
+      <section class="view" id="owner">
+        <div id="ownerGreet" class="ownergreet"></div>
+        <div class="kpis" id="ownerMoney"></div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Выручка за 14 дней</h3><span class="t" id="owner14Sub" style="color:var(--muted)"></span></div>
+            <canvas id="ownerChart" height="170" style="width:100%;height:170px"></canvas>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Что горит <span class="badge" id="ownerBurnCount" hidden></span></h3></div>
+            <div class="tl" id="ownerBurning"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Откуда выручка</h3></div>
+            <div class="tl" id="ownerSources"></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Кто с нами</h3></div>
+            <div class="tl" id="ownerWho"></div>
+          </div>
+        </div>
+
+        <!-- «Решение недели». Dark, alone, last — its whole job is to be the
+             only thing carried out of the room. Hidden when there is nothing
+             to decide: a card that manufactures a decision every week teaches
+             its reader to ignore it. -->
+        <div class="card ownerdecision" id="ownerDecision" hidden>
+          <div class="dlabel">Решение недели</div>
+          <h3 id="ownerDecisionQ"></h3>
+          <p id="ownerDecisionWhy"></p>
+          <ol id="ownerDecisionOpts"></ol>
         </div>
       </section>
 
@@ -2733,6 +2800,155 @@
       || tableNote(5,"Действий пока не зафиксировано. Здесь появятся просмотры карт пациенток и изменения в панели — с автором, временем и причиной.");
   }
 
+  // ---- Frame 00 · «Дашборд владельца» -------------------------------------
+  //
+  // Every number comes from GET /admin/owner in one call, stamped with one
+  // instant. Nothing here is computed in the browser — an owner reading a
+  // margin the server would not agree with is the one failure this screen
+  // cannot have.
+
+  /// «Доброе утро» / «Добрый день» / «Добрый вечер», by the reader's own clock.
+  function greetingRu(h){
+    if(h<5) return "Доброй ночи";
+    if(h<12) return "Доброе утро";
+    if(h<18) return "Добрый день";
+    return "Добрый вечер";
+  }
+  // Genitive, for «8 августа 2026». RU_MONTHS above is the abbreviated set
+  // used in table cells and cannot be reused for a sentence.
+  const RU_MONTHS_GEN=["января","февраля","марта","апреля","мая","июня",
+    "июля","августа","сентября","октября","ноября","декабря"];
+
+  /// A percentage of plan, or the honest absence of one.
+  function planLine(m){
+    if(m.planPct==null) return {text:"План не задан — укажите его в Настройках",cls:"var(--muted)"};
+    const pct=Math.round(m.planPct*100);
+    return {text:pct+" % плана ("+tng(m.planMinor)+")",
+      cls:pct>=100?"var(--good-text)":pct>=60?"var(--warn-text)":"var(--crit-text)"};
+  }
+
+  function drawOwnerChart(days){
+    const c=$("#ownerChart"); if(!c) return;
+    const dpr=window.devicePixelRatio||1;
+    const w=c.clientWidth||600,h=170;
+    c.width=w*dpr;c.height=h*dpr;
+    const ctx=c.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+    const cs=getComputedStyle(document.documentElement);
+    const accent=cs.getPropertyValue("--accent").trim();
+    const grid=cs.getPropertyValue("--hair").trim();
+    const muted=cs.getPropertyValue("--muted").trim();
+    const max=Math.max(1,...days.map(d=>d.revenueMinor));
+    const padB=22,padT=10,plot=h-padB-padT;
+    ctx.strokeStyle=grid;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,h-padB+.5);ctx.lineTo(w,h-padB+.5);ctx.stroke();
+    const bw=w/days.length;
+    days.forEach((d,i)=>{
+      const bh=Math.round((d.revenueMinor/max)*plot);
+      const x=i*bw+bw*0.18, bwid=bw*0.64;
+      // A zero day still gets a 2px stub. A gap in the row of bars is
+      // indistinguishable from a chart that stopped drawing.
+      ctx.fillStyle=d.revenueMinor>0?accent:grid;
+      ctx.fillRect(x,h-padB-Math.max(2,bh),bwid,Math.max(2,bh));
+      if(i%3===0||i===days.length-1){
+        ctx.fillStyle=muted;ctx.font="10px system-ui,sans-serif";ctx.textAlign="center";
+        ctx.fillText(d.day.slice(8),x+bwid/2,h-7);
+      }
+    });
+  }
+
+  async function renderOwner(){
+    const g=$("#ownerGreet"); if(!g) return;
+    const money=$("#ownerMoney");
+    money.innerHTML="";
+    let d=null;
+    try{ d=await api("/admin/owner"); }catch(e){ d=null; }
+    if(!d||!d.money){
+      money.innerHTML=`<div class="card" style="grid-column:1/-1">
+        <b>Не удалось загрузить сводку.</b>
+        <div class="sub">Проверьте доступ и соединение — эти цифры доступны только с правом «финансы».</div>
+      </div>`;
+      $("#ownerDecision").hidden=true;
+      return;
+    }
+
+    const now=new Date();
+    // The name comes from whoever is signed in; the spec's «Диас» is an example
+    // in a mock-up, not a person to hard-code into a live panel.
+    const who=(typeof STAFF!=="undefined"&&STAFF.name)||"";
+    g.innerHTML=`${esc(greetingRu(now.getHours()))}${who?", "+esc(who):""}
+      <span class="date">${now.getDate()} ${RU_MONTHS_GEN[now.getMonth()]} ${now.getFullYear()}</span>`;
+
+    const m=d.money, pl=planLine(m);
+    // «чистая прибыль» is an estimate whenever some of the month's revenue has
+    // no recorded cost behind it, and it says so under the number rather than
+    // being printed with the same confidence as the ledger figures.
+    const cov=Math.round((m.costCoverage||0)*100);
+    const profitNote=cov>=100?"":`Оценка: себестоимость известна по ${cov} % выручки`;
+    money.innerHTML=[
+      {lbl:"Выручка за месяц",val:tng(m.revenueMinor),sub:pl.text,col:pl.cls},
+      {lbl:"Чистая прибыль",val:tng(m.netProfitMinor),
+        sub:profitNote||"минус себестоимость проданного",est:!!profitNote,
+        col:m.netProfitMinor<0?"var(--crit-text)":""},
+      {lbl:"Заказов",val:String(m.orders),sub:"отгружено и доставлено"},
+      {lbl:"Деньги в товаре",val:tng(m.moneyInStockMinor),sub:"по себестоимости, на складе"},
+      // A positive gap is money tied up in goods with less on its way in. That
+      // is a warning, not an achievement, so it is never green.
+      {lbl:"Кассовый разрыв",val:tng(m.cashGapMinor),
+        sub:"в товаре минус "+tng(m.pipelineMinor)+" в заказах",
+        col:m.cashGapMinor>0?"var(--warn-text)":"var(--good-text)"},
+    ].map(k=>`<div class="card kpi">
+      <div class="lbl">${esc(k.lbl)}</div>
+      <div class="val"${k.col?` style="color:${k.col}"`:""}>${esc(k.val)}</div>
+      <div class="${k.est?"est":"delta"}"${!k.est&&k.col?` style="color:${k.col}"`:""}>${esc(k.sub)}</div>
+    </div>`).join("");
+
+    drawOwnerChart(d.revenue14d||[]);
+    const total14=(d.revenue14d||[]).reduce((s,x)=>s+x.revenueMinor,0);
+    $("#owner14Sub").textContent=tng(total14)+" за две недели";
+
+    const burn=$("#ownerBurning"), badge=$("#ownerBurnCount");
+    const rows=d.burning||[];
+    setBadge(badge,rows.length);
+    burn.innerHTML=rows.map(b=>`<div class="tli">
+        <span style="color:${b.level==="crit"?"var(--crit-text)":"var(--warn-text)"};font-weight:700">●</span>
+        <span>${esc(b.title)}</span>
+        <span class="num">${b.count!=null?esc(String(b.count)):""}</span>
+      </div>`).join("")
+      || `<div class="tli"><span></span><span style="color:var(--good-text)">Ничего не горит. Очереди в срок, склад в порядке.</span><span></span></div>`;
+
+    const src=$("#ownerSources");
+    src.innerHTML=(d.sources||[]).slice(0,6).map(s=>`<div class="tli">
+        <span><b>${esc(s.product)}</b></span>
+        <span class="t" style="color:var(--muted)">${esc(String(s.units))} шт · ${Math.round(s.share*100)} %</span>
+        <span class="num">${esc(tng(s.revenueMinor))}</span>
+      </div>`).join("")
+      || `<div class="tli"><span></span><span style="color:var(--muted)">В этом месяце продаж ещё не было. Строки появятся после первой отгрузки.</span><span></span></div>`;
+
+    const w=$("#ownerWho");
+    w.innerHTML=d.who?[
+      ["Мамы",d.who.mothers.mothers],
+      ["Беременные",d.who.mothers.pregnant],
+      ["Дети",d.who.children],
+      ["Устройства",d.who.devices.total+" · "+d.who.devices.online+" на связи"],
+      ["Активны за сутки",d.who.dau],
+      ["Активны за месяц",d.who.mau],
+      ["Вернулись на 7-й день",d.who.retentionD7==null?"—":Math.round(d.who.retentionD7*100)+" %"],
+      ["Курс: открыли",d.who.course?d.who.course.started+" из "+d.who.course.granted:"—"],
+    ].map(([k,v])=>`<div class="tli"><span>${esc(k)}</span><span></span><span class="num">${esc(String(v))}</span></div>`).join("")
+      : `<div class="tli"><span></span><span style="color:var(--muted)">Сводка недоступна.</span><span></span></div>`;
+
+    const dec=$("#ownerDecision");
+    if(d.decision){
+      $("#ownerDecisionQ").textContent=d.decision.question;
+      $("#ownerDecisionWhy").textContent=d.decision.because;
+      $("#ownerDecisionOpts").innerHTML=d.decision.options
+        .map(o=>`<li>${esc(o)}</li>`).join("");
+      dec.hidden=false;
+    }else{
+      dec.hidden=true;
+    }
+  }
+
   // ---- Frame 22 · «Безопасность» ------------------------------------------
   //
   // The audit log, asked a question rather than merely listed. Every figure is
@@ -3427,6 +3643,7 @@
     vaccines:["Вакцинация","Национальный календарь прививок по возрасту ребёнка"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
     safety:["SOS и зоны","Тревоги и пересечения зон по всем семьям"],
+    owner:["Дашборд владельца","Деньги, что горит, и одно решение на неделю"],
     security:["Безопасность","Кто открывал здоровье и геолокацию, когда и на каком основании"],
     roles:["Роли и права","Что может каждая роль — из тех же правил, по которым проверяет сервер"],
     shop:["Магазин","Остатки по цветам и заказы на доставку"],
@@ -3484,6 +3701,7 @@
     if(v==="shop")renderShop();
     if(v==="audio")renderAudio();
     if(v==="staff")renderStaff();
+    if(v==="owner")renderOwner();
     if(v==="security")renderSecurity();
     if(v==="roles")renderRoles();
     if(v==="stock")renderStock();

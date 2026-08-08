@@ -18,6 +18,7 @@ import type { ContentItemRow, Repository } from '../db/repository';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import { summarizeSecurity } from '../admin/security';
+import { buildOwnerDashboard } from '../admin/ownerDashboard';
 import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
 import {
   carryReview, reviewIsCurrent, reviewMessage, textFingerprint, unreviewed,
@@ -456,6 +457,96 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     const s = await requireCap(req, reply, 'finance');
     if (!s) return;
     return reply.send(await repo.dashboardSnapshot(new Date().toISOString()));
+  });
+
+  /**
+   * Frame 00 — «Дашборд владельца». The money, what is on fire, and one
+   * decision.
+   *
+   * Separate from /admin/dashboard, which is the raw snapshot: this one is the
+   * OWNER's reading of it, and it exists because the raw snapshot answered
+   * "what is true" without ever answering "so what". Every signal in «Что
+   * горит» is read from the system that owns it rather than recomputed here —
+   * a second implementation of "which stock is low" is a second answer to it.
+   *
+   * `finance`, like the snapshot it is built from.
+   */
+  app.get('/admin/owner', async (req, reply) => {
+    const s = await requireCap(req, reply, 'finance');
+    if (!s) return;
+    const now = new Date();
+
+    const [orders, products, snapshot, catalog, settings, audit] = await Promise.all([
+      repo.adminShopOrders(500).catch(() => []),
+      repo.adminProducts().catch(() => []),
+      repo.dashboardSnapshot(now.toISOString()).catch(() => null),
+      repo.contentCatalog().catch(() => ({} as Record<string, ContentItemRow[]>)),
+      repo.getShopSettings().catch(() => ({} as Record<string, string>)),
+      repo.listAudit(2000).catch(() => []),
+    ]);
+
+    // Medical cards published without a current signature — the same rule the
+    // review queue applies, not a second opinion about it.
+    let unreviewedMedical = 0;
+    for (const items of Object.values(catalog)) {
+      for (const raw of items) {
+        const item = raw as ReviewableItem;
+        if (item.medical && !item.draft && !reviewIsCurrent(item)) unreviewedMedical++;
+      }
+    }
+
+    const q = buildQueues(
+      {
+        leads: await repo.adminShopLeads(200).catch(() => []),
+        orders,
+        emergencies: await repo.recentEmergencies(200).catch(() => []),
+      },
+      now.getTime(),
+    );
+
+    // Absent or unparseable is NO plan, not a plan of zero — the difference
+    // between "we missed the target" and "nobody set one".
+    const rawPlan = Number(settings.revenuePlanMinor);
+    const planMinor = Number.isFinite(rawPlan) && rawPlan > 0 ? rawPlan : null;
+
+    const course = snapshot?.course;
+    return reply.send({
+      asOf: now.toISOString(),
+      ...buildOwnerDashboard(
+        {
+          orders,
+          products,
+          planMinor,
+          signals: {
+            overdue: overdue(q),
+            lowStock: snapshot?.commerce.lowStock ?? [],
+            unreviewedMedical,
+            unregisteredDevices: snapshot?.devices.unregistered ?? 0,
+            accessWithoutReason: summarizeSecurity(audit, now, 30).withoutReason,
+            // Bought and never opened. Granted-minus-started, floored: a
+            // negative would mean somebody is watching without access, which
+            // is a different bug and must not show up here as a negative count.
+            courseNeverStarted: course ? Math.max(0, course.granted - course.started) : 0,
+          },
+        },
+        now,
+      ),
+      // For «Кто с нами» and «Живо ли приложение» — the third row of the frame.
+      // Passed through rather than recomputed, so the owner's screen and the
+      // Dashboard tab cannot disagree about how many mothers there are.
+      who: snapshot
+        ? {
+            mothers: snapshot.mothers,
+            children: snapshot.children.total,
+            devices: snapshot.devices,
+            dau: snapshot.users.dau,
+            wau: snapshot.users.wau,
+            mau: snapshot.users.mau,
+            retentionD7: snapshot.users.retentionD7,
+            course: snapshot.course,
+          }
+        : null,
+    });
   });
 
   /**
@@ -904,6 +995,16 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
       reviews: z.string().trim().max(6000).optional(),
       rating: z.string().trim().max(8).optional(),
       reviewCount: z.string().trim().max(12).optional(),
+      /**
+       * The month's revenue target in minor units, for «выручка к плану» on
+       * the owner's dashboard.
+       *
+       * Digits only. A target that fails to parse would read there as no plan
+       * at all — the screen cannot distinguish them — so a typo is refused
+       * here where somebody is looking at it, rather than silently blanking a
+       * number on another screen next week. Empty string clears it.
+       */
+      revenuePlanMinor: z.string().trim().regex(/^\d*$/).max(15).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     // Store only the keys actually sent. The phone is normalised to digits so

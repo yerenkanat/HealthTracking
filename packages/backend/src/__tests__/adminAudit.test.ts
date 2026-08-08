@@ -44,6 +44,10 @@ const AGGREGATES_ONLY = new Set([
   // The permission matrix. ROLE_CAPS and nothing else — no customer, no
   // patient, no order. Auditing it would record who read a table of rules.
   'GET /admin/roles',
+  // The owner's dashboard. Reads orders to total them and emits sums, product
+  // names and counts — no customer reaches the response. The same category as
+  // /admin/dashboard, which it is built from.
+  'GET /admin/owner',
   // Published reference data — the MOH antenatal protocol, the vaccination
   // schedule, the pregnancy and child-development calendars. Constants
   // compiled into the server; they name nobody and never change per request.
