@@ -9,37 +9,38 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../domain/support_context.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
 
-const _supportEmail =
-    'support@umay.app'; // placeholder until a real inbox exists
 const _appVersion = '0.1.0';
 
 class HelpSupportScreen extends StatelessWidget {
-  /// Optional diagnostic line (locale, platform…) appended to a problem report.
+  /// Optional diagnostic line (locale, platform…) for the message body.
   final String diagnostics;
-  const HelpSupportScreen({super.key, this.diagnostics = ''});
 
-  Future<void> _mailto(String subject, {String body = ''}) async {
-    final uri = Uri(
-      scheme: 'mailto',
-      path: _supportEmail,
-      query:
-          _encodeQuery({'subject': subject, if (body.isNotEmpty) 'body': body}),
-    );
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  /// What the app can say about itself, so the operator does not have to ask.
+  final SupportContext? context_;
 
-  // Uri(queryParameters:) encodes spaces as '+', which some mail apps show
-  // literally; encode manually with %20 instead.
-  static String _encodeQuery(Map<String, String> params) => params.entries
-      .map((e) =>
-          '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
-      .join('&');
+  /// Opens WhatsApp with the composed message. Null when no number is
+  /// configured — the row then says so rather than opening nothing.
+  final void Function(String message)? onWrite;
+
+  /// Self-service actions this build can actually perform. An entry with no
+  /// handler is omitted: a dead one teaches her none of them work.
+  final Map<SupportAction, VoidCallback> actions;
+
+  const HelpSupportScreen({
+    super.key,
+    this.diagnostics = '',
+    this.context_,
+    this.onWrite,
+    this.actions = const {},
+  });
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -57,22 +58,37 @@ class HelpSupportScreen extends StatelessWidget {
           for (final q in faq)
             _FaqTile(question: l.t('help_${q}_q'), answer: l.t('help_${q}_a')),
           const SizedBox(height: 20),
+          // What she can try herself, before writing to anybody. Only the
+          // actions this build can actually perform — a dead row would teach
+          // her that none of them work.
+          if (actions.isNotEmpty) ...[
+            _SectionLabel(l.t('sup_self_help')),
+            for (final e in actions.entries)
+              _ActionRow(
+                icon: Icons.auto_fix_high_rounded,
+                title: l.t(e.key.titleKey),
+                subtitle: l.t(e.key.bodyKey),
+                onTap: e.value,
+              ),
+            const SizedBox(height: 20),
+          ],
           _SectionLabel(l.t('help_contact_section')),
+          // WhatsApp, not e-mail. This row pointed at support@umay.app — a
+          // placeholder on the RETIRED brand — so every message anybody sent
+          // from here went to an address nobody owns, while the shop, the
+          // course and the order screen all correctly send people to WhatsApp.
           _ActionRow(
-            icon: Icons.mail_outline_rounded,
-            title: l.t('help_contact'),
-            subtitle: _supportEmail,
-            onTap: () => _mailto(l.t('help_email_subject')),
-          ),
-          _ActionRow(
-            icon: Icons.bug_report_outlined,
-            title: l.t('help_report'),
-            subtitle: l.t('help_report_sub'),
-            onTap: () => _mailto(
-              l.t('help_report_subject'),
-              body:
-                  '\n\n—\n${l.t('help_report_diag')}: app $_appVersion${diagnostics.isEmpty ? '' : ', $diagnostics'}',
-            ),
+            icon: Icons.chat_bubble_outline_rounded,
+            title: l.t('sup_write'),
+            subtitle:
+                onWrite == null ? l.t('sup_unavailable') : l.t('sup_hours'),
+            onTap: onWrite == null
+                ? null
+                : () => onWrite!(
+                      (context_ ??
+                              const SupportContext(appVersion: _appVersion))
+                          .message(''),
+                    ),
           ),
           _ActionRow(
             icon: Icons.ios_share_rounded,
@@ -163,7 +179,11 @@ class _ActionRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+
+  /// Null disables the row. Used when no support number is configured, so the
+  /// contact line reads as unavailable rather than looking live and doing
+  /// nothing.
+  final VoidCallback? onTap;
   const _ActionRow(
       {required this.icon,
       required this.title,

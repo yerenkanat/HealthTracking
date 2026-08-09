@@ -230,6 +230,27 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 43 · «Поддержка» ---------------------------------------------
+  'sup_title': {AppLocale.ru: 'Поддержка', AppLocale.kk: 'Қолдау', AppLocale.en: 'Support'},
+  'sup_self_help': {AppLocale.ru: 'Попробуйте сами — это решает чаще всего', AppLocale.kk: 'Өзіңіз көріңіз — көбіне осы көмектеседі', AppLocale.en: 'Try this first — it usually helps'},
+  'sup_act_refresh': {AppLocale.ru: 'Обновить положение ребёнка', AppLocale.kk: 'Баланың орнын жаңарту', AppLocale.en: 'Refresh the child’s position'},
+  'sup_act_refresh_b': {AppLocale.ru: 'Если на карте старые данные — спросим сервер заново', AppLocale.kk: 'Картада ескі дерек болса — серверден қайта сұраймыз', AppLocale.en: 'If the map is stale, we ask the server again'},
+  'sup_act_repair': {AppLocale.ru: 'Привязать браслет заново', AppLocale.kk: 'Білезікті қайта байланыстыру', AppLocale.en: 'Pair the tracker again'},
+  'sup_act_repair_b': {AppLocale.ru: 'Если браслет не отвечает', AppLocale.kk: 'Білезік жауап бермесе', AppLocale.en: 'If the tracker is not answering'},
+  'sup_act_order': {AppLocale.ru: 'Посмотреть мой заказ', AppLocale.kk: 'Тапсырысымды көру', AppLocale.en: 'See my order'},
+  'sup_act_order_b': {AppLocale.ru: 'Статус доставки и состав заказа', AppLocale.kk: 'Жеткізу күйі және тапсырыс құрамы', AppLocale.en: 'Delivery status and contents'},
+  'sup_write': {AppLocale.ru: 'Написать в поддержку', AppLocale.kk: 'Қолдауға жазу', AppLocale.en: 'Message support'},
+  'sup_topic': {AppLocale.ru: 'С чем помочь?', AppLocale.kk: 'Немен көмектесейік?', AppLocale.en: 'What can we help with?'},
+  'sup_topic_tracker': {AppLocale.ru: 'Браслет ребёнка', AppLocale.kk: 'Баланың білезігі', AppLocale.en: 'The child’s tracker'},
+  'sup_topic_band': {AppLocale.ru: 'Мои часы', AppLocale.kk: 'Менің сағатым', AppLocale.en: 'My watch'},
+  'sup_topic_order': {AppLocale.ru: 'Заказ и доставка', AppLocale.kk: 'Тапсырыс және жеткізу', AppLocale.en: 'Order and delivery'},
+  'sup_topic_course': {AppLocale.ru: 'Курс Ма!Ма!', AppLocale.kk: 'Ма!Ма! курсы', AppLocale.en: 'The Ма!Ма! course'},
+  'sup_topic_account': {AppLocale.ru: 'Вход и аккаунт', AppLocale.kk: 'Кіру және аккаунт', AppLocale.en: 'Sign-in and account'},
+  'sup_hours': {AppLocale.ru: 'Отвечаем в WhatsApp ежедневно с 9:00 до 21:00', AppLocale.kk: 'WhatsApp-та күн сайын 9:00–21:00 жауап береміз', AppLocale.en: 'We answer on WhatsApp daily, 9:00–21:00'},
+  // Said out loud, because a message that quietly carries diagnostics is a
+  // message she did not know she was sending.
+  'sup_context_note': {AppLocale.ru: 'К сообщению добавим версию приложения и номер устройства — чтобы не спрашивать. Ничего о здоровье и детях не отправляем.', AppLocale.kk: 'Хабарламаға қолданба нұсқасы мен құрылғы нөмірін қосамыз — сұрамау үшін. Денсаулық пен балалар туралы ештеңе жіберілмейді.', AppLocale.en: 'We attach your app version and device id so we do not have to ask. Nothing about health or children is sent.'},
+  'sup_unavailable': {AppLocale.ru: 'Номер поддержки не настроен. Попробуйте позже.', AppLocale.kk: 'Қолдау нөмірі бапталмаған. Кейінірек көріңіз.', AppLocale.en: 'No support number is configured yet.'},
   // --- Screen 44 · «Аудио дня · плеер» -------------------------------------
   'aud_title': {AppLocale.ru: 'Аудио дня', AppLocale.kk: 'Күн аудиосы', AppLocale.en: 'Audio of the day'},
   'aud_back15': {AppLocale.ru: 'Назад 15 секунд', AppLocale.kk: '15 секунд артқа', AppLocale.en: 'Back 15 seconds'},

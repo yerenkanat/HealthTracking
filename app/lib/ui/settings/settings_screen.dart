@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'dart:io' show File;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/app_controller.dart';
 import '../../ble/calibration.dart' show bpCalibrationIsStale;
 import '../../domain/backup_file.dart';
@@ -19,6 +20,7 @@ import '../design_system.dart';
 import '../ds_widgets.dart';
 import '../theme.dart';
 import 'journey_screen.dart';
+import '../../domain/support_context.dart';
 import 'help_support_screen.dart';
 import 'legal_screen.dart';
 import 'reminders_center_screen.dart';
@@ -291,8 +293,7 @@ class SettingsScreen extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right_rounded,
                     color: Palette.textDim),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) =>
-                      HelpSupportScreen(diagnostics: 'locale ${c.locale.name}'),
+                  builder: (_) => _SupportRoute(controller: c),
                 )),
               ),
               DsRow(
@@ -866,4 +867,81 @@ Future<void> _pickLanguage(BuildContext context, AppController c) {
       ),
     ),
   );
+}
+
+/// Screen 43, with the support number and the account's own facts resolved
+/// before the screen builds.
+///
+/// The number decides whether the contact row is live, and the self-service
+/// list is built only from actions this build can actually perform — a dead
+/// row teaches her that none of them work.
+class _SupportRoute extends StatefulWidget {
+  final AppController controller;
+  const _SupportRoute({required this.controller});
+
+  @override
+  State<_SupportRoute> createState() => _SupportRouteState();
+}
+
+class _SupportRouteState extends State<_SupportRoute> {
+  String _whatsapp = '';
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final contact = await widget.controller.api?.getShopContact();
+    if (!mounted) return;
+    setState(() {
+      _whatsapp = contact?.whatsapp ?? '';
+      _ready = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final c = widget.controller;
+    final digits = _whatsapp.replaceAll(RegExp(r'\D'), '');
+    final child = c.selectedChild;
+
+    return HelpSupportScreen(
+      diagnostics: 'locale ${c.locale.name}',
+      context_: SupportContext(
+        appVersion: AppController.appVersion,
+        phone: c.profile.hasPhone
+            ? '${c.profile.dialCode} ${c.profile.phoneNumber}'
+            : null,
+        deviceId: (child?.tagId ?? '').isEmpty ? null : child!.tagId,
+        offline: c.isOffline,
+      ),
+      onWrite: digits.isEmpty
+          ? null
+          : (message) => launchUrl(
+                Uri.parse(
+                    'https://wa.me/$digits?text=${Uri.encodeComponent(message)}'),
+                mode: LaunchMode.externalApplication,
+              ),
+      actions: {
+        // Only what this build can really do. Each of these is a screen or a
+        // call that exists.
+        if (child != null && c.api != null)
+          SupportAction.refreshLocation: () async {
+            final ok = await c.refreshChildLocation();
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(L10nScope.of(context)
+                  .t(ok ? 'sup_act_refresh' : 'off_refresh_failed')),
+              behavior: SnackBarBehavior.floating,
+            ));
+          },
+      },
+    );
+  }
 }

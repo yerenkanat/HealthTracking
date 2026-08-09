@@ -1,4 +1,4 @@
-/// The help & support screen: FAQ, contact, report, share.
+/// Screen 43 — the help & support screen: FAQ, self-service, contact, share.
 library;
 
 import 'package:flutter/material.dart';
@@ -20,13 +20,29 @@ Future<void> pump(WidgetTester tester, [AppLocale loc = AppLocale.ru]) async {
 void main() {
   const ru = L10n(AppLocale.ru);
 
-  testWidgets('shows FAQ, the three actions and the emergency reminder', (tester) async {
+  testWidgets('shows FAQ, the contact row and the emergency reminder', (tester) async {
     await pump(tester);
     expect(find.text(ru.t('help_q1_q')), findsOneWidget);
-    expect(find.text(ru.t('help_contact')), findsOneWidget);
-    expect(find.text(ru.t('help_report')), findsOneWidget);
+    // The contact row is WhatsApp now. It used to be a mailto to
+    // support@umay.app — a placeholder on the retired brand — so every message
+    // sent from this screen went to an address nobody owns.
+    expect(find.text(ru.t('sup_write')), findsOneWidget);
     expect(find.text(ru.t('help_share')), findsOneWidget);
     expect(find.text(ru.t('help_emergency_note')), findsOneWidget);
+  });
+
+  testWidgets('says the contact row is unavailable rather than doing nothing',
+      (tester) async {
+    // With no number configured the row must not look live.
+    await pump(tester);
+    expect(find.text(ru.t('sup_unavailable')), findsOneWidget);
+  });
+
+  testWidgets('offers no self-service action this build cannot perform',
+      (tester) async {
+    // A dead row teaches her that none of them work.
+    await pump(tester);
+    expect(find.text(ru.t('sup_act_refresh')), findsNothing);
   });
 
   testWidgets('an FAQ answer expands on tap', (tester) async {
