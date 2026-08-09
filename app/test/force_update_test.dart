@@ -66,11 +66,30 @@ void main() {
       home: L10nScope(l10n: L10n(AppLocale.en), child: ForceUpdateScreen()),
     ));
     expect(find.text('Time to update the app'), findsOneWidget);
-    // No update button when no store link is wired.
-    expect(find.text('Update'), findsNothing);
   });
 
-  testWidgets('the update button appears only with a store callback', (tester) async {
+  testWidgets('a way forward exists without one having to be injected',
+      (tester) async {
+    // This asserted findsNothing, certifying the defect: the screen has no way
+    // BACK into the app by design, and with no button it had no way forward
+    // either — a mother was simply stuck. Nothing but the server puts her here,
+    // and the server cannot demand an update that has not been published, so
+    // the listing exists whenever this is on screen.
+    await tester.pumpWidget(const MaterialApp(
+      home: L10nScope(l10n: L10n(AppLocale.en), child: ForceUpdateScreen()),
+    ));
+    expect(find.text('Update'), findsOneWidget);
+  });
+
+  test('the store link is the Play listing for this applicationId', () {
+    // Derived from build.gradle.kts. If the applicationId is ever changed
+    // without changing this, the only button on the blocking screen goes to
+    // somebody else's app.
+    expect(playListingUrl, contains('id=com.fcs.fcs_app'));
+  });
+
+  testWidgets('an injected callback wins, so nothing has to leave the process',
+      (tester) async {
     var tapped = false;
     await tester.pumpWidget(MaterialApp(
       home: L10nScope(l10n: const L10n(AppLocale.en), child: ForceUpdateScreen(onUpdate: () => tapped = true)),
