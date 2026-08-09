@@ -485,6 +485,8 @@ class _HomeShellState extends State<HomeShell> {
         now: DateTime.now(),
         load: (day) async => DayHistory.fromJson(await api.childDay(child.id, day)),
         routeMapBuilder: _buildRouteMap,
+        onSaveOutcome: (event, outcome) =>
+            api.saveSosOutcome(child.id, event.at, outcome.wire),
       ),
     ));
   }

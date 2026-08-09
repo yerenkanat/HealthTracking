@@ -174,3 +174,98 @@ describe('GET /children/:id/day', () => {
     await app.close();
   });
 });
+
+/**
+ * Frame 48 — «Чем закончилось».
+ *
+ * The four outcome keys and the four chips both existed from the day they were
+ * written, and there was nothing between them: no column, no route, and the
+ * screen was never handed a saver, so the section could not appear at all.
+ * These test the join, which is the part that was missing.
+ */
+describe('POST /children/:id/day/outcome', () => {
+  const SOS_AT = at(16, 41);
+
+  async function seedSos() {
+    const r = await app.inject({
+      method: 'POST', url: '/alerts',
+      payload: { childId: DEMO_CHILD, kind: 'sos', at: SOS_AT },
+    });
+    expect(r.statusCode).toBeLessThan(300);
+  }
+
+  it('records the verdict, and the day reads it back', async () => {
+    await seedSos();
+
+    const save = await app.inject({
+      method: 'POST', url: `/children/${DEMO_CHILD}/day/outcome`,
+      payload: { at: SOS_AT, outcome: 'false_press' },
+    });
+    expect(save.statusCode).toBe(200);
+
+    // The read side: reopening the alarm must show the chip already chosen,
+    // otherwise a parent answers twice and the second answer overwrites.
+    const day = (await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/day?day=${DAY}`,
+    })).json();
+    const sos = day.events.find((e: { kind: string }) => e.kind === 'sos');
+    expect(sos.outcome).toBe('false_press');
+    await app.close();
+  });
+
+  it('is null until somebody closes it', async () => {
+    await seedSos();
+    const day = (await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/day?day=${DAY}`,
+    })).json();
+    // Not 'unknown' — «не удалось выяснить» is an answer, and nobody gave it.
+    expect(day.events.find((e: { kind: string }) => e.kind === 'sos').outcome).toBeNull();
+    await app.close();
+  });
+
+  it('404s when no SOS happened at that instant', async () => {
+    await seedSos();
+    const r = await app.inject({
+      method: 'POST', url: `/children/${DEMO_CHILD}/day/outcome`,
+      payload: { at: at(9, 15), outcome: 'scared' },
+    });
+    // Not 200. The screen prints the result of this request, and a tick over an
+    // update that matched nothing is how an open alarm looks closed.
+    expect(r.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('refuses an outcome it does not know', async () => {
+    await seedSos();
+    const r = await app.inject({
+      method: 'POST', url: `/children/${DEMO_CHILD}/day/outcome`,
+      payload: { at: SOS_AT, outcome: 'she_was_fine' },
+    });
+    expect(r.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it('refuses a child that is not yours', async () => {
+    const r = await app.inject({
+      method: 'POST', url: '/children/not-mine/day/outcome',
+      payload: { at: SOS_AT, outcome: 'scared' },
+    });
+    expect([403, 404]).toContain(r.statusCode);
+    await app.close();
+  });
+
+  it('will not close a zone crossing', async () => {
+    // Only an SOS has an outcome. A crossing that could be marked «нужна была
+    // помощь» would feed the false-alarm rate the back office reads.
+    await app.inject({
+      method: 'POST', url: '/alerts',
+      payload: { childId: DEMO_CHILD, kind: 'left', zoneName: 'Дом', at: at(7, 30) },
+    });
+    const r = await app.inject({
+      method: 'POST', url: `/children/${DEMO_CHILD}/day/outcome`,
+      payload: { at: at(7, 30), outcome: 'scared' },
+    });
+    expect(r.statusCode).toBe(404);
+    await app.close();
+  });
+});

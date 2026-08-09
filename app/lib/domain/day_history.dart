@@ -42,13 +42,25 @@ class DayEvent {
   final double? lat;
   final double? lng;
 
+  /// What this SOS was marked as, if it has been closed. Null on every crossing
+  /// and on an SOS nobody has answered for yet — which the detail screen shows
+  /// as no chip selected, rather than guessing one.
+  final SosOutcome? outcome;
+
   const DayEvent({
     required this.at,
     required this.kind,
     this.zoneName,
     this.lat,
     this.lng,
+    this.outcome,
   });
+
+  /// The same event with a different verdict, for updating the list in place
+  /// after a save without refetching the day.
+  DayEvent withOutcome(SosOutcome o) => DayEvent(
+        at: at, kind: kind, zoneName: zoneName, lat: lat, lng: lng, outcome: o,
+      );
 
   static DayEvent? fromJson(Map<String, dynamic> j) {
     final at = DateTime.tryParse('${j['at']}');
@@ -69,6 +81,7 @@ class DayEvent {
       zoneName: zone is String && zone.isNotEmpty ? zone : null,
       lat: (j['lat'] as num?)?.toDouble(),
       lng: (j['lng'] as num?)?.toDouble(),
+      outcome: sosOutcomeFromWire(j['outcome']),
     );
   }
 }
@@ -147,6 +160,17 @@ String formatDistance(int metres) {
 /// closing an alarm at midnight will not write a paragraph, and an outcome
 /// field that is usually empty tells nobody anything.
 enum SosOutcome { falsePress, scared, neededHelp, unknown }
+
+/// Parse the server's key. Null for absent, and null for a key this build does
+/// not know — a newer server is not a reason to crash the day, and inventing a
+/// verdict is worse than showing none.
+SosOutcome? sosOutcomeFromWire(Object? v) => switch (v) {
+      'false_press' => SosOutcome.falsePress,
+      'scared' => SosOutcome.scared,
+      'needed_help' => SosOutcome.neededHelp,
+      'unknown' => SosOutcome.unknown,
+      _ => null,
+    };
 
 extension SosOutcomeWire on SosOutcome {
   String get wire => switch (this) {

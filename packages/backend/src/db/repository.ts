@@ -13,6 +13,7 @@ import type {
   TriageSeverity,
 } from '@fcs/shared';
 import type { BiMetrics } from '../analytics/biMetrics.js';
+import type { SosOutcome } from '../safety/dayHistory.js';
 
 export type { BiMetrics };
 
@@ -118,6 +119,12 @@ export interface SafetyAlertRow {
   /** The zone, for a crossing. An SOS happens anywhere, so it may be empty. */
   zoneName: string;
   at: string; // ISO timestamp
+  /**
+   * Frame 48 «Чем закончилось» — what the parent marked this SOS as, the
+   * morning after. Null until somebody closes it, and only ever set on an SOS:
+   * a zone crossing has no outcome to record.
+   */
+  outcome?: SosOutcome | null;
 }
 
 export interface ProfileRow {
@@ -674,6 +681,16 @@ export interface Repository {
   // ---- Child safety alerts (zone enter/exit history) ----
   recordAlert(userId: string, a: SafetyAlertRow): Promise<void>;
   listAlerts(userId: string, limit: number): Promise<SafetyAlertRow[]>;
+  /**
+   * Close an SOS with the parent's verdict (frame 48). Keyed on child + instant
+   * because that pair is what the client has — the alert feed carries no id.
+   *
+   * Returns false when no such SOS exists, so the screen can say the save
+   * failed instead of showing a tick over a write that matched nothing.
+   */
+  setAlertOutcome(
+    userId: string, childId: string, at: string, outcome: SosOutcome,
+  ): Promise<boolean>;
 
   // ---- Profile ----
   getProfile(userId: string): Promise<ProfileRow | null>;

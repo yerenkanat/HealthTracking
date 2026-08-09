@@ -346,6 +346,13 @@ function makeDeps(
     // Safety alerts
     recordAlert: async (_u, a) => void alertRows.unshift(a),
     listAlerts: async (_u, limit) => alertRows.slice(0, limit),
+    setAlertOutcome: async (_u, childId, at, outcome) => {
+      const row = alertRows.find(
+        (a) => a.childId === childId && a.kind === 'sos' && Date.parse(a.at) === Date.parse(at));
+      if (!row) return false;
+      row.outcome = outcome;
+      return true;
+    },
     // Profile + device reassignment
     getProfile: async () => profile,
     upsertProfile: async (_u, p) => void (profile = p),

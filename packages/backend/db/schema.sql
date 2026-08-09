@@ -419,9 +419,17 @@ CREATE TABLE safety_alerts (
   -- See migration 030.
   kind        TEXT NOT NULL CHECK (kind IN ('entered','left','checkIn','sos','lowBattery')),
   zone_name   TEXT NOT NULL,
-  at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Frame 48 «Чем закончилось» — what the parent marked an SOS as, afterwards.
+  -- NULL means nobody has closed it yet, which is a different thing from
+  -- 'unknown' («не удалось выяснить»): a default would erase that difference.
+  -- See migration 032.
+  outcome     TEXT CHECK (outcome IS NULL OR outcome IN ('false_press','scared','needed_help','unknown'))
 );
 CREATE INDEX idx_safety_alerts_user_at ON safety_alerts (user_id, at DESC);
+-- The outcome write is keyed on (user, child, at): the alert feed carries no id,
+-- so that triple is all the client can send. Partial — only an SOS is closed.
+CREATE INDEX idx_safety_alerts_sos_at ON safety_alerts (user_id, child_id, at) WHERE kind = 'sos';
 -- The admin alert feed and the 7-day / SOS dashboard counters read across ALL
 -- users; the index above leads with user_id and cannot serve them.
 CREATE INDEX idx_safety_alerts_at  ON safety_alerts (at DESC);

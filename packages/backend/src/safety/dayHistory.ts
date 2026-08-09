@@ -43,6 +43,8 @@ export interface SosPress {
   at: string;
   lat?: number;
   lng?: number;
+  /** What the parent marked it as afterwards; null while still open. */
+  outcome?: SosOutcome | null;
 }
 
 export type DayEventKind = 'enter' | 'exit' | 'sos';
@@ -54,6 +56,12 @@ export interface DayEvent {
   zoneName: string | null;
   lat?: number;
   lng?: number;
+  /**
+   * SOS only, and only once closed. The detail screen preselects the chip from
+   * this, so reopening an alarm shows the verdict already recorded rather than
+   * asking again — and asking again is how a second answer overwrites a first.
+   */
+  outcome?: SosOutcome | null;
 }
 
 export interface DayHistory {
@@ -141,6 +149,7 @@ export function buildDayHistory(input: {
       zoneName: null,
       lat: s.lat,
       lng: s.lng,
+      outcome: s.outcome ?? null,
     })),
   ].sort((a, b) => a.at.localeCompare(b.at));
 

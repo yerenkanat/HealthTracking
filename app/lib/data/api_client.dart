@@ -922,6 +922,23 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  /// Frame 48 «Сохранить отметку» — close an SOS with the parent's verdict.
+  ///
+  /// Returns whether the server recorded it. False rather than a throw: the
+  /// only caller is a button that has to say «не удалось» either way, and the
+  /// commonest failure here is being offline in the morning.
+  Future<bool> saveSosOutcome(String childId, DateTime at, String outcome) async {
+    try {
+      final res = await transport.post(
+        '/children/$childId/day/outcome',
+        {'at': at.toUtc().toIso8601String(), 'outcome': outcome},
+      );
+      return res.ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Returns null on 404 (no recent fix), throws on other errors.
   Future<Map<String, dynamic>?> lastLocation(String childId) async {
     final res = await transport.get('/children/$childId/location');

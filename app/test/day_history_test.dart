@@ -52,28 +52,29 @@ Widget stubMap(BuildContext _, List<RoutePoint> pts, List<DayEvent> evs) {
 Future<void> pumpHistory(
   WidgetTester tester, {
   required DayLoader load,
+  SosOutcomeSaver? onSaveOutcome,
 }) async {
   drawnPoints = [];
   drawnEvents = [];
   tester.view.physicalSize = const Size(390 * 3, 844 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(
-    theme: FcsTheme.light(AppLocale.ru),
-    home: const L10nScope(
-      l10n: l,
-      child: SizedBox.shrink(),
-    ),
-  ));
-  await tester.pumpWidget(MaterialApp(
-    theme: FcsTheme.light(AppLocale.ru),
-    home: L10nScope(
-      l10n: l,
-      child: DayHistoryScreen(
+  // L10nScope ABOVE MaterialApp, exactly as app.dart builds it. Under `home:`
+  // it sits below the Navigator, so a PUSHED route cannot see it and
+  // L10nScope.of falls back to English — the screen then renders in a language
+  // the app never selected, and only on the second screen. Getting this wrong
+  // here made a working feature look broken.
+  await tester.pumpWidget(const L10nScope(l10n: l, child: SizedBox.shrink()));
+  await tester.pumpWidget(L10nScope(
+    l10n: l,
+    child: MaterialApp(
+      theme: FcsTheme.light(AppLocale.ru),
+      home: DayHistoryScreen(
         childName: 'Алия',
         load: load,
         routeMapBuilder: stubMap,
         now: now,
+        onSaveOutcome: onSaveOutcome,
       ),
     ),
   ));
@@ -339,6 +340,104 @@ void main() {
         ),
       ));
       await tester.pumpAndSettle();
+      expect(find.text(l.t('sos_how_ended')), findsNothing);
+      expect(find.byType(ChoiceChip), findsNothing);
+    });
+  });
+
+  /// THE JOIN, which is what was actually broken.
+  ///
+  /// Every test above this built a DayEventScreen by hand and passed it a
+  /// saver, so all of them passed while the real list screen — the only thing
+  /// that ever pushes that route — never passed one. «Чем закончилось» could
+  /// not be reached by anybody holding a phone. These drive the list.
+  group('reaching the outcome chips the way a parent does', () {
+    final sosDay = history(events: [DayEvent(at: at(16, 41), kind: DayEventKind.sos)]);
+
+    testWidgets('tapping the SOS row reaches the chips', (tester) async {
+      await pumpHistory(
+        tester,
+        load: (_) async => sosDay,
+        onSaveOutcome: (_, __) async => true,
+      );
+      await tester.tap(find.text(l.t('day_sos')));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l.t('sos_how_ended')), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNWidgets(SosOutcome.values.length));
+    });
+
+    testWidgets('the verdict reaches the saver and the screen closes',
+        (tester) async {
+      final saved = <SosOutcome>[];
+      await pumpHistory(
+        tester,
+        load: (_) async => sosDay,
+        onSaveOutcome: (_, o) async {
+          saved.add(o);
+          return true;
+        },
+      );
+      await tester.tap(find.text(l.t('day_sos')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l.t('sos_out_false')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l.t('sos_save_mark')));
+      await tester.pumpAndSettle();
+
+      expect(saved, [SosOutcome.falsePress]);
+      expect(find.text(l.t('sos_mark_saved')), findsOneWidget);
+      // Back on the list, not stranded on a screen with nothing left to do.
+      expect(find.text(l.t('sos_how_ended')), findsNothing);
+    });
+
+    testWidgets('a failed save says so and stays put', (tester) async {
+      await pumpHistory(
+        tester,
+        load: (_) async => sosDay,
+        onSaveOutcome: (_, __) async => false,
+      );
+      await tester.tap(find.text(l.t('day_sos')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l.t('sos_out_scared')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l.t('sos_save_mark')));
+      await tester.pumpAndSettle();
+
+      // A tick over a write that failed is how a parent believes the alarm is
+      // closed when the server never heard about it.
+      expect(find.text(l.t('sos_mark_saved')), findsNothing);
+      expect(find.text(l.t('day_failed')), findsOneWidget);
+      expect(find.text(l.t('sos_how_ended')), findsOneWidget);
+    });
+
+    testWidgets('reopening shows the verdict already recorded', (tester) async {
+      await pumpHistory(
+        tester,
+        load: (_) async => history(events: [
+          DayEvent(
+              at: at(16, 41),
+              kind: DayEventKind.sos,
+              outcome: SosOutcome.neededHelp),
+        ]),
+        onSaveOutcome: (_, __) async => true,
+      );
+      await tester.tap(find.text(l.t('day_sos')));
+      await tester.pumpAndSettle();
+
+      // Asking again is how a second answer overwrites a first.
+      final chip = tester.widget<ChoiceChip>(
+        find.ancestor(
+            of: find.text(l.t('sos_out_help')), matching: find.byType(ChoiceChip)),
+      );
+      expect(chip.selected, isTrue);
+    });
+
+    testWidgets('without a saver the section is absent, not dead', (tester) async {
+      await pumpHistory(tester, load: (_) async => sosDay);
+      await tester.tap(find.text(l.t('day_sos')));
+      await tester.pumpAndSettle();
+
       expect(find.text(l.t('sos_how_ended')), findsNothing);
       expect(find.byType(ChoiceChip), findsNothing);
     });

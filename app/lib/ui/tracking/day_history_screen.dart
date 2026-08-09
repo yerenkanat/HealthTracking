@@ -39,6 +39,11 @@ class DayHistoryScreen extends StatefulWidget {
   /// Which day to open on. Defaults to [now].
   final DateTime? initialDay;
 
+  /// Records the parent's verdict on an SOS. Passed straight through to the
+  /// detail screen, which hides «Чем закончилось» entirely when it is null —
+  /// so omitting it here removes the section rather than breaking it.
+  final SosOutcomeSaver? onSaveOutcome;
+
   const DayHistoryScreen({
     super.key,
     required this.childName,
@@ -46,6 +51,7 @@ class DayHistoryScreen extends StatefulWidget {
     required this.routeMapBuilder,
     required this.now,
     this.initialDay,
+    this.onSaveOutcome,
   });
 
   @override
@@ -74,6 +80,29 @@ class _DayHistoryScreenState extends State<DayHistoryScreen> {
   void initState() {
     super.initState();
     _reload();
+  }
+
+  /// Record a saved verdict in the day already on screen.
+  ///
+  /// Local rather than a refetch: the server has confirmed the write, and
+  /// reloading the whole day would scroll the list back to the top under a
+  /// parent who has just tapped something near the bottom of it.
+  void _applyOutcome(DayEvent event, SosOutcome outcome) {
+    final h = _history;
+    if (h == null || !mounted) return;
+    setState(() {
+      _history = DayHistory(
+        day: h.day,
+        points: h.points,
+        distanceM: h.distanceM,
+        rawCount: h.rawCount,
+        events: [
+          for (final e in h.events)
+            e.at == event.at && e.kind == event.kind ? e.withOutcome(outcome) : e,
+        ],
+        retentionDays: h.retentionDays,
+      );
+    });
   }
 
   Future<void> _reload() async {
@@ -173,6 +202,8 @@ class _DayHistoryScreenState extends State<DayHistoryScreen> {
               history: h,
               childName: widget.childName,
               routeMapBuilder: widget.routeMapBuilder,
+              onSaveOutcome: widget.onSaveOutcome,
+              onSaved: _applyOutcome,
             ),
           ],
           const SizedBox(height: 20),
@@ -308,11 +339,18 @@ class _Timeline extends StatelessWidget {
   final DayHistory history;
   final String childName;
   final RouteMapBuilder routeMapBuilder;
+  final SosOutcomeSaver? onSaveOutcome;
+
+  /// Called after a save succeeds, so the row reflects the new verdict without
+  /// refetching the day.
+  final void Function(DayEvent event, SosOutcome outcome) onSaved;
 
   const _Timeline({
     required this.history,
     required this.childName,
     required this.routeMapBuilder,
+    required this.onSaveOutcome,
+    required this.onSaved,
   });
 
   @override
@@ -342,6 +380,17 @@ class _Timeline extends StatelessWidget {
                             .where((x) => x.at.isAfter(e.at))
                             .toList(),
                         routeMapBuilder: routeMapBuilder,
+                        // The whole point of the detail screen. Without these
+                        // two the «Чем закончилось» section never appeared and
+                        // an alarm could not be closed at all.
+                        onSaveOutcome: onSaveOutcome == null
+                            ? null
+                            : (event, outcome) async {
+                                final ok = await onSaveOutcome!(event, outcome);
+                                if (ok) onSaved(event, outcome);
+                                return ok;
+                              },
+                        initialOutcome: e.outcome,
                       ),
                     ))
                 : null,

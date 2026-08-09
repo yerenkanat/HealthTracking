@@ -1727,11 +1727,26 @@ export function createPgRepository(pool: Pool): Repository {
     },
     async listAlerts(userId, limit) {
       const { rows } = await pool.query(
-        `SELECT child_id, kind, zone_name, at FROM safety_alerts
+        `SELECT child_id, kind, zone_name, at, outcome FROM safety_alerts
          WHERE user_id = $1 ORDER BY at DESC LIMIT $2`, [userId, limit]);
       return rows.map((r) => ({
         childId: r.child_id, kind: r.kind, zoneName: r.zone_name, at: new Date(r.at).toISOString(),
+        outcome: r.outcome ?? null,
       }));
+    },
+    async setAlertOutcome(userId, childId, at, outcome) {
+      // Scoped by user_id as well as child: the caller's access to the child was
+      // already checked, but a write that trusts only the path parameter is one
+      // bad guard away from closing somebody else's alarm.
+      //
+      // The instant is matched as a timestamp rather than a string so the two
+      // representations of the same moment — the ISO form the client echoes back
+      // and whatever precision the column holds — compare equal.
+      const { rowCount } = await pool.query(
+        `UPDATE safety_alerts SET outcome = $4
+         WHERE user_id = $1 AND child_id = $2 AND at = $3::timestamptz AND kind = 'sos'`,
+        [userId, childId, at, outcome]);
+      return (rowCount ?? 0) > 0;
     },
 
     // ---- Profile ----

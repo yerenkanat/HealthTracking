@@ -14,7 +14,7 @@ import type { Geofence } from '@fcs/shared';
 import type { LeadNotifier } from '../notifications/leadAlert';
 import { normalizePhone } from '../http/staffAuth';
 import { CLAIM_WINDOW_MS, MAX_CLAIMS } from './phoneAuth';
-import { buildDayHistory } from '../safety/dayHistory';
+import { buildDayHistory, isSosOutcome, SOS_OUTCOMES } from '../safety/dayHistory';
 import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
 import { orderProgress, visibleOrders } from '../shop/orderProgress';
 import { createHash, randomBytes } from 'node:crypto';
@@ -903,7 +903,7 @@ export function registerCrudRoutes(
       // listAlerts is per USER, so it carries this child's siblings too.
       sos: alerts
         .filter((a) => a.childId === id && a.kind === 'sos' && inDay(a.at))
-        .map((a) => ({ at: a.at })),
+        .map((a) => ({ at: a.at, outcome: a.outcome ?? null })),
     });
 
     return reply.send({
@@ -913,6 +913,41 @@ export function registerCrudRoutes(
       // «маршруты хранятся 90 дней» cannot drift from what actually happens.
       retentionDays: ROUTE_RETENTION_DAYS,
     });
+  });
+
+  /**
+   * Frame 48 — «Сохранить отметку». Close an SOS with the parent's verdict.
+   *
+   * `child_alerts` rather than `child_location`: this writes to the alarm
+   * record, and a relative who may see where the child is has not thereby been
+   * given the right to decide what an emergency was.
+   *
+   * Keyed on the instant, since the alert feed carries no id. A miss is a 404
+   * and not a silent 200 — the screen prints the result of this request, and a
+   * tick over an UPDATE that matched no row is how a parent comes to believe an
+   * alarm is closed when it is still open.
+   */
+  app.post('/children/:id/day/outcome', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await requireChildAccess(req, reply, id, 'child_alerts'))) return;
+
+    const body = (req.body ?? {}) as { at?: unknown; outcome?: unknown };
+    if (typeof body.at !== 'string' || Number.isNaN(Date.parse(body.at))) {
+      return reply.code(400).send({ error: 'at must be an ISO timestamp' });
+    }
+    if (!isSosOutcome(body.outcome)) {
+      return reply.code(400).send({
+        error: 'outcome must be one of ' + SOS_OUTCOMES.map((o) => o.key).join(', '),
+      });
+    }
+
+    const owner = await repo.childOwner(id).catch(() => null);
+    if (!owner) return reply.code(404).send({ error: 'not found' });
+
+    const ok = await repo.setAlertOutcome(
+      owner.userId, id, new Date(body.at).toISOString(), body.outcome);
+    if (!ok) return reply.code(404).send({ error: 'no SOS at that time' });
+    return reply.send({ ok: true, outcome: body.outcome });
   });
 
   // ---- Family access (screen 40) ----
