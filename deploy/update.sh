@@ -149,6 +149,10 @@ check "/admin" 'reasonWrap'              "opening a health record asks why"
 check "/admin" 'publishBlocked'          "publishing needs both languages"
 check "/admin" 'reviewBody'              "a clinician can sign off medical text"
 check "/admin" 'metricnote'              "stock says how long it lasts"
+check "/admin" 'catStages'               "Каталог can set a product's stage"
+check "/admin" 'pcTabs'                  "the product card opens with its five tabs"
+check "/admin" 'intBody'                 "Интеграции says what is not connected"
+check "/admin" 'finCaveats'              "Финансы prints what its numbers cannot know"
 
 echo
 echo "==> Routes the PROXY must pass through"
