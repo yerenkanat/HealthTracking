@@ -41,6 +41,11 @@ const AGGREGATES_ONLY = new Set([
   // (product_update / category_upsert / category_delete), because «кто поменял
   // этап» has to have an answer.
   'GET /admin/shop/products',
+  // Which outside services are wired. About the server's own plumbing — no
+  // customer, child or order. It returns NO secret either: a stored key comes
+  // back as ••••7f2a, so there is nothing here whose reading needs recording.
+  // /admin/settings, which does return the real values, stays audited.
+  'GET /admin/integrations',
   'GET /admin/audio', // which calendar days have a clip — content coverage, names nobody
   // The two reads about the back office itself rather than about a family.
   // Neither touches PHI, and both are polled: /admin/me runs on every page

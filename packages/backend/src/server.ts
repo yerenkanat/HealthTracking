@@ -103,6 +103,20 @@ export interface ServerDeps {
    */
   requirePhoneCode?: boolean;
   /**
+   * Whether push can actually DELIVER — frame 24 «Интеграции».
+   *
+   * `ingest.sendEmergencyPush` is always supplied, including as a no-op by
+   * every test, so its presence proves nothing. firebase-admin authenticates
+   * with applicationDefault(), which needs a service-account credential on the
+   * server; without one, sends fail at the point of use and an SOS reaches
+   * nobody whose app is closed. Set by the composition root, which is the only
+   * place that knows.
+   *
+   * False by default: reporting an alarm channel as working when it is not is
+   * the wrong direction to be wrong in.
+   */
+  pushIsReal?: boolean;
+  /**
    * Refuse pairing for a device that is not in our registry.
    *
    * OFF by default. The day it goes on, every unit missing from the registry
@@ -444,7 +458,16 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     },
     deps.requirePhoneCode ?? false,
   );
-  if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin);
+  if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin, {
+    // What was ACTUALLY injected, for frame 24. `deps.sms` being present is the
+    // only honest signal that codes can be sent — index.ts substitutes a
+    // console logger under dev shortcuts, and that one is deliberately not
+    // passed here, so the panel reports SMS as off rather than as working.
+    smsSenderIsReal: !!deps.sms,
+    requirePhoneCode: deps.requirePhoneCode ?? false,
+    // Emergency push is injected by index.ts only when a real sender loads.
+    pushWired: !!deps.pushIsReal,
+  });
   if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerInventoryRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin && deps.authUser) registerEntitlementRoutes(app, deps.repo, deps.authAdmin, deps.authUser);

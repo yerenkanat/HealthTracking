@@ -16,6 +16,7 @@ import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
 import { PRODUCT_STAGES } from '../db/repository';
+import { buildIntegrations, integrationSummary, maskSecret } from '../admin/integrations';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import { summarizeSecurity } from '../admin/security';
@@ -182,7 +183,33 @@ import {
 } from '../auth/capabilities';
 export type AuthAdmin = (req: FastifyRequest) => Promise<{ staffId: string; role: StaffRole } | null>;
 
-export function registerAdminRoutes(app: FastifyInstance, repo: Repository, authAdmin: AuthAdmin): void {
+/**
+ * What frame 24 needs to know about the RUNNING server, which it cannot read
+ * off the environment.
+ *
+ * index.ts only wires a real SMS sender under conditions this module cannot
+ * see — `smsSender()` returns a console logger under dev shortcuts and
+ * undefined otherwise — so a screen that inferred "подключено" from an
+ * environment variable would report exactly the silent failure it exists to
+ * expose. These are facts about what was actually injected.
+ *
+ * All optional and false by default: an older caller reports "off", which is
+ * the safe direction to be wrong in.
+ */
+export interface AdminRuntimeFacts {
+  /** A real gateway, not the console logger. */
+  smsSenderIsReal?: boolean;
+  requirePhoneCode?: boolean;
+  /** A push sender is wired and can deliver. */
+  pushWired?: boolean;
+}
+
+export function registerAdminRoutes(
+  app: FastifyInstance,
+  repo: Repository,
+  authAdmin: AuthAdmin,
+  runtime: AdminRuntimeFacts = {},
+): void {
   // Shared by the routes the panel polls. One per server, so it survives across
   // requests — which is the whole point.
   const auditThrottle = createAuditThrottle();
@@ -1144,6 +1171,88 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
   // Saving them succeeds regardless of whether the token is valid, so without
   // this the first sign of a typo is a customer who was never called back. The
   // whole point is to fail here, loudly, in front of the person who can fix it.
+  /**
+   * Frame 24 — «Интеграции».
+   *
+   * `staff`, same as /admin/settings: this is about keys and outside services,
+   * which is an owner/admin concern rather than a seller's.
+   *
+   * NOT audited, unlike /admin/settings — and deliberately, because unlike that
+   * route this one returns no secret. A stored key comes back as `••••7f2a`,
+   * which tells an operator which key is installed and a shoulder-surfer
+   * nothing. Auditing a screen that reveals nothing would bury the entries
+   * recording who read the real values.
+   */
+  app.get('/admin/integrations', async (req, reply) => {
+    const s = await requireCap(req, reply, 'staff');
+    if (!s) return;
+    const settings = await repo.getShopSettings().catch(() => ({} as Record<string, string>));
+    const list = buildIntegrations({
+      settings,
+      // Asked of the running server rather than assumed from the environment:
+      // index.ts only wires a REAL sender under conditions this route cannot
+      // see, and a screen that reports "подключено" because a variable is set
+      // would be exactly the silent failure it exists to expose.
+      smsSenderIsReal: runtime.smsSenderIsReal ?? false,
+      requirePhoneCode: runtime.requirePhoneCode ?? false,
+      pushWired: runtime.pushWired ?? false,
+      anthropicEnvKey: process.env.ANTHROPIC_API_KEY ?? null,
+    });
+    return reply.send({ integrations: list, summary: integrationSummary(list) });
+  });
+
+  /**
+   * Frame 24b — «Проверить связь».
+   *
+   * A real round trip, reported step by step, because "не работает" is not a
+   * diagnosis. Each step says what was tried and what came back, so the person
+   * reading it knows whether to fix the key, the chat, or the network.
+   *
+   * Only integrations this server can actually reach are checkable; the rest
+   * say so rather than offering a button that always fails.
+   */
+  app.post('/admin/integrations/:id/check', async (req, reply) => {
+    const s = await requireCap(req, reply, 'staff');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const cfg = await repo.getShopSettings().catch(() => ({} as Record<string, string>));
+    const steps: Array<{ step: string; ok: boolean; detail: string }> = [];
+
+    if (id !== 'telegram') {
+      // Honest refusal rather than a fake pass. Nothing else here has an
+      // endpoint this server can call: SMS and push have no sender at all, and
+      // the Maps key lives in the Android build.
+      return reply.code(400).send({
+        ok: false,
+        steps: [{ step: 'Проверка', ok: false, detail: 'Эту интеграцию отсюда проверить нельзя' }],
+      });
+    }
+
+    const token = (cfg.telegramBotToken ?? '').trim();
+    const chat = (cfg.telegramChatId ?? '').trim();
+    steps.push({
+      step: 'Токен бота сохранён', ok: !!token,
+      detail: token ? maskSecret(token)! : 'Токен не сохранён',
+    });
+    steps.push({
+      step: 'Чат указан', ok: !!chat,
+      detail: chat || 'Чат не указан',
+    });
+
+    if (!token || !chat) {
+      return reply.send({ ok: false, steps });
+    }
+
+    await repo.writeAudit({ staffId: s.staffId, action: 'integration_check', target: id });
+    const result = await sendTelegramTest(token, chat);
+    steps.push({
+      step: 'Тестовое сообщение доставлено',
+      ok: !!result.ok,
+      detail: result.ok ? 'Сообщение ушло в чат' : (result.error ?? 'Telegram не принял сообщение'),
+    });
+    return reply.send({ ok: !!result.ok, steps });
+  });
+
   app.post('/admin/settings/test-telegram', async (req, reply) => {
     const s = await requireCap(req, reply, 'staff');
     if (!s) return;

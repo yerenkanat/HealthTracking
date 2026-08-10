@@ -246,6 +246,13 @@ async function productionDeps(): Promise<ServerDeps> {
     // it on without a sender would lock everybody out instead of protecting
     // them.
     requirePhoneCode: process.env.REQUIRE_PHONE_CODE === '1' && !!smsSender(),
+    // Frame 24 «Интеграции». firebase-admin authenticates with
+    // applicationDefault(), which on this server means the service-account JSON
+    // named by GOOGLE_APPLICATION_CREDENTIALS. Without it every send fails at
+    // the point of use — an SOS reaches nobody whose app is closed — and
+    // nothing anywhere said so. Reported as a fact rather than inferred from
+    // the push module being importable.
+    pushIsReal: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
   };
 }
 
@@ -296,6 +303,13 @@ function memoryDeps(): ServerDeps {
     // it on without a sender would lock everybody out instead of protecting
     // them.
     requirePhoneCode: process.env.REQUIRE_PHONE_CODE === '1' && !!smsSender(),
+    // Frame 24 «Интеграции». firebase-admin authenticates with
+    // applicationDefault(), which on this server means the service-account JSON
+    // named by GOOGLE_APPLICATION_CREDENTIALS. Without it every send fails at
+    // the point of use — an SOS reaches nobody whose app is closed — and
+    // nothing anywhere said so. Reported as a fact rather than inferred from
+    // the push module being importable.
+    pushIsReal: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
   };
 }
 

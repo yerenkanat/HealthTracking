@@ -793,6 +793,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Персонал
     </button>
+    <button type="button" class="nav" data-view="integrations" data-cap="staff">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+      Интеграции <span class="badge" id="intBadge" hidden></span>
+    </button>
     <button type="button" class="nav" data-view="security" data-cap="staff">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       Безопасность
@@ -1435,6 +1439,44 @@
            in its own header: «There is no stage field on a product and
            inventing one would be fabrication», so the app's «Для вашего этапа»
            has been a heuristic nobody could correct without editing Dart. -->
+      <!-- КАДР 24 / 24b · Интеграции и «Проверить связь».
+           Every outside service this product leans on, what breaks while it is
+           off, and what would have to be supplied. Nothing is inferred: a key
+           is stored or it is not, a sender was injected or it was not. -->
+      <section class="view" id="integrations">
+        <div id="intAlert" class="alertwarn" hidden style="margin-bottom:14px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <div><b id="intAlertTitle"></b><div class="sub" id="intAlertBody"></div></div>
+        </div>
+        <div class="card">
+          <div class="sec-h"><h3>Внешние сервисы</h3>
+            <span class="sub" id="intSummary">—</span></div>
+          <div id="intBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+          <div class="note">
+            Ключи здесь не показываются целиком — только последние четыре знака,
+            чтобы отличить один ключ от другого. Менять их — на вкладке «Магазин → Настройки и ключи».
+          </div>
+        </div>
+      </section>
+
+      <!-- КАДР 24b · Проверить связь — пошаговая диагностика. -->
+      <div class="modal" id="intCheck" hidden>
+        <div class="sheet" style="max-width:520px" role="dialog" aria-modal="true" aria-labelledby="icTitle">
+          <div class="mh">
+            <div style="flex:1;min-width:0">
+              <h3 id="icTitle">Проверка связи</h3>
+              <div class="sub">Настоящий запрос, а не проверка настроек</div>
+            </div>
+            <button class="mx" id="icClose" type="button" aria-label="Закрыть">✕</button>
+          </div>
+          <div class="mb" id="icSteps"></div>
+          <div class="mf">
+            <span id="icNote">Проверка ничего не меняет</span>
+            <span class="acts"><button class="btn" type="button" id="icDone">Закрыть</button></span>
+          </div>
+        </div>
+      </div>
+
       <section class="view" id="catalog">
         <div class="gallery" style="grid-template-columns:216px 1fr">
           <div class="card">
@@ -3849,6 +3891,7 @@
     staff:["Персонал","Кто может входить в панель, и под какой ролью"],
     stock:["Склад","Товары, цены и остатки — с историей каждого движения"],
     catalog:["Каталог","Чем товар является: этап мамы, возраст ребёнка, две языковые версии"],
+    integrations:["Интеграции","Внешние сервисы: что подключено, что сломано и что из-за этого не работает"],
     course:["Курс Ма!Ма!","Уроки, которые открываются при покупке комплекта"]
   };
   /**
@@ -6243,6 +6286,103 @@
   /// «Аналитика» is absent deliberately: the dashboard script above owns the BI
   /// payload and the chart code. One owner per view — when both files rendered
   /// it, the second pass overwrote the first.
+  // ---- КАДР 24 / 24b · Интеграции ---------------------------------------
+  const INT_STATE = {
+    ok:      { label: "работает",     cls: "good" },
+    partial: { label: "частично",     cls: "warn" },
+    off:     { label: "не подключено", cls: "crit" },
+  };
+
+  async function loadIntegrations() {
+    let b;
+    try {
+      b = await api("/admin/integrations");
+    } catch (e) {
+      $("#intBody").innerHTML = `<div class="note">Не загрузилось: ${esc(e.message)}</div>`;
+      return;
+    }
+    const list = b.integrations || [];
+    const sum = b.summary || { ok: 0, partial: 0, off: 0, blocking: [] };
+
+    $("#intSummary").textContent =
+      `${sum.ok} работает · ${sum.partial} частично · ${sum.off} не подключено`;
+
+    // The banner names what is BROKEN, not how many rows there are. «3 off»
+    // tells an operator nothing; «мама не получит код» tells her whether to
+    // ring somebody tonight.
+    const blocking = list.filter((i) => i.state !== "ok" && i.breaks);
+    const alert = $("#intAlert");
+    alert.hidden = blocking.length === 0;
+    if (blocking.length) {
+      $("#intAlertTitle").textContent =
+        `Не работает: ${blocking.map((i) => i.name).join(", ")}`;
+      $("#intAlertBody").textContent = blocking.map((i) => i.breaks).join(" · ");
+    }
+
+    $("#intBody").innerHTML = `<table><thead><tr>
+        <th>Сервис</th><th>Состояние</th><th>Сейчас</th><th>Что не работает</th><th>Ключ</th><th></th>
+      </tr></thead><tbody>${list.map(intRow).join("")}</tbody></table>`;
+
+    const badge = $("#intBadge");
+    if (badge) {
+      badge.hidden = blocking.length === 0;
+      badge.textContent = blocking.length || "";
+    }
+  }
+
+  function intRow(i) {
+    const st = INT_STATE[i.state] || INT_STATE.off;
+    const needs = (i.needs || []).length
+      ? `<div class="sub" style="margin-top:3px">Нужно: ${esc(i.needs.join("; "))}</div>` : "";
+    return `<tr>
+      <td><b>${esc(i.name)}</b><div class="sub">${esc(i.purpose)}</div></td>
+      <td><span class="chip ${esc(st.cls)}">${esc(st.label)}</span></td>
+      <td>${esc(i.detail)}</td>
+      <td>${i.breaks ? `<span style="color:var(--crit-text)">${esc(i.breaks)}</span>${needs}` : "—"}</td>
+      <td style="font-family:var(--mono)">${i.secret ? esc(i.secret) : "—"}</td>
+      <td>${i.checkable
+        ? `<button class="btn" type="button" data-check="${esc(i.id)}">Проверить</button>`
+        : `<span class="sub">не проверяется</span>`}</td>
+    </tr>`;
+  }
+
+  async function intRunCheck(id) {
+    $("#intCheck").hidden = false;
+    $("#icSteps").innerHTML = `<div style="color:var(--muted)">Проверяем…</div>`;
+    let r;
+    try {
+      r = await api(`/admin/integrations/${encodeURIComponent(id)}/check`, { method: "POST" });
+    } catch (e) {
+      // A failed check is a RESULT, not an error to hide: it is the answer.
+      $("#icSteps").innerHTML = `<div class="note">Проверка не выполнилась: ${esc(e.message)}</div>`;
+      return;
+    }
+    const steps = r.steps || [];
+    $("#icSteps").innerHTML = steps.map((s) =>
+      `<div style="display:flex;gap:10px;align-items:flex-start">
+         <span style="color:var(--${s.ok ? "good" : "crit"}-text);font-weight:700">${s.ok ? "✓" : "✕"}</span>
+         <div><div style="font-weight:600;font-size:13px">${esc(s.step)}</div>
+              <div class="sub">${esc(s.detail)}</div></div>
+       </div>`).join("") || `<div class="note">Проверять нечего.</div>`;
+    $("#icNote").textContent = r.ok
+      ? "Связь есть — сообщение дошло"
+      : "Связь не подтвердилась: смотрите первый шаг с ✕";
+  }
+
+  {
+    const bindI = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
+    const closeCheck = () => { $("#intCheck").hidden = true; };
+    bindI("#icClose", closeCheck);
+    bindI("#icDone", closeCheck);
+    const cm = $("#intCheck");
+    if (cm) cm.addEventListener("click", (e) => { if (e.target === cm) closeCheck(); });
+    const iv = $("#integrations");
+    if (iv) iv.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-check]");
+      if (b) intRunCheck(b.dataset.check);
+    });
+  }
+
   // ---- КАДР 08 / 08a / 08b · Каталог ------------------------------------
   //
   // Named cat* rather than catalog*: `catalog` in this scope is already the
@@ -6596,6 +6736,7 @@
     if (v === "devices") loadDevices();
     if (v === "safety") loadSafety();
     if (v === "catalog") loadCatalog();
+    if (v === "integrations") loadIntegrations();
   }
   // The same views, reached by URL rather than by click.
   window.addEventListener("hashchange", () => loadFor(location.hash.slice(1)));
