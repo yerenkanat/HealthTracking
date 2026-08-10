@@ -11,8 +11,10 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../data/audio_player_session.dart';
 import '../../l10n/l10n.dart' show AppLocale;
 import '../../l10n/l10n_scope.dart';
+import '../content/audio_player_screen.dart';
 import '../design_system.dart';
 import '../theme.dart';
 
@@ -119,6 +121,22 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
     });
   }
 
+  /// Open screen 44 on the SAME player, so the clip carries on where it was
+  /// instead of restarting — and keeps playing after she comes back here.
+  /// ownsPlayer stays false: this card created the player and disposes it, and
+  /// the full screen disposes its session on the way out.
+  void _openFullPlayer() {
+    final player = _player;
+    if (player == null || _st != _St.ready) return;
+    final l = L10nScope.of(context);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => AudioPlayerScreen(
+        title: l.t('audio_title'),
+        session: AudioPlayerSession(player),
+      ),
+    ));
+  }
+
   Future<void> _toggle() async {
     final player = _player;
     if (player == null) return;
@@ -172,17 +190,28 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(children: [
-                  const Icon(Icons.auto_awesome_rounded, size: 15, color: Palette.violet),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(l.t('audio_title'),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Palette.text)),
-                  ),
-                  Text('${_fmt(_pos)} / ${_fmt(_dur)}',
-                      style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12, color: Palette.textDim, fontWeight: FontWeight.w600)),
-                ]),
+                // The title row opens screen 44 — the full player, with ±15 s
+                // and the «экран погаснет» promise. That screen existed with no
+                // way to reach it and no production AudioSession to build it
+                // from; this is the way in. The slider below stays where it is,
+                // so the common case (glance, scrub, carry on) never leaves
+                // the calendar.
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _openFullPlayer,
+                  child: Row(children: [
+                    const Icon(Icons.auto_awesome_rounded, size: 15, color: Palette.violet),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(l.t('audio_title'),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Palette.text)),
+                    ),
+                    Text('${_fmt(_pos)} / ${_fmt(_dur)}',
+                        style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12, color: Palette.textDim, fontWeight: FontWeight.w600)),
+                    const Icon(Icons.open_in_full_rounded, size: 15, color: Palette.textDim),
+                  ]),
+                ),
                 const SizedBox(height: 2),
                 SliderTheme(
                   data: SliderThemeData(
