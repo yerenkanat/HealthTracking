@@ -1,8 +1,16 @@
 /// Timed fetal-movement session — a pure model for the "count the kicks" tool.
 /// The clock starts on the FIRST recorded movement (a common way expectant
-/// parents time a session), and the model just counts taps + measures elapsed
-/// time. NON-medical: no thresholds, targets, or guidance live here. PURE Dart →
-/// unit-testable via verify_kicks.dart.
+/// parents time a session), and the model counts taps + measures elapsed time.
+///
+/// This model DOES carry thresholds: the count-to-ten method's ten movements
+/// ([defaultKickGoal]) inside about two hours ([kickReferenceWindow]). It used
+/// to claim it did not — "NON-medical: no thresholds, targets, or guidance" —
+/// while shipping exactly those numbers, and that fiction is how the counter
+/// came to celebrate a reached goal and say nothing at all when it was missed.
+/// Nothing here diagnoses; it describes a session against the method the app
+/// already teaches, and defers every decision to her clinic.
+///
+/// PURE Dart → unit-testable via verify_kicks.dart.
 library;
 
 class KickSession {
@@ -57,8 +65,8 @@ class KickSessionRecord {
       );
 }
 
-/// A per-session movement goal — a neutral personal target (not medical advice),
-/// with a progress fraction for the ring.
+/// The per-session movement goal of the count-to-ten method: ten movements.
+/// Paired with [kickReferenceWindow] below, which is the other half of it.
 const int defaultKickGoal = 10;
 
 /// Progress toward [goal], clamped 0..1.
@@ -89,6 +97,35 @@ const Duration kickReferenceWindow = Duration(hours: 2);
 /// provider-deferring note instead when it does not.
 bool kickGoalReachedPromptly(int count, Duration elapsed, {int goal = defaultKickGoal}) =>
     kickGoalReached(count, goal) && elapsed <= kickReferenceWindow;
+
+/// The count-to-ten method's ACTUAL trigger: the reference window has passed
+/// and the count is still short of [goal].
+///
+/// The half of the method that was missing. The slow-but-reached case had a
+/// branch; the not-reached case had none, so four movements in an hour saved
+/// as «Записано шевелений: 4» and nothing else — the app's most time-critical
+/// self-reported sign, logged and dropped.
+///
+/// Deliberately NOT "anything that is not ten inside two hours". A session she
+/// ended after twenty minutes has not been given the window — the method says
+/// nothing about it, and showing the escalation copy there teaches her to
+/// dismiss it, so the real fewer-than-ten-in-two-hours case would land on a
+/// numbed reader (and the консультация would field avoidable calls). That case
+/// is [kickSessionEndedEarly]; ten felt slowly keeps its own calm branch
+/// (`kick_goal_reached_slow`, via [kickGoalReachedPromptly]).
+///
+/// It decides only whether to SHOW her the guidance the app already owns
+/// (`preg_note_movement_pattern`) and the way to the warning-signs screen. It
+/// is not a diagnosis and adds no threshold of its own.
+bool kickSessionNeedsGuidance(int count, Duration elapsed, {int goal = defaultKickGoal}) =>
+    count > 0 && !kickGoalReached(count, goal) && elapsed >= kickReferenceWindow;
+
+/// A session that stopped short of [goal] BEFORE the window was up — she put
+/// the phone down, the baby was asleep, four in twenty minutes. The method has
+/// not spoken yet, so the app says only what the method looks for: a neutral
+/// note, no escalation, and no route to the warning-signs screen.
+bool kickSessionEndedEarly(int count, Duration elapsed, {int goal = defaultKickGoal}) =>
+    count > 0 && !kickGoalReached(count, goal) && elapsed < kickReferenceWindow;
 
 /// Aggregate stats over recorded kick sessions — for the history header.
 class KickHistorySummary {

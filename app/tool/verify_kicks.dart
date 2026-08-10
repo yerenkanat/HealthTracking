@@ -96,6 +96,72 @@ void main() {
   _chk('zero movements is never a goal',
       !kickGoalReachedPromptly(0, Duration.zero));
 
+  // ---- The missing half: two hours WITHOUT ten movements ----
+  //
+  // The slow-but-reached case had a branch. Not reaching ten had none, so a
+  // session that ran the full two hours and got four saved as «Записано
+  // шевелений: 4» and nothing more — the most time-critical self-reported sign
+  // in the third trimester, logged and dropped. This predicate is what puts the
+  // app's own guidance and the route to the warning signs on that path.
+  _chk('four movements over two hours needs guidance',
+      kickSessionNeedsGuidance(4, kickReferenceWindow));
+  _chk('nine movements over three hours needs guidance',
+      kickSessionNeedsGuidance(9, const Duration(hours: 3)));
+  _chk('twelve movements inside the window does NOT',
+      !kickSessionNeedsGuidance(12, const Duration(minutes: 45)));
+  _chk('ten in twenty minutes does NOT',
+      !kickSessionNeedsGuidance(10, const Duration(minutes: 20)));
+
+  // …and NOT before the window is up. A session she ended after twenty minutes
+  // has not been given the two hours the method asks for; firing the escalation
+  // copy on every casual session teaches her to dismiss it, so the session that
+  // matters would land on a numbed reader. It gets the neutral note instead.
+  _chk('four movements in an hour is not yet the trigger',
+      !kickSessionNeedsGuidance(4, const Duration(hours: 1)));
+  _chk('…it gets the neutral note',
+      kickSessionEndedEarly(4, const Duration(hours: 1)));
+  _chk('one movement saved immediately never escalates',
+      !kickSessionNeedsGuidance(1, Duration.zero) &&
+          kickSessionEndedEarly(1, Duration.zero));
+  _chk('a second short of two hours is still early',
+      !kickSessionNeedsGuidance(9, kickReferenceWindow - const Duration(seconds: 1)) &&
+          kickSessionEndedEarly(9, kickReferenceWindow - const Duration(seconds: 1)));
+  _chk('right on two hours it flips over',
+      kickSessionNeedsGuidance(9, kickReferenceWindow) &&
+          !kickSessionEndedEarly(9, kickReferenceWindow));
+
+  // Ten felt slowly keeps its own calm branch (kick_goal_reached_slow) — it is
+  // neither of these two.
+  _chk('ten over three hours is the slow branch, not the trigger',
+      !kickSessionNeedsGuidance(10, const Duration(hours: 3)) &&
+          !kickSessionEndedEarly(10, const Duration(hours: 3)) &&
+          !kickGoalReachedPromptly(10, const Duration(hours: 3)));
+
+  // Nothing counted is nothing to say anything about — that session never
+  // saves, and must never trigger either branch.
+  _chk('an empty session says nothing',
+      !kickSessionNeedsGuidance(0, Duration.zero) &&
+          !kickSessionEndedEarly(0, Duration.zero) &&
+          !kickSessionNeedsGuidance(0, const Duration(hours: 4)));
+
+  // The three save-time branches never overlap — she is shown exactly one.
+  {
+    var overlaps = 0;
+    for (final count in [0, 1, 4, 9, 10, 12]) {
+      for (final mins in [0, 1, 20, 119, 120, 121, 180]) {
+        final e = Duration(minutes: mins);
+        final on = [
+          kickSessionNeedsGuidance(count, e),
+          kickSessionEndedEarly(count, e),
+          kickGoalReachedPromptly(count, e),
+        ].where((b) => b).length;
+        if (on > 1) overlaps++;
+      }
+    }
+    _chk('the save-time branches are mutually exclusive ($overlaps overlaps)',
+        overlaps == 0);
+  }
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

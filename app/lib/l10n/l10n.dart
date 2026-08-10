@@ -2659,6 +2659,53 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: '10 movements recorded, but it took over two hours. '
         'Many providers ask to be told if movements feel less frequent than usual.'
   },
+  // Saved a session in which two hours passed WITHOUT ten movements — the
+  // count-to-ten method's own trigger, and the case that used to save as
+  // «Записано шевелений: 4» and nothing more. Stated as facts — her numbers,
+  // then what the method looks for — with no verdict and no threshold the app
+  // did not already have. Under it comes `kick_low_action` (what to do when
+  // the count trigger is met) and `preg_note_movement_pattern` (the other
+  // trigger: movements noticeably fewer than usual). The dialog's second
+  // button opens the warning-signs screen (`preg_warn_title`), which lists
+  // «Малыш шевелится заметно меньше обычного» and the ambulance number.
+  //
+  // The kk half says «қимыл» throughout, the same word as
+  // `preg_note_movement_pattern`, `preg_warn_movement` and the week-27 card,
+  // so the number and the reference are comparable the way they are in ru.
+  'kick_low_title': {
+    AppLocale.ru: 'Обратите внимание на шевеления',
+    AppLocale.kk: 'Қимылдарға назар аударыңыз',
+    AppLocale.en: 'Take note of the movements',
+  },
+  'kick_low_body': {
+    AppLocale.ru: 'Записано шевелений: {n}, время: {t}. '
+        'Метод «считай до десяти» ориентируется на десять шевелений примерно за два часа.',
+    AppLocale.kk: 'Жазылған қимыл: {n}, уақыты: {t}. '
+        '«Онға дейін сана» әдісі шамамен екі сағатта он қимылға негізделген.',
+    AppLocale.en: 'Logged {n} movements in {t}. '
+        'The count-to-ten method looks for ten movements in about two hours.',
+  },
+  // The action the method attaches to its own threshold. Without it the app
+  // taught the numbers and stopped: a mother who counted six in two hours had
+  // met the trigger for calling and was told nothing about it, because
+  // `preg_note_movement_pattern` covers only the subjective «меньше обычного».
+  'kick_low_action': {
+    AppLocale.ru: 'Если за два часа вы не насчитали десяти шевелений — '
+        'свяжитесь с консультацией сегодня, не ждите до завтра.',
+    AppLocale.kk: 'Екі сағат ішінде он қимыл санамасаңыз — '
+        'бүгін консультацияға хабарласыңыз, ертеңге қалдырмаңыз.',
+    AppLocale.en: 'If you have not counted ten movements in two hours, '
+        'contact your clinic today — do not wait until tomorrow.',
+  },
+  // Shown beside the save confirmation when the session ended BEFORE the two
+  // hours with fewer than ten movements. The method has given no signal there,
+  // so this states what it looks for and stops: no verdict, no clinic
+  // instruction, no route to the warning signs.
+  'kick_method_note': {
+    AppLocale.ru: 'Метод «считай до десяти» ориентируется на десять шевелений примерно за два часа.',
+    AppLocale.kk: '«Онға дейін сана» әдісі шамамен екі сағатта он қимылға негізделген.',
+    AppLocale.en: 'The count-to-ten method looks for ten movements in about two hours.',
+  },
   'kick_history': {AppLocale.ru: 'История сессий', AppLocale.kk: 'Сессиялар тарихы', AppLocale.en: 'Session history'},
   'kick_avg_count': {AppLocale.ru: 'Ср. шевелений', AppLocale.kk: 'Орт. тебіну', AppLocale.en: 'Avg movements'},
   'kick_avg_length': {AppLocale.ru: 'Ср. длительность', AppLocale.kk: 'Орт. ұзақтық', AppLocale.en: 'Avg length'},
