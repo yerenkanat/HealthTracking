@@ -15,7 +15,7 @@ const base = {
   smsSenderIsReal: false,
   requirePhoneCode: false,
   pushWired: false,
-  anthropicEnvKey: null,
+  anthropicEnvKey: null as string | null,
 };
 const byId = (input: Partial<typeof base>, id: string) =>
   buildIntegrations({ ...base, ...input }).find((i) => i.id === id)!;

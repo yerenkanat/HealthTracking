@@ -17,6 +17,7 @@ import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
 import { PRODUCT_STAGES } from '../db/repository';
 import { buildIntegrations, integrationSummary, maskSecret } from '../admin/integrations';
+import { buildFinanceReport, financeCsv } from '../admin/finance';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import { summarizeSecurity } from '../admin/security';
@@ -1171,6 +1172,59 @@ export function registerAdminRoutes(
   // Saving them succeeds regardless of whether the token is valid, so without
   // this the first sign of a typo is a customer who was never called back. The
   // whole point is to fail here, loudly, in front of the person who can fix it.
+  /**
+   * Frames 05 / 05a / 05b — «Финансы», «Возвраты и брак», «Отчёт».
+   *
+   * `owner`-shaped work, so it needs the capability that already gates margin:
+   * «продавец … без маржи». A seller reading this would see exactly what the
+   * spec keeps from them.
+   *
+   * The window defaults to the current month, which is what «выручка к плану»
+   * is measured against — a default of "everything" would answer a question
+   * nobody asked and be slow besides.
+   */
+  app.get('/admin/finance', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+
+    const q = req.query as { from?: string; to?: string; format?: string };
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    const today = new Date().toISOString().slice(0, 10);
+    const to = iso.test(q.to ?? '') ? q.to! : today;
+    const from = iso.test(q.from ?? '') ? q.from! : `${today.slice(0, 7)}-01`;
+    if (from > to) {
+      return reply.code(400).send({ error: 'from must not be after to' });
+    }
+
+    const [orders, products, moves, settings] = await Promise.all([
+      repo.adminShopOrders(1000).catch(() => []),
+      repo.adminProducts().catch(() => []),
+      repo.stockMoves(2000).catch(() => []),
+      repo.getShopSettings().catch(() => ({} as Record<string, string>)),
+    ]);
+
+    const planRaw = (settings.revenuePlanMinor ?? '').trim();
+    const report = buildFinanceReport({
+      orders, products, moves,
+      planMinor: /^\d+$/.test(planRaw) ? Number(planRaw) : null,
+      from, to,
+    });
+
+    // Reading the books is worth recording: it is the one screen that shows
+    // margin and cost across the whole business.
+    await repo.writeAudit({
+      staffId: s.staffId, action: 'view_finance', reason: `${from}..${to}`,
+    });
+
+    if (q.format === 'csv') {
+      return reply
+        .header('content-type', 'text/csv; charset=utf-8')
+        .header('content-disposition', `attachment; filename="finance-${from}_${to}.csv"`)
+        .send(financeCsv(report));
+    }
+    return reply.send(report);
+  });
+
   /**
    * Frame 24 — «Интеграции».
    *

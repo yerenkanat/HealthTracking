@@ -793,6 +793,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Персонал
     </button>
+    <button type="button" class="nav" data-view="finance" data-cap="stock">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Финансы
+    </button>
     <button type="button" class="nav" data-view="integrations" data-cap="staff">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
       Интеграции <span class="badge" id="intBadge" hidden></span>
@@ -1439,6 +1443,39 @@
            in its own header: «There is no stage field on a product and
            inventing one would be fabrication», so the app's «Для вашего этапа»
            has been a heuristic nobody could correct without editing Dart. -->
+      <!-- КАДРЫ 05 / 05a / 05b · Финансы, Возвраты и брак, Отчёт.
+           One screen rather than three tabs: the three answer one question —
+           what did this period actually make — and splitting them would make
+           the margin's caveat easy to read without the margin. -->
+      <section class="view" id="finance">
+        <div class="card" style="margin-bottom:14px">
+          <div class="sec-h"><h3>Период</h3>
+            <span class="sub">По умолчанию — текущий месяц, как и план выручки</span></div>
+          <form id="finForm" class="stafform" autocomplete="off">
+            <label style="font-size:12px;color:var(--muted)">С <input id="finFrom" type="date"></label>
+            <label style="font-size:12px;color:var(--muted)">По <input id="finTo" type="date"></label>
+            <button class="btn" type="submit">Показать</button>
+            <button class="btn ghost" type="button" id="finCsv">Выгрузить CSV</button>
+          </form>
+          <div id="finMsg" class="formmsg"></div>
+        </div>
+
+        <div class="kpis" id="finKpis" style="margin-bottom:14px"></div>
+
+        <div class="gallery">
+          <div class="card">
+            <div class="sec-h"><h3>Возвраты и брак</h3>
+              <span class="sub" id="finRetSub">—</span></div>
+            <div id="finReturns"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+          </div>
+          <div class="card">
+            <div class="sec-h"><h3>Чего эти цифры не знают</h3>
+              <span class="sub">Читать вместе с суммами выше</span></div>
+            <div id="finCaveats"></div>
+          </div>
+        </div>
+      </section>
+
       <!-- КАДР 24 / 24b · Интеграции и «Проверить связь».
            Every outside service this product leans on, what breaks while it is
            off, and what would have to be supplied. Nothing is inferred: a key
@@ -3892,6 +3929,7 @@
     stock:["Склад","Товары, цены и остатки — с историей каждого движения"],
     catalog:["Каталог","Чем товар является: этап мамы, возраст ребёнка, две языковые версии"],
     integrations:["Интеграции","Внешние сервисы: что подключено, что сломано и что из-за этого не работает"],
+    finance:["Финансы","Заработано, обещано, потеряно — и чего эти цифры не знают"],
     course:["Курс Ма!Ма!","Уроки, которые открываются при покупке комплекта"]
   };
   /**
@@ -6286,6 +6324,89 @@
   /// «Аналитика» is absent deliberately: the dashboard script above owns the BI
   /// payload and the chart code. One owner per view — when both files rendered
   /// it, the second pass overwrote the first.
+  // ---- КАДРЫ 05 / 05a / 05b · Финансы -----------------------------------
+  const finTenge = (minor) => `${fmt(Math.round((minor || 0) / 100))} ₸`;
+  let finLast = null;
+
+  async function loadFinance() {
+    const qs = new URLSearchParams();
+    if ($("#finFrom").value) qs.set("from", $("#finFrom").value);
+    if ($("#finTo").value) qs.set("to", $("#finTo").value);
+    let r;
+    try {
+      r = await api(`/admin/finance${qs.toString() ? `?${qs}` : ""}`);
+    } catch (e) {
+      $("#finMsg").textContent = `Не загрузилось: ${e.message}`;
+      $("#finMsg").className = "formmsg err";
+      return;
+    }
+    finLast = r;
+    $("#finMsg").textContent = "";
+    $("#finMsg").className = "formmsg";
+    // Reflect the window the SERVER used, which may differ from the empty
+    // fields the operator left — otherwise the dates lie about what is shown.
+    $("#finFrom").value = r.from;
+    $("#finTo").value = r.to;
+    renderFinance(r);
+  }
+
+  function renderFinance(r) {
+    const plan = r.planProgress == null
+      ? "план не задан"
+      : `${Math.round(r.planProgress * 100)}% от плана`;
+    const kpi = (lbl, val, delta, dot) =>
+      `<div class="card kpi"><div class="lbl">${dot ? `<span class="dot" style="background:var(--${dot})"></span>` : ""}${esc(lbl)}</div>
+         <div class="val">${esc(val)}</div><div class="delta">${esc(delta)}</div></div>`;
+
+    $("#finKpis").innerHTML = [
+      kpi("Заработано", finTenge(r.money.earnedMinor), plan, "good"),
+      // Promised is NOT revenue and is coloured as a warning, not a win.
+      kpi("Обещано", finTenge(r.money.promisedMinor), "заказы, за которые ещё не заплатили", "warn"),
+      kpi("Потеряно на отменах", finTenge(r.money.lostMinor), `скидок выдано ${finTenge(r.money.discountMinor)}`, "crit"),
+      kpi("Маржа", finTenge(r.margin.marginMinor),
+        `посчитана по ${Math.round(r.margin.coverage * 100)}% выручки`,
+        r.margin.coverage >= 0.9 ? "good" : "warn"),
+    ].join("");
+
+    const ret = r.returns;
+    $("#finRetSub").textContent =
+      `${fmt(ret.returnedUnits)} возвратов из ${fmt(ret.soldUnits)} продаж · ` +
+      `${(ret.returnRate * 100).toFixed(1).replace(".", ",")}%`;
+    $("#finReturns").innerHTML = ret.events.length
+      ? `<table><thead><tr><th>Когда</th><th>Товар</th><th>Шт</th><th>Что было</th><th>Примечание</th></tr></thead>
+         <tbody>${ret.events.slice(0, 50).map((e) => `<tr>
+           <td>${esc((e.at || "").slice(0, 10))}</td>
+           <td>${esc(e.productName)} · ${esc(e.color)}</td>
+           <td style="font-family:var(--mono)">${e.units}</td>
+           <td>${e.reason === "return"
+             ? "<span class='chip warn'>возврат</span>"
+             : "<span class='chip crit'>списание</span>"}</td>
+           <td>${esc(e.note || "—")}</td></tr>`).join("")}</tbody></table>
+         <div class="note">Списано на ${finTenge(ret.writeOffCostMinor)} по себестоимости —
+           там, где она указана. Возврат возвращает товар на склад, списание нет.</div>`
+      : `<div class="note">За период ничего не возвращали и не списывали.</div>`;
+
+    // The caveats are part of the report, not a footnote to skip: the margin
+    // above is meaningless without the coverage line.
+    $("#finCaveats").innerHTML = r.caveats.map((c) =>
+      `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
+         <span style="color:var(--warn-text)">•</span><div style="font-size:12.5px">${esc(c)}</div>
+       </div>`).join("");
+  }
+
+  {
+    const f = $("#finForm");
+    if (f) f.addEventListener("submit", (ev) => { ev.preventDefault(); loadFinance(); });
+    const csv = $("#finCsv");
+    if (csv) csv.addEventListener("click", () => {
+      if (!finLast) return;
+      // Straight to the route with format=csv rather than building the file in
+      // the browser: one implementation of the export, and it is the tested one.
+      const qs = new URLSearchParams({ from: finLast.from, to: finLast.to, format: "csv" });
+      window.location.href = `/admin/finance?${qs}`;
+    });
+  }
+
   // ---- КАДР 24 / 24b · Интеграции ---------------------------------------
   const INT_STATE = {
     ok:      { label: "работает",     cls: "good" },
@@ -6737,6 +6858,7 @@
     if (v === "safety") loadSafety();
     if (v === "catalog") loadCatalog();
     if (v === "integrations") loadIntegrations();
+    if (v === "finance") loadFinance();
   }
   // The same views, reached by URL rather than by click.
   window.addEventListener("hashchange", () => loadFor(location.hash.slice(1)));
