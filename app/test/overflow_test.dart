@@ -509,8 +509,9 @@ void main() {
   // 1.5 rather than the maximum: past that, essentially every mobile layout
   // needs a different design, and pretending otherwise would make this a test
   // nobody can keep passing. This is the setting a real user plausibly picks.
-  Future<void> checkScaled(WidgetTester tester, String name, Widget Function() build,
-      {double scale = 1.5, bool scroll = false}) async {
+  /// One locale at one scale. See [checkScaled], which drives this twice.
+  Future<void> _checkOne(WidgetTester tester, String name, Widget Function() build,
+      AppLocale locale, double scale, bool scroll) async {
     _overflows.clear();
     tester.view.physicalSize = _smallPhone;
     tester.view.devicePixelRatio = 1.0;
@@ -529,9 +530,7 @@ void main() {
       key: UniqueKey(),
       home: MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-        // Russian: the default language AND the longest strings, so this is the
-        // combination a real user is most likely to be in.
-        child: L10nScope(l10n: const L10n(AppLocale.ru), child: build()),
+        child: L10nScope(l10n: L10n(locale), child: build()),
       ),
     ));
     await tester.pumpAndSettle();
@@ -541,7 +540,30 @@ void main() {
     }
     FlutterError.onError = previous;
     expect(_overflows, isEmpty,
-        reason: '$name overflowed at ${scale}x text in Russian:\n  ${_overflows.join('\n  ')}');
+        reason: '$name overflowed at ${scale}x text in ${locale.name}:\n'
+            '  ${_overflows.join('\n  ')}');
+  }
+
+  /// Both languages that ship, each at the scale that matters for it.
+  ///
+  /// **Russian at 1.5** — the default language, the longest strings, and the
+  /// accessibility setting a real user plausibly picks. Past 1.5 essentially
+  /// every mobile layout needs a different design, so a higher bar would be one
+  /// nobody can keep passing.
+  ///
+  /// **Kazakh at 1.3** — screen 23, «Қазақша при 130 %: все размеры увеличены,
+  /// ничего не срезано». This was the hole: every scaled check ran Russian
+  /// only, so a control that fits «Сохранить» at 1.5 and clips «Сақтау» at 1.3
+  /// passed. Kazakh is not uniformly shorter than Russian — it is different,
+  /// and different is enough to break a row tuned for one of them. The tab bar
+  /// is covered separately in nav_tabs_test.dart; this is everything else.
+  ///
+  /// Both run in one call so the Kazakh pass cannot be forgotten when a new
+  /// screen is added to this file.
+  Future<void> checkScaled(WidgetTester tester, String name, Widget Function() build,
+      {double scale = 1.5, bool scroll = false}) async {
+    await _checkOne(tester, name, build, AppLocale.ru, scale, scroll);
+    await _checkOne(tester, name, build, AppLocale.kk, 1.3, scroll);
   }
 
   testWidgets('the emergency screen survives large text', (tester) async {
