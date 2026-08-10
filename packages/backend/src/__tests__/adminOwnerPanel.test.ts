@@ -27,17 +27,29 @@ const order = (o: Partial<ShopOrder>): ShopOrder => ({
   items: [], ...o,
 });
 
+/**
+ * The catalogue half of a product, unset. These tests are about money and
+ * stock; spelling out eleven nulls in every fixture would bury what each one
+ * is actually asserting.
+ */
+const NO_CATALOGUE = {
+  nameKk: null, stage: null, category: null,
+  descriptionRu: null, descriptionKk: null,
+  ageMinMonths: null, ageMaxMonths: null, photoUrl: null,
+  seoSlug: null, seoTitle: null, seoDescription: null,
+} as const;
+
 const PRODUCTS: InventoryProduct[] = [
   {
     id: 'p1', name: 'Комплект', sku: null, priceMinor: 3_900_000, costMinor: 2_400_000,
     kind: 'simple', active: true, sort: 0, lowStockThreshold: 3, stock: 10,
-    lowStock: false, variants: [],
+    lowStock: false, variants: [], ...NO_CATALOGUE,
   },
   {
     // No cost recorded — this is what makes the profit an estimate.
     id: 'p2', name: 'Часы', sku: null, priceMinor: 1_500_000, costMinor: null,
     kind: 'simple', active: true, sort: 1, lowStockThreshold: 3, stock: 4,
-    lowStock: true, variants: [],
+    lowStock: true, variants: [], ...NO_CATALOGUE,
   },
 ];
 

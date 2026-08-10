@@ -1905,6 +1905,50 @@ export function createPgRepository(pool: Pool): Repository {
          ORDER BY p.sort, v.sort, v.color`);
       return rows.map((r) => ({ id: r.id, color: r.color, colorHex: r.color_hex, stock: r.stock, productId: r.product_id, productName: r.product_name }));
     },
+    // ---- Catalogue (frames 08 / 08a / 08b) ----
+    async updateProduct(id, patch) {
+      // Built from the keys PRESENT, so saving one tab cannot blank another.
+      const cols: Record<string, string> = {
+        name: 'name', nameKk: 'name_kk', priceMinor: 'price_minor',
+        costMinor: 'cost_minor', active: 'active', sort: 'sort', sku: 'sku',
+        category: 'category', stage: 'stage',
+        descriptionRu: 'description_ru', descriptionKk: 'description_kk',
+        ageMinMonths: 'age_min_months', ageMaxMonths: 'age_max_months',
+        photoUrl: 'photo_url', seoSlug: 'seo_slug', seoTitle: 'seo_title',
+        seoDescription: 'seo_description',
+      };
+      const sets: string[] = [];
+      const vals: unknown[] = [];
+      for (const [key, col] of Object.entries(cols)) {
+        if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
+        vals.push((patch as Record<string, unknown>)[key]);
+        sets.push(`${col} = $${vals.length}`);
+      }
+      if (!sets.length) return; // nothing asked for is not an error
+      vals.push(id);
+      await pool.query(
+        `UPDATE shop_products SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+    },
+    async listShopCategories() {
+      const { rows } = await pool.query(
+        'SELECT id, name_ru, name_kk, sort FROM shop_categories ORDER BY sort, name_ru');
+      return rows.map((r) => ({ id: r.id, nameRu: r.name_ru, nameKk: r.name_kk, sort: r.sort }));
+    },
+    async upsertShopCategory(c) {
+      await pool.query(
+        `INSERT INTO shop_categories (id, name_ru, name_kk, sort) VALUES ($1,$2,$3,$4)
+         ON CONFLICT (id) DO UPDATE SET name_ru = $2, name_kk = $3, sort = $4`,
+        [c.id, c.nameRu, c.nameKk, c.sort]);
+    },
+    async deleteShopCategory(id) {
+      // Refused while anything still points at it. The FK is ON DELETE SET
+      // NULL, so this would otherwise succeed and quietly uncategorise a shelf.
+      const { rows } = await pool.query(
+        'SELECT 1 FROM shop_products WHERE category = $1 LIMIT 1', [id]);
+      if (rows[0]) return false;
+      await pool.query('DELETE FROM shop_categories WHERE id = $1', [id]);
+      return true;
+    },
     async setShopVariantStock(variantId, stock, by) {
       // An absolute count, because a stocktake knows the total rather than the
       // difference. The ledger still gets the delta, so the running total and
@@ -2089,6 +2133,9 @@ export function createPgRepository(pool: Pool): Repository {
       const { rows } = await pool.query(
         `SELECT p.id, p.name, p.sku, p.price_minor, p.cost_minor, p.kind, p.active,
                 p.sort, p.low_stock_threshold,
+                p.name_kk, p.stage, p.category, p.description_ru, p.description_kk,
+                p.age_min_months, p.age_max_months, p.photo_url,
+                p.seo_slug, p.seo_title, p.seo_description,
                 v.id AS vid, v.color, v.color_hex, v.stock
            FROM shop_products p
            LEFT JOIN shop_variants v ON v.product_id = p.id
@@ -2103,6 +2150,12 @@ export function createPgRepository(pool: Pool): Repository {
             costMinor: r.cost_minor, kind: r.kind, active: r.active, sort: r.sort,
             lowStockThreshold: r.low_stock_threshold,
             stock: 0, lowStock: false, variants: [],
+            nameKk: r.name_kk ?? null, stage: r.stage ?? null, category: r.category ?? null,
+            descriptionRu: r.description_ru ?? null, descriptionKk: r.description_kk ?? null,
+            ageMinMonths: r.age_min_months ?? null, ageMaxMonths: r.age_max_months ?? null,
+            photoUrl: r.photo_url ?? null,
+            seoSlug: r.seo_slug ?? null, seoTitle: r.seo_title ?? null,
+            seoDescription: r.seo_description ?? null,
           };
           byId.set(r.id, p);
         }

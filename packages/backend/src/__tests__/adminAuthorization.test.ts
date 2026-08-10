@@ -65,6 +65,12 @@ const ANY_STAFF = new Map<string, string>([
   // the whole screen. A role with neither gets an empty board.
   // queues.test.ts drives all eight roles against it.
   ['GET /admin/queues', 'each queue is gated on its own capability inside'],
+  // Reading the product catalogue. Every screen that lists an order has to name
+  // the product on it, so refusing the whole read would break the seller's own
+  // board. The one field that is not everybody's business — себестоимость — is
+  // stripped inside the handler for accounts without `stock`, per «продавец …
+  // без маржи». CHANGING the catalogue is `content`.
+  ['GET /admin/shop/products', 'read-only; margin stripped without `stock`'],
 ]);
 
 /**

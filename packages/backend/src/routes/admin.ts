@@ -15,6 +15,7 @@ import { vaccinationSchedule } from '../vaccination/schedule';
 import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository } from '../db/repository';
+import { PRODUCT_STAGES } from '../db/repository';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import { summarizeSecurity } from '../admin/security';
@@ -957,6 +958,125 @@ export function registerAdminRoutes(app: FastifyInstance, repo: Repository, auth
     await repo.writeAudit({ staffId: s.staffId, action: 'shop_add_variant', target: `${productId}/${color}` });
     return reply.code(201).send({ ok: true });
   });
+  // ---- Catalogue (frames 08 / 08a / 08b) ----
+  //
+  // `catalog` capability, not `stock`: deciding what a product IS — its stage,
+  // its age band, its Kazakh copy — is the content editor's job, and the spec
+  // gives the seller stock and prices without the catalogue. Reading is open to
+  // any signed-in staff member, because every screen that lists an order needs
+  // to name the product on it.
+  app.get('/admin/shop/products', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const [all, categories] = await Promise.all([
+      repo.adminProducts(),
+      repo.listShopCategories(),
+    ]);
+
+    // «Продавец … без маржи». Cost is the one field on a product that is not
+    // everybody's business, so it is REMOVED for accounts without `stock`
+    // rather than the whole screen being refused: every role that reads an
+    // order needs to name the product on it.
+    const seesCost = can(s.role, 'stock');
+    const products = seesCost ? all : all.map(({ costMinor: _cost, ...rest }) => rest);
+
+    return reply.send({ products, categories, stages: PRODUCT_STAGES, seesCost });
+  });
+
+  app.patch('/admin/shop/products/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+
+    // .optional() on every field and no .default() anywhere: an absent key must
+    // leave the column alone, so saving the SEO tab cannot wipe персонализация.
+    // .nullable() where the panel offers a «не указан» — clearing is a real
+    // edit and must be distinguishable from not touching it.
+    const text = (max: number) => z.string().trim().max(max).nullable().optional();
+    const parsed = z.object({
+      name: z.string().trim().min(1).max(120).optional(),
+      nameKk: text(120),
+      priceMinor: z.number().int().min(0).max(100_000_000).optional(),
+      costMinor: z.number().int().min(0).max(100_000_000).nullable().optional(),
+      active: z.boolean().optional(),
+      sort: z.number().int().min(0).max(9999).optional(),
+      sku: text(64),
+      category: text(64),
+      stage: z.enum(PRODUCT_STAGES).nullable().optional(),
+      descriptionRu: text(4000),
+      descriptionKk: text(4000),
+      ageMinMonths: z.number().int().min(0).max(216).nullable().optional(),
+      ageMaxMonths: z.number().int().min(0).max(216).nullable().optional(),
+      photoUrl: text(500),
+      seoSlug: text(120),
+      seoTitle: text(200),
+      seoDescription: text(400),
+    }).strict().safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const patch = parsed.data;
+
+    // The DB has the same CHECK, but a 400 naming the field beats a 500 from a
+    // constraint violation on a screen where somebody just typed two numbers.
+    const lo = patch.ageMinMonths, hi = patch.ageMaxMonths;
+    if (lo != null && hi != null && lo > hi) {
+      return reply.code(400).send({ error: 'age_min_months must not exceed age_max_months' });
+    }
+
+    // «Двуязычность блокирует публикацию» — the same rule the content editor
+    // applies to a lesson. Checked against what the row will BE, not what was
+    // sent, so activating a product whose Kazakh name is already missing is
+    // refused too.
+    if (patch.active === true) {
+      const current = (await repo.adminProducts()).find((p) => p.id === id);
+      if (!current) return reply.code(404).send({ error: 'not found' });
+      const kk = patch.nameKk !== undefined ? patch.nameKk : current.nameKk;
+      if (!kk || !kk.trim()) {
+        return reply.code(400).send({ error: 'kk_required', field: 'nameKk' });
+      }
+    }
+
+    await repo.updateProduct(id, patch);
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: 'product_update',
+      target: id,
+      reason: Object.keys(patch).join(','),
+    });
+    return reply.send({ ok: true });
+  });
+
+  app.put('/admin/shop/categories/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const parsed = z.object({
+      nameRu: z.string().trim().min(1).max(80),
+      nameKk: z.string().trim().max(80).nullable().optional(),
+      sort: z.number().int().min(0).max(9999).default(0),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const { id } = req.params as { id: string };
+    if (!/^[a-z0-9_-]{1,64}$/.test(id)) {
+      return reply.code(400).send({ error: 'id must be a slug: a-z, 0-9, _ and -' });
+    }
+    await repo.upsertShopCategory({
+      id, nameRu: parsed.data.nameRu, nameKk: parsed.data.nameKk ?? null, sort: parsed.data.sort,
+    });
+    await repo.writeAudit({ staffId: s.staffId, action: 'category_upsert', target: id });
+    return reply.send({ ok: true });
+  });
+
+  app.delete('/admin/shop/categories/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const ok = await repo.deleteShopCategory(id);
+    // 409, not 404: the category exists, and the caller needs to know the
+    // difference between "gone" and "still in use".
+    if (!ok) return reply.code(409).send({ error: 'category_in_use' });
+    await repo.writeAudit({ staffId: s.staffId, action: 'category_delete', target: id });
+    return reply.send({ ok: true });
+  });
+
   app.get('/admin/shop/orders', async (req, reply) => {
     const s = await requireCap(req, reply, 'orders');
     if (!s) return;

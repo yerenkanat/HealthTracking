@@ -193,6 +193,56 @@
   /* KPI tiles */
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   .card{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow)}
+
+  /* 3.12 Галерея форм. align-items:start is REQUIRED — without it the grid row
+     stretches to the tallest panel and every short panel grows a dead margin.
+     min-width:0 on the children for the same reason it is on the content
+     column: a table inside a grid track otherwise refuses to shrink. */
+  .gallery{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  .gallery>*{min-width:0}
+  @media (max-width:900px){ .gallery{grid-template-columns:1fr} }
+
+  /* The left rail of frame 08: categories, then stages. A filter, not a menu —
+     it narrows the table beside it rather than navigating away. */
+  .sidelist{display:flex;flex-direction:column;gap:2px}
+  .sidelist button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+    background:none;border:0;border-radius:8px;padding:7px 9px;cursor:pointer;
+    font:inherit;font-size:13px;color:var(--muted)}
+  .sidelist button:hover{background:var(--row)}
+  .sidelist button.active{background:var(--accent-soft);color:var(--accent-text);font-weight:700}
+  .sidelist .n{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted-2)}
+  .sidelist button.active .n{color:var(--accent-text)}
+
+  /* 3.11 Модалка. position:fixed rather than absolute: the panel scrolls, and
+     an absolutely-placed overlay scrolls away from the thing it is covering. */
+  .modal{position:fixed;inset:0;background:rgba(30,20,26,.42);display:flex;
+    align-items:center;justify-content:center;padding:40px;z-index:60}
+  .modal[hidden]{display:none}
+  .modal .sheet{width:100%;max-width:680px;max-height:100%;background:var(--surface);
+    border:1px solid var(--hair);border-radius:12px;box-shadow:var(--shadow-modal);
+    display:flex;flex-direction:column;overflow:hidden}
+  .modal .mh{padding:16px 20px;border-bottom:1px solid var(--hair);display:flex;align-items:flex-start;gap:12px}
+  .modal .mh h3{font-size:17px;font-weight:700;margin:0}
+  .modal .mh .sub{font-size:13px;color:var(--muted-2);margin-top:3px}
+  .modal .mx{background:none;border:0;color:var(--muted-2);font-size:17px;cursor:pointer;line-height:1}
+  .modal .mb{padding:16px 20px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+  /* The footer's left side carries the CONSEQUENCE of the action, never blank
+     space — «Изменение затрагивает всех детей» is the spec's own example. */
+  .modal .mf{padding:14px 20px;border-top:1px solid var(--hair);background:var(--surface-2);
+    display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted-2)}
+  .modal .mf .acts{margin-left:auto;display:flex;gap:8px}
+
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:-4px 0 4px}
+  .tabs button{background:none;border:0;border-bottom:2px solid transparent;cursor:pointer;
+    font:inherit;font-size:13px;font-weight:600;color:var(--muted-2);padding:8px 10px}
+  .tabs button.active{color:var(--accent-text);border-bottom-color:var(--accent)}
+  .tabpane[hidden]{display:none}
+  .fieldrow{display:flex;gap:10px;flex-wrap:wrap}
+  .fieldrow>label{flex:1;min-width:170px;display:flex;flex-direction:column;gap:4px;
+    font-size:12px;font-weight:600;color:var(--muted)}
+  .fieldrow input,.fieldrow select,.fieldrow textarea{font:inherit;font-size:13px;
+    border:1px solid var(--hair);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
+  .fieldrow textarea{min-height:64px;resize:vertical}
   .kpi{padding:18px}
   .kpi .lbl{color:var(--muted);font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px}
   .kpi .dot{width:9px;height:9px;border-radius:50%}
@@ -711,6 +761,13 @@
     <button type="button" class="nav" data-view="course" data-cap="content">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m10 8 6 4-6 4V8z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
       Курс Ма!Ма!
+    </button>
+    <!-- Каталог is what a product IS — its stage, its age band, its Kazakh
+         copy. Склад is how many there are. Two jobs, two roles: the content
+         editor owns this one and never sees margin, the seller owns stock. -->
+    <button type="button" class="nav" data-view="catalog" data-cap="content">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+      Каталог <span class="badge" id="catalogBadge" hidden></span>
     </button>
     <button type="button" class="nav" data-view="stock" data-cap="stock">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
@@ -1371,6 +1428,145 @@
            The Магазин tab still edits the storefront (settings, orders, colour
            counts). This is the warehouse: what each product costs, what it
            sells for, how many are really there, and why that changed. -->
+      <!-- КАДР 08 · Товары — «слева категории и этапы мамы, справа таблица с
+           колонкой этапа». 08a is the card below it; 08b edits the categories.
+
+           The stage column is why this screen exists. shop_stage.dart says so
+           in its own header: «There is no stage field on a product and
+           inventing one would be fabrication», so the app's «Для вашего этапа»
+           has been a heuristic nobody could correct without editing Dart. -->
+      <section class="view" id="catalog">
+        <div class="gallery" style="grid-template-columns:216px 1fr">
+          <div class="card">
+            <div class="sec-h"><h3>Категории</h3></div>
+            <div id="catCats" class="sidelist"></div>
+            <div class="sec-h" style="margin-top:14px"><h3>Этап мамы</h3></div>
+            <div id="catStages" class="sidelist"></div>
+            <div class="note" style="margin-top:12px">
+              Этап — для кого товар, а не сколько его на складе.
+              Пустой этап показывается как «не указан»: так видно, что ещё не заполнено.
+            </div>
+          </div>
+
+          <div>
+            <div class="card" style="margin-bottom:12px">
+              <div class="sec-h">
+                <h3>Товары</h3>
+                <span class="sub" id="catSummary">—</span>
+              </div>
+              <div id="catBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+              <div class="note" id="catFootRule"></div>
+            </div>
+
+            <!-- 08b · Категории и этапы. Deleting one that still holds products
+                 is refused by the server (409) rather than orphaning them. -->
+            <div class="card">
+              <div class="sec-h"><h3>Добавить или переименовать категорию</h3>
+                <span class="sub">Код латиницей — он попадёт в ссылки витрины</span></div>
+              <form id="catCatForm" class="stafform" autocomplete="off">
+                <input id="catCatId" placeholder="код: gifts" required maxlength="64" pattern="[a-z0-9_-]+">
+                <input id="catCatRu" placeholder="Название (RU)" required maxlength="80">
+                <input id="catCatKk" placeholder="Атауы (ҚАЗ)" maxlength="80">
+                <input id="catCatSort" type="number" min="0" step="1" placeholder="Порядок" value="0" style="max-width:120px">
+                <button class="btn" type="submit">Сохранить</button>
+              </form>
+              <div id="catCatMsg" class="formmsg"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- КАДР 08a · Карточка товара. Вкладки: Основное, Фото, Склад,
+           Персонализация, SEO. Each tab saves only its own fields — the PATCH
+           sends what changed, and an absent key leaves its column alone, so
+           saving SEO cannot wipe персонализация. -->
+      <div class="modal" id="prodCard" hidden>
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
+          <div class="mh">
+            <div style="flex:1;min-width:0">
+              <h3 id="pcTitle">Товар</h3>
+              <div class="sub" id="pcSub">—</div>
+            </div>
+            <button class="mx" id="pcClose" type="button" aria-label="Закрыть">✕</button>
+          </div>
+          <div class="mb">
+            <div class="tabs" id="pcTabs">
+              <button type="button" data-tab="main" class="active">Основное</button>
+              <button type="button" data-tab="photo">Фото</button>
+              <button type="button" data-tab="stock">Склад</button>
+              <button type="button" data-tab="pers">Персонализация</button>
+              <button type="button" data-tab="seo">SEO</button>
+            </div>
+
+            <div class="tabpane" data-pane="main">
+              <div class="fieldrow">
+                <label>Название (RU)<input id="pcName" maxlength="120"></label>
+                <label>Атауы (ҚАЗ)<input id="pcNameKk" maxlength="120"></label>
+              </div>
+              <div class="fieldrow" style="margin-top:10px">
+                <label>Категория<select id="pcCategory"></select></label>
+                <label>Этап мамы<select id="pcStage"></select></label>
+              </div>
+              <div class="fieldrow" style="margin-top:10px">
+                <label>Описание (RU)<textarea id="pcDescRu" maxlength="4000"></textarea></label>
+                <label>Сипаттама (ҚАЗ)<textarea id="pcDescKk" maxlength="4000"></textarea></label>
+              </div>
+              <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px">
+                <input type="checkbox" id="pcActive"> Показывать в витрине
+              </label>
+              <div class="note" id="pcKkWarn" hidden>
+                Без казахского названия опубликовать нельзя — то же правило, что и для уроков.
+              </div>
+            </div>
+
+            <div class="tabpane" data-pane="photo" hidden>
+              <div class="fieldrow">
+                <label>Ссылка на фото<input id="pcPhoto" maxlength="500" placeholder="https://…"></label>
+              </div>
+              <div id="pcPhotoPrev" style="margin-top:12px"></div>
+              <div class="note">Загрузки файлов здесь пока нет — только ссылка. Пустое поле значит «фото нет», и витрина покажет заглушку.</div>
+            </div>
+
+            <div class="tabpane" data-pane="stock" hidden>
+              <div class="fieldrow">
+                <label>Цена, ₸<input id="pcPrice" type="number" min="0" step="1"></label>
+                <label>Себестоимость, ₸<input id="pcCost" type="number" min="0" step="1"></label>
+                <label>Артикул<input id="pcSku" maxlength="64"></label>
+              </div>
+              <div class="note" id="pcStockNote"></div>
+            </div>
+
+            <div class="tabpane" data-pane="pers" hidden>
+              <div class="fieldrow">
+                <label>Возраст ребёнка от, мес.<input id="pcAgeMin" type="number" min="0" max="216" step="1"></label>
+                <label>до, мес.<input id="pcAgeMax" type="number" min="0" max="216" step="1"></label>
+              </div>
+              <!-- «охват» — how many mothers this actually reaches. Computed
+                   from the children we have, not invented: an estimate nobody
+                   can trace is worse than no number. -->
+              <div class="note" id="pcReach">—</div>
+            </div>
+
+            <div class="tabpane" data-pane="seo" hidden>
+              <div class="fieldrow">
+                <label>Адрес страницы<input id="pcSlug" maxlength="120" placeholder="detskiy-treker"></label>
+                <label>Заголовок<input id="pcSeoTitle" maxlength="200"></label>
+              </div>
+              <div class="fieldrow" style="margin-top:10px">
+                <label>Описание для поиска<textarea id="pcSeoDesc" maxlength="400"></textarea></label>
+              </div>
+            </div>
+          </div>
+          <div class="mf">
+            <span id="pcConsequence">Изменения сразу видны в витрине и в приложении</span>
+            <span class="acts">
+              <button class="btn ghost" type="button" id="pcCancel">Отмена</button>
+              <button class="btn" type="button" id="pcSave">Сохранить</button>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <section class="view" id="stock">
         <div class="card" style="margin-bottom:16px">
           <div class="sec-h"><h3>Товары и остатки</h3>
@@ -3652,6 +3848,7 @@
     audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"],
     staff:["Персонал","Кто может входить в панель, и под какой ролью"],
     stock:["Склад","Товары, цены и остатки — с историей каждого движения"],
+    catalog:["Каталог","Чем товар является: этап мамы, возраст ребёнка, две языковые версии"],
     course:["Курс Ма!Ма!","Уроки, которые открываются при покупке комплекта"]
   };
   /**
@@ -6046,10 +6243,359 @@
   /// «Аналитика» is absent deliberately: the dashboard script above owns the BI
   /// payload and the chart code. One owner per view — when both files rendered
   /// it, the second pass overwrote the first.
+  // ---- КАДР 08 / 08a / 08b · Каталог ------------------------------------
+  //
+  // Named cat* rather than catalog*: `catalog` in this scope is already the
+  // CONTENT catalogue (stage key → items), and two different things under one
+  // name is how an edit to products silently rewrites lessons.
+  let catProducts = [];
+  let catCategories = [];
+  let catStageKeys = [];
+  let catKidStats = null;   // for «охват»; null until it loads, and it may fail
+  let catPickCat = null;    // null = все
+  let catPickStage = null;
+  let catOpenId = null;
+
+  const CAT_STAGE_RU = {
+    planning: "Планирование", pregnancy: "Беременность", newborn: "Новорождённый",
+    infant: "До года", toddler: "1–3 года", any: "Любой этап",
+  };
+  const catStageLabel = (s) => (s ? (CAT_STAGE_RU[s] || s) : "не указан");
+  const catCatLabel = (id) => {
+    if (!id) return "не указана";
+    const c = catCategories.find((x) => x.id === id);
+    return c ? c.nameRu : id;
+  };
+  const catTenge = (minor) => `${fmt(Math.round((minor || 0) / 100))} ₸`;
+
+  async function loadCatalog() {
+    try {
+      const b = await api("/admin/shop/products");
+      catProducts = b.products || [];
+      catCategories = b.categories || [];
+      catStageKeys = b.stages || [];
+    } catch (e) {
+      $("#catBody").innerHTML =
+        `<div class="note">Каталог не загрузился: ${esc(e.message)}. Ничего не сохранится, пока страница не обновится.</div>`;
+      return;
+    }
+    // «Охват» is a nice-to-have on one tab; the catalogue must not fail to open
+    // because the children stats did.
+    api("/admin/children/stats").then((s) => { catKidStats = s; }).catch(() => {});
+    renderCatalog();
+  }
+
+  function renderCatalog() {
+    // Left rail. Counts come from the unfiltered list, so a category showing 0
+    // is a real 0 rather than an artefact of the stage filter beside it.
+    const catCounts = new Map();
+    const stageCounts = new Map();
+    for (const p of catProducts) {
+      catCounts.set(p.category, (catCounts.get(p.category) || 0) + 1);
+      stageCounts.set(p.stage, (stageCounts.get(p.stage) || 0) + 1);
+    }
+    const railBtn = (active, key, label, n) =>
+      `<button type="button" data-key="${key === null ? "" : esc(key)}" class="${active ? "active" : ""}">` +
+      `${esc(label)}<span class="n">${n}</span></button>`;
+
+    $("#catCats").innerHTML =
+      railBtn(catPickCat === null, null, "Все категории", catProducts.length) +
+      catCategories.map((c) =>
+        railBtn(catPickCat === c.id, c.id, c.nameRu, catCounts.get(c.id) || 0)).join("") +
+      // The uncategorised bucket is a FILTER, not a category: it is how the
+      // work still to do is found, and it disappears once there is none.
+      ((catCounts.get(null) || 0)
+        ? railBtn(catPickCat === "__none", "__none", "Без категории", catCounts.get(null))
+        : "");
+
+    $("#catStages").innerHTML =
+      railBtn(catPickStage === null, null, "Все этапы", catProducts.length) +
+      catStageKeys.map((s) =>
+        railBtn(catPickStage === s, s, CAT_STAGE_RU[s] || s, stageCounts.get(s) || 0)).join("") +
+      ((stageCounts.get(null) || 0)
+        ? railBtn(catPickStage === "__none", "__none", "Этап не указан", stageCounts.get(null))
+        : "");
+
+    const rows = catProducts.filter((p) => {
+      if (catPickCat === "__none" ? p.category !== null : catPickCat && p.category !== catPickCat) return false;
+      if (catPickStage === "__none" ? p.stage !== null : catPickStage && p.stage !== catPickStage) return false;
+      return true;
+    });
+
+    $("#catSummary").textContent =
+      `${rows.length} из ${catProducts.length}` +
+      (catPickCat || catPickStage ? " · фильтр включён" : "");
+
+    $("#catBody").innerHTML = rows.length
+      ? `<table><thead><tr>
+           <th>Товар</th><th>Категория</th><th>Этап</th><th>Возраст</th>
+           <th>ҚАЗ</th><th>Цена</th><th>Остаток</th><th>В витрине</th><th></th>
+         </tr></thead><tbody>${rows.map(catRow).join("")}</tbody></table>`
+      : `<div class="note">Под этот фильтр не подходит ни один товар.</div>`;
+
+    // The footer carries the RULE, per «каждый подвал таблицы — с правилом».
+    const noKk = catProducts.filter((p) => !p.nameKk).length;
+    const noStage = catProducts.filter((p) => !p.stage).length;
+    $("#catFootRule").innerHTML =
+      `Этап решает, кому товар предлагается в приложении. ` +
+      (noStage ? `<b>Без этапа: ${noStage}</b> — они не попадут в «Для вашего этапа». ` : "") +
+      (noKk ? `<b>Без казахского названия: ${noKk}</b> — опубликовать их нельзя.` : "Все названия переведены.");
+
+    const badge = $("#catalogBadge");
+    if (badge) {
+      const todo = noKk + noStage;
+      badge.hidden = todo === 0;
+      badge.textContent = todo || "";
+    }
+  }
+
+  function catRow(p) {
+    const age = p.ageMinMonths == null && p.ageMaxMonths == null
+      ? "<span style='color:var(--muted-2)'>любой</span>"
+      : `${p.ageMinMonths ?? 0}–${p.ageMaxMonths ?? "∞"} мес.`;
+    return `<tr>
+      <td><b>${esc(p.name)}</b><div class="sub" style="font-family:var(--mono);font-size:11px">${esc(p.id)}</div></td>
+      <td${p.category ? "" : " style='color:var(--muted-2)'"}>${esc(catCatLabel(p.category))}</td>
+      <td${p.stage ? "" : " style='color:var(--muted-2)'"}>${esc(catStageLabel(p.stage))}</td>
+      <td>${age}</td>
+      <td>${p.nameKk ? "✓" : "<span style='color:var(--crit-text)'>нет</span>"}</td>
+      <td style="font-family:var(--mono)">${catTenge(p.priceMinor)}</td>
+      <td style="font-family:var(--mono)${p.lowStock ? ";color:var(--warn-text)" : ""}">${fmt(p.stock)}</td>
+      <td>${p.active ? "да" : "<span style='color:var(--muted-2)'>нет</span>"}</td>
+      <td><button class="btn" type="button" data-prod="${esc(p.id)}">Открыть</button></td>
+    </tr>`;
+  }
+
+  // ---- 08a · Карточка товара -------------------------------------------
+  function catOpen(id) {
+    const p = catProducts.find((x) => x.id === id);
+    if (!p) return;
+    catOpenId = id;
+    $("#pcTitle").textContent = p.name;
+    $("#pcSub").textContent = `${p.id} · ${catCatLabel(p.category)} · ${catStageLabel(p.stage)}`;
+    $("#pcName").value = p.name || "";
+    $("#pcNameKk").value = p.nameKk || "";
+    $("#pcDescRu").value = p.descriptionRu || "";
+    $("#pcDescKk").value = p.descriptionKk || "";
+    $("#pcActive").checked = !!p.active;
+    $("#pcPhoto").value = p.photoUrl || "";
+    $("#pcPrice").value = p.priceMinor == null ? "" : Math.round(p.priceMinor / 100);
+    $("#pcCost").value = p.costMinor == null ? "" : Math.round(p.costMinor / 100);
+    $("#pcSku").value = p.sku || "";
+    $("#pcAgeMin").value = p.ageMinMonths ?? "";
+    $("#pcAgeMax").value = p.ageMaxMonths ?? "";
+    $("#pcSlug").value = p.seoSlug || "";
+    $("#pcSeoTitle").value = p.seoTitle || "";
+    $("#pcSeoDesc").value = p.seoDescription || "";
+
+    $("#pcCategory").innerHTML =
+      `<option value="">не указана</option>` +
+      catCategories.map((c) =>
+        `<option value="${esc(c.id)}"${c.id === p.category ? " selected" : ""}>${esc(c.nameRu)}</option>`).join("");
+    // Built from the server's list, not a hardcoded one, so it cannot drift
+    // from the CHECK constraint that will reject the save.
+    $("#pcStage").innerHTML =
+      `<option value="">не указан</option>` +
+      catStageKeys.map((s) =>
+        `<option value="${esc(s)}"${s === p.stage ? " selected" : ""}>${esc(CAT_STAGE_RU[s] || s)}</option>`).join("");
+
+    $("#pcStockNote").textContent =
+      `На складе: ${p.stock} шт. в ${p.variantCount ?? (p.variants ? p.variants.length : 0)} цвет(ах). ` +
+      `Количество меняется на «Складе» — здесь только цена и артикул, чтобы приход и цена не редактировались в двух местах.`;
+
+    catPhotoPreview();
+    catReach();
+    catKkWarn();
+    catTab("main");
+    $("#prodCard").hidden = false;
+  }
+
+  function catTab(name) {
+    // document.querySelectorAll, not `$$`: this script block defines only `$`.
+    // `$$` belongs to the FIRST block and is not in scope here — calling it
+    // threw a ReferenceError inside catOpen, before the card was ever unhidden,
+    // so the product card silently would not open at all.
+    document.querySelectorAll("#pcTabs button")
+      .forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+    document.querySelectorAll("#prodCard .tabpane")
+      .forEach((p) => { p.hidden = p.dataset.pane !== name; });
+  }
+
+  function catPhotoPreview() {
+    const url = $("#pcPhoto").value.trim();
+    $("#pcPhotoPrev").innerHTML = url
+      ? `<img src="${esc(url)}" alt="" style="max-width:200px;max-height:150px;border:1px solid var(--hair);border-radius:8px"
+              onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'note',textContent:'Фото не открылось по этой ссылке.'}))">`
+      : `<div class="note">Фото не указано.</div>`;
+  }
+
+  /**
+   * «охват» — how many children the age band actually covers.
+   *
+   * The children stats come in coarse buckets (0–1, 1–3, 3–7, 7+ years), so an
+   * exact figure is not available and is NOT invented: this reports the
+   * overlapping buckets and calls the total approximate. A precise-looking
+   * number nobody can trace is worse than an honest range.
+   */
+  function catReach() {
+    const el = $("#pcReach");
+    const lo = $("#pcAgeMin").value === "" ? null : Number($("#pcAgeMin").value);
+    const hi = $("#pcAgeMax").value === "" ? null : Number($("#pcAgeMax").value);
+    if (lo != null && hi != null && lo > hi) {
+      el.innerHTML = `<b style="color:var(--crit-text)">«От» больше, чем «до» — сохранить нельзя.</b>`;
+      return;
+    }
+    if (!catKidStats || !catKidStats.byAge) {
+      el.textContent = "Охват посчитать не удалось — статистика по детям не загрузилась.";
+      return;
+    }
+    if (lo == null && hi == null) {
+      el.textContent = `Возраст не ограничен: товар подходит всем ${fmt(catKidStats.total || 0)} детям.`;
+      return;
+    }
+    const BOUNDS = { "0–1": [0, 12], "1–3": [12, 36], "3–7": [36, 84], "7+": [84, 1e9] };
+    const hit = catKidStats.byAge.filter((b) => {
+      const r = BOUNDS[b.bucket];
+      if (!r) return false;
+      return r[0] < (hi == null ? 1e9 : hi + 1) && (lo == null ? 0 : lo) < r[1];
+    });
+    const n = hit.reduce((s, b) => s + b.count, 0);
+    el.innerHTML = hit.length
+      ? `Примерно <b>${fmt(n)}</b> детей — возрастные группы ${hit.map((b) => esc(b.bucket)).join(", ")}. ` +
+        `Точнее сказать нельзя: статистика хранится группами, а не по месяцам.`
+      : `Под этот диапазон сейчас не попадает ни один ребёнок.`;
+  }
+
+  function catKkWarn() {
+    // Shown when activating without a Kazakh name — the same rule the server
+    // enforces, said before the save rather than after it fails.
+    $("#pcKkWarn").hidden = !($("#pcActive").checked && !$("#pcNameKk").value.trim());
+  }
+
+  function catClose() { $("#prodCard").hidden = true; catOpenId = null; }
+
+  async function catSave() {
+    const p = catProducts.find((x) => x.id === catOpenId);
+    if (!p) return;
+    const numOrNull = (v) => (v === "" ? null : Number(v));
+    const strOrNull = (v) => (v.trim() === "" ? null : v.trim());
+
+    // Only what CHANGED. An untouched field is left out entirely, so the server
+    // leaves its column alone — that is what stops saving one tab from wiping
+    // another.
+    const next = {
+      name: $("#pcName").value.trim(),
+      nameKk: strOrNull($("#pcNameKk").value),
+      descriptionRu: strOrNull($("#pcDescRu").value),
+      descriptionKk: strOrNull($("#pcDescKk").value),
+      active: $("#pcActive").checked,
+      category: $("#pcCategory").value || null,
+      stage: $("#pcStage").value || null,
+      photoUrl: strOrNull($("#pcPhoto").value),
+      priceMinor: $("#pcPrice").value === "" ? p.priceMinor : Math.round(Number($("#pcPrice").value) * 100),
+      costMinor: $("#pcCost").value === "" ? null : Math.round(Number($("#pcCost").value) * 100),
+      sku: strOrNull($("#pcSku").value),
+      ageMinMonths: numOrNull($("#pcAgeMin").value),
+      ageMaxMonths: numOrNull($("#pcAgeMax").value),
+      seoSlug: strOrNull($("#pcSlug").value),
+      seoTitle: strOrNull($("#pcSeoTitle").value),
+      seoDescription: strOrNull($("#pcSeoDesc").value),
+    };
+    const patch = {};
+    for (const [k, v] of Object.entries(next)) {
+      const was = p[k] ?? null;
+      if (v !== was) patch[k] = v;
+    }
+    if (!Object.keys(patch).length) { catClose(); return; }
+
+    const btn = $("#pcSave");
+    btn.disabled = true;
+    try {
+      await api(`/admin/shop/products/${encodeURIComponent(catOpenId)}`, {
+        method: "PATCH", body: JSON.stringify(patch),
+      });
+      catClose();
+      await loadCatalog();
+    } catch (e) {
+      // The result of the REQUEST, not the fact that one was sent.
+      const kk = /kk_required/.test(e.message);
+      $("#pcConsequence").innerHTML = kk
+        ? `<b style="color:var(--crit-text)">Без казахского названия опубликовать нельзя.</b>`
+        : `<b style="color:var(--crit-text)">Не сохранилось: ${esc(e.message)}</b>`;
+      if (kk) { catTab("main"); $("#pcKkWarn").hidden = false; }
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  {
+    // Wired directly rather than through the `on` helper: that helper is a
+    // `const` declared further down this block, so calling it here would hit
+    // the temporal dead zone and take the whole panel's script with it.
+    const bind = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
+    bind("#pcClose", catClose);
+    bind("#pcCancel", catClose);
+    bind("#pcSave", catSave);
+    const card = $("#prodCard");
+    if (card) {
+      // Clicking the backdrop closes; clicking inside the sheet must not.
+      card.addEventListener("click", (e) => { if (e.target === card) catClose(); });
+      card.addEventListener("input", (e) => {
+        if (e.target.id === "pcPhoto") catPhotoPreview();
+        if (e.target.id === "pcAgeMin" || e.target.id === "pcAgeMax") catReach();
+        if (e.target.id === "pcNameKk") catKkWarn();
+      });
+      card.addEventListener("change", (e) => { if (e.target.id === "pcActive") catKkWarn(); });
+      const tabs = $("#pcTabs");
+      if (tabs) tabs.addEventListener("click", (e) => {
+        const b = e.target.closest("button[data-tab]");
+        if (b) catTab(b.dataset.tab);
+      });
+    }
+    const view = $("#catalog");
+    if (view) view.addEventListener("click", (e) => {
+      const open = e.target.closest("button[data-prod]");
+      if (open) { catOpen(open.dataset.prod); return; }
+      const rail = e.target.closest("#catCats button, #catStages button");
+      if (!rail) return;
+      const key = rail.dataset.key === "" ? null : rail.dataset.key;
+      if (rail.closest("#catCats")) catPickCat = key; else catPickStage = key;
+      renderCatalog();
+    });
+    const form = $("#catCatForm");
+    if (form) form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const msg = $("#catCatMsg");
+      try {
+        await api(`/admin/shop/categories/${encodeURIComponent($("#catCatId").value.trim())}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            nameRu: $("#catCatRu").value.trim(),
+            nameKk: $("#catCatKk").value.trim() || null,
+            sort: Number($("#catCatSort").value || 0),
+          }),
+        });
+        msg.textContent = "Сохранено.";
+        msg.className = "formmsg ok";
+        form.reset();
+        await loadCatalog();
+      } catch (e) {
+        msg.textContent = `Не сохранилось: ${e.message}`;
+        msg.className = "formmsg err";
+      }
+    });
+  }
+  // Escape closes the card — the modal is the only thing on screen that traps
+  // attention, so it must be dismissible without aiming at a 17px ✕.
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("#prodCard").hidden) catClose();
+  });
+
   function loadFor(v) {
     if (v === "content") loadContent();
     if (v === "devices") loadDevices();
     if (v === "safety") loadSafety();
+    if (v === "catalog") loadCatalog();
   }
   // The same views, reached by URL rather than by click.
   window.addEventListener("hashchange", () => loadFor(location.hash.slice(1)));

@@ -34,6 +34,13 @@ const AGGREGATES_ONLY = new Set([
   'GET /admin/audit', // the log itself; admin-only, and auditing reads of the
   // audit log makes the log describe mostly itself
   'GET /admin/shop/variants', // product inventory (colours + stock) — names nobody
+  // The product catalogue: names, stages, age bands, prices. About what is on
+  // the shelf, not about who bought it — no customer, child or order reaches
+  // the response. Auditing it would write a row every time the tab is opened
+  // and bury the entries this log exists for. WRITES are audited
+  // (product_update / category_upsert / category_delete), because «кто поменял
+  // этап» has to have an answer.
+  'GET /admin/shop/products',
   'GET /admin/audio', // which calendar days have a clip — content coverage, names nobody
   // The two reads about the back office itself rather than about a family.
   // Neither touches PHI, and both are polled: /admin/me runs on every page

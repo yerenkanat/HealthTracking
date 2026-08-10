@@ -127,6 +127,44 @@ export interface SafetyAlertRow {
   outcome?: SosOutcome | null;
 }
 
+/** The stages a product can be FOR. See migration 033. */
+export const PRODUCT_STAGES = [
+  'planning', 'pregnancy', 'newborn', 'infant', 'toddler', 'any',
+] as const;
+export type ProductStage = (typeof PRODUCT_STAGES)[number];
+
+export interface ShopCategoryRow {
+  id: string;
+  nameRu: string;
+  nameKk: string | null;
+  sort: number;
+}
+
+/**
+ * A partial update. A key that is ABSENT leaves the column alone; a key set to
+ * null clears it. Those are different operations and the panel needs both —
+ * saving the SEO tab must not wipe the personalisation tab.
+ */
+export type ProductPatch = Partial<{
+  name: string;
+  nameKk: string | null;
+  priceMinor: number;
+  costMinor: number | null;
+  active: boolean;
+  sort: number;
+  sku: string | null;
+  category: string | null;
+  stage: ProductStage | null;
+  descriptionRu: string | null;
+  descriptionKk: string | null;
+  ageMinMonths: number | null;
+  ageMaxMonths: number | null;
+  photoUrl: string | null;
+  seoSlug: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+}>;
+
 export interface ProfileRow {
   displayName: string;
   phone: string | null; // E.164
@@ -798,6 +836,23 @@ export interface Repository {
   /// or a typed failure (empty cart / unknown variant / insufficient stock).
   placeShopOrder(o: ShopOrderInput): Promise<ShopOrderResult>;
   adminShopVariants(): Promise<Array<ShopVariant & { productId: string; productName: string }>>;
+
+  // ---- Catalogue (frames 08 / 08a / 08b) ----
+  //
+  // Deliberately NO second product read. adminProducts() already returns every
+  // product with its stock and variants, and the catalogue fields are now on
+  // InventoryProduct — one answer to "what is a product", rather than two that
+  // drift.
+  /** Patch only the keys present. Absent ≠ null: absent leaves the column alone. */
+  updateProduct(id: string, patch: ProductPatch): Promise<void>;
+  listShopCategories(): Promise<ShopCategoryRow[]>;
+  upsertShopCategory(c: ShopCategoryRow): Promise<void>;
+  /**
+   * Returns false when the category still has products — the panel then says
+   * which, instead of orphaning them. «Ничего не удаляется» applies to things
+   * with history; an empty category has none.
+   */
+  deleteShopCategory(id: string): Promise<boolean>;
   /// Set an absolute count. Kept because a stocktake genuinely knows the total
   /// rather than the difference; it writes a 'correction' move for the delta so
   /// the ledger and the running total cannot drift apart.
@@ -1244,6 +1299,33 @@ export interface InventoryProduct {
   /** Below the threshold, and worth saying so before a customer finds out. */
   lowStock: boolean;
   variants: Array<{ id: string; color: string; colorHex: string; stock: number }>;
+
+  // ---- Catalogue (migration 033, frames 08 / 08a) ----
+  //
+  // Added here rather than on a second "catalogue product" type: a screen that
+  // shows the stage next to the stock needs both, and two reads of the same
+  // table drift apart the first time one of them gains a filter.
+  //
+  // All nullable. A product from before the migration is UNCATEGORISED, not
+  // mis-categorised, and the panel shows that as «не указан».
+  nameKk: string | null;
+  /**
+   * Which stage of motherhood the product is FOR. Until this column existed,
+   * shop_stage.dart derived the shop's «Для вашего этапа» from her pregnancy
+   * flag and her children's ages, because — in its own words — inventing a
+   * stage field would have been fabrication. Now it is data an operator owns.
+   */
+  stage: ProductStage | null;
+  category: string | null;
+  descriptionRu: string | null;
+  descriptionKk: string | null;
+  /** Персонализация: the child age band this suits, in months. */
+  ageMinMonths: number | null;
+  ageMaxMonths: number | null;
+  photoUrl: string | null;
+  seoSlug: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
 }
 
 export type ShopLeadLocale = 'ru' | 'kz';

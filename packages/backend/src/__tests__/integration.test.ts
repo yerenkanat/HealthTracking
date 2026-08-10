@@ -113,6 +113,14 @@ function makeDeps(
     revokeEntitlement: async () => {},
     listEntitlements: async () => [],
     adminProducts: async () => [],
+    // Catalogue (frames 08/08a/08b). This fake serves the flows below, none of
+    // which edit the catalogue; catalogue behaviour is covered against the real
+    // memory repository in productCatalog.test.ts, where a write can be read
+    // back.
+    updateProduct: async () => {},
+    listShopCategories: async () => [],
+    upsertShopCategory: async () => {},
+    deleteShopCategory: async () => true,
     upsertProduct: async () => {},
     bundleParts: async () => [],
     setBundleParts: async () => {},

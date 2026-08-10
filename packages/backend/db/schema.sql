@@ -479,6 +479,23 @@ CREATE TABLE IF NOT EXISTS timeline_content (
 -- Products (watch/tracker), per-colour variants with stock managed from the admin
 -- panel, and cash-on-delivery orders carrying a delivery address. An order
 -- decrements the variant's stock atomically (see pgRepository.placeShopOrder).
+-- Categories as a table rather than free text on the product (migration 033):
+-- frame 08b edits them as their own list with an order the storefront follows,
+-- and free text gives «Часы», «часы» and «Чacы» inside a month. Declared before
+-- shop_products because that table references it.
+CREATE TABLE IF NOT EXISTS shop_categories (
+  id       TEXT PRIMARY KEY,
+  name_ru  TEXT NOT NULL,
+  name_kk  TEXT,
+  sort     INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO shop_categories (id, name_ru, name_kk, sort) VALUES
+  ('watch',   'Смарт-часы',      'Смарт-сағат',     10),
+  ('tracker', 'Детские трекеры', 'Балалар трекері', 20),
+  ('bundle',  'Комплекты',       'Жинақтар',        30),
+  ('other',   'Прочее',          'Басқа',           90)
+ON CONFLICT (id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS shop_products (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
@@ -495,10 +512,36 @@ CREATE TABLE IF NOT EXISTS shop_products (
   -- 025), e.g. 'mama_course' on the комплект. On the product rather than
   -- hardcoded against the id: a second bundle carrying a second course should
   -- be a row, not a branch in the code.
-  grants_feature TEXT
+  grants_feature TEXT,
+  -- Catalogue (migration 033), for frames 08 / 08a. All nullable: a product
+  -- that predates this is uncategorised rather than mis-categorised, which the
+  -- panel shows as «не указан» so the work left is visible.
+  category    TEXT REFERENCES shop_categories(id) ON DELETE SET NULL,
+  -- Which stage of motherhood this is FOR. shop_stage.dart derived this from
+  -- her pregnancy flag and her children's ages because the column did not
+  -- exist; with it, «Для вашего этапа» is data an operator owns.
+  stage       TEXT CHECK (stage IS NULL OR stage IN ('planning','pregnancy','newborn','infant','toddler','any')),
+  name_kk        TEXT,
+  description_ru TEXT,
+  description_kk TEXT,
+  -- Персонализация: the child age band this suits, in months. Independent —
+  -- «от 0» and «до 36» are each meaningful alone.
+  age_min_months INTEGER CHECK (age_min_months IS NULL OR (age_min_months >= 0 AND age_min_months <= 216)),
+  age_max_months INTEGER CHECK (age_max_months IS NULL OR (age_max_months >= 0 AND age_max_months <= 216)),
+  CONSTRAINT shop_products_age_band_check
+    CHECK (age_min_months IS NULL OR age_max_months IS NULL OR age_min_months <= age_max_months),
+  photo_url       TEXT,
+  seo_slug        TEXT,
+  seo_title       TEXT,
+  seo_description TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS shop_products_sku_unique
   ON shop_products (sku) WHERE sku IS NOT NULL;
+-- Two products answering the same URL is a bug that only shows up in production.
+CREATE UNIQUE INDEX IF NOT EXISTS shop_products_seo_slug_unique
+  ON shop_products (seo_slug) WHERE seo_slug IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_shop_products_category ON shop_products (category);
+CREATE INDEX IF NOT EXISTS idx_shop_products_stage    ON shop_products (stage);
 CREATE TABLE IF NOT EXISTS shop_variants (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   product_id TEXT NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,

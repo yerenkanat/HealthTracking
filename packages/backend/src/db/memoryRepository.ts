@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow } from './repository';
 import { bundleDiscountMinor } from './repository';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
@@ -215,10 +215,34 @@ export function createMemoryRepository(): Repository {
     kind?: 'simple' | 'bundle'; lowStockThreshold?: number; active?: boolean;
     /** What fulfilling an order for this product unlocks in the app (migration 025). */
     grantsFeature?: string | null;
+    // Catalogue (migration 033). Undefined here means the column is NULL —
+    // seeded partly on purpose, so the panel's «не указан» filter has
+    // something to find on a dev box.
+    category?: string | null;
+    stage?: ProductStage | null;
+    nameKk?: string | null;
+    descriptionRu?: string | null;
+    descriptionKk?: string | null;
+    ageMinMonths?: number | null;
+    ageMaxMonths?: number | null;
+    photoUrl?: string | null;
+    seoSlug?: string | null;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
   }
+  const shopCategories: ShopCategoryRow[] = [
+    { id: 'watch', nameRu: 'Смарт-часы', nameKk: 'Смарт-сағат', sort: 10 },
+    { id: 'tracker', nameRu: 'Детские трекеры', nameKk: 'Балалар трекері', sort: 20 },
+    { id: 'bundle', nameRu: 'Комплекты', nameKk: 'Жинақтар', sort: 30 },
+    { id: 'other', nameRu: 'Прочее', nameKk: 'Басқа', sort: 90 },
+  ];
   const shopProds: ShopProdRow[] = [
-    { id: 'watch', name: 'Смарт-часы Ana-Bala', priceMinor: 2490000, sort: 1, kind: 'simple' },
-    { id: 'tracker', name: 'Детский трекер Ana-Bala', priceMinor: 490000, sort: 2, kind: 'simple' },
+    { id: 'watch', name: 'Смарт-часы Ana-Bala', priceMinor: 2490000, sort: 1, kind: 'simple',
+      category: 'watch', stage: 'pregnancy', nameKk: 'Ana-Bala смарт-сағаты' },
+    // Deliberately left uncategorised and with no Kazakh name: the panel must
+    // show real gaps on a dev box, not a catalogue that looks finished.
+    { id: 'tracker', name: 'Детский трекер Ana-Bala', priceMinor: 490000, sort: 2, kind: 'simple',
+      ageMinMonths: 24, ageMaxMonths: 120 },
     // The two devices PLUS the Ма!Ма! course, which the landing presents as a
     // 40 000 ₸ gift — so it costs MORE than the hardware sum, not less. A
     // bundle here is an upsell carrying content, not a volume discount.
@@ -1356,6 +1380,29 @@ const UUID_RE =
       });
       return { ok: true as const, id, totalMinor: total, discountMinor: discount };
     },
+    // ---- Catalogue (frames 08 / 08a / 08b) ----
+    updateProduct: async (id, patch) => {
+      const p = shopProds.find((x) => x.id === id);
+      if (!p) return;
+      // Only the keys PRESENT, matching the SQL: saving one tab of the product
+      // card must not blank another.
+      for (const k of Object.keys(patch) as Array<keyof typeof patch>) {
+        (p as unknown as Record<string, unknown>)[k] = patch[k] as unknown;
+      }
+    },
+    listShopCategories: async () =>
+      [...shopCategories].sort((a, b) => a.sort - b.sort || a.nameRu.localeCompare(b.nameRu)),
+    upsertShopCategory: async (c) => {
+      const i = shopCategories.findIndex((x) => x.id === c.id);
+      if (i >= 0) shopCategories[i] = { ...c };
+      else shopCategories.push({ ...c });
+    },
+    deleteShopCategory: async (id) => {
+      if (shopProds.some((p) => p.category === id)) return false;
+      const i = shopCategories.findIndex((x) => x.id === id);
+      if (i >= 0) shopCategories.splice(i, 1);
+      return true;
+    },
     adminShopVariants: async () => shopVars.map((v) => ({
       id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock,
       productId: v.productId, productName: shopProds.find((p) => p.id === v.productId)?.name ?? v.productId,
@@ -1500,6 +1547,12 @@ const UUID_RE =
           lowStockThreshold: p.lowStockThreshold ?? 3,
           stock: variants.reduce((n, v) => n + v.stock, 0),
           lowStock: false, variants,
+          nameKk: p.nameKk ?? null, stage: p.stage ?? null, category: p.category ?? null,
+          descriptionRu: p.descriptionRu ?? null, descriptionKk: p.descriptionKk ?? null,
+          ageMinMonths: p.ageMinMonths ?? null, ageMaxMonths: p.ageMaxMonths ?? null,
+          photoUrl: p.photoUrl ?? null,
+          seoSlug: p.seoSlug ?? null, seoTitle: p.seoTitle ?? null,
+          seoDescription: p.seoDescription ?? null,
         };
       });
       // A bundle can be assembled as many times as its scarcest part allows.
