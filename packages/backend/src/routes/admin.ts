@@ -22,6 +22,9 @@ import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../c
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import { summarizeSecurity } from '../admin/security';
 import { buildOwnerDashboard } from '../admin/ownerDashboard';
+import { buildMotherCard } from '../admin/motherCard';
+import { MAMA_COURSE } from './entitlements';
+import { normalizePhone } from '../phone';
 import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
 import {
   carryReview, reviewIsCurrent, reviewMessage, textFingerprint, unreviewed,
@@ -430,10 +433,54 @@ export function registerAdminRoutes(
     await repo.writeAudit({ staffId: s.staffId, action: 'view_user_detail', target: userId, reason });
     const detail = await repo.adminUserDetail(userId);
     if (!detail) return reply.code(404).send({ error: 'not found' });
-    // Her upcoming visits, so staff can see the antenatal plan she is actually
-    // keeping. Read-only; failure here must not blank the whole card.
-    const appointments = await repo.listAppointments(userId).catch(() => []);
-    return reply.send({ ...detail, appointments });
+
+    /**
+     * Frame 09a — the card's right-hand column: «этап, заказы, курс».
+     *
+     * All three were already in the database and none of them reached this
+     * card, so an operator answering «где мой заказ» left the mother's record,
+     * opened the orders tab, and searched by a number she had just read out —
+     * with the record she was supposed to be reading still open behind her.
+     *
+     * Everything below is keyed on the NORMALISED phone. Orders arrive from
+     * the landing page, from WhatsApp typed by staff, and from the app, in
+     * three different written forms of one number; the entitlement and the
+     * course rows are stored under the normalised form. Matching on the raw
+     * string is how a woman with a charge on her card gets an empty card —
+     * see src/phone.ts.
+     *
+     * A profile with no phone at all owns nothing we can find, which is a real
+     * answer (an empty block) rather than a missing one.
+     */
+    const phone = normalizePhone(detail.phone ?? '');
+
+    // Read-only and best-effort, every one of them: a failure in the shop or
+    // the course must not blank the clinical card this route primarily is.
+    const [appointments, orders, courseUnlocked, courseProgress] = await Promise.all([
+      // Her upcoming visits, so staff can see the antenatal plan she is
+      // actually keeping.
+      repo.listAppointments(userId).catch(() => []),
+      // shopOrdersByPhone, not adminShopOrders filtered here: the indexed
+      // per-customer query is the one the shop already answers screen 42 with,
+      // and it matches on phone_normalized. Pulling the last N orders in the
+      // whole shop and filtering in Node would silently lose the customer who
+      // ordered before the window — precisely the woman who rings up to ask
+      // where her order is.
+      phone ? repo.shopOrdersByPhone(phone, 20).catch(() => []) : Promise.resolve([]),
+      phone ? repo.hasEntitlement(phone, MAMA_COURSE).catch(() => false) : Promise.resolve(false),
+      phone ? repo.courseProgress(phone).catch(() => []) : Promise.resolve([]),
+    ]);
+
+    const mother = buildMotherCard({
+      dueDate: detail.dueDate,
+      children: detail.children,
+      orders,
+      courseUnlocked,
+      courseProgress,
+      now: new Date().toISOString(),
+    });
+
+    return reply.send({ ...detail, appointments, mother });
   });
 
   // ---- Device fleet ----

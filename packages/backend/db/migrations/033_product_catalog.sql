@@ -16,7 +16,33 @@
 -- указан» and can be filtered on, so the work left to do is visible instead of
 -- being papered over by a default.
 
+-- Categories FIRST: the column below references this table, and schema.sql
+-- declares that foreign key. Creating the column before the table it points at
+-- gave a fresh database (built from schema.sql) a constrained column and an
+-- upgraded one (built from migrations) a bare TEXT field — two shapes of the
+-- same table, disagreeing about whether a category has to exist.
+CREATE TABLE IF NOT EXISTS shop_categories (
+  id       TEXT PRIMARY KEY,
+  name_ru  TEXT NOT NULL,
+  name_kk  TEXT,
+  sort     INTEGER NOT NULL DEFAULT 0
+);
+
+-- Seeded from what is actually being sold, so the screen is not empty on first
+-- open. DO NOTHING: re-running must not undo an operator's renames.
+INSERT INTO shop_categories (id, name_ru, name_kk, sort) VALUES
+  ('watch',   'Смарт-часы',      'Смарт-сағат',     10),
+  ('tracker', 'Детские трекеры', 'Балалар трекері', 20),
+  ('bundle',  'Комплекты',       'Жинақтар',        30),
+  ('other',   'Прочее',          'Басқа',           90)
+ON CONFLICT (id) DO NOTHING;
+
 ALTER TABLE shop_products ADD COLUMN IF NOT EXISTS category TEXT;
+-- ON DELETE SET NULL, matching schema.sql: deleting a category must not delete
+-- the products on that shelf.
+ALTER TABLE shop_products DROP CONSTRAINT IF EXISTS shop_products_category_fkey;
+ALTER TABLE shop_products ADD CONSTRAINT shop_products_category_fkey
+  FOREIGN KEY (category) REFERENCES shop_categories(id) ON DELETE SET NULL;
 
 -- Which stage of motherhood the product is FOR. Deliberately coarse: these are
 -- the states the app can already tell apart, and a vocabulary finer than that
@@ -58,22 +84,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS shop_products_seo_slug_unique
 CREATE INDEX IF NOT EXISTS idx_shop_products_category ON shop_products (category);
 CREATE INDEX IF NOT EXISTS idx_shop_products_stage    ON shop_products (stage);
 
--- Categories as a table rather than free text on the product: frame 08b edits
--- them as their own list, with an order the storefront follows, and free text
--- gives «Часы», «часы» and «Чacы» inside a month.
-CREATE TABLE IF NOT EXISTS shop_categories (
-  id       TEXT PRIMARY KEY,
-  name_ru  TEXT NOT NULL,
-  name_kk  TEXT,
-  sort     INTEGER NOT NULL DEFAULT 0
-);
 
--- Seeded from what is actually being sold today, so the screen is not empty on
--- first open. ON CONFLICT DO NOTHING: re-running must not undo an operator's
--- renames.
-INSERT INTO shop_categories (id, name_ru, name_kk, sort) VALUES
-  ('watch',   'Смарт-часы',        'Смарт-сағат',      10),
-  ('tracker', 'Детские трекеры',   'Балалар трекері',  20),
-  ('bundle',  'Комплекты',         'Жинақтар',         30),
-  ('other',   'Прочее',            'Басқа',            90)
-ON CONFLICT (id) DO NOTHING;

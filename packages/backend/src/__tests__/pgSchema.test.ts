@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -230,5 +230,38 @@ describe('pgRepository against db/schema.sql', () => {
       (m) => !new RegExp(`\\basync ${m}\\s*\\(|\\b${m}\\s*:\\s*async`).test(repo),
     );
     expect(missing, `pgRepository is missing: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('every migration lives where the runner will actually find it', () => {
+    // db/apply.mjs plans from db/migrations/ and nowhere else. Two migrations
+    // (032, 033) were written into packages/backend/migrations/ — a directory
+    // that looks right, sits next to the code, and is read by nothing.
+    //
+    // The deploy reported success. The columns were never created. In
+    // production that is GET /alerts returning 500 for everybody, the SOS
+    // outcome unable to save, and the admin catalogue 500ing on open — while
+    // «История дня» renders as though no SOS ever happened, because the route
+    // catches the error and falls back to an empty list.
+    //
+    // Nothing caught it: this file compares the repository against schema.sql,
+    // and schema.sql was correct. The gap was between the migration folder and
+    // the runner, which no test looked at.
+    const runner = readFileSync(`${root}db/apply.mjs`, 'utf8');
+    expect(runner, 'apply.mjs no longer plans from db/migrations — update this test')
+      .toContain("join(here, 'migrations')");
+
+    // The directory not existing is the CORRECT state and must pass, not throw
+    // — a guard that crashes when the thing it guards against is absent is a
+    // guard somebody deletes.
+    const stray = existsSync(`${root}migrations`)
+      ? readdirSync(`${root}migrations`, { withFileTypes: true })
+          .filter((e) => e.isFile() && e.name.endsWith('.sql'))
+          .map((e) => e.name)
+      : [];
+    expect(
+      stray,
+      `these .sql files sit in packages/backend/migrations/, which the runner ` +
+      `never reads — move them to db/migrations/: ${stray.join(', ')}`,
+    ).toEqual([]);
   });
 });
