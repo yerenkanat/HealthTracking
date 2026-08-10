@@ -19,6 +19,7 @@ import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import 'advisor/advisor_screen.dart';
 import 'chat/assistant_chat_screen.dart';
+import 'common/skeleton.dart';
 import 'ds_widgets.dart';
 import 'theme.dart';
 import 'appointments/appointments_screen.dart';
@@ -720,7 +721,7 @@ class _ShopRouteState extends State<_ShopRoute> {
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const HomeSkeleton();
     }
     final c = widget.controller;
     final digits = _whatsapp.replaceAll(RegExp(r'\D'), '');
@@ -778,7 +779,7 @@ class _MyOrderRouteState extends State<_MyOrderRoute> {
   Widget build(BuildContext context) {
     final api = widget.controller.api;
     if (!_ready || api == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const ListSkeleton();
     }
     final digits = _whatsapp.replaceAll(RegExp(r'\D'), '');
     return MyOrderScreen(

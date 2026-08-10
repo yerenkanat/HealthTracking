@@ -25,6 +25,7 @@ GoogleService-Info.plist
 # clinical, Kazakh and privacy gates with them.
 .claude/*
 !.claude/agents/
+!.claude/workflows/
 
 # OS
 .DS_Store
