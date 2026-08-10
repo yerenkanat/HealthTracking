@@ -962,9 +962,7 @@ class AppController {
     _devices.removeWhere((d) => d.childId == id);
     // And the child's vaccination reminder, or the phone goes on announcing a
     // visit for a child that is no longer in the app.
-    if (!_reminderStream.isClosed) {
-      _reminderStream.add(ReminderCommand.cancel(vaccinationReminderIdFor(id)));
-    }
+    _emitReminder(ReminderCommand.cancel(vaccinationReminderIdFor(id)));
     if (_selectedChildId == id) {
       _selectedChildId = _children.isNotEmpty ? _children.first.id : null;
     }
@@ -1150,15 +1148,21 @@ class AppController {
   /// Set (or clear, with null) the daily water reminder time.
   void setWaterReminder(int? minutesOfDay) {
     _waterReminderMinutes = minutesOfDay?.clamp(0, 24 * 60 - 1);
-    if (!_waterReminderStream.isClosed) _waterReminderStream.add(_waterReminderMinutes);
+    _emitWaterReminder();
     _persist();
     _notify();
   }
 
   /// Re-emit the current water-reminder setting so the runtime can (re)schedule it
   /// on boot after attaching its listener.
-  void reconcileWaterReminder() {
-    if (!_waterReminderStream.isClosed) _waterReminderStream.add(_waterReminderMinutes);
+  void reconcileWaterReminder() => _emitWaterReminder();
+
+  /// The water command actually sent to the runtime: the stored time, or null
+  /// ("cancel") while the master notifications switch is off. See [_emitReminder]
+  /// — the setting is kept so turning notifications back on restores it.
+  void _emitWaterReminder() {
+    if (_waterReminderStream.isClosed) return;
+    _waterReminderStream.add(_notificationsEnabled ? _waterReminderMinutes : null);
   }
 
   /// Daily medication reminder time (minutes of day); null = off.
@@ -1170,15 +1174,19 @@ class AppController {
   /// Set (or clear, with null) the daily medication reminder time.
   void setMedReminder(int? minutesOfDay) {
     _medReminderMinutes = minutesOfDay?.clamp(0, 24 * 60 - 1);
-    if (!_medReminderStream.isClosed) _medReminderStream.add(_medReminderMinutes);
+    _emitMedReminder();
     _persist();
     _notify();
   }
 
   /// Re-emit the current medication-reminder setting so the runtime can
   /// (re)schedule it on boot after attaching its listener.
-  void reconcileMedReminder() {
-    if (!_medReminderStream.isClosed) _medReminderStream.add(_medReminderMinutes);
+  void reconcileMedReminder() => _emitMedReminder();
+
+  /// Same master-switch gate as [_emitWaterReminder].
+  void _emitMedReminder() {
+    if (_medReminderStream.isClosed) return;
+    _medReminderStream.add(_notificationsEnabled ? _medReminderMinutes : null);
   }
 
   // ---- Appointments / reminders ----
@@ -1189,6 +1197,23 @@ class AppController {
 
   /// Schedule/cancel commands for the runtime to raise OS reminder notifications.
   Stream<ReminderCommand> get reminderCommands => _reminderStream.stream;
+
+  /// THE gate every scheduled reminder passes through — the counterpart of
+  /// [shouldDeliverAlert] for notifications the OS raises later.
+  ///
+  /// The master switch used to reach only the three safety-alert emit sites, so
+  /// a mother who read «Все, кроме экстренных: SOS придёт всегда» and turned
+  /// Уведомления off still got her 20:00 water reminder, her child's
+  /// vaccination reminder and tomorrow's appointment. Every _reminderStream.add
+  /// goes through here instead: while notifications are off a schedule becomes a
+  /// cancel, so nothing stays armed with the OS. A cancel passes untouched.
+  ///
+  /// The settings themselves are untouched — turning the switch back on re-arms
+  /// everything via [setNotificationsEnabled].
+  void _emitReminder(ReminderCommand cmd) {
+    if (_reminderStream.isClosed) return;
+    _reminderStream.add(_notificationsEnabled ? cmd : ReminderCommand.cancel(cmd.id));
+  }
 
   /// Stable notification id for an appointment (positive 31-bit).
   /// Notification id for a per-appointment reminder.
@@ -1237,10 +1262,7 @@ class AppController {
         id, at, l.t('vac_reminder_title'), l.t('vac_reminder_body', {'name': c.name}));
   }
 
-  void _emitVaccinationReminder(ChildProfile c) {
-    if (_reminderStream.isClosed) return;
-    _reminderStream.add(_vaccinationCommandFor(c));
-  }
+  void _emitVaccinationReminder(ChildProfile c) => _emitReminder(_vaccinationCommandFor(c));
 
   // ---- Medications & supplements ----
   /// The medicines/supplements the user tracks, in the order they added them.
@@ -1351,9 +1373,7 @@ class AppController {
     final id = 'apt-${_now().microsecondsSinceEpoch}-${_apptSeq++}';
     final appt = Appointment(id: id, title: title.trim(), at: at, note: note.trim());
     _appointments.add(appt);
-    if (at.isAfter(_now()) && !_reminderStream.isClosed) {
-      _reminderStream.add(_scheduleCommandFor(appt));
-    }
+    if (at.isAfter(_now())) _emitReminder(_scheduleCommandFor(appt));
     unawaited(_onApptUpsert?.call(appt) ?? Future<void>.value());
     _persist();
     _notify();
@@ -1361,7 +1381,7 @@ class AppController {
 
   void removeAppointment(String id) {
     _appointments.removeWhere((a) => a.id == id);
-    if (!_reminderStream.isClosed) _reminderStream.add(ReminderCommand.cancel(reminderIdFor(id)));
+    _emitReminder(ReminderCommand.cancel(reminderIdFor(id)));
     unawaited(_onApptDelete?.call(id) ?? Future<void>.value());
     _persist(immediate: true); // irreversible — do not risk the debounce window
     _notify();
@@ -1560,11 +1580,9 @@ class AppController {
     if (i < 0) return;
     final appt = Appointment(id: id, title: title.trim(), at: at, note: note.trim());
     _appointments[i] = appt;
-    if (!_reminderStream.isClosed) {
-      _reminderStream.add(at.isAfter(_now())
-          ? _scheduleCommandFor(appt)
-          : ReminderCommand.cancel(reminderIdFor(id)));
-    }
+    _emitReminder(at.isAfter(_now())
+        ? _scheduleCommandFor(appt)
+        : ReminderCommand.cancel(reminderIdFor(id)));
     _persist();
     _notify();
   }
@@ -1576,12 +1594,12 @@ class AppController {
     if (_reminderStream.isClosed) return;
     final now = _now();
     for (final a in _appointments) {
-      if (a.at.isAfter(now)) _reminderStream.add(_scheduleCommandFor(a));
+      if (a.at.isAfter(now)) _emitReminder(_scheduleCommandFor(a));
     }
     // The next vaccination visit per child. _vaccinationCommandFor emits a
     // cancel for a child with no future visit, which is harmless to re-arm.
     for (final c in _children) {
-      _reminderStream.add(_vaccinationCommandFor(c));
+      _emitReminder(_vaccinationCommandFor(c));
     }
   }
 
@@ -2003,7 +2021,7 @@ class AppController {
         final alert = SafetyAlert(kind: AlertKind.lowBattery, childName: name, zoneName: '$next', at: _now());
         _alerts.insert(0, alert);
         _trimAlerts();
-        if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
+        if (shouldDeliverAlert(alert) && !_alertStream.isClosed) _alertStream.add(alert);
       }
     }
     _persist();
@@ -2114,11 +2132,11 @@ class AppController {
       final when = DateTime(at.year, at.month, at.day, 10);
       if (when.isAfter(_now())) {
         final l = L10n(_locale);
-        _reminderStream.add(ReminderCommand.schedule(id, when, l.t(title), l.t(body)));
+        _emitReminder(ReminderCommand.schedule(id, when, l.t(title), l.t(body)));
         return;
       }
     }
-    _reminderStream.add(ReminderCommand.cancel(id));
+    _emitReminder(ReminderCommand.cancel(id));
   }
 
   /// (Re)compute both cycle reminders: period ~2 days before the next period, and
@@ -2747,25 +2765,64 @@ class AppController {
     );
     _alerts.insert(0, alert);
     _trimAlerts();
-    if (_notificationsEnabled && !_alertStream.isClosed) _alertStream.add(alert);
+    // An SOS raised here must reach the mother whatever her switches say —
+    // shouldDeliverAlert is what guarantees that, and the master flag alone did
+    // the opposite.
+    if (shouldDeliverAlert(alert) && !_alertStream.isClosed) _alertStream.add(alert);
     _persist();
     _notify();
   }
 
   /// Each newly generated alert (for the runtime to raise an OS notification).
-  /// Only emits while notifications are enabled; the in-app feed fills regardless.
+  /// Gated by [shouldDeliverAlert]; the in-app feed fills regardless.
   Stream<SafetyAlert> get newAlerts => _alertStream.stream;
+
+  /// THE gate every OS notification passes through. Every emit site calls this
+  /// and nothing decides delivery on its own.
+  ///
+  /// It used to be `_notificationsEnabled &&` written out at each emit site, and
+  /// that flag sits in Settings under «Оповещения о входе и выходе из зон» — so
+  /// a mother turning off what reads as zone alerts silenced her child's SOS
+  /// too, while three separate places (notif_sos_note in all three languages,
+  /// NotificationChannel.canBeMuted, tool/verify_notification_prefs.dart) went
+  /// on promising an SOS can never be muted. The per-category switches and the
+  /// quiet hours she had set, meanwhile, reached nothing at all: a 03:00
+  /// battery warning still buzzed.
+  ///
+  /// So: SOS is exempt from the master switch — [NotificationPrefs.shouldDeliver]
+  /// already exempts it from quiet hours and from every category toggle — and
+  /// everything else is checked against the preferences that claim to control it.
+  bool shouldDeliverAlert(SafetyAlert alert) {
+    final category = categoryOfAlert(alert.kind);
+    // The master switch is the only gate SOS skips here; shouldDeliver handles
+    // the rest. An emergency is never held.
+    if (category != NotifyCategory.sos && !_notificationsEnabled) return false;
+    final now = _now();
+    return _notificationPrefs.shouldDeliver(category, now.hour * 60 + now.minute);
+  }
 
   bool get notificationsEnabled => _notificationsEnabled;
   void setNotificationsEnabled(bool v) {
     if (v == _notificationsEnabled) return;
     _notificationsEnabled = v;
+    // Alerts are gated as they happen, but reminders were armed with the OS
+    // earlier and the OS will raise them whatever this flag says later. So the
+    // switch has to reach back: off cancels everything already scheduled, on
+    // re-arms it from the settings, which were never cleared.
+    if (v) {
+      rescheduleReminders();
+      _reconcileCycleReminders();
+      _emitWaterReminder();
+      _emitMedReminder();
+    } else {
+      _cancelAllReminders();
+    }
     _persist();
     _notify();
   }
 
   /// Per-category notification preferences + quiet hours. SOS is never gated by
-  /// these — see NotificationPrefs.shouldDeliver.
+  /// these — see NotificationPrefs.shouldDeliver and [shouldDeliverAlert].
   NotificationPrefs get notificationPrefs => _notificationPrefs;
   void setNotificationPrefs(NotificationPrefs p) {
     _notificationPrefs = p;
@@ -2847,10 +2904,11 @@ class AppController {
         // Newest first; the just-entered zone sits at the top.
         _alerts.insertAll(0, r.alerts.reversed);
         _trimAlerts();
-        // Emit chronologically for OS notifications (gated by the preference).
-        if (_notificationsEnabled && !_alertStream.isClosed) {
+        // Emit chronologically for OS notifications, each one through the gate
+        // (per-alert: a batch can mix a held zone event with an SOS).
+        if (!_alertStream.isClosed) {
           for (final a in r.alerts) {
-            _alertStream.add(a);
+            if (shouldDeliverAlert(a)) _alertStream.add(a);
           }
         }
         _persist(); // survive restart (feed + last zone, so we don't re-fire)

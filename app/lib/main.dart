@@ -315,9 +315,12 @@ Future<void> bootstrapRuntime(
   ContentStore? content,
   ContentCache? contentCache,
 }) async {
-  // On-device notifications for child zone alerts. The controller only emits to
-  // newAlerts while the user's notifications preference is on, so this is the sole
-  // gate we need here. Best-effort — the app works fine without it.
+  // On-device notifications for child safety alerts. Delivery is decided in one
+  // place — AppController.shouldDeliverAlert — which honours the per-category
+  // switches and quiet hours and NEVER holds an SOS. We re-check it here rather
+  // than trusting the stream, so a future emit site that forgets the gate cannot
+  // buzz a phone at 03:00, and cannot silence an emergency either.
+  // Best-effort — the app works fine without it.
   try {
     final notifications = LocalNotificationService();
     await notifications.init();
@@ -329,6 +332,7 @@ Future<void> bootstrapRuntime(
       granted: notifications.hasPermission,
     );
     controller.newAlerts.listen((alert) {
+      if (!controller.shouldDeliverAlert(alert)) return;
       final l = L10n(controller.locale);
       final title = switch (alert.kind) {
         AlertKind.entered => l.t('alert_entered', {'zone': alert.zoneName}),

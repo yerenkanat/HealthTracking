@@ -566,7 +566,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'set_devices': {AppLocale.ru: 'Устройства', AppLocale.kk: 'Құрылғылар', AppLocale.en: 'Devices'},
   'set_no_devices': {AppLocale.ru: 'Нет устройств', AppLocale.kk: 'Құрылғылар жоқ', AppLocale.en: 'No devices yet'},
   'set_notifications': {AppLocale.ru: 'Уведомления', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Notifications'},
-  'set_notifications_sub': {AppLocale.ru: 'Оповещения о входе и выходе из зон', AppLocale.kk: 'Аймаққа кіру/шығу туралы ескертулер', AppLocale.en: 'Zone entry and exit alerts'},
+  // This switch is the master gate for every NON-emergency notification (zones,
+  // check-ins, battery) — it never touches SOS. It used to read «Оповещения о
+  // входе и выходе из зон», which said "zones" while it silenced everything,
+  // an SOS included. See AppController.shouldDeliverAlert.
+  'set_notifications_sub': {AppLocale.ru: 'Все, кроме экстренных: SOS придёт всегда', AppLocale.kk: 'Шұғылдан басқасы: SOS әрқашан келеді', AppLocale.en: 'All but emergencies: SOS always arrives'},
   'set_data': {AppLocale.ru: 'Данные', AppLocale.kk: 'Деректер', AppLocale.en: 'Data'},
   'backup_never': {AppLocale.ru: 'Резервной копии ещё не было', AppLocale.kk: 'Сақтық көшірме әлі жасалмаған', AppLocale.en: 'Never backed up yet'},
   'backup_last': {AppLocale.ru: 'Последняя копия: {ago}', AppLocale.kk: 'Соңғы көшірме: {ago}', AppLocale.en: 'Last backed up {ago}'},

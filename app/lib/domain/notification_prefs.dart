@@ -12,10 +12,25 @@
 /// gets through. Everything else is a preference.
 library;
 
+import 'geofence_alerts.dart';
+
 /// A notification category the user can control. SOS is included so callers pass
 /// it through the same gate, but [NotificationPrefs.shouldDeliver] always lets it
 /// through.
 enum NotifyCategory { zoneEvents, checkIn, lowBattery, sos }
+
+/// Which category an alert is gated by — the bridge between what the app RAISES
+/// ([AlertKind]) and what the mother CONTROLS ([NotifyCategory]).
+///
+/// It exists so no caller has to re-derive the mapping and get SOS wrong. The
+/// bias is the same as `channelOf`'s: an unclassifiable alert would be an
+/// emergency, never chatter.
+NotifyCategory categoryOfAlert(AlertKind kind) => switch (kind) {
+      AlertKind.sos => NotifyCategory.sos,
+      AlertKind.entered || AlertKind.left => NotifyCategory.zoneEvents,
+      AlertKind.checkIn => NotifyCategory.checkIn,
+      AlertKind.lowBattery => NotifyCategory.lowBattery,
+    };
 
 class NotificationPrefs {
   final bool zoneEvents; // child entered/left a zone
