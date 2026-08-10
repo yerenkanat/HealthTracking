@@ -86,11 +86,11 @@ jobs:
               root@188.137.231.252 \
               'bash /opt/umay/deploy/update.sh'
 
-      - name: Confirm the site is answering
+      - name: Verify the live site
         run: |
-          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://ana-bala.kz/admin || echo 000)
-          echo "GET https://ana-bala.kz/admin -> $CODE"
-          # Checked through the PUBLIC name on purpose: update.sh talks to the
-          # backend directly and therefore cannot see the edge allowlist, which
-          # is the one thing that has silently 404'd a working release here.
-          [ "$CODE" = "200" ] || { echo "::error::the panel is not answering 200 through Caddy"; exit 1; }
+          # Not a single curl. deploy/verify-live.sh asks the internet the same
+          # questions a phone and a browser ask — every public route, the panel
+          # markers that prove the container restarted with the new file, and
+          # that nothing untrue is on the page. It exits non-zero if any of that
+          # is wrong, so a deploy cannot report success while the site is broken.
+          bash deploy/verify-live.sh
