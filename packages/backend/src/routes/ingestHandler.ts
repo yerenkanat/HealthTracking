@@ -11,6 +11,11 @@
 import { assessTelemetry } from '@fcs/shared';
 import type { BandTelemetry, ChildLocationFix, GeofenceEvent } from '@fcs/shared';
 import type { Repository } from '../db/repository';
+import {
+  bufferForFence,
+  signedDistanceToBoundaryM,
+  MAX_USABLE_ACCURACY_M,
+} from '../geofence/geofence';
 
 export interface IngestItem {
   type: 'telemetry' | 'location';
@@ -21,7 +26,10 @@ export interface IngestDeps {
   repo: Repository;
   cacheLocation: (fix: ChildLocationFix) => Promise<void>;
   resolveTransition: (childId: string, fenceId: string, inside: boolean) => Promise<'enter' | 'exit' | null>;
-  checkInside: (coords: ChildLocationFix['coords'], fence: import('@fcs/shared').Geofence) => boolean;
+  // checkInside was here — a bare `signedDistance <= 0`, injected but never
+  // injectable (buildServer Omitted it, so production always got that one). It
+  // is now the pure geofence math imported above, applied WITH the two guards
+  // that had never run. Nothing needs to fake trigonometry.
   sendEmergencyPush: (userId: string, triage: ReturnType<typeof assessTelemetry>) => Promise<void>;
   sendGeofencePush: (evt: GeofenceEvent) => Promise<void>;
 
@@ -159,6 +167,14 @@ async function ingestLocation(
   }
   summary.locationCount++;
 
+  // A fix too vague to place cannot tell which side of a fence anyone is on.
+  // Acting on one is how a phone reports a child leaving school from inside the
+  // classroom: indoors the platform falls back to cell towers and returns a
+  // position accurate to hundreds of metres, which lands well outside a 100 m
+  // school fence. Skipping leaves the stored state alone — silence, not a guess.
+  const accuracyM = fix.coords.accuracyM;
+  if (accuracyM != null && accuracyM > MAX_USABLE_ACCURACY_M) return;
+
   const fences = await deps.repo.loadGeofences(fix.childId);
   // The guardian who owns this child, resolved at most once and only if a
   // transition actually fires — needed to attribute the safety alert. In the
@@ -166,7 +182,20 @@ async function ingestLocation(
   // extra lookup is done.
   let ownerUserId: string | null = deps.callerUserId ?? null;
   for (const fence of fences) {
-    const inside = deps.checkInside(fix.coords, fence);
+    const signed = signedDistanceToBoundaryM(fix.coords, fence);
+    if (Number.isNaN(signed)) continue; // a malformed fence decides nothing
+
+    // The hysteresis band. resolveTransition only fires on a state FLIP, and
+    // that is not enough on its own: GPS drift across a boundary IS a flip, so
+    // a child standing still at the edge of the school fence alternates
+    // in/out and every alternation reached a parent's phone as an alert.
+    //
+    // Within a buffer of the boundary the answer is "cannot tell", so the fix
+    // is skipped and Redis keeps whatever state it had. This needs no new
+    // stored state, which is why it can live here.
+    if (Math.abs(signed) < bufferForFence(fence)) continue;
+
+    const inside = signed <= 0;
     const transition = await deps.resolveTransition(fix.childId, fence.id, inside);
     if (!transition) continue; // debounced: no state change → no alert
 

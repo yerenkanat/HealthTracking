@@ -45,7 +45,7 @@ import type { Repository } from './db/repository';
 
 export interface ServerDeps {
   repo: Repository;
-  ingest: Omit<IngestDeps, 'repo' | 'checkInside'>;
+  ingest: Omit<IngestDeps, 'repo'>;
   guardrail: GuardrailDeps;
   /// Injected so tests can drive the boundary without a real clock. Defaults
   /// to 20 messages per 5 minutes per authenticated user.
@@ -590,7 +590,6 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     const summary = await handleIngestBatch(parsed.data.items, {
       repo: deps.repo,
-      checkInside: (coords, fence) => checkGeofenceBoundary(coords, fence).inside,
       callerUserId: caller.userId,
       ...deps.ingest,
     });
