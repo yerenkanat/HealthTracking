@@ -127,6 +127,77 @@ export interface SafetyAlertRow {
   outcome?: SosOutcome | null;
 }
 
+// ---- Support (frame 12). See migration 034. ----
+
+export const SUPPORT_STATUSES = ['new', 'open', 'waiting', 'closed'] as const;
+export type SupportStatus = (typeof SUPPORT_STATUSES)[number];
+
+export const SUPPORT_CHANNELS = ['whatsapp', 'phone', 'panel', 'app'] as const;
+export type SupportChannel = (typeof SUPPORT_CHANNELS)[number];
+
+export interface SupportTicketRow {
+  id: string;
+  /** Null when she wrote before having an account. */
+  userId: string | null;
+  phone: string | null;
+  customerName: string | null;
+  channel: SupportChannel;
+  subject: string;
+  body: string;
+  status: SupportStatus;
+  assigneeId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** When WE last replied. Null means she is still waiting for a first answer. */
+  answeredAt: string | null;
+  closedAt: string | null;
+  /** What the app knew when she wrote — version, device, offline. */
+  appContext: string | null;
+}
+
+export interface NewSupportTicket {
+  userId?: string | null;
+  phone?: string | null;
+  customerName?: string | null;
+  channel?: SupportChannel;
+  subject: string;
+  body?: string;
+  appContext?: string | null;
+}
+
+export type SupportTicketPatch = Partial<{
+  status: SupportStatus;
+  assigneeId: string | null;
+  /** Set when staff reply, so the SLA measures OUR response and not her reply. */
+  answeredAt: string | null;
+  closedAt: string | null;
+}>;
+
+export interface SupportReplyRow {
+  id: string;
+  ticketId: string;
+  author: 'customer' | 'staff';
+  staffId: string | null;
+  body: string;
+  at: string;
+}
+
+export interface NewSupportReply {
+  ticketId: string;
+  author: 'customer' | 'staff';
+  staffId?: string | null;
+  body: string;
+}
+
+export interface SupportTemplateRow {
+  id: string;
+  title: string;
+  bodyRu: string;
+  /** Null means it is not ready to send to a Kazakh speaker. */
+  bodyKk: string | null;
+  sort: number;
+}
+
 /** The stages a product can be FOR. See migration 033. */
 export const PRODUCT_STAGES = [
   'planning', 'pregnancy', 'newborn', 'infant', 'toddler', 'any',
@@ -741,6 +812,21 @@ export interface Repository {
   listDayLogs(userId: string, from: string, to: string): Promise<DayLogRow[]>;
 
   // ---- Child safety alerts (zone enter/exit history) ----
+  // ---- Support (frame 12) ----
+  //
+  // The queue is oldest-unanswered-first, so it is read whole and sorted in the
+  // module rather than by a filter here — an operator's board is a few hundred
+  // rows at most, and paging it would hide the oldest ticket, which is the one
+  // the screen exists to surface.
+  listSupportTickets(limit: number): Promise<SupportTicketRow[]>;
+  getSupportTicket(id: string): Promise<SupportTicketRow | null>;
+  createSupportTicket(t: NewSupportTicket): Promise<string>;
+  /** Patch only the keys present; absent leaves the column alone. */
+  updateSupportTicket(id: string, patch: SupportTicketPatch): Promise<boolean>;
+  listSupportReplies(ticketId: string): Promise<SupportReplyRow[]>;
+  addSupportReply(r: NewSupportReply): Promise<void>;
+  listSupportTemplates(): Promise<SupportTemplateRow[]>;
+
   recordAlert(userId: string, a: SafetyAlertRow): Promise<void>;
   listAlerts(userId: string, limit: number): Promise<SafetyAlertRow[]>;
   /**

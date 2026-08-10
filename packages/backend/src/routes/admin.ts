@@ -15,9 +15,10 @@ import { vaccinationSchedule } from '../vaccination/schedule';
 import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository, ShopOrder } from '../db/repository';
-import { PRODUCT_STAGES } from '../db/repository';
+import { PRODUCT_STAGES, SUPPORT_CHANNELS, SUPPORT_STATUSES } from '../db/repository';
 import { buildIntegrations, integrationSummary, maskSecret } from '../admin/integrations';
 import { buildFinanceReport, financeCsv } from '../admin/finance';
+import { buildSupportBoard, SUPPORT_SLA_HOURS, whatsappReplyLink } from '../admin/support';
 import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import { summarizeSecurity } from '../admin/security';
@@ -1264,6 +1265,134 @@ export function registerAdminRoutes(
   // Saving them succeeds regardless of whether the token is valid, so without
   // this the first sign of a typo is a customer who was never called back. The
   // whole point is to fail here, loudly, in front of the person who can fix it.
+  // ---- Frame 12 · «Поддержка» -------------------------------------------
+  //
+  // `customers`, which the support role has and a warehouse hand does not. NOT
+  // `health`: a support operator answering «где мой заказ» has no business
+  // reading a pregnancy record, and the spec is explicit that health and
+  // location are the owner's alone. Every ticket names a person, so all of
+  // these are audited.
+
+  app.get('/admin/support', async (req, reply) => {
+    const s = await requireCap(req, reply, 'customers');
+    if (!s) return;
+    const [tickets, templates] = await Promise.all([
+      repo.listSupportTickets(300).catch(() => []),
+      repo.listSupportTemplates().catch(() => []),
+    ]);
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_support' });
+    const board = buildSupportBoard(tickets, new Date().toISOString());
+    return reply.send({
+      ...board,
+      templates,
+      slaHours: SUPPORT_SLA_HOURS,
+      // The link is built server-side so the panel cannot compose a different
+      // one — and so a ticket with no usable number comes back as null rather
+      // than as a button that opens nothing.
+      items: board.items.map((t) => ({ ...t, whatsapp: whatsappReplyLink(t) })),
+    });
+  });
+
+  app.get('/admin/support/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'customers');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const ticket = await repo.getSupportTicket(id);
+    if (!ticket) return reply.code(404).send({ error: 'not found' });
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_support_ticket', target: id });
+    return reply.send({
+      ticket,
+      replies: await repo.listSupportReplies(id).catch(() => []),
+      whatsapp: whatsappReplyLink(ticket),
+    });
+  });
+
+  app.post('/admin/support', async (req, reply) => {
+    const s = await requireCap(req, reply, 'customers');
+    if (!s) return;
+    const parsed = z.object({
+      subject: z.string().trim().min(1).max(200),
+      body: z.string().trim().max(4000).default(''),
+      phone: z.string().trim().max(40).nullable().optional(),
+      customerName: z.string().trim().max(120).nullable().optional(),
+      channel: z.enum(SUPPORT_CHANNELS).default('phone'),
+      userId: z.string().uuid().nullable().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    // The table's CHECK demands one or the other; refusing here names the field
+    // instead of letting a constraint violation reach the operator as a 500.
+    const t = parsed.data;
+    if (!t.userId && !(t.phone ?? '').trim()) {
+      return reply.code(400).send({ error: 'a ticket needs a phone or a user' });
+    }
+
+    const id = await repo.createSupportTicket({
+      subject: t.subject,
+      body: t.body,
+      phone: t.phone ?? null,
+      customerName: t.customerName ?? null,
+      channel: t.channel,
+      userId: t.userId ?? null,
+    });
+    await repo.writeAudit({ staffId: s.staffId, action: 'support_create', target: id });
+    return reply.code(201).send({ ok: true, id });
+  });
+
+  app.post('/admin/support/:id/reply', async (req, reply) => {
+    const s = await requireCap(req, reply, 'customers');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const parsed = z.object({
+      body: z.string().trim().min(1).max(4000),
+      /** Mark it as now waiting on her rather than on us. */
+      waiting: z.boolean().default(true),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const ticket = await repo.getSupportTicket(id);
+    if (!ticket) return reply.code(404).send({ error: 'not found' });
+
+    await repo.addSupportReply({
+      ticketId: id, author: 'staff', staffId: s.staffId, body: parsed.data.body,
+    });
+    // answeredAt is what stops the SLA clock. Set on every staff reply, so a
+    // ticket answered in four minutes never reads as four hours late because
+    // she has not written back.
+    await repo.updateSupportTicket(id, {
+      answeredAt: new Date().toISOString(),
+      status: parsed.data.waiting ? 'waiting' : 'open',
+    });
+    await repo.writeAudit({ staffId: s.staffId, action: 'support_reply', target: id });
+    return reply.send({ ok: true });
+  });
+
+  app.patch('/admin/support/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'customers');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const parsed = z.object({
+      status: z.enum(SUPPORT_STATUSES).optional(),
+      assigneeId: z.string().uuid().nullable().optional(),
+    }).strict().safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const patch: Record<string, unknown> = { ...parsed.data };
+    // «Ничего не удаляется» — closing is a status and a timestamp, never a
+    // delete, so the ticket stays readable afterwards.
+    if (parsed.data.status === 'closed') patch.closedAt = new Date().toISOString();
+    // Reopening clears it, or a reopened ticket would still claim it is closed.
+    if (parsed.data.status && parsed.data.status !== 'closed') patch.closedAt = null;
+
+    const ok = await repo.updateSupportTicket(id, patch);
+    if (!ok) return reply.code(404).send({ error: 'not found' });
+    await repo.writeAudit({
+      staffId: s.staffId, action: 'support_update', target: id,
+      reason: Object.keys(parsed.data).join(','),
+    });
+    return reply.send({ ok: true });
+  });
+
   /**
    * Frames 05 / 05a / 05b — «Финансы», «Возвраты и брак», «Отчёт».
    *

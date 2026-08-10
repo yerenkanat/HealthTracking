@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
 import { bundleDiscountMinor } from './repository';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
@@ -58,6 +58,33 @@ export function createMemoryRepository(): Repository {
   // every account in this process shares one fleet, and an authorisation
   // regression passes every dev check.
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null; userId: string }> = [];
+
+  // ---- Support (frame 12) ----
+  // Seeded with one open ticket so the queue is not empty on a dev box: an
+  // operator board that looks identical whether it works or not is how a broken
+  // one ships.
+  const tickets: SupportTicketRow[] = [
+    {
+      id: 'sup-seed-1', userId: DEMO_USER, phone: '+7 707 345 22 44',
+      customerName: 'Айгерім', channel: 'whatsapp',
+      subject: 'Не приходит код при входе', body: 'Жду уже 10 минут, кода нет.',
+      status: 'new', assigneeId: null,
+      createdAt: new Date(Date.now() - 5 * 3600_000).toISOString(),
+      updatedAt: new Date(Date.now() - 5 * 3600_000).toISOString(),
+      answeredAt: null, closedAt: null,
+      appContext: 'Приложение: 0.1.0 · Связь: есть',
+    },
+  ];
+  const replies: SupportReplyRow[] = [];
+  const supportTemplates: SupportTemplateRow[] = [
+    { id: 'where_order', title: 'Где мой заказ', sort: 10,
+      bodyRu: 'Здравствуйте! Проверила ваш заказ — он {status}. Ожидаемая доставка: {eta}.',
+      bodyKk: 'Сәлеметсіз бе! Тапсырысыңызды тексердім — ол {status}. Күтілетін жеткізу: {eta}.' },
+    { id: 'pair_device', title: 'Не подключается трекер', sort: 20,
+      bodyRu: 'Давайте попробуем заново: выключите трекер, зажмите кнопку 5 секунд и откройте «Устройства».',
+      bodyKk: 'Қайтадан көрейік: трекерді өшіріп, түймені 5 секунд басып тұрыңыз да, «Құрылғылар» бөлімін ашыңыз.' },
+  ];
+
   const geofences = new Map<string, Geofence[]>([[DEMO_CHILD, [home]]]);
   const appointments: Array<{ id: string; title: string; at: string; note: string; userId: string }> = [];
   const medications: Array<{ id: string; name: string; dose: string; perDay: number; userId: string }> = [];
@@ -922,6 +949,56 @@ const UUID_RE =
     listDayLogs: async (_u, from, to) =>
       [...dayLogs.values()].filter((d) => d.date >= from && d.date <= to).sort((a, b) => a.date.localeCompare(b.date)),
     // Safety alerts
+    // ---- Support (frame 12) ----
+    listSupportTickets: async (limit) =>
+      [...tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit),
+    getSupportTicket: async (id) => tickets.find((t) => t.id === id) ?? null,
+    createSupportTicket: async (t) => {
+      const id = `sup-${tickets.length + 1}`;
+      const now = new Date().toISOString();
+      tickets.push({
+        id,
+        userId: t.userId ?? null,
+        phone: t.phone ?? null,
+        customerName: t.customerName ?? null,
+        channel: t.channel ?? 'whatsapp',
+        subject: t.subject,
+        body: t.body ?? '',
+        status: 'new',
+        assigneeId: null,
+        createdAt: now,
+        updatedAt: now,
+        answeredAt: null,
+        closedAt: null,
+        appContext: t.appContext ?? null,
+      });
+      return id;
+    },
+    updateSupportTicket: async (id, patch) => {
+      const t = tickets.find((x) => x.id === id);
+      if (!t) return false;
+      // Only the keys PRESENT, matching the SQL: closing must not clear the
+      // assignee, and assigning must not reopen.
+      for (const k of Object.keys(patch) as Array<keyof typeof patch>) {
+        (t as unknown as Record<string, unknown>)[k] = patch[k] as unknown;
+      }
+      t.updatedAt = new Date().toISOString();
+      return true;
+    },
+    listSupportReplies: async (ticketId) =>
+      replies.filter((r) => r.ticketId === ticketId).sort((a, b) => a.at.localeCompare(b.at)),
+    addSupportReply: async (r) => {
+      replies.push({
+        id: `rep-${replies.length + 1}`,
+        ticketId: r.ticketId,
+        author: r.author,
+        staffId: r.staffId ?? null,
+        body: r.body,
+        at: new Date().toISOString(),
+      });
+    },
+    listSupportTemplates: async () => [...supportTemplates].sort((a, b) => a.sort - b.sort),
+
     recordAlert: async (_u, a) => void alerts.unshift(a),
     listAlerts: async (_u, limit) => alerts.slice(0, limit),
     setAlertOutcome: async (_u, childId, at, outcome) => {

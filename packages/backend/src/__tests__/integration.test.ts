@@ -113,6 +113,16 @@ function makeDeps(
     revokeEntitlement: async () => {},
     listEntitlements: async () => [],
     adminProducts: async () => [],
+    // Support (frame 12). This fake serves the flows below, none of which touch
+    // the support queue; its behaviour is covered against the real memory
+    // repository in supportRoutes.test.ts, where a write can be read back.
+    listSupportTickets: async () => [],
+    getSupportTicket: async () => null,
+    createSupportTicket: async () => 'sup-1',
+    updateSupportTicket: async () => true,
+    listSupportReplies: async () => [],
+    addSupportReply: async () => {},
+    listSupportTemplates: async () => [],
     // Catalogue (frames 08/08a/08b). This fake serves the flows below, none of
     // which edit the catalogue; catalogue behaviour is covered against the real
     // memory repository in productCatalog.test.ts, where a write can be read

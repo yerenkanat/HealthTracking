@@ -9,7 +9,7 @@ import { Pool } from 'pg';
 import { computeChildrenStats } from '../analytics/childStats.js';
 import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
 import { normalizeSerial } from '../deviceSerial.js';
-import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopProduct } from './repository';
+import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopProduct , SupportTicketRow } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -22,6 +22,27 @@ import type { Repository } from './repository';
 import { bundleDiscountMinor } from './repository';
 import { normalizePhone } from '../phone.js';
 import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
+
+/** support_tickets row -> SupportTicketRow. One mapping, not six. */
+function supportRow(r: Record<string, unknown>): SupportTicketRow {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : null);
+  return {
+    id: r.id as string,
+    userId: (r.user_id as string) ?? null,
+    phone: (r.phone as string) ?? null,
+    customerName: (r.customer_name as string) ?? null,
+    channel: r.channel as SupportTicketRow['channel'],
+    subject: r.subject as string,
+    body: (r.body as string) ?? '',
+    status: r.status as SupportTicketRow['status'],
+    assigneeId: (r.assignee_id as string) ?? null,
+    createdAt: iso(r.created_at)!,
+    updatedAt: iso(r.updated_at)!,
+    answeredAt: iso(r.answered_at),
+    closedAt: iso(r.closed_at),
+    appContext: (r.app_context as string) ?? null,
+  };
+}
 
 
 /**
@@ -1723,6 +1744,76 @@ export function createPgRepository(pool: Pool): Repository {
     },
 
     // ---- Safety alerts ----
+    // ---- Support (frame 12) ----
+    async listSupportTickets(limit) {
+      const { rows } = await pool.query(
+        `SELECT id, user_id, phone, customer_name, channel, subject, body, status,
+                assignee_id, created_at, updated_at, answered_at, closed_at, app_context
+           FROM support_tickets ORDER BY created_at DESC LIMIT $1`, [limit]);
+      return rows.map(supportRow);
+    },
+    async getSupportTicket(id) {
+      const { rows } = await pool.query(
+        `SELECT id, user_id, phone, customer_name, channel, subject, body, status,
+                assignee_id, created_at, updated_at, answered_at, closed_at, app_context
+           FROM support_tickets WHERE id = $1`, [id]);
+      return rows[0] ? supportRow(rows[0]) : null;
+    },
+    async createSupportTicket(t) {
+      const { rows } = await pool.query(
+        `INSERT INTO support_tickets
+           (user_id, phone, customer_name, channel, subject, body, app_context)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [t.userId ?? null, t.phone ?? null, t.customerName ?? null,
+         t.channel ?? 'whatsapp', t.subject, t.body ?? '', t.appContext ?? null]);
+      return rows[0].id;
+    },
+    async updateSupportTicket(id, patch) {
+      // Built from the keys PRESENT, so closing a ticket does not clear its
+      // assignee and assigning one does not reopen it.
+      const cols: Record<string, string> = {
+        status: 'status', assigneeId: 'assignee_id',
+        answeredAt: 'answered_at', closedAt: 'closed_at',
+      };
+      const sets: string[] = [];
+      const vals: unknown[] = [];
+      for (const [key, col] of Object.entries(cols)) {
+        if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
+        vals.push((patch as Record<string, unknown>)[key]);
+        sets.push(`${col} = $${vals.length}`);
+      }
+      if (!sets.length) return false;
+      // Always bumped: the board sorts on it, and an edit that leaves it stale
+      // puts the ticket back where it was.
+      sets.push('updated_at = now()');
+      vals.push(id);
+      const { rowCount } = await pool.query(
+        `UPDATE support_tickets SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+      return (rowCount ?? 0) > 0;
+    },
+    async listSupportReplies(ticketId) {
+      const { rows } = await pool.query(
+        `SELECT id, ticket_id, author, staff_id, body, at
+           FROM support_replies WHERE ticket_id = $1 ORDER BY at`, [ticketId]);
+      return rows.map((r) => ({
+        id: r.id, ticketId: r.ticket_id, author: r.author, staffId: r.staff_id,
+        body: r.body, at: new Date(r.at).toISOString(),
+      }));
+    },
+    async addSupportReply(r) {
+      await pool.query(
+        `INSERT INTO support_replies (ticket_id, author, staff_id, body)
+         VALUES ($1,$2,$3,$4)`,
+        [r.ticketId, r.author, r.staffId ?? null, r.body]);
+    },
+    async listSupportTemplates() {
+      const { rows } = await pool.query(
+        'SELECT id, title, body_ru, body_kk, sort FROM support_templates ORDER BY sort, title');
+      return rows.map((r) => ({
+        id: r.id, title: r.title, bodyRu: r.body_ru, bodyKk: r.body_kk, sort: r.sort,
+      }));
+    },
+
     async recordAlert(userId, a) {
       await pool.query(
         `INSERT INTO safety_alerts (user_id, child_id, kind, zone_name, at) VALUES ($1,$2,$3,$4,$5)`,
