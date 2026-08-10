@@ -212,6 +212,53 @@ describe('pgRepository against db/schema.sql', () => {
     expect(problems, `column not in schema: ${problems.join(', ')}`).toEqual([]);
   });
 
+  it('every qualified SELECT column (alias.col) exists in the aliased table', () => {
+    // The gap the INSERT/UPDATE sweep above admits it leaves open, and the one
+    // that cost the product its revoke button: familyMembers SELECTed
+    // `u.phone` from `users u`. The column is phone_e164, so the query threw on
+    // every real Postgres; the route caught it into an empty list, screen 40
+    // showed no relatives, and there was no id to revoke anybody with.
+    //
+    // A qualified reference is NOT ambiguous: `u.x` where the query says
+    // `FROM users u` is a claim about one named table, checkable here. Each SQL
+    // literal is examined on its own so the same letter may alias different
+    // tables in different queries.
+    const cols = tableColumns();
+    const KEYWORDS = new Set([
+      'on', 'where', 'order', 'group', 'having', 'limit', 'offset', 'using',
+      'left', 'right', 'inner', 'outer', 'full', 'cross', 'natural', 'join',
+      'set', 'and', 'or', 'lateral', 'values', 'returning', 'union', 'for',
+      'window', 'as', 'select', 'from', 'do', 'nothing', 'update', 'conflict',
+    ]);
+    const problems: string[] = [];
+    let literals = 0;
+
+    for (const lit of repo.match(/`[\s\S]*?`/g) ?? []) {
+      const sql = lit.slice(1, -1);
+      if (!/\b(from|join)\s/i.test(sql)) continue;
+      literals++;
+      const alias = new Map<string, string>();
+      for (const m of sql.matchAll(/\b(?:from|join)\s+([a-z_][a-z0-9_]*)\s+(?:as\s+)?([a-z_][a-z0-9_]*)/gi)) {
+        const table = m[1].toLowerCase();
+        const a = m[2].toLowerCase();
+        if (KEYWORDS.has(a) || !cols.has(table)) continue;
+        alias.set(a, table);
+      }
+      if (!alias.size) continue;
+      for (const m of sql.matchAll(/\b([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)\b/gi)) {
+        const table = alias.get(m[1].toLowerCase());
+        if (!table) continue;
+        if (!cols.get(table)!.has(m[2].toLowerCase())) {
+          problems.push(`${m[1]}.${m[2]} — no such column in ${table}`);
+        }
+      }
+    }
+
+    // Guards the guard: an extraction that matched nothing would pass silently.
+    expect(literals, 'no SQL literals were parsed — the extraction broke').toBeGreaterThan(20);
+    expect(problems, `qualified column not in schema: ${problems.join(', ')}`).toEqual([]);
+  });
+
   it('the column parser actually found columns (guards the guard)', () => {
     const cols = tableColumns();
     expect(cols.get('users')?.has('phone_e164')).toBe(true);

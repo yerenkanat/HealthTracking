@@ -361,6 +361,75 @@ describe('what a relative can reach', () => {
   });
 });
 
+describe('taking access back', () => {
+  it('the list gives the id, and that id revokes — the whole loop', async () => {
+    // Revoking is only reachable through the list: the screen has no other
+    // source for a member id. So the two are one feature and are tested as one
+    // — a list that cannot be read is a revoke button that does not exist,
+    // which is what shipped (pgRepository selected a `phone` column that does
+    // not exist, and the route caught the failure into an empty list).
+    await share('guardian');
+    caller = MOTHER;
+
+    const listed = (await app.inject({ method: 'GET', url: '/family/access' })).json();
+    expect(listed.members, 'the granted member must be listed').toHaveLength(1);
+    const id = listed.members[0].memberUserId as string;
+    expect(id).toBe(FATHER);
+
+    // Nothing here is typed by the test: the id comes from the response, the
+    // way the screen gets it.
+    const gone = await app.inject({ method: 'DELETE', url: `/family/access/${id}` });
+    expect(gone.statusCode).toBe(200);
+    expect(gone.json().ok).toBe(true);
+
+    const after = (await app.inject({ method: 'GET', url: '/family/access' })).json();
+    expect(after.members).toEqual([]);
+
+    // And it is gone in fact, not only on her screen.
+    caller = FATHER;
+    expect((await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/day`,
+    })).statusCode).toBe(403);
+    const his = (await app.inject({ method: 'GET', url: '/family/access' })).json();
+    expect(his.memberships).toEqual([]);
+
+    // A second revoke is a 404, not a cheerful ok.
+    caller = MOTHER;
+    expect((await app.inject({ method: 'DELETE', url: `/family/access/${id}` })).statusCode)
+      .toBe(404);
+    await app.close();
+  });
+
+  it('a failing read is an error, NOT an empty family', async () => {
+    // The defect itself. `.catch(() => [])` around familyMembers turned a
+    // broken query into «никого не пускала» — a screen that looks correct,
+    // offers nobody to revoke, and gives no reason to suspect anything. The
+    // route must fail loudly instead.
+    const broken = createMemoryRepository();
+    broken.familyMembers = async () => { throw new Error('column "phone" does not exist'); };
+    const a = buildServer(
+      {
+        repo: broken,
+        guardrail: { callLLM: async () => 'ok' },
+        ingest: {
+          cacheLocation: async () => {}, resolveTransition: async () => null,
+          sendEmergencyPush: async () => {}, sendGeofencePush: async () => {},
+        },
+        cacheLastLocation: async () => null,
+        setBpCalibration: async () => {},
+        authUser: async () => ({ userId: MOTHER }),
+        authAdmin: async () => null,
+      },
+      { logger: false },
+    );
+    const r = await a.inject({ method: 'GET', url: '/family/access' });
+    expect(r.statusCode, 'a read that failed must not answer 200').toBeGreaterThanOrEqual(500);
+    expect(r.body).not.toContain('"members":[]');
+    await a.close();
+    await app.close();
+  });
+});
+
 describe('accepting twice', () => {
   it('re-levels rather than granting twice', async () => {
     // Two rows for one person would mean one revoke leaves the other in place.

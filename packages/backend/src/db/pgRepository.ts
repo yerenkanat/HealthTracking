@@ -206,9 +206,12 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Family access (screen 40) ----
 
     async familyMembers(ownerUserId) {
+      // The column is phone_e164; `u.phone` does not exist and threw on every
+      // real Postgres, which the route then swallowed into an empty list — so
+      // screen 40 showed no relatives and nobody could be revoked.
       const { rows } = await pool.query(
         `SELECT f.member_user_id, f.label, f.level, f.created_at,
-                u.display_name, u.phone
+                u.display_name, u.phone_e164
            FROM family_access f
            LEFT JOIN users u ON u.id = f.member_user_id
           WHERE f.owner_user_id = $1
@@ -219,7 +222,7 @@ export function createPgRepository(pool: Pool): Repository {
         memberUserId: r.member_user_id,
         label: r.label ?? '',
         displayName: r.display_name ?? null,
-        phone: r.phone ?? null,
+        phone: r.phone_e164 ?? null,
         level: r.level,
         createdAt: new Date(r.created_at).toISOString(),
       }));

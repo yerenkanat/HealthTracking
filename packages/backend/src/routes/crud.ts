@@ -975,10 +975,16 @@ export function registerCrudRoutes(
     const u = await requireUser(req, reply);
     if (!u) return;
     const now = new Date();
+    // No .catch(() => []) on any of these. An empty list here is
+    // indistinguishable from «никого не пускала», and the member ids this list
+    // carries are the only way DELETE /family/access/:memberUserId can be
+    // called — so a swallowed read error silently removed revocation from the
+    // product, which is exactly how a broken column survived for months. Let it
+    // throw: a 500 the screen reports is recoverable, a comfortable lie is not.
     const [members, invites, memberships] = await Promise.all([
-      repo.familyMembers(u.userId).catch(() => []),
-      repo.familyInvites(u.userId, 50).catch(() => []),
-      repo.familyMemberships(u.userId).catch(() => []),
+      repo.familyMembers(u.userId),
+      repo.familyInvites(u.userId, 50),
+      repo.familyMemberships(u.userId),
     ]);
     return reply.send({
       members,
