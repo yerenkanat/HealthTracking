@@ -14,7 +14,7 @@ import { antenatalProtocol } from '../antenatal/protocol';
 import { vaccinationSchedule } from '../vaccination/schedule';
 import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
-import type { ContentItemRow, Repository } from '../db/repository';
+import type { ContentItemRow, Repository, ShopOrder } from '../db/repository';
 import { PRODUCT_STAGES } from '../db/repository';
 import { buildIntegrations, integrationSummary, maskSecret } from '../admin/integrations';
 import { buildFinanceReport, financeCsv } from '../admin/finance';
@@ -203,7 +203,10 @@ export type AuthAdmin = (req: FastifyRequest) => Promise<{ staffId: string; role
 export interface AdminRuntimeFacts {
   /** A real gateway, not the console logger. */
   smsSenderIsReal?: boolean;
+  /** The EFFECTIVE gate: a code is demanded and can be sent. */
   requirePhoneCode?: boolean;
+  /** REQUIRE_PHONE_CODE=1 was set, whether or not it could be honoured. */
+  phoneCodeRequested?: boolean;
   /** A push sender is wired and can deliver. */
   pushWired?: boolean;
 }
@@ -423,6 +426,16 @@ export function registerAdminRoutes(
     return reply.send({ sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration, growth, doses, vaccines });
   });
 
+  /**
+   * How many of her orders the mother's card counts over.
+   *
+   * A window, not "all of them", because this is one indexed read inside a
+   * request that already does a dozen. It is generous enough that a real
+   * customer never hits it — but when she does, the card SAYS the figures are
+   * a window rather than presenting a partial spend as her whole history.
+   */
+  const MOTHER_ORDER_WINDOW = 100;
+
   // ---- One family, assembled (clinician/admin) — audited PHI access ----
   app.get('/admin/users/:id/detail', async (req, reply) => {
     const s = await requireCap(req, reply, 'health');
@@ -454,8 +467,25 @@ export function registerAdminRoutes(
      */
     const phone = normalizePhone(detail.phone ?? '');
 
-    // Read-only and best-effort, every one of them: a failure in the shop or
-    // the course must not blank the clinical card this route primarily is.
+    /**
+     * Read-only and best-effort, every one of them: a failure in the shop or
+     * the course must not blank the clinical card this route primarily is.
+     *
+     * But best-effort is not the same as pretending. A `.catch(() => [])` here
+     * turns "shop_orders is unreachable" into "she has never ordered", and the
+     * panel then prints «Заказов на этот номер нет» at an operator on the
+     * phone with a woman holding her Kaspi receipt. So each failure is CARRIED
+     * — the card gets the empty value AND the fact that we could not look.
+     */
+    const settled = async <T>(p: Promise<T>, fallback: T): Promise<{ value: T; failed: boolean }> => {
+      try {
+        return { value: await p, failed: false };
+      } catch (err) {
+        req.log.warn({ err, userId }, 'mother card: a side read failed');
+        return { value: fallback, failed: true };
+      }
+    };
+
     const [appointments, orders, courseUnlocked, courseProgress] = await Promise.all([
       // Her upcoming visits, so staff can see the antenatal plan she is
       // actually keeping.
@@ -466,18 +496,33 @@ export function registerAdminRoutes(
       // whole shop and filtering in Node would silently lose the customer who
       // ordered before the window — precisely the woman who rings up to ask
       // where her order is.
-      phone ? repo.shopOrdersByPhone(phone, 20).catch(() => []) : Promise.resolve([]),
-      phone ? repo.hasEntitlement(phone, MAMA_COURSE).catch(() => false) : Promise.resolve(false),
-      phone ? repo.courseProgress(phone).catch(() => []) : Promise.resolve([]),
+      phone
+        ? settled(repo.shopOrdersByPhone(phone, MOTHER_ORDER_WINDOW), [] as ShopOrder[])
+        : Promise.resolve({ value: [] as ShopOrder[], failed: false }),
+      phone
+        ? settled(repo.hasEntitlement(phone, MAMA_COURSE), false)
+        : Promise.resolve({ value: false, failed: false }),
+      phone
+        ? settled(repo.courseProgress(phone), [] as Awaited<ReturnType<typeof repo.courseProgress>>)
+        : Promise.resolve({ value: [] as Awaited<ReturnType<typeof repo.courseProgress>>, failed: false }),
     ]);
 
     const mother = buildMotherCard({
       dueDate: detail.dueDate,
       children: detail.children,
-      orders,
-      courseUnlocked,
-      courseProgress,
+      orders: orders.value,
+      courseUnlocked: courseUnlocked.value,
+      courseProgress: courseProgress.value,
       now: new Date().toISOString(),
+      ordersUnavailable: orders.failed,
+      // Either half missing makes the course block a guess: an entitlement we
+      // could not read and progress rows we could not count are both «неизвестно».
+      courseUnavailable: courseUnlocked.failed || courseProgress.failed,
+      ordersWindow: MOTHER_ORDER_WINDOW,
+      // A full window means there is very likely an older order we did not
+      // count. The card says so rather than presenting a partial total as her
+      // whole history.
+      ordersTruncated: orders.value.length >= MOTHER_ORDER_WINDOW,
     });
 
     return reply.send({ ...detail, appointments, mother });
@@ -1296,6 +1341,11 @@ export function registerAdminRoutes(
       // would be exactly the silent failure it exists to expose.
       smsSenderIsReal: runtime.smsSenderIsReal ?? false,
       requirePhoneCode: runtime.requirePhoneCode ?? false,
+      // The gap between what was asked for and what is in force. Without this
+      // a server started with REQUIRE_PHONE_CODE=1 and no gateway looked
+      // identical to one where nobody had tried — which is how the variable
+      // came to be written down as a mitigation it cannot be.
+      phoneCodeRequested: runtime.phoneCodeRequested ?? false,
       pushWired: runtime.pushWired ?? false,
       anthropicEnvKey: process.env.ANTHROPIC_API_KEY ?? null,
     });

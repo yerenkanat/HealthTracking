@@ -131,7 +131,23 @@
    * is mounted at a time, and matching "Что говорят мамы" would leave the
    * Kazakh grid showing the authored copy after the visitor toggles language.
    */
+  /**
+   * Where staff-configured reviews are written.
+   *
+   * Marked containers FIRST. This used to be found only by the star heuristic
+   * below — a div whose every child contains ★ — which meant the grid could be
+   * located only because fabricated five-star cards were sitting in it. When
+   * those were removed from the export, real reviews had nowhere to render and
+   * the feature silently stopped working: the setting saved, /shop/config
+   * served it, and the page showed nothing.
+   *
+   * The heuristic is kept as a fallback so an older export, or one re-exported
+   * from a design file that has no marker, still works.
+   */
   function reviewGrids() {
+    var marked = document.querySelectorAll('[data-reviews-grid]');
+    if (marked.length) return Array.prototype.slice.call(marked);
+
     var out = [];
     var divs = document.querySelectorAll('div');
     for (var i = 0; i < divs.length; i++) {
@@ -145,6 +161,17 @@
       if (starred === kids.length) out.push(g);
     }
     return out;
+  }
+
+  /**
+   * Hide «отзывы появятся здесь» once there are some.
+   *
+   * The line is the honest empty state, and leaving it under three real
+   * reviews would read as though the page still had none.
+   */
+  function hideEmptyNote() {
+    var notes = document.querySelectorAll('[data-reviews-empty]');
+    for (var i = 0; i < notes.length; i++) notes[i].style.display = 'none';
   }
 
   /**
@@ -194,6 +221,7 @@
       }
       grids[i].innerHTML = html;
       grids[i].dataset.reviewLocale = locale;
+      hideEmptyNote();
     }
   }
 

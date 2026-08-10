@@ -58,9 +58,36 @@ over `scp` and reference them from `deploy/backend.env`.
 
 | What | Why it blocks launch |
 |---|---|
-| **SMS gateway** (`REQUIRE_PHONE_CODE=1` + a provider) | Until this is set, sign-in accepts any phone number with no verification. On a product that shows a child's live location, that means anyone who knows a customer's number can reach her child's map. The verified flow is built and tested behind the flag. |
+| **SMS gateway** (a provider wired in `src/index.ts` — see below) | Sign-in accepts any phone number with no verification. On a product that shows a child's live location, that means anyone who knows a customer's number can reach her child's map. The verified flow is built and tested; nothing sends the code. |
 | **Firebase service account** | Emergency push is wired and has no credentials, so an SOS from a tracker reaches nobody. |
 | `ANTHROPIC_API_KEY` | The assistant and the photo-to-vitals extraction 503 without it. Degrades cleanly; not a launch blocker. |
+
+### `REQUIRE_PHONE_CODE=1` is **not** the mitigation
+
+This table used to list the variable as the thing that closes unverified
+sign-in. It does not, and it cannot on this server. `packages/backend/src/index.ts`
+reads
+
+```ts
+requirePhoneCode: REQUIRE_PHONE_CODE === '1' && !!smsSender()
+```
+
+and `smsSender()` returns `undefined` whenever `DATABASE_URL` is set — a real
+sender exists only on a dev box, where it prints the code to the log. So on
+every deployment the second half is false, the flag is silently ignored, and
+sign-in goes on accepting any number. Setting it in `deploy/backend.env`
+changes nothing except the boot log.
+
+What actually closes it: return a real gateway's `SmsSender` from `smsSender()`
+in `src/index.ts` (that function is the only place that needs to change), then
+set `REQUIRE_PHONE_CODE=1`. Until both are true:
+
+* the server logs a warning at boot whenever the variable is set and no sender
+  exists — grep the unit's journal for `REQUIRE_PHONE_CODE=1 is set but`;
+* «Интеграции» in the admin panel shows **SMS-шлюз** as off and says the
+  setting is not in force.
+
+Neither of those makes sign-in safe. They make the gap visible while it lasts.
 
 ## 4. Legal
 

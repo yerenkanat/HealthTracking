@@ -41,3 +41,62 @@ export function authPosture(env: NodeJS.ProcessEnv): {
   const adminStub = devShortcuts;
   return { userStub, adminStub, safeForProduction: !userStub && !adminStub };
 }
+
+/**
+ * The SMS code gate — whether `REQUIRE_PHONE_CODE=1` can actually do anything.
+ *
+ * It cannot, today, anywhere it matters. `smsSender()` in index.ts returns a
+ * sender ONLY under the dev shortcuts (no DATABASE_URL / USE_MEMORY_DB), so on
+ * every real deployment it returns undefined and
+ * `REQUIRE_PHONE_CODE === '1' && !!smsSender()` is false however the variable is
+ * set. Setting it on the server changes nothing: sign-in still accepts any
+ * number with no verification.
+ *
+ * That is a documentation problem as much as a code one — docs/RELEASE.md
+ * listed the variable as the mitigation — so the impossibility is made
+ * VISIBLE rather than quietly corrected: a loud line at boot, and the SMS row
+ * on «Интеграции» saying the flag is being ignored. No gateway is invented
+ * here; there still isn't one.
+ */
+export interface PhoneCodePosture {
+  /** REQUIRE_PHONE_CODE=1 — what the operator asked for. */
+  requested: boolean;
+  /** A sender was actually injected. Without one no code can leave the server. */
+  senderWired: boolean;
+  /** What buildServer is given: the gate engages only when BOTH are true. */
+  effective: boolean;
+  /** Asked for and impossible — the state the warning exists for. */
+  ignored: boolean;
+  /** The boot line, or null when there is nothing to say. */
+  warning: string | null;
+}
+
+/**
+ * The warning text, in one place, because two callers say it: the composition
+ * root (at boot) and buildServer (which is what the tests can reach).
+ */
+export function phoneCodeWarning(requested: boolean, senderWired: boolean): string | null {
+  if (!requested || senderWired) return null;
+  return (
+    'REQUIRE_PHONE_CODE=1 is set but NO SMS sender is wired, so the code gate is ' +
+    'OFF and this variable is doing nothing. Phone sign-in still accepts any ' +
+    'number with no verification — anyone who knows a customer\'s number can ' +
+    'open her account, her children and their live locations. Setting the ' +
+    'variable is not enough: smsSender() in src/index.ts returns a sender only ' +
+    'without a DATABASE_URL, so a real gateway has to be returned there. See ' +
+    'docs/RELEASE.md and «Интеграции» in the admin panel.'
+  );
+}
+
+export function phoneCodePosture(
+  env: NodeJS.ProcessEnv, senderWired: boolean,
+): PhoneCodePosture {
+  const requested = env.REQUIRE_PHONE_CODE === '1';
+  return {
+    requested,
+    senderWired,
+    effective: requested && senderWired,
+    ignored: requested && !senderWired,
+    warning: phoneCodeWarning(requested, senderWired),
+  };
+}

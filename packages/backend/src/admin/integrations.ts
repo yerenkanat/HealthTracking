@@ -77,8 +77,16 @@ export interface IntegrationInputs {
   settings: Record<string, string>;
   /** Whether a REAL sms sender is wired (not the console logger). */
   smsSenderIsReal: boolean;
-  /** Whether phone codes are demanded at sign-in. */
+  /** Whether phone codes are demanded at sign-in — the EFFECTIVE gate. */
   requirePhoneCode: boolean;
+  /**
+   * Whether REQUIRE_PHONE_CODE=1 was set, regardless of whether it took effect.
+   *
+   * Defaults to [requirePhoneCode] for a caller that does not know — an older
+   * one then reads exactly as it did before, rather than inventing a
+   * misconfiguration nobody made.
+   */
+  phoneCodeRequested?: boolean;
   /** Whether a push sender is wired. */
   pushWired: boolean;
   /** ANTHROPIC_API_KEY from the environment, if the process has one. */
@@ -151,22 +159,47 @@ export function buildIntegrations(input: IntegrationInputs): IntegrationStatus[]
   //
   // The one that matters most and is least visible. A console logger counts as
   // NOT wired: it prints the code on the server and sends nothing.
+  //
+  // Three ways to be off, not one. The third — REQUIRE_PHONE_CODE=1 set on a
+  // server that has no sender — LOOKED exactly like "nobody turned it on",
+  // which is how the variable ended up written down as the fix for
+  // unverified sign-in. It is reported separately and in the operator's words:
+  // the setting is on, and it is doing nothing.
+  const phoneCodeAsked = input.phoneCodeRequested ?? input.requirePhoneCode;
+  const phoneCodeIgnored = phoneCodeAsked && !input.requirePhoneCode;
   out.push({
     id: 'sms',
     name: 'SMS-шлюз',
     purpose: 'Код подтверждения при входе по номеру телефона',
-    state: input.smsSenderIsReal ? 'ok' : (input.requirePhoneCode ? 'off' : 'partial'),
+    state: input.smsSenderIsReal ? 'ok' : (input.requirePhoneCode || phoneCodeIgnored ? 'off' : 'partial'),
     detail: input.smsSenderIsReal
       ? 'Шлюз подключён'
-      : input.requirePhoneCode
-        ? 'Код обязателен, но отправлять его нечем'
-        : 'Шлюза нет; вход по коду выключен, поэтому никто не заблокирован',
+      : phoneCodeIgnored
+        ? 'REQUIRE_PHONE_CODE=1 задан, но шлюза нет — настройка НЕ действует, вход идёт без кода'
+        : input.requirePhoneCode
+          ? 'Код обязателен, но отправлять его нечем'
+          : 'Шлюза нет; вход по коду выключен, поэтому никто не заблокирован',
     breaks: input.smsSenderIsReal
       ? ''
-      : input.requirePhoneCode
-        ? 'Ни одна мама не сможет войти: код запрашивается и никогда не приходит'
-        : 'Вход по SMS-коду недоступен — аккаунт держится только на сессии устройства',
-    needs: input.smsSenderIsReal ? [] : ['Договор и API-ключ SMS-шлюза (Казахстан)'],
+      : phoneCodeIgnored
+        // The honest version of the thing the release notes called a
+        // mitigation: it is switched on and it protects nobody.
+        ? 'Проверка кода включена в настройках, но не работает: вход по номеру ' +
+          'подтверждается ничем, и кто знает номер мамы — войдёт в её аккаунт, ' +
+          'к её беременности, детям и их местоположению'
+        : input.requirePhoneCode
+          ? 'Ни одна мама не сможет войти: код запрашивается и никогда не приходит'
+          : 'Вход по SMS-коду недоступен — аккаунт держится только на сессии устройства',
+    needs: input.smsSenderIsReal
+      ? []
+      : [
+          'Договор и API-ключ SMS-шлюза (Казахстан)',
+          // Said out loud because the opposite was believed: on any server with
+          // a database the variable alone changes nothing.
+          ...(phoneCodeIgnored
+            ? ['Подключить шлюз в коде: smsSender() в src/index.ts возвращает отправителя только без DATABASE_URL — переменной окружения недостаточно']
+            : []),
+        ],
     secret: null,
     checkable: false,
   });

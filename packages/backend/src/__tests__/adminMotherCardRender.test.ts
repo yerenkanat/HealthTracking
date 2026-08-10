@@ -27,12 +27,14 @@ const USERS = {
   users: [{ id: UID, displayName: 'Айгерим', phone: '+77015551122', dueDate: null, lastMetricAt: null }],
 };
 
-function detail(mother: unknown) {
+type Triage = Array<{ code: string; severity: string; at: string }>;
+
+function detail(mother: unknown, triage: Triage = []) {
   return {
     id: UID, displayName: 'Айгерим', phone: '+77015551122', dueDate: null,
     locale: 'ru-KZ', birthDate: null, city: null,
     latest: { hr: 78, spo2: 98, systolic: 118, diastolic: 76, temp: 36.6 },
-    triage: [], children: [], devices: [], alerts: [], sleepNights: 0, loggedDays: 0,
+    triage, children: [], devices: [], alerts: [], sleepNights: 0, loggedDays: 0,
     appointments: [], mother,
   };
 }
@@ -43,7 +45,29 @@ const WELLNESS = {
   growth: [], doses: [], vaccines: [],
 };
 
-async function openDrawer(mother: unknown): Promise<{ drawer: string; errors: string[] }> {
+type Drawn = { drawer: string; errors: string[] };
+
+/**
+ * One boot per distinct fixture, not one per assertion.
+ *
+ * Booting the 417 KB panel in jsdom costs well over a second. This file used
+ * to pay that ten times over, and the pool then starved the two other jsdom
+ * suites past vitest's default timeout on a cold run — green in isolation, red
+ * on CI. Six tests read the same CUSTOMER card, so they read the same render.
+ */
+const drawn = new Map<string, Promise<Drawn>>();
+
+function openDrawer(mother: unknown, triage: Triage = []): Promise<Drawn> {
+  const key = `${JSON.stringify(mother) ?? 'undefined'}|${JSON.stringify(triage)}`;
+  let hit = drawn.get(key);
+  if (!hit) {
+    hit = renderDrawer(mother, triage);
+    drawn.set(key, hit);
+  }
+  return hit;
+}
+
+async function renderDrawer(mother: unknown, triage: Triage): Promise<Drawn> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -76,7 +100,7 @@ async function openDrawer(mother: unknown): Promise<{ drawer: string; errors: st
         const body = p.includes('/wellness')
           ? WELLNESS
           : p.includes('/detail')
-            ? detail(mother)
+            ? detail(mother, triage)
             : p.includes('/admin/users')
               ? USERS
               : p.includes('/admin/stats')
@@ -106,8 +130,10 @@ const CUSTOMER = {
   stage: 'pregnancy',
   stageReason: 'срок родов 2026-11-20',
   orders: {
-    total: 2, open: 1, spentMinor: 3900000,
+    total: 2, open: 1, spentMinor: 3900000, pendingMinor: 0,
     lastAt: '2026-08-01T09:00:00.000Z', lastStatus: 'shipped',
+    openLastAt: '2026-08-01T09:00:00.000Z', openLastStatus: 'shipped',
+    unavailable: false, truncated: false, window: null,
     recent: [
       {
         id: 'o3', status: 'shipped', createdAt: '2026-08-01T09:00:00.000Z', totalMinor: 3900000,
@@ -116,8 +142,11 @@ const CUSTOMER = {
       { id: 'o2', status: 'cancelled', createdAt: '2026-06-01T09:00:00.000Z', totalMinor: 2980000, items: [] },
     ],
   },
-  course: { unlocked: true, started: 0, completed: 0, lastAt: null, neverStarted: true },
+  course: { unlocked: true, started: 0, completed: 0, lastAt: null, neverStarted: true, unavailable: false },
 };
+
+/** One emergency in her history — the thing a clinician must read first. */
+const EMERGENCY: Triage = [{ code: 'Severe BP', severity: 'emergency', at: '2m ago' }];
 
 describe('the mother card in the drawer', () => {
   it('renders without throwing', async () => {
@@ -141,10 +170,12 @@ describe('the mother card in the drawer', () => {
     expect(drawer).toContain('Умные часы');  // what was in the box
   });
 
-  it('shows what she spent, and says the cancelled one is not in it', async () => {
+  it('shows what she PAID, and names the rule the number obeys', async () => {
     const { drawer } = await openDrawer(CUSTOMER);
     expect(drawer).toContain('39 000 ₸');
-    expect(drawer).toContain('без отменённых');
+    // The qualifier is the actual rule — shipped and delivered — not the
+    // half-rule «без отменённых», which reads as "everything else is in here".
+    expect(drawer).toContain('отправленные и доставленные');
     // 29 800 was cancelled; the total must not have grown to 68 800.
     expect(drawer).not.toContain('68 800');
   });
@@ -159,6 +190,39 @@ describe('the mother card in the drawer', () => {
     const { drawer } = await openDrawer(CUSTOMER);
     expect(drawer).toContain('Курс оплачен, но ни разу не открыт');
     expect(drawer).toContain('Заказ в работе: 1');
+  });
+
+  it('puts the emergency above the order status in «Требует внимания»', async () => {
+    // The block's own comment says a clinician should see what NEEDS attention
+    // before scrolling. An info-severity order line above a red-dot emergency
+    // is that promise broken.
+    const { drawer } = await openDrawer(CUSTOMER, EMERGENCY);
+    const emergency = drawer.indexOf('Экстренная тревога в истории триажа');
+    const commercial = drawer.indexOf('Заказ в работе: 1');
+    const course = drawer.indexOf('Курс оплачен, но ни разу не открыт');
+    expect(emergency, 'the emergency flag is missing entirely').toBeGreaterThan(-1);
+    expect(commercial).toBeGreaterThan(-1);
+    expect(emergency, 'crit must lead').toBeLessThan(course);
+    expect(course, 'warn before info').toBeLessThan(commercial);
+  });
+
+  it('names the status of the OPEN order, not of the newest one', async () => {
+    // open = 1 (a June order still «Новый») while the newest overall is
+    // already delivered. «в работе: 1 (последний — Доставлен)» sent staff
+    // hunting a parcel that never went out.
+    const { drawer } = await openDrawer({
+      ...CUSTOMER,
+      orders: {
+        ...CUSTOMER.orders,
+        total: 2, open: 1, spentMinor: 1000, pendingMinor: 3900000,
+        lastAt: '2026-08-01T09:00:00.000Z', lastStatus: 'delivered',
+        openLastAt: '2026-06-01T09:00:00.000Z', openLastStatus: 'new',
+        recent: [],
+      },
+    });
+    expect(drawer).toContain('Заказ в работе: 1 (самый свежий из них — Новый)');
+    // Nothing on this card may call the open order delivered.
+    expect(drawer).not.toContain('Доставлен');
   });
 
   it('does not accuse her of ignoring a course she never bought', async () => {
@@ -190,6 +254,62 @@ describe('the mother card in the drawer', () => {
     });
     expect(errors).toEqual([]);
     expect(drawer).toContain('Заказов на этот номер нет');
+  });
+
+  it('does not tell an operator she has no orders when the shop failed to load', async () => {
+    // She is on the phone holding a Kaspi receipt. «Заказов на этот номер нет»
+    // is a confident wrong answer; «не загрузились» is the true one.
+    const { drawer, errors } = await openDrawer({
+      ...CUSTOMER,
+      orders: {
+        total: 0, open: 0, spentMinor: 0, pendingMinor: 0, lastAt: null, lastStatus: null,
+        openLastAt: null, openLastStatus: null, unavailable: true, truncated: false, window: null, recent: [],
+      },
+    });
+    expect(errors).toEqual([]);
+    expect(drawer).not.toContain('Заказов на этот номер нет');
+    expect(drawer).toContain('Заказы не загрузились');
+    expect(drawer).toContain('Это НЕ значит, что их нет');
+    // And it is raised where staff actually look.
+    expect(drawer).toContain('НЕИЗВЕСТНЫ');
+  });
+
+  it('does not say «комплект не покупали» when the course read failed', async () => {
+    // She paid 39 000 ₸. Telling her she never bought it is the worst sentence
+    // this card can produce.
+    const { drawer, errors } = await openDrawer({
+      ...CUSTOMER,
+      course: { unlocked: false, started: 0, completed: 0, lastAt: null, neverStarted: false, unavailable: true },
+    });
+    expect(errors).toEqual([]);
+    expect(drawer).not.toContain('комплект не покупали');
+    expect(drawer).toContain('Доступ к курсу не проверился');
+    expect(drawer).toContain('Это НЕ значит, что курса у неё нет');
+  });
+
+  it('shows an unpaid order as owed, not as money she spent', async () => {
+    const { drawer } = await openDrawer({
+      ...CUSTOMER,
+      orders: {
+        ...CUSTOMER.orders,
+        total: 1, open: 1, spentMinor: 0, pendingMinor: 3900000,
+        lastStatus: 'new', openLastStatus: 'new',
+        recent: [{ id: 'o1', status: 'new', createdAt: '2026-08-01T09:00:00.000Z', totalMinor: 3900000, items: [] }],
+      },
+    });
+    expect(drawer).toMatch(/Оплачено отправленные и доставленные\s*0 ₸/);
+    expect(drawer).toMatch(/Ожидает оплаты[^₸]*39 000 ₸/);
+  });
+
+  it('admits on screen that the totals are only a window', async () => {
+    // 23 orders behind a 100-window is fine; the point is that when the window
+    // DOES bite, the operator is not quoting a partial spend as her history.
+    const { drawer } = await openDrawer({
+      ...CUSTOMER,
+      orders: { ...CUSTOMER.orders, total: 100, truncated: true, window: 100 },
+    });
+    expect(drawer).toContain('Заказы · 100 (последние 100)');
+    expect(drawer).toContain('более ранние в суммах НЕ учтены');
   });
 
   it('draws the rest of the card when an older server sends no mother block', async () => {

@@ -14,7 +14,7 @@ describe('memory adminUserDetail parity', () => {
     const repo = createMemoryRepository();
     await repo.upsertProfile(DEMO_USER, {
       displayName: 'Aigerim',
-      phone: '+77001112233',
+      // No phone: it is the sign-in identity and upsertProfile cannot set it.
       dueDate: null,
       locale: 'ru-KZ',
       birthDate: null,

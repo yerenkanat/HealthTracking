@@ -249,6 +249,91 @@ describe('buildMotherCard — her orders', () => {
     expect(card.orders).toMatchObject({ total: 0, open: 0, spentMinor: 0, lastAt: null, lastStatus: null });
     expect(card.orders.recent).toEqual([]);
   });
+
+  it('does not count an order she has not paid for as money she spent', () => {
+    // Cash on delivery: nothing is collected until the parcel is handed over,
+    // which is why setShopOrderStatus grants the course on shipped/delivered
+    // and the dashboard sums revenue over exactly those two. An order at
+    // «Новый» is a promise, and «Потрачено 39 000 ₸» quoted at a woman who has
+    // paid nothing is the failure.
+    const card = buildMotherCard({
+      ...base,
+      orders: [{ id: 'n', status: 'new', totalMinor: 3900000, createdAt: '2026-08-01T09:00:00.000Z' }],
+    });
+    expect(card.orders.spentMinor).toBe(0);
+    expect(card.orders.pendingMinor, 'it is owed, and shown as owed').toBe(3900000);
+  });
+
+  it.each([
+    ['new', 0, 100],
+    ['confirmed', 0, 100],
+    ['shipped', 100, 0],
+    ['delivered', 100, 0],
+    ['cancelled', 0, 0],
+  ])('counts %s as %i spent and %i pending', (status, spent, pending) => {
+    const card = buildMotherCard({
+      ...base,
+      orders: [{ id: 'x', status, totalMinor: 100, createdAt: '2026-08-01T09:00:00.000Z' }],
+    });
+    expect(card.orders.spentMinor).toBe(spent);
+    expect(card.orders.pendingMinor).toBe(pending);
+  });
+
+  it('reports the newest OPEN order separately from the newest order', () => {
+    // «Заказ в работе: 1 (последний — Доставлен)» is self-contradictory, and it
+    // sent staff hunting a parcel that never went out. The open count and the
+    // status shown beside it must come from the same row.
+    const card = buildMotherCard({
+      ...base,
+      orders: [
+        { id: 'june', status: 'new', totalMinor: 1000, createdAt: '2026-06-01T09:00:00.000Z' },
+        { id: 'aug', status: 'delivered', totalMinor: 1000, createdAt: '2026-08-01T09:00:00.000Z' },
+      ],
+    });
+    expect(card.orders.lastStatus, 'newest overall').toBe('delivered');
+    expect(card.orders.open).toBe(1);
+    expect(card.orders.openLastStatus, 'newest of the OPEN ones').toBe('new');
+    expect(card.orders.openLastAt).toBe('2026-06-01T09:00:00.000Z');
+  });
+
+  it('has no open order to point at when everything is closed', () => {
+    const card = buildMotherCard({
+      ...base,
+      orders: [{ id: 'a', status: 'delivered', totalMinor: 1000, createdAt: '2026-08-01T09:00:00.000Z' }],
+    });
+    expect(card.orders.open).toBe(0);
+    expect(card.orders.openLastStatus).toBeNull();
+    expect(card.orders.openLastAt).toBeNull();
+  });
+
+  it('says out loud that the figures are a window when they are', () => {
+    // A customer with more orders than the window has a spend total missing her
+    // earliest purchases. Presented unqualified it is a number an operator
+    // reads out and is wrong about.
+    const card = buildMotherCard({
+      ...base,
+      orders: [{ id: 'a', status: 'delivered', totalMinor: 1000, createdAt: '2026-08-01T09:00:00.000Z' }],
+      ordersWindow: 100,
+      ordersTruncated: true,
+    });
+    expect(card.orders.truncated).toBe(true);
+    expect(card.orders.window).toBe(100);
+  });
+
+  it('claims no window when it read all of them', () => {
+    const card = buildMotherCard({ ...base, orders, ordersWindow: 100 });
+    expect(card.orders.truncated).toBe(false);
+    expect(card.orders.window, 'no cap to disclose').toBeNull();
+  });
+
+  it('separates «we could not look» from «she has none»', () => {
+    const failed = buildMotherCard({ ...base, ordersUnavailable: true });
+    const none = buildMotherCard(base);
+    expect(failed.orders.unavailable).toBe(true);
+    expect(none.orders.unavailable, 'an empty shop read is a real answer').toBe(false);
+    // Both carry zero — which is exactly why the flag has to travel with them.
+    expect(failed.orders.total).toBe(0);
+  });
 });
 
 describe('buildMotherCard — her course', () => {
@@ -296,6 +381,19 @@ describe('buildMotherCard — her course', () => {
     const card = buildMotherCard({ ...base, courseUnlocked: true, courseProgress: [{ completed: false }] });
     expect(card.course.lastAt).toBeNull();
     expect(card.course.started).toBe(1);
+  });
+
+  it('refuses to flag «оплатила и не открывала» off a read that failed', () => {
+    // hasEntitlement throwing must not become «курса нет», and it must never
+    // become an accusation either. Unknown is its own state.
+    const card = buildMotherCard({ ...base, courseUnlocked: false, courseProgress: [], courseUnavailable: true });
+    expect(card.course.unavailable).toBe(true);
+    expect(card.course.neverStarted).toBe(false);
+  });
+
+  it('does not claim unavailable when the course simply read as locked', () => {
+    const card = buildMotherCard({ ...base, courseUnlocked: false, courseProgress: [] });
+    expect(card.course.unavailable).toBe(false);
   });
 
   it('still reports progress for somebody whose access was revoked', () => {

@@ -14,14 +14,21 @@ const PANEL = resolve(here, '../../../admin/index.html');
 
 // Built from the REAL module, not hand-written JSON: a fixture that drifts
 // from what the server sends would test a screen nobody will see.
-const LIST = buildIntegrations({
-  settings: { whatsapp: '+77000000000', telegramBotToken: '123:AAHsecret_7f2a', telegramChatId: '-100' },
-  smsSenderIsReal: false,
-  requirePhoneCode: true,
-  pushWired: false,
-  anthropicEnvKey: null,
-});
-const PAYLOAD = { integrations: LIST, summary: integrationSummary(LIST) };
+function payloadFor(over: Record<string, unknown> = {}) {
+  const list = buildIntegrations({
+    settings: { whatsapp: '+77000000000', telegramBotToken: '123:AAHsecret_7f2a', telegramChatId: '-100' },
+    smsSenderIsReal: false,
+    requirePhoneCode: true,
+    pushWired: false,
+    anthropicEnvKey: null,
+    ...over,
+  } as never);
+  return { integrations: list, summary: integrationSummary(list) };
+}
+
+// What boot() serves. Reassigned by the block below so the same panel can be
+// rendered against a second, worse, runtime state.
+let PAYLOAD = payloadFor();
 const CHECK_OK = {
   ok: true,
   steps: [
@@ -129,6 +136,43 @@ describe('frame 24 — Интеграции', () => {
     // and a button that always fails teaches an operator to ignore the screen.
     expect(page.count('#intBody button[data-check]')).toBe(1);
     expect(page.text('#intBody')).toContain('не проверяется');
+  });
+});
+
+describe('frame 24 — a REQUIRE_PHONE_CODE that is doing nothing', () => {
+  // The server can be started with the code gate switched on and no gateway to
+  // honour it, in which case the flag is silently ignored and sign-in still
+  // verifies nothing. On the screen that used to look identical to "nobody
+  // turned it on" — which is how the variable came to be written down in
+  // docs/RELEASE.md as the fix for unverified sign-in.
+  let page: Rendered;
+  beforeAll(async () => {
+    PAYLOAD = payloadFor({ requirePhoneCode: false, phoneCodeRequested: true });
+    page = await boot();
+    PAYLOAD = payloadFor();
+  });
+
+  it('boots without throwing', () => {
+    expect(page.errors).toEqual([]);
+  });
+
+  it('names the variable and says it is not in force', () => {
+    const t = page.text('#intBody');
+    expect(t).toContain('REQUIRE_PHONE_CODE=1');
+    expect(t).toContain('НЕ действует');
+  });
+
+  it('spells out what an operator actually loses by believing it', () => {
+    expect(page.text('#intBody')).toContain('войдёт в её аккаунт');
+  });
+
+  it('tells them where the fix is — in the code, not in backend.env', () => {
+    expect(page.text('#intBody')).toContain('src/index.ts');
+  });
+
+  it('still raises the banner, because this is a blocking state', () => {
+    expect((page.el('#intAlert') as HTMLElement).hasAttribute('hidden')).toBe(false);
+    expect(page.text('#intAlertTitle')).toContain('SMS-шлюз');
   });
 });
 

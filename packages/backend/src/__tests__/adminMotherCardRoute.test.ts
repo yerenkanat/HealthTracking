@@ -23,19 +23,27 @@ import type { MotherCard } from '../admin/motherCard';
 /** Reading someone's record needs a stated reason; it goes in the audit log. */
 const WHY = '?reason=' + encodeURIComponent('Обращение клиента');
 
-/** The number as staff type it from a phone call. */
-const SPOKEN = '+7 (701) 555-11-22';
-/** The same number, as her account holds it. */
-const DIALLED = '+77015551122';
+/**
+ * The number as staff type it from a phone call.
+ *
+ * DIALLED is the number the demo account was CREATED with, not one this test
+ * sets: the phone is the sign-in credential and [ProfileEdit] deliberately
+ * cannot carry one, so a profile write can no longer claim a number. Which is
+ * the point — the card has to find her orders by the number her account
+ * already holds, matched against whatever form somebody typed into the shop.
+ */
+const DIALLED = '+77001112233';
+/** The same number, as it arrives from WhatsApp or the landing page. */
+const SPOKEN = '+7 (700) 111-22-33';
 
 let repo: Repository;
 let app: FastifyInstance;
 
-beforeEach(async () => {
-  repo = createMemoryRepository();
-  app = buildServer(
+/** The server the panel talks to, optionally with one repository method broken. */
+function serve(r: Repository): FastifyInstance {
+  return buildServer(
     {
-      repo,
+      repo: r,
       guardrail: { callLLM: async () => 'ok' },
       ingest: {
         cacheLocation: async () => {}, resolveTransition: async () => null,
@@ -48,6 +56,11 @@ beforeEach(async () => {
     },
     { logger: false },
   );
+}
+
+beforeEach(async () => {
+  repo = createMemoryRepository();
+  app = serve(repo);
   await app.ready();
   await setProfile({});
 });
@@ -55,7 +68,6 @@ beforeEach(async () => {
 async function setProfile(patch: Record<string, unknown>): Promise<void> {
   await repo.upsertProfile(DEMO_USER, {
     displayName: 'Айгерим',
-    phone: DIALLED,
     dueDate: null,
     locale: 'ru-KZ',
     birthDate: null,
@@ -202,11 +214,93 @@ describe('«где мой заказ», answered without leaving the card', () =
     expect(m.orders.total).toBe(0);
   });
 
-  it('finds nothing, and does not fall over, for a profile with no phone', async () => {
-    await setProfile({ phone: null });
-    const m = await card();
+  it('finds nothing, and does not fall over, for an account with no phone', async () => {
+    // No longer reachable through the profile — the phone is the sign-in
+    // credential — so the account itself is the one with nothing on it. She
+    // owns nothing we can find, which is a real answer, not a crash.
+    const detail = await repo.adminUserDetail(DEMO_USER);
+    const app2 = serve({ ...repo, adminUserDetail: async () => ({ ...detail!, phone: null }) } as Repository);
+    await app2.ready();
+    const res = await app2.inject({ method: 'GET', url: `/admin/users/${DEMO_USER}/detail${WHY}` });
+    expect(res.statusCode, res.body).toBe(200);
+    const m = (res.json() as { mother: MotherCard }).mother;
     expect(m.orders.total).toBe(0);
+    expect(m.orders.unavailable, 'nothing failed — she simply has no number').toBe(false);
     expect(m.course.unlocked).toBe(false);
+    expect(m.course.unavailable).toBe(false);
+  });
+});
+
+describe('a read that failed is not an answer', () => {
+  /** Rebuild the server with one repository method broken, as production breaks. */
+  async function withBroken(patch: Partial<Repository>): Promise<MotherCard> {
+    const app2 = serve({ ...repo, ...patch } as Repository);
+    await app2.ready();
+    const res = await app2.inject({ method: 'GET', url: `/admin/users/${DEMO_USER}/detail${WHY}` });
+    expect(res.statusCode, res.body).toBe(200);
+    return (res.json() as { mother: MotherCard }).mother;
+  }
+
+  it('does not report «заказов нет» when shop_orders was unreachable', async () => {
+    // She is on the phone holding a Kaspi receipt. «Заказов на этот номер нет»
+    // is worse than saying nothing.
+    await buyTheCombo();
+    const m = await withBroken({
+      shopOrdersByPhone: async () => { throw new Error('shop_orders unreachable'); },
+    });
+    expect(m.orders.unavailable, 'the failure has to reach the screen').toBe(true);
+    expect(m.orders.total).toBe(0);
+  });
+
+  it('still returns the clinical card when the shop is down', async () => {
+    // Best-effort remains best-effort: a broken shop must not 500 a record a
+    // clinician is opening.
+    const m = await withBroken({
+      shopOrdersByPhone: async () => { throw new Error('shop_orders unreachable'); },
+    });
+    expect(m.stage.length).toBeGreaterThan(0);
+    expect(m.course.unavailable).toBe(false);
+  });
+
+  it('does not report «комплект не покупали» when the entitlement read failed', async () => {
+    const id = await buyTheCombo();
+    await setStatus(id, 'shipped');
+    const m = await withBroken({
+      hasEntitlement: async () => { throw new Error('entitlements unreachable'); },
+    });
+    expect(m.course.unavailable).toBe(true);
+    expect(m.course.unlocked).toBe(false);
+    expect(m.course.neverStarted, 'never accuse her off a read we did not get').toBe(false);
+    expect(m.orders.unavailable, 'the shop was fine').toBe(false);
+  });
+
+  it('treats a failed progress read as an unknown course too', async () => {
+    const m = await withBroken({
+      courseProgress: async () => { throw new Error('course_progress unreachable'); },
+    });
+    expect(m.course.unavailable).toBe(true);
+  });
+
+  it('says the totals are a window when the window came back full', async () => {
+    // 100 rows is the route's cap. A customer past it has a spend total
+    // missing her earliest purchases, and the card has to admit it.
+    const many = Array.from({ length: 100 }, (_, i) => ({
+      id: `o${i}`, customerName: 'Айгерим', phone: SPOKEN, phoneNormalized: '77015551122',
+      city: 'Астана', address: 'пр. Абая 1', note: null,
+      totalMinor: 1000, discountMinor: 0, status: 'delivered',
+      createdAt: `2026-01-01T00:00:${String(i).padStart(2, '0')}.000Z`, items: [],
+    }));
+    const m = await withBroken({ shopOrdersByPhone: async () => many as never });
+    expect(m.orders.truncated).toBe(true);
+    expect(m.orders.window).toBe(100);
+    expect(m.orders.total).toBe(100);
+  });
+
+  it('claims no window for a customer who fits inside it', async () => {
+    await buyTheCombo();
+    const m = await card();
+    expect(m.orders.truncated).toBe(false);
+    expect(m.orders.window).toBeNull();
   });
 });
 

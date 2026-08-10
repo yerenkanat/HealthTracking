@@ -66,7 +66,8 @@ async function main() {
   ok(manualVitals[0].glucoseMmol === 8.2 && manualVitals[0].systolicMmHg === 130, 'the manual reading carries its glucose + BP');
 
   console.log('sync writes + reads round-trip:');
-  await repo.upsertProfile(U, { displayName: 'Aigerim', phone: '+7700', dueDate: '2026-11-14', locale: 'ru-KZ', birthDate: null, city: 'Almaty', doctorPhone: null, avgCycleLength: 28, avgPeriodLength: 5 } as never);
+  // No phone: it is the sign-in identity, not a profile field (see ProfileEdit).
+  await repo.upsertProfile(U, { displayName: 'Aigerim', dueDate: '2026-11-14', locale: 'ru-KZ', birthDate: null, city: 'Almaty', doctorPhone: null, avgCycleLength: 28, avgPeriodLength: 5 } as never);
   const prof = await repo.getProfile(U);
   ok(prof?.displayName === 'Aigerim' && prof?.city === 'Almaty', 'profile upsert + read');
 

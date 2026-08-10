@@ -13,6 +13,7 @@
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { phoneCodeWarning } from './authPosture';
 import { grantCovers } from './family/access';
 import { checkGeofenceBoundary } from './geofence/geofence';
 import { scheduleRouteRetention, type RetentionResult } from './privacy/retention';
@@ -102,6 +103,18 @@ export interface ServerDeps {
    * for what leaving it off costs.
    */
   requirePhoneCode?: boolean;
+  /**
+   * What the OPERATOR asked for — REQUIRE_PHONE_CODE=1 in the environment —
+   * regardless of whether it could be honoured.
+   *
+   * Separate from [requirePhoneCode], which is the EFFECTIVE gate: the
+   * composition root ANDs the request with the existence of a sender, and there
+   * is no sender on any deployment with a database. The two therefore disagree
+   * exactly when somebody has switched verification on and got nothing, which
+   * is the one case worth shouting about — so it is carried rather than
+   * collapsed, warned about at boot, and shown on «Интеграции».
+   */
+  phoneCodeRequested?: boolean;
   /**
    * Whether push can actually DELIVER — frame 24 «Интеграции».
    *
@@ -458,6 +471,15 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     },
     deps.requirePhoneCode ?? false,
   );
+
+  // ---- The code gate that cannot engage -----------------------------------
+  //
+  // Said here rather than in index.ts so it is on the path every deployment AND
+  // every test takes, and so it can be proved to fire. onReady, because a line
+  // logged while the server is still assembling is the easiest one to lose.
+  const phoneCodeAlarm = phoneCodeWarning(
+    deps.phoneCodeRequested ?? false, !!deps.sms);
+  if (phoneCodeAlarm) app.addHook('onReady', async () => { app.log.warn(phoneCodeAlarm); });
   if (deps.authAdmin) registerAdminRoutes(app, deps.repo, deps.authAdmin, {
     // What was ACTUALLY injected, for frame 24. `deps.sms` being present is the
     // only honest signal that codes can be sent — index.ts substitutes a
@@ -465,6 +487,10 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
     // passed here, so the panel reports SMS as off rather than as working.
     smsSenderIsReal: !!deps.sms,
     requirePhoneCode: deps.requirePhoneCode ?? false,
+    // What was ASKED for, so the screen can report a REQUIRE_PHONE_CODE=1 that
+    // is being ignored instead of showing the same "выключен" as an operator
+    // who never set it.
+    phoneCodeRequested: deps.phoneCodeRequested ?? false,
     // Emergency push is injected by index.ts only when a real sender loads.
     pushWired: !!deps.pushIsReal,
   });

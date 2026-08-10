@@ -1770,14 +1770,20 @@ export function createPgRepository(pool: Pool): Repository {
       };
     },
     async upsertProfile(userId, p) {
-      // The user row exists from signup (email is required); this updates it.
+      // The user row exists from sign-in (the phone created it); this updates it.
+      //
+      // `phone_e164` is NOT in this statement and must never be. It is the
+      // column POST /auth/phone resolves an account by, so writing it here let
+      // a signed-in user claim a number that was not hers and inherit whoever
+      // later signed in with it. `doctor_phone` below is a different thing
+      // entirely — a number she calls, never one she is identified by.
       await pool.query(
-        `UPDATE users SET display_name = $2, phone_e164 = $3, due_date = $4,
-                          locale = COALESCE($5, locale),
-                          birth_date = $6, city = $7, doctor_phone = $8,
-                          avg_cycle_length = $9, avg_period_length = $10, updated_at = now()
+        `UPDATE users SET display_name = $2, due_date = $3,
+                          locale = COALESCE($4, locale),
+                          birth_date = $5, city = $6, doctor_phone = $7,
+                          avg_cycle_length = $8, avg_period_length = $9, updated_at = now()
          WHERE id = $1`,
-        [userId, p.displayName, p.phone, p.dueDate, p.locale, p.birthDate, p.city,
+        [userId, p.displayName, p.dueDate, p.locale, p.birthDate, p.city,
          p.doctorPhone, p.avgCycleLength, p.avgPeriodLength]);
     },
 

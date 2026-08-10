@@ -3782,9 +3782,28 @@
     const flags=[]; // {sev:'crit'|'warn'|'info', text}
     // Frame 09a's block, needed here as well as further down: two of its
     // findings are exactly what «Требует внимания» is for.
+    //
+    // Push order does NOT decide reading order any more — the sort below does.
+    // These commercial lines used to be pushed first and rendered first, so a
+    // mother with an emergency in her triage history led with an order status.
     const mc=u.mother||null;
-    if(mc&&mc.course&&mc.course.neverStarted) flags.push({sev:'warn',text:'Курс оплачен, но ни разу не открыт'});
-    if(mc&&mc.orders&&mc.orders.open) flags.push({sev:'info',text:`Заказ в работе: ${mc.orders.open} (последний — ${orderStatusLbl[mc.orders.lastStatus]||esc(mc.orders.lastStatus||'—')})`});
+    const mcOrders=(mc&&mc.orders)||null;
+    const mcCourse=(mc&&mc.course)||null;
+    // A read that FAILED is worth attention in its own right: everything the
+    // commercial half of this card says is now "we could not look", and an
+    // operator must know that before quoting anything off it.
+    if((mcOrders&&mcOrders.unavailable)||(mcCourse&&mcCourse.unavailable))
+      flags.push({sev:'warn',text:'Магазин и курс не загрузились — заказы и доступ на этой карточке НЕИЗВЕСТНЫ, не «нет»'});
+    if(mcCourse&&mcCourse.neverStarted) flags.push({sev:'warn',text:'Курс оплачен, но ни разу не открыт'});
+    if(mcOrders&&mcOrders.open){
+      // openLastStatus, not lastStatus: the newest order overall may already be
+      // delivered while the open one is an unshipped order from June, and
+      // «в работе: 1 (последний — Доставлен)» sent staff hunting a parcel that
+      // never went out. The count and the status now come from the same row.
+      const openSt=mcOrders.openLastStatus||null;
+      const openLbl=openSt?(orderStatusLbl[openSt]||esc(openSt)):"—";
+      flags.push({sev:'info',text:`Заказ в работе: ${mcOrders.open} (самый свежий из них — ${openLbl})`});
+    }
     const triageHist=(h.triage)||[];
     if(triageHist.some(t=>t.severity==='emergency')) flags.push({sev:'crit',text:'Экстренная тревога в истории триажа'});
     else if(triageHist.some(t=>t.severity==='warning')) flags.push({sev:'warn',text:'Предупреждение в истории триажа'});
@@ -3801,6 +3820,13 @@
     // Recent safety crossings (child left a zone), from the detail payload.
     const exits=((u.alerts)||[]).filter(a=>a.kind==='left'||a.kind==='entered').slice(0,3);
     if(exits.some(a=>a.kind==='left')) flags.push({sev:'info',text:`Выход из зоны: ${exits.filter(a=>a.kind==='left').map(a=>esc(a.zoneName)).join(', ')}`});
+    // Exception-FIRST means severity-first. The list is read top-down by
+    // somebody who may stop after two lines, so a red-dot emergency cannot sit
+    // below an info-severity order status just because the order status was
+    // computed earlier. Array.prototype.sort is stable, so within one severity
+    // the order they were computed in — clinical before commercial — survives.
+    const flagRank={crit:0,warn:1,info:2};
+    flags.sort((a,b)=>(flagRank[a.sev]??3)-(flagRank[b.sev]??3));
     const flagDot=s=>`var(--${s==='crit'?'crit':s==='warn'?'warn':'good'})`;
     const flagsSection=flags.length?`
       <div class="dsec">Требует внимания</div>
@@ -3874,20 +3900,44 @@
     const ordersSection=mc?(()=>{
       const o=mc.orders||{};
       const recent=o.recent||[];
+      // A FAILED read is not an answer. «Заказов нет» said to a woman holding
+      // her Kaspi receipt is worse than saying nothing, so the two are
+      // different sentences and the failure names the way round it.
+      if(o.unavailable) return `
+      <div class="dsec">Заказы</div>
+      <div class="tl"><div class="tli">
+        <span class="tld" style="background:var(--warn)"></span>
+        <span style="color:var(--warn-text)"><b>Заказы не загрузились</b>
+          <div class="t">Это НЕ значит, что их нет. Проверьте во вкладке «Заказы» по номеру.</div></span>
+      </div></div>`;
       if(!o.total) return `
       <div class="dsec">Заказы</div>
       <div class="tl"><div class="tli"><span class="t" style="color:var(--muted)">Заказов на этот номер нет</span></div></div>`;
       const openTxt=o.open
         ? `<span style="color:var(--warn-text);font-weight:600">${o.open} ${ruPlural(o.open,"в работе","в работе","в работе")}</span>`
         : "все закрыты";
+      // The counts are computed over a window of her most recent orders. When
+      // that window came back full there are older ones in neither the count
+      // nor the money, and a total presented as her whole history would be a
+      // number the operator would quote and be wrong about.
+      const windowNote=o.truncated
+        ? `<div class="tli"><span class="tld" style="background:var(--warn)"></span><span class="t" style="color:var(--warn-text)">Показаны последние ${o.window} заказов — более ранние в суммах НЕ учтены</span></div>`
+        : "";
+      // Only what she has actually paid. These are cash-on-delivery orders:
+      // nothing is collected until the parcel is handed over, which is the
+      // same rule the dashboard's revenue and the course entitlement use. An
+      // order still sitting at «Новый» is a promise, and it is shown as one on
+      // its own line rather than folded into «Оплачено».
+      const pendingRow=o.pendingMinor
+        ? `<div class="tli"><span><b>Ожидает оплаты</b> <span class="t">новые и подтверждённые — деньги ещё не получены</span></span><span class="t num">${tng(o.pendingMinor)}</span></div>`
+        : "";
       return `
-      <div class="dsec">Заказы · ${o.total}</div>
+      <div class="dsec">Заказы · ${o.total}${o.truncated?" (последние "+o.window+")":""}</div>
       <div class="tl">
         <div class="tli"><span><b>В работе</b></span><span class="t">${openTxt}</span></div>
-        <!-- "без отменённых" is stated, not implied: an отменённый заказ is
-             not money she spent, and a number labelled only "Потрачено" would
-             be read as one that includes it. -->
-        <div class="tli"><span><b>Потрачено</b> <span class="t">без отменённых</span></span><span class="t num">${tng(o.spentMinor)}</span></div>
+        <div class="tli"><span><b>Оплачено</b> <span class="t">отправленные и доставленные</span></span><span class="t num">${tng(o.spentMinor)}</span></div>
+        ${pendingRow}
+        ${windowNote}
         ${recent.map(r=>{
           const items=(r.items||[]).map(i=>`${esc(i.productName)} ×${i.qty}`).join(", ");
           const cancelled=r.status==="cancelled";
@@ -3902,7 +3952,11 @@
     const courseSection=mc?(()=>{
       const c=mc.course||{};
       const rows=[];
-      if(c.neverStarted){
+      if(c.unavailable){
+        // «Курс не открыт — комплект не покупали» about a woman who paid
+        // 39 000 ₸ is the failure this branch exists to prevent.
+        rows.push(`<div class="tli"><span class="tld" style="background:var(--warn)"></span><span style="color:var(--warn-text)"><b>Доступ к курсу не проверился</b><div class="t">Это НЕ значит, что курса у неё нет. Проверьте во вкладке «Курс».</div></span></div>`);
+      }else if(c.neverStarted){
         // The one line on this card worth acting on — she paid for a course
         // she has never opened, and nobody would ever have found out.
         rows.push(`<div class="tli"><span class="tld" style="background:var(--warn)"></span><span style="color:var(--warn-text);font-weight:600">Доступ есть, но ни разу не открывала</span></div>`);

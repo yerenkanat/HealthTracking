@@ -198,9 +198,22 @@ const alertBody = z.object({
   zoneName: z.string().max(80).default(''),
   at: z.string(),
 });
+// NOTE: there is deliberately no `phone` here.
+//
+// It used to be accepted and written to `users.phone_e164` — the column
+// POST /auth/phone resolves an account by — so a signed-in user could claim
+// any number that had not registered yet, and the real owner's first sign-in
+// dropped her into the claimant's session: her pregnancy, her children, their
+// live locations, plus the course entitlement and orders that are keyed on the
+// same number. The number comes from sign-in and from nowhere else.
+//
+// Zod strips unknown keys by default, so an older app that still sends one is
+// ignored rather than refused — the field is dead, not a 400.
+//
+// `doctorPhone` below is unrelated: a number she calls, never one she is
+// identified by, and nothing resolves an account with it.
 const profileBody = z.object({
   displayName: z.string().min(1).max(80),
-  phone: z.string().max(30).nullable().optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   locale: z.string().max(10).optional(),
   // Optional profile details, collected in-app with a stated reason. Both
@@ -1219,9 +1232,9 @@ export function registerCrudRoutes(
     if (!u) return;
     const parsed = profileBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    // No `phone`: the sign-in identity is not the user's to set. See profileBody.
     await repo.upsertProfile(u.userId, {
       displayName: parsed.data.displayName,
-      phone: parsed.data.phone ?? null,
       dueDate: parsed.data.dueDate ?? null,
       locale: parsed.data.locale ?? 'ru-KZ',
       birthDate: parsed.data.birthDate ?? null,

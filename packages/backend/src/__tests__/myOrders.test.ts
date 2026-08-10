@@ -11,7 +11,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
-import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
+import { createMemoryRepository } from '../db/memoryRepository';
+import { hashToken } from '../http/staffAuth';
 import { orderProgress, ORDER_STEPS, visibleOrders } from '../shop/orderProgress';
 import type { Repository, ShopOrder } from '../db/repository';
 
@@ -91,7 +92,13 @@ describe('which orders to show', () => {
 let app: FastifyInstance;
 let repo: Repository;
 
-function makeApp() {
+/**
+ * [authUser] is injectable because one test below needs the account that has NO
+ * number on it — a row from before phone sign-in — which cannot be produced by
+ * signing in. Everyone else authenticates the way the app does: a bearer token
+ * minted by POST /auth/phone and looked up in user_sessions.
+ */
+function makeApp(authUser?: (req: { headers: Record<string, unknown> }) => Promise<{ userId: string } | null>) {
   repo = createMemoryRepository();
   return buildServer(
     {
@@ -103,44 +110,56 @@ function makeApp() {
       },
       cacheLastLocation: async () => null,
       setBpCalibration: async () => {},
-      authUser: async () => ({ userId: DEMO_USER }),
+      authUser: authUser as never ?? (async (req) => {
+        const h = String(req.headers.authorization ?? '');
+        const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+        return token ? repo.userBySessionToken(hashToken(token)) : null;
+      }),
       authAdmin: async () => null,
     },
     { logger: false },
   );
 }
 
-/** Give the signed-in profile a number, and place an order against it. */
+/**
+ * Sign in the way the phone does. This is the ONLY way a number gets onto an
+ * account: PUT /profile used to accept one, which let anybody claim a stranger's
+ * orders by typing her number into her own profile (see profileIdentity.test.ts).
+ */
+async function signIn(phone: string): Promise<string> {
+  const res = await app.inject({ method: 'POST', url: '/auth/phone/start', payload: { phone } });
+  expect(res.statusCode, res.body).toBe(200);
+  return res.json().token as string;
+}
+
+const as = (token: string) => ({ authorization: `Bearer ${token}` });
+
+/** Sign in on one number, and place an order written as another. */
 async function orderAs(profilePhone: string, orderedPhone: string) {
-  await app.inject({
-    method: 'PUT', url: '/profile',
-    payload: { displayName: 'Айгерім', phone: profilePhone },
-  });
-  // A variant that is actually in stock: the seeded catalogue has some at
-  // zero, and placing against one of those answers 409 rather than creating
-  // the order the rest of the test is about.
+  const token = await signIn(profilePhone);
   // The seeded catalogue ships at zero stock, so receive some first — the
   // same path a warehouse hand uses. Ordering against an empty shelf answers
   // 409 and never creates the order the rest of the test is about.
   const variants = await repo.adminShopVariants();
   const v = variants[0];
   await repo.moveStock({ variantId: v.id, delta: 5, reason: 'receipt' });
-  return app.inject({
+  const placed = await app.inject({
     method: 'POST', url: '/shop/orders',
     payload: {
       customerName: 'Айгерім', phone: orderedPhone, city: 'Алматы',
       address: 'ул. Абая 1', items: [{ variantId: v.id, qty: 1 }],
     },
   });
+  return { token, placed };
 }
 
 beforeEach(() => { app = makeApp(); });
 
 describe('GET /shop/my-orders', () => {
   it('finds the order she placed', async () => {
-    const placed = await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
+    const { token, placed } = await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
     expect(placed.statusCode, placed.body).toBe(201);
-    const b = (await app.inject({ method: 'GET', url: '/shop/my-orders' })).json();
+    const b = (await app.inject({ method: 'GET', url: '/shop/my-orders', headers: as(token) })).json();
     expect(b.orders).toHaveLength(1);
     expect(b.orders[0].items[0].productName).toBeTruthy();
     expect(b.orders[0].cancellable).toBe(true);
@@ -151,19 +170,19 @@ describe('GET /shop/my-orders', () => {
     // She signed in as «+7 707…» and the order was taken over the phone as
     // «8 (707)…». Matching the raw strings shows an empty screen to a woman
     // with a charge on her card — the class of bug src/phone.ts exists to end.
-    await orderAs('+7 707 345 22 44', '8 (707) 345-22-44');
-    const b = (await app.inject({ method: 'GET', url: '/shop/my-orders' })).json();
+    const { token } = await orderAs('+7 707 345 22 44', '8 (707) 345-22-44');
+    const b = (await app.inject({ method: 'GET', url: '/shop/my-orders', headers: as(token) })).json();
     expect(b.orders).toHaveLength(1);
     await app.close();
   });
 
   it('shows somebody else nothing of hers', async () => {
     await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
-    await app.inject({
-      method: 'PUT', url: '/profile',
-      payload: { displayName: 'Другая', phone: '+7 701 000 00 00' },
-    });
-    const b = (await app.inject({ method: 'GET', url: '/shop/my-orders' })).json();
+    // A different woman, signed in on her own number. She cannot become the
+    // first one by editing her profile — that is the whole point of the number
+    // being an identity — so this is a second sign-in, not a second PUT.
+    const other = await signIn('+7 701 000 00 00');
+    const b = (await app.inject({ method: 'GET', url: '/shop/my-orders', headers: as(other) })).json();
     expect(b.orders).toEqual([]);
     await app.close();
   });
@@ -172,6 +191,11 @@ describe('GET /shop/my-orders', () => {
     // «Заказов нет» to somebody who has ordered but never filled in her phone
     // is wrong in a way she cannot act on. A null phone lets the screen ask
     // her to add one.
+    //
+    // Such an account cannot be created by signing in — it is a row from before
+    // phone sign-in existed — so the caller is resolved directly.
+    const LEGACY = '55555555-5555-5555-5555-555555555555';
+    app = makeApp(async () => ({ userId: LEGACY }));
     await app.inject({
       method: 'PUT', url: '/profile', payload: { displayName: 'Айгерім' },
     });
@@ -184,26 +208,26 @@ describe('GET /shop/my-orders', () => {
 
 describe('POST /shop/my-orders/:id/cancel', () => {
   it('cancels one that has not shipped', async () => {
-    await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
-    const id = (await app.inject({ method: 'GET', url: '/shop/my-orders' }))
-      .json().orders[0].orderId;
+    const { token } = await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
+    const mine = () => app.inject({ method: 'GET', url: '/shop/my-orders', headers: as(token) });
+    const id = (await mine()).json().orders[0].orderId;
 
     expect((await app.inject({
-      method: 'POST', url: `/shop/my-orders/${id}/cancel`,
+      method: 'POST', url: `/shop/my-orders/${id}/cancel`, headers: as(token),
     })).statusCode).toBe(200);
 
-    const after = (await app.inject({ method: 'GET', url: '/shop/my-orders' })).json();
-    expect(after.orders[0].cancelled).toBe(true);
+    expect((await mine()).json().orders[0].cancelled).toBe(true);
     await app.close();
   });
 
   it('refuses once it is with a courier', async () => {
-    await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
-    const id = (await app.inject({ method: 'GET', url: '/shop/my-orders' }))
+    const { token } = await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
+    const id = (await app.inject({ method: 'GET', url: '/shop/my-orders', headers: as(token) }))
       .json().orders[0].orderId;
     await repo.setShopOrderStatus(id, 'shipped');
 
-    const r = await app.inject({ method: 'POST', url: `/shop/my-orders/${id}/cancel` });
+    const r = await app.inject({
+      method: 'POST', url: `/shop/my-orders/${id}/cancel`, headers: as(token) });
     expect(r.statusCode).toBe(409);
     expect(r.json().error).toBe('too_late');
     await app.close();
@@ -212,23 +236,17 @@ describe('POST /shop/my-orders/:id/cancel', () => {
   it('will not cancel a stranger\'s delivery', async () => {
     // The id is guessable enough to matter, and the check is the ownership
     // one — not the client having hidden the button.
-    await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
-    const id = (await app.inject({ method: 'GET', url: '/shop/my-orders' }))
+    const { token } = await orderAs('+7 707 345 22 44', '+7 707 345 22 44');
+    const id = (await app.inject({ method: 'GET', url: '/shop/my-orders', headers: as(token) }))
       .json().orders[0].orderId;
 
-    await app.inject({
-      method: 'PUT', url: '/profile',
-      payload: { displayName: 'Другая', phone: '+7 701 000 00 00' },
-    });
-    const r = await app.inject({ method: 'POST', url: `/shop/my-orders/${id}/cancel` });
+    const stranger = await signIn('+7 701 000 00 00');
+    const r = await app.inject({
+      method: 'POST', url: `/shop/my-orders/${id}/cancel`, headers: as(stranger) });
     expect(r.statusCode).toBe(404);
 
-    // And it is genuinely still live.
-    await app.inject({
-      method: 'PUT', url: '/profile',
-      payload: { displayName: 'Айгерім', phone: '+7 707 345 22 44' },
-    });
-    expect((await app.inject({ method: 'GET', url: '/shop/my-orders' }))
+    // And it is genuinely still live for the woman who placed it.
+    expect((await app.inject({ method: 'GET', url: '/shop/my-orders', headers: as(token) }))
       .json().orders[0].cancelled).toBe(false);
     await app.close();
   });

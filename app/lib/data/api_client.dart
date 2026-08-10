@@ -325,9 +325,14 @@ class ApiClient {
     return j['profile'] as Map<String, dynamic>?;
   }
 
+  /// Back up the editable half of the profile.
+  ///
+  /// No phone: the number is the sign-in credential, it comes from
+  /// POST /auth/phone, and the server refuses to let a profile save change it —
+  /// sending one only ever meant claiming somebody else's account. GET /profile
+  /// still returns it, which is where the app reads it from.
   Future<void> putProfile({
     required String displayName,
-    String? phone,
     DateTime? dueDate,
     DateTime? birthDate,
     String? city,
@@ -341,7 +346,6 @@ class ApiClient {
             '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     final res = await transport.put('/profile', {
       'displayName': displayName,
-      'phone': phone,
       'dueDate': day(dueDate),
       'birthDate': day(birthDate),
       'city': (city ?? '').trim().isEmpty ? null : city!.trim(),

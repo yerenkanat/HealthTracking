@@ -246,20 +246,29 @@ describe('landing page renders', () => {
     await close();
   }, 60_000);
 
-  it('leaves the authored testimonials alone when the setting is unset', async () => {
-    // The live site has no reviews configured. A page that blanked its social
-    // proof because a field was empty would be worse than one that kept the
-    // copy it shipped with.
+  it('shows the honest empty state when no reviews are configured', async () => {
+    // This asserted the page KEPT its authored testimonials when the setting
+    // was empty — «a page that blanked its social proof because a field was
+    // empty would be worse than one that kept the copy it shipped with».
+    //
+    // That reasoning held only while the shipped copy was TRUE. It was not:
+    // the three authored quotes were invented, and they are gone. So the
+    // fallback is no longer fabricated proof but a sentence saying reviews
+    // will appear when real buyers write them — which is what an empty reviews
+    // field actually means.
     const { doc, close } = await renderWith({ whatsapp: '', reviews: '' });
-    expect(doc.body.textContent).toContain('Дочь ходит в школу сама с первого класса');
+    expect(doc.body.textContent).not.toContain('Дочь ходит в школу сама с первого класса');
+    expect(doc.body.textContent).toContain('Отзывы появятся здесь');
     await close();
   }, 60_000);
 
-  it('keeps the authored copy when the field holds something that is not JSON', async () => {
+  it('does not break the page when the field holds something that is not JSON', async () => {
     // The admin panel's reviews box is a free-text field. A half-typed entry
-    // must not blank the section.
+    // must leave the page intact rather than throwing partway through render.
     const { doc, close } = await renderWith({ whatsapp: '', reviews: '[{"name": "Айг' });
-    expect(doc.body.textContent).toContain('Дочь ходит в школу сама с первого класса');
+    expect(doc.body.textContent).toContain('Отзывы появятся здесь');
+    // And it must certainly not resurrect a fabricated quote.
+    expect(doc.body.textContent).not.toContain('Дочь ходит в школу сама с первого класса');
     await close();
   }, 60_000);
 

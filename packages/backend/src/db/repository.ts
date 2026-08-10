@@ -167,7 +167,14 @@ export type ProductPatch = Partial<{
 
 export interface ProfileRow {
   displayName: string;
-  phone: string | null; // E.164
+  /**
+   * E.164. READ-ONLY as far as the app is concerned: this is `users.phone_e164`,
+   * the column POST /auth/phone resolves an account by, and it is set exactly
+   * once — when the account is created from the number she signed in with.
+   *
+   * It is therefore NOT a profile field. See [ProfileEdit].
+   */
+  phone: string | null;
   dueDate: string | null; // yyyy-MM-dd
   locale: string;
   /**
@@ -183,6 +190,23 @@ export interface ProfileRow {
   avgCycleLength: number | null; // women's-health baselines (null = app defaults)
   avgPeriodLength: number | null;
 }
+
+/**
+ * What a signed-in user may actually change about herself — the profile MINUS
+ * the phone number.
+ *
+ * The number is the sign-in credential. PUT /profile used to accept one and
+ * write it to `users.phone_e164`, so anybody with an account could CLAIM a
+ * number that was not hers; when the real owner signed in, `userByPhone()`
+ * resolved her to the claimant's row and she landed inside a stranger's
+ * session — that person's pregnancy, children and live child locations. The
+ * same column keys the course entitlement and «Мои заказы», so it also handed
+ * over purchases.
+ *
+ * The type is the guard: a repository method that cannot be passed a phone
+ * cannot write one, and a future route that tries will not compile.
+ */
+export type ProfileEdit = Omit<ProfileRow, 'phone'>;
 
 /** Aggregate demographics of the tracked children, for the admin dashboard. */
 export interface ChildrenStats {
@@ -732,7 +756,12 @@ export interface Repository {
 
   // ---- Profile ----
   getProfile(userId: string): Promise<ProfileRow | null>;
-  upsertProfile(userId: string, p: ProfileRow): Promise<void>;
+  /**
+   * Update the editable half of the profile. The phone is deliberately absent
+   * from [ProfileEdit] and MUST be left exactly as sign-in wrote it — see the
+   * type for what changing it costs.
+   */
+  upsertProfile(userId: string, p: ProfileEdit): Promise<void>;
 
   // ---- Device → child reassignment (tracker tag ownership) ----
   reassignDevice(deviceId: string, childId: string | null): Promise<void>;

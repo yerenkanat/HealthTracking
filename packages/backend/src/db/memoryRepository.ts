@@ -960,8 +960,18 @@ const UUID_RE =
       return profile ? { ...profile } : null;
     },
     upsertProfile: async (userId, p) => {
-      profiles.set(userId, { ...p });
-      profile = { ...p };
+      // The phone is not in [ProfileEdit] and is not taken from the caller: it
+      // is whatever sign-in recorded for this user, which is the same thing the
+      // pg repository does by leaving `phone_e164` out of its UPDATE. Reading
+      // it back off `usersByPhone` keeps the two implementations honest — in
+      // memory mode there is no column to leave alone, so the lookup IS the
+      // guard.
+      const phone = profiles.get(userId)?.phone
+        ?? [...usersByPhone.entries()].find(([, id]) => id === userId)?.[0]
+        ?? (userId === DEMO_USER ? profile?.phone ?? null : null);
+      const next = { ...p, phone };
+      profiles.set(userId, next);
+      profile = { ...next };
     },
     reassignDevice: async (id, childId) => {
       const d = devices.find((x) => x.id === id);

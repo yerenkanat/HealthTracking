@@ -524,9 +524,10 @@ Future<void> bootstrapRuntime(
       // it survives a device change. Only when there is a name to save.
       Future<void> pushProfile(UserProfile p) => p.displayName.trim().isEmpty
           ? Future<void>.value()
+          // No phone: it identifies the account rather than describing it, and
+          // the server keeps the one sign-in recorded (see putProfile).
           : api.putProfile(
               displayName: p.displayName,
-              phone: p.hasPhone ? p.e164 : null,
               dueDate: p.dueDate,
               birthDate: p.birthDate,
               city: p.city,

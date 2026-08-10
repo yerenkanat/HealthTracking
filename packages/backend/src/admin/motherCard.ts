@@ -216,9 +216,23 @@ export function motherStage(
 /** Neither delivered nor cancelled — something is still owed to her. */
 const OPEN_STATUSES = new Set(['new', 'confirmed', 'shipped']);
 
+/**
+ * Money that has actually changed hands.
+ *
+ * The same two statuses the dashboard calls revenue (pgRepository's
+ * `status IN ('shipped','delivered')`) and the same two that unlock the
+ * course. One definition of "paid" across the product, or the panel and the
+ * dashboard will disagree about the same customer in the same week.
+ */
+const COLLECTED_STATUSES = new Set(['shipped', 'delivered']);
+
+/** Placed, not collected. Owed to us, not spent by her. */
+const PENDING_STATUSES = new Set(['new', 'confirmed']);
+
 export function buildMotherCard(input: MotherCardInput): MotherCard {
   const { stage, reason } = motherStage(input);
   const orders = [...input.orders].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const openOrders = orders.filter((o) => OPEN_STATUSES.has(o.status));
 
   const started = input.courseProgress.length;
   // The newest `updatedAt` across her progress rows. Sorted rather than
@@ -234,14 +248,26 @@ export function buildMotherCard(input: MotherCardInput): MotherCard {
     stageReason: reason,
     orders: {
       total: orders.length,
-      open: orders.filter((o) => OPEN_STATUSES.has(o.status)).length,
-      // Cancelled orders are not money she spent. Counting them would make a
-      // customer who cancelled twice look like our best one.
+      open: openOrders.length,
+      // Collected only. Cancelled is obviously not money she spent, and
+      // neither is an order sitting at `new` — nothing has shipped and nobody
+      // has handed over a tenge. Counting either would make a customer who
+      // cancelled twice, or who is still deciding, read as our best one.
       spentMinor: orders
-        .filter((o) => o.status !== 'cancelled')
+        .filter((o) => COLLECTED_STATUSES.has(o.status))
+        .reduce((n, o) => n + o.totalMinor, 0),
+      pendingMinor: orders
+        .filter((o) => PENDING_STATUSES.has(o.status))
         .reduce((n, o) => n + o.totalMinor, 0),
       lastAt: orders[0]?.createdAt ?? null,
       lastStatus: orders[0]?.status ?? null,
+      // The newest of the OPEN ones, which is a different row from the newest
+      // overall the moment a later order is already delivered.
+      openLastAt: openOrders[0]?.createdAt ?? null,
+      openLastStatus: openOrders[0]?.status ?? null,
+      unavailable: input.ordersUnavailable === true,
+      truncated: input.ordersTruncated === true,
+      window: input.ordersTruncated === true ? (input.ordersWindow ?? orders.length) : null,
       // Cancelled ones are KEPT here, unlike in the money. «Где мой заказ» is
       // sometimes answered with "it was cancelled on the 3rd", and an order
       // hidden from the list is an operator saying "I don't see any order".
@@ -258,7 +284,10 @@ export function buildMotherCard(input: MotherCardInput): MotherCard {
       started,
       completed: input.courseProgress.filter((p) => p.completed).length,
       lastAt,
-      neverStarted: input.courseUnlocked && started === 0,
+      // Never claimed about a read that failed: «оплатила и не открывала» is a
+      // support agent apologising for something we cannot see.
+      neverStarted: !input.courseUnavailable && input.courseUnlocked && started === 0,
+      unavailable: input.courseUnavailable === true,
     },
   };
 }

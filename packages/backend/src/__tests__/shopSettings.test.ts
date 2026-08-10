@@ -113,12 +113,21 @@ describe('shop settings reach the landing', () => {
     expect((await config()).whatsapp).not.toBe('77000000000');
   });
 
-  it('accepts the seed file the deploy script sends', async () => {
-    // deploy/apply-reviews.sh PUTs exactly this. The field caps at 6000 chars
-    // and three bilingual reviews are not far off it — a fourth would be
-    // rejected in production while the script reported success.
-    const seed = readFileSync(new URL('../../../../deploy/seed-reviews.json', import.meta.url), 'utf8');
-    const payload = JSON.stringify(JSON.parse(seed));
+  it('accepts three bilingual reviews without hitting the length cap', async () => {
+    // This read deploy/seed-reviews.json, which held three FABRICATED
+    // testimonials and was deleted with them. The size check it was really
+    // making still matters: the field caps at 6000 characters and three
+    // bilingual reviews are not far off it, so a fourth would be refused in
+    // production while the panel reported a successful save.
+    const three = [1, 2, 3].map((n) => ({
+      name: `Клиент ${n}`,
+      city: 'Алматы',
+      city_kz: 'Алматы',
+      text: 'x'.repeat(300),
+      text_kz: 'y'.repeat(300),
+      stars: 5,
+    }));
+    const payload = JSON.stringify(three);
     expect(payload.length).toBeLessThan(6000);
 
     expect((await save({ reviews: payload })).statusCode).toBe(200);

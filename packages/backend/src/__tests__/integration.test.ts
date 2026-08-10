@@ -363,7 +363,9 @@ function makeDeps(
     },
     // Profile + device reassignment
     getProfile: async () => profile,
-    upsertProfile: async (_u, p) => void (profile = p),
+    // The phone is not part of an edit and the fake must not invent one: it
+    // keeps whatever sign-in put there, exactly as both real repositories do.
+    upsertProfile: async (_u, p) => void (profile = { ...p, phone: profile?.phone ?? null }),
     reassignDevice: async (id, childId) => {
       const d = devices.find((x) => x.id === id);
       if (d) d.childId = childId;
@@ -1295,6 +1297,11 @@ describe('profile + device reassignment routes (in-process)', () => {
     const p = (await get('/profile')).json().profile;
     expect(p.displayName).toBe('Aigerim');
     expect(p.dueDate).toBe('2026-12-01');
+    // The `phone` above is ignored, deliberately: it is the sign-in identity,
+    // and accepting it let a user claim somebody else's account. Sending one
+    // is not an error (older apps still do), it just does nothing.
+    // See profileIdentity.test.ts.
+    expect(p.phone, 'PUT /profile must not set the sign-in number').toBeNull();
     // The emergency contact + cycle baselines round-trip so they survive a device change.
     expect(p.doctorPhone).toBe('+77007654321');
     expect(p.avgCycleLength).toBe(30);

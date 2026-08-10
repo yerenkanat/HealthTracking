@@ -8,7 +8,7 @@
 import type { FastifyRequest } from 'fastify';
 import { buildServer } from './server';
 import type { ServerDeps } from './server';
-import { authPosture } from './authPosture';
+import { authPosture, phoneCodePosture } from './authPosture';
 import { isStaffRole } from './auth/capabilities';
 import { createMemoryRepository } from './db/memoryRepository';
 import { logOnlySmsSender, type SmsSender } from './routes/phoneAuth';
@@ -114,6 +114,13 @@ const ALLOW_HEADER_STAFF = ALLOW_DEV_SHORTCUTS;
  * no gateway than that anybody does.
  *
  * Adding a provider means returning its sender here and nothing else.
+ *
+ * READ THAT LAST LINE AGAIN BEFORE TRUSTING REQUIRE_PHONE_CODE. Because this
+ * returns undefined whenever a database exists, `REQUIRE_PHONE_CODE=1 &&
+ * !!smsSender()` is false on every deployment, and the code gate can never
+ * engage no matter what is put in the environment. Turning verification on is
+ * a change HERE, not a change in backend.env — see phoneCodePosture() and the
+ * boot warning it feeds.
  */
 function smsSender(): SmsSender | undefined {
   if (!ALLOW_DEV_SHORTCUTS) return undefined;
@@ -134,6 +141,10 @@ async function productionDeps(): Promise<ServerDeps> {
   type PushResult = Awaited<ReturnType<typeof sendPush>>;
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const repo = createPgRepository(pool);
+  // One call, so the effective flag and the warning can never disagree — and so
+  // it is impossible to read `requirePhoneCode` below without also carrying
+  // what the operator actually asked for.
+  const phoneCode = phoneCodePosture(process.env, !!smsSender());
   // Phone sign-in for the app: a token minted by POST /auth/phone, looked up in
   // user_sessions. This is what makes authUser real without Firebase.
   verifyUserSession = async (token) => repo.userBySessionToken(hashToken(token));
@@ -245,7 +256,13 @@ async function productionDeps(): Promise<ServerDeps> {
     // Off unless explicitly switched on WITH a gateway. Both, because turning
     // it on without a sender would lock everybody out instead of protecting
     // them.
-    requirePhoneCode: process.env.REQUIRE_PHONE_CODE === '1' && !!smsSender(),
+    //
+    // On THIS branch there is never a sender — smsSender() returns undefined
+    // whenever DATABASE_URL is set — so this is always false and
+    // REQUIRE_PHONE_CODE cannot do anything here. buildServer says so at boot
+    // rather than leaving the variable looking like a mitigation.
+    requirePhoneCode: phoneCode.effective,
+    phoneCodeRequested: phoneCode.requested,
     // Frame 24 «Интеграции». firebase-admin authenticates with
     // applicationDefault(), which on this server means the service-account JSON
     // named by GOOGLE_APPLICATION_CREDENTIALS. Without it every send fails at
@@ -283,6 +300,7 @@ function memoryDeps(): ServerDeps {
   // confusing possible shape for a bug: the thing that authenticates works,
   // and everything downstream says you are not authenticated.
   verifyUserSession = async (token) => repo.userBySessionToken(hashToken(token));
+  const phoneCode = phoneCodePosture(process.env, !!smsSender());
   return {
     repo,
     guardrail: { callLLM: async () => 'Rest and hydrate gently. (dev echo — set an ANTHROPIC key for real replies)' },
@@ -301,8 +319,11 @@ function memoryDeps(): ServerDeps {
     sms: smsSender(),
     // Off unless explicitly switched on WITH a gateway. Both, because turning
     // it on without a sender would lock everybody out instead of protecting
-    // them.
-    requirePhoneCode: process.env.REQUIRE_PHONE_CODE === '1' && !!smsSender(),
+    // them. Here — and ONLY here, on a dev box — the log-only sender counts,
+    // so REQUIRE_PHONE_CODE=1 really does turn the flow on and the code is
+    // printed to the server log.
+    requirePhoneCode: phoneCode.effective,
+    phoneCodeRequested: phoneCode.requested,
     // Frame 24 «Интеграции». firebase-admin authenticates with
     // applicationDefault(), which on this server means the service-account JSON
     // named by GOOGLE_APPLICATION_CREDENTIALS. Without it every send fails at
