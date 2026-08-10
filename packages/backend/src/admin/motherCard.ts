@@ -40,6 +40,21 @@ export interface MotherCardInput {
   courseProgress: Array<{ completed: boolean; updatedAt?: string }>;
   /** ISO instant, injected so the stage is testable. */
   now: string;
+  /**
+   * The shop could not be read. `orders` is then empty because we FAILED, not
+   * because she has none — and the two must never render as the same sentence
+   * to an operator on the phone with a woman holding her Kaspi receipt.
+   */
+  ordersUnavailable?: boolean;
+  /** Same, for the entitlement and the progress rows. */
+  courseUnavailable?: boolean;
+  /**
+   * How many of her orders were fetched at most. The counts below are computed
+   * over that window and nothing else, so the card has to be able to say so.
+   */
+  ordersWindow?: number;
+  /** The window came back full — older orders exist and are NOT in the counts. */
+  ordersTruncated?: boolean;
 }
 
 /**
@@ -65,11 +80,38 @@ export interface MotherCard {
     total: number;
     /** Placed and not yet delivered or cancelled. */
     open: number;
+    /**
+     * Money actually collected: shipped + delivered only.
+     *
+     * These are cash-on-delivery orders — nothing is paid until the parcel is
+     * handed over, which is exactly why setShopOrderStatus grants the course
+     * on shipped/delivered and not on `new`, and why the dashboard's revenue
+     * sums the same two statuses. A `new` order is a promise that may never be
+     * collected; counting it here quotes 39 000 ₸ «потрачено» at a customer
+     * who has paid nothing.
+     */
     spentMinor: number;
+    /** Placed and not yet collected: new + confirmed. Owed, not spent. */
+    pendingMinor: number;
     lastAt: string | null;
     lastStatus: string | null;
+    /**
+     * The newest OPEN order — the one «заказ в работе» is actually about.
+     *
+     * `lastStatus` is the newest order overall, which may be a delivered one
+     * sitting on top of an unshipped June order. Pairing that status with the
+     * open COUNT sent an operator looking for a parcel that never went out.
+     */
+    openLastAt: string | null;
+    openLastStatus: string | null;
     /** Newest first, capped — enough to answer «где мой заказ» on the card. */
     recent: MotherCardOrderRow[];
+    /** The shop could not be read: every number above is unknown, not zero. */
+    unavailable: boolean;
+    /** Older orders exist beyond `window` and are in none of these figures. */
+    truncated: boolean;
+    /** The size of the window the figures were computed over, when capped. */
+    window: number | null;
   };
   course: {
     unlocked: boolean;
@@ -82,6 +124,8 @@ export interface MotherCard {
      * acting on: she paid for a course she has not opened.
      */
     neverStarted: boolean;
+    /** The course rows could not be read: `unlocked:false` is not an answer. */
+    unavailable: boolean;
   };
 }
 

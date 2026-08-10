@@ -2883,6 +2883,17 @@
   const tableBusy=(cols)=>`<tr><td colspan="${cols}" class="tstate">Загрузка…</td></tr>`;
   const tableNote=(cols,text)=>`<tr><td colspan="${cols}" class="tstate">${text}</td></tr>`;
 
+  /// The stages, in Russian. PRODUCT_STAGES on the server (migration 033).
+  ///
+  /// ONE map, shared with the catalogue block below, because the two are
+  /// compared out loud: «этот товар для этапа "новорождённый", а она на
+  /// "беременность"» is only a sentence if both screens spell the words the
+  /// same way. Two copies would be two chances to drift.
+  const STAGE_RU={
+    planning:"Планирование", pregnancy:"Беременность", newborn:"Новорождённый",
+    infant:"До года", toddler:"1–3 года", any:"Любой этап",
+  };
+
   /// Shared with the second script block below.
   ///
   /// This page is two IIFEs — the dashboard and the content editor — and they
@@ -2894,7 +2905,7 @@
   // sessionLost is declared further down, next to the login gate it shows —
   // it is a function declaration, so it is hoisted and this is already the
   // real function rather than undefined.
-  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost};
+  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost,STAGE_RU};
 
   /// One emergency, as a row.
   ///
@@ -3769,6 +3780,11 @@
     // patient should see what NEEDS attention before scrolling all of them. Every
     // flag is computed from data already loaded here — no extra request.
     const flags=[]; // {sev:'crit'|'warn'|'info', text}
+    // Frame 09a's block, needed here as well as further down: two of its
+    // findings are exactly what «Требует внимания» is for.
+    const mc=u.mother||null;
+    if(mc&&mc.course&&mc.course.neverStarted) flags.push({sev:'warn',text:'Курс оплачен, но ни разу не открыт'});
+    if(mc&&mc.orders&&mc.orders.open) flags.push({sev:'info',text:`Заказ в работе: ${mc.orders.open} (последний — ${orderStatusLbl[mc.orders.lastStatus]||esc(mc.orders.lastStatus||'—')})`});
     const triageHist=(h.triage)||[];
     if(triageHist.some(t=>t.severity==='emergency')) flags.push({sev:'crit',text:'Экстренная тревога в истории триажа'});
     else if(triageHist.some(t=>t.severity==='warning')) flags.push({sev:'warn',text:'Предупреждение в истории триажа'});
@@ -3835,6 +3851,73 @@
     // Watch / band / tracker → a Russian label, with battery and which child it
     // follows. Falls back to the raw kind rather than hiding an unknown device.
     const devKind=(k)=>{const m={band:"Браслет",watch:"Часы",tracker:"Трекер",tag:"Трекер",beacon:"Маячок",phone:"Телефон"};return m[String(k||"").toLowerCase()]||esc(k||"Устройство");};
+    // ---- Frame 09a: этап · заказы · курс. ----
+    //
+    // All three arrive as `mother` on GET /admin/users/:id/detail, derived
+    // server-side from data that was in the database the whole time. Until
+    // this block existed, an operator answering «где мой заказ» had to close
+    // this card, open Заказы, and search by a number the customer had just
+    // read out — with the record she was reading still open behind her.
+    //
+    // Absent `mother` (an older server, or the detail request that failed and
+    // fell back to the seeded row) renders nothing rather than an empty block
+    // claiming she has no orders. `mc` is declared up with the flags, which
+    // read two of its findings.
+    const stageSection=mc?`
+      <div class="dsec">Этап</div>
+      <div class="tl"><div class="tli">
+        <span><b>${esc(STAGE_RU[mc.stage]||mc.stage||"—")}</b></span>
+        <!-- The stage is DERIVED, so it shows its working: a label with no
+             reason beside it is something to argue with rather than read. -->
+        <span class="t" style="max-width:60%;text-align:right">${esc(mc.stageReason||"")}</span>
+      </div></div>`:"";
+    const ordersSection=mc?(()=>{
+      const o=mc.orders||{};
+      const recent=o.recent||[];
+      if(!o.total) return `
+      <div class="dsec">Заказы</div>
+      <div class="tl"><div class="tli"><span class="t" style="color:var(--muted)">Заказов на этот номер нет</span></div></div>`;
+      const openTxt=o.open
+        ? `<span style="color:var(--warn-text);font-weight:600">${o.open} ${ruPlural(o.open,"в работе","в работе","в работе")}</span>`
+        : "все закрыты";
+      return `
+      <div class="dsec">Заказы · ${o.total}</div>
+      <div class="tl">
+        <div class="tli"><span><b>В работе</b></span><span class="t">${openTxt}</span></div>
+        <!-- "без отменённых" is stated, not implied: an отменённый заказ is
+             not money she spent, and a number labelled only "Потрачено" would
+             be read as one that includes it. -->
+        <div class="tli"><span><b>Потрачено</b> <span class="t">без отменённых</span></span><span class="t num">${tng(o.spentMinor)}</span></div>
+        ${recent.map(r=>{
+          const items=(r.items||[]).map(i=>`${esc(i.productName)} ×${i.qty}`).join(", ");
+          const cancelled=r.status==="cancelled";
+          return `<div class="tli"><span>
+            <b${cancelled?' style="text-decoration:line-through;color:var(--muted)"':""}>${esc(fmtDate(r.createdAt))}</b>
+            <span class="t">${esc(orderStatusLbl[r.status]||r.status||"—")}</span>
+            ${items?`<div class="t">${items}</div>`:""}
+          </span><span class="t num">${tng(r.totalMinor)}</span></div>`;
+        }).join("")}
+      </div>`;
+    })():"";
+    const courseSection=mc?(()=>{
+      const c=mc.course||{};
+      const rows=[];
+      if(c.neverStarted){
+        // The one line on this card worth acting on — she paid for a course
+        // she has never opened, and nobody would ever have found out.
+        rows.push(`<div class="tli"><span class="tld" style="background:var(--warn)"></span><span style="color:var(--warn-text);font-weight:600">Доступ есть, но ни разу не открывала</span></div>`);
+      }else if(c.unlocked){
+        rows.push(`<div class="tli"><span><b>Доступ открыт</b></span><span class="t">начато ${c.started||0} · пройдено ${c.completed||0}</span></div>`);
+      }else if(c.started){
+        // Access revoked or never granted while rows exist — worth seeing,
+        // because it is somebody who was watching and now cannot.
+        rows.push(`<div class="tli"><span class="tld" style="background:var(--warn)"></span><span>Доступа нет, а ${c.started} ${ruPlural(c.started,"урок начат","урока начаты","уроков начаты")}</span></div>`);
+      }else{
+        rows.push(`<div class="tli"><span class="t" style="color:var(--muted)">Курс не открыт — комплект не покупали</span></div>`);
+      }
+      if(c.lastAt) rows.push(`<div class="tli"><span><b>Последний раз открывала</b></span><span class="t num">${esc(fmtDate(c.lastAt))}</span></div>`);
+      return `<div class="dsec">Курс Ма!Ма!</div><div class="tl">${rows.join("")}</div>`;
+    })():"";
     const devs=u.devices||[];
     const devicesSection=devs.length?`
       <div class="dsec">Устройства · ${devs.length}</div>
@@ -3865,6 +3948,9 @@
           v ?? '<span style="color:var(--muted)">не указано</span>'
         }</span></div>`).join("")}
       </div>
+      ${stageSection}
+      ${ordersSection}
+      ${courseSection}
       ${childrenSection}
       ${devicesSection}
       ${acuteBlock}
@@ -6517,10 +6603,10 @@
   let catPickStage = null;
   let catOpenId = null;
 
-  const CAT_STAGE_RU = {
-    planning: "Планирование", pregnancy: "Беременность", newborn: "Новорождённый",
-    infant: "До года", toddler: "1–3 года", any: "Любой этап",
-  };
+  // The same one map the mother's card reads, shared through window.UI. A
+  // product's stage and a mother's stage are compared in one sentence by the
+  // person holding the phone, so they cannot be two independent spellings.
+  const CAT_STAGE_RU = window.UI.STAGE_RU;
   const catStageLabel = (s) => (s ? (CAT_STAGE_RU[s] || s) : "не указан");
   const catCatLabel = (id) => {
     if (!id) return "не указана";
