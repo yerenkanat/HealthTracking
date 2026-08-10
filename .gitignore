@@ -19,7 +19,12 @@ google-services.json
 GoogleService-Info.plist
 
 # Vendored Claude Code skills (dev tooling, not product code)
-.claude/
+# Local Claude state stays out — settings, session data, scratch.
+# The agent definitions do NOT: they are how this project is built, the same
+# way a CI config is, and losing them to a clean checkout would lose the
+# clinical, Kazakh and privacy gates with them.
+.claude/*
+!.claude/agents/
 
 # OS
 .DS_Store
