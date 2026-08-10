@@ -1,0 +1,96 @@
+# Ship main to ana-bala.kz.
+#
+# WHY THIS EXISTS
+#
+# Deploying was two commands somebody had to remember, from a machine that
+# happened to hold the right SSH key: `git push`, then
+# `ssh root@… 'bash /opt/umay/deploy/update.sh'`. In practice the second half
+# got skipped, and the live panel drifted a long way behind main — a whole set
+# of finished, tested, committed frames sat in the repository and nobody could
+# use them, which is the same "built and not wired" failure this project keeps
+# producing, one level up.
+#
+# Now the push IS the deploy. No laptop, no session, no key on anybody's
+# machine.
+#
+# ONE-TIME SETUP (two things, both on GitHub/the server, neither in this repo):
+#
+#   1. Put the deploy key's PRIVATE half in the repo secret ANABALA_SSH_KEY:
+#        Settings → Secrets and variables → Actions → New repository secret
+#        Name: ANABALA_SSH_KEY     Value: contents of ~/.ssh/anabala_deploy
+#
+#   2. Put its PUBLIC half on the server, once, from a machine that can log in:
+#        ssh-copy-id -i ~/.ssh/anabala_deploy.pub root@188.137.231.252
+#
+# Until both are done this workflow fails loudly at the connect step and says
+# so, rather than reporting a green deploy that never happened.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  # So a deploy can be re-run from the GitHub UI without a commit — the button
+  # somebody needs when a deploy half-failed and the fix is to run it again.
+  workflow_dispatch:
+
+# One deploy at a time. Two overlapping runs would have the box pulling and
+# recreating its container simultaneously.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: ship main to ana-bala.kz
+    runs-on: ubuntu-latest
+    # Nothing ships unless the suites are green. Deploying past a red test is
+    # how a broken panel reaches an operator who is mid-shift.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Backend typecheck + tests
+        working-directory: packages/backend
+        run: |
+          npm ci
+          npx tsc --noEmit -p tsconfig.json
+          npx vitest run
+
+      - name: Load the deploy key
+        env:
+          KEY: ${{ secrets.ANABALA_SSH_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::ANABALA_SSH_KEY is not set — see the setup note at the top of this file."
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/anabala_deploy
+          chmod 600 ~/.ssh/anabala_deploy
+          # Pinned by scan on first use. The alternative — StrictHostKeyChecking=no
+          # — accepts whatever answers on that address.
+          ssh-keyscan -H 188.137.231.252 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy
+        run: |
+          # update.sh does the rest: git pull, migrations, container recreate,
+          # then it VERIFIES the served /admin actually contains each feature's
+          # marker. It exits non-zero when a check fails, so a stale container
+          # cannot pass as a successful deploy.
+          ssh -i ~/.ssh/anabala_deploy \
+              -o BatchMode=yes -o ConnectTimeout=20 \
+              root@188.137.231.252 \
+              'bash /opt/umay/deploy/update.sh'
+
+      - name: Confirm the site is answering
+        run: |
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://ana-bala.kz/admin || echo 000)
+          echo "GET https://ana-bala.kz/admin -> $CODE"
+          # Checked through the PUBLIC name on purpose: update.sh talks to the
+          # backend directly and therefore cannot see the edge allowlist, which
+          # is the one thing that has silently 404'd a working release here.
+          [ "$CODE" = "200" ] || { echo "::error::the panel is not answering 200 through Caddy"; exit 1; }
