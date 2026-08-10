@@ -152,6 +152,7 @@ check "/admin" 'metricnote'              "stock says how long it lasts"
 check "/admin" 'catStages'               "Каталог can set a product's stage"
 check "/admin" 'pcTabs'                  "the product card opens with its five tabs"
 check "/admin" 'intBody'                 "Интеграции says what is not connected"
+check "/admin" 'supRule'                 "Поддержка states how the wait is counted"
 check "/admin" 'finCaveats'              "Финансы prints what its numbers cannot know"
 
 echo
