@@ -28,8 +28,25 @@ let app: FastifyInstance;
 
 /** The attacker: an ordinary account, signed in normally. */
 const CLAIMANT = '+77015551122';
-/** Her target's number. Nobody has signed in with it yet. */
-const VICTIM = '+77029998877';
+/**
+ * Her target's number, in the form an attacker would actually SEND.
+ *
+ * This was `'+77029998877'`, which cannot collide with anything: the
+ * vulnerable code stored the body's phone verbatim, so `phone_e164` would have
+ * held `'+77029998877'` while sign-in resolves accounts by `normalizePhone()`
+ * output — `'77029998877'`. The two never meet, and the assertion below was
+ * exercising a claim no attacker would bother making. Digits-only is what a
+ * client posts and what the column is keyed on.
+ *
+ * WHAT ACTUALLY GUARDS THIS, checked rather than assumed. Reintroducing the
+ * hole does NOT make this file fail, and that is not a weakness — it cannot be
+ * reintroduced at all. `ProfileEdit = Omit<ProfileRow, 'phone'>` turns a route
+ * that tries into two compile errors, and `memoryRepository.upsertProfile`
+ * separately ignores a passed phone and reads it back from `usersByPhone`. The
+ * type is the guard; these tests are the description of what the guard is FOR,
+ * and they run against the realistic input so that description is honest.
+ */
+const VICTIM = '77029998877';
 /**
  * The same two as the server stores them. normalizePhone() keeps digits only,
  * so one person is one account however the number was typed.

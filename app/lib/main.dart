@@ -769,10 +769,18 @@ Future<void> bootstrapRuntime(
           final p = await api.getProfile();
           if (p == null) return;
           DateTime? day(Object? v) => v is String ? DateTime.tryParse(v) : null;
-          // Server stores the phone as E.164; only a clean +7 (CIS) number splits
-          // back unambiguously into the app's dial-code + national parts.
+          // The server stores normalizePhone() output: DIGITS ONLY, never a
+          // leading '+'. This matched `^\+7(\d{10})$`, so it never matched at
+          // all and her number restored as blank on every reinstall — «Профиль»
+          // and «Настройки» both showed it empty.
+          //
+          // It used to work by accident: the app pushed the '+7…' form up in
+          // PUT /profile and read its own writing back. That push was exactly
+          // the hole that let one account claim another's number, and removing
+          // it left this parse with nothing to match. Both forms are accepted
+          // now — the stored one, and the older rows written before the fix.
           final phone = (p['phone'] as String?) ?? '';
-          final m = RegExp(r'^\+7(\d{10})$').firstMatch(phone);
+          final m = RegExp(r'^\+?7(\d{10})$').firstMatch(phone);
           controller.mergeRemoteProfile(UserProfile(
             displayName: (p['displayName'] as String?) ?? '',
             phoneNumber: m != null ? m.group(1)! : '', // dialCode defaults to +7

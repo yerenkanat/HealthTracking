@@ -93,7 +93,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ADV_SPO2_SLEEP_DIP': {AppLocale.ru: 'Кислород во сне', AppLocale.kk: 'Ұйқыдағы оттегі', AppLocale.en: 'Oxygen during sleep'},
   'ADV_SPO2_SLEEP_DIP_b': {AppLocale.ru: 'Во сне уровень кислорода опускался ниже 95%. Если повторяется — обсудите с врачом.', AppLocale.kk: 'Ұйқы кезінде оттегі деңгейі 95%-дан төмендеді. Қайталанса, дәрігермен ақылдасыңыз.', AppLocale.en: 'Your blood oxygen dipped below 95% during sleep. If it recurs, discuss with your doctor.'},
   'ADV_TEMP_ELEVATED': {AppLocale.ru: 'Повышенная температура', AppLocale.kk: 'Дене қызуы жоғары', AppLocale.en: 'Elevated temperature'},
-  'ADV_TEMP_ELEVATED_b': {AppLocale.ru: 'Температура выше нормы. Отдых и питьё; следите за динамикой.', AppLocale.kk: 'Температура қалыптыдан жоғары. Демалыс пен сұйықтық; өзгерісті бақылаңыз.', AppLocale.en: 'Your temperature is above normal. Rest and hydrate; keep an eye on it.'},
+  // A raised temperature is on the pregnancy warning-signs list (`preg_warn_fever`),
+  // so this card must not stop at "rest and watch" — it says the same thing the
+  // list says, on the ADV_BP_ELEVATED_b model. No number here: the threshold that
+  // fired it is TriageThresholds.feverWarningC.
+  'ADV_TEMP_ELEVATED_b': {AppLocale.ru: 'Температура повышена. Отдохните, пейте больше жидкости и измерьте снова. Если температура держится или растёт — обратитесь к врачу: при беременности высокая температура требует осмотра.', AppLocale.kk: 'Дене қызуы жоғарылаған. Демалыңыз, көбірек сұйықтық ішіңіз және қайта өлшеңіз. Қызу басылмаса немесе өссе — дәрігерге жүгініңіз: жүктілік кезінде жоғары температура тексеруді қажет етеді.', AppLocale.en: 'Your temperature is elevated. Rest, drink fluids, and re-measure. If it stays up or climbs, contact your doctor — a high temperature in pregnancy needs to be checked.'},
   'ADV_TEMP_STEADY': {AppLocale.ru: 'Температура ровная', AppLocale.kk: 'Дене қызуы біркелкі', AppLocale.en: 'Temperature steady'},
   'ADV_TEMP_STEADY_b': {AppLocale.ru: 'Температура по браслету держится ровно.', AppLocale.kk: 'Білезік бойынша дене қызуы біркелкі.', AppLocale.en: 'Your temperature readings have held steady.'},
   'ADV_GLUCOSE_HIGH': {AppLocale.ru: 'Следите за сахаром', AppLocale.kk: 'Қантты қадағалаңыз', AppLocale.en: 'Watch your blood sugar'},
@@ -1783,10 +1787,13 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Су ішіп, тұрақты тамақтаныңыз, әсіресе емізіп жүрсеңіз. Өзіңізді ұмыту оңай — емізетін жеріңізге су қойыңыз.',
     AppLocale.en: 'Drink water and eat regularly, especially if you are breastfeeding. It is easy to forget yourself — keep water where you feed.',
   },
+  // Bright red bleeding coming back is secondary postpartum haemorrhage until
+  // proven otherwise — the same event `pp_warn_bleeding` sends her to the clinic
+  // for. "Rest and observe" was the wrong verb; this note now matches the list.
   'pp_note_lochia_fading': {
-    AppLocale.ru: 'Выделения светлеют: розовые, затем коричневые, затем кремовые. Внезапный возврат ярко-красной крови — повод отдохнуть и понаблюдать.',
-    AppLocale.kk: 'Бөліністер ашылады: қызғылт, содан қоңыр, кейін кремді түске енеді. Ашық қызыл қанның кенеттен қайта пайда болуы — демалып, бақылауға белгі.',
-    AppLocale.en: 'The bleeding lightens — pink, then brown, then creamy. A sudden return to bright red is a sign to rest and keep an eye on it.',
+    AppLocale.ru: 'Выделения светлеют: розовые, затем коричневые, затем кремовые. Внезапный возврат ярко-красной крови — не норма: свяжитесь с поликлиникой, а при обильном кровотечении или крупных сгустках вызывайте скорую.',
+    AppLocale.kk: 'Бөліністер ашылады: қызғылт, содан қоңыр, кейін кремді түске енеді. Ашық қызыл қанның кенеттен қайта пайда болуы — қалыпты емес: емханаға хабарласыңыз, ал қан кету мол болса немесе ірі ұйындылар шықса — жедел жәрдем шақырыңыз.',
+    AppLocale.en: 'The bleeding lightens — pink, then brown, then creamy. A sudden return to bright red is not normal: contact your clinic, and call emergency services if the bleeding is heavy or you pass large clots.',
   },
   'pp_note_pelvic_floor': {
     AppLocale.ru: 'Мягкие упражнения для тазового дна (Кегеля) можно начинать, когда будете готовы. Они помогают вернуть контроль и поддержку.',

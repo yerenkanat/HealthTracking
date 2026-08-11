@@ -370,6 +370,32 @@ void main() {
     );
   });
 
+  testWidgets('the advisor screen fits every locale with the watch cards showing', (tester) async {
+    // The reassuring cards are short; the ones that tell her to call a doctor
+    // are the long ones, and the run above never renders a single watch card
+    // because every sample in it is normal. Elevated temperature, elevated BP
+    // and a sleeping SpO2 dip together, so the longest copy in all three
+    // languages is actually laid out at 360dp.
+    final worrying = [
+      for (var i = 0; i < 8; i++)
+        HealthSample(
+          at: DateTime(2026, 7, 15, 8 + i),
+          heartRate: 78,
+          spo2: i == 3 ? 92 : 97,
+          duringSleep: true,
+          systolic: 138,
+          diastolic: 86,
+          coreTemp: 37.9,
+        ),
+    ];
+    await checkAllLocales(
+      tester,
+      'AdvisorScreen (watch cards)',
+      () => AdvisorScreen(samples: worrying, lastNight: nights.first, waterCount: 1, waterGoal: 8),
+      scroll: true,
+    );
+  });
+
   testWidgets('the cycle insights screen fits every locale', (tester) async {
     await checkAllLocales(tester, 'CycleInsightsScreen',
         () => CycleInsightsScreen(controller: seeded(), now: () => today), scroll: true);
