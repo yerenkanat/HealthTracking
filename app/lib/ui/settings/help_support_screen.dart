@@ -32,12 +32,27 @@ class HelpSupportScreen extends StatelessWidget {
   /// handler is omitted: a dead one teaches her none of them work.
   final Map<SupportAction, VoidCallback> actions;
 
+  /// Opens screen 43 — the in-app thread with the operator. Null when this
+  /// build cannot reach the server, in which case the row is not drawn at all
+  /// rather than opening a screen that can only fail.
+  final VoidCallback? onOpenThread;
+
+  /// How many of her tickets the desk has ANSWERED and is waiting on her.
+  ///
+  /// Not "unread" — nothing records what she has read, and a count that
+  /// pretended to would be wrong the second time she opened the screen. This
+  /// is `status = 'waiting'`, which is the server's own statement that there is
+  /// an answer sitting there for her.
+  final int answeredCount;
+
   const HelpSupportScreen({
     super.key,
     this.diagnostics = '',
     this.context_,
     this.onWrite,
     this.actions = const {},
+    this.onOpenThread,
+    this.answeredCount = 0,
   });
 
 
@@ -73,6 +88,22 @@ class HelpSupportScreen extends StatelessWidget {
             const SizedBox(height: 20),
           ],
           _SectionLabel(l.t('help_contact_section')),
+          // ABOVE WhatsApp on purpose. This is the only channel where the
+          // answer comes back into the app and where the operator can already
+          // see her account, her order and her app version — and it is the only
+          // one that works when she has no WhatsApp. The badge is the server
+          // saying there is an answer waiting, which is the whole reason the
+          // row is worth looking at.
+          if (onOpenThread != null)
+            _ActionRow(
+              icon: Icons.forum_outlined,
+              title: l.t('sup_chat_title'),
+              subtitle: answeredCount > 0
+                  ? l.t('sup_chat_row_waiting', {'n': '$answeredCount'})
+                  : l.t('sup_chat_row_none'),
+              badge: answeredCount > 0 ? '$answeredCount' : null,
+              onTap: onOpenThread,
+            ),
           // WhatsApp, not e-mail. This row pointed at support@umay.app — a
           // placeholder on the RETIRED brand — so every message anybody sent
           // from here went to an address nobody owns, while the shop, the
@@ -184,11 +215,17 @@ class _ActionRow extends StatelessWidget {
   /// contact line reads as unavailable rather than looking live and doing
   /// nothing.
   final VoidCallback? onTap;
+
+  /// A count worth interrupting her for — an answer she has not seen. Null
+  /// draws no badge at all rather than a zero.
+  final String? badge;
+
   const _ActionRow(
       {required this.icon,
       required this.title,
       required this.subtitle,
-      required this.onTap});
+      required this.onTap,
+      this.badge});
   @override
   Widget build(BuildContext context) => Material(
         color: Colors.transparent,
@@ -223,6 +260,23 @@ class _ActionRow extends StatelessWidget {
                   ],
                 ),
               ),
+              if (badge != null)
+                Container(
+                  margin: const EdgeInsets.only(left: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Ds.mintCta,
+                    borderRadius: BorderRadius.circular(DsShape.radiusPill),
+                  ),
+                  // Mint, not the coral: an answer from support is good news,
+                  // and red in this app means SOS.
+                  child: Text(badge!,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                ),
               const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
             ]),
           ),

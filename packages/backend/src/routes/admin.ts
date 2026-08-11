@@ -212,11 +212,35 @@ export interface AdminRuntimeFacts {
   pushWired?: boolean;
 }
 
+/**
+ * Ways the back office reaches a customer's phone.
+ *
+ * Injected, not imported: notifications/push.ts calls
+ * `admin.initializeApp(applicationDefault())` at module load, which throws on
+ * every box without Google credentials — including every test run. Injecting
+ * keeps this file loadable there and keeps the delivery decision in index.ts,
+ * where the credentials are.
+ *
+ * Omitted means the channel is not configured. It MUST NOT mean the write
+ * fails: an operator's reply is saved either way.
+ */
+export interface AdminNotifiers {
+  /**
+   * «Поддержка ответила» — frame 43. Must never throw; index.ts reports.
+   */
+  supportReply?: (
+    userId: string,
+    ticket: { id: string; subject: string },
+    body: string,
+  ) => Promise<void>;
+}
+
 export function registerAdminRoutes(
   app: FastifyInstance,
   repo: Repository,
   authAdmin: AuthAdmin,
   runtime: AdminRuntimeFacts = {},
+  notify: AdminNotifiers = {},
 ): void {
   // Shared by the routes the panel polls. One per server, so it survives across
   // requests — which is the whole point.
@@ -1364,6 +1388,27 @@ export function registerAdminRoutes(
       status: parsed.data.waiting ? 'waiting' : 'open',
     });
     await repo.writeAudit({ staffId: s.staffId, action: 'support_reply', target: id });
+
+    // Tell her. Without this the reply lands in a screen she has no reason to
+    // reopen, which is the same silence the app-side thread was built to end.
+    //
+    // FAILS SOFT, on purpose and in both directions: a box with no FCM
+    // credentials has no notifier at all, and a notifier that cannot deliver
+    // reports rather than throws. The reply is already saved, so an operator
+    // being told «не отправилось» here would be told a lie about the thing she
+    // actually did. What did not happen is logged instead.
+    if (ticket.userId) {
+      try {
+        await notify.supportReply?.(
+          ticket.userId, { id, subject: ticket.subject }, parsed.data.body,
+        );
+      } catch (e) {
+        app.log.warn(
+          `support: reply saved for ticket ${id} but the push failed — ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
     return reply.send({ ok: true });
   });
 

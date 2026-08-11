@@ -17,6 +17,7 @@ import { CLAIM_WINDOW_MS, MAX_CLAIMS } from './phoneAuth';
 import { buildDayHistory, isSosOutcome, SOS_OUTCOMES } from '../safety/dayHistory';
 import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
 import { orderProgress, visibleOrders } from '../shop/orderProgress';
+import { SUPPORT_SLA_HOURS } from '../admin/support';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   ACCESS_LEVELS, canWrite, checkInvite, grantCovers, inviteExpiry, isAccessLevel,
@@ -1222,6 +1223,157 @@ export function registerCrudRoutes(
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     await repo.recordAlert(u.userId, parsed.data);
     return reply.code(201).send({ ok: true });
+  });
+
+  // ---- Support (frame 43 · «Поддержка · оператор») -------------------------
+  //
+  // The receiving end of the operator's desk. Frame 12 has been able to WRITE
+  // to a customer since it shipped — POST /admin/support/:id/reply appends to
+  // support_replies and sets the ticket to «ждём клиента» — waiting on a woman
+  // who had no surface anywhere that could show her the answer. The 'app'
+  // channel the migration allows had never been written by anything.
+  //
+  // ON THE OWNERSHIP RULE. Every route here resolves the ticket and compares
+  // its user_id to the session's, and a ticket that is not hers answers 403 —
+  // including one that does not exist, so nobody can walk the id space to learn
+  // which tickets are real. A ticket with user_id NULL (somebody who wrote from
+  // WhatsApp before having an account) therefore belongs to no app session at
+  // all. That is deliberate: the alternative is matching on the phone, which
+  // hands a stranger's support conversation to whoever signs in with that
+  // number next.
+
+  const supportNewBody = z.object({
+    subject: z.string().trim().min(1).max(200),
+    body: z.string().trim().min(1).max(4000),
+    /**
+     * What the app knew when she wrote — version, device, offline. Composed by
+     * support_context.dart, free text on purpose: pinning a shape here would
+     * mean a change on both sides every time the app learns a new fact.
+     */
+    appContext: z.string().trim().max(1000).optional(),
+  });
+  const supportReplyBody = z.object({ body: z.string().trim().min(1).max(4000) });
+
+  /** Her ticket, or 403 having already answered. Never 404 — see above. */
+  async function requireOwnTicket(
+    req: FastifyRequest, reply: import('fastify').FastifyReply, id: string,
+  ) {
+    const u = await requireUser(req, reply);
+    if (!u) return null;
+    const ticket = await repo.getSupportTicket(id);
+    if (!ticket || ticket.userId !== u.userId) {
+      reply.code(403).send({ error: 'forbidden' });
+      return null;
+    }
+    return { userId: u.userId, ticket };
+  }
+
+  app.get('/support', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const tickets = await repo.listSupportTicketsForUser(u.userId, 20);
+    // The threads come WITH the tickets. A list that made her tap to discover
+    // whether anybody had answered would be the same silence in a new shape,
+    // and twenty threads is a handful of rows.
+    const threads = await Promise.all(tickets.map(async (t) => ({
+      ...t,
+      replies: await repo.listSupportReplies(t.id).catch(() => []),
+    })));
+    return reply.send({
+      tickets: threads,
+      // What the desk promises, from the same constant the operator's board
+      // shows — two numbers for one promise drift within a month.
+      slaHours: SUPPORT_SLA_HOURS,
+    });
+  });
+
+  app.post('/support', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = supportNewBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    // The name and number come from the PROFILE, not from the request: they are
+    // how the operator finds the account and the order, and letting the client
+    // supply them would let anyone file a ticket under somebody else's number.
+    const profile = await repo.getProfile(u.userId).catch(() => null);
+    const id = await repo.createSupportTicket({
+      userId: u.userId,
+      phone: profile?.phone ?? null,
+      customerName: profile?.displayName ?? null,
+      channel: 'app',
+      subject: parsed.data.subject,
+      body: parsed.data.body,
+      appContext: parsed.data.appContext ?? null,
+    });
+    return reply.code(201).send({ ok: true, id });
+  });
+
+  app.post('/support/:id/reply', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const owned = await requireOwnTicket(req, reply, id);
+    if (!owned) return;
+    const parsed = supportReplyBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    await repo.addSupportReply({ ticketId: id, author: 'customer', body: parsed.data.body });
+
+    // Back into the operator's queue. «ждём клиента» is precisely the state
+    // where the ball is in her court, and she has just played it; leaving the
+    // status alone would file her answer somewhere nobody is looking.
+    //
+    // A CLOSED ticket reopens for the same reason — «ничего не удаляется» cuts
+    // both ways, and a message into a closed thread that nobody sees is the
+    // one-way desk again with an extra step.
+    //
+    // Through updateSupportTicket, never a raw status write: it is what keeps
+    // answeredAt/closedAt consistent, and the SLA clock is read off them.
+    const { status } = owned.ticket;
+    if (status === 'waiting' || status === 'closed') {
+      await repo.updateSupportTicket(id, {
+        status: 'open',
+        ...(status === 'closed' ? { closedAt: null } : {}),
+      });
+    }
+    // She has, by definition, just read everything in it: she wrote back.
+    // Without this the badge she came to clear relights the moment the screen
+    // reloads, over her own message.
+    await repo.markSupportTicketRead(id, new Date().toISOString()).catch(() => false);
+
+    // answeredAt is deliberately LEFT ALONE. It records when WE last spoke, and
+    // clearing it would make a ticket we have answered twice report that nobody
+    // ever replied to her. The board compares it against her last message
+    // instead — see buildSupportBoard.
+    return reply.send({ ok: true });
+  });
+
+  /**
+   * She opened the thread — the only way the «Есть ответ поддержки» badge on
+   * «Помощь» has DOWN.
+   *
+   * The badge counts tickets the desk answered and is waiting on. Nothing used
+   * to take it down: reading changed no state, so a mint «1» sat on the row for
+   * weeks until an operator happened to close the ticket, and a badge that is
+   * permanently lit is one she stops reading. This records the instant; an
+   * answer newer than it lights the badge again, an answer older does not.
+   *
+   * It does NOT touch the status. «ждём клиента» is the operator's queue state
+   * and hers to answer, and moving her ticket out of the board the desk works
+   * from because she glanced at the screen would lose the ticket, not the badge.
+   */
+  app.post('/support/:id/read', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    // Same 403-never-404 rule as the reply route: reading is a write like any
+    // other, and «not found» for ids that do not exist would let anyone walk
+    // the id space to learn which tickets are real.
+    const owned = await requireOwnTicket(req, reply, id);
+    if (!owned) return;
+    const at = new Date().toISOString();
+    await repo.markSupportTicketRead(id, at);
+    // The instant comes back so the app can settle its own copy without a
+    // second round trip, and so a client that got a 200 can prove what was
+    // written rather than assuming the request succeeded.
+    return reply.send({ ok: true, readAt: at });
   });
 
   // ---- Profile ----

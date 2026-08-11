@@ -117,11 +117,13 @@ function makeDeps(
     // the support queue; its behaviour is covered against the real memory
     // repository in supportRoutes.test.ts, where a write can be read back.
     listSupportTickets: async () => [],
+    listSupportTicketsForUser: async () => [],
     getSupportTicket: async () => null,
     createSupportTicket: async () => 'sup-1',
     updateSupportTicket: async () => true,
     listSupportReplies: async () => [],
     addSupportReply: async () => {},
+    markSupportTicketRead: async () => true,
     listSupportTemplates: async () => [],
     // Catalogue (frames 08/08a/08b). This fake serves the flows below, none of
     // which edit the catalogue; catalogue behaviour is covered against the real

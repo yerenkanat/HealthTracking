@@ -25,7 +25,7 @@ import {
 import { computeBpOffsets } from './health/bpCalibration';
 import { registerCrudRoutes, type AuthUser } from './routes/crud';
 import type { LeadNotifier } from './notifications/leadAlert';
-import { registerAdminRoutes, type AuthAdmin } from './routes/admin';
+import { registerAdminRoutes, type AdminNotifiers, type AuthAdmin } from './routes/admin';
 import { registerStaffLoginRoutes } from './routes/staffLogin';
 import { registerPhoneAuthRoutes } from './routes/phoneAuth';
 import { registerStaffAdminRoutes } from './routes/staffAdmin';
@@ -137,6 +137,13 @@ export interface ServerDeps {
    * log-only mode and somebody reads that log first.
    */
   enforceDeviceRegistry?: boolean;
+  /**
+   * Tell a customer an operator answered her — frame 43.
+   *
+   * Omitted = no push channel on this box; the reply is still saved and the
+   * panel still reports success, because it succeeded. See AdminNotifiers.
+   */
+  notifySupportReply?: AdminNotifiers['supportReply'];
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -563,7 +570,7 @@ export function buildServer(
     phoneCodeRequested: deps.phoneCodeRequested ?? false,
     // Emergency push is injected by index.ts only when a real sender loads.
     pushWired: !!deps.pushIsReal,
-  });
+  }, { supportReply: deps.notifySupportReply });
   if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerInventoryRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin && deps.authUser) registerEntitlementRoutes(app, deps.repo, deps.authAdmin, deps.authUser);

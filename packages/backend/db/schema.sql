@@ -911,6 +911,12 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   -- Free text on purpose — support_context.dart composes it, and pinning a
   -- shape here would mean a migration every time the app learns a new fact.
   app_context TEXT,
+  -- When SHE last opened the thread (migration 035). The «Есть ответ
+  -- поддержки» badge is lit by an answer NEWER than this instant, so reading
+  -- one takes it down and the next answer lights it again. Not the status: the
+  -- queue state is the operator's, and her glancing at the screen must not move
+  -- her ticket out of the board the desk works from.
+  customer_read_at TIMESTAMPTZ,
   CONSTRAINT support_tickets_has_author
     CHECK (user_id IS NOT NULL OR (phone IS NOT NULL AND phone <> ''))
 );

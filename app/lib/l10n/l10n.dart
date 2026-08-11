@@ -255,6 +255,36 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // message she did not know she was sending.
   'sup_context_note': {AppLocale.ru: 'К сообщению добавим версию приложения и номер устройства — чтобы не спрашивать. Ничего о здоровье и детях не отправляем.', AppLocale.kk: 'Хабарламаға қолданба нұсқасы мен құрылғы нөмірін қосамыз — сұрамау үшін. Денсаулық пен балалар туралы ештеңе жіберілмейді.', AppLocale.en: 'We attach your app version and device id so we do not have to ask. Nothing about health or children is sent.'},
   'sup_unavailable': {AppLocale.ru: 'Номер поддержки не настроен. Попробуйте позже.', AppLocale.kk: 'Қолдау нөмірі бапталмаған. Кейінірек көріңіз.', AppLocale.en: 'No support number is configured yet.'},
+  // --- Screen 43 · the thread itself («шапка → диалог → чипы → поле») -------
+  'sup_chat_title': {AppLocale.ru: 'Переписка с поддержкой', AppLocale.kk: 'Қолдаумен хат алмасу', AppLocale.en: 'Chat with support'},
+  // The spec draws «шапка с именем оператора». We do not have one: the panel
+  // records WHICH member of staff replied, but the app is never told, and
+  // inventing «Айгуль» over an answer somebody else wrote is worse than a
+  // truthful role. See docs/DESIGN_DEVIATIONS.md.
+  'sup_chat_who': {AppLocale.ru: 'Оператор Ana-Bala', AppLocale.kk: 'Ana-Bala операторы', AppLocale.en: 'Ana-Bala support'},
+  'sup_chat_sla': {AppLocale.ru: 'Обычно отвечаем в течение {h} часов', AppLocale.kk: 'Әдетте {h} сағат ішінде жауап береміз', AppLocale.en: 'We usually answer within {h} hours'},
+  'sup_chat_disclaimer': {AppLocale.ru: 'Поддержка помогает с приложением, устройством и заказом. При опасных признаках звоните 103.', AppLocale.kk: 'Қолдау қосымша, құрылғы және тапсырыс бойынша көмектеседі. Қауіпті белгілерде 103-ке қоңырау шалыңыз.', AppLocale.en: 'Support helps with the app, the device and your order. For danger signs call 103.'},
+  'sup_chat_you': {AppLocale.ru: 'Вы', AppLocale.kk: 'Сіз', AppLocale.en: 'You'},
+  'sup_chat_hint': {AppLocale.ru: 'Напишите сообщение…', AppLocale.kk: 'Хабарлама жазыңыз…', AppLocale.en: 'Write a message…'},
+  'sup_chat_send': {AppLocale.ru: 'Отправить', AppLocale.kk: 'Жіберу', AppLocale.en: 'Send'},
+  'sup_chat_empty': {AppLocale.ru: 'Здесь пока пусто. Напишите, с чем помочь — ответит живой оператор.', AppLocale.kk: 'Әзірге бос. Немен көмектесу керектігін жазыңыз — тірі оператор жауап береді.', AppLocale.en: 'Nothing here yet. Tell us what you need — a real person answers.'},
+  'sup_chat_first_note': {AppLocale.ru: 'Первое сообщение создаст обращение. Приложим версию приложения и номер устройства — ничего о здоровье и детях.', AppLocale.kk: 'Бірінші хабарлама өтініш ашады. Қосымша нұсқасы мен құрылғы нөмірін қосамыз — денсаулық пен балалар туралы ештеңе жоқ.', AppLocale.en: 'Your first message opens a ticket. We attach the app version and device id — nothing about health or children.'},
+  // The result of the request, never the fact that one was sent.
+  'sup_chat_failed': {AppLocale.ru: 'Не отправилось. Проверьте связь и попробуйте ещё раз.', AppLocale.kk: 'Жіберілмеді. Байланысты тексеріп, қайта көріңіз.', AppLocale.en: 'It did not send. Check your connection and try again.'},
+  'sup_chat_load_failed': {AppLocale.ru: 'Переписка не загрузилась', AppLocale.kk: 'Хат алмасу жүктелмеді', AppLocale.en: 'The conversation did not load'},
+  'sup_chat_retry': {AppLocale.ru: 'Повторить', AppLocale.kk: 'Қайталау', AppLocale.en: 'Try again'},
+  'sup_chat_closed': {AppLocale.ru: 'Обращение закрыто. Новое сообщение откроет его снова.', AppLocale.kk: 'Өтініш жабылды. Жаңа хабарлама оны қайта ашады.', AppLocale.en: 'This ticket is closed. A new message reopens it.'},
+  'sup_chat_sent_waiting': {AppLocale.ru: 'Отправлено. Ответ придёт уведомлением.', AppLocale.kk: 'Жіберілді. Жауап хабарландырумен келеді.', AppLocale.en: 'Sent. The answer arrives as a notification.'},
+  // The entry row on «Помощь».
+  'sup_chat_row_none': {AppLocale.ru: 'Ответит живой оператор, прямо в приложении', AppLocale.kk: 'Тірі оператор қосымшада жауап береді', AppLocale.en: 'A real person answers, right in the app'},
+  'sup_chat_row_waiting': {AppLocale.ru: 'Есть ответ поддержки · {n}', AppLocale.kk: 'Қолдау жауабы бар · {n}', AppLocale.en: 'Support has answered · {n}'},
+  'sup_chat_action': {AppLocale.ru: 'Можно сделать прямо сейчас', AppLocale.kk: 'Дәл қазір жасауға болады', AppLocale.en: 'You can do this right now'},
+  // Every one of her tickets is on this screen, oldest first, and the live one
+  // last against the input. Drawn only when there IS more than one: the desk
+  // can open a second ticket for her from the panel, and an answer written into
+  // it used to be unreachable anywhere in the app.
+  'sup_chat_thread_live': {AppLocale.ru: 'Сюда уйдёт ваше сообщение', AppLocale.kk: 'Хабарламаңыз осында жіберіледі', AppLocale.en: 'Your message goes here'},
+  'sup_chat_thread_past': {AppLocale.ru: 'Прошлое обращение', AppLocale.kk: 'Бұрынғы өтініш', AppLocale.en: 'An earlier ticket'},
   // --- Screen 44 · «Аудио дня · плеер» -------------------------------------
   'aud_title': {AppLocale.ru: 'Аудио дня', AppLocale.kk: 'Күн аудиосы', AppLocale.en: 'Audio of the day'},
   'aud_back15': {AppLocale.ru: 'Назад 15 секунд', AppLocale.kk: '15 секунд артқа', AppLocale.en: 'Back 15 seconds'},

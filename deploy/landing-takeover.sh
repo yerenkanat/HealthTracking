@@ -207,11 +207,15 @@ $ADMIN_BLOCK
     #   /family*  — screen 40, added with family access.
     #   /metrics* — the vitals history query. Registered since long before this
     #               file; no app caller today, allowed so the next one works.
+    #   /support* — screen 43, the app end of the operator's desk. Left out, the
+    #               push telling her «Поддержка ответила» would open a screen
+    #               that says the conversation did not load.
     @app path /auth/logout /account* /ai/* /alerts* /app/* /appointments* \
               /calibration/* /children* /content* /contraction-sessions* \
               /course* /cry/* /cycle* /devices* /doses* /family* /geofences* \
               /growth* /ingest/* /kick-sessions* /medications* /metrics* \
-              /newborn-events* /profile* /sleep* /vaccines* /vitals* /weight*
+              /newborn-events* /profile* /sleep* /support* /vaccines* /vitals* \
+              /weight*
     handle @app {
         reverse_proxy ${BACKEND}
     }

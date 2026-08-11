@@ -26,12 +26,18 @@ const ticket = (t: Partial<SupportTicketRow> = {}): SupportTicketRow => ({
   status: 'new', assigneeId: null,
   createdAt: hoursAgo(1), updatedAt: hoursAgo(1),
   answeredAt: null, closedAt: null, appContext: 'Приложение: 0.1.0',
+  lastCustomerAt: null, customerReadAt: null,
   ...t,
 });
 
 const TICKETS = [
   ticket({ subject: 'Не приходит код', customerName: 'Айгерім', createdAt: hoursAgo(9) }),
-  ticket({ subject: 'Где мой заказ', customerName: 'Мадина', createdAt: hoursAgo(2) }),
+  // Raised from the app — frame 43. The answer to this one goes back INTO the
+  // app, so the operator must not go looking for it in WhatsApp.
+  ticket({
+    subject: 'Где мой заказ', customerName: 'Мадина', channel: 'app',
+    createdAt: hoursAgo(2), phone: null,
+  }),
   ticket({
     subject: 'Спасибо', customerName: 'Динара', status: 'waiting',
     createdAt: hoursAgo(300), answeredAt: hoursAgo(290),
@@ -46,10 +52,14 @@ const PAYLOAD = {
   ],
   items: BOARD.items.map((t) => ({ ...t, whatsapp: whatsappReplyLink(t) })),
 };
-const ONE = {
-  ticket: TICKETS[0],
-  replies: [{ id: 'r1', ticketId: TICKETS[0].id, author: 'staff', staffId: 's1', body: 'Проверяю.', at: hoursAgo(1) }],
-  whatsapp: whatsappReplyLink(TICKETS[0]),
+/** The single-ticket route, answered for whichever id was asked for. */
+const one = (id: string) => {
+  const t = TICKETS.find((x) => x.id === id) ?? TICKETS[0];
+  return {
+    ticket: t,
+    replies: [{ id: 'r1', ticketId: t.id, author: 'staff', staffId: 's1', body: 'Проверяю.', at: hoursAgo(1) }],
+    whatsapp: whatsappReplyLink(t),
+  };
 };
 
 interface Rendered {
@@ -85,8 +95,9 @@ async function boot(): Promise<Rendered> {
         }
         // The single-ticket route must be matched BEFORE the board route, or
         // /admin/support/<id> answers with the whole board.
-        if (/\/admin\/support\/[^/]+$/.test(p)) {
-          return { ok: true, status: 200, json: async () => ONE };
+        const single = /\/admin\/support\/([^/]+)$/.exec(p);
+        if (single) {
+          return { ok: true, status: 200, json: async () => one(decodeURIComponent(single[1])) };
         }
         const body = p.includes('/admin/support') ? PAYLOAD
           : p.includes('/admin/stats')
@@ -154,6 +165,14 @@ describe('frame 12 — the queue', () => {
   it('states the counting rule under the table', () => {
     expect(page.text('#supRule')).toContain('ждём клиента');
   });
+
+  it('names the app channel in Russian, not as «app»', () => {
+    // The column printed the raw column value, so a ticket raised in the app
+    // read «app» in a Russian table.
+    const t = page.text('#supBody');
+    expect(t).toContain('Приложение');
+    expect(t).not.toMatch(/\bapp\b/);
+  });
 });
 
 describe('frame 12 — the ticket card', () => {
@@ -177,6 +196,17 @@ describe('frame 12 — the ticket card', () => {
     const wa = page.el('#scWa') as HTMLAnchorElement;
     expect(wa.hasAttribute('hidden')).toBe(false);
     expect(wa.href).toContain('wa.me/77073452244');
+  });
+
+  it('says where the answer will land for a ticket raised in the app', async () => {
+    // The operator's habit is WhatsApp. For an app ticket the answer goes back
+    // into the app as a push, and Мадина has no number at all — writing to a
+    // number she never gave us is the failure this line prevents.
+    const app = TICKETS.find((t) => t.channel === 'app')!;
+    await page.click(`#supBody button[data-ticket="${app.id}"]`);
+    expect(page.text('#scSub')).toContain('Приложение');
+    expect(page.text('#scNote')).toContain('приложении');
+    expect((page.el('#scWa') as HTMLElement).hasAttribute('hidden')).toBe(true);
   });
 
   it('a template fills the reply box, placeholders intact', async () => {

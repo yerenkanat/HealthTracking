@@ -153,6 +153,28 @@ export interface SupportTicketRow {
   closedAt: string | null;
   /** What the app knew when she wrote — version, device, offline. */
   appContext: string | null;
+  /**
+   * When SHE last wrote, if she has written since raising the ticket.
+   *
+   * DERIVED from support_replies, not a column — there is nothing to migrate
+   * and nothing that can fall out of step with the thread it summarises.
+   *
+   * It exists because the app can now write back. Before that, the ticket's
+   * own creation WAS her last message and the SLA could measure from
+   * created_at; a ticket she answered a fortnight later would otherwise read
+   * as a fortnight of us being slow, and the queue would put her at the top of
+   * the screen for a message that arrived a minute ago. Null means she has not
+   * spoken since; the board then falls back to createdAt.
+   */
+  lastCustomerAt: string | null;
+  /**
+   * When SHE last opened the thread in the app. See migration 035.
+   *
+   * The «Есть ответ поддержки» badge counts an answer NEWER than this — so
+   * reading takes it down and the next reply lights it again. Null means she
+   * has never opened it, which is the state every ticket starts in.
+   */
+  customerReadAt: string | null;
 }
 
 export interface NewSupportTicket {
@@ -819,12 +841,33 @@ export interface Repository {
   // rows at most, and paging it would hide the oldest ticket, which is the one
   // the screen exists to surface.
   listSupportTickets(limit: number): Promise<SupportTicketRow[]>;
+  /**
+   * Her own tickets, newest first — frame 43, the receiving end of the desk.
+   *
+   * Filtered by user_id and NEVER by a matching phone. A ticket raised from
+   * WhatsApp by somebody who typed the same number, or one an operator recorded
+   * against a number that later changed hands, is not hers to read; matching on
+   * a phone would hand a stranger's support conversation to whoever signs in
+   * with that number next. Tickets with user_id NULL therefore reach nobody's
+   * app, which is the correct trade.
+   */
+  listSupportTicketsForUser(userId: string, limit: number): Promise<SupportTicketRow[]>;
   getSupportTicket(id: string): Promise<SupportTicketRow | null>;
   createSupportTicket(t: NewSupportTicket): Promise<string>;
   /** Patch only the keys present; absent leaves the column alone. */
   updateSupportTicket(id: string, patch: SupportTicketPatch): Promise<boolean>;
   listSupportReplies(ticketId: string): Promise<SupportReplyRow[]>;
   addSupportReply(r: NewSupportReply): Promise<void>;
+  /**
+   * She opened the thread. Sets customer_read_at and NOTHING else.
+   *
+   * Separate from updateSupportTicket on purpose, twice over: the status is the
+   * operator's queue state and must not move because she looked, and
+   * updateSupportTicket bumps updated_at, which the board sorts on — reading
+   * would otherwise shuffle her ticket to the top of somebody's screen with
+   * nothing new in it.
+   */
+  markSupportTicketRead(id: string, at: string): Promise<boolean>;
   listSupportTemplates(): Promise<SupportTemplateRow[]>;
 
   recordAlert(userId: string, a: SafetyAlertRow): Promise<void>;

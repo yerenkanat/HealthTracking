@@ -41,8 +41,33 @@ function supportRow(r: Record<string, unknown>): SupportTicketRow {
     answeredAt: iso(r.answered_at),
     closedAt: iso(r.closed_at),
     appContext: (r.app_context as string) ?? null,
+    // Derived by the queries below (a lateral over support_replies), so a row
+    // read through any other path says "she has not written back" rather than
+    // claiming a time it did not fetch.
+    lastCustomerAt: iso(r.last_customer_at),
+    // When she last opened the thread (035). The app's badge counts answers
+    // newer than this, so a row that forgot it would relight the badge on every
+    // load.
+    customerReadAt: iso(r.customer_read_at),
   };
 }
+
+/**
+ * The columns every support read needs, plus when SHE last wrote.
+ *
+ * One string rather than three copies: the lateral is the part that is easy to
+ * leave off, and a ticket list missing it would silently restart every SLA
+ * clock at the ticket's creation date.
+ */
+const SUPPORT_COLS = `t.id, t.user_id, t.phone, t.customer_name, t.channel, t.subject,
+        t.body, t.status, t.assignee_id, t.created_at, t.updated_at, t.answered_at,
+        t.closed_at, t.app_context, t.customer_read_at, c.last_customer_at`;
+const SUPPORT_FROM = `FROM support_tickets t
+       LEFT JOIN LATERAL (
+         SELECT max(r.at) AS last_customer_at
+           FROM support_replies r
+          WHERE r.ticket_id = t.id AND r.author = 'customer'
+       ) c ON TRUE`;
 
 
 /**
@@ -1747,16 +1772,23 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Support (frame 12) ----
     async listSupportTickets(limit) {
       const { rows } = await pool.query(
-        `SELECT id, user_id, phone, customer_name, channel, subject, body, status,
-                assignee_id, created_at, updated_at, answered_at, closed_at, app_context
-           FROM support_tickets ORDER BY created_at DESC LIMIT $1`, [limit]);
+        `SELECT ${SUPPORT_COLS} ${SUPPORT_FROM}
+          ORDER BY t.created_at DESC LIMIT $1`, [limit]);
+      return rows.map(supportRow);
+    },
+    async listSupportTicketsForUser(userId, limit) {
+      // By user_id ONLY. See the interface: matching on the phone would hand
+      // one person's support conversation to whoever signs in with that number
+      // next, and tickets with no account are exactly the ones most likely to
+      // carry somebody else's number.
+      const { rows } = await pool.query(
+        `SELECT ${SUPPORT_COLS} ${SUPPORT_FROM}
+          WHERE t.user_id = $1 ORDER BY t.created_at DESC LIMIT $2`, [userId, limit]);
       return rows.map(supportRow);
     },
     async getSupportTicket(id) {
       const { rows } = await pool.query(
-        `SELECT id, user_id, phone, customer_name, channel, subject, body, status,
-                assignee_id, created_at, updated_at, answered_at, closed_at, app_context
-           FROM support_tickets WHERE id = $1`, [id]);
+        `SELECT ${SUPPORT_COLS} ${SUPPORT_FROM} WHERE t.id = $1`, [id]);
       return rows[0] ? supportRow(rows[0]) : null;
     },
     async createSupportTicket(t) {
@@ -1805,6 +1837,13 @@ export function createPgRepository(pool: Pool): Repository {
         `INSERT INTO support_replies (ticket_id, author, staff_id, body)
          VALUES ($1,$2,$3,$4)`,
         [r.ticketId, r.author, r.staffId ?? null, r.body]);
+    },
+    async markSupportTicketRead(id, at) {
+      // customer_read_at ONLY — not status, not updated_at. See the interface:
+      // her reading a thread must not move the ticket in the operator's queue.
+      const { rowCount } = await pool.query(
+        'UPDATE support_tickets SET customer_read_at = $2 WHERE id = $1', [id, at]);
+      return (rowCount ?? 0) > 0;
     },
     async listSupportTemplates() {
       const { rows } = await pool.query(

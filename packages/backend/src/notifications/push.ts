@@ -84,6 +84,22 @@ const EMERGENCY_BODY: Copy = {
   en: 'A serious health reading was detected. Please open the app now.',
 };
 
+// Frame 43 — an operator answered her. This is the notification the in-app
+// support thread cannot exist without: a desk that writes into a screen she has
+// no reason to reopen is a desk that never replied. Deliberately NOT critical —
+// a support answer at 03:00 must not break Do Not Disturb, and red and the
+// alarm sound belong to SOS alone.
+const SUPPORT_TITLE: Copy = {
+  ru: 'Поддержка ответила',
+  kk: 'Қолдау жауап берді',
+  en: 'Support replied',
+};
+const SUPPORT_SUBJECT: Copy = {
+  ru: 'Ответ на «{subject}»',
+  kk: '«{subject}» бойынша жауап',
+  en: 'A reply about “{subject}”',
+};
+
 const fill = (tpl: string, vars: Record<string, string>) =>
   tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 
@@ -98,6 +114,38 @@ export function geofenceCopy(
     title: fill(pick(arrived ? ARRIVED_TITLE : LEFT_TITLE, locale), vars),
     body: fill(pick(arrived ? ARRIVED_BODY : LEFT_BODY, locale), vars),
     category: 'geofence',
+  };
+}
+
+/**
+ * «Поддержка ответила» — frame 43.
+ *
+ * The BODY is the operator's own words, not a summary. She should be able to
+ * read a short answer («заказ уже в пути, завтра до 18:00») from the lock
+ * screen without opening anything; a notification saying only that a reply
+ * exists costs her a trip into the app to learn one sentence. Long answers are
+ * cut rather than wrapped, because a lock-screen banner truncates anyway and
+ * the app carries the whole thread.
+ *
+ * The subject travels as the TITLE's second line so a woman with two open
+ * tickets knows which one this is — the commonest way a support thread stalls.
+ */
+export function supportReplyCopy(
+  subject: string,
+  body: string,
+  locale: PushLocale = 'ru',
+  ticketId?: string,
+): PushMessage {
+  const line = body.trim().replace(/\s+/g, ' ');
+  return {
+    title: pick(SUPPORT_TITLE, locale),
+    body: line.length > 160 ? `${line.slice(0, 159)}…` : line,
+    category: 'nudge',
+    data: {
+      screen: 'SupportThread',
+      subject: fill(pick(SUPPORT_SUBJECT, locale), { subject }),
+      ...(ticketId ? { ticketId } : {}),
+    },
   };
 }
 

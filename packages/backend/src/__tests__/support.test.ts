@@ -31,6 +31,12 @@ const ticket = (t: Partial<SupportTicketRow> = {}): SupportTicketRow => ({
   answeredAt: null,
   closedAt: null,
   appContext: null,
+  // She has not written since raising it — the board falls back to createdAt,
+  // which is what every case below assumes unless it says otherwise.
+  lastCustomerAt: null,
+  // She has never opened the thread. The board does not read this — it is the
+  // app's badge that does — but the row carries it.
+  customerReadAt: null,
   ...t,
 });
 
@@ -71,6 +77,51 @@ describe('whose turn it is', () => {
     const theirs = b.items.find((i) => i.status === 'waiting')!;
     expect(fresh.waitingHours).toBe(0);
     expect(theirs.waitingHours).toBeNull();
+  });
+});
+
+describe('whose message the clock starts at', () => {
+  // Frame 43 gave the app a way to write back into the thread, so a ticket can
+  // now be old, answered, and urgent all at once.
+  it('measures from HER LAST message, not from the ticket', () => {
+    // Raised a fortnight ago, answered then, and she wrote again an hour ago.
+    // Measuring from createdAt would print «336 ч» beside a message that
+    // arrived while the operator was reading the screen.
+    const b = buildSupportBoard([ticket({
+      status: 'open', createdAt: hoursAgo(336), answeredAt: hoursAgo(335),
+      lastCustomerAt: hoursAgo(1),
+    })], NOW);
+    expect(b.items[0].waitingHours).toBeCloseTo(1, 1);
+    expect(b.overdue).toBe(0);
+  });
+
+  it('restarts the clock when she writes after our answer', () => {
+    const b = buildSupportBoard([ticket({
+      status: 'open', createdAt: hoursAgo(20), answeredAt: hoursAgo(19),
+      lastCustomerAt: hoursAgo(6),
+    })], NOW);
+    expect(b.waiting).toBe(1);
+    expect(b.items[0].overdue).toBe(true);
+  });
+
+  it('still stops it while she is silent', () => {
+    // Her last message came BEFORE our answer, so the ball is in her court.
+    const b = buildSupportBoard([ticket({
+      status: 'open', createdAt: hoursAgo(30), answeredAt: hoursAgo(2),
+      lastCustomerAt: hoursAgo(3),
+    })], NOW);
+    expect(b.items[0].waitingHours).toBeNull();
+  });
+
+  it('does not call her «ни разу не отвечали» after we have answered', () => {
+    // answeredAt records when WE last spoke and is deliberately never cleared
+    // by her reply; clearing it would report that nobody had ever answered a
+    // woman who has been answered twice.
+    const b = buildSupportBoard([ticket({
+      status: 'open', answeredAt: hoursAgo(5), lastCustomerAt: hoursAgo(1),
+    })], NOW);
+    expect(b.neverAnswered).toBe(0);
+    expect(b.waiting).toBe(1);
   });
 });
 

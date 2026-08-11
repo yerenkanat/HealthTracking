@@ -73,9 +73,27 @@ export function createMemoryRepository(): Repository {
       updatedAt: new Date(Date.now() - 5 * 3600_000).toISOString(),
       answeredAt: null, closedAt: null,
       appContext: 'Приложение: 0.1.0 · Связь: есть',
+      lastCustomerAt: null,
+      customerReadAt: null,
     },
   ];
   const replies: SupportReplyRow[] = [];
+  /**
+   * Stamp on when SHE last wrote, the same way the SQL lateral does.
+   *
+   * Computed on READ rather than stored on the ticket, so the two
+   * implementations cannot disagree about a thread that has just been appended
+   * to — the in-memory one is what every route test runs against, and a stale
+   * copy here would let a broken SLA clock pass the suite.
+   */
+  const withLastCustomer = (t: SupportTicketRow): SupportTicketRow => {
+    let last: string | null = null;
+    for (const r of replies) {
+      if (r.ticketId !== t.id || r.author !== 'customer') continue;
+      if (last == null || r.at > last) last = r.at;
+    }
+    return { ...t, lastCustomerAt: last };
+  };
   const supportTemplates: SupportTemplateRow[] = [
     { id: 'where_order', title: 'Где мой заказ', sort: 10,
       bodyRu: 'Здравствуйте! Проверила ваш заказ — он {status}. Ожидаемая доставка: {eta}.',
@@ -951,8 +969,18 @@ const UUID_RE =
     // Safety alerts
     // ---- Support (frame 12) ----
     listSupportTickets: async (limit) =>
-      [...tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit),
-    getSupportTicket: async (id) => tickets.find((t) => t.id === id) ?? null,
+      [...tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit).map(withLastCustomer),
+    listSupportTicketsForUser: async (userId, limit) =>
+      // user_id ONLY — never a phone match. A ticket with no account belongs to
+      // nobody's app, which is the whole point of the constraint.
+      tickets.filter((t) => t.userId === userId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit).map(withLastCustomer),
+    getSupportTicket: async (id) => {
+      const t = tickets.find((x) => x.id === id);
+      return t ? withLastCustomer(t) : null;
+    },
     createSupportTicket: async (t) => {
       const id = `sup-${tickets.length + 1}`;
       const now = new Date().toISOString();
@@ -971,6 +999,8 @@ const UUID_RE =
         answeredAt: null,
         closedAt: null,
         appContext: t.appContext ?? null,
+        lastCustomerAt: null,
+        customerReadAt: null,
       });
       return id;
     },
@@ -996,6 +1026,15 @@ const UUID_RE =
         body: r.body,
         at: new Date().toISOString(),
       });
+    },
+    markSupportTicketRead: async (id, at) => {
+      const t = tickets.find((x) => x.id === id);
+      if (!t) return false;
+      // customer_read_at and nothing else — no status, no updatedAt. The SQL
+      // does exactly this, and a fake that also bumped updatedAt would let a
+      // "reading her thread reorders the operator's board" regression pass.
+      t.customerReadAt = at;
+      return true;
     },
     listSupportTemplates: async () => [...supportTemplates].sort((a, b) => a.sort - b.sort),
 

@@ -24,7 +24,8 @@ vi.mock('firebase-admin', () => ({
   },
 }));
 
-const { geofenceCopy, emergencyCopy, toPushLocale } = await import('../notifications/push');
+const { geofenceCopy, emergencyCopy, supportReplyCopy, toPushLocale } =
+  await import('../notifications/push');
 
 const ENTER: GeofenceEvent = {
   childId: 'c1',
@@ -128,5 +129,51 @@ describe('emergency copy', () => {
     const m = emergencyCopy(empty, 'ru');
     expect(m.body.length).toBeGreaterThan(10);
     expect(m.data?.code).toBe('UNKNOWN');
+  });
+});
+
+describe('support reply copy — frame 43', () => {
+  it('is localized, title and all', () => {
+    expect(supportReplyCopy('Где мой заказ', 'Уже в пути.', 'ru').title).toMatch(/[а-яА-Я]/);
+    expect(supportReplyCopy('Где мой заказ', 'Уже в пути.', 'kk').title)
+      .toMatch(/[а-яәғқңөұүһі]/i);
+    expect(supportReplyCopy('Where is my order', 'On its way.', 'en').title)
+      .toBe('Support replied');
+  });
+
+  it('puts the operator\'s own words on the lock screen', () => {
+    // A notification saying only that a reply exists costs her a trip into the
+    // app to learn one sentence.
+    const m = supportReplyCopy('Где мой заказ', 'Заказ собран, завтра до 18:00.', 'ru');
+    expect(m.body).toBe('Заказ собран, завтра до 18:00.');
+  });
+
+  it('names WHICH question was answered, in her language', () => {
+    for (const locale of ['ru', 'kk', 'en'] as const) {
+      const m = supportReplyCopy('Не приходит код', 'Отправила заново.', locale);
+      expect(m.data?.subject, `subject for ${locale}`).toContain('Не приходит код');
+      // A placeholder that survived into the delivered text reads as a bug.
+      expect(m.data?.subject, `unfilled placeholder in ${locale}`).not.toMatch(/\{\w+\}/);
+      expect(m.title, `unfilled placeholder in ${locale}`).not.toMatch(/\{\w+\}/);
+    }
+  });
+
+  it('is NOT critical — red and the alarm sound belong to SOS', () => {
+    // A support answer at three in the morning must not break Do Not Disturb.
+    const m = supportReplyCopy('Вопрос', 'Ответ.', 'ru');
+    expect(m.category).toBe('nudge');
+    expect(m.critical).toBeUndefined();
+  });
+
+  it('carries the thread it belongs to, so the tap opens it', () => {
+    const m = supportReplyCopy('Вопрос', 'Ответ.', 'ru', 't-7');
+    expect(m.data?.screen).toBe('SupportThread');
+    expect(m.data?.ticketId).toBe('t-7');
+  });
+
+  it('cuts a long answer instead of shipping a wall of text', () => {
+    const m = supportReplyCopy('Вопрос', `${'а'.repeat(400)}`, 'ru');
+    expect(m.body.length).toBeLessThanOrEqual(160);
+    expect(m.body.endsWith('…')).toBe(true);
   });
 });

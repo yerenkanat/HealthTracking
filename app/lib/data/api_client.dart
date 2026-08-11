@@ -873,6 +873,60 @@ class ApiClient {
     return (ok: false, reason: null);
   }
 
+  // ---- Support (screen 43 · «Поддержка · оператор») ----
+
+  /// Her support threads, newest first, each with its replies.
+  ///
+  /// The replies come WITH the tickets: a list that made her tap to discover
+  /// whether anybody had answered would be the same silence in a new shape.
+  Future<Map<String, dynamic>> supportThreads() async {
+    final res = await transport.get('/support');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Raise one. Returns its id.
+  ///
+  /// [appContext] is what the app can say about itself — version, device,
+  /// whether she was offline — composed by [SupportContext] so the operator
+  /// does not have to spend three messages asking.
+  ///
+  /// Neither the name nor the phone is sent: the server takes both from the
+  /// session's profile, so a ticket can never be filed under somebody else's
+  /// number.
+  Future<String> createSupportTicket({
+    required String subject,
+    required String body,
+    String? appContext,
+  }) async {
+    final res = await transport.post('/support', {
+      'subject': subject,
+      'body': body,
+      if (appContext != null && appContext.isNotEmpty) 'appContext': appContext,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return '${(jsonDecode(res.body) as Map<String, dynamic>)['id']}';
+  }
+
+  /// Write back into a thread. Throws on failure — the screen must be able to
+  /// say «не отправилось» rather than showing the message as delivered.
+  Future<void> replyToSupportTicket(String ticketId, String body) async {
+    final res = await transport.post('/support/$ticketId/reply', {'body': body});
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// She has read this thread — the only way the «Есть ответ поддержки» badge
+  /// on «Помощь» goes down.
+  ///
+  /// The badge counts answers newer than this instant, so a later reply lights
+  /// it again. Throws on failure like everything else here: the caller decides
+  /// whether a badge that stayed lit is worth telling her about (it is not —
+  /// it is the old behaviour, not a lost message).
+  Future<void> markSupportThreadRead(String ticketId) async {
+    final res = await transport.post('/support/$ticketId/read', const {});
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   // ---- Family access (screen 40) ----
 
   /// Who has been let in, the open invitations, and whose children I can see.

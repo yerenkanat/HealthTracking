@@ -22,6 +22,7 @@ import '../theme.dart';
 import 'journey_screen.dart';
 import '../../domain/support_context.dart';
 import 'help_support_screen.dart';
+import 'support_thread_screen.dart';
 import 'legal_screen.dart';
 import 'reminders_center_screen.dart';
 import '../auth/sign_in_route.dart';
@@ -887,6 +888,18 @@ class _SupportRouteState extends State<_SupportRoute> {
   String _whatsapp = '';
   bool _ready = false;
 
+  /// Tickets the desk has answered and she has NOT read — the count on the
+  /// row. Zero when the call failed, which draws no badge: claiming an answer
+  /// is waiting when we could not ask is worse than a quiet row.
+  ///
+  /// Unread, not merely answered. «status = waiting» could only ever go up:
+  /// reading the thread changed nothing, so the mint badge stayed lit for weeks
+  /// until an operator happened to close the ticket, and a badge that is always
+  /// on is one she stops reading — which costs the next real answer its only
+  /// signal. Opening the thread now records that she read it, and a later reply
+  /// lights it again.
+  int _answered = 0;
+
   @override
   void initState() {
     super.initState();
@@ -894,12 +907,82 @@ class _SupportRouteState extends State<_SupportRoute> {
   }
 
   Future<void> _load() async {
-    final contact = await widget.controller.api?.getShopContact();
+    final api = widget.controller.api;
+    final contact = await api?.getShopContact();
+    var answered = 0;
+    if (api != null) {
+      try {
+        answered = SupportThread.parseAll(await api.supportThreads())
+            .where((t) => t.unreadAnswer)
+            .length;
+      } catch (_) {
+        // Offline, or the server is older than this build. The row still
+        // opens — the thread screen says so itself if it cannot load.
+      }
+    }
     if (!mounted) return;
     setState(() {
       _whatsapp = contact?.whatsapp ?? '';
+      _answered = answered;
       _ready = true;
     });
+  }
+
+  /// Screen 43. Everything it needs is a function it can call, so the screen
+  /// itself has no idea there is a network.
+  void _openThread() {
+    final api = widget.controller.api!;
+    final c = widget.controller;
+    final child = c.selectedChild;
+    final ctx = SupportContext(
+      appVersion: AppController.appVersion,
+      phone: c.profile.hasPhone
+          ? '${c.profile.dialCode} ${c.profile.phoneNumber}'
+          : null,
+      deviceId: (child?.tagId ?? '').isEmpty ? null : child!.tagId,
+      offline: c.isOffline,
+    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => SupportThreadScreen(
+            load: () async {
+              final body = await api.supportThreads();
+              return (
+                threads: SupportThread.parseAll(body),
+                slaHours: (body['slaHours'] as num?)?.toInt() ?? 4,
+              );
+            },
+            onCreate: (subject, body) => api.createSupportTicket(
+              subject: subject,
+              body: body,
+              // What the app can say about itself, so the operator does not
+              // spend three messages asking «какая у вас версия».
+              appContext: ctx.message('').split('— — —').last.trim(),
+            ),
+            onReply: api.replyToSupportTicket,
+            // What takes the badge down. The screen calls it for every answer
+            // it has just put in front of her; a failure is swallowed there,
+            // because the cost is a badge that stays lit and not a lost message.
+            onRead: api.markSupportThreadRead,
+            // «Действие в чате» — only when there is a tracker to refresh.
+            action: child != null
+                ? (
+                    label: L10nScope.of(context).t('sup_act_refresh'),
+                    onTap: () async {
+                      final ok = await c.refreshChildLocation();
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(L10nScope.of(context)
+                            .t(ok ? 'sup_act_refresh' : 'off_refresh_failed')),
+                        behavior: SnackBarBehavior.floating,
+                      ));
+                    },
+                  )
+                : null,
+          ),
+        ))
+        // Coming back, the badge must reflect what she has just read.
+        .then((_) => _load());
   }
 
   @override
@@ -912,6 +995,9 @@ class _SupportRouteState extends State<_SupportRoute> {
     final child = c.selectedChild;
 
     return HelpSupportScreen(
+      // Null with no API: the row would open a screen that can only fail.
+      onOpenThread: c.api == null ? null : _openThread,
+      answeredCount: _answered,
       diagnostics: 'locale ${c.locale.name}',
       context_: SupportContext(
         appVersion: AppController.appVersion,

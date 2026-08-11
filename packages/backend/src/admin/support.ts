@@ -64,10 +64,25 @@ export function buildSupportBoard(
 
   const items: SupportQueueItem[] = tickets.map((t) => {
     const ours = (OURS_TO_ANSWER as readonly string[]).includes(t.status);
-    // From when SHE last needed us — her message — which for a ticket with no
-    // reply is its creation. Once we answer, the clock stops; if she writes
-    // again the route bumps updated_at and it starts over.
-    const since = t.answeredAt ? null : new Date(t.createdAt).getTime();
+    // From when SHE last needed us — HER LAST MESSAGE, which for a ticket she
+    // has not added to is its creation.
+    //
+    // Her last message, not the ticket's date, because the app can now write
+    // back into the thread. Measuring from created_at would put a woman who
+    // wrote a minute ago at the top of the queue with «12 дн» beside her name
+    // on a ticket she raised a fortnight earlier, and an operator who sees one
+    // of those stops believing the column.
+    const lastHer = t.lastCustomerAt ?? t.createdAt;
+    // The clock stops when our reply is STRICTLY later than her last message.
+    // It starts again the moment she writes after it — which is the only reason
+    // the comparison is here rather than a plain `answeredAt ? null : …`.
+    //
+    // A tie counts as HERS. Two messages sharing a millisecond is not a real
+    // conversation, but the direction to be wrong in is the one that leaves a
+    // waiting customer on the board rather than the one that hides her.
+    const since = t.answeredAt && t.answeredAt > lastHer
+      ? null
+      : new Date(lastHer).getTime();
     const waitingHours = ours && since != null
       ? Math.max(0, (now - since) / HOUR)
       : null;

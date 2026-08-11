@@ -83,3 +83,27 @@ Several screens keep their own row widget, and should:
 Converting these would mean deleting the thing that makes each one useful. A
 shared primitive is worth having where the pattern actually repeats; forcing it
 where it does not is how a design system starts making screens worse.
+
+## Screen 43 has no operator's name in its header
+
+**Spec:** «43 · Поддержка · оператор — шапка **с именем оператора** → диалог →
+действие в чате → чипы → поле».
+
+The header says «Оператор Ana-Bala» and no first name.
+
+The schema records which member of staff wrote a reply — `support_replies.staff_id`
+— and the app is never told. That is on purpose in two directions. A
+customer-facing screen naming a person makes that person the address for
+everything afterwards: she asks for Айгуль next time, Айгуль is on leave, and
+the shift that answers instead reads as a downgrade. And a name shown over an
+answer somebody else wrote — a colleague picking up the ticket, which is the
+normal case on a desk of three — is a small lie the screen tells every time it
+opens.
+
+So the header carries the role, which is true whoever is on shift, and the
+timestamps under each bubble carry the rest. Showing a made-up first name to
+satisfy the frame would have been the one thing worse than omitting it.
+
+Everything else in the frame is built: the dialogue, «действие в чате» (offered
+only when this build can really perform one), the topic chips and the input with
+its round `↑`.

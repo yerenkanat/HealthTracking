@@ -6624,6 +6624,14 @@
     new: "новое", open: "в работе", waiting: "ждём клиента", closed: "закрыто",
   };
 
+  // The column used to print the raw column value, so a ticket raised from the
+  // app read «app» in a Russian table. «Приложение» also matters more than the
+  // others: it is the only channel where the answer goes back INTO the app, so
+  // an operator must not go looking for the conversation in WhatsApp.
+  const SUP_CHANNEL_RU = {
+    whatsapp: "WhatsApp", phone: "Звонок", panel: "Панель", app: "Приложение",
+  };
+
   /** «5 ч» / «2 дн» — a wait, not a timestamp. */
   function supWait(h) {
     if (h == null) return "—";
@@ -6695,7 +6703,7 @@
       <td style="font-family:var(--mono)${late ? ";color:var(--crit-text);font-weight:700" : ""}">${esc(supWait(t.waitingHours))}</td>
       <td><b>${esc(t.customerName || "—")}</b><div class="sub">${esc(t.phone || "нет номера")}</div></td>
       <td>${esc(t.subject)}${t.neverAnswered ? ` <span class="chip crit">без ответа</span>` : ""}</td>
-      <td>${esc(t.channel)}</td>
+      <td>${esc(SUP_CHANNEL_RU[t.channel] || t.channel)}</td>
       <td>${esc(SUP_STATUS_RU[t.status] || t.status)}</td>
       <td><button class="btn" type="button" data-ticket="${esc(t.id)}">Открыть</button></td>
     </tr>`;
@@ -6716,7 +6724,16 @@
     const t = d.ticket;
     $("#scTitle").textContent = t.subject;
     $("#scSub").textContent =
-      `${t.customerName || "без имени"} · ${t.phone || "нет номера"} · ${SUP_STATUS_RU[t.status] || t.status}`;
+      `${t.customerName || "без имени"} · ${t.phone || "нет номера"} · ` +
+      `${SUP_CHANNEL_RU[t.channel] || t.channel} · ${SUP_STATUS_RU[t.status] || t.status}`;
+
+    // Where the answer will actually appear. A ticket from the app is answered
+    // IN the app — she gets a push and reads it in the thread — and an operator
+    // who assumes WhatsApp writes to a number that may not even be on her
+    // phone. Said here rather than left to be learnt.
+    $("#scNote").textContent = t.channel === "app"
+      ? "Ответ придёт ей push-уведомлением и появится в приложении"
+      : "Ответ отмечает обращение как «ждём клиента»";
 
     const msgs = [
       { author: "customer", body: t.body || t.subject, at: t.createdAt },

@@ -136,7 +136,7 @@ async function productionDeps(): Promise<ServerDeps> {
   const { createAnthropicMedicationExtractor } = await import('./ai/medicationVision');
   const { createAnthropicAppointmentExtractor } = await import('./ai/appointmentVision');
   const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
-  const { emergencyCopy, geofenceCopy, sendPush, toPushLocale } =
+  const { emergencyCopy, geofenceCopy, sendPush, supportReplyCopy, toPushLocale } =
     await import('./notifications/push');
   type PushResult = Awaited<ReturnType<typeof sendPush>>;
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -216,6 +216,21 @@ async function productionDeps(): Promise<ServerDeps> {
         const res = await sendPush(tokens, geofenceCopy(evt, childName, toPushLocale(locale)));
         await afterPush('geofence', res);
       },
+    },
+    // Frame 43 — an operator answered. In HER language, from the locale on the
+    // profile, and not critical: a support answer must not break Do Not Disturb
+    // at three in the morning.
+    //
+    // afterPush REPORTS rather than throws, and the admin route swallows a
+    // throw besides: a reply that saved must never come back to an operator as
+    // a failure because a phone had a dead token.
+    notifySupportReply: async (userId, ticket, body) => {
+      const { tokens, locale } = await repo.guardianPushTokensForUser(userId);
+      const res = await sendPush(
+        tokens,
+        supportReplyCopy(ticket.subject, body, toPushLocale(locale), ticket.id),
+      );
+      await afterPush('support', res);
     },
     authUser,
     authAdmin: authAdminFor(repo),
