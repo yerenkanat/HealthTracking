@@ -610,6 +610,20 @@
 /* Deliberately plain and centred: it is the only screen a signed-out person
    sees, and it should look like a door rather than a broken dashboard. */
 .loginwrap{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:var(--bg);z-index:50}
+/* The boot-failure screen. Same geometry as the sign-in card so it lands where
+   the eye already is, and ABOVE it (z-index 60) because it replaces both the
+   gate and the shell — the one thing on screen when nothing else could load.
+   No `display` shorthand outside this rule: `[hidden]{display:none!important}`
+   has to keep winning, which is the bug that started all of this. */
+.bootfail{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:var(--bg);z-index:60}
+.bootfail .card{max-width:460px;padding:26px;border:1px solid var(--hair);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow)}
+.bootfail h2{font-size:19px;font-weight:700;margin:0 0 10px}
+.bootfail p{font-size:13.5px;line-height:1.5;margin:0 0 8px;color:var(--ink)}
+.bootfail p.sub{color:var(--muted);font-size:12.5px}
+.bootfail #bootFailMsg{font-family:var(--mono);font-size:12.5px;color:var(--crit-text);
+  background:var(--crit-soft);border:1px solid var(--crit-line);border-radius:8px;padding:9px 11px;
+  word-break:break-word}
+.bootfail .acts{display:flex;gap:8px;margin-top:16px}
 .logincard{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--hair);
   border-radius:18px;padding:28px 26px 24px;display:flex;flex-direction:column;gap:8px;
   box-shadow:0 18px 50px rgba(0,0,0,.18)}
@@ -693,6 +707,27 @@
     <div class="loginerr" id="loginErr" role="alert" aria-live="polite"></div>
   </form>
 </div>
+<!-- Boot failed. The panel is one file whose JS draws every screen, so an
+     exception on the way in leaves the shell standing and EMPTY — a white page
+     with a working sidebar behind it, and the reason only in a console the
+     operator will never open. That has been reported twice as "I deployed and
+     see nothing", and both times the server was fine.
+
+     So a failure is now on the page, in words, with the two things that
+     actually fix it: try again, and sign out — because a stale session is the
+     commonest cause and signing out is what clears it. -->
+<div class="bootfail" id="bootFail" hidden>
+  <div class="card">
+    <h2>Панель не загрузилась</h2>
+    <p id="bootFailMsg">—</p>
+    <p class="sub">Данные не потеряны — это ошибка при открытии, а не при сохранении.</p>
+    <div class="acts">
+      <button class="btn" type="button" id="bootRetry">Попробовать снова</button>
+      <button class="btn ghost" type="button" id="bootSignOut">Выйти и войти заново</button>
+    </div>
+  </div>
+</div>
+
 <div class="app" id="appShell" hidden>
   <aside class="side" id="sideNav">
     <div class="brand">
@@ -5997,8 +6032,43 @@
     // replaced the whole panel with a login form. Signing in again cannot fix
     // a rendering bug, and the real error was swallowed on the way past.
     try{ await boot(); }
-    catch(e){ console.error("boot failed", e); }
+    catch(e){
+      // Still logged, because the console is where a developer looks.
+      console.error("boot failed", e);
+      // And SHOWN, because the operator is not a developer and a white page
+      // tells her nothing. This is the difference between "the deploy broke"
+      // and "the panel says what went wrong".
+      showBootFailure(e);
+    }
   }
+
+  function showBootFailure(err){
+    const box=document.getElementById("bootFail");
+    if(!box) return;                       // nothing to show it in; keep the log
+    document.getElementById("appShell").hidden=true;
+    document.getElementById("loginGate").hidden=true;
+    // The real message. A generic «что-то пошло не так» is what makes a
+    // support call take twenty minutes instead of two.
+    document.getElementById("bootFailMsg").textContent =
+      (err && (err.message || String(err))) || "Неизвестная ошибка.";
+    box.hidden=false;
+  }
+
+  {
+    const retry=document.getElementById("bootRetry");
+    if(retry) retry.addEventListener("click",()=>location.reload());
+    const out=document.getElementById("bootSignOut");
+    // Signing out clears the session cookie, which is the commonest cause of a
+    // panel that boots half-way: a session the server no longer honours.
+    // Deliberately reloads even if the request fails — the point is to get back
+    // to a sign-in form she can use.
+    if(out) out.addEventListener("click",async ()=>{
+      try{ await fetch("/admin/logout",{method:"POST",credentials:"same-origin"}); }
+      catch(e){ /* going back to the gate matters more than a clean logout */ }
+      location.reload();
+    });
+  }
+
   start();
 
 })();
