@@ -274,15 +274,63 @@ const bpCalSchema = z.object({
 /// no retention policy.
 ///
 /// The route SHAPE is what debugging actually needs, and that is kept.
+///
+/// A uuid rule is not enough on its own, because the identifiers that hurt
+/// most are not uuids. They are matched by ROUTE rather than by shape: a
+/// blanket "redact the last segment" would eat `/admin/content/w20` and
+/// `/pregnancy/weeks/32`, which name content and no person, while still
+/// missing anything sitting mid-path. Each entry below names one route whose
+/// own parameter is a secret or points at a human, and each keeps the rest of
+/// the shape intact.
+///
+/// Every rule carries `i`, like the uuid rule above. Nothing normalises the
+/// case of an incoming URL before it is logged — Caddy passes the path through
+/// as sent — so `GET /JOIN/<token>` reached the serializer as-is, an anchored
+/// case-sensitive rule did not match it, and the token went to stdout in full
+/// while the redaction looked like it was working.
+const SENSITIVE_PATH_SEGMENTS: ReadonlyArray<readonly [RegExp, string]> = [
+  // `/join/<token>` is the whole grant. The token is base64url of
+  // randomBytes(32) — no dashes, no query string, so neither rule above
+  // touched it — and for 24 hours it is redeemable by ANYONE who has it, for
+  // a child's live location and day trail. A log line is a copy of the key.
+  [/^\/join\/[^/?]+/i, '/join/:token'],
+  // The same grant seen from the other end: `:tokenHash` is the sha256 of
+  // that token, the handle the owner revokes by. Not redeemable itself, but
+  // it names one specific live invitation to one specific child, which is the
+  // fact the access log is not the place for. `accept` is a literal route
+  // segment, not a hash, and is kept so the accept path stays debuggable.
+  [/^\/family\/invites\/(?!accept(?:[/?]|$))[^/?]+/i, '/family/invites/:tokenHash'],
+  // A customer's phone number, in the URL, on a staff action. The feature is
+  // kept — knowing a course entitlement was revoked is the debuggable part;
+  // knowing whose is the audit log's job, and it already records it.
+  [/^\/admin\/entitlements\/([^/?]+)\/[^/?]+/i, '/admin/entitlements/$1/:phone'],
+  // A device serial is a MAC. device_registry carries `activated_by_phone`
+  // beside it, so a serial in a log resolves to a named customer with one
+  // query — a personal identifier wearing a hardware label.
+  [/^\/admin\/device-registry\/[^/?]+/i, '/admin/device-registry/:serial'],
+];
+
 export function redactPathIds(url: string): string {
-  return url
+  let out = url
     .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, ':id')
     // Query strings can carry a search term — the back-office user search puts
     // a name or phone number in `?q=`.
     .replace(/\?.*$/, '?…');
+  for (const [pattern, shape] of SENSITIVE_PATH_SEGMENTS) out = out.replace(pattern, shape);
+  return out;
 }
 
-export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): FastifyInstance {
+export function buildServer(
+  deps: ServerDeps,
+  opts: {
+    logger?: boolean;
+    /// Where the log actually goes. Injected ONLY so a test can read what was
+    /// written: the redaction bug that survived a green suite did so because
+    /// every test called redactPathIds directly and nothing ever asserted on
+    /// the bytes the logger emits. See __tests__/logRedaction.test.ts.
+    logStream?: { write(msg: string): void };
+  } = {},
+): FastifyInstance {
   const app = Fastify({
     logger:
       opts.logger === false
@@ -297,7 +345,29 @@ export function buildServer(deps: ServerDeps, opts: { logger?: boolean } = {}): 
                 };
               },
             },
+            ...(opts.logStream ? { stream: opts.logStream } : {}),
           },
+  });
+
+  // Fastify's own 404 answer logs `Route ${method}:${url} not found` — a
+  // message STRING, which no `req` serializer touches. So a NEAR-MISS URL went
+  // to stdout verbatim right beside the correctly-redacted «incoming request»
+  // line: `/join/<token>/` with one trailing slash (Caddy passes it through
+  // unnormalised) printed a live, redeemable invitation token, and
+  // `GET /admin/entitlements/course/+7701…` — the wrong verb for a DELETE
+  // route — printed a customer's phone number.
+  //
+  // Same answer as Fastify's, with the path redacted the one way this server
+  // redacts paths. The body carries the redacted path too: the caller already
+  // knows what it asked for, so echoing it back buys nothing.
+  app.setNotFoundHandler((req, reply) => {
+    const message = `Route ${req.method}:${redactPathIds(req.url)} not found`;
+    req.log.info(message);
+    reply.code(404).type('application/json; charset=utf-8').send({
+      message,
+      error: 'Not Found',
+      statusCode: 404,
+    });
   });
 
   // The cry-analysis proxy forwards the raw multipart body straight through to
