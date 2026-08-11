@@ -170,6 +170,65 @@ if [ -f "$LOCAL_PANEL" ]; then
 fi
 
 echo
+echo "-- Does a REAL browser paint anything?"
+#
+# The check that would have saved two sessions. Every other test in this file
+# reads bytes: it can tell you the file arrived, the markers are in it and the
+# endpoints answer — and every one of them passed while the operator looked at
+# a white screen. "200 OK" is not "somebody can use it".
+#
+# So: run headless Chrome, let the page boot, and assert the DOM it ends up
+# with actually contains the sign-in form. Chrome does CSS layout and jsdom
+# does not, which is the exact gap this project has been bitten through twice —
+# a `display` rule outranking the `hidden` attribute is invisible to every
+# byte-level check ever written.
+CHROME=""
+for c in \
+  "/c/Program Files/Google/Chrome/Application/chrome.exe" \
+  "/c/Program Files (x86)/Google/Chrome/Application/chrome.exe" \
+  "$(command -v google-chrome 2>/dev/null)" \
+  "$(command -v chromium 2>/dev/null)"; do
+  [ -n "$c" ] && [ -x "$c" ] && { CHROME="$c"; break; }
+done
+
+if [ -z "$CHROME" ]; then
+  # Not a failure: CI may have no browser. But say so, because a silent skip
+  # is how this check quietly stops running.
+  echo "  SKIP no Chrome found — the paint check did not run"
+else
+  DOM="$(mktemp)"
+  "$CHROME" --headless=new --disable-gpu --no-sandbox \
+    --virtual-time-budget=10000 --dump-dom "$BASE/admin" > "$DOM" 2>/dev/null || true
+
+  if [ ! -s "$DOM" ]; then
+    fail "Chrome rendered nothing at all — the page did not boot"
+  else
+    # Signed out, the panel must end up showing the sign-in form. The check is
+    # on the POST-BOOT dom: `hidden` removed from the gate is the proof that
+    # start() ran, got its answer, and revealed something.
+    case "$(cat "$DOM")" in
+      *'id="loginGate"'*) : ;;
+      *) fail "the rendered page has no sign-in gate" ;;
+    esac
+    # `<div ... id="loginGate">` with NO hidden attribute. If it still carries
+    # hidden after boot, the operator is looking at a white page.
+    if grep -qE '<div[^>]*id="loginGate"[^>]*hidden' "$DOM"; then
+      fail "the sign-in gate is still hidden after boot — THIS IS A BLANK PAGE"
+      echo "         start() never revealed it: check /admin/me and the boot handler"
+    else
+      pass "the sign-in form is on screen after boot"
+    fi
+    # And the words a human would actually read, so an empty-but-present form
+    # cannot pass either.
+    case "$(cat "$DOM")" in
+      *'Вход для персонала'*) pass "the form has its heading" ;;
+      *) fail "the sign-in form rendered without its heading" ;;
+    esac
+  fi
+  rm -f "$DOM"
+fi
+
+echo
 echo "-- TLS"
 if curl -s -o /dev/null --max-time 20 "$BASE/" 2>/dev/null; then
   pass "certificate accepted without --insecure"
