@@ -127,6 +127,49 @@ for ghost in 'Айгерим' 'Мадина' 'Динара' '12 400' '★★★�
 done
 
 echo
+echo "-- The panel can actually be signed into"
+#
+# A panel that returns 200 and paints NOTHING is the failure this section
+# exists for, and it has happened: every check above passed while the browser
+# showed a blank page. 200 says the file arrived, not that anything is on it.
+#
+# Signed out, /admin must offer the sign-in gate. These are the elements that
+# gate is made of — if the served build has lost any of them, showLogin() puts
+# the operator in front of a white screen with no way in.
+for el in loginGate appShell loginForm loginPhone loginErr; do
+  body /admin "id=\"$el\"" "the sign-in gate has $el"
+done
+# The rule that makes `hidden` mean hidden. Without it any author `display`
+# rule outranks the attribute, and the gate and the shell can BOTH end up
+# painted or both invisible — the second of which is a blank page.
+body /admin 'hidden]{display:none!important' "hidden actually hides"
+# start() is what asks who you are. Defined and never called is this repo's
+# signature defect, and here it would mean nothing ever unhides.
+body /admin 'start();' "the panel boots itself"
+
+echo
+echo "-- The build being served is the one in this checkout"
+# A marker present locally and absent live means the container did not restart
+# with the new file — a deploy that reported success and changed nothing.
+LOCAL_PANEL="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/packages/admin/index.html"
+if [ -f "$LOCAL_PANEL" ]; then
+  MISSING=0
+  for marker in 'data-view="catalog"' 'data-view="support"' 'data-view="finance"' 'supRule'; do
+    if grep -q -- "$marker" "$LOCAL_PANEL"; then
+      case "$(fetch /admin)" in
+        *"$marker"*) : ;;
+        *) MISSING=$((MISSING+1)) ;;
+      esac
+    fi
+  done
+  if [ "$MISSING" -eq 0 ]; then
+    pass "the served panel matches this checkout"
+  else
+    fail "$MISSING feature(s) are in this checkout and NOT on the site — the box did not pull, or the container did not restart"
+  fi
+fi
+
+echo
 echo "-- TLS"
 if curl -s -o /dev/null --max-time 20 "$BASE/" 2>/dev/null; then
   pass "certificate accepted without --insecure"
