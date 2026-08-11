@@ -987,6 +987,10 @@ export interface Repository {
   /// Active products with every colour variant (in- and out-of-stock), for the
   /// public storefront. Out-of-stock variants are returned too so the page can
   /// show them disabled rather than hiding a colour that will restock.
+  ///
+  /// Carries the catalogue fields an operator edits in frame 08a — name_kk,
+  /// stage, the age band, descriptions — because the app renders them. Never
+  /// cost or margin: this feeds an unauthenticated route.
   shopProducts(): Promise<ShopProduct[]>;
   /// Place a COD order. Atomic: each variant row is locked, stock checked and
   /// decremented, then the order + item snapshots are written — all or nothing,
@@ -1334,7 +1338,69 @@ export interface ShopProduct {
    */
   kind: 'simple' | 'bundle';
   parts: Array<{ partId: string; qty: number }>;
+
+  // ---- Catalogue (migration 033, frames 08 / 08a) ----
+  //
+  // The operator-owned half of a product. Until this was returned here, an
+  // operator could set a Kazakh name, a stage and an age band in the panel and
+  // the APP COULD NOT SEE ANY OF IT: /shop/products answered with five fields
+  // and the storefront hard-coded the rest. Migration 033's own header names
+  // this — «now it is data an operator owns» — and it was owned by nobody.
+  //
+  // Deliberately NOT here: cost_minor and anything margin-shaped. This route is
+  // unauthenticated; what a thing cost us is not a customer's business.
+  //
+  // All nullable. A product from before the migration is UNCATEGORISED, and the
+  // app must fall back to its own heuristic rather than show a customer «не
+  // указан», which is panel vocabulary for "an operator still has work to do".
+  nameKk: string | null;
+  descriptionRu: string | null;
+  descriptionKk: string | null;
+  /** Which stage of motherhood this is FOR. Null → the app's own heuristic. */
+  stage: ProductStage | null;
+  category: string | null;
+  /** Персонализация: the child age band this suits, in months. */
+  ageMinMonths: number | null;
+  ageMaxMonths: number | null;
+  photoUrl: string | null;
+  /**
+   * Can it be bought right now.
+   *
+   * DERIVED, and derived HERE rather than by each caller: a simple product is
+   * in stock when some colour of it is, and a bundle when every part can be
+   * supplied — a bundle holds no stock of its own, so reading its (empty)
+   * variants made the комплект, the only thing on the storefront that carries
+   * the course, look permanently unavailable.
+   */
+  inStock: boolean;
 }
+/**
+ * Fill in [ShopProduct.inStock] across a whole catalogue, and return it.
+ *
+ * One definition, called by both repositories, because the two readings of
+ * "available" are not the same and getting the bundle wrong is expensive: a
+ * simple product is available when SOME colour of it is on a shelf, a bundle
+ * when EVERY part can be supplied. A bundle carries no stock of its own — the
+ * комплект's `variants` is empty by design — so the obvious test (`some
+ * variant has stock`) marks the 39 000 ₸ set, the only product that carries
+ * the course, as permanently «нет в наличии».
+ *
+ * A bundle with no parts recorded is NOT in stock. It cannot be assembled from
+ * nothing, and claiming otherwise sells something that cannot be shipped.
+ */
+export function markInStock(products: ShopProduct[]): ShopProduct[] {
+  const byId = new Map(products.map((p) => [p.id, p]));
+  for (const p of products) {
+    p.inStock = p.kind === 'bundle'
+      ? p.parts.length > 0 && p.parts.every((part) => {
+        const src = byId.get(part.partId);
+        return !!src && src.variants.some((v) => v.stock >= part.qty);
+      })
+      : p.variants.some((v) => v.stock > 0);
+  }
+  return products;
+}
+
 export interface ShopOrderInput {
   customerName: string; phone: string; city: string; address: string; note?: string;
   items: Array<{ variantId: string; qty: number }>;

@@ -6,6 +6,7 @@ library;
 
 import 'dart:convert';
 import '../domain/course_lesson.dart';
+import '../domain/shop_catalogue.dart';
 
 class HttpResponse {
   final int statusCode;
@@ -205,9 +206,26 @@ class IngestSummary {
       );
 }
 
+/// Somewhere to keep the last good response of a public GET.
+///
+/// A three-line interface rather than a dependency on shared_preferences,
+/// because this file is pure Dart on purpose and must stay unit-testable
+/// without Flutter. [PrefsShopCatalogueCache] is the real one.
+abstract class JsonCache {
+  Future<String?> read();
+  Future<void> write(String json);
+}
+
 class ApiClient {
   final HttpTransport transport;
-  const ApiClient(this.transport);
+
+  /// Where the last good shop catalogue is kept, so the shop still shows
+  /// prices — and says how old they are — on a phone with no signal. Optional:
+  /// without it the app degrades to its compile-time constants, labelled as
+  /// approximate, which is the same behaviour as a first run.
+  final JsonCache? catalogueCache;
+
+  const ApiClient(this.transport, {this.catalogueCache});
 
   /// Batched telemetry + location flush (called by TelemetryBatcher.flush).
   Future<IngestSummary> ingestBatch(List<Map<String, dynamic>> items) async {
@@ -479,6 +497,64 @@ class ApiClient {
       );
     } catch (_) {
       return (whatsapp: '', kaspiUrl: '');
+    }
+  }
+
+  /// The live shop catalogue — screen 41 «Магазин» and screen 34's price card.
+  ///
+  /// Public and unauthenticated, exactly like [getShopContact]: the storefront
+  /// takes orders from people who are not signed in, and a shop that 401s is a
+  /// shop with no prices in it.
+  ///
+  /// **Never throws.** In order of preference:
+  ///
+  ///   1. what the server just said, cached on the way past;
+  ///   2. the last good payload, marked as coming from the cache and carrying
+  ///      the date it was fetched, so the screen can say how old it is;
+  ///   3. [ShopCatalogue.empty] — and the screen falls back to its compile-time
+  ///      constants, labelled approximate.
+  ///
+  /// A 200 carrying an EMPTY list does not overwrite the cache and does not
+  /// beat it. Every product being withdrawn at once is indistinguishable on the
+  /// wire from a half-deployed server, and of the two readings the one that
+  /// keeps real prices on screen is the safer.
+  Future<ShopCatalogue> getShopCatalogue() async {
+    try {
+      final res = await transport.get('/shop/products');
+      if (res.ok) {
+        final fresh = ShopCatalogue.fromJson(
+          jsonDecode(res.body) as Map<String, dynamic>,
+          fetchedAt: DateTime.now(),
+        );
+        if (fresh.products.isNotEmpty) {
+          // Best effort: a cache that cannot be written must not cost the
+          // caller the catalogue it already has in hand.
+          try {
+            await catalogueCache?.write(jsonEncode(fresh.toJson()));
+          } catch (_) {}
+          return fresh;
+        }
+      }
+    } catch (_) {
+      // Offline, DNS, a truncated body — all the same to the shop screen.
+    }
+    return _cachedCatalogue();
+  }
+
+  Future<ShopCatalogue> _cachedCatalogue() async {
+    try {
+      final raw = await catalogueCache?.read();
+      if (raw == null || raw.isEmpty) return ShopCatalogue.empty;
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      final cached = ShopCatalogue.fromJson(j, fromCache: true);
+      // A cache with no date is a cache that cannot be labelled, and an
+      // unlabelled price is the thing this whole path exists to avoid.
+      if (cached.products.isEmpty || cached.fetchedAt == null) {
+        return ShopCatalogue.empty;
+      }
+      return cached;
+    } catch (_) {
+      return ShopCatalogue.empty;
     }
   }
 

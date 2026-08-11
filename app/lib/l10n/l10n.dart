@@ -310,6 +310,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'shop_order_bundle': {AppLocale.ru: 'Заказать комплект', AppLocale.kk: 'Жинаққа тапсырыс беру', AppLocale.en: 'Order the set'},
   'shop_wa_item': {AppLocale.ru: 'Здравствуйте! Хочу заказать: {item}.', AppLocale.kk: 'Сәлеметсіз бе! Тапсырыс бергім келеді: {item}.', AppLocale.en: 'Hello! I would like to order: {item}.'},
   'shop_saving': {AppLocale.ru: 'Выгода {amount}', AppLocale.kk: 'Үнемдеу {amount}', AppLocale.en: 'You save {amount}'},
+  // The live catalogue (frames 08 / 08a). Prices, names and the age band are
+  // an operator's now, so the shop has to be able to say where a number came
+  // from — and to admit when it is quoting one from memory.
+  'shop_order_item': {AppLocale.ru: 'Заказать', AppLocale.kk: 'Тапсырыс беру', AppLocale.en: 'Order'},
+  'shop_out_of_stock': {AppLocale.ru: 'Нет в наличии', AppLocale.kk: 'Қоймада жоқ', AppLocale.en: 'Out of stock'},
+  'shop_order_backorder': {AppLocale.ru: 'Заказать под заказ', AppLocale.kk: 'Тапсырыс бойынша сұрау', AppLocale.en: 'Ask to backorder'},
+  'shop_wa_backorder': {AppLocale.ru: 'Здравствуйте! Хочу заказать под заказ: {item}. Вижу, что сейчас нет в наличии — подскажите сроки, пожалуйста.', AppLocale.kk: 'Сәлеметсіз бе! Тапсырыс бойынша алғым келеді: {item}. Қазір қоймада жоқ екенін көріп тұрмын — мерзімін айтып жіберіңізші.', AppLocale.en: 'Hello! I would like to backorder: {item}. I can see it is out of stock — could you tell me when it will arrive?'},
+  'shop_prices_cached': {AppLocale.ru: 'Нет связи с магазином. Цены и наличие — на {date}.', AppLocale.kk: 'Дүкенмен байланыс жоқ. Бағалар мен бар-жоғы — {date} жағдайы бойынша.', AppLocale.en: 'No connection to the shop. Prices and stock are as of {date}.'},
+  'shop_prices_approx': {AppLocale.ru: 'Нет связи с магазином — цены ориентировочные. Уточним при заказе.', AppLocale.kk: 'Дүкенмен байланыс жоқ — бағалар шамамен. Тапсырыс кезінде нақтылаймыз.', AppLocale.en: 'No connection to the shop — these prices are approximate. We will confirm when you order.'},
+  'shop_age_band': {AppLocale.ru: 'Для детей {from}–{to} мес.', AppLocale.kk: '{from}–{to} айлық балаларға', AppLocale.en: 'For children {from}–{to} months'},
+  'shop_age_from': {AppLocale.ru: 'Для детей от {from} мес.', AppLocale.kk: '{from} айдан бастап балаларға', AppLocale.en: 'For children from {from} months'},
+  'shop_age_to': {AppLocale.ru: 'Для детей до {to} мес.', AppLocale.kk: '{to} айға дейінгі балаларға', AppLocale.en: 'For children up to {to} months'},
+  'shop_match_stage': {AppLocale.ru: 'Подходит вашему этапу', AppLocale.kk: 'Сіздің кезеңіңізге сай', AppLocale.en: 'Suits where you are now'},
+  'shop_match_age': {AppLocale.ru: 'Подходит по возрасту ребёнка', AppLocale.kk: 'Балаңыздың жасына сай', AppLocale.en: 'Suits your child’s age'},
+  'shop_empty': {AppLocale.ru: 'Не удалось загрузить товары. Напишите нам — подскажем, что есть в наличии.', AppLocale.kk: 'Тауарларды жүктеу мүмкін болмады. Бізге жазыңыз — не бар екенін айтамыз.', AppLocale.en: 'The products could not be loaded. Message us and we will tell you what is in stock.'},
   // --- Screen 34 · «Курс · без комплекта» ---------------------------------
   'crs_contents': {AppLocale.ru: 'Что в курсе', AppLocale.kk: 'Курста не бар', AppLocale.en: 'What is in the course'},
   'crs_free_badge': {AppLocale.ru: 'Бесплатно', AppLocale.kk: 'Тегін', AppLocale.en: 'Free'},

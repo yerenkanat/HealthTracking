@@ -21,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../domain/course_lesson.dart';
 import '../../domain/course_prices.dart';
 import '../../domain/my_order.dart' show formatTenge;
+import '../../domain/shop_catalogue.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../ds_widgets.dart';
@@ -46,13 +47,19 @@ class MamaCourseScreen extends StatelessWidget {
   /// Empty (the default, and what a failed /shop/config gives) hides it.
   final String whatsapp;
 
+  /// The live catalogue, so «карточка цены» quotes what the комплект actually
+  /// costs today rather than what it cost when this build was compiled. Empty
+  /// (the default) falls back to the constants and labels them approximate.
+  final ShopCatalogue catalogue;
+
   const MamaCourseScreen(
       {super.key,
       required this.access,
       this.onRetry,
       this.launch,
       this.onProgress,
-      this.whatsapp = ''});
+      this.whatsapp = '',
+      this.catalogue = ShopCatalogue.empty});
 
   /// Open the lesson IN the app.
   ///
@@ -117,6 +124,7 @@ class MamaCourseScreen extends StatelessWidget {
                   whatsapp: whatsapp,
                   launch: launch,
                   preview: a.preview,
+                  catalogue: catalogue,
                   onPlayFree: (p) => _openFree(context, p),
                 ),
     );
@@ -136,10 +144,14 @@ class _Offer extends StatelessWidget {
   /// Play the free lesson. Null where nothing can play it.
   final void Function(CoursePreviewLesson)? onPlayFree;
 
+  /// The live catalogue behind «карточка цены».
+  final ShopCatalogue catalogue;
+
   const _Offer({
     this.whatsapp = '',
     this.launch,
     this.preview = const [],
+    this.catalogue = ShopCatalogue.empty,
     this.onPlayFree,
   });
 
@@ -231,7 +243,7 @@ class _Offer extends StatelessWidget {
         ],
 
         const SizedBox(height: 20),
-        _PriceCard(number: number, launch: launch),
+        _PriceCard(number: number, launch: launch, catalogue: catalogue),
       ],
     );
   }
@@ -346,7 +358,17 @@ class _PreviewRow extends StatelessWidget {
 class _PriceCard extends StatelessWidget {
   final String number;
   final Future<bool> Function(Uri url)? launch;
-  const _PriceCard({required this.number, this.launch});
+
+  /// Where the numbers come from. The комплект's price is an operator's since
+  /// frame 08a, so quoting the compile-time constant would advertise a price
+  /// the shop no longer charges.
+  final ShopCatalogue catalogue;
+
+  const _PriceCard({
+    required this.number,
+    this.launch,
+    this.catalogue = ShopCatalogue.empty,
+  });
 
   Future<void> _write(BuildContext context, String text) async {
     final opener =
@@ -363,6 +385,8 @@ class _PriceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final prices = coursePricesFrom(catalogue);
+    final bundle = catalogue.byId(bundleProductId);
     return DsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,38 +395,77 @@ class _PriceCard extends StatelessWidget {
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 14),
 
-          _PriceRow(
-            name: l.t('crs_bundle_name'),
-            detail: l.t('crs_bundle_what'),
-            price: formatTenge(coursePrices.bundleMinor),
-            highlight: true,
-          ),
-          const SizedBox(height: 10),
-          _PriceRow(
-            name: l.t('crs_separate_name'),
-            detail: '',
-            price: formatTenge(coursePrices.separatelyMinor),
-            struck: true,
-          ),
+          // The комплект row goes entirely when a catalogue was read without
+          // it: the set is off sale, and quoting the build's 39 000 ₸ for it
+          // would advertise a product the shop will not sell. The course
+          // itself is still for sale below, which is why the card stays.
+          if (prices.bundleAvailable)
+            _PriceRow(
+              // The catalogue's own name for the set, so renaming it in the
+              // back office renames it here — including into Kazakh.
+              name: bundle?.name(l.localeCode) ?? l.t('crs_bundle_name'),
+              detail:
+                  bundle?.description(l.localeCode) ?? l.t('crs_bundle_what'),
+              price: formatTenge(prices.bundleMinor),
+              highlight: true,
+            ),
+          // «69 800 ₸» — the comparison, and ONLY while it is one. An operator
+          // can price the set above its parts; a struck-through number smaller
+          // than the one above it reads as a con, so the row goes rather than
+          // printing a negative saving.
+          if (prices.savingIsReal) ...[
+            const SizedBox(height: 10),
+            _PriceRow(
+              name: l.t('crs_separate_name'),
+              detail: '',
+              price: formatTenge(prices.separatelyMinor),
+              struck: true,
+            ),
+          ],
           const SizedBox(height: 10),
           _PriceRow(
             name: l.t('crs_course_only'),
             detail: '',
-            price: formatTenge(coursePrices.courseOnlyMinor),
+            // Deliberately still the constant: there is no course-only product
+            // to read a price off. See [CoursePrices.courseOnlyMinor].
+            price: formatTenge(prices.courseOnlyMinor),
           ),
+
+          // Where these numbers came from. A price card is the last place to
+          // quote a figure from memory without saying so.
+          if (prices.isApproximate) ...[
+            const SizedBox(height: 10),
+            Text(l.t('shop_prices_approx'),
+                style: const TextStyle(
+                    fontSize: 12, height: 1.4, color: Palette.textDim)),
+          ] else if (prices.fromCache && prices.pricedAt != null) ...[
+            const SizedBox(height: 10),
+            Text(
+                l.t('shop_prices_cached', {
+                  'date': '${prices.pricedAt!.day.toString().padLeft(2, '0')}'
+                      '.${prices.pricedAt!.month.toString().padLeft(2, '0')}'
+                      '.${prices.pricedAt!.year}'
+                }),
+                style: const TextStyle(
+                    fontSize: 12, height: 1.4, color: Palette.textDim)),
+          ],
 
           if (number.isNotEmpty) ...[
             const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              height: DsShape.minTapTarget,
-              child: FilledButton.icon(
-                onPressed: () => _write(context, l.t('course_wa_text')),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 19),
-                label: Text(l.t('crs_order_wa'),
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
+            // «Заказать комплект» only while there is a комплект to order. A
+            // button that opens WhatsApp asking for a withdrawn set sends her
+            // to a conversation that can only end in «его больше нет».
+            if (prices.bundleAvailable)
+              SizedBox(
+                width: double.infinity,
+                height: DsShape.minTapTarget,
+                child: FilledButton.icon(
+                  onPressed: () => _write(context, l.t('course_wa_text')),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 19),
+                  label: Text(l.t('crs_order_wa'),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
               ),
-            ),
             SizedBox(
               width: double.infinity,
               height: DsShape.minTapTarget,

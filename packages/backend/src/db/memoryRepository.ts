@@ -7,7 +7,7 @@
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
-import { bundleDiscountMinor } from './repository';
+import { bundleDiscountMinor, markInStock } from './repository';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -1441,15 +1441,32 @@ const UUID_RE =
     // ---- Shop ----
     // Bundles included, marked as such and carrying their parts: the storefront
     // has to be able to offer the комплект, and it has no colours of its own.
-    shopProducts: async () => shopProds
+    //
+    // `active` is filtered here exactly as the SQL filters it. It was not, and
+    // the fake was therefore more generous than production: a product withdrawn
+    // in the panel kept appearing in every test's storefront, so a test could
+    // have blessed a shop that shows things nobody can buy.
+    shopProducts: async () => markInStock(shopProds
       .slice()
+      .filter((p) => p.active ?? true)
       .sort((a, b) => a.sort - b.sort)
       .map((p) => ({
         id: p.id, name: p.name, priceMinor: p.priceMinor, kind: p.kind ?? 'simple',
         variants: shopVars.filter((v) => v.productId === p.id).sort((a, b) => a.sort - b.sort)
           .map((v) => ({ id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock })),
         parts: bundleItems.filter((b) => b.bundleId === p.id).map((b) => ({ partId: b.partId, qty: b.qty })),
-      })),
+        // Catalogue (migration 033). `undefined` on the row means the column is
+        // NULL; it must reach the wire as null, not vanish from the JSON.
+        nameKk: p.nameKk ?? null,
+        descriptionRu: p.descriptionRu ?? null,
+        descriptionKk: p.descriptionKk ?? null,
+        stage: p.stage ?? null,
+        category: p.category ?? null,
+        ageMinMonths: p.ageMinMonths ?? null,
+        ageMaxMonths: p.ageMaxMonths ?? null,
+        photoUrl: p.photoUrl ?? null,
+        inStock: false,
+      }))),
     placeShopOrder: async (o) => {
       if (!o.items.length) return { ok: false as const, error: 'empty' as const };
       // Two-pass: validate all, then commit — the memory store cannot roll back a

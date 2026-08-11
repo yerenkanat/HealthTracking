@@ -184,32 +184,30 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
       // Same live data the shop landing pages read; price in tiyn and in tenge.
       // A bundle holds no stock of its own: it is available exactly while every
       // part it is made of is. Reading `inStock` off its (empty) colour list
-      // would report the комплект as permanently sold out.
-      const shapeProduct = (p: ShopProduct, all: ShopProduct[]) => ({
+      // would report the комплект as permanently sold out. That rule used to be
+      // written out here; it now lives on the product (markInStock), so this
+      // route and the app's storefront cannot disagree about what "available"
+      // means for the same product on the same day.
+      const shapeProduct = (p: ShopProduct) => ({
         id: p.id,
         name: p.name,
         priceMinor: p.priceMinor,
         priceTenge: Math.round(p.priceMinor / 100),
         kind: p.kind,
-        inStock: p.kind === 'bundle'
-          ? p.parts.length > 0 && p.parts.every((part) => {
-            const src = all.find((x) => x.id === part.partId);
-            return !!src && src.variants.some((v) => v.stock >= part.qty);
-          })
-          : p.variants.some((v) => v.stock > 0),
+        inStock: p.inStock,
         colours: p.variants.map((v) => ({ id: v.id, color: v.color, colorHex: v.colorHex, stock: v.stock })),
         // Which products a buyer picks a colour of. Empty for a simple product.
         parts: p.parts,
       });
       api.get('/shop/products', async () => {
         const products = await repo.shopProducts();
-        return { currency: 'KZT', count: products.length, products: products.map((p) => shapeProduct(p, products)) };
+        return { currency: 'KZT', count: products.length, products: products.map(shapeProduct) };
       });
       api.get('/shop/products/:id', async (req, reply) => {
         const id = (req.params as { id: string }).id;
         const products = await repo.shopProducts();
         const product = products.find((p) => p.id === id);
-        return product ? shapeProduct(product, products) : reply.code(404).send({ error: 'not_found' });
+        return product ? shapeProduct(product) : reply.code(404).send({ error: 'not_found' });
       });
     },
     { prefix: '/api/v1' },

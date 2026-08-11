@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_controller.dart';
 import '../../domain/course_lesson.dart';
+import '../../domain/shop_catalogue.dart';
 import 'mama_course_screen.dart';
 
 class CourseRoute extends StatefulWidget {
@@ -28,6 +29,11 @@ class _CourseRouteState extends State<CourseRoute> {
   /// public storefront config answers, and empty for good if it never does —
   /// which hides the button rather than opening a chat with nobody.
   String _whatsapp = '';
+
+  /// What the комплект costs today. Empty until `/shop/products` answers, and
+  /// the price card then shows the compile-time constants labelled as
+  /// approximate — never a stale figure presented as current.
+  ShopCatalogue _catalogue = ShopCatalogue.empty;
 
   @override
   void initState() {
@@ -49,6 +55,11 @@ class _CourseRouteState extends State<CourseRoute> {
     // offer's button missing for a beat and then appear under her thumb.
     unawaited(api.getShopContact().then((c) {
       if (mounted && c.whatsapp.isNotEmpty) setState(() => _whatsapp = c.whatsapp);
+    }));
+    // Same reasoning for the prices. getShopCatalogue never throws — an
+    // unreachable shop leaves the card on its constants, which it labels.
+    unawaited(api.getShopCatalogue().then((c) {
+      if (mounted && c.products.isNotEmpty) setState(() => _catalogue = c);
     }));
     try {
       final access = await api.getCourse();
@@ -87,5 +98,6 @@ class _CourseRouteState extends State<CourseRoute> {
         onRetry: _load,
         onProgress: _onProgress,
         whatsapp: _whatsapp,
+        catalogue: _catalogue,
       );
 }

@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/domain/course_lesson.dart';
 import 'package:fcs_app/domain/course_prices.dart';
 import 'package:fcs_app/domain/my_order.dart' show formatTenge;
+import 'package:fcs_app/domain/shop_catalogue.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/content/mama_course_screen.dart';
@@ -33,23 +34,53 @@ Future<void> pump(
   WidgetTester tester, {
   required CourseAccess access,
   String whatsapp = '+7 707 345 22 44',
+  ShopCatalogue catalogue = ShopCatalogue.empty,
+  L10n l10n = l,
 }) async {
   tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(L10nScope(
-    l10n: l,
+    l10n: l10n,
     child: MaterialApp(
-      theme: FcsTheme.light(AppLocale.ru),
+      theme: FcsTheme.light(l10n.locale),
       home: MamaCourseScreen(
         access: access,
         whatsapp: whatsapp,
+        catalogue: catalogue,
         launch: (_) async => true,
       ),
     ),
   ));
   await tester.pumpAndSettle();
 }
+
+const _offer = CourseAccess(entitled: false, lessons: [], preview: []);
+
+ShopCatalogue _live(List<CatalogueProduct> products, {bool fromCache = false}) =>
+    ShopCatalogue(
+      products: products,
+      fetchedAt: DateTime(2026, 8, 11),
+      fromCache: fromCache,
+    );
+
+CatalogueProduct _bundle(int priceMinor, {String? nameKk}) => CatalogueProduct(
+      id: bundleProductId,
+      nameRu: 'Комплект «Мама и ребёнок»',
+      nameKk: nameKk,
+      priceMinor: priceMinor,
+      isBundle: true,
+      partIds: const ['watch', 'tracker'],
+      inStock: true,
+    );
+
+CatalogueProduct _simple(String id, String nameRu, int priceMinor) =>
+    CatalogueProduct(
+      id: id,
+      nameRu: nameRu,
+      priceMinor: priceMinor,
+      inStock: true,
+    );
 
 void main() {
   group('the prices', () {
@@ -189,5 +220,99 @@ void main() {
     ));
     expect(find.text(l.t('crs_contents')), findsNothing);
     expect(find.text(formatTenge(coursePrices.bundleMinor)), findsOneWidget);
+  });
+
+  // -------------------------------------------------------------------------
+  // «карточка цены (39 000 ₸ / 69 800 ₸)» against the LIVE catalogue
+  // -------------------------------------------------------------------------
+
+  group('the price card reads the shop, not the build', () {
+    testWidgets('quotes the комплект at what the panel says it costs',
+        (tester) async {
+      await pump(tester, access: _offer, catalogue: _live([_bundle(4450000)]));
+      expect(find.text(formatTenge(4450000)), findsOneWidget);
+      expect(find.text(formatTenge(coursePrices.bundleMinor)), findsNothing);
+      // «69 800 ₸» moves with it: 24 900 + 4 900 + 40 000 is unchanged, so the
+      // comparison row still stands.
+      expect(find.text(formatTenge(coursePrices.separatelyMinor)),
+          findsOneWidget);
+    });
+
+    testWidgets('uses the catalogue\'s name, including in Kazakh',
+        (tester) async {
+      await pump(tester,
+          access: _offer,
+          l10n: const L10n(AppLocale.kk),
+          catalogue: _live([_bundle(3900000, nameKk: '«Ана мен бала» жинағы')]));
+      expect(find.text('«Ана мен бала» жинағы'), findsOneWidget);
+    });
+
+    testWidgets('the course-only row keeps the constant — no product to read',
+        (tester) async {
+      // 018_landing_prices: the course is what the комплект grants. Inventing a
+      // live figure for it would be fabrication.
+      await pump(tester, access: _offer, catalogue: _live([_bundle(4450000)]));
+      expect(find.text(formatTenge(coursePrices.courseOnlyMinor)),
+          findsOneWidget);
+    });
+
+    testWidgets('hides «отдельно» rather than printing a negative saving',
+        (tester) async {
+      // A struck-through 69 800 ₸ ABOVE a 99 000 ₸ set reads as a con.
+      await pump(tester, access: _offer, catalogue: _live([_bundle(9900000)]));
+      expect(find.text(formatTenge(9900000)), findsOneWidget);
+      expect(find.text(l.t('crs_separate_name')), findsNothing);
+      expect(find.text(formatTenge(coursePrices.separatelyMinor)), findsNothing);
+    });
+
+    testWidgets('with no catalogue the constants are shown AND labelled',
+        (tester) async {
+      await pump(tester, access: _offer);
+      expect(find.text(formatTenge(coursePrices.bundleMinor)), findsOneWidget);
+      expect(find.text(l.t('shop_prices_approx')), findsOneWidget);
+    });
+
+    testWidgets('a cached catalogue is dated, not passed off as current',
+        (tester) async {
+      await pump(tester,
+          access: _offer,
+          catalogue: ShopCatalogue(
+            products: [_bundle(3900000)],
+            fetchedAt: DateTime(2026, 3, 2),
+            fromCache: true,
+          ));
+      expect(find.text(l.t('shop_prices_cached', {'date': '02.03.2026'})),
+          findsOneWidget);
+    });
+
+    testWidgets('a live catalogue adds no banner', (tester) async {
+      await pump(tester, access: _offer, catalogue: _live([_bundle(3900000)]));
+      expect(find.text(l.t('shop_prices_approx')), findsNothing);
+    });
+
+    testWidgets('a set the shop has withdrawn is neither priced nor orderable',
+        (tester) async {
+      // The catalogue loaded perfectly and simply has no комплект in it — an
+      // operator set it inactive in frame 08. The card used to quote the
+      // build's 39 000 ₸ with «Заказать комплект в WhatsApp» beneath it, and
+      // no «ориентировочные», because ANY live product marked the card fresh.
+      await pump(tester,
+          access: _offer,
+          catalogue: _live([
+            _simple('watch', 'Часы', 2490000),
+            _simple('tracker', 'Трекер', 490000),
+          ]));
+      expect(find.text(formatTenge(coursePrices.bundleMinor)), findsNothing);
+      expect(find.text(l.t('crs_bundle_name')), findsNothing);
+      expect(find.text(l.t('crs_order_wa')), findsNothing);
+      // «69 800 ₸» goes too: it exists only to be compared with the set.
+      expect(find.text(l.t('crs_separate_name')), findsNothing);
+      // The course is still for sale, at the constant, and says it is a
+      // figure to be confirmed.
+      expect(find.text(formatTenge(coursePrices.courseOnlyMinor)),
+          findsOneWidget);
+      expect(find.text(l.t('crs_buy_course_wa')), findsOneWidget);
+      expect(find.text(l.t('shop_prices_approx')), findsOneWidget);
+    });
   });
 }

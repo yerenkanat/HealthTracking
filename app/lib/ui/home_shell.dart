@@ -45,6 +45,7 @@ import 'dashboard/water_history_screen.dart';
 import 'profile/family_access_screen.dart';
 import 'profile/my_order_screen.dart';
 import 'shop/shop_screen.dart';
+import '../domain/shop_catalogue.dart';
 import 'profile/profile_screen.dart';
 import 'tracking/alerts_screen.dart';
 import 'tracking/notification_centre_screen.dart';
@@ -701,6 +702,11 @@ class _ShopRoute extends StatefulWidget {
 
 class _ShopRouteState extends State<_ShopRoute> {
   String _whatsapp = '';
+
+  /// What is actually for sale, at today's prices. [ShopCatalogue.empty] when
+  /// the shop could not be reached and nothing was cached — the screen then
+  /// shows the compile-time constants and says they are approximate.
+  ShopCatalogue _catalogue = ShopCatalogue.empty;
   bool _ready = false;
 
   @override
@@ -710,10 +716,21 @@ class _ShopRouteState extends State<_ShopRoute> {
   }
 
   Future<void> _load() async {
-    final contact = await widget.controller.api?.getShopContact();
+    // Both before the first paint, and for the same reason: the number decides
+    // whether buy buttons exist and the catalogue decides what they say (an
+    // out-of-stock product asks «под заказ»). A screen that rewrites its own
+    // buttons a second in is one somebody taps by accident.
+    //
+    // Neither call throws — getShopCatalogue degrades to its cache and then to
+    // nothing — so there is no failure branch to handle here beyond what the
+    // screen already renders.
+    final api = widget.controller.api;
+    final contact = await api?.getShopContact();
+    final catalogue = await api?.getShopCatalogue();
     if (!mounted) return;
     setState(() {
       _whatsapp = contact?.whatsapp ?? '';
+      _catalogue = catalogue ?? ShopCatalogue.empty;
       _ready = true;
     });
   }
@@ -732,6 +749,7 @@ class _ShopRouteState extends State<_ShopRoute> {
         for (final ch in c.children)
           if (ch.hasDateOfBirth) ch.ageInMonths(now),
       ],
+      catalogue: _catalogue,
       onOrder: digits.isEmpty
           ? null
           : (message) => launchUrl(

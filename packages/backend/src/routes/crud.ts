@@ -765,6 +765,19 @@ export function registerCrudRoutes(
   });
 
   // ---- Shop (public storefront — no auth: customers are not signed in) ----
+  /**
+   * The live catalogue the app's screen 41 renders.
+   *
+   * Each product now carries what an operator edits in frame 08a — the Kazakh
+   * name, the descriptions, the stage, the child age band — plus a derived
+   * `inStock`. Before that this route answered with id/name/price/kind/variants
+   * and the app hard-coded three products and their prices, so changing a price
+   * in the panel changed nothing a customer could see.
+   *
+   * Still unauthenticated, and therefore still free of `costMinor`, margin and
+   * anything else a customer has no business reading: [ShopProduct] does not
+   * carry them, which is the guarantee — not a field list maintained here.
+   */
   app.get('/shop/products', async (_req, reply) => reply.send({ products: await repo.shopProducts() }));
   // Public store config the landing pages read: WhatsApp order number + Kaspi
   // link. A whitelist of the settings table — secrets never leave here.

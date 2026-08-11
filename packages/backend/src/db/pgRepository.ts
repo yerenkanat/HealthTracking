@@ -19,7 +19,7 @@ import type {
   TriageSeverity,
 } from '@fcs/shared';
 import type { Repository } from './repository';
-import { bundleDiscountMinor } from './repository';
+import { bundleDiscountMinor, markInStock } from './repository';
 import { normalizePhone } from '../phone.js';
 import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
 
@@ -1927,8 +1927,14 @@ export function createPgRepository(pool: Pool): Repository {
 
     // ---- Shop ----
     async shopProducts() {
+      // The catalogue columns (migration 033) travel with the product. Without
+      // them /shop/products answered with five fields and the app hard-coded
+      // the rest, so an operator's price, Kazakh name, stage and age band
+      // reached the panel and stopped there.
       const { rows } = await pool.query(
         `SELECT p.id, p.name, p.price_minor, COALESCE(p.kind, 'simple') AS kind,
+                p.name_kk, p.description_ru, p.description_kk,
+                p.stage, p.category, p.age_min_months, p.age_max_months, p.photo_url,
                 v.id AS vid, v.color, v.color_hex, v.stock
          FROM shop_products p
          LEFT JOIN shop_variants v ON v.product_id = p.id
@@ -1941,13 +1947,27 @@ export function createPgRepository(pool: Pool): Repository {
       for (const r of rows) {
         let p = byId.get(r.id);
         if (!p) {
-          p = { id: r.id, name: r.name, priceMinor: r.price_minor, variants: [], kind: r.kind, parts: [] };
+          p = {
+            id: r.id, name: r.name, priceMinor: r.price_minor, variants: [], kind: r.kind, parts: [],
+            nameKk: r.name_kk ?? null,
+            descriptionRu: r.description_ru ?? null,
+            descriptionKk: r.description_kk ?? null,
+            stage: r.stage ?? null,
+            category: r.category ?? null,
+            ageMinMonths: r.age_min_months === null || r.age_min_months === undefined ? null : Number(r.age_min_months),
+            ageMaxMonths: r.age_max_months === null || r.age_max_months === undefined ? null : Number(r.age_max_months),
+            photoUrl: r.photo_url ?? null,
+            inStock: false,
+          };
           byId.set(r.id, p);
         }
         if (r.vid) p.variants.push({ id: r.vid, color: r.color, colorHex: r.color_hex, stock: r.stock });
       }
       for (const r of partRows) byId.get(r.bundle_id)?.parts.push({ partId: r.part_id, qty: r.qty });
-      return [...byId.values()];
+      // A bundle's parts may themselves be inactive and therefore absent from
+      // `byId`; markInStock treats an unresolvable part as unavailable, which
+      // is right — the set cannot be assembled.
+      return markInStock([...byId.values()]);
     },
 
     async placeShopOrder(o) {

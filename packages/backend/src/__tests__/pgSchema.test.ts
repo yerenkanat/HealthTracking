@@ -271,8 +271,33 @@ describe('pgRepository against db/schema.sql', () => {
     // A method missing from the pg implementation is a runtime failure the
     // moment production reaches it, and TypeScript will not always catch it
     // through the object-literal-to-interface widening used here.
+    //
+    // Scanned inside `export interface Repository { … }` ONLY. Reading the
+    // whole file, every two-space-indented `name(` counted — so the first
+    // top-level helper function to contain a plain `for (` or `if (` made the
+    // check demand that pgRepository implement a method called `for`, and the
+    // fix would have looked like contorting the source to please a regex.
+    // Other interfaces in the file are not Repository's contract either.
     const iface = readFileSync(`${root}src/db/repository.ts`, 'utf8');
-    const declared = [...iface.matchAll(/^\s{2}([a-zA-Z][a-zA-Z0-9]*)\s*\(/gm)].map((m) => m[1]);
+    const start = iface.indexOf('export interface Repository {');
+    expect(start, 'the Repository interface was not found').toBeGreaterThan(-1);
+    // Ends at the first line that closes a block at column 0 — the interface's
+    // own `}`. Nested braces inside it are always indented.
+    const rest = iface.slice(start);
+    const end = rest.search(/\n\}/);
+    const body = end === -1 ? rest : rest.slice(0, end);
+
+    const declared = [...body.matchAll(/^\s{2}([a-zA-Z][a-zA-Z0-9]*)\s*(?:<[^>]*>)?\s*\(/gm)]
+      .map((m) => m[1]);
+
+    // Guards the guard: an extraction that matched nothing would pass silently,
+    // which is the most comfortable way to ship an unimplemented method.
+    expect(declared.length,
+      `parsed ${declared.length} interface methods — the extraction broke`)
+      .toBeGreaterThan(50);
+    expect(declared).toContain('shopProducts');
+    expect(declared).not.toContain('for');
+
     const missing = declared.filter(
       (m) => !new RegExp(`\\basync ${m}\\s*\\(|\\b${m}\\s*:\\s*async`).test(repo),
     );

@@ -47,6 +47,7 @@ import 'domain/chat_controller.dart';
 import 'domain/family.dart' show UserProfile, ChildProfile, PairedDevice, genderFromName;
 import 'domain/health_monitor.dart';
 import 'data/api_client.dart';
+import 'data/shop_catalogue_cache.dart';
 import 'data/server_phone_auth.dart';
 import 'ui/auth/sign_in_route.dart' show apiBaseForAuth;
 import 'data/sync_push.dart';
@@ -413,7 +414,11 @@ Future<void> bootstrapRuntime(
       // wired). Read fresh each request so sign-in/out takes effect immediately.
       getToken: () async => controller.authSession?.token,
       devUserId: const String.fromEnvironment('DEV_USER_ID'),
-    ));
+    ),
+      // So the shop still has prices — and can say how old they are — on a
+      // phone with no signal.
+      catalogueCache: const PrefsShopCatalogueCache(),
+    );
 
     // Ask the server whether this build is still supported. A raised floor
     // blocks the app behind the force-update screen; offline or a failure here
