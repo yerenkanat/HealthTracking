@@ -107,3 +107,43 @@ satisfy the frame would have been the one thing worse than omitting it.
 Everything else in the frame is built: the dialogue, «действие в чате» (offered
 only when this build can really perform one), the topic chips and the input with
 its round `↑`.
+
+## Screen 21 has no «Позвонить Алие»
+
+**Spec:** «21 · SOS — … → «Позвонить Алие» (белая) → «Открыть карту» →
+«Сообщить Нуржану и Әже».»
+
+Two of those three are built. The first is not, and the screen says so.
+
+Nothing in the schema holds a telephone number for a child or for the tracker
+she wears. `children` carries a name, a gender and a date of birth;
+`child_devices` carries an id, a kind and a battery level. There is no column
+anywhere that could answer «какой номер у Алии», and there is no source that
+could fill one in — the app has never asked for it and the back office has
+never shown it.
+
+So the screen prints «Позвонить ребёнку из приложения нельзя: номера брелока в
+карточке нет» and puts 103 immediately under it, using the same
+`CallAmbulanceFooter` every red-flag screen in the app ends with. The
+alternative was a white button labelled «Позвонить Алие» wired to the first
+number in reach — the mother's own emergency contact, or the doctor on the
+child's medical card — which on this screen, at this moment, is the worst thing
+the product could do.
+
+«Сообщить Нуржану» IS built, from `child_emergency.contact_name` /
+`contact_phone`, which the parent fills in on the child's medical-ID card. When
+that card is empty the button is absent and a note says the contact is not
+filled in, rather than a dead control.
+
+Adding a child/tracker phone number is a real feature — a migration, both
+repositories, the route, the sync and an editor to type it into — and it should
+be built. It is not something to invent inside a screen.
+
+## Screen 21's location card draws no live map by default
+
+The card shows the map when the build has a Maps key
+(`--dart-define=MAPS_ENABLED=true`), and the position with its freshness stamp
+when it does not — the same behaviour as the tracking tab, from the same
+`buildTrackingMap`. With no fix at all it says the app has not received one
+instead of centring a map on a default coordinate, which would draw a pin in
+Almaty for a child in Shymkent.

@@ -157,6 +157,65 @@ describe('editing the catalogue', () => {
   });
 });
 
+describe('the topic a guide is filed under', () => {
+  beforeEach(async () => {
+    app = makeApp('admin');
+    await app.ready();
+  });
+
+  it('survives the round trip to the phone', async () => {
+    // z.object STRIPS unknown keys. Without `topic` in the schema every save
+    // from the panel would silently erase it, and the only symptom would be a
+    // tile in the app quietly emptying over a week of ordinary editing.
+    const r = await put('/admin/content/w20', { items: [{ ...lesson, topic: 'mother' }] });
+    expect(r.statusCode).toBe(200);
+    expect((await get('/admin/content')).json().stages.w20[0].topic).toBe('mother');
+
+    const feed = await app.inject({ method: 'GET', url: '/content' });
+    expect(feed.statusCode).toBe(200);
+    expect(feed.json().stages.w20[0].topic).toBe('mother');
+  });
+
+  it('is optional — an untagged item still publishes', async () => {
+    // 364 items are already published without one. The app places them by
+    // their home stage, so tagging is an improvement, never a migration.
+    expect((await put('/admin/content/w21', { items: [lesson] })).statusCode).toBe(200);
+    expect((await get('/admin/content')).json().stages.w21[0].topic).toBeUndefined();
+  });
+
+  it('refuses a topic the app has no tile for', async () => {
+    // Stored, shipped to every phone, drawn nowhere — the defect this repo
+    // makes most often. Rejected at the edge instead.
+    const r = await put('/admin/content/w22', { items: [{ ...lesson, topic: 'nutrition' }] });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('still does not carry a draft or a reviewer to the phone', async () => {
+    // The topic rides in the same object as the two things that must never
+    // reach a reader, so it is checked in the same breath.
+    await put('/admin/content/w23', {
+      items: [
+        { ...lesson, id: 'w23-draft', topic: 'baby', draft: true },
+        { ...lesson, id: 'w23-live', topic: 'baby' },
+      ],
+    });
+    const stages = (await app.inject({ method: 'GET', url: '/content' })).json().stages;
+    expect(stages.w23.map((i: { id: string }) => i.id)).toEqual(['w23-live']);
+    expect(stages.w23[0].review).toBeUndefined();
+    expect(stages.w23[0].topic).toBe('baby');
+  });
+
+  it('accepts it in a bulk import too', async () => {
+    const r = await app.inject({
+      method: 'PUT',
+      url: '/admin/content',
+      payload: { stages: { m7: [{ ...lesson, id: 'm7-sleep', topic: 'child' }] } },
+    });
+    expect(r.statusCode).toBe(200);
+    expect((await get('/admin/content')).json().stages.m7[0].topic).toBe('child');
+  });
+});
+
 describe('drilldowns and fleet', () => {
   beforeEach(async () => {
     app = makeApp('clinician');

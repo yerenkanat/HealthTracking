@@ -18,7 +18,7 @@ import {
 } from '../geofence/geofence';
 
 export interface IngestItem {
-  type: 'telemetry' | 'location';
+  type: 'telemetry' | 'location' | 'wearable';
   payload: Record<string, unknown>;
 }
 
@@ -47,6 +47,8 @@ export interface IngestDeps {
 export interface IngestSummary {
   telemetryCount: number;
   locationCount: number;
+  /** Watch activity/wellbeing snapshots stored (steps, calories, stress, …). */
+  wearableCount: number;
   emergencies: number;
   geofenceEvents: GeofenceEvent[];
   rejected: number;
@@ -62,6 +64,7 @@ export async function handleIngestBatch(
   const summary: IngestSummary = {
     telemetryCount: 0,
     locationCount: 0,
+    wearableCount: 0,
     emergencies: 0,
     geofenceEvents: [],
     rejected: 0,
@@ -74,6 +77,8 @@ export async function handleIngestBatch(
         await ingestTelemetry(item.payload as unknown as BandTelemetry, deps, summary);
       } else if (item.type === 'location') {
         await ingestLocation(item.payload as unknown as ChildLocationFix, deps, summary);
+      } else if (item.type === 'wearable') {
+        await ingestWearable(item.payload as unknown as WearableSnapshot, deps, summary);
       } else {
         summary.rejected++;
       }
@@ -136,6 +141,60 @@ async function ingestTelemetry(
     summary.emergencies++;
     await deps.sendEmergencyPush(userId, triage);
   }
+}
+
+/**
+ * The watch's activity / wellbeing snapshot for one day.
+ *
+ * Everything the wrist device measures that is NOT one of the four triage
+ * vitals: what she did (steps, distance, calories), how her body is between
+ * measurements (stress, breathing rate, MET), and the state of the device
+ * itself (battery, charging, on-wrist). None of it can raise an emergency, so
+ * none of it goes near triage — it is stored, and read by the clinician and
+ * operator views.
+ *
+ * Upserted on (user, device, day) rather than appended: steps and calories are
+ * the watch's own running daily totals, so thirty polls an hour would otherwise
+ * write thirty rows that each say the same thing a little later.
+ */
+export interface WearableSnapshot {
+  deviceId: string;
+  day: string; // yyyy-MM-dd, the WEARER's local day
+  recordedAt: string; // ISO instant of the snapshot this row was built from
+  steps: number;
+  kcal: number;
+  meters: number;
+  sleepMinutes: number;
+  deepSleepMinutes: number;
+  lightSleepMinutes: number;
+  stress?: number;
+  breathRate?: number;
+  met?: number;
+  batteryPercent?: number;
+  charging: boolean;
+  worn: boolean;
+}
+
+async function ingestWearable(
+  w: WearableSnapshot,
+  deps: IngestDeps,
+  summary: IngestSummary,
+): Promise<void> {
+  // Attributed exactly like a reading: the device that produced it decides
+  // whose row this is, and a device this caller does not own is not theirs to
+  // write. A snapshot with no device cannot be attributed at all — unlike a
+  // hand-typed vital, nobody types in their own step count.
+  const owner = await deps.repo.deviceOwner(w.deviceId);
+  if (!owner) {
+    summary.rejected++;
+    return;
+  }
+  if (deps.callerUserId && owner.userId !== deps.callerUserId) {
+    summary.rejected++;
+    return;
+  }
+  await deps.repo.upsertWearableDay({ ...w, userId: owner.userId });
+  summary.wearableCount++;
 }
 
 async function ingestLocation(

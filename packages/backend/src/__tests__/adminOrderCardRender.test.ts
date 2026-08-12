@@ -1,0 +1,379 @@
+/**
+ * Кадр 02 «Заказы» and кадр 03 «Карточка заказа», drawn by a browser.
+ *
+ * The panel is one HTML file executed top to bottom, so "the markup contains
+ * the right ids" proves nothing: a slip in an earlier block kills every later
+ * one and the file still greps clean. Everything here is asserted against what
+ * jsdom actually rendered after running the page's own JavaScript.
+ *
+ * The defect this covers: clicking an order did nothing. There was no card, so
+ * the finished, audited GET /admin/shop/orders/:id/devices had no caller and a
+ * packer could not see which serials were already on an order — every re-bind
+ * was blind.
+ */
+
+import { describe, it, expect } from 'vitest';
+import { JSDOM, VirtualConsole } from 'jsdom';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const PANEL = resolve(here, '../../../admin/index.html');
+
+const ORDER_ID = '11111111-2222-3333-4444-555555555555';
+
+/** One page of кадр 02 — three rows, and counters over the whole table. */
+const PAGE = {
+  orders: [
+    {
+      id: ORDER_ID, customerName: 'Мадина', phone: '+7 701 000 00 00', city: 'Астана',
+      address: 'ул. Абая 1', note: null, status: 'new', totalMinor: 3900000, discountMinor: 800000,
+      createdAt: '2026-08-01T10:00:00Z',
+      items: [{ productName: 'Часы', color: 'Чёрный', qty: 1, unitPriceMinor: 3900000 }],
+    },
+    {
+      id: 'aaaaaaaa-2222-3333-4444-555555555555', customerName: 'Айгерім', phone: '+7 707 345 22 44',
+      city: 'Алматы', address: 'ул. Сейфуллина 2', note: null, status: 'shipped',
+      totalMinor: 1990000, discountMinor: 0, createdAt: '2026-08-02T10:00:00Z',
+      items: [{ productName: 'Брелок', color: 'Розовый', qty: 1, unitPriceMinor: 1990000 }],
+    },
+  ],
+  total: 284,
+  offset: 0,
+  limit: 25,
+  status: null,
+  counts: { new: 14, confirmed: 3, shipped: 260, delivered: 5, cancelled: 2 },
+};
+
+const CARD = {
+  order: PAGE.orders[0],
+  ref: ORDER_ID.slice(0, 8),
+  timeline: [
+    { at: '2026-08-01T10:00:00Z', kind: 'created', status: 'new', from: null, by: null },
+    { at: '2026-08-02T09:30:00Z', kind: 'status', status: 'confirmed', from: 'new', by: 'Нуржан' },
+  ],
+  historyGap: false,
+  whatsapp: 'https://wa.me/77010000000?text=hello',
+  payment: {
+    totalMinor: 3900000, discountMinor: 800000, recorded: false,
+    note: 'Оплата при получении. Способ и факт оплаты в базе не хранятся.',
+  },
+};
+
+const DEVICES = {
+  devices: [
+    {
+      serial: 'AABBCCDDEE01', status: 'sold', kind: 'band', activationCode: null,
+      orderId: ORDER_ID, receivedAt: '2026-07-20T10:00:00Z',
+      activatedByPhone: '77010000000', activatedAt: null, note: null,
+    },
+  ],
+};
+
+interface Sent { path: string; method: string; body: unknown }
+
+interface Opts {
+  /** GET /admin/shop/orders/:id/devices answers 403. */
+  devicesForbidden?: boolean;
+  /** Every non-GET fails. */
+  failWrites?: boolean;
+  /** What confirm() returns. */
+  confirmAnswer?: boolean;
+  /** Serve the list WITHOUT total/counts, as an older backend would. */
+  oldBackend?: boolean;
+  /** The role the session reports. */
+  role?: string;
+}
+
+async function openShop(opts: Opts = {}) {
+  const html = readFileSync(PANEL, 'utf8');
+  const sent: Sent[] = [];
+  const alerts: string[] = [];
+  const confirms: string[] = [];
+  const errors: string[] = [];
+  const vc = new VirtualConsole();
+  vc.on('jsdomError', (e: Error) => errors.push(e.message));
+
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    pretendToBeVisual: true,
+    url: 'http://localhost/admin/ui',
+    virtualConsole: vc,
+    beforeParse(window) {
+      window.HTMLCanvasElement.prototype.getContext = ((): unknown => {
+        const noop = () => {};
+        return new Proxy(
+          { canvas: { width: 600, height: 170 }, createLinearGradient: () => ({ addColorStop: noop }), measureText: () => ({ width: 10 }) },
+          { get: (t: Record<string, unknown>, k: string) => (k in t ? t[k] : noop), set: () => true },
+        );
+      }) as never;
+      Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
+      window.scrollTo = () => {};
+      Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
+      (window as unknown as { alert: (m: string) => void }).alert = (m) => alerts.push(m);
+      (window as unknown as { confirm: (m: string) => boolean }).confirm = (m) => {
+        confirms.push(m);
+        return opts.confirmAnswer ?? true;
+      };
+      window.fetch = (async (path: string, init?: RequestInit) => {
+        const p = String(path);
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, text: async () => '', json: async () => ({ staffId: 's1', role: opts.role ?? 'admin', displayName: 'Нуржан' }) };
+        }
+        const method = init?.method ?? 'GET';
+        if (method !== 'GET') {
+          sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });
+          if (opts.failWrites) return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
+          return { ok: true, status: 200, text: async () => '', json: async () => ({ ok: true, linked: ['AABBCCDDEE02'], unknown: [] }) };
+        }
+        sent.push({ path: p, method, body: null });
+
+        if (/\/admin\/shop\/orders\/[^/]+\/devices/.test(p)) {
+          if (opts.devicesForbidden) return { ok: false, status: 403, text: async () => '', json: async () => ({ error: 'forbidden', need: 'stock' }) };
+          return { ok: true, status: 200, text: async () => '', json: async () => DEVICES };
+        }
+        const one = p.match(/\/admin\/shop\/orders\/([^/?]+)$/);
+        if (one) {
+          // The card that comes back must describe the order that was ASKED
+          // for: a fixture that always answers "new" would hide every rule
+          // that depends on where the order already is.
+          const order = PAGE.orders.find((o) => o.id === one[1]) ?? PAGE.orders[0];
+          return {
+            ok: true, status: 200, text: async () => '',
+            json: async () => ({ ...CARD, order, ref: order.id.slice(0, 8) }),
+          };
+        }
+        const body = p.includes('/admin/shop/orders')
+          ? (opts.oldBackend ? { orders: PAGE.orders } : PAGE)
+          : p.includes('/admin/shop/leads')
+            ? { leads: [] }
+            : p.includes('/admin/shop/variants')
+              ? { variants: [] }
+              : p.includes('/admin/settings')
+                ? { settings: {} }
+                : p.includes('/admin/stats')
+                  ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 }
+                  : {};
+        return { ok: true, status: 200, text: async () => '', json: async () => body };
+      }) as never;
+    },
+  });
+
+  const { window } = dom;
+  await new Promise((r) => setTimeout(r, 200));
+  window.document.querySelector('[data-view="shop"]')!
+    .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 350));
+  return { window, sent, errors, alerts, confirms };
+}
+
+/** Click a rendered element and let its handler finish. */
+async function click(window: JSDOM['window'], el: Element | null, ms = 300) {
+  expect(el, 'nothing to click').not.toBeNull();
+  el!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+describe('кадр 02 — the list an operator works from', () => {
+  it('draws filter chips carrying the count of each status', async () => {
+    const { window, errors } = await openShop();
+    expect(errors, errors.join('\n')).toEqual([]);
+
+    const chips = window.document.getElementById('orderChips')!;
+    const labels = [...chips.querySelectorAll('.fchip')].map((c) => c.textContent ?? '');
+    expect(labels.length, 'no status chips were drawn').toBeGreaterThan(4);
+    // «Новые» on its own tells an operator nothing; the number is the control.
+    expect(labels.join(' ')).toContain('Новый');
+    expect(labels.join(' ').replace(/[   ]/g, ' ')).toContain('14');
+    expect(labels[0]).toContain('Все');
+  });
+
+  it('states «Показано N из M» and the rule the list obeys', async () => {
+    const { window } = await openShop();
+    const foot = window.document.getElementById('ordersFoot')!.textContent ?? '';
+    expect(foot.replace(/[   ]/g, ' ')).toContain('Показано 1–2 из 284');
+    // Every table footer states its rule (spec 3.4). This one is the reason a
+    // cancelled order is still on the screen.
+    expect(foot).toMatch(/не удаляются/i);
+  });
+
+  it('pages forward, asking the server for the next offset', async () => {
+    const { window, sent } = await openShop();
+    await click(window, window.document.getElementById('ordersNext'));
+    const asked = sent.filter((s) => s.path.includes('offset=25'));
+    expect(asked.length, 'Вперёд did not ask for the next page').toBeGreaterThan(0);
+    // «Назад» is disabled on the first page rather than paging into nothing.
+    const { window: fresh } = await openShop();
+    expect((fresh.document.getElementById('ordersPrev') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('filtering by a chip asks for that status and resets the offset', async () => {
+    const { window, sent } = await openShop();
+    const chip = [...window.document.querySelectorAll('#orderChips .fchip')]
+      .find((c) => (c as HTMLElement).dataset.ostatus === 'shipped')!;
+    await click(window, chip);
+    const asked = sent.filter((s) => s.path.includes('status=shipped'));
+    expect(asked.length, 'the chip filtered nothing').toBeGreaterThan(0);
+    expect(asked[asked.length - 1].path).toContain('offset=0');
+  });
+
+  it('says the counters are missing rather than printing zeroes', async () => {
+    // A backend one deploy behind answers 200 without total/counts. «Показано
+    // 0 из 0» over a full list is a lie the operator cannot spot.
+    const { window } = await openShop({ oldBackend: true });
+    const chips = window.document.getElementById('orderChips')!.textContent ?? '';
+    const foot = window.document.getElementById('ordersFoot')!.textContent ?? '';
+    expect(chips).toMatch(/счётчики не пришли/i);
+    expect(foot).not.toContain('из 0');
+    expect(foot).toMatch(/сервер не сказал/i);
+  });
+});
+
+describe('кадр 03 — clicking an order opens its card', () => {
+  it('opens the card and fills it from the order route', async () => {
+    const { window, sent, errors } = await openShop();
+    expect(errors, errors.join('\n')).toEqual([]);
+
+    const card = window.document.getElementById('orderCard')!;
+    expect(card.hasAttribute('hidden'), 'the card was open before anything was clicked').toBe(true);
+
+    await click(window, window.document.querySelector('tr[data-order]'));
+
+    expect(card.hasAttribute('hidden'), 'clicking an order still does nothing').toBe(false);
+    expect(sent.some((s) => s.method === 'GET' && s.path.endsWith(`/admin/shop/orders/${ORDER_ID}`)))
+      .toBe(true);
+
+    expect(window.document.getElementById('ocTitle')!.textContent).toContain(ORDER_ID.slice(0, 8));
+    // Composition, per line.
+    expect(window.document.getElementById('ocItems')!.textContent).toContain('Часы');
+    // Customer and delivery.
+    expect(window.document.getElementById('ocCustomer')!.textContent).toContain('Мадина');
+    expect(window.document.getElementById('ocDelivery')!.textContent).toContain('ул. Абая 1');
+  });
+
+  it('calls the devices route and shows the serials already on the order', async () => {
+    // The route existed, was audited and had no caller. Without this a packer
+    // binds serials blind.
+    const { window, sent } = await openShop();
+    await click(window, window.document.querySelector('tr[data-order]'));
+
+    expect(
+      sent.some((s) => s.method === 'GET' && s.path.includes(`/admin/shop/orders/${ORDER_ID}/devices`)),
+      'the card never asked which devices are on this order',
+    ).toBe(true);
+    const devices = window.document.getElementById('ocDevices')!.textContent ?? '';
+    expect(devices).toContain('AABBCCDDEE01');
+  });
+
+  it('says the serials are unknown when that request is refused, and does not pretend', async () => {
+    const { window } = await openShop({ devicesForbidden: true });
+    await click(window, window.document.querySelector('tr[data-order]'));
+    const devices = window.document.getElementById('ocDevices')!.textContent ?? '';
+    expect(devices).toMatch(/закрыт|неизвестно/i);
+    expect(devices).not.toContain('AABBCCDDEE01');
+  });
+
+  it('draws the history with who moved the status', async () => {
+    const { window } = await openShop();
+    await click(window, window.document.querySelector('tr[data-order]'));
+    const tl = window.document.getElementById('ocTimeline')!.textContent ?? '';
+    expect(tl).toContain('Заказ создан');
+    expect(tl).toContain('Подтверждён');
+    expect(tl, 'the timeline dropped the person who did it').toContain('Нуржан');
+  });
+
+  it('prints what the schema cannot answer about payment', async () => {
+    const { window } = await openShop();
+    await click(window, window.document.querySelector('tr[data-order]'));
+    const pay = window.document.getElementById('ocPayment')!.textContent ?? '';
+    // The sum it CAN stand behind…
+    expect(pay.replace(/[   ]/g, ' ')).toContain('39 000');
+    // …and the absence, in words, because a blank field reads as «не оплачено».
+    expect(pay).toMatch(/не хранятся/i);
+  });
+
+  it('offers the WhatsApp link the server built, not one it invented', async () => {
+    const { window } = await openShop();
+    await click(window, window.document.querySelector('tr[data-order]'));
+    const wa = window.document.getElementById('ocWa') as HTMLAnchorElement;
+    expect(wa.hidden).toBe(false);
+    expect(wa.getAttribute('href')).toBe(CARD.whatsapp);
+  });
+});
+
+describe('the card’s dangerous actions ask first, and report the answer', () => {
+  it('names the customer and the money before cancelling', async () => {
+    const { window, sent, confirms } = await openShop({ confirmAnswer: false });
+    await click(window, window.document.querySelector('tr[data-order]'));
+    await click(window, window.document.getElementById('ocCancel'));
+
+    expect(confirms.length, 'the order was cancelled without asking').toBe(1);
+    expect(confirms[0]).toContain('Мадина');
+    expect(confirms[0].replace(/[   ]/g, ' ')).toContain('39 000');
+    // And what it costs, not just that it is irreversible.
+    expect(confirms[0]).toMatch(/склад/i);
+    expect(sent.filter((s) => s.method === 'PATCH'), 'a declined cancellation still reached the server')
+      .toEqual([]);
+  });
+
+  it('cancels when confirmed', async () => {
+    const { window, sent } = await openShop({ confirmAnswer: true });
+    await click(window, window.document.querySelector('tr[data-order]'));
+    await click(window, window.document.getElementById('ocCancel'));
+
+    const patch = sent.find((s) => s.method === 'PATCH');
+    expect(patch, 'confirming cancelled nothing').toBeTruthy();
+    expect(patch!.path).toContain(ORDER_ID);
+    expect(patch!.body).toEqual({ status: 'cancelled' });
+  });
+
+  it('says the order is NOT cancelled when the write fails', async () => {
+    // A tick over a failed write is how somebody believes a sale is closed
+    // when it is still in the shipping queue.
+    const { window, sent } = await openShop({ confirmAnswer: true, failWrites: true });
+    await click(window, window.document.querySelector('tr[data-order]'));
+    await click(window, window.document.getElementById('ocCancel'));
+
+    expect(sent.some((s) => s.method === 'PATCH'), 'it did try').toBe(true);
+    const err = window.document.getElementById('ocError')!;
+    expect(err.hasAttribute('hidden'), 'a failed cancellation said nothing').toBe(false);
+    expect(err.textContent).toMatch(/не отмен/i);
+  });
+
+  it('warns that rolling a shipped order back does not take the course away', async () => {
+    // The quiet one: the entitlement granted on dispatch is never revoked, so
+    // an order rolled back leaves a paid-for course nobody remembers giving.
+    const { window, confirms, sent } = await openShop({ confirmAnswer: false });
+    await click(window, window.document.querySelectorAll('tr[data-order]')[1]);
+
+    const sel = window.document.getElementById('ocStatus') as HTMLSelectElement;
+    // The card's own control never offers «Отменён» — cancelling is a
+    // dangerous action with its own button, and one screen must not carry two
+    // ways to do the same irreversible thing.
+    expect([...sel.options].map((o) => o.value)).not.toContain('cancelled');
+
+    sel.value = 'new';
+    sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 250));
+
+    expect(confirms.length, 'rolling an order back asked nothing').toBe(1);
+    expect(confirms[0]).toMatch(/Ма!Ма!/);
+    expect(sent.filter((s) => s.method === 'PATCH')).toEqual([]);
+    expect(sel.value, 'the dropdown kept a value the operator backed out of').toBe('shipped');
+  });
+});
+
+describe('a role without warehouse access', () => {
+  it('is told why the serials are not shown, instead of a silent empty block', async () => {
+    // An operator has `orders` and not `stock`. The card is still hers; the
+    // serials are not, and «пусто» would read as "nothing was ever packed".
+    const { window, sent } = await openShop({ role: 'operator' });
+    await click(window, window.document.querySelector('tr[data-order]'));
+
+    const devices = window.document.getElementById('ocDevices')!.textContent ?? '';
+    expect(devices).toMatch(/складск/i);
+    // And it does not fire a request it knows will be refused.
+    expect(sent.some((s) => s.path.includes('/devices'))).toBe(false);
+  });
+});

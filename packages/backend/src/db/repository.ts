@@ -15,8 +15,15 @@ import type {
 import type { BiMetrics } from '../analytics/biMetrics.js';
 import type { SosOutcome } from '../safety/dayHistory.js';
 import type { BroadcastSegment } from '../admin/broadcasts.js';
+import type {
+  VaccinationOverride,
+  VaccinationSettings,
+  VaccineText as VaccineTextRow,
+} from '../vaccination/overrides.js';
+import type { VaccinationCoverageData } from '../vaccination/coverage.js';
 
 export type { BiMetrics };
+export type { VaccinationOverride, VaccinationSettings, VaccinationCoverageData };
 
 export interface CryRow {
   at: string; // ISO timestamp of the analysis
@@ -36,6 +43,32 @@ export interface SleepNight {
   // for backups that predate this — so old rows still read exactly as before.
   source?: string;
   manualAsleepMin?: number | null;
+}
+
+/**
+ * One day of what the watch measured beyond the four triage vitals.
+ *
+ * Optional fields are optional on purpose: the watch reports 0 for a wellness
+ * value it has not measured, and the app maps that to "absent" before it gets
+ * here. A missing stress must stay missing — stored as 0 it would read back as
+ * a measurement of perfect calm.
+ */
+export interface WearableDayRow {
+  deviceId: string;
+  day: string; // yyyy-MM-dd, the wearer's local day
+  recordedAt: string; // ISO instant of the last snapshot folded into this day
+  steps: number;
+  kcal: number;
+  meters: number;
+  sleepMinutes: number;
+  deepSleepMinutes: number;
+  lightSleepMinutes: number;
+  stress?: number | null;
+  breathRate?: number | null;
+  met?: number | null;
+  batteryPercent?: number | null;
+  charging: boolean;
+  worn: boolean;
 }
 
 export interface WeightRow {
@@ -452,6 +485,14 @@ export interface ContentItemRow {
   /// Other stages this same item also serves; it is stored once, under the
   /// stage it is filed in. See the zod schema in routes/admin.ts.
   alsoStages?: string[];
+  /// Which shelf of the app's guides library this belongs on.
+  ///
+  /// A fixed vocabulary, not free text: the app draws four topic tiles and a
+  /// fifth value would be downloaded and never shown. Optional — an untagged
+  /// item is placed by its home stage (weeks → pregnancy, m0-m12 → baby, m13+
+  /// → child), which is why the grid is not empty on the day this shipped.
+  /// 'mother' has no stage that implies it, so it is only ever set by hand.
+  topic?: 'pregnancy' | 'baby' | 'child' | 'mother';
   /// Medical guidance, so it may not be published without a clinician's
   /// sign-off. See content/medicalReview.ts.
   medical?: boolean;
@@ -491,6 +532,25 @@ export interface PregnancyWeekOverride {
   rev: number;
   updatedAt: string;
   updatedBy: string | null;
+}
+
+/**
+ * One entry of the vaccination schedule log — frame 15b «История версий».
+ *
+ * Append-only. The override row holds only the CURRENT text, so a version list
+ * built from it could show what a vaccine says but never what it said before.
+ * `before` is null on a vaccine's first edit: there was no row, and the
+ * baseline that edit departed from is the shipped contract, which the panel
+ * already has and shows instead of this inventing one.
+ */
+export interface VaccinationLogEntry {
+  id: number;
+  /// The override key, or '@settings' for a change to the catch-up window.
+  key: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
+  actor: string | null;
+  at: string;
 }
 
 /**
@@ -886,6 +946,19 @@ export interface Repository {
   recordSleep(userId: string, s: SleepNight): Promise<void>;
   listSleep(userId: string, limit: number): Promise<SleepNight[]>;
 
+  /**
+   * The watch's activity / wellbeing day — steps, distance, calories, stress,
+   * breathing rate, MET, battery, wear state.
+   *
+   * Everything the wrist device measures that is not a triage vital, and the
+   * half of it that had no server-side home at all: it reached one panel on one
+   * handset and existed nowhere else. Upsert on (user, device, day), because
+   * the figures are the watch's own daily running totals.
+   */
+  upsertWearableDay(row: WearableDayRow & { userId: string }): Promise<void>;
+  /** Her watch days, newest first — the clinician's and operator's view. */
+  listWearableDays(userId: string, limit: number): Promise<WearableDayRow[]>;
+
   // Baby cry-analysis results (parent-recorded, newest-first). Pushed so they
   // survive a reinstall and restore on a new device — history was device-local.
   recordCry(userId: string, c: CryRow): Promise<void>;
@@ -1050,6 +1123,43 @@ export interface Repository {
   /// is in are absent from the map rather than present as zero, so a caller
   /// reporting «0 мам» is reporting a real count and not a missing key.
   pregnancyWeekMotherCounts(): Promise<Record<number, number>>;
+
+  // ---- Vaccination schedule overrides (frames 15 / 15a / 15b) ----
+  /// Every edited or added injection, by key ascending. Overrides ONLY — the
+  /// shipped contract (packages/contract/vaccination_schedule.json) is the
+  /// baseline and is not in here, so an empty list means "nothing has been
+  /// edited", never "there is no schedule". See vaccination/overrides.ts.
+  vaccinationOverrides(): Promise<VaccinationOverride[]>;
+  /// Write one injection, and record the before/after in the log. `rev` is the
+  /// store's business — it increments — so the caller supplies the content and
+  /// who wrote it, nothing else.
+  ///
+  /// `key`, `id` and `dose` are IDENTITY: on an existing row they are not
+  /// updated. A mother's tick is filed under `<id>/<dose>`, so re-keying a row
+  /// would orphan every tick recorded against it.
+  putVaccinationOverride(v: {
+    key: string;
+    id: string;
+    dose: number | null;
+    atMonth: number;
+    ru: VaccineTextRow;
+    kk: VaccineTextRow;
+    added: boolean;
+    draft: boolean;
+    review: { by: string; at: string; fingerprint: string } | null;
+    updatedBy: string;
+  }): Promise<void>;
+  /// The catch-up window, or null when nobody has changed it — which means
+  /// "the contract's value", and is a different statement from "1 month".
+  vaccinationSettings(): Promise<VaccinationSettings | null>;
+  putVaccinationSettings(v: { dueWindowMonths: number; updatedBy: string }): Promise<void>;
+  /// Frame 15b, newest first.
+  vaccinationScheduleLog(limit: number): Promise<VaccinationLogEntry[]>;
+  /// The two histograms behind the coverage column — see
+  /// vaccination/coverage.ts for why they are histograms and not rows, and for
+  /// the warning that every figure drawn from them is SELF-REPORTED by mothers
+  /// in the app rather than read from a clinic.
+  vaccinationCoverage(): Promise<VaccinationCoverageData>;
 
   // ---- Broadcasts (frame 06 «Маркетинг») ----
   /// Every broadcast, newest first, drafts included. `delivered` is read off
@@ -1281,7 +1391,42 @@ export interface Repository {
   /// The ledger, newest first, optionally for one variant.
   stockMoves(limit: number, variantId?: string): Promise<StockMove[]>;
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
-  setShopOrderStatus(orderId: string, status: ShopOrderStatus): Promise<void>;
+  /**
+   * One page of frame 02 «Заказы», plus the two numbers the screen states.
+   *
+   * `total` is how many orders match the CURRENT filter, so the footer can say
+   * «Показано 25 из 284» honestly; `counts` is every status counted over the
+   * WHOLE table, unfiltered, because the filter chips carry live counters and a
+   * counter that changed when you clicked it would be useless.
+   *
+   * Separate from [adminShopOrders] rather than replacing it: the dashboard,
+   * the finance report and the owner screen all want "the last N orders" with
+   * no paging at all, and giving them a page object would make four screens
+   * carry a total none of them prints.
+   */
+  adminShopOrderPage(q: {
+    limit: number;
+    offset: number;
+    status?: ShopOrderStatus;
+  }): Promise<ShopOrderPage>;
+  /// One order for frame 03, or null. Same shape as a row of the list.
+  shopOrderById(id: string): Promise<ShopOrder | null>;
+  /**
+   * The order's status history, oldest first — the frame 03 timeline.
+   *
+   * Empty for every order that changed status before migration 039 existed;
+   * that gap is real and the card says so rather than drawing a delivered
+   * order as though nothing ever happened to it.
+   */
+  shopOrderEvents(orderId: string): Promise<ShopOrderEvent[]>;
+  /**
+   * Move an order's status, recording WHO moved it and from what.
+   *
+   * [staffId] is optional because the storefront and the app can move an order
+   * with no member of staff involved; the timeline prints «система» for those
+   * rather than inventing an author.
+   */
+  setShopOrderStatus(orderId: string, status: ShopOrderStatus, staffId?: string): Promise<void>;
   /**
    * One customer's own orders, newest first — screen 42.
    *
@@ -1552,12 +1697,50 @@ export interface ShopOrderInput {
    */
   bundleId?: string;
 }
-export type ShopOrderStatus = 'new' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+/**
+ * Every status an order can hold, in the order it normally moves through them.
+ *
+ * One list, exported, because it is now read in four places — the route's
+ * validator, the list filter, the panel's chips and the CHECK constraint on
+ * shop_order_events. Four copies of five strings is how a sixth status reaches
+ * the database and nothing on screen can filter by it.
+ */
+export const SHOP_ORDER_STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const;
+export type ShopOrderStatus = (typeof SHOP_ORDER_STATUSES)[number];
 export interface ShopOrder {
   id: string; customerName: string; phone: string; city: string; address: string;
   note: string | null; totalMinor: number; discountMinor: number; status: ShopOrderStatus; createdAt: string;
   items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }>;
 }
+/**
+ * One recorded move of an order's status — frame 03's timeline (migration 039).
+ *
+ * [staffName] is resolved from the roster where it can be. It stays null for a
+ * transition made by an account since removed, and for one nobody made at all;
+ * the id is kept in either case, because it is what the row is keyed on.
+ */
+export interface ShopOrderEvent {
+  id: number;
+  orderId: string;
+  fromStatus: ShopOrderStatus | null;
+  toStatus: ShopOrderStatus;
+  staffId: string | null;
+  staffName: string | null;
+  at: string;
+}
+
+/**
+ * A page of orders, with the two numbers frame 02 prints beside it.
+ *
+ * `total` counts what matches the filter; `counts` counts every status over the
+ * whole table so the chips do not change under the pointer.
+ */
+export interface ShopOrderPage {
+  orders: ShopOrder[];
+  total: number;
+  counts: Record<ShopOrderStatus, number>;
+}
+
 export type ShopOrderResult =
   | { ok: true; id: string; totalMinor: number; discountMinor: number }
   // 'incomplete_bundle': the order claimed to be a bundle but its lines do not

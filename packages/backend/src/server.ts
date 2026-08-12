@@ -23,7 +23,7 @@ import {
   type GuardrailDeps,
 } from './ai/AIGuardrailProcessor';
 import { computeBpOffsets } from './health/bpCalibration';
-import { registerCrudRoutes, type AuthUser } from './routes/crud';
+import { registerCrudRoutes, type AuthUser, type SosNotifier } from './routes/crud';
 import type { LeadNotifier } from './notifications/leadAlert';
 import { registerAdminRoutes, type AdminNotifiers, type AuthAdmin } from './routes/admin';
 import { registerStaffLoginRoutes } from './routes/staffLogin';
@@ -38,7 +38,7 @@ import { antenatalProtocol } from './antenatal/protocol';
 import { servedCalendar, weekOf } from './pregnancy/served';
 import { childDevCalendar, devWeekContent } from './child/development';
 import { appVersionInfo } from './app/version';
-import { vaccinationSchedule } from './vaccination/schedule';
+import { servedVaccinationSchedule } from './vaccination/served';
 import type { VitalsExtractor } from './ai/vitalsVision';
 import type { MedicationExtractor } from './ai/medicationVision';
 import type { AppointmentExtractor } from './ai/appointmentVision';
@@ -152,6 +152,12 @@ export interface ServerDeps {
    * depends on this being wired.
    */
   notifyBroadcast?: AdminNotifiers['broadcast'];
+  /**
+   * Tell the family a child has pressed SOS — the notification that opens
+   * screen 21. Omitted = no push channel on this box; the alarm is still
+   * recorded, so nothing about raising it depends on this.
+   */
+  notifySos?: SosNotifier;
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -229,12 +235,42 @@ const locationSchema = z.object({
   source: z.enum(['gps', 'wifi', 'lbs', 'ble']),
   observedAt: isoInstant,
 });
+/// The watch's activity / wellbeing day: everything it measures that is not one
+/// of the four triage vitals.
+///
+/// Bounded like the vitals above, and for the same reason — this is data from a
+/// device over a network, and an unbounded integer reaches a chart and a
+/// clinician. The bounds reject the impossible rather than the surprising: an
+/// 80 000-step day is real for someone, a negative one is not.
+///
+/// The wellness values are OPTIONAL and must stay so. The watch reports 0 for a
+/// stress or breathing rate it has not measured; the app drops those before
+/// sending, and a schema that defaulted them to 0 would put back exactly the
+/// false reading the whole "0 means unknown" rule exists to prevent.
+const wearableSchema = z.object({
+  deviceId: z.string().min(1),
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  recordedAt: isoInstant,
+  steps: z.number().int().min(0).max(200_000),
+  kcal: z.number().int().min(0).max(30_000),
+  meters: z.number().int().min(0).max(500_000),
+  sleepMinutes: z.number().int().min(0).max(1440),
+  deepSleepMinutes: z.number().int().min(0).max(1440),
+  lightSleepMinutes: z.number().int().min(0).max(1440),
+  stress: z.number().int().min(0).max(100).optional(),
+  breathRate: z.number().int().min(1).max(80).optional(),
+  met: z.number().int().min(0).max(255).optional(),
+  batteryPercent: z.number().int().min(0).max(100).optional(),
+  charging: z.boolean().default(false),
+  worn: z.boolean().default(false),
+});
 const batchSchema = z.object({
   items: z
     .array(
       z.union([
         z.object({ type: z.literal('telemetry'), payload: telemetrySchema }),
         z.object({ type: z.literal('location'), payload: locationSchema }),
+        z.object({ type: z.literal('wearable'), payload: wearableSchema }),
       ]),
     )
     .max(500),
@@ -486,7 +522,18 @@ export function buildServer(
   app.get('/app/version', async () => appVersionInfo());
 
   // Public reference data: the childhood immunisation schedule.
-  app.get('/vaccination/schedule', async () => vaccinationSchedule);
+  //
+  // The shipped contract WITH the back office's edits on top — frames 15/15a.
+  // Until this merge existed the route served a compiled-in file, so moving the
+  // second pneumococcal dose was a backend release AND a store rollout; now the
+  // panel changes it and this changes with it. `version` moves on every edit,
+  // including a change to the catch-up window, so a client caching the schedule
+  // knows.
+  //
+  // The app still bundles `kzSchedule` in Dart and paints from it first, so a
+  // phone with no signal reads the shipped calendar rather than nothing — and
+  // if this database is unreachable, so does this route.
+  app.get('/vaccination/schedule', async () => servedVaccinationSchedule(deps.repo));
 
   // Public reference data: the week-by-week pregnancy calendar (ru + kk).
   //
@@ -547,7 +594,7 @@ export function buildServer(
   // Client CRUD + history routes (require an authUser resolver).
   if (deps.authUser) {
     registerCrudRoutes(app, deps.repo, deps.authUser, deps.notifyLead,
-      deps.enforceDeviceRegistry ?? false);
+      deps.enforceDeviceRegistry ?? false, deps.notifySos);
   }
   // Admin / back-office routes (require an authAdmin resolver).
   // Sign-in first: these three are the only /admin paths without a session, and

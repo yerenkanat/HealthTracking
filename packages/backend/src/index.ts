@@ -136,7 +136,7 @@ async function productionDeps(): Promise<ServerDeps> {
   const { createAnthropicMedicationExtractor } = await import('./ai/medicationVision');
   const { createAnthropicAppointmentExtractor } = await import('./ai/appointmentVision');
   const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
-  const { announcementCopy, emergencyCopy, geofenceCopy, sendPush, supportReplyCopy, toPushLocale } =
+  const { announcementCopy, emergencyCopy, geofenceCopy, sendPush, sosCopy, supportReplyCopy, toPushLocale } =
     await import('./notifications/push');
   type PushResult = Awaited<ReturnType<typeof sendPush>>;
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -216,6 +216,62 @@ async function productionDeps(): Promise<ServerDeps> {
         const res = await sendPush(tokens, geofenceCopy(evt, childName, toPushLocale(locale)));
         await afterPush('geofence', res);
       },
+    },
+    // Screen 21 — a child pressed the button.
+    //
+    // The one push that goes to more than one household member. Everybody with
+    // family access can READ the alert feed (family/access.ts: `child_alerts`
+    // is in SHAREABLE for both levels), and the whole point of screen 40 is
+    // that the father and the grandmother find out too — so the alarm goes to
+    // the owner's devices AND to each member's, rather than only to the phone
+    // the mother happens to be holding.
+    //
+    // The child's NAME is read from her own children rather than from
+    // guardianPushTokens's join, which falls back to a literal when the owner
+    // has no registered device: a name nobody chose must never appear on this
+    // notification. No name means the copy that needs none.
+    notifySos: async (userId, alert) => {
+      const kids = await repo.listChildren(userId).catch(() => []);
+      const child = kids.find((k) => k.id === alert.childId);
+      // Where she was, best-effort. The cache first (it is what the live map
+      // reads), the table behind it, and no position at all rather than a stale
+      // guess if both are unavailable — screen 21 has wording for that.
+      let coords: { lat: number; lng: number } | null = null;
+      try {
+        const fix =
+          ((await getChildLastLocation(alert.childId)) as
+            | { coords?: { lat?: number; lng?: number } }
+            | null) ?? (await repo.lastLocation(alert.childId));
+        const c = (fix as { coords?: { lat?: number; lng?: number } } | null)?.coords;
+        if (typeof c?.lat === 'number' && typeof c?.lng === 'number') {
+          coords = { lat: c.lat, lng: c.lng };
+        }
+      } catch {
+        // No position is a state the screen can say out loud.
+      }
+      const members = await repo.familyMembers(userId).catch(() => []);
+      const audience = [userId, ...members.map((m) => m.memberUserId)];
+      const seen = new Set<string>();
+      for (const recipient of audience) {
+        if (seen.has(recipient)) continue;
+        seen.add(recipient);
+        const { tokens, locale } = await repo.guardianPushTokensForUser(recipient);
+        if (tokens.length === 0) continue;
+        const res = await sendPush(
+          tokens,
+          sosCopy(
+            {
+              childId: alert.childId,
+              childName: child?.name ?? '',
+              at: alert.at,
+              zoneName: alert.zoneName,
+              coords,
+            },
+            toPushLocale(locale),
+          ),
+        );
+        await afterPush('sos', res);
+      }
     },
     // Frame 43 — an operator answered. In HER language, from the locale on the
     // profile, and not critical: a support answer must not break Do Not Disturb

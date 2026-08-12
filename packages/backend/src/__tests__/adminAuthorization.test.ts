@@ -78,6 +78,19 @@ const ANY_STAFF = new Map<string, string>([
   // counts beside each week are aggregates off `due_date` — no row names
   // anybody. WRITING is `content`; APPROVING is `health`.
   ['GET /admin/pregnancy/weeks', 'the calendar as served + counts; no personal data'],
+  // The immunisation calendar as it is served, plus each row's edit state.
+  // Deliberately ANY for the same reason as the pregnancy calendar above: the
+  // clinician who has to APPROVE a moved dose holds `health`, not `content`,
+  // and gating the read on `content` would mean the only person allowed to sign
+  // it off could not open it. No row names anybody — this is the national
+  // schedule. WRITING is `content`; APPROVING is `health`; the COVERAGE figures
+  // and the impact count, which are drawn from children's records, are `health`.
+  ['GET /admin/vaccination/schedule', 'the schedule as served + edit state; no personal data'],
+  // Frame 15b. Before/after snapshots of the national calendar and the staff id
+  // that changed it — public health text and a colleague's name, not a user's
+  // data. Readable by anyone who can read the calendar, for the same reason:
+  // the clinician approving a change should be able to see what changed before.
+  ['GET /admin/vaccination/log', 'edit history of public schedule text; no personal data'],
 ]);
 
 /**

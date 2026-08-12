@@ -227,6 +227,18 @@ const profileBody = z.object({
 });
 const reassignBody = z.object({ childId: z.string().min(1).nullable() });
 
+/**
+ * Notify the family that a child pressed SOS — screen 21's sender.
+ *
+ * Takes the OWNER's id and the alert as recorded, not a composed message: who
+ * receives it, in what language, and what the payload carries are decided in
+ * one place (index.ts), next to every other push.
+ */
+export type SosNotifier = (
+  userId: string,
+  alert: { childId: string; zoneName: string; at: string },
+) => Promise<void>;
+
 export function registerCrudRoutes(
   app: FastifyInstance,
   repo: Repository,
@@ -242,6 +254,13 @@ export function registerCrudRoutes(
    * sides of it.
    */
   enforceDeviceRegistry = false,
+  /**
+   * Tell the family a child has pressed SOS. Omitted = no push channel on this
+   * box (the memory-mode dev server, or a deployment with no FCM credentials);
+   * the alarm is still recorded and still reaches every screen that reads the
+   * feed, so raising it never depends on this being wired.
+   */
+  notifySos?: SosNotifier,
 ): void {
   // Guard: resolve the user or 401.
   async function requireUser(req: FastifyRequest, reply: import('fastify').FastifyReply) {
@@ -1258,12 +1277,40 @@ export function registerCrudRoutes(
     return reply.send({ alerts: await repo.listAlerts(u.userId, limit) });
   });
 
+  /**
+   * Record an alert the PHONE raised — an SOS press or a check-in.
+   *
+   * This route has existed, and been covered by tests, since the alert kinds
+   * were widened to five, and the app never called it: `getAlerts` was wired
+   * and `postAlert` did not exist. So an SOS pressed on one phone stayed on
+   * that phone — the back-office safety feed never saw it and neither did
+   * anybody else in the family.
+   *
+   * An SOS therefore also PUSHES, which is the other half of the same defect:
+   * the notification that opens screen 21 had no sender.
+   */
   app.post('/alerts', async (req, reply) => {
     const u = await requireUser(req, reply);
     if (!u) return;
     const parsed = alertBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
     await repo.recordAlert(u.userId, parsed.data);
+    if (parsed.data.kind === 'sos' && notifySos) {
+      // Never at the cost of the write. The alarm is RECORDED, and a push
+      // channel that is down (or absent on this box) must not turn a stored
+      // SOS into a 500 that makes the app retry and record it twice.
+      try {
+        await notifySos(u.userId, {
+          childId: parsed.data.childId,
+          zoneName: parsed.data.zoneName,
+          at: parsed.data.at,
+        });
+      } catch (e) {
+        req.log.error(
+          `SOS push failed for child ${parsed.data.childId} — ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
     return reply.code(201).send({ ok: true });
   });
 

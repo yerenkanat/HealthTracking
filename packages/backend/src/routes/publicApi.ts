@@ -17,7 +17,7 @@ import { firstWeek, lastWeek } from '../pregnancy/weeks';
 import { servedCalendar, weekOf } from '../pregnancy/served';
 import { childDevCalendar, devWeekContent, firstDevWeek, lastDevWeek } from '../child/development';
 import { antenatalProtocol } from '../antenatal/protocol';
-import { vaccinationSchedule } from '../vaccination/schedule';
+import { servedVaccinationSchedule } from '../vaccination/served';
 import {
   parseDate,
   pregnancyTimeline,
@@ -171,14 +171,18 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
         if (!dueDate) return reply.code(400).send({ error: 'invalid_dueDate', hint: 'dueDate=YYYY-MM-DD is required' });
         return { dueDate: q.dueDate, version: antenatalProtocol.version, categories: antenatalProtocol.categories, visits: antenatalTimeline(dueDate) };
       });
-      api.get('/protocols/vaccination', async () => vaccinationSchedule);
+      // The SERVED schedule — contract plus the back office's edits (frame 15)
+      // — not the compiled-in contract. An integrator reading this and a mother
+      // reading the app must be told the same dates.
+      api.get('/protocols/vaccination', async () => servedVaccinationSchedule(repo));
       api.get('/protocols/vaccination/timeline', async (req, reply) => {
         const q = req.query as Record<string, string>;
         const birthDate = parseDate(q.birthDate);
         if (!birthDate) return reply.code(400).send({ error: 'invalid_birthDate', hint: 'birthDate=YYYY-MM-DD is required' });
         const from = q.from ? parseDate(q.from) : new Date();
         if (!from) return reply.code(400).send({ error: 'invalid_from' });
-        return { birthDate: q.birthDate, from: from.toISOString().slice(0, 10), version: vaccinationSchedule.version, vaccines: vaccinationTimeline(birthDate, from) };
+        const schedule = await servedVaccinationSchedule(repo);
+        return { birthDate: q.birthDate, from: from.toISOString().slice(0, 10), version: schedule.version, vaccines: vaccinationTimeline(birthDate, from, schedule) };
       });
 
       // Daily audio coverage — which days of a track have an uploaded clip, so a

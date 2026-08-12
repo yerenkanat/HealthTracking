@@ -319,6 +319,47 @@ CREATE TABLE sleep_nights (
   PRIMARY KEY (user_id, night)
 );
 
+-- What the watch measured beyond the four triage vitals, one row per wearer's
+-- day per device: what she did (steps / distance / calories), how her body was
+-- between measurements (stress, breathing rate, MET), and the state of the
+-- device itself (battery, charging, on-wrist).
+--
+-- None of it is triaged — it cannot raise an emergency — which is exactly why
+-- it does not belong in pregnancy_health_metrics. It had no home at all before:
+-- the app rendered it on one panel and it existed nowhere else, so a clinician
+-- reading her chart saw the vitals and nothing about how she had been living.
+--
+-- Upserted rather than appended because steps/kcal/meters are the watch's own
+-- running daily totals; a poll every thirty seconds would otherwise write 2 880
+-- rows a day that each restate the same day a little later. `day` is the
+-- WEARER's local date: her watch rolls its totals over at her midnight, and
+-- filing an Almaty evening under the next UTC day would misreport every day.
+CREATE TABLE IF NOT EXISTS wearable_days (
+  user_id         UUID NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  device_id       UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  day             DATE NOT NULL,
+  recorded_at     TIMESTAMPTZ NOT NULL,   -- the snapshot this row last folded in
+  steps           INTEGER NOT NULL DEFAULT 0,
+  kcal            INTEGER NOT NULL DEFAULT 0,
+  meters          INTEGER NOT NULL DEFAULT 0,
+  sleep_min       INTEGER NOT NULL DEFAULT 0,
+  deep_sleep_min  INTEGER NOT NULL DEFAULT 0,
+  light_sleep_min INTEGER NOT NULL DEFAULT 0,
+  -- NULL = the watch has not measured this. NOT 0: a stress of 0 read back is a
+  -- measurement of perfect calm, which is the opposite of "no reading".
+  stress          SMALLINT,
+  breath_rate     SMALLINT,
+  met             SMALLINT,
+  battery_pct     SMALLINT,
+  charging        BOOLEAN NOT NULL DEFAULT FALSE,
+  worn            BOOLEAN NOT NULL DEFAULT FALSE,
+  CONSTRAINT sane_stress  CHECK (stress      IS NULL OR stress      BETWEEN 0 AND 100),
+  CONSTRAINT sane_breath  CHECK (breath_rate IS NULL OR breath_rate BETWEEN 1 AND 80),
+  CONSTRAINT sane_battery CHECK (battery_pct IS NULL OR battery_pct BETWEEN 0 AND 100),
+  PRIMARY KEY (user_id, device_id, day)
+);
+CREATE INDEX IF NOT EXISTS idx_wearable_days_user ON wearable_days (user_id, day DESC);
+
 -- Newborn care log — feeds, nappy changes, sleeps. One row per event, per
 -- child, keyed by (child, instant, kind). Gives a clinician the feeding /
 -- hydration pattern of the first weeks.
@@ -580,6 +621,26 @@ CREATE TABLE IF NOT EXISTS shop_order_items (
   unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0)
 );
 CREATE INDEX IF NOT EXISTS idx_shop_items_order ON shop_order_items (order_id);
+
+-- The order's own history (migration 039). One row per status transition,
+-- written inside the statement that moves it. Frame 03 draws the timeline from
+-- here; without it an order knew only when it was created and where it is now,
+-- and «кто отменил и во сколько» had no answer — audit_log records that the
+-- status changed, never to what.
+--
+-- Never updated, never deleted: a wrong step is corrected by taking the next
+-- one, like shop_stock_moves.
+CREATE TABLE IF NOT EXISTS shop_order_events (
+  id          BIGSERIAL PRIMARY KEY,
+  order_id    UUID NOT NULL REFERENCES shop_orders(id) ON DELETE CASCADE,
+  from_status TEXT,
+  to_status   TEXT NOT NULL CHECK (to_status IN ('new','confirmed','shipped','delivered','cancelled')),
+  -- TEXT, matching audit_log.staff_id: an entry written by an account since
+  -- removed must stay readable, so no foreign key.
+  staff_id    TEXT,
+  at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS shop_order_events_order ON shop_order_events (order_id, at);
 
 -- A bundle holds no stock of its own: it is worth as many sets as its scarcest
 -- part allows. Storing a count here would drift from the parts within a week.
@@ -1038,3 +1099,66 @@ CREATE INDEX IF NOT EXISTS idx_broadcast_deliveries_user
   ON broadcast_deliveries (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_broadcasts_published
   ON broadcasts (published_at DESC NULLS LAST);
+
+
+-- ---------------------------------------------------------------------------
+-- Frames 15 / 15a / 15b — the editable immunisation calendar.
+--
+-- OVERRIDES over packages/contract/vaccination_schedule.json, never a
+-- replacement: the contract stays the offline baseline the app bundles, and
+-- only the vaccines somebody edited or added live here. See migrations/038.
+-- ---------------------------------------------------------------------------
+
+-- Keyed exactly as a mother's tick is keyed — `<id>/<dose>`, matching
+-- vaccineKey() in the app and child_vaccines.vaccine_key. Not by `id` (three
+-- pentavalent rows share one), not by (id, dose, at_month) (the age is the
+-- field most likely to be edited, and re-keying would orphan every tick).
+CREATE TABLE IF NOT EXISTS vaccination_overrides (
+  key        TEXT PRIMARY KEY,
+  vaccine_id TEXT    NOT NULL,
+  dose       INTEGER,
+  at_month   INTEGER NOT NULL CHECK (at_month BETWEEN 0 AND 216),
+  -- {name, note} per language. Both NOT NULL — the route refuses a save
+  -- without Kazakh, and a nullable column re-opens the hole that closes.
+  ru         JSONB   NOT NULL,
+  kk         JSONB   NOT NULL,
+  -- Not in the contract (frame 15a): appended by the merge rather than
+  -- patching a shipped entry.
+  added      BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Stored but not served. Drafting an edit shows the contract through again;
+  -- drafting an added vaccine retires it. Rows are never deleted.
+  draft      BOOLEAN NOT NULL DEFAULT FALSE,
+  -- {by, at, fingerprint} — see content/medicalReview.ts. The age is inside
+  -- the fingerprint, so moving a dose drops the sign-off.
+  review     JSONB,
+  -- Bumped on every save; the served version is
+  -- `contract version + SUM(rev) + settings rev`.
+  rev        INTEGER NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by TEXT
+);
+
+-- The catch-up window, the one reminder setting this product can honestly
+-- offer: nothing here sends a vaccination push, so there is no toggle for one.
+-- Single row; absent means «the contract's value».
+CREATE TABLE IF NOT EXISTS vaccination_settings (
+  id                BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
+  due_window_months INTEGER NOT NULL CHECK (due_window_months BETWEEN 1 AND 12),
+  rev               INTEGER NOT NULL DEFAULT 1,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by        TEXT
+);
+
+-- Frame 15b: append-only before/after, so the version list is a real diff and
+-- not a guess reconstructed from the current row. `before` is NULL on a
+-- vaccine's first edit — there was no row, and the baseline is the contract.
+CREATE TABLE IF NOT EXISTS vaccination_schedule_log (
+  id     BIGSERIAL PRIMARY KEY,
+  key    TEXT NOT NULL,
+  before JSONB,
+  after  JSONB NOT NULL,
+  actor  TEXT,
+  at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_vaccination_log_at
+  ON vaccination_schedule_log (at DESC);

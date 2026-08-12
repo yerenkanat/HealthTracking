@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
+import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
 import { BROADCAST_MIN_GAP_DAYS, matchesSegment, type AudienceRow } from '../admin/broadcasts.js';
@@ -182,6 +182,7 @@ export function createMemoryRepository(): Repository {
   const emergencyAcks = new Map<string, { staffId: string; at: string }>();
   const audit: Array<{ staffId: string; action: string; target: string | null; reason: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
+  const wearableDays: WearableDayRow[] = [];
   const cryResults: CryRow[] = [];
   const weights: WeightRow[] = [];
   const kickSessions: KickSessionRow[] = [];
@@ -199,6 +200,17 @@ export function createMemoryRepository(): Repository {
   const profiles = new Map<string, ProfileRow>();
   /** Edited pregnancy weeks, by week — `pregnancy_week_overrides`. */
   const pregWeekOverrides = new Map<number, PregnancyWeekOverride>();
+  /**
+   * Frames 15 / 15a / 15b — the editable immunisation calendar.
+   *
+   * Seeded EMPTY, deliberately, exactly like the pregnancy weeks next door: a
+   * seeded row would put an age or a label into a clinical calendar that nobody
+   * decided, and the editor already has sixteen entries to show from the
+   * contract. Empty is the honest starting state.
+   */
+  const vaccOverrides = new Map<string, VaccinationOverride>();
+  let vaccSettings: VaccinationSettings | null = null;
+  const vaccLog: VaccinationLogEntry[] = [];
   /**
    * Frame 06 — рассылки and the ledger of who received them.
    *
@@ -478,6 +490,18 @@ const UUID_RE =
   ];
   type ShopOrderRow = { bundleId?: string | null; phoneNormalized?: string; id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
   const shopOrders: ShopOrderRow[] = [];
+  /**
+   * The status history frame 03 draws (migration 039).
+   *
+   * A flat array, appended to by setShopOrderStatus and read back in insertion
+   * order — the same guarantee the pg index gives, so a test that passes here
+   * describes what production does.
+   */
+  type ShopOrderEventRow = {
+    id: number; orderId: string; fromStatus: string | null; toStatus: string;
+    staffId: string | null; at: string;
+  };
+  const shopOrderEventRows: ShopOrderEventRow[] = [];
   type ShopLeadRow = { id: string; customerName: string; phone: string; package: string; locale: ShopLeadLocale; status: ShopLeadStatus; createdAt: string };
   const shopLeads: ShopLeadRow[] = [];
   type AudioRow = { track: string; day: number; locale: string; title: string | null; mime: string; bytes: Buffer; updatedAt: string };
@@ -1007,6 +1031,16 @@ const UUID_RE =
       if (i >= 0) sleep[i] = s; else sleep.push(s);
     },
     listSleep: async (_u, limit) => [...sleep].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    // Watch activity/wellbeing days — upsert on (device, day), exactly as the
+    // pg repository's ON CONFLICT does, so a fake that "works" here cannot hide
+    // a duplicate-row bug that only appears against a real database.
+    upsertWearableDay: async (row) => {
+      const { userId: _userId, ...day } = row;
+      const i = wearableDays.findIndex((x) => x.deviceId === day.deviceId && x.day === day.day);
+      if (i >= 0) wearableDays[i] = day; else wearableDays.push(day);
+    },
+    listWearableDays: async (_u, limit) =>
+      [...wearableDays].sort((a, b) => b.day.localeCompare(a.day)).slice(0, limit),
     // Baby cry-analysis history
     recordCry: async (_u, c) => {
       const i = cryResults.findIndex((x) => x.at === c.at);
@@ -1515,6 +1549,121 @@ const UUID_RE =
       });
     },
 
+    // ---- Vaccination schedule overrides (frames 15 / 15a / 15b) ----
+    vaccinationOverrides: async () =>
+      [...vaccOverrides.values()]
+        .sort((a, b) => a.key.localeCompare(b.key))
+        .map((o) => ({ ...o, ru: { ...o.ru }, kk: { ...o.kk }, review: o.review ? { ...o.review } : null })),
+
+    putVaccinationOverride: async (v) => {
+      const prev = vaccOverrides.get(v.key);
+      const row: VaccinationOverride = {
+        key: v.key,
+        // Identity, and only settable at creation — exactly like the pg UPSERT,
+        // whose ON CONFLICT list omits these three columns. A fake that let a
+        // save move `dose` would re-key a row in dev and nowhere else.
+        id: prev?.id ?? v.id,
+        dose: prev ? prev.dose : v.dose,
+        added: prev ? prev.added : v.added,
+        atMonth: v.atMonth,
+        ru: { ...v.ru },
+        kk: { ...v.kk },
+        draft: v.draft,
+        review: v.review ? { ...v.review } : null,
+        // Increment, exactly like the pg UPSERT. A fake that reset the counter
+        // would let the served version go backwards in dev and nowhere else,
+        // which is the kind of difference that is found in production.
+        rev: (prev?.rev ?? 0) + 1,
+        updatedAt: new Date().toISOString(),
+        updatedBy: v.updatedBy,
+      };
+      vaccOverrides.set(v.key, row);
+      // Written in the same call as the row, because in pg it is one statement
+      // and frame 15b is the only record of what the schedule used to say.
+      vaccLog.push({
+        id: vaccLog.length + 1,
+        key: v.key,
+        before: prev
+          ? {
+            key: prev.key, id: prev.id, atMonth: prev.atMonth, dose: prev.dose,
+            ru: { ...prev.ru }, kk: { ...prev.kk },
+            added: prev.added, draft: prev.draft, review: prev.review,
+          }
+          : null,
+        after: {
+          key: row.key, id: row.id, atMonth: row.atMonth, dose: row.dose,
+          ru: { ...row.ru }, kk: { ...row.kk },
+          added: row.added, draft: row.draft, review: row.review,
+        },
+        actor: v.updatedBy,
+        at: row.updatedAt,
+      });
+    },
+
+    vaccinationSettings: async () => (vaccSettings ? { ...vaccSettings } : null),
+
+    putVaccinationSettings: async (v) => {
+      const before = vaccSettings ? { dueWindowMonths: vaccSettings.dueWindowMonths } : null;
+      vaccSettings = {
+        dueWindowMonths: v.dueWindowMonths,
+        rev: (vaccSettings?.rev ?? 0) + 1,
+        updatedAt: new Date().toISOString(),
+        updatedBy: v.updatedBy,
+      };
+      vaccLog.push({
+        id: vaccLog.length + 1,
+        key: '@settings',
+        before,
+        after: { dueWindowMonths: v.dueWindowMonths },
+        actor: v.updatedBy,
+        at: vaccSettings.updatedAt,
+      });
+    },
+
+    vaccinationScheduleLog: async (limit) =>
+      [...vaccLog].reverse().slice(0, limit).map((e) => ({ ...e })),
+
+    vaccinationCoverage: async () => {
+      // Same arithmetic as pgRepository's GROUP BY — whole completed months,
+      // with the day of the month having to come round — so the two cannot
+      // drift on how old a child is.
+      const now = new Date();
+      const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+      // A yyyy-MM-dd is a DATE; comparing it against `new Date()` mixes a date
+      // with a timestamp and lands a child a day — and near a month boundary a
+      // whole month — out.
+      const asUtc = (s: string): number | null => {
+        const [y, m, d] = s.split('-').map(Number);
+        return Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)
+          ? Date.UTC(y, m - 1, d) : null;
+      };
+      const ages = new Map<number, number>();
+      const ticks = new Map<string, Map<number, number>>();
+      let withoutDob = 0;
+      for (const c of children) {
+        const dobMs = c.dateOfBirth ? asUtc(c.dateOfBirth) : null;
+        if (dobMs == null || dobMs > today) { withoutDob++; continue; }
+        const b = new Date(dobMs), t = new Date(today);
+        let months = (t.getUTCFullYear() - b.getUTCFullYear()) * 12
+          + (t.getUTCMonth() - b.getUTCMonth());
+        if (t.getUTCDate() < b.getUTCDate()) months -= 1;
+        months = Math.max(0, months);
+        ages.set(months, (ages.get(months) ?? 0) + 1);
+        for (const key of vaccines.get(c.id) ?? []) {
+          const byAge = ticks.get(key) ?? new Map<number, number>();
+          byAge.set(months, (byAge.get(months) ?? 0) + 1);
+          ticks.set(key, byAge);
+        }
+      }
+      return {
+        childAges: [...ages].map(([ageMonths, n]) => ({ ageMonths, n }))
+          .sort((a, b) => a.ageMonths - b.ageMonths),
+        ticks: [...ticks].flatMap(([key, byAge]) =>
+          [...byAge].map(([ageMonths, n]) => ({ key, ageMonths, n }))),
+        childrenWithoutDob: withoutDob,
+      };
+    },
+
     pregnancyWeekMotherCounts: async () => {
       // Same arithmetic as pgRepository's GROUP BY, in pregnancy/overrides.ts so
       // the two cannot drift on what "week 22" means.
@@ -1999,6 +2148,57 @@ const UUID_RE =
       shopVars.push({ id: randomUUID(), productId, color, colorHex, stock: Math.max(0, Math.trunc(stock)), sort: shopVars.length });
     },
     adminShopOrders: async (limit) => shopOrders.slice(-limit).reverse().map((o) => ({ ...o, status: o.status as ShopOrderStatus })),
+
+    adminShopOrderPage: async ({ limit, offset, status }) => {
+      // Newest first, like `ORDER BY created_at DESC`. The tie-break on
+      // insertion order is not cosmetic: a test that places three orders in one
+      // millisecond would otherwise page them in an order that has nothing to
+      // do with what Postgres returns, and the paging test would be testing the
+      // fake.
+      const newestFirst = shopOrders
+        .map((o, i) => ({ o, i }))
+        .sort((a, b) => b.o.createdAt.localeCompare(a.o.createdAt) || b.i - a.i)
+        .map((x) => x.o);
+
+      const counts: Record<ShopOrderStatus, number> = {
+        new: 0, confirmed: 0, shipped: 0, delivered: 0, cancelled: 0,
+      };
+      // Over EVERY order, not the filtered set: these numbers sit on the filter
+      // chips, and a counter that changes when you click it is worthless.
+      for (const o of shopOrders) {
+        counts[o.status as ShopOrderStatus] = (counts[o.status as ShopOrderStatus] ?? 0) + 1;
+      }
+
+      const matching = status ? newestFirst.filter((o) => o.status === status) : newestFirst;
+      const from = Math.max(0, Math.trunc(offset));
+      return {
+        orders: matching.slice(from, from + limit).map((o) => ({ ...o, status: o.status as ShopOrderStatus })),
+        total: matching.length,
+        counts,
+      };
+    },
+
+    shopOrderById: async (id) => {
+      const o = shopOrders.find((x) => x.id === id);
+      return o ? { ...o, status: o.status as ShopOrderStatus } : null;
+    },
+
+    shopOrderEvents: async (orderId) => {
+      const byId = new Map([...staffAccounts.values()].map((a) => [a.id, a]));
+      return shopOrderEventRows
+        .filter((e) => e.orderId === orderId)
+        .map((e) => ({
+          id: e.id,
+          orderId: e.orderId,
+          fromStatus: e.fromStatus as ShopOrderStatus | null,
+          toStatus: e.toStatus as ShopOrderStatus,
+          staffId: e.staffId,
+          // Same rule as listAudit: the name where we have it, the id kept
+          // either way, and a removed account does not delete the entry.
+          staffName: (e.staffId ? byId.get(e.staffId)?.displayName : null) ?? null,
+          at: e.at,
+        }));
+    },
     shopOrdersByPhone: async (phone, limit) =>
       shopOrders
         // phoneNormalized, like the pg query. Filtering on the raw `phone`
@@ -2008,11 +2208,25 @@ const UUID_RE =
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, limit)
         .map((o) => ({ ...o, status: o.status as ShopOrderStatus })),
-    setShopOrderStatus: async (orderId, status) => {
+    setShopOrderStatus: async (orderId, status, staffId) => {
       const o = shopOrders.find((x) => x.id === orderId);
       if (!o) return;
       const was = o.status;
       o.status = status;
+
+      // The timeline row, written with the move (migration 039). Only on a real
+      // transition — re-selecting the status a row already has would fill frame
+      // 03 with «Отправлен → Отправлен».
+      if (was !== status) {
+        shopOrderEventRows.push({
+          id: shopOrderEventRows.length + 1,
+          orderId,
+          fromStatus: was,
+          toStatus: status,
+          staffId: staffId ?? null,
+          at: new Date().toISOString(),
+        });
+      }
 
       // What the sale promised is handed over when the goods are — not when the
       // order is placed. A 'new' order is a promise that may never be

@@ -164,10 +164,20 @@ export interface VaccineDue {
 }
 
 /** Every scheduled vaccine mapped to a real due date for a given birth date,
- * tagged past/due/upcoming relative to [from]. */
-export function vaccinationTimeline(birthDate: Date, from: Date): VaccineDue[] {
-  const windowDays = vaccinationSchedule.dueWindowMonths * 30;
-  return vaccinationSchedule.vaccines
+ * tagged past/due/upcoming relative to [from].
+ *
+ * [schedule] defaults to the shipped contract so every existing caller and test
+ * keeps its meaning, but `/api/v1` passes the SERVED schedule — the contract
+ * with the back office's edits on top. A public timeline that still answered
+ * from the compiled-in file would tell an integrator one date and the app
+ * another the moment anybody moved a dose. */
+export function vaccinationTimeline(
+  birthDate: Date,
+  from: Date,
+  schedule: { dueWindowMonths: number; vaccines: Vaccine[] } = vaccinationSchedule,
+): VaccineDue[] {
+  const windowDays = schedule.dueWindowMonths * 30;
+  return schedule.vaccines
     .map((v: Vaccine) => {
       const due = addMonths(birthDate, v.atMonth);
       const ageAtDue = diffDays(from, due);

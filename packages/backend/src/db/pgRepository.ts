@@ -9,7 +9,7 @@ import { Pool } from 'pg';
 import { computeChildrenStats } from '../analytics/childStats.js';
 import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
 import { normalizeSerial } from '../deviceSerial.js';
-import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopProduct , SupportTicketRow } from './repository';
+import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopOrderStatus, ShopProduct , SupportTicketRow } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -1743,6 +1743,166 @@ export function createPgRepository(pool: Pool): Repository {
           v.draft, v.review ? JSON.stringify(v.review) : null, v.updatedBy]);
     },
 
+    // ---- Vaccination schedule overrides (frames 15 / 15a / 15b) ----
+    async vaccinationOverrides() {
+      const { rows } = await pool.query(
+        `SELECT key, vaccine_id, at_month, dose, ru, kk, added, draft, review, rev,
+                updated_at, updated_by
+           FROM vaccination_overrides ORDER BY key`);
+      return rows.map((r) => ({
+        key: r.key as string,
+        id: r.vaccine_id as string,
+        atMonth: Number(r.at_month),
+        // NULL is the dose of a single-shot vaccine and has to survive the round
+        // trip as null: `Number(null)` is 0, and a BCG at "dose 0" would key as
+        // `bcg/0` and match nothing a mother has ever ticked.
+        dose: r.dose == null ? null : Number(r.dose),
+        ru: r.ru as { name: string; note: string },
+        kk: r.kk as { name: string; note: string },
+        added: r.added === true,
+        draft: r.draft === true,
+        review: (r.review ?? null) as { by: string; at: string; fingerprint: string } | null,
+        rev: Number(r.rev ?? 1),
+        updatedAt: new Date(r.updated_at).toISOString(),
+        updatedBy: r.updated_by ?? null,
+      }));
+    },
+
+    async putVaccinationOverride(v) {
+      const after = {
+        key: v.key, id: v.id, atMonth: v.atMonth, dose: v.dose,
+        ru: v.ru, kk: v.kk, added: v.added, draft: v.draft, review: v.review,
+      };
+      // ONE statement, so the log entry cannot be lost while the row it
+      // describes is written — frame 15b is the only record of what a schedule
+      // used to say, and a history with holes is worse than none.
+      //
+      // `prev` is evaluated against the snapshot the statement started from, so
+      // it is genuinely the row BEFORE this write even though the same
+      // statement replaces it.
+      //
+      // The ON CONFLICT list deliberately omits vaccine_id, dose and added:
+      // those are identity. A save that could move them would re-key a row
+      // whose key is what every `child_vaccines` tick is filed under.
+      await pool.query(
+        `WITH prev AS (
+           SELECT jsonb_build_object(
+             'key', key, 'id', vaccine_id, 'atMonth', at_month, 'dose', dose,
+             'ru', ru, 'kk', kk, 'added', added, 'draft', draft, 'review', review
+           ) AS snap
+             FROM vaccination_overrides WHERE key = $1
+         ), up AS (
+           INSERT INTO vaccination_overrides
+             (key, vaccine_id, at_month, dose, ru, kk, added, draft, review, rev, updated_at, updated_by)
+           VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9::jsonb,1,now(),$10)
+           ON CONFLICT (key) DO UPDATE SET
+             at_month   = EXCLUDED.at_month,
+             ru         = EXCLUDED.ru,
+             kk         = EXCLUDED.kk,
+             draft      = EXCLUDED.draft,
+             review     = EXCLUDED.review,
+             rev        = vaccination_overrides.rev + 1,
+             updated_at = now(),
+             updated_by = EXCLUDED.updated_by
+           RETURNING 1
+         )
+         INSERT INTO vaccination_schedule_log (key, before, after, actor)
+         SELECT $1, (SELECT snap FROM prev), $11::jsonb, $10
+           FROM up`,
+        [v.key, v.id, v.atMonth, v.dose, JSON.stringify(v.ru), JSON.stringify(v.kk),
+          v.added, v.draft, v.review ? JSON.stringify(v.review) : null, v.updatedBy,
+          JSON.stringify(after)]);
+    },
+
+    async vaccinationSettings() {
+      const { rows } = await pool.query(
+        `SELECT due_window_months, rev, updated_at, updated_by FROM vaccination_settings WHERE id`);
+      const r = rows[0];
+      // No row is not "1 month": it is «никто не менял», which the panel prints
+      // differently and which stops the served version from counting a decision
+      // nobody took.
+      if (!r) return null;
+      return {
+        dueWindowMonths: Number(r.due_window_months),
+        rev: Number(r.rev ?? 1),
+        updatedAt: new Date(r.updated_at).toISOString(),
+        updatedBy: r.updated_by ?? null,
+      };
+    },
+
+    async putVaccinationSettings(v) {
+      await pool.query(
+        `WITH prev AS (
+           SELECT jsonb_build_object('dueWindowMonths', due_window_months) AS snap
+             FROM vaccination_settings WHERE id
+         ), up AS (
+           INSERT INTO vaccination_settings (id, due_window_months, rev, updated_at, updated_by)
+           VALUES (TRUE, $1, 1, now(), $2)
+           ON CONFLICT (id) DO UPDATE SET
+             due_window_months = EXCLUDED.due_window_months,
+             rev               = vaccination_settings.rev + 1,
+             updated_at        = now(),
+             updated_by        = EXCLUDED.updated_by
+           RETURNING 1
+         )
+         INSERT INTO vaccination_schedule_log (key, before, after, actor)
+         SELECT '@settings', (SELECT snap FROM prev),
+                jsonb_build_object('dueWindowMonths', $1::int), $2
+           FROM up`,
+        [v.dueWindowMonths, v.updatedBy]);
+    },
+
+    async vaccinationScheduleLog(limit) {
+      const { rows } = await pool.query(
+        `SELECT id, key, before, after, actor, at
+           FROM vaccination_schedule_log ORDER BY at DESC, id DESC LIMIT $1`, [limit]);
+      return rows.map((r) => ({
+        id: Number(r.id),
+        key: r.key as string,
+        before: (r.before ?? null) as Record<string, unknown> | null,
+        after: (r.after ?? {}) as Record<string, unknown>,
+        actor: r.actor ?? null,
+        at: new Date(r.at).toISOString(),
+      }));
+    },
+
+    async vaccinationCoverage() {
+      // Completed months, by the calendar, matching ageInMonths() in the app and
+      // the `m<n>` buckets the dashboard already uses: whole months, with the
+      // day of the month having to come round. `age()` returns an interval, and
+      // extracting years*12 + months off it is exactly that.
+      const AGE_MONTHS = `(EXTRACT(YEAR FROM age(CURRENT_DATE, c.date_of_birth)) * 12
+                         + EXTRACT(MONTH FROM age(CURRENT_DATE, c.date_of_birth)))::int`;
+      const [ages, ticks, nodob] = await Promise.all([
+        pool.query(
+          `SELECT ${AGE_MONTHS} AS age_months, count(*)::int AS n
+             FROM children c
+            WHERE c.date_of_birth IS NOT NULL AND c.date_of_birth <= CURRENT_DATE
+            GROUP BY 1`),
+        // Grouped by (key, age) rather than by key alone so the caller can drop
+        // a tick from a child too young to be in the denominator. Without that
+        // one organised parent ticking a shot off early prints 110 % coverage.
+        pool.query(
+          `SELECT v.vaccine_key AS key, ${AGE_MONTHS} AS age_months, count(*)::int AS n
+             FROM child_vaccines v JOIN children c ON c.id = v.child_id
+            WHERE c.date_of_birth IS NOT NULL AND c.date_of_birth <= CURRENT_DATE
+            GROUP BY 1, 2`),
+        // Counted and reported, never folded into a denominator: a child with
+        // no birth date cannot be placed on the calendar at all, and silently
+        // treating her as un-vaccinated would depress every figure on the screen.
+        pool.query(
+          `SELECT count(*)::int AS n FROM children
+            WHERE date_of_birth IS NULL OR date_of_birth > CURRENT_DATE`),
+      ]);
+      return {
+        childAges: ages.rows.map((r) => ({ ageMonths: Number(r.age_months), n: Number(r.n) })),
+        ticks: ticks.rows.map((r) => ({
+          key: r.key as string, ageMonths: Number(r.age_months), n: Number(r.n),
+        })),
+        childrenWithoutDob: Number(nodob.rows[0]?.n ?? 0),
+      };
+    },
+
     async pregnancyWeekMotherCounts() {
       // The same expression the dashboard's stage histogram uses, so «неделя 22»
       // means one thing across the back office. Integer division on two `date`
@@ -1922,6 +2082,53 @@ export function createPgRepository(pool: Pool): Repository {
         deepMin: r.deep_min, remMin: r.rem_min, lightMin: r.light_min, awakeMin: r.awake_min,
         source: r.source ?? undefined,
         manualAsleepMin: r.manual_asleep_min ?? null,
+      }));
+    },
+
+    // ---- Watch activity / wellbeing days ----
+    async upsertWearableDay(row) {
+      await pool.query(
+        `INSERT INTO wearable_days (
+           user_id, device_id, day, recorded_at, steps, kcal, meters,
+           sleep_min, deep_sleep_min, light_sleep_min,
+           stress, breath_rate, met, battery_pct, charging, worn)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         ON CONFLICT (user_id, device_id, day) DO UPDATE
+           SET recorded_at = EXCLUDED.recorded_at,
+               steps = EXCLUDED.steps, kcal = EXCLUDED.kcal, meters = EXCLUDED.meters,
+               sleep_min = EXCLUDED.sleep_min, deep_sleep_min = EXCLUDED.deep_sleep_min,
+               light_sleep_min = EXCLUDED.light_sleep_min,
+               -- A value the watch did not measure this time must not erase the
+               -- one it measured an hour ago: COALESCE keeps the last real
+               -- reading rather than writing the day back to "never measured".
+               stress = COALESCE(EXCLUDED.stress, wearable_days.stress),
+               breath_rate = COALESCE(EXCLUDED.breath_rate, wearable_days.breath_rate),
+               met = COALESCE(EXCLUDED.met, wearable_days.met),
+               battery_pct = COALESCE(EXCLUDED.battery_pct, wearable_days.battery_pct),
+               charging = EXCLUDED.charging, worn = EXCLUDED.worn`,
+        [row.userId, row.deviceId, row.day, row.recordedAt, row.steps, row.kcal, row.meters,
+         row.sleepMinutes, row.deepSleepMinutes, row.lightSleepMinutes,
+         row.stress ?? null, row.breathRate ?? null, row.met ?? null,
+         row.batteryPercent ?? null, row.charging, row.worn]);
+    },
+    async listWearableDays(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT device_id, day, recorded_at, steps, kcal, meters,
+                sleep_min, deep_sleep_min, light_sleep_min,
+                stress, breath_rate, met, battery_pct, charging, worn
+           FROM wearable_days WHERE user_id = $1 ORDER BY day DESC LIMIT $2`,
+        [userId, limit]);
+      return rows.map((r) => ({
+        deviceId: r.device_id,
+        day: new Date(r.day).toISOString().slice(0, 10),
+        recordedAt: new Date(r.recorded_at).toISOString(),
+        steps: r.steps, kcal: r.kcal, meters: r.meters,
+        sleepMinutes: r.sleep_min,
+        deepSleepMinutes: r.deep_sleep_min,
+        lightSleepMinutes: r.light_sleep_min,
+        stress: r.stress, breathRate: r.breath_rate, met: r.met,
+        batteryPercent: r.battery_pct,
+        charging: r.charging, worn: r.worn,
       }));
     },
 
@@ -2772,12 +2979,118 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
-    async setShopOrderStatus(orderId, status) {
+    async adminShopOrderPage({ limit, offset, status }) {
+      // Two reads, on purpose. `total` has to follow the filter — «Показано 25
+      // из 40 отменённых» — while `counts` must NOT, because those numbers are
+      // printed on the filter chips themselves and a counter that changed when
+      // you clicked it tells the operator nothing.
+      const where = status ? 'WHERE status = $3' : '';
+      const params: unknown[] = status ? [limit, offset, status] : [limit, offset];
+      const { rows } = await pool.query(
+        `SELECT id, customer_name, phone, city, address, note, total_minor,
+                discount_minor, status, created_at,
+                COUNT(*) OVER() AS match_total
+           FROM shop_orders ${where}
+          ORDER BY created_at DESC
+          LIMIT $1 OFFSET $2`,
+        params,
+      );
+      const { rows: tally } = await pool.query(
+        'SELECT status, COUNT(*)::int AS n FROM shop_orders GROUP BY status');
+      const counts: Record<ShopOrderStatus, number> = {
+        new: 0, confirmed: 0, shipped: 0, delivered: 0, cancelled: 0,
+      };
+      for (const t of tally) counts[t.status as ShopOrderStatus] = Number(t.n);
+
+      // An empty page is not the same as an empty table: page 3 of a two-page
+      // list has no rows and a real total, so the total comes from the tally
+      // when the window function had no row to hang it on.
+      const total = rows.length
+        ? Number(rows[0].match_total)
+        : status
+          ? counts[status]
+          : Object.values(counts).reduce((a, b) => a + b, 0);
+      if (!rows.length) return { orders: [], total, counts };
+
+      const ids = rows.map((r) => r.id);
+      const { rows: items } = await pool.query(
+        `SELECT order_id, product_name, color, qty, unit_price_minor
+         FROM shop_order_items WHERE order_id = ANY($1)`, [ids]);
+      const byOrder = new Map<string, Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }>>();
+      for (const it of items) {
+        const arr = byOrder.get(it.order_id) ?? [];
+        arr.push({ productName: it.product_name, color: it.color, qty: it.qty, unitPriceMinor: it.unit_price_minor });
+        byOrder.set(it.order_id, arr);
+      }
+      return {
+        orders: rows.map((r) => ({
+          id: r.id, customerName: r.customer_name, phone: r.phone, city: r.city, address: r.address,
+          note: r.note, totalMinor: r.total_minor, discountMinor: r.discount_minor, status: r.status,
+          createdAt: new Date(r.created_at).toISOString(), items: byOrder.get(r.id) ?? [],
+        })),
+        total,
+        counts,
+      };
+    },
+
+    async shopOrderById(id) {
+      // Guarded like every other UUID lookup: shop_orders.id is a uuid column,
+      // so `/admin/shop/orders/order-1` would raise 22P02 and answer 500 where
+      // the truth is «такого заказа нет».
+      if (!looksLikeUuid(id)) return null;
+      const { rows } = await pool.query(
+        `SELECT id, customer_name, phone, city, address, note, total_minor,
+                discount_minor, status, created_at
+           FROM shop_orders WHERE id = $1`, [id]);
+      if (!rows[0]) return null;
+      const { rows: items } = await pool.query(
+        `SELECT product_name, color, qty, unit_price_minor
+           FROM shop_order_items WHERE order_id = $1`, [id]);
+      const r = rows[0];
+      return {
+        id: r.id, customerName: r.customer_name, phone: r.phone, city: r.city, address: r.address,
+        note: r.note, totalMinor: r.total_minor, discountMinor: r.discount_minor, status: r.status,
+        createdAt: new Date(r.created_at).toISOString(),
+        items: items.map((i) => ({
+          productName: i.product_name, color: i.color, qty: i.qty, unitPriceMinor: i.unit_price_minor,
+        })),
+      };
+    },
+
+    async shopOrderEvents(orderId) {
+      if (!looksLikeUuid(orderId)) return [];
+      // LEFT JOIN and the id is kept, exactly like listAudit: a transition made
+      // by an account since removed must stay on the timeline.
+      const { rows } = await pool.query(
+        `SELECT e.id, e.order_id, e.from_status, e.to_status, e.staff_id, e.at,
+                a.display_name AS staff_name
+           FROM shop_order_events e
+           LEFT JOIN staff_accounts a ON a.id::text = e.staff_id
+          WHERE e.order_id = $1
+          ORDER BY e.at ASC, e.id ASC`,
+        [orderId],
+      );
+      return rows.map((r) => ({
+        id: Number(r.id),
+        orderId: r.order_id,
+        fromStatus: r.from_status ?? null,
+        toStatus: r.to_status,
+        staffId: r.staff_id ?? null,
+        staffName: r.staff_name ?? null,
+        at: new Date(r.at).toISOString(),
+      }));
+    },
+
+    async setShopOrderStatus(orderId, status, staffId) {
       // Cancelling puts the goods back on the shelf.
       //
       // It did not, before: the order was marked cancelled and the stock stayed
       // gone, so every cancellation quietly shrank the sellable inventory until
       // somebody noticed the shop was "out" of something sitting in the room.
+      //
+      // Same reason as shopOrderById: an id that cannot be a UUID is an order
+      // we do not have, not a 500.
+      if (!looksLikeUuid(orderId)) return;
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -2786,6 +3099,20 @@ export function createPgRepository(pool: Pool): Repository {
         if (!prev[0]) { await client.query('ROLLBACK'); return; }
         const was = prev[0].status as string;
         await client.query('UPDATE shop_orders SET status = $2 WHERE id = $1', [orderId, status]);
+
+        // The timeline row, inside the same transaction as the move it
+        // describes. A history written afterwards, outside the lock, is a
+        // history that disagrees with the order it belongs to the first time
+        // anything fails between the two statements.
+        //
+        // Only on a REAL transition: re-selecting the status a row already has
+        // would otherwise fill frame 03 with «Отправлен → Отправлен».
+        if (was !== status) {
+          await client.query(
+            `INSERT INTO shop_order_events (order_id, from_status, to_status, staff_id)
+             VALUES ($1,$2,$3,$4)`,
+            [orderId, was, status, staffId ?? null]);
+        }
 
         // Fulfilling a bundle grants what the bundle promises.
         //

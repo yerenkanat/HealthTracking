@@ -183,6 +183,83 @@ export function announcementCopy(
   };
 }
 
+const SOS_TITLE: Copy = {
+  ru: 'SOS · {name} нажала кнопку',
+  kk: 'SOS · {name} түймені басты',
+  en: 'SOS · {name} pressed the button',
+};
+/// Without a name — a child the row cannot identify. Never «Your child»:
+/// inventing a name on this notification is inventing it on the alarm.
+const SOS_TITLE_NONAME: Copy = {
+  ru: 'SOS · нажата кнопка тревоги',
+  kk: 'SOS · дабыл түймесі басылды',
+  en: 'SOS · the alarm button was pressed',
+};
+const SOS_BODY_ZONE: Copy = {
+  ru: '{zone}. Нажмите, чтобы открыть.',
+  kk: '{zone}. Ашу үшін басыңыз.',
+  en: '{zone}. Tap to open.',
+};
+const SOS_BODY: Copy = {
+  ru: 'Нажмите, чтобы открыть сигнал.',
+  kk: 'Сигналды ашу үшін басыңыз.',
+  en: 'Tap to open the alert.',
+};
+
+/**
+ * «SOS · Алия нажала кнопку» — screen 21, on the lock screen (§2.20).
+ *
+ * The ONE notification in this product that is allowed the red border, the
+ * alarm sound and the Do-Not-Disturb bypass. `critical` is set here rather than
+ * inferred, because `medical_emergency` is the mother's own vitals and this is
+ * her child pressing a button; they are different categories with the same
+ * urgency.
+ *
+ * WHAT TRAVELS IN `data`, AND WHAT DOES NOT. The screen needs a name, a time
+ * and a place, and those go. The family contact it offers to call — «Сообщить
+ * Нуржану» — does NOT: it is already on the phone, in the child's medical-ID
+ * card that the app restores from `GET /children/:id/emergency`, and a push
+ * payload is stored in plaintext by the OS and by FCM. There is no reason to
+ * put a relative's phone number through that to display something the device
+ * can already read locally.
+ *
+ * `lat`/`lng` are strings because an FCM data block is Record<string,string>;
+ * the app parses them back and ignores the pair unless BOTH parse.
+ */
+export function sosCopy(
+  opts: {
+    childId: string;
+    childName: string;
+    at: string;
+    zoneName?: string;
+    coords?: { lat: number; lng: number } | null;
+  },
+  locale: PushLocale = 'ru',
+): PushMessage {
+  const name = opts.childName.trim();
+  const zone = (opts.zoneName ?? '').trim();
+  return {
+    title: name
+      ? fill(pick(SOS_TITLE, locale), { name })
+      : pick(SOS_TITLE_NONAME, locale),
+    body: zone ? fill(pick(SOS_BODY_ZONE, locale), { zone }) : pick(SOS_BODY, locale),
+    category: 'medical_emergency',
+    critical: true,
+    data: {
+      screen: 'SosAlert',
+      childId: opts.childId,
+      // Only when there is one. An empty string would read as a name on the
+      // other side and produce «SOS ·  нажала кнопку».
+      ...(name ? { childName: name } : {}),
+      at: opts.at,
+      ...(zone ? { zoneName: zone } : {}),
+      ...(opts.coords
+        ? { lat: String(opts.coords.lat), lng: String(opts.coords.lng) }
+        : {}),
+    },
+  };
+}
+
 export function emergencyCopy(triage: TriageResult, locale: PushLocale = 'ru'): PushMessage {
   const top = triage.findings[0];
   return {

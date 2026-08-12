@@ -14,14 +14,25 @@ import { antenatalProtocol } from '../antenatal/protocol';
 import { vaccinationSchedule } from '../vaccination/schedule';
 import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
-import type { ContentItemRow, Repository, ShopOrder } from '../db/repository';
-import { PRODUCT_STAGES, SUPPORT_CHANNELS, SUPPORT_STATUSES } from '../db/repository';
+import type { ContentItemRow, Repository, ShopOrder, ShopOrderStatus } from '../db/repository';
+import { PRODUCT_STAGES, SHOP_ORDER_STATUSES, SUPPORT_CHANNELS, SUPPORT_STATUSES } from '../db/repository';
+import { buildOrderTimeline, orderRef, orderWhatsappLink } from '../admin/orders';
 import { buildIntegrations, integrationSummary, maskSecret } from '../admin/integrations';
 import { buildFinanceReport, financeCsv } from '../admin/finance';
 import { buildSupportBoard, SUPPORT_SLA_HOURS, whatsappReplyLink } from '../admin/support';
 import { bilingualMessage, bilingualProblems, missingLocales, type BilingualProblem } from '../content/bilingual';
 import { weekAsReviewable, type PregnancyWeekOverride } from '../pregnancy/overrides';
 import { servedCalendar } from '../pregnancy/served';
+import {
+  ageLabelRu, contractKey, vaccineAsReviewable, vaccineKeyOf,
+  type VaccinationOverride,
+} from '../vaccination/overrides';
+import { servedVaccinationSchedule } from '../vaccination/served';
+// Aliased: `coverageOf` in this file already means "how much of the timeline
+// catalogue is filled in", which is a different question about a different table.
+import {
+  coverageOf as vaccinationCoverageOf, impactOf, impactOfNew,
+} from '../vaccination/coverage';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import {
   BROADCAST_AUDIENCES, BROADCAST_LOCALES, BROADCAST_MIN_GAP_DAYS, INFANT_MAX_MONTHS,
@@ -146,6 +157,25 @@ const contentItem = z.object({
   // item claim an unbounded number of places.
   alsoStages: z.array(z.string().regex(/^[wm]\d{1,2}$/)).max(101).optional(),
   /**
+   * Which shelf of the app's guides library (app screen 27) this belongs on.
+   *
+   * A CLOSED vocabulary rather than free text, because the app draws exactly
+   * four tiles: a fifth value would be stored, downloaded to every phone and
+   * rendered nowhere — this repo's commonest defect.
+   *
+   * Optional, and being optional is the point: 364 items are already published
+   * and none of them carries this. The app derives a topic from the home stage
+   * for anything untagged (w* → pregnancy, m0-m12 → baby, m13+ → child), so
+   * the grid is full on day one and tagging is an improvement rather than a
+   * migration. `mother` is the one no stage implies, so it is only ever
+   * explicit — content about HER, at whatever week the baby is.
+   *
+   * It must be listed here or it would not exist: z.object STRIPS unknown
+   * keys, so an absent field here would mean every panel save silently erased
+   * a topic somebody had set.
+   */
+  topic: z.enum(['pregnancy', 'baby', 'child', 'mother']).optional(),
+  /**
    * This card gives medical guidance, so «только после проверки врачом».
    *
    * Marked by whoever writes it. Getting it wrong in the safe direction — a
@@ -203,6 +233,37 @@ const pregnancyWeekBody = z.object({
   /// Work in progress: saved, not served. This is what makes the clinician
   /// rule workable — half-written advice has somewhere to live.
   draft: z.boolean().default(false),
+});
+
+/// One language's half of one row of the immunisation calendar (frames 15/15a).
+///
+/// `note` is the line under the name — «Против пневмонии и отита…». Optional in
+/// the schema and conditionally required in the route: a shipped vaccine
+/// already has one in the app's l10n table under `vac_<id>_note`, so demanding
+/// it here would make an editor retype text that is already correct, while an
+/// ADDED vaccine has no l10n key at all and would render as a blank line.
+const vaccineText = z.object({
+  name: z.string().trim().min(0).max(160),
+  note: z.string().trim().max(600).default(''),
+});
+
+const vaccinationBody = z.object({
+  /// Completed months. 216 is eighteen years — past anything a childhood
+  /// calendar covers, and the CHECK on the column agrees.
+  atMonth: z.number().int().min(0).max(216),
+  ru: vaccineText,
+  kk: vaccineText,
+  /// Only read when the key is NOT in the contract, i.e. frame 15a. On an
+  /// existing row the dose is identity and cannot move — see the route.
+  dose: z.number().int().min(1).max(9).nullable().default(null),
+  /// Work in progress: saved, not served. Also the only way back — drafting an
+  /// edit shows the contract through again, drafting an added vaccine retires it.
+  draft: z.boolean().default(false),
+});
+
+/// The catch-up window, in months. 1..12 matches the column's CHECK.
+const vaccinationSettingsBody = z.object({
+  dueWindowMonths: z.number().int().min(1).max(12),
 });
 
 /// A whole catalogue in one request. 101 stages x 50 items is the ceiling the
@@ -381,7 +442,6 @@ export function registerAdminRoutes(
   // of fixing the panel.
   const REFERENCE = {
     antenatal: antenatalProtocol,
-    vaccination: vaccinationSchedule,
     pregnancy: pregnancyCalendar,
     childdev: childDevCalendar,
   } as const;
@@ -390,6 +450,12 @@ export function registerAdminRoutes(
     const s = await requireStaff(req, reply);
     if (!s) return;
     const { kind } = req.params as { kind: string };
+    // Not in the constant table: the immunisation calendar is now editable, and
+    // this route has to answer with what a PHONE receives. Serving the raw
+    // contract here would mean staff opening «Вакцинация» saw a schedule the
+    // app does not use — which is the one thing a reference tab exists to
+    // prevent. Frame 15.
+    if (kind === 'vaccination') return reply.send(await servedVaccinationSchedule(repo));
     const data = REFERENCE[kind as keyof typeof REFERENCE];
     if (!data) return reply.code(404).send({ error: 'unknown_reference' });
     return reply.send(data);
@@ -1263,6 +1329,449 @@ export function registerAdminRoutes(
     return reply.send({ ok: true, week, review, draft: current.draft });
   });
 
+  // ---- Immunisation calendar (frames 15 / 15a / 15b) ----------------------
+  //
+  // Sixteen entries that decide what every parent in this app is told to do and
+  // when, and until these routes existed they were a JSON file compiled into
+  // the server and mirrored in Dart. When the ministry moved the second
+  // pneumococcal dose, changing it was a backend release AND a store rollout.
+  //
+  // What is served stays contract-plus-overrides — see vaccination/overrides.ts.
+  // The contract is never touched, so the app keeps working with no signal and
+  // app/tool/verify_vaccination_contract.dart keeps passing.
+
+  /** The contract entry behind a key, if the shipped calendar has one. */
+  const contractVaccine = (key: string) =>
+    vaccinationSchedule.vaccines.find((v) => contractKey(v) === key) ?? null;
+
+  /** `bcg/null` from the two path segments the panel sends. */
+  const keyFromParams = (p: { id: string; dose: string }) => {
+    const dose = p.dose === 'null' || p.dose === '' ? null : Number(p.dose);
+    if (dose != null && !Number.isInteger(dose)) return null;
+    return { key: vaccineKeyOf(p.id, dose), id: p.id, dose };
+  };
+
+  /**
+   * The editor's view: every injection the calendar knows about, merged, with
+   * its edit state.
+   *
+   * Rows come from the contract AND from the override table, because the two
+   * sets are not the same: a vaccine added in frame 15a exists only in the
+   * table, and one that has been retired (drafted) has to stay visible to the
+   * person who might want it back. A list built from the served schedule alone
+   * would make retiring a vaccine the one edit that cannot be undone.
+   *
+   * Staff-read rather than `content`-gated: a clinician holding `health` has to
+   * be able to READ what she is being asked to approve.
+   */
+  app.get('/admin/vaccination/schedule', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    // Nor is the edit state. Frame 15 is a READ of the national calendar and it
+    // read fine before this table existed — 500ing the whole tab because
+    // migration 038 has not run yet takes the calendar away over the one part
+    // of it that is a patch. So: the contract, plus `editsKnown: false` so the
+    // panel can say out loud that it does not know what has been edited (and
+    // refuse to let anyone save over an edit it cannot see).
+    const [overrides, settings] = await Promise.all([
+      repo.vaccinationOverrides().catch(() => null),
+      repo.vaccinationSettings().catch(() => undefined),
+    ]);
+    const served = await servedVaccinationSchedule(repo);
+    const byKey = new Map((overrides ?? []).map((o) => [o.key, o]));
+
+    const row = (key: string, o: VaccinationOverride | undefined, base: ReturnType<typeof contractVaccine>) => {
+      // The EDITOR sees the draft; a reader does not. Opening a vaccine you
+      // saved as a draft and finding the shipped label back in the box is how
+      // an afternoon's work gets retyped.
+      const shown = o
+        ? { atMonth: o.atMonth, dose: o.dose, ru: o.ru, kk: o.kk, draft: o.draft }
+        : {
+          atMonth: base!.atMonth,
+          dose: base!.dose ?? null,
+          // The contract carries a Russian label and nothing else — no Kazakh,
+          // no note. Those live in the app's l10n table, which this server
+          // cannot read, so the boxes start empty rather than pre-filled with a
+          // guess. That is also why the FIRST edit of a shipped vaccine is
+          // where the bilingual rule bites: it is the first time anybody has
+          // been asked to write the Kazakh down here.
+          ru: { name: base!.ru, note: '' },
+          kk: { name: '', note: '' },
+          draft: false,
+        };
+      const item = o ? vaccineAsReviewable(key, o, base) : null;
+      const live = served.vaccines.find((v) => v.key === key) ?? null;
+      return {
+        key,
+        id: o?.id ?? base!.id,
+        dose: shown.dose,
+        atMonth: shown.atMonth,
+        /// What the shipped calendar says, so the panel can show «было / стало»
+        /// and offer «вернуть к шипованному графику» only where there is one.
+        contractAtMonth: base ? base.atMonth : null,
+        contractRu: base ? base.ru : null,
+        inContract: base != null,
+        added: o?.added === true,
+        ru: shown.ru,
+        kk: shown.kk,
+        /// Somebody has edited this; without it the panel cannot tell "same as
+        /// shipped" from "edited back to the same words".
+        edited: o != null,
+        draft: o?.draft === true,
+        /// Is this row on a phone right now?
+        live: live != null,
+        /// ...and at what age, which is not the same as `atMonth` when this row
+        /// is a draft: the reader still gets the contract's month.
+        liveAtMonth: live ? live.atMonth : null,
+        review: o?.review ? { by: o.review.by, at: o.review.at } : null,
+        reviewCurrent: o?.review != null && item != null
+          && o.review.fingerprint === textFingerprint(item),
+        updatedAt: o?.updatedAt ?? null,
+        updatedBy: o?.updatedBy ?? null,
+      };
+    };
+
+    const rows = vaccinationSchedule.vaccines.map((v) => {
+      const key = contractKey(v);
+      return row(key, byKey.get(key), v);
+    });
+    for (const o of overrides ?? []) {
+      if (contractVaccine(o.key)) continue;
+      rows.push(row(o.key, o, null));
+    }
+    rows.sort((a, b) => a.atMonth - b.atMonth || a.key.localeCompare(b.key));
+
+    return reply.send({
+      version: served.version,
+      contractVersion: vaccinationSchedule.version,
+      editsKnown: overrides != null,
+      /// `undefined` from the catch above means the read FAILED; `null` means
+      /// there is no row, which is a decision nobody has taken rather than a
+      /// failure. The panel prints those two differently.
+      settingsKnown: settings !== undefined,
+      dueWindowMonths: served.dueWindowMonths,
+      contractDueWindowMonths: vaccinationSchedule.dueWindowMonths,
+      dueWindowEdited: settings != null,
+      dueWindowUpdatedAt: settings?.updatedAt ?? null,
+      dueWindowUpdatedBy: settings?.updatedBy ?? null,
+      vaccines: rows,
+    });
+  });
+
+  /**
+   * Save one injection.
+   *
+   * The same two rules as the pregnancy week editor, for the same reasons and
+   * in the same words: no Kazakh, no publication; and editing approved medical
+   * text takes the approval away. Every row here tells a parent to take a child
+   * for an injection on a date, so there is no unmarked half to slip through.
+   *
+   * A draft is exempt from the second rule and not from the first.
+   *
+   * `dose` is IDENTITY and cannot move on an existing row. A mother's tick is
+   * filed under `<id>/<dose>` (`child_vaccines.vaccine_key`), so renumbering a
+   * dose would orphan every tick already recorded against it and quietly reset
+   * the coverage figure for that injection to zero. The route says so instead
+   * of doing it.
+   */
+  app.put('/admin/vaccination/schedule/:id/:dose', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const p = keyFromParams(req.params as { id: string; dose: string });
+    if (!p) return reply.code(400).send({ error: 'bad_key', message: 'Доза должна быть числом или null.' });
+    if (!/^[a-z][a-z0-9_]{1,31}$/.test(p.id)) {
+      return reply.code(400).send({
+        error: 'bad_id',
+        message: 'Код прививки — латиница, цифры и подчёркивание, 2–32 символа (например pcv).',
+      });
+    }
+    const parsed = vaccinationBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const v = parsed.data;
+    const base = contractVaccine(p.key);
+
+    let stored: VaccinationOverride[];
+    // NOT `.catch(() => [])`. A failed read is not "no row yet": carryReview
+    // would see no prior signature, store `review: null`, and a clinician's
+    // sign-off would be destroyed by a save that reported success. Drafts are
+    // exempt from the review gate, so nothing else would have stopped the write.
+    try {
+      stored = await repo.vaccinationOverrides();
+    } catch {
+      return reply.code(503).send({
+        error: 'overrides_unavailable',
+        key: p.key,
+        message: 'Не удалось прочитать сохранённые прививки, поэтому сохранение отменено — ' +
+          'иначе проверка врача по этой прививке была бы потеряна. Повторите через минуту.',
+      });
+    }
+    const previous = stored.find((o) => o.key === p.key);
+
+    // A key that is neither in the contract nor already stored is a NEW vaccine
+    // (frame 15a); the dose in the body has to agree with the one in the path,
+    // or the row would be filed under a key nobody can reach.
+    if (!base && !previous && v.dose !== p.dose) {
+      return reply.code(400).send({
+        error: 'dose_mismatch',
+        message: `Доза в адресе (${p.dose ?? 'нет'}) и в форме (${v.dose ?? 'нет'}) не совпадают.`,
+      });
+    }
+    if (previous && v.dose !== previous.dose) {
+      return reply.code(409).send({
+        error: 'dose_is_identity',
+        message: 'Номер дозы менять нельзя: под ключом «' + p.key + '» уже сохранены отметки мам ' +
+          'о сделанных прививках. Добавьте прививку с новой дозой и уберите старую в черновик.',
+      });
+    }
+
+    const problems: BilingualProblem[] = [];
+    const label = base ? base.ru : (previous?.ru.name || p.key);
+    const nameMissing = missingLocales({ ru: v.ru.name, kk: v.kk.name });
+    if (nameMissing.length) problems.push({ id: label, field: 'name', missing: nameMissing });
+    // The note is required for an ADDED vaccine — nothing in the app's l10n
+    // table can fill it, so the row would render with a blank second line — and
+    // whenever one language's note has been written, because half a translation
+    // is exactly what the bilingual rule exists to stop.
+    const added = previous ? previous.added : !base;
+    if (added || v.ru.note || v.kk.note) {
+      const noteMissing = missingLocales({ ru: v.ru.note, kk: v.kk.note });
+      if (noteMissing.length) problems.push({ id: label, field: 'note', missing: noteMissing });
+    }
+    if (problems.length) {
+      return reply.code(400).send({
+        error: 'translation_required',
+        key: p.key,
+        problems,
+        message: bilingualMessage(problems),
+      });
+    }
+
+    const incoming = vaccineAsReviewable(p.key, { ...v, dose: p.dose }, base);
+    const prior: ReviewableItem | undefined = previous?.review
+      ? { ...vaccineAsReviewable(p.key, previous, base), review: previous.review }
+      : undefined;
+    const needReview = unreviewed([incoming], new Map(prior ? [[incoming.id, prior]] : []));
+    if (needReview.length) {
+      return reply.code(409).send({
+        error: 'review_required',
+        key: p.key,
+        problems: needReview,
+        message: reviewMessage(needReview) +
+          '. Отправьте на проверку врачу или сохраните как черновик.',
+      });
+    }
+
+    // What gets STORED is the review already in the database, never one from
+    // the request body — that would be self-approval by PUT.
+    const carried = carryReview(incoming, prior);
+    await repo.putVaccinationOverride({
+      key: p.key,
+      id: p.id,
+      dose: p.dose,
+      atMonth: v.atMonth,
+      ru: v.ru,
+      kk: v.kk,
+      added,
+      draft: v.draft,
+      review: carried.review ?? null,
+      updatedBy: s.staffId,
+    });
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: v.draft ? 'edit_vaccine_draft' : 'edit_vaccine',
+      target: p.key,
+    });
+    return reply.send({
+      ok: true, key: p.key, draft: v.draft, added,
+      reviewed: carried.review != null,
+    });
+  });
+
+  /**
+   * A clinician signs off one injection.
+   *
+   * `health`, not `content` — that separation IS the two-person rule. The
+   * signature covers the age as well as the words (see [vaccineAsReviewable]),
+   * so moving a dose after approval invalidates it without anybody having to
+   * remember to.
+   *
+   * Only an EDITED vaccine can be reviewed. The shipped calendar came through
+   * the ministry's own order and this product's release; asking a clinician to
+   * re-approve sixteen untouched rows would turn the queue into noise.
+   */
+  app.post('/admin/vaccination/schedule/:id/:dose/review', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const p = keyFromParams(req.params as { id: string; dose: string });
+    if (!p) return reply.code(400).send({ error: 'bad_key' });
+    const current = (await repo.vaccinationOverrides()).find((o) => o.key === p.key);
+    if (!current) {
+      return reply.code(404).send({
+        error: 'not_edited',
+        message: 'Эта прививка не редактировалась — проверять нечего.',
+      });
+    }
+    const review = {
+      by: s.staffId,
+      at: new Date().toISOString(),
+      fingerprint: textFingerprint(vaccineAsReviewable(p.key, current, contractVaccine(p.key))),
+    };
+    await repo.putVaccinationOverride({
+      key: p.key,
+      id: current.id,
+      dose: current.dose,
+      atMonth: current.atMonth,
+      ru: current.ru,
+      kk: current.kk,
+      added: current.added,
+      // Approving does NOT publish. Two decisions, two people, two moments.
+      draft: current.draft,
+      review,
+      updatedBy: current.updatedBy ?? s.staffId,
+    });
+    await repo.writeAudit({ staffId: s.staffId, action: 'vaccine_review', target: p.key });
+    return reply.send({ ok: true, key: p.key, review, draft: current.draft });
+  });
+
+  /**
+   * «Настройки напоминаний», as much of them as this product can honestly offer.
+   *
+   * There is NO server-side vaccination sender. Nothing in this backend pushes
+   * a «пора прививаться» notification — the reminder a parent gets is scheduled
+   * on her own phone by the app — so a toggle here for switching one on would
+   * be a control wired to nothing, which is this repository's favourite defect.
+   *
+   * What genuinely reaches every phone is the catch-up window: how long a
+   * vaccine reads as «пора» before it reads as «стоит наверстать». It used to
+   * be a Dart constant. It is now this row, the app fetches it, and the panel
+   * says out loud that it is the only reminder setting there is.
+   */
+  app.put('/admin/vaccination/settings', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const parsed = vaccinationSettingsBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.putVaccinationSettings({
+      dueWindowMonths: parsed.data.dueWindowMonths,
+      updatedBy: s.staffId,
+    });
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: 'edit_vaccination_settings',
+      target: `dueWindowMonths=${parsed.data.dueWindowMonths}`,
+    });
+    return reply.send({ ok: true, dueWindowMonths: parsed.data.dueWindowMonths });
+  });
+
+  /**
+   * Frame 15's coverage column.
+   *
+   * READ THE HEADER OF vaccination/coverage.ts BEFORE QUOTING ANY OF THIS. Every
+   * figure is **self-reported by mothers in the app** — a row in
+   * `child_vaccines` exists because a parent tapped a circle. Nothing in this
+   * product reads a polyclinic record. It is «охват по отметкам мам», never
+   * «охват по РК», and the payload says so in a field the panel prints rather
+   * than leaving it to whoever writes the HTML.
+   */
+  app.get('/admin/vaccination/coverage', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const schedule = await servedVaccinationSchedule(repo);
+    let data;
+    try {
+      data = await repo.vaccinationCoverage();
+    } catch {
+      // A count is not worth failing the screen for, and a screen full of
+      // zeroes would read as «никто не прививается».
+      return reply.code(503).send({
+        error: 'coverage_unavailable',
+        message: 'Не удалось посчитать охват — данные о детях сейчас недоступны. ' +
+          'График прививок ниже верен, цифры охвата не показаны.',
+      });
+    }
+    const report = vaccinationCoverageOf(schedule, data);
+    return reply.send({
+      ...report,
+      version: schedule.version,
+      source: 'self_reported',
+      sourceNote: 'Отметки мам в приложении, а не данные поликлиник. ' +
+        'Это доля родителей — пользователей приложения, которые отметили прививку сделанной.',
+      rule: `В знаменателе — дети, у которых возраст прививки и догоняющее окно (${report.dueWindowMonths} мес.) уже прошли; ` +
+        'дети, у которых прививка ещё «пора», не считаются ни в одну сторону.',
+    });
+  });
+
+  /**
+   * «Затронет N детей» — what an age change would actually do.
+   *
+   * `?key=pcv/1` for an existing injection, `?atMonth=` alone for a vaccine
+   * that does not exist yet (frame 15a). The query string carries the slash in
+   * a key without any encoding argument.
+   *
+   * The number that matters is `reclassified`: how many children's rows flip
+   * between «предстоит», «пора» and «стоит наверстать» the moment the change is
+   * published. Moving a booster by a month can put thousands of children into a
+   * catch-up list overnight, and nobody should be able to do that without the
+   * count in front of them.
+   */
+  app.get('/admin/vaccination/impact', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const q = req.query as { key?: string; atMonth?: string };
+    const proposed = q.atMonth == null || q.atMonth === '' ? null : Number(q.atMonth);
+    if (proposed != null && (!Number.isInteger(proposed) || proposed < 0 || proposed > 216)) {
+      return reply.code(400).send({ error: 'bad_at_month' });
+    }
+    const schedule = await servedVaccinationSchedule(repo);
+    let data;
+    try {
+      data = await repo.vaccinationCoverage();
+    } catch {
+      return reply.code(503).send({
+        error: 'impact_unavailable',
+        message: 'Не удалось посчитать, скольких детей это затронет. Сохранение не заблокировано, ' +
+          'но число сейчас неизвестно — это не ноль.',
+      });
+    }
+    if (!q.key) {
+      if (proposed == null) return reply.code(400).send({ error: 'at_month_required' });
+      return reply.send({ ...impactOfNew(schedule, data, proposed), isNew: true, ageLabel: ageLabelRu(proposed) });
+    }
+    const impact = impactOf(schedule, data, q.key, proposed);
+    if (!impact) {
+      // A drafted vaccine is not in the served schedule, so there is honestly
+      // nothing on a phone for a change to reclassify.
+      return reply.code(404).send({
+        error: 'not_served',
+        message: 'Эта прививка сейчас не в графике (черновик), поэтому изменение никого не затронет.',
+      });
+    }
+    return reply.send({ ...impact, isNew: false, ageLabel: ageLabelRu(impact.atMonth) });
+  });
+
+  /**
+   * Frame 15b «История версий».
+   *
+   * Straight off the append-only log, so the diff is what actually happened
+   * rather than something reconstructed from the current row. A `before` of
+   * null is not a gap: it means there was no row, and the text that edit
+   * departed from is the shipped contract, which the panel has and shows.
+   */
+  app.get('/admin/vaccination/log', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const limit = Math.min(200, Math.max(1, Number((req.query as { limit?: string }).limit) || 50));
+    try {
+      return reply.send({ entries: await repo.vaccinationScheduleLog(limit) });
+    } catch {
+      return reply.code(503).send({
+        error: 'log_unavailable',
+        message: 'Журнал версий недоступен — таблица не отвечает. ' +
+          'Это не значит, что правок не было.',
+      });
+    }
+  });
+
   // ---- Рассылки (frame 06 «Маркетинг») ------------------------------------
   //
   // Writing to every pregnant user at once is the most dangerous button in this
@@ -1798,12 +2307,87 @@ export function registerAdminRoutes(
     return reply.send({ ok: true });
   });
 
+  /**
+   * Frame 02 «Заказы» — one page of the list, plus the numbers it prints.
+   *
+   * `total` follows the filter so the footer can say «Показано 25 из 40
+   * отменённых» and mean it. `counts` deliberately does NOT: those figures sit
+   * on the filter chips, and a counter that changes the moment you click it
+   * cannot be used to decide what to click.
+   *
+   * `orders` stays the top-level key it always was — /admin/dashboard and the
+   * finance report are not the only readers of this shape, and renaming it to
+   * fit a footer would break screens that never asked for one.
+   */
   app.get('/admin/shop/orders', async (req, reply) => {
     const s = await requireCap(req, reply, 'orders');
     if (!s) return;
-    const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
+    const q = req.query as { limit?: string; offset?: string; status?: string };
+    const limit = clampLimit(q.limit, 100, 500);
+    const offset = Math.max(0, Number(q.offset ?? 0) || 0);
+    // An unknown status is dropped rather than refused: a stale bookmark should
+    // show the whole list, not an error page.
+    const status = (SHOP_ORDER_STATUSES as readonly string[]).includes(q.status ?? '')
+      ? (q.status as ShopOrderStatus)
+      : undefined;
     await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_orders' });
-    return reply.send({ orders: await repo.adminShopOrders(limit) });
+    const page = await repo.adminShopOrderPage({ limit, offset, status });
+    return reply.send({ ...page, limit, offset, status: status ?? null });
+  });
+
+  /**
+   * Frame 03 «Карточка заказа».
+   *
+   * Everything on one card: the composition, the recorded history, the link
+   * that opens the conversation with the customer, and — as a stated absence —
+   * what the schema cannot tell the operator about payment. Clicking a row in
+   * frame 02 used to do nothing at all.
+   *
+   * The serials bound to the order are NOT here. They are the one thing on this
+   * screen behind a different capability (`stock`, not `orders`), and folding
+   * them in would either widen who can read the device registry or refuse the
+   * whole card to an operator who is entitled to all the rest of it. The panel
+   * asks GET /admin/shop/orders/:id/devices separately and says so when that
+   * request is the one that is refused.
+   */
+  app.get('/admin/shop/orders/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'orders');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const order = await repo.shopOrderById(id);
+    if (!order) return reply.code(404).send({ error: 'not_found' });
+
+    // Audited: unlike the list, this is one named customer with her address and
+    // her telephone number on the screen.
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_order', target: id });
+
+    const timeline = buildOrderTimeline(order, await repo.shopOrderEvents(id));
+    return reply.send({
+      order,
+      ref: orderRef(order.id),
+      timeline: timeline.entries,
+      // The card prints this sentence when it is true. See admin/orders.ts.
+      historyGap: timeline.gap,
+      // Null when there is no number we can write to — the card then says the
+      // order has no reachable contact instead of offering a dead link.
+      whatsapp: orderWhatsappLink(order),
+      /**
+       * What this product does not record about money.
+       *
+       * There is no payment column anywhere in the schema: no method, no paid
+       * flag, no transaction id. Orders are cash on delivery — that is why
+       * fulfilling one, not placing it, is what grants the course. An operator
+       * reading a card must be told that rather than left to assume a blank
+       * field means unpaid.
+       */
+      payment: {
+        totalMinor: order.totalMinor,
+        discountMinor: order.discountMinor,
+        recorded: false,
+        note: 'Оплата при получении. Способ и факт оплаты в базе не хранятся — '
+          + 'отметить заказ оплаченным здесь нельзя, и сумма ниже это только цена заказа.',
+      },
+    });
   });
 
   // App settings & integration keys — WhatsApp/Kaspi (public, shown on the
@@ -2211,9 +2795,12 @@ export function registerAdminRoutes(
   app.patch('/admin/shop/orders/:id', async (req, reply) => {
     const s = await requireCap(req, reply, 'orders');
     if (!s) return;
-    const parsed = z.object({ status: z.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']) }).safeParse(req.body);
+    const parsed = z.object({ status: z.enum(SHOP_ORDER_STATUSES) }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    await repo.setShopOrderStatus((req.params as { id: string }).id, parsed.data.status);
+    // The staff id goes to the repository, not only to the audit log: frame 03
+    // shows «Отправлен · Нуржан» on the timeline, and the audit row records
+    // that the status was changed without recording what it was changed to.
+    await repo.setShopOrderStatus((req.params as { id: string }).id, parsed.data.status, s.staffId);
     await repo.writeAudit({ staffId: s.staffId, action: 'shop_order_status', target: (req.params as { id: string }).id });
     return reply.send({ ok: true });
   });

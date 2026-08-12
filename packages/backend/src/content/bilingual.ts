@@ -84,6 +84,11 @@ const FIELD_NAME: Record<string, string> = {
   baby: 'текста «О малыше»',
   you: 'текста «О вас»',
   recommend: 'рекомендации',
+  // The immunisation calendar's two fields (frames 15 / 15a). Same reasoning as
+  // the pregnancy fields above: one dialect of this sentence across the whole
+  // back office.
+  name: 'названия прививки',
+  note: 'пояснения к прививке',
 };
 
 /**

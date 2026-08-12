@@ -190,6 +190,10 @@ check "/admin" 'bootFail'                "a failed boot says so instead of a whi
 check "/admin" 'supRule'                 "Поддержка states how the wait is counted"
 check "/admin" 'finCaveats'              "Финансы prints what its numbers cannot know"
 check "/admin" 'Отменить заказ:'         "cancelling an order asks before it happens"
+check "/admin" 'orderChips'              "Заказы filter by status with live counters"
+check "/admin" 'ordersFoot'              "the order list says how many of how many"
+check "/admin" 'orderCard'               "clicking an order opens its card"
+check "/admin" 'ocDevices'               "the card shows the serials bound to the order"
 
 echo
 echo "==> Routes the PROXY must pass through"

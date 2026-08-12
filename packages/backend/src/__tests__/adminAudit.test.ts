@@ -96,6 +96,32 @@ const AGGREGATES_ONLY = new Set([
   // because «кто отправил это сорока мамам» must have an answer.
   'GET /admin/broadcasts',
   'GET /admin/broadcasts/:id/preview',
+  // Frame 15's four reads. Each was checked against what it actually returns,
+  // not against its name — «log» in particular sounds like it should be here
+  // for the opposite reason.
+  //
+  //   /schedule — the served national calendar. A constant the server compiles
+  //     in, identical for every caller; the same category as
+  //     /admin/reference/:kind above.
+  //   /coverage — percentages and denominators out of vaccinationCoverageOf().
+  //     Note this figure is «охват по отметкам мам», never clinic truth — but
+  //     that is an honesty question, not an audit one. No row identifies a
+  //     child.
+  //   /impact — «скольких детей затронет это изменение»: one integer, computed
+  //     before a schedule edit is saved. It is polled as the editor is typed
+  //     in, so auditing it would write a row per keystroke.
+  //   /log — the append-only history of edits TO THE CALENDAR, with the before
+  //     and after text. It names STAFF, and only the one whose own signature
+  //     is on the change. Auditing reads of a change log makes the log
+  //     describe mostly itself, which is why /admin/audit is already here.
+  //
+  // The writes next door ARE audited — `edit_vaccination_settings` and the
+  // PUT/review pair on /schedule/:id/:dose — because «кто передвинул прививку»
+  // must have an answer.
+  'GET /admin/vaccination/schedule',
+  'GET /admin/vaccination/coverage',
+  'GET /admin/vaccination/impact',
+  'GET /admin/vaccination/log',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

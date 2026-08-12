@@ -12,7 +12,7 @@ import type { FastifyInstance } from 'fastify';
 import type { InjectPayload, Response as InjectResponse } from 'light-my-request';
 import { buildServer } from '../server';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
-import type { Repository, SleepNight, CryRow, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
+import type { Repository, SleepNight, WearableDayRow, CryRow, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
 /**
@@ -65,6 +65,7 @@ function makeDeps(
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleepRows: SleepNight[] = [];
+  const wearableRows: WearableDayRow[] = [];
   const cryRows: CryRow[] = [];
   const weightRows: Array<{ date: string; kg: number }> = [];
   const kickRows: Array<{ endedAt: string; count: number; durationSec: number }> = [];
@@ -89,6 +90,12 @@ function makeDeps(
     setShopVariantStock: async () => {},
     addShopVariant: async () => {},
     adminShopOrders: async () => [],
+    adminShopOrderPage: async () => ({
+      orders: [], total: 0,
+      counts: { new: 0, confirmed: 0, shipped: 0, delivered: 0, cancelled: 0 },
+    }),
+    shopOrderById: async () => null,
+    shopOrderEvents: async () => [],
     setShopOrderStatus: async () => {},
     recordShopLead: async () => ({ id: 'lead-1' }),
     adminShopLeads: async () => [],
@@ -340,6 +347,16 @@ function makeDeps(
       if (i >= 0) sleepRows[i] = s; else sleepRows.push(s);
     },
     listSleep: async (_u, limit) => [...sleepRows].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    // The watch's activity/wellbeing day. Upsert on (device, day) — the same
+    // key the real ON CONFLICT uses, so this fake cannot pass a batch that a
+    // real database would turn into duplicate rows.
+    upsertWearableDay: async (row) => {
+      const { userId: _u, ...day } = row;
+      const i = wearableRows.findIndex((x) => x.deviceId === day.deviceId && x.day === day.day);
+      if (i >= 0) wearableRows[i] = day; else wearableRows.push(day);
+    },
+    listWearableDays: async (_u, limit) =>
+      [...wearableRows].sort((a, b) => b.day.localeCompare(a.day)).slice(0, limit),
     recordCry: async (_u, c) => {
       const i = cryRows.findIndex((x) => x.at === c.at);
       if (i >= 0) cryRows[i] = c; else cryRows.push(c);
@@ -478,6 +495,16 @@ function makeDeps(
       });
     },
     pregnancyWeekMotherCounts: async () => ({}),
+    // Frames 15/15a/15b. Nothing edited, therefore the shipped immunisation
+    // contract — which is exactly what this file's assertions about
+    // `/vaccination/schedule` expect. The editor itself is driven end to end in
+    // vaccinationEditor.test.ts against the real memory repository.
+    vaccinationOverrides: async () => [],
+    putVaccinationOverride: async () => {},
+    vaccinationSettings: async () => null,
+    putVaccinationSettings: async () => {},
+    vaccinationScheduleLog: async () => [],
+    vaccinationCoverage: async () => ({ childAges: [], ticks: [], childrenWithoutDob: 0 }),
     // Frame 06. This file is about ingest and the health path; broadcasts are
     // driven end to end in broadcasts.test.ts against the real memory
     // repository, so these answer emptily rather than half-faking a ledger the

@@ -62,13 +62,20 @@ function tableColumns(): Map<string, Set<string>> {
  *
  * Matches the CTE head `WITH x AS (` and each `, y AS (` that follows, so a
  * query that defines its own intermediate relations does not read as three
- * missing tables. Kept narrow — only names introduced by `AS (` count, so a
- * genuinely misspelled table still fails.
+ * missing tables. Kept narrow — a name only counts when `AS (` is followed by a
+ * statement keyword, so a genuinely misspelled table still fails.
+ *
+ * INSERT/UPDATE/DELETE are in that list as well as SELECT because a
+ * data-modifying CTE is a real CTE: `, up AS (INSERT … RETURNING 1)` is how
+ * vaccination_overrides writes its row and its history entry in ONE statement,
+ * which is the only way frame 15b's log cannot drift from the rows it describes.
  */
 function cteNames(): Set<string> {
   const out = new Set<string>();
   for (const m of repo.matchAll(/\bwith\s+([a-z_][a-z0-9_]*)\s+as\s*\(/gi)) out.add(m[1].toLowerCase());
-  for (const m of repo.matchAll(/,\s*([a-z_][a-z0-9_]*)\s+as\s*\(\s*select/gi)) out.add(m[1].toLowerCase());
+  for (const m of repo.matchAll(/,\s*([a-z_][a-z0-9_]*)\s+as\s*\(\s*(?:select|insert|update|delete)\b/gi)) {
+    out.add(m[1].toLowerCase());
+  }
   return out;
 }
 

@@ -599,6 +599,60 @@
   .orderdev{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
   .orderdev input{flex:1;min-width:180px;font-family:ui-monospace,monospace;font-size:12px}
   .ostatus{font:inherit;font-size:12.5px;font-weight:600;padding:5px 8px;border-radius:8px;border:1px solid var(--hair);background:var(--surface);color:var(--ink)}
+
+  /* КАДР 02 · фильтры-чипы со счётчиками, подвал списка и постраничность. */
+  /* A second line inside a table cell — a phone under a name. Used by the
+     support queue and the order list; it had no rule at all and rendered at
+     full row weight. */
+  td .sub{color:var(--muted-2);font-size:12px;font-weight:400;margin-top:1px}
+  .fchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 18px 12px}
+  .fchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--hair);background:var(--surface);
+    color:var(--ink);border-radius:8px;padding:6px 11px;font:inherit;font-weight:600;font-size:12.5px;cursor:pointer}
+  .fchip:hover{border-color:var(--accent-text)}
+  .fchip .n{font-family:var(--mono);font-size:11.5px;color:var(--muted-2)}
+  .fchip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:transparent}
+  .fchip[aria-pressed="true"] .n{color:var(--surface)}
+  /* The footer states the rule as well as the count — «Показано 8 из 284» on
+     its own is a scrollbar with words. */
+  .tfoot{border-top:1px solid var(--hair);background:var(--surface-2);padding:10px 18px;
+    border-radius:0 0 var(--r) var(--r);display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+    font-size:12.5px;color:var(--muted-2);line-height:1.45}
+  .tfoot .pager{margin-left:auto;display:flex;gap:6px;flex:0 0 auto}
+  .tfoot .btn{padding:5px 11px;font-size:12px}
+  .tfoot .btn[disabled]{opacity:.45;cursor:default}
+  .tfoot .shown{font-family:var(--mono);color:var(--ink);font-weight:600;flex:0 0 auto}
+
+  /* КАДР 03 · карточка заказа. Two columns per the frame: composition,
+     reserved units and history on the left; customer, delivery, money and the
+     dangerous actions on the right. */
+  .occols{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:start}
+  @media(max-width:820px){.occols{grid-template-columns:1fr}}
+  .occol{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .ocsec{border:1px solid var(--hair);border-radius:var(--r);background:var(--surface-2);padding:12px 14px;min-width:0}
+  .ocsec h4{margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2)}
+  /* 3.7 Список ключ-значение — the last row carries no divider. */
+  .kv{display:flex;flex-direction:column;font-size:13px}
+  .kv>div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--row)}
+  .kv>div:last-child{border-bottom:none}
+  .kv .k{color:var(--muted-2);flex:0 0 auto}
+  .kv .v{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
+  .kv .v.mono{font-family:var(--mono);font-weight:500}
+  /* 3.14 Таймлайн. */
+  .tline{display:flex;gap:12px}
+  .tline .rail{display:flex;flex-direction:column;align-items:center;flex:0 0 9px}
+  .tline .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);margin-top:5px}
+  .tline .dot.done{background:var(--good)}
+  .tline .dot.off{background:var(--hair)}
+  .tline .line{width:1px;flex:1;background:var(--hair)}
+  .tline .body{padding-bottom:12px;min-width:0}
+  .tline .body b{font-size:13px;font-weight:600;display:block}
+  .tline .body span{font-size:12px;color:var(--muted-2)}
+  .ocnote{border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.45}
+  .ocnote.warn{background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn-text)}
+  .ocnote.neutral{background:var(--work);border:1px solid var(--row);color:var(--muted)}
+  .ocnote.crit{background:var(--crit-soft);border:1px solid var(--crit-line);color:var(--crit-text)}
+  .ocdanger{display:flex;flex-direction:column;gap:8px}
+  .ocdanger .btn{border-color:var(--crit-line);color:var(--crit-text);text-align:left}
   .audiobar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
   .seg{display:inline-flex;border:1px solid var(--hair);border-radius:11px;overflow:hidden;background:var(--surface-2);padding:3px;gap:3px}
   .seg button{border:0;background:none;font:inherit;font-weight:700;font-size:13px;padding:7px 15px;cursor:pointer;color:var(--muted);min-height:36px;border-radius:8px;transition:background .12s,color .12s}
@@ -1934,12 +1988,12 @@
           </label>
           <div class="audiomsg" id="setMsg"></div>
         </div>
-        <div class="grid2">
-          <div class="card">
-            <div class="sec-h"><h3>Склад · остатки по цветам</h3><span class="sub">Меняйте количество — сохраняется сразу</span></div>
-            <div id="shopVariants"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
-          </div>
-          <div class="card">
+        <!-- КАДР 02 · ЗАКАЗЫ.
+             Full width, not half of a grid: the frame is a list with filter
+             chips, a footer and paging, and none of that fits beside the stock
+             table. A row now opens кадр 03 — until this it opened nothing, and
+             the order card had no way in. -->
+        <div class="card" style="margin-bottom:16px">
             <div class="sec-h"><h3>Заказы</h3><span class="sub" id="shopOrdersSub">—</span></div>
             <!-- Taking an order by hand.
                  Sales come in on WhatsApp and Kaspi: someone calls, staff write
@@ -1979,15 +2033,77 @@
                 <div class="audiomsg" id="noMsg"></div>
               </div>
             </details>
+            <!-- Фильтры-чипы со счётчиками. The counter IS the control:
+                 «Новые» tells an operator nothing, «Новые · 14» tells her where
+                 the day starts. Counted over the whole table, not the page —
+                 a number that changed when you clicked it would be useless. -->
+            <div class="fchips" id="orderChips"></div>
             <div id="shopOrders"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+            <!-- «Показано N из M» + правило. Both halves are required by the
+                 spec: a footer that only pages is a footer that never says
+                 what the list is allowed to do. -->
+            <div class="tfoot" id="ordersFoot"></div>
+          </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="sec-h"><h3>Склад · остатки по цветам</h3><span class="sub">Меняйте количество — сохраняется сразу</span></div>
+            <div id="shopVariants"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+          </div>
+          <!-- Callback requests from the landing page. Not orders: a name and a
+               number someone left instead of writing on WhatsApp — the queue to
+               call back. -->
+          <div class="card">
+            <div class="sec-h"><h3>Заявки с лендинга · перезвонить</h3><span class="sub" id="shopLeadsSub">—</span></div>
+            <div id="shopLeads"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
           </div>
         </div>
-        <!-- Callback requests from the landing page. Not orders: a name and a
-             number someone left instead of writing on WhatsApp — the queue to
-             call back. -->
-        <div class="card">
-          <div class="sec-h"><h3>Заявки с лендинга · перезвонить</h3><span class="sub" id="shopLeadsSub">—</span></div>
-          <div id="shopLeads"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+
+        <!-- КАДР 03 · КАРТОЧКА ЗАКАЗА.
+             Everything about one order in one place: what is in it, which
+             physical units are bound to it, how it got to the status it is in,
+             how to reach the customer, and what the schema does NOT know about
+             the money. Opened by clicking a row above — which, until this,
+             did nothing at all. -->
+        <div class="modal" id="orderCard" hidden>
+          <div class="sheet" style="max-width:940px" role="dialog" aria-modal="true" aria-labelledby="ocTitle">
+            <div class="mh">
+              <div style="flex:1;min-width:0">
+                <h3 id="ocTitle">Заказ</h3>
+                <div class="sub" id="ocSub">—</div>
+              </div>
+              <select class="ostatus" id="ocStatus" aria-label="Статус заказа"></select>
+              <button class="mx" id="ocClose" type="button" aria-label="Закрыть">✕</button>
+            </div>
+            <div class="mb">
+              <div id="ocError" class="note" hidden style="border:1px solid var(--crit-line);background:var(--crit-soft);color:var(--crit-text);border-radius:8px;padding:10px 12px;margin:0"></div>
+              <div class="occols">
+                <div class="occol">
+                  <div class="ocsec"><h4>Состав</h4><div id="ocItems"></div></div>
+                  <!-- The serials already bound to this order — GET
+                       /admin/shop/orders/:id/devices. The route was finished
+                       and audited and nothing called it: a packer could bind
+                       serials and never see which were on the order already,
+                       so re-binding was blind. -->
+                  <div class="ocsec"><h4>Устройства в заказе</h4><div id="ocDevices"></div></div>
+                  <div class="ocsec"><h4>История</h4><div id="ocTimeline"></div></div>
+                </div>
+                <div class="occol">
+                  <div class="ocsec"><h4>Клиент</h4><div id="ocCustomer"></div></div>
+                  <div class="ocsec"><h4>Доставка</h4><div id="ocDelivery"></div></div>
+                  <div class="ocsec"><h4>Оплата</h4><div id="ocPayment"></div></div>
+                  <div class="ocsec"><h4>Опасные действия</h4><div id="ocDanger"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="mf">
+              <span id="ocNote">Изменения сохраняются сразу и попадают в журнал действий</span>
+              <span class="acts">
+                <a class="btn ghost" id="ocWa" target="_blank" rel="noopener" hidden>Написать в WhatsApp</a>
+                <button class="btn" type="button" id="ocDone">Закрыть</button>
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -3241,6 +3357,7 @@
     view_settings:"Просмотр настроек",
     set_settings:"Изменил(а) настройки",
     view_shop_orders:"Просмотр заказов",
+    view_shop_order:"Открыл(а) карточку заказа",
     view_shop_leads:"Просмотр заявок",
     shop_order_create:"Создал(а) заказ",
     shop_order_status:"Изменил(а) статус заказа",
@@ -4989,29 +5106,43 @@
         <select class="lstatus" data-lid="${esc(l.id)}" data-who="${esc(l.customerName)}" aria-label="Статус заявки">${opts}</select></div>
     </div>`;
   }
+  /**
+   * A human-sized reference for an order — the same rule as admin/orders.ts.
+   *
+   * The frames show «4826». Real orders are UUIDs and there is no sequence
+   * column to make a four-digit number out of one; inventing a counter for the
+   * screen would give the operator a reference she reads out on the phone and
+   * which matches nothing in the database. The first eight characters ARE the
+   * order and can be pasted back into a search.
+   */
+  const orderRef=id=>String(id||"").slice(0,8);
+  const orderMoney=o=>fmt(Math.round((o.totalMinor||0)/100))+" ₸";
+
+  /**
+   * One line of кадр 02.
+   *
+   * A row, not a card: the frame is a nine-column list an operator scans
+   * hundreds of times a day, and it now OPENS something — the whole reason
+   * this screen was rebuilt is that clicking an order did nothing.
+   */
   function shopOrderRow(o){
-    const money=fmt(Math.round(o.totalMinor/100))+" ₸";
-    const items=o.items.map(i=>`${esc(i.productName)} · ${esc(i.color)} ×${i.qty}`).join("<br>");
+    const money=orderMoney(o);
+    const items=(o.items||[]).map(i=>`${esc(i.productName)} · ${esc(i.color)} ×${i.qty}`).join(", ");
     const opts=Object.keys(orderStatusLbl).map(s=>`<option value="${s}"${s===o.status?" selected":""}>${orderStatusLbl[s]}</option>`).join("");
-    const disc=o.discountMinor>0?` <span class="t" style="color:var(--good-text)">комплект −${fmt(Math.round(o.discountMinor/100))} ₸</span>`:"";
-    return `<div class="ordercard">
-      <div class="ordertop"><b>${esc(o.customerName)}</b><span class="num">${money}${disc}</span></div>
-      <div class="t">${esc(o.phone)} · ${esc(o.city)}, ${esc(o.address)}</div>
-      <div class="t" style="margin:6px 0">${items}</div>
-      <div class="ordertop"><span class="t">${stamp(o.createdAt)}</span>
-        <select class="ostatus" data-oid="${esc(o.id)}" data-who="${esc(o.customerName)}" data-sum="${esc(money)}" aria-label="Статус заказа">${opts}</select></div>
-      <!-- Which physical units went in the box.
-           Recorded when it is packed, because at intake there is no order yet.
-           Without it the registry knows the unit and the order knows the
-           customer, and nothing connects them — so "её трекер сломался, какой
-           именно мы ей отправили?" has no answer. -->
-      <div class="orderdev">
-        <input class="oserial" data-oid="${esc(o.id)}" placeholder="Серийные номера в посылке"
-               aria-label="Серийные номера, отправленные с заказом">
-        <button type="button" class="btn sm ghost osave" data-oid="${esc(o.id)}">Привязать</button>
-        <span class="t osmsg" data-oid="${esc(o.id)}"></span>
-      </div>
-    </div>`;
+    const disc=o.discountMinor>0?`<div class="sub" style="color:var(--good-text)">комплект −${fmt(Math.round(o.discountMinor/100))} ₸</div>`:"";
+    // Tinted, never recoloured text: an unanswered order is the row that needs
+    // a person, and the status chip is already saying which one it is.
+    const attn=o.status==="new"?' class="attn-crit"':"";
+    return `<tr${attn} data-order="${esc(o.id)}">
+      <td style="font-family:var(--mono);font-weight:600">${esc(orderRef(o.id))}</td>
+      <td><b>${esc(o.customerName)}</b><div class="sub">${esc(o.phone)}</div></td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">${esc(stamp(o.createdAt))}</td>
+      <td>${esc(o.city)}</td>
+      <td style="font-size:12px;color:var(--muted)">${items||"—"}</td>
+      <td style="font-weight:600">${esc(money)}${disc}</td>
+      <td><select class="ostatus" data-oid="${esc(o.id)}" data-who="${esc(o.customerName)}" data-sum="${esc(money)}" aria-label="Статус заказа">${opts}</select></td>
+      <td><button class="btn" type="button" data-open="${esc(o.id)}">Открыть</button></td>
+    </tr>`;
   }
   async function renderSettings(){
     const $=id=>document.getElementById(id), msg=$("setMsg");
@@ -5233,85 +5364,13 @@
       });
     }catch(e){ vwrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить склад</div>`; }
 
-    // Both an unhandled order and an uncalled lead are somebody waiting, so the
-    // nav badge counts them together — set once, after both have loaded.
-    let waiting=0;
-    const owrap=document.getElementById("shopOrders");
-    try{
-      const {orders}=await api("/admin/shop/orders");
-      const fresh=orders.filter(o=>o.status==="new").length;
-      waiting+=fresh;
-      document.getElementById("shopOrdersSub").textContent=orders.length?(orders.length+" · новых: "+fresh):"нет заказов";
-      owrap.innerHTML=orders.length?orders.map(shopOrderRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заказов пока нет</div>`;
-      // Recording what went in the box. The unrecognised serials come back and
-      // are shown: a typo on a packing slip that is silently accepted becomes a
-      // warranty case nobody can trace.
-      owrap.querySelectorAll(".osave").forEach(btn=>{
-        btn.onclick=async()=>{
-          const oid=btn.dataset.oid;
-          const input=owrap.querySelector(`.oserial[data-oid="${CSS.escape(oid)}"]`);
-          const msg=owrap.querySelector(`.osmsg[data-oid="${CSS.escape(oid)}"]`);
-          if(!input || !input.value.trim()) return;
-          btn.disabled=true; msg.textContent="Сохранение…";
-          try{
-            const r=await apiSend("/admin/shop/orders/"+encodeURIComponent(oid)+"/devices",
-              "POST",{serials:input.value});
-            const bad=(r.unknown||[]).length;
-            msg.textContent=`Привязано: ${(r.linked||[]).length}`
-              + (bad ? ` · не найдены: ${r.unknown.join(", ")}` : "");
-            msg.style.color = bad ? "var(--warn-text)" : "var(--good-text)";
-            if(!bad) input.value="";
-          }catch(e){
-            msg.textContent="Не удалось сохранить.";
-            msg.style.color="var(--crit-text)";
-          }
-          btn.disabled=false;
-        };
-      });
-
-      owrap.querySelectorAll(".ostatus").forEach(sel=>{
-        // Remember what the server has, so a failed save can be put back.
-        const was=sel.value;
-        sel.onchange=async()=>{
-          // A cancellation is not an edit — it is the end of a sale, and until
-          // now it took one stray mouse-wheel tick over this dropdown.
-          //
-          // Hovering a <select> and scrolling changes its value in Chrome and
-          // Firefox, and `onchange` fired the PATCH immediately. The order left
-          // «Заказы к отгрузке», left the revenue figure, and turned up under
-          // «Потеряно на отменах» — with nobody notified and one audit row as
-          // the only trace. The app's own cancel path has always asked
-          // (confirmDestructive); the staff side, which cancels other people's
-          // orders, did not.
-          //
-          // The sum is in the question on purpose: «Отменить заказ?» is easy to
-          // wave through, «Отменить заказ Айгуль на 39 000 ₸?» is not.
-          if(sel.value==="cancelled" && was!=="cancelled"){
-            const who=sel.dataset.who||"клиент", sum=sel.dataset.sum||"";
-            if(!confirm(`Отменить заказ: ${who}${sum?" · "+sum:""}?\n\nЗаказ выйдет из очереди на отгрузку и из выручки, и попадёт в «Потеряно на отменах». Клиенту ничего не отправится автоматически.`)){
-              sel.value=was;
-              return;
-            }
-          }
-          try{
-            await apiSend("/admin/shop/orders/"+encodeURIComponent(sel.dataset.oid),"PATCH",{status:sel.value});
-            renderShop();
-          }catch(e){
-            // Was `catch(e){}`. The select kept the value the user picked while
-            // the server still had the old one — the change looked saved and
-            // was not. Put it back and say so.
-            sel.value=was;
-            alert("Не удалось сохранить статус заказа. Попробуйте ещё раз.");
-          }
-        };
-      });
-    }catch(e){ owrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить заказы</div>`; }
+    await renderOrders();
 
     const lwrap=document.getElementById("shopLeads");
     try{
       const {leads}=await api("/admin/shop/leads");
       const uncalled=leads.filter(l=>l.status==="new").length;
-      waiting+=uncalled;
+      shopWaitLeads=uncalled;
       document.getElementById("shopLeadsSub").textContent=leads.length?(leads.length+" · не обработано: "+uncalled):"нет заявок";
       lwrap.innerHTML=leads.length?leads.map(shopLeadRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заявок пока нет</div>`;
       lwrap.querySelectorAll(".lstatus").forEach(sel=>{
@@ -5340,7 +5399,478 @@
         };
       });
     }catch(e){ lwrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Не удалось загрузить заявки</div>`; }
-    setBadge(document.getElementById("shopBadge"),waiting);
+    setShopBadge();
+  }
+
+  // ---- КАДР 02 · Заказы: фильтр со счётчиками, подвал, постраничность ----
+  //
+  // Both an unhandled order and an uncalled lead are somebody waiting, so the
+  // nav badge counts them together. Kept in two module-level numbers rather
+  // than one local, because orders and leads now reload independently and a
+  // single local would leave the badge showing whichever half refreshed last.
+  const ORDERS_PAGE=25;
+  let orderFilter=null, orderOffset=0, shopWaitOrders=0, shopWaitLeads=0;
+  function setShopBadge(){
+    setBadge(document.getElementById("shopBadge"),shopWaitOrders+shopWaitLeads);
+  }
+
+  async function renderOrders(){
+    const owrap=document.getElementById("shopOrders");
+    const chips=document.getElementById("orderChips");
+    const foot=document.getElementById("ordersFoot");
+    const sub=document.getElementById("shopOrdersSub");
+    if(!owrap||!chips||!foot) return;
+    owrap.innerHTML=`<div style="color:var(--muted);padding:12px 0">Загрузка…</div>`;
+
+    let d=null;
+    try{
+      const qs="?limit="+ORDERS_PAGE+"&offset="+orderOffset+(orderFilter?"&status="+encodeURIComponent(orderFilter):"");
+      d=await api("/admin/shop/orders"+qs);
+    }catch(e){
+      // Which failure it was, not "something went wrong": «нет доступа» is
+      // answered by asking an admin, a server error by trying again.
+      const denied=(typeof AccessDenied!=="undefined")&&(e instanceof AccessDenied);
+      owrap.innerHTML=`<div class="ocnote crit" style="margin:12px 0">`+
+        (denied
+          ? "Заказы вам не открыты: у вашей роли нет права «Заказы». Попросите владельца выдать его."
+          : "Не удалось загрузить заказы. Список ниже не пуст — он просто не пришёл; повторите позже.")+
+        `</div>`;
+      chips.innerHTML="";
+      foot.innerHTML=`<span class="shown">Показано —</span><span>Список не загружен, поэтому счётчиков и страниц нет.</span>`;
+      if(sub) sub.textContent="не загрузились";
+      return;
+    }
+
+    const orders=d.orders||[];
+    // Absent, not zero. A backend one deploy behind answers 200 without these
+    // fields, and printing «Показано 0 из 0» over a full list would be a lie
+    // the operator has no way to spot.
+    const counts=d.counts&&typeof d.counts==="object"?d.counts:null;
+    const total=typeof d.total==="number"?d.total:null;
+    const totalAll=counts?Object.keys(orderStatusLbl).reduce((n,k)=>n+(counts[k]||0),0):null;
+
+    // The chips. «Все» first, then one per status, each with the count over the
+    // WHOLE table — that number is what makes the chip a decision rather than
+    // a label.
+    const chip=(value,label,n)=>{
+      const on=(orderFilter||"")===value;
+      return `<button class="fchip" type="button" data-ostatus="${esc(value)}" aria-pressed="${on?"true":"false"}">`+
+        `${esc(label)}${n==null?"":`<span class="n">${fmt(n)}</span>`}</button>`;
+    };
+    chips.innerHTML=[chip("","Все",totalAll)]
+      .concat(Object.keys(orderStatusLbl).map(s=>chip(s,orderStatusLbl[s],counts?(counts[s]||0):null))).join("")
+      +(counts?"":`<span class="t" style="align-self:center;white-space:normal">Счётчики не пришли — сервер отвечает более старой версией этого списка.</span>`);
+
+    if(sub){
+      sub.textContent=counts
+        ? `${fmt(totalAll)} всего · новых: ${fmt(counts.new||0)}`
+        : (orders.length?`на этой странице: ${orders.length}`:"нет заказов");
+    }
+    // counts.new is the whole table; without it only this page can be counted,
+    // and the badge says so by staying at the page figure rather than pretending
+    // to know the rest.
+    shopWaitOrders=counts?(counts.new||0):orders.filter(o=>o.status==="new").length;
+    setShopBadge();
+
+    owrap.innerHTML=orders.length
+      ? `<div class="tablewrap"><table><thead><tr>
+           <th>№</th><th>Клиент</th><th>Создан</th><th>Город</th><th>Состав</th>
+           <th>Сумма</th><th>Статус</th><th></th>
+         </tr></thead><tbody>${orders.map(shopOrderRow).join("")}</tbody></table></div>`
+      : `<div style="color:var(--muted);padding:16px 0">`+
+        (orderFilter
+          ? `Заказов со статусом «${esc(orderStatusLbl[orderFilter]||orderFilter)}» нет. Снимите фильтр, чтобы увидеть остальные.`
+          : orderOffset>0
+            ? "На этой странице пусто — вернитесь назад."
+            : "Заказов пока нет. Первый появится, когда клиент напишет в WhatsApp или вы создадите его вручную выше.")+
+        `</div>`;
+
+    // «Показано N из M» + the rule the list obeys. Both halves: a footer that
+    // only counts is a scrollbar with words.
+    const shown=orders.length;
+    const shownText=total==null
+      ? `Показано ${fmt(shown)} · сколько всего — сервер не сказал`
+      : shown
+        ? `Показано ${fmt(orderOffset+1)}–${fmt(orderOffset+shown)} из ${fmt(total)}`
+        : `Показано 0 из ${fmt(total)}`;
+    const atEnd=total!=null?(orderOffset+shown>=total):(shown<ORDERS_PAGE);
+    foot.innerHTML=
+      `<span class="shown">${esc(shownText)}</span>`+
+      `<span style="white-space:normal">`+
+        (orderFilter?`Счётчики на фильтрах считаются по всем заказам, «из N» — по выбранному. `:"")+
+        `Заказы не удаляются: отменённый остаётся в списке со статусом «Отменён», а товар возвращается на склад.`+
+      `</span>`+
+      `<span class="pager">`+
+        `<button class="btn" type="button" id="ordersPrev"${orderOffset<=0?" disabled":""}>← Назад</button>`+
+        `<button class="btn" type="button" id="ordersNext"${atEnd?" disabled":""}>Вперёд →</button>`+
+      `</span>`;
+
+    chips.querySelectorAll(".fchip").forEach(b=>{
+      b.onclick=()=>{
+        orderFilter=b.dataset.ostatus||null;
+        orderOffset=0; // a filter with a stale offset shows an empty page
+        renderOrders();
+      };
+    });
+    const prev=document.getElementById("ordersPrev"), next=document.getElementById("ordersNext");
+    if(prev) prev.onclick=()=>{ orderOffset=Math.max(0,orderOffset-ORDERS_PAGE); renderOrders(); };
+    if(next) next.onclick=()=>{ orderOffset+=ORDERS_PAGE; renderOrders(); };
+
+    owrap.querySelectorAll(".ostatus").forEach(sel=>{
+      // Remember what the server has, so a failed save can be put back.
+      const was=sel.value;
+      sel.onchange=async()=>{
+        // A cancellation is not an edit — it is the end of a sale, and until
+        // now it took one stray mouse-wheel tick over this dropdown.
+        //
+        // Hovering a <select> and scrolling changes its value in Chrome and
+        // Firefox, and `onchange` fired the PATCH immediately. The order left
+        // «Заказы к отгрузке», left the revenue figure, and turned up under
+        // «Потеряно на отменах» — with nobody notified and one audit row as
+        // the only trace. The app's own cancel path has always asked
+        // (confirmDestructive); the staff side, which cancels other people's
+        // orders, did not.
+        //
+        // The sum is in the question on purpose: «Отменить заказ?» is easy to
+        // wave through, «Отменить заказ Айгуль на 39 000 ₸?» is not.
+        if(sel.value==="cancelled" && was!=="cancelled"){
+          const who=sel.dataset.who||"клиент", sum=sel.dataset.sum||"";
+          if(!confirm(`Отменить заказ: ${who}${sum?" · "+sum:""}?\n\nЗаказ выйдет из очереди на отгрузку и из выручки, и попадёт в «Потеряно на отменах». Клиенту ничего не отправится автоматически.`)){
+            sel.value=was;
+            return;
+          }
+        }
+        try{
+          await apiSend("/admin/shop/orders/"+encodeURIComponent(sel.dataset.oid),"PATCH",{status:sel.value});
+          renderOrders();
+        }catch(e){
+          // Was `catch(e){}`. The select kept the value the user picked while
+          // the server still had the old one — the change looked saved and
+          // was not. Put it back and say so.
+          sel.value=was;
+          alert("Не удалось сохранить статус заказа. Попробуйте ещё раз.");
+        }
+      };
+    });
+
+    // Кадр 03 — the row opens the card. This is the join the whole task
+    // existed for: every one of these rows used to be inert.
+    owrap.querySelectorAll("tr[data-order]").forEach(tr=>{
+      tr.onclick=(ev)=>{
+        // The status dropdown lives in the row and must not open the card
+        // behind itself.
+        if(ev.target.closest("select")) return;
+        ocOpen(tr.dataset.order);
+      };
+    });
+  }
+
+  /* ================= КАДР 03 · КАРТОЧКА ЗАКАЗА =================
+   *
+   * Opened from a row of кадр 02. Six blocks, in the frame's own order:
+   * состав · устройства · история | клиент · доставка · оплата · опасные.
+   *
+   * Two things here are deliberate and easy to undo by accident.
+   *
+   * 1. The devices come from GET /admin/shop/orders/:id/devices — a route that
+   *    was written, audited and never called. A packer could bind serials to an
+   *    order and had no way to see which were on it already, so every re-bind
+   *    was blind and a duplicated unit only surfaced as a warranty case.
+   *
+   * 2. The card states what the schema CANNOT tell it — that no payment is
+   *    recorded anywhere, and that status history only exists from the release
+   *    that added it. A blank field reads as "unpaid" and an empty timeline
+   *    reads as "nothing happened"; both are lies this product cannot afford.
+   */
+  const ORDER_RANK={new:0,confirmed:1,shipped:2,delivered:3};
+  let ocId=null, ocOrder=null;
+
+  const ocEl=id=>document.getElementById(id);
+  function ocClose(){
+    const m=ocEl("orderCard");
+    if(m) m.hidden=true;
+    ocId=null; ocOrder=null;
+  }
+  /** Say what failed, in the card, where the operator is looking. */
+  function ocFail(text){
+    const box=ocEl("ocError");
+    if(!box) return;
+    box.hidden=!text;
+    box.textContent=text||"";
+  }
+
+  async function ocOpen(id){
+    const m=ocEl("orderCard");
+    if(!m) return;
+    ocId=id; ocOrder=null;
+    m.hidden=false;
+    ocFail("");
+    ocEl("ocTitle").textContent="Заказ №"+orderRef(id);
+    ocEl("ocSub").textContent="Загрузка…";
+    ["ocItems","ocDevices","ocTimeline","ocCustomer","ocDelivery","ocPayment","ocDanger"]
+      .forEach(k=>{ const el=ocEl(k); if(el) el.innerHTML=`<div style="color:var(--muted);font-size:12.5px">Загрузка…</div>`; });
+    ocEl("ocWa").hidden=true;
+    ocEl("ocStatus").innerHTML="";
+
+    let d=null;
+    try{
+      d=await api("/admin/shop/orders/"+encodeURIComponent(id));
+    }catch(e){
+      const denied=(typeof AccessDenied!=="undefined")&&(e instanceof AccessDenied);
+      ocEl("ocSub").textContent="—";
+      ocFail(denied
+        ? "Карточка заказа вам не открыта: у вашей роли нет права «Заказы»."
+        : "Заказ не открылся. Возможно, его больше нет или сервер не ответил — обновите страницу и попробуйте ещё раз.");
+      ["ocItems","ocDevices","ocTimeline","ocCustomer","ocDelivery","ocPayment","ocDanger"]
+        .forEach(k=>{ const el=ocEl(k); if(el) el.innerHTML=""; });
+      return;
+    }
+    ocRender(d);
+    ocLoadDevices(id);
+  }
+
+  function ocRender(d){
+    const o=d.order||{};
+    ocOrder=o;
+    // textContent, so no esc(): escaping here would print «&lt;» to the screen.
+    ocEl("ocTitle").textContent="Заказ №"+(d.ref||orderRef(o.id));
+    ocEl("ocSub").textContent=
+      `${orderStatusLbl[o.status]||o.status} · создан ${stamp(o.createdAt)}`;
+
+    // ---- Состав. Per line, with the unit price the order was taken at ----
+    const items=o.items||[];
+    ocEl("ocItems").innerHTML=items.length
+      ? `<div class="kv">`+items.map(i=>
+          `<div><span class="k">${esc(i.productName)} · ${esc(i.color)} ×${i.qty}</span>`+
+          `<span class="v mono">${fmt(Math.round((i.unitPriceMinor||0)*i.qty/100))} ₸</span></div>`).join("")+
+        `</div><div class="t" style="margin-top:8px;white-space:normal">Цены — те, что действовали в момент заказа; изменение прайса задним числом сумму не меняет.</div>`
+      : `<div class="ocnote neutral">В заказе нет ни одной строки. Такого быть не должно — сообщите разработчику номер заказа.</div>`;
+
+    // ---- История ----
+    ocEl("ocTimeline").innerHTML=ocTimelineHtml(d.timeline||[],!!d.historyGap,o.status);
+
+    // ---- Клиент ----
+    const tel=String(o.phone||"").replace(/[^\d+]/g,"");
+    ocEl("ocCustomer").innerHTML=
+      `<div class="kv">`+
+        `<div><span class="k">Имя</span><span class="v">${esc(o.customerName||"—")}</span></div>`+
+        `<div><span class="k">Телефон</span><span class="v mono">${tel?`<a href="tel:${esc(tel)}">${esc(o.phone)}</a>`:"не указан"}</span></div>`+
+      `</div>`+
+      (d.whatsapp?"":`<div class="ocnote warn" style="margin-top:8px">Написать в WhatsApp нельзя: в заказе нет номера, по которому можно открыть чат.</div>`);
+    const wa=ocEl("ocWa");
+    // Null when there is no usable number — the card says so above instead of
+    // offering a button that opens a broken chat.
+    wa.hidden=!d.whatsapp;
+    if(d.whatsapp) wa.href=d.whatsapp;
+
+    // ---- Доставка ----
+    ocEl("ocDelivery").innerHTML=
+      `<div class="kv">`+
+        `<div><span class="k">Город</span><span class="v">${esc(o.city||"—")}</span></div>`+
+        `<div><span class="k">Адрес</span><span class="v">${esc(o.address||"—")}</span></div>`+
+        `<div><span class="k">Комментарий</span><span class="v">${o.note?esc(o.note):"—"}</span></div>`+
+      `</div>`+
+      `<div class="t" style="margin-top:8px;white-space:normal">Трек-номера и служба доставки в системе не хранятся — их здесь не будет.</div>`;
+
+    // ---- Оплата. The block that must state its own absence ----
+    const p=d.payment||{};
+    ocEl("ocPayment").innerHTML=
+      `<div class="kv">`+
+        `<div><span class="k">Сумма заказа</span><span class="v mono">${fmt(Math.round((p.totalMinor??o.totalMinor??0)/100))} ₸</span></div>`+
+        ((p.discountMinor??o.discountMinor??0)>0
+          ? `<div><span class="k">Скидка комплекта</span><span class="v mono" style="color:var(--good-text)">−${fmt(Math.round((p.discountMinor??o.discountMinor)/100))} ₸</span></div>`
+          : "")+
+      `</div>`+
+      `<div class="ocnote warn" style="margin-top:8px">${esc(p.note
+        ||"Оплата при получении. Способ и факт оплаты в базе не хранятся — отметить заказ оплаченным здесь нельзя.")}</div>`;
+
+    // ---- Статус и опасные действия ----
+    ocRenderStatus(o);
+    ocRenderDanger(o);
+  }
+
+  function ocTimelineHtml(entries,gap,status){
+    const rows=(entries||[]).map((e,i)=>{
+      const last=i===entries.length-1;
+      const title=e.kind==="created"
+        ? "Заказ создан"
+        : `Статус: ${orderStatusLbl[e.status]||e.status}`;
+      // Colour carries status only: crimson for the end of a sale, green for a
+      // step that happened, nothing decorative.
+      const dot=e.status==="cancelled"?"":" done";
+      // «автор не записан» rather than a blank: an order moved by the app or by
+      // an account since deleted has no author, and inventing one would put a
+      // name on the log next to an action that person did not take.
+      const by=e.by?esc(e.by):"автор не записан";
+      return `<div class="tline">`+
+        `<div class="rail"><div class="dot${dot}"></div>${last?"":`<div class="line"></div>`}</div>`+
+        `<div class="body"><b>${esc(title)}</b><span>${esc(stamp(e.at))} · ${by}</span></div></div>`;
+    }).join("");
+    const note=gap
+      ? `<div class="ocnote warn" style="margin-bottom:10px">История статусов ведётся только с обновления, которое её добавила. `+
+        `Для этого заказа записаны не все переходы: известно, когда он создан и что сейчас он «${esc(orderStatusLbl[status]||status)}», `+
+        `но не когда и кто его туда перевёл.</div>`
+      : "";
+    return note+(rows||`<div class="ocnote neutral">Записей нет.</div>`);
+  }
+
+  /**
+   * The status control on the card.
+   *
+   * Forward steps only — «Отменён» is NOT in this list. Cancelling is a
+   * dangerous action and lives in its own block below; offering it twice on one
+   * screen is how a control gets clicked by somebody who meant the other one.
+   */
+  function ocRenderStatus(o){
+    const sel=ocEl("ocStatus");
+    if(!sel) return;
+    if(o.status==="cancelled"){
+      sel.innerHTML=`<option>Отменён</option>`;
+      sel.disabled=true;
+      return;
+    }
+    sel.disabled=false;
+    sel.innerHTML=Object.keys(ORDER_RANK)
+      .map(s=>`<option value="${s}"${s===o.status?" selected":""}>${orderStatusLbl[s]}</option>`).join("");
+    const was=o.status;
+    sel.onchange=async()=>{
+      const to=sel.value;
+      // Going BACKWARD is the quiet destructive move: the course granted when
+      // the комплект shipped is not taken away again, so an order rolled back
+      // leaves a paid-for entitlement nobody remembers giving.
+      if(ORDER_RANK[to]<ORDER_RANK[was] && (was==="shipped"||was==="delivered")){
+        if(!confirm(`Вернуть заказ ${o.customerName||"клиента"} из «${orderStatusLbl[was]}» в «${orderStatusLbl[to]}»?\n\n`+
+          `Он снова попадёт в очередь на отгрузку. Доступ к курсу «Ма!Ма!», выданный при отправке комплекта, при этом НЕ отзывается — снимать его нужно вручную в разделе «Кому открыт курс».`)){
+          sel.value=was;
+          return;
+        }
+      }
+      sel.disabled=true;
+      try{
+        await apiSend("/admin/shop/orders/"+encodeURIComponent(o.id),"PATCH",{status:to});
+        ocFail("");
+        await ocOpen(o.id);   // the timeline gained a row; re-read it
+        renderOrders();
+      }catch(e){
+        // The result of the request, not the fact that one was sent.
+        sel.value=was;
+        sel.disabled=false;
+        ocFail("Статус не сохранён. На сервере он остался прежним — попробуйте ещё раз.");
+      }
+    };
+  }
+
+  function ocRenderDanger(o){
+    const box=ocEl("ocDanger");
+    if(!box) return;
+    if(o.status==="cancelled"){
+      box.innerHTML=`<div class="ocnote neutral">Заказ отменён. Ничего необратимого с ним сделать уже нельзя — если клиент передумал, оформите новый заказ.</div>`;
+      return;
+    }
+    box.innerHTML=
+      `<div class="ocdanger"><button class="btn" type="button" id="ocCancel">Отменить заказ</button></div>`+
+      `<div class="ocnote neutral" style="margin-top:8px">Действие спрашивает подтверждение и попадает в журнал действий под вашим именем. Заказы не удаляются — отменённый остаётся в списке.</div>`;
+    ocEl("ocCancel").onclick=async()=>{
+      const sum=orderMoney(o);
+      if(!confirm(`Отменить заказ: ${o.customerName||"клиент"} · ${sum}?\n\n`+
+        `Заказ выйдет из очереди на отгрузку и из выручки и попадёт в «Потеряно на отменах». Товар вернётся на склад. Клиенту ничего не отправится автоматически.`)) return;
+      const btn=ocEl("ocCancel");
+      btn.disabled=true;
+      try{
+        await apiSend("/admin/shop/orders/"+encodeURIComponent(o.id),"PATCH",{status:"cancelled"});
+        ocFail("");
+        await ocOpen(o.id);
+        renderOrders();
+      }catch(e){
+        btn.disabled=false;
+        ocFail("Заказ НЕ отменён — сервер не принял изменение. Он всё ещё в работе.");
+      }
+    };
+  }
+
+  /**
+   * Which physical units are bound to this order.
+   *
+   * GET /admin/shop/orders/:id/devices wants the `stock` capability, which the
+   * rest of this card does not. Rather than widen the card's own guard, the
+   * panel asks separately and says which of the two it is when the answer is
+   * "no": «у вас нет складского доступа» and «сервер не ответил» are different
+   * problems with different next steps.
+   */
+  async function ocLoadDevices(id){
+    const box=ocEl("ocDevices");
+    if(!box) return;
+
+    const bindHtml=
+      `<div class="orderdev" style="margin-top:10px">`+
+        `<input class="oserial" data-oid="${esc(id)}" placeholder="Серийные номера в посылке" aria-label="Серийные номера, отправленные с заказом">`+
+        `<button type="button" class="btn osave" data-oid="${esc(id)}">Привязать</button>`+
+        `<span class="t osmsg" data-oid="${esc(id)}" style="white-space:normal"></span>`+
+      `</div>`;
+
+    if(!can("stock")){
+      box.innerHTML=`<div class="ocnote neutral">Серийные номера показываются только со складским доступом. У вашей роли его нет — спросите владельца или кладовщика, что ушло в этой посылке.</div>`;
+      return;
+    }
+
+    box.innerHTML=`<div style="color:var(--muted);font-size:12.5px">Загрузка…</div>`;
+    let devices=null;
+    try{
+      devices=(await api("/admin/shop/orders/"+encodeURIComponent(id)+"/devices")).devices||[];
+    }catch(e){
+      const denied=(typeof AccessDenied!=="undefined")&&(e instanceof AccessDenied);
+      box.innerHTML=`<div class="ocnote crit">`+
+        (denied
+          ? "Реестр устройств вам закрыт, поэтому что уже привязано — неизвестно."
+          : "Список привязанных устройств не пришёл. Не привязывайте серийники вслепую: сначала обновите страницу.")+
+        `</div>`+(denied?"":bindHtml);
+      if(!denied) ocWireBind(box,id);
+      return;
+    }
+
+    box.innerHTML=(devices.length
+      ? `<div class="kv">`+devices.map(dv=>{
+          const kind=dv.kind==="band"?"Часы":dv.kind==="tag"?"Брелок":"Устройство";
+          const st=(SERIAL_STATUS[dv.status]||[dv.status,""])[0];
+          return `<div><span class="k">${esc(kind)} · ${esc(st)}</span>`+
+            `<span class="v mono">${esc(dv.serial)}${dv.activatedByPhone?` · ${esc(dv.activatedByPhone)}`:""}</span></div>`;
+        }).join("")+`</div>`
+      : `<div class="ocnote warn">К заказу не привязано ни одного серийного номера. Пока их нет, на вопрос «какой именно трекер мы ей отправили» ответа не существует.</div>`)
+      +bindHtml;
+    ocWireBind(box,id);
+  }
+
+  /** The bind control. Unrecognised serials come back and are SHOWN. */
+  function ocWireBind(box,id){
+    const btn=box.querySelector(".osave");
+    const input=box.querySelector(".oserial");
+    const msg=box.querySelector(".osmsg");
+    if(!btn||!input||!msg) return;
+    btn.onclick=async()=>{
+      if(!input.value.trim()) return;
+      btn.disabled=true; msg.textContent="Сохранение…"; msg.style.color="";
+      try{
+        const r=await apiSend("/admin/shop/orders/"+encodeURIComponent(id)+"/devices","POST",{serials:input.value});
+        const bad=(r.unknown||[]).length;
+        // A typo on a packing slip that is silently accepted becomes a warranty
+        // case nobody can trace.
+        msg.textContent=`Привязано: ${(r.linked||[]).length}`+(bad?` · не найдены: ${r.unknown.join(", ")}`:"");
+        msg.style.color=bad?"var(--warn-text)":"var(--good-text)";
+        if(!bad){ input.value=""; ocLoadDevices(id); }
+      }catch(e){
+        msg.textContent="Не удалось сохранить — на заказе ничего не изменилось.";
+        msg.style.color="var(--crit-text)";
+      }
+      btn.disabled=false;
+    };
+  }
+
+  {
+    const close=ocEl("ocClose"), done=ocEl("ocDone"), modal=ocEl("orderCard");
+    if(close) close.addEventListener("click",ocClose);
+    if(done) done.addEventListener("click",ocClose);
+    // Clicking the backdrop closes it; clicking inside the sheet must not.
+    if(modal) modal.addEventListener("click",(e)=>{ if(e.target===modal) ocClose(); });
   }
 
   // ---- Daily calendar audio ----
@@ -6745,6 +7275,27 @@
   const weeks = Array.from({ length: 40 }, (_, i) => `w${i + 1}`);
   const months = Array.from({ length: 61 }, (_, i) => `m${i}`);
 
+  /// The four tiles of «Гиды» in the app (screen 27), and the empty option.
+  /// Closed on purpose: a fifth value would be stored, shipped to every phone
+  /// and drawn on no tile.
+  const TOPICS = [
+    ["", "— по этапу —"],
+    ["pregnancy", "Беременность"],
+    ["baby", "Малыш"],
+    ["child", "Ребёнок"],
+    ["mother", "Мама"],
+  ];
+  const TOPIC_LABEL = Object.fromEntries(TOPICS.filter(([v]) => v).map(([v, l]) => [v, l]));
+
+  /// What an untagged item falls back to — the same rule the app applies, so
+  /// the panel can show the author where a card will actually land.
+  function topicFromStage(key) {
+    if (!key) return "";
+    if (key[0] === "w") return "pregnancy";
+    const n = Number(key.slice(1));
+    return Number.isFinite(n) && n <= 12 ? "baby" : "child";
+  }
+
   let catalog = {};      // stage key → items
   let selected = null;   // stage key being edited
   let draft = [];        // working copy; only written on Publish
@@ -6794,10 +7345,16 @@
     const items = Object.values(catalog).reduce((n, l) => n + l.length, 0);
     const linked = Object.values(catalog).flat().filter((i) => (i.url || "").trim()).length;
     const reused = Object.values(catalog).flat().filter((i) => (i.alsoStages || []).length).length;
+    // Untagged is NOT "missing": those cards do appear in «Гиды», on the tile
+    // their stage implies. It is worth counting because the fallback cannot
+    // produce «Мама» — content about her, at any week, is invisible as such
+    // until somebody says so — and because a hand-set topic beats a guess.
+    const untagged = Object.values(catalog).flat().filter((i) => !i.topic).length;
     const sum = $("#covSummary");
     if (sum) {
       sum.textContent = `${filled}/101 этапов · ${items} материалов · ${linked} со ссылкой` +
-        (reused ? ` · ${reused} используются на нескольких этапах` : "");
+        (reused ? ` · ${reused} используются на нескольких этапах` : "") +
+        (untagged ? ` · ${untagged} без темы (показываются по этапу)` : "");
     }
     setBadge($("#navContentBadge"), filled);
   }
@@ -6894,6 +7451,18 @@
         хостинг с белой меткой (Bunny Stream, Cloudflare Stream, Mux, Vimeo Business)
         и укажите HLS-ссылку.
       </div>` : ""}` : ""}
+      <!-- Тема — плитка в «Гидах» (экран 27), куда попадёт материал.
+           Пусто не значит «нигде»: приложение подставляет тему по этапу
+           (недели → беременность, m0-m12 → малыш, m13+ → ребёнок). «Мама»
+           не выводится ниоткуда — её ставят руками. -->
+      <div class="row"><span class="lang">тема</span>
+        <select data-f="topic" aria-label="тема в гидах"
+                style="background:var(--surface-2);color:var(--ink);border:1px solid var(--hair);border-radius:8px;padding:7px">
+          ${TOPICS.map(([v, label]) =>
+            `<option value="${v}"${(item.topic || "") === v ? " selected" : ""}>${label}</option>`).join("")}
+        </select>
+        ${item.topic ? "" : `<span class="sub">по этапу: ${esc(TOPIC_LABEL[topicFromStage(selected)] || "—")}</span>`}
+      </div>
       ${LOCALES.map((L) => `
         <div class="row">
           <span class="lang">${L}</span>

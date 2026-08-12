@@ -114,14 +114,20 @@ const APP_FILE_FOR = {
   '20': 'ui/tracking/child_map_screen.dart', '21': 'ui/tracking/child_safety_screen.dart',
   '22': 'ui/tracking/night_feed_screen.dart', '23': 'ui/theme.dart',
   '24': 'ui/tracking/child_detail_screen.dart', '25': 'ui/tracking/newborn_log_screen.dart',
-  // 26 «Медкарта» is NOT built. Nothing in app/lib mentions it, and the map
-  // deliberately has no entry so it stays in the missing list. 
+  // 26 «Медкарта» — the child's emergency medical card: blood type, allergies,
+  // chronic conditions, who to call. It was reported missing long after it was
+  // built and wired (child_detail_screen.dart pushes it), because this map was
+  // never updated. A stale "not built" is the same defect as a stale "built":
+  // a number nobody can act on.
+  '26': 'ui/tracking/child_emergency_screen.dart',
+  // 27 «Гиды» — the library over the WHOLE published catalogue: search, the
+  // 2x2 of topics, the red-flag card, and her own stage. Deliberately not
+  // mapped to timeline_content_screen, which is one stage's shelf; that
+  // mapping would have reported this as built because a nearby screen existed,
+  // while 363 of the 364 published items stayed unreachable.
+  '27': 'ui/content/guides_screen.dart',
   // 28 «Сопряжение Bluetooth» is the pairBand step inside the onboarding flow
   // rather than a screen of its own — which is a design decision, not a gap.
-  // 27 «Гиды» and 26 «Медкарта» have no implementation. timeline_content_screen
-  // is the CALENDAR's content card, not the guides library the spec draws, and
-  // mapping 27 to it would have reported a screen as built because a nearby one
-  // exists. Left unmapped so both stay visible as work.
   '28': 'ui/onboarding/onboarding_flow.dart', '29': 'ui/tracking/alerts_screen.dart',
   '30': 'ui/calendar/postpartum_screen.dart', '31': 'ui/calendar/medications_screen.dart',
   '32': 'ui/appointments/appointments_screen.dart', '33': 'ui/calendar/day_log_sheet.dart',
