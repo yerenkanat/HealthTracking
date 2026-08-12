@@ -71,13 +71,31 @@ export interface PregnancyTimelineEntry {
   content: PregnancyWeek | null;
 }
 
-/** Current week + the next [weeks−1], each with the date it begins, for scheduling. */
-export function pregnancyTimeline(dueDate: Date, from: Date, weeks: number): { currentWeek: number; timeline: PregnancyTimelineEntry[] } {
+/**
+ * Current week + the next [weeks−1], each with the date it begins, for
+ * scheduling.
+ *
+ * [calendar] is the SERVED calendar — contract plus whatever the back office
+ * has edited (pregnancy/served.ts). Optional so this module stays pure and its
+ * tests need no repository; when it is omitted the compiled-in contract is
+ * used, which is what every caller did before week 14b made the text editable.
+ * A caller that has the served calendar to hand should pass it: a partner
+ * scheduling messages off this timeline and a mother reading the app must not
+ * be told different things about week 22.
+ */
+export function pregnancyTimeline(
+  dueDate: Date,
+  from: Date,
+  weeks: number,
+  calendar?: { weeks: PregnancyWeek[] },
+): { currentWeek: number; timeline: PregnancyTimelineEntry[] } {
+  const lookup = (w: number): PregnancyWeek | null =>
+    calendar ? calendar.weeks.find((x) => x.week === w) ?? null : weekContent(w);
   const currentWeek = pregnancyWeekOn(dueDate, from);
   const end = Math.min(currentWeek + weeks - 1, lastWeek);
   const timeline: PregnancyTimelineEntry[] = [];
   for (let w = currentWeek; w <= end; w++) {
-    timeline.push({ week: w, weekStart: fmtDate(pregnancyWeekStart(dueDate, w)), content: weekContent(w) });
+    timeline.push({ week: w, weekStart: fmtDate(pregnancyWeekStart(dueDate, w)), content: lookup(w) });
   }
   return { currentWeek, timeline };
 }

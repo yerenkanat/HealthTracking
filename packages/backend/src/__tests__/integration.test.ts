@@ -72,6 +72,7 @@ function makeDeps(
   const dayLogs = new Map<string, DayLogRow>();
   const alertRows: SafetyAlertRow[] = [];
   const contentRows = new Map<string, import('../db/repository').ContentItemRow[]>();
+  const pregWeeks = new Map<number, import('../db/repository').PregnancyWeekOverride>();
   let profile: ProfileRow | null = null;
   let idSeq = 1;
 
@@ -464,6 +465,19 @@ function makeDeps(
       if (items.length === 0) contentRows.delete(stageKey);
       else contentRows.set(stageKey, items);
     },
+    // Pregnancy-week overrides: a faithful little store rather than a stub, so
+    // this fake answers `GET /pregnancy/weeks` the way the real ones do —
+    // nothing edited yet, therefore the shipped contract. `rev` increments,
+    // because the served version number is built from it.
+    pregnancyWeekOverrides: async () => [...pregWeeks.values()].sort((a, b) => a.week - b.week),
+    putPregnancyWeekOverride: async (v) => {
+      const prev = pregWeeks.get(v.week);
+      pregWeeks.set(v.week, {
+        ...v, rev: (prev?.rev ?? 0) + 1,
+        updatedAt: '2026-07-15T08:00:00Z', updatedBy: v.updatedBy,
+      });
+    },
+    pregnancyWeekMotherCounts: async () => ({}),
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
     listAudit: async () =>
       // reason included: the interface declares it, and a fake that omits it

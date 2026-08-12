@@ -967,3 +967,31 @@ INSERT INTO support_templates (id, title, body_ru, body_kk, sort) VALUES
    'Курс жинақ жеткізілгеннен кейін ашылады. Тексердім — қолжетімділік {access}.', 30)
 ON CONFLICT (id) DO NOTHING;
 
+
+-- ---------------------------------------------------------------------------
+-- Frame 14a / 14b — the editable pregnancy calendar.
+--
+-- OVERRIDES over packages/contract/pregnancy_weeks.json, never a replacement:
+-- the contract stays the offline baseline the app bundles, and only the weeks
+-- somebody actually edited live here. See migrations/036 for why.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pregnancy_week_overrides (
+  week       INTEGER PRIMARY KEY CHECK (week BETWEEN 1 AND 42),
+  -- Free text: the contract stores "0,02", "25–156" and "—". Ranges and dashes
+  -- written by a clinician, not measurements.
+  length_cm  TEXT,
+  hcg        TEXT,
+  -- {baby, you, recommend} per language. Both NOT NULL — the route refuses a
+  -- save without Kazakh, and a nullable column re-opens the hole that closes.
+  ru         JSONB NOT NULL,
+  kk         JSONB NOT NULL,
+  -- Stored but not served: a drafted week still reads as the contract text.
+  draft      BOOLEAN NOT NULL DEFAULT FALSE,
+  -- {by, at, fingerprint} — see content/medicalReview.ts.
+  review     JSONB,
+  -- Bumped on every save; the served calendar's version is
+  -- `contract version + SUM(rev)`, so it moves whenever this table moves.
+  rev        INTEGER NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by TEXT
+);

@@ -35,7 +35,7 @@ import { registerPublicApiRoutes } from './routes/publicApi';
 import type { SmsSender } from './routes/phoneAuth';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
-import { pregnancyCalendar, weekContent } from './pregnancy/weeks';
+import { servedCalendar, weekOf } from './pregnancy/served';
 import { childDevCalendar, devWeekContent } from './child/development';
 import { appVersionInfo } from './app/version';
 import { vaccinationSchedule } from './vaccination/schedule';
@@ -481,11 +481,19 @@ export function buildServer(
   app.get('/vaccination/schedule', async () => vaccinationSchedule);
 
   // Public reference data: the week-by-week pregnancy calendar (ru + kk).
-  app.get('/pregnancy/weeks', async () => pregnancyCalendar);
+  //
+  // The shipped contract WITH the back office's edits on top — frames 14a/14b.
+  // Until this merge existed the route served a compiled-in file, so a typo in
+  // week 22 was a release; now the panel changes it and this changes with it.
+  // `version` moves on every edit so a client caching the calendar knows.
+  //
+  // The app still bundles the contract as an asset and layers this over it, so
+  // a phone with no signal reads the shipped week rather than nothing.
+  app.get('/pregnancy/weeks', async () => servedCalendar(deps.repo));
   app.get('/pregnancy/weeks/:week', async (req, reply) => {
     const week = Number((req.params as { week: string }).week);
     if (!Number.isFinite(week)) return reply.code(400).send({ error: 'bad_week' });
-    const content = weekContent(week);
+    const content = weekOf(await servedCalendar(deps.repo), week);
     if (!content) return reply.code(404).send({ error: 'not_found' });
     return reply.send(content);
   });

@@ -6,8 +6,9 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
+import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
+import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -195,6 +196,8 @@ export function createMemoryRepository(): Repository {
   const alerts: SafetyAlertRow[] = [];
   /** Profiles by user id — what the pg repository stores on `users`. */
   const profiles = new Map<string, ProfileRow>();
+  /** Edited pregnancy weeks, by week — `pregnancy_week_overrides`. */
+  const pregWeekOverrides = new Map<number, PregnancyWeekOverride>();
   let profile: ProfileRow | null = {
     displayName: 'Aigerim',
     phone: '+77001112233',
@@ -1414,6 +1417,58 @@ const UUID_RE =
         contentItems: items,
         contentLinked: linked,
       };
+    },
+
+    // ---- Pregnancy calendar overrides (frames 14a / 14b) ----
+    //
+    // Seeded EMPTY, deliberately. Every other collection here carries demo rows
+    // so a screen has something to show, but a seeded override would put words
+    // into a clinical calendar that nobody wrote — and the week editor already
+    // has 40 weeks to show from the contract. Empty is the honest starting
+    // state: nothing has been edited yet.
+    pregnancyWeekOverrides: async () =>
+      [...pregWeekOverrides.values()]
+        .sort((a, b) => a.week - b.week)
+        .map((o) => ({ ...o, ru: { ...o.ru }, kk: { ...o.kk }, review: o.review ? { ...o.review } : null })),
+
+    putPregnancyWeekOverride: async (v) => {
+      const prev = pregWeekOverrides.get(v.week);
+      pregWeekOverrides.set(v.week, {
+        week: v.week,
+        lengthCm: v.lengthCm,
+        hcg: v.hcg,
+        ru: { ...v.ru },
+        kk: { ...v.kk },
+        draft: v.draft,
+        review: v.review ? { ...v.review } : null,
+        // Increment, exactly like the pg UPSERT. A fake that resets the counter
+        // would let the served version go backwards in dev and nowhere else,
+        // which is the kind of difference that is found in production.
+        rev: (prev?.rev ?? 0) + 1,
+        updatedAt: new Date().toISOString(),
+        updatedBy: v.updatedBy,
+      });
+    },
+
+    pregnancyWeekMotherCounts: async () => {
+      // Same arithmetic as pgRepository's GROUP BY, in pregnancy/overrides.ts so
+      // the two cannot drift on what "week 22" means.
+      //
+      // The population is every profile this process holds, plus the seeded demo
+      // account when it has not been overwritten — the same set adminListUsers
+      // reports. One process cannot produce «312 мам», and it does not pretend
+      // to: with one pregnant profile the editor reads «1 мама», which is true.
+      const today = utcMidnightOf(new Date());
+      const out: Record<number, number> = {};
+      const dues: Array<string | null> = [...profiles.values()].map((p) => p.dueDate ?? null);
+      if (!profiles.has(DEMO_USER) && profile?.dueDate) dues.push(profile.dueDate);
+      for (const due of dues) {
+        if (!due) continue;
+        const w = gestationalWeekOn(due, today);
+        if (w == null) continue;
+        out[w] = (out[w] ?? 0) + 1;
+      }
+      return out;
     },
 
     contentCatalog: async () => Object.fromEntries([...content.entries()].map(([k, v]) => [k, v.map((i) => ({ ...i }))])),

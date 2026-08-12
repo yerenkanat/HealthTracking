@@ -109,7 +109,8 @@ child id is refused until the two are reconciled.
 | `POST /ai/chat` | Assistant, behind the guardrail and a per-user rate limit. |
 | `GET /children/:id/location` | Polled every 45s. **Currently refused (403)** — see the child-id blocker above. Logs the reason once. |
 | `GET /antenatal/protocol` | KZ 8-visit schedule, from `contract/antenatal_protocol.json`. App bundles the same domain; admin renders it. |
-| `GET /pregnancy/weeks[/:week]` | Week-by-week calendar (ru+kk), from `contract/pregnancy_weeks.json`. App week screen + admin tab. |
+| `GET /pregnancy/weeks[/:week]` | Week-by-week calendar (ru+kk): `contract/pregnancy_weeks.json` **with the back-office's overrides merged on top** (frames 14a/14b). The app bundles the contract as an asset and layers this over it week by week, so an offline launch still shows the shipped week. Cached in prefs and refreshed at bootstrap, like `/content`. |
+| `PUT /admin/pregnancy/weeks/:week`, `POST …/review` | Editing one calendar week from the panel: `content` to write, `health` to sign off, no Kazakh → no publication. Overrides only; the contract is never touched. |
 | `GET /vaccination/schedule` | Childhood immunisations, from `contract/vaccination_schedule.json`. App + admin. |
 | `GET/POST/DELETE /appointments` | **Now synced** when signed in: push on add/remove, pull on start. User-scoped, ownership-enforced, idempotent on the client id. |
 

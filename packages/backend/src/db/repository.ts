@@ -461,6 +461,37 @@ export interface ContentItemRow {
   review?: { by: string; at: string; fingerprint: string };
 }
 
+/** One language's half of a calendar week. Mirrors the shared contract. */
+export interface PregnancyWeekTextRow {
+  baby: string;
+  you: string;
+  recommend: string;
+}
+
+/**
+ * One edited gestational week.
+ *
+ * An OVERRIDE, not the week: the shipped contract stays the baseline the app
+ * bundles and works offline from, and rows here patch it. `lengthCm`/`hcg` may
+ * be null, meaning "keep what the contract says" — rewriting the prose of week
+ * 22 is not a claim about how long the baby is.
+ */
+export interface PregnancyWeekOverride {
+  week: number;
+  lengthCm: string | null;
+  hcg: string | null;
+  ru: PregnancyWeekTextRow;
+  kk: PregnancyWeekTextRow;
+  /// Stored, never served — the reader keeps seeing the contract text.
+  draft: boolean;
+  /// A clinician's sign-off on the exact text they read; see medicalReview.ts.
+  review: { by: string; at: string; fingerprint: string } | null;
+  /// Save counter, so the served calendar's version moves on every edit.
+  rev: number;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
 /** A whole family, assembled for the back-office drilldown. */
 export interface AdminUserDetail {
   id: string;
@@ -952,6 +983,32 @@ export interface Repository {
   /// Replace one stage's items outright. Editing is per stage, so a save can
   /// never partially apply across stages.
   putStageContent(stageKey: string, items: ContentItemRow[]): Promise<void>;
+
+  // ---- Pregnancy calendar overrides (frames 14a / 14b) ----
+  /// Every edited week, ascending. Overrides ONLY — the shipped contract
+  /// (packages/contract/pregnancy_weeks.json) is the baseline and is not in
+  /// here, so an empty list means "nothing has been edited", never "the
+  /// calendar is empty". See pregnancy/overrides.ts for the merge.
+  pregnancyWeekOverrides(): Promise<PregnancyWeekOverride[]>;
+  /// Write one week. `rev` is the store's business — it increments — so the
+  /// caller supplies the content and who wrote it, nothing else.
+  putPregnancyWeekOverride(v: {
+    week: number;
+    lengthCm: string | null;
+    hcg: string | null;
+    ru: PregnancyWeekTextRow;
+    kk: PregnancyWeekTextRow;
+    draft: boolean;
+    review: { by: string; at: string; fingerprint: string } | null;
+    updatedBy: string;
+  }): Promise<void>;
+  /// How many mothers are in each gestational week TODAY, from `users.due_date`.
+  ///
+  /// This is what turns «поправить неделю 22» into «это увидят N мам» — the
+  /// one number that tells an editor whether a change is urgent. Weeks nobody
+  /// is in are absent from the map rather than present as zero, so a caller
+  /// reporting «0 мам» is reporting a real count and not a missing key.
+  pregnancyWeekMotherCounts(): Promise<Record<number, number>>;
 
   /**
    * Record a back-office action.

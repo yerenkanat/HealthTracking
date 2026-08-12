@@ -20,6 +20,7 @@ import 'data/notification_service.dart';
 import 'data/content_repository.dart';
 import 'data/photo_paths.dart';
 import 'data/content_store.dart';
+import 'data/pregnancy_weeks_repository.dart';
 import 'data/prefs_app_store.dart';
 import 'data/prefs_telemetry_queue.dart';
 import 'domain/geofence_alerts.dart';
@@ -142,6 +143,12 @@ Future<void> main() async {
     debugPrint('content: loaded from ${loaded.source.name} — ${loaded.fallbackReason}');
   }
   final contentStore = ContentStore(loaded.catalog, source: loaded.source);
+
+  // The pregnancy calendar, from the last server response this phone received.
+  // Layered over the bundled asset, week by week — so a launch with no signal
+  // shows the newest text she has ever had, and never an empty week screen.
+  // The network refresh happens after runApp, like the catalogue's.
+  await primePregnancyWeeksFromCache(const PrefsPregnancyWeeksCache());
 
   runApp(FcsApp(controller: controller, content: contentStore));
 
@@ -439,6 +446,16 @@ Future<void> bootstrapRuntime(
       final fresh = await refreshCatalogFromApi(api: api, cache: contentCache);
       if (fresh != null) content.adopt(fresh, CatalogSource.api);
     }
+
+    // The pregnancy calendar, same shape: the asset is already on screen, so
+    // this only ever upgrades it, week by week, and a failure leaves it alone.
+    // Frame 14a/14b — without this the back office can edit week 22 all day
+    // and no phone ever finds out.
+    unawaited(() async {
+      final n = await refreshPregnancyWeeksFromApi(
+          api: api, cache: const PrefsPregnancyWeeksCache());
+      if (n != null) debugPrint('pregnancy weeks: refreshed $n week(s) from the server');
+    }());
 
     // Offline-first batcher → flushes batches to /ingest/batch. The queue is
     // mirrored to disk (shared_preferences) so telemetry buffered while offline —

@@ -1647,6 +1647,69 @@ export function createPgRepository(pool: Pool): Repository {
       return out;
     },
 
+    // ---- Pregnancy calendar overrides (frames 14a / 14b) ----
+    async pregnancyWeekOverrides() {
+      const { rows } = await pool.query(
+        `SELECT week, length_cm, hcg, ru, kk, draft, review, rev, updated_at, updated_by
+           FROM pregnancy_week_overrides ORDER BY week`);
+      return rows.map((r) => ({
+        week: Number(r.week),
+        // NULL means "keep the contract's value", and it has to survive the
+        // round trip as null rather than '' — an empty string would blank the
+        // length chip on every week anybody ever edited.
+        lengthCm: r.length_cm ?? null,
+        hcg: r.hcg ?? null,
+        ru: r.ru as { baby: string; you: string; recommend: string },
+        kk: r.kk as { baby: string; you: string; recommend: string },
+        draft: r.draft === true,
+        review: (r.review ?? null) as { by: string; at: string; fingerprint: string } | null,
+        rev: Number(r.rev ?? 1),
+        updatedAt: new Date(r.updated_at).toISOString(),
+        updatedBy: r.updated_by ?? null,
+      }));
+    },
+
+    async putPregnancyWeekOverride(v) {
+      // rev = existing + 1 rather than a supplied value: the counter is the
+      // store's, and the served calendar's version is built from it, so a
+      // caller must not be able to hold it still while changing the text.
+      await pool.query(
+        `INSERT INTO pregnancy_week_overrides
+           (week, length_cm, hcg, ru, kk, draft, review, rev, updated_at, updated_by)
+         VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7::jsonb,1,now(),$8)
+         ON CONFLICT (week) DO UPDATE SET
+           length_cm = EXCLUDED.length_cm,
+           hcg       = EXCLUDED.hcg,
+           ru        = EXCLUDED.ru,
+           kk        = EXCLUDED.kk,
+           draft     = EXCLUDED.draft,
+           review    = EXCLUDED.review,
+           rev       = pregnancy_week_overrides.rev + 1,
+           updated_at = now(),
+           updated_by = EXCLUDED.updated_by`,
+        [v.week, v.lengthCm, v.hcg, JSON.stringify(v.ru), JSON.stringify(v.kk),
+          v.draft, v.review ? JSON.stringify(v.review) : null, v.updatedBy]);
+    },
+
+    async pregnancyWeekMotherCounts() {
+      // The same expression the dashboard's stage histogram uses, so «неделя 22»
+      // means one thing across the back office. Integer division on two `date`
+      // columns is whole days; GREATEST/LEAST clamps into the calendar's range.
+      //
+      // `due_date >= CURRENT_DATE` excludes overdue mothers on purpose: an edit
+      // to week 40 no longer reaches them first, and folding them in would
+      // inflate the number the editor is being asked to trust.
+      const { rows } = await pool.query(
+        `SELECT GREATEST(1, LEAST(40, 40 - ((due_date - CURRENT_DATE) / 7)))::int AS week,
+                count(*)::int AS n
+           FROM users
+          WHERE due_date IS NOT NULL AND due_date >= CURRENT_DATE
+          GROUP BY 1`);
+      const out: Record<number, number> = {};
+      for (const r of rows) out[Number(r.week)] = Number(r.n);
+      return out;
+    },
+
     async putStageContent(stageKey, items) {
       if (items.length === 0) {
         await pool.query(`DELETE FROM timeline_content WHERE stage_key = $1`, [stageKey]);

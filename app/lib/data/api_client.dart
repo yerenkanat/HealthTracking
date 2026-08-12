@@ -304,6 +304,19 @@ class ApiClient {
     return res.body;
   }
 
+  /// The week-by-week pregnancy calendar as the server serves it: the shared
+  /// contract with whatever the back office has edited on top.
+  ///
+  /// Raw JSON for the same reason as the catalogue above — the caller caches
+  /// the exact bytes it received, so a field this build does not know about
+  /// still survives to the next launch. Unauthenticated: this is reference
+  /// content, identical for everyone.
+  Future<String> fetchPregnancyWeeksJson() async {
+    final res = await transport.get('/pregnancy/weeks');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return res.body;
+  }
+
   /// Guardrailed assistant. `latestTelemetry` lets the server bypass the LLM on
   /// a critical reading and return an emergency outcome.
   Future<ChatOutcome> chat({

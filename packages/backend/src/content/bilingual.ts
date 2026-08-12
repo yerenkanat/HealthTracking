@@ -74,7 +74,17 @@ export function bilingualProblems(item: {
 }
 
 const LOCALE_NAME: Record<RequiredLocale, string> = { ru: 'русской', kk: 'казахской' };
-const FIELD_NAME: Record<string, string> = { title: 'заголовка', summary: 'описания' };
+const FIELD_NAME: Record<string, string> = {
+  title: 'заголовка',
+  summary: 'описания',
+  // The pregnancy calendar's three fields (frame 14b). Named here rather than
+  // in the route so both editors refuse a save in the same words — a content
+  // editor who has seen this sentence on a timeline card should not have to
+  // learn a second dialect of it on the week screen.
+  baby: 'текста «О малыше»',
+  you: 'текста «О вас»',
+  recommend: 'рекомендации',
+};
 
 /**
  * The problems as a sentence somebody can act on, in the language the panel is

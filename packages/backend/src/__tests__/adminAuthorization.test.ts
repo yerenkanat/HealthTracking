@@ -71,6 +71,13 @@ const ANY_STAFF = new Map<string, string>([
   // stripped inside the handler for accounts without `stock`, per «продавец …
   // без маржи». CHANGING the catalogue is `content`.
   ['GET /admin/shop/products', 'read-only; margin stripped without `stock`'],
+  // The pregnancy calendar as it is served, week by week, plus its edit state.
+  // Reading it is a deliberate ANY: the clinician who has to APPROVE a week
+  // holds `health`, not `content`, and gating the read on `content` would mean
+  // the only person allowed to sign the text off could not open it. The mother
+  // counts beside each week are aggregates off `due_date` — no row names
+  // anybody. WRITING is `content`; APPROVING is `health`.
+  ['GET /admin/pregnancy/weeks', 'the calendar as served + counts; no personal data'],
 ]);
 
 /**

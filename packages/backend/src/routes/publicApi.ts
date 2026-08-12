@@ -13,7 +13,8 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { Repository, AudioLocale, ShopProduct } from '../db/repository';
-import { pregnancyCalendar, weekContent, firstWeek, lastWeek } from '../pregnancy/weeks';
+import { firstWeek, lastWeek } from '../pregnancy/weeks';
+import { servedCalendar, weekOf } from '../pregnancy/served';
 import { childDevCalendar, devWeekContent, firstDevWeek, lastDevWeek } from '../child/development';
 import { antenatalProtocol } from '../antenatal/protocol';
 import { vaccinationSchedule } from '../vaccination/schedule';
@@ -94,11 +95,19 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
       }));
 
       // ---- Pregnancy calendar ----
-      api.get('/pregnancy/weeks', async () => ({ version: pregnancyCalendar.version, count: pregnancyCalendar.weeks.length, first: firstWeek, last: lastWeek, weeks: pregnancyCalendar.weeks }));
+      //
+      // The SERVED calendar — contract plus the back office's edits — not the
+      // compiled-in file. A partner reading this mirror and a mother reading
+      // the app must not be told different things about week 22, which is what
+      // would happen the moment the panel edited one and not the other.
+      api.get('/pregnancy/weeks', async () => {
+        const cal = await servedCalendar(repo);
+        return { version: cal.version, count: cal.weeks.length, first: firstWeek, last: lastWeek, weeks: cal.weeks };
+      });
       api.get('/pregnancy/weeks/:week', async (req, reply) => {
         const week = Number.parseInt((req.params as { week: string }).week, 10);
         if (!Number.isFinite(week)) return reply.code(400).send({ error: 'invalid_week' });
-        const content = weekContent(week);
+        const content = weekOf(await servedCalendar(repo), week);
         return content ? { week: content } : reply.code(404).send({ error: 'not_found' });
       });
       api.get('/pregnancy/timeline', async (req, reply) => {
@@ -107,7 +116,10 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
         if (!dueDate) return reply.code(400).send({ error: 'invalid_dueDate', hint: 'dueDate=YYYY-MM-DD is required' });
         const from = q.from ? parseDate(q.from) : new Date();
         if (!from) return reply.code(400).send({ error: 'invalid_from' });
-        return { dueDate: q.dueDate, from: from.toISOString().slice(0, 10), version: pregnancyCalendar.version, ...pregnancyTimeline(dueDate, from, clampWeeks(q.weeks)) };
+        // The served calendar, so a schedule built from this mirror quotes the
+        // same text the app shows — including the back office's edits.
+        const cal = await servedCalendar(repo);
+        return { dueDate: q.dueDate, from: from.toISOString().slice(0, 10), version: cal.version, ...pregnancyTimeline(dueDate, from, clampWeeks(q.weeks), cal) };
       });
       // What to send TODAY: the gestational day, its week's content, and the day's
       // audio clip if one is uploaded. Ideal for a daily WhatsApp push.
@@ -120,7 +132,7 @@ export function registerPublicApiRoutes(app: FastifyInstance, repo: Repository, 
         const day = pregnancyDayOn(dueDate, from);
         const week = Math.min(lastWeek, Math.max(firstWeek, Math.ceil(day / 7)));
         const locale = toLocale(q.lang);
-        return { dueDate: q.dueDate, from: from.toISOString().slice(0, 10), day, week, locale, content: weekContent(week), audioUrl: await audioUrlFor('pregnancy', day, locale) };
+        return { dueDate: q.dueDate, from: from.toISOString().slice(0, 10), day, week, locale, content: weekOf(await servedCalendar(repo), week), audioUrl: await audioUrlFor('pregnancy', day, locale) };
       });
 
       // ---- Child development ----

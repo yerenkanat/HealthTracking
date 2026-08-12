@@ -19,7 +19,9 @@ import { PRODUCT_STAGES, SUPPORT_CHANNELS, SUPPORT_STATUSES } from '../db/reposi
 import { buildIntegrations, integrationSummary, maskSecret } from '../admin/integrations';
 import { buildFinanceReport, financeCsv } from '../admin/finance';
 import { buildSupportBoard, SUPPORT_SLA_HOURS, whatsappReplyLink } from '../admin/support';
-import { bilingualMessage, bilingualProblems, type BilingualProblem } from '../content/bilingual';
+import { bilingualMessage, bilingualProblems, missingLocales, type BilingualProblem } from '../content/bilingual';
+import { weekAsReviewable, type PregnancyWeekOverride } from '../pregnancy/overrides';
+import { servedCalendar } from '../pregnancy/served';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
 import { summarizeSecurity } from '../admin/security';
 import { buildOwnerDashboard } from '../admin/ownerDashboard';
@@ -171,6 +173,32 @@ const contentItem = z.object({
   path: ['minAgeYears'],
 });
 const stageContentBody = z.object({ items: z.array(contentItem).max(50) });
+
+/// One language's half of a calendar week (frame 14b).
+///
+/// Length-capped rather than free: this text is rendered into a fixed card in
+/// the app and on a phone-sized screen, and a pasted essay would push the
+/// recommendation — the actionable half — below the fold. Generous enough for
+/// the longest week in the shipped contract, several times over.
+const weekText = z.object({
+  baby: z.string().trim().max(2000),
+  you: z.string().trim().max(2000),
+  recommend: z.string().trim().max(2000),
+});
+
+const pregnancyWeekBody = z.object({
+  /// Nullable, and null is NOT the same as ''. Null means "keep whatever the
+  /// shipped contract says about the baby's length"; '' means "this week has
+  /// no length to show". An editor rewriting prose must be able to leave the
+  /// numbers alone without asserting anything about them.
+  lengthCm: z.string().trim().max(60).nullable().default(null),
+  hcg: z.string().trim().max(120).nullable().default(null),
+  ru: weekText,
+  kk: weekText,
+  /// Work in progress: saved, not served. This is what makes the clinician
+  /// rule workable — half-written advice has somewhere to live.
+  draft: z.boolean().default(false),
+});
 
 /// A whole catalogue in one request. 101 stages x 50 items is the ceiling the
 /// per-stage route already implies; the record cap keeps a malformed file from
@@ -965,6 +993,248 @@ export function registerAdminRoutes(
     }
     waiting.sort((a, b) => (a.reason === b.reason ? 0 : a.reason === 'stale' ? -1 : 1));
     return reply.send({ waiting });
+  });
+
+  // ---- Pregnancy calendar (frames 14a «40 недель» / 14b «Редактор недели») --
+  //
+  // The forty weeks of pregnancy content are the only thing this product shows
+  // to EVERY pregnant user, and until this route existed they were a JSON file
+  // compiled into the server and bundled into the app. Fixing a wrong hCG range
+  // in week 22 meant a backend release and a store rollout.
+  //
+  // What is served stays contract-plus-overrides — see pregnancy/overrides.ts.
+  // The contract is never touched, so the app keeps working with no signal and
+  // app/tool/verify_pregnancy_weeks_contract.dart keeps passing.
+
+  /**
+   * The editor's view: every week, merged, with its edit state and how many
+   * mothers are standing in it today.
+   *
+   * `mothers` is the number that turns «поправить неделю 22» into a decision.
+   * It is counted off `users.due_date` and nothing else — if nobody is in week
+   * 22 it says 0, out loud, rather than borrowing a plausible figure from
+   * somewhere. `mothersTotal` is stated beside it so a row of zeroes reads as
+   * "no pregnant users yet" rather than "the count is broken".
+   *
+   * Staff-read rather than `content`-gated: a clinician holding `health` has to
+   * be able to READ what she is being asked to approve.
+   */
+  app.get('/admin/pregnancy/weeks', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    const [overrides, mothers] = await Promise.all([
+      // Nor is the edit state. Frame 14a is a READ of forty weeks of medical
+      // content, and it read fine before this table existed — 500ing the whole
+      // tab because migration 036 has not run yet, or because the database
+      // blinked, takes the calendar away over the one part of it that is a
+      // patch. So: the contract, plus `editsKnown: false` so the panel can say
+      // out loud that it does not know which weeks were edited (and refuse to
+      // let anyone save over an edit it cannot see) instead of drawing forty
+      // untouched weeks that would read as "nobody has ever edited this".
+      repo.pregnancyWeekOverrides().catch(() => null),
+      // A count is not worth failing the screen for. If it cannot be had, the
+      // panel is told so (`mothersKnown: false`) and shows no numbers at all,
+      // rather than a column of zeroes that reads as "nobody is pregnant".
+      repo.pregnancyWeekMotherCounts().catch(() => null),
+    ]);
+    const byWeek = new Map((overrides ?? []).map((o) => [o.week, o]));
+    const served = await servedCalendar(repo);
+
+    return reply.send({
+      version: served.version,
+      contractVersion: pregnancyCalendar.version,
+      editsKnown: overrides != null,
+      mothersKnown: mothers != null,
+      mothersTotal: mothers ? Object.values(mothers).reduce((t, n) => t + n, 0) : null,
+      weeks: pregnancyCalendar.weeks.map((base) => {
+        const o = byWeek.get(base.week);
+        // The EDITOR sees the draft; a reader does not. Opening a week you
+        // saved as a draft and finding the shipped text back in the boxes is
+        // how an afternoon's work gets retyped.
+        const shown = o ?? base;
+        // `base` is passed so the fingerprint is taken over the numbers this
+        // row actually serves — the same merged values sent down as `lengthCm`
+        // and `hcg` below, and the same ones the panel posts back.
+        const item = o
+          ? weekAsReviewable(base.week, { lengthCm: o.lengthCm, hcg: o.hcg, ru: o.ru, kk: o.kk, draft: o.draft }, base)
+          : null;
+        return {
+          week: base.week,
+          lengthCm: o ? o.lengthCm ?? base.lengthCm : base.lengthCm,
+          hcg: o ? o.hcg ?? base.hcg : base.hcg,
+          ru: shown.ru,
+          kk: shown.kk,
+          /// Somebody has edited this week; without it the panel cannot tell
+          /// "same as shipped" from "edited back to the same words".
+          edited: o != null,
+          draft: o?.draft === true,
+          /// What a phone gets right now is this row's text, not the contract's.
+          live: o != null && !o.draft,
+          review: o?.review ? { by: o.review.by, at: o.review.at } : null,
+          /// Does that signature still describe the text above it?
+          reviewCurrent: o?.review != null && item != null
+            && o.review.fingerprint === textFingerprint(item),
+          updatedAt: o?.updatedAt ?? null,
+          updatedBy: o?.updatedBy ?? null,
+          mothers: mothers ? mothers[base.week] ?? 0 : null,
+        };
+      }),
+    });
+  });
+
+  /**
+   * Save one week.
+   *
+   * The same two rules as `PUT /admin/content/:stage`, for the same reasons and
+   * in the same words:
+   *
+   *  - no Kazakh, no publication. The app falls back to Russian silently, so a
+   *    half-translated week reads to a Kazakh mother as the app ignoring the
+   *    language she chose.
+   *  - medical text is checked by a clinician, and EDITING approved text takes
+   *    the approval away. Every week of this calendar is medical — it tells a
+   *    pregnant woman what is happening to her and when to worry — so there is
+   *    no unmarked half of it to slip through.
+   *
+   * A draft is exempt from the second rule and not from the first: a draft is
+   * how a week gets written at all, but a translation that is never started is
+   * a translation that never happens.
+   */
+  app.put('/admin/pregnancy/weeks/:week', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const week = Number((req.params as { week: string }).week);
+    // Only weeks the shipped calendar covers. A row for week 55 would be stored
+    // faithfully and merged into nothing — an edit that vanishes silently.
+    const baseWeek = pregnancyCalendar.weeks.find((w) => w.week === week);
+    if (!baseWeek) {
+      return reply.code(400).send({
+        error: 'unknown_week',
+        message: `Недели ${(req.params as { week: string }).week} нет в календаре ` +
+          `(есть ${pregnancyCalendar.weeks[0]?.week}–${pregnancyCalendar.weeks.at(-1)?.week}).`,
+      });
+    }
+    const parsed = pregnancyWeekBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const v = parsed.data;
+
+    const problems: BilingualProblem[] = [];
+    for (const field of ['baby', 'you', 'recommend'] as const) {
+      const missing = missingLocales({ ru: v.ru[field], kk: v.kk[field] });
+      if (missing.length) problems.push({ id: `неделя ${week}`, field, missing });
+    }
+    if (problems.length) {
+      return reply.code(400).send({
+        error: 'translation_required',
+        week,
+        problems,
+        message: bilingualMessage(problems),
+      });
+    }
+
+    // NOT `.catch(() => [])`. A failed read is not "no row yet": carryReview
+    // would see no prior signature, store `review: null`, and a clinician's
+    // sign-off would be destroyed by a save that reported success — with the
+    // panel then showing «Врач ещё не проверял» on a week approved a minute
+    // ago and no record that the approval was ever there. Drafts are exempt
+    // from the review gate, so nothing else would have stopped the write.
+    let stored: PregnancyWeekOverride[];
+    try {
+      stored = await repo.pregnancyWeekOverrides();
+    } catch {
+      return reply.code(503).send({
+        error: 'overrides_unavailable',
+        week,
+        message: 'Не удалось прочитать сохранённые недели, поэтому сохранение отменено — ' +
+          'иначе проверка врача по этой неделе была бы потеряна. Повторите через минуту.',
+      });
+    }
+    const previous = stored.find((o) => o.week === week);
+    // Both sides fingerprinted against the contract's numbers, so a cleared box
+    // and the contract's own value are the same claim — see [weekAsReviewable].
+    const incoming = weekAsReviewable(week, v, baseWeek);
+    const prior: ReviewableItem | undefined = previous?.review
+      ? { ...weekAsReviewable(week, previous, baseWeek), review: previous.review }
+      : undefined;
+
+    const needReview = unreviewed([incoming], new Map(prior ? [[incoming.id, prior]] : []));
+    if (needReview.length) {
+      return reply.code(409).send({
+        error: 'review_required',
+        week,
+        problems: needReview,
+        message: reviewMessage(needReview) +
+          '. Отправьте на проверку врачу или сохраните как черновик.',
+      });
+    }
+
+    // What gets STORED is the review already in the database, never one from
+    // the request body — that would be self-approval by PUT.
+    const carried = carryReview(incoming, prior);
+    await repo.putPregnancyWeekOverride({
+      week,
+      lengthCm: v.lengthCm,
+      hcg: v.hcg,
+      ru: v.ru,
+      kk: v.kk,
+      draft: v.draft,
+      review: carried.review ?? null,
+      updatedBy: s.staffId,
+    });
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: v.draft ? 'edit_pregnancy_week_draft' : 'edit_pregnancy_week',
+      target: `week-${week}`,
+    });
+    return reply.send({ ok: true, week, draft: v.draft, reviewed: carried.review != null });
+  });
+
+  /**
+   * A clinician signs off one week.
+   *
+   * `health`, not `content` — that separation IS the two-person rule: authoring
+   * needs `content`, approving needs `health`, and no role but an owner holds
+   * both. The signature records what was read, so a later edit invalidates it
+   * without anybody having to remember to.
+   *
+   * Only an EDITED week can be reviewed. The shipped contract came through the
+   * MoH calendar and its own release; asking a clinician to re-approve forty
+   * weeks nobody has touched would turn the queue into noise.
+   */
+  app.post('/admin/pregnancy/weeks/:week/review', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const week = Number((req.params as { week: string }).week);
+    const current = (await repo.pregnancyWeekOverrides()).find((o) => o.week === week);
+    if (!current) {
+      return reply.code(404).send({
+        error: 'not_edited',
+        message: 'Эта неделя не редактировалась — проверять нечего.',
+      });
+    }
+    const review = {
+      by: s.staffId,
+      at: new Date().toISOString(),
+      // Against the contract's numbers, so what is signed is what is served —
+      // and so the editor's next publish can reproduce it.
+      fingerprint: textFingerprint(
+        weekAsReviewable(week, current, pregnancyCalendar.weeks.find((w) => w.week === week)),
+      ),
+    };
+    await repo.putPregnancyWeekOverride({
+      week,
+      lengthCm: current.lengthCm,
+      hcg: current.hcg,
+      ru: current.ru,
+      kk: current.kk,
+      // Approving does NOT publish. Two decisions, two people, two moments —
+      // the clinician says the text is safe, the editor says it is finished.
+      draft: current.draft,
+      review,
+      updatedBy: current.updatedBy ?? s.staffId,
+    });
+    await repo.writeAudit({ staffId: s.staffId, action: 'pregnancy_week_review', target: `week-${week}` });
+    return reply.send({ ok: true, week, review, draft: current.draft });
   });
 
   // ---- Bulk import (admin only) ----

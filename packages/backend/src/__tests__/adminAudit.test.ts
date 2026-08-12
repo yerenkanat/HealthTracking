@@ -77,6 +77,15 @@ const AGGREGATES_ONLY = new Set([
   // here identifies anybody — and it is the panel's landing screen, so
   // auditing it would write a row every time somebody opens the back office.
   'GET /admin/dashboard',
+  // The pregnancy calendar as it is served, plus each week's edit state and how
+  // many mothers are standing in it. Content and counts: the head-count is a
+  // GROUP BY over `users.due_date` and no row here identifies a mother. It is
+  // also the landing render of the tab and re-fetched after every save, so
+  // auditing it would write several rows per edit and bury the one that
+  // matters. The WRITES next door are audited — `edit_pregnancy_week` and
+  // `pregnancy_week_review` — because «кто поменял неделю 22» and «кто её
+  // проверил» must both have an answer.
+  'GET /admin/pregnancy/weeks',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be
