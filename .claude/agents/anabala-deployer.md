@@ -8,14 +8,64 @@ tools: Read, Grep, Glob, Bash
 You deploy **Ana-Bala**. The owner has authorised this standing — do not ask
 before shipping work that is committed and green.
 
+# THE SERVER, as actually observed (2026-08-12 — not inferred)
+
+Every line below came from running `docker ps` and `ls` on the box. Nothing here
+is copied from a script's header comment, which is how the last set of wrong
+instructions was written.
+
+**Containers:** `umay-backend`, `umay-redis`, `umay-db`, `aiti_caddy`,
+`supabase-db`. There is **no `kong`** container.
+
+**Directories:** `/opt/umay`, `/opt/aiti`, `/opt/containerd`.
+
+## `aiti_caddy` and `/opt/aiti` are OURS. Do not delete them.
+
+The names are legacy — this box hosted a test deployment of an unrelated CRM,
+and Ana-Bala was put INSIDE that project's proxy rather than given its own.
+
+- **`aiti_caddy`** is the only web server on the box. It terminates TLS for
+  ana-bala.kz and proxies to `umay-backend:8080`. Removing it takes ana-bala.kz
+  down, certificate included.
+- **`/opt/aiti/app/docker/Caddyfile`** is OUR routing config. `landing-takeover.sh`
+  writes it — its first line is `# ana-bala: landing`. Removing the directory
+  deletes the file that routes our own domain.
+
+The only thing on that proxy belonging to the old CRM is a `:8081 → kong:8000`
+block, and kong does not exist, so it proxies to nothing. `landing-takeover.sh`
+now drops that block unless a kong container is actually running.
+
+If the goal is to be rid of the other project entirely, the order is: stand up
+our own Caddy from `deploy/Caddyfile` on a spare port, verify, switch, and only
+THEN remove. Never the reverse.
+
+## `/opt/umay` exists but has NO `deploy/` directory
+
+`ssh root@… "bash /opt/umay/deploy/update.sh"` returns
+`No such file or directory`, and `find / -maxdepth 5 -name update.sh -path '*deploy*'`
+finds nothing anywhere on the box. So the checkout predates the deploy scripts,
+or was never a full checkout.
+
+**Establish what it is before writing another instruction that names a path:**
+
+    ssh root@188.137.231.252 "ls -la /opt/umay; git -C /opt/umay log --oneline -3; git -C /opt/umay remote -v"
+
+Until that is known, there is no working "run update.sh" command, and claiming
+otherwise wastes a session. This has now happened twice.
+
 # READ THIS FIRST — it will save you an hour
 
-Deploying is **two commands**. There is no third, and no script to write.
+Deploying is **two commands** — once `/opt/umay` is confirmed to be a checkout
+carrying `deploy/`, which as of 2026-08-12 it is NOT (see above).
 
 ```
 git push origin main
-ssh root@188.137.231.252 'bash /opt/umay/deploy/update.sh'
+ssh root@188.137.231.252 'cd /opt/umay && git pull && bash deploy/update.sh'
 ```
+
+Password auth WORKS — the user has authenticated interactively. Key auth does
+not, because the public half is not installed. This shell cannot answer a
+password prompt, so the user runs these until the key is in.
 
 `update.sh` does everything else: `git pull`, applies migrations, recreates the
 **Docker container `umay-backend`**, then greps the served `/admin` for one

@@ -50,10 +50,31 @@ BACKUP="$CADDYFILE.bak.before-umay-takeover-$(date +%F-%H%M%S)"
 cp -a "$CADDYFILE" "$BACKUP"
 echo "==> Backed up to $BACKUP"
 
-# Preserve the CRM's Supabase passthrough exactly as found. It is published on
-# 0.0.0.0:8081 and its data plane is unrelated to the landing.
-KONG_BLOCK="$(awk '/^:8081 \{/,/^\}/' "$CADDYFILE")"
-[ -n "$KONG_BLOCK" ] || KONG_BLOCK=$':8081 {\n    encode zstd gzip\n    reverse_proxy kong:8000\n}'
+# ---- The retired CRM's Supabase passthrough --------------------------------
+#
+# `:8081 → kong:8000`, left from the Aiti.kz test deployment this box used to
+# host. Its production moved to aiti.kz long ago.
+#
+# It was preserved verbatim AND recreated when absent, so deleting it by hand
+# came back on the next run of this script. Meanwhile `kong` is not among the
+# running containers — so the block holds port 8081 open on 0.0.0.0 and answers
+# every request to it with a proxy error, which is worse than not listening.
+#
+# Now emitted only when the container it points at actually EXISTS. That is the
+# honest test: not a flag somebody has to remember, and not an assumption.
+# KEEP_CRM_EDGE=1 forces it back for the case where kong is expected to return.
+#
+# The heading travels inside the variable so dropping the block leaves no
+# orphaned comment describing a section that is not there.
+KONG_BLOCK=""
+if [ "${KEEP_CRM_EDGE:-0}" = "1" ] || docker ps --format '{{.Names}}' | grep -qx kong; then
+  FOUND="$(awk '/^:8081 \{/,/^\}/' "$CADDYFILE")"
+  [ -n "$FOUND" ] || FOUND=$':8081 {\n    encode zstd gzip\n    reverse_proxy kong:8000\n}'
+  KONG_BLOCK="# Kept from the previous config: the test CRM's Supabase edge."$'\n'"$FOUND"
+  echo "==> Keeping the :8081 CRM edge (kong is running, or KEEP_CRM_EDGE=1)"
+else
+  echo "==> Dropping the :8081 CRM edge — no kong container, so it proxied to nothing"
+fi
 
 # ---- /admin: the app authenticates it -------------------------------------
 #
@@ -250,7 +271,6 @@ $ADMIN_BLOCK
     }
 }
 
-# Kept verbatim from the previous config — the test CRM's Supabase edge.
 $KONG_BLOCK
 EOF
 
