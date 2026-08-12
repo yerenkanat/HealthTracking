@@ -14,6 +14,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../domain/announcement.dart';
 import '../../domain/geofence_alerts.dart';
 import '../../domain/notification_centre.dart';
 import '../../l10n/l10n.dart';
@@ -22,6 +23,11 @@ import '../design_system.dart';
 
 class NotificationCentreScreen extends StatelessWidget {
   final List<SafetyAlert> alerts;
+
+  /// Рассылки from the back office — admin frame 06. They share this list with
+  /// the safety alerts, ordered by time alone, because she has one inbox.
+  final List<Announcement> announcements;
+
   final DateTime now;
   final DateTime? readUpTo;
 
@@ -43,6 +49,7 @@ class NotificationCentreScreen extends StatelessWidget {
     required this.alerts,
     required this.now,
     required this.onReadAll,
+    this.announcements = const [],
     this.readUpTo,
     this.onConfigure,
     this.onOpenStats,
@@ -51,8 +58,9 @@ class NotificationCentreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final s = groupNotifications(alerts, now, readUpTo: readUpTo);
-    final watermark = readAllWatermark(alerts);
+    final s = groupNotifications(alerts, now,
+        readUpTo: readUpTo, announcements: announcements);
+    final watermark = readAllWatermark(alerts, announcements);
 
     return Scaffold(
       backgroundColor: Ds.cream,
@@ -118,21 +126,30 @@ class _Row extends StatelessWidget {
   final NotificationItem item;
   const _Row({required this.item});
 
-  String _line(L10n l) {
-    final a = item.alert;
-    return switch (a.kind) {
-      AlertKind.entered => l.t('alert_entered', {'zone': a.zoneName}),
-      AlertKind.left => l.t('alert_left', {'zone': a.zoneName}),
-      AlertKind.checkIn => l.t('alert_checkin'),
-      AlertKind.sos => l.t('today_sos'),
-      AlertKind.lowBattery => l.t('today_battery'),
-    };
-  }
+  String _alertLine(L10n l, SafetyAlert a) => switch (a.kind) {
+        AlertKind.entered => l.t('alert_entered', {'zone': a.zoneName}),
+        AlertKind.left => l.t('alert_left', {'zone': a.zoneName}),
+        AlertKind.checkIn => l.t('alert_checkin'),
+        AlertKind.sos => l.t('today_sos'),
+        AlertKind.lowBattery => l.t('today_battery'),
+      };
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final a = item.alert;
+    final alert = item.alert;
+    // Her own language, chosen at paint time rather than at fetch time: both
+    // versions travel with the message, so switching the app to Kazakh after it
+    // arrived re-reads it in Kazakh instead of leaving her with a cached copy
+    // in a language she stopped using.
+    final text = item.announcement?.textFor(l.localeCode);
+
+    final headline = alert != null ? _alertLine(l, alert) : text!.title;
+    final at = item.at;
+    final meta = alert != null
+        ? '${alert.childName} · ${_hhmm(at)}'
+        : '${l.t('ntf_from_team')} · ${_hhmm(at)}';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
@@ -163,7 +180,7 @@ class _Row extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _line(l),
+                  headline,
                   style: TextStyle(
                     fontSize: 14.5,
                     color: Ds.text,
@@ -171,10 +188,19 @@ class _Row extends StatelessWidget {
                         item.unread ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
+                // The body of a рассылка. An alert has no second line — its
+                // whole content is the sentence above.
+                if (text != null && text.body.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    text.body,
+                    style: const TextStyle(
+                        fontSize: 13.5, height: 1.35, color: Ds.text),
+                  ),
+                ],
                 const SizedBox(height: 2),
                 Text(
-                  '${a.childName} · ${a.at.hour.toString().padLeft(2, '0')}:'
-                  '${a.at.minute.toString().padLeft(2, '0')}',
+                  meta,
                   style: const TextStyle(fontSize: 12.5, color: Ds.textSecondary),
                 ),
               ],
@@ -185,6 +211,9 @@ class _Row extends StatelessWidget {
     );
   }
 }
+
+String _hhmm(DateTime t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 /// «Экстренные отключить нельзя», and what she CAN configure.
 class _EmergencyLockedCard extends StatelessWidget {

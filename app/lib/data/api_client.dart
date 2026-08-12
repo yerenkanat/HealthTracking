@@ -317,6 +317,21 @@ class ApiClient {
     return res.body;
   }
 
+  /// The рассылки this account has been sent — admin frame 06 → screen 39.
+  ///
+  /// AUTHENTICATED and user-scoped, unlike the calendar above: the server
+  /// answers off the delivery ledger, so she sees a message because a row says
+  /// it was sent to her. Re-running the segment later — after her due date
+  /// passes, after she changes language — cannot take a message off her screen.
+  ///
+  /// Raw JSON, cached byte-for-byte by [refreshAnnouncementsFromApi] for the
+  /// same reason as the catalogue.
+  Future<String> fetchAnnouncementsJson({int limit = 20}) async {
+    final res = await transport.get('/announcements?limit=$limit');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return res.body;
+  }
+
   /// Guardrailed assistant. `latestTelemetry` lets the server bypass the LLM on
   /// a critical reading and return an emergency outcome.
   Future<ChatOutcome> chat({

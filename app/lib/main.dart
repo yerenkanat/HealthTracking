@@ -16,6 +16,7 @@ import 'app/app_controller.dart';
 import 'core/geofence.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'data/announcements_repository.dart';
 import 'data/notification_service.dart';
 import 'data/content_repository.dart';
 import 'data/photo_paths.dart';
@@ -149,6 +150,20 @@ Future<void> main() async {
   // shows the newest text she has ever had, and never an empty week screen.
   // The network refresh happens after runApp, like the catalogue's.
   await primePregnancyWeeksFromCache(const PrefsPregnancyWeeksCache());
+
+  // Рассылки from the back office, from the last response this phone received
+  // (admin frame 06 → screen 39). Read BEFORE first paint for the same reason
+  // as the calendar: a launch with no signal must show the message she was
+  // sent, and the badge over the bell must be right on the first frame rather
+  // than jumping a second later.
+  //
+  // A failed read is an empty list, never an exception — this feeds the same
+  // screen as her child's SOS alerts, and a marketing message is not worth
+  // taking that down.
+  controller.onSignedOut =
+      () => clearAnnouncementsCache(const PrefsAnnouncementsCache());
+  controller.setAnnouncements(
+      await primeAnnouncementsFromCache(const PrefsAnnouncementsCache()));
 
   runApp(FcsApp(controller: controller, content: contentStore));
 
@@ -455,6 +470,25 @@ Future<void> bootstrapRuntime(
       final n = await refreshPregnancyWeeksFromApi(
           api: api, cache: const PrefsPregnancyWeeksCache());
       if (n != null) debugPrint('pregnancy weeks: refreshed $n week(s) from the server');
+    }());
+
+    // The рассылки, same shape: the cached copy is already on screen, so this
+    // only ever upgrades it, and a failure — including the 503 the route
+    // answers before migration 037 — leaves it alone. Frame 06: without this
+    // the back office can write to forty thousand mothers and no phone ever
+    // finds out.
+    //
+    // Only ever attempted with a session. `/announcements` is user-scoped, and
+    // an unauthenticated call would answer 401, which this treats as "keep what
+    // we have" — correct, but a request worth not making.
+    unawaited(() async {
+      if (controller.authSession == null) return;
+      final fresh = await refreshAnnouncementsFromApi(
+          api: api, cache: const PrefsAnnouncementsCache());
+      if (fresh != null) {
+        controller.setAnnouncements(fresh);
+        debugPrint('announcements: ${fresh.length} from the server');
+      }
     }());
 
     // Offline-first batcher → flushes batches to /ingest/batch. The queue is

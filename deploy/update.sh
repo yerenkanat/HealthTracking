@@ -96,7 +96,9 @@ for col in "shop_orders bundle_id" "shop_orders phone_normalized" "shop_products
            "device_registry serial" "device_registry status" \
            "audit_log reason"; do
   table="${col%% *}"; column="${col##* }"
-  if q "SELECT 1 FROM information_schema.columns WHERE table_name='$table' AND column_name='$column'" | grep -qx FOUND; then
+  # Compared as a string, not piped into grep — see check() below for why a
+  # pipe into `grep -q` is unsafe everywhere in this file.
+  if [ "$(q "SELECT 1 FROM information_schema.columns WHERE table_name='$table' AND column_name='$column'")" = FOUND ]; then
     echo "    $table.$column OK"
   else
     # Named individually rather than blamed on one migration: this list spans
@@ -107,7 +109,7 @@ for col in "shop_orders bundle_id" "shop_orders phone_normalized" "shop_products
 done
 
 # The combo has to carry the entitlement, or a sale grants nothing.
-if q "SELECT 1 FROM shop_products WHERE id='combo' AND grants_feature='mama_course'" | grep -qx FOUND; then
+if [ "$(q "SELECT 1 FROM shop_products WHERE id='combo' AND grants_feature='mama_course'")" = FOUND ]; then
   echo "    combo grants mama_course OK"
 else
   echo "!!  the комплект grants nothing — migration 025's UPDATE did not run"; exit 1
@@ -115,14 +117,32 @@ fi
 
 echo
 echo "==> Endpoints (as the proxy sees them)"
-check() { # path, grep-pattern, label
+check() { # path, literal substring, label
   local body
   body="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" wget -qO- "http://$BACKEND:8080$1" 2>/dev/null || true)"
-  if printf '%s' "$body" | grep -q "$2"; then
-    echo "    $3 OK"
-  else
-    echo "!!  $3 FAILED — $1 did not contain $2"; exit 1
-  fi
+  # Matched with a bash `case`, deliberately NOT `printf "%s" "$body" | grep -q`.
+  #
+  # That combination is silently inverted under `set -o pipefail`, which this
+  # script needs for everything else: `grep -q` exits the instant it matches,
+  # the writer's next write takes SIGPIPE, and the PIPELINE reports the
+  # writer's 141 — so the check fails *because* it succeeded.
+  #
+  # It only bites past the 64 KB pipe buffer, which is what made it look like a
+  # real, selective failure: /shop/products fits and passed, /admin is 467 KB
+  # and reported "the panel serves the new Dashboard FAILED" on a deploy that
+  # had in fact shipped every marker below. A whole session went into chasing a
+  # stale container that did not exist. The identical bug had already been
+  # found and fixed in verify-live.sh and was left standing here.
+  #
+  # `case` does literal glob matching in the shell itself. No pipeline, no
+  # subprocess, no exit status to invert. Every pattern below is a literal
+  # string, so nothing is lost. Guarded by deployScripts.test.ts.
+  case "$body" in
+    *"$2"*) echo "    $3 OK"; return 0 ;;
+  esac
+  echo "!!  $3 FAILED — $1 did not contain $2"
+  echo "    (the response was ${#body} bytes; 0 means the request itself failed)"
+  exit 1
 }
 # The комплект has to be in the public catalogue, or nobody can order it.
 check "/shop/products" '"kind":"bundle"' "the комплект is sellable"

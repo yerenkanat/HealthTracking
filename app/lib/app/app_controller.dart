@@ -39,6 +39,7 @@ import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/cycle_predictions.dart';
 import '../domain/family.dart';
+import '../domain/announcement.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/notification_centre.dart';
 import '../domain/health_monitor.dart';
@@ -688,9 +689,13 @@ class AppController {
   /// says 3 over a list with nothing new is how people stop reading badges.
   DateTime? get alertsReadUpTo => _alertsReadUpTo;
 
-  /// How many alerts she has not seen. What the badge shows.
+  /// How many things she has not seen. What the badge shows.
+  ///
+  /// Counts рассылки as well as safety alerts, because they share the screen
+  /// and the «Прочитать всё» button. A badge that ignored half the list would
+  /// mean a message from the back office arrived with no sign of it anywhere.
   int get unreadAlertCount => groupNotifications(
-        alerts, _now(), readUpTo: _alertsReadUpTo,
+        alerts, _now(), readUpTo: _alertsReadUpTo, announcements: _announcements,
       ).unreadCount;
 
   void markAlertsRead(DateTime upTo) {
@@ -2235,10 +2240,24 @@ class AppController {
     // because main.dart re-pushes them all at startup — but nothing will ever
     // revoke this session again, so it is kept like the BP calibration is.
     if (!_pendingLogouts.contains(session.token)) _pendingLogouts.add(session.token);
+    // Her mail leaves with her. Signing out keeps the local health history —
+    // that is this phone's, and erasing it would be a surprise — but a рассылка
+    // was addressed to the account, and the next person to sign in on this
+    // handset must not find it waiting in the notification centre.
+    _announcements = const [];
+    final forget = onSignedOut;
+    if (forget != null) unawaited(forget());
     _persist(immediate: true);
     _notify();
     unawaited(flushPendingLogouts());
   }
+
+  /// Drop whatever is cached OUTSIDE this controller for the account that just
+  /// left — currently the рассылки, which live under their own prefs key.
+  ///
+  /// A hook rather than a direct call because this class is pure Dart and the
+  /// cache is shared_preferences; main.dart, which already owns both, wires it.
+  Future<void> Function()? onSignedOut;
 
   /// Retry the revokes that never landed. Called at startup and after signing
   /// out; a no-op when nothing is pending.
@@ -2688,6 +2707,36 @@ class AppController {
   ZoneHysteresisState _zoneHysteresis = ZoneHysteresisState.idle;
   final List<SafetyAlert> _alerts = [];
   List<SafetyAlert> get alerts => List.unmodifiable(_alerts);
+
+  // ---- Рассылки from the back office (admin frame 06 → screen 39) ----
+  //
+  // NOT persisted through [PersistedConfig] like the alerts are, and that is
+  // deliberate: these belong to the account, not the handset. They are cached
+  // by announcements_repository.dart under their own key and handed here at
+  // startup, so signing out can take them with it without touching the local
+  // history of somebody's child.
+  List<Announcement> _announcements = const [];
+  List<Announcement> get announcements => List.unmodifiable(_announcements);
+
+  /// Adopt what the cache or the server just produced.
+  ///
+  /// Called twice on a cold launch — once from the cached copy before first
+  /// paint, once from `/announcements` after it. Quiet when nothing changed, so
+  /// the second call does not rebuild the tree for no reason.
+  void setAnnouncements(List<Announcement> next) {
+    if (_announcements.length == next.length) {
+      var same = true;
+      for (var i = 0; i < next.length; i++) {
+        if (_announcements[i].id != next[i].id || _announcements[i].at != next[i].at) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return;
+    }
+    _announcements = List.unmodifiable(next);
+    _notify();
+  }
 
   /// Hold the feed at its cap, ageing out routine alerts before critical ones.
   /// See [trimAlerts] — trimming by age alone let zone traffic erase old SOSes.

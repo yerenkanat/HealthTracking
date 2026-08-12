@@ -284,6 +284,10 @@ class _HomeShellState extends State<HomeShell> {
         onOpenAlerts: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => NotificationCentreScreen(
             alerts: c.alerts,
+            // Screen 39's other half: what the back office sent her (admin
+            // frame 06). Same list, same «Прочитать всё», same watermark —
+            // she has one inbox, not two.
+            announcements: c.announcements,
             now: DateTime.now(),
             readUpTo: c.alertsReadUpTo,
             onReadAll: c.markAlertsRead,

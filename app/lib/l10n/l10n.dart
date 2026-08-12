@@ -349,7 +349,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ntf_today': {AppLocale.ru: 'Сегодня', AppLocale.kk: 'Бүгін', AppLocale.en: 'Today'},
   'ntf_earlier': {AppLocale.ru: 'Раньше', AppLocale.kk: 'Бұрын', AppLocale.en: 'Earlier'},
   'ntf_empty': {AppLocale.ru: 'Пока ничего не произошло', AppLocale.kk: 'Әзірге ештеңе болған жоқ', AppLocale.en: 'Nothing has happened yet'},
-  'ntf_empty_why': {AppLocale.ru: 'Здесь появятся выходы из зон, отметки «всё хорошо» и сигналы SOS.', AppLocale.kk: 'Мұнда аймақтан шығу, «бәрі жақсы» белгілері және SOS сигналдары пайда болады.', AppLocale.en: 'Zone crossings, check-ins and SOS signals appear here.'},
+  'ntf_empty_why': {AppLocale.ru: 'Здесь появятся выходы из зон, отметки «всё хорошо», сигналы SOS и сообщения от Ana-Bala.', AppLocale.kk: 'Мұнда аймақтан шығу, «бәрі жақсы» белгілері, SOS сигналдары және Ana-Bala хабарламалары пайда болады.', AppLocale.en: 'Zone crossings, check-ins, SOS signals and messages from Ana-Bala appear here.'},
+  // Who a рассылка is from. It stands where a child's name stands on a safety
+  // alert, so the two are never confused: one is about her child, the other is
+  // us writing to her.
+  'ntf_from_team': {AppLocale.ru: 'Ana-Bala', AppLocale.kk: 'Ana-Bala', AppLocale.en: 'Ana-Bala'},
   // The card that cannot be argued with.
   'ntf_emergency_locked': {AppLocale.ru: 'Экстренные отключить нельзя', AppLocale.kk: 'Төтенше хабарламаларды өшіруге болмайды', AppLocale.en: 'Emergency alerts cannot be turned off'},
   'ntf_emergency_why': {AppLocale.ru: 'SOS и выход ребёнка из безопасной зоны придут всегда — даже если всё остальное выключено.', AppLocale.kk: 'SOS және баланың қауіпсіз аймақтан шығуы әрқашан келеді — қалғаны өшірулі болса да.', AppLocale.en: 'An SOS and a child leaving a safe zone always arrive — even with everything else off.'},

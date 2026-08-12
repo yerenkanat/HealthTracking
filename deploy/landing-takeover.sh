@@ -346,8 +346,15 @@ printf '    /admin   : HTTP '; curl -s -o /dev/null -w '%{http_code}' https://an
 printf ' , /admin/ HTTP '; curl -s -o /dev/null -w '%{http_code}' https://ana-bala.kz/admin/
 printf ' , /admin/ui HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/ui  # 200,200,302
 printf '    admin API: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/stats   # expect 401
-printf '    basic srv: '; curl -sI https://ana-bala.kz/admin/ui | grep -qi '^www-authenticate' \
-  && echo 'STILL PROMPTING — the edge password did not go away' || echo 'gone (the app signs staff in)'
+# Captured then matched in the shell, never piped into `grep -q`: that shape is
+# inverted by SIGPIPE under pipefail and has twice made a check report the
+# opposite of the truth. See packages/backend/src/__tests__/deployScripts.test.ts.
+printf '    basic srv: '
+HDRS="$(curl -sI --max-time 15 https://ana-bala.kz/admin/ui || true)"
+case "$(printf '%s' "$HDRS" | tr 'A-Z' 'a-z')" in
+  *www-authenticate*) echo 'STILL PROMPTING — the edge password did not go away' ;;
+  *)                  echo 'gone (the app signs staff in)' ;;
+esac
 # Both forms of the retired storefront URL land on the landing. The one with
 # the trailing slash is what a browser leaves on a bookmark, and it 404'd.
 printf '    /shop    : HTTP '; curl -s -o /dev/null -w '%{http_code}' https://ana-bala.kz/shop

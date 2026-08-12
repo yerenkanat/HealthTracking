@@ -15,6 +15,7 @@
 /// away from being false.
 library;
 
+import 'announcement.dart';
 import 'geofence_alerts.dart';
 
 /// What the app is allowed to interrupt her for.
@@ -64,14 +65,43 @@ NotificationChannel channelOf(AlertKind kind) => switch (kind) {
       AlertKind.checkIn => NotificationChannel.zones,
     };
 
-/// One row of the centre.
+/// One row of the centre — a safety alert OR a рассылка.
+///
+/// Exactly one of [alert] and [announcement] is set. They share a list because
+/// they share a screen and a badge: a woman does not keep two mental inboxes,
+/// and «Прочитать всё» that cleared only half of one would leave a badge she
+/// cannot get rid of — which is how badges stop being read at all, including on
+/// the day the thing behind it is her child's SOS.
+///
+/// They do NOT share urgency. An announcement is [NotificationChannel.updates],
+/// so it can never be drawn with the emergency treatment, and the ordering
+/// below is by time alone rather than by kind — an SOS from this morning stays
+/// above a marketing message from this afternoon only if it happened later,
+/// because pretending otherwise would mean re-ordering her day.
 class NotificationItem {
-  final SafetyAlert alert;
+  /// Set for a safety alert; null for a рассылка.
+  final SafetyAlert? alert;
+
+  /// Set for a рассылка; null for a safety alert.
+  final Announcement? announcement;
+
   final bool unread;
 
-  const NotificationItem({required this.alert, required this.unread});
+  const NotificationItem.forAlert(SafetyAlert this.alert, {required this.unread})
+      : announcement = null;
 
-  NotificationChannel get channel => channelOf(alert.kind);
+  const NotificationItem.forAnnouncement(Announcement this.announcement, {required this.unread})
+      : alert = null;
+
+  /// When it happened. The single ordering key — see the class comment.
+  DateTime get at => alert?.at ?? announcement!.at;
+
+  /// A рассылка is «что нового», never an emergency. Read from the model so a
+  /// message from the back office cannot inherit the emergency treatment by
+  /// landing in the wrong branch of a widget.
+  NotificationChannel get channel =>
+      alert != null ? channelOf(alert!.kind) : NotificationChannel.updates;
+
   bool get isEmergency => channel == NotificationChannel.emergency;
 }
 
@@ -94,25 +124,32 @@ class NotificationSections {
 /// way to mark anything read, so one instant expresses it exactly. Per-item
 /// flags would need syncing and could disagree with the badge — a badge that
 /// says 3 over a list with nothing new is how people stop looking at badges.
+///
+/// [announcements] are the рассылки from the back office. ONE watermark covers
+/// both, for the same reason: two would let «Прочитать всё» clear the alerts
+/// and leave the badge at 1.
 NotificationSections groupNotifications(
   List<SafetyAlert> alerts,
   DateTime now, {
   DateTime? readUpTo,
+  List<Announcement> announcements = const [],
 }) {
   final startOfToday = DateTime(now.year, now.month, now.day);
-  final sorted = [...alerts]..sort((a, b) => b.at.compareTo(a.at));
+  // `isAfter`, so an item stamped at exactly the watermark counts as read —
+  // otherwise «Прочитать всё» leaves the newest one unread and the badge never
+  // reaches zero.
+  bool unread(DateTime at) => readUpTo == null || at.isAfter(readUpTo);
+
+  final sorted = <NotificationItem>[
+    for (final a in alerts) NotificationItem.forAlert(a, unread: unread(a.at)),
+    for (final m in announcements)
+      NotificationItem.forAnnouncement(m, unread: unread(m.at)),
+  ]..sort((a, b) => b.at.compareTo(a.at));
 
   final today = <NotificationItem>[];
   final earlier = <NotificationItem>[];
-  for (final a in sorted) {
-    // `isAfter`, so an alert stamped at exactly the watermark counts as read —
-    // otherwise «Прочитать всё» leaves the newest one unread and the badge
-    // never reaches zero.
-    final item = NotificationItem(
-      alert: a,
-      unread: readUpTo == null || a.at.isAfter(readUpTo),
-    );
-    if (a.at.isBefore(startOfToday)) {
+  for (final item in sorted) {
+    if (item.at.isBefore(startOfToday)) {
       earlier.add(item);
     } else {
       today.add(item);
@@ -123,15 +160,24 @@ NotificationSections groupNotifications(
 
 /// The instant «Прочитать всё» should record.
 ///
-/// The newest alert's time, not `now`: recording `now` would also mark read an
-/// alert that arrives in the same second and is not on screen yet. Null when
-/// there is nothing to read, so the button does nothing rather than moving the
-/// watermark forward over an empty list.
-DateTime? readAllWatermark(List<SafetyAlert> alerts) {
-  if (alerts.isEmpty) return null;
-  var newest = alerts.first.at;
-  for (final a in alerts) {
-    if (a.at.isAfter(newest)) newest = a.at;
+/// The newest thing on the screen, not `now`: recording `now` would also mark
+/// read an item that arrives in the same second and is not on screen yet. Null
+/// when there is nothing to read, so the button does nothing rather than moving
+/// the watermark forward over an empty list.
+///
+/// [announcements] counts here too — a watermark taken from the alerts alone
+/// would leave a рассылка sent five minutes ago permanently unread, and the
+/// badge stuck at 1 over a list she has just cleared.
+DateTime? readAllWatermark(
+  List<SafetyAlert> alerts, [
+  List<Announcement> announcements = const [],
+]) {
+  DateTime? newest;
+  for (final at in [
+    for (final a in alerts) a.at,
+    for (final m in announcements) m.at,
+  ]) {
+    if (newest == null || at.isAfter(newest)) newest = at;
   }
   return newest;
 }
