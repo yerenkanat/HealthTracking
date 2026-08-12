@@ -269,7 +269,12 @@ echo "==> A malformed id must be refused, not 500"
 # the way `grep -q` does.
 raw="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" \
   wget -qS -O /dev/null "http://$BACKEND:8080/children/not-a-uuid/location" 2>&1 || true)"
-code="$(printf '%s' "$raw" | awk '/HTTP\//{c=$2} END{print c}')"
+# Pulled out by position in the status line, not by field number. busybox wget
+# reports a 4xx as `wget: server returned error: HTTP/1.1 401 Unauthorized`, so
+# $2 of the matching line is the word "server" — which printed
+# "server (unexpected but not a 500)" and, worse, meant a real 500 would ALSO
+# have failed to parse and been waved through by the same branch.
+code="$(printf '%s' "$raw" | awk 'match($0, /HTTP\/[0-9.]+ [0-9][0-9][0-9]/) { print substr($0, RSTART + RLENGTH - 3); exit }')"
 case "$code" in
   401|403|404) echo "    $code OK" ;;
   500)         fail "500 — the UUID guard is not in this build" ;;
