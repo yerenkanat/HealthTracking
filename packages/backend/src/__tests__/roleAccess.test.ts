@@ -74,6 +74,20 @@ const GUARDED: Array<{ url: string; allow: StaffRole[]; what: string }> = [
   { url: '/admin/users', allow: ['owner', 'admin', 'operator', 'seller', 'support', 'clinician'], what: 'the customer list' },
   { url: '/admin/emergencies', allow: ['owner', 'admin', 'operator', 'support', 'clinician'], what: 'the emergency feed' },
   { url: '/admin/course/lessons', allow: ['owner', 'admin', 'content'], what: 'the course' },
+  // The money screens. These were absent from this table while a case named
+  // «a seller sees no margin and no children» sat green two screens below —
+  // it checked /admin/dashboard and never /admin/finance, which asked for
+  // `stock` and so admitted both of the roles the spec keeps margin from. A
+  // warehouse hand could open Финансы and download the margin CSV.
+  //
+  // A route that returns cost or margin belongs HERE, not only in a sentence
+  // about a seller. Adding the neighbours at the same time, because the same
+  // gap admitted them: /admin/owner is the same figures on a different screen,
+  // and /admin/entitlements is who paid for what.
+  { url: '/admin/finance', allow: ['owner', 'admin'], what: 'cost, margin and the revenue CSV' },
+  { url: '/admin/owner', allow: ['owner', 'admin'], what: 'the owner dashboard — the same money, another screen' },
+  { url: '/admin/entitlements', allow: ['owner', 'admin', 'seller', 'operator', 'support'], what: 'who paid for the course' },
+  { url: '/admin/security', allow: ['owner', 'admin'], what: 'who read which health record' },
 ];
 
 describe('what a role can reach', () => {

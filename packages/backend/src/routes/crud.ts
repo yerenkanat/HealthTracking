@@ -804,7 +804,26 @@ export function registerCrudRoutes(
     const s = await repo.getShopSettings();
     return reply.send({
       whatsapp: s.whatsapp ?? '', kaspiUrl: s.kaspiUrl ?? '',
-      reviews: s.reviews ?? '', rating: s.rating ?? '', reviewCount: s.reviewCount ?? '',
+      // `rating` and `reviewCount` are deliberately NOT published.
+      //
+      // They were two free-text boxes in the back office, placeholdered «4.9»
+      // and «1240», whose contents went verbatim onto a live commercial page.
+      // Nothing in this schema can produce either number: there is no ratings
+      // table, no reviews table and no order feedback anywhere. So whatever a
+      // person typed there would be invented, and it would be read as a fact
+      // by someone deciding whether to trust a product that tracks their
+      // child.
+      //
+      // This product has already published fabricated social proof once — the
+      // landing carried invented testimonials and an invented «12 400 семьями»
+      // until a guard test removed them. The columns keep their data so nothing
+      // is silently destroyed, but the public surface no longer carries it, and
+      // landingHonesty.test.ts fails if it comes back.
+      //
+      // `reviews` DOES stay: a review someone actually wrote on WhatsApp is a
+      // real review. The rule is not "no social proof", it is "nothing we
+      // cannot stand behind".
+      reviews: s.reviews ?? '',
     });
   });
   app.post('/shop/orders', async (req, reply) => {

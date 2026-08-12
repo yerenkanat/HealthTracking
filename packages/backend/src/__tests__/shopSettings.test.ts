@@ -66,7 +66,12 @@ describe('shop settings reach the landing', () => {
     // Normalised to digits on the way in, because wa.me links cannot carry the
     // brackets and spaces a human types.
     expect(cfg.whatsapp).toBe('77073452244');
-    expect(cfg.rating).toBe('4.9');
+    // A saved `rating` is accepted by the write (the column still exists and
+    // nothing is silently destroyed) and is NOT published. It used to come back
+    // here as '4.9' and go onto a live commercial page — a figure no query in
+    // this repository can derive, because there is no ratings table, no reviews
+    // table and no order feedback. See landingHonesty.test.ts.
+    expect(cfg.rating, 'a rating reached the public config again').toBeUndefined();
     // Handed over verbatim as a string; the landing parses it.
     expect(JSON.parse(cfg.reviews)[0].text_kz).toBe('Қазақша мәтін.');
   });
@@ -77,7 +82,9 @@ describe('shop settings reach the landing', () => {
     // Assert on the raw body, not field by field: a key leaked under an
     // unexpected name would still pass a field-by-field check.
     expect(res.body).not.toContain('SECRET-VALUE');
-    expect(Object.keys(res.json()).sort()).toEqual(['kaspiUrl', 'rating', 'reviewCount', 'reviews', 'whatsapp']);
+    // `rating` and `reviewCount` are deliberately absent — the two fields that
+    // let somebody type invented social proof onto a live page.
+    expect(Object.keys(res.json()).sort()).toEqual(['kaspiUrl', 'reviews', 'whatsapp']);
   });
 
   it('refuses a Google Maps key rather than pretending to store one usefully', async () => {

@@ -572,6 +572,47 @@ export function registerAdminRoutes(
   });
 
   /**
+   * How many of her watch days the card shows.
+   *
+   * Two weeks: enough to answer «часы вообще передают данные?» and to see a
+   * gap, short enough to stay one indexed read on a card that already makes a
+   * dozen. The panel prints the window, so nobody reads an empty fortnight as
+   * "she has never worn it".
+   */
+  const WEARABLE_DAY_WINDOW = 14;
+
+  /**
+   * ---- What the watch has actually been sending (migration 040) ----
+   *
+   * `Repository.listWearableDays` landed implemented in both repositories with
+   * no caller at all — this repo's signature defect, an hour old. Steps,
+   * distance, calories, stress, breathing rate, MET, wear state and the
+   * watch's own battery reached the database and nothing could read them back.
+   *
+   * A route of its own rather than another field on /detail: it is a
+   * per-person read with its own window and its own audit line, and folding it
+   * into the card's payload would mean every open of a mother's record pulled
+   * her activity history whether anybody looked at it or not.
+   *
+   * Guarded and reasoned exactly like /wellness, because that is what this is:
+   * how much she moved, how she slept and how stressed the watch thinks she
+   * was is special-category data about a named person, not fleet telemetry.
+   */
+  app.get('/admin/users/:id/wearable', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const reason = readReason(req, reply);
+    if (reason == null) return;
+    const userId = (req.params as { id: string }).id;
+    await repo.writeAudit({ staffId: s.staffId, action: 'view_wearable', target: userId, reason });
+    const days = await repo.listWearableDays(userId, WEARABLE_DAY_WINDOW);
+    // The window travels with the answer: «нет данных» over 14 days and «нет
+    // данных никогда» are different sentences, and the panel can only tell
+    // them apart if it knows what it asked for.
+    return reply.send({ days, window: WEARABLE_DAY_WINDOW });
+  });
+
+  /**
    * How many of her orders the mother's card counts over.
    *
    * A window, not "all of them", because this is one indexed read inside a
@@ -673,7 +714,20 @@ export function registerAdminRoutes(
     return reply.send({ ...detail, appointments, mother });
   });
 
-  // ---- Device fleet ----
+  // ---- Device fleet (frame 11) ----
+  //
+  // «На связи» has to be derived from a real timestamp against a stated
+  // window, never from a flag somebody set once. Both numbers are sent to the
+  // panel and printed under the metrics, so the reader can disagree with the
+  // rule rather than with the figure.
+  //
+  // 24 hours, not the 15 minutes /admin/stats counts with: a watch reaches us
+  // through her phone, and a phone that spent the night in another room is not
+  // a broken device. Three days is where "nothing has come from this device"
+  // stops being explainable by a weekend.
+  const DEVICE_ONLINE_HOURS = 24;
+  const DEVICE_STALE_DAYS = 3;
+
   app.get('/admin/devices', async (req, reply) => {
     const s = await requireCap(req, reply, 'health');
     if (!s) return;
@@ -683,7 +737,59 @@ export function registerAdminRoutes(
     // health record was audited while browsing every family's names in one
     // request was not — the same personal data, reached a different way.
     await repo.writeAudit({ staffId: s.staffId, action: 'view_devices' });
-    return reply.send({ devices: await repo.adminDevices(limit) });
+    // The threshold «на связи» is derived from, sent WITH the rows so the
+    // panel cannot quietly disagree with the server about what online means.
+    // It is a real timestamp against a stated window — never a boolean
+    // somebody set once.
+    return reply.send({
+      devices: await repo.adminDevices(limit),
+      onlineWithinHours: DEVICE_ONLINE_HOURS,
+      staleAfterDays: DEVICE_STALE_DAYS,
+      limit,
+    });
+  });
+
+  /**
+   * Frame 11 · «Пометить браком», and taking the mark back.
+   *
+   * A support note on ONE mother's paired watch: somebody found it faulty.
+   * Deliberately NOT `device_registry.status = 'blocked'`, which is the
+   * warehouse action on the Склад screen — that stops a serial pairing with
+   * any account, and doing both from one button would mean an operator
+   * flagging a faulty unit silently cut a customer off.
+   *
+   * Addressed by our row id, not by the MAC: UNIQUE is (user_id, ble_mac), so
+   * the same unit resold to a second family is two rows with one MAC and a
+   * write keyed on it would mark a stranger's device.
+   *
+   * `health`, like the list it is drawn on: everyone who can open frame 11 can
+   * use the button on it. A guard the screen's own readers fail would be a
+   * control that is visible and refuses.
+   */
+  app.post('/admin/devices/:id/defect', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const id = (req.params as { id: string }).id;
+    const body = (req.body ?? {}) as { defect?: unknown; note?: unknown };
+    const defect = body.defect !== false; // absent = mark it
+    const note = typeof body.note === 'string' ? body.note.trim().slice(0, 300) : '';
+    const ok = await repo.markDeviceDefect(
+      id,
+      defect ? { at: new Date().toISOString(), by: s.staffId, note: note || null } : null,
+    );
+    // A write that matched no row is not a success. Reporting ok:true here is
+    // exactly how a tick appears over a mark that was never saved.
+    if (!ok) return reply.code(404).send({ error: 'unknown_device' });
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: defect ? 'device_defect' : 'device_defect_clear',
+      target: id,
+      // The note IS the reason — «экран треснул», «не заряжается». Absent
+      // rather than an invented «не указана», which makes an unreviewable log
+      // look reviewed.
+      reason: note || undefined,
+    });
+    return reply.send({ ok: true, defect });
   });
 
   // ---- Safety feed across all families ----
@@ -2609,8 +2715,25 @@ export function registerAdminRoutes(
    * is measured against — a default of "everything" would answer a question
    * nobody asked and be slow besides.
    */
+  // `finance`, not `stock` — and the comment above has always said so.
+  //
+  // It asked for «the capability that already gates margin» and then named the
+  // one that gates the warehouse. `seller: ['orders','customers','stock']` and
+  // `warehouse: ['stock']` are precisely the two roles the spec keeps margin
+  // FROM, and `stock` is the single capability they both hold — so the guard
+  // admitted exactly the people it was written to exclude. Unit cost, margin,
+  // revenue and the CSV export of all three, to whoever packs the boxes.
+  //
+  // `finance` already existed — «Money: cost, margin, revenue, the owner's
+  // dashboard», held by owner and admin alone. Nothing had to be invented; the
+  // wrong string was typed, once, and read as correct ever after because the
+  // sentence beside it described the right thing.
+  //
+  // roleAccess.test.ts had a case named «a seller sees no margin» that never
+  // reached this route. It does now, along with /admin/owner, /admin/security
+  // and /admin/entitlements, which the same gap admitted.
   app.get('/admin/finance', async (req, reply) => {
-    const s = await requireCap(req, reply, 'stock');
+    const s = await requireCap(req, reply, 'finance');
     if (!s) return;
 
     const q = req.query as { from?: string; to?: string; format?: string };

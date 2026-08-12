@@ -101,6 +101,68 @@ describe('the public pages', () => {
     }
   });
 
+  it('/shop/config cannot publish a rating or a review count', async () => {
+    // Two free-text boxes in the back office — «Рейтинг (напр. 4.9)» and
+    // «Кол-во отзывов», placeholdered 4.9 and 1240 — wrote straight onto a live
+    // commercial page through this route. Nothing in the schema can produce
+    // either figure: there is no ratings table, no reviews table, no order
+    // feedback. So any value there is invented by definition, and it is read as
+    // fact by somebody deciding whether to trust a product that tracks their
+    // child.
+    //
+    // Asserted on the ROUTE rather than on the panel's markup, because the
+    // panel is one 500 KB file that several people edit and an input is two
+    // keystrokes to restore. The publish path is the chokepoint.
+    const mod = await import('../routes/crud');
+    const src = readFileSync(
+      fileURLToPath(new URL('../routes/crud.ts', import.meta.url)), 'utf8');
+    expect(mod, 'crud routes failed to load').toBeTruthy();
+
+    const handler = src.slice(src.indexOf("app.get('/shop/config'"));
+    const body = handler.slice(0, handler.indexOf('});'));
+    // Comments explain WHY these are absent, so strip them before asserting.
+    const code = body.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(code, 'GET /shop/config publishes `rating` again').not.toMatch(/\brating\b/);
+    expect(code, 'GET /shop/config publishes `reviewCount` again').not.toMatch(/\breviewCount\b/);
+  });
+
+  it('the three invented mothers cannot come back through the panel', () => {
+    // Айгерим/Мадина/Динара were removed from the exported landing artifact by
+    // the tests above — and the copies in `shop_settings.reviews` were NOT,
+    // because they live in the database, not in a file. On 2026-08-13 all three
+    // were still being served publicly by GET /shop/config, months after the
+    // page that displayed them was cleaned.
+    //
+    // A test cannot delete a production row. What it can do is refuse to let
+    // these three specific strings back into any file in this repository —
+    // seed, fixture, migration or default — so that clearing them is permanent
+    // rather than something the next deploy quietly undoes.
+    const NAMES = ['Айгерим, 34', 'Мадина, 41', 'Динара, 29'];
+    const dirs = ['db', 'src', '../admin', '../../deploy', '../../legal'];
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      let entries;
+      try { entries = readdirSync(`${root}${dir}`, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        if (e.name === 'node_modules' || e.name === '__tests__') continue;
+        // The one file that SHOULD name them: the note recording that these
+        // three people were invented. Deleting the record of a mistake is how
+        // the mistake gets made again.
+        if (e.name === 'seed-reviews.README.md') continue;
+        const p = `${dir}/${e.name}`;
+        if (e.isDirectory()) { walk(p); continue; }
+        if (!/\.(ts|mjs|js|json|sql|html|sh|md)$/.test(e.name)) continue;
+        let text;
+        try { text = readFileSync(`${root}${p}`, 'utf8'); } catch { continue; }
+        for (const n of NAMES) if (text.includes(n)) offenders.push(`${p}: ${n}`);
+      }
+    };
+    for (const d of dirs) walk(d);
+    expect(offenders,
+      'the invented testimonials are back in the repository — they were live on ' +
+      '/shop/config until 2026-08-13 and must not be re-seeded').toEqual([]);
+  });
+
   it('the review seed is gone and stays gone', () => {
     // deploy/seed-reviews.json existed to write the three invented quotes into
     // shop_settings, which would have put them back on the page through a route
