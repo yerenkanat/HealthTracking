@@ -58,7 +58,27 @@ void main() {
   // hand-logged nights. This edge being deleted presents as "no watch data",
   // indistinguishable from an unpaired watch.
   _chk('watch snapshots reach the controller',
-      main_.contains('watch.onSnapshot.listen(controller.onWearableMetrics)'));
+      main_.contains('onSnapshot.listen(controller.onWearableMetrics)'));
+
+  // ---- the watch is started at all ----
+  // It used to be behind `bool.fromEnvironment('STARMAX_WATCH')`, which no build
+  // script in this repository ever set: the whole BLE stack was dead code in
+  // every shipped APK, and a watch on the wrist was simply never spoken to. The
+  // condition is now the paired band — a runtime fact — and must stay one,
+  // because a watch link started unconditionally charges every user who owns no
+  // watch for a BLE scan on every launch.
+  _chk('the watch link starts on a paired band, not a build define',
+      !main_.contains('STARMAX_WATCH') && main_.contains('controller.hasPairedBand'));
+
+  // A reading has to name a device the server can attribute to somebody. It
+  // named a compile-time constant defaulting to 'band-unpaired'; /ingest counts
+  // an unattributable reading `rejected` and answers 200, so every band reading
+  // ever sent was dropped on arrival in silence.
+  _chk('readings are stamped with the paired band',
+      main_.contains('resolveDeviceId: () => controller.pairedBandId'));
+
+  // …and a batch the server refused must not read as a delivered one.
+  _chk('the ingest reply is read, not discarded', main_.contains('reportIngest('));
 
   // ---- offline telemetry survives an app kill ----
   // The batcher's persist/restore were `(_) async {}` / `() async => []`, so the
@@ -103,6 +123,22 @@ void main() {
   // must be pulled into the feed, or they exist only in the back-office.
   _chk('server safety alerts are pulled into the app',
       main_.contains('api.getAlerts()') && main_.contains('mergeRemoteAlerts('));
+
+  // ---- screens 21 + 38: a tapped notification goes somewhere ----
+  // The plugin was initialized without a response handler, so every tap in the
+  // app was discarded. Wiring one and forgetting to connect it to the
+  // controller would look identical from inside notification_service.dart.
+  _chk('a tapped notification reaches the app',
+      main_.contains('handleNotificationTap(') && main_.contains('init(onTap:'));
+  // A tap that STARTED the app arrives as launch data, not as a callback.
+  _chk('a cold launch by notification is read too', main_.contains('launchPayload()'));
+  // A notification with no payload routes nowhere however good the parser is.
+  _chk('an SOS notification carries a payload to route on',
+      main_.contains('sosNotificationPayload('));
+  // POST /alerts existed and was tested for months with no caller in the app,
+  // so an SOS pressed here reached nobody who was not holding this phone.
+  _chk('an SOS leaves the phone it was pressed on',
+      main_.contains('attachAlertSync(') && main_.contains('api.postAlert('));
 
   // ---- the guard's own premise ----
   // If the file could not be read, or were empty, every check above would pass

@@ -20,9 +20,10 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../../core/triage.dart';
 import '../../domain/wearable_metrics.dart';
 import '../link_policy.dart';
+import '../watch_identity.dart';
 import 'starmax_client.dart';
+import 'starmax_frames.dart';
 import 'starmax_health_bridge.dart';
-import 'starmax_protocol.dart';
 
 // Nordic UART Service — the transport the watch speaks over.
 final _nusService = Guid('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
@@ -72,12 +73,13 @@ class StarmaxBandConfig {
   /// when scanning fresh. The vendor's models advertise names like "GTS10".
   final List<String> namePrefixes;
 
+
   /// How often to pull a fresh health snapshot while connected.
   final Duration pollInterval;
 
   const StarmaxBandConfig({
     this.knownRemoteId,
-    this.namePrefixes = const ['GTS', 'RunmeFit', 'Starmax'],
+    this.namePrefixes = starmaxNamePrefixes,
     this.pollInterval = const Duration(seconds: 30),
   });
 }
@@ -228,20 +230,15 @@ class StarmaxBandManager {
 
   bool _looksLikeWatch(ScanResult r) {
     final adv = r.advertisementData;
-    if (adv.serviceUuids.contains(_nusService)) return true;
-    final name = adv.advName.isNotEmpty ? adv.advName : r.device.platformName;
-    if (cfg.namePrefixes.any((p) => name.toLowerCase().contains(p.toLowerCase()))) {
-      return true;
-    }
-    // The vendor's raw-advertising marker: the bytes 0x00 0x01 in manufacturer
-    // data. flutter_blue_plus surfaces it keyed by company id.
-    for (final entry in adv.manufacturerData.entries) {
-      final blob = [entry.key & 0xFF, (entry.key >> 8) & 0xFF, ...entry.value];
-      for (var i = 0; i + 1 < blob.length; i++) {
-        if (blob[i] == starmaxAdvMarker[0] && blob[i + 1] == starmaxAdvMarker[1]) return true;
-      }
-    }
-    return false;
+    // ONE rule, shared with the onboarding scanner (lib/ble/watch_identity.dart)
+    // and unit-tested there. Two copies of "is this our watch" is how a device
+    // ends up listed on the pairing screen and then never auto-connected.
+    return looksLikeStarmaxWatch(
+      name: adv.advName.isNotEmpty ? adv.advName : r.device.platformName,
+      serviceUuids: [for (final u in adv.serviceUuids) u.str],
+      manufacturerData: adv.manufacturerData,
+      namePrefixes: cfg.namePrefixes,
+    );
   }
 
   void _startPolling() {
@@ -257,10 +254,23 @@ class StarmaxBandManager {
     try {
       final snap = await client.readHealth();
       if (_disposed) return;
+      // The watch's own battery, from frame 134. Read on its own request
+      // because the health snapshot does not carry it, and tolerated
+      // separately: a watch that answers the health frame and not the power
+      // frame still has health data worth having, so a failed battery read
+      // leaves the field null rather than losing the whole poll.
+      StarmaxPower? power;
+      try {
+        power = await client.readPower();
+      } catch (_) {
+        power = null; // unknown — never reported as 0 %
+      }
+      if (_disposed) return;
       // The full activity/wellness snapshot goes out regardless of vitals — a
       // step count is worth showing even when no heart rate was measured.
-      final metrics = wearableMetricsFromSnapshot(snap, DateTime.now());
-      if (metrics.hasAnything) _snapshot.add(metrics);
+      final metrics = wearableMetricsFromSnapshot(snap, DateTime.now())
+          .withPower(percent: power?.percent, charging: power?.charging ?? false);
+      if (metrics.hasAnythingToSync) _snapshot.add(metrics);
       // The triage path only runs when there is a vital to assess.
       if (!snapshotHasVitals(snap)) return;
       final telemetry = bandTelemetryFromSnapshot(snap);

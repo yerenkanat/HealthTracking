@@ -42,6 +42,7 @@ import '../domain/family.dart';
 import '../domain/announcement.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/notification_centre.dart';
+import '../domain/notification_route.dart';
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/hydration.dart';
@@ -60,7 +61,7 @@ import '../domain/device_pairing.dart';
 import '../l10n/l10n.dart';
 import '../net/telemetry_batcher.dart';
 
-enum AppRoute { home, emergency }
+enum AppRoute { home, emergency, sos }
 
 /// Default labels for the emergency call buttons.
 ///
@@ -111,6 +112,54 @@ class ChildLocationView {
   const ChildLocationView(this.coords, this.at);
 }
 
+/// Everything screen 21 — «Сигнал SOS» — can truthfully say, assembled from
+/// what this phone actually knows.
+///
+/// Built by the controller rather than by the screen so that the one rule that
+/// matters on it is enforced in one place: **nothing here is invented**. A
+/// field the app cannot answer is empty, and the screen shows the ambulance
+/// instead of a number nobody has.
+class SosAlertView {
+  /// Who pressed it. Empty when the alert names a child this install does not
+  /// have — the screen then uses wording that needs no name, rather than
+  /// putting a stranger's name in front of her.
+  final String childName;
+
+  /// When the alert was raised (NOT when the screen opened).
+  final DateTime at;
+
+  /// The zone she was in, if any. Very often empty: an SOS happens wherever
+  /// she is, which is the whole reason the button exists.
+  final String zoneName;
+
+  /// Her last known position, and WHEN it was observed. Both null when this
+  /// phone has no fix for the child the alert names — a map centred on
+  /// somebody else, or on nothing, is worse than an honest «неизвестно».
+  final Coordinates? coords;
+  final DateTime? coordsAt;
+
+  /// «Сообщить Нуржану» — the person the parent recorded on the child's
+  /// medical-ID card as who to call. Empty when the card has none; the screen
+  /// says so rather than guessing at a relative.
+  final String contactName;
+  final String contactPhone;
+
+  const SosAlertView({
+    required this.childName,
+    required this.at,
+    this.zoneName = '',
+    this.coords,
+    this.coordsAt,
+    this.contactName = '',
+    this.contactPhone = '',
+  });
+
+  /// Whether there is somebody to notify with a number to reach them on. A
+  /// name with no number cannot be dialled, so both are required.
+  bool get hasContact =>
+      contactName.trim().isNotEmpty && contactPhone.trim().isNotEmpty;
+}
+
 /// A request for the runtime to schedule or cancel an OS reminder notification.
 /// [at] == null means "cancel the notification with this id". Keeps the pure
 /// controller free of any Flutter-plugin dependency (same pattern as newAlerts).
@@ -143,6 +192,8 @@ class AppController {
 
   bool _emergencyActive = false;
   EmergencyView? _emergency;
+  SosAlertView? _sos;
+  NotifyDestination? _pendingDestination;
   ChildLocationView? _childLocation;
   bool _onboarded = false;
   UserProfile _profile = const UserProfile();
@@ -714,9 +765,18 @@ class AppController {
   /// Fires whenever any observable state changes (UI rebuilds on this).
   Stream<void> get changes => _changes.stream;
 
-  AppRoute get route => _emergencyActive ? AppRoute.emergency : AppRoute.home;
+  /// The medical emergency wins over the SOS takeover when both are latched.
+  /// Not a close call: the emergency screen is about a reading from the body of
+  /// the person holding the phone, and the SOS is still on the alerts feed and
+  /// still in the notification tray when she dismisses it.
+  AppRoute get route => _emergencyActive
+      ? AppRoute.emergency
+      : (_sos != null ? AppRoute.sos : AppRoute.home);
   bool get emergencyActive => _emergencyActive;
   EmergencyView? get emergency => _emergency;
+
+  /// Screen 21, when one is latched.
+  SosAlertView? get sos => _sos;
   ChildLocationView? get childLocation => _childLocation;
   List<HealthSample> get samples => store.all;
   bool get onboarded => _onboarded;
@@ -724,6 +784,29 @@ class AppController {
   String get displayName => _profile.displayName;
   List<ChildProfile> get children => List.unmodifiable(_children);
   List<PairedDevice> get devices => List.unmodifiable(_devices);
+
+  /// The id of her paired watch/bracelet, or null when none is paired.
+  ///
+  /// This is the BLE id she chose during pairing, persisted with the rest of the
+  /// device list and registered with the backend — so it is the identity the
+  /// server can attribute a reading to.
+  ///
+  /// Telemetry used to be stamped with a compile-time constant that defaulted to
+  /// the literal string `band-unpaired`. `/ingest` resolves the owner of the
+  /// device named on a reading and, finding none, counts the reading REJECTED
+  /// and returns — no error, no log, nothing on screen. So every reading the
+  /// watch ever produced was dropped by the server on arrival, and the app had
+  /// no way of knowing.
+  String? get pairedBandId {
+    for (final d in _devices) {
+      if (d.kind == DeviceKind.band) return d.id;
+    }
+    return null;
+  }
+
+  /// True when a watch/bracelet is paired — the runtime condition for starting
+  /// the BLE link at launch.
+  bool get hasPairedBand => pairedBandId != null;
 
   ChildProfile? get selectedChild {
     if (_children.isEmpty) return null;
@@ -1729,10 +1812,57 @@ class AppController {
     _latestWearable = metrics;
     _recordBandSleep(metrics);
     _recordBandGlucose(metrics);
+    _syncWearable(metrics);
     _notify();
   }
 
+  /// The last activity payload actually queued, so an unchanged snapshot does
+  /// not cost a network write every poll.
+  String? _lastWearableWire;
+
+  /// Queue the watch's activity/wellbeing snapshot for the backend.
+  ///
+  /// Everything the watch measures beyond the four triage vitals — steps,
+  /// distance, calories, stress, breathing rate, MET, its own battery and
+  /// whether it is on the wrist — reached `_latestWearable` and stopped there.
+  /// It was rendered on one screen of one handset and existed nowhere else: not
+  /// on her clinician's view, not in the operator's fleet view, and gone the
+  /// moment the process died. The vitals had a sync path; this half of the watch
+  /// never had one at all.
+  ///
+  /// Goes through the SAME offline-first batcher as telemetry, so a snapshot
+  /// taken on the underground is delivered when she surfaces rather than lost.
+  /// Needs the paired band's identity: the server attributes a wearable row to
+  /// the device that produced it, exactly as it does a reading.
+  void _syncWearable(WearableMetrics m) {
+    if (!m.hasAnythingToSync) return;
+    final deviceId = pairedBandId;
+    if (deviceId == null) return; // nothing the server could attribute it to
+    final payload = m.toIngestPayload(deviceId: deviceId);
+    // The timestamp changes every poll and the figures usually do not; comparing
+    // without it is what makes "unchanged" mean unchanged.
+    final fingerprint = ({...payload}..remove('recordedAt')).toString();
+    if (fingerprint == _lastWearableWire) return;
+    _lastWearableWire = fingerprint;
+    _batcher?.enqueueWearable(payload);
+  }
+
   double? _lastBandGlucose;
+
+  /// True when [g] is a band glucose reading we have not already recorded.
+  ///
+  /// Shared by both paths that can carry the watch's glucose — the activity
+  /// snapshot and, since it started syncing, the telemetry record — because one
+  /// poll produces both and each would otherwise store its own sample of the
+  /// same measurement.
+  bool _isNewBandGlucose(double? g) {
+    if (g == null || g <= 0) return false;
+    if (_lastBandGlucose != null && (g - _lastBandGlucose!).abs() < 0.05) {
+      return false;
+    }
+    _lastBandGlucose = g;
+    return true;
+  }
 
   /// Fold the band's blood-sugar estimate into the health series so the advisor
   /// (and the glucose sparkline) can actually reason over it. Before this the
@@ -1742,9 +1872,7 @@ class AppController {
   /// never routed through the emergency triage.
   void _recordBandGlucose(WearableMetrics m) {
     final g = m.bloodSugar;
-    if (g == null || g <= 0) return;
-    if (_lastBandGlucose != null && (g - _lastBandGlucose!).abs() < 0.05) return;
-    _lastBandGlucose = g;
+    if (!_isNewBandGlucose(g)) return;
     store.addSample(HealthSample(at: m.at, glucose: g));
   }
 
@@ -2643,6 +2771,15 @@ class AppController {
     TriageResult triage, {
     ReadingSource source = ReadingSource.sensor,
   }) {
+    // One poll of the watch produces BOTH an activity snapshot and a telemetry
+    // record, and the watch's glucose estimate now rides on both — it has to, or
+    // it never reaches the server. Recording it from each would put two samples
+    // on the chart for one measurement, so the sensor path defers to the same
+    // "have I already stored this reading" latch the snapshot path uses. A typed
+    // reading is always hers and always stored.
+    final glucose = source == ReadingSource.sensor
+        ? (_isNewBandGlucose(t.glucoseMmol) ? t.glucoseMmol : null)
+        : t.glucoseMmol;
     store.addSample(HealthSample(
       at: _now(),
       heartRate: t.heartRateBpm?.toDouble(),
@@ -2650,7 +2787,7 @@ class AppController {
       systolic: t.systolicMmHg?.toDouble(),
       diastolic: t.diastolicMmHg?.toDouble(),
       coreTemp: t.coreTempC,
-      glucose: t.glucoseMmol,
+      glucose: glucose,
       duringSleep: t.duringSleep,
     ));
     final f = triage.findings.isNotEmpty ? triage.findings.first : null;
@@ -2733,6 +2870,9 @@ class AppController {
   }
 
   // ---- Child safety alerts (zone enter/exit history) ----
+  /// Push-only sync for manual safety events (SOS, check-in). See
+  /// [attachAlertSync].
+  Future<void> Function(SafetyAlert)? _onAlertUpsert;
   String? _lastChildZone;
   ZoneHysteresisState _zoneHysteresis = ZoneHysteresisState.idle;
   final List<SafetyAlert> _alerts = [];
@@ -2827,6 +2967,19 @@ class AppController {
       ..addAll(added)
       ..sort((a, b) => b.at.compareTo(a.at)); // keep the feed newest-first
     _trimAlerts();
+    // A RECENT SOS the server had and this phone did not — the button was
+    // pressed while the app was closed, or on another device in the family.
+    // That is the case screen 21 exists for, and it must not merely appear as
+    // one more line in a list. Bounded by sosTakeoverMaxAge so signing in on a
+    // new phone does not replay somebody's alarm from last month.
+    final now = _now();
+    SafetyAlert? freshSos;
+    for (final a in added) {
+      if (a.kind != AlertKind.sos) continue;
+      if (now.difference(a.at) > sosTakeoverMaxAge) continue;
+      if (freshSos == null || a.at.isAfter(freshSos.at)) freshSos = a;
+    }
+    if (freshSos != null) raiseSosAlert(freshSos);
     _persist();
     _notify();
   }
@@ -2848,8 +3001,26 @@ class AppController {
     // shouldDeliverAlert is what guarantees that, and the master flag alone did
     // the opposite.
     if (shouldDeliverAlert(alert) && !_alertStream.isClosed) _alertStream.add(alert);
+    // Screen 21. The button on the tracking screen used to record a row in a
+    // feed and nothing else — no screen, no family, no number to call.
+    if (kind == AlertKind.sos) raiseSosAlert(alert);
+    // …and tell the server, which is what lets it notify the rest of the family
+    // and what puts the alarm in the back-office safety feed. POST /alerts has
+    // existed (and been tested) all along with no caller anywhere in the app,
+    // so an SOS pressed on this phone reached nobody who was not holding it.
+    unawaited(_onAlertUpsert?.call(alert) ?? Future<void>.value());
     _persist();
     _notify();
+  }
+
+  /// Wire backend sync for manual safety events (called by main.dart on sign-in).
+  ///
+  /// Only the events the PHONE alone knows about — [logChildEvent]'s SOS and
+  /// check-in. Zone crossings are deliberately not pushed: the server derives
+  /// its own from the tracker's fixes (see ingestHandler), and sending ours too
+  /// would double every arrival in the safety feed.
+  void attachAlertSync({required Future<void> Function(SafetyAlert) upsert}) {
+    _onAlertUpsert = upsert;
   }
 
   /// Each newly generated alert (for the runtime to raise an OS notification).
@@ -3008,6 +3179,102 @@ class AppController {
     _emergencyActive = true;
     _emergency = view;
     _notify();
+  }
+
+  // ---- Screen 21 · «Сигнал SOS» --------------------------------------------
+
+  /// How old an SOS may be and still take over the screen.
+  ///
+  /// [mergeRemoteAlerts] runs on sign-in and pulls up to two hundred alerts the
+  /// server has, most of which are history. Without this bound, signing in on a
+  /// new phone would raise a full-red takeover for an SOS somebody closed three
+  /// weeks ago. Thirty minutes is long enough to cover an app that was closed
+  /// when the button was pressed and short enough that a takeover always means
+  /// «сейчас».
+  static const sosTakeoverMaxAge = Duration(minutes: 30);
+
+  /// Raise the SOS takeover for [alert].
+  ///
+  /// Called from every inbound SOS: the button on the tracking screen
+  /// ([logChildEvent]), one the server had that this phone did not
+  /// ([mergeRemoteAlerts]), and a tapped SOS notification (main.dart). One
+  /// entry point, so a future fourth source cannot quietly not show it.
+  void raiseSosAlert(SafetyAlert alert) {
+    if (alert.kind != AlertKind.sos) return;
+    _sos = _sosViewFor(alert);
+    _notify();
+  }
+
+  /// Assemble what the screen may say. See [SosAlertView] — every field this
+  /// phone cannot answer is left empty rather than filled with a plausible
+  /// guess.
+  SosAlertView _sosViewFor(SafetyAlert alert) {
+    // The alert feed carries the child's NAME, not their id (it is what the
+    // notification and the server row both carry), so the medical-ID card has
+    // to be found by name. No match means a child this install does not have:
+    // no name, no contact, no position.
+    ChildProfile? child;
+    for (final c in _children) {
+      if (c.name.isNotEmpty && c.name == alert.childName) {
+        child = c;
+        break;
+      }
+    }
+    final info = child == null
+        ? const ChildEmergencyInfo()
+        : emergencyInfoFor(child.id);
+    // Only the SELECTED child's position is polled, so a fix belongs to this
+    // alert only when the alert is about that child. Showing the tracked
+    // sibling's location under another child's name is the worst kind of wrong
+    // on this screen.
+    final fix = (child != null && child.id == selectedChild?.id)
+        ? _childLocation
+        : null;
+    return SosAlertView(
+      childName: child?.name ?? '',
+      at: alert.at,
+      zoneName: alert.zoneName,
+      coords: fix?.coords,
+      coordsAt: fix?.at,
+      contactName: info.contactName.trim(),
+      contactPhone: info.contactPhone.trim(),
+    );
+  }
+
+  /// Deliberate dismissal from screen 21 (already confirmed by the screen).
+  /// The alert itself stays in the feed — this closes the takeover, it does not
+  /// erase that the button was pressed.
+  void dismissSos() {
+    if (_sos == null) return;
+    _sos = null;
+    _notify();
+  }
+
+  // ---- Screen 38 · where a tapped notification goes ------------------------
+
+  /// A destination asked for from outside the widget tree — a tapped
+  /// notification. Held here because the tap arrives from a platform callback
+  /// that has no BuildContext and no Navigator; the shell picks it up on its
+  /// next build and consumes it with [takePendingDestination].
+  NotifyDestination? get pendingDestination => _pendingDestination;
+
+  /// Ask for a screen. SOS is NOT routed through here — it is a takeover over
+  /// the whole app, raised by [raiseSosAlert], not a route pushed on the shell.
+  ///
+  /// [NotifyDestination.dashboard] is a real request, not a no-op: it is where
+  /// an unrecognised notification lands, and she may have left the app on the
+  /// profile tab.
+  void requestDestination(NotifyDestination d) {
+    _pendingDestination = d;
+    _notify();
+  }
+
+  /// Read and clear. Returns null when there is nothing waiting, so the shell
+  /// can call it on every build.
+  NotifyDestination? takePendingDestination() {
+    final d = _pendingDestination;
+    _pendingDestination = null;
+    return d;
   }
 
   void _notify() {

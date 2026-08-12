@@ -6,7 +6,7 @@ library;
 import 'dart:async';
 
 class QueuedItem {
-  final String type; // 'telemetry' | 'location'
+  final String type; // 'telemetry' | 'location' | 'wearable'
   final Map<String, dynamic> payload;
   final bool urgent;
   const QueuedItem(this.type, this.payload, {this.urgent = false});
@@ -82,6 +82,24 @@ class TelemetryBatcher {
     _trim();
     unawaited(_persistQuietly());
     if (urgent || _queue.length >= cfg.maxBatch) {
+      unawaited(_flushNow());
+    } else {
+      _scheduleFlush();
+    }
+  }
+
+  /// The watch's activity/wellbeing snapshot — steps, distance, calories,
+  /// stress, breathing rate, MET, battery, wear state.
+  ///
+  /// Never urgent: none of it can raise an emergency, so it rides the ordinary
+  /// window and costs no extra radio wake-up. It goes through the batcher rather
+  /// than straight to HTTP for the same reason telemetry does — a snapshot taken
+  /// with no signal has to survive until there is one.
+  void enqueueWearable(Map<String, dynamic> snapshot) {
+    _queue.add(QueuedItem('wearable', snapshot));
+    _trim();
+    unawaited(_persistQuietly());
+    if (_queue.length >= cfg.maxBatch) {
       unawaited(_flushNow());
     } else {
       _scheduleFlush();

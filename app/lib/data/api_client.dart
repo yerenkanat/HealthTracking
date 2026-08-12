@@ -197,13 +197,36 @@ class IngestSummary {
   final int locationCount;
   final int emergencies;
   final int rejected;
-  const IngestSummary(this.telemetryCount, this.locationCount, this.emergencies, this.rejected);
+
+  /// Watch activity snapshots stored (steps, calories, stress, battery…).
+  final int wearableCount;
+
+  /// Readings the server already had — a resend of a batch whose response was
+  /// lost. Stored once, counted here, and NOT a failure.
+  final int duplicates;
+
+  const IngestSummary(
+    this.telemetryCount,
+    this.locationCount,
+    this.emergencies,
+    this.rejected, {
+    this.wearableCount = 0,
+    this.duplicates = 0,
+  });
   factory IngestSummary.fromJson(Map<String, dynamic> j) => IngestSummary(
         (j['telemetryCount'] as num?)?.toInt() ?? 0,
         (j['locationCount'] as num?)?.toInt() ?? 0,
         (j['emergencies'] as num?)?.toInt() ?? 0,
         (j['rejected'] as num?)?.toInt() ?? 0,
+        wearableCount: (j['wearableCount'] as num?)?.toInt() ?? 0,
+        duplicates: (j['duplicates'] as num?)?.toInt() ?? 0,
       );
+
+  /// True when the server took NOTHING and refused something. A 200 with this
+  /// shape is the quietest failure the sync path has: the request succeeded,
+  /// the data did not land, and every retry will fail identically.
+  bool get storedNothing =>
+      rejected > 0 && telemetryCount == 0 && locationCount == 0 && wearableCount == 0 && duplicates == 0;
 }
 
 /// Somewhere to keep the last good response of a public GET.
@@ -924,6 +947,32 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
     final j = jsonDecode(res.body) as Map<String, dynamic>;
     return ((j['alerts'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// Record a safety alert the PHONE raised — an SOS or a check-in.
+  ///
+  /// `POST /alerts` has existed, and been tested, since the alert kinds were
+  /// widened to five, with no caller anywhere in the app: `getAlerts` was the
+  /// only half wired. So an SOS pressed on this phone reached the safety feed
+  /// on this phone and nothing else — not the back-office safety view, not the
+  /// family, not her own second device. This is the other half.
+  ///
+  /// Zone crossings deliberately do NOT come through here: the server derives
+  /// its own from the tracker's fixes, and sending ours as well would double
+  /// every arrival.
+  Future<void> postAlert({
+    required String childId,
+    required String kind,
+    required String zoneName,
+    required String at,
+  }) async {
+    final res = await transport.post('/alerts', {
+      'childId': childId,
+      'kind': kind,
+      'zoneName': zoneName,
+      'at': at,
+    });
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
   /// The caller's newborn-care events across all her children, each tagged with

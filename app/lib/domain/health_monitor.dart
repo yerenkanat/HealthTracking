@@ -33,7 +33,25 @@ typedef Clock = DateTime Function();
 const latestTelemetryMaxAge = Duration(hours: 6);
 
 class HealthMonitor {
+  /// Fallback identity for a reading, used only when [resolveDeviceId] is
+  /// absent or has nothing to give.
   final String deviceId;
+
+  /// Who produced this reading, asked at send time.
+  ///
+  /// The id used to be fixed at construction from a compile-time define whose
+  /// default was the literal string `band-unpaired`. `/ingest` attributes a
+  /// reading by looking up the owner of the device it names; finding no such
+  /// device it counts the reading REJECTED and returns — silently, with a 200
+  /// on the batch. So every band reading the app has ever sent was discarded on
+  /// arrival, and neither the mother nor her clinician nor the log had any way
+  /// to know.
+  ///
+  /// Resolved per reading rather than captured once because pairing happens
+  /// after this object is built: a monitor constructed at launch would
+  /// otherwise keep sending the pre-pairing identity for the rest of the run.
+  final String Function()? resolveDeviceId;
+
   final EnqueueTelemetry enqueue;
   final EmergencyHandler onEmergency;
   final Clock _now;
@@ -47,8 +65,15 @@ class HealthMonitor {
     required this.deviceId,
     required this.enqueue,
     required this.onEmergency,
+    this.resolveDeviceId,
     Clock? now,
   }) : _now = now ?? DateTime.now;
+
+  /// The device id to stamp on the next reading.
+  String get currentDeviceId {
+    final resolved = resolveDeviceId?.call();
+    return (resolved == null || resolved.isEmpty) ? deviceId : resolved;
+  }
 
   /// The last reading, if it is still recent enough to describe her now.
   BandTelemetry? get latest => _stale ? null : _latest;
@@ -102,7 +127,7 @@ class HealthMonitor {
   }
 
   Map<String, dynamic> _wire(BandTelemetry t) => {
-        'deviceId': deviceId,
+        'deviceId': currentDeviceId,
         'recordedAt': _now().toUtc().toIso8601String(),
         ...t.toJson(),
       };

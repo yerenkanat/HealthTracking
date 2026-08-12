@@ -153,6 +153,15 @@ class ContentItem {
   /// week-specific ("your baby is the size of a lime this week").
   final List<String> alsoStages;
 
+  /// Which shelf of the guides library this belongs on, when somebody said.
+  ///
+  /// Null is the common case and stays correct: 364 items were published
+  /// before this field existed, and [topicOf] places an untagged item by the
+  /// stage it is filed under. Kept as the RAW string rather than the enum so a
+  /// value this build does not know about round-trips through [toJson] instead
+  /// of being quietly rewritten to something else on the way back out.
+  final String? topic;
+
   const ContentItem({
     required this.id,
     required this.kind,
@@ -168,6 +177,7 @@ class ContentItem {
     this.maxAgeYears,
     this.videoSource,
     this.alsoStages = const [],
+    this.topic,
   });
 
   /// True when this item is offered everywhere and to every age — the common
@@ -177,7 +187,15 @@ class ContentItem {
 
   bool get isLesson => kind == ContentKind.lesson;
   bool get isProduct => kind == ContentKind.product;
-  bool get hasLink => url.trim().isNotEmpty;
+  /// Whether tapping this does anything — a page to open, or a video to play.
+  ///
+  /// This was `url` alone, and that was wrong for the way lessons are actually
+  /// authored. The CMS keeps the stream in its own field (`video.url`, kept
+  /// apart from `url` so a product's shop page and a lesson's manifest never
+  /// fight over one string), so a lesson entered the intended way — a video,
+  /// no url — rendered as «Скоро» and could not be opened. The player existed
+  /// and worked; nothing could reach it.
+  bool get hasLink => url.trim().isNotEmpty || video != null;
 
   /// The video to play for a lesson, or null.
   ///
@@ -209,6 +227,7 @@ class ContentItem {
         if (maxAgeYears != null) 'maxAgeYears': maxAgeYears,
         if (videoSource != null) 'video': videoSource!.toJson(),
         if (alsoStages.isNotEmpty) 'alsoStages': alsoStages,
+        if (topic != null && topic!.isNotEmpty) 'topic': topic,
       };
 
   factory ContentItem.fromJson(Map<String, dynamic> j) => ContentItem(
@@ -232,6 +251,9 @@ class ContentItem {
           for (final s in (j['alsoStages'] is List ? j['alsoStages'] as List : const []))
             if ('$s'.trim().isNotEmpty) '$s'.trim(),
         ],
+        topic: (j['topic'] is String && (j['topic'] as String).trim().isNotEmpty)
+            ? (j['topic'] as String).trim()
+            : null,
       );
 }
 
@@ -566,6 +588,169 @@ bool suitsViewer(ContentItem item, ContentViewer viewer) {
 /// profile can only cost someone the extras — never the baseline shelf.
 List<ContentItem> itemsForViewer(List<ContentItem> all, ContentViewer viewer) =>
     [for (final i in all) if (suitsViewer(i, viewer)) i];
+
+// ---------------------------------------------------------------------------
+// The guides library (app screen 27).
+//
+// Everything above answers "what belongs at this stage". This answers the other
+// question, the one the app could not answer at all: what has been published,
+// full stop. Two of the 101 stages were ever rendered, and a woman with neither
+// a due date nor a child reached NO content — the whole catalogue was
+// downloaded to her phone and shown nowhere.
+//
+// Pure, so the search, the tiles and the counts are unit-testable without a
+// widget tree — and so the rules below (dedupe, fallback) are stated once.
+// ---------------------------------------------------------------------------
+
+/// The four shelves the guides screen draws.
+///
+/// Closed on purpose, and matched by the same enum in the back office: a fifth
+/// value would be authored, downloaded and rendered on no tile.
+enum ContentTopic { pregnancy, baby, child, mother }
+
+/// Parse an authored topic, or null for absent/unrecognised.
+///
+/// An unknown string is null rather than a guess: a card filed under a topic
+/// this build does not know about falls back to its stage, which is somewhere
+/// real, instead of landing on whichever tile happens to be first.
+ContentTopic? parseContentTopic(String? raw) {
+  final t = raw?.trim().toLowerCase();
+  if (t == null || t.isEmpty) return null;
+  for (final v in ContentTopic.values) {
+    if (v.name == t) return v;
+  }
+  return null;
+}
+
+/// Where an UNTAGGED item goes, from the stage it is filed under.
+///
+/// Weeks are about the pregnancy; the first year is about the baby; after that
+/// it is a child. [ContentTopic.mother] is deliberately unreachable here —
+/// nothing about a stage says the material is about HER rather than about the
+/// pregnancy, so that shelf only ever fills by hand.
+///
+/// An unparseable stage key falls to [ContentTopic.mother]'s opposite, the
+/// pregnancy shelf, only because a key that is not a key cannot occur in a
+/// catalogue parsed by [ContentCatalog.fromJson] — it drops those.
+ContentTopic topicForStage(String homeStage) {
+  final stage = TimelineStage.fromKey(homeStage);
+  if (stage == null) return ContentTopic.pregnancy;
+  return switch (stage.kind) {
+    TimelineKind.pregnancyWeek => ContentTopic.pregnancy,
+    // Twelve months, not "under a year and a bit": the first year of feeding,
+    // sleep and vaccination is one body of material, and month 13 starts the
+    // toddler one.
+    TimelineKind.childMonth =>
+      stage.index <= 12 ? ContentTopic.baby : ContentTopic.child,
+  };
+}
+
+/// The topic [item] actually appears under, tagged or not.
+ContentTopic topicOf(ContentItem item, String homeStage) =>
+    parseContentTopic(item.topic) ?? topicForStage(homeStage);
+
+/// One publishable thing, with where it is authored and where it will appear.
+class GuideEntry {
+  final ContentItem item;
+
+  /// The stage it is filed under — its ONE home, not an appearance.
+  final String homeStage;
+  final ContentTopic topic;
+
+  const GuideEntry({
+    required this.item,
+    required this.homeStage,
+    required this.topic,
+  });
+}
+
+/// Timeline order for a stage key, for a stable listing. Weeks first, then
+/// months; anything unrecognised sorts last rather than throwing.
+int _stageOrder(String key) {
+  final s = TimelineStage.fromKey(key);
+  if (s == null) return 1 << 20;
+  return switch (s.kind) {
+    TimelineKind.pregnancyWeek => s.index,
+    TimelineKind.childMonth => maxPregnancyWeek + 1 + s.index,
+  };
+}
+
+/// Everything published, once each, in timeline order.
+///
+/// DEDUPED BY ID, and that is the whole reason this is not a one-line flatten.
+/// A second-trimester lesson names fourteen weeks in [ContentItem.alsoStages];
+/// reading the catalogue through [ContentCatalog.itemsFor] stage by stage would
+/// list it fourteen times, and a library that repeats the same card fourteen
+/// times is one nobody scrolls twice. The authored map holds one copy, and the
+/// id check also covers the case a bad import files the same id in two stages —
+/// the first home in timeline order wins, deterministically.
+///
+/// [viewer] narrows to what can actually be delivered to her, exactly as the
+/// stage shelf does: an Almaty-only product must not be offered to somebody in
+/// Aktobe just because she opened a different screen.
+List<GuideEntry> allGuides(
+  ContentCatalog catalog, {
+  ContentViewer viewer = ContentViewer.anonymous,
+}) {
+  final keys = catalog.byStage.keys.toList()
+    ..sort((a, b) => _stageOrder(a).compareTo(_stageOrder(b)));
+  final seen = <String>{};
+  final out = <GuideEntry>[];
+  for (final key in keys) {
+    for (final item in catalog.byStage[key] ?? const <ContentItem>[]) {
+      if (!seen.add(item.id)) continue;
+      if (!suitsViewer(item, viewer)) continue;
+      out.add(GuideEntry(item: item, homeStage: key, topic: topicOf(item, key)));
+    }
+  }
+  return out;
+}
+
+/// How many guides sit on each of the four tiles. Every topic is present, so a
+/// tile can honestly show «0» rather than disappearing — a shelf that vanishes
+/// looks like a bug, and «пока пусто» is information.
+Map<ContentTopic, int> guideTopicCounts(List<GuideEntry> guides) {
+  final counts = {for (final t in ContentTopic.values) t: 0};
+  for (final g in guides) {
+    counts[g.topic] = (counts[g.topic] ?? 0) + 1;
+  }
+  return counts;
+}
+
+List<GuideEntry> guidesForTopic(List<GuideEntry> guides, ContentTopic topic) =>
+    [for (final g in guides) if (g.topic == topic) g];
+
+/// Free-text search over the title and the summary IN THE LOCALE SHE IS
+/// READING.
+///
+/// [LocalizedText.call] falls back ru → en, so searching the raw map would
+/// match Russian text for a woman reading Kazakh and then show her a card whose
+/// title contains nothing she typed. Searching exactly what is rendered means a
+/// result always visibly contains the query.
+///
+/// Every whitespace-separated term must appear (AND, not OR): typing two words
+/// is how somebody narrows, and OR would widen instead — the opposite of what
+/// the second word was for. An empty or whitespace query returns everything,
+/// so the caller can pass the field's value straight in.
+List<GuideEntry> searchGuides(
+  List<GuideEntry> guides,
+  String query,
+  String locale,
+) {
+  final terms = query.toLowerCase().split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+  if (terms.isEmpty) return guides;
+  return [
+    for (final g in guides)
+      if (() {
+        final hay =
+            '${g.item.title(locale)} ${g.item.summary(locale)}'.toLowerCase();
+        return terms.every(hay.contains);
+      }())
+        g,
+  ];
+}
 
 /// Where a lesson's video actually lives.
 ///

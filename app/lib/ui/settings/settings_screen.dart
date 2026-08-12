@@ -22,7 +22,7 @@ import '../theme.dart';
 import 'journey_screen.dart';
 import '../../domain/support_context.dart';
 import 'help_support_screen.dart';
-import 'support_thread_screen.dart';
+import 'support_thread_route.dart';
 import 'legal_screen.dart';
 import 'reminders_center_screen.dart';
 import '../auth/sign_in_route.dart';
@@ -928,61 +928,13 @@ class _SupportRouteState extends State<_SupportRoute> {
     });
   }
 
-  /// Screen 43. Everything it needs is a function it can call, so the screen
-  /// itself has no idea there is a network.
-  void _openThread() {
-    final api = widget.controller.api!;
-    final c = widget.controller;
-    final child = c.selectedChild;
-    final ctx = SupportContext(
-      appVersion: AppController.appVersion,
-      phone: c.profile.hasPhone
-          ? '${c.profile.dialCode} ${c.profile.phoneNumber}'
-          : null,
-      deviceId: (child?.tagId ?? '').isEmpty ? null : child!.tagId,
-      offline: c.isOffline,
-    );
-    Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (_) => SupportThreadScreen(
-            load: () async {
-              final body = await api.supportThreads();
-              return (
-                threads: SupportThread.parseAll(body),
-                slaHours: (body['slaHours'] as num?)?.toInt() ?? 4,
-              );
-            },
-            onCreate: (subject, body) => api.createSupportTicket(
-              subject: subject,
-              body: body,
-              // What the app can say about itself, so the operator does not
-              // spend three messages asking «какая у вас версия».
-              appContext: ctx.message('').split('— — —').last.trim(),
-            ),
-            onReply: api.replyToSupportTicket,
-            // What takes the badge down. The screen calls it for every answer
-            // it has just put in front of her; a failure is swallowed there,
-            // because the cost is a badge that stays lit and not a lost message.
-            onRead: api.markSupportThreadRead,
-            // «Действие в чате» — only when there is a tracker to refresh.
-            action: child != null
-                ? (
-                    label: L10nScope.of(context).t('sup_act_refresh'),
-                    onTap: () async {
-                      final ok = await c.refreshChildLocation();
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(L10nScope.of(context)
-                            .t(ok ? 'sup_act_refresh' : 'off_refresh_failed')),
-                        behavior: SnackBarBehavior.floating,
-                      ));
-                    },
-                  )
-                : null,
-          ),
-        ))
-        // Coming back, the badge must reflect what she has just read.
-        .then((_) => _load());
+  /// Screen 43. The route itself lives in support_thread_route.dart — a
+  /// tapped «Поддержка ответила» notification opens the same screen, and two
+  /// copies of this wiring would be two screens that drift apart.
+  Future<void> _openThread() async {
+    await openSupportThread(context, widget.controller);
+    // Coming back, the badge must reflect what she has just read.
+    if (mounted) await _load();
   }
 
   @override

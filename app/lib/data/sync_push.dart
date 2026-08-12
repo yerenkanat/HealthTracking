@@ -20,7 +20,7 @@ library;
 import 'dart:async';
 
 import '../domain/error_log.dart';
-import 'api_client.dart' show ApiException;
+import 'api_client.dart' show ApiException, IngestSummary;
 
 /// One report per (what, status), so a screen that retries on a timer cannot
 /// fill the log with the same sentence.
@@ -66,4 +66,41 @@ Future<void> pushed(
     log(message);
     errorLog?.add(source: AppErrorSource.app, error: message, at: now());
   }
+}
+
+/// What to say about an `/ingest/batch` reply that refused part of the batch,
+/// or null when there is nothing to say.
+///
+/// The flush call site awaited the request and threw away the answer, so a
+/// batch the server accepted and stored NOTHING from looked exactly like a
+/// successful sync: HTTP 200, no exception, queue cleared, readings gone. That
+/// is how every band reading in the product's history was lost — the app named
+/// a device the server had never been told about, and `rejected` counted them
+/// one by one into a response nobody read.
+///
+/// Pure so the wording can be tested; the caller decides where it goes.
+String? ingestRejectionReport(IngestSummary s) {
+  if (s.rejected <= 0) return null;
+  final stored = s.telemetryCount + s.locationCount + s.wearableCount;
+  return s.storedNothing
+      ? 'sync refused: the server accepted NONE of this batch — '
+          '${s.rejected} item(s) rejected. The commonest cause is a reading '
+          'stamped with a device the server cannot attribute to this account '
+          '(pair the band, or check it registered). Retrying will not fix it.'
+      : 'sync partial: the server stored $stored item(s) and rejected '
+          '${s.rejected}. The rejected ones will not arrive by retrying.';
+}
+
+/// Report [summary] once per distinct wording, the same way [pushed] does.
+void reportIngest(
+  IngestSummary summary, {
+  ErrorLog? errorLog,
+  DateTime Function() now = DateTime.now,
+  void Function(String) log = print,
+}) {
+  final message = ingestRejectionReport(summary);
+  if (message == null) return;
+  if (!_reported.add('ingest:$message')) return;
+  log(message);
+  errorLog?.add(source: AppErrorSource.app, error: message, at: now());
 }

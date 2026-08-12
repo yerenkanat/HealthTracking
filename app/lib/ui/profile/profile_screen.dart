@@ -38,6 +38,10 @@ class ProfileScreen extends StatelessWidget {
 
   /// Screen 41 — «Магазин».
   final VoidCallback? onOpenShop;
+
+  /// Screen 27 — «Гиды». No server needed: the catalogue is already on the
+  /// phone, which is precisely the problem this screen fixes.
+  final VoidCallback? onOpenGuides;
   const ProfileScreen(
       {super.key,
       required this.controller,
@@ -45,7 +49,8 @@ class ProfileScreen extends StatelessWidget {
       this.onOpenDevices,
       this.onOpenFamilyAccess,
       this.onOpenMyOrder,
-      this.onOpenShop});
+      this.onOpenShop,
+      this.onOpenGuides});
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +165,13 @@ class ProfileScreen extends StatelessWidget {
                 _MyOrderEntry(onTap: onOpenMyOrder!),
                 const SizedBox(height: 10),
               ],
+              // Screen 27. Above the shop on purpose: what the app KNOWS comes
+              // before what it sells. And unlike the Today card's entry, this
+              // one is here whether or not she has a due date or a child.
+              if (onOpenGuides != null) ...[
+                _GuidesEntry(onTap: onOpenGuides!),
+                const SizedBox(height: 10),
+              ],
               if (onOpenShop != null) ...[
                 _ShopEntry(onTap: onOpenShop!),
                 const SizedBox(height: 10),
@@ -194,6 +206,42 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+
+/// Entry point to screen 27 — «Гиды».
+class _GuidesEntry extends StatelessWidget {
+  final VoidCallback onTap;
+  const _GuidesEntry({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return DsCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.coralCta,
+              borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.auto_stories_rounded,
+              color: Colors.white, size: 22),
+        ),
+        title: Text(l.t('gd_title'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(l.t('gd_search'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Palette.textDim, fontSize: 12.5)),
+        trailing:
+            const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+        onTap: onTap,
+      ),
+    );
+  }
+}
 
 /// Entry point to screen 41 — «Магазин».
 class _ShopEntry extends StatelessWidget {

@@ -4,6 +4,7 @@
 library;
 
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -12,6 +13,7 @@ import '../core/geofence.dart';
 import '../domain/appointment.dart' show nextAppointment;
 import '../domain/child_tracker_state.dart' show currentZone;
 import '../domain/geofence_alerts.dart';
+import '../domain/notification_route.dart';
 import '../domain/hydration.dart';
 import '../domain/setup_checklist.dart';
 import '../domain/weekly_digest.dart';
@@ -38,11 +40,12 @@ import 'dashboard/health_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../domain/timeline_content.dart';
 import 'content/lesson_player_screen.dart';
-import 'content/timeline_content_screen.dart';
+import 'content/guides_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
 import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
 import 'settings/reminders_center_screen.dart';
+import 'settings/support_thread_route.dart';
 import 'tracking/child_detail_screen.dart';
 import 'profile/family_access_screen.dart';
 import 'profile/my_order_screen.dart';
@@ -55,21 +58,33 @@ import '../domain/day_history.dart';
 import '../domain/family_access.dart';
 import '../domain/my_order.dart';
 import 'tracking/child_map_screen.dart';
+import 'tracking/tracking_map.dart';
 import 'tracking/day_history_screen.dart';
 import 'tracking/family_sheets.dart';
 import 'tracking/zones_screen.dart';
 
-/// Google Maps needs a real API key to render. Build with
-/// `--dart-define=MAPS_ENABLED=true` once android/app has a valid key; otherwise
-/// the tracking tab shows a clean placeholder instead of a black map surface.
-const bool _mapsEnabled = bool.fromEnvironment('MAPS_ENABLED', defaultValue: false);
 
 class HomeShell extends StatefulWidget {
   final AppController controller;
 
   /// The content catalogue in use — authored asset or seeded fallback.
   final ContentCatalog catalog;
-  const HomeShell({super.key, required this.controller, required this.catalog});
+
+  /// The live catalogue, when there is one (the ContentStore notifier).
+  ///
+  /// [catalog] is a SNAPSHOT: the shell is rebuilt from it by app.dart, but a
+  /// route pushed on top of the shell sits outside that builder and would keep
+  /// whatever was current at the moment of the tap. The guides screen is a
+  /// library somebody may leave open, so it listens instead — a stage
+  /// published in the back office reaches it without a cold start. Null in
+  /// tests and offline builds, which fall back to the snapshot.
+  final ValueListenable<ContentCatalog>? catalogSource;
+  const HomeShell({
+    super.key,
+    required this.controller,
+    required this.catalog,
+    this.catalogSource,
+  });
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -78,9 +93,25 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  /// Tab indices, so the deep-link handler names screens rather than counting.
+  static const _tabDashboard = 0;
+  static const _tabChild = 2;
+
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
+    // Screen 38's other half: a notification was tapped while the app was
+    // somewhere else. The tap arrives on a platform callback with no
+    // BuildContext, so the controller holds the request and the shell — the
+    // first thing under the Navigator — spends it. After the frame, because
+    // pushing a route from inside build() is not allowed.
+    if (c.pendingDestination != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final d = c.takePendingDestination();
+        if (d != null) _goTo(d, c);
+      });
+    }
     final loc = c.childLocation;
     // How long the child has been in their current zone (from the alert feed).
     final curZone = loc == null ? null : currentZone(loc.coords, c.geofences);
@@ -184,15 +215,11 @@ class _HomeShellState extends State<HomeShell> {
         timelineStage: _stageFor(c),
         timelineItems: _contentFor(c),
         onOpenContent: _openContent,
-        onSeeAllContent: _stageFor(c) == null
-            ? null
-            : () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => TimelineContentScreen(
-                    stage: _stageFor(c)!,
-                    items: _contentFor(c),
-                    onOpen: _openContent,
-                  ),
-                )),
+        // Screen 27 — «Гиды». NOT gated on having a stage: that gate is the
+        // reason a woman with no due date and no child could reach none of the
+        // 364 published items, and it is the one case the library matters
+        // most in. The stage screen is still reachable, from inside it.
+        onSeeAllContent: () => _openGuides(context, c),
         // Screen 53's hero and its three quick actions. Passing the data AND
         // the handlers together: a hero wired to nothing is the defect this
         // screen already had once.
@@ -283,49 +310,7 @@ class _HomeShellState extends State<HomeShell> {
         // which is the state a badge is worst in, because it also stops
         // meaning anything on the day something is actually wrong.
         alertCount: c.unreadAlertCount,
-        onOpenAlerts: () {
-          // Fetch on open, like the support row does before it draws its badge.
-          // The screen still paints from what the controller already holds — it
-          // never waits on the network — but a рассылка published while she had
-          // the app open reaches her here rather than at the next cold launch.
-          c.refreshAnnouncements();
-          Navigator.of(context).push(MaterialPageRoute(
-            // Rebuilt on every controller change, so the answer to that fetch
-            // lands on the open screen rather than behind it. Pushed routes sit
-            // outside the shell's StreamBuilder: without this the centre would
-            // read the list once, at the instant of the tap, and the message
-            // that arrives a second later would wait for her next visit.
-            builder: (_) => StreamBuilder<void>(
-              stream: c.changes,
-              builder: (_, __) => NotificationCentreScreen(
-                alerts: c.alerts,
-                // Screen 39's other half: what the back office sent her (admin
-                // frame 06). Same list, same «Прочитать всё», same watermark —
-                // she has one inbox, not two.
-                announcements: c.announcements,
-                now: DateTime.now(),
-                readUpTo: c.alertsReadUpTo,
-                onReadAll: c.markAlertsRead,
-                // Screen 25 — the reminders centre, including quiet hours. The
-                // comment here said it "does not exist yet" and hid the button;
-                // it has existed for some time and is reachable from Settings,
-                // so the one screen about notifications had no route to the
-                // screen that configures them.
-                onConfigure: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => RemindersCenterScreen(controller: c)),
-                ),
-                // The old alerts view, kept for what it alone does: per-child
-                // counts and «сколько дней без SOS». Reached from here rather
-                // than left unreferenced — deleting a working screen to tidy an
-                // import is worse than either.
-                onOpenStats: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
-                ),
-              ),
-            ),
-          ));
-        },
+        onOpenAlerts: () => _openNotificationCentre(context, c),
         batteryPct: c.selectedChildBattery,
         batteryHistory: c.selectedChildBatteryHistory,
         zoneEnteredAt: zoneEnteredAt,
@@ -371,6 +356,10 @@ class _HomeShellState extends State<HomeShell> {
         // Screen 41. Always available — the offer does not need a server, and
         // the WhatsApp number is fetched when the screen opens.
         onOpenShop: () => _openShop(context, c),
+        // Screen 27, from the second place somebody looks for "everything the
+        // app has". The Today card is the other; one entry point on a tab she
+        // may never scroll to the bottom of is how a library goes unfound.
+        onOpenGuides: () => _openGuides(context, c),
       ),
     ];
 
@@ -444,7 +433,37 @@ class _HomeShellState extends State<HomeShell> {
     return '';
   }
 
-/// Screen 41 — «Магазин».
+/// Screen 27 — «Гиды».
+  ///
+  /// The library, not this week's shelf. Reachable with no due date and no
+  /// child, which the weekly card never was.
+  ///
+  /// Wrapped in a ValueListenableBuilder on the catalogue where there is one:
+  /// a pushed route sits outside the shell's own builder, so without this the
+  /// screen would hold whatever was published at the instant of the tap, for
+  /// as long as she keeps it open.
+  void _openGuides(BuildContext context, AppController c) {
+    final source = widget.catalogSource;
+    final p = c.profile;
+    final viewer = ContentViewer(city: p.city, ageYears: p.ageYears(DateTime.now()));
+    Widget screen(ContentCatalog catalog) => GuidesScreen(
+          catalog: catalog,
+          stage: _stageFor(c),
+          viewer: viewer,
+          pregnant: c.isPregnant,
+          onOpen: _openContent,
+        );
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => source == null
+          ? screen(widget.catalog)
+          : ValueListenableBuilder<ContentCatalog>(
+              valueListenable: source,
+              builder: (_, catalog, __) => screen(catalog),
+            ),
+    ));
+  }
+
+  /// Screen 41 — «Магазин».
   ///
   /// The whole offer inside the app. Until now the only way to buy anything was
   /// the landing page in a browser, which a customer who already has the app is
@@ -724,35 +743,89 @@ class _HomeShellState extends State<HomeShell> {
   /// routine. Pregnancy is never late.
   bool _statusChipLate(AppController c) => !c.isPregnant && c.cycle.isPredictedLate;
 
-  /// Real Google map with the child marker + geofence circles — or a graceful
-  /// placeholder when Maps isn't configured (avoids a black platform-view surface).
-  Widget _buildMap(BuildContext context, Coordinates? child, List<Geofence> fences) {
-    if (!_mapsEnabled) return _MapPlaceholder(fences: fences, child: child);
-    final center = child ??
-        (fences.isNotEmpty && fences.first.center != null
-            ? fences.first.center!
-            : const Coordinates(43.238949, 76.889709));
-    return GoogleMap(
-      initialCameraPosition: CameraPosition(target: LatLng(center.lat, center.lng), zoom: 15),
-      myLocationButtonEnabled: false,
-      circles: {
-        for (final f in fences)
-          if (f.shape == GeofenceShape.circle && f.center != null)
-            Circle(
-              circleId: CircleId(f.id),
-              center: LatLng(f.center!.lat, f.center!.lng),
-              radius: f.radiusM ?? 0,
-              strokeWidth: 2,
-              strokeColor: Palette.violet,
-              fillColor: Palette.violet.withValues(alpha: 0.13),
-            ),
-      },
-      markers: {
-        if (child != null)
-          Marker(markerId: const MarkerId('child'), position: LatLng(child.lat, child.lng)),
-      },
-    );
+  /// Screen 38 · take her to the thing the notification was about.
+  ///
+  /// Every branch lands somewhere real. `dashboard` is the deliberate fallback
+  /// for anything this build does not recognise — a `screen` from a newer
+  /// server, a payload that is not JSON — because the alternative a tapped
+  /// notification must never have is nothing happening.
+  ///
+  /// SOS is absent on purpose: it is a takeover raised over the whole app by
+  /// AppController, not a route pushed on this shell.
+  void _goTo(NotifyDestination d, AppController c) {
+    switch (d) {
+      case NotifyDestination.supportThread:
+        // Screen 43. Without a server there is no thread to show, so fall back
+        // to the profile tab, which is where Настройки → Помощь lives.
+        if (c.api != null) {
+          openSupportThread(context, c);
+        } else {
+          setState(() => _index = _tabDashboard);
+        }
+      case NotifyDestination.notificationCentre:
+        _openNotificationCentre(context, c);
+      case NotifyDestination.childMap:
+        setState(() => _index = _tabChild);
+      case NotifyDestination.sos:
+      case NotifyDestination.emergency:
+      // Both are app-wide takeovers raised by the controller; if one is not
+      // latched by the time this runs there is nothing left to show, and the
+      // dashboard is the honest destination.
+      case NotifyDestination.dashboard:
+        setState(() => _index = _tabDashboard);
+    }
   }
+
+  /// Screen 39 — «Центр уведомлений». A method rather than a closure
+  /// because a tapped рассылка has to open the same screen the bell does.
+  void _openNotificationCentre(BuildContext context, AppController c) {
+          // Fetch on open, like the support row does before it draws its badge.
+          // The screen still paints from what the controller already holds — it
+          // never waits on the network — but a рассылка published while she had
+          // the app open reaches her here rather than at the next cold launch.
+          c.refreshAnnouncements();
+          Navigator.of(context).push(MaterialPageRoute(
+            // Rebuilt on every controller change, so the answer to that fetch
+            // lands on the open screen rather than behind it. Pushed routes sit
+            // outside the shell's StreamBuilder: without this the centre would
+            // read the list once, at the instant of the tap, and the message
+            // that arrives a second later would wait for her next visit.
+            builder: (_) => StreamBuilder<void>(
+              stream: c.changes,
+              builder: (_, __) => NotificationCentreScreen(
+                alerts: c.alerts,
+                // Screen 39's other half: what the back office sent her (admin
+                // frame 06). Same list, same «Прочитать всё», same watermark —
+                // she has one inbox, not two.
+                announcements: c.announcements,
+                now: DateTime.now(),
+                readUpTo: c.alertsReadUpTo,
+                onReadAll: c.markAlertsRead,
+                // Screen 25 — the reminders centre, including quiet hours. The
+                // comment here said it "does not exist yet" and hid the button;
+                // it has existed for some time and is reachable from Settings,
+                // so the one screen about notifications had no route to the
+                // screen that configures them.
+                onConfigure: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => RemindersCenterScreen(controller: c)),
+                ),
+                // The old alerts view, kept for what it alone does: per-child
+                // counts and «сколько дней без SOS». Reached from here rather
+                // than left unreferenced — deleting a working screen to tidy an
+                // import is worse than either.
+                onOpenStats: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
+                ),
+              ),
+            ),
+          ));
+  }
+
+  /// The child marker + geofence circles. The map itself lives in
+  /// tracking_map.dart, because screen 21 shows the same thing.
+  Widget _buildMap(BuildContext context, Coordinates? child, List<Geofence> fences) =>
+      buildTrackingMap(context, child, fences);
 }
 
 /// Screen 41, with its WhatsApp number resolved before the screen is built.
@@ -896,8 +969,8 @@ Widget _buildRouteMap(
   List<RoutePoint> points,
   List<DayEvent> events,
 ) {
-  if (!_mapsEnabled) {
-    return const _MapPlaceholder(fences: [], child: null);
+  if (!kMapsEnabled) {
+    return const MapPlaceholder(fences: [], child: null);
   }
   // The first point of the day; failing that, an event that carries a
   // position (screen 48 opens with no trail at all, only the SOS); failing
@@ -942,33 +1015,3 @@ Widget _buildRouteMap(
   );
 }
 
-/// Shown in place of GoogleMap when no Maps key is configured. Just a calm
-/// message — the child's zones are surfaced by the floating zone pills layered
-/// above the map, and live position by the status card, so we don't repeat them
-/// here.
-class _MapPlaceholder extends StatelessWidget {
-  final List<Geofence> fences;
-  final Coordinates? child;
-  const _MapPlaceholder({required this.fences, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final l = L10nScope.of(context);
-    return Container(
-      color: scheme.surfaceContainerHighest,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.map_outlined, size: 56, color: scheme.primary),
-          const SizedBox(height: 12),
-          Text(l.t('map_unavailable'),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
-        ],
-      ),
-    );
-  }
-}

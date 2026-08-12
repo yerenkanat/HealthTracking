@@ -32,6 +32,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:fcs_app/data/notification_service.dart';
+import 'package:fcs_app/domain/notification_route.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -141,5 +142,49 @@ void main() {
     await notifications.cancel(id);
     expect(await isPending(id), isFalse);
     expect(await isShowing(id), isFalse);
+  });
+
+  // ---- Screen 21/38 · the SOS notification, on a real Android --------------
+  //
+  // The one notification in the app that asks for a full-screen intent, which
+  // needs USE_FULL_SCREEN_INTENT in the manifest. A missing declaration does
+  // not fail to compile and does not throw in a widget test — the plugin call
+  // simply behaves differently on the device — so this is the layer where an
+  // undeclared permission becomes visible.
+  //
+  // NOT asserted here: that the payload comes back off the shade. Android does
+  // not return it — `ActiveNotification.payload` is documented as "returned
+  // only on iOS and macOS" — so there is nothing on this platform to read it
+  // from short of a real human tap. The payload → screen mapping is covered in
+  // test/sos_alert_test.dart, and that the payload is ATTACHED at all is
+  // covered by the source check in the same file.
+  testWidgets('an SOS notification reaches the shade as a full-screen alert',
+      (tester) async {
+    const title = 'SOS · Алия нажала кнопку';
+    await notifications.show(
+      title: title,
+      body: 'Мектеп №25',
+      payload: sosNotificationPayload(
+        childName: 'Алия',
+        at: DateTime.now(),
+        zoneName: 'Мектеп №25',
+      ),
+      fullScreen: true,
+    );
+
+    var delivered = false;
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (!delivered && DateTime.now().isBefore(deadline)) {
+      await tester.pump(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      delivered = (await observer.getActiveNotifications())
+          .any((n) => n.title == title);
+    }
+    expect(delivered, isTrue,
+        reason: 'the SOS never reached the shade with fullScreenIntent set. '
+            'Android 14+ withholds the full-screen intent from apps that are '
+            'not calling/alarm apps, and the alert has to survive that '
+            'downgrade as an ordinary heads-up notification — being silently '
+            'dropped instead is the failure this watches for');
   });
 }

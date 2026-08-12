@@ -87,6 +87,7 @@ import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
 import 'package:fcs_app/ui/calendar/labour_signs_screen.dart';
 import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
 import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
+import 'package:fcs_app/ui/tracking/sos_alert_screen.dart';
 import 'package:fcs_app/ui/settings/help_support_screen.dart';
 import 'package:fcs_app/ui/settings/journey_screen.dart';
 import 'package:fcs_app/ui/settings/reminders_center_screen.dart';
@@ -1312,6 +1313,39 @@ void main() {
       addTearDown(c.dispose);
       await fits(tester, () => AlertsScreen(controller: c), 'the alerts feed',
           width: kTinyWidth);
+    });
+
+    testWidgets('screen 21 — the SOS takeover — fits in Kazakh at 130%',
+        (tester) async {
+      // The worst case in the app for this check, and the one screen where an
+      // overflow is unrecoverable: a red canvas at 320dp, in the longer
+      // language, with the font slider up, carrying a headline, a location
+      // card, the ambulance block and three stacked actions. Every button on it
+      // is something to do in an emergency, so a striped bar over the bottom of
+      // the column is the whole feature gone.
+      await fits(
+        tester,
+        () => SosAlertScreen(
+          childName: 'Айгерім-Гүлнұр',
+          at: DateTime.utc(2026, 7, 15, 8, 41),
+          now: now,
+          // A parent-typed zone name, not «Дом» — the short case is not the
+          // normal one.
+          zoneName: 'Мектеп №25, ауладағы алаң',
+          coords: const Coordinates(43.25, 76.95),
+          coordsAt: DateTime.utc(2026, 7, 15, 8, 55),
+          contactName: 'Нұржан ағай',
+          contactPhone: '+7 701 123 45 67',
+          mapBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFDDE7DE)),
+          onOpenMap: () {},
+          onCall: (_) async => true,
+          onDismissConfirmed: () async {},
+        ),
+        'the SOS takeover in Kazakh',
+        locale: AppLocale.kk,
+        width: kTinyWidth,
+        textScale: 1.3,
+      );
     });
 
     testWidgets('and in Kazakh, which is the longer language', (tester) async {

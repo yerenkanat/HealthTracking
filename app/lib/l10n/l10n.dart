@@ -239,6 +239,45 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- Screen 21 · «Сигнал SOS» — the one red screen in the app -------------
+  //
+  // Two of the spec's three buttons are here. The third, «Позвонить Алие», is
+  // not: nothing in the schema holds a number for a child or for the tracker
+  // she wears, and this is the last screen in the app on which to display a
+  // plausible-looking number nobody answers. It says so, and offers 103.
+  'sos21_label': {AppLocale.ru: 'Сигнал SOS', AppLocale.kk: 'SOS сигналы', AppLocale.en: 'SOS signal'},
+  'sos21_title': {AppLocale.ru: '{name} нажала кнопку SOS', AppLocale.kk: '{name} SOS түймесін басты', AppLocale.en: '{name} pressed the SOS button'},
+  'sos21_title_noname': {AppLocale.ru: 'Нажата кнопка SOS', AppLocale.kk: 'SOS түймесі басылды', AppLocale.en: 'The SOS button was pressed'},
+  'sos21_when': {AppLocale.ru: 'в {time} · {ago}', AppLocale.kk: '{time} · {ago}', AppLocale.en: 'at {time} · {ago}'},
+  'sos21_where': {AppLocale.ru: 'Последнее известное место', AppLocale.kk: 'Соңғы белгілі орын', AppLocale.en: 'Last known position'},
+  'sos21_where_unknown': {
+    AppLocale.ru: 'Приложение не получало координат — где она сейчас, оно не знает.',
+    AppLocale.kk: 'Қолданба координат алмады — оның қазір қайда екенін білмейді.',
+    AppLocale.en: 'No position has reached the app, so it does not know where she is now.'
+  },
+  'sos21_where_at': {AppLocale.ru: 'Место от {time} · {ago}', AppLocale.kk: 'Орын {time} · {ago}', AppLocale.en: 'Position from {time} · {ago}'},
+  'sos21_open_map': {AppLocale.ru: 'Открыть карту', AppLocale.kk: 'Картаны ашу', AppLocale.en: 'Open the map'},
+  'sos21_call_contact': {AppLocale.ru: 'Позвонить: {name}', AppLocale.kk: 'Қоңырау шалу: {name}', AppLocale.en: 'Call: {name}'},
+  'sos21_no_contact_title': {AppLocale.ru: 'Кому сообщить — не указано', AppLocale.kk: 'Кімге хабарлау — көрсетілмеген', AppLocale.en: 'Nobody is listed to call'},
+  'sos21_no_contact_body': {
+    AppLocale.ru: 'В медкарте ребёнка не заполнен контакт для экстренной связи. Приложение не подставит номер, которого у него нет.',
+    AppLocale.kk: 'Баланың медициналық картасында шұғыл байланыс толтырылмаған. Қолданба өзінде жоқ нөмірді қоя алмайды.',
+    AppLocale.en: 'The child’s medical card has no emergency contact. The app will not fill in a number it does not have.'
+  },
+  'sos21_no_child_phone': {
+    AppLocale.ru: 'Позвонить ребёнку из приложения нельзя: номера брелока в карточке нет.',
+    AppLocale.kk: 'Қолданбадан балаға қоңырау шалу мүмкін емес: картада брелок нөмірі жоқ.',
+    AppLocale.en: 'The app cannot call your child: there is no tracker number on the card.'
+  },
+  'sos21_dismiss': {AppLocale.ru: 'Закрыть сигнал', AppLocale.kk: 'Сигналды жабу', AppLocale.en: 'Close the alert'},
+  'sos21_dismiss_title': {AppLocale.ru: 'Закрыть экран SOS?', AppLocale.kk: 'SOS экранын жабу керек пе?', AppLocale.en: 'Close the SOS screen?'},
+  'sos21_dismiss_body': {
+    AppLocale.ru: 'Сигнал останется в ленте безопасности, но этот экран больше не откроется сам.',
+    AppLocale.kk: 'Сигнал қауіпсіздік лентасында қалады, бірақ бұл экран қайта өздігінен ашылмайды.',
+    AppLocale.en: 'The alert stays in the safety feed, but this screen will not open by itself again.'
+  },
+  'sos21_dismiss_confirm': {AppLocale.ru: 'Закрыть', AppLocale.kk: 'Жабу', AppLocale.en: 'Close'},
+
   // --- Screen 43 · «Поддержка» ---------------------------------------------
   'sup_title': {AppLocale.ru: 'Поддержка', AppLocale.kk: 'Қолдау', AppLocale.en: 'Support'},
   'sup_self_help': {AppLocale.ru: 'Попробуйте сами — это решает чаще всего', AppLocale.kk: 'Өзіңіз көріңіз — көбіне осы көмектеседі', AppLocale.en: 'Try this first — it usually helps'},
@@ -1411,6 +1450,74 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.ru: 'Для этого этапа материалы пока готовятся.',
     AppLocale.kk: 'Бұл кезеңге арналған материалдар дайындалып жатыр.',
     AppLocale.en: 'Material for this stage is still being prepared.',
+  },
+
+  // Screen 27 — «Гиды». The whole published library, not one stage of it.
+  'tl_open_guides': {
+    AppLocale.ru: 'Все гиды',
+    AppLocale.kk: 'Барлық гидтер',
+    AppLocale.en: 'All guides',
+  },
+  'gd_title': {AppLocale.ru: 'Гиды', AppLocale.kk: 'Гидтер', AppLocale.en: 'Guides'},
+  'gd_search': {
+    AppLocale.ru: 'Поиск по гидам',
+    AppLocale.kk: 'Гидтерден іздеу',
+    AppLocale.en: 'Search the guides',
+  },
+  'gd_search_clear': {AppLocale.ru: 'Очистить', AppLocale.kk: 'Тазалау', AppLocale.en: 'Clear'},
+  // The amber card. Naming the signs on the card itself, not behind the tap:
+  // somebody who is scrolling at 2am has to be able to recognise herself
+  // without opening anything.
+  'gd_call_title': {
+    AppLocale.ru: 'Когда сразу звонить 103',
+    AppLocale.kk: 'Қашан бірден 103-ке қоңырау шалу керек',
+    AppLocale.en: 'When to call 103 right away',
+  },
+  'gd_call_body': {
+    AppLocale.ru: 'Кровотечение, сильная непроходящая боль, судороги, потеря сознания, '
+        'ребёнок дышит с трудом или не приходит в себя — не ждите утра.',
+    AppLocale.kk: 'Қан кету, қатты басылмайтын ауырсыну, талма, есінен тану, '
+        'бала әрең дем алады немесе есіне келмейді — таңды күтпеңіз.',
+    AppLocale.en: 'Bleeding, severe pain that will not pass, seizures, fainting, '
+        'a child struggling to breathe or not coming round — do not wait for morning.',
+  },
+  'gd_call_open': {AppLocale.ru: 'Что делать', AppLocale.kk: 'Не істеу керек', AppLocale.en: 'What to do'},
+  'gd_topics': {AppLocale.ru: 'Темы', AppLocale.kk: 'Тақырыптар', AppLocale.en: 'Topics'},
+  'gd_topic_pregnancy': {
+    AppLocale.ru: 'Беременность',
+    AppLocale.kk: 'Жүктілік',
+    AppLocale.en: 'Pregnancy',
+  },
+  'gd_topic_baby': {
+    AppLocale.ru: 'Малыш до года',
+    AppLocale.kk: 'Бір жасқа дейін',
+    AppLocale.en: 'The first year',
+  },
+  'gd_topic_child': {AppLocale.ru: 'Ребёнок', AppLocale.kk: 'Бала', AppLocale.en: 'Child'},
+  // Her, not the pregnancy. Nothing about a week implies this shelf, so it
+  // fills only when somebody files a card here by hand.
+  'gd_topic_mother': {AppLocale.ru: 'Мама', AppLocale.kk: 'Ана', AppLocale.en: 'Mother'},
+  'gd_topic_count': {
+    AppLocale.ru: '{n} материалов',
+    AppLocale.kk: '{n} материал',
+    AppLocale.en: '{n} guides',
+  },
+  'gd_topic_empty': {AppLocale.ru: 'Пока пусто', AppLocale.kk: 'Әзірге бос', AppLocale.en: 'Nothing yet'},
+  // «Читают в 7 месяцев» in the spec. Nothing in this app measures who reads
+  // what — telemetry_batcher carries vitals and location and nothing else — so
+  // a readership number here would be invented. The section says whose stage
+  // the material is for, which is true and is the reason it is worth a look.
+  'gd_for_stage': {AppLocale.ru: 'Для {stage}', AppLocale.kk: '{stage} үшін', AppLocale.en: 'For {stage}'},
+  'gd_results': {AppLocale.ru: 'Найдено: {n}', AppLocale.kk: 'Табылды: {n}', AppLocale.en: 'Found: {n}'},
+  'gd_nothing_found': {
+    AppLocale.ru: 'Ничего не нашлось. Попробуйте другое слово.',
+    AppLocale.kk: 'Ештеңе табылмады. Басқа сөзді байқап көріңіз.',
+    AppLocale.en: 'Nothing matched. Try another word.',
+  },
+  'gd_empty': {
+    AppLocale.ru: 'Материалы ещё не загрузились. Они появятся, как только будет связь.',
+    AppLocale.kk: 'Материалдар әлі жүктелмеді. Байланыс пайда болғанда көрінеді.',
+    AppLocale.en: 'The library has not loaded yet. It appears as soon as there is a connection.',
   },
   'sleep_log_title': {AppLocale.ru: 'Записать сон', AppLocale.kk: 'Ұйқыны жазу', AppLocale.en: 'Log sleep'},
   'sleep_log_sub': {

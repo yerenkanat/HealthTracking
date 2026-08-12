@@ -80,6 +80,14 @@ abstract final class Ds {
   /// Warnings, battery, ratings.
   static const amber = Color(0xFFE08A00);
 
+  /// «`#A8002F` — исключительно SOS.»
+  ///
+  /// The canvas of screen 21 and nothing else in the app. A missed screening, a
+  /// flat tracker battery and a lost connection are amber; if this colour ever
+  /// appears on a second screen it stops meaning that a child pressed the
+  /// button. White on it measures 9.1:1.
+  static const sos = Color(0xFFA8002F);
+
   // -- Text-safe accents ----------------------------------------------------
   //
   // The accents above (and the spec's own `mintDeep` / `coralDeep`) are tuned to

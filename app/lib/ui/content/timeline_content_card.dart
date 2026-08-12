@@ -55,6 +55,12 @@ class TimelineContentCard extends StatelessWidget {
             Text(l.t('tl_empty'),
                 style: const TextStyle(
                     color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+            // …and a way in regardless. Without a due date or a child there is
+            // no stage, and this card was the ONLY route to any published
+            // material: the whole 364-item library was on her phone and she
+            // could not reach one card of it. The guides screen does not need
+            // a stage, so the door is open here too.
+            if (onSeeAll != null) _OpenGuides(onTap: onSeeAll!),
           ],
         ),
       );
@@ -107,20 +113,35 @@ class TimelineContentCard extends StatelessWidget {
                 ),
             ],
           ],
-          if (onSeeAll != null && items.length > previewed) ...[
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              height: 48, // full-size target
-              child: TextButton(
-                onPressed: onSeeAll,
-                child: Text(l.t('tl_see_all'),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, color: Palette.violet)),
-              ),
-            ),
-          ],
+          // Shown whether or not this stage has more than the preview: the
+          // button no longer opens "the rest of this week", it opens the
+          // library — everything published, searchable, with its own topics.
+          // Gating it on `items.length > previewed` meant a woman at a
+          // well-stocked week could reach it and one at a quiet week could
+          // not, which is exactly backwards.
+          if (onSeeAll != null) _OpenGuides(onTap: onSeeAll!),
         ],
+      ),
+    );
+  }
+}
+
+/// The one route into screen 27 from the Today tab.
+class _OpenGuides extends StatelessWidget {
+  final VoidCallback onTap;
+  const _OpenGuides({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return SizedBox(
+      width: double.infinity,
+      height: 48, // full-size target
+      child: TextButton(
+        onPressed: onTap,
+        child: Text(l.t('tl_open_guides'),
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: Palette.violet)),
       ),
     );
   }

@@ -12,22 +12,49 @@ import 'package:timezone/timezone.dart' as tz;
 import '../domain/notification_ids.dart';
 import '../domain/reminder_schedule.dart';
 
+/// What a tapped notification hands back — the payload it was shown with. See
+/// domain/notification_route.dart, which turns it into a destination.
+typedef NotificationTapHandler = void Function(String? payload);
+
 abstract class NotificationService {
-  Future<void> init();
+  /// [onTap] receives the payload of a notification the user taps. Without it
+  /// the plugin has nowhere to deliver a tap and every notification in the app
+  /// is decoration — which is exactly what shipped before screen 38's other
+  /// half was built.
+  Future<void> init({NotificationTapHandler? onTap});
   Future<bool> requestPermission();
 
   /// Whether notifications are already permitted — so the UI can skip the primer
   /// (and the OS prompt) when there is nothing left to ask for.
   Future<bool> hasPermission();
-  Future<void> show({required String title, required String body});
+
+  /// [payload] travels with the notification and comes back on tap.
+  ///
+  /// [fullScreen] asks Android to put the notification over the lock screen
+  /// rather than in the shade — reserved for an SOS, and requested only there.
+  Future<void> show({
+    required String title,
+    required String body,
+    String? payload,
+    bool fullScreen = false,
+  });
+
+  /// The payload of the notification that LAUNCHED the app, if it was launched
+  /// by tapping one, and null otherwise.
+  ///
+  /// Needed as well as [init]'s onTap: when the process was not running,
+  /// Android delivers the tap as launch intent data and the response callback
+  /// never fires. Without this an SOS tapped on a phone whose app had been
+  /// killed — the ordinary case — would open on the dashboard.
+  Future<String?> launchPayload();
 
   /// Schedule a one-off notification for [at] (a wall-clock local time). A past
   /// time is ignored. [id] must be stable so it can be cancelled/replaced.
-  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at});
+  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at, String? payload});
 
   /// Schedule a notification that repeats every day at [hour]:[minute] (local).
   /// Re-calling with the same [id] replaces it.
-  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute});
+  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute, String? payload});
 
   /// Cancel a previously scheduled notification by [id] (no-op if none).
   Future<void> cancel(int id);
@@ -36,17 +63,24 @@ abstract class NotificationService {
 /// No-op implementation (tests, or platforms without support).
 class NoopNotificationService implements NotificationService {
   @override
-  Future<void> init() async {}
+  Future<void> init({NotificationTapHandler? onTap}) async {}
   @override
   Future<bool> requestPermission() async => false;
   @override
   Future<bool> hasPermission() async => false;
   @override
-  Future<void> show({required String title, required String body}) async {}
+  Future<void> show({
+    required String title,
+    required String body,
+    String? payload,
+    bool fullScreen = false,
+  }) async {}
   @override
-  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at}) async {}
+  Future<String?> launchPayload() async => null;
   @override
-  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute}) async {}
+  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at, String? payload}) async {}
+  @override
+  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute, String? payload}) async {}
   @override
   Future<void> cancel(int id) async {}
 }
@@ -74,7 +108,7 @@ class LocalNotificationService implements NotificationService {
   bool _tzReady = false;
 
   @override
-  Future<void> init() async {
+  Future<void> init({NotificationTapHandler? onTap}) async {
     const android = AndroidInitializationSettings('@drawable/ic_notification');
     // iOS was never initialized, although ios/ is a build target: with no
     // Darwin settings the plugin has no iOS configuration, so every show() and
@@ -91,7 +125,13 @@ class LocalNotificationService implements NotificationService {
       requestSoundPermission: false,
     );
     const settings = InitializationSettings(android: android, iOS: darwin, macOS: darwin);
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      // Screen 38's other half. This argument was simply absent, so the plugin
+      // discarded every tap: a mother could see «SOS · Алия нажала кнопку» on
+      // her lock screen, tap it, and arrive at whatever she had open last.
+      onDidReceiveNotificationResponse: (response) => onTap?.call(response.payload),
+    );
     final android13 = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     await android13?.createNotificationChannel(const AndroidNotificationChannel(
       _channelId,
@@ -167,21 +207,46 @@ class LocalNotificationService implements NotificationService {
   }
 
   @override
-  Future<void> show({required String title, required String body}) async {
-    const details = NotificationDetails(
+  Future<String?> launchPayload() async {
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp != true) return null;
+    return details?.notificationResponse?.payload;
+  }
+
+  @override
+  Future<void> show({
+    required String title,
+    required String body,
+    String? payload,
+    bool fullScreen = false,
+  }) async {
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
         _channelId, _channelName,
         importance: Importance.high,
         priority: Priority.high,
         color: _brand,
+        // §2.20 draws the SOS push as the one notification with a border, over
+        // the lock screen. `fullScreenIntent` is the Android form of that.
+        //
+        // It needs USE_FULL_SCREEN_INTENT, which is a NORMAL permission — it is
+        // declared in the manifest and granted at install, with no runtime
+        // dialog. On Android 14+ it is granted at install only to calling and
+        // alarm apps; for everyone else the system downgrades the notification
+        // to an ordinary heads-up banner unless the user turns it on in
+        // Settings. That downgrade is silent and harmless, and this app does
+        // NOT send her to that settings page: an app that demands a special
+        // permission during onboarding is an app that gets uninstalled.
+        fullScreenIntent: fullScreen,
+        category: fullScreen ? AndroidNotificationCategory.alarm : null,
       ),
-      iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+      iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
-    await _plugin.show(NotifyIds.forAlert(_id++), title, body, details);
+    await _plugin.show(NotifyIds.forAlert(_id++), title, body, details, payload: payload);
   }
 
   @override
-  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at}) async {
+  Future<void> scheduleAt({required int id, required String title, required String body, required DateTime at, String? payload}) async {
     if (!_tzReady) return; // no zone → can't schedule safely
     final when = tz.TZDateTime.from(at, tz.local);
     if (!when.isAfter(tz.TZDateTime.now(tz.local))) return; // past → skip
@@ -198,13 +263,14 @@ class LocalNotificationService implements NotificationService {
     // reminders don't need second-precision.
     await _plugin.zonedSchedule(
       id, title, body, when, details,
+      payload: payload,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
   @override
-  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute}) async {
+  Future<void> scheduleDaily({required int id, required String title, required String body, required int hour, required int minute, String? payload}) async {
     if (!_tzReady) return;
     // Which instant "every day at this time" means is decided by
     // nextDailyOccurrence, where it is tested against real DST transitions.
@@ -222,6 +288,7 @@ class LocalNotificationService implements NotificationService {
     );
     await _plugin.zonedSchedule(
       id, title, body, when, details,
+      payload: payload,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time, // repeat daily at this time

@@ -4,6 +4,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Re-arm scheduled reminder notifications after a reboot (flutter_local_notifications) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Screen 21 · the SOS alert over the lock screen (§2.20).
+         A NORMAL permission: granted at install, with no runtime dialog, and it
+         is asked for here and nowhere else. On Android 14+ it is granted at
+         install only to calling and alarm apps; for everyone else the system
+         silently downgrades a full-screen intent to an ordinary heads-up
+         banner unless the user turns it on in Settings. The app deliberately
+         does NOT send her to that page — the notification still arrives, still
+         makes a sound and still opens screen 21 when tapped. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <!-- Child location (geolocator) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>

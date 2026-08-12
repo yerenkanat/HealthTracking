@@ -25,6 +25,7 @@ import 'data/pregnancy_weeks_repository.dart';
 import 'data/prefs_app_store.dart';
 import 'data/prefs_telemetry_queue.dart';
 import 'domain/geofence_alerts.dart';
+import 'domain/notification_route.dart';
 import 'domain/notification_ids.dart';
 import 'domain/error_log.dart';
 import 'ui/widgets/error_fallback.dart';
@@ -35,6 +36,7 @@ import 'domain/cry_analysis.dart';
 import 'domain/weight.dart';
 import 'domain/wearable_metrics.dart';
 import 'ble/starmax/starmax_ble_transport.dart';
+import 'ble/watch_identity.dart' show looksLikeBleRemoteId;
 import 'domain/ai_chat_service.dart';
 import 'data/connectivity.dart';
 import 'domain/appointment.dart';
@@ -249,8 +251,8 @@ void _seedDemo(AppController c) {
   // Demo: a full watch snapshot so the dashboard's Activity & Wellness panel
   // shows every parameter the health wearable tracks — steps, distance,
   // calories, sleep (deep/light), stress, breathing rate, blood sugar — without
-  // a paired device. On a real build this arrives from the watch over BLE
-  // (STARMAX_WATCH=true); here it is representative test data.
+  // a paired device. On a real build this arrives from the watch over BLE as
+  // soon as a band is paired; here it is representative test data.
   c.onWearableMetrics(WearableMetrics(
     at: now,
     steps: 6480,
@@ -331,6 +333,58 @@ void _seedDemo(AppController c) {
   c.debugMarkOnboarded(); // demo skips onboarding → lands straight in the app
 }
 
+/// Screen 38 · a tapped notification, resolved to a screen.
+///
+/// Kept out of [bootstrapRuntime] and public so it can be driven from a test
+/// with nothing but a controller and a payload string — the whole point being
+/// that a payload written on the server (TypeScript) is read here, and the two
+/// have no compiler between them.
+///
+/// Nothing here can throw: [parseNotificationPayload] resolves anything it does
+/// not understand to the dashboard, and an SOS with no usable content still
+/// raises the screen, because the fact that the button was pressed is the part
+/// that matters.
+void handleNotificationTap(AppController controller, String? payload) {
+  final tap = parseNotificationPayload(payload);
+  if (tap.destination == NotifyDestination.sos) {
+    // Screen 21, over everything. The alert goes through mergeRemoteAlerts so
+    // it also lands on the safety feed — deduplicated against the one this
+    // phone may already have recorded — and that is what raises the takeover.
+    controller.mergeRemoteAlerts([
+      SafetyAlert(
+        kind: AlertKind.sos,
+        // Empty when the push did not name a child; the screen has wording for
+        // that, and inventing one here is the one thing it must not do.
+        childName: tap.childName,
+        zoneName: tap.zoneName,
+        at: tap.at ?? DateTime.now(),
+      ),
+    ]);
+    // A merge that deduplicated against an alert already in the feed adds
+    // nothing and therefore raises nothing — so ask directly as well. Tapping
+    // an SOS notification must open screen 21 every time, not only the first.
+    controller.raiseSosAlert(SafetyAlert(
+      kind: AlertKind.sos,
+      childName: tap.childName,
+      zoneName: tap.zoneName,
+      at: tap.at ?? DateTime.now(),
+    ));
+    return;
+  }
+  if (tap.destination == NotifyDestination.emergency) {
+    // The mother's own medical emergency. The code travels in the payload, so
+    // the app localizes it exactly as it does an on-device one rather than
+    // showing whatever language the server composed in.
+    controller.onChatEmergency(
+      L10n(controller.locale).triageMessage(tap.code),
+      const [],
+      code: tap.code,
+    );
+    return;
+  }
+  controller.requestDestination(tap.destination);
+}
+
 /// Connects the verified spine to live sources. Kept out of the widget tree so
 /// UI is testable and the app still renders if any of this is unavailable.
 Future<void> bootstrapRuntime(
@@ -346,7 +400,15 @@ Future<void> bootstrapRuntime(
   // Best-effort — the app works fine without it.
   try {
     final notifications = LocalNotificationService();
-    await notifications.init();
+    await notifications.init(onTap: (payload) => handleNotificationTap(controller, payload));
+    // …and the tap that STARTED the app. On a cold launch Android delivers it
+    // as intent data instead of calling the response handler above, so without
+    // this an SOS tapped on a phone whose app was not running — the ordinary
+    // case for a notification — would open on the dashboard.
+    unawaited(() async {
+      final payload = await notifications.launchPayload();
+      if (payload != null) handleNotificationTap(controller, payload);
+    }());
     // Do NOT request permission blindly at launch. Instead let the UI ask at a
     // moment it can explain why (the reminders centre / adding a safe zone),
     // which is what the notification service's init comment intends.
@@ -364,7 +426,23 @@ Future<void> bootstrapRuntime(
         AlertKind.sos => l.t('alert_sos'),
         AlertKind.lowBattery => l.t('alert_low_battery', {'pct': alert.zoneName}),
       };
-      notifications.show(title: title, body: alert.childName);
+      final isSos = alert.kind == AlertKind.sos;
+      notifications.show(
+        title: title,
+        body: alert.childName,
+        // Where a tap goes. An SOS opens screen 21 carrying the name and the
+        // instant it happened; everything else opens the notification centre,
+        // where that event is already waiting in the list.
+        payload: isSos
+            ? sosNotificationPayload(
+                childName: alert.childName,
+                at: alert.at,
+                zoneName: alert.zoneName,
+              )
+            : notificationPayload(NotifyDestination.notificationCentre),
+        // §2.20's bordered lock-screen alert, for the SOS alone.
+        fullScreen: isSos,
+      );
     });
 
     // Appointment reminders: schedule/cancel OS notifications as they change,
@@ -513,7 +591,14 @@ Future<void> bootstrapRuntime(
     final batcher = TelemetryBatcher(BatcherConfig(
       maxBatch: 25,
       maxDelay: const Duration(seconds: 30),
-      flush: (items) => api.ingestBatch(items.map((i) => i.toJson()).toList()),
+      // The reply was discarded here. `/ingest/batch` answers 200 with a tally
+      // — and a batch it stored nothing from looks identical to a delivered one
+      // unless somebody reads `rejected`. Now it is read, and a refusal reaches
+      // the error log support can see.
+      flush: (items) async {
+        final summary = await api.ingestBatch(items.map((i) => i.toJson()).toList());
+        reportIngest(summary, errorLog: controller.errorLog);
+      },
       persist: telemetryQueue.save,
       restore: telemetryQueue.load,
     ));
@@ -523,6 +608,12 @@ Future<void> bootstrapRuntime(
     // onEmergency forwards to the controller (note: HealthMonitor's signature is
     // (triage, telemetry); AppController.onTelemetry is (telemetry, triage)).
     final monitor = HealthMonitor(
+      // The band she actually paired, asked for at send time. This was the
+      // compile-time BAND_ID, defaulting to the string 'band-unpaired' — an id
+      // no device registry has ever contained, so the server could attribute
+      // none of it and dropped every reading as it arrived. The define stays as
+      // a last resort for a bench rig with no pairing flow.
+      resolveDeviceId: () => controller.pairedBandId ?? '',
       deviceId: const String.fromEnvironment('BAND_ID', defaultValue: 'band-unpaired'),
       enqueue: (t, {required urgent}) => batcher.enqueueTelemetry(t, urgent: urgent),
       onEmergency: (triage, t) => controller.onTelemetry(t, triage),
@@ -620,6 +711,31 @@ Future<void> bootstrapRuntime(
         upsert: (a) => api.putAppointment(id: a.id, title: a.title, at: iso(a.at), note: a.note),
         delete: (id) => api.deleteAppointment(id),
       );
+
+      // Manual safety events — SOS and check-in. The one sync that is not a
+      // backup: it is how an SOS pressed on this phone reaches the back-office
+      // safety feed and the rest of the family at all. Alerts are keyed on the
+      // child's NAME in the app and on their id on the server, so an event for
+      // a child the server has never seen is dropped rather than guessed at.
+      //
+      // No first-sync replay of the existing feed: these already happened, and
+      // re-posting a month of old SOS presses would re-alarm everybody the
+      // moment somebody signs in on a new phone.
+      controller.attachAlertSync(upsert: (alert) async {
+        final match = controller.children
+            .where((ch) => ch.name.isNotEmpty && ch.name == alert.childName);
+        if (match.isEmpty) return;
+        await pushed(
+          'safety alert',
+          () => api.postAlert(
+            childId: match.first.id,
+            kind: alert.kind.name,
+            zoneName: alert.zoneName,
+            at: iso(alert.at),
+          ),
+          errorLog: controller.errorLog,
+        );
+      });
 
       // Push-only sleep sync, so the admin wellness view mirrors her nights.
       controller.attachSleepSync(upsert: pushSleep);
@@ -1053,32 +1169,54 @@ Future<void> bootstrapRuntime(
     // is still worth having.
     unawaited(_pollChildLocation(controller, api));
 
-    // The Starmax / RunmeFit health watch. Opt-in via a build define so a user
-    // without one never pays a scan: --dart-define=STARMAX_WATCH=true, and
-    // optionally --dart-define=STARMAX_ID=<remoteId> to reconnect a known
-    // device rather than scan. Its health snapshots become the SAME
-    // (BandTelemetry, TriageResult) records the OEM band produces, so the
-    // dashboard, on-device triage and batching downstream are unchanged.
-    const watchEnabled = bool.fromEnvironment('STARMAX_WATCH', defaultValue: false);
-    if (watchEnabled) {
-      const knownId = String.fromEnvironment('STARMAX_ID', defaultValue: '');
-      final watch = StarmaxBandManager(StarmaxBandConfig(
-        knownRemoteId: knownId.isEmpty ? null : knownId,
+    // The Starmax / RunmeFit health watch.
+    //
+    // Started when — and only when — this account has a paired band. That is a
+    // RUNTIME condition, read from the device list she built by pairing, and it
+    // has to be: this used to be a compile-time `bool.fromEnvironment` gate that
+    // no build script in the repository ever set. Every APK the owner has
+    // installed carried the entire BLE stack as dead code and said nothing, so a
+    // watch on her wrist was simply never spoken to. The define is deleted
+    // rather than defaulted to true, because a default-on scan charges the
+    // majority who own no watch for a radio they never use — the very cost the
+    // define was invented to avoid. No paired band, no scan.
+    //
+    // Its health snapshots become the SAME (BandTelemetry, TriageResult) records
+    // the OEM band produces, so the dashboard, on-device triage and batching
+    // downstream are unchanged.
+    StarmaxBandManager? watch;
+    Future<void> startWatchIfPaired() async {
+      if (watch != null || !controller.hasPairedBand) return;
+      final bandId = controller.pairedBandId!;
+      final w = StarmaxBandManager(StarmaxBandConfig(
+        // The id she picked while pairing IS a BLE remote id — the onboarding
+        // scan reports it — so reconnect straight to it and skip the scan. A
+        // serial claimed by code is not, and the manager scans for that instead.
+        knownRemoteId: looksLikeBleRemoteId(bandId) ? bandId : null,
       ));
-      watch.onTelemetry.listen((rec) {
+      watch = w;
+      w.onTelemetry.listen((rec) {
         controller.onTelemetry(rec.$1, rec.$2); // dashboard + emergency
         monitor.handle(rec.$1, rec.$2); // sync + batching
       });
       // The full activity/sleep/wellness snapshot → the dashboard's activity
       // panel. Everything the watch tracks beyond the four triage vitals.
-      watch.onSnapshot.listen(controller.onWearableMetrics);
+      w.onSnapshot.listen(controller.onWearableMetrics);
       // Link state (connecting / connected / lost) drives the dashboard's "not
       // measuring" chip, so a watch out of range since morning is not mistaken
       // for a quiet one — the only other evidence would be a last reading that
       // keeps getting older.
-      watch.onStatus.listen(controller.onBandLinkState);
-      await watch.start();
+      w.onStatus.listen(controller.onBandLinkState);
+      await w.start();
     }
+
+    // Now, if a band is already paired…
+    await startWatchIfPaired();
+    // …and the moment one is paired later. Pairing happens during onboarding and
+    // from the settings sheet, both AFTER this wiring has run, so a check made
+    // only here would leave the watch silent until the next cold launch — the
+    // first thing a new owner does with her watch would appear not to work.
+    controller.changes.listen((_) => unawaited(startWatchIfPaired()));
 
     // TODO(once paired): the OEM band + child beacon still await pairing/config:
     //   ble.onBeacon.listen((r) => controller.onChildLocation(resolveFix(r)));

@@ -30,12 +30,21 @@ WearableMetrics wearableMetricsFromSnapshot(StarmaxHealthSnapshot s, DateTime at
     stress: _nz(s.stress),
     breathRate: _nz(s.breathRate),
     bloodSugarTenths: _nz(s.bloodSugar),
+    met: _nz(s.met),
     worn: s.isWorn,
   );
 }
 
 /// Map a snapshot to telemetry. Blood pressure is included but, like the band's,
 /// is watch-estimated; triage treats it accordingly.
+///
+/// Blood sugar rides along because BandTelemetry is the ONLY thing that reaches
+/// `/ingest` — and `pregnancy_health_metrics.glucose_mmol` has been waiting for
+/// it since the column was added. It was dropped here, so the watch's estimate
+/// reached the dashboard tile and the local advisor and stopped at the handset:
+/// her clinician's view showed glucose only for readings she had typed in. It is
+/// a wellness value, not a triage vital — `assessTelemetry` never reads it, so
+/// carrying it cannot raise an emergency.
 BandTelemetry bandTelemetryFromSnapshot(StarmaxHealthSnapshot s) {
   return BandTelemetry(
     coreTempC: s.tempCelsius, // already null when unknown
@@ -43,6 +52,7 @@ BandTelemetry bandTelemetryFromSnapshot(StarmaxHealthSnapshot s) {
     spo2Pct: _nz(s.bloodOxygen),
     systolicMmHg: _nz(s.bpSystolic),
     diastolicMmHg: _nz(s.bpDiastolic),
+    glucoseMmol: s.bloodSugar == 0 ? null : s.bloodSugar / 10.0,
     // The snapshot has no sleep flag; the daytime path never claims sleep.
     duringSleep: false,
   );
@@ -51,5 +61,12 @@ BandTelemetry bandTelemetryFromSnapshot(StarmaxHealthSnapshot s) {
 /// True when a snapshot carries at least one usable vital — worth pushing
 /// through triage. An all-zero snapshot (watch idle, not worn) is dropped rather
 /// than emitted as an empty reading.
+///
+/// Blood sugar counts even though it is never triaged: this same predicate gates
+/// the only path to `/ingest`, so a snapshot whose one measured value is glucose
+/// would otherwise be discarded before it could be stored anywhere but memory.
 bool snapshotHasVitals(StarmaxHealthSnapshot s) =>
-    s.heartRate != 0 || s.bloodOxygen != 0 || s.tempCelsius != null;
+    s.heartRate != 0 ||
+    s.bloodOxygen != 0 ||
+    s.tempCelsius != null ||
+    s.bloodSugar != 0;

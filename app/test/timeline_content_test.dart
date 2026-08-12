@@ -33,21 +33,35 @@ void main() {
     expect(find.text('Week 20'), findsOneWidget);
     // A preview, not the whole list.
     expect(find.byType(ContentTile), findsNWidgets(TimelineContentCard.previewCount));
-    // A pregnancy week holds exactly the preview count, so there is nothing
-    // further to open — offering "See all" would lead to the same three items.
-    expect(find.text('See all'), findsNothing);
   });
 
-  testWidgets('"See all" appears only when there is more to see', (tester) async {
-    // A child month carries four items, one more than the card previews.
+  testWidgets('the way into the guides library does not depend on this stage', (tester) async {
+    // It used to: the button only appeared when the stage held more than the
+    // preview. It now opens the whole library (screen 27), which is the same
+    // thing to offer whether this week is well stocked or quiet — and the
+    // gate meant a woman at a quiet week had no route to any of it.
+    for (final stage in [week20, month4]) {
+      await tester.pumpWidget(wrap(TimelineContentCard(
+        stage: stage,
+        items: catalog.itemsFor(stage),
+        onOpen: (_) {},
+        onSeeAll: () {},
+      )));
+      expect(find.text('All guides'), findsOneWidget, reason: 'stage $stage');
+    }
+  });
+
+  testWidgets('and it is there with no stage at all', (tester) async {
+    // The case the whole guides screen exists for: no due date, no child, and
+    // until now no route to a single one of the 364 published items.
+    var opened = false;
     await tester.pumpWidget(wrap(TimelineContentCard(
-      stage: month4,
-      items: catalog.itemsFor(month4),
-      onOpen: (_) {},
-      onSeeAll: () {},
+      stage: null,
+      items: const [],
+      onSeeAll: () => opened = true,
     )));
-    expect(catalog.itemsFor(month4).length, greaterThan(TimelineContentCard.previewCount));
-    expect(find.text('See all'), findsOneWidget);
+    await tester.tap(find.text('All guides'));
+    expect(opened, isTrue);
   });
 
   testWidgets('a newborn reads as "Newborn", not "0 months"', (tester) async {

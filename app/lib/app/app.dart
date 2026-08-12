@@ -12,15 +12,19 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'app_controller.dart';
+import '../ble/band_scan.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
 import '../data/content_store.dart';
+import '../domain/notification_route.dart';
 import '../domain/timeline_content.dart';
 import '../ui/theme.dart';
 import '../ui/home_shell.dart';
 import '../ui/onboarding/onboarding_flow.dart';
 import '../ui/settings/legal_consent_screen.dart';
 import '../ui/emergency/emergency_rescue_screen.dart';
+import '../ui/tracking/sos_alert_screen.dart';
+import '../ui/tracking/tracking_map.dart';
 import '../ui/force_update_screen.dart';
 
 /// The two things the app owes the operating system's lifecycle.
@@ -128,6 +132,14 @@ class FcsApp extends StatelessWidget {
         controller: controller.onboarding,
         onLocaleChange: controller.setLocale,
         onComplete: controller.completeOnboarding,
+        // The pairing step's scan. Without this the step asks her to choose her
+        // watch from a list that is structurally empty — `_PairBandPage` falls
+        // back to its skip line when `scanBands` is null, and nothing has ever
+        // passed one. The id she picks is persisted as her paired band and is
+        // what the watch link reconnects to and stamps on every reading.
+        // TODO(design): the page has no copy for "scanned, found nothing" — it
+        // shows the scanning line for ever. Wording is design's call.
+        scanBands: scanForBands,
       );
     }
     // Returning user, but the privacy policy / terms changed since they last
@@ -156,11 +168,46 @@ class FcsApp extends StatelessWidget {
         onDismissConfirmed: () async => controller.dismissEmergency(),
       );
     }
+    // Screen 21. Raised over everything for the same reason the emergency
+    // screen is: a child has pressed the button, and whatever she had open is
+    // no longer the thing on the screen. Dismissing it drops back to the shell
+    // with the alert still on the safety feed.
+    if (controller.route == AppRoute.sos && controller.sos != null) {
+      final s = controller.sos!;
+      return SosAlertScreen(
+        childName: s.childName,
+        at: s.at,
+        now: DateTime.now(),
+        zoneName: s.zoneName,
+        coords: s.coords,
+        coordsAt: s.coordsAt,
+        contactName: s.contactName,
+        contactPhone: s.contactPhone,
+        onCall: _dial,
+        // «Открыть карту» hands over to the live tracking screen — the takeover
+        // closes, the Child tab opens, and the alarm stays in the feed.
+        onOpenMap: () {
+          controller.dismissSos();
+          controller.requestDestination(NotifyDestination.childMap);
+        },
+        // The real map when this build has a key for one; the position as text
+        // when it does not, exactly as the tracking tab behaves.
+        mapBuilder: buildTrackingMap,
+        onDismissConfirmed: () async => controller.dismissSos(),
+      );
+    }
     // Rebuild when a fresher catalogue arrives, so content published in the
     // back-office appears without waiting for a cold start.
     return ValueListenableBuilder<ContentCatalog>(
       valueListenable: content,
-      builder: (_, catalog, __) => HomeShell(controller: controller, catalog: catalog),
+      builder: (_, catalog, __) => HomeShell(
+        controller: controller,
+        catalog: catalog,
+        // The notifier itself as well as its value: a route PUSHED over the
+        // shell — the guides library — sits outside this builder and would
+        // otherwise freeze on whatever was published at the moment it opened.
+        catalogSource: content,
+      ),
     );
   }
 
