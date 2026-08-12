@@ -4986,7 +4986,7 @@
       <div class="ordertop"><b>${esc(l.customerName)}</b><a class="num" href="tel:${esc(tel)}">${esc(l.phone)}</a></div>
       ${l.package?`<div class="t" style="margin:6px 0">${esc(l.package)}</div>`:""}
       <div class="ordertop"><span class="t">${stamp(l.createdAt)} · ${leadLocaleLbl[l.locale]||esc(l.locale)}</span>
-        <select class="lstatus" data-lid="${esc(l.id)}" aria-label="Статус заявки">${opts}</select></div>
+        <select class="lstatus" data-lid="${esc(l.id)}" data-who="${esc(l.customerName)}" aria-label="Статус заявки">${opts}</select></div>
     </div>`;
   }
   function shopOrderRow(o){
@@ -4999,7 +4999,7 @@
       <div class="t">${esc(o.phone)} · ${esc(o.city)}, ${esc(o.address)}</div>
       <div class="t" style="margin:6px 0">${items}</div>
       <div class="ordertop"><span class="t">${stamp(o.createdAt)}</span>
-        <select class="ostatus" data-oid="${esc(o.id)}" aria-label="Статус заказа">${opts}</select></div>
+        <select class="ostatus" data-oid="${esc(o.id)}" data-who="${esc(o.customerName)}" data-sum="${esc(money)}" aria-label="Статус заказа">${opts}</select></div>
       <!-- Which physical units went in the box.
            Recorded when it is packed, because at intake there is no order yet.
            Without it the registry knows the unit and the order knows the
@@ -5273,6 +5273,26 @@
         // Remember what the server has, so a failed save can be put back.
         const was=sel.value;
         sel.onchange=async()=>{
+          // A cancellation is not an edit — it is the end of a sale, and until
+          // now it took one stray mouse-wheel tick over this dropdown.
+          //
+          // Hovering a <select> and scrolling changes its value in Chrome and
+          // Firefox, and `onchange` fired the PATCH immediately. The order left
+          // «Заказы к отгрузке», left the revenue figure, and turned up under
+          // «Потеряно на отменах» — with nobody notified and one audit row as
+          // the only trace. The app's own cancel path has always asked
+          // (confirmDestructive); the staff side, which cancels other people's
+          // orders, did not.
+          //
+          // The sum is in the question on purpose: «Отменить заказ?» is easy to
+          // wave through, «Отменить заказ Айгуль на 39 000 ₸?» is not.
+          if(sel.value==="cancelled" && was!=="cancelled"){
+            const who=sel.dataset.who||"клиент", sum=sel.dataset.sum||"";
+            if(!confirm(`Отменить заказ: ${who}${sum?" · "+sum:""}?\n\nЗаказ выйдет из очереди на отгрузку и из выручки, и попадёт в «Потеряно на отменах». Клиенту ничего не отправится автоматически.`)){
+              sel.value=was;
+              return;
+            }
+          }
           try{
             await apiSend("/admin/shop/orders/"+encodeURIComponent(sel.dataset.oid),"PATCH",{status:sel.value});
             renderShop();
@@ -5297,6 +5317,16 @@
       lwrap.querySelectorAll(".lstatus").forEach(sel=>{
         const was=sel.value;
         sel.onchange=async()=>{
+          // «Отказ» is the same mis-scroll with a quieter ending: the woman who
+          // asked for a callback leaves «Заявки без звонка» and is never rung.
+          // Nothing looks broken afterwards, which is why it needs the ask.
+          if(sel.value==="dropped" && was!=="dropped"){
+            const who=sel.dataset.who||"клиент";
+            if(!confirm(`Отметить отказ: ${who}?\n\nЗаявка уйдёт из списка «не обработано» и ей больше никто не позвонит.`)){
+              sel.value=was;
+              return;
+            }
+          }
           try{
             await apiSend("/admin/shop/leads/"+encodeURIComponent(sel.dataset.lid),"PATCH",{status:sel.value});
             renderShop();

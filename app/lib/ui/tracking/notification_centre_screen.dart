@@ -35,8 +35,9 @@ class NotificationCentreScreen extends StatelessWidget {
   /// nothing to read.
   final void Function(DateTime) onReadAll;
 
-  /// «Настроить остальные →». Null hides the button rather than opening a
-  /// screen that does not exist yet.
+  /// «Настроить остальные →» — opens the reminders centre (screen 25), which
+  /// owns every switch and the quiet hours. Null hides the button rather than
+  /// opening nothing.
   final VoidCallback? onConfigure;
 
   /// The per-child statistics view — how many zone events today, how long

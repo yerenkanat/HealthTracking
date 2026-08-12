@@ -189,6 +189,7 @@ check "/admin" 'intBody'                 "Интеграции says what is not 
 check "/admin" 'bootFail'                "a failed boot says so instead of a white page"
 check "/admin" 'supRule'                 "Поддержка states how the wait is counted"
 check "/admin" 'finCaveats'              "Финансы prints what its numbers cannot know"
+check "/admin" 'Отменить заказ:'         "cancelling an order asks before it happens"
 
 echo
 echo "==> Routes the PROXY must pass through"

@@ -2213,10 +2213,18 @@ class AppController {
   bool get isSignedIn => _authSession != null;
 
   /// Store a session after a successful sign-in, and persist it.
+  ///
+  /// Pulls her mail immediately afterwards. `/announcements` is user-scoped, so
+  /// the startup fetch in main.dart returns without asking when there is no
+  /// session yet — which is every fresh install, since sign-in happens minutes
+  /// after launch. Without this line a woman who signs up today sees an empty
+  /// notification centre and a bell badge of 0 until she force-quits the app,
+  /// however many рассылки were addressed to her in between.
   void signIn(AuthSession session) {
     _authSession = session;
     _persist(immediate: true);
     _notify();
+    refreshAnnouncements();
   }
 
   /// Clear the session. Keeps local data — signing out is not erasing.
@@ -2258,6 +2266,28 @@ class AppController {
   /// A hook rather than a direct call because this class is pure Dart and the
   /// cache is shared_preferences; main.dart, which already owns both, wires it.
   Future<void> Function()? onSignedOut;
+
+  /// Re-read `GET /announcements` and adopt the answer. Wired by main.dart for
+  /// the same reason [onSignedOut] is: the fetch needs the prefs-backed cache.
+  Future<void> Function()? onRefreshAnnouncements;
+
+  /// Ask the server for her рассылки again.
+  ///
+  /// Called on sign-in, on every resume, and when the notification centre is
+  /// opened — the same fetch-on-open rule the support row follows. Cheap to
+  /// call often: a failed or unchanged answer leaves the list exactly as it is
+  /// (see announcements_repository.dart), and [setAnnouncements] is quiet when
+  /// nothing moved, so this never rebuilds the tree for no reason.
+  ///
+  /// A no-op without a session, because the route would answer 401 — and a
+  /// no-op before main.dart has built the ApiClient, which is the case in every
+  /// widget test.
+  void refreshAnnouncements() {
+    if (_authSession == null) return;
+    final refresh = onRefreshAnnouncements;
+    if (refresh == null) return;
+    unawaited(refresh());
+  }
 
   /// Retry the revokes that never landed. Called at startup and after signing
   /// out; a no-op when nothing is pending.

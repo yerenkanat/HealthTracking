@@ -304,6 +304,32 @@ describe('who the segment actually covers', () => {
     expect(await preview({ audience: 'pregnant', locale: 'kk' })).toMatchObject({ matched: 1 });
   });
 
+  it('a woman who has only signed up by phone is in «Все» — the audience is users, not profiles', async () => {
+    // The pg query starts `FROM users u`; the fake assembled the audience from
+    // the profile map, so an account created by sign-in and nothing else was
+    // invisible to every test in this file. «Получат сейчас» would have said
+    // one number on a dev box and production would have delivered another —
+    // and the direction is the bad one: she is skipped in the only
+    // implementation the tests run, and written to in the one that ships.
+    const her = await repo.createUserWithPhone({ phone: '+77015550101', displayName: 'Жаңа' });
+    expect(await preview({})).toMatchObject({ matched: 4 });
+
+    await staff('POST', '/admin/broadcasts', draft('bc-all', { segment: { audience: 'all' } }));
+    expect((await staff('POST', '/admin/broadcasts/bc-all/publish')).json())
+      .toMatchObject({ matched: 4, delivered: 4 });
+    expect((await asUser(her.id)).json().announcements).toHaveLength(1);
+
+    // ...and «Все» only. Nothing is known about her срок or her children, so
+    // the narrower segments must not claim her — the SQL says the same, since
+    // her `due_date` is NULL and she has no `children` rows.
+    expect(await preview({ audience: 'pregnant' })).toMatchObject({ matched: 2 });
+    expect(await preview({ audience: 'mothers' })).toMatchObject({ matched: 1 });
+    // A locale nobody set is Russian, in both implementations: `shortLocale`
+    // here, the CASE in SEGMENT_WHERE there.
+    expect(await preview({ locale: 'kk' })).toMatchObject({ matched: 1 });
+    expect(await preview({ locale: 'ru' })).toMatchObject({ matched: 3 });
+  });
+
   it('a Kazakh-only broadcast reaches the Kazakh mother and nobody else', async () => {
     await staff('POST', '/admin/broadcasts', draft('bc-kk', { segment: { locale: 'kk' } }));
     const res = (await staff('POST', '/admin/broadcasts/bc-kk/publish')).json();

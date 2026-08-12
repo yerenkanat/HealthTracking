@@ -139,6 +139,51 @@ Future<void> showAddChildSheet(
         BuildContext context, AppController controller) =>
     _childSheet(context, controller);
 
+/// «Чья карточка?» — pick one child out of several.
+///
+/// Returns the chosen child's id, or null when she backs out. Used wherever a
+/// tap has to land on ONE child and the app has more than one: guessing there
+/// (first in the list, or whoever happens to be selected on the map) opens the
+/// wrong sibling's medical record, which is worse than one extra tap.
+Future<String?> showPickChildSheet(
+    BuildContext context, AppController controller) {
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: Palette.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+    ),
+    builder: (ctx) {
+      final l = L10nScope.of(ctx);
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+              child: Text(l.t('tr_pick_child'),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+            ),
+            for (final child in controller.children)
+              ListTile(
+                leading: PhotoAvatar(
+                    photoPath: child.photoPath, name: child.name, size: 38),
+                title: Text(child.name,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: Palette.textDim),
+                onTap: () => Navigator.of(ctx).pop(child.id),
+              ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 Future<void> showEditChildSheet(
         BuildContext context, AppController controller, ChildProfile child) =>
     _childSheet(context, controller, existing: child);

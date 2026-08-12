@@ -33,12 +33,19 @@ class NoBandCard extends StatelessWidget {
   /// rather than offering something that cannot work.
   final VoidCallback? onScanMonitor;
 
+  /// False when something directly above already offers «Вес» — the pregnancy
+  /// hero's quick-action row does, wired to the same sheet, and two identical
+  /// weight buttons one scroll apart is a duplicate control, not a shortcut.
+  /// The spec's four entries are otherwise complete and stay that way.
+  final bool showWeight;
+
   const NoBandCard({
     super.key,
     this.onLogVitals,
     this.onLogWeight,
     this.onLogSleep,
     this.onScanMonitor,
+    this.showWeight = true,
   });
 
   @override
@@ -74,10 +81,11 @@ class NoBandCard extends StatelessWidget {
                       icon: Icons.monitor_heart_outlined,
                       label: l.t('noband_pulse'),
                       onTap: onLogVitals),
-                  _Entry(
-                      icon: Icons.monitor_weight_outlined,
-                      label: l.t('noband_weight'),
-                      onTap: onLogWeight),
+                  if (showWeight)
+                    _Entry(
+                        icon: Icons.monitor_weight_outlined,
+                        label: l.t('noband_weight'),
+                        onTap: onLogWeight),
                   _Entry(
                       icon: Icons.bedtime_outlined,
                       label: l.t('noband_sleep'),

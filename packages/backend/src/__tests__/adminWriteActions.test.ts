@@ -45,10 +45,15 @@ interface Sent {
   body: unknown;
 }
 
-async function openShop(opts: { failWrites?: boolean } = {}) {
+async function openShop(opts: { failWrites?: boolean; confirmAnswer?: boolean } = {}) {
   const html = readFileSync(PANEL, 'utf8');
   const sent: Sent[] = [];
   const alerts: string[] = [];
+  // What the operator was asked before a destructive status change, and what
+  // they answered. jsdom has no confirm(); leaving it unstubbed makes it
+  // return undefined, which is falsy, so every cancellation would silently
+  // appear to be refused and the test would pass for the wrong reason.
+  const confirms: string[] = [];
   const vc = new VirtualConsole();
   const errors: string[] = [];
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
@@ -71,6 +76,10 @@ async function openShop(opts: { failWrites?: boolean } = {}) {
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       // The failure path now tells the operator; jsdom has no alert().
       (window as unknown as { alert: (m: string) => void }).alert = (m) => alerts.push(m);
+      (window as unknown as { confirm: (m: string) => boolean }).confirm = (m) => {
+        confirms.push(m);
+        return opts.confirmAnswer ?? true;
+      };
       window.fetch = (async (path: string, init?: RequestInit) => {
         const p = String(path);
         // The panel now opens on a sign-in gate and asks who is signed in
@@ -106,7 +115,7 @@ async function openShop(opts: { failWrites?: boolean } = {}) {
   window.document.querySelector('[data-view="shop"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 300));
-  return { window, sent, errors, alerts };
+  return { window, sent, errors, alerts, confirms };
 }
 
 /** Pick a new value on a `<select>` and fire the change the browser would. */
@@ -228,5 +237,76 @@ describe('the shop tab saves what staff change', () => {
     // Reverting silently is only half a fix: the operator would see the value
     // snap back with no idea whether they mis-clicked or the save failed.
     expect(alerts.join(' '), 'nothing told the operator').toMatch(/не удалось/i);
+  });
+});
+
+/**
+ * Cancelling somebody else's order takes one stray mouse-wheel tick.
+ *
+ * Hovering a <select> and scrolling changes its value in Chrome and Firefox,
+ * and `onchange` fired the PATCH straight away. The order left «Заказы к
+ * отгрузке», left the revenue figure and turned up under «Потеряно на
+ * отменах» — nobody notified, one audit row the only trace.
+ *
+ * The app's own cancel path has always asked (confirmDestructive). The staff
+ * side, which cancels other people's orders, did not.
+ *
+ * Only the terminal transitions ask. «Подтверждён» and «Отправлен» are the
+ * ordinary movement of a day's work and a prompt on each of those would be
+ * trained away within a week — which would take the cancel prompt with it.
+ */
+describe('a destructive status change asks first', () => {
+  it('sends nothing when the operator declines the cancellation', async () => {
+    const { window, sent, confirms } = await openShop({ confirmAnswer: false });
+    const sel = await choose(window, '.ostatus', 'cancelled');
+
+    expect(confirms.length, 'the order was cancelled without asking').toBe(1);
+    expect(sent.filter((s) => s.method === 'PATCH'), 'a declined cancellation still reached the server').toEqual([]);
+    // Snapped back, so the list does not show an order as cancelled when it is
+    // not — the same lie the failed-save path was fixed for.
+    expect(sel.value, 'the dropdown kept the value the operator backed out of').toBe('new');
+  });
+
+  it('names the customer and the money, so the question is answerable', async () => {
+    const { window, confirms } = await openShop({ confirmAnswer: false });
+    await choose(window, '.ostatus', 'cancelled');
+
+    // «Отменить заказ?» is waved through; «Отменить заказ Мадина · 39 000 ₸?»
+    // is read. If this ever regresses to a bare question it is worth nothing.
+    expect(confirms[0]).toContain('Мадина');
+    expect(confirms[0].replace(/ | /g, ' ')).toContain('39 000');
+  });
+
+  it('cancels when the operator confirms', async () => {
+    const { window, sent } = await openShop({ confirmAnswer: true });
+    await choose(window, '.ostatus', 'cancelled');
+
+    const patch = sent.find((s) => s.method === 'PATCH');
+    expect(patch, 'confirming did not save').toBeTruthy();
+    expect(patch!.body).toEqual({ status: 'cancelled' });
+  });
+
+  it('does not ask on the ordinary forward steps of a day', async () => {
+    // A prompt on «Подтверждён» would be dismissed reflexively within a week,
+    // and that habit is exactly what would carry the operator through the
+    // cancel prompt too. Only the irreversible step asks.
+    const { window, sent, confirms } = await openShop();
+    await choose(window, '.ostatus', 'confirmed');
+
+    expect(confirms, 'a routine status change interrupted the operator').toEqual([]);
+    expect(sent.find((s) => s.method === 'PATCH')!.body).toEqual({ status: 'confirmed' });
+  });
+
+  it('asks before marking a lead as refused, and names her', async () => {
+    // The quieter version of the same mis-scroll: the woman who asked for a
+    // callback leaves «не обработано» and is never rung. Nothing looks broken
+    // afterwards, which is why it needs the ask.
+    const { window, sent, confirms } = await openShop({ confirmAnswer: false });
+    const sel = await choose(window, '.lstatus', 'dropped');
+
+    expect(confirms.length, 'a lead was written off without asking').toBe(1);
+    expect(confirms[0]).toContain('Айгерім');
+    expect(sent.filter((s) => s.method === 'PATCH')).toEqual([]);
+    expect(sel.value).toBe('new');
   });
 });

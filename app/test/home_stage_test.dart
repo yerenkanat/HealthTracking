@@ -18,12 +18,18 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
+import 'package:fcs_app/domain/cycle_predictions.dart';
 import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/domain/timeline_content.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/content/timeline_content_card.dart';
+import 'package:fcs_app/ui/dashboard/child_hero.dart';
+import 'package:fcs_app/ui/dashboard/cycle_hero.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
+import 'package:fcs_app/ui/dashboard/no_band_card.dart';
+import 'package:fcs_app/ui/dashboard/stage_hero.dart';
 import 'package:fcs_app/ui/theme.dart';
 
 void main() {
@@ -127,5 +133,128 @@ void main() {
     await tester.tap(find.text('Двадцатая неделя'));
     await tester.pumpAndSettle();
     expect(opened, ['a']);
+  });
+
+  /// … and it does not depend on owning a bracelet.
+  ///
+  /// The screen was `samples.isEmpty ? <checklist + manual diary> : <the whole
+  /// dashboard>`, so a woman who finished onboarding as pregnant, gave a due
+  /// date and has no band — which is most of them, permanently — opened «Бүгін»
+  /// onto a setup checklist and «сфотографируйте тонометр». No week, no
+  /// Шевеления/Самочувствие/Вес, no appointment, no shelf.
+  ///
+  /// It survived because every test in this file and in dashboard_screen_test
+  /// passed a non-empty samples list. These pass `samples: const []`.
+  group('with no band readings at all', () {
+    /// [week] completed weeks, the rest of the pregnancy still to run.
+    GestationInfo gest(int week) {
+      final days = week * 7;
+      return GestationInfo(days, week, 0, 280 - days);
+    }
+
+    final today = DateTime(2026, 8, 8);
+    final cycle = CycleInfo(
+      today: today,
+      avgCycleLength: 28,
+      avgPeriodLength: 5,
+      lastPeriodStart: today.subtract(const Duration(days: 14)),
+      nextPeriodStart: today.add(const Duration(days: 14)),
+      ovulation: today,
+      fertileStart: today.subtract(const Duration(days: 2)),
+      fertileEnd: today.add(const Duration(days: 2)),
+      cycleDay: 15,
+      hasData: true,
+    );
+
+    Future<void> pumpEmpty(
+      WidgetTester tester, {
+      GestationInfo? gestation,
+      String? childHeroName,
+      int? childHeroAgeMonths,
+      CycleInfo? cycleInfo,
+      TimelineStage? stage,
+      List<ContentItem> items = const [],
+      VoidCallback? onLogKick,
+    }) async {
+      tester.view.physicalSize = const Size(400 * 3, 3000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        theme: FcsTheme.light(AppLocale.ru),
+        home: L10nScope(
+          l10n: const L10n(AppLocale.ru),
+          child: HealthDashboardView(
+            // The whole point: nothing from a bracelet, ever.
+            samples: const [],
+            nowForAppointment: at,
+            gestation: gestation,
+            childHeroName: childHeroName,
+            childHeroAgeMonths: childHeroAgeMonths,
+            cycleInfo: cycleInfo,
+            timelineStage: stage,
+            timelineItems: items,
+            onLogKick: onLogKick,
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the pregnancy hero still leads the screen', (tester) async {
+      await pumpEmpty(tester, gestation: gest(22));
+      const l = L10n(AppLocale.ru);
+      expect(find.byType(PregnancyHero), findsOneWidget,
+          reason: 'a due date does not need a bracelet reading');
+      expect(find.text(l.t('hero_week_trimester', {'w': 22, 't': 2})),
+          findsOneWidget);
+    });
+
+    testWidgets('with its three quick actions, and they fire', (tester) async {
+      var kicked = false;
+      await pumpEmpty(tester,
+          gestation: gest(22), onLogKick: () => kicked = true);
+      const l = L10n(AppLocale.ru);
+      expect(find.text(l.t('log_kicks')), findsOneWidget);
+      expect(find.text(l.t('qa_wellbeing')), findsOneWidget);
+      expect(find.text(l.t('qa_weight')), findsOneWidget);
+      await tester.tap(find.text(l.t('log_kicks')));
+      await tester.pumpAndSettle();
+      expect(kicked, isTrue);
+    });
+
+    testWidgets('and the content shelf for her week', (tester) async {
+      await pumpEmpty(
+        tester,
+        gestation: gest(20),
+        stage: TimelineStage.pregnancyWeek(20),
+        items: [item('a', 'Двадцатая неделя')],
+      );
+      expect(find.byType(TimelineContentCard), findsOneWidget);
+      expect(find.text('Двадцатая неделя'), findsOneWidget);
+    });
+
+    testWidgets('the child hero reaches a mother with no band', (tester) async {
+      await pumpEmpty(tester, childHeroName: 'Алия', childHeroAgeMonths: 3);
+      const l = L10n(AppLocale.ru);
+      expect(find.byType(ChildHero), findsOneWidget);
+      expect(find.text(l.t('childhero_age', {'name': 'Алия', 'n': 3})),
+          findsOneWidget);
+    });
+
+    testWidgets('and the cycle hero, for neither state', (tester) async {
+      await pumpEmpty(tester, cycleInfo: cycle);
+      expect(find.byType(CycleHero), findsOneWidget);
+    });
+
+    testWidgets('the manual diary is kept, not replaced by the hero',
+        (tester) async {
+      // Screen 05 is correct — it is just not a substitute for the screen.
+      await pumpEmpty(tester, gestation: gest(22));
+      expect(find.byType(NoBandCard), findsOneWidget);
+      expect(find.byType(PregnancyHero), findsOneWidget);
+      // And the hero comes first: «Показатели браслета всегда ниже».
+      expect(tester.getTopLeft(find.byType(PregnancyHero)).dy,
+          lessThan(tester.getTopLeft(find.byType(NoBandCard)).dy));
+    });
   });
 }

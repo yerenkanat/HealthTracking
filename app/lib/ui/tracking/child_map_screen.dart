@@ -61,6 +61,17 @@ class ChildMapScreen extends StatelessWidget {
   /// the row then shows two buttons rather than a dead third.
   final VoidCallback? onDayHistory;
 
+  /// Opens the child's card — the whole child-care hub: медкарта, прививки,
+  /// рост и вес, развитие, дневник новорождённого, детектор плача, прикорм,
+  /// безопасность дома, болезни.
+  ///
+  /// That hub had exactly one entry point in the entire app, three taps down
+  /// Настройки, and the «Бала» tab it belongs to had no route to it at all —
+  /// so everything under it was effectively unshipped. Null when no child is
+  /// selected: the card needs one, and an icon that opens nothing is worse
+  /// than an absent icon.
+  final VoidCallback? onOpenChildCard;
+
   /// Screen 20. No connection, from the connectivity service.
   final bool isOffline;
 
@@ -98,6 +109,7 @@ class ChildMapScreen extends StatelessWidget {
     this.onCheckIn,
     this.onSos,
     this.onDayHistory,
+    this.onOpenChildCard,
     this.isOffline = false,
     this.onRefresh,
     this.hasPairedTracker = true,
@@ -143,6 +155,21 @@ class ChildMapScreen extends StatelessWidget {
                 tooltip: l.t('alerts_title'),
                 badgeCount: alertCount,
                 onTap: onOpenAlerts!,
+              ),
+            ),
+          // «Карточка ребёнка» — the child-care hub. First of the three, because
+          // it is the only one of them that is a whole section of the app
+          // rather than a single screen, and it had no route from this tab at
+          // all: медкарта, прививки, рост, развитие, дневник, плач, прикорм,
+          // безопасность дома and болезни all hung off Настройки and nothing
+          // else.
+          if (onOpenChildCard != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _FloatingIconButton(
+                icon: Icons.folder_shared_outlined,
+                tooltip: l.t('tr_child_card'),
+                onTap: onOpenChildCard!,
               ),
             ),
           Padding(

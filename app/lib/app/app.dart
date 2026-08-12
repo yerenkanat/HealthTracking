@@ -23,22 +23,29 @@ import '../ui/settings/legal_consent_screen.dart';
 import '../ui/emergency/emergency_rescue_screen.dart';
 import '../ui/force_update_screen.dart';
 
-/// Flushes any debounced save when the app leaves the foreground.
+/// The two things the app owes the operating system's lifecycle.
 ///
-/// Writes are coalesced so a burst of taps does not re-encode the whole config
-/// each time, which costs at most 300ms of input if the process dies. Android
-/// kills BACKGROUNDED apps, not foreground ones, so writing on the way out
-/// closes the window that actually occurs.
-class _SaveOnPause extends StatefulWidget {
+/// **Leaving:** flush any debounced save. Writes are coalesced so a burst of
+/// taps does not re-encode the whole config each time, which costs at most
+/// 300ms of input if the process dies. Android kills BACKGROUNDED apps, not
+/// foreground ones, so writing on the way out closes the window that actually
+/// occurs.
+///
+/// **Coming back:** re-read her рассылки. A phone spends days backgrounded, and
+/// a broadcast published in that time was fetched by nobody — the startup pull
+/// runs once per cold launch, which on Android can be weeks apart. Resuming is
+/// the moment she is looking at the app again, so it is the moment the bell
+/// badge has to be true.
+class _LifecycleHooks extends StatefulWidget {
   final AppController controller;
   final Widget child;
-  const _SaveOnPause({required this.controller, required this.child});
+  const _LifecycleHooks({required this.controller, required this.child});
 
   @override
-  State<_SaveOnPause> createState() => _SaveOnPauseState();
+  State<_LifecycleHooks> createState() => _LifecycleHooksState();
 }
 
-class _SaveOnPauseState extends State<_SaveOnPause> with WidgetsBindingObserver {
+class _LifecycleHooksState extends State<_LifecycleHooks> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -57,6 +64,9 @@ class _SaveOnPauseState extends State<_SaveOnPause> with WidgetsBindingObserver 
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden;
     if (leaving) widget.controller.flushPendingSave();
+    if (state == AppLifecycleState.resumed) {
+      widget.controller.refreshAnnouncements();
+    }
   }
 
   @override
@@ -77,7 +87,7 @@ class FcsApp extends StatelessWidget {
       stream: controller.changes,
       builder: (context, _) {
         final l = L10n(controller.locale);
-        return _SaveOnPause(
+        return _LifecycleHooks(
           controller: controller,
           child: L10nScope(
           l10n: l,

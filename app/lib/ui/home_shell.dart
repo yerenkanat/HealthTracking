@@ -42,6 +42,8 @@ import 'content/timeline_content_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
 import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
+import 'settings/reminders_center_screen.dart';
+import 'tracking/child_detail_screen.dart';
 import 'profile/family_access_screen.dart';
 import 'profile/my_order_screen.dart';
 import 'shop/shop_screen.dart';
@@ -281,28 +283,49 @@ class _HomeShellState extends State<HomeShell> {
         // which is the state a badge is worst in, because it also stops
         // meaning anything on the day something is actually wrong.
         alertCount: c.unreadAlertCount,
-        onOpenAlerts: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => NotificationCentreScreen(
-            alerts: c.alerts,
-            // Screen 39's other half: what the back office sent her (admin
-            // frame 06). Same list, same «Прочитать всё», same watermark —
-            // she has one inbox, not two.
-            announcements: c.announcements,
-            now: DateTime.now(),
-            readUpTo: c.alertsReadUpTo,
-            onReadAll: c.markAlertsRead,
-            // The per-channel switches are screen 25 and do not exist yet.
-            // Null hides the button rather than opening nothing.
-            onConfigure: null,
-            // The old alerts view, kept for what it alone does: per-child
-            // counts and «сколько дней без SOS». Reached from here rather
-            // than left unreferenced — deleting a working screen to tidy an
-            // import is worse than either.
-            onOpenStats: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
+        onOpenAlerts: () {
+          // Fetch on open, like the support row does before it draws its badge.
+          // The screen still paints from what the controller already holds — it
+          // never waits on the network — but a рассылка published while she had
+          // the app open reaches her here rather than at the next cold launch.
+          c.refreshAnnouncements();
+          Navigator.of(context).push(MaterialPageRoute(
+            // Rebuilt on every controller change, so the answer to that fetch
+            // lands on the open screen rather than behind it. Pushed routes sit
+            // outside the shell's StreamBuilder: without this the centre would
+            // read the list once, at the instant of the tap, and the message
+            // that arrives a second later would wait for her next visit.
+            builder: (_) => StreamBuilder<void>(
+              stream: c.changes,
+              builder: (_, __) => NotificationCentreScreen(
+                alerts: c.alerts,
+                // Screen 39's other half: what the back office sent her (admin
+                // frame 06). Same list, same «Прочитать всё», same watermark —
+                // she has one inbox, not two.
+                announcements: c.announcements,
+                now: DateTime.now(),
+                readUpTo: c.alertsReadUpTo,
+                onReadAll: c.markAlertsRead,
+                // Screen 25 — the reminders centre, including quiet hours. The
+                // comment here said it "does not exist yet" and hid the button;
+                // it has existed for some time and is reachable from Settings,
+                // so the one screen about notifications had no route to the
+                // screen that configures them.
+                onConfigure: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => RemindersCenterScreen(controller: c)),
+                ),
+                // The old alerts view, kept for what it alone does: per-child
+                // counts and «сколько дней без SOS». Reached from here rather
+                // than left unreferenced — deleting a working screen to tidy an
+                // import is worse than either.
+                onOpenStats: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => AlertsScreen(controller: c)),
+                ),
+              ),
             ),
-          ),
-        )),
+          ));
+        },
         batteryPct: c.selectedChildBattery,
         batteryHistory: c.selectedChildBatteryHistory,
         zoneEnteredAt: zoneEnteredAt,
@@ -315,6 +338,14 @@ class _HomeShellState extends State<HomeShell> {
         onDayHistory: (c.selectedChild == null || c.api == null)
             ? null
             : () => _openDayHistory(context, c),
+        // The child's card, from the tab it belongs to. It used to be reachable
+        // only through Настройки → Дети, and everything under it — медкарта,
+        // прививки, рост и вес, развитие, дневник новорождённого, детектор
+        // плача, прикорм, безопасность дома, болезни — inherited that dead end.
+        // The map already knows which child is selected, so no picker here.
+        onOpenChildCard: c.selectedChild == null
+            ? null
+            : () => _openChildCard(context, c, childId: c.selectedChild!.id),
         // Screen 20. The strip at the top of the shell says the app is
         // offline; this is what the MAP does about it, which is the screen
         // where being wrong about staleness costs something.
@@ -323,9 +354,13 @@ class _HomeShellState extends State<HomeShell> {
       ),
       ProfileScreen(
         controller: c,
-        // Both summary tiles lead to the family hub (Child tab), where children
-        // and trackers are actually managed — previously they were dead cards.
-        onOpenChildren: () => setState(() => _index = 2),
+        // «2 детей» opens a CHILD, not the map. It used to switch to the Бала
+        // tab, which is a live map with no route to the child card at all, so
+        // the tile that says how many children she has landed on a screen that
+        // could not show her any of them. With more than one it asks which —
+        // guessing there opens the wrong sibling's medical record.
+        onOpenChildren: () => _openChildCard(context, c),
+        // Trackers ARE managed on the map, so this one is unchanged.
         onOpenDevices: () => setState(() => _index = 2),
         // Screen 40. The grants live on the server; without one the row is
         // absent rather than opening a screen that can only fail.
@@ -494,6 +529,35 @@ class _HomeShellState extends State<HomeShell> {
         onSaveOutcome: (event, outcome) =>
             api.saveSosOutcome(child.id, event.at, outcome.wire),
       ),
+    ));
+  }
+
+  /// «Карточка ребёнка» — the child-care hub.
+  ///
+  /// ChildDetailScreen had exactly one caller in the whole app (Настройки →
+  /// Дети), so Медкарта, Прививки, Рост и вес, Развитие, Дневник
+  /// новорождённого, Детектор плача, Прикорм, Безопасность дома and Болезни
+  /// were all three taps down a settings screen and nowhere else.
+  ///
+  /// [childId] when the caller already knows which child it means (the map has
+  /// a selection). Otherwise: none → the add sheet, one → that one, several →
+  /// the picker. Guessing with several opens the wrong child's medical record.
+  Future<void> _openChildCard(BuildContext context, AppController c,
+      {String? childId}) async {
+    var id = childId;
+    if (id == null) {
+      if (c.children.isEmpty) {
+        await showAddChildSheet(context, c);
+        return;
+      }
+      id = c.children.length == 1
+          ? c.children.first.id
+          : await showPickChildSheet(context, c);
+      if (id == null || !context.mounted) return;
+    }
+    final chosen = id;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChildDetailScreen(controller: c, childId: chosen),
     ));
   }
 

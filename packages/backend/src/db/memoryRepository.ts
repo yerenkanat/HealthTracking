@@ -412,6 +412,13 @@ const UUID_RE =
    * `users.due_date` and every `children.date_of_birth` under her. A woman with
    * a profile but no children is here; so is a woman known only through her
    * children, because that is exactly what a LEFT JOIN answers.
+   *
+   * The pg query starts `FROM users u`, so this starts from the same place: the
+   * sign-in map, which is this fake's `users` table. A profile is an UPDATE of
+   * that row in Postgres, not a second table — so building the audience out of
+   * `profiles` alone dropped every woman who had signed up by phone and not yet
+   * saved a profile. She is the most common kind of new account there is, the
+   * panel counted her as nobody, and publishing skipped her.
    */
   function audienceRows(): AudienceRow[] {
     const rows = new Map<string, AudienceRow>();
@@ -420,6 +427,10 @@ const UUID_RE =
       if (!r) rows.set(userId, (r = { userId, locale: null, dueDate: null, childCount: 0, childDobs: [] }));
       return r;
     };
+    // `FROM users u` — every signed-up account, profile or no profile. Locale
+    // and due date stay null for her until she saves one, which is what the
+    // columns hold in Postgres too, and «Все» reaches her either way.
+    for (const userId of usersByPhone.values()) ensure(userId);
     for (const [userId, p] of profiles) {
       const r = ensure(userId);
       r.locale = p.locale ?? null;

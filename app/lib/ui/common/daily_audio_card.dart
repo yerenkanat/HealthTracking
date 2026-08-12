@@ -125,6 +125,22 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
   /// instead of restarting — and keeps playing after she comes back here.
   /// ownsPlayer stays false: this card created the player and disposes it, and
   /// the full screen disposes its session on the way out.
+  ///
+  /// No `totalRecordings` / `onOpenAll`, deliberately, and the screen's «Все
+  /// записи · N» row therefore stays hidden. THE COUNT IS NOT AVAILABLE TO THE
+  /// APP: the only routes that know it are `GET /admin/audio` (staff session,
+  /// capability `content`) and `GET /api/v1/audio/:track`, which lives behind
+  /// the partner API-key guard and is meant for integrators, not for this
+  /// client. There is also nowhere for the row to LEAD — the app has no
+  /// screen listing the recordings, only this per-day card.
+  ///
+  /// Making the row appear would need, in order: an app-facing
+  /// `GET /audio/:track` on the unprefixed public surface (server.ts, beside
+  /// the existing stream route, reusing repo.listDailyAudio), an api_client
+  /// method, and a library screen that can play an arbitrary day. Passing a
+  /// fabricated number, or a callback that opens nothing, would be worse than
+  /// the hidden row: «Все записи · 0» reads as a broken catalogue, which is
+  /// exactly why AudioPlayerScreen hides it on null.
   void _openFullPlayer() {
     final player = _player;
     if (player == null || _st != _St.ready) return;

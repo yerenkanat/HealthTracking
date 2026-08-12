@@ -442,6 +442,21 @@ Future<void> bootstrapRuntime(
       catalogueCache: const PrefsShopCatalogueCache(),
     );
 
+    // Her mail, on demand. Defined and wired here — before the first `await`
+    // below, so a sign-in that happens while the catalogue is still downloading
+    // already has somewhere to go — because the fetch needs the ApiClient and
+    // the prefs cache, and the controller is pure Dart and owns neither.
+    Future<void> pullAnnouncements() async {
+      if (controller.authSession == null) return;
+      final fresh = await refreshAnnouncementsFromApi(
+          api: api, cache: const PrefsAnnouncementsCache());
+      if (fresh != null) {
+        controller.setAnnouncements(fresh);
+        debugPrint('announcements: ${fresh.length} from the server');
+      }
+    }
+    controller.onRefreshAnnouncements = pullAnnouncements;
+
     // Ask the server whether this build is still supported. A raised floor
     // blocks the app behind the force-update screen; offline or a failure here
     // leaves the gate open (never strand a user who cannot reach the server).
@@ -481,15 +496,14 @@ Future<void> bootstrapRuntime(
     // Only ever attempted with a session. `/announcements` is user-scoped, and
     // an unauthenticated call would answer 401, which this treats as "keep what
     // we have" — correct, but a request worth not making.
-    unawaited(() async {
-      if (controller.authSession == null) return;
-      final fresh = await refreshAnnouncementsFromApi(
-          api: api, cache: const PrefsAnnouncementsCache());
-      if (fresh != null) {
-        controller.setAnnouncements(fresh);
-        debugPrint('announcements: ${fresh.length} from the server');
-      }
-    }());
+    //
+    // Startup is NOT the only time this runs. On a fresh install there is no
+    // session at this point — she has not onboarded yet — so this pull returns
+    // immediately, and if it were the only one her notification centre would
+    // stay empty until the next cold launch. The same closure is therefore
+    // handed to the controller, which calls it on sign-in, on resume and when
+    // the centre is opened.
+    unawaited(pullAnnouncements());
 
     // Offline-first batcher → flushes batches to /ingest/batch. The queue is
     // mirrored to disk (shared_preferences) so telemetry buffered while offline —

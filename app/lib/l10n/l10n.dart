@@ -191,6 +191,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'No tracker linked yet. Add a device to see the location on the map.',
   },
   'tr_manage_zones': {AppLocale.ru: 'Зоны безопасности', AppLocale.kk: 'Қауіпсіздік аймақтары', AppLocale.en: 'Safe zones'},
+  // The child's card — the whole child-care hub (медкарта, прививки, рост и
+  // вес, развитие, дневник, плач, прикорм, безопасность, болезни). It hung off
+  // Settings and nothing else until the «Бала» tab grew this entry.
+  'tr_child_card': {AppLocale.ru: 'Карточка ребёнка', AppLocale.kk: 'Бала картасы', AppLocale.en: "Child's card"},
+  'tr_pick_child': {AppLocale.ru: 'Чья карточка?', AppLocale.kk: 'Кімнің картасы?', AppLocale.en: 'Whose card?'},
 
   // Safety alerts (zone enter/exit feed)
   'alerts_title': {AppLocale.ru: 'Оповещения', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Alerts'},

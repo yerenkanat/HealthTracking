@@ -272,34 +272,19 @@ class HealthDashboardView extends StatelessWidget {
             const SizedBox(width: 4),
           ],
         ),
-        // With no readings there's nothing to chart — but a half-configured app
-        // still owes the user its setup guidance, so the checklist shows here
-        // too rather than being stranded behind the populated dashboard.
-        body: samples.isEmpty
-            ? ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                children: [
-                  if (setupProgress != null && !setupProgress!.complete) ...[
-                    _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
-                    const SizedBox(height: 20),
-                  ],
-                  // Screen 05. This used to be a watch icon and «Наденьте
-                  // браслет — и данные появятся здесь»: the band upsell the
-                  // spec forbids by name, shown to a woman who has not bought
-                  // one — and for most of them that is the permanent state of
-                  // this app, not a step on the way to buying.
-                  //
-                  // «Без устройства приложение полноценно.»
-                  NoBandCard(
-                    onLogVitals: onLogVitals,
-                    onLogWeight: onLogWeight,
-                    onLogSleep: onLogSleep,
-                    onScanMonitor: onScanMonitor,
-                  ),
-                ],
-              )
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+        // ONE list, in every state.
+        //
+        // This used to be `samples.isEmpty ? … : …`: with no band readings the
+        // screen collapsed to a setup checklist and the manual-entry card, and
+        // dropped the stage hero, the three quick actions, the content shelf,
+        // the appointment card and everything else — for a woman who had just
+        // told the app she is pregnant and given it a due date. The two things
+        // are unrelated: a hero driven by a due date does not need a bracelet
+        // reading. Only the blocks that literally chart samples are gated on
+        // having samples; the manual diary (screen 05) takes the vitals grid's
+        // place rather than the whole screen's.
+        body: ListView(
+                padding: EdgeInsets.fromLTRB(16, samples.isEmpty ? 12 : 4, 16, 28),
                 children: [
                   if (statusChip.isNotEmpty && onOpenStatus != null) ...[
                     _StatusChip(
@@ -324,8 +309,12 @@ class HealthDashboardView extends StatelessWidget {
                     _SetupCard(progress: setupProgress!, onTap: onOpenSetup),
                     const SizedBox(height: 14),
                   ],
-                  _PeaceOfMindBanner(samples: samples, name: greetingName),
-                  const SizedBox(height: 18),
+                  // Only with readings behind it: "everything is steady" said
+                  // over an empty list is a reassurance nothing measured.
+                  if (samples.isNotEmpty) ...[
+                    _PeaceOfMindBanner(samples: samples, name: greetingName),
+                    const SizedBox(height: 18),
+                  ],
 
                   // «Главная зависит от этапа … Показатели браслета всегда
                   // ниже — они не главные.»
@@ -415,45 +404,69 @@ class HealthDashboardView extends StatelessWidget {
                     onSeeAll: onSeeAllContent,
                   ),
                   const SizedBox(height: 18),
-                  // A section label so the vitals read as one named group, in
-                  // parallel with the Activity & Wellness header below — the
-                  // dashboard is scanned by zone, not as one undifferentiated run
-                  // of cards. The not-measuring note sits under it, since it is
-                  // about these readings.
-                  _SectionLabel(L10nScope.of(context).t('db_vitals_section')),
-                  const SizedBox(height: 6),
-                  // «Свежесть данных подписана всегда («2 минуты назад»).»
+                  // Screen 05, in the slot the vitals grid would occupy. This
+                  // used to be a watch icon and «Наденьте браслет — и данные
+                  // появятся здесь»: the band upsell the spec forbids by name,
+                  // shown to a woman who has not bought one — and for most of
+                  // them that is the permanent state of this app, not a step on
+                  // the way to buying.
                   //
-                  // The four cards below showed a number and no time, so a
-                  // heart rate of 118 read as "now" whether it was measured a
-                  // minute ago or last night. One line for the group rather
-                  // than four timestamps: they all come off the same sample,
-                  // and repeating it four times is noise that stops being read.
-                  _VitalsFreshness(
-                      samples: samples, now: nowForAppointment ?? DateTime.now()),
-                  const SizedBox(height: 10),
-                  if (bandNotMeasuring) ...[
-                    const _NotMeasuringChip(),
-                    const SizedBox(height: 12),
-                  ],
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    childAspectRatio: 0.94,
-                    children: [
-                      for (final spec in _specs)
-                        _MetricCard(spec: spec, samples: samples),
-                      _BloodPressureCard(samples: samples),
+                  // «Без устройства приложение полноценно.»
+                  if (samples.isEmpty)
+                    NoBandCard(
+                      onLogVitals: onLogVitals,
+                      onLogWeight: onLogWeight,
+                      onLogSleep: onLogSleep,
+                      onScanMonitor: onScanMonitor,
+                      // The pregnancy quick actions above already carry «Вес»,
+                      // wired to this same sheet.
+                      showWeight: gestation == null,
+                    ),
+                  if (samples.isNotEmpty) ...[
+                    // A section label so the vitals read as one named group, in
+                    // parallel with the Activity & Wellness header below — the
+                    // dashboard is scanned by zone, not as one undifferentiated
+                    // run of cards. The not-measuring note sits under it, since
+                    // it is about these readings.
+                    _SectionLabel(L10nScope.of(context).t('db_vitals_section')),
+                    const SizedBox(height: 6),
+                    // «Свежесть данных подписана всегда («2 минуты назад»).»
+                    //
+                    // The four cards below showed a number and no time, so a
+                    // heart rate of 118 read as "now" whether it was measured a
+                    // minute ago or last night. One line for the group rather
+                    // than four timestamps: they all come off the same sample,
+                    // and repeating it four times is noise that stops being read.
+                    _VitalsFreshness(
+                        samples: samples,
+                        now: nowForAppointment ?? DateTime.now()),
+                    const SizedBox(height: 10),
+                    if (bandNotMeasuring) ...[
+                      const _NotMeasuringChip(),
+                      const SizedBox(height: 12),
                     ],
-                  ),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 14,
+                      childAspectRatio: 0.94,
+                      children: [
+                        for (final spec in _specs)
+                          _MetricCard(spec: spec, samples: samples),
+                        _BloodPressureCard(samples: samples),
+                      ],
+                    ),
+                  ],
                   // Sleep sits directly under the vital signs — it is one of her
                   // core health readings, not something to bury in the watch
-                  // detail. Shown when there's a night to show or a way to log one.
+                  // detail. With no readings at all it shows only when there IS
+                  // a night to show: NoBandCard already carries «Сон» as one of
+                  // its four manual entries, and a second log-sleep button
+                  // stacked under it is the duplicate-control defect.
                   if (latestNight(sleepNights) != null ||
-                      onLogSleep != null) ...[
+                      (samples.isNotEmpty && onLogSleep != null)) ...[
                     const SizedBox(height: 14),
                     SleepCard(nights: sleepNights, onLog: onLogSleep),
                   ],
