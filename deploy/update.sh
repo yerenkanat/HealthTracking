@@ -117,6 +117,21 @@ fi
 
 echo
 echo "==> Endpoints (as the proxy sees them)"
+#
+# FAILURES accumulates instead of each check exiting where it stands.
+#
+# It used to `exit 1` on the first miss, and on 2026-08-12 the first miss was
+# spurious — see check() below — so the script stopped before its proxy section
+# and reported ONE fabricated problem while sitting on FOUR real ones:
+# /auth/phone/start, /api/v1/pregnancy/weeks, /privacy and /terms were all being
+# 404ed by Caddy. Sign-in was unroutable in production and the deploy said
+# nothing about it, because a different check had already killed the run.
+#
+# A deploy report is worth having only if it is complete. Everything runs; the
+# summary at the end is what decides the exit status.
+FAILURES=0
+fail() { echo "!!  $*"; FAILURES=$((FAILURES + 1)); }
+
 check() { # path, literal substring, label
   local body
   body="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" wget -qO- "http://$BACKEND:8080$1" 2>/dev/null || true)"
@@ -140,9 +155,8 @@ check() { # path, literal substring, label
   case "$body" in
     *"$2"*) echo "    $3 OK"; return 0 ;;
   esac
-  echo "!!  $3 FAILED — $1 did not contain $2"
+  fail "$3 FAILED — $1 did not contain $2"
   echo "    (the response was ${#body} bytes; 0 means the request itself failed)"
-  exit 1
 }
 # The комплект has to be in the public catalogue, or nobody can order it.
 check "/shop/products" '"kind":"bundle"' "the комплект is sellable"
@@ -195,10 +209,9 @@ proxy() { # path, label, expected-codes...
   for want in "$@"; do
     if [ "$code" = "$want" ]; then echo "    $label OK ($code)"; return 0; fi
   done
-  echo "!!  $label FAILED — $PUBLIC$path answered $code, expected one of: $*"
+  fail "$label FAILED — $PUBLIC$path answered $code, expected one of: $*"
   echo "    If this is 404 from Caddy, the path is missing from @public/@app in"
   echo "    deploy/landing-takeover.sh — re-run that script."
-  return 1
 }
 
 # A POST-only route cannot be checked with `proxy`: a GET to one answers 404
@@ -215,24 +228,26 @@ reaches() { # path, label
   case "$body" in
     *'{'*) echo "    $2 OK (reached the backend)"; return 0 ;;
   esac
-  echo "!!  $2 FAILED — $PUBLIC$1 was answered by the proxy, not the backend."
+  fail "$2 FAILED — $PUBLIC$1 was answered by the proxy, not the backend."
   echo "    Caddy serves an explicit allowlist: add the path to @public/@app in"
   echo "    deploy/landing-takeover.sh and re-run it."
   echo "    body: $(printf '%s' "$body" | head -c 120)"
-  return 1
 }
-FAILED=0
-proxy /api/v1                 "the content API is reachable"   200 401 || FAILED=1
-proxy /api/v1/pregnancy/weeks "the pregnancy calendar"         200 401 || FAILED=1
-proxy /api-docs               "the API docs"                   200     || FAILED=1
-proxy /shop/products          "the storefront"                 200     || FAILED=1
+proxy /api/v1                 "the content API is reachable"   200 401
+proxy /api/v1/pregnancy/weeks "the pregnancy calendar"         200 401
+proxy /api-docs               "the API docs"                   200
+proxy /shop/products          "the storefront"                 200
+# A store listing needs a public URL for both, and so does anyone deciding
+# whether to install an app that tracks their child. Both were 404ing at the
+# edge on 2026-08-12 and no check looked at them.
+proxy /privacy                "the privacy policy"             200
+proxy /terms                  "the terms"                      200
 # Both POST-only — see `reaches` above for why these cannot use `proxy`.
-reaches /auth/phone/start     "sign-in step one is routed"             || FAILED=1
+reaches /auth/phone/start     "sign-in step one is routed"
 # The way a customer proves a genuine device is ours when its serial was never
 # recorded at intake. It is the ONLY route out of a `device_not_ours` refusal,
 # so DEVICE_REGISTRY_ENFORCE must not be switched on until this passes.
-reaches /devices/claim        "the activation-code fallback"           || FAILED=1
-[ "$FAILED" = 0 ] || { echo "!!  the proxy is not passing everything through"; exit 1; }
+reaches /devices/claim        "the activation-code fallback"
 
 echo
 echo "==> A malformed id must be refused, not 500"
@@ -244,11 +259,31 @@ code="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" \
   | awk '/HTTP\//{c=$2} END{print c}')"
 case "$code" in
   401|403|404) echo "    $code OK" ;;
-  500)         echo "!!  500 — the UUID guard is not in this build"; exit 1 ;;
+  500)         fail "500 — the UUID guard is not in this build" ;;
   *)           echo "    $code (unexpected but not a 500)" ;;
 esac
+
+echo
+if [ "$FAILURES" = 0 ]; then
+  echo "==> All checks passed."
+else
+  echo "==> $FAILURES check(s) FAILED — scroll up; every one is listed with !!"
+  echo
+  echo "    If they are proxy 404s, the live Caddyfile is older than this"
+  echo "    checkout. update.sh does not write it. Fix with:"
+  echo
+  echo "        bash $APP_DIR/deploy/landing-takeover.sh"
+  echo
+  echo "    Before believing a panel-marker failure, confirm it independently:"
+  echo "        curl -s $PUBLIC/admin | grep -c <marker>"
+  echo "    A check in this file has twice reported the opposite of the truth."
+fi
 
 echo
 docker ps --filter name=umay --format "    {{.Names}}  {{.Status}}"
 echo
 echo "Shipped $AFTER."
+# Last line, and non-zero only here: everything above has already run and
+# reported, so the caller gets the whole picture and still gets a usable exit
+# status. `set -e` is why this is the final statement.
+[ "$FAILURES" = 0 ]
