@@ -254,9 +254,22 @@ echo "==> A malformed id must be refused, not 500"
 # Any string in a path used to raise 22P02 out of the ownership check. 401 is
 # the right answer here (no credentials); the failure being guarded against is
 # a 500.
-code="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" \
-  wget -qS -O /dev/null "http://$BACKEND:8080/children/not-a-uuid/location" 2>&1 \
-  | awk '/HTTP\//{c=$2} END{print c}')"
+# In two steps, and each half needs its guard.
+#
+# This check is EXPECTED to get a 401, and `wget` exits non-zero on any 4xx. Fed
+# straight into a pipeline under `set -o pipefail`, that non-zero became the
+# pipeline's status, the command substitution failed, and `set -e` killed the
+# script right here — so update.sh has never once printed its closing summary or
+# "Shipped", and has always exited 1 even when every check above it passed. Two
+# deploys were read as failures because of it on 2026-08-12 alone, on a day when
+# a different check was also lying.
+#
+# `|| true` on the fetch, because a 401 is the answer we want. awk separately,
+# because it reads its input to EOF and so cannot raise SIGPIPE in the writer
+# the way `grep -q` does.
+raw="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" \
+  wget -qS -O /dev/null "http://$BACKEND:8080/children/not-a-uuid/location" 2>&1 || true)"
+code="$(printf '%s' "$raw" | awk '/HTTP\//{c=$2} END{print c}')"
 case "$code" in
   401|403|404) echo "    $code OK" ;;
   500)         fail "500 — the UUID guard is not in this build" ;;
