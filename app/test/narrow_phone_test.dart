@@ -280,6 +280,30 @@ void main() {
     );
   });
 
+  testWidgets('the home dashboard fits with no band readings at all',
+      (tester) async {
+    // The state most users are in permanently — no bracelet — which now shows
+    // the whole screen (hero + quick actions + shelf + manual diary) rather
+    // than a checklist. Nothing here was ever rendered at 360dp before.
+    await fits(
+      tester,
+      () => HealthDashboardView(
+        samples: const [],
+        greetingName: 'Айгерім-Гүлнұр',
+        gestation: GestationInfo(154, 22, 0, 126),
+        kicksToday: 12,
+        latestWeightKg: 68.4,
+        onLogKick: () {},
+        onLogDay: () {},
+        onLogWeight: () {},
+        onLogVitals: () {},
+        onLogSleep: () {},
+        onScanMonitor: () {},
+      ),
+      'the home dashboard with no readings',
+    );
+  });
+
   testWidgets('the child map fits', (tester) async {
     // The densest screen in the app: floating pills, a battery chip and two
     // action buttons over a map, and the one whose action row already
@@ -301,6 +325,42 @@ void main() {
         onSos: () {},
       ),
       'the child map',
+    );
+  });
+
+  testWidgets('the child map fits with its whole app bar', (tester) async {
+    // Every action at once — the bell, the child card, the safety shield and
+    // the add menu — which is what the real shell passes and what none of the
+    // fixtures above did. The card icon is the newest of the four, and a
+    // fourth icon beside a long «Где …?» title is exactly where an app bar
+    // runs out of room.
+    await fits(
+      tester,
+      () => ChildMapScreen(
+        childName: 'Айгерім-Гүлнұр',
+        childLocation: school.center,
+        updatedAt: now.subtract(const Duration(minutes: 1)),
+        fences: [home, school],
+        now: now,
+        mapBuilder: (_, __, ___) => const DsMapPlaceholder(caption: 'map', height: 300),
+        childOptions: const [(id: 'c1', name: 'Айгерім-Гүлнұр')],
+        selectedChildId: 'c1',
+        onSelectChild: (_) {},
+        onAddChild: () {},
+        onAddDevice: () {},
+        onManageZones: () {},
+        onOpenAlerts: () {},
+        alertCount: 3,
+        onOpenChildCard: () {},
+        batteryPct: 68,
+        zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
+        lastCheckInAt: now.subtract(const Duration(hours: 2)),
+        onCheckIn: () {},
+        onSos: () {},
+        onDayHistory: () {},
+      ),
+      'the child map with every action',
+      width: kTinyWidth,
     );
   });
 

@@ -9,10 +9,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/domain/sleep.dart';
+import 'package:fcs_app/domain/timeline_content.dart';
 import 'package:fcs_app/domain/wearable_metrics.dart';
 import 'package:fcs_app/l10n/l10n.dart';
+import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/theme.dart';
 
@@ -48,6 +51,44 @@ void main() {
     await expectLater(
       find.byType(HealthDashboardView),
       matchesGoldenFile('goldens/home_dashboard.png'),
+    );
+  });
+
+  /// The same screen for the woman this product is for: pregnant, no bracelet.
+  ///
+  /// It used to be a setup checklist and «сфотографируйте тонометр», with the
+  /// week, the quick actions and the shelf all dropped because there were no
+  /// vital samples. A picture is the only thing that shows that this reads as a
+  /// whole screen now rather than as a hero glued onto an empty state.
+  testWidgets('golden: the home screen with no band', (tester) async {
+    tester.view.physicalSize = const Size(402 * 3, 1500 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: FcsTheme.light(AppLocale.ru),
+      builder: (context, child) =>
+          L10nScope(l10n: const L10n(AppLocale.ru), child: child!),
+      home: HealthDashboardView(
+        samples: const [],
+        greetingName: 'Айгерім',
+        gestation: GestationInfo(154, 22, 0, 126),
+        timelineStage: TimelineStage.pregnancyWeek(22),
+        kicksToday: 12,
+        latestWeightKg: 68.4,
+        onLogKick: () {},
+        onLogDay: () {},
+        onLogWeight: () {},
+        onLogVitals: () {},
+        onLogSleep: () {},
+        onScanMonitor: () {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(HealthDashboardView),
+      matchesGoldenFile('goldens/home_dashboard_no_band.png'),
     );
   });
 }
