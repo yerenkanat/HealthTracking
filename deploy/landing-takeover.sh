@@ -360,7 +360,26 @@ esac
 printf '    /shop    : HTTP '; curl -s -o /dev/null -w '%{http_code}' https://ana-bala.kz/shop
 printf ' , /shop/ HTTP '; curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/shop/   # both 302
 # The one that regressed once: a forged user header must NOT reach the backend.
-printf '    app signin: HTTP '; curl -s -o /dev/null -w '%{http_code}' -X POST https://ana-bala.kz/auth/phone -H 'content-type: application/json' -d '{"phone":"77000000000"}'
+# Sign-in, reported as routed / not routed rather than as a status code.
+#
+# This probed `POST /auth/phone`, which stopped existing when sign-in became two
+# steps, so it printed a truthful 404 that read as "sign-in is broken" on a
+# server where sign-in worked perfectly. A check whose healthy output looks like
+# a failure gets ignored, which is worse than not having the check.
+#
+# A status code cannot answer the question anyway: Caddy 404s an unlisted path
+# and Fastify 404s a GET to a POST-only route, and those are the same number.
+# Who answered is the thing that matters — Caddy's body is plain text, ours is
+# JSON. Same test as `reaches` in update.sh.
+#
+# GET on purpose. A POST to /auth/phone/start signs that number in and leaves a
+# real account behind; a deploy check must not write to production.
+printf '    app signin: '
+SIGNIN="$(curl -s --max-time 15 https://ana-bala.kz/auth/phone/start || true)"
+case "$SIGNIN" in
+  *'{'*) echo 'routed to the backend' ;;
+  *)     echo "NOT ROUTED — Caddy answered. Sign-in is dead: $(printf '%s' "$SIGNIN" | head -c 60)" ;;
+esac
 printf ' , app data unauth: HTTP '; curl -s -o /dev/null -w '%{http_code}
 ' https://ana-bala.kz/children   # 401
 printf '    forged id: HTTP '; curl -s -o /dev/null -w '%{http_code}\n' \
