@@ -186,7 +186,7 @@ $ADMIN_BLOCK
     # ---- The app ------------------------------------------------------------
     #
     # Opened 2026-08-05, and only because the thing that made it unsafe is
-    # fixed. Until today `curl -H 'x-user-id: <any uuid>' /children` answered
+    # fixed. Until today \`curl -H 'x-user-id: <any uuid>' /children\` answered
     # 200: the dev shortcuts were gated on REAL_AUTH, which is about Firebase,
     # and this deployment has no Firebase — so they were never off. They are now
     # gated on the presence of a database, and the same request returns 401.
@@ -195,7 +195,7 @@ $ADMIN_BLOCK
     # rate-limited per number in the handler and per source below.
     #
     # The GLOB matters. Sign-in became two steps — /auth/phone/start sends a
-    # code, /auth/phone/verify redeems it — and `handle /auth/phone` matches
+    # code, /auth/phone/verify redeems it — and \`handle /auth/phone\` matches
     # that one exact path and nothing beneath it. Left as it was, both new
     # endpoints would have fallen through to the catch-all 404 and nobody could
     # have signed in at all, while every test on the box passed.
@@ -263,7 +263,7 @@ $ADMIN_BLOCK
         #            A mistake self-heals within a day.
         #   31536000 after about a week at 86400 with nothing going wrong.
         #
-        # Do not add `preload` at any point without meaning it: that one is a
+        # Do not add \`preload\` at any point without meaning it: that one is a
         # hardcoded browser list and getting off it takes months.
         Strict-Transport-Security "max-age=86400"
         X-Content-Type-Options "nosniff"

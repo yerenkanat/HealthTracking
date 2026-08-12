@@ -15,11 +15,21 @@ a terminal as a defect in this file, not a normal outcome.
 
 ```
 git push origin main
-ssh root@188.137.231.252 'cd /opt/umay && git pull && bash deploy/update.sh'
+ssh -o BatchMode=yes -i ~/.ssh/anabala_deploy root@188.137.231.252 \
+  'cd /opt/umay && git pull && bash deploy/update.sh'
 ```
 
 `update.sh` pulls, applies migrations, recreates the **Docker container**
 `umay-backend`, then verifies against the running service. Idempotent.
+
+**The key is installed and BatchMode works** — confirmed 2026-08-12 by running
+it. There is no password prompt and no reason to involve the owner. Run it
+yourself. If a deploy in some future session needs them to type anything, that
+is a regression, not a normal outcome; see enable-hands-free.sh below.
+
+The Caddyfile is a SEPARATE artifact that `update.sh` does not write. When the
+proxy checks 404, the fix is `bash /opt/umay/deploy/landing-takeover.sh` — see
+"the live Caddyfile drifts" below.
 
 # Established 2026-08-12 by running it end to end — supersedes earlier notes
 
@@ -77,36 +87,57 @@ Both copies are now fixed to use `case "$body" in *"$marker"*)` and guarded by
 `packages/backend/src/__tests__/deployScripts.test.ts`. **Never pipe a response
 body into `grep -q` in a deploy script.**
 
-# The SSH blocker — one fix, do NOT re-investigate
+# The live Caddyfile drifts, and update.sh cannot see it
 
-`~/.ssh/anabala_deploy` exists locally
-(`SHA256:8269qihK1PYv7fbg+Zh0GPuK2WAQiaOf8J3GBkkhLYM`); its public half is not in
-the server's `authorized_keys`, so key auth is refused. An agent shell has stdin
-on the null device and can never answer a password prompt. Every non-interactive
-route is closed and has been tried: `sshpass` (absent, blocked), password via
-env on a command line (blocked, correctly — visible in `ps`), `paramiko` /
-`plink` / node `ssh2` (absent, or cannot pass the password anyway).
+Two separate things ship here and only one of them ships with `update.sh`:
 
-Nothing can install a key on a box it cannot log into, so **one** authenticated
-login is unavoidable. `deploy/enable-hands-free.sh` makes that one login
-permanent — one line, one password prompt, once:
+| artifact | written by | what a stale copy looks like |
+|---|---|---|
+| backend + panel + landing | `update.sh` | old markup, checked by markers |
+| the proxy allowlist | `landing-takeover.sh` | plain-text 404 on a working route |
+
+On 2026-08-12 the live Caddyfile was old enough that `/auth/phone/start`,
+`/api/v1/pregnancy/weeks`, `/privacy` and `/terms` all 404ed at the edge.
+**Sign-in was unroutable in production** and no deploy had ever said so. Caddy's
+404 for an unlisted path is plain text; ours is JSON — that is how to tell which
+one answered, and `reaches()` in update.sh does exactly that.
+
+So: **after any release that adds a route, run `landing-takeover.sh` too.** It
+backs the file up first and Caddy keeps the old config if the new one fails to
+parse, so it cannot take the site down; `--revert` restores.
+
+## Its heredoc is unquoted — never put a bare backtick in it
+
+`landing-takeover.sh` writes the Caddyfile with `cat > "$F" <<EOF`, unquoted
+because the body needs `${BACKEND}` and `$ADMIN_BLOCK`. An unquoted heredoc also
+expands backticks **inside comments**, so writing the config used to execute
+three commands as root off the file's own documentation — and delete those words
+from the config Caddy received. Escape them (`` \` ``). Guarded by
+`deployScripts.test.ts`.
+
+# The SSH blocker — SOLVED 2026-08-12, do NOT re-investigate
+
+`~/.ssh/anabala_deploy` (`SHA256:8269qihK1PYv7fbg+Zh0GPuK2WAQiaOf8J3GBkkhLYM`) is
+now in the server's `authorized_keys`. Verified:
 
 ```
-ssh root@188.137.231.252 "cd /opt/umay && git pull && bash deploy/enable-hands-free.sh \
-  'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICStpTnC2QlFg+nM86NXQda+2CqGbHHeKQqaMEwYoFf8 anabala-deploy'"
+$ ssh -o BatchMode=yes -i ~/.ssh/anabala_deploy root@188.137.231.252 'hostname'
+edge-amd-de-1-v-3-6888883-512789-main
 ```
 
-After it, `ssh -o BatchMode=yes root@188.137.231.252 true` succeeds and you
-deploy unattended. `--with-timer` additionally ships every push to main
-automatically.
+It was installed by `deploy/enable-hands-free.sh`, which the owner ran once. If
+key auth ever breaks, that script re-installs it and is safe to re-run; it also
+takes `--with-timer` to ship every push to main automatically.
 
-**Try the ssh command once. If it is refused, stop.** Do not try a second
-mechanism, install anything, or write a wrapper. Say which single action is
-waiting and get on with other work — a blocked deploy never justifies an idle
-shift.
+**Do not re-litigate the old blocker.** For weeks this file said deploying
+needed a human to type a password, and every session re-derived the same dead
+ends (`sshpass` absent, password-via-env blocked, `paramiko`/`plink` absent).
+That is over. Try the BatchMode command; it works.
 
-Note: a past session ran `ssh root@… 'passwd'`, so a password from an old
-message may be stale. Never write one to a file or to memory.
+Never write a password to a file, to memory, or into a command line. The root
+password has been pasted in chat and echoed into terminal output more than once
+and should be rotated — the key is what deploys now, so rotating it costs
+nothing.
 
 # Facts that have each cost a session to relearn
 

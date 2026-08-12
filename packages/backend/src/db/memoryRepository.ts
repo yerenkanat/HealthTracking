@@ -1579,7 +1579,7 @@ const UUID_RE =
       const now = new Date();
       const matched = audienceRows().filter((r) => matchesSegment(r, b.segment, now));
       // «Не чаще раза в неделю», ACROSS broadcasts — see admin/broadcasts.ts.
-      const recipients = matched.filter((r) => true || !inWeeklyGap(r.userId, now));
+      const recipients = matched.filter((r) => !inWeeklyGap(r.userId, now));
       const at = now.toISOString();
       for (const r of recipients) {
         // Idempotent per person, exactly like the composite primary key.

@@ -87,6 +87,53 @@ describe('deploy scripts', () => {
     expect(update!.body).toMatch(/case "\$body" in\s*\n\s*\*"\$2"\*\)/);
   });
 
+  it('an unquoted heredoc contains no unescaped backticks or $( )', () => {
+    // The second way a deploy script has lied about what it wrote.
+    //
+    // landing-takeover.sh builds the live Caddyfile with `cat > "$F" <<EOF`.
+    // Unquoted, because the body genuinely needs ${BACKEND} and $ADMIN_BLOCK.
+    // But an unquoted heredoc also expands backticks — including ones inside
+    // *comments* — so on 2026-08-12 writing the config ran three commands off
+    // the box's own documentation:
+    //
+    //     `curl -H 'x-user-id: <any uuid>' /children`  -> curl: (3) missing URL
+    //     `handle /auth/phone`                         -> handle: command not found
+    //     `preload`                                    -> preload: command not found
+    //
+    // Harmless words, this time. The mechanism is not harmless: it is arbitrary
+    // command execution from a comment, running as root, in the script that
+    // rewrites the proxy config for the whole domain. It also silently deleted
+    // those words from the config Caddy actually got, so the file's own
+    // explanation of why /auth/phone needs a glob was gone from the box.
+    //
+    // Escaping (\`) keeps the text and stops the expansion. Quoting the whole
+    // heredoc would too, but then ${BACKEND} would not interpolate.
+    const offenders: string[] = [];
+    for (const { name, body } of scripts) {
+      const lines = body.split('\n');
+      let end: string | null = null;
+      lines.forEach((line, i) => {
+        if (end === null) {
+          // Only UNQUOTED heredocs expand. <<'EOF' and <<"EOF" are literal.
+          const open = line.match(/<<-?\s*([A-Za-z_][A-Za-z0-9_]*)\s*$/);
+          if (open) end = open[1];
+          return;
+        }
+        if (line.trim() === end) { end = null; return; }
+        const bare = line.replace(/\\[`$]/g, '');
+        if (bare.includes('`') || /\$\(/.test(bare)) {
+          offenders.push(`${name}:${i + 1}: ${line.trim().slice(0, 90)}`);
+        }
+      });
+    }
+    expect(
+      offenders,
+      'An unquoted heredoc expands backticks and $( ) anywhere in its body, ' +
+        'comments included, and the expansion runs as root. Escape them (\\`) ' +
+        'or quote the heredoc if nothing in it needs interpolating.\n',
+    ).toEqual([]);
+  });
+
   it('every panel marker update.sh checks for is actually in the panel', () => {
     // The other half of the same failure. A marker that is checked but never
     // appears in index.html fails every deploy for ever; a marker that drifts
