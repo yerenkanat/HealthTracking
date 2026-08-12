@@ -57,6 +57,14 @@ export interface BandTelemetry {
   /** True when the sample was captured while the wearer was detected asleep. */
   duringSleep?: boolean;
   battery?: number;
+  /**
+   * The band's own firmware version, e.g. "v1.2.3", when it reported one.
+   *
+   * Absent means the device has not told us — which the back office prints as
+   * «не сообщалась», never as a dash. The server stamps it on the device row
+   * so support can answer «какая прошивка на её часах» without a home visit.
+   */
+  firmware?: string;
 }
 
 export interface BpCalibration {

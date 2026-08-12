@@ -42,6 +42,11 @@ export interface IngestDeps {
   /// Optional so existing internal callers keep working; when it is absent no
   /// ownership filtering happens, so the HTTP route always passes it.
   callerUserId?: string;
+
+  /// When this batch reached us. Injected so a test can assert the exact
+  /// timestamp stamped on the device rather than racing a clock; defaults to
+  /// now, which is what production wants.
+  now?: () => Date;
 }
 
 export interface IngestSummary {
@@ -90,6 +95,42 @@ export async function handleIngestBatch(
   return summary;
 }
 
+/**
+ * «Это устройство только что говорило с нами.»
+ *
+ * The one thing that makes frame 11 mean anything: `devices.last_seen` and
+ * `devices.battery_pct` were SELECTed by the fleet view and written by
+ * NOTHING — there was no `UPDATE devices SET last_seen` anywhere in the
+ * repository — so «последний сигнал» was empty for every device that has ever
+ * existed and the battery column never moved.
+ *
+ * Stamped with the moment the batch REACHED us rather than the reading's own
+ * recordedAt: a phone draining a three-day offline queue is talking to us now,
+ * and the panel states that rule under the table.
+ *
+ * Its failure is swallowed on purpose, like the location cache above. This is
+ * metadata about a device; the reading is already stored, and letting a failed
+ * UPDATE bubble to the batch-level catch would mark the item `rejected` and
+ * make the client resend a reading we already have, for ever.
+ */
+async function markAlive(
+  deviceId: string,
+  deps: IngestDeps,
+  seen: { batteryPct?: number | null; firmware?: string | null },
+): Promise<void> {
+  try {
+    await deps.repo.touchDevice(deviceId, {
+      at: (deps.now?.() ?? new Date()).toISOString(),
+      // Absent, not zero. A payload with no battery must leave the last known
+      // one alone — 0 % would read as a flat watch.
+      batteryPct: seen.batteryPct ?? null,
+      firmware: seen.firmware ?? null,
+    });
+  } catch {
+    // Nothing to do: freshness is not the data.
+  }
+}
+
 async function ingestTelemetry(
   t: BandTelemetry,
   deps: IngestDeps,
@@ -124,6 +165,11 @@ async function ingestTelemetry(
       return;
     }
     userId = owner.userId;
+    // Before the duplicate check on purpose: a resent batch is still proof
+    // that this device and this phone are talking to us right now, which is
+    // the only question «на связи» asks. A manual reading marks nothing —
+    // there is no device behind it to be alive.
+    await markAlive(t.deviceId, deps, { batteryPct: t.battery, firmware: t.firmware });
   }
   // Server-side triage backstop (the device already triaged, but never trust the client).
   const triage = assessTelemetry(t);
@@ -173,6 +219,8 @@ export interface WearableSnapshot {
   batteryPercent?: number;
   charging: boolean;
   worn: boolean;
+  /** The watch's firmware, when it reported one. Stamped on the device row. */
+  firmware?: string;
 }
 
 async function ingestWearable(
@@ -194,6 +242,9 @@ async function ingestWearable(
     return;
   }
   await deps.repo.upsertWearableDay({ ...w, userId: owner.userId });
+  // The snapshot is where the watch's own battery actually comes from today:
+  // the app sends `batteryPercent` here and nothing on the telemetry item.
+  await markAlive(w.deviceId, deps, { batteryPct: w.batteryPercent, firmware: w.firmware });
   summary.wearableCount++;
 }
 

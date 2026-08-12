@@ -79,6 +79,15 @@ CREATE TABLE devices (                     -- Smart bands + child tracker tags
   -- it. NULL means never reported, which is distinct from "reported nothing".
   battery_pct    INT CHECK (battery_pct BETWEEN 0 AND 100),
   last_seen      TIMESTAMPTZ,
+  -- «Пометить браком» (frame 11). A support note on THIS mother's paired
+  -- device, not a warehouse decision: device_registry.status = 'blocked' stops
+  -- a serial pairing with any account and lives on the Склад screen. Marking a
+  -- device faulty here changes nothing about how it works — it records that
+  -- somebody found it faulty, with who and when, and it is reversible because
+  -- the commonest reason to mark something is a mistake.
+  defect_at      TIMESTAMPTZ,
+  defect_by      TEXT,
+  defect_note    TEXT,
   UNIQUE (user_id, ble_mac)
 );
 CREATE INDEX idx_devices_last_seen ON devices (last_seen DESC NULLS LAST);

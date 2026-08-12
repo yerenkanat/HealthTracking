@@ -194,6 +194,10 @@ check "/admin" 'orderChips'              "Заказы filter by status with liv
 check "/admin" 'ordersFoot'              "the order list says how many of how many"
 check "/admin" 'orderCard'               "clicking an order opens its card"
 check "/admin" 'ocDevices'               "the card shows the serials bound to the order"
+check "/admin" 'devMetrics'              "Устройства counts who is on air, with the threshold"
+check "/admin" 'Пометить браком'         "a faulty watch can be flagged from the fleet view"
+check "/admin" 'devFoot'                 "the fleet table states what «последний сигнал» means"
+check "/admin" 'Что передают часы'       "the mother card shows what her watch actually sent"
 
 echo
 echo "==> Routes the PROXY must pass through"

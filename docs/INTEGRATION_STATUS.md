@@ -338,22 +338,52 @@ chunked at 244 bytes.
   BleDeviceManager's lifecycle (single connect, capped-backoff reconnect, held
   subscriptions, link-state stream).
 
-**Wiring.** `main.dart` starts the watch when `--dart-define=STARMAX_WATCH=true`
-(opt-in so a user without one never pays a scan; `--dart-define=STARMAX_ID=<id>`
-reconnects a known device instead of scanning). Telemetry flows to
+**Wiring.** `main.dart` starts the watch when the account has a paired band —
+`AppController.hasPairedBand`, a runtime fact read from the persisted device
+list — and does nothing at all, including no BLE scan, when it does not. The
+band id she paired is handed to the manager as `knownRemoteId` when it is a BLE
+remote id (the onboarding scan reports one), so a reconnect skips the scan
+entirely; a serial claimed from the printed code is not something the radio can
+dial, so the manager scans for the watch instead. Telemetry flows to
 `controller.onTelemetry` + `monitor.handle` — the existing dashboard/triage/
 batching path, unchanged.
+
+> This was `--dart-define=STARMAX_WATCH=true`, and no build script in the
+> repository ever passed it: the entire BLE stack was dead code in every APK
+> ever installed, and a watch on the wrist was never spoken to. The define is
+> deleted rather than defaulted to true — a default-on scan charges the majority
+> who own no watch for a radio they never use, which is the cost the define was
+> invented to avoid. `tool/verify_wiring.dart` fails if either half regresses.
+
+**Readings name the band she paired.** `HealthMonitor.resolveDeviceId` returns
+`AppController.pairedBandId` at send time. It used to be a compile-time
+`BAND_ID` defaulting to the string `band-unpaired`; `/ingest` resolves the owner
+of the named device and, finding none, counts the reading `rejected` and answers
+200 — so every band reading the product has ever sent was discarded on arrival,
+silently. The flush now reads that reply (`reportIngest`) and a refused batch
+reaches the error log instead of looking like a delivered one.
 
 **The health decision was made:** the watch is the mother's health wearable, so
 it feeds `HealthMonitor`. Its SOS/contacts commands exist in the protocol for a
 future child-safety use but are not wired.
 
-**Every parameter is surfaced, not only the four vitals.** HR/SpO₂/BP/temp go
-through triage (`BandTelemetry`); everything else the snapshot carries — steps,
-distance, calories, total/deep/light sleep, stress, breathing rate, blood sugar,
-worn-state — flows as `WearableMetrics` on the manager's `onSnapshot` stream to
-`AppController.latestWearable`, and the dashboard's "Activity & wellness" panel
-renders each metric that has a value.
+**Every parameter is surfaced, not only the four vitals.** HR/SpO₂/BP/temp/blood
+sugar go through triage (`BandTelemetry`, and glucose rides along to reach
+`pregnancy_health_metrics.glucose_mmol` — it is never triaged); everything else
+the snapshot carries — steps, distance, calories, total/deep/light sleep, stress,
+breathing rate, MET, worn-state, plus the watch's own battery read separately
+from frame 134 — flows as `WearableMetrics` on the manager's `onSnapshot` stream
+to `AppController.latestWearable`, and the dashboard's "Activity & wellness"
+panel renders each metric that has a value.
+
+**And it leaves the handset.** `AppController._syncWearable` queues each changed
+snapshot on the offline-first batcher as an `/ingest/batch` item of type
+`wearable`; the server stores it in `wearable_days`, upserted on
+(user, device, wearer's local day). Before this the whole activity/wellbeing
+half of the watch lived in one in-memory field: rendered on one panel, absent
+from the clinician's view, and gone when the process died. A value the watch did
+not measure is left OUT of the payload and stays NULL in the column — a 0 read
+back would be a reading.
 
 **Link state is wired.** `AppController.onBandLinkState` consumes the manager's
 `onStatus`, and the dashboard shows a "not measuring" chip when a wired device
@@ -363,5 +393,19 @@ mistaken for a quiet one.
 **Left for when a device is in hand.**
 - Verify scan/connect/handshake against real hardware — the transport is the one
   layer no fake could exercise. The scan filter (service UUID / name / adv
-  marker) in particular may need tuning to the exact model's advertising.
-- Pairing UX (choosing the watch during onboarding) and persisting `STARMAX_ID`.
+  marker) in particular may need tuning to the exact model's advertising; the
+  rule itself is pure and unit-tested in `lib/ble/watch_identity.dart`.
+- Onboarding's pairing step now has a real scanner behind it
+  (`lib/ble/band_scan.dart`, passed as `scanBands` from `app.dart`), and the id
+  she chooses is persisted as her paired band. Until this it rendered its skip
+  line over an empty area: the step asked her to choose from a list that could
+  not exist, because nothing ever passed a scanner.
+- Still not wired: the on-demand measurements (`startMeasure` — HRV, on-demand
+  SpO₂/temperature/respiration), the live-reading stream (`liveReadings`,
+  frame 194), `readVersion` (firmware/model), `setUserInfo` (the watch computes
+  calories and distance from height/weight it is never told), and the per-day
+  history commands (frames 98/99/101/104/116 — a request builder exists, no
+  reply parser does). None of these can be finished honestly without hardware to
+  read the reply layout off.
+- The operator's back office does not yet render `wearable_days`. The data is
+  stored and `listWearableDays` is ready for it.

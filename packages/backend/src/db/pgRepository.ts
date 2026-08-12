@@ -928,6 +928,45 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(`DELETE FROM devices WHERE ble_mac = $1`, [deviceId]);
     },
 
+    /**
+     * The only place `last_seen` is ever written.
+     *
+     * Keyed on ble_mac like every other device lookup on the ingest path — the
+     * id the payload carries is the physical one printed on the hardware.
+     *
+     * COALESCE on battery and firmware, so a telemetry item that carries
+     * neither cannot blank what a wearable snapshot reported a minute ago.
+     * Timestamps are compared with GREATEST for the same reason: batches
+     * arrive out of order after an offline spell, and a stale one must not
+     * drag «последний сигнал» backwards.
+     */
+    async touchDevice(deviceId, seen) {
+      await pool.query(
+        `UPDATE devices
+            SET last_seen   = GREATEST($2::timestamptz, COALESCE(last_seen, $2::timestamptz)),
+                battery_pct = COALESCE($3::int, battery_pct),
+                firmware    = COALESCE($4::text, firmware)
+          WHERE ble_mac = $1`,
+        [deviceId, seen.at, seen.batteryPct ?? null, seen.firmware ?? null],
+      );
+    },
+
+    /**
+     * Frame 11's «Пометить браком» / «Снять пометку».
+     *
+     * Addressed by our own row id, not by the MAC: UNIQUE is (user_id,
+     * ble_mac), so one MAC can exist under two accounts and a write keyed on
+     * it would mark somebody else's device too.
+     */
+    async markDeviceDefect(deviceId, mark) {
+      if (!looksLikeUuid(deviceId)) return false;
+      const { rowCount } = await pool.query(
+        `UPDATE devices SET defect_at = $2, defect_by = $3, defect_note = $4 WHERE id = $1`,
+        [deviceId, mark?.at ?? null, mark?.by ?? null, mark?.note ?? null],
+      );
+      return (rowCount ?? 0) > 0;
+    },
+
     async listAppointments(userId) {
       const { rows } = await pool.query(
         `SELECT id, title, at, note FROM appointments WHERE user_id = $1 ORDER BY at`, [userId]);
@@ -1330,7 +1369,12 @@ export function createPgRepository(pool: Pool): Repository {
 
     async adminDevices(limit) {
       const { rows } = await pool.query(
-        `SELECT d.ble_mac, d.name, d.kind, d.user_id, d.battery_pct, d.last_seen,
+        // firmware was declared in the schema and SELECTed by nothing, so frame
+        // 11 could not show the column the spec asks for by name. The defect
+        // marks come back with it so the fleet row can say «брак» without a
+        // second request per row.
+        `SELECT d.id, d.ble_mac, d.name, d.kind, d.user_id, d.battery_pct, d.last_seen,
+                d.firmware, d.defect_at, d.defect_by, d.defect_note,
                 u.display_name, c.name AS child_name
            FROM devices d
            JOIN users u ON u.id = d.user_id
@@ -1342,9 +1386,17 @@ export function createPgRepository(pool: Pool): Repository {
         // on the back of the tracker" — a UUID we invented answers nothing,
         // and it is what the row falls back to when a device has no name.
         id: r.ble_mac, name: r.name, kind: r.kind, userId: r.user_id,
+        // Carried alongside, because a WRITE cannot be addressed by the MAC:
+        // UNIQUE is (user_id, ble_mac), so the same unit resold to a second
+        // family is two rows with one MAC.
+        deviceId: r.id,
         displayName: r.display_name ?? '', childName: r.child_name ?? null,
         batteryPct: r.battery_pct === null ? null : Number(r.battery_pct),
         lastSeen: r.last_seen ? new Date(r.last_seen).toISOString() : null,
+        firmware: r.firmware ?? null,
+        defectAt: r.defect_at ? new Date(r.defect_at).toISOString() : null,
+        defectBy: r.defect_by ?? null,
+        defectNote: r.defect_note ?? null,
       }));
     },
 
@@ -2086,13 +2138,29 @@ export function createPgRepository(pool: Pool): Repository {
     },
 
     // ---- Watch activity / wellbeing days ----
+    /**
+     * The id the watch reports is its MAC; `wearable_days.device_id` is a UUID
+     * FK to devices(id).
+     *
+     * This bound the MAC straight into $2 and would have raised 22P02 —
+     * «invalid input syntax for type uuid» — on the first real snapshot from a
+     * real Postgres. handleIngestBatch catches per item, so the failure would
+     * have surfaced as `rejected`, the batcher would have resent the same
+     * batch for ever, and nothing would ever have been stored. Every test
+     * passed, because the in-memory repository has no types.
+     *
+     * The SELECT resolves the row the ingest path has already proven the
+     * caller owns; no matching device inserts nothing rather than inventing a
+     * parent row.
+     */
     async upsertWearableDay(row) {
       await pool.query(
         `INSERT INTO wearable_days (
            user_id, device_id, day, recorded_at, steps, kcal, meters,
            sleep_min, deep_sleep_min, light_sleep_min,
            stress, breath_rate, met, battery_pct, charging, worn)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         SELECT $1, d.id, $3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+           FROM devices d WHERE d.user_id = $1 AND d.ble_mac = $2
          ON CONFLICT (user_id, device_id, day) DO UPDATE
            SET recorded_at = EXCLUDED.recorded_at,
                steps = EXCLUDED.steps, kcal = EXCLUDED.kcal, meters = EXCLUDED.meters,
@@ -2112,11 +2180,17 @@ export function createPgRepository(pool: Pool): Repository {
          row.batteryPercent ?? null, row.charging, row.worn]);
     },
     async listWearableDays(userId, limit) {
+      // The MAC comes back, not our UUID: WearableDayRow.deviceId is the
+      // physical identifier everywhere else it appears — in the ingest
+      // payload, in the app, and on the back of the watch a support call is
+      // asking about.
       const { rows } = await pool.query(
-        `SELECT device_id, day, recorded_at, steps, kcal, meters,
-                sleep_min, deep_sleep_min, light_sleep_min,
-                stress, breath_rate, met, battery_pct, charging, worn
-           FROM wearable_days WHERE user_id = $1 ORDER BY day DESC LIMIT $2`,
+        `SELECT d.ble_mac AS device_id, w.day, w.recorded_at, w.steps, w.kcal, w.meters,
+                w.sleep_min, w.deep_sleep_min, w.light_sleep_min,
+                w.stress, w.breath_rate, w.met, w.battery_pct, w.charging, w.worn
+           FROM wearable_days w
+           JOIN devices d ON d.id = w.device_id
+          WHERE w.user_id = $1 ORDER BY w.day DESC LIMIT $2`,
         [userId, limit]);
       return rows.map((r) => ({
         deviceId: r.device_id,

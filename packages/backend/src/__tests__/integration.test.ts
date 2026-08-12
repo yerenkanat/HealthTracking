@@ -62,6 +62,10 @@ function makeDeps(
   const doseRows: Array<{ medId: string; date: string; count: number; userId: string }> = [];
   const vaccineRows = new Map<string, Set<string>>(); // childId → keys
   const devices: Array<{ id: string; name: string; kind: string; childId: string | null }> = [];
+  /// What the ingest path has stamped on each device — the fleet view's
+  /// «последний сигнал», battery and firmware. Nothing wrote these before.
+  const liveness = new Map<string, { at: string; batteryPct: number | null; firmware: string | null }>();
+  const defects = new Map<string, { at: string; by: string; note: string | null }>();
   const geofences = new Map<string, import('@fcs/shared').Geofence[]>();
   const audit: Array<{ staffId: string; action: string; target: string | null; at: string }> = [];
   const sleepRows: SleepNight[] = [];
@@ -267,6 +271,23 @@ function makeDeps(
       const i = devices.findIndex((d) => d.id === id);
       if (i >= 0) devices.splice(i, 1);
     },
+    // Frame 11's liveness stamp. Recorded even for DEVICE, which this fake
+    // answers ownership for without holding a row — otherwise an assertion
+    // about "the fleet knows this device is alive" could not be written for
+    // the device every other test in this file uses.
+    touchDevice: async (deviceId, seen) => {
+      const was = liveness.get(deviceId);
+      liveness.set(deviceId, {
+        at: !was || seen.at > was.at ? seen.at : was.at,
+        batteryPct: seen.batteryPct ?? was?.batteryPct ?? null,
+        firmware: seen.firmware ?? was?.firmware ?? null,
+      });
+    },
+    markDeviceDefect: async (deviceId, mark) => {
+      if (deviceId !== DEVICE && !devices.some((d) => d.id === deviceId)) return false;
+      if (mark) defects.set(deviceId, mark); else defects.delete(deviceId);
+      return true;
+    },
     upsertGeofence: async (childId, g) => {
       const list = geofences.get(childId) ?? [];
       const i = list.findIndex((x) => x.id === g.id);
@@ -434,10 +455,23 @@ function makeDeps(
           }
         : null,
     adminDevices: async (limit) =>
-      devices.slice(0, limit).map((d) => ({
-        id: d.id, name: d.name, kind: d.kind, userId: USER, displayName: 'Aigerim',
-        childName: null, batteryPct: 62, lastSeen: '2026-07-15T08:00:00Z',
-      })),
+      devices.slice(0, limit).map((d) => {
+        const live = liveness.get(d.id);
+        const defect = defects.get(d.id);
+        return {
+          id: d.id, deviceId: `row-${d.id}`, name: d.name, kind: d.kind, userId: USER,
+          displayName: 'Aigerim', childName: null,
+          // Whatever the ingest path stamped, and nulls when it never has —
+          // «ни разу не выходило на связь» is a real answer this fake must be
+          // able to give.
+          batteryPct: live?.batteryPct ?? null,
+          lastSeen: live?.at ?? null,
+          firmware: live?.firmware ?? null,
+          defectAt: defect?.at ?? null,
+          defectBy: defect?.by ?? null,
+          defectNote: defect?.note ?? null,
+        };
+      }),
     adminSafetyEvents: async (limit) =>
       alertRows.slice(0, limit).map((a) => ({
         userId: USER, displayName: 'Aigerim', childName: 'Sultan',

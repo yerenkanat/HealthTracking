@@ -205,6 +205,13 @@ const telemetryBase = z.object({
     // impossible, not the alarming (a real hypo/hyper must get through).
     glucoseMmol: z.number().finite().min(1).max(40).optional(),
     duringSleep: z.boolean().optional(),
+    // The device's own state, which zod was silently DROPPING: BandTelemetry
+    // has declared `battery` all along, and an object schema strips what it
+    // does not name, so a band reporting its charge had that stripped at the
+    // edge before any handler saw it. Both feed devices.last_seen /
+    // battery_pct / firmware — frame 11's «на связи» and «прошивка».
+    battery: z.number().int().min(0).max(100).optional(),
+    firmware: z.string().trim().min(1).max(40).optional(),
 });
 const telemetrySchema = telemetryBase.refine(
   (t) => t.source === 'manual' || t.deviceId.length > 0,
@@ -263,6 +270,10 @@ const wearableSchema = z.object({
   batteryPercent: z.number().int().min(0).max(100).optional(),
   charging: z.boolean().default(false),
   worn: z.boolean().default(false),
+  // Optional and unvalidated beyond its length: a firmware string is whatever
+  // the OEM prints. Absent means the watch did not report one, and the panel
+  // says «не сообщалась» rather than showing a dash that reads as "none".
+  firmware: z.string().trim().min(1).max(40).optional(),
 });
 const batchSchema = z.object({
   items: z

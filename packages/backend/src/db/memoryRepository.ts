@@ -59,7 +59,22 @@ export function createMemoryRepository(): Repository {
   // Devices carry their OWNER, for the same reason children do: without it
   // every account in this process shares one fleet, and an authorisation
   // regression passes every dev check.
-  const devices: Array<{ id: string; name: string; kind: string; childId: string | null; userId: string }> = [];
+  //
+  // The liveness columns are on the row, exactly as in Postgres: `last_seen`,
+  // `battery_pct` and `firmware` are written by touchDevice on the ingest path
+  // and by nothing else. A fake that kept them somewhere else — or, as it did,
+  // answered `lastSeen: null` for every row — cannot fail on the defect this
+  // whole frame exists to fix.
+  //
+  // `rowId` mirrors devices.id: `id` here is the physical MAC (what the app and
+  // the ingest payload carry), and the defect write is addressed by the row,
+  // because one MAC can exist under two accounts.
+  const devices: Array<{
+    id: string; name: string; kind: string; childId: string | null; userId: string;
+    rowId: string;
+    lastSeen: string | null; batteryPct: number | null; firmware: string | null;
+    defectAt: string | null; defectBy: string | null; defectNote: string | null;
+  }> = [];
 
   // ---- Support (frame 12) ----
   // Seeded with one open ticket so the queue is not empty on a dev box: an
@@ -182,7 +197,11 @@ export function createMemoryRepository(): Repository {
   const emergencyAcks = new Map<string, { staffId: string; at: string }>();
   const audit: Array<{ staffId: string; action: string; target: string | null; reason: string | null; at: string }> = [];
   const sleep: SleepNight[] = [];
-  const wearableDays: WearableDayRow[] = [];
+  // Keyed by (user, device, day), exactly like the pg PRIMARY KEY. The userId
+  // was dropped on the way in and ignored on the way out, so every account in
+  // the process shared one watch history — a fake more permissive than
+  // production cannot fail on an authorisation regression.
+  const wearableDays: Array<WearableDayRow & { userId: string }> = [];
   const cryResults: CryRow[] = [];
   const weights: WeightRow[] = [];
   const kickSessions: KickSessionRow[] = [];
@@ -271,7 +290,6 @@ export function createMemoryRepository(): Repository {
       ],
     ],
   ]);
-  const batteryByDevice = new Map<string, number>();
   /// Set by deleteAccount. Postgres simply has no row after a delete; this fake
   /// has to remember, or its seeded fallbacks would resurrect erased data.
   let accountDeleted = false;
@@ -938,18 +956,50 @@ const UUID_RE =
     // memory mode each account saw every other account's trackers. A fake that
     // is more permissive than production cannot fail on an authorisation
     // regression — it agrees with whatever the code does.
+    // Only the four fields the interface promises: the liveness and defect
+    // columns are back-office data, and spreading the whole row would ship
+    // them to every phone that syncs.
     listDevices: async (userId) =>
-      devices.filter((d) => d.userId === userId).map(({ userId: _u, ...d }) => ({ ...d })),
+      devices.filter((d) => d.userId === userId)
+        .map((d) => ({ id: d.id, name: d.name, kind: d.kind, childId: d.childId })),
     createDevice: async (userId, d) => {
       // A device id is physical: the same tracker registered twice is one
       // tracker. pg does this with ON CONFLICT (user_id, ble_mac) DO NOTHING,
       // and without it here a re-sync doubled the fleet.
       if (devices.some((x) => x.userId === userId && x.id === d.id)) return;
-      devices.push({ ...d, childId: d.childId ?? null, userId });
+      devices.push({
+        ...d, childId: d.childId ?? null, userId,
+        // Postgres mints this; here it is derived, and it has to be unique
+        // across accounts because the defect write addresses it.
+        rowId: `dev-${userId}-${d.id}`,
+        // Never seen, nothing reported — which is NOT the same as "reported
+        // nothing", and the panel says so in words.
+        lastSeen: null, batteryPct: null, firmware: null,
+        defectAt: null, defectBy: null, defectNote: null,
+      });
     },
     deleteDevice: async (id) => {
       const i = devices.findIndex((d) => d.id === id);
       if (i >= 0) devices.splice(i, 1);
+    },
+    // The write that did not exist anywhere in this codebase. Keyed on the
+    // physical id, like the pg one, because that is what the payload carries.
+    touchDevice: async (deviceId, seen) => {
+      const d = devices.find((x) => x.id === deviceId);
+      if (!d) return;
+      // GREATEST, like the SQL: a late batch from an offline phone must not
+      // drag «последний сигнал» backwards.
+      if (!d.lastSeen || seen.at > d.lastSeen) d.lastSeen = seen.at;
+      if (seen.batteryPct != null) d.batteryPct = seen.batteryPct;
+      if (seen.firmware != null && seen.firmware !== '') d.firmware = seen.firmware;
+    },
+    markDeviceDefect: async (deviceId, mark) => {
+      const d = devices.find((x) => x.rowId === deviceId);
+      if (!d) return false;
+      d.defectAt = mark?.at ?? null;
+      d.defectBy = mark?.by ?? null;
+      d.defectNote = mark?.note ?? null;
+      return true;
     },
     upsertGeofence: async (childId, g) => {
       const list = geofences.get(childId) ?? [];
@@ -1035,12 +1085,18 @@ const UUID_RE =
     // pg repository's ON CONFLICT does, so a fake that "works" here cannot hide
     // a duplicate-row bug that only appears against a real database.
     upsertWearableDay: async (row) => {
-      const { userId: _userId, ...day } = row;
-      const i = wearableDays.findIndex((x) => x.deviceId === day.deviceId && x.day === day.day);
-      if (i >= 0) wearableDays[i] = day; else wearableDays.push(day);
+      const i = wearableDays.findIndex(
+        (x) => x.userId === row.userId && x.deviceId === row.deviceId && x.day === row.day);
+      if (i >= 0) wearableDays[i] = { ...row }; else wearableDays.push({ ...row });
     },
-    listWearableDays: async (_u, limit) =>
-      [...wearableDays].sort((a, b) => b.day.localeCompare(a.day)).slice(0, limit),
+    // Hers, not everybody's — and without the userId field, which is implied by
+    // the question and is not part of the row the interface promises.
+    listWearableDays: async (userId, limit) =>
+      wearableDays
+        .filter((d) => d.userId === userId)
+        .sort((a, b) => b.day.localeCompare(a.day))
+        .slice(0, limit)
+        .map(({ userId: _u, ...day }) => ({ ...day })),
     // Baby cry-analysis history
     recordCry: async (_u, c) => {
       const i = cryResults.findIndex((x) => x.at === c.at);
@@ -1198,7 +1254,12 @@ const UUID_RE =
     // Admin
     adminStats: async () => ({
       activeUsers: 1,
-      devicesOnline: devices.length,
+      // Devices that have actually reported inside the same 15-minute window
+      // the pg query uses — not `devices.length`, which counted a tracker
+      // nobody has switched on since it was paired as "online".
+      devicesOnline: devices.filter(
+        (d) => d.lastSeen != null && Date.now() - new Date(d.lastSeen).getTime() < 15 * 60_000,
+      ).length,
       alertsToday: alerts.length,
       ingestLastHour: healthRows.length,
     }),
@@ -1319,7 +1380,7 @@ const UUID_RE =
           name: d.name,
           kind: d.kind,
           childId: d.childId,
-          batteryPct: batteryByDevice.get(d.id) ?? null,
+          batteryPct: d.batteryPct,
         })),
         latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7, glucose: 5.4 },
         triage: [],
@@ -1335,19 +1396,32 @@ const UUID_RE =
     },
 
     adminDevices: async (limit) =>
-      devices.slice(0, limit).map((d) => ({
-        id: d.id,
-        name: d.name,
-        kind: d.kind,
-        // The device's real owner, not a constant. Answering DEMO_USER for
-        // every row made the fleet view's "whose device is this" column
-        // fiction, and fiction that always agrees with the code.
-        userId: d.userId,
-        displayName: userNames.get(d.userId) ?? profile?.displayName ?? '',
-        childName: children.find((c) => c.id === d.childId)?.name ?? null,
-        batteryPct: batteryByDevice.get(d.id) ?? null,
-        lastSeen: null,
-      })),
+      // Newest signal first, like the pg ORDER BY, and a device that has never
+      // reported sorts last rather than being dropped.
+      [...devices]
+        .sort((a, b) => String(b.lastSeen ?? '').localeCompare(String(a.lastSeen ?? '')))
+        .slice(0, limit)
+        .map((d) => ({
+          id: d.id,
+          deviceId: d.rowId,
+          name: d.name,
+          kind: d.kind,
+          // The device's real owner, not a constant. Answering DEMO_USER for
+          // every row made the fleet view's "whose device is this" column
+          // fiction, and fiction that always agrees with the code.
+          userId: d.userId,
+          displayName: userNames.get(d.userId) ?? profile?.displayName ?? '',
+          childName: children.find((c) => c.id === d.childId)?.name ?? null,
+          // Read off the device row, written by touchDevice. This used to be a
+          // battery from a Map nothing ever set and a hardcoded `lastSeen:
+          // null` — the fake agreed exactly with the missing feature.
+          batteryPct: d.batteryPct,
+          lastSeen: d.lastSeen,
+          firmware: d.firmware,
+          defectAt: d.defectAt,
+          defectBy: d.defectBy,
+          defectNote: d.defectNote,
+        })),
 
     adminSafetyEvents: async (limit) =>
       alerts.slice(0, limit).map((a) => ({
@@ -1385,7 +1459,10 @@ const UUID_RE =
       cryResults.length = 0;
       dayLogs.clear();
       alerts.length = 0;
-      batteryByDevice.clear();
+      // The watch's activity days go with the account, exactly as
+      // wearable_days does through ON DELETE CASCADE. Leaving them behind
+      // would let the fake say «стёрто» while still holding her step counts.
+      wearableDays.length = 0;
       return true;
     },
 

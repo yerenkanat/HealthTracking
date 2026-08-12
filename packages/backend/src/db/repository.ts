@@ -621,7 +621,14 @@ export interface AdminUserDetail {
 }
 
 export interface AdminDevice {
+  /** The identifier printed on the hardware (ble_mac) — what a support call names. */
   id: string;
+  /**
+   * Our internal row id. The defect action addresses THIS, not the MAC: the
+   * same MAC can legitimately exist under two accounts (a resold unit), and a
+   * write keyed on it would be ambiguous about whose device was marked.
+   */
+  deviceId: string;
   name: string;
   kind: string;
   userId: string;
@@ -629,6 +636,12 @@ export interface AdminDevice {
   childName: string | null;
   batteryPct: number | null;
   lastSeen: string | null;
+  /** NULL = never reported one. Shown as «не сообщалась», never as a dash. */
+  firmware: string | null;
+  /** «Пометить браком» — when, by whom, and why. All null when unmarked. */
+  defectAt: string | null;
+  defectBy: string | null;
+  defectNote: string | null;
 }
 
 export interface AdminSafetyEvent {
@@ -889,6 +902,48 @@ export interface Repository {
   listDevices(userId: string): Promise<Array<{ id: string; name: string; kind: string; childId: string | null }>>;
   createDevice(userId: string, d: { id: string; name: string; kind: string; childId?: string | null }): Promise<void>;
   deleteDevice(deviceId: string): Promise<void>;
+
+  /**
+   * «Устройство только что говорило с нами» — stamped on every ingested item
+   * that a device produced.
+   *
+   * The fleet view has always SELECTed battery_pct and last_seen, and nothing
+   * anywhere wrote them: there was no `UPDATE devices SET last_seen` in the
+   * repository at all. So frame 11 printed a battery that never changed and a
+   * «последний сигнал» that was empty for every device ever paired, and an
+   * operator could not tell a flat watch from one that had never reported.
+   *
+   * [at] is the moment the payload REACHED us, not the reading's recordedAt: a
+   * phone draining a three-day offline queue is talking to us now, and the
+   * column is labelled with that rule in the panel.
+   *
+   * battery and firmware are only written when the payload carries them —
+   * `COALESCE(new, old)`, never NULL over a value we already had. A watch that
+   * has never reported its firmware keeps a NULL, and the panel says «не
+   * сообщалась» rather than printing a dash that reads as "none".
+   *
+   * Returns nothing and must not throw the caller's item away: this is
+   * freshness metadata about a device, not the reading itself.
+   */
+  touchDevice(
+    deviceId: string,
+    seen: { at: string; batteryPct?: number | null; firmware?: string | null },
+  ): Promise<void>;
+
+  /**
+   * Frame 11's «Пометить браком», and taking it back.
+   *
+   * A support note on one mother's paired device — «часы неисправны» — with
+   * who said so and when. NOT device_registry.status='blocked', which stops a
+   * serial pairing with any account and belongs to the warehouse screen.
+   *
+   * Returns false when there is no such device, so the panel can say the mark
+   * was NOT saved instead of showing a tick over a write that hit nothing.
+   */
+  markDeviceDefect(
+    deviceId: string,
+    mark: { at: string; by: string; note: string | null } | null,
+  ): Promise<boolean>;
 
   // Appointments (prenatal visits, ultrasounds, lab work). User-scoped; the
   // client keeps the id so an offline-created appointment keeps its identity.

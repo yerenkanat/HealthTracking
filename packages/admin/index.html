@@ -1162,13 +1162,26 @@
         </div>
       </section>
 
-      <!-- DEVICES -->
+      <!-- КАДР 11 · УСТРОЙСТВА.
+           «метрики онлайн, таблица с прошивками, «Пометить браком»» — все три
+           отсутствовали. Хуже: колонки «Заряд» и «Последний сигнал» рисовались
+           из полей, которые НИКТО никогда не записывал (не было ни одного
+           UPDATE devices SET last_seen), поэтому «последний сигнал» был пуст у
+           каждого устройства с начала времён. Теперь метку ставит /ingest —
+           см. правило под таблицей. -->
       <section class="view" id="devices">
-        <div class="card">
+        <div class="kpis" id="devMetrics"></div>
+        <div class="card" style="margin-top:16px">
+          <div class="sec-h"><h3>Парк устройств</h3><span class="sub" id="devSub">—</span></div>
           <div class="tablewrap">
-            <table><thead><tr><th>Устройство</th><th>Тип</th><th>Владелец</th><th>Ребёнок</th><th>Заряд</th><th>Последний сигнал</th></tr></thead>
+            <table><thead><tr><th>Устройство</th><th>Тип</th><th>Прошивка</th><th>Владелец</th><th>Ребёнок</th><th>Заряд</th><th>Последний сигнал</th><th></th></tr></thead>
             <tbody id="devicesBody"></tbody></table>
           </div>
+          <!-- Результат действия, а не факт отправки: строка говорит, что
+               сервер ответил на «Пометить браком». -->
+          <div class="formmsg" id="devMsg" style="padding:0 18px"></div>
+          <!-- Подвал таблицы всегда объясняет правило (§3.4). -->
+          <div class="tfoot" id="devFoot"></div>
         </div>
       </section>
 
@@ -3235,7 +3248,11 @@
   // sessionLost is declared further down, next to the login gate it shows —
   // it is a function declaration, so it is hoisted and this is already the
   // real function rather than undefined.
-  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost,STAGE_RU};
+  // openUser too: кадр 11 (во втором блоке) открывает карточку мамы по клику
+  // на строке устройства. Без этого оператор, увидевший молчащие часы, должен
+  // был перейти в «Пользователи» и найти её заново по имени из соседней
+  // колонки — а именно в карточке видно, что часы передают по дням.
+  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost,STAGE_RU,openUser};
 
   /// One emergency, as a row.
   ///
@@ -3888,6 +3905,10 @@
     let growth=[]; // child growth measurements (weight/height), across her children
     let doses=[]; // medication adherence (doses taken per med per day)
     let vaccines=[]; // child vaccination record (parent-marked keys), per child
+    // What her watch has actually been sending (GET /admin/users/:id/wearable,
+    // migration 040). undefined = не запрашивали (демо-режим), null = запрос
+    // упал, {days:[]} = сервер ответил, дней нет. Три разных утверждения.
+    let wear;
     await loadPreg(); // so "эта неделя" content is ready when the drawer builds
     if(LIVE){
       // Asked BEFORE the first request, not after: a reason collected once the
@@ -3906,6 +3927,11 @@
       }catch(e){ /* fall back to what we already have rather than an empty drawer */ }
       // Her sleep + diary — the same data the app shows. Read-only and
       // best-effort: a failure here must not blank the rest of the card.
+      // «Часы вообще передают данные?» — тот же вопрос, что на кадре 11, но
+      // про конкретную маму: шаги, расстояние, калории, стресс, дыхание, MET,
+      // ношение и заряд по дням. Данные писались с самого запуска пайплайна и
+      // не имели ни одного читателя.
+      try{ wear=await api(withReason(`/admin/users/${id}/wearable`)); }catch(e){ wear=null; }
       try{ const w=await api(withReason(`/admin/users/${id}/wellness`)); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; vaccines=(w&&w.vaccines)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; vaccines=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
@@ -4303,6 +4329,54 @@
       if(c.lastAt) rows.push(`<div class="tli"><span><b>Последний раз открывала</b></span><span class="t num">${esc(fmtDate(c.lastAt))}</span></div>`);
       return `<div class="dsec">Курс Ма!Ма!</div><div class="tl">${rows.join("")}</div>`;
     })():"";
+    /**
+     * «Что передают часы» — кадр 09a, правая колонка.
+     *
+     * Ответ на вопрос, который задаёт оператор поддержки: часы вообще что-то
+     * присылают, или мама держит в руках кирпич? Кадр 11 отвечает «выходило
+     * ли устройство на связь»; здесь видно, ЧТО именно пришло — по дням.
+     *
+     * Ничего не досочиняем. Стресс, дыхание и MET часы измеряют не всегда, и
+     * ноль у них значит «не мерили»; поэтому отсутствующее значение написано
+     * словами, а не нулём и не прочерком. Пустой ответ и НЕОТВЕЧЕННЫЙ запрос —
+     * разные строки: «за 14 дней ничего не пришло» и «не загрузилось».
+     */
+    const wearSection=(()=>{
+      if(wear===undefined) return "";               // не спрашивали (демо)
+      if(wear===null) return `
+      <div class="dsec">Что передают часы</div>
+      <div class="tl"><div class="tli">
+        <span class="tld" style="background:var(--warn)"></span>
+        <span style="color:var(--warn-text)"><b>Данные часов не загрузились</b>
+          <div class="t">Это НЕ значит, что часы ничего не передают. Откройте карту заново или проверьте вкладку «Устройства».</div></span>
+      </div></div>`;
+      const wdays=(wear.days||[]).slice().sort((a,b)=>String(b.day).localeCompare(String(a.day)));
+      const win=wear.window||14;
+      if(!wdays.length) return `
+      <div class="dsec">Что передают часы</div>
+      <div class="tl"><div class="tli"><span class="t" style="color:var(--muted)">За последние ${win} дн. от часов не пришло ни одного дня данных. Проверьте во вкладке «Устройства», выходило ли устройство на связь вообще.</span></div></div>`;
+      const km=(m)=>`${(Number(m||0)/1000).toFixed(1)} км`;
+      const unmeasured='<span style="color:var(--muted)">не измерялось</span>';
+      return `
+      <div class="dsec">Что передают часы · ${wdays.length} ${ruPlural(wdays.length,"день","дня","дней")} из ${win}</div>
+      <div class="tl">${wdays.map(d=>{
+        // «Не носила» — это ответ, а не пропуск: часы на зарядке шагов не
+        // считают, и нулевой день без этой пометки читается как бездействие.
+        const worn=d.worn?"на руке":"не носили";
+        const charge=d.charging?" · на зарядке":"";
+        const bat=d.batteryPercent!=null?`${d.batteryPercent}%`:"";
+        const wellness=[
+          `стресс ${d.stress!=null?esc(d.stress):unmeasured}`,
+          `дыхание ${d.breathRate!=null?esc(d.breathRate)+" /мин":unmeasured}`,
+          `MET ${d.met!=null?esc(d.met):unmeasured}`,
+        ].join(" · ");
+        return `<div class="tli"><span>
+          <b>${esc(fmtDate(d.day))}</b> <span class="t">${fmt(d.steps||0)} ${ruPlural(d.steps||0,"шаг","шага","шагов")} · ${km(d.meters)} · ${fmt(d.kcal||0)} ккал</span>
+          <div class="t">${wellness}</div>
+          <div class="t">сон ${hm(d.sleepMinutes||0)} · ${worn}${charge}</div>
+        </span><span class="t num">${bat}</span></div>`;
+      }).join("")}</div>`;
+    })();
     const devs=u.devices||[];
     const devicesSection=devs.length?`
       <div class="dsec">Устройства · ${devs.length}</div>
@@ -4338,6 +4412,7 @@
       ${courseSection}
       ${childrenSection}
       ${devicesSection}
+      ${wearSection}
       ${acuteBlock}
       ${(()=>{const st=anStatus(gestWeek(u)); return st?`
       <div class="dsec">Антенатальный план</div>
@@ -7736,25 +7811,217 @@
     renderEditor();
   }
 
-  /// A failed request is not an empty fleet.
-  ///
-  /// Both this and loadSafety caught the error and fell through to the empty
-  /// row, so a back-office that could not reach its API looked like a product
-  /// nobody had ever connected a tracker to. null now means it broke.
-  async function loadDevices() {
-    let list = null;
-    $("#devicesBody").innerHTML = tableBusy(6);
-    try { list = (await api("/admin/devices")).devices || []; } catch (e) { list = null; }
-    if (!list) {
-      $("#devicesBody").innerHTML = tableNote(6, "Не удалось загрузить устройства.");
+  /**
+   * КАДР 11 · Устройства — «часы вообще разговаривают с нами?»
+   *
+   * Свежесть считается из настоящей метки времени и объявленного порога,
+   * который присылает сервер (onlineWithinHours / staleAfterDays) — панель не
+   * имеет собственного мнения о том, что такое «на связи», и нигде нет
+   * булева флага, который кто-то однажды выставил.
+   *
+   * Чего здесь принципиально нет: прочерков вместо неизвестного. Устройство,
+   * которое ни разу не выходило на связь, так и написано словами; прошивка,
+   * о которой оно не сообщало, — «не сообщалась». Прочерк читается как
+   * «ничего нет», а это другое утверждение.
+   *
+   * Ошибка запроса — не пустой парк. И то и другое раньше рисовалось одной
+   * и той же пустой строкой.
+   */
+  const DEV_KIND = { band: "Часы", watch: "Часы", tag: "Трекер", tracker: "Трекер", beacon: "Маячок" };
+  const devCols = 8;
+
+  function devMsg(text, cls) {
+    const el = $("#devMsg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "formmsg" + (cls ? " " + cls : "");
+  }
+
+  /// Одна плитка метрики: подпись → число → ОБЯЗАТЕЛЬНОЕ пояснение (§3.6).
+  const devTile = (lbl, val, note, dot) =>
+    `<div class="card kpi"><div class="lbl"><span class="dot" style="background:${dot}"></span>${lbl}</div>` +
+    `<div class="val">${fmt(val)}</div><div class="delta">${note}</div></div>`;
+
+  function renderDevMetrics(list, onlineH, staleD) {
+    const el = $("#devMetrics");
+    if (!el) return;
+    const now = Date.now();
+    const seenMs = (d) => (d.lastSeen ? now - new Date(d.lastSeen).getTime() : null);
+    const online = list.filter((d) => { const m = seenMs(d); return m != null && m <= onlineH * 3600e3; }).length;
+    const never = list.filter((d) => !d.lastSeen).length;
+    const silent = list.filter((d) => { const m = seenMs(d); return m != null && m > staleD * 86400e3; }).length;
+    // Заряд знаем не про все устройства, и знаменатель это говорит прямо:
+    // «3 из 40» и «3 из 7, о которых знаем» — разные утверждения.
+    const withBattery = list.filter((d) => d.batteryPct != null);
+    const low = withBattery.filter((d) => d.batteryPct < 20).length;
+    el.innerHTML =
+      devTile("На связи", online,
+        `из ${fmt(list.length)} показанных · порог ${onlineH} ч`, "var(--good)") +
+      devTile(`Молчат дольше ${staleD} дн.`, silent,
+        silent ? "сигнала нет — проверьте зарядку и приложение мамы" : "все, кто выходил на связь, делали это недавно",
+        "var(--warn)") +
+      devTile("Ни разу не выходили на связь", never,
+        never ? "привязаны, но данных от них не приходило никогда" : "каждое привязанное устройство хоть раз отчиталось",
+        "var(--crit)") +
+      devTile("Заряд ниже 20 %", low,
+        withBattery.length
+          ? `из ${fmt(withBattery.length)}, о заряде которых знаем · остальные о нём не сообщали`
+          : "о заряде не сообщало ни одно устройство",
+        "var(--warn)");
+  }
+
+  function renderDevices(data) {
+    const list = data.devices || [];
+    const onlineH = data.onlineWithinHours || 24;
+    const staleD = data.staleAfterDays || 3;
+    const now = Date.now();
+    renderDevMetrics(list, onlineH, staleD);
+
+    const marked = list.filter((d) => d.defectAt).length;
+    const sub = $("#devSub");
+    if (sub) {
+      sub.textContent = `В списке: ${fmt(list.length)}` +
+        (marked ? ` · помечено браком: ${fmt(marked)}` : " · помеченных браком нет");
+    }
+
+    rowsOrEmpty($("#devicesBody"), list.map((d) => {
+      const ms = d.lastSeen ? now - new Date(d.lastSeen).getTime() : null;
+      const stale = ms != null && ms > staleD * 86400e3;
+      // Строка красится фоном, а не текстом (§3.4): брак — критично, молчание
+      // и «ни разу» — «нужно посмотреть».
+      const cls = d.defectAt ? "attn-crit" : (stale || ms == null) ? "attn-warn" : "";
+      const seen = d.lastSeen
+        ? `<span title="${esc(stamp(d.lastSeen))}">${esc(ago(d.lastSeen))}</span>`
+        : `<span style="color:var(--muted)">ни разу не выходило на связь</span>`;
+      const fw = d.firmware
+        ? `<span class="num">${esc(d.firmware)}</span>`
+        : `<span style="color:var(--muted)">не сообщалась</span>`;
+      const bat = d.batteryPct == null
+        ? `<span style="color:var(--muted)">не сообщался</span>`
+        : `${esc(d.batteryPct)}%`;
+      const defect = d.defectAt
+        ? `<div class="t" style="color:var(--crit-text)">Брак · ${esc(stamp(d.defectAt))}${d.defectNote ? " · " + esc(d.defectNote) : ""}</div>`
+        : "";
+      return `<tr class="${cls}">
+        <td><span class="num">${esc(d.id)}</span>${d.name && d.name !== d.id ? `<div class="t">${esc(d.name)}</div>` : ""}${defect}</td>
+        <td>${esc(DEV_KIND[String(d.kind || "").toLowerCase()] || d.kind || "—")}</td>
+        <td class="t">${fw}</td>
+        <td>${esc(d.displayName || "—")}</td>
+        <td>${d.childName ? esc(d.childName) : `<span style="color:var(--muted)">не привязано к ребёнку</span>`}</td>
+        <td>${bat}</td>
+        <td class="t">${seen}</td>
+        <td><div style="display:flex;gap:6px;justify-content:flex-end">
+          <button type="button" class="btn sm ghost devcard" data-uid="${esc(d.userId)}">Карточка</button>
+          <button type="button" class="btn sm ghost devdefect" data-row="${esc(d.deviceId || "")}"
+                  data-mac="${esc(d.id)}" data-who="${esc(d.displayName || "—")}"
+                  data-mark="${d.defectAt ? "0" : "1"}">${d.defectAt ? "Снять пометку" : "Пометить браком"}</button>
+        </div></td>
+      </tr>`;
+    }).join(""), devCols,
+      "Ни одно устройство ещё не привязано к аккаунту. Устройство появится здесь, как только мама подключит часы или трекер в приложении.");
+
+    const foot = $("#devFoot");
+    if (foot) {
+      foot.innerHTML = `<span class="shown">Показано ${fmt(list.length)}${
+        list.length >= (data.limit || 100) ? ` (запрошено не больше ${fmt(data.limit || 100)})` : ""
+      }</span>` +
+        `<span>«Последний сигнал» — когда данные от устройства дошли до сервера, а не когда сделано измерение: ` +
+        `телефон, простоявший без сети три дня, выгружает старые показания и это считается связью. ` +
+        `«На связи» = сигнал за ${onlineH} ч. Пометка брака ничего не отключает: чтобы устройство перестало ` +
+        `привязываться к аккаунтам, серийник блокируют на вкладке «Склад».</span>`;
+    }
+    wireDeviceActions();
+  }
+
+  function wireDeviceActions() {
+    document.querySelectorAll("#devicesBody .devcard").forEach((b) => {
+      b.addEventListener("click", () => {
+        // Карточка мамы — там же видно, что именно передают часы по дням.
+        if (window.UI && window.UI.openUser) window.UI.openUser(b.dataset.uid);
+      });
+    });
+    document.querySelectorAll("#devicesBody .devdefect").forEach((b) => {
+      b.addEventListener("click", () => markDefect(b));
+    });
+  }
+
+  /**
+   * «Пометить браком» — с подтверждением, которое называет последствие.
+   *
+   * Пометка — это заметка поддержки о конкретных часах конкретной мамы, а не
+   * блокировка серийника со «Склада»: устройство продолжает работать. Так и
+   * написано в вопросе, иначе оператор будет думать, что отключает его.
+   */
+  async function markDefect(btn) {
+    const rowId = btn.dataset.row;
+    if (!rowId) {
+      devMsg("Сервер не прислал идентификатор устройства — пометить нечего. Обновите страницу.", "bad");
       return;
     }
-    rowsOrEmpty($("#devicesBody"), list.map((d) => `<tr>
-      <td>${esc(d.name || d.id)}</td><td>${esc(d.kind)}</td><td>${esc(d.displayName)}</td>
-      <td>${esc(d.childName || "—")}</td>
-      <td>${d.batteryPct == null ? "—" : esc(d.batteryPct) + "%"}</td>
-      <td class="t">${d.lastSeen ? esc(ago(d.lastSeen)) : "—"}</td></tr>`).join(""), 6,
-      "Устройства ещё не подключены.");
+    const marking = btn.dataset.mark === "1";
+    let note = "";
+    if (marking) {
+      const answer = window.prompt(
+        `Пометить браком: ${btn.dataset.mac} · ${btn.dataset.who}?\n\n` +
+        "Устройство продолжит работать, данные продолжат приходить — пометка нужна для замены по гарантии " +
+        "и попадёт в журнал действий под вашим именем. Чтобы устройство перестало привязываться к аккаунтам, " +
+        "заблокируйте его серийник на вкладке «Склад».\n\n" +
+        "Что с устройством? (необязательно)");
+      if (answer === null) return;         // отменили — ничего не отправляем
+      note = answer;
+    } else if (!window.confirm(
+      `Снять пометку брака: ${btn.dataset.mac} · ${btn.dataset.who}?\n\n` +
+      "Записанная причина будет стёрта. Само снятие останется в журнале действий.")) {
+      return;
+    }
+    btn.disabled = true;
+    devMsg("Сохранение…");
+    try {
+      const r = await fetch(`/admin/devices/${encodeURIComponent(rowId)}/defect`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json", "x-staff-id": STAFF.id, "x-staff-role": STAFF.role },
+        body: JSON.stringify({ defect: marking, note }),
+      });
+      if (!r.ok) {
+        // Результат запроса, а не факт отправки. 404 здесь значит, что
+        // устройство удалили, пока список был открыт.
+        btn.disabled = false;
+        devMsg(r.status === 404
+          ? `Не сохранено: устройство ${btn.dataset.mac} больше не числится за аккаунтом. Обновите список.`
+          : `Не сохранено: сервер ответил ${r.status}. Пометка НЕ поставлена.`, "bad");
+        return;
+      }
+      // Перерисовываем ПЕРЕД сообщением: список чистит строку состояния при
+      // загрузке, и «✓» иначе стёрлось бы собственным обновлением.
+      await loadDevices();
+      devMsg(marking
+        ? `Помечено браком: ${btn.dataset.mac} ✓`
+        : `Пометка снята: ${btn.dataset.mac} ✓`, "ok");
+    } catch (e) {
+      btn.disabled = false;
+      devMsg("Нет связи с сервером — пометка НЕ сохранена.", "bad");
+    }
+  }
+
+  async function loadDevices() {
+    let data = null;
+    // Результат прошлого действия не должен пережить перезагрузку списка:
+    // «Помечено ✓» над заново прочитанной таблицей — это утверждение о том,
+    // чего мы уже не проверяли.
+    devMsg("");
+    $("#devicesBody").innerHTML = tableBusy(devCols);
+    try { data = await api("/admin/devices"); } catch (e) { data = null; }
+    if (!data) {
+      // Провал запроса — не пустой парк. Раньше и то и другое рисовалось
+      // одинаково, и панель без связи выглядела как продукт, к которому никто
+      // никогда не подключал трекер.
+      $("#devicesBody").innerHTML = tableNote(devCols, "Не удалось загрузить парк устройств. Проверьте доступ и соединение.");
+      const el = $("#devMetrics");
+      if (el) el.innerHTML = `<div class="card" style="grid-column:1/-1;padding:14px"><div class="sub">Метрики не считаются: список устройств не загрузился. Показывать «0 на связи» было бы враньём.</div></div>`;
+      return;
+    }
+    renderDevices(data);
   }
 
   async function loadSafety() {
