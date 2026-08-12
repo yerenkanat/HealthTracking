@@ -478,6 +478,15 @@ function makeDeps(
       });
     },
     pregnancyWeekMotherCounts: async () => ({}),
+    // Frame 06. This file is about ingest and the health path; broadcasts are
+    // driven end to end in broadcasts.test.ts against the real memory
+    // repository, so these answer emptily rather than half-faking a ledger the
+    // weekly-gap rule depends on.
+    listBroadcasts: async () => [],
+    saveBroadcast: async () => {},
+    broadcastAudience: async () => ({ matched: 0, excluded: 0 }),
+    publishBroadcast: async () => null,
+    listAnnouncements: async () => [],
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
     listAudit: async () =>
       // reason included: the interface declares it, and a fake that omits it

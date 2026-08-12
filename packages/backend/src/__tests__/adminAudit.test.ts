@@ -86,6 +86,16 @@ const AGGREGATES_ONLY = new Set([
   // `pregnancy_week_review` — because «кто поменял неделю 22» and «кто её
   // проверил» must both have an answer.
   'GET /admin/pregnancy/weeks',
+  // The рассылка list and its recipient counter. Both are about a MESSAGE and
+  // a head-count — the list carries text somebody in this panel wrote, and the
+  // preview answers «сколько получателей» with two integers. No customer,
+  // child or phone number reaches either response, and the preview is polled
+  // on every change of the audience select, so auditing it would write a row
+  // per keystroke and bury the entry that matters. The three writes next door
+  // ARE audited — broadcast_create / broadcast_edit / broadcast_publish —
+  // because «кто отправил это сорока мамам» must have an answer.
+  'GET /admin/broadcasts',
+  'GET /admin/broadcasts/:id/preview',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

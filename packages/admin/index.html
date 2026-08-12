@@ -834,6 +834,13 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       Магазин <span class="badge" id="shopBadge" hidden></span>
     </button>
+    <!-- Кадр 06. `content` rather than `orders`: this is writing to customers,
+         which is the content editor's job and the one role that already carries
+         the bilingual rule. -->
+    <button type="button" class="nav" data-view="marketing" data-cap="content">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7z"/><path d="M11 14 21 3"/></svg>
+      Маркетинг
+    </button>
     <button type="button" class="nav" data-view="audio" data-cap="content">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10v4h4l5 5V5L7 10z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg>
       Аудио
@@ -1981,6 +1988,73 @@
         <div class="card">
           <div class="sec-h"><h3>Заявки с лендинга · перезвонить</h3><span class="sub" id="shopLeadsSub">—</span></div>
           <div id="shopLeads"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+      </section>
+
+      <!-- КАДР 06 · МАРКЕТИНГ — рассылки.
+           The promo-code table the frame also describes is a separate unit; this
+           is the рассылка half. -->
+      <section class="view" id="marketing">
+        <div class="card" style="margin-bottom:14px">
+          <div class="sec-h"><h3>Рассылки</h3><span class="sub" id="bcSummary">—</span></div>
+          <div class="tablewrap">
+            <table><thead><tr>
+              <th>Сообщение</th><th>Кому</th><th>Статус</th>
+              <th class="num">Доставлено</th><th>Когда</th><th></th>
+            </tr></thead>
+            <tbody id="bcBody"></tbody></table>
+          </div>
+          <!-- The rule behind the «Доставлено» column, stated where it is read.
+               Both halves: what the number counts, and what it deliberately is
+               not — nothing in this product records whether a notification was
+               opened, so there is no read rate to print. -->
+          <p class="pw-rule" id="bcRule"></p>
+        </div>
+
+        <!-- The constructor. Hidden from anyone without `content`: reading what
+             was sent is one job, writing to forty thousand people is another. -->
+        <div class="card" id="bcFormCard" data-cap="content">
+          <div class="sec-h">
+            <h3 id="bcFormH">Новая рассылка</h3>
+            <span class="sub" id="bcCount">—</span>
+          </div>
+          <p style="color:var(--muted);margin:0 0 8px;padding:0 18px">
+            Одно сообщение уходит в уведомления приложения и на экран блокировки. Отменить отправку нельзя.</p>
+          <div class="pw-fgrid">
+            <div class="pw-f">
+              <label for="bcAudience">Аудитория</label>
+              <select id="bcAudience">
+                <option value="all">Все</option>
+                <option value="pregnant">Беременные (по ПДР)</option>
+                <option value="mothers">Мамы (есть ребёнок)</option>
+                <option value="infants">Мамы детей до года</option>
+              </select>
+            </div>
+            <div class="pw-f">
+              <label for="bcLocale">Язык получателя</label>
+              <select id="bcLocale">
+                <option value="">Оба</option>
+                <option value="ru">Только русский</option>
+                <option value="kk">Только қазақша</option>
+              </select>
+            </div>
+          </div>
+          <div class="pw-fgrid">
+            <div class="pw-f"><label for="bcTitleRu">RU · заголовок</label>
+              <input id="bcTitleRu" type="text" maxlength="120"></div>
+            <div class="pw-f"><label for="bcTitleKk">ҚАЗ · тақырып</label>
+              <input id="bcTitleKk" type="text" maxlength="120"></div>
+            <div class="pw-f"><label for="bcBodyRu">RU · текст</label>
+              <textarea id="bcBodyRu" rows="4" maxlength="600"></textarea></div>
+            <div class="pw-f"><label for="bcBodyKk">ҚАЗ · мәтін</label>
+              <textarea id="bcBodyKk" rows="4" maxlength="600"></textarea></div>
+          </div>
+          <div class="pw-acts">
+            <button type="button" class="btn" id="bcSave">Сохранить черновик</button>
+            <button type="button" class="btn primary" id="bcPublish">Отправить</button>
+            <button type="button" class="btn" id="bcNew" hidden>Новая рассылка</button>
+          </div>
+          <p class="savebar" id="bcMsg" style="padding:0 18px 16px"></p>
         </div>
       </section>
 
@@ -4202,6 +4276,7 @@
     security:["Безопасность","Кто открывал здоровье и геолокацию, когда и на каком основании"],
     roles:["Роли и права","Что может каждая роль — из тех же правил, по которым проверяет сервер"],
     shop:["Магазин","Остатки по цветам и заказы на доставку"],
+    marketing:["Маркетинг","Одно сообщение — выбранной группе мам, не чаще раза в неделю"],
     audio:["Аудио","Ежедневные аудио для календарей беременности и развития"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
     audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"],
@@ -4255,6 +4330,7 @@
     if(v==="kids")renderKids();
     if(v==="antenatal")renderAntenatal();
     if(v==="pregweeks")renderPregWeeks();
+    if(v==="marketing")renderMarketing();
     if(v==="childdev")renderChildDev();
     if(v==="vaccines")renderVaccines();
     if(v==="shop")renderShop();
@@ -4616,6 +4692,237 @@
   async function wkRevert(){
     if(!window.confirm(`Вернуть неделю ${pwWeek} к базовому тексту? Изменения останутся черновиком, но читатели снова увидят контракт.`)) return;
     await wkSave(true);
+  }
+
+  // ---- Кадр 06 · Маркетинг: рассылки -------------------------------------
+  //
+  // The most dangerous screen in this panel: it is the only one whose mistakes
+  // are DELIVERED rather than displayed. Three things it therefore never does.
+  //
+  // It never computes the audience. The count on screen comes from
+  // /admin/broadcasts/:id/preview every time the segment changes — this browser
+  // holds no user rows at all, and a number assembled here would be a confident
+  // claim about a population it cannot see.
+  //
+  // It never prints a read rate. Nothing in this product records whether a
+  // notification was opened, so the column says «доставлено» and the footer
+  // says why there is nothing more to say.
+  //
+  // It never enables «Отправить» over a half-translated message. The server
+  // refuses it too — a check only in the browser is not a rule — but the button
+  // going grey is what stops somebody trying.
+  let BCS=null, BCMETA=null, BCERR=null, bcEditing=null, bcCountReq=0;
+
+  async function loadBroadcasts(force){
+    if(BCS&&!force) return BCS;
+    try{
+      const r=await fetch("/admin/broadcasts",{credentials:"same-origin",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
+      if(r.status===401){sessionLost();return null;}
+      if(r.ok){ const d=await r.json(); BCS=d.broadcasts||[]; BCMETA=d; BCERR=null; }
+      else { const d=await r.json().catch(()=>({})); BCERR=d.message||`Сервер ответил ошибкой ${r.status}.`; BCS=null; }
+    }catch(e){ BCERR="Сервер не ответил."; BCS=null; }
+    return BCS;
+  }
+
+  const bcAudienceLbl={all:"Все",pregnant:"Беременные",mothers:"Мамы",infants:"Мамы детей до года"};
+  const bcLocaleLbl={ru:"только рус",kk:"только қаз"};
+  function bcSegmentText(seg){
+    const s=seg||{};
+    const who=bcAudienceLbl[s.audience]||bcAudienceLbl.all;
+    return s.locale?`${who} · ${bcLocaleLbl[s.locale]||esc(s.locale)}`:who;
+  }
+
+  function bcRow(b){
+    const status=b.status==="published"
+      ? `<span class="pw-tag live">Отправлена</span>`
+      : `<span class="pw-tag base">Черновик</span>`;
+    // A draft with no Kazakh half cannot be sent, and saying so in the row is
+    // what stops somebody opening it expecting to press one button.
+    const needKk=b.status!=="published"&&!(String(b.titleKk||"").trim()&&String(b.bodyKk||"").trim())
+      ? ` <span class="pw-tag wait">нет қаз</span>` : "";
+    const when=b.publishedAt?stamp(b.publishedAt):stamp(b.createdAt);
+    return `<tr data-bc="${esc(b.id)}">
+      <td><b>${esc(b.titleRu)}</b></td>
+      <td>${esc(bcSegmentText(b.segment))}</td>
+      <td>${status}${needKk}</td>
+      <td class="num">${b.status==="published"?Number(b.delivered)||0:"—"}</td>
+      <td>${when}</td>
+      <td>${b.status==="published"?"":`<span class="link" data-bcedit="${esc(b.id)}">Открыть</span>`}</td>
+    </tr>`;
+  }
+
+  async function renderMarketing(){
+    const body=$("#bcBody"), sum=$("#bcSummary"), rule=$("#bcRule");
+    if(!body) return;
+    const list=await loadBroadcasts();
+    if(!list){
+      body.innerHTML=tableNote(6,BCERR
+        ? `Не удалось загрузить рассылки: ${esc(BCERR)}`
+        : "Не удалось загрузить рассылки. Проверьте доступ и соединение.");
+      if(sum) sum.textContent="—";
+      if(rule) rule.textContent="";
+      bcRenderForm();
+      return;
+    }
+    body.innerHTML=list.map(bcRow).join("")
+      || tableNote(6,"Рассылок ещё не было. Напишите первую в форме ниже — она уйдёт в уведомления приложения тем мамам, кого выберете.");
+    const sent=list.filter(b=>b.status==="published").length;
+    if(sum) sum.textContent=`${list.length} всего · ${sent} отправлено · ${list.length-sent} в черновиках`;
+    if(rule){
+      const gap=BCMETA?Number(BCMETA.minGapDays)||7:7;
+      rule.innerHTML=
+        `«Доставлено» — сколько мам получили сообщение: по одной записи на человека в журнале отправок. `+
+        `<b>Не «прочитано»</b>: приложение нигде не отмечает, открыла ли она уведомление, поэтому такой цифры здесь нет и не будет придуманной. `+
+        `Одному человеку сообщение уходит не чаще чем раз в ${gap} дн. — по всем рассылкам сразу, а не по каждой отдельно; `+
+        `тех, кому писали недавно, отправка пропускает и показывает их отдельным числом. `+
+        `Получатели считаются на сервере по языку (<code>users.locale</code>), сроку родов (<code>users.due_date</code>) `+
+        `и возрасту детей (<code>children.date_of_birth</code>) — по показателям здоровья выбирать получателей нельзя.`;
+    }
+    bcRenderForm();
+    bcRefreshCount();
+  }
+
+  /// Fill the constructor from whatever is being edited, or empty it.
+  function bcRenderForm(){
+    if(!can("content")) return;
+    const h=$("#bcFormH"), nw=$("#bcNew");
+    const b=bcEditing?(BCS||[]).find(x=>x.id===bcEditing):null;
+    if(h) h.textContent=b?`Черновик: ${b.titleRu}`:"Новая рассылка";
+    if(nw) nw.hidden=!b;
+    const set=(id,v)=>{const e=$("#"+id); if(e) e.value=v==null?"":v;};
+    set("bcTitleRu",b?b.titleRu:"");
+    set("bcBodyRu",b?b.bodyRu:"");
+    set("bcTitleKk",b?b.titleKk:"");
+    set("bcBodyKk",b?b.bodyKk:"");
+    set("bcAudience",(b&&b.segment&&b.segment.audience)||"all");
+    set("bcLocale",(b&&b.segment&&b.segment.locale)||"");
+    bcSyncPublishButton();
+  }
+
+  /// What is in the boxes right now.
+  function bcReadForm(){
+    const v=id=>{const e=$("#"+id); return e?e.value.trim():"";};
+    const locale=v("bcLocale");
+    return {
+      titleRu:v("bcTitleRu"), bodyRu:v("bcBodyRu"),
+      titleKk:v("bcTitleKk"), bodyKk:v("bcBodyKk"),
+      segment:{audience:v("bcAudience")||"all",...(locale?{locale}:{})},
+    };
+  }
+
+  /**
+   * «Отправить» is dead until the Kazakh half exists.
+   *
+   * Spec rule: «Двуязычность обязательна: без казахской версии кнопка
+   * «Опубликовать» заблокирована.» Disabled rather than refused on click — a
+   * button that looks live and is not teaches distrust of every other button —
+   * and the title says why, because a grey button with no explanation is the
+   * same dead end.
+   */
+  function bcSyncPublishButton(){
+    const btn=$("#bcPublish"); if(!btn) return;
+    const f=bcReadForm();
+    const ready=!!(f.titleRu&&f.bodyRu&&f.titleKk&&f.bodyKk);
+    btn.disabled=!ready;
+    btn.title=ready?"":"Нет казахской версии — без неё отправить нельзя";
+  }
+
+  /// «Получателей: N» — from the SERVER, on every change of the segment.
+  async function bcRefreshCount(){
+    const el=$("#bcCount"); if(!el||!can("content")) return;
+    const seg=bcReadForm().segment;
+    const my=++bcCountReq;
+    el.textContent="Считаем получателей…";
+    try{
+      const r=await fetch(`/admin/broadcasts/new/preview?segment=${encodeURIComponent(JSON.stringify(seg))}`,
+        {credentials:"same-origin",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
+      if(my!==bcCountReq) return; // a newer request has already answered
+      if(r.status===401){sessionLost();return;}
+      if(!r.ok){
+        const d=await r.json().catch(()=>({}));
+        el.textContent=d.message?`Счётчик недоступен: ${d.message}`:"Счётчик получателей недоступен — сервер не ответил.";
+        return;
+      }
+      const d=await r.json();
+      const gap=Number(d.minGapDays)||7;
+      // Both numbers, always. «Получателей: 40» that silently means 12 is the
+      // number this screen is most likely to be wrong about.
+      el.textContent=Number(d.excluded)>0
+        ? `Получат сейчас: ${d.deliverable} из ${d.matched} — ${d.excluded} пропустим, им писали за последние ${gap} дн.`
+        : `Получат сейчас: ${d.deliverable} — подходит под сегмент, никому из них не писали ${gap} дн.`;
+    }catch(e){
+      if(my!==bcCountReq) return;
+      el.textContent="Счётчик получателей недоступен — сервер не ответил.";
+    }
+  }
+
+  function bcMsg(text,kind){
+    const el=$("#bcMsg"); if(!el) return;
+    el.textContent=text; el.className="savebar"+(kind?" "+kind:"");
+  }
+
+  /// A write that reports the SERVER's own sentence. «400» tells a marketer
+  /// nothing; «нет казахской версии заголовка» tells her what to type.
+  async function bcSend(path,method,body){
+    const r=await fetch(path,{method,credentials:"same-origin",
+      headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role,"content-type":"application/json"},
+      body:body?JSON.stringify(body):undefined});
+    if(r.status===401) sessionLost();
+    const text=await r.text();
+    let parsed=null; try{ parsed=JSON.parse(text); }catch(_){/* not JSON */}
+    if(!r.ok){
+      const e=new Error((parsed&&parsed.message)||`Ошибка ${r.status}`);
+      e.status=r.status; throw e;
+    }
+    return parsed||{};
+  }
+
+  async function bcSave(){
+    const f=bcReadForm();
+    if(!f.titleRu||!f.bodyRu){ bcMsg("Нельзя сохранить: нет русского заголовка или текста.","err"); return; }
+    bcMsg("Сохраняем…");
+    const id=bcEditing||`bc-${Date.now().toString(36)}`;
+    try{
+      if(bcEditing) await bcSend(`/admin/broadcasts/${encodeURIComponent(id)}`,"PUT",f);
+      else await bcSend("/admin/broadcasts","POST",{id,...f});
+      bcEditing=id;
+      await loadBroadcasts(true);
+      // AWAITED, and the message written after: re-rendering rebuilds the form
+      // and would wipe a message set first, so the save would look like it did
+      // nothing.
+      await renderMarketing();
+      bcMsg(`Черновик сохранён. Он ещё никому не ушёл — нажмите «Отправить», когда текст готов.`,"ok");
+    }catch(e){ bcMsg(String(e.message||e),"err"); }
+  }
+
+  async function bcPublish(){
+    const f=bcReadForm();
+    if(!f.titleKk||!f.bodyKk){ bcMsg("Нельзя отправить: нет казахской версии заголовка или текста.","err"); return; }
+    // Irreversible and delivered to strangers' phones. Confirmed with the
+    // count in the sentence, so nobody agrees to «отправить» without seeing
+    // how many people that is.
+    const who=$("#bcCount")?$("#bcCount").textContent:"";
+    if(!window.confirm(`Отправить рассылку? Отменить нельзя — сообщение придёт на телефоны.\n\n${who}`)) return;
+    bcMsg("Отправляем…");
+    try{
+      // Save first, so what goes out is what is on screen rather than what was
+      // last stored — an edited box that was never saved would otherwise send
+      // the old text under the new one's eyes.
+      const id=bcEditing||`bc-${Date.now().toString(36)}`;
+      if(bcEditing) await bcSend(`/admin/broadcasts/${encodeURIComponent(id)}`,"PUT",f);
+      else await bcSend("/admin/broadcasts","POST",{id,...f});
+      bcEditing=id;
+      const res=await bcSend(`/admin/broadcasts/${encodeURIComponent(id)}/publish`,"POST");
+      bcEditing=null;
+      await loadBroadcasts(true);
+      await renderMarketing();
+      const skipped=Number(res.excluded)||0;
+      bcMsg(
+        `Отправлено ${Number(res.delivered)||0} из ${Number(res.matched)||0}.`+
+        (skipped?` ${skipped} пропущено — им писали за последние ${Number(res.minGapDays)||7} дн.`:"")+
+        (res.pushed===false?" Уведомления на телефоны не ушли — сообщение всё равно лежит в приложении.":""),
+        "ok");
+    }catch(e){ bcMsg(String(e.message||e),"err"); }
   }
 
   // ---- Baby-development calendar (same content the app shows by child age) ----
@@ -6139,6 +6446,13 @@
     if(e.target.id==="wkDraft"){wkSave(true);return;}
     if(e.target.id==="wkReview"){wkApprove();return;}
     if(e.target.id==="wkRevert"){wkRevert();return;}
+    // Кадр 06. Before the generic row handlers: these live inside a table row
+    // and a [data-view] sidebar would otherwise swallow the clicks.
+    if(e.target.id==="bcSave"){bcSave();return;}
+    if(e.target.id==="bcPublish"){bcPublish();return;}
+    if(e.target.id==="bcNew"){bcEditing=null;bcRenderForm();bcRefreshCount();bcMsg("");return;}
+    const bce=e.target.closest("[data-bcedit]");
+    if(bce){bcEditing=bce.dataset.bcedit;bcRenderForm();bcRefreshCount();bcMsg("");return;}
     const pwk=e.target.closest("[data-week]"); if(pwk){pwWeek=+pwk.dataset.week;renderPregWeeks();return;}
     const pwl=e.target.closest("[data-lang]"); if(pwl){pwLang=pwl.dataset.lang;$$(".pw-l").forEach(b=>b.classList.toggle("active",b===pwl));renderPregWeeks();return;}
     const cdk=e.target.closest("[data-cdweek]"); if(cdk){cdWeek=+cdk.dataset.cdweek;renderChildDev();return;}
@@ -6156,6 +6470,19 @@
     clearTimeout(searchTimer);
     searchTimer=setTimeout(()=>renderUsers(q),250);
   });
+  // Кадр 06. The segment selects ask the SERVER for a new head-count; the text
+  // boxes only re-decide whether «Отправить» is alive. Debounced together so
+  // holding a key down does not become a request per character.
+  let bcCountTimer=null;
+  for(const id of ["bcAudience","bcLocale"]){
+    $("#"+id)?.addEventListener("change",()=>{
+      clearTimeout(bcCountTimer);
+      bcCountTimer=setTimeout(bcRefreshCount,120);
+    });
+  }
+  for(const id of ["bcTitleRu","bcBodyRu","bcTitleKk","bcBodyKk"]){
+    $("#"+id)?.addEventListener("input",bcSyncPublishButton);
+  }
   $("#themeBtn").addEventListener("click",()=>{
     const r=document.documentElement, cur=r.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
     const next=cur==="dark"?"light":"dark";

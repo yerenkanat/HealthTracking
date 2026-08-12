@@ -995,3 +995,46 @@ CREATE TABLE IF NOT EXISTS pregnancy_week_overrides (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by TEXT
 );
+
+
+-- ---------------------------------------------------------------------------
+-- Frame 06 «Маркетинг» — рассылки.
+--
+-- One message to a named group of mothers, and a ledger of who received it.
+-- See migrations/037 for why the ledger is the half that matters.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS broadcasts (
+  id           TEXT PRIMARY KEY,
+  -- RU required, KK not: a draft may be half-written, but PUBLISHING without
+  -- the Kazakh half is refused by the route (content/bilingual.ts). A NOT NULL
+  -- here would force placeholder Kazakh into drafts, which is how untranslated
+  -- text reaches a phone.
+  title_ru     TEXT NOT NULL,
+  body_ru      TEXT NOT NULL,
+  title_kk     TEXT,
+  body_kk      TEXT,
+  -- {audience, locale} only — src/admin/broadcasts.ts validates it. Never a
+  -- health field: those are collected to warn a woman about her own pregnancy,
+  -- not to choose who gets an advertisement.
+  segment      JSONB NOT NULL DEFAULT '{}'::jsonb,
+  -- One way. There is no unpublish — the message is already on a phone.
+  status       TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
+  created_by   TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  published_at TIMESTAMPTZ
+);
+
+-- «Не чаще раза в неделю», made real. The cap is ACROSS broadcasts: publishing
+-- skips anybody written to in the last seven days, and the panel reports how
+-- many were skipped rather than claiming to have delivered more than it did.
+CREATE TABLE IF NOT EXISTS broadcast_deliveries (
+  broadcast_id TEXT NOT NULL REFERENCES broadcasts(id) ON DELETE CASCADE,
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (broadcast_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_broadcast_deliveries_user
+  ON broadcast_deliveries (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_broadcasts_published
+  ON broadcasts (published_at DESC NULLS LAST);

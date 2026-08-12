@@ -1221,6 +1221,35 @@ export function registerCrudRoutes(
     return reply.send({ ok: true });
   });
 
+  // ---- Рассылки, as she receives them (frame 06 → screen 39) --------------
+  //
+  // The other end of the marketing tab. Without this the back office can write
+  // a broadcast, publish it, and watch the counter say «доставлено 40» while
+  // forty phones have nowhere to show it — the defect this repository is
+  // fullest of, in its most expensive form.
+  //
+  // Scoped to the session and to the delivery LEDGER, never to the segment: a
+  // woman sees a message because a row says it was sent to her, so re-running
+  // the segment later — after her due date passes, after she changes language —
+  // cannot make a message she already read disappear.
+  //
+  // Both languages travel. She may switch the app to Kazakh after the message
+  // arrives, and a cached copy in the wrong language is a bug she cannot fix.
+  app.get('/announcements', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(50, Number((req.query as { limit?: string }).limit ?? 20) || 20);
+    try {
+      return reply.send({ announcements: await repo.listAnnouncements(u.userId, limit) });
+    } catch (e) {
+      // An unmigrated database must not take the notification centre down with
+      // it: the safety alerts on that screen are the ones that matter, and they
+      // come from somewhere else.
+      req.log.warn(`announcements unavailable — ${e instanceof Error ? e.message : String(e)}`);
+      return reply.code(503).send({ error: 'announcements_unavailable' });
+    }
+  });
+
   // ---- Child safety alerts (zone enter/exit) ----
   app.get('/alerts', async (req, reply) => {
     const u = await requireUser(req, reply);

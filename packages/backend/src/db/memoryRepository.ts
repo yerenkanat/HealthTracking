@@ -6,9 +6,10 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
+import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
+import { BROADCAST_MIN_GAP_DAYS, matchesSegment, type AudienceRow } from '../admin/broadcasts.js';
 import { normalizePhone } from '../phone.js';
 import type { BpCalibration, ChildLocationFix, Geofence, GeofenceEvent } from '@fcs/shared';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
@@ -198,6 +199,15 @@ export function createMemoryRepository(): Repository {
   const profiles = new Map<string, ProfileRow>();
   /** Edited pregnancy weeks, by week — `pregnancy_week_overrides`. */
   const pregWeekOverrides = new Map<number, PregnancyWeekOverride>();
+  /**
+   * Frame 06 — рассылки and the ledger of who received them.
+   *
+   * Seeded EMPTY. A demo broadcast would be a message this product claims to
+   * have sent to somebody, and the panel's whole job here is to say honestly
+   * what went out.
+   */
+  const broadcasts = new Map<string, Omit<BroadcastRow, 'delivered'>>();
+  const broadcastDeliveries: Array<{ broadcastId: string; userId: string; at: string }> = [];
   let profile: ProfileRow | null = {
     displayName: 'Aigerim',
     phone: '+77001112233',
@@ -393,6 +403,50 @@ const UUID_RE =
       lessonsCompleted: rows.reduce((t, r) => t + r.done, 0),
       active7d: rows.filter((r) => r.lastAt >= weekAgo).length,
     };
+  }
+
+  /**
+   * Everybody a рассылка could reach, assembled from the rows this fake holds.
+   *
+   * Mirrors the pg query: one row per user, carrying `users.locale`,
+   * `users.due_date` and every `children.date_of_birth` under her. A woman with
+   * a profile but no children is here; so is a woman known only through her
+   * children, because that is exactly what a LEFT JOIN answers.
+   */
+  function audienceRows(): AudienceRow[] {
+    const rows = new Map<string, AudienceRow>();
+    const ensure = (userId: string): AudienceRow => {
+      let r = rows.get(userId);
+      if (!r) rows.set(userId, (r = { userId, locale: null, dueDate: null, childCount: 0, childDobs: [] }));
+      return r;
+    };
+    for (const [userId, p] of profiles) {
+      const r = ensure(userId);
+      r.locale = p.locale ?? null;
+      r.dueDate = p.dueDate ?? null;
+    }
+    // The seeded demo account, for everything that runs without signing in —
+    // the same fallback getProfile uses, so the two cannot disagree about who
+    // exists.
+    if (!profiles.has(DEMO_USER) && profile) {
+      const r = ensure(DEMO_USER);
+      r.locale = profile.locale ?? null;
+      r.dueDate = profile.dueDate ?? null;
+    }
+    for (const c of children) {
+      const r = ensure(c.userId);
+      r.childCount += 1;
+      if (c.dateOfBirth) r.childDobs.push(c.dateOfBirth);
+    }
+    return [...rows.values()];
+  }
+
+  /** Written to inside the last [BROADCAST_MIN_GAP_DAYS] days — skip her. */
+  function inWeeklyGap(userId: string, now: Date): boolean {
+    const floor = now.getTime() - BROADCAST_MIN_GAP_DAYS * 86_400_000;
+    return broadcastDeliveries.some(
+      (d) => d.userId === userId && Date.parse(d.at) >= floor,
+    );
   }
 
   /** What a phone owns: normalised phone + feature → how it was granted. */
@@ -1467,6 +1521,98 @@ const UUID_RE =
         const w = gestationalWeekOn(due, today);
         if (w == null) continue;
         out[w] = (out[w] ?? 0) + 1;
+      }
+      return out;
+    },
+
+    // ---- Broadcasts (frame 06 «Маркетинг») ----
+    //
+    // The audience is assembled from the same rows the rest of this fake
+    // serves: profiles (users.locale / users.due_date) and children
+    // (children.date_of_birth). One process cannot produce «312 получателей»
+    // and does not pretend to — with one seeded mother the panel reads «1», and
+    // that number is true.
+    listBroadcasts: async (limit) => {
+      const delivered = new Map<string, number>();
+      for (const d of broadcastDeliveries) {
+        delivered.set(d.broadcastId, (delivered.get(d.broadcastId) ?? 0) + 1);
+      }
+      return [...broadcasts.values()]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit)
+        .map((b) => ({ ...b, segment: { ...b.segment }, delivered: delivered.get(b.id) ?? 0 }));
+    },
+
+    saveBroadcast: async (v) => {
+      const prev = broadcasts.get(v.id);
+      // A published broadcast is on somebody's phone. Editing the row would
+      // change what the panel says we sent without changing what we sent.
+      if (prev && prev.status === 'published') {
+        throw new Error('broadcast_already_published');
+      }
+      const now = new Date().toISOString();
+      broadcasts.set(v.id, {
+        id: v.id,
+        titleRu: v.titleRu,
+        bodyRu: v.bodyRu,
+        titleKk: v.titleKk,
+        bodyKk: v.bodyKk,
+        segment: { ...v.segment },
+        status: 'draft',
+        createdBy: prev?.createdBy ?? v.createdBy,
+        createdAt: prev?.createdAt ?? now,
+        updatedAt: now,
+        publishedAt: null,
+      });
+    },
+
+    broadcastAudience: async (segment) => {
+      const now = new Date();
+      const rows = audienceRows().filter((r) => matchesSegment(r, segment, now));
+      const excluded = rows.filter((r) => inWeeklyGap(r.userId, now)).length;
+      return { matched: rows.length, excluded };
+    },
+
+    publishBroadcast: async (id) => {
+      const b = broadcasts.get(id);
+      if (!b) return null;
+      const now = new Date();
+      const matched = audienceRows().filter((r) => matchesSegment(r, b.segment, now));
+      // «Не чаще раза в неделю», ACROSS broadcasts — see admin/broadcasts.ts.
+      const recipients = matched.filter((r) => !inWeeklyGap(r.userId, now));
+      const at = now.toISOString();
+      for (const r of recipients) {
+        // Idempotent per person, exactly like the composite primary key.
+        if (broadcastDeliveries.some((d) => d.broadcastId === id && d.userId === r.userId)) continue;
+        broadcastDeliveries.push({ broadcastId: id, userId: r.userId, at });
+      }
+      b.status = 'published';
+      b.publishedAt = at;
+      b.updatedAt = at;
+      return {
+        matched: matched.length,
+        excluded: matched.length - recipients.length,
+        delivered: recipients.length,
+        userIds: recipients.map((r) => r.userId),
+      };
+    },
+
+    listAnnouncements: async (userId, limit) => {
+      const out: AnnouncementRow[] = [];
+      for (const d of [...broadcastDeliveries].reverse()) {
+        if (d.userId !== userId) continue;
+        const b = broadcasts.get(d.broadcastId);
+        if (!b || b.status !== 'published') continue;
+        out.push({
+          id: b.id,
+          at: d.at,
+          ru: { title: b.titleRu, body: b.bodyRu },
+          // Never null on the wire: publication is refused without the Kazakh
+          // half, so a published row always has one. The `?? ru` is the belt
+          // for a row written before that rule existed.
+          kk: { title: b.titleKk ?? b.titleRu, body: b.bodyKk ?? b.bodyRu },
+        });
+        if (out.length >= limit) break;
       }
       return out;
     },

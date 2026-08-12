@@ -23,6 +23,11 @@ import { bilingualMessage, bilingualProblems, missingLocales, type BilingualProb
 import { weekAsReviewable, type PregnancyWeekOverride } from '../pregnancy/overrides';
 import { servedCalendar } from '../pregnancy/served';
 import { buildQueues, overdue, SLA_HOURS } from '../admin/queues';
+import {
+  BROADCAST_AUDIENCES, BROADCAST_LOCALES, BROADCAST_MIN_GAP_DAYS, INFANT_MAX_MONTHS,
+  SEGMENT_FIELDS, describeSegment, normalizeSegment, segmentMessage, validateSegment,
+  type BroadcastSegment,
+} from '../admin/broadcasts';
 import { summarizeSecurity } from '../admin/security';
 import { buildOwnerDashboard } from '../admin/ownerDashboard';
 import { buildMotherCard } from '../admin/motherCard';
@@ -260,6 +265,27 @@ export interface AdminNotifiers {
     userId: string,
     ticket: { id: string; subject: string },
     body: string,
+  ) => Promise<void>;
+  /**
+   * A рассылка reaches the phones it was recorded against — frame 06.
+   *
+   * Takes the user ids the delivery ledger accepted, NOT the ones the segment
+   * matched: the weekly gap is decided in the database, and a notifier that
+   * re-derived the audience would be a second answer to «кому уходит», which
+   * is exactly how somebody gets two messages in one afternoon.
+   *
+   * Both languages travel; index.ts picks per recipient from her own
+   * `users.locale`. Omitted means no push channel on this box — the broadcast
+   * is still published and still appears in her notification centre when the
+   * app next syncs, which is why publishing does not depend on this.
+   */
+  broadcast?: (
+    userIds: string[],
+    message: {
+      id: string;
+      ru: { title: string; body: string };
+      kk: { title: string; body: string };
+    },
   ) => Promise<void>;
 }
 
@@ -1235,6 +1261,286 @@ export function registerAdminRoutes(
     });
     await repo.writeAudit({ staffId: s.staffId, action: 'pregnancy_week_review', target: `week-${week}` });
     return reply.send({ ok: true, week, review, draft: current.draft });
+  });
+
+  // ---- Рассылки (frame 06 «Маркетинг») ------------------------------------
+  //
+  // Writing to every pregnant user at once is the most dangerous button in this
+  // panel: it is irreversible, it reaches people who did not ask for it, and it
+  // is the only place where a mistake is delivered rather than displayed. Three
+  // rules make it survivable, and all three are enforced HERE rather than in
+  // the browser:
+  //
+  //   * publication needs the Kazakh version (the content editor's own rule);
+  //   * a woman is written to at most once a week, across broadcasts;
+  //   * a segment may only name what the schema honestly knows — never health.
+  //
+  // The panel checks the first before the round trip so the refusal is instant.
+  // The server checks all three because a check only in the browser is not a
+  // rule.
+
+  const BROADCAST_LIMIT = 200;
+
+  const broadcastBody = z.object({
+    id: z.string().trim().min(1).max(64),
+    titleRu: z.string().trim().min(1).max(120),
+    bodyRu: z.string().trim().min(1).max(600),
+    // Nullable so a draft can be written in one language first. Publication is
+    // where the bilingual rule bites.
+    titleKk: z.string().trim().max(120).nullish(),
+    bodyKk: z.string().trim().max(600).nullish(),
+    // Validated by validateSegment, not by zod: an unknown key must produce a
+    // sentence naming the field, and `.strict()` produces «unrecognized_keys».
+    segment: z.unknown().optional(),
+  });
+
+  /** The segment, or null having already answered 400 with a readable reason. */
+  function readSegment(raw: unknown, reply: FastifyReply): BroadcastSegment | null {
+    const problems = validateSegment(raw);
+    if (problems.length) {
+      reply.code(400).send({
+        error: problems.some((p) => p.health) ? 'segment_health_forbidden' : 'segment_unsupported_field',
+        problems,
+        message: segmentMessage(problems),
+      });
+      return null;
+    }
+    return normalizeSegment(raw);
+  }
+
+  /**
+   * Everything the marketing tab draws, in one response.
+   *
+   * The rule constants travel with the data so the footer states the same
+   * seven days the database enforces — a panel with its own copy of that
+   * number is a panel that will one day promise a fortnight.
+   */
+  app.get('/admin/broadcasts', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    let broadcasts;
+    try {
+      broadcasts = await repo.listBroadcasts(BROADCAST_LIMIT);
+    } catch {
+      // Migration 037 not applied, or a database blip. Said out loud: an empty
+      // table and an unreadable one call for opposite responses, and the panel
+      // must not offer «Опубликовать» over a list it could not read.
+      return reply.code(503).send({
+        error: 'broadcasts_unavailable',
+        message: 'Не удалось прочитать таблицу рассылок (broadcasts). Список и отправка недоступны, ' +
+          'пока база не ответит — иначе «получателей: 0» читалось бы как «никого нет».',
+      });
+    }
+    return reply.send({
+      broadcasts,
+      minGapDays: BROADCAST_MIN_GAP_DAYS,
+      audiences: BROADCAST_AUDIENCES,
+      locales: BROADCAST_LOCALES,
+      segmentFields: SEGMENT_FIELDS,
+      infantMaxMonths: INFANT_MAX_MONTHS,
+    });
+  });
+
+  /**
+   * How many people this segment covers, and how many of them we may not write
+   * to yet.
+   *
+   * NEVER computed in the browser. The panel holds no user rows at all, and the
+   * ids the app knows are local — so any count assembled client-side would be a
+   * confident number about a population it cannot see.
+   *
+   * `:id` may be the literal `new`, and a `segment` query parameter overrides
+   * the stored one, so the constructor can show a live count while somebody is
+   * still choosing the audience.
+   */
+  app.get('/admin/broadcasts/:id/preview', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const raw = (req.query as { segment?: string }).segment;
+    let wanted: unknown;
+    if (raw != null && raw !== '') {
+      try {
+        wanted = JSON.parse(raw);
+      } catch {
+        return reply.code(400).send({
+          error: 'segment_unreadable',
+          message: 'Сегмент в запросе не разобрать — ожидается JSON вида {"audience":"pregnant"}.',
+        });
+      }
+    } else {
+      if (id === 'new') wanted = {};
+      else {
+        const stored = (await repo.listBroadcasts(BROADCAST_LIMIT)).find((b) => b.id === id);
+        if (!stored) return reply.code(404).send({ error: 'not_found' });
+        wanted = stored.segment;
+      }
+    }
+    const segment = readSegment(wanted, reply);
+    if (!segment) return;
+    const audience = await repo.broadcastAudience(segment);
+    return reply.send({
+      segment,
+      ...audience,
+      /** Who would actually receive it if it went out now. */
+      deliverable: Math.max(0, audience.matched - audience.excluded),
+      minGapDays: BROADCAST_MIN_GAP_DAYS,
+      describe: describeSegment(segment),
+    });
+  });
+
+  /** Create a draft. Never sends — publishing is its own decision. */
+  app.post('/admin/broadcasts', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const parsed = broadcastBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const segment = readSegment(parsed.data.segment ?? {}, reply);
+    if (!segment) return;
+    const existing = (await repo.listBroadcasts(BROADCAST_LIMIT)).find((b) => b.id === parsed.data.id);
+    if (existing) {
+      return reply.code(409).send({
+        error: 'already_exists',
+        message: `Рассылка «${parsed.data.id}» уже существует — сохраните её через изменение, а не создание.`,
+      });
+    }
+    await saveDraft(parsed.data, segment, s.staffId, reply);
+    if (reply.sent) return;
+    await repo.writeAudit({ staffId: s.staffId, action: 'broadcast_create', target: parsed.data.id });
+    return reply.code(201).send({ ok: true, id: parsed.data.id, segment });
+  });
+
+  /** Edit a draft. A published broadcast is refused — it is already on a phone. */
+  app.put('/admin/broadcasts/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const parsed = broadcastBody.safeParse({ ...(req.body as object), id });
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const segment = readSegment(parsed.data.segment ?? {}, reply);
+    if (!segment) return;
+    await saveDraft(parsed.data, segment, s.staffId, reply);
+    if (reply.sent) return;
+    await repo.writeAudit({ staffId: s.staffId, action: 'broadcast_edit', target: id });
+    return reply.send({ ok: true, id, segment });
+  });
+
+  /** The write both save routes share, including what it says when it refuses. */
+  async function saveDraft(
+    v: z.infer<typeof broadcastBody>,
+    segment: BroadcastSegment,
+    staffId: string,
+    reply: FastifyReply,
+  ): Promise<void> {
+    try {
+      await repo.saveBroadcast({
+        id: v.id,
+        titleRu: v.titleRu,
+        bodyRu: v.bodyRu,
+        titleKk: v.titleKk?.trim() ? v.titleKk.trim() : null,
+        bodyKk: v.bodyKk?.trim() ? v.bodyKk.trim() : null,
+        segment,
+        createdBy: staffId,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('broadcast_already_published')) {
+        reply.code(409).send({
+          error: 'already_published',
+          message: 'Эта рассылка уже отправлена — её текст лежит у людей в телефонах, и изменить его задним числом нельзя. ' +
+            'Создайте новую.',
+        });
+        return;
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Send it.
+   *
+   * The two refusals are the whole feature. Without the Kazakh half a woman who
+   * set the app to Kazakh receives Russian marketing — the same silent fallback
+   * the week editor exists to close. And the weekly gap is applied in the
+   * database rather than in the panel, so a second tab, a double click and a
+   * nervous re-publish all land on the same ledger.
+   *
+   * The response reports MATCHED and EXCLUDED, not just delivered: «ушло 0 из
+   * 40» is the sentence an operator needs, and a bare «отправлено» over an
+   * audience entirely inside the gap is the confident wrong number this panel
+   * must never print.
+   */
+  app.post('/admin/broadcasts/:id/publish', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const b = (await repo.listBroadcasts(BROADCAST_LIMIT)).find((x) => x.id === id);
+    if (!b) return reply.code(404).send({ error: 'not_found' });
+    if (b.status === 'published') {
+      return reply.code(409).send({
+        error: 'already_published',
+        message: 'Эта рассылка уже отправлена. Повторная отправка создала бы второе сообщение об одном и том же.',
+      });
+    }
+
+    // «Двуязычность обязательна» — the same rule, in the same words, as the
+    // timeline cards and the week editor.
+    const problems: BilingualProblem[] = [];
+    for (const [field, ru, kk] of [
+      ['title', b.titleRu, b.titleKk],
+      ['summary', b.bodyRu, b.bodyKk],
+    ] as const) {
+      const missing = missingLocales({ ru: ru ?? '', kk: kk ?? '' });
+      if (missing.length) problems.push({ id: b.titleRu || id, field, missing });
+    }
+    if (problems.length) {
+      return reply.code(400).send({
+        error: 'translation_required',
+        problems,
+        message: `${bilingualMessage(problems)}. Без казахской версии рассылку отправить нельзя.`,
+      });
+    }
+
+    const result = await repo.publishBroadcast(id);
+    if (!result) return reply.code(404).send({ error: 'not_found' });
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: 'broadcast_publish',
+      target: id,
+      reason: `${describeSegment(b.segment)} · доставлено ${result.delivered} из ${result.matched}`,
+    });
+
+    // Push to exactly the people the ledger accepted. FAILS SOFT: the
+    // broadcast is published either way, and it reaches her notification centre
+    // on the next sync regardless — telling an operator «не отправилось»
+    // because one phone had a dead token would be a lie about what happened.
+    let pushed = true;
+    if (result.userIds.length) {
+      try {
+        await notify.broadcast?.(result.userIds, {
+          id,
+          ru: { title: b.titleRu, body: b.bodyRu },
+          kk: { title: b.titleKk ?? b.titleRu, body: b.bodyKk ?? b.bodyRu },
+        });
+      } catch (e) {
+        pushed = false;
+        app.log.warn(
+          `broadcast ${id} published to ${result.delivered} recipient(s) but the push failed — ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+    return reply.send({
+      ok: true,
+      id,
+      ...result,
+      // The ids are what the notifier needed; the panel gets counts. A list of
+      // user ids on a marketing screen is a list of people nobody there has a
+      // reason to see.
+      userIds: undefined,
+      pushed,
+      minGapDays: BROADCAST_MIN_GAP_DAYS,
+    });
   });
 
   // ---- Bulk import (admin only) ----

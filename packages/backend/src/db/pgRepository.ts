@@ -22,6 +22,58 @@ import type { Repository } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { normalizePhone } from '../phone.js';
 import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
+import {
+  BROADCAST_MIN_GAP_DAYS, INFANT_MAX_MONTHS, normalizeSegment,
+  type BroadcastSegment,
+} from '../admin/broadcasts.js';
+
+/**
+ * The segment, as a WHERE clause over `users u`.
+ *
+ * The same three questions [matchesSegment] answers in TypeScript, and they
+ * have to stay the same three: the in-memory repository is what every test and
+ * every dev box runs on, so a difference here is a difference nothing catches
+ * until a real broadcast reaches the wrong half of the country.
+ *
+ * `$1` is the short locale or NULL; `$2` is the audience.
+ */
+const SEGMENT_WHERE = `
+  ($1::text IS NULL OR (CASE WHEN lower(coalesce(u.locale,'')) LIKE 'kk%' THEN 'kk' ELSE 'ru' END) = $1::text)
+  AND (
+    $2::text = 'all'
+    -- Pregnant NOW. An overdue date is not a pregnancy the database can vouch
+    -- for: she may have given birth and nobody told us.
+    OR ($2::text = 'pregnant' AND u.due_date IS NOT NULL AND u.due_date >= CURRENT_DATE)
+    -- A child with no recorded birthday still makes her a mother.
+    OR ($2::text = 'mothers' AND EXISTS (
+          SELECT 1 FROM children c WHERE c.guardian_id = u.id))
+    OR ($2::text = 'infants' AND EXISTS (
+          SELECT 1 FROM children c
+           WHERE c.guardian_id = u.id
+             AND c.date_of_birth IS NOT NULL
+             AND c.date_of_birth <= CURRENT_DATE
+             AND c.date_of_birth > CURRENT_DATE - INTERVAL '${INFANT_MAX_MONTHS} months'))
+  )`;
+
+/**
+ * «Не чаще раза в неделю», as a NOT EXISTS.
+ *
+ * The interval is interpolated from a module constant, never from a request —
+ * the panel's footer prints the same number, and one source keeps the sentence
+ * on screen and the rule in the database from drifting apart.
+ */
+const IN_GAP = `
+  EXISTS (
+    SELECT 1 FROM broadcast_deliveries d
+     WHERE d.user_id = u.id
+       AND d.created_at >= now() - INTERVAL '${BROADCAST_MIN_GAP_DAYS} days')`;
+const NOT_IN_GAP = `NOT ${IN_GAP}`;
+
+/** [locale, audience] for [SEGMENT_WHERE]. */
+function segmentParams(segment: BroadcastSegment): [string | null, string] {
+  const s = normalizeSegment(segment);
+  return [s.locale ?? null, s.audience ?? 'all'];
+}
 
 /** support_tickets row -> SupportTicketRow. One mapping, not six. */
 function supportRow(r: Record<string, unknown>): SupportTicketRow {
@@ -1708,6 +1760,134 @@ export function createPgRepository(pool: Pool): Repository {
       const out: Record<number, number> = {};
       for (const r of rows) out[Number(r.week)] = Number(r.n);
       return out;
+    },
+
+    // ---- Broadcasts (frame 06 «Маркетинг») ----
+    async listBroadcasts(limit) {
+      const { rows } = await pool.query(
+        // `delivered` off the ledger, not off a stored counter: a number that
+        // can disagree with the rows it counts is a number somebody will
+        // eventually quote in a meeting.
+        `SELECT b.id, b.title_ru, b.body_ru, b.title_kk, b.body_kk, b.segment, b.status,
+                b.created_by, b.created_at, b.updated_at, b.published_at,
+                (SELECT count(*)::int FROM broadcast_deliveries d WHERE d.broadcast_id = b.id) AS delivered
+           FROM broadcasts b
+          ORDER BY b.created_at DESC
+          LIMIT $1`,
+        [limit]);
+      return rows.map((r) => ({
+        id: r.id as string,
+        titleRu: r.title_ru as string,
+        bodyRu: r.body_ru as string,
+        titleKk: (r.title_kk ?? null) as string | null,
+        bodyKk: (r.body_kk ?? null) as string | null,
+        segment: normalizeSegment(r.segment),
+        status: r.status === 'published' ? 'published' as const : 'draft' as const,
+        createdBy: (r.created_by ?? null) as string | null,
+        createdAt: new Date(r.created_at).toISOString(),
+        updatedAt: new Date(r.updated_at).toISOString(),
+        publishedAt: r.published_at ? new Date(r.published_at).toISOString() : null,
+        delivered: Number(r.delivered ?? 0),
+      }));
+    },
+
+    async saveBroadcast(v) {
+      // `WHERE broadcasts.status = 'draft'` on the UPDATE half: a published
+      // broadcast is already on somebody's phone, and rewriting the row would
+      // change what the panel says we sent without changing what we sent.
+      // Reported rather than silently ignored — the route turns 0 rows into a
+      // sentence.
+      const { rowCount } = await pool.query(
+        `INSERT INTO broadcasts
+           (id, title_ru, body_ru, title_kk, body_kk, segment, status, created_by, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,'draft',$7,now(),now())
+         ON CONFLICT (id) DO UPDATE SET
+           title_ru = EXCLUDED.title_ru,
+           body_ru  = EXCLUDED.body_ru,
+           title_kk = EXCLUDED.title_kk,
+           body_kk  = EXCLUDED.body_kk,
+           segment  = EXCLUDED.segment,
+           updated_at = now()
+         WHERE broadcasts.status = 'draft'`,
+        [v.id, v.titleRu, v.bodyRu, v.titleKk, v.bodyKk,
+          JSON.stringify(normalizeSegment(v.segment)), v.createdBy]);
+      if (!rowCount) throw new Error('broadcast_already_published');
+    },
+
+    async broadcastAudience(segment) {
+      const { rows } = await pool.query(
+        `SELECT count(*)::int AS matched,
+                count(*) FILTER (WHERE ${IN_GAP})::int AS excluded
+           FROM users u
+          WHERE ${SEGMENT_WHERE}`,
+        segmentParams(segment));
+      return { matched: Number(rows[0]?.matched ?? 0), excluded: Number(rows[0]?.excluded ?? 0) };
+    },
+
+    async publishBroadcast(id) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const found = await client.query(
+          `SELECT segment FROM broadcasts WHERE id = $1 FOR UPDATE`, [id]);
+        if (found.rowCount === 0) {
+          await client.query('ROLLBACK');
+          return null;
+        }
+        const params = segmentParams(normalizeSegment(found.rows[0].segment));
+        // Matched and delivered are counted in the SAME transaction, so the
+        // difference between them is the weekly gap and never a race.
+        const matched = await client.query(
+          `SELECT count(*)::int AS n FROM users u WHERE ${SEGMENT_WHERE}`, params);
+        const sent = await client.query(
+          `INSERT INTO broadcast_deliveries (broadcast_id, user_id)
+           SELECT $3, u.id FROM users u
+            WHERE ${SEGMENT_WHERE} AND ${NOT_IN_GAP}
+           ON CONFLICT DO NOTHING
+           RETURNING user_id`,
+          [...params, id]);
+        await client.query(
+          `UPDATE broadcasts SET status = 'published', published_at = now(), updated_at = now()
+            WHERE id = $1`, [id]);
+        await client.query('COMMIT');
+        const userIds = sent.rows.map((r) => r.user_id as string);
+        return {
+          matched: Number(matched.rows[0]?.n ?? 0),
+          excluded: Number(matched.rows[0]?.n ?? 0) - userIds.length,
+          delivered: userIds.length,
+          userIds,
+        };
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    async listAnnouncements(userId, limit) {
+      const { rows } = await pool.query(
+        // `d.created_at`, not `b.published_at`: what she wants to see is when
+        // it reached HER, and a re-published broadcast can reach two people on
+        // two different days.
+        `SELECT b.id, b.title_ru, b.body_ru, b.title_kk, b.body_kk, d.created_at
+           FROM broadcast_deliveries d
+           JOIN broadcasts b ON b.id = d.broadcast_id
+          WHERE d.user_id = $1 AND b.status = 'published'
+          ORDER BY d.created_at DESC
+          LIMIT $2`,
+        [userId, limit]);
+      return rows.map((r) => ({
+        id: r.id as string,
+        at: new Date(r.created_at).toISOString(),
+        ru: { title: r.title_ru as string, body: r.body_ru as string },
+        // Publication is refused without the Kazakh half, so a published row
+        // always has one. The fallback is for rows written before that rule.
+        kk: {
+          title: (r.title_kk ?? r.title_ru) as string,
+          body: (r.body_kk ?? r.body_ru) as string,
+        },
+      }));
     },
 
     async putStageContent(stageKey, items) {

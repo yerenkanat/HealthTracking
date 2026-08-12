@@ -136,7 +136,7 @@ async function productionDeps(): Promise<ServerDeps> {
   const { createAnthropicMedicationExtractor } = await import('./ai/medicationVision');
   const { createAnthropicAppointmentExtractor } = await import('./ai/appointmentVision');
   const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
-  const { emergencyCopy, geofenceCopy, sendPush, supportReplyCopy, toPushLocale } =
+  const { announcementCopy, emergencyCopy, geofenceCopy, sendPush, supportReplyCopy, toPushLocale } =
     await import('./notifications/push');
   type PushResult = Awaited<ReturnType<typeof sendPush>>;
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -231,6 +231,35 @@ async function productionDeps(): Promise<ServerDeps> {
         supportReplyCopy(ticket.subject, body, toPushLocale(locale), ticket.id),
       );
       await afterPush('support', res);
+    },
+    // Frame 06 — a рассылка reaches the phones the ledger accepted.
+    //
+    // Per recipient, in HER language, off her own `users.locale`. One send per
+    // woman rather than one multicast for everybody, because the two language
+    // versions are different messages — and because a mother with no token is
+    // then simply a mother with no token rather than a silent hole in a batch.
+    //
+    // The ids come from publishBroadcast, never from re-running the segment:
+    // the weekly gap was decided in the database, and asking a second time is
+    // how somebody receives two messages in one afternoon.
+    notifyBroadcast: async (userIds, message) => {
+      let sent = 0;
+      let noTokens = 0;
+      for (const userId of userIds) {
+        const { tokens, locale } = await repo.guardianPushTokensForUser(userId);
+        if (tokens.length === 0) { noTokens += 1; continue; }
+        const text = toPushLocale(locale) === 'kk' ? message.kk : message.ru;
+        const res = await sendPush(tokens, announcementCopy(text.title, text.body, message.id));
+        sent += res.sent;
+        await afterPush('broadcast', res);
+      }
+      // Said out loud. «Доставлено 40» on the panel counts ledger rows — what
+      // reached a phone is this number, and the gap between them is people who
+      // have never opened the app on a device we can reach.
+      console.warn(
+        `broadcast ${message.id}: ${sent} push(es) delivered to ${userIds.length} recipient(s)` +
+        (noTokens ? `, ${noTokens} with no registered device` : ''),
+      );
     },
     authUser,
     authAdmin: authAdminFor(repo),

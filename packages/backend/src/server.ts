@@ -144,6 +144,14 @@ export interface ServerDeps {
    * panel still reports success, because it succeeded. See AdminNotifiers.
    */
   notifySupportReply?: AdminNotifiers['supportReply'];
+  /**
+   * Push a published рассылка to the phones it was recorded against — frame 06.
+   *
+   * Omitted = no push channel on this box. The broadcast is still published and
+   * still reaches her notification centre on the next sync, so publishing never
+   * depends on this being wired.
+   */
+  notifyBroadcast?: AdminNotifiers['broadcast'];
 }
 
 // ---- Edge validation schemas (reject malformed/hostile payloads) ----
@@ -578,7 +586,7 @@ export function buildServer(
     phoneCodeRequested: deps.phoneCodeRequested ?? false,
     // Emergency push is injected by index.ts only when a real sender loads.
     pushWired: !!deps.pushIsReal,
-  }, { supportReply: deps.notifySupportReply });
+  }, { supportReply: deps.notifySupportReply, broadcast: deps.notifyBroadcast });
   if (deps.authAdmin) registerStaffAdminRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin) registerInventoryRoutes(app, deps.repo, deps.authAdmin);
   if (deps.authAdmin && deps.authUser) registerEntitlementRoutes(app, deps.repo, deps.authAdmin, deps.authUser);

@@ -14,6 +14,7 @@ import type {
 } from '@fcs/shared';
 import type { BiMetrics } from '../analytics/biMetrics.js';
 import type { SosOutcome } from '../safety/dayHistory.js';
+import type { BroadcastSegment } from '../admin/broadcasts.js';
 
 export type { BiMetrics };
 
@@ -490,6 +491,46 @@ export interface PregnancyWeekOverride {
   rev: number;
   updatedAt: string;
   updatedBy: string | null;
+}
+
+/**
+ * One рассылка — frame 06.
+ *
+ * The Kazakh halves are nullable, and that is the publication gate rather than
+ * sloppiness: a draft may be half-written, and the route refuses to publish
+ * without them.
+ */
+export interface BroadcastRow {
+  id: string;
+  titleRu: string;
+  bodyRu: string;
+  titleKk: string | null;
+  bodyKk: string | null;
+  segment: import('../admin/broadcasts.js').BroadcastSegment;
+  status: 'draft' | 'published';
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  /**
+   * How many phones it actually reached, off the delivery ledger.
+   *
+   * NOT how many the segment matched. A published broadcast whose audience was
+   * entirely inside the weekly gap reads 0 here, which is the truth — and the
+   * panel prints «доставлено», never a read rate, because nothing in this
+   * product records whether a notification was opened.
+   */
+  delivered: number;
+}
+
+/** One рассылка as the app receives it. */
+export interface AnnouncementRow {
+  id: string;
+  /** When it was sent to HER — the ledger row, not the publication instant. */
+  at: string;
+  ru: { title: string; body: string };
+  /** Falls back to the Russian text only in the app; the server sends what it has. */
+  kk: { title: string; body: string };
 }
 
 /** A whole family, assembled for the back-office drilldown. */
@@ -1009,6 +1050,45 @@ export interface Repository {
   /// is in are absent from the map rather than present as zero, so a caller
   /// reporting «0 мам» is reporting a real count and not a missing key.
   pregnancyWeekMotherCounts(): Promise<Record<number, number>>;
+
+  // ---- Broadcasts (frame 06 «Маркетинг») ----
+  /// Every broadcast, newest first, drafts included. `delivered` is read off
+  /// the ledger, so it is what actually went out rather than what was hoped
+  /// for — a published broadcast whose whole audience was inside the weekly
+  /// gap honestly reads 0.
+  listBroadcasts(limit: number): Promise<BroadcastRow[]>;
+  /// Create or replace a DRAFT. Publishing is its own call: a save must never
+  /// be able to send, or an editor fixing a typo would send the message twice.
+  /// Implementations refuse to overwrite a published row.
+  saveBroadcast(v: {
+    id: string;
+    titleRu: string;
+    bodyRu: string;
+    titleKk: string | null;
+    bodyKk: string | null;
+    segment: BroadcastSegment;
+    createdBy: string;
+  }): Promise<void>;
+  /// How many people the segment covers, and how many of them are inside the
+  /// weekly gap and would therefore be skipped. Both numbers, always: a
+  /// «получателей: 40» that silently means 12 is the number this feature is
+  /// most likely to be wrong about.
+  broadcastAudience(segment: BroadcastSegment): Promise<{ matched: number; excluded: number }>;
+  /// Send it. Writes one delivery row per recipient, flips the status, and
+  /// returns what happened — including [userIds] so the caller can push to
+  /// exactly the people who were recorded as delivered. Null when there is no
+  /// such broadcast. Already-published rows are the route's business, not this
+  /// one's: it is idempotent per person by primary key.
+  publishBroadcast(id: string): Promise<{
+    matched: number;
+    excluded: number;
+    delivered: number;
+    userIds: string[];
+  } | null>;
+  /// What this woman has been sent — the app's «Центр уведомлений». Both
+  /// languages travel, because she may change hers after the message arrives
+  /// and a cached copy in the wrong language is a bug she cannot fix.
+  listAnnouncements(userId: string, limit: number): Promise<AnnouncementRow[]>;
 
   /**
    * Record a back-office action.

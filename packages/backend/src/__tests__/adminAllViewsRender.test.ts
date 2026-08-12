@@ -36,7 +36,7 @@ const PANEL = resolve(here, '../../../admin/index.html');
 const VIEWS = [
   'overview', 'analytics', 'users', 'kids', 'devices', 'safety',
   'emergencies', 'audit', 'content', 'antenatal', 'pregweeks',
-  'childdev', 'vaccines', 'audio', 'shop',
+  'childdev', 'vaccines', 'audio', 'shop', 'marketing',
 ] as const;
 
 const NOW = new Date('2026-07-21T12:00:00Z');
@@ -80,6 +80,19 @@ const FIXTURES: Record<string, unknown> = {
     audit: [{ id: 'a1', staffId: 's1', action: 'view_emergencies', target: null, at: day(3) }],
   },
   '/admin/content': { stages: {} },
+  // Frame 06. The preview route must come first in the longest-match sort, so
+  // it is spelled out rather than left to /admin/broadcasts.
+  '/admin/broadcasts/new/preview': { segment: {}, matched: 3, excluded: 1, deliverable: 2, minGapDays: 7, describe: 'Все' },
+  '/admin/broadcasts': {
+    broadcasts: [{
+      id: 'bc-1', titleRu: 'Второй скрининг', bodyRu: 'Окно 18–21 неделя.',
+      titleKk: 'Екінші скрининг', bodyKk: '18–21 апта.',
+      segment: { audience: 'pregnant' }, status: 'published', createdBy: 's1',
+      createdAt: day(1), updatedAt: day(1), publishedAt: day(2), delivered: 12,
+    }],
+    minGapDays: 7, audiences: ['all', 'pregnant', 'mothers', 'infants'],
+    locales: ['ru', 'kk'], segmentFields: ['audience', 'locale'], infantMaxMonths: 12,
+  },
   '/admin/audio': { audio: [] },
   '/admin/shop/variants': { variants: [{ id: 'v1', productName: 'Часы', color: 'black', stock: 12, priceMinor: 2490000 }] },
   '/admin/shop/orders': { orders: [] },

@@ -149,6 +149,40 @@ export function supportReplyCopy(
   };
 }
 
+/**
+ * A рассылка — frame 06.
+ *
+ * There are no COPY templates here, and that is the point: the words are the
+ * ones a person wrote in the back office, in the language she reads, and this
+ * function only decides how they are delivered. A template would mean the panel
+ * showed one sentence and the phone displayed another.
+ *
+ * Deliberately NOT critical and category `nudge`: marketing must never break
+ * Do Not Disturb. Red, the alarm sound and the DND bypass belong to an SOS
+ * alone, and the day they are shared with an announcement is the day people
+ * start silencing the app.
+ *
+ * `screen` sends a tap to the notification centre, where the same message is
+ * already waiting from GET /announcements — so the notification and the app
+ * agree even if the push arrives twice or not at all.
+ */
+export function announcementCopy(
+  title: string, body: string, broadcastId?: string,
+): PushMessage {
+  const line = body.trim().replace(/\s+/g, ' ');
+  return {
+    title: title.trim(),
+    // Cut rather than wrapped: a lock-screen banner truncates anyway, and the
+    // whole text is in the centre.
+    body: line.length > 160 ? `${line.slice(0, 159)}…` : line,
+    category: 'nudge',
+    data: {
+      screen: 'NotificationCentre',
+      ...(broadcastId ? { broadcastId } : {}),
+    },
+  };
+}
+
 export function emergencyCopy(triage: TriageResult, locale: PushLocale = 'ru'): PushMessage {
   const top = triage.findings[0];
   return {
