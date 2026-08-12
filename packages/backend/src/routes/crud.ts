@@ -1317,8 +1317,27 @@ export function registerCrudRoutes(
     // The threads come WITH the tickets. A list that made her tap to discover
     // whether anybody had answered would be the same silence in a new shape,
     // and twenty threads is a handful of rows.
+    // Named fields, NOT `...t`.
+    //
+    // The spread sent her phone the whole back-office row: `assigneeId` (a
+    // staff_accounts UUID), her own `userId`, the `phone` and `customerName`
+    // the desk holds, `appContext`, `channel`, and every internal timestamp.
+    // The app reads seven keys — SupportThread.parse takes id, subject, body,
+    // status, createdAt, customerReadAt and replies — so all of it was payload
+    // nobody asked for.
+    //
+    // Nothing here is exploitable on its own. It is the shape that becomes a
+    // leak later: internal staff identifiers sitting in a customer's client is
+    // how one surface's harmless field turns into another surface's disclosure,
+    // and a spread keeps handing over whatever columns a future migration adds.
+    // A named list can only ever send what somebody chose to send.
     const threads = await Promise.all(tickets.map(async (t) => ({
-      ...t,
+      id: t.id,
+      subject: t.subject,
+      body: t.body,
+      status: t.status,
+      createdAt: t.createdAt,
+      customerReadAt: t.customerReadAt,
       replies: await repo.listSupportReplies(t.id).catch(() => []),
     })));
     return reply.send({

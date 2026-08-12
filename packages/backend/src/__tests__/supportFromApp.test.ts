@@ -436,4 +436,32 @@ describe('what the app is told', () => {
     expect(body.templates).toBeUndefined();
     await app.close();
   });
+
+  it('sends only the seven keys the app reads, not the back-office row', async () => {
+    // The handler used to spread the raw SupportTicketRow, so every ticket
+    // arrived carrying assigneeId — a staff_accounts UUID — plus her userId,
+    // the phone and name the desk holds, appContext, channel and every
+    // internal timestamp. The app parses seven keys and ignored the rest.
+    //
+    // Asserting the EXACT key set, not just the absence of today's offenders:
+    // a spread hands over whatever columns the next migration adds, and a
+    // deny-list would silently start leaking each new one. This fails on the
+    // day someone adds a column, which is the day to decide about it.
+    // Answered, so the row carries the fields an unanswered one would leave
+    // null — assigneeId and answeredAt are only interesting once staff touch it.
+    const id = await raise('Где заказ?', 'Жду неделю');
+    await desk.post(`/admin/support/${id}/reply`, { body: 'Завтра до 18:00' });
+
+    const t = (await her().get('/support')).json().tickets[0];
+    expect(Object.keys(t).sort()).toEqual(
+      ['body', 'createdAt', 'customerReadAt', 'id', 'replies', 'status', 'subject'],
+    );
+    // Named individually too, so a failure says which one came back rather
+    // than printing two key lists and leaving the reader to diff them.
+    expect(t.assigneeId, 'a staff account id reached the customer').toBeUndefined();
+    expect(t.userId).toBeUndefined();
+    expect(t.phone).toBeUndefined();
+    expect(t.appContext).toBeUndefined();
+    await app.close();
+  });
 });
