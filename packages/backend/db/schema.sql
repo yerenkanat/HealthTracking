@@ -728,6 +728,21 @@ CREATE TABLE IF NOT EXISTS daily_audio (
   PRIMARY KEY (track, day, locale)
 );
 
+-- A photo an operator UPLOADS, rather than a link she is asked to find.
+-- See migration 044 for why the bytes live here and why `color` is in the key.
+CREATE TABLE IF NOT EXISTS shop_product_photos (
+  product_id  TEXT NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
+  color       TEXT NOT NULL DEFAULT '',
+  mime        TEXT NOT NULL CHECK (mime IN ('image/jpeg','image/png','image/webp')),
+  bytes       BYTEA NOT NULL,
+  CONSTRAINT photo_not_empty CHECK (octet_length(bytes) > 0),
+  CONSTRAINT photo_not_huge  CHECK (octet_length(bytes) <= 3 * 1024 * 1024),
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  uploaded_by UUID REFERENCES staff_accounts(id) ON DELETE SET NULL,
+  PRIMARY KEY (product_id, color)
+);
+CREATE INDEX IF NOT EXISTS idx_product_photos_product ON shop_product_photos(product_id);
+
 -- Store settings (WhatsApp number, Kaspi link, …) edited in the admin panel.
 CREATE TABLE IF NOT EXISTS shop_settings (
   key        TEXT PRIMARY KEY,

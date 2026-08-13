@@ -534,6 +534,8 @@ const UUID_RE =
   const shopLeads: ShopLeadRow[] = [];
   type AudioRow = { track: string; day: number; locale: string; title: string | null; mime: string; bytes: Buffer; updatedAt: string };
   const dailyAudio = new Map<string, AudioRow>(); // key: `${track}|${day}|${locale}`
+  // key: `${productId}|${color}` — '' colour is the product's own photo.
+  const productPhotos = new Map<string, { mime: string; bytes: Buffer; uploadedAt: string }>();
   const shopSettings = new Map<string, string>();
 
   // Named rather than returned anonymously so a method can call a sibling —
@@ -2453,6 +2455,25 @@ const UUID_RE =
         .filter((a) => a.track === track)
         .sort((a, b) => a.day - b.day || a.locale.localeCompare(b.locale))
         .map((a) => ({ track: a.track as 'pregnancy' | 'child', day: a.day, locale: a.locale as 'ru' | 'kk', title: a.title, mime: a.mime, size: a.bytes.length, updatedAt: a.updatedAt })),
+    getProductPhoto: async (productId, color) => {
+      const hit = productPhotos.get(`${productId}|${color ?? ''}`);
+      return hit ? { mime: hit.mime, bytes: hit.bytes } : null;
+    },
+    listProductPhotos: async () => [...productPhotos.entries()]
+      .map(([k, v]) => {
+        const [productId, color] = k.split('|');
+        return { productId, color, uploadedAt: v.uploadedAt };
+      })
+      .sort((a, b) => (a.productId + a.color).localeCompare(b.productId + b.color)),
+    putProductPhoto: async (p) => {
+      // Replaces, never accumulates — the same contract as the pg ON CONFLICT.
+      productPhotos.set(`${p.productId}|${p.color ?? ''}`, {
+        mime: p.mime, bytes: p.bytes, uploadedAt: new Date().toISOString(),
+      });
+    },
+    deleteProductPhoto: async (productId, color) => {
+      productPhotos.delete(`${productId}|${color ?? ''}`);
+    },
     getDailyAudio: async (track, day, locale) => {
       const a = dailyAudio.get(`${track}|${day}|${locale}`);
       return a ? { mime: a.mime, bytes: a.bytes } : null;

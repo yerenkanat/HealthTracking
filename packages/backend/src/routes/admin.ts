@@ -122,6 +122,27 @@ function coverageOf(catalog: Record<string, ContentItemRow[]>) {
   };
 }
 
+/**
+ * What a product photo may be, and how big.
+ *
+ * JPEG/PNG/WebP only: those three are what every browser and the Flutter app
+ * decode without help. HEIC is deliberately absent — an iPhone will offer it,
+ * and accepting a format half the surfaces cannot render is worse than
+ * refusing it with a sentence naming what to use instead.
+ *
+ * 3 MB is a real product photo at a sane resolution. Above that somebody has
+ * uploaded a 40-megapixel original, and the storefront becomes unusable on the
+ * mobile connection most of these customers are on. The same ceiling is a CHECK
+ * constraint in migration 044, because a limit enforced only at the route is a
+ * limit that a second route will forget.
+ */
+const ALLOWED_PHOTO_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+/** Where a stored photo is served from — one definition, used by the upload's
+ *  reply and by the storefront payload, so the two cannot drift. */
+export const photoUrlFor = (productId: string, color: string) =>
+  `/shop/products/${encodeURIComponent(productId)}/photo${color ? `?color=${encodeURIComponent(color)}` : ''}`;
+
 const localizedText = z.record(z.string(), z.string());
 const contentItem = z.object({
   id: z.string().min(1).max(80),
@@ -3240,6 +3261,49 @@ export function registerAdminRoutes(
   });
 
   // Coverage list for a track (metadata only — which days have a clip).
+  /**
+   * Upload a product photo. Raw image bytes in the body, like the audio route
+   * below — the panel sends the file itself rather than asking an operator to
+   * find a URL for it.
+   *
+   * `content` rather than `orders`: this is the shelf's appearance, the same
+   * capability that already gates the product copy it sits beside.
+   */
+  app.post('/admin/shop/products/:id/photo', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const id = String((req.params as { id?: string }).id ?? '');
+    const color = String((req.query as { color?: string }).color ?? '').slice(0, 40);
+    const mime = String(req.headers['content-type'] ?? '').split(';')[0].trim();
+    if (!ALLOWED_PHOTO_MIME.has(mime)) {
+      // Named, not a bare 415: an operator who just picked a HEIC off an iPhone
+      // needs to be told which formats work, not that something was "wrong".
+      return reply.code(415).send({ error: 'not_an_image', allowed: [...ALLOWED_PHOTO_MIME] });
+    }
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length === 0) return reply.code(400).send({ error: 'empty_photo' });
+    if (body.length > MAX_PHOTO_BYTES) {
+      return reply.code(413).send({ error: 'photo_too_large', maxBytes: MAX_PHOTO_BYTES });
+    }
+    // The product has to exist. Otherwise a typo in the id creates a photo
+    // nothing will ever show and nobody will ever find.
+    const products = await repo.shopProducts().catch(() => []);
+    if (!products.some((p: { id: string }) => p.id === id)) return reply.code(404).send({ error: 'no_such_product' });
+    await repo.putProductPhoto({ productId: id, color, mime, bytes: body, staffId: s.staffId });
+    await repo.writeAudit({ staffId: s.staffId, action: 'product_photo_upload', target: color ? `${id}/${color}` : id });
+    return reply.code(201).send({ ok: true, url: photoUrlFor(id, color) });
+  });
+
+  app.delete('/admin/shop/products/:id/photo', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const id = String((req.params as { id?: string }).id ?? '');
+    const color = String((req.query as { color?: string }).color ?? '').slice(0, 40);
+    await repo.deleteProductPhoto(id, color);
+    await repo.writeAudit({ staffId: s.staffId, action: 'product_photo_delete', target: color ? `${id}/${color}` : id });
+    return reply.send({ ok: true });
+  });
+
   app.get('/admin/audio', async (req, reply) => {
     const s = await requireCap(req, reply, 'content');
     if (!s) return;

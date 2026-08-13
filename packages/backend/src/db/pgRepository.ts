@@ -3370,6 +3370,36 @@ export function createPgRepository(pool: Pool): Repository {
         size: Number(r.size), updatedAt: new Date(r.updated_at).toISOString(),
       }));
     },
+    async getProductPhoto(productId, color) {
+      const { rows } = await pool.query(
+        'SELECT mime, bytes FROM shop_product_photos WHERE product_id = $1 AND color = $2',
+        [productId, color ?? '']);
+      return rows[0] ? { mime: rows[0].mime, bytes: rows[0].bytes } : null;
+    },
+    async listProductPhotos() {
+      // Deliberately without `bytes`: the panel draws a thumbnail per row and
+      // the storefront asks which products have a photo. Selecting the blobs to
+      // answer either would move megabytes to render a list.
+      const { rows } = await pool.query(
+        'SELECT product_id, color, uploaded_at FROM shop_product_photos ORDER BY product_id, color');
+      return rows.map((r) => ({
+        productId: r.product_id, color: r.color,
+        uploadedAt: new Date(r.uploaded_at).toISOString(),
+      }));
+    },
+    async putProductPhoto(p) {
+      await pool.query(
+        `INSERT INTO shop_product_photos (product_id, color, mime, bytes, uploaded_by, uploaded_at)
+         VALUES ($1, $2, $3, $4, $5, now())
+         ON CONFLICT (product_id, color)
+         DO UPDATE SET mime = EXCLUDED.mime, bytes = EXCLUDED.bytes,
+                       uploaded_by = EXCLUDED.uploaded_by, uploaded_at = now()`,
+        [p.productId, p.color ?? '', p.mime, p.bytes, p.staffId ?? null]);
+    },
+    async deleteProductPhoto(productId, color) {
+      await pool.query('DELETE FROM shop_product_photos WHERE product_id = $1 AND color = $2',
+        [productId, color ?? '']);
+    },
     async getDailyAudio(track, day, locale) {
       const { rows } = await pool.query(
         'SELECT mime, bytes FROM daily_audio WHERE track = $1 AND day = $2 AND locale = $3', [track, day, locale]);

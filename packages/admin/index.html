@@ -780,6 +780,23 @@
   .arow audio{height:38px;width:100%}
   .arow .adel{border:1px solid color-mix(in srgb,var(--crit) 30%,transparent);background:var(--crit-soft);color:var(--crit-text);border-radius:9px;padding:8px 13px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .12s}
   .arow .adel:hover{background:color-mix(in srgb,var(--crit) 16%,transparent)}
+  /* 17a · расписание. A window over DAY NUMBERS — a clip is tied to a day of
+     pregnancy or a day of life, and the table holds no calendar date to print. */
+  .audschedbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 18px 4px}
+  .audschedbar .audwin{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink)}
+  .audgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:10px 18px 14px}
+  @media(max-width:760px){.audgrid{grid-template-columns:repeat(4,1fr)}}
+  .aud-day{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:56px;
+    padding:8px 9px;border:1px solid var(--hair);border-radius:10px;background:var(--surface);
+    font:inherit;color:var(--ink);cursor:pointer;text-align:left;transition:border-color .12s,background .12s}
+  .aud-day:hover{border-color:var(--ink)}
+  .aud-day .n{font-family:var(--mono);font-weight:700;font-size:13px}
+  .aud-day .s{font-size:11px;color:var(--muted);line-height:1.25;overflow:hidden;word-break:break-word}
+  .aud-day.has{background:var(--good-soft);border-color:color-mix(in srgb,var(--good) 35%,transparent)}
+  .aud-day.has .s{color:var(--good-text)}
+  /* Amber, never red: an empty day ahead is a gap to fill, not a fault. */
+  .aud-day.gap{background:var(--warn-soft);border-color:var(--warn-line)}
+  .aud-day.gap .s{color:var(--warn-text)}
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
     .card:hover{transform:none}
@@ -2036,11 +2053,24 @@
             </div>
 
             <div class="tabpane" data-pane="photo" hidden>
-              <div class="fieldrow">
-                <label>Ссылка на фото<input id="pcPhoto" maxlength="500" placeholder="https://…"></label>
+              <!-- Upload, not a link.
+                   «Ссылка на фото» asked a person selling watches to first host
+                   an image somewhere and then know its address — and it put the
+                   storefront's pictures on a server nobody here controls, where
+                   they rot or start returning something else. The file goes to
+                   us now and is served from us. -->
+              <div class="fieldrow" style="align-items:flex-end">
+                <label style="flex:1 1 260px">Фото товара
+                  <input type="file" id="pcPhotoFile" accept="image/jpeg,image/png,image/webp"></label>
+                <label style="flex:0 1 200px">Цвет (необязательно)
+                  <select id="pcPhotoColor"><option value="">Общее фото товара</option></select></label>
+                <button class="btn" type="button" id="pcPhotoUpload">Загрузить</button>
+                <button class="btn ghost" type="button" id="pcPhotoDelete">Удалить фото</button>
               </div>
               <div id="pcPhotoPrev" style="margin-top:12px"></div>
-              <div class="note">Загрузки файлов здесь пока нет — только ссылка. Пустое поле значит «фото нет», и витрина покажет заглушку.</div>
+              <div id="pcPhotoMsg" class="formmsg"></div>
+              <div class="note">JPEG, PNG или WebP, до 3 МБ. HEIC с айфона не подойдёт — выберите в настройках камеры «Наиболее совместимый» или пересохраните.
+                Фото без цвета показывается для товара целиком; с цветом — вместо него на карточке этого цвета. Пока фото нет, витрина показывает заглушку, а не пустое место.</div>
             </div>
 
             <div class="tabpane" data-pane="stock" hidden>
@@ -2443,6 +2473,8 @@
               <button data-locale="kk">KZ</button>
             </div>
           </div>
+          <!-- Every number here is counted from GET /admin/audio; none is typed. -->
+          <div class="kpis" id="audMetrics" style="margin:14px 0"></div>
           <div class="audioadd">
             <label>День<input type="number" id="audDay" min="1" max="400" value="1" placeholder="1"></label>
             <label>Название (необяз.)<input type="text" id="audTitle" maxlength="200" placeholder="Напр. 20 неделя"></label>
@@ -2451,6 +2483,24 @@
           </div>
           <div class="audiomsg" id="audMsg"></div>
           <div id="audList"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+
+        <!-- 17a · Расписание. A window over DAY NUMBERS, not dates: a clip is
+             tied to a day of pregnancy or a day of life, and nothing in the
+             table says which calendar date that is for any given mother. -->
+        <div class="card" id="audSchedule" style="margin-top:16px;padding:0">
+          <div class="sec-h" style="padding:18px 18px 10px">
+            <h3>Расписание</h3>
+            <span class="sub">Окно из 21 дня календаря — номера дней, а не даты</span>
+          </div>
+          <div class="audschedbar">
+            <button type="button" class="btn sm ghost" id="audPrev">← Раньше</button>
+            <span class="audwin" id="audWindow">—</span>
+            <button type="button" class="btn sm ghost" id="audNext">Позже →</button>
+            <button type="button" class="btn sm ghost" id="audStart">К началу</button>
+          </div>
+          <div class="audgrid" id="audGrid"></div>
+          <div class="tfoot" id="audGridNote"></div>
         </div>
       </section>
     </div>
@@ -6647,13 +6697,31 @@
 
   // ---- Daily calendar audio ----
   let audTrack="pregnancy", audLocale="ru", audioWired=false;
+  // 17a. The schedule is a window over DAY NUMBERS — day of pregnancy / day of
+  // life. There is no "today" for a track: every mother is on a different day
+  // of it, so the panel prints no date anywhere on this screen.
+  const AUD_WIN=21, AUD_MAX=400; // AUD_MAX matches the upload route's day range.
+  // null = "put the window where the work is" (recomputed on every track/locale
+  // switch); a number = the operator paged somewhere and stays there.
+  let audWin=null;
   const trackLabel=t=>t==="pregnancy"?"Беременность":"Развитие ребёнка";
   function audMsg(t,cls){ const m=$("#audMsg"); m.textContent=t||""; m.className="audiomsg"+(cls?" "+cls:""); }
+  function audPage(delta){
+    audWin=Math.max(1,Math.min(AUD_MAX-AUD_WIN+1,(audWin||1)+delta));
+    renderAudio();
+  }
   function wireAudio(){
     if(audioWired) return; audioWired=true;
-    document.querySelectorAll('#audTrack button').forEach(b=>b.onclick=()=>{audTrack=b.dataset.track;document.querySelectorAll('#audTrack button').forEach(x=>x.classList.toggle('on',x===b));renderAudio();});
-    document.querySelectorAll('#audLocale button').forEach(b=>b.onclick=()=>{audLocale=b.dataset.locale;document.querySelectorAll('#audLocale button').forEach(x=>x.classList.toggle('on',x===b));renderAudio();});
+    // Switching track or language moves the window back to where that
+    // combination's work is — a page number from the last track means nothing
+    // in the next one.
+    document.querySelectorAll('#audTrack button').forEach(b=>b.onclick=()=>{audTrack=b.dataset.track;audWin=null;document.querySelectorAll('#audTrack button').forEach(x=>x.classList.toggle('on',x===b));renderAudio();});
+    document.querySelectorAll('#audLocale button').forEach(b=>b.onclick=()=>{audLocale=b.dataset.locale;audWin=null;document.querySelectorAll('#audLocale button').forEach(x=>x.classList.toggle('on',x===b));renderAudio();});
     $("#audUpload").onclick=uploadAudio;
+    const prev=$("#audPrev"), next=$("#audNext"), start=$("#audStart");
+    if(prev) prev.onclick=()=>audPage(-AUD_WIN);
+    if(next) next.onclick=()=>audPage(AUD_WIN);
+    if(start) start.onclick=()=>{ audWin=1; renderAudio(); };
   }
   // ---- Курс Ма!Ма! --------------------------------------------------------
   //
@@ -7716,12 +7784,95 @@
     }catch(e){ audMsg("Не удалось загрузить","err"); }
     $("#audUpload").disabled=false;
   }
+  /**
+   * Frame 17's metric row. Every number is counted from the /admin/audio rows
+   * this call just received — nothing here is typed, and nothing is estimated.
+   *
+   * «дней без записи» is deliberately the number of HOLES BELOW the furthest
+   * day already published, not "days not yet recorded": the calendar runs to
+   * 400 days, so the second reading would print a number that only ever means
+   * "you haven't finished a year of content yet". A hole at day 40 when day 120
+   * exists is a real defect an operator can fix today.
+   */
+  function renderAudioMetrics(all){
+    const box=$("#audMetrics"); if(!box) return;
+    const mine=all.filter(a=>a.locale===audLocale);
+    const kk=all.filter(a=>a.locale==="kk").length;
+    const days=mine.map(a=>a.day);
+    const furthest=days.length?Math.max.apply(null,days):0;
+    const filled=new Set(days).size;
+    const holes=Math.max(0,furthest-filled);
+    box.innerHTML=[
+      {dot:"var(--good)",lbl:"Записей",val:all.length,
+       delta:`RU ${all.length-kk} · ҚАЗ ${kk} · оба языка вместе`},
+      {dot:"var(--ink)",lbl:"На казахском",val:kk,
+       delta:all.length?`${kk} из ${all.length} записей трека`:"записей пока нет"},
+      {dot:"var(--warn)",lbl:"Дней без записи",val:holes,
+       delta:furthest?`пропуски между 1 и ${furthest} днём · язык ${audLocale.toUpperCase()}`
+                      :`язык ${audLocale.toUpperCase()} · записей ещё нет`},
+    ].map(kpiTile).join("");
+  }
+
+  /**
+   * Frame 17a. A 21-day window over the calendar, with paging.
+   *
+   * Amber marks a day with no clip IN THE SELECTED LANGUAGE. It is a reminder
+   * to record it and nothing more: the app has no "three empty days switch the
+   * block off" rule, and `daily_audio` cannot express a disabled block, so this
+   * screen does not claim one.
+   */
+  function renderAudioSchedule(all){
+    const grid=$("#audGrid"), note=$("#audGridNote"), win=$("#audWindow");
+    if(!grid||!note||!win) return;
+    const mine=all.filter(a=>a.locale===audLocale);
+    const byDay={}; mine.forEach(a=>{ byDay[a.day]=a; });
+    if(audWin===null){
+      // Open where the work is: the window holding the furthest day already
+      // recorded, so "carry on from here" is one glance rather than nine pages.
+      const furthest=mine.length?Math.max.apply(null,mine.map(a=>a.day)):1;
+      audWin=Math.max(1,Math.min(AUD_MAX-AUD_WIN+1,Math.floor((furthest-1)/AUD_WIN)*AUD_WIN+1));
+    }
+    const start=audWin, end=Math.min(AUD_MAX,start+AUD_WIN-1);
+    win.textContent=`Дни ${start}–${end}`;
+    let empty=0, cells="";
+    for(let d=start;d<=end;d++){
+      const a=byDay[d];
+      if(!a) empty++;
+      const sub=a?(a.title?esc(a.title):Math.round(a.size/1024)+" КБ"):"нет записи";
+      cells+=`<button type="button" class="aud-day ${a?"has":"gap"}" data-audday="${d}" `+
+        `title="${a?"Заменить запись дня "+d:"Загрузить запись для дня "+d}">`+
+        `<span class="n">${d}</span><span class="s">${sub}</span></button>`;
+    }
+    grid.innerHTML=cells;
+    note.textContent=`Окно из ${AUD_WIN} дней календаря «${trackLabel(audTrack)}», язык ${audLocale.toUpperCase()}: `+
+      `записей ${AUD_WIN-empty}, жёлтым — ${empty} дней без записи. Это номера дней беременности или дней жизни, `+
+      `а не даты — у записи нет календарной даты. Пустой день — напоминание записать его; блок в приложении от этого не отключается. `+
+      `Нажмите день, чтобы подставить его в форму загрузки.`;
+    grid.querySelectorAll(".aud-day").forEach(b=>b.onclick=()=>{
+      const d=b.dataset.audday, a=byDay[d];
+      $("#audDay").value=d;
+      // An existing title comes back with the day, so replacing a clip does not
+      // silently blank the name it was published under.
+      if(a&&a.title) $("#audTitle").value=a.title;
+      audMsg(`Форма готова: день ${d} · ${trackLabel(audTrack)} · ${audLocale.toUpperCase()}`+
+        (a?" — новый файл заменит существующую запись":""),a?"":"ok");
+      const form=document.querySelector("#audio .audioadd");
+      if(form&&typeof form.scrollIntoView==="function") form.scrollIntoView({block:"center"});
+      const file=$("#audFile"); if(file) file.focus();
+    });
+  }
+
   async function renderAudio(){
     wireAudio();
     const box=$("#audList");
     try{
       const {audio}=await api("/admin/audio?track="+audTrack);
-      const rows=audio.filter(a=>a.locale===audLocale);
+      const all=audio||[];
+      // The metrics and the schedule come off the SAME rows as the table below,
+      // so the three can never disagree about what is uploaded.
+      renderAudioMetrics(all);
+      renderAudioSchedule(all);
+      const rows=all.filter(a=>a.locale===audLocale);
       if(!rows.length){ box.innerHTML=`<div style="color:var(--muted);padding:14px 0">Пока нет аудио для «${trackLabel(audTrack)}» (${audLocale.toUpperCase()}). Добавьте выше.</div>`; return; }
       box.innerHTML=rows.map(a=>{
         const kb=Math.round(a.size/1024);
@@ -7740,7 +7891,16 @@
           renderAudio();
         }catch(e){ audMsg("Не удалось удалить аудио. Попробуйте ещё раз.","bad"); }
       });
-    }catch(e){ box.innerHTML=`<div style="color:var(--muted);padding:14px 0">Не удалось загрузить аудио</div>`; }
+    }catch(e){
+      // Say the list could not be read — and blank the metrics rather than
+      // leaving the previous track's numbers standing under a new heading.
+      box.innerHTML=`<div style="color:var(--muted);padding:14px 0">Не удалось загрузить аудио</div>`;
+      const m=$("#audMetrics"), g=$("#audGrid"), n=$("#audGridNote"), w=$("#audWindow");
+      if(m) m.innerHTML="";
+      if(g) g.innerHTML="";
+      if(w) w.textContent="—";
+      if(n) n.textContent="Метрики и расписание считаются из списка записей — он не загрузился, поэтому здесь ничего не показано.";
+    }
   }
 
   async function renderVaccines(){
@@ -9371,7 +9531,23 @@
     $("#pcDescRu").value = p.descriptionRu || "";
     $("#pcDescKk").value = p.descriptionKk || "";
     $("#pcActive").checked = !!p.active;
-    $("#pcPhoto").value = p.photoUrl || "";
+    // The colour list for the photo tab, from the product's own variants —
+    // «Общее фото товара» plus one entry per colour actually sold.
+    // Fetched here rather than read from VARIANTS: that lives in the OTHER
+    // script block, and reaching across is the mistake that left three whole
+    // tabs empty for months.
+    const colorSel = $("#pcPhotoColor");
+    if (colorSel) {
+      colorSel.innerHTML = `<option value="">Общее фото товара</option>`;
+      api("/admin/shop/variants").then((d) => {
+        if (catOpenId !== id) return;   // she moved on while it was in flight
+        const colors = [...new Set((d.variants || [])
+          .filter((v) => (v.productId || v.product) === id)
+          .map((v) => v.color).filter(Boolean))];
+        colorSel.innerHTML = `<option value="">Общее фото товара</option>`
+          + colors.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+      }).catch(() => { /* colours are optional; the product photo still works */ });
+    }
     $("#pcPrice").value = p.priceMinor == null ? "" : Math.round(p.priceMinor / 100);
     $("#pcCost").value = p.costMinor == null ? "" : Math.round(p.costMinor / 100);
     $("#pcSku").value = p.sku || "";
@@ -9414,12 +9590,71 @@
       .forEach((p) => { p.hidden = p.dataset.pane !== name; });
   }
 
+  /** The photo we hold for this product, or the honest absence.
+   *
+   * Cache-busted on every render: after an upload the URL is unchanged, and
+   * without this the operator would replace a photo, see the old one, and
+   * reasonably conclude the upload failed. */
   function catPhotoPreview() {
-    const url = $("#pcPhoto").value.trim();
-    $("#pcPhotoPrev").innerHTML = url
-      ? `<img src="${esc(url)}" alt="" style="max-width:200px;max-height:150px;border:1px solid var(--hair);border-radius:8px"
-              onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'note',textContent:'Фото не открылось по этой ссылке.'}))">`
-      : `<div class="note">Фото не указано.</div>`;
+    const box = $("#pcPhotoPrev"); if (!box) return;
+    const id = catOpenId; if (!id) { box.innerHTML = `<div class="note">Сначала сохраните товар.</div>`; return; }
+    const color = ($("#pcPhotoColor") && $("#pcPhotoColor").value) || "";
+    const url = `/shop/products/${encodeURIComponent(id)}/photo${color ? `?color=${encodeURIComponent(color)}` : ""}`;
+    box.innerHTML = `<img src="${esc(url)}${url.includes("?") ? "&" : "?"}v=${Date.now()}" alt=""
+        style="max-width:220px;max-height:170px;border:1px solid var(--hair);border-radius:8px;display:block"
+        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'note',textContent:'Фото ещё не загружено.'}))">`;
+  }
+
+  /** Send the chosen file as raw bytes, the same shape the audio upload uses. */
+  async function catPhotoUpload() {
+    const f = $("#pcPhotoFile") && $("#pcPhotoFile").files[0];
+    if (!catOpenId) return msgTo("#pcPhotoMsg", "Сначала сохраните товар — фото привязывается к нему.", "bad");
+    if (!f) return msgTo("#pcPhotoMsg", "Выберите файл.", "bad");
+    // Refused HERE as well as by the server: the operator finds out before a
+    // three-megabyte upload over a mobile connection, not after.
+    if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+      return msgTo("#pcPhotoMsg", `Формат ${f.type || "неизвестен"} не подойдёт. Нужен JPEG, PNG или WebP.`, "bad");
+    }
+    if (f.size > 3 * 1024 * 1024) {
+      return msgTo("#pcPhotoMsg", `Файл ${(f.size / 1048576).toFixed(1)} МБ — больше 3 МБ. Уменьшите фото.`, "bad");
+    }
+    const color = ($("#pcPhotoColor") && $("#pcPhotoColor").value) || "";
+    const btn = $("#pcPhotoUpload"); btn.disabled = true;
+    msgTo("#pcPhotoMsg", "Загружаем…", "");
+    try {
+      const r = await fetch(`/admin/shop/products/${encodeURIComponent(catOpenId)}/photo${color ? `?color=${encodeURIComponent(color)}` : ""}`,
+        { method: "POST", credentials: "same-origin", headers: { "content-type": f.type }, body: f });
+      if (!r.ok) {
+        // The server's reason, not a generic failure — 413 and 415 mean
+        // different things to the person holding the file.
+        const why = r.status === 413 ? "файл больше 3 МБ"
+          : r.status === 415 ? "такой формат не поддерживается"
+          : r.status === 404 ? "товар не найден — сохраните его сначала"
+          : r.status === 403 ? "нет прав на изменение витрины"
+          : `сервер ответил ${r.status}`;
+        msgTo("#pcPhotoMsg", `Не загрузилось: ${why}.`, "bad");
+        return;
+      }
+      msgTo("#pcPhotoMsg", "Фото загружено ✓", "ok");
+      $("#pcPhotoFile").value = "";
+      catPhotoPreview();
+      renderCatalog();
+    } catch (e) {
+      msgTo("#pcPhotoMsg", "Не загрузилось: нет связи с сервером.", "bad");
+    } finally { btn.disabled = false; }
+  }
+
+  async function catPhotoDelete() {
+    if (!catOpenId) return;
+    const color = ($("#pcPhotoColor") && $("#pcPhotoColor").value) || "";
+    if (!confirm(`Удалить фото${color ? ` для цвета «${color}»` : ""}?\n\nВитрина и приложение начнут показывать заглушку вместо него.`)) return;
+    try {
+      const r = await fetch(`/admin/shop/products/${encodeURIComponent(catOpenId)}/photo${color ? `?color=${encodeURIComponent(color)}` : ""}`,
+        { method: "DELETE", credentials: "same-origin" });
+      msgTo("#pcPhotoMsg", r.ok ? "Фото удалено." : `Не удалось удалить (${r.status}).`, r.ok ? "ok" : "bad");
+      catPhotoPreview();
+      renderCatalog();
+    } catch (e) { msgTo("#pcPhotoMsg", "Не удалось удалить: нет связи.", "bad"); }
   }
 
   /**
@@ -9484,7 +9719,10 @@
       active: $("#pcActive").checked,
       category: $("#pcCategory").value || null,
       stage: $("#pcStage").value || null,
-      photoUrl: strOrNull($("#pcPhoto").value),
+      // photoUrl is no longer typed here — the photo is uploaded on its own tab
+      // and served from us. Left out of the payload entirely rather than sent
+      // as null, so saving the card cannot wipe a URL somebody set before this
+      // change.
       priceMinor: $("#pcPrice").value === "" ? p.priceMinor : Math.round(Number($("#pcPrice").value) * 100),
       costMinor: $("#pcCost").value === "" ? null : Math.round(Number($("#pcCost").value) * 100),
       sku: strOrNull($("#pcSku").value),
@@ -9534,11 +9772,19 @@
       // Clicking the backdrop closes; clicking inside the sheet must not.
       card.addEventListener("click", (e) => { if (e.target === card) catClose(); });
       card.addEventListener("input", (e) => {
-        if (e.target.id === "pcPhoto") catPhotoPreview();
         if (e.target.id === "pcAgeMin" || e.target.id === "pcAgeMax") catReach();
         if (e.target.id === "pcNameKk") catKkWarn();
       });
-      card.addEventListener("change", (e) => { if (e.target.id === "pcActive") catKkWarn(); });
+      card.addEventListener("change", (e) => {
+        if (e.target.id === "pcActive") catKkWarn();
+        // Switching colour shows THAT colour's photo, so an operator can see
+        // which variants still have none without saving anything.
+        if (e.target.id === "pcPhotoColor") catPhotoPreview();
+      });
+      card.addEventListener("click", (e) => {
+        if (e.target.id === "pcPhotoUpload") catPhotoUpload();
+        if (e.target.id === "pcPhotoDelete") catPhotoDelete();
+      });
       const tabs = $("#pcTabs");
       if (tabs) tabs.addEventListener("click", (e) => {
         const b = e.target.closest("button[data-tab]");

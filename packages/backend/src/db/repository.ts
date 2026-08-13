@@ -1722,6 +1722,20 @@ export interface Repository {
   /// (track, day, locale), uploaded/edited from the admin panel and played by the
   /// app on the matching day. list* returns metadata only — never the bytes.
   listDailyAudio(track: AudioTrack): Promise<DailyAudioMeta[]>;
+  /**
+   * Product photos, uploaded rather than linked.
+   *
+   * The panel offered «Ссылка на фото» — paste a URL — which asks a person
+   * selling watches to host an image somewhere first, and puts the storefront's
+   * pictures on a server nobody here controls. `color` is `''` for the
+   * product's own photo and a colour key for a variant's.
+   */
+  getProductPhoto(productId: string, color: string): Promise<{ mime: string; bytes: Buffer } | null>;
+  /** Which photos exist, without the bytes — for the panel's thumbnails and
+   *  for telling the storefront which products have one. */
+  listProductPhotos(): Promise<Array<{ productId: string; color: string; uploadedAt: string }>>;
+  putProductPhoto(p: { productId: string; color: string; mime: string; bytes: Buffer; staffId?: string | null }): Promise<void>;
+  deleteProductPhoto(productId: string, color: string): Promise<void>;
   getDailyAudio(track: AudioTrack, day: number, locale: AudioLocale): Promise<{ mime: string; bytes: Buffer } | null>;
   upsertDailyAudio(a: DailyAudioInput): Promise<void>;
   deleteDailyAudio(track: AudioTrack, day: number, locale: AudioLocale): Promise<void>;

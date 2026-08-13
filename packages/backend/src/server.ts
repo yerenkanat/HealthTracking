@@ -479,6 +479,20 @@ export function buildServer(
     (_req, body, done) => done(null, body),
   );
 
+  // Product photos uploaded from the admin panel, same shape as the audio
+  // above: raw bytes, the format in the content-type.
+  //
+  // The bodyLimit is deliberately a little over the route's own 3 MB ceiling.
+  // At exactly 3 MB Fastify would reject the request at the parser with its own
+  // generic error, and the operator would get a wall of nothing instead of the
+  // route's «файл больше 3 МБ» naming the actual limit. Let it through, then
+  // refuse it in words.
+  app.addContentTypeParser(
+    /^image\//,
+    { parseAs: 'buffer', bodyLimit: 4 * 1024 * 1024 },
+    (_req, body, done) => done(null, body),
+  );
+
   // 20 assistant messages per 5 minutes per user. A real conversation is
   // nowhere near this; a runaway client hits it in seconds. Overridable so the
   // tests can drive the boundary without waiting on a wall clock.
@@ -612,6 +626,30 @@ export function buildServer(
     const content = devWeekContent(week);
     if (!content) return reply.code(404).send({ error: 'not_found' });
     return reply.send(content);
+  });
+
+  // Public daily-calendar audio catalogue: WHICH days of a track have a clip.
+  //
+  // Screen 44's «Все записи · N» row and the library behind it. The same JSON
+  // already existed at /api/v1/audio/:track, but that surface is behind the
+  // partner API-key guard — it is for integrators, and the app is not one. So
+  // an operator could upload sixty clips and every mother could still reach
+  // exactly one: today's. This is the app-facing half, ungated for the same
+  // reason the stream below is: it names no person and carries no user data,
+  // and the bytes it points at are already public.
+  //
+  // Metadata only, never the bytes. Ordered by day so a client can render the
+  // list without sorting, and BOTH locales are returned — a client shows the
+  // one its user reads. `size` is here so a screen can warn about a large clip
+  // on a slow connection.
+  app.get('/audio/:track', async (req, reply) => {
+    const { track } = req.params as { track: string };
+    if (track !== 'pregnancy' && track !== 'child') return reply.code(400).send({ error: 'bad_track' });
+    const audio = (await deps.repo.listDailyAudio(track))
+      .slice()
+      .sort((a, b) => a.day - b.day || a.locale.localeCompare(b.locale))
+      .map((a) => ({ day: a.day, locale: a.locale, title: a.title, size: a.size, url: `/audio/${track}/${a.day}/${a.locale}` }));
+    return reply.send({ track, count: audio.length, audio });
   });
 
   // Public daily-calendar audio playback: streams the clip for a given

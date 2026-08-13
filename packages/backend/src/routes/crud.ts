@@ -802,7 +802,52 @@ export function registerCrudRoutes(
    * anything else a customer has no business reading: [ShopProduct] does not
    * carry them, which is the guarantee — not a field list maintained here.
    */
-  app.get('/shop/products', async (_req, reply) => reply.send({ products: await repo.shopProducts() }));
+  app.get('/shop/products', async (_req, reply) => {
+    const products = await repo.shopProducts();
+    // Which of them have an uploaded photo, so the storefront and the app can
+    // draw one without asking per product and without guessing at a URL that
+    // may 404. Failing soft: a catalogue without pictures is still a
+    // catalogue, and refusing the whole list because the photo index is
+    // unavailable would take the shop down to lose a thumbnail.
+    const photos = await repo.listProductPhotos().catch(() => []);
+    const byProduct = new Map<string, string[]>();
+    for (const p of photos) {
+      const list = byProduct.get(p.productId) ?? [];
+      list.push(p.color);
+      byProduct.set(p.productId, list);
+    }
+    return reply.send({
+      products: products.map((p) => {
+        const colors = byProduct.get(p.id) ?? [];
+        return {
+          ...p,
+          // Absent rather than null when there is no photo: a client testing
+          // `if (photoUrl)` and a client testing `'photoUrl' in p` then agree.
+          ...(colors.includes('') ? { photoUrl: `/shop/products/${encodeURIComponent(p.id)}/photo` } : {}),
+          ...(colors.filter(Boolean).length ? { photoColors: colors.filter(Boolean) } : {}),
+        };
+      }),
+    });
+  });
+
+  /**
+   * The photo itself. Public, because the storefront and the app are public.
+   *
+   * Long cache with the uploaded time in the ETag: photos change rarely, and a
+   * storefront that re-downloads every picture on every render is the reason
+   * shops feel slow on a phone. A replacement changes the ETag, so the cache
+   * does not have to be explained to anybody.
+   */
+  app.get('/shop/products/:id/photo', async (req, reply) => {
+    const id = String((req.params as { id?: string }).id ?? '');
+    const color = String((req.query as { color?: string }).color ?? '');
+    const photo = await repo.getProductPhoto(id, color);
+    if (!photo) return reply.code(404).send({ error: 'no_photo' });
+    return reply
+      .type(photo.mime)
+      .header('cache-control', 'public, max-age=86400')
+      .send(photo.bytes);
+  });
   // Public store config the landing pages read: WhatsApp order number + Kaspi
   // link. A whitelist of the settings table — secrets never leave here.
   app.get('/shop/config', async (_req, reply) => {
