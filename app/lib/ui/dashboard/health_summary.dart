@@ -39,7 +39,18 @@ String buildHealthSummary(
   if (sys != null && dia != null) {
     rows.add(row(l.t('metric_bp'), '${sys.latest.round()}/${dia.latest.round()} mmHg'));
   }
-  if (temp != null) rows.add(row(l.metricLabel('temp'), '${temp.latest.toStringAsFixed(1)} °C'));
+  if (temp != null) {
+    rows.add(row(l.metricLabel('temp'), '${temp.latest.toStringAsFixed(1)} °C'));
+    // This text leaves the app — clipboard, then whoever she sends it to. A
+    // bare «Температура: 38.6 °C» is read as a measurement by anyone who gets
+    // it, and off a wrist it is not one. The qualifier travels with the number
+    // rather than staying on the screen it was copied from; the approved copy
+    // is reused verbatim, and it disappears for a thermometer reading she
+    // typed in, where the line is simply true.
+    if (latestSourceFor(samples, 'temp') != ReadingSource.manual) {
+      rows.add('  ${l.t('temp_device_estimate_note')}');
+    }
+  }
   if (night != null) rows.add(row(l.t('metric_sleep'), l.duration(night.asleepMin)));
 
   if (rows.isEmpty) {

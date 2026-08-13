@@ -3651,6 +3651,55 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Қысым, салмақ және ұйқыны өзіңіз енгізесіз — күнделік, күнтізбелер мен еске салғыштар сол күйінде. Білезікті кез келген уақытта «Параметрлер» бөліміндегі «Құрылғылар» тармағынан қосуға болады.',
     AppLocale.en: 'You enter blood pressure, weight and sleep yourself — the diary, the calendars and the reminders are the same. You can pair a band at any time in Settings, under Devices.'
   },
+  // ---- Visit summary: the page she hands to a doctor ----
+  //
+  // Names the instrument on the blood-pressure row, exactly as
+  // `visit_temp_thermometer` does for temperature. That row exists ONLY for
+  // readings she took with a cuff and typed in — wrist estimates never reach
+  // this summary, and visit_summary.dart says why — so this states a fact about
+  // the number rather than warning about it. No wording here may suggest the
+  // app measured anything, and none of it may carry a threshold: 140/90 is
+  // ACOG's and belongs to triage, not to a label on a printout.
+  'visit_bp_cuff': {
+    AppLocale.ru: 'измерено тонометром, введено вручную',
+    AppLocale.kk: 'тонометрмен өлшенген, қолмен енгізілген',
+    AppLocale.en: 'measured with a cuff, entered by hand'
+  },
+  // The header over the vitals block, with no count on it. The count now sits
+  // on each row, because after the provenance filters no two rows are built
+  // from the same pool — see visit_summary.dart. `visit_vitals`, the counted
+  // header this replaces, is left in place: nothing may be assumed dead in a
+  // table 64 call sites index dynamically.
+  'visit_vitals_head': {
+    AppLocale.ru: 'ПОКАЗАТЕЛИ',
+    AppLocale.kk: 'КӨРСЕТКІШТЕР',
+    AppLocale.en: 'VITALS'
+  },
+  // How many readings one row rests on. Only ever rendered for n ≥ 2, so the
+  // English plural is always right; the Russian is abbreviated so that no form
+  // of the noun has to agree with a number this app has no plural helper for.
+  'visit_row_readings': {
+    AppLocale.ru: '{n} изм.',
+    AppLocale.kk: '{n} өлшем',
+    AppLocale.en: '{n} readings'
+  },
+
+  // The manual-entry card (screen 05), second sentence, for a woman who is
+  // already using it.
+  //
+  // The card used to vanish after her first hand-typed reading, so `noband_body`
+  // could only ever be read by someone with nothing logged and could safely be
+  // an introduction — «приложение работает и без браслета». Now that the card
+  // stays, that sentence would greet her above her own readings every morning:
+  // still true, but an answer to a question she settled months ago. This is
+  // what is true and worth saying instead — where the readings she just took
+  // have gone. It states a fact about the app's own screens and promises
+  // nothing about noticing anything on her behalf.
+  'noband_body_logging': {
+    AppLocale.ru: 'Ваши замеры — в дневнике и в календарях. Добавьте ещё:',
+    AppLocale.kk: 'Өлшемдеріңіз күнделік пен күнтізбелерде. Тағы қосыңыз:',
+    AppLocale.en: 'Your readings are in the diary and the calendars. Add another:'
+  },
 };
 
 /// The set of triage codes that have a localized message (for coverage checks).

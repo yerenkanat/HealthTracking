@@ -35,7 +35,12 @@ import 'package:fcs_app/domain/health_advisor.dart';
 import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/domain/manual_vitals.dart';
 import 'package:fcs_app/l10n/l10n.dart';
+import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/ui/appointments/visit_summary.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
+import 'package:fcs_app/ui/dashboard/health_summary.dart';
+import 'package:fcs_app/ui/dashboard/metric_detail_screen.dart';
+import 'package:fcs_app/ui/widgets/glass.dart';
 
 StarmaxHealthSnapshot _snap({int hr = 0, int tempTenths = 0}) =>
     StarmaxHealthSnapshot(
@@ -57,6 +62,9 @@ List<HealthSample> _tempSamples(double c, ReadingSource source) => [
     ];
 
 List<String> _codes(List<Advisory> a) => [for (final x in a) x.code];
+
+/// The locale these assertions read the approved copy in.
+const _en = L10n(AppLocale.en);
 
 void main() {
   group('triage branches on who measured it', () {
@@ -323,7 +331,7 @@ void main() {
       expect(kk, contains('термометр'));
       expect(kk, contains('дәрігерге'));
       expect(kk, isNot(contains('103')));
-      final en = L10n(AppLocale.en).t('ADV_TEMP_DEVICE_HIGH_b');
+      final en = _en.t('ADV_TEMP_DEVICE_HIGH_b');
       expect(en.toLowerCase(), contains('thermometer'));
       expect(en.toLowerCase(), contains('doctor'));
     });
@@ -436,7 +444,7 @@ void main() {
         (tester) async {
       final samples = _tempSamples(36.6, ReadingSource.sensor);
       await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
-      final note = L10n(AppLocale.en).t('temp_device_estimate_note');
+      final note = _en.t('temp_device_estimate_note');
       await tester.scrollUntilVisible(find.text(note), 200,
           scrollable: find.byType(Scrollable).first);
       expect(find.text(note), findsOneWidget);
@@ -447,7 +455,288 @@ void main() {
       // ignore the qualifier where it matters.
       final samples = _tempSamples(36.6, ReadingSource.manual);
       await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
-      expect(find.text(L10n(AppLocale.en).t('temp_device_estimate_note')), findsNothing);
+      expect(find.text(_en.t('temp_device_estimate_note')), findsNothing);
+    });
+
+    // The detail screen is where someone goes to look HARDER at exactly this
+    // number — it draws it at 44px — so the qualifier is more necessary here,
+    // not less. It is the same approved string and the same widget; a second
+    // wording would be a second vocabulary.
+    testWidgets('the note follows the number into the metric detail screen',
+        (tester) async {
+      await tester.pumpWidget(_detail('temp', _tempSamples(38.6, ReadingSource.sensor)));
+      expect(find.text(_en.t('temp_device_estimate_note')),
+          findsOneWidget);
+    });
+
+    testWidgets('the detail screen leaves a thermometer reading unqualified',
+        (tester) async {
+      await tester.pumpWidget(_detail('temp', _tempSamples(38.6, ReadingSource.manual)));
+      expect(find.text(_en.t('temp_device_estimate_note')), findsNothing);
+    });
+
+    testWidgets('another metric does not borrow the temperature note', (tester) async {
+      // The samples carry a device temperature, but this screen is about the
+      // heart rate — a qualifier on the wrong number is noise.
+      final samples = [
+        for (var i = 0; i < 4; i++)
+          HealthSample(
+              at: DateTime(2026, 8, 13, 9, i * 10),
+              heartRate: 70 + i.toDouble(),
+              coreTemp: 38.6,
+              source: ReadingSource.sensor),
+      ];
+      await tester.pumpWidget(_detail('hr', samples));
+      expect(find.text(_en.t('temp_device_estimate_note')), findsNothing);
+    });
+  });
+
+  group('a device temperature is never coloured', () {
+    // docs/CLINICAL-REVIEW-WATCH.md, the freshness table: "never coloured —
+    // recommended removal, and barred from emergency severity at any freshness".
+    test('the grade is normal at any value', () {
+      expect(metricStatus('temp', 38.6, source: ReadingSource.sensor),
+          MetricStatus.normal);
+      expect(metricStatus('temp', 40.5, source: ReadingSource.sensor),
+          MetricStatus.normal);
+      expect(metricStatus('temp', 35.2, source: ReadingSource.sensor),
+          MetricStatus.normal);
+    });
+
+    test('a thermometer reading is graded exactly as it always was', () {
+      expect(metricStatus('temp', 38.6, source: ReadingSource.manual),
+          MetricStatus.danger);
+      expect(metricStatus('temp', 37.9, source: ReadingSource.manual),
+          MetricStatus.watch);
+      expect(metricStatus('temp', 36.6, source: ReadingSource.manual),
+          MetricStatus.normal);
+    });
+
+    test('no other metric reads the source', () {
+      // The branch is inside the temperature case only, exactly as the triage
+      // one is inside the fever block.
+      expect(metricStatus('systolic', 145, source: ReadingSource.sensor),
+          MetricStatus.danger);
+      expect(metricStatus('spo2', 88, source: ReadingSource.sensor),
+          MetricStatus.danger);
+      expect(metricStatus('hr', 145, source: ReadingSource.sensor),
+          MetricStatus.danger);
+    });
+
+    test('the chart paints no danger zone behind a device temperature', () {
+      // The red band under the line makes the same claim the red number makes.
+      expect(bandFor('temp', source: ReadingSource.sensor).warnAbove, isNull);
+      expect(bandFor('temp', source: ReadingSource.manual).warnAbove, isNotNull);
+      final stats = statsFor(
+          buildSeries(_tempSamples(38.6, ReadingSource.sensor), 'temp'));
+      expect(latestInDanger('temp', stats, source: ReadingSource.sensor), isFalse);
+      expect(latestInDanger('temp', stats, source: ReadingSource.manual), isTrue);
+    });
+
+    test('provenance is read off the newest sample carrying the metric', () {
+      final samples = [
+        ..._tempSamples(38.6, ReadingSource.sensor),
+        HealthSample(
+            at: DateTime(2026, 8, 13, 12), coreTemp: 38.6, source: ReadingSource.manual),
+      ];
+      expect(latestSourceFor(samples, 'temp'), ReadingSource.manual);
+      // A metric nothing carries has no number to grade.
+      expect(latestSourceFor(samples, 'spo2'), ReadingSource.manual);
+    });
+
+    testWidgets('the screen reader is not told a wrist estimate is out of range',
+        (tester) async {
+      // The label matters as much as the colour: «вне безопасного диапазона»
+      // announced aloud is the same claim, to someone who cannot see the red.
+      await tester.pumpWidget(MaterialApp(
+          home: HealthDashboardView(samples: _tempSamples(38.6, ReadingSource.sensor))));
+      expect(_semanticLabels(tester).where((s) => s.contains('38.6')), isNotEmpty,
+          reason: 'the reading is still announced — it is the claim about it that goes');
+      expect(_semanticLabels(tester).where((s) => s.contains('outside the safe range')),
+          isEmpty);
+    });
+
+    testWidgets('a thermometer reading of the same value still is', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+          home: HealthDashboardView(samples: _tempSamples(38.6, ReadingSource.manual))));
+      expect(_semanticLabels(tester).where((s) => s.contains('outside the safe range')),
+          isNotEmpty);
+    });
+
+    testWidgets('a device temperature leaves the peace ring rather than filling it',
+        (tester) async {
+      // Counting it "not in danger" would let a wrist estimate raise the ring —
+      // reassurance from the reading the review barred from any claim. The one
+      // metric that CAN be graded here is a heart rate of 145, so the honest
+      // fraction is 0 of 1, not 1 of 2.
+      final samples = [
+        for (var i = 0; i < 4; i++)
+          HealthSample(
+              at: DateTime(2026, 8, 13, 9, i * 10),
+              heartRate: 145,
+              coreTemp: 36.6,
+              source: ReadingSource.sensor),
+      ];
+      await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
+      final ring = tester.widget<MetricRing>(find.byType(MetricRing).first);
+      expect(ring.fraction, 0.0);
+    });
+  });
+
+  group('the summary a doctor reads', () {
+    final now = DateTime(2026, 8, 13, 12);
+
+    List<HealthSample> temps(ReadingSource source, List<double> cs) => [
+          for (var i = 0; i < cs.length; i++)
+            HealthSample(
+                at: now.subtract(Duration(days: i + 1)),
+                coreTemp: cs[i],
+                source: source),
+        ];
+
+    String visit(List<HealthSample> samples) => buildVisitSummary(
+          _en,
+          samples: samples,
+          dayLogs: const {},
+          medications: const [],
+          weights: const [],
+          now: now,
+        );
+
+    test('wrist estimates never reach it', () {
+      // The construct the review refused for the admin panel, in the document
+      // whose reader is a clinician: «36.9 (36.5–37.2)» carries nothing that
+      // says it came off a strap.
+      final s = visit(temps(ReadingSource.sensor, [36.9, 37.2, 36.5]));
+      expect(s, isNot(contains('°C')));
+      expect(s, isNot(contains('36.9')));
+      expect(s, isNot(contains('37.2')));
+    });
+
+    test('it is silent about them rather than caveated', () {
+      // A caveat is not what stops a number in a patient-presented summary from
+      // being read as data — the number has to not be there.
+      final s = visit(temps(ReadingSource.sensor, [36.9, 37.2]));
+      expect(s, isNot(contains(_en.t('temp_device_estimate_note'))));
+    });
+
+    test('thermometer readings do, and the row names the instrument', () {
+      final s = visit(temps(ReadingSource.manual, [38.6, 38.2]));
+      expect(s, contains('°C'));
+      expect(s, contains(_en.t('visit_temp_thermometer')));
+      expect(s, contains('38.2–38.6'));
+    });
+
+    test('a mixed window keeps only what a thermometer measured', () {
+      final s = visit([
+        ...temps(ReadingSource.sensor, [36.9, 36.5]),
+        HealthSample(
+            at: now.subtract(const Duration(hours: 3)),
+            coreTemp: 37.2,
+            source: ReadingSource.manual),
+      ]);
+      expect(s, contains('37.2'));
+      expect(s, isNot(contains('36.9')));
+      expect(s, isNot(contains('36.5')));
+      // One reading is not a series: no mean, no span.
+      expect(s, isNot(contains(_en.t('visit_avg'))));
+    });
+
+    test('an unlabelled stored row is treated as a device one here too', () {
+      final legacy = HealthSample.fromJson(const {
+        'recordedAt': '2026-08-12T09:00:00.000',
+        'coreTempC': 36.7,
+      });
+      expect(visit([legacy]), isNot(contains('36.7')));
+    });
+
+    test('the shared health summary qualifies the temperature it prints', () {
+      // buildHealthSummary goes to the clipboard and then to whoever she sends
+      // it to; a bare «Temperature: 38.6 °C» is read as a measurement.
+      final device = buildHealthSummary(
+          _en, _tempSamples(38.6, ReadingSource.sensor));
+      expect(device, contains('38.6'));
+      expect(device, contains(_en.t('temp_device_estimate_note')));
+
+      final manual = buildHealthSummary(
+          _en, _tempSamples(38.6, ReadingSource.manual));
+      expect(manual, contains('38.6'));
+      expect(manual,
+          isNot(contains(_en.t('temp_device_estimate_note'))));
+    });
+
+    test('the instrument label ships in all three languages, without a number', () {
+      for (final locale in AppLocale.values) {
+        final text = L10n(locale).t('visit_temp_thermometer');
+        expect(text, isNot('visit_temp_thermometer'),
+            reason: 'missing in ${locale.name}');
+        expect(text, isNot(contains('37.8')));
+        expect(text, isNot(contains('38.5')));
+      }
+    });
+  });
+
+  group('no surface grades a temperature without asking where it came from', () {
+    // metricStatus and bandFor default to ReadingSource.manual, which is right
+    // for the vocabulary and wrong as a fallback: a call site that forgets would
+    // colour a wrist estimate red again. Nothing stops that at compile time, so
+    // this stops it here.
+    test('every call that can see a temperature states a source', () {
+      final offenders = <String>[];
+      for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
+        final path = f.path.replaceAll(r'\', '/');
+        if (!path.endsWith('.dart')) continue;
+        if (path == 'lib/domain/health_series.dart') continue; // the declarations
+        final source = f.readAsStringSync();
+        for (final fn in const ['metricStatus', 'bandFor', 'latestInDanger']) {
+          for (final m in RegExp('(?<![A-Za-z0-9_.])$fn\\(([^;]*?)\\)[,;)\\s]')
+              .allMatches(source)) {
+            final args = m.group(1)!;
+            // A literal metric key that is not temperature cannot reach the
+            // branch, so it needs nothing.
+            final literal = RegExp("^'([a-zA-Z0-9]+)'").firstMatch(args.trim());
+            if (literal != null && literal.group(1) != 'temp') continue;
+            if (args.contains('source:')) continue;
+            offenders.add('$path → $fn($args)');
+          }
+        }
+      }
+      expect(offenders, isEmpty,
+          reason: 'a temperature graded without its provenance is a wrist '
+              'estimate drawn in red and announced as out of range:\n'
+              '${offenders.join('\n')}');
+    });
+
+    test('the scan can see the call sites at all', () {
+      // A scan that matches nothing passes trivially.
+      final source =
+          File('lib/ui/dashboard/health_dashboard_screen.dart').readAsStringSync();
+      expect(source, contains('metricStatus(spec.key, stats.latest, source: source)'));
+      expect(source, contains('bandFor(spec.key, source: source)'));
     });
   });
 }
+
+/// Every non-empty semantics label in the rendered tree — what a screen reader
+/// would have to announce.
+Iterable<String> _semanticLabels(WidgetTester tester) => tester
+    .widgetList<Semantics>(find.byType(Semantics))
+    .map((w) => w.properties.label ?? '')
+    .where((s) => s.isNotEmpty);
+
+/// The scope sits ABOVE MaterialApp, not at `home:`. Below the Navigator it
+/// only covers the first route, and `L10nScope.of` falls back to English
+/// silently instead of throwing — so a screen reached by a push reads fine here
+/// and is untranslated in the app.
+Widget _detail(String metricKey, List<HealthSample> samples) => L10nScope(
+      l10n: _en,
+      child: MaterialApp(
+        home: MetricDetailScreen(
+          metricKey: metricKey,
+          unit: metricKey == 'temp' ? '°C' : 'bpm',
+          icon: Icons.thermostat,
+          color: const Color(0xFFFF5A7A),
+          samples: samples,
+        ),
+      ),
+    );

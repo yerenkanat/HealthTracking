@@ -39,6 +39,20 @@ class NoBandCard extends StatelessWidget {
   /// The spec's four entries are otherwise complete and stay that way.
   final bool showWeight;
 
+  /// Whether she has already put readings in by hand.
+  ///
+  /// This card used to be shown only to someone with nothing logged, so its
+  /// body could be an introduction: «приложение работает и без браслета». It
+  /// now stays for as long as she has no band — which for most users is for
+  /// ever — and that sentence is addressed to a decision she made months ago.
+  /// It is not false, but it answers a question she has stopped asking, every
+  /// day, above her own readings. Once there are readings, the true and useful
+  /// sentence is where they went.
+  ///
+  /// The heading («Записывайте вручную») is true in both cases and does not
+  /// change.
+  final bool hasLoggedReadings;
+
   const NoBandCard({
     super.key,
     this.onLogVitals,
@@ -46,6 +60,7 @@ class NoBandCard extends StatelessWidget {
     this.onLogSleep,
     this.onScanMonitor,
     this.showWeight = true,
+    this.hasLoggedReadings = false,
   });
 
   @override
@@ -62,7 +77,7 @@ class NoBandCard extends StatelessWidget {
                   style: const TextStyle(
                       fontWeight: FontWeight.w700, fontSize: 15.5, color: Ds.ink)),
               const SizedBox(height: 4),
-              Text(l.t('noband_body'),
+              Text(l.t(hasLoggedReadings ? 'noband_body_logging' : 'noband_body'),
                   style: const TextStyle(
                       color: Palette.textDim, fontSize: 13, height: 1.45)),
               const SizedBox(height: 14),

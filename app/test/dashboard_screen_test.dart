@@ -45,7 +45,17 @@ void main() {
   });
 
   testWidgets('the sleep card sits on the home page, under the vital signs (not behind the watch detail)', (tester) async {
-    final samples = [HealthSample(at: t(0), heartRate: 72, spo2: 98, coreTemp: 36.6)];
+    // Band telemetry, stated: with hand-typed readings the manual-entry card is
+    // on the page carrying its own «Сон», and the sleep card stands down so the
+    // two do not appear six lines apart.
+    final samples = [
+      HealthSample(
+          at: t(0),
+          heartRate: 72,
+          spo2: 98,
+          coreTemp: 36.6,
+          source: ReadingSource.sensor)
+    ];
     final nights = [
       SleepSummary(night: DateTime(2026, 7, 15), deepMin: 95, remMin: 70, lightMin: 280, awakeMin: 0),
     ];
@@ -287,7 +297,14 @@ void main() {
   });
 
   testWidgets('setup card sits above the metric grid, not below it', (tester) async {
-    final samples = [HealthSample(at: t(0), heartRate: 72), HealthSample(at: t(1), heartRate: 74)];
+    // `source:` stated, because this test is about the grid a BAND fills. The
+    // constructor defaults to manual, and the manual-entry card is now shown to
+    // anyone whose readings are all hand-typed — so a fixture that means
+    // telemetry has to say so, or it silently becomes a different screen.
+    final samples = [
+      HealthSample(at: t(0), heartRate: 72, source: ReadingSource.sensor),
+      HealthSample(at: t(1), heartRate: 74, source: ReadingSource.sensor),
+    ];
     await tester.pumpWidget(MaterialApp(
       home: HealthDashboardView(
         samples: samples,

@@ -10,6 +10,7 @@ import '../design_system.dart';
 import '../theme.dart';
 import '../ds_widgets.dart';
 import '../widgets/glass.dart';
+import 'device_temp_note.dart';
 
 enum _Range { d1, d7, all }
 
@@ -53,10 +54,15 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
     final icon = widget.icon;
     final color = widget.color;
     final label = l.metricLabel(metricKey);
-    final series = buildSeries(_filtered(), metricKey);
+    final filtered = _filtered();
+    final series = buildSeries(filtered, metricKey);
     final stats = statsFor(series);
-    final band = bandFor(metricKey);
-    final danger = latestInDanger(metricKey, stats);
+    // This screen is where someone comes to look HARDER at the number the card
+    // showed, so the provenance matters more here, not less: it decides both
+    // whether the reading may be coloured and whether the qualifier is drawn.
+    final source = latestSourceFor(filtered, metricKey);
+    final band = bandFor(metricKey, source: source);
+    final danger = latestInDanger(metricKey, stats, source: source);
 
     String fmt(double v) =>
         metricKey == 'temp' ? v.toStringAsFixed(1) : v.round().toString();
@@ -103,6 +109,13 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                 if (stats != null) _TrendChip(stats.trend),
               ],
             ),
+            // Directly under the 44px reading, because that is the number the
+            // qualifier is about. The grid card carries the same note; a woman
+            // who taps through to look harder at exactly this figure must not
+            // lose it on the way. Draws nothing for a thermometer reading, and
+            // nothing on any other metric's screen.
+            if (metricKey == 'temp')
+              DeviceTempNote(samples: filtered, topPadding: 12),
             const SizedBox(height: 18),
             _RangeSelector(
                 range: _range, onChanged: (r) => setState(() => _range = r)),

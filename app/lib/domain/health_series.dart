@@ -127,7 +127,41 @@ class GlucoseThresholds {
   static const severeLowMmol = 3.0; // severe hypoglycaemia
 }
 
-MetricBand bandFor(String metric) {
+/// Where the number a card is about to draw for [metric] came from: the
+/// provenance of the NEWEST sample carrying it, which is the one every surface
+/// prints as "latest".
+///
+/// [ReadingSource.manual] when nothing carries the metric — there is no number
+/// to grade in that case, and the caller renders a dash.
+///
+/// This exists because the series layer throws provenance away: [buildSeries]
+/// yields bare (t, value) pairs, so by the time a screen holds a temperature it
+/// can no longer tell a thermometer reading from a wrist estimate. Every
+/// surface that grades, colours or announces a value has to ask this first.
+///
+/// health_advisor.dart keeps its own copy (`_latestTempIsDeviceEstimate`) whose
+/// EMPTY case is the opposite of this one, on purpose: with nothing to go on the
+/// advisor must stay silent, so it answers "device". Do not fold the two
+/// together — that swap would let an empty list earn a reassurance.
+ReadingSource latestSourceFor(List<HealthSample> samples, String metric) {
+  HealthSample? latest;
+  for (final s in samples) {
+    if (_pick(s, metric) == null) continue;
+    if (latest == null || !s.at.isBefore(latest.at)) latest = s;
+  }
+  return latest?.source ?? ReadingSource.manual;
+}
+
+/// The danger zone the chart shades for [metric].
+///
+/// [source] is read for temperature only, and it removes the band: a device
+/// temperature is never coloured (docs/CLINICAL-REVIEW-WATCH.md, freshness
+/// table). A red zone painted behind a wrist estimate makes the same claim the
+/// red number makes, in graphical form.
+MetricBand bandFor(String metric, {ReadingSource source = ReadingSource.manual}) {
+  if (metric == 'temp' && source != ReadingSource.manual) {
+    return const MetricBand();
+  }
   switch (metric) {
     case 'hr':
       return MetricBand(warnAbove: TriageThresholds.hrTachyWarning.toDouble());
@@ -223,9 +257,12 @@ SeriesStats? statsFor(List<SeriesPoint> pts, {double flatEps = 0.5}) {
 }
 
 /// Is the latest value in the danger zone? Drives the tile's alert styling.
-bool latestInDanger(String metric, SeriesStats? stats) {
+/// [source] is forwarded to [bandFor], so a device temperature — which has no
+/// band — is never in danger.
+bool latestInDanger(String metric, SeriesStats? stats,
+    {ReadingSource source = ReadingSource.manual}) {
   if (stats == null) return false;
-  final b = bandFor(metric);
+  final b = bandFor(metric, source: source);
   if (b.warnAbove != null && stats.latest >= b.warnAbove!) return true;
   if (b.warnBelow != null && stats.latest < b.warnBelow!) return true;
   return false;
@@ -238,7 +275,15 @@ bool latestInDanger(String metric, SeriesStats? stats) {
 /// triage cutoff that forces the Emergency screen. NOT a diagnosis.
 enum MetricStatus { normal, watch, danger }
 
-MetricStatus metricStatus(String metric, double v) {
+/// Grade one reading. [source] is read for temperature only — see the `temp`
+/// branch — and defaults to [ReadingSource.manual] for the same reason every
+/// other default in this vocabulary does: the hand-built values in this app are
+/// the typed ones, and every device path states its provenance (pinned by
+/// `device_temperature_test.dart`). Pass [latestSourceFor]'s answer whenever the
+/// metric can be temperature; a scan test fails the build if a call site
+/// forgets.
+MetricStatus metricStatus(String metric, double v,
+    {ReadingSource source = ReadingSource.manual}) {
   switch (metric) {
     case 'systolic':
       if (v >= TriageThresholds.bpSystolicEmergency) return MetricStatus.danger;
@@ -261,6 +306,19 @@ MetricStatus metricStatus(String metric, double v) {
       if (v < TriageThresholds.spo2Warning) return MetricStatus.watch;
       return MetricStatus.normal;
     case 'temp':
+      // A device temperature is never coloured, at any freshness
+      // (docs/CLINICAL-REVIEW-WATCH.md, freshness table). Red is a claim about
+      // her body, and the error term the conversion would have to correct for —
+      // the room, the bedding, the strap — is not one of its inputs. The
+      // semantic label is the same claim said out loud: `db_outside_range`
+      // announces «вне безопасного диапазона» to someone who cannot see the
+      // colour, and it hangs off this grade. Both go together, or neither.
+      //
+      // Normal, not a fourth "ungraded" tier: normal is what the surfaces
+      // already render as "no claim" — plain ink, no raised step, no suffix.
+      // The reading is still drawn, and the qualifier next to it says what it
+      // is. A thermometer reading she typed in is graded exactly as before.
+      if (source != ReadingSource.manual) return MetricStatus.normal;
       if (v >= TriageThresholds.feverEmergencyC) return MetricStatus.danger;
       if (v >= TriageThresholds.feverWarningC) return MetricStatus.watch;
       return MetricStatus.normal;

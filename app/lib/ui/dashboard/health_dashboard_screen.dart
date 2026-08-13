@@ -25,6 +25,7 @@ import '../../domain/timeline_content.dart';
 import '../common/daily_audio_card.dart';
 import '../content/timeline_content_card.dart';
 import 'child_hero.dart';
+import 'device_temp_note.dart';
 import 'no_band_card.dart';
 import 'cycle_hero.dart';
 import 'stage_hero.dart';
@@ -256,6 +257,19 @@ class HealthDashboardView extends StatelessWidget {
     this.onOpenWaterHistory,
   });
 
+  /// Whether a device is putting readings on this screen.
+  ///
+  /// NOT `samples.isNotEmpty`. A hand-typed reading goes into the same store as
+  /// band telemetry, so "she has samples" was read as "she has a band" — and the
+  /// manual-entry card, gated on the negation, disappeared the instant she used
+  /// it. One typed blood pressure removed the four buttons that had taken it,
+  /// the тонометр camera and the sleep entry, leaving an unlabelled app-bar
+  /// icon as the only remaining route into the feature she had just started
+  /// using. The provenance the store now carries is the question that was
+  /// actually being asked.
+  bool get _bandSupplying =>
+      samples.any((s) => s.source == ReadingSource.sensor);
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -475,7 +489,14 @@ class HealthDashboardView extends StatelessWidget {
                   // the way to buying.
                   //
                   // «Без устройства приложение полноценно.»
-                  if (samples.isEmpty)
+                  //
+                  // Gated on whether a BAND is supplying readings, not on
+                  // whether any exist: typed readings land in the same store, so
+                  // `samples.isEmpty` deleted this card the moment she used it.
+                  // It now stays for as long as she is the person it is for, and
+                  // sits ABOVE her own readings — the grid below is what she put
+                  // there, and this is how she adds to it.
+                  if (!_bandSupplying)
                     NoBandCard(
                       onLogVitals: onLogVitals,
                       onLogWeight: onLogWeight,
@@ -484,7 +505,16 @@ class HealthDashboardView extends StatelessWidget {
                       // The pregnancy quick actions above already carry «Вес»,
                       // wired to this same sheet.
                       showWeight: gestation == null,
+                      // The card's own sentence has to stay true for her. With
+                      // nothing logged it is an introduction — «приложение
+                      // работает и без браслета». Once she has been typing
+                      // readings, that reassurance has been answered, and
+                      // repeating it daily addresses a decision she made long
+                      // ago; what is true then is where those readings went.
+                      hasLoggedReadings: samples.isNotEmpty,
                     ),
+                  if (samples.isNotEmpty && !_bandSupplying)
+                    const SizedBox(height: 18),
                   if (samples.isNotEmpty) ...[
                     // A section label so the vitals read as one named group, in
                     // parallel with the Activity & Wellness header below — the
@@ -541,17 +571,25 @@ class HealthDashboardView extends StatelessWidget {
                     // screen is not a qualifier on the number.
                     //
                     // Only when the reading on that card came off a device: from
-                    // a thermometer she typed in, none of this is true.
-                    _DeviceTempNote(samples: samples),
+                    // a thermometer she typed in, none of this is true. The same
+                    // widget rides the metric detail screen — the qualifier
+                    // follows the number rather than living on one surface.
+                    DeviceTempNote(samples: samples),
                   ],
                   // Sleep sits directly under the vital signs — it is one of her
                   // core health readings, not something to bury in the watch
-                  // detail. With no readings at all it shows only when there IS
-                  // a night to show: NoBandCard already carries «Сон» as one of
-                  // its four manual entries, and a second log-sleep button
-                  // stacked under it is the duplicate-control defect.
+                  // detail. Without a band it shows only when there IS a night
+                  // to show: NoBandCard already carries «Сон» as one of its four
+                  // manual entries, and a second log-sleep button stacked under
+                  // it is the duplicate-control defect.
+                  //
+                  // The second clause was `samples.isNotEmpty`, and it meant
+                  // "the manual card is not on screen" — which stopped being the
+                  // same sentence the moment that card stopped keying off
+                  // emptiness. Left alone, one typed blood pressure would have
+                  // put «Сон» on the page twice, six lines apart.
                   if (latestNight(sleepNights) != null ||
-                      (samples.isNotEmpty && onLogSleep != null)) ...[
+                      (_bandSupplying && onLogSleep != null)) ...[
                     const SizedBox(height: 14),
                     SleepCard(nights: sleepNights, onLog: onLogSleep),
                   ],
@@ -687,8 +725,16 @@ class _PeaceOfMindBanner extends StatelessWidget {
     for (final k in metricKeys) {
       final s = statsFor(buildSeries(samples, k));
       if (s == null) continue;
+      final source = latestSourceFor(samples, k);
+      // A device temperature leaves the ring entirely — it is not counted as in
+      // danger, and it is NOT counted as healthy either. Passing it through as
+      // "not in danger" would let a wrist estimate raise the fraction, which is
+      // reassurance from the same reading the review barred from making any
+      // claim (docs/CLINICAL-REVIEW-WATCH.md). Dropping it makes the ring the
+      // fraction of the metrics this product may actually grade.
+      if (k == 'temp' && source != ReadingSource.manual) continue;
       withData++;
-      if (!latestInDanger(k, s)) healthy++;
+      if (!latestInDanger(k, s, source: source)) healthy++;
     }
     final fraction = withData == 0 ? 1.0 : healthy / withData;
 
@@ -784,9 +830,15 @@ class _MetricCard extends StatelessWidget {
     final label = l.metricLabel(spec.key);
     final series = downsampleMean(buildSeries(samples, spec.key), 40);
     final stats = statsFor(series);
+    // buildSeries drops provenance, so the grade has to be told where the
+    // newest reading came from. It changes nothing for heart rate, SpO2 or
+    // blood pressure; for temperature it is the difference between drawing a
+    // wrist estimate in red — and announcing it as out of range — and drawing
+    // it plainly with the qualifier below the grid.
+    final source = latestSourceFor(samples, spec.key);
     final status = stats == null
         ? MetricStatus.normal
-        : metricStatus(spec.key, stats.latest);
+        : metricStatus(spec.key, stats.latest, source: source);
     final danger = status == MetricStatus.danger;
     final abnormal = status != MetricStatus.normal;
     final value = stats == null ? '—' : _fmt(spec.key, stats.latest);
@@ -863,7 +915,7 @@ class _MetricCard extends StatelessWidget {
               height: 34,
               child: Sparkline(
                 points: series,
-                band: bandFor(spec.key),
+                band: bandFor(spec.key, source: source),
                 color: danger ? Palette.danger : spec.color,
                 inDanger: danger,
               ),
@@ -1485,49 +1537,6 @@ class _VitalsFreshness extends StatelessWidget {
         fontSize: 12,
         height: 1.4,
         fontWeight: stale ? FontWeight.w600 : FontWeight.w400,
-      ),
-    );
-  }
-}
-
-/// What the temperature on the vitals grid is, when a device produced it.
-///
-/// ONE placement, and it is this one: the claim is made where the number is
-/// drawn. It says what the reading cannot tell her and stops — it does not
-/// promise that the app will warn her if something is wrong, which is the
-/// strongest false reassurance available here (refused sentence #12) because it
-/// turns every gap in coverage into an implied all-clear.
-///
-/// Hidden when there is no temperature, and when the latest one came off a
-/// thermometer she used: none of this applies to that, and a qualifier attached
-/// to a real measurement teaches her to ignore the qualifier.
-class _DeviceTempNote extends StatelessWidget {
-  final List<HealthSample> samples;
-  const _DeviceTempNote({required this.samples});
-
-  @override
-  Widget build(BuildContext context) {
-    HealthSample? latest;
-    for (final s in samples) {
-      if (s.coreTemp == null) continue;
-      if (latest == null || !s.at.isBefore(latest.at)) latest = s;
-    }
-    if (latest == null || !latest.isDeviceEstimate) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline_rounded, size: 15, color: Palette.textDim),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              L10nScope.of(context).t('temp_device_estimate_note'),
-              style: const TextStyle(
-                  color: Palette.textDim, fontSize: 12, height: 1.4),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -56,7 +56,24 @@ void main() {
   _chk('HR range', s.contains('58–80'));
   _chk('spo2 range', s.contains('97–99'));
   _chk('temperature keeps one decimal', s.contains('36.3–36.9'));
-  _chk('reading count shown', s.contains('2'));
+  // The denominator sits on the row, not on the section header: after the
+  // provenance filters no two rows are built from the same pool.
+  _chk('row states its own denominator', s.contains(l.t('visit_row_readings', {'n': 2})));
+  _chk('header carries no single count', s.contains('\n${l.t('visit_vitals_head')}\n'));
+
+  // ---- Provenance: a wrist estimate is not a measurement ----
+  final wrist = [
+    for (final x in samples)
+      HealthSample(at: x.at, systolic: x.systolic, diastolic: x.diastolic,
+          coreTemp: x.coreTemp, heartRate: x.heartRate, spo2: x.spo2,
+          source: ReadingSource.sensor),
+  ];
+  final strapOnly = buildVisitSummary(l,
+      samples: wrist, dayLogs: const {}, medications: const [], weights: const [], now: now);
+  _chk('no blood pressure from a strap', !strapOnly.contains('mmHg'));
+  _chk('no temperature from a strap', !strapOnly.contains('°C'));
+  _chk('and no caveated one either', !strapOnly.contains(l.t('visit_bp_cuff')));
+  _chk('the rows it can still carry stay', strapOnly.contains('bpm'));
 
   // ---- Sections ----
   _chk('name included', s.contains('Aigerim'));
@@ -71,7 +88,7 @@ void main() {
   // ---- Empty sections are omitted, not left blank ----
   final bare = buildVisitSummary(l,
       samples: const [], dayLogs: const {}, medications: const [], weights: const [], now: now);
-  _chk('no vitals section without readings', !bare.contains(l.t('visit_vitals', {'n': 0})));
+  _chk('no vitals section without readings', !bare.contains(l.t('visit_vitals_head')));
   _chk('no medications section when none', !bare.contains(l.t('visit_meds')));
   _chk('no weight section when none', !bare.contains(l.t('visit_weight')));
   _chk('no symptoms section when none', !bare.contains(l.t('visit_symptoms')));

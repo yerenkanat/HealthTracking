@@ -32,7 +32,8 @@ import 'package:fcs_app/domain/health_monitor.dart';
 import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/domain/wearable_metrics.dart';
 import 'package:fcs_app/net/telemetry_batcher.dart';
-import 'package:fcs_app/ui/onboarding/onboarding_flow.dart' show DiscoveredBand;
+import 'package:fcs_app/ui/onboarding/onboarding_flow.dart'
+    show BandScanPhase, BandScanUpdate;
 
 StarmaxHealthSnapshot _snap({
   int hr = 0,
@@ -275,20 +276,38 @@ void main() {
       expect(source.contains('scanBands: scanForBands'), isTrue);
     });
 
-    test('the first thing a listener gets is an empty list, not an error', () async {
-      // The pairing page renders `snap.data ?? const []` and shows its scanning
-      // line while that is empty, so the stream must OPEN with a frame the page
-      // can draw and must never deliver an error — a phone with Bluetooth off,
-      // a declined permission and a test binding with no platform channel all
-      // have to land on the same honest "nothing found yet".
+    test('the first thing a listener gets is a drawable frame, not an error', () async {
+      // The pairing page falls back to `BandScanUpdate.opening`, so the stream
+      // must OPEN with a frame the page can draw and must never deliver an
+      // error — a test binding with no platform channel included.
       //
       // Only the first emission is asserted: everything past it needs a radio,
       // and the scan itself is verified on the device suite.
       final first = await scanForBands(timeout: const Duration(milliseconds: 10))
           .first
           .timeout(const Duration(seconds: 2));
-      expect(first, isA<List<DiscoveredBand>>());
-      expect(first, isEmpty);
+      expect(first, isA<BandScanUpdate>());
+      expect(first.phase, BandScanPhase.scanning);
+      expect(first.searching, isTrue);
+      expect(first.bands, isEmpty);
+    });
+
+    test('an empty list is no longer one answer for four questions', () {
+      // The defect this vocabulary exists to end: `scanForBands` returned a
+      // bare List, so Bluetooth-off, a declined permission, a phone with no
+      // radio and "the 15 seconds have not elapsed yet" were the same value —
+      // and the page had one sentence for all of them, shown for ever.
+      const phases = BandScanPhase.values;
+      expect(phases, contains(BandScanPhase.bluetoothOff));
+      expect(phases, contains(BandScanPhase.permissionDenied));
+      expect(phases, contains(BandScanPhase.noneNearby));
+      expect(phases, contains(BandScanPhase.unsupported));
+      // Retrying is offered where it could work and withheld where it cannot.
+      expect(const BandScanUpdate(BandScanPhase.bluetoothOff).canRetry, isTrue);
+      expect(const BandScanUpdate(BandScanPhase.noneNearby).canRetry, isTrue);
+      expect(const BandScanUpdate(BandScanPhase.unsupported).canRetry, isFalse,
+          reason: 'a phone does not grow a radio between two taps');
+      expect(BandScanUpdate.opening.canRetry, isFalse);
     });
   });
 

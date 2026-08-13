@@ -27,9 +27,19 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
+    // This is the picture of a woman WEARING the band — the wearable metrics
+    // below say so. `source:` has to say so too: it defaults to manual, and the
+    // manual-entry card is now shown to anyone whose readings are all
+    // hand-typed, so an unstated fixture quietly photographs the other screen.
+    // (That screen has its own golden, below.)
     final samples = [
       for (var i = 0; i < 12; i++)
-        HealthSample(at: t(i * 5), heartRate: 70 + i % 7, spo2: 97 + i % 2, coreTemp: 36.5 + (i % 3) * 0.1),
+        HealthSample(
+            at: t(i * 5),
+            heartRate: 70 + i % 7,
+            spo2: 97 + i % 2,
+            coreTemp: 36.5 + (i % 3) * 0.1,
+            source: ReadingSource.sensor),
     ];
 
     await tester.pumpWidget(MaterialApp(
@@ -89,6 +99,48 @@ void main() {
     await expectLater(
       find.byType(HealthDashboardView),
       matchesGoldenFile('goldens/home_dashboard_no_band.png'),
+    );
+  });
+
+  /// The same woman a week later: no bracelet, and she has been typing her
+  /// readings in.
+  ///
+  /// This picture did not exist because this SCREEN did not exist. The
+  /// manual-entry card was gated on `samples.isEmpty`, and a hand-typed reading
+  /// goes into the same store as band telemetry — so the first blood pressure
+  /// she entered took the card away and left her an unlabelled app-bar icon.
+  /// What the image has to show is both things at once: her own readings
+  /// charted, and the four buttons that took them still there above the chart.
+  testWidgets('golden: the home screen once she is logging by hand', (tester) async {
+    tester.view.physicalSize = const Size(402 * 3, 1500 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    // Hand-typed: no `source:`, because manual is what the constructor means by
+    // default and what her readings are.
+    final typed = [
+      HealthSample(at: t(0), systolic: 118, diastolic: 76, heartRate: 70),
+      HealthSample(at: t(30), systolic: 121, diastolic: 78, heartRate: 74),
+    ];
+
+    await tester.pumpWidget(MaterialApp(
+      theme: FcsTheme.light(AppLocale.ru),
+      builder: (context, child) =>
+          L10nScope(l10n: const L10n(AppLocale.ru), child: child!),
+      home: HealthDashboardView(
+        samples: typed,
+        greetingName: 'Айгерім',
+        onLogVitals: () {},
+        onLogWeight: () {},
+        onLogSleep: () {},
+        onScanMonitor: () {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(HealthDashboardView),
+      matchesGoldenFile('goldens/home_dashboard_manual_diary.png'),
     );
   });
 }
