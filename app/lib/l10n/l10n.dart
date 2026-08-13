@@ -196,6 +196,21 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // Settings and nothing else until the «Бала» tab grew this entry.
   'tr_child_card': {AppLocale.ru: 'Карточка ребёнка', AppLocale.kk: 'Бала картасы', AppLocale.en: "Child's card"},
   'tr_pick_child': {AppLocale.ru: 'Чья карточка?', AppLocale.kk: 'Кімнің картасы?', AppLocale.en: 'Whose card?'},
+  // Screen 15a — the tools list on the «Ребёнок» tab. The label a parent reads
+  // before she taps, so it names what is behind it (care, not "tools").
+  'tr_tools': {
+    AppLocale.ru: 'Уход и здоровье',
+    AppLocale.kk: 'Күтім және денсаулық',
+    AppLocale.en: 'Care & health'
+  },
+  // Said rather than silently hidden: five of the nine tools are keyed on the
+  // child's age, and a parent who skipped the birthday would otherwise never
+  // learn прививки and развитие are in the app at all.
+  'tools_needs_dob': {
+    AppLocale.ru: 'Укажите её — откроются прививки, развитие, прикорм и болезни',
+    AppLocale.kk: 'Оны көрсетіңіз — егулер, даму, қосымша тамақ және аурулар ашылады',
+    AppLocale.en: 'Add it to unlock vaccinations, development, solids and illness'
+  },
 
   // Safety alerts (zone enter/exit feed)
   'alerts_title': {AppLocale.ru: 'Оповещения', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Alerts'},

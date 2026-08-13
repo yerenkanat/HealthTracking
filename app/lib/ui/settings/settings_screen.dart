@@ -909,17 +909,10 @@ class _SupportRouteState extends State<_SupportRoute> {
   Future<void> _load() async {
     final api = widget.controller.api;
     final contact = await api?.getShopContact();
-    var answered = 0;
-    if (api != null) {
-      try {
-        answered = SupportThread.parseAll(await api.supportThreads())
-            .where((t) => t.unreadAnswer)
-            .length;
-      } catch (_) {
-        // Offline, or the server is older than this build. The row still
-        // opens — the thread screen says so itself if it cannot load.
-      }
-    }
+    // The same count the Профиль row draws, from the same place. It used to be
+    // computed here and nowhere else, three levels down from anything a person
+    // looks at.
+    final answered = await unreadSupportAnswers(widget.controller);
     if (!mounted) return;
     setState(() {
       _whatsapp = contact?.whatsapp ?? '';

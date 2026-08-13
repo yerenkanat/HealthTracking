@@ -42,6 +42,19 @@ class ProfileScreen extends StatelessWidget {
   /// Screen 27 — «Гиды». No server needed: the catalogue is already on the
   /// phone, which is precisely the problem this screen fixes.
   final VoidCallback? onOpenGuides;
+
+  /// Screen 43 — «Поддержка». Опens the conversation with the desk.
+  ///
+  /// It used to be four taps — Профиль → ⚙ → «Помощь» → «Открыть переписку» —
+  /// and the unread-answer badge was computed on the third of those, where
+  /// nobody could see it. Awaited, so the badge can be re-read on the way back.
+  /// Null without a server: the thread lives there.
+  final Future<void> Function()? onOpenSupport;
+
+  /// How many answers are waiting, for the badge on that row. Null (or a
+  /// failed call) draws no badge — saying an answer is waiting when we could
+  /// not ask is worse than a quiet row.
+  final Future<int> Function()? loadSupportUnread;
   const ProfileScreen(
       {super.key,
       required this.controller,
@@ -50,7 +63,9 @@ class ProfileScreen extends StatelessWidget {
       this.onOpenFamilyAccess,
       this.onOpenMyOrder,
       this.onOpenShop,
-      this.onOpenGuides});
+      this.onOpenGuides,
+      this.onOpenSupport,
+      this.loadSupportUnread});
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +171,18 @@ class ProfileScreen extends StatelessWidget {
                 _FamilyAccessEntry(
                   subtitle: l.t('fam_privacy'),
                   onTap: onOpenFamilyAccess!,
+                ),
+                const SizedBox(height: 10),
+              ],
+              // Screen 43, beside «Семейный доступ» rather than three levels
+              // down a gear icon. The badge is the point: an operator's answer
+              // announced itself only to somebody who was already looking at
+              // Настройки → Помощь, which is nobody. Настройки keeps its own
+              // link — that screen is the help hub, this row is the thread.
+              if (onOpenSupport != null) ...[
+                _SupportEntry(
+                  onTap: onOpenSupport!,
+                  load: loadSupportUnread,
                 ),
                 const SizedBox(height: 10),
               ],
@@ -301,6 +328,102 @@ class _MyOrderEntry extends StatelessWidget {
         trailing:
             const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// Entry point to screen 43 — «Поддержка», with the answer badge on it.
+///
+/// Stateful for the same reason the course row is: what it is worth saying
+/// depends on an answer only the server has. It loads when the profile opens
+/// and re-loads when she comes back from the thread, so reading an answer takes
+/// the badge down instead of leaving it lit until the next cold start.
+class _SupportEntry extends StatefulWidget {
+  final Future<void> Function() onTap;
+  final Future<int> Function()? load;
+  const _SupportEntry({required this.onTap, this.load});
+
+  @override
+  State<_SupportEntry> createState() => _SupportEntryState();
+}
+
+class _SupportEntryState extends State<_SupportEntry> {
+  int _waiting = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    final load = widget.load;
+    if (load == null) return;
+    // Unguarded on purpose: a failed request leaves the row with no badge,
+    // which is the honest state when we could not ask.
+    load().then((n) {
+      if (mounted) setState(() => _waiting = n);
+    }).catchError((_) => null);
+  }
+
+  Future<void> _open() async {
+    await widget.onTap();
+    if (mounted) _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return DsCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+              border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+              color: Ds.blueCta,
+              borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.support_agent_rounded,
+              color: Colors.white, size: 22),
+        ),
+        title: Text(l.t('sup_title'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(
+          _waiting > 0
+              ? l.t('sup_chat_row_waiting', {'n': '$_waiting'})
+              : l.t('sup_chat_row_none'),
+          key: const Key('support-entry-sub'),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Palette.textDim, fontSize: 12.5),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_waiting > 0)
+              Container(
+                key: const Key('support-entry-badge'),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Palette.danger,
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                ),
+                child: Text('$_waiting',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800)),
+              ),
+            const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
+          ],
+        ),
+        onTap: _open,
       ),
     );
   }

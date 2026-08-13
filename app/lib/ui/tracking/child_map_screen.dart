@@ -72,6 +72,16 @@ class ChildMapScreen extends StatelessWidget {
   /// than an absent icon.
   final VoidCallback? onOpenChildCard;
 
+  /// Screen 15a — the tools list: Медкарта, Прививки, Рост и вес, Развитие,
+  /// Дневник малыша, Детектор плача, Прикорм, Безопасность дома, Болезни.
+  ///
+  /// A LABELLED control, unlike the four glyphs in the app bar. Those nine
+  /// screens were three taps down an unlabelled folder icon on a full-bleed
+  /// map, which is the same as not shipping them: nothing on this tab said
+  /// they existed. Null when no child is selected — there is nothing to open
+  /// them about.
+  final VoidCallback? onOpenTools;
+
   /// Screen 20. No connection, from the connectivity service.
   final bool isOffline;
 
@@ -110,6 +120,7 @@ class ChildMapScreen extends StatelessWidget {
     this.onSos,
     this.onDayHistory,
     this.onOpenChildCard,
+    this.onOpenTools,
     this.isOffline = false,
     this.onRefresh,
     this.hasPairedTracker = true,
@@ -306,6 +317,14 @@ class ChildMapScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Screen 15a's list of tools, named on the tab it belongs to.
+                // Above the safety actions, because it is a destination rather
+                // than an action — and below nothing, because the map is what
+                // this tab opens on.
+                if (onOpenTools != null) ...[
+                  _ChildToolsButton(onTap: onOpenTools!),
+                  const SizedBox(height: 10),
+                ],
                 if (onCheckIn != null || onSos != null || onDayHistory != null) ...[
                   _ChildActionRow(
                     onCheckIn: onCheckIn,
@@ -540,6 +559,57 @@ class _OfflinePlateState extends State<_OfflinePlate> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The labelled way into screen 15a's tools, floating over the map.
+///
+/// Labelled on purpose. This tab already carries four unlabelled glyphs, and
+/// the one of them that hid nine care screens was a folder — a caption is the
+/// whole difference between a control somebody finds and one somebody does not.
+class _ChildToolsButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ChildToolsButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: DsShape.minTapTarget),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Palette.bgElevated,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+            boxShadow: DsShape.hardShadow,
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.grid_view_rounded,
+                  size: 20, color: Palette.violet),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(l.t('tr_tools'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: Palette.text)),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 20, color: Palette.textDim),
+            ],
+          ),
+        ),
       ),
     );
   }

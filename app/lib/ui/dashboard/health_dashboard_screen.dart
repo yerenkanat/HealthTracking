@@ -22,6 +22,7 @@ import '../../domain/cycle_insights.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/cycle_predictions.dart';
 import '../../domain/timeline_content.dart';
+import '../common/daily_audio_card.dart';
 import '../content/timeline_content_card.dart';
 import 'child_hero.dart';
 import 'no_band_card.dart';
@@ -75,6 +76,18 @@ class HealthDashboardView extends StatelessWidget {
   final void Function(AppLocale)? onLocaleChange;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenAdvisor;
+
+  /// Screen 39 — «Центр уведомлений», from the screen the app opens on.
+  ///
+  /// The bell used to exist only on the child map, so a woman who is pregnant
+  /// and has added no child had NO route to it: the back office publishes a
+  /// рассылка to exactly those people (admin frame 06), counts it delivered,
+  /// and she could never open it. Null hides the bell.
+  final VoidCallback? onOpenNotifications;
+
+  /// How many alerts and рассылки she has not read — the badge on the bell.
+  /// The same figure the map's bell carries, because it is one inbox.
+  final int notificationCount;
   final String
       summaryStatus; // pregnancy/cycle status line for the shared summary
   // Quick status chip: cycle day / pregnancy week (empty = hidden).
@@ -151,6 +164,16 @@ class HealthDashboardView extends StatelessWidget {
   final VoidCallback? onPregnant;
   final VoidCallback? onHasChild;
 
+  /// «Аудио дня» — screens 04 and 55 both put it on Сегодня.
+  ///
+  /// 'pregnancy' or 'child', with the calendar day it is keyed on (gestational
+  /// day, or day of life). An operator uploads a clip every morning and it
+  /// appeared only on the pregnancy calendar and the child-development screen
+  /// — never on the screen the app opens on. Null on either hides it, which is
+  /// the state before there is a due date or a child with a birth date.
+  final String? audioTrack;
+  final int? audioDay;
+
   final TimelineStage? timelineStage;
   final List<ContentItem> timelineItems;
   final void Function(ContentItem item)? onOpenContent;
@@ -170,6 +193,8 @@ class HealthDashboardView extends StatelessWidget {
     this.onLocaleChange,
     this.onOpenProfile,
     this.onOpenAdvisor,
+    this.onOpenNotifications,
+    this.notificationCount = 0,
     this.summaryStatus = '',
     this.statusChip = '',
     this.statusChipPregnancy = false,
@@ -208,6 +233,8 @@ class HealthDashboardView extends StatelessWidget {
     this.onPlanning,
     this.onPregnant,
     this.onHasChild,
+    this.audioTrack,
+    this.audioDay,
     this.timelineStage,
     this.timelineItems = const [],
     this.onOpenContent,
@@ -243,6 +270,21 @@ class HealthDashboardView extends StatelessWidget {
               ? l.t('db_title')
               : l.t('db_greeting', {'name': greetingName})),
           actions: [
+            // Screen 39, from the screen the app opens on. First of the
+            // actions, because it is the only one that can be carrying
+            // something new: the рассылка the back office sent this morning.
+            if (onOpenNotifications != null)
+              IconButton(
+                icon: Badge.count(
+                  count: notificationCount,
+                  isLabelVisible: notificationCount > 0,
+                  backgroundColor: Palette.danger,
+                  child: const Icon(Icons.notifications_none_rounded,
+                      color: Palette.textDim),
+                ),
+                tooltip: l.t('ntf_title'),
+                onPressed: onOpenNotifications,
+              ),
             if (onLogVitals != null)
               IconButton(
                 icon:
@@ -397,6 +439,17 @@ class HealthDashboardView extends StatelessWidget {
                     const SizedBox(height: 16),
                   ],
 
+                  // «Аудио дня», above the shelf — spec screens 04 and 55 both
+                  // place it here. Somebody in the back office records a clip
+                  // for today and it was on two screens neither of which is
+                  // the one the app opens on. The card renders nothing at all
+                  // on a day with no clip, so it costs an empty day no space.
+                  if (audioTrack != null && audioDay != null)
+                    DailyAudioCard(
+                      track: audioTrack!,
+                      day: audioDay!,
+                      margin: const EdgeInsets.only(bottom: 14),
+                    ),
                   TimelineContentCard(
                     stage: timelineStage,
                     items: timelineItems,
@@ -1477,11 +1530,18 @@ class _StatusChip extends StatelessWidget {
               children: [
                 Icon(icon, size: 17, color: accent),
                 const SizedBox(width: 7),
-                Text(label,
-                    style: TextStyle(
-                        color: accent,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700)),
+                // Flexible: «22-я неделя беременности» is the longest label
+                // this chip carries and it is longer again in Kazakh, so on a
+                // narrow phone the chip gave way rather than the row.
+                Flexible(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: accent,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700)),
+                ),
                 const SizedBox(width: 2),
                 Icon(Icons.chevron_right_rounded,
                     size: 18, color: accent.withValues(alpha: 0.8)),

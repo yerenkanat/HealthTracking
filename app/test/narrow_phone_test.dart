@@ -100,6 +100,7 @@ import 'package:fcs_app/ui/tracking/alerts_screen.dart';
 import 'package:fcs_app/ui/onboarding/onboarding_flow.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_map_screen.dart';
+import 'package:fcs_app/ui/tracking/child_tools_sheet.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
 
 /// A Redmi/Galaxy A-series in portrait: the floor this app has to fit.
@@ -198,8 +199,9 @@ void main() {
     String label, {
     AppLocale locale = AppLocale.ru,
     double textScale = 1.0,
+    double width = kNarrowWidth,
   }) async {
-    tester.view.physicalSize = const Size(kNarrowWidth * 3, kNarrowHeight * 3);
+    tester.view.physicalSize = Size(width * 3, kNarrowHeight * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
@@ -240,7 +242,7 @@ void main() {
     expect(
       err,
       isNull,
-      reason: '$label overflows at ${kNarrowWidth.toInt()}dp'
+      reason: '$label overflows at ${width.toInt()}dp'
           '${textScale == 1.0 ? '' : ' with text at ${(textScale * 100).round()}%'}'
           '.\n$err',
     );
@@ -1342,6 +1344,127 @@ void main() {
           onDismissConfirmed: () async {},
         ),
         'the SOS takeover in Kazakh',
+        locale: AppLocale.kk,
+        width: kTinyWidth,
+        textScale: 1.3,
+      );
+    });
+
+    /// The dashboard app bar with EVERY action on it, in Kazakh, at 130%.
+    ///
+    /// The bell is the fourth icon on that row — screen 39 had no route from
+    /// the tab the app opens on, so a woman with no child could not read a
+    /// рассылка at all — and an app bar is where a fourth icon runs out of
+    /// room. The badge widens it again, and «Хабарламалар» is the longer word.
+    testWidgets('the dashboard fits with the notification bell on it',
+        (tester) async {
+      await fits(
+        tester,
+        () => HealthDashboardView(
+          samples: [
+            for (var i = 0; i < 6; i++)
+              HealthSample(
+                at: DateTime.utc(2026, 7, 15, 8, i * 5),
+                heartRate: 70 + i % 7,
+                spo2: 97,
+                coreTemp: 36.6,
+              ),
+          ],
+          greetingName: 'Айгерім-Гүлнұр',
+          currentLocale: AppLocale.kk,
+          onLocaleChange: (_) {},
+          onLogVitals: () {},
+          onOpenProfile: () {},
+          // Two digits, which is the widest the badge ever gets.
+          onOpenNotifications: () {},
+          notificationCount: 12,
+          statusChip: 'Жүктіліктің 22-аптасы',
+          statusChipPregnancy: true,
+          onOpenStatus: () {},
+          gestation: const GestationInfo(154, 22, 0, 126),
+          // «Аудио дня» — screens 04 and 55 put it above the shelf.
+          audioTrack: 'pregnancy',
+          audioDay: 154,
+        ),
+        'the dashboard with the bell (kk)',
+        locale: AppLocale.kk,
+        width: kTinyWidth,
+        textScale: 1.3,
+      );
+    });
+
+    /// The child map carrying screen 15a's labelled tools control.
+    ///
+    /// It is a full-width row over the map, above the check-in / история дня /
+    /// SOS trio, and «Күтім және денсаулық» is the longest label on it.
+    testWidgets('the child map fits with the tools control', (tester) async {
+      await fits(
+        tester,
+        () => ChildMapScreen(
+          childName: 'Айгерім-Гүлнұр',
+          childLocation: school.center,
+          updatedAt: now.subtract(const Duration(minutes: 1)),
+          fences: [home, school],
+          now: now,
+          mapBuilder: (_, __, ___) =>
+              const DsMapPlaceholder(caption: 'map', height: 300),
+          childOptions: const [(id: 'c1', name: 'Айгерім-Гүлнұр')],
+          selectedChildId: 'c1',
+          onSelectChild: (_) {},
+          onAddChild: () {},
+          onAddDevice: () {},
+          onManageZones: () {},
+          onOpenAlerts: () {},
+          alertCount: 3,
+          onOpenChildCard: () {},
+          onOpenTools: () {},
+          batteryPct: 68,
+          zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
+          lastCheckInAt: now.subtract(const Duration(hours: 2)),
+          onCheckIn: () {},
+          onSos: () {},
+          onDayHistory: () {},
+        ),
+        'the child map with the tools control (kk)',
+        locale: AppLocale.kk,
+        width: kTinyWidth,
+        textScale: 1.3,
+      );
+    });
+
+    /// Screen 15a's sheet itself — nine rows, in the longer language, with the
+    /// font slider up. It scrolls rather than growing past the screen, which is
+    /// the thing that has to be true here.
+    testWidgets('the child tools sheet fits', (tester) async {
+      final c = AppController(now: () => now, locale: AppLocale.kk)
+        ..addChild(ChildProfile(
+            id: 'c1',
+            name: 'Айгерім-Гүлнұр',
+            dateOfBirth: DateTime(2026, 1, 15)));
+      addTearDown(c.dispose);
+      await sheetFits(
+        tester,
+        (ctx) => showChildToolsSheet(ctx, c, childId: 'c1', now: now),
+        'the child tools sheet (kk)',
+        locale: AppLocale.kk,
+        width: kTinyWidth,
+        textScale: 1.3,
+      );
+    });
+
+    /// The profile with «Поддержка» on it, badge and all.
+    testWidgets('the profile fits with the support row', (tester) async {
+      final c = AppController(now: () => now, locale: AppLocale.kk);
+      addTearDown(c.dispose);
+      await fits(
+        tester,
+        () => ProfileScreen(
+          controller: c,
+          onOpenSupport: () async {},
+          loadSupportUnread: () async => 3,
+          onOpenFamilyAccess: () {},
+        ),
+        'the profile with support (kk)',
         locale: AppLocale.kk,
         width: kTinyWidth,
         textScale: 1.3,

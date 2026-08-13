@@ -2456,23 +2456,66 @@
       const m=document.getElementById("modePill"); m.textContent="Live"; m.className="modepill live";
       const lw=document.getElementById("liveWrap"); if(lw) lw.hidden=false;
     }catch(e){
-      if(e instanceof AccessDenied){
-        // Say it. Falling through to demo data here would hand someone who has
-        // just lost access a complete, plausible dashboard of invented
-        // figures, labelled only by a small pill they have learned to ignore.
-        const m=document.getElementById("modePill");
-        m.textContent="Нет доступа"; m.className="modepill mock";
-        // render() first: it repaints #kpis, so setting the message before it
-        // would have been silently overwritten by the demo tiles.
-        render();
-        document.getElementById("kpis").innerHTML =
-          `<div class="card"><div class="lbl">Доступ закрыт</div>` +
-          `<div class="sub">Учётная запись не имеет прав на эту панель. ` +
-          `Данные не загружены — всё, что показано ниже, демонстрационное.</div></div>`;
-        return;
-      }
-      /* not reachable — keep demo data, pill already says so */
+      // Whatever went wrong, the invented PATIENTS go first.
+      //
+      // MOCK.emergencies holds five people with names, triage codes and blood
+      // pressures — «Aigerim S. · BP 162/108 · 2m ago» — each with
+      // acknowledgedAt:null, so each renders a live «Подтвердить» that POSTs to
+      // the real server. They exist so the panel can be demonstrated without a
+      // backend, which is fair. Painting them when a REAL server just answered
+      // 500 is not: a database hiccup of ninety seconds manufactured three
+      // medical crises, and the only thing saying otherwise was a small pill in
+      // the header that anyone working the feed has learned to ignore.
+      //
+      // The `/* not reachable */` comment below this branch was wrong. `api()`
+      // throws a plain Error for every non-ok status that is not 401/403, so a
+      // 500 landed here and fell straight through to `render()`.
+      //
+      // Layout demo data (charts, the shop tiles) stays — nobody is harmed by a
+      // sample sparkline. Anything that names a person or asserts a clinical
+      // reading is emptied, because a screen where "nothing is wrong" must be
+      // trustworthy is the one screen that must never invent.
+      // The EMERGENCY feed only, deliberately, and the rest is written down
+      // rather than left as an oversight.
+      //
+      // MOCK.users holds the same five women with phone numbers, and
+      // MOCK.health a blood pressure per id. Clearing those too is the right
+      // end state and is NOT done here: the drawer computes a gestational week
+      // from MOCK.users and openUser() reads MOCK.health[id].triage, so
+      // emptying them turns a failed boot into a broken Мамы tab and a
+      // TypeError when anybody opens a mother — a second defect in place of the
+      // first. Those two need the demo fixtures made resilient first, which is
+      // a bigger change than this one.
+      //
+      // What is fixed here is the half that can hurt someone: five invented
+      // people with triage codes, blood pressures and live «Подтвердить»
+      // buttons, on the screen where "nothing is wrong" must be trustworthy.
+      // The Мамы tab is demo data behind a pill; the emergency feed was
+      // manufactured medical crises.
+      MOCK.emergencies=[];
+      MOCK.stats={activeUsers:null,devicesOnline:null,alertsToday:null,ingestLastHour:null};
+      const denied=e instanceof AccessDenied;
+      const m=document.getElementById("modePill");
+      // 401 is «sign in again» and already handled by sessionLost(); 403 is
+      // «signed in, not allowed»; anything else is the server failing.
+      m.textContent=denied?"Нет доступа":"Нет связи"; m.className="modepill mock";
+      // render() first: it repaints #kpis, so setting the message before it
+      // would be silently overwritten by the tiles.
       render();
+      document.getElementById("kpis").innerHTML = denied
+        ? `<div class="card"><div class="lbl">Доступ закрыт</div>` +
+          `<div class="sub">Учётная запись не имеет прав на эту панель. ` +
+          `Данные не загружены.</div></div>`
+        : `<div class="card"><div class="lbl">Панель не смогла загрузиться</div>` +
+          `<div class="sub">Сервер не ответил на /admin/stats. Это НЕ значит, что тревог нет — ` +
+          `их просто не удалось получить. Экстренные ниже пусты по этой причине, ` +
+          `а не потому, что всё спокойно. <button class="btn" type="button" id="statsRetry">Повторить</button></div></div>`;
+      // NOT id="bootRetry" — that one already exists on the boot-failure screen
+      // at the top of the file, and two elements sharing an id means
+      // getElementById returns whichever came first, so the wrong button gets
+      // the handler. Caught by a test counting one and finding two.
+      const rb=document.getElementById("statsRetry");
+      if(rb) rb.onclick=()=>location.reload();
       return;
     }
     try{

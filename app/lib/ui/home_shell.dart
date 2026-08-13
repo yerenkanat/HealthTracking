@@ -32,6 +32,7 @@ import 'calendar/day_log_sheet.dart';
 import 'calendar/pregnancy_weight_screen.dart';
 import '../domain/weight.dart';
 import '../domain/child_development.dart';
+import '../domain/baby_development_content.dart' show childAgeDays;
 import '../domain/family.dart';
 import '../domain/cycle_predictions.dart';
 import '../domain/cycle_insights.dart';
@@ -58,6 +59,7 @@ import '../domain/day_history.dart';
 import '../domain/family_access.dart';
 import '../domain/my_order.dart';
 import 'tracking/child_map_screen.dart';
+import 'tracking/child_tools_sheet.dart';
 import 'tracking/tracking_map.dart';
 import 'tracking/day_history_screen.dart';
 import 'tracking/family_sheets.dart';
@@ -118,6 +120,9 @@ class _HomeShellState extends State<HomeShell> {
     final zoneEnteredAt = curZone == null ? null : zoneEntryTime(c.alerts, c.childName, curZone);
 
     final l = L10nScope.of(context);
+    // Which day's clip belongs to this family — computed once, spent on the
+    // dashboard's «Аудио дня».
+    final audio = _audioDay(c);
 
     final pages = [
       HealthDashboardView(
@@ -192,6 +197,16 @@ class _HomeShellState extends State<HomeShell> {
                 )),
         onLocaleChange: c.setLocale,
         onOpenProfile: () => setState(() => _index = 3),
+        // Screen 39, on the tab the app opens on.
+        //
+        // _openNotificationCentre had exactly two callers — the child map's
+        // bell and the deep-link handler — so the notification centre lived
+        // only on «Ребёнок». A woman who is pregnant and has added no child
+        // never opens that tab, and the back office publishes рассылки to
+        // exactly her: delivered, counted, unreachable. Same method, same
+        // screen, same unread count as the map's bell.
+        onOpenNotifications: () => _openNotificationCentre(context, c),
+        notificationCount: c.unreadAlertCount,
         onOpenAdvisor: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => AdvisorScreen(
             samples: c.samples,
@@ -212,6 +227,11 @@ class _HomeShellState extends State<HomeShell> {
         ),
         waterCount: c.waterFor(DateTime.now()),
         waterGoal: c.waterGoal,
+        // «Аудио дня» (screens 04 and 55). Same track and same day the
+        // calendar and the development screen use — one recording, keyed on
+        // where this family is, not three different clips.
+        audioTrack: audio?.track,
+        audioDay: audio?.day,
         timelineStage: _stageFor(c),
         timelineItems: _contentFor(c),
         onOpenContent: _openContent,
@@ -331,6 +351,13 @@ class _HomeShellState extends State<HomeShell> {
         onOpenChildCard: c.selectedChild == null
             ? null
             : () => _openChildCard(context, c, childId: c.selectedChild!.id),
+        // Screen 15a. The nine care screens, named, one tap from this tab —
+        // they used to be three taps behind that folder glyph and mentioned
+        // nowhere on the tab they belong to.
+        onOpenTools: c.selectedChild == null
+            ? null
+            : () => showChildToolsSheet(context, c,
+                childId: c.selectedChild!.id, now: DateTime.now()),
         // Screen 20. The strip at the top of the shell says the app is
         // offline; this is what the MAP does about it, which is the screen
         // where being wrong about staleness costs something.
@@ -360,6 +387,14 @@ class _HomeShellState extends State<HomeShell> {
         // app has". The Today card is the other; one entry point on a tab she
         // may never scroll to the bottom of is how a library goes unfound.
         onOpenGuides: () => _openGuides(context, c),
+        // Screen 43. Профиль → «Поддержка», not Профиль → ⚙ → «Помощь» →
+        // «Открыть переписку»: four taps to an answer somebody is waiting for,
+        // with the unread badge computed on the third of them. Настройки keeps
+        // its own «Помощь и поддержка» row — that is the help hub (FAQ,
+        // WhatsApp, self-service); this is the conversation.
+        onOpenSupport: c.api == null ? null : () => openSupportThread(context, c),
+        loadSupportUnread:
+            c.api == null ? null : () => unreadSupportAnswers(c),
       ),
     ];
 
@@ -598,6 +633,21 @@ class _HomeShellState extends State<HomeShell> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l.t('vitals_saved')), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  /// Which day of «Аудио дня» belongs to this family, if any.
+  ///
+  /// Pregnancy wins over a child, the same order every stage decision in this
+  /// shell follows. Null when there is neither a due date nor a child with a
+  /// birth date — there is no day to ask the server for, and the card would
+  /// fetch `/audio/child/0`.
+  ({String track, int day})? _audioDay(AppController c) {
+    final g = c.isPregnant ? c.gestation : null;
+    if (g != null) return (track: 'pregnancy', day: g.totalDays);
+    final child = _heroChild(c);
+    if (child == null) return null;
+    final days = childAgeDays(child.dateOfBirth!, DateTime.now());
+    return days >= 1 ? (track: 'child', day: days) : null;
   }
 
   /// Where this family is on the timeline: their pregnancy week if there is a

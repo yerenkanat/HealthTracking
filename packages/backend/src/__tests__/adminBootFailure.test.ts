@@ -76,6 +76,13 @@ async function bootWith(failOn: string): Promise<Booted> {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin', displayName: 'Ерен' }) };
         }
         if (p.includes('/admin/stats')) {
+          // A real server that just fell over. `api()` throws a plain Error for
+          // any non-ok status other than 401/403, which lands in boot()'s catch
+          // — the branch that used to be commented «not reachable».
+          if (failOn === 'stats500') return { ok: false, status: 500, json: async () => ({}) };
+          // Signed in, not allowed here. A different message, but the invented
+          // patients must go in this case too.
+          if (failOn === 'denied') return { ok: false, status: 403, json: async () => ({}) };
           return { ok: true, status: 200, json: async () => ({ activeUsers: 1, devicesOnline: 0, alertsToday: 0, ingestLastHour: 0 }) };
         }
         if (p.includes('/admin/emergencies')) {
@@ -149,5 +156,68 @@ describe('when boot succeeds', () => {
     const page = await bootWith('healthy');
     expect(page.hidden('bootFail')).toBe(true);
     expect(page.hidden('appShell')).toBe(false);
+  });
+});
+
+/**
+ * A server that answered 500 must not become five invented patients.
+ *
+ * MOCK.emergencies carries «Aigerim S. · BP 162/108 · 2m ago», «Madina K. ·
+ * SpO₂ 88% during sleep» and three more — names, triage codes, clinical
+ * readings, each with acknowledgedAt:null so each draws a live «Подтвердить»
+ * that POSTs to the real server. They exist so the panel can be demonstrated
+ * without a backend, which is fair.
+ *
+ * boot()'s catch had an AccessDenied branch and then, for everything else, a
+ * comment reading «not reachable — keep demo data» followed by render(). It WAS
+ * reachable: api() throws a plain Error for every non-ok status that is not
+ * 401/403. So a ninety-second database hiccup painted three medical crises with
+ * working buttons, and the only contradiction was a pill in the header that
+ * anyone working the feed has learned to ignore.
+ *
+ * On the one screen where "nothing is wrong" has to be trustworthy, the failure
+ * state must be empty and must say why it is empty.
+ */
+describe('when the server fails on the way in', () => {
+  it('paints no invented patients', async () => {
+    const page = await bootWith('stats500');
+    // NOT page.text('body') — jsdom's textContent includes <script> source, so
+    // it matches the MOCK literal itself and would fail no matter what the
+    // panel drew. Assert on the containers an operator actually looks at.
+    const body = page.text('#feedFull') + ' ' + page.text('#kpis');
+    for (const name of ['Aigerim S.', 'Madina K.', 'Zarina B.', 'Dana T.', 'Aruzhan M.']) {
+      expect(body, `a fabricated patient survived a 500: ${name}`).not.toContain(name);
+    }
+    // The readings are the dangerous half — a name alone is embarrassing, a
+    // name with a blood pressure beside it is clinical.
+    expect(body).not.toContain('162/108');
+    expect(body).not.toContain('88%');
+    // And nothing to acknowledge, because there is nothing there.
+    expect(page.count('#feedFull [data-ack]')).toBe(0);
+  });
+
+  it('says the feed is empty because it did not load, not because all is well', async () => {
+    const page = await bootWith('stats500');
+    const kpis = page.text('#kpis');
+    expect(kpis).toContain('не смогла загрузиться');
+    // The distinction the operator actually needs, in words.
+    expect(kpis).toContain('НЕ значит');
+    expect(page.count('#statsRetry')).toBe(1);
+  });
+
+  it('does not claim to be showing demo data, and does not claim access was denied', async () => {
+    const page = await bootWith('stats500');
+    // «Демо-данные» would be a lie — nobody chose a demo, a request failed.
+    // «Нет доступа» would send the operator to ask for permissions she has.
+    expect(page.text('#modePill')).toBe('Нет связи');
+  });
+
+  it('still empties the patients when access is refused', async () => {
+    // 403 already had a message, and still fell through to render() with the
+    // five people intact — the card said «всё, что показано ниже,
+    // демонстрационное» while a clinician looked at invented blood pressures.
+    const page = await bootWith('denied');
+    expect(page.text('#feedFull')).not.toContain('Aigerim S.');
+    expect(page.text('#modePill')).toBe('Нет доступа');
   });
 });

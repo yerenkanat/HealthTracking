@@ -18,6 +18,30 @@ import '../../domain/support_context.dart';
 import '../../l10n/l10n_scope.dart';
 import 'support_thread_screen.dart';
 
+/// Tickets the desk has answered and she has NOT read — the badge figure.
+///
+/// Zero when the call failed or there is no server, which draws no badge:
+/// claiming an answer is waiting when we could not ask is worse than a quiet
+/// row. Unread, not merely answered — «status = waiting» could only ever go up,
+/// so the badge stayed lit for weeks and stopped being read.
+///
+/// One copy, because there are now two rows carrying it: Профиль (screen 39's
+/// neighbour) and Настройки → Помощь. Two copies of this arithmetic is how one
+/// of them keeps counting closed tickets after the other is fixed.
+Future<int> unreadSupportAnswers(AppController c) async {
+  final api = c.api;
+  if (api == null) return 0;
+  try {
+    return SupportThread.parseAll(await api.supportThreads())
+        .where((t) => t.unreadAnswer)
+        .length;
+  } catch (_) {
+    // Offline, or a server older than this build. The row still opens — the
+    // thread screen says so itself if it cannot load.
+    return 0;
+  }
+}
+
 /// Push screen 43. A no-op without an API client — the whole screen is a
 /// conversation with the server, and there is nothing to show offline that is
 /// not a lie.
