@@ -1022,7 +1022,14 @@
         <div class="navsub" id="navsub-sales" hidden>
           <button type="button" class="nav sub" data-view="shop" data-anchor="shopOrdersCard" data-cap="orders">Заказы <span class="badge" id="shopBadge" hidden></span></button>
           <button type="button" class="nav sub" data-view="shop" data-anchor="shopStoreCard" data-cap="orders">Витрина и заявки</button>
-          <button type="button" class="nav sub" data-view="finance" data-cap="stock">Финансы</button>
+          <!-- `finance`, not `stock`. GET /admin/finance is requireCap(…,
+               'finance') (routes/admin.ts), and neither `warehouse` nor
+               `seller` — the two roles `stock` exists for — holds it. So the
+               tab was drawn for a warehouse hand, who clicked it and read
+               «Не загрузилось: 403 {"error":…}» about a server that was
+               working, and filed a bug. Twenty-seven lines up, «Дашборд
+               владельца» already gets this right. -->
+          <button type="button" class="nav sub" data-view="finance" data-cap="finance">Финансы</button>
           <!-- Кадр 06. `content` rather than `orders`: this is writing to
                customers, which is the content editor's job and the one role that
                already carries the bilingual rule. -->
@@ -1047,6 +1054,9 @@
           <button type="button" class="nav sub" data-view="stock" data-anchor="stockReceiveCard" data-cap="stock">Приёмка</button>
           <button type="button" class="nav sub" data-view="stock" data-anchor="stockAuditCard" data-cap="stock">Инвентаризация</button>
           <button type="button" class="nav sub" data-view="stock" data-anchor="stockSerialCard" data-cap="stock">Серийные номера</button>
+          <!-- Кадры 07a «Поставки» и 07g «Поставщики». -->
+          <button type="button" class="nav sub" data-view="stock" data-anchor="stockSupplyCard" data-cap="stock">Поставки</button>
+          <button type="button" class="nav sub" data-view="stock" data-anchor="stockSuppliersCard" data-cap="stock">Поставщики</button>
           <button type="button" class="nav sub" data-view="stock" data-anchor="stockHistoryCard" data-cap="stock">История</button>
           <!-- Каталог is what a product IS — its stage, its age band, its Kazakh
                copy. Остатки is how many there are. Two jobs, two roles: the
@@ -1302,7 +1312,26 @@
           <b>Мы не служба спасения.</b> Панель не вызывает скорую. Если жизни угрожает опасность — 103.
           Здесь мы звоним маме и записываем, что сделали.
         </div>
-        <div class="card" style="margin-bottom:16px"><div class="feed" id="feedFull"></div></div>
+        <!-- Frame 19's metric row.
+             The design names four numbers, two of them as «ложных 61 %» and
+             «реакция 1:40». Those two figures are a mock-up's placeholders and
+             are NOT reproduced: what is drawn is computed from the rows this
+             screen actually loaded, and each tile names its own denominator.
+             A tile whose input is missing — feed unreachable, no access to the
+             SOS table, nothing closed yet — prints «—» and says which, because
+             a zero here reads as «всё спокойно». -->
+        <div class="kpis" id="emgMetrics" style="margin-bottom:16px"></div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Сигналы триажа</h3>
+            <span class="sub">Показатели мам, перешедшие порог</span></div>
+          <div class="feed" id="feedFull"></div>
+          <!-- §7: у подвала есть правило. -->
+          <div class="metricnote">В строке — то измерение, по которому сработал порог (правила: <code>packages/shared/triage.ts</code>). Давление и кислород часы оценивают оптически — это не измерение прибором. Чем именно измерено, панель не знает: способ измерения не сохраняется — спросите маму. «Причина не сохранена» значит, что в строке измерения пусты, а не что повод был пустяковый.</div>
+        </div>
+        <!-- SOS ≠ пересечение зоны, и на экране это должно быть видно раньше,
+             чем прочитан текст: SOS — это человек, нажавший кнопку. Карточка
+             живёт отдельно от таблицы и отдельно от ленты триажа. -->
+        <div class="card" id="sosCard" data-cap="health" style="margin-bottom:16px"></div>
         <!-- The four steps, collapsed. An operator who has done it a hundred
              times does not need them open; the one on her first night shift
              does, and at 02:00 she will not go looking in a wiki. -->
@@ -2201,6 +2230,15 @@
           <form id="recvForm" class="stafform" autocomplete="off" style="align-items:flex-start">
             <label style="flex:2 1 240px">Товар и цвет
               <select id="recvVariant"></select></label>
+            <!-- Заказ, если поставка пришла по заказу. «Без заказа» остаётся
+                 первым пунктом и работает ровно как раньше: приход без заказа
+                 — обычное событие, и форма, которая его запрещает, возвращает
+                 склад к расхождению без объяснения.
+                 Если заказ выбран, недостача считается ОТ ЗАКАЗАННОГО, а не от
+                 накладной: должны нам то, что мы заказали, и поставщик, честно
+                 выписавший накладную на недогруз, всё равно должен недогруз. -->
+            <label style="flex:1 1 200px">Заказ поставщику
+              <select id="recvPo"><option value="">без заказа</option></select></label>
             <label>Фактически в коробке
               <input id="recvQty" type="number" min="1" step="1" required></label>
             <label>По накладной
@@ -2265,6 +2303,77 @@
               <th>У кого</th><th></th></tr></thead>
             <tbody id="serialBody"></tbody></table>
           </div>
+        </div>
+
+        <!-- ПОСТАВКИ В ПУТИ — кадр 07a, и полоса «поставки в пути» кадра 07.
+             Склад умел отвечать «что лежит» и «на сколько хватит», но не
+             «а что уже едет» — а решает заказывать или нет именно третий
+             вопрос. Без него плашка писала «пора заказывать» рядом с товаром,
+             заказанным две недели назад.
+             Штуки в пути НЕ прибавляются к остатку: коробка на таможне — не
+             полка, и запас, посчитанный вместе с ней, обещает то, что нельзя
+             отгрузить сегодня. -->
+        <div class="card" id="stockSupplyCard" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Поставки в пути</h3>
+            <span class="sub">Заказано и ещё не приехало · в остаток это не входит</span></div>
+          <div class="tablewrap">
+            <!-- «Закупка, ₸/шт.» показывает прочерк, пока цену никто не назвал:
+                 себестоимость появляется только из приёмки со стоимостью
+                 партии, и вычисленная догадка ушла бы в маржу на дашборде. -->
+            <table><thead><tr><th>ПН</th><th>Поставщик</th><th>Ожидается</th>
+              <th>Что и сколько</th><th>Закупка, ₸/шт.</th><th>Статус</th><th></th></tr></thead>
+            <tbody id="supplyBody"></tbody></table>
+          </div>
+          <div class="metricnote" id="supplyNote"></div>
+          <div id="supplyMsg" class="formmsg"></div>
+
+          <div class="sec-h" style="margin-top:18px"><h3>Заказ поставщику</h3>
+            <span class="sub">Размещённый заказ гасит «пора заказывать» — черновик не гасит</span></div>
+          <form id="poForm" class="stafform" autocomplete="off" style="align-items:flex-start">
+            <label style="flex:2 1 240px">Товар и цвет
+              <select id="poVariant"></select></label>
+            <label>Сколько заказываем
+              <input id="poQty" type="number" min="1" step="1" required></label>
+            <label style="flex:1 1 200px">Поставщик
+              <select id="poSupplier"></select></label>
+            <label>Цена за шт., ₸ (если известна)
+              <input id="poCost" type="number" min="0" step="1"></label>
+            <label>Ожидается
+              <input id="poExpected" type="date"></label>
+            <label style="flex:2 1 200px">Примечание
+              <input id="poNote" maxlength="300"></label>
+            <label style="flex:0 0 auto;display:flex;flex-direction:row;align-items:center;gap:8px">
+              <input id="poDraft" type="checkbox"> Только черновик</label>
+            <button class="btn primary" id="poBtn" type="submit" style="align-self:flex-end">Разместить заказ</button>
+          </form>
+          <div class="metricnote" id="poCheck"></div>
+          <div id="poMsg" class="formmsg"></div>
+        </div>
+
+        <!-- ПОСТАВЩИКИ — кадр 07g.
+             «Срок поставки» здесь — ЗАЯВЛЕННЫЙ поставщиком, а не выведенный из
+             истории: пары «разместили → приняли» в базе ещё нет, среднее
+             считать не из чего, а число, выведенное из пустоты, попадёт в
+             планирование денег. Поэтому оно так и подписано. -->
+        <div class="card" id="stockSuppliersCard" style="margin-bottom:16px">
+          <div class="sec-h"><h3>Поставщики</h3>
+            <span class="sub">Срок — заявленный поставщиком, не измеренный нами</span></div>
+          <div class="tablewrap">
+            <table><thead><tr><th>Название</th><th>Контакт</th>
+              <th>Срок поставки (заявленный)</th><th>Статус</th><th></th></tr></thead>
+            <tbody id="supplierBody"></tbody></table>
+          </div>
+          <div class="metricnote" id="supplierNote"></div>
+          <form id="supplierForm" class="stafform" autocomplete="off" style="margin-top:12px;align-items:flex-start">
+            <label style="flex:2 1 200px">Название
+              <input id="supName" required maxlength="120"></label>
+            <label style="flex:2 1 200px">Контакт (телефон, WhatsApp, менеджер)
+              <input id="supContact" maxlength="200"></label>
+            <label>Срок поставки, дней
+              <input id="supLead" type="number" min="0" max="365" step="1"></label>
+            <button class="btn" id="supBtn" type="submit" style="align-self:flex-end">Добавить поставщика</button>
+          </form>
+          <div id="supplierMsg" class="formmsg"></div>
         </div>
 
         <div class="card" id="stockHistoryCard">
@@ -2580,12 +2689,17 @@
   // ---- Mock data (mirrors the /admin API response shapes) ----
   const MOCK = {
     stats:{activeUsers:1284,devicesOnline:power(1071),alertsToday:3,ingestLastHour:power(9420)},
+    // The SAME shape /admin/emergencies sends — code + metric + value +
+    // threshold — so demo mode drives the real renderer instead of a parallel
+    // one. It used to carry a `detail` field the server has never had, in
+    // English («BP 162/108 mmHg»), which is why nobody noticed that live rows
+    // fell back to `code` and printed the literal «EMERGENCY».
     emergencies:[
-      {id:"u1|e1",userId:"u1",displayName:"Aigerim S.",code:"PREECLAMPSIA_BP",severity:"emergency",at:"2m ago",detail:"BP 162/108 mmHg",acknowledgedAt:null},
-      {id:"u2|e2",userId:"u2",displayName:"Madina K.",code:"HYPOXIA_SEVERE",severity:"emergency",at:"18m ago",detail:"SpO₂ 88% during sleep",acknowledgedAt:null},
-      {id:"u3|e3",userId:"u3",displayName:"Zarina B.",code:"HIGH_FEVER",severity:"emergency",at:"41m ago",detail:"Core temp 38.9°C",acknowledgedAt:null},
-      {id:"u4|e4",userId:"u4",displayName:"Dana T.",code:"TACHYCARDIA",severity:"warning",at:"1h ago",detail:"Resting HR 122 bpm",acknowledgedAt:null},
-      {id:"u5|e5",userId:"u5",displayName:"Aruzhan M.",code:"PREECLAMPSIA_BP",severity:"warning",at:"2h ago",detail:"BP 141/91 mmHg",acknowledgedAt:null}
+      {id:"u1|e1",userId:"u1",displayName:"Aigerim S.",code:"PREECLAMPSIA_BP_SEVERE",severity:"emergency",at:"2m ago",metric:"systolicMmHg",value:162,threshold:160,systolic:162,diastolic:108,duringSleep:false,acknowledgedAt:null},
+      {id:"u2|e2",userId:"u2",displayName:"Madina K.",code:"HYPOXIA_SEVERE",severity:"emergency",at:"18m ago",metric:"spo2Pct",value:88,threshold:90,systolic:null,diastolic:null,duringSleep:true,acknowledgedAt:null},
+      {id:"u3|e3",userId:"u3",displayName:"Zarina B.",code:"HIGH_FEVER",severity:"emergency",at:"41m ago",metric:"coreTempC",value:38.9,threshold:38.5,systolic:null,diastolic:null,duringSleep:false,acknowledgedAt:null},
+      {id:"u4|e4",userId:"u4",displayName:"Dana T.",code:"TACHYCARDIA",severity:"warning",at:"1h ago",metric:"heartRateBpm",value:122,threshold:120,systolic:null,diastolic:null,duringSleep:false,acknowledgedAt:null},
+      {id:"u5|e5",userId:"u5",displayName:"Aruzhan M.",code:"PREECLAMPSIA_BP",severity:"warning",at:"2h ago",metric:"systolicMmHg",value:141,threshold:140,systolic:141,diastolic:91,duringSleep:false,acknowledgedAt:null}
     ],
     users:[
       {id:"u1",displayName:"Aigerim S.",phone:"+7 707 345 22 44",dueDate:"Nov 2026",weeks:28,last:"2m ago"},
@@ -2649,6 +2763,16 @@
     if(!r.ok) throw new Error(r.status); return r.json();
   }
   let LIVE=false;
+  /**
+   * Where the emergency rows on screen came from: the demo fixture, the server,
+   * or nowhere.
+   *
+   * "failed" is the state that matters. The boot handler empties
+   * MOCK.emergencies when /admin/stats fails — correct, invented patients are
+   * worse than none — and an empty list is then indistinguishable from a quiet
+   * night. Frame 19's metric row refuses to count in that state.
+   */
+  let EMG_STATE="demo";
   async function boot(){
     try{
       const s=await api("/admin/stats"); MOCK.stats=s; LIVE=true;
@@ -2696,6 +2820,7 @@
       // The Мамы tab is demo data behind a pill; the emergency feed was
       // manufactured medical crises.
       MOCK.emergencies=[];
+      EMG_STATE="failed"; // «пусто» здесь значит «не загрузили», и метрики это скажут
       MOCK.stats={activeUsers:null,devicesOnline:null,alertsToday:null,ingestLastHour:null};
       const denied=e instanceof AccessDenied;
       const m=document.getElementById("modePill");
@@ -2722,7 +2847,20 @@
       return;
     }
     try{
-      try{ MOCK.emergencies=(await api("/admin/emergencies")).emergencies||MOCK.emergencies; }catch(e){}
+      // The demo women must not survive a live boot either.
+      //
+      // This was `…||MOCK.emergencies` inside a swallowed catch: when
+      // /admin/stats answered but /admin/emergencies did not, the pill said
+      // «Live» over five invented patients with blood pressures and working
+      // «Подтвердить» buttons. Same defect the boot-failure branch above was
+      // fixed for, one call later.
+      try{
+        const d=await api("/admin/emergencies");
+        // A 200 without the array is not «тревог нет», it is a response we do
+        // not understand.
+        if(Array.isArray(d.emergencies)){ MOCK.emergencies=d.emergencies; EMG_STATE="live"; }
+        else { MOCK.emergencies=[]; EMG_STATE="failed"; }
+      }catch(e){ MOCK.emergencies=[]; EMG_STATE="failed"; }
       // Product metrics are a separate call so a failure here costs the
       // overview its charts, not the whole panel. BI stays null and every
       // consumer says so rather than guessing.
@@ -2781,7 +2919,7 @@
         const e=(await api("/admin/emergencies")).emergencies;
         if(Array.isArray(e)){
           const fresh=e.filter(x=>x.id&&!liveSeen.has(x.id));
-          MOCK.emergencies=e;
+          MOCK.emergencies=e; EMG_STATE="live";
           if(document.getElementById("overview").classList.contains("active")||
              document.getElementById("emergencies").classList.contains("active")){
             renderFeeds();
@@ -2923,8 +3061,20 @@
       // says "недоступно" instead of painting zeroes, which on a business
       // dashboard would read as "we sold nothing".
       DASH=dashUsable(d)?d:null;
+      DASH_OFF=d&&!dashUsable(d)?DASH_MSG.shape:DASH_MSG.off;
     }
-    catch(e){ DASH=null; }
+    catch(e){
+      DASH=null;
+      // WHY it is empty, not merely that it is.
+      //
+      // «Сводка» is the landing view and carries no data-cap, so every role
+      // sees it — while /admin/dashboard requires `finance`, which only owner
+      // and admin hold. Six of eight roles therefore signed in and were told,
+      // by the first screen of their shift, that the backend had not answered.
+      // It had; it had refused them, in ten milliseconds. Somebody who cannot
+      // tell a refusal from an outage escalates the wrong one.
+      DASH_OFF = e instanceof AccessDenied ? DASH_MSG.denied : DASH_MSG.off;
+    }
     renderDashboard();
   }
 
@@ -2941,7 +3091,22 @@
     if(el) el.textContent=DASH?("данные на "+new Date(DASH.asOf).toLocaleString("ru-RU")):"—";
   }
 
-  const DASH_OFF=`<div class="sub">Сводка недоступна — бэкенд не ответил на /admin/dashboard.</div>`;
+  /**
+   * Why the summary is blank — three different reasons that must not share a
+   * sentence.
+   *
+   * `denied` is the common one: /admin/dashboard is money (requireCap
+   * 'finance'), and operator, seller, warehouse, content, clinician and support
+   * do not hold it. That is the product working as designed, and the screen
+   * says so — including who can grant it, because the reader's next action is
+   * to ask somebody.
+   */
+  const DASH_MSG={
+    off:`<div class="sub">Сводка недоступна — бэкенд не ответил на /admin/dashboard.</div>`,
+    denied:`<div class="sub">Сводка недоступна: в ней деньги компании, а у вашей роли нет права «финансы». <b>Это не сбой</b> — сервер ответил и отказал. Остальные разделы работают; доступ выдаёт владелец.</div>`,
+    shape:`<div class="sub">Сводка недоступна: сервер ответил, но снимок пришёл неполным. Похоже, бэкенд старее панели — обновите его.</div>`,
+  };
+  let DASH_OFF=DASH_MSG.off;
 
   function renderDashKpis(){
     const el=$("#dashKpis"); if(!el) return;
@@ -3633,7 +3798,13 @@
   // на строке устройства. Без этого оператор, увидевший молчащие часы, должен
   // был перейти в «Пользователи» и найти её заново по имени из соседней
   // колонки — а именно в карточке видно, что часы передают по дням.
-  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost,STAGE_RU,openUser};
+  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost,STAGE_RU,openUser,
+    // Frame 19's metrics live in the second block, next to the SOS table they
+    // also need; the feed lives in here. The STATE travels with the rows on
+    // purpose: an empty list because /admin/emergencies failed must never be
+    // counted as «0 неподтверждённых», which is the one sentence this screen
+    // must not say wrongly.
+    emergencyFeed:()=>({state:EMG_STATE,items:MOCK.emergencies.slice()})};
 
   /// One emergency, as a row.
   ///
@@ -3647,13 +3818,72 @@
   /// The acknowledge action is back now that the backend stores it
   /// (POST /admin/emergencies/:id/ack → emergency_acks). An acknowledged event
   /// shows who cleared it and when, instead of the button.
+  /* The triage findings, in Russian.
+   *
+   * The row printed `e.detail||e.code`, and `code` was the literal string
+   * 'EMERGENCY' — both repositories hard-coded it — so the whole feed read
+   * «EMERGENCY · 02:14», one line under another, on the screen whose only job
+   * is telling a duty operator which mother to ring first. The reason is
+   * recomputed server-side now (src/emergency/reason.ts) from the reading that
+   * fired it; the Russian is here, in one place.
+   *
+   * NO Kazakh twin, deliberately: this is a back-office screen and none of
+   * these words is ever sent to a mother. What SHE gets for the same event is
+   * push.ts's EMERGENCY_TITLE/EMERGENCY_BODY, which is already ru/kk/en.
+   *
+   * The wording states what the reading did, never what it means for her body:
+   * «Давление в тяжёлом диапазоне», not «преэклампсия». Naming a diagnosis off
+   * a wrist estimate is refused in docs/CLINICAL-REVIEW-WATCH.md.
+   */
+  const EMG_RU={
+    PREECLAMPSIA_BP_SEVERE:"Давление в тяжёлом диапазоне",
+    PREECLAMPSIA_BP:"Высокое давление",
+    // Both temperature findings get wording that does NOT claim a thermometer
+    // and does not claim a wrist sensor: how the reading was taken is not a
+    // stored column, so the row cannot say. «Высокая температура» would assert
+    // a fever; «Часы намерили» would assert a device.
+    HIGH_FEVER:"Температура выше порога",
+    DEVICE_TEMP_HIGH:"Температура выше порога",
+    LOW_FEVER:"Температура выше порога",
+    HYPOXIA_SEVERE:"Очень низкий кислород",
+    HYPOXIA_SLEEP:"Кислород ниже 95 %",
+    TACHYCARDIA_SEVERE:"Опасно частый пульс",
+    TACHYCARDIA:"Частый пульс",
+    BRADYCARDIA_SEVERE:"Опасно редкий пульс",
+    BRADYCARDIA:"Редкий пульс"};
+  const EMG_UNIT={systolicMmHg:"мм рт. ст.",diastolicMmHg:"мм рт. ст.",
+    coreTempC:"°C",spo2Pct:"%",heartRateBpm:"уд/мин"};
+  /// The reading behind the finding — «162/108 мм рт. ст.», «38.9 °C».
+  /// Empty string when the row carries no numbers, and the caller then says so
+  /// rather than printing a unit with nothing in front of it.
+  function emgReading(e){
+    if((e.metric==="systolicMmHg"||e.metric==="diastolicMmHg")&&
+       e.systolic!=null&&e.diastolic!=null) return `${e.systolic}/${e.diastolic} мм рт. ст.`;
+    if(e.value==null||!e.metric) return "";
+    return `${e.value} ${EMG_UNIT[e.metric]||""}`.trim();
+  }
+  /// What the row says happened. An unlabelled code is shown verbatim — it
+  /// names a real finding and an operator can quote it — and an empty one
+  /// admits the reason was not kept.
+  function emgWhat(e){
+    if(!e.code) return "Причина не сохранена";
+    return EMG_RU[e.code]||e.code;
+  }
   function feedRow(e){
     const warn=e.severity==="warning";
     const ack=e.acknowledgedAt
       ? `<span class="pill" title="${esc(e.acknowledgedBy||'')}">✓ Подтверждено</span>`
       : (e.id?`<button class="btn" data-ack="${esc(e.id)}">Подтвердить</button>`:"");
+    const reading=emgReading(e);
+    // Threshold beside the value: «162/108 · порог 160» is the whole argument
+    // for why this row exists, and it takes four characters.
+    const meta=[esc(emgWhat(e))]
+      .concat(reading?[`<span class="t">${esc(reading)}</span>`]:[])
+      .concat(e.threshold!=null?[`<span class="t">порог ${esc(e.threshold)}</span>`]:[])
+      .concat(e.duringSleep?[`<span class="t">во сне</span>`]:[])
+      .concat([`<span class="t">${esc(stamp(e.at))}</span>`]).join(" · ");
     return `<div class="frow"><div class="stripe ${warn?'warn':''}"></div>
-      <div><div class="who">${esc(e.displayName)}</div><div class="meta">${esc(e.detail||e.code)} · <span class="t">${esc(stamp(e.at))}</span></div></div>
+      <div><div class="who">${esc(e.displayName)}</div><div class="meta">${meta}</div></div>
       <div class="act"><span class="pill ${warn?'warn':'crit'}">${warn?'Внимание':'Экстренно'}</span>
       ${ack}
       <button class="btn primary" data-user="${esc(e.userId)}">Открыть карточку</button></div></div>`;
@@ -3709,12 +3939,26 @@
       <path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
     <div><b>Экстренных событий нет</b><div class="sub">За выбранный период ничего не потребовало вмешательства.</div></div>
   </div>`;
+  /// …and a feed that did not load must not be drawn as one that is empty.
+  /// «Экстренных событий нет» over a failed request is the single most
+  /// dangerous sentence this panel can print.
+  const feedFailed=`<div class="empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+      <path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+    <div><b>Ленту сигналов не удалось загрузить</b><div class="sub">Это НЕ значит, что тревог нет — их не удалось получить. Обновите страницу или проверьте доступ.</div></div>
+  </div>`;
 
   function renderFeeds(){
     const sorted=[...MOCK.emergencies].sort((a,b)=>sevRank[a.severity]-sevRank[b.severity]);
-    $("#feedMini").innerHTML=sorted.length?sorted.slice(0,4).map(feedRow).join(""):feedEmpty;
-    $("#feedFull").innerHTML=sorted.length?sorted.map(feedRow).join(""):feedEmpty;
+    const blank=EMG_STATE==="failed"?feedFailed:feedEmpty;
+    $("#feedMini").innerHTML=sorted.length?sorted.slice(0,4).map(feedRow).join(""):blank;
+    $("#feedFull").innerHTML=sorted.length?sorted.map(feedRow).join(""):blank;
     setBadge($("#navBadge"),MOCK.emergencies.filter(e=>e.severity==="emergency").length);
+    // Frame 19's metric row is drawn by the OTHER script block (it also needs
+    // the SOS table, which is loaded there). Repainted here so a live tick that
+    // brings a new alarm updates «неподтверждённых» in the same breath as the
+    // feed, instead of leaving a stale count above fresh rows.
+    if(window.UI&&window.UI.emergencyOverview) window.UI.emergencyOverview();
   }
 
   /// The people this panel is actually about.
@@ -3819,6 +4063,14 @@
     stock_move:"Движение по складу",
     stock_receipt:"Приёмка товара",
     stocktake:"Инвентаризация",
+    // Поставки (кадры 07a / 07g). Заказ поставщику — это обязательство
+    // компании по деньгам, поэтому у него своя строка в журнале, а не
+    // безымянная правка.
+    supplier_add:"Добавил(а) поставщика",
+    supplier_update:"Изменил(а) поставщика",
+    po_draft:"Сохранил(а) черновик заказа поставщику",
+    po_place:"Разместил(а) заказ поставщику",
+    po_cancel:"Отменил(а) заказ поставщику",
     bundle_parts:"Изменил(а) состав комплекта",
     device_serials_add:"Добавил(а) серийные номера",
     order_devices:"Привязал(а) устройства к заказу",
@@ -6133,7 +6385,15 @@
     const $=id=>document.getElementById(id), msg=$("noMsg");
     let PRODUCTS=[];
     try{ PRODUCTS=(await api("/admin/inventory")).products||[]; }
-    catch(e){ msg.textContent="Каталог не загрузился — заказ создать нельзя."; msg.className="audiomsg err"; return; }
+    catch(e){
+      // GET /admin/inventory is `stock` — it carries cost and margin — and an
+      // OPERATOR («заказы, клиенты, поддержка, экстренные») does not hold it.
+      // The form is on a tab she can see, so the refusal has to be named:
+      // «Каталог не загрузился» sent her to check her connection.
+      msg.textContent = e instanceof AccessDenied
+        ? "Нет доступа к каталогу товаров: он идёт вместе с себестоимостью, а у вашей роли нет права «склад». Создать заказ здесь нельзя — передайте продавцу."
+        : "Каталог не загрузился — заказ создать нельзя.";
+      msg.className="audiomsg err"; return; }
 
     const simple=PRODUCTS.filter(p=>p.kind!=="bundle");
     const bundle=PRODUCTS.find(p=>p.kind==="bundle");
@@ -7411,10 +7671,20 @@
    * @param w the response's windowDays / leadTimeDays
    */
   function runwayLine(p, w){
-    if(!p.stock) return "нет на складе";
+    // Пустая полка — это и есть тот случай, когда «а что-нибудь едет?» самый
+    // срочный вопрос в строке. Ожидаемое НЕ прибавляется к остатку: продать
+    // сегодня по-прежнему нечего, и предложение это говорит прямо.
+    if(!p.stock) return p.inTransit ? `нет на складе · в пути ${p.inTransit} шт.` : "нет на складе";
     if(p.noSales) return `продаж за ${w.windowDays} дн. не было`;
     if(p.daysOfCover == null) return "";
     const rate=`${p.perDay} шт/день`;
+    // Уже заказано. Это НЕ то же самое, что «всё в порядке»: полка по-прежнему
+    // короткая, просто действие уже сделано — и закупщик, которому экран
+    // повторяет «пора заказывать» о товаре, заказанном две недели назад, либо
+    // закажет второй раз, либо перестанет верить плашке.
+    if(p.reorderCovered){
+      return `хватит на ${p.daysOfCover} дн. · ${rate} — заказ уже размещён, ожидается ${p.inTransit} шт.`;
+    }
     // The lead time is the whole point of saying it: 9 days of cover is fine
     // for a shelf restocked in three and a stockout for one restocked in
     // fourteen. Naming the number a person can act on beats a colour.
@@ -7436,9 +7706,321 @@
     const out=[];
     for(const p of data.products||[]){
       if(p.kind==="bundle") continue;
-      for(const v of p.variants||[]) out.push({ id:v.id, label:`${p.name} · ${v.color}`, stock:v.stock });
+      // inTransit едет РЯДОМ с остатком, а не внутри него: заказ поставщику
+      // набирают, глядя на обе цифры, и сложенные в одну они дают полку,
+      // которой нет.
+      for(const v of p.variants||[]) out.push({ id:v.id, label:`${p.name} · ${v.color}`, stock:v.stock, inTransit:v.inTransit||0 });
     }
     return out;
+  }
+
+  // ---- Поставки и поставщики (кадры 07a / 07b / 07g) ----------------------
+  //
+  // Экран склада отвечал на «что лежит» и «на сколько хватит». Третий вопрос —
+  // «а что уже едет» — и решает, заказывать сегодня или нет.
+
+  const PO_STATUS = {
+    draft:    { label:"Черновик",  cls:"neutral" },
+    placed:   { label:"В пути",    cls:"warn" },
+    received: { label:"Принят",    cls:"good" },
+    cancelled:{ label:"Отменён",   cls:"crit" },
+  };
+
+  /// Человеческий номер ПН. UUID целиком не читают вслух по телефону, а первые
+  /// восемь символов — это и есть заказ, их можно вставить обратно в поиск.
+  /// Тот же приём, что и с номером заказа покупателя.
+  const poRef = id => String(id||"").slice(0,8);
+
+  let SUPPLIERS=[];
+  let PURCHASE_ORDERS=[];
+  /// Что подставлять, когда поставщик срок не заявил. Приходит с сервера
+  /// (LEAD_TIME_DAYS), чтобы панель не держала вторую копию константы.
+  let SUPPLY_DEFAULT_LEAD=14;
+
+  /**
+   * Срок поставки, с указанием, чей он.
+   *
+   * Заявленный поставщиком — это обещание, а не измерение: пары
+   * «разместили → приняли» в базе ещё нет, среднее считать не из чего. Пока
+   * его нет, экран говорит, что число заявленное, а не наше.
+   */
+  function leadLabel(days){
+    return days==null
+      ? `${SUPPLY_DEFAULT_LEAD} дн. (общий срок склада)`
+      : `${days} дн. (со слов поставщика)`;
+  }
+
+  function poItemsLabel(o){
+    if(!o.items || !o.items.length) return "—";
+    return o.items.map(i=>`${i.productName} · ${i.color} — ${i.qtyOrdered} шт.`).join("; ");
+  }
+
+  /**
+   * Закупочная цена строки, или «—».
+   *
+   * Прочерк, а не вычисленная догадка. Себестоимость этот продукт узнаёт ровно
+   * в один момент — когда приёмка принесла стоимость партии и её поделили на
+   * годные штуки; до этого закупочная цена известна, только если её вписали
+   * руками. Число, выведенное из ниоткуда, попадёт в маржу на дашборде
+   * владельца.
+   */
+  function poCostLabel(o){
+    if(!o.items || !o.items.length) return "—";
+    return o.items.map(i=>i.unitCostMinor==null?"—":tenge(i.unitCostMinor)).join("; ");
+  }
+
+  /// Дата, как её обещали. Без времени: никто не обещает груз к 14:20.
+  function poExpected(o){
+    if(o.expectedAt) return o.expectedAt;
+    // Ничего не обещали — считаем от даты размещения и говорим, откуда цифра.
+    if(o.placedAt){
+      const d=new Date(o.placedAt);
+      d.setDate(d.getDate() + (o.supplierLeadTimeDays==null?SUPPLY_DEFAULT_LEAD:o.supplierLeadTimeDays));
+      return `≈ ${d.toISOString().slice(0,10)} (по сроку)`;
+    }
+    return "—";
+  }
+
+  async function renderSupply(){
+    const body=$("#supplyBody");
+    if(!body) return;
+    let data=null;
+    try{ data=await api("/admin/purchase-orders?limit=50"); }catch(e){ data=null; }
+    if(!data){
+      // «Не загрузилось» и «ничего не едет» — разные новости, и вторая из них
+      // повод не заказывать.
+      body.innerHTML=tableNote(7,"Не удалось загрузить поставки.");
+      $("#supplyNote").textContent="";
+      PURCHASE_ORDERS=[];
+      fillReceiptOrders();
+      return;
+    }
+    if(data.leadTimeDays!=null) SUPPLY_DEFAULT_LEAD=data.leadTimeDays;
+    PURCHASE_ORDERS=data.orders||[];
+
+    body.innerHTML=PURCHASE_ORDERS.map(o=>{
+      const st=PO_STATUS[o.status]||{label:o.status,cls:"neutral"};
+      // Отменить можно всё, кроме принятого: принятая поставка — это товар на
+      // полке, и «отмена» объявила бы, что его не покупали.
+      const act=o.status==="received"
+        ? ""
+        : `<button type="button" class="btn sm ghost pocancel" data-po="${esc(o.id)}" data-ref="${esc(poRef(o.id))}">Отменить</button>`;
+      const place=o.status==="draft"
+        ? `<button type="button" class="btn sm poplace" data-po="${esc(o.id)}">Разместить</button> `
+        : "";
+      return `<tr>
+        <td class="num">${esc(poRef(o.id))}</td>
+        <td>${esc(o.supplierName||"не указан")}</td>
+        <td class="t">${esc(poExpected(o))}</td>
+        <td>${esc(poItemsLabel(o))}</td>
+        <td class="num t">${esc(poCostLabel(o))}</td>
+        <td><span class="pill ${esc(st.cls)}">${esc(st.label)}</span></td>
+        <td>${place}${act}</td>
+      </tr>`;
+    }).join("") || tableNote(7,
+      "Заказов поставщикам пока нет. Первый появится здесь после формы «Заказ поставщику» ниже — " +
+      "и только размещённый заказ гасит «пора заказывать» на остатках.");
+
+    // §7: у подвала таблицы есть правило.
+    const inFlight=PURCHASE_ORDERS.filter(o=>o.status==="placed");
+    const units=inFlight.reduce((n,o)=>n+(o.items||[]).filter(i=>!i.receivedAt).reduce((m,i)=>m+i.qtyOrdered,0),0);
+    $("#supplyNote").textContent=
+      `В пути ${units} шт. по ${inFlight.length} заказ(ам). ` +
+      "Эти штуки НЕ входят в остаток и в «хватит на N дней»: продать можно только то, что уже на полке. " +
+      "Срок — заявленный поставщиком; пока ни одна пара «разместили → приняли» не закрыта, считать свой нам не из чего.";
+
+    body.querySelectorAll(".poplace").forEach(b=>b.addEventListener("click",()=>placePo(b)));
+    body.querySelectorAll(".pocancel").forEach(b=>b.addEventListener("click",()=>cancelPo(b)));
+    fillReceiptOrders();
+  }
+
+  async function placePo(btn){
+    btn.disabled=true; msgTo("#supplyMsg","Размещаем…");
+    try{
+      const res=await apiSend(`/admin/purchase-orders/${encodeURIComponent(btn.dataset.po)}/place`,"POST");
+      // Ответ прочитан, а не предположен: «размещено» над неразмещённым
+      // заказом — это ровно тот случай, когда человек уверен, что дело сделано.
+      if(res && res.ok===false) throw new Error("not_placed");
+      msgTo("#supplyMsg","Заказ размещён ✓","ok");
+    }catch(e){ msgTo("#supplyMsg","Не удалось разместить заказ.","bad"); btn.disabled=false; return; }
+    renderStock();
+  }
+
+  async function cancelPo(btn){
+    // Отмена заказа — действие, которое нельзя отменить кнопкой обратно, и о
+    // котором остаётся запись в журнале с именем.
+    if(!window.confirm(`Отменить заказ ${btn.dataset.ref}? Он перестанет считаться «в пути», и на остатках снова появится «пора заказывать». Отмену записывают в журнал.`)) return;
+    btn.disabled=true; msgTo("#supplyMsg","Отменяем…");
+    try{
+      const res=await apiSend(`/admin/purchase-orders/${encodeURIComponent(btn.dataset.po)}/cancel`,"POST");
+      if(res && res.ok===false) throw new Error("not_cancelled");
+      msgTo("#supplyMsg","Заказ отменён ✓","ok");
+    }catch(e){ msgTo("#supplyMsg","Не удалось отменить заказ.","bad"); btn.disabled=false; return; }
+    renderStock();
+  }
+
+  /// Заказы, по которым ещё что-то едет — то, к чему можно привязать приёмку.
+  function fillReceiptOrders(){
+    const sel=$("#recvPo");
+    if(!sel) return;
+    const keep=sel.value;
+    const open=PURCHASE_ORDERS.filter(o=>o.status==="placed");
+    sel.innerHTML=`<option value="">без заказа</option>` + open.map(o=>
+      `<option value="${esc(o.id)}">${esc(poRef(o.id))} · ${esc(o.supplierName||"без поставщика")} — ${esc(poItemsLabel(o))}</option>`).join("");
+    if(keep) sel.value=keep;
+  }
+
+  async function renderSuppliers(){
+    const body=$("#supplierBody");
+    if(!body) return;
+    let data=null;
+    try{ data=await api("/admin/suppliers"); }catch(e){ data=null; }
+    if(!data){
+      body.innerHTML=tableNote(5,"Не удалось загрузить поставщиков.");
+      SUPPLIERS=[];
+      fillSupplierSelect();
+      return;
+    }
+    if(data.defaultLeadTimeDays!=null) SUPPLY_DEFAULT_LEAD=data.defaultLeadTimeDays;
+    SUPPLIERS=data.suppliers||[];
+    body.innerHTML=SUPPLIERS.map(s=>`<tr>
+      <td>${esc(s.name)}</td>
+      <td class="t">${esc(s.contact||"—")}</td>
+      <td class="t">${esc(leadLabel(s.leadTimeDays))}</td>
+      <td><span class="pill ${s.active?"good":"neutral"}">${s.active?"Работаем":"Архив"}</span></td>
+      <td><button type="button" class="btn sm ghost suparch" data-sid="${esc(s.id)}" data-name="${esc(s.name)}"
+            data-contact="${esc(s.contact||"")}" data-lead="${s.leadTimeDays==null?"":s.leadTimeDays}"
+            data-active="${s.active?"1":""}">${s.active?"В архив":"Вернуть"}</button></td>
+    </tr>`).join("") || tableNote(5,
+      "Поставщиков пока нет. Добавьте первого в форме ниже — заказ можно оформить и без него, " +
+      "но тогда некому предъявить недостачу.");
+    $("#supplierNote").textContent=
+      "Срок поставки — тот, что назвал сам поставщик. Своего у нас пока нет: ни одна пара " +
+      "«разместили → приняли» ещё не закрылась, а среднее, выведенное из пустоты, попадёт в планирование денег.";
+
+    body.querySelectorAll(".suparch").forEach(b=>b.addEventListener("click",async()=>{
+      const on=b.dataset.active==="1";
+      if(on && !window.confirm(`Убрать «${b.dataset.name}» в архив? Заказы у него останутся, но новый оформить будет нельзя.`)) return;
+      b.disabled=true;
+      try{
+        const res=await apiSend("/admin/suppliers","POST",{
+          id:b.dataset.sid, name:b.dataset.name,
+          contact:b.dataset.contact||null,
+          leadTimeDays:b.dataset.lead===""?null:Number(b.dataset.lead),
+          active:!on,
+        });
+        if(res && res.ok===false) throw new Error("not_saved");
+      }catch(e){ msgTo("#supplierMsg","Не удалось изменить поставщика.","bad"); b.disabled=false; return; }
+      msgTo("#supplierMsg", on?"Поставщик в архиве ✓":"Поставщик снова в работе ✓","ok");
+      renderSuppliers();
+    }));
+    fillSupplierSelect();
+  }
+
+  function fillSupplierSelect(){
+    const sel=$("#poSupplier");
+    if(!sel) return;
+    const keep=sel.value;
+    // Архивные не предлагаются: заказ им и есть то, чего архив не хочет.
+    sel.innerHTML=`<option value="">не указан</option>` + SUPPLIERS.filter(s=>s.active).map(s=>
+      `<option value="${esc(s.id)}">${esc(s.name)} — ${esc(leadLabel(s.leadTimeDays))}</option>`).join("");
+    if(keep) sel.value=keep;
+  }
+
+  function wireSupplier(){
+    const form=$("#supplierForm");
+    if(!form || form.dataset.wired) return;
+    form.dataset.wired="1";
+    form.addEventListener("submit", async ev=>{
+      ev.preventDefault();
+      const name=$("#supName").value.trim();
+      if(!name) return;
+      const btn=$("#supBtn"); btn.disabled=true; msgTo("#supplierMsg","Сохраняем…");
+      try{
+        const res=await apiSend("/admin/suppliers","POST",{
+          name,
+          contact:$("#supContact").value.trim()||null,
+          // Пусто — значит не заявлял. Ноль и «не сказал» это разные вещи, и
+          // ноль дней поставки был бы обещанием, которого никто не давал.
+          leadTimeDays:$("#supLead").value===""?null:Number($("#supLead").value),
+        });
+        if(res && res.ok===false) throw new Error("not_saved");
+        msgTo("#supplierMsg","Поставщик сохранён ✓","ok");
+        $("#supName").value=""; $("#supContact").value=""; $("#supLead").value="";
+        renderSuppliers();
+      }catch(e){
+        // 409 здесь один: имя занято. Общее «не удалось» отправило бы человека
+        // искать поломку сервера вместо того, чтобы поменять имя.
+        msgTo("#supplierMsg", String(e.message||e)==="409"
+          ? `Поставщик «${name}» уже есть в списке — откройте его в таблице выше или выберите другое имя.`
+          : "Не удалось сохранить поставщика.","bad");
+      }
+      btn.disabled=false;
+    });
+  }
+
+  function wirePurchaseOrder(){
+    const form=$("#poForm");
+    if(!form || form.dataset.wired) return;
+    form.dataset.wired="1";
+
+    // Сказать заранее, что именно произойдёт: черновик ничего не гасит, и это
+    // единственная неочевидная вещь на этой форме.
+    const check=()=>{
+      const qty=Number($("#poQty").value||0);
+      const draft=$("#poDraft").checked;
+      const v=VARIANTS.find(x=>x.id===$("#poVariant").value);
+      const note=$("#poCheck");
+      $("#poBtn").textContent=draft?"Сохранить черновик":"Разместить заказ";
+      if(!qty || !v){ note.textContent=""; return; }
+      note.textContent=
+        `${v.label}: на складе ${v.stock} шт., в пути ${v.inTransit} шт., заказываем ${qty} шт. ` +
+        (draft
+          ? "Черновик не считается «в пути» — на остатках по-прежнему будет «пора заказывать»."
+          : "После размещения эти штуки будут показаны как «в пути» — в остаток они не войдут.");
+      note.style.color = draft ? "var(--warn-text,var(--warn))" : "var(--muted)";
+    };
+    for(const id of ["#poQty","#poVariant","#poDraft"]) $(id).addEventListener("input",check);
+    $("#poDraft").addEventListener("change",check);
+
+    form.addEventListener("submit", async ev=>{
+      ev.preventDefault();
+      const qty=Number($("#poQty").value||0);
+      const variantId=$("#poVariant").value;
+      if(!qty || !variantId) return;
+      const btn=$("#poBtn"); btn.disabled=true; msgTo("#poMsg","Оформляем…");
+      try{
+        const cost=$("#poCost").value;
+        const res=await apiSend("/admin/purchase-orders","POST",{
+          supplierId:$("#poSupplier").value||null,
+          expectedAt:$("#poExpected").value||null,
+          note:$("#poNote").value.trim()||null,
+          place:!$("#poDraft").checked,
+          items:[{
+            variantId,
+            qtyOrdered:qty,
+            // Тенге в форме, тиыны на проводе — как и везде в этой панели.
+            unitCostMinor:cost===""?null:Math.round(Number(cost)*100),
+          }],
+        });
+        // Ответ прочитан: сервер сообщает, чем заказ стал — черновиком или
+        // размещённым, — и разница между ними и есть смысл этой формы.
+        if(!res || !res.id) throw new Error("no_id");
+        msgTo("#poMsg", res.status==="placed"
+          ? `Заказ ${poRef(res.id)} размещён ✓ · ${qty} шт. теперь считаются «в пути»`
+          : `Черновик ${poRef(res.id)} сохранён · «в пути» он не считается, разместите его в таблице выше`,
+          res.status==="placed" ? "ok" : "");
+        for(const id of ["#poQty","#poCost","#poExpected","#poNote"]) $(id).value="";
+        $("#poCheck").textContent="";
+        renderStock();
+      }catch(e){
+        const raw=String(e.message||e);
+        msgTo("#poMsg", raw.includes("409")
+          ? "Такого товара или цвета уже нет — обновите страницу и повторите."
+          : "Не удалось оформить заказ.", "bad");
+      }
+      btn.disabled=false;
+    });
   }
 
   let VARIANTS=[];
@@ -7471,6 +8053,31 @@
       }
       const usable=Math.max(0,qty-bad);
       lines.push(`на склад встанет ${usable} шт.` + (bad?` (брак ${bad} шт. — считаем, но не продаём)`:""));
+      // Заказано — вот с чем сверяют, когда поставка пришла по заказу: должны
+      // нам то, что мы заказали. Накладная поставщика — его версия события.
+      const po=(PURCHASE_ORDERS||[]).find(o=>o.id===($("#recvPo")?$("#recvPo").value:""));
+      const line=po?(po.items||[]).find(i=>i.variantId===$("#recvVariant").value):null;
+      if(po && !line){
+        lines.push("в этом заказе такого цвета нет — выберите другой заказ или примите без заказа");
+        warn=true;
+      }
+      if(line){
+        // Сверяют с ОСТАТКОМ строки, а не со всем заказом: вторая коробка по
+        // тому же заказу должна ровно то, чего не привезла первая. Иначе уже
+        // принятые штуки попадут в претензию второй раз.
+        const got=Math.max(0,Number(line.qtyReceived)||0);
+        const left=Math.max(0,line.qtyOrdered-got);
+        if(left!==qty){
+          const d=left-qty;
+          const basis=got>0
+            ? `остатка заказа (${left} из ${line.qtyOrdered}, принято ${got})`
+            : `заказа (${left})`;
+          lines.push(d>0
+            ? `недостача ${d} шт. против ${basis} — оформится претензия поставщику`
+            : `излишек ${-d} шт. против ${basis}`);
+          warn=true;
+        }
+      }
       if(inv!=null && inv!==qty){
         const d=inv-qty;
         lines.push(d>0
@@ -7488,6 +8095,11 @@
     for(const id of ["#recvQty","#recvInvoice","#recvDefect","#recvCost","#recvSerials"]){
       $(id).addEventListener("input",check);
     }
+    // Смена заказа или цвета меняет то, с чем сверяют недостачу, — значит,
+    // должна менять и предупреждение над кнопкой.
+    for(const id of ["#recvPo","#recvVariant"]){
+      if($(id)) $(id).addEventListener("change",check);
+    }
 
     form.addEventListener("submit", async ev=>{
       ev.preventDefault();
@@ -7497,6 +8109,8 @@
         const num=(sel)=>$(sel).value===""?undefined:Number($(sel).value);
         const res=await apiSend("/admin/inventory/receipt","POST",{
           variantId:$("#recvVariant").value,
+          // Пусто — «приход без заказа», и путь остаётся ровно прежним.
+          poId:($("#recvPo")&&$("#recvPo").value)||undefined,
           qty:Number($("#recvQty").value||0),
           invoiceQty:num("#recvInvoice"),
           defective:num("#recvDefect"),
@@ -7515,14 +8129,28 @@
         if(res.unitCostMinor!=null) parts.push(`себестоимость ${tenge(res.unitCostMinor)} за шт.`);
         if(res.serialsAdded) parts.push(`серийников записано ${res.serialsAdded}`);
         if(res.serialsSkipped) parts.push(`уже были в базе: ${res.serialsSkipped}`);
+        // Что стало с заказом. Строку закрывает приёмка, и заказ закрывается
+        // сам, когда закрылась последняя, — а если закрыть не удалось, это
+        // говорится вслух: иначе штуки останутся «в пути», уже лёжа на полке.
+        let poFailed=false;
+        if(res.poId){
+          if(res.poLineClosed===false){ parts.push("строка заказа НЕ закрыта — эти штуки всё ещё числятся «в пути»"); poFailed=true; }
+          else if(res.poStatus==="received") parts.push(`заказ ${poRef(res.poId)} закрыт полностью`);
+          else parts.push(`заказ ${poRef(res.poId)}: строка закрыта, остальные ещё в пути`);
+        }
         // The claim is the thing somebody has to act on, so it leads rather
         // than trailing a list of successes.
+        // «остатка заказа», когда часть уже приходила: претензия к поставщику
+        // на этот раз только за то, чего не хватило в ЭТОЙ коробке.
+        const against = res.shortfallBasis==="order"
+          ? (res.alreadyReceivedQty ? "остатка заказа" : "заказа")
+          : "накладной";
         const head = res.shortfall
           ? (res.shortfall>0
-              ? `Принято с недостачей ${res.shortfall} шт. — оформите претензию поставщику`
-              : `Принято с излишком ${-res.shortfall} шт. против накладной`)
+              ? `Принято с недостачей ${res.shortfall} шт. против ${against} — оформите претензию поставщику`
+              : `Принято с излишком ${-res.shortfall} шт. против ${against}`)
           : "Поставка оприходована ✓";
-        msgTo("#recvMsg", head+" · "+parts.join(" · "), res.shortfall ? "bad" : "ok");
+        msgTo("#recvMsg", head+" · "+parts.join(" · "), (res.shortfall||poFailed) ? "bad" : "ok");
         for(const id of ["#recvQty","#recvInvoice","#recvDefect","#recvCost","#recvSerials","#recvNote"]) $(id).value="";
         $("#recvCheck").textContent="";
         renderStock();
@@ -7531,7 +8159,11 @@
         const raw=String(e.message||e);
         msgTo("#recvMsg", raw.includes("serial_count_mismatch")
           ? "Количество и число серийных номеров не совпадают — поставка не записана."
-          : "Не удалось оприходовать поставку.", "bad");
+          // 404 здесь один: выбранного заказа больше нет. Молчаливое «не
+          // удалось» отправило бы кладовщика искать ошибку в коробке.
+          : raw.includes("404")
+            ? "Выбранного заказа больше нет — обновите страницу или примите поставку без заказа."
+            : "Не удалось оприходовать поставку.", "bad");
       }
       btn.disabled=false;
     });
@@ -7679,8 +8311,16 @@
     wireSerials();
     wireReceipt();
     wireStocktake();
+    wireSupplier();
+    wirePurchaseOrder();
     renderSerials();
     wireStock();
+    // Поставщики раньше поставок: список заказов подписывает каждую строку
+    // именем поставщика и его сроком, а форма заказа выбирает из того же
+    // списка. Оба ждут — иначе первый рендер покажет «не указан» там, где
+    // поставщик есть.
+    await renderSuppliers();
+    await renderSupply();
     const box = $("#stockBody");
     let data = null;
     try{ data = await api("/admin/inventory"); }catch(e){ data = null; }
@@ -7703,17 +8343,34 @@
         `<option value="${esc(v.id)}">${esc(v.label)} — ${v.stock} шт.</option>`).join("");
       if (keep) recvSel.value = keep;
     }
+    // Заказ поставщику набирается из того же списка цветов — и показывает
+    // обе цифры сразу: что на полке и что уже едет. Одна вместо двух — это
+    // либо второй заказ того же, либо остановленная линия.
+    const poSel = $("#poVariant");
+    if (poSel) {
+      const keep = poSel.value;
+      poSel.innerHTML = VARIANTS.map(v =>
+        `<option value="${esc(v.id)}">${esc(v.label)} — на складе ${v.stock}${v.inTransit?`, в пути ${v.inTransit}`:""}</option>`).join("");
+      if (keep) poSel.value = keep;
+    }
     renderStocktake();
 
     // The banner now leads with what is running out by SALES rate, falling
     // back to the hand-set threshold. A threshold cannot know that watches
     // sell four times faster than tags, which is the case it was silent on.
-    const low = data.products.filter(p => p.reorder || p.lowStock);
+    // reorderCovered тоже здесь. Полка от размещённого заказа не наполнилась —
+    // убрать строку значило бы сказать, что всё в порядке, — но и звать
+    // заказывать второй раз нельзя, поэтому строка меняет текст, а не исчезает.
+    const low = data.products.filter(p => p.reorder || p.lowStock || p.reorderCovered);
     $("#stockLow").hidden = low.length === 0;
-    $("#stockLowList").textContent = low.map(p =>
-      p.reorder && p.daysOfCover != null
-        ? `${p.name} — ${p.stock} шт., хватит на ${p.daysOfCover} дн.`
-        : `${p.name} — ${p.stock} шт.`).join(" · ");
+    $("#stockLowList").textContent = low.map(p => {
+      if (p.reorder && p.daysOfCover != null) return `${p.name} — ${p.stock} шт., хватит на ${p.daysOfCover} дн.`;
+      // Полка всё ещё короткая, но действие уже сделано. Молча убрать строку
+      // было бы неправдой, а повторить «пора заказывать» — поводом заказать
+      // второй раз.
+      if (p.reorderCovered) return `${p.name} — ${p.stock} шт., заказ размещён, ожидается ${p.inTransit} шт.`;
+      return `${p.name} — ${p.stock} шт.`;
+    }).join(" · ");
 
     box.innerHTML = data.products.map(p => {
       const margin = p.costMinor != null
@@ -7809,7 +8466,16 @@
    *
    * This is a copy, and a copy drifts. It is not the security boundary: every
    * route re-checks, so the worst a stale entry can do is show a tab that
-   * answers 403. adminCapsMatrix.test.ts fails if the two stop agreeing.
+   * answers 403 — which is exactly what happened to «Финансы», drawn for
+   * `stock` while the route asks for `finance`.
+   *
+   * The guard is `adminRoleUiRender.test.ts` — it parses THIS object out of the
+   * file and compares it with auth/capabilities.ts, role by role — and
+   * `adminRoleRouteAccess.test.ts`, which boots the panel as each role against
+   * the routes' real requireCap and fails if a visible tab cannot read its own
+   * data. There is no `adminCapsMatrix.test.ts`; the name was here for months
+   * and matched nothing, so anybody checking whether the copy was guarded found
+   * no such file and had to guess.
    */
   const ROLE_CAPS={
     owner:["orders","customers","health","finance","stock","content","staff","emergencies"],
@@ -8479,6 +9145,41 @@
   // JavaScript does not work that way.
   const { tableBusy, tableNote, stamp, ago, fmt, setBadge, STAFF, sessionLost } = window.UI;
 
+  /**
+   * A refusal is not an outage — and this block could not tell them apart.
+   *
+   * The FIRST script block has had `class AccessDenied` since the day someone
+   * noticed that a revoked account was being shown a full dashboard of demo
+   * numbers. This one threw `new Error("403 {…}")` for everything, so every
+   * view below this line — Финансы, Поддержка, Интеграции, Каталог,
+   * Устройства, Безопасность — was structurally incapable of rendering «нет
+   * доступа» as anything but a raw status code pasted into a sentence about
+   * loading. A warehouse hand read «Не загрузилось: 403 {"error":"forbidden"}»
+   * and filed a bug against a server that was working perfectly.
+   *
+   * Fixed here, once, rather than in six catch blocks — the seventh view added
+   * under this line would otherwise start out broken again.
+   */
+  class AccessDenied extends Error {
+    constructor(status) { super(String(status)); this.name = "AccessDenied"; this.status = status; }
+  }
+  const isDenied = (e) => !!e && e.name === "AccessDenied";
+
+  /**
+   * What to put on screen when a load failed. Names the section, because these
+   * messages land inside a card whose heading may be off-screen.
+   *
+   * A 403 gets the reason and the remedy; anything else keeps the status, which
+   * is what a bug report needs.
+   */
+  function failText(e, what) {
+    if (isDenied(e)) {
+      return `Нет доступа к разделу «${what}»: сервер ответил и отказал — у вашей роли нет нужного права. Это не сбой. Доступ выдаёт владелец.`;
+    }
+    const why = (e && e.message) ? String(e.message) : "нет связи с сервером";
+    return `Не удалось загрузить «${what}»: ${why}.`;
+  }
+
   async function api(path, opts) {
     const r = await fetch(path, {
       ...opts,
@@ -8494,6 +9195,7 @@
     // Read off window.UI at call time, not destructured at the top: the slot is
     // filled once the login gate exists, which is after this block is parsed.
     if (r.status === 401) sessionLost();
+    if (r.status === 401 || r.status === 403) throw new AccessDenied(r.status);
     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
     return r.json();
   }
@@ -9037,9 +9739,9 @@
     try {
       const body = await api("/admin/content");
       catalog = body.stages || {};
-    } catch {
+    } catch (e) {
       catalog = {};
-      setMsg("API контента недоступен — каталог пуст.", "err");
+      setMsg(failText(e, "Контент"), "err");
     }
     renderMap();
     renderEditor();
@@ -9245,12 +9947,16 @@
     // чего мы уже не проверяли.
     devMsg("");
     $("#devicesBody").innerHTML = tableBusy(devCols);
-    try { data = await api("/admin/devices"); } catch (e) { data = null; }
+    let err = null;
+    try { data = await api("/admin/devices"); } catch (e) { data = null; err = e; }
     if (!data) {
       // Провал запроса — не пустой парк. Раньше и то и другое рисовалось
       // одинаково, и панель без связи выглядела как продукт, к которому никто
-      // никогда не подключал трекер.
-      $("#devicesBody").innerHTML = tableNote(devCols, "Не удалось загрузить парк устройств. Проверьте доступ и соединение.");
+      // никогда не подключал трекер. А отказ по правам — не провал запроса:
+      // «проверьте соединение» отправляет человека чинить работающую сеть.
+      $("#devicesBody").innerHTML = tableNote(devCols, isDenied(err)
+        ? failText(err, "Устройства")
+        : "Не удалось загрузить парк устройств. Проверьте доступ и соединение.");
       const el = $("#devMetrics");
       if (el) el.innerHTML = `<div class="card" style="grid-column:1/-1;padding:14px"><div class="sub">Метрики не считаются: список устройств не загрузился. Показывать «0 на связи» было бы враньём.</div></div>`;
       return;
@@ -9258,12 +9964,36 @@
     renderDevices(data);
   }
 
+  /**
+   * The SOS/zone feed, kept after it is drawn.
+   *
+   * Frame 19's metric row and its SOS card are computed from these rows, and
+   * both must be able to tell «нечего показывать» from «не смогли получить»
+   * and from «нет прав». One list plus one state, never a bare empty array.
+   */
+  let SAFETY = [];
+  let SAFETY_STATE = "none"; // none | ok | denied | failed
+  const OUTCOME_RU={false_press:"Ложное нажатие",scared:"Испугался",needed_help:"Нужна была помощь",unknown:"Не выяснили"};
+
   async function loadSafety() {
     let list = null;
     $("#safetyBody").innerHTML = tableBusy(5);
-    try { list = (await api("/admin/safety")).events || []; } catch (e) { list = null; }
+    try {
+      list = (await api("/admin/safety")).events || [];
+      SAFETY = list; SAFETY_STATE = "ok";
+    } catch (e) {
+      list = null;
+      // 403 is «signed in, not allowed to see where children are» — a state
+      // the metric row must name, because «0 ложных нажатий» to somebody who
+      // simply cannot see the table is a fabricated all-clear.
+      SAFETY = [];
+      SAFETY_STATE = isDenied(e) ? "denied" : "failed";
+    }
+    renderEmergencyOverview();
     if (!list) {
-      $("#safetyBody").innerHTML = tableNote(5, "Не удалось загрузить события безопасности.");
+      $("#safetyBody").innerHTML = tableNote(5, SAFETY_STATE === "denied"
+        ? "Нет доступа к событиям безопасности: нужны права на здоровье и геолокацию. Спросите владельца."
+        : "Не удалось загрузить события безопасности.");
       return;
     }
     // An SOS must not look like a child walking into the school zone.
@@ -9280,8 +10010,8 @@
     // `outcome` is how a mother closed an SOS — false_press / scared /
     // needed_help — and NULL is not «не выяснили», it is «она ещё не закрыла».
     // The schema comment says so and the distinction is the whole value of the
-    // column, so the UI keeps it.
-    const OUTCOME_RU={false_press:"Ложное нажатие",scared:"Испугался",needed_help:"Нужна была помощь",unknown:"Не выяснили"};
+    // column, so the UI keeps it. (OUTCOME_RU is defined above loadSafety: the
+    // SOS card needs the same words, and two copies would drift.)
     const outcomeCell=(e)=> e.kind!=="sos" ? "—"
       : (e.outcome==null
           ? `<span class="t" style="color:var(--warn-text)">мама ещё не закрыла</span>`
@@ -9292,6 +10022,134 @@
       <td>${outcomeCell(e)}</td></tr>`).join(""), 6,
       "Событий безопасности пока нет.");
   }
+
+  // ---- Frame 19: метрики и карточка SOS -------------------------------------
+  //
+  // Что здесь НЕ нарисовано и почему:
+  //   · «ложных 61 %» и «реакция 1:40» из макета — это подписи макета. Здесь
+  //     считается то же по смыслу, но из загруженных строк, и подпись всегда
+  //     называет знаменатель.
+  //   · карта в карточке SOS. Координаты в `safety_alerts` не хранятся вообще:
+  //     пуш собирает точку из живого кэша в момент нажатия, а таблица держит
+  //     время, ребёнка и зону. Рисовать карту «примерно» на экране, по которому
+  //     решают, куда ехать, — хуже, чем честно сказать, что точки нет.
+  const durRu = (ms) => {
+    const m = Math.round(ms / 60000);
+    if (m < 1) return "меньше минуты";
+    if (m < 60) return `${m} мин`;
+    return `${Math.floor(m / 60)} ч ${m % 60} мин`;
+  };
+  const median = (xs) => {
+    const s = [...xs].sort((a, b) => a - b);
+    const i = Math.floor(s.length / 2);
+    return s.length % 2 ? s[i] : Math.round((s[i - 1] + s[i]) / 2);
+  };
+  const msAt = (v) => { const t = Date.parse(v); return Number.isFinite(t) ? t : null; };
+
+  function renderEmergencyOverview() {
+    const box = $("#emgMetrics");
+    const card = $("#sosCard");
+    if (!box && !card) return;
+    const feed = (window.UI && window.UI.emergencyFeed) ? window.UI.emergencyFeed() : { state: "failed", items: [] };
+    const items = feed.items || [];
+    const now = Date.now();
+
+    if (box) {
+      // Лента не загрузилась — не считаем НИЧЕГО из неё. «0 неподтверждённых»
+      // на экстренном экране читается как «всё спокойно».
+      const feedDead = feed.state === "failed";
+      const open = items.filter((e) => !e.acknowledgedAt).length;
+      const dated = items.map((e) => msAt(e.at)).filter((t) => t !== null);
+      const day = dated.filter((t) => now - t <= 86400e3).length;
+      const acked = items
+        .map((e) => ({ a: msAt(e.acknowledgedAt), b: msAt(e.at) }))
+        .filter((x) => x.a !== null && x.b !== null && x.a >= x.b)
+        .map((x) => x.a - x.b);
+
+      const sos = SAFETY.filter((e) => e.kind === "sos");
+      const closed = sos.filter((e) => e.outcome != null);
+      const falsePress = closed.filter((e) => e.outcome === "false_press").length;
+      const sosNote = SAFETY_STATE === "denied"
+        ? "нет доступа к таблице SOS — нужны права на здоровье и геолокацию"
+        : SAFETY_STATE === "failed" ? "таблица SOS не загрузилась — доля не считается"
+        : SAFETY_STATE === "none" ? "таблица SOS ещё не загружена"
+        : !closed.length ? "ни один из загруженных SOS ещё не закрыт мамой — доля не считается"
+        : `${falsePress} из ${closed.length} закрытых SOS · открытые не учитываются`;
+
+      box.innerHTML =
+        devTile("Неподтверждённые сигналы", feedDead ? "—" : open,
+          feedDead ? "лента сигналов не загрузилась — не считаем"
+            : `из ${fmt(items.length)} загруженных · подтверждают после разговора с мамой, а не по факту просмотра`,
+          feedDead || open ? "var(--crit)" : "var(--good)") +
+        devTile("Сигналы за сутки", feedDead || !dated.length ? "—" : day,
+          feedDead ? "лента сигналов не загрузилась — не считаем"
+            : !dated.length ? "у загруженных сигналов нет разбираемых дат"
+            : `за последние 24 часа · из ${fmt(dated.length)} с датой`,
+          "var(--warn)") +
+        devTile("Ложные нажатия SOS",
+          SAFETY_STATE === "ok" && closed.length ? `${Math.round((falsePress / closed.length) * 100)} %` : "—",
+          sosNote, "var(--warn)") +
+        devTile("Время до подтверждения",
+          acked.length ? durRu(median(acked)) : "—",
+          acked.length
+            ? `медиана по подтверждённым: ${fmt(acked.length)} из ${fmt(items.length)} загруженных · неподтверждённые не учитываются`
+            : (feedDead ? "лента сигналов не загрузилась — не считаем"
+              : "ни один загруженный сигнал ещё не подтверждён"),
+          "var(--good)");
+    }
+
+    if (!card) return;
+    // SOS ≠ пересечение зоны. Отдельная карточка, красная полоса, крупно —
+    // потому что это человек, нажавший кнопку, а не ребёнок, прошедший мимо
+    // границы зоны.
+    if (SAFETY_STATE !== "ok") {
+      card.innerHTML = `<div class="sec-h"><h3>Последний SOS</h3></div>
+        <div class="sub">${SAFETY_STATE === "denied"
+          ? "Нет доступа: SOS и геолокация видны только с правами на здоровье. Спросите владельца."
+          : SAFETY_STATE === "failed"
+            ? "Не удалось загрузить события безопасности. Это НЕ значит, что SOS не было."
+            : "События безопасности ещё не загружены."}</div>`;
+      return;
+    }
+    const last = SAFETY.find((e) => e.kind === "sos");
+    if (!last) {
+      card.innerHTML = `<div class="sec-h"><h3>Последний SOS</h3></div>
+        <div class="sub">Среди ${fmt(SAFETY.length)} загруженных событий безопасности нажатий SOS нет. Пересечения зон — в таблице ниже.</div>`;
+      return;
+    }
+    const t = msAt(last.at);
+    const outcome = last.outcome == null
+      ? `<span style="color:var(--warn-text)">мама ещё не закрыла сигнал</span>`
+      : esc(OUTCOME_RU[last.outcome] || last.outcome);
+    const phone = last.phone
+      ? `<a class="btn primary" style="display:inline-block;text-decoration:none" href="tel:${esc(String(last.phone).replace(/[^\d+]/g, ""))}">Позвонить маме · ${esc(last.phone)}</a>`
+      : `<div class="sub">Телефон в аккаунте не указан — звонить некуда. Шаг 1 инструкции здесь невыполним.</div>`;
+    card.innerHTML = `
+      <div class="sec-h"><h3>Последний SOS</h3>
+        <span class="sub">Кнопку нажал человек — это не пересечение зоны</span></div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+        <div style="flex:1 1 280px;min-width:0">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="pill crit" style="font-size:14px;padding:5px 12px">SOS</span>
+            <b style="font-size:16px">${esc(last.childName || "ребёнок без имени в карточке")}</b>
+          </div>
+          <div class="sub" style="margin-top:6px">Семья: ${esc(last.displayName || "—")}</div>
+          <div class="t" style="margin-top:4px">${esc(stamp(last.at))}${t !== null ? " · " + esc(ago(last.at)) : ""}</div>
+          <div style="margin-top:8px">Зона: ${last.zoneName
+            ? esc(last.zoneName)
+            : `<span class="sub">не указана — кнопку нажимают где угодно, не только в зоне</span>`}</div>
+          <div style="margin-top:4px">Чем закончилось: ${outcome}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex:0 0 auto">
+          ${phone}
+          <button class="btn" type="button" data-user="${esc(last.userId)}">Открыть карточку семьи</button>
+        </div>
+      </div>
+      <div class="metricnote">Карты нет: координаты вместе с сигналом не сохраняются — точку в момент нажатия получает только пуш на телефоны семьи. Где ребёнок сейчас, видно в приложении у мамы. Панель не вызывает скорую: если по разговору нужна помощь — 103 набирает мама или вы вместе с ней.</div>`;
+  }
+  // Первый блок скрипта перерисовывает ленту сам и зовёт это, чтобы счётчик
+  // «неподтверждённых» не остался старым над новыми строками.
+  window.UI.emergencyOverview = renderEmergencyOverview;
 
 
   // Wire up. The dashboard's own click handler drives nav switching; these
@@ -9351,7 +10209,7 @@
     try {
       r = await api(`/admin/finance${qs.toString() ? `?${qs}` : ""}`);
     } catch (e) {
-      $("#finMsg").textContent = `Не загрузилось: ${e.message}`;
+      $("#finMsg").textContent = failText(e, "Финансы");
       $("#finMsg").className = "formmsg err";
       return;
     }
@@ -9456,7 +10314,7 @@
     try {
       supBoard = await api("/admin/support");
     } catch (e) {
-      $("#supBody").innerHTML = `<div class="note">Не загрузилось: ${esc(e.message)}</div>`;
+      $("#supBody").innerHTML = `<div class="note">${esc(failText(e, "Поддержка"))}</div>`;
       return;
     }
     renderSupport();
@@ -9671,7 +10529,7 @@
     try {
       b = await api("/admin/integrations");
     } catch (e) {
-      $("#intBody").innerHTML = `<div class="note">Не загрузилось: ${esc(e.message)}</div>`;
+      $("#intBody").innerHTML = `<div class="note">${esc(failText(e, "Интеграции"))}</div>`;
       return;
     }
     const list = b.integrations || [];
@@ -9765,6 +10623,7 @@
   let catCategories = [];
   let catStageKeys = [];
   let catKidStats = null;   // for «охват»; null until it loads, and it may fail
+  let catKidWhy = "";       // …and WHY it is null, in words the reader can act on
   let catPickCat = null;    // null = все
   let catPickStage = null;
   let catOpenId = null;
@@ -9788,13 +10647,19 @@
       catCategories = b.categories || [];
       catStageKeys = b.stages || [];
     } catch (e) {
-      $("#catBody").innerHTML =
-        `<div class="note">Каталог не загрузился: ${esc(e.message)}. Ничего не сохранится, пока страница не обновится.</div>`;
+      $("#catBody").innerHTML = isDenied(e)
+        ? `<div class="note">${esc(failText(e, "Каталог"))}</div>`
+        : `<div class="note">Каталог не загрузился: ${esc(e.message)}. Ничего не сохранится, пока страница не обновится.</div>`;
       return;
     }
     // «Охват» is a nice-to-have on one tab; the catalogue must not fail to open
     // because the children stats did.
-    api("/admin/children/stats").then((s) => { catKidStats = s; }).catch(() => {});
+    // Nice-to-have, and the reason it is missing is kept: «не загрузилось» and
+    // «вам это видеть нельзя» send the reader to two different places.
+    api("/admin/children/stats").then((s) => { catKidStats = s; catKidWhy = ""; })
+      .catch((e) => { catKidStats = null; catKidWhy = isDenied(e)
+        ? "у вашей роли нет права «здоровье», а охват считается по детям"
+        : "статистика по детям не загрузилась"; });
     renderCatalog();
   }
 
@@ -10034,7 +10899,7 @@
       return;
     }
     if (!catKidStats || !catKidStats.byAge) {
-      el.textContent = "Охват посчитать не удалось — статистика по детям не загрузилась.";
+      el.textContent = `Охват посчитать не удалось — ${catKidWhy || "статистика по детям не загрузилась"}.`;
       return;
     }
     if (lo == null && hi == null) {

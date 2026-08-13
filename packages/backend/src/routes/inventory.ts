@@ -17,7 +17,7 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import type { Repository, StaffRole } from '../db/repository';
+import type { Repository, StaffRole, PurchaseOrder } from '../db/repository';
 import { can, type Capability } from '../auth/capabilities';
 import { needsReorder, runwayOf } from '../inventory/runway';
 
@@ -79,6 +79,21 @@ const statusBody = z.object({
  */
 const receiptBody = z.object({
   variantId: z.string().trim().min(1),
+  /**
+   * Which purchase order this box belongs to, when it belongs to one.
+   *
+   * Optional, and it must stay optional: «приход без заказа» is a real and
+   * common event — a courier turns up with something nobody raised an order
+   * for — and a receipt form that demanded a PO would push that delivery back
+   * onto the old path where the shelf and the ledger disagree with nothing to
+   * explain why.
+   *
+   * When it IS present, the ORDERED quantity becomes the comparison basis for
+   * the shortfall claim in place of the packing list: what we are owed is what
+   * we ordered, and a supplier who bills for what they shipped is not thereby
+   * relieved of the twenty units missing from it.
+   */
+  poId: z.string().trim().min(1).optional(),
   /// Units actually in the box, defective ones included. They arrived.
   qty: z.number().int().min(1).max(100000),
   /// What the packing list claims. Absent when nobody is checking against one.
@@ -96,6 +111,46 @@ const receiptBody = z.object({
   serials: z.string().max(20000).optional(),
   kind: z.enum(['band', 'tag']).optional(),
   note: z.string().trim().max(300).optional(),
+});
+
+/**
+ * Кто нам возит — кадр 07g.
+ *
+ * [leadTimeDays] is what the supplier DECLARED. It is not derived from
+ * history, and it must not be: nothing in this database has a placed→received
+ * pair yet, so an average would be computed from nothing and printed beside a
+ * number a buyer plans money against. The panel labels it «заявленный».
+ */
+const supplierBody = z.object({
+  id: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).max(120),
+  contact: z.string().trim().max(200).nullable().optional(),
+  leadTimeDays: z.number().int().min(0).max(365).nullable().optional(),
+  active: z.boolean().optional(),
+});
+
+/// Заказ поставщику — кадр 07b. Lines are colours, because that is what is
+/// ordered: «часы чёрные 40», never «часы 40».
+const purchaseOrderBody = z.object({
+  supplierId: z.string().trim().min(1).nullable().optional(),
+  /// The day it is expected. A date, not a timestamp — nobody promises 14:20.
+  expectedAt: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD').nullable().optional(),
+  note: z.string().trim().max(300).nullable().optional(),
+  /**
+   * Place it at once, rather than leaving a draft.
+   *
+   * Defaults to true, and that default is the point: a draft counts as nothing
+   * in transit, so an order saved and never placed would leave the warehouse
+   * screen still saying «пора заказывать» about goods somebody has just
+   * ordered. Drafts exist for the buyer who is still assembling a list.
+   */
+  place: z.boolean().optional(),
+  items: z.array(z.object({
+    variantId: z.string().trim().min(1),
+    qtyOrdered: z.number().int().min(1).max(100000),
+    /// Null until somebody names a price. Never computed — see the migration.
+    unitCostMinor: z.number().int().min(0).nullable().optional(),
+  })).min(1).max(200),
 });
 
 /// A counted shelf. The cap is the whole catalogue several times over.
@@ -209,11 +264,43 @@ export function registerInventoryRoutes(
     // ledger should cost the runway column, not the whole warehouse screen.
     const since = new Date(Date.now() - SALES_WINDOW_DAYS * 86400_000).toISOString();
     const sold = await repo.soldUnitsSince(since).catch(() => ({} as Record<string, number>));
+    /**
+     * What is already on the water, per variant (migration 045).
+     *
+     * NOT added to `stock`, and NOT fed into runwayOf: cover is what can be
+     * shipped today, and a forecast that counts a box in Almaty customs
+     * promises stock nobody can send. It changes one thing only — whether the
+     * screen says «пора заказывать» or «заказ уже размещён», which are two
+     * different sentences about the same shelf.
+     *
+     * Absent on an unmigrated database rather than fatal, like the ledger read
+     * above: a missing supply table should cost the in-transit column, not the
+     * whole warehouse screen.
+     */
+    const inTransit = await repo.inTransitByVariant().catch(() => ({} as Record<string, number>));
 
     const withParts = await Promise.all(products.map(async (p) => {
       const runway = runwayOf(p.stock, sold[p.id] ?? 0, SALES_WINDOW_DAYS);
+      const variants = p.variants.map((v) => ({ ...v, inTransit: inTransit[v.id] ?? 0 }));
+      // A bundle has no shelf of its own, so nothing is ordered against it —
+      // its parts are. Summing its variants would be summing an empty list
+      // anyway; saying so explicitly stops a future reader adding one.
+      const productInTransit = variants.reduce((n, v) => n + v.inTransit, 0);
+      const raw = needsReorder(runway, LEAD_TIME_DAYS);
+      /**
+       * How many units short of surviving the lead time this product is. The
+       * same arithmetic `needsReorder` does, made explicit so «уже заказано»
+       * can be a judgement about a QUANTITY rather than about whether any
+       * order at all exists — one strap on the water must not silence a
+       * warning about forty watches.
+       */
+      const gap = runway && !runway.noSales
+        ? Math.max(0, Math.ceil(runway.perDay * LEAD_TIME_DAYS) - p.stock)
+        : 0;
+      const covered = raw && productInTransit > 0 && productInTransit >= gap;
       return {
         ...p,
+        variants,
         parts: p.kind === 'bundle' ? await repo.bundleParts(p.id) : [],
         soldInWindow: sold[p.id] ?? 0,
         // JSON has no Infinity — it serialises as null, which would be
@@ -221,7 +308,16 @@ export function registerInventoryRoutes(
         daysOfCover: runway && Number.isFinite(runway.days) ? runway.days : null,
         perDay: runway ? Number(runway.perDay.toFixed(2)) : null,
         noSales: runway ? runway.noSales : true,
-        reorder: needsReorder(runway),
+        /// Units ordered and not yet received. Never part of `stock`.
+        inTransit: productInTransit,
+        reorder: raw && !covered,
+        /**
+         * True when this product WOULD be flagged and an open order already
+         * covers it. A distinct flag rather than a silent suppression: the
+         * shelf is still short, and a buyer who cannot see that the answer is
+         * "already ordered" learns to distrust the screen.
+         */
+        reorderCovered: covered,
       };
     }));
 
@@ -234,6 +330,9 @@ export function registerInventoryRoutes(
       // two disagreeing is information rather than a bug.
       lowStock: withParts.filter((p) => p.lowStock).map((p) => p.id),
       reorder: withParts.filter((p) => p.reorder).map((p) => p.id),
+      /// Would have been flagged, and is already on order. Listed rather than
+      /// silently dropped — see `reorderCovered`.
+      reorderCovered: withParts.filter((p) => p.reorderCovered).map((p) => p.id),
     });
   });
 
@@ -312,9 +411,52 @@ export function registerInventoryRoutes(
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
     }
-    const { variantId, qty, invoiceQty, batchCostMinor, kind, note } = parsed.data;
+    const { variantId, qty, invoiceQty, batchCostMinor, kind, note, poId } = parsed.data;
     const defective = Math.min(parsed.data.defective ?? 0, qty);
     const serials = splitSerials(parsed.data.serials ?? '');
+
+    /**
+     * The order this box was raised against, when it was raised against one.
+     *
+     * Read BEFORE anything is written, and refused loudly: booking a receipt
+     * against an order that does not contain this colour would leave the line
+     * open for ever and the units showing as «в пути» while they sit on the
+     * shelf. Receiving with no `poId` at all skips this entirely — «приход без
+     * заказа» is a real event and still works exactly as before.
+     */
+    let ordered: number | null = null;
+    let orderedTotal: number | null = null;
+    let alreadyReceived = 0;
+    if (poId) {
+      const po = await repo.purchaseOrderById(poId);
+      if (!po) return reply.code(404).send({ error: 'unknown_purchase_order' });
+      if (po.status === 'cancelled') {
+        return reply.code(409).send({
+          error: 'purchase_order_cancelled',
+          message: 'Заказ отменён. Примите поставку без заказа или снимите отмену.',
+        });
+      }
+      const line = po.items.find((i) => i.variantId === variantId);
+      if (!line) {
+        return reply.code(409).send({
+          error: 'variant_not_ordered',
+          message: 'В этом заказе такого цвета нет. Проверьте заказ или примите поставку без заказа.',
+        });
+      }
+      /**
+       * The OUTSTANDING quantity, not the whole line.
+       *
+       * A delivery split across two boxes is normal, and the second box is
+       * owed only what the first one did not bring. Comparing it against the
+       * full ordered quantity again raises a fresh claim for units already on
+       * the shelf: order twenty, receive twelve then eight, and the ledger
+       * ends up carrying claims for twenty missing units against an order that
+       * arrived complete.
+       */
+      orderedTotal = line.qtyOrdered;
+      alreadyReceived = Math.max(0, line.qtyReceived);
+      ordered = Math.max(0, orderedTotal - alreadyReceived);
+    }
 
     if (serials.length && serials.length !== qty) {
       return reply.code(409).send({
@@ -338,14 +480,39 @@ export function registerInventoryRoutes(
       });
     }
 
-    // The claim against the supplier. Recorded, never a refusal.
-    const shortfall = invoiceQty != null ? invoiceQty - qty : 0;
+    /**
+     * The claim against the supplier. Recorded, never a refusal.
+     *
+     * Against the ORDER when there is one, and against the packing list
+     * otherwise. What we are owed is what we ordered: a supplier who bills
+     * accurately for a short shipment has not thereby stopped owing the
+     * twenty units missing from it, and a claim measured against their own
+     * invoice can never see that.
+     */
+    const basisQty = ordered ?? invoiceQty ?? null;
+    const basisKind: 'order' | 'invoice' | null =
+      ordered != null ? 'order' : invoiceQty != null ? 'invoice' : null;
+    const shortfall = basisQty != null ? basisQty - qty : 0;
 
     const parts = [note ?? 'приёмка'];
-    if (invoiceQty != null && shortfall !== 0) {
+    if (basisQty != null && shortfall !== 0) {
+      // Against the REMAINDER when part of the line has already landed, and the
+      // ledger says so: «против заказа (20)» beside a second box would read as
+      // a claim for the whole order to whoever finds it later.
+      const against = basisKind === 'order'
+        ? (alreadyReceived > 0
+            ? `остатка заказа (${basisQty} из ${orderedTotal}, принято ${alreadyReceived})`
+            : `заказа (${basisQty})`)
+        : `накладной (${basisQty})`;
       parts.push(shortfall > 0
-        ? `недостача ${shortfall} шт. против накладной (${invoiceQty})`
-        : `излишек ${-shortfall} шт. против накладной (${invoiceQty})`);
+        ? `недостача ${shortfall} шт. против ${against}`
+        : `излишек ${-shortfall} шт. против ${against}`);
+    }
+    // Both numbers when both were given: the invoice and the order can
+    // disagree with each other as well as with the box, and that is the
+    // conversation with the supplier rather than something to hide.
+    if (basisKind === 'order' && invoiceQty != null && invoiceQty !== qty) {
+      parts.push(`по накладной ${invoiceQty} шт.`);
     }
     if (defective) parts.push(`брак ${defective} шт., на склад не поставлен`);
 
@@ -385,10 +552,51 @@ export function registerInventoryRoutes(
       }
     }
 
+    /**
+     * Close the order line, and let the order close itself when that was the
+     * last one open.
+     *
+     * After the shelf, deliberately. If this write failed the units would be
+     * on the shelf and still counted as in transit — a screen that overstates
+     * what is coming — which a second receipt fixes. The other order would
+     * close an order for a delivery that was never booked.
+     *
+     * A short delivery still closes the line: the shortfall above is already a
+     * recorded claim, and holding the order open over two missing units would
+     * show them as «в пути» for ever.
+     */
+    let poStatus: PurchaseOrder['status'] | null = null;
+    let poClosed = false;
+    if (poId) {
+      const res = await repo.receivePurchaseOrderLine(poId, variantId, qty);
+      poStatus = res.status;
+      poClosed = res.ok;
+    }
+
     await repo.writeAudit({ staffId: s.staffId, action: 'stock_receipt', target: variantId });
     return reply.send({
       ok: true,
       stock: moved.stock,
+      /// Which order this was booked against, and what became of it.
+      poId: poId ?? null,
+      poStatus,
+      /**
+       * False when the order line could not be closed. The panel says so: a
+       * receipt reported as complete while the units stay «в пути» is how the
+       * screen starts lying about what is coming.
+       */
+      poLineClosed: poClosed,
+      /**
+       * What the order still had OUTSTANDING when this box was booked, which is
+       * what the claim was measured against — not the whole line. On a first
+       * receipt the two are the same number.
+       */
+      orderedQty: ordered,
+      /// The whole line, and what had already arrived before this box.
+      orderedTotalQty: orderedTotal,
+      alreadyReceivedQty: poId ? alreadyReceived : null,
+      /// 'order' | 'invoice' | null — what `shortfall` was measured against.
+      shortfallBasis: basisKind,
       /// What went on the shelf, which is not what arrived when some was broken.
       received: qty,
       stocked: usable,
@@ -485,6 +693,140 @@ export function registerInventoryRoutes(
       changed: lines.filter((l) => l.applied).length,
       netDelta: lines.reduce((n, l) => n + (l.applied ? l.delta : 0), 0),
     });
+  });
+
+  // ---- Поставщики и поставки в пути (кадры 07a, 07b, 07g) -------------------
+  //
+  // The warehouse could say what is on the shelf and how long it lasts. It
+  // could not say what is already coming, which is the question that decides
+  // whether to order today — so the screen printed «пора заказывать» beside
+  // goods ordered a fortnight ago, and a buyer either ordered them twice or
+  // stopped believing the banner.
+  //
+  // Guarded on `stock` like the rest of the warehouse, and audited: a purchase
+  // order commits the business's money.
+
+  app.get('/admin/suppliers', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    return reply.send({
+      suppliers: await repo.listSuppliers(),
+      /// What the warehouse falls back to for a supplier who declared no term.
+      /// Sent so the panel can label it as the standing figure rather than
+      /// print it as though this supplier promised it.
+      defaultLeadTimeDays: LEAD_TIME_DAYS,
+    });
+  });
+
+  app.post('/admin/suppliers', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    const parsed = supplierBody.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
+    }
+    const res = await repo.upsertSupplier(parsed.data);
+    if (!res.ok) {
+      // 409, not 500: `lower(name)` is UNIQUE, and «этим именем уже кто-то
+      // зовётся» is the world refusing a well formed request. The old code let
+      // the constraint violation escape, so the operator saw a server error
+      // and never learned that the name was the problem.
+      return reply.code(409).send({
+        error: 'supplier_name_taken',
+        message: `Поставщик «${parsed.data.name}» уже есть в списке. ` +
+          'Откройте его карточку или выберите другое имя.',
+      });
+    }
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: parsed.data.id ? 'supplier_update' : 'supplier_add',
+      target: parsed.data.name,
+    });
+    return reply.send({ ok: true, id: res.id });
+  });
+
+  app.get('/admin/purchase-orders', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    const limit = Math.min(200, Math.max(1, Number((req.query as { limit?: string }).limit) || 50));
+    return reply.send({
+      orders: await repo.listPurchaseOrders(limit),
+      leadTimeDays: LEAD_TIME_DAYS,
+    });
+  });
+
+  app.post('/admin/purchase-orders', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    const parsed = purchaseOrderBody.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad_request', detail: parsed.error.issues[0]?.message });
+    }
+    const created = await repo.createPurchaseOrder({
+      supplierId: parsed.data.supplierId ?? null,
+      expectedAt: parsed.data.expectedAt ?? null,
+      note: parsed.data.note ?? null,
+      createdBy: s.staffId,
+      items: parsed.data.items,
+    });
+    if (!created.ok) {
+      // 409, not 400: «этого цвета не существует» is the world refusing a well
+      // formed request, and the panel says which of the two it was.
+      return reply.code(409).send({ error: created.error });
+    }
+    // Placed unless the buyer explicitly asked for a draft. A draft counts as
+    // nothing in transit, so an order saved and never placed would leave the
+    // shelf still shouting «пора заказывать» about goods just ordered.
+    const place = parsed.data.place !== false;
+    let status: PurchaseOrder['status'] = 'draft';
+    if (place) {
+      // Checked. A "placed" order the write silently left as a draft is an
+      // order nobody sends and nothing counts.
+      const ok = await repo.setPurchaseOrderStatus(created.id, 'placed');
+      if (!ok) return reply.code(409).send({ error: 'not_placed', id: created.id });
+      status = 'placed';
+    }
+    await repo.writeAudit({
+      staffId: s.staffId, action: place ? 'po_place' : 'po_draft', target: created.id,
+    });
+    return reply.send({ ok: true, id: created.id, status });
+  });
+
+  app.post('/admin/purchase-orders/:id/place', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const po = await repo.purchaseOrderById(id);
+    if (!po) return reply.code(404).send({ error: 'unknown_purchase_order' });
+    // Only a draft can be placed. Re-placing a received order would reopen
+    // stock that has already landed and count it twice.
+    if (po.status !== 'draft') {
+      return reply.code(409).send({ error: 'not_a_draft', status: po.status });
+    }
+    const ok = await repo.setPurchaseOrderStatus(id, 'placed');
+    if (!ok) return reply.code(409).send({ error: 'not_placed' });
+    await repo.writeAudit({ staffId: s.staffId, action: 'po_place', target: id });
+    return reply.send({ ok: true, status: 'placed' });
+  });
+
+  app.post('/admin/purchase-orders/:id/cancel', async (req, reply) => {
+    const s = await requireCap(req, reply, 'stock');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const po = await repo.purchaseOrderById(id);
+    if (!po) return reply.code(404).send({ error: 'unknown_purchase_order' });
+    // A received order is a delivery that happened. Cancelling it would claim
+    // stock on the shelf was never bought.
+    if (po.status === 'received') {
+      return reply.code(409).send({
+        error: 'already_received',
+        message: 'Заказ уже принят на склад — отменить его нельзя. Оформите возврат поставщику.',
+      });
+    }
+    const ok = await repo.setPurchaseOrderStatus(id, 'cancelled');
+    if (!ok) return reply.code(409).send({ error: 'not_cancelled' });
+    await repo.writeAudit({ staffId: s.staffId, action: 'po_cancel', target: id });
+    return reply.send({ ok: true, status: 'cancelled' });
   });
 
   app.get('/admin/inventory/moves', async (req, reply) => {

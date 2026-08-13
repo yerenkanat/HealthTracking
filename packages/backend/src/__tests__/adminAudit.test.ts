@@ -69,6 +69,16 @@ const AGGREGATES_ONLY = new Set([
   // of it would only record who looked at the record of who looked.
   'GET /admin/inventory',
   'GET /admin/inventory/moves',
+  // Suppliers and purchase orders (frames 07a / 07g). About a company that
+  // ships us boxes and about goods on the water — no mother, child, phone or
+  // address reaches either response. Both are the landing render of the
+  // warehouse screen and are re-fetched after every receipt, so auditing them
+  // would write several rows per delivery and bury the ones that matter. The
+  // WRITES next door ARE audited — supplier_add / supplier_update / po_draft /
+  // po_place / po_cancel — because a purchase order commits the business's
+  // money and «кто это заказал» must have an answer.
+  'GET /admin/suppliers',
+  'GET /admin/purchase-orders',
   // The course catalogue as the panel edits it — lesson titles and YouTube
   // links. Content, not people.
   'GET /admin/course/lessons',

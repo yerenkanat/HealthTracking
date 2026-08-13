@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
+import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
 import { BROADCAST_MIN_GAP_DAYS, matchesSegment, type AudienceRow } from '../admin/broadcasts.js';
@@ -16,6 +16,7 @@ import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
 import { normalizeSerial } from '../deviceSerial.js';
 import { computeChildrenStats } from '../analytics/childStats.js';
+import { emergencyReason } from '../emergency/reason.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 
 export const DEMO_USER = '11111111-1111-1111-1111-111111111111';
@@ -516,6 +517,55 @@ const UUID_RE =
     { id: 'v-t-blue', productId: 'tracker', color: 'Синий', colorHex: '#3B82F6', stock: 0, sort: 2 },
     { id: 'v-t-pink', productId: 'tracker', color: 'Розовый', colorHex: '#E85C8A', stock: 0, sort: 3 },
   ];
+  /**
+   * Кто нам возит, и что уже едет (migration 045, frames 07a / 07g).
+   *
+   * Shaped exactly like the Postgres rows, not like the API answer: a fake that
+   * stores the joined result is a fake whose tests pass while the real join is
+   * wrong. The supplier name and the product name are looked up on read here,
+   * the same way the SQL joins them.
+   */
+  const suppliers: Array<{
+    id: string; name: string; contact: string | null;
+    leadTimeDays: number | null; active: boolean; createdAt: string;
+  }> = [];
+  const purchaseOrders: Array<{
+    id: string; supplierId: string | null; status: PurchaseOrderStatus;
+    placedAt: string | null; expectedAt: string | null; note: string | null;
+    createdBy: string | null; createdAt: string; updatedAt: string;
+  }> = [];
+  const purchaseOrderItems: Array<{
+    poId: string; variantId: string; qtyOrdered: number;
+    unitCostMinor: number | null; qtyReceived: number; receivedAt: string | null;
+  }> = [];
+
+  /** The join the SQL does: order + supplier + lines + the product each line names. */
+  function hydratePurchaseOrder(po: (typeof purchaseOrders)[number]): PurchaseOrder {
+    const supplier = suppliers.find((s) => s.id === po.supplierId) ?? null;
+    const items: PurchaseOrderItem[] = purchaseOrderItems
+      .filter((it) => it.poId === po.id)
+      .map((it) => {
+        const v = shopVars.find((x) => x.id === it.variantId);
+        return {
+          variantId: it.variantId,
+          productId: v?.productId ?? '',
+          productName: shopProds.find((p) => p.id === v?.productId)?.name ?? '',
+          color: v?.color ?? '',
+          qtyOrdered: it.qtyOrdered,
+          qtyReceived: it.qtyReceived,
+          unitCostMinor: it.unitCostMinor,
+          receivedAt: it.receivedAt,
+        };
+      });
+    return {
+      id: po.id, supplierId: po.supplierId, supplierName: supplier?.name ?? null,
+      supplierLeadTimeDays: supplier?.leadTimeDays ?? null,
+      status: po.status, placedAt: po.placedAt, expectedAt: po.expectedAt,
+      note: po.note, createdBy: po.createdBy,
+      createdAt: po.createdAt, updatedAt: po.updatedAt, items,
+    };
+  }
+
   type ShopOrderRow = { bundleId?: string | null; phoneNormalized?: string; id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
   const shopOrders: ShopOrderRow[] = [];
   /**
@@ -1285,16 +1335,28 @@ const UUID_RE =
         .filter((r) => r.triageSeverity === 'emergency')
         .slice(-limit)
         .reverse();
+      const num = (v: unknown) => (typeof v === 'number' ? v : null);
       return rows.map((r) => {
         const userId = String(r.userId ?? DEMO_USER);
         const at = String(r.recordedAt ?? '');
         const id = `${userId}|${at}`; // stable per emergency metric
         const ack = emergencyAcks.get(id);
+        // Through the same helper the SQL one uses, over the same stored
+        // fields. A fake that answered `code: 'EMERGENCY'` while production
+        // named the finding would let the whole feed regress green.
+        const reason = emergencyReason({
+          heartRateBpm: num(r.heartRateBpm),
+          spo2Pct: num(r.spo2Pct),
+          systolicMmHg: num(r.systolicMmHg),
+          diastolicMmHg: num(r.diastolicMmHg),
+          coreTempC: num(r.coreTempC),
+          duringSleep: r.duringSleep === true,
+        });
         return {
           id,
           userId,
-          displayName: profile?.displayName ?? 'Ana-Bala user',
-          code: 'EMERGENCY',
+          displayName: userNames.get(userId) ?? profile?.displayName ?? 'Ana-Bala user',
+          ...reason,
           severity: 'emergency',
           at,
           acknowledgedAt: ack?.at ?? null,
@@ -1497,6 +1559,12 @@ const UUID_RE =
         kind: a.kind,
         zoneName: a.zoneName,
         at: a.at,
+        // What the mother chose when she closed it, exactly as setAlertOutcome
+        // stored it — and null while she has not. The SQL side reads the
+        // `outcome` column; leaving it out here would let a fake agree with a
+        // panel that shows every closed SOS as open.
+        outcome: a.kind === 'sos' ? (a.outcome ?? null) : null,
+        phone: profile?.phone ?? null,
       })),
 
     deleteAccount: async (userId) => {
@@ -2310,6 +2378,124 @@ const UUID_RE =
             productName: shopProds.find((p) => p.id === v?.productId)?.name ?? '',
           };
         }),
+    // ---- Поставки (migration 045, frames 07a / 07g) ----
+    listSuppliers: async (): Promise<Supplier[]> => suppliers.map((s) => ({ ...s })),
+
+    upsertSupplier: async (s) => {
+      const name = s.name.trim();
+      const byName = suppliers.find((x) => x.name.toLowerCase() === name.toLowerCase());
+      // lower(name) is UNIQUE in Postgres. Matching the same way here is the
+      // difference between a fake that agrees with production and one that
+      // lets a test create two «Shenzhen Ltd» the real database refuses.
+      const existing = s.id ? suppliers.find((x) => x.id === s.id) : byName;
+      if (existing) {
+        // Renaming onto somebody else's name is what the unique index refuses.
+        // Without this the memory repo happily produces two rows called «Beta»
+        // and every test written against it passes on a state production
+        // cannot hold.
+        if (byName && byName !== existing) return { ok: false as const, error: 'name_taken' as const };
+        existing.name = name;
+        existing.contact = s.contact ?? null;
+        existing.leadTimeDays = s.leadTimeDays ?? null;
+        // Absent means "leave it alone", exactly as the pg UPDATE's
+        // COALESCE($5, active) does: the panel's add form sends no `active`,
+        // and it must not resurrect an archived supplier.
+        if (s.active != null) existing.active = s.active;
+        return { ok: true as const, id: existing.id };
+      }
+      // An id that matches nothing falls through to the name, and then to a
+      // fresh row with a NEW id — pg's UPDATE ... WHERE id = $1 affects no rows
+      // and its INSERT mints its own uuid. Keeping the caller's id here would
+      // make the fake accept a state production never produces.
+      if (byName) {
+        byName.name = name;
+        byName.contact = s.contact ?? null;
+        byName.leadTimeDays = s.leadTimeDays ?? null;
+        if (s.active != null) byName.active = s.active;
+        return { ok: true as const, id: byName.id };
+      }
+      const id = randomUUID();
+      suppliers.push({
+        id, name, contact: s.contact ?? null,
+        leadTimeDays: s.leadTimeDays ?? null, active: s.active ?? true,
+        createdAt: new Date().toISOString(),
+      });
+      return { ok: true as const, id };
+    },
+
+    listPurchaseOrders: async (limit): Promise<PurchaseOrder[]> =>
+      purchaseOrders.slice(-limit).reverse().map(hydratePurchaseOrder),
+
+    purchaseOrderById: async (id): Promise<PurchaseOrder | null> => {
+      const po = purchaseOrders.find((p) => p.id === id);
+      return po ? hydratePurchaseOrder(po) : null;
+    },
+
+    createPurchaseOrder: async (po) => {
+      // All or nothing. Half an order looks like a placed shipment.
+      if (!po.items.length) return { ok: false as const, error: 'no_items' as const };
+      for (const it of po.items) {
+        if (!shopVars.some((v) => v.id === it.variantId)) {
+          return { ok: false as const, error: 'unknown_variant' as const };
+        }
+      }
+      const now = new Date().toISOString();
+      const id = randomUUID();
+      purchaseOrders.push({
+        id, supplierId: po.supplierId ?? null, status: 'draft',
+        placedAt: null, expectedAt: po.expectedAt ?? null, note: po.note ?? null,
+        createdBy: po.createdBy ?? null, createdAt: now, updatedAt: now,
+      });
+      // PRIMARY KEY (po_id, variant_id): the same colour twice in one order is
+      // one line, summed, not two rows Postgres would refuse outright.
+      for (const it of po.items) {
+        const line = purchaseOrderItems.find((x) => x.poId === id && x.variantId === it.variantId);
+        if (line) { line.qtyOrdered += Math.trunc(it.qtyOrdered); continue; }
+        purchaseOrderItems.push({
+          poId: id, variantId: it.variantId, qtyOrdered: Math.trunc(it.qtyOrdered),
+          unitCostMinor: it.unitCostMinor ?? null, qtyReceived: 0, receivedAt: null,
+        });
+      }
+      return { ok: true as const, id };
+    },
+
+    setPurchaseOrderStatus: async (id, status) => {
+      const po = purchaseOrders.find((p) => p.id === id);
+      if (!po) return false;
+      po.status = status;
+      // The first half of the pair that will one day measure a real lead time.
+      if (status === 'placed' && !po.placedAt) po.placedAt = new Date().toISOString();
+      po.updatedAt = new Date().toISOString();
+      return true;
+    },
+
+    receivePurchaseOrderLine: async (poId, variantId, qtyReceived) => {
+      const po = purchaseOrders.find((p) => p.id === poId);
+      const line = purchaseOrderItems.find((x) => x.poId === poId && x.variantId === variantId);
+      if (!po || !line) return { ok: false, status: po?.status ?? null, qtyOrdered: null };
+      line.qtyReceived += Math.max(0, Math.trunc(qtyReceived));
+      // Closed even when short: the shortfall is already a claim on the receipt,
+      // and holding the order open over two missing units would show them as
+      // "in transit" for ever.
+      line.receivedAt = new Date().toISOString();
+      const open = purchaseOrderItems.filter((x) => x.poId === poId && !x.receivedAt);
+      if (!open.length && po.status !== 'cancelled') po.status = 'received';
+      po.updatedAt = new Date().toISOString();
+      return { ok: true, status: po.status, qtyOrdered: line.qtyOrdered };
+    },
+
+    inTransitByVariant: async () => {
+      const out: Record<string, number> = {};
+      const placed = new Set(purchaseOrders.filter((p) => p.status === 'placed').map((p) => p.id));
+      for (const it of purchaseOrderItems) {
+        // A draft is not on the water, a cancelled order is not on the water,
+        // and a closed line has already landed.
+        if (!placed.has(it.poId) || it.receivedAt) continue;
+        out[it.variantId] = (out[it.variantId] ?? 0) + it.qtyOrdered;
+      }
+      return out;
+    },
+
     addShopVariant: async (productId, color, colorHex, stock) => {
       const existing = shopVars.find((v) => v.productId === productId && v.color === color);
       if (existing) { existing.colorHex = colorHex; existing.stock = Math.max(0, Math.trunc(stock)); return; }

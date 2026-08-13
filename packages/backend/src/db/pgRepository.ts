@@ -7,9 +7,10 @@
 
 import { Pool } from 'pg';
 import { computeChildrenStats } from '../analytics/childStats.js';
+import { emergencyReason } from '../emergency/reason.js';
 import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
 import { normalizeSerial } from '../deviceSerial.js';
-import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopOrderStatus, ShopProduct , SupportTicketRow } from './repository';
+import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopOrderStatus, ShopProduct , SupportTicketRow, PurchaseOrder, PurchaseOrderStatus } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -26,6 +27,51 @@ import {
   BROADCAST_MIN_GAP_DAYS, INFANT_MAX_MONTHS, normalizeSegment,
   type BroadcastSegment,
 } from '../admin/broadcasts.js';
+
+/**
+ * One purchase order out of its own row plus its item rows (migration 045).
+ *
+ * A free function rather than an inline map, because the list and the
+ * single-order read must shape the answer identically — two copies of this
+ * would drift the first time a column is added, and the panel would show a
+ * field on one screen and «—» on the other.
+ */
+function purchaseOrderFromRows(
+  o: Record<string, unknown>,
+  items: Array<Record<string, unknown>>,
+): PurchaseOrder {
+  const iso = (v: unknown) => (v == null ? null : new Date(v as string).toISOString());
+  return {
+    id: o.id as string,
+    supplierId: (o.supplier_id as string) ?? null,
+    supplierName: (o.supplier_name as string) ?? null,
+    supplierLeadTimeDays: o.supplier_lead_time_days == null ? null : Number(o.supplier_lead_time_days),
+    status: o.status as PurchaseOrderStatus,
+    placedAt: iso(o.placed_at),
+    // A DATE, not a timestamp: nobody promises a shipment at 14:20. Kept as
+    // the ten characters Postgres gives, so the panel prints the day it was
+    // told rather than the day the reader's timezone shifts it to.
+    expectedAt: o.expected_at == null
+      ? null
+      : (o.expected_at instanceof Date
+          ? (o.expected_at as Date).toISOString().slice(0, 10)
+          : String(o.expected_at).slice(0, 10)),
+    note: (o.note as string) ?? null,
+    createdBy: (o.created_by as string) ?? null,
+    createdAt: iso(o.created_at)!,
+    updatedAt: iso(o.updated_at)!,
+    items: items.map((i) => ({
+      variantId: i.variant_id as string,
+      productId: i.product_id as string,
+      productName: i.product_name as string,
+      color: i.color as string,
+      qtyOrdered: Number(i.qty_ordered),
+      qtyReceived: Number(i.qty_received),
+      unitCostMinor: i.unit_cost_minor == null ? null : Number(i.unit_cost_minor),
+      receivedAt: iso(i.received_at),
+    })),
+  };
+}
 
 /**
  * The segment, as a WHERE clause over `users u`.
@@ -1198,20 +1244,35 @@ export function createPgRepository(pool: Pool): Repository {
       );
     },
     async recentEmergencies(limit) {
+      // The vitals come back with the row now. They were already in the table
+      // and already indexed by this query's plan; not selecting them is what
+      // forced `code: 'EMERGENCY'` on every line of the feed.
       const { rows } = await pool.query(
-        `SELECT m.user_id, u.display_name, m.triage_severity, m.recorded_at
+        `SELECT m.user_id, u.display_name, m.triage_severity, m.recorded_at,
+                m.heart_rate_bpm, m.spo2_pct, m.systolic_mmhg, m.diastolic_mmhg,
+                m.core_temp_c, m.during_sleep
          FROM pregnancy_health_metrics m JOIN users u ON u.id = m.user_id
          WHERE m.triage_severity = 'emergency' ORDER BY m.recorded_at DESC LIMIT $1`, [limit]);
       // The hypertable has no single-column id, so an emergency's identity is
       // (user, time). Compute it here so it matches between the list and the ack.
-      const emergencies = rows.map((r) => ({
-        id: `${r.user_id}|${new Date(r.recorded_at).toISOString()}`,
-        userId: r.user_id as string,
-        displayName: r.display_name as string,
-        code: 'EMERGENCY',
-        severity: r.triage_severity as string,
-        at: new Date(r.recorded_at).toISOString(),
-      }));
+      const emergencies = rows.map((r) => {
+        const reason = emergencyReason({
+          heartRateBpm: r.heart_rate_bpm === null ? null : Number(r.heart_rate_bpm),
+          spo2Pct: r.spo2_pct === null ? null : Number(r.spo2_pct),
+          systolicMmHg: r.systolic_mmhg === null ? null : Number(r.systolic_mmhg),
+          diastolicMmHg: r.diastolic_mmhg === null ? null : Number(r.diastolic_mmhg),
+          coreTempC: r.core_temp_c === null ? null : Number(r.core_temp_c),
+          duringSleep: r.during_sleep === true,
+        });
+        return {
+          id: `${r.user_id}|${new Date(r.recorded_at).toISOString()}`,
+          userId: r.user_id as string,
+          displayName: r.display_name as string,
+          ...reason,
+          severity: r.triage_severity as string,
+          at: new Date(r.recorded_at).toISOString(),
+        };
+      });
       const ids = emergencies.map((e) => e.id);
       const acks = ids.length
         ? (await pool.query(
@@ -1418,8 +1479,14 @@ export function createPgRepository(pool: Pool): Repository {
     },
 
     async adminSafetyEvents(limit) {
+      // `outcome` and the mother's phone join the row. Both existed already —
+      // the column since migration 032, the number since sign-in — and neither
+      // was selected, so the panel drew «Чем закончилось» from `undefined` and
+      // its four-step instruction told an operator to call a number that was
+      // nowhere on the screen.
       const { rows } = await pool.query(
-        `SELECT a.user_id, a.kind, a.zone_name, a.at, u.display_name, c.name AS child_name
+        `SELECT a.user_id, a.kind, a.zone_name, a.at, a.outcome,
+                u.display_name, u.phone_e164, c.name AS child_name
            FROM safety_alerts a
            JOIN users u ON u.id = a.user_id
            LEFT JOIN children c ON c.id = a.child_id
@@ -1428,6 +1495,10 @@ export function createPgRepository(pool: Pool): Repository {
         userId: r.user_id, displayName: r.display_name ?? '',
         childName: r.child_name ?? '', kind: r.kind, zoneName: r.zone_name,
         at: new Date(r.at).toISOString(),
+        // Only an SOS can be closed. A crossing with a stray value in the
+        // column would still print as an outcome, so it is dropped here.
+        outcome: r.kind === 'sos' ? (r.outcome ?? null) : null,
+        phone: r.phone_e164 ?? null,
       }));
     },
 
@@ -3079,6 +3150,213 @@ export function createPgRepository(pool: Pool): Repository {
         at: new Date(r.at).toISOString(),
       }));
     },
+    // ---- Поставки (migration 045, frames 07a / 07g) ----
+    async listSuppliers() {
+      const { rows } = await pool.query(
+        `SELECT id, name, contact, lead_time_days, active, created_at
+           FROM suppliers
+          ORDER BY active DESC, lower(name)`);
+      return rows.map((r) => ({
+        id: r.id, name: r.name, contact: r.contact,
+        leadTimeDays: r.lead_time_days == null ? null : Number(r.lead_time_days),
+        active: r.active, createdAt: new Date(r.created_at).toISOString(),
+      }));
+    },
+
+    async upsertSupplier(s) {
+      const name = s.name.trim();
+      if (s.id) {
+        try {
+          const { rows } = await pool.query(
+            `UPDATE suppliers
+                SET name = $2, contact = $3, lead_time_days = $4, active = COALESCE($5, active)
+              WHERE id = $1
+          RETURNING id`,
+            [s.id, name, s.contact ?? null, s.leadTimeDays ?? null, s.active ?? null]);
+          if (rows[0]) return { ok: true as const, id: rows[0].id };
+        } catch (e) {
+          // 23505 = the UNIQUE lower(name) index. Renaming Alpha to Beta is a
+          // refusal with a reason, and letting it escape gave the operator a
+          // 500 and the panel a generic «не удалось» with no mention of the name.
+          if ((e as { code?: string }).code === '23505') {
+            return { ok: false as const, error: 'name_taken' as const };
+          }
+          throw e;
+        }
+      }
+      // ON CONFLICT on the UNIQUE lower(name) index: adding a supplier that is
+      // already there is an edit, not an error somebody has to interpret.
+      //
+      // `active` is COALESCEd rather than taken from EXCLUDED: the panel's add
+      // form sends no `active`, and `EXCLUDED.active` defaulted to true, so
+      // retyping an archived supplier's name silently un-archived them and put
+      // them back in the «Заказ поставщику» dropdown. Absent means "leave it".
+      const { rows } = await pool.query(
+        `INSERT INTO suppliers (name, contact, lead_time_days, active)
+         VALUES ($1,$2,$3, COALESCE($4::boolean, true))
+         ON CONFLICT (lower(name)) DO UPDATE SET
+           contact = EXCLUDED.contact,
+           lead_time_days = EXCLUDED.lead_time_days,
+           active = COALESCE($4::boolean, suppliers.active)
+         RETURNING id`,
+        [name, s.contact ?? null, s.leadTimeDays ?? null, s.active ?? null]);
+      return { ok: true as const, id: rows[0].id };
+    },
+
+    async listPurchaseOrders(limit) {
+      const { rows } = await pool.query(
+        `SELECT o.id, o.supplier_id, o.status, o.placed_at, o.expected_at, o.note,
+                o.created_by, o.created_at, o.updated_at,
+                s.name AS supplier_name, s.lead_time_days AS supplier_lead_time_days
+           FROM purchase_orders o
+           LEFT JOIN suppliers s ON s.id = o.supplier_id
+          ORDER BY o.created_at DESC
+          LIMIT $1`, [limit]);
+      if (!rows.length) return [];
+      // One read for every line of every order on the page, rather than a query
+      // per order: the list is drawn on every render of the warehouse screen.
+      const { rows: items } = await pool.query(
+        `SELECT i.po_id, i.variant_id, i.qty_ordered, i.unit_cost_minor,
+                i.qty_received, i.received_at,
+                v.product_id, v.color, p.name AS product_name
+           FROM purchase_order_items i
+           JOIN shop_variants v ON v.id = i.variant_id
+           JOIN shop_products p ON p.id = v.product_id
+          WHERE i.po_id = ANY($1::uuid[])
+          ORDER BY p.sort, p.name, v.sort, v.color`,
+        [rows.map((r) => r.id)]);
+      return rows.map((r) => purchaseOrderFromRows(r, items.filter((i) => i.po_id === r.id)));
+    },
+
+    async purchaseOrderById(id) {
+      const { rows } = await pool.query(
+        `SELECT o.id, o.supplier_id, o.status, o.placed_at, o.expected_at, o.note,
+                o.created_by, o.created_at, o.updated_at,
+                s.name AS supplier_name, s.lead_time_days AS supplier_lead_time_days
+           FROM purchase_orders o
+           LEFT JOIN suppliers s ON s.id = o.supplier_id
+          WHERE o.id = $1`, [id]);
+      if (!rows[0]) return null;
+      const { rows: items } = await pool.query(
+        `SELECT i.po_id, i.variant_id, i.qty_ordered, i.unit_cost_minor,
+                i.qty_received, i.received_at,
+                v.product_id, v.color, p.name AS product_name
+           FROM purchase_order_items i
+           JOIN shop_variants v ON v.id = i.variant_id
+           JOIN shop_products p ON p.id = v.product_id
+          WHERE i.po_id = $1
+          ORDER BY p.sort, p.name, v.sort, v.color`, [id]);
+      return purchaseOrderFromRows(rows[0], items);
+    },
+
+    async createPurchaseOrder(po) {
+      if (!po.items.length) return { ok: false as const, error: 'no_items' as const };
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Checked inside the transaction, so an order cannot be written half
+        // valid: the foreign key would refuse the line anyway, and this turns
+        // that into an answer the panel can print.
+        const { rows: known } = await client.query(
+          'SELECT id FROM shop_variants WHERE id = ANY($1::uuid[])',
+          [po.items.map((i) => i.variantId)]);
+        const ids = new Set(known.map((r) => r.id));
+        if (po.items.some((i) => !ids.has(i.variantId))) {
+          await client.query('ROLLBACK');
+          return { ok: false as const, error: 'unknown_variant' as const };
+        }
+        const { rows } = await client.query(
+          `INSERT INTO purchase_orders (supplier_id, status, expected_at, note, created_by)
+           VALUES ($1,'draft',$2,$3,$4) RETURNING id`,
+          [po.supplierId ?? null, po.expectedAt ?? null, po.note ?? null, po.createdBy ?? null]);
+        const id = rows[0].id;
+        for (const it of po.items) {
+          // The same colour twice in one order is one line, summed — the
+          // primary key would refuse a second row.
+          await client.query(
+            `INSERT INTO purchase_order_items (po_id, variant_id, qty_ordered, unit_cost_minor)
+             VALUES ($1,$2,$3,$4)
+             ON CONFLICT (po_id, variant_id) DO UPDATE SET
+               qty_ordered = purchase_order_items.qty_ordered + EXCLUDED.qty_ordered`,
+            [id, it.variantId, Math.trunc(it.qtyOrdered), it.unitCostMinor ?? null]);
+        }
+        await client.query('COMMIT');
+        return { ok: true as const, id };
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    async setPurchaseOrderStatus(id, status) {
+      const { rowCount } = await pool.query(
+        `UPDATE purchase_orders
+            SET status = $2,
+                placed_at = CASE WHEN $2 = 'placed' AND placed_at IS NULL THEN now() ELSE placed_at END,
+                updated_at = now()
+          WHERE id = $1`, [id, status]);
+      return (rowCount ?? 0) > 0;
+    },
+
+    async receivePurchaseOrderLine(poId, variantId, qtyReceived) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows } = await client.query(
+          `UPDATE purchase_order_items
+              SET qty_received = qty_received + $3, received_at = now()
+            WHERE po_id = $1 AND variant_id = $2
+        RETURNING qty_ordered`,
+          [poId, variantId, Math.max(0, Math.trunc(qtyReceived))]);
+        if (!rows[0]) {
+          await client.query('ROLLBACK');
+          return { ok: false, status: null, qtyOrdered: null };
+        }
+        // Closed even when short: the shortfall is already a claim recorded on
+        // the receipt, and an order held open over two missing units would show
+        // them as "in transit" for ever.
+        const { rows: statusRows } = await client.query(
+          `UPDATE purchase_orders o
+              SET status = CASE
+                    WHEN o.status = 'cancelled' THEN o.status
+                    WHEN NOT EXISTS (
+                      SELECT 1 FROM purchase_order_items i
+                       WHERE i.po_id = o.id AND i.received_at IS NULL
+                    ) THEN 'received'
+                    ELSE o.status END,
+                  updated_at = now()
+            WHERE o.id = $1
+        RETURNING o.status`, [poId]);
+        await client.query('COMMIT');
+        return {
+          ok: true,
+          status: (statusRows[0]?.status ?? null) as PurchaseOrderStatus | null,
+          qtyOrdered: Number(rows[0].qty_ordered),
+        };
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    async inTransitByVariant() {
+      // Only PLACED orders, and only lines a receipt has not closed. A draft is
+      // not on the water and a cancelled order never will be.
+      const { rows } = await pool.query(
+        `SELECT i.variant_id, SUM(i.qty_ordered)::int AS qty
+           FROM purchase_order_items i
+           JOIN purchase_orders o ON o.id = i.po_id
+          WHERE o.status = 'placed' AND i.received_at IS NULL
+          GROUP BY i.variant_id`);
+      const out: Record<string, number> = {};
+      for (const r of rows) out[r.variant_id] = Math.max(0, Number(r.qty) || 0);
+      return out;
+    },
+
     async addShopVariant(productId, color, colorHex, stock) {
       await pool.query(
         `INSERT INTO shop_variants (product_id, color, color_hex, stock)

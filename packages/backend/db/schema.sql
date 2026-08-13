@@ -1256,3 +1256,58 @@ CREATE TABLE IF NOT EXISTS emergency_help_overrides (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by TEXT
 );
+
+-- ---------------------------------------------------------------------------
+-- Поставки и поставщики — кадры 07a «Поставки», 07g «Поставщики», и полоса
+-- «поставки в пути» кадра 07. См. migrations/045_supply.sql.
+--
+-- `lead_time_days` — срок, ЗАЯВЛЕННЫЙ поставщиком, а не выведенный из истории:
+-- пары «разместили → приняли» в базе ещё нет, и среднее считать не из чего.
+-- `unit_cost_minor` NULLABLE — закупочную цену этот проект узнаёт только из
+-- приёмки с `batchCostMinor`; панель печатает «—», а не догадку.
+--
+-- Ничто отсюда не прибавляется к `shop_variants.stock`: коробка на таможне —
+-- не полка, и прогноз, считающий её, обещает товар, который нельзя отгрузить.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS suppliers (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name           TEXT NOT NULL,
+  -- Телефон, ватсап, имя менеджера — одной строкой.
+  contact        TEXT,
+  lead_time_days INTEGER CHECK (lead_time_days IS NULL OR (lead_time_days >= 0 AND lead_time_days <= 365)),
+  -- Не удаляем: у поставщика есть история заказов. Архивируем.
+  active         BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS suppliers_name_unique ON suppliers (lower(name));
+
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  supplier_id UUID REFERENCES suppliers(id) ON DELETE SET NULL,
+  -- draft не едет, cancelled не едет; в пути считается только placed.
+  status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','placed','received','cancelled')),
+  placed_at   TIMESTAMPTZ,
+  -- Дата, а не отметка времени: никто не обещает груз к 14:20.
+  expected_at DATE,
+  note        TEXT,
+  -- TEXT, как shop_stock_moves.staff_id.
+  created_by  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_open ON purchase_orders (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders (supplier_id);
+
+CREATE TABLE IF NOT EXISTS purchase_order_items (
+  po_id           UUID NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  -- Цвет, а не товар: заказывают «часы чёрные 40», а не «часы 40».
+  variant_id      UUID NOT NULL REFERENCES shop_variants(id) ON DELETE CASCADE,
+  qty_ordered     INTEGER NOT NULL CHECK (qty_ordered > 0),
+  unit_cost_minor INTEGER CHECK (unit_cost_minor IS NULL OR unit_cost_minor >= 0),
+  -- Факт, который приносит приёмка. Пока received_at пуст — эти qty_ordered
+  -- штук считаются «в пути».
+  qty_received    INTEGER NOT NULL DEFAULT 0 CHECK (qty_received >= 0),
+  received_at     TIMESTAMPTZ,
+  PRIMARY KEY (po_id, variant_id)
+);
+CREATE INDEX IF NOT EXISTS idx_po_items_variant ON purchase_order_items (variant_id);

@@ -86,12 +86,20 @@ async function bootWith(failOn: string): Promise<Booted> {
           return { ok: true, status: 200, json: async () => ({ activeUsers: 1, devicesOnline: 0, alertsToday: 0, ingestLastHour: 0 }) };
         }
         if (p.includes('/admin/emergencies')) {
-          // The poisoned shape, when the caller asked for it: a string where an
-          // array belongs, which the unguarded forEach at the end of boot()
-          // turns into a TypeError.
+          // The poisoned shape, when the caller asked for it: a row that is not
+          // a row, which renderFeeds' sort turns into a TypeError inside the
+          // unguarded tail of boot().
+          //
+          // It USED to be `{emergencies: 'none'}` — a string where an array
+          // belongs. That no longer breaks anything: boot() checks
+          // Array.isArray now and treats a shape it does not understand as a
+          // feed that failed to load, which is a better outcome than the
+          // failure screen and is asserted in adminEmergencyFrame19Render.
+          // The screen this file is about still has to work, so the poison
+          // moved one level in rather than being deleted with the bug.
           return {
             ok: true, status: 200,
-            json: async () => (failOn === 'shape' ? { emergencies: 'none' } : { emergencies: [] }),
+            json: async () => (failOn === 'shape' ? { emergencies: [null] } : { emergencies: [] }),
           };
         }
         return { ok: true, status: 200, json: async () => ({}) };
@@ -132,8 +140,12 @@ describe('when boot throws', () => {
 
   it('names the ACTUAL error, not «что-то пошло не так»', () => {
     // A generic message is what makes a support call take twenty minutes
-    // instead of two.
-    expect(page.text('#bootFailMsg')).toMatch(/forEach|not a function|undefined/i);
+    // instead of two. The engine's own words — here «Cannot read properties of
+    // null (reading 'severity')» — are what a developer needs on the phone.
+    const msg = page.text('#bootFailMsg');
+    expect(msg).toMatch(/Cannot read|not a function|undefined|null/i);
+    expect(msg).not.toMatch(/что-то пошло не так/i);
+    expect(msg.length).toBeGreaterThan(10);
   });
 
   it('says the data is safe, because that is the first thing she will fear', () => {

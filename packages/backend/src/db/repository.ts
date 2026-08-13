@@ -719,6 +719,63 @@ export interface AdminSafetyEvent {
   kind: string; // entered | left | sos | checkIn | lowBattery
   zoneName: string;
   at: string;
+  /**
+   * How the mother closed this SOS — `false_press` | `scared` | `needed_help` |
+   * `unknown` — and null while she has not.
+   *
+   * The column has existed since migration 032 and NOTHING read it back out:
+   * the query did not select it, so the panel's «Чем закончилось» cell printed
+   * `undefined` for every row and rendered it as «мама ещё не закрыла». Every
+   * closed SOS in the database looked open, and the share of false presses —
+   * the one number that says whether these alarms mean anything — could not be
+   * computed at all.
+   *
+   * Always null for a crossing: a zone has nothing to close.
+   */
+  outcome: SosOutcome | null;
+  /**
+   * Her number, for «Позвонить маме» — step 1 of the operator instruction the
+   * frame prints, which said «Номер — в карточке» while no card on the screen
+   * carried one. Null when the account has no phone.
+   *
+   * PII, and deliberately only on this route: /admin/safety already requires
+   * the `health` capability and writes `view_safety_feed` to the audit log.
+   */
+  phone: string | null;
+}
+
+/**
+ * One row of the live emergency feed (frame 19).
+ *
+ * Was an inline anonymous type on the method, which is why `code` could stay a
+ * hard-coded literal in both implementations without anything noticing.
+ */
+export interface AdminEmergency {
+  /** `<userId>|<recordedAt ISO>` — the metrics table has no single-column id. */
+  id: string;
+  userId: string;
+  displayName: string;
+  /**
+   * The triage finding code recomputed from the stored reading — see
+   * emergency/reason.ts. '' when the stored vitals no longer explain the row,
+   * which the panel says out loud instead of naming a cause it does not have.
+   *
+   * Was the literal string 'EMERGENCY' in both repositories.
+   */
+  code: string;
+  severity: string;
+  at: string;
+  /** Which metric crossed, its value and the threshold it crossed. */
+  metric: string | null;
+  value: number | null;
+  threshold: number | null;
+  /** Both halves of the blood pressure, so the panel can print 162/108. */
+  systolic: number | null;
+  diastolic: number | null;
+  /** Sub-95 SpO2 asleep and awake are different findings; triage uses this. */
+  duringSleep: boolean;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
 }
 
 export interface AdminAnalytics {
@@ -1167,7 +1224,7 @@ export interface Repository {
   adminStats(): Promise<{ activeUsers: number; devicesOnline: number; alertsToday: number; ingestLastHour: number }>;
   /** Aggregate child demographics (count, gender split, age buckets) as of [asOf] (ISO). */
   childrenStats(asOf: string): Promise<ChildrenStats>;
-  recentEmergencies(limit: number): Promise<Array<{ id: string; userId: string; displayName: string; code: string; severity: string; at: string; acknowledgedAt: string | null; acknowledgedBy: string | null }>>;
+  recentEmergencies(limit: number): Promise<AdminEmergency[]>;
   // Acknowledge an emergency (staff). Idempotent; returns false if it was
   // already acknowledged. The id is the underlying metric row id, so an ack
   // needs no change to the safety/ingest path — it is an overlay.
@@ -1532,6 +1589,93 @@ export interface Repository {
   }): Promise<{ ok: true; stock: number } | { ok: false; error: 'insufficient_stock' | 'unknown_variant' }>;
   /// The ledger, newest first, optionally for one variant.
   stockMoves(limit: number, variantId?: string): Promise<StockMove[]>;
+
+  // ---- Поставки (migration 045, frames 07a / 07g) ----
+  //
+  // The warehouse could answer "what is on the shelf" and "how long will it
+  // last". It could not answer the third question, which is the one that
+  // decides whether to order today: "what is already coming". Without it the
+  // panel printed «пора заказывать» beside goods ordered a fortnight ago.
+
+  /// Everyone who supplies us, newest last. Includes archived ones — an
+  /// archived supplier still owns the history of the orders placed with them.
+  listSuppliers(): Promise<Supplier[]>;
+  /**
+   * Add or edit one. Returns the id, so the caller can order from a supplier
+   * it has just created without a second read.
+   *
+   * [leadTimeDays] is the term the SUPPLIER DECLARED, not one derived from
+   * history: no placed→received pair exists in this database yet, and an
+   * average computed from nothing would be a number a buyer plans money
+   * against. Null means "did not say", and the panel falls back to the
+   * warehouse's standing 14 days and labels it as such.
+   *
+   * [active] absent means "leave it as it is". The panel's add form sends no
+   * `active`, and an add that silently un-archived a supplier somebody
+   * deliberately retired would put them back in the order dropdown.
+   *
+   * `name_taken` rather than a thrown constraint violation: `lower(name)` is
+   * UNIQUE in Postgres (045_supply.sql), so renaming Alpha to Beta is a
+   * refusal the operator has to be told about by name, not a 500.
+   */
+  upsertSupplier(s: {
+    id?: string;
+    name: string;
+    contact?: string | null;
+    leadTimeDays?: number | null;
+    active?: boolean;
+  }): Promise<{ ok: true; id: string } | { ok: false; error: 'name_taken' }>;
+
+  /// Orders with their lines, newest first. One read, because a list that
+  /// fetched its items per row would issue a query per shipment on every render.
+  listPurchaseOrders(limit: number): Promise<PurchaseOrder[]>;
+  /// One order with its lines, or null.
+  purchaseOrderById(id: string): Promise<PurchaseOrder | null>;
+  /**
+   * A new order, as a draft. Refuses an empty one and an unknown variant:
+   * half an order is worse than none, because the half that saved looks like
+   * a placed shipment.
+   */
+  createPurchaseOrder(po: {
+    supplierId?: string | null;
+    expectedAt?: string | null;
+    note?: string | null;
+    createdBy?: string | null;
+    items: Array<{ variantId: string; qtyOrdered: number; unitCostMinor?: number | null }>;
+  }): Promise<{ ok: true; id: string } | { ok: false; error: 'no_items' | 'unknown_variant' }>;
+  /**
+   * Move an order's status. Returns false when there is no such order, so a
+   * panel button cannot report a shipment as placed because the request
+   * reached a 200 that did nothing.
+   *
+   * `placed` stamps `placed_at` — the first half of the pair that will one day
+   * let this schema measure a real lead time instead of a declared one.
+   */
+  setPurchaseOrderStatus(id: string, status: PurchaseOrderStatus): Promise<boolean>;
+  /**
+   * Close one line of an order with what actually arrived, and say whether
+   * that was the last open line.
+   *
+   * The line closes even when the delivery was short: the shortfall is already
+   * a claim recorded against the receipt, and keeping the order open over two
+   * missing units would show them as "in transit" forever.
+   */
+  receivePurchaseOrderLine(poId: string, variantId: string, qtyReceived: number): Promise<{
+    ok: boolean;
+    /** The order's status AFTER this line — 'received' once every line is closed. */
+    status: PurchaseOrderStatus | null;
+    /** What the order asked this supplier for, which is the receipt's comparison basis. */
+    qtyOrdered: number | null;
+  }>;
+  /**
+   * Units on the water, per variant id — open lines of PLACED orders only.
+   *
+   * NEVER added to `shop_variants.stock` or to a runway: a box in customs is
+   * not a shelf, and a forecast that counts it promises stock nobody can ship
+   * today. It exists so the panel can say «заказ уже размещён» instead of
+   * «пора заказывать», which is a different sentence about the same shelf.
+   */
+  inTransitByVariant(): Promise<Record<string, number>>;
   adminShopOrders(limit: number): Promise<ShopOrder[]>;
   /**
    * One page of frame 02 «Заказы», plus the two numbers the screen states.
@@ -1978,6 +2122,60 @@ export interface StockMove {
   staffId: string | null;
   orderId: string | null;
   at: string;
+}
+
+// ---- Поставки (migration 045) ---------------------------------------------
+
+export interface Supplier {
+  id: string;
+  name: string;
+  /** Phone, WhatsApp, a manager's name — one line, because separate columns per
+   *  channel produce a table where half the rows fill in the wrong one. */
+  contact: string | null;
+  /**
+   * The lead time the supplier DECLARED, in days. Null when they never said.
+   *
+   * Not measured: nothing in this database has a placed→received pair yet, and
+   * a figure invented from that emptiness is one a buyer plans money against.
+   */
+  leadTimeDays: number | null;
+  active: boolean;
+  createdAt: string;
+}
+
+export type PurchaseOrderStatus = 'draft' | 'placed' | 'received' | 'cancelled';
+
+export interface PurchaseOrderItem {
+  variantId: string;
+  productId: string;
+  productName: string;
+  color: string;
+  qtyOrdered: number;
+  /** What arrived. 0 until a receipt closes the line. */
+  qtyReceived: number;
+  /** Null until somebody typed a purchase price. The panel prints «—» rather
+   *  than a computed guess: this product only learns a unit cost from a receipt
+   *  carrying `batchCostMinor`. */
+  unitCostMinor: number | null;
+  /** When the line was closed by a receipt, or null while it is in transit. */
+  receivedAt: string | null;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  supplierId: string | null;
+  /** Denormalised for the list, which otherwise reads the supplier table per row. */
+  supplierName: string | null;
+  /** The supplier's DECLARED term. Null falls back to the warehouse constant. */
+  supplierLeadTimeDays: number | null;
+  status: PurchaseOrderStatus;
+  placedAt: string | null;
+  expectedAt: string | null;
+  note: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: PurchaseOrderItem[];
 }
 
 export interface InventoryProduct {

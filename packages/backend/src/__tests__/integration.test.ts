@@ -12,6 +12,7 @@ import type { FastifyInstance } from 'fastify';
 import type { InjectPayload, Response as InjectResponse } from 'light-my-request';
 import { buildServer } from '../server';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
+import { emergencyReason } from '../emergency/reason.js';
 import type { Repository, SleepNight, WearableDayRow, CryRow, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
@@ -97,6 +98,17 @@ function makeDeps(
     adminShopVariants: async () => [],
     setShopVariantStock: async () => {},
     addShopVariant: async () => {},
+    // Поставки (migration 045). This fake exists for the app-facing routes; the
+    // supply chain is exercised against the real memory repository in
+    // inventoryRoutes.test.ts, where an unfaithful fake would be the defect.
+    listSuppliers: async () => [],
+    upsertSupplier: async () => ({ ok: true, id: 'sup-1' }),
+    listPurchaseOrders: async () => [],
+    purchaseOrderById: async () => null,
+    createPurchaseOrder: async () => ({ ok: false, error: 'no_items' }),
+    setPurchaseOrderStatus: async () => false,
+    receivePurchaseOrderLine: async () => ({ ok: false, status: null, qtyOrdered: null }),
+    inTransitByVariant: async () => ({}),
     adminShopOrders: async () => [],
     adminShopOrderPage: async () => ({
       orders: [], total: 0,
@@ -440,7 +452,15 @@ function makeDeps(
     // Admin
     adminStats: async () => ({ activeUsers: 1, devicesOnline: devices.length, alertsToday: pushes.emergency, ingestLastHour: healthRows.length }),
     childrenStats: async () => ({ total: 0, boys: 0, girls: 0, unknown: 0, withDob: 0, byAge: [] }),
-    recentEmergencies: async () => [{ id: `${USER}|2026-07-15T08:00:00Z`, userId: USER, displayName: 'Aigerim', code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z', acknowledgedAt: null, acknowledgedBy: null }],
+    // The reason comes out of the same helper both repositories use, over a
+    // reading that really does cross the threshold — a hand-written `code`
+    // here would let the feed regress to «EMERGENCY» with this test green.
+    recentEmergencies: async () => [{
+      id: `${USER}|2026-07-15T08:00:00Z`, userId: USER, displayName: 'Aigerim',
+      ...emergencyReason({ systolicMmHg: 162, diastolicMmHg: 108 }),
+      severity: 'emergency', at: '2026-07-15T08:00:00Z',
+      acknowledgedAt: null, acknowledgedBy: null,
+    }],
     acknowledgeEmergency: async () => true,
     adminListUsers: async () => ({ total: 1, users: [{ id: USER, displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-11-01', lastMetricAt: '2026-07-21T08:00:00.000Z', latestSeverity: 'warning' }] }),
     adminUserHealth: async (userId) =>
@@ -480,6 +500,11 @@ function makeDeps(
       alertRows.slice(0, limit).map((a) => ({
         userId: USER, displayName: 'Aigerim', childName: 'Sultan',
         kind: a.kind, zoneName: a.zoneName, at: a.at,
+        // Read back off the row this fake stores, so закрытие СОС through
+        // setAlertOutcome is visible in the admin feed here exactly as it is
+        // in Postgres.
+        outcome: a.kind === 'sos' ? (a.outcome ?? null) : null,
+        phone: profile?.phone ?? '+77001112233',
       })),
     adminAnalytics: async () => ({
       totalUsers: 1, pregnant: 1, withChildren: children.length, devices: devices.length,
@@ -1463,7 +1488,12 @@ describe('admin API (in-process, RBAC + audit)', () => {
   it('emergency feed returns events and writes an audit entry', async () => {
     const r = await get('/admin/emergencies');
     expect(r.statusCode).toBe(200);
-    expect(r.json().emergencies[0].code).toBe('PREECLAMPSIA_BP');
+    // The fixture's reading is 162/108, which is the SEVERE branch — the code
+    // now comes out of assessTelemetry rather than being typed here, so it says
+    // which one. It used to be a hand-written 'PREECLAMPSIA_BP' next to a
+    // production repository answering the literal 'EMERGENCY': the fake and the
+    // thing it stood for disagreed, and this assertion checked the fake.
+    expect(r.json().emergencies[0].code).toBe('PREECLAMPSIA_BP_SEVERE');
     const audit = (await get('/admin/audit')).json().audit;
     expect(audit.some((a: { action: string }) => a.action === 'view_emergencies')).toBe(true);
   });

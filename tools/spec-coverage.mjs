@@ -52,7 +52,11 @@ const ADMIN_VIEW_FOR = {
   // missing. A stale "not built" is the same defect as a stale "built": a
   // number nobody can act on.
   '06': 'marketing',
-  '07': 'stock', '07c': 'stock',
+  // 07a «Поставки» и 07g «Поставщики» живут в той же вкладке Склад: карточки
+  // #stockSupplyCard и #stockSuppliersCard, со своими пунктами меню. Отдельная
+  // вкладка под заказы поставщикам разорвала бы «на сколько хватит» и «что уже
+  // едет» — два ответа на один вопрос закупщика.
+  '07': 'stock', '07a': 'stock', '07c': 'stock', '07g': 'stock',
   '08': 'catalog', '08a': 'catalog', '08b': 'catalog',
   '09': 'users', '09a': 'users', '10': 'kids', '11': 'devices', '12': 'support',
   '13': 'antenatal', '14': 'pregweeks', '14a': 'pregweeks', '14b': 'pregweeks',
