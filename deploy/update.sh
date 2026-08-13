@@ -189,6 +189,7 @@ check "/admin" 'intBody'                 "Интеграции says what is not 
 check "/admin" 'bootFail'                "a failed boot says so instead of a white page"
 check "/admin" 'supRule'                 "Поддержка states how the wait is counted"
 check "/admin" 'finCaveats'              "Финансы prints what its numbers cannot know"
+check "/admin" 'wearRule'                "the mother card shows what the watch measured"
 check "/admin" 'Отменить заказ:'         "cancelling an order asks before it happens"
 check "/admin" 'orderChips'              "Заказы filter by status with live counters"
 check "/admin" 'ordersFoot'              "the order list says how many of how many"

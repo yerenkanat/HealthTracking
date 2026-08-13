@@ -4574,6 +4574,7 @@
       const unmeasured='<span style="color:var(--muted)">не измерялось</span>';
       return `
       <div class="dsec">Что передают часы · ${wdays.length} ${ruPlural(wdays.length,"день","дня","дней")} из ${win}</div>
+      <div class="metricnote" id="wearRule">Пульс, кислород, давление, температура и сахар сняты оптическим датчиком на запястье — это оценка часов, а не измерение прибором. Давление и сахар особенно: сверяйте с тонометром и глюкометром, прежде чем что-то на них строить. В скобках — минимум и максимум за день: среднее их не показывает.</div>
       <div class="tl">${wdays.map(d=>{
         // «Не носила» — это ответ, а не пропуск: часы на зарядке шагов не
         // считают, и нулевой день без этой пометки читается как бездействие.
@@ -4585,8 +4586,49 @@
           `дыхание ${d.breathRate!=null?esc(d.breathRate)+" /мин":unmeasured}`,
           `MET ${d.met!=null?esc(d.met):unmeasured}`,
         ].join(" · ");
+        // The VITALS the day carries — heart rate, SpO2, blood pressure,
+        // temperature, blood sugar. They arrived with the history backfill and
+        // the panel printed none of them: the server read them off the watch,
+        // stored them, put them on the wire, and the last mile dropped them.
+        // That is this repository's most repeated defect and it is worth
+        // nothing until it is on the screen.
+        //
+        // Range, not just the mean, where the device gives one. A day averaging
+        // 78 bpm that touched 165 is not the day that never left 80, and
+        // «среднее 78» alone cannot tell a clinician which she had. Same on the
+        // other side for SpO2: an average of 97 that dipped to 88 is the
+        // reading worth a phone call.
+        const range=(avg,lo,hi,unit)=>{
+          if(avg==null&&lo==null&&hi==null) return null;
+          const bits=[];
+          if(avg!=null) bits.push(`${esc(avg)}${unit}`);
+          if(lo!=null||hi!=null) bits.push(`(${lo!=null?esc(lo):"—"}–${hi!=null?esc(hi):"—"})`);
+          return bits.join(" ");
+        };
+        const hr=range(d.heartRateAvg,d.heartRateMin,d.heartRateMax," уд/мин");
+        const spo2=range(d.spo2Avg,d.spo2Min,null,"%");
+        const bp=(d.systolicAvg!=null||d.diastolicAvg!=null)
+          ? `${d.systolicAvg!=null?esc(d.systolicAvg):"—"}/${d.diastolicAvg!=null?esc(d.diastolicAvg):"—"} мм рт. ст.` : null;
+        // Tenths on the wire so nothing rounds twice between the wrist and this
+        // screen; divided once, here, at the moment it is read by a person.
+        const temp=d.tempAvgTenths!=null?`${(d.tempAvgTenths/10).toFixed(1)} °C`:null;
+        const sugar=d.bloodSugarTenths!=null?`${(d.bloodSugarTenths/10).toFixed(1)} ммоль/л`:null;
+        const vitals=[
+          hr?`пульс ${hr}`:null,
+          spo2?`кислород ${spo2}`:null,
+          bp?`давление ${bp}`:null,
+          temp?`температура ${temp}`:null,
+          sugar?`сахар ${sugar}`:null,
+        ].filter(Boolean).join(" · ");
+        // Said once per card, not per row, and only when there is something to
+        // qualify: these come off an optical sensor on a wrist. The panel must
+        // not let a number it drew be read as a clinical measurement.
+        const vitalsLine=vitals
+          ? `<div class="t">${vitals}</div>`
+          : `<div class="t" style="color:var(--muted)">показатели за день не измерялись</div>`;
         return `<div class="tli"><span>
           <b>${esc(fmtDate(d.day))}</b> <span class="t">${fmt(d.steps||0)} ${ruPlural(d.steps||0,"шаг","шага","шагов")} · ${km(d.meters)} · ${fmt(d.kcal||0)} ккал</span>
+          ${vitalsLine}
           <div class="t">${wellness}</div>
           <div class="t">сон ${hm(d.sleepMinutes||0)} · ${worn}${charge}</div>
         </span><span class="t num">${bat}</span></div>`;

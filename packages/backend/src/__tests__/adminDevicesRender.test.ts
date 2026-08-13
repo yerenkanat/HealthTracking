@@ -421,3 +421,62 @@ describe('the mother card answers «часы вообще передают да�
     expect(drawer).toContain('на зарядке');
   });
 });
+
+/**
+ * The vitals a day of watch HISTORY carries — heart rate, SpO2, blood pressure,
+ * temperature, blood sugar.
+ *
+ * The backfill reads about a week of per-minute samples off the watch, the
+ * server stores them (migration 042) and puts them on the wire, and the panel
+ * printed none of them. Read off the wrist, through BLE, through two
+ * repositories, into Postgres, out through a capability-guarded audited route —
+ * and dropped in the last hundred pixels. That is this repository's most
+ * repeated defect, and everything upstream of the screen is worth nothing
+ * without it.
+ */
+const VITALS = {
+  ...DAY,
+  heartRateAvg: 78, heartRateMin: 54, heartRateMax: 165,
+  spo2Avg: 97, spo2Min: 88,
+  systolicAvg: 118, diastolicAvg: 76,
+  tempAvgTenths: 365,
+  bloodSugarTenths: 54,
+};
+
+describe('the vitals of a day reach the screen', () => {
+  it('prints every one of them', async () => {
+    const { drawer, errors } = await openCard({ days: [VITALS], window: 14 });
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('пульс 78');
+    expect(drawer).toContain('кислород 97');
+    expect(drawer).toContain('118/76');
+    // Tenths on the wire, divided once here — 365 is 36.5 °C, not 365 degrees.
+    expect(drawer).toContain('36.5 °C');
+    expect(drawer).toContain('5.4 ммоль/л');
+  });
+
+  it('shows the range, because a mean cannot express the day', async () => {
+    // 78 average touching 165 is not the day that never left 80, and a
+    // clinician cannot tell them apart from the average alone.
+    const { drawer } = await openCard({ days: [VITALS], window: 14 });
+    expect(drawer).toContain('(54–165)');
+    expect(drawer, 'the SpO2 dip is the reading worth a phone call').toContain('(88–—)');
+  });
+
+  it('says the sensor is an estimate, once, where a person will read it', async () => {
+    const { drawer } = await openCard({ days: [VITALS], window: 14 });
+    expect(drawer).toContain('оптическим датчиком');
+    // Named specifically: these two are the ones somebody might act on.
+    expect(drawer).toMatch(/тонометр/i);
+    expect(drawer).toMatch(/глюкометр/i);
+  });
+
+  it('says nothing was measured rather than printing zeros', async () => {
+    // A stored 0 heart rate reads as a heart that stopped. Absent must look
+    // absent.
+    const { drawer } = await openCard({ days: [DAY], window: 14 });
+    expect(drawer).toContain('показатели за день не измерялись');
+    expect(drawer).not.toContain('пульс 0');
+    expect(drawer).not.toContain('0/0');
+  });
+});

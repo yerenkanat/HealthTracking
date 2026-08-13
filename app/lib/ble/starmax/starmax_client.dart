@@ -230,6 +230,7 @@ class StarmaxClient implements StarmaxHistoryReader {
   ///
   /// An empty list means the watch has nothing — which is a real answer for a
   /// device that was just reset, and must not be read as a failure.
+  @override
   Future<List<DateTime>> readValidHistoryDates(StarmaxHistoryType type) async {
     try {
       final f = await _request(cmdGetValidHistoryDates(type), starmaxValidHistoryDatesReply);
@@ -246,6 +247,7 @@ class StarmaxClient implements StarmaxHistoryReader {
 
   /// One day of a single-valued stream (heart rate, SpO₂, stress, blood sugar,
   /// sleep stages, respiration rate, MET), decoded.
+  @override
   Future<StarmaxDaySeries?> readDaySeries(StarmaxHistoryType type, DateTime day) async {
     final p = await readHistoryPayload(type, day);
     if (p == null) return null;
@@ -267,12 +269,14 @@ class StarmaxClient implements StarmaxHistoryReader {
   }
 
   /// One day of blood pressure (systolic/diastolic pairs).
+  @override
   Future<StarmaxBpDay?> readBloodPressureDay(DateTime day) async {
     final p = await readHistoryPayload(StarmaxHistoryType.bloodPressure, day);
     return p == null ? null : parseBloodPressureHistory(p);
   }
 
   /// One day of step records (and any sleep records the same stream carries).
+  @override
   Future<StarmaxStepDay?> readStepDay(DateTime day) async {
     final p = await readHistoryPayload(StarmaxHistoryType.step, day);
     return p == null ? null : parseStepHistory(p);

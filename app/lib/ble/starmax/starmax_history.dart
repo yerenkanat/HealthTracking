@@ -45,28 +45,27 @@ import 'starmax_protocol.dart';
 
 /// The history streams the watch can be asked for.
 ///
-/// [typeCode] is the vendor's `HistoryType` enum (types.ts). [cmd] is the
-/// request command byte, and the reply is always `cmd + 0x80`.
+/// [cmd] is the request command byte; the reply is always `cmd + 0x80`.
 ///
-/// NOTE — `getValidHistoryDates` does NOT send the enum value. index.js maps the
-/// enum through `getHistoryTypeCode()` and puts the COMMAND byte on the wire, so
-/// asking about step history sends 98, not 1. The typed enum in the docs makes
-/// the opposite look obvious; it is wrong.
+/// NOTE — the vendor's `HistoryType` enum (types.ts: Step = 1, HeartRate = 2, …)
+/// is NOT what goes on the wire, and it is the obvious thing to send. index.js
+/// maps it through `getHistoryTypeCode()` first, so `getValidHistoryDates` for
+/// step history carries 98 — the command byte — not 1. Only the command byte is
+/// modelled here, because only it is ever transmitted.
 enum StarmaxHistoryType {
-  step(1, 98),
-  heartRate(2, 99),
-  bloodPressure(3, 100),
-  bloodOxygen(4, 101),
-  stress(5, 102), // the vendor's "pressure" (压力)
-  met(6, 103),
-  temp(7, 104),
-  bloodSugar(9, 114),
-  sleep(10, 116),
-  respirationRate(11, 120);
+  step(98),
+  heartRate(99),
+  bloodPressure(100),
+  bloodOxygen(101),
+  stress(102), // the vendor's "pressure" (压力)
+  met(103),
+  temp(104),
+  bloodSugar(114),
+  sleep(116),
+  respirationRate(120);
 
-  final int typeCode;
   final int cmd;
-  const StarmaxHistoryType(this.typeCode, this.cmd);
+  const StarmaxHistoryType(this.cmd);
 
   /// The reply command byte for this stream.
   int get reply => cmd + starmaxReplyBit;
