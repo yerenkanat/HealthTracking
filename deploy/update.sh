@@ -181,6 +181,18 @@ check "/admin" 'recvForm'                "Приёмка takes a shipment in one
 check "/admin" 'takeBody'                "инвентаризация can count the shelf"
 check "/admin" 'reasonWrap'              "opening a health record asks why"
 check "/admin" 'publishBlocked'          "publishing needs both languages"
+# Frame 19. Each of these replaced something that was actively wrong on screen —
+# the literal constant EMERGENCY on every row, an SOS drawn like a child walking
+# past a school gate, and a feed that had failed to load rendering as «нет
+# событий». A stale panel would put all three back.
+check "/admin" 'Последний SOS'           "an SOS is not drawn as a zone crossing"
+check "/admin" 'Причина не сохранена'    "a row with no reason says so"
+check "/admin" 'Мы не служба спасения'   "the frame does not claim to be a rescue service"
+# The two authorization fixes. «Сводка» is the landing view for every role, and
+# without the refusal branch six of eight roles opened their morning on a screen
+# asserting an outage that was not happening.
+check "/admin" 'DASH_MSG'                "a refused Сводка says so instead of blaming the backend"
+check "/admin" 'data-cap="finance"'      "Финансы is gated on the capability its route requires"
 check "/admin" 'reviewBody'              "a clinician can sign off medical text"
 check "/admin" 'metricnote'              "stock says how long it lasts"
 check "/admin" 'catStages'               "Каталог can set a product's stage"
@@ -311,6 +323,12 @@ reaches /auth/phone/start     "sign-in step one is routed"
 # recorded at intake. It is the ONLY route out of a `device_not_ours` refusal,
 # so DEVICE_REGISTRY_ENFORCE must not be switched on until this passes.
 reaches /devices/claim        "the activation-code fallback"
+# Product photos are uploaded in the panel and served from here to the storefront
+# and the app, so an unrouted path means a catalogue of empty frames. Probed with
+# an id that cannot exist ON PURPOSE: this asks whether the PATH is routed, and
+# a real id would tie a routing check to whatever the catalogue happens to hold.
+# The route's own 404 is JSON, so `reaches` still distinguishes it from Caddy's.
+reaches /shop/products/__routing_probe__/photo "product photos are routed"
 
 echo
 echo "==> A malformed id must be refused, not 500"
