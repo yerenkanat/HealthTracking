@@ -170,6 +170,37 @@ room reads low on the wrist today and raises nothing today. The change makes the
 silence honest rather than arbitrary. It is accepted **conditional on** removing
 the false reassurance that currently fills it (refused sentence #15).
 
+## The verdict has one regression path, and it is open
+
+**`GET /vitals/manual` does not say that its readings are manual.** Confirmed by
+reading, 2026-08-14:
+
+- `listManualVitals` selects `WHERE user_id = $1 AND device_id IS NULL` — so
+  every row it returns is hand-typed **by construction**. The server already
+  knows. It just never says so: the returned object carries `recordedAt`,
+  `heartRateBpm`, `spo2Pct`, `systolicMmHg`, `diastolicMmHg`, `coreTempC`,
+  `glucoseMmol` and no provenance.
+- `HealthSample.fromJson` reads an absent `source` as **sensor**, deliberately
+  and correctly — an unlabelled stored row is not a thermometer, and defaulting
+  the other way would hand a wrist estimate the emergency entitlement.
+
+Put together: a woman changes handset, her readings restore, and **every
+thermometer reading she ever typed comes back labelled as a wrist estimate.**
+The consequence is precisely the thing this whole review protected:
+
+1. A real 38.6 she measured no longer escalates — the one source entitled to
+   raise an emergency silently loses that entitlement on a new phone.
+2. Her typed readings drop out of the visit summary, which now filters on
+   provenance before showing a doctor anything.
+3. The manual-diary card vanishes for exactly the woman who has been using it,
+   because that card is now keyed on whether a BAND is supplying readings.
+
+Not a design question — the fix is to emit what the WHERE clause already
+guarantees, in both repository implementations plus the interface. Written down
+here rather than in a task result because it defeats a clinical ruling silently,
+and the failure is invisible on the phone where the readings were typed: it only
+appears on the next one.
+
 ## Open tickets this raised
 
 - The **server-side** emergency path re-runs `assessTelemetry` and pushes on the
