@@ -57,8 +57,29 @@ real — and this is not that: the disc *is* the datum, drawing the current week
 size the way a chart draws a number. Replacing it with a photo would mean using
 someone else's foetal imagery, and a striped placeholder would say nothing.
 
-Everywhere else the rule holds: the map, the empty states and the content cards
-all use photos or the striped placeholder.
+Everywhere else the rule holds for the content cards, which use photos.
+
+**It does NOT hold for the map, and this file said it did.** Corrected
+2026-08-13 after checking rather than trusting the sentence:
+
+- `app/lib/ui/tracking/tracking_map.dart:73` paints `surfaceContainerHighest` —
+  a flat pink fill. `DsMapPlaceholder`, which draws the spec's
+  `repeating-linear-gradient` from `Ds.mapStripeA/B`, has **no user in `lib/`
+  at all**; it is referenced only by its own definition and by tests. The whole
+  point of the stripe is that an unloaded map must not read as a broken one,
+  and a flat pink rectangle reads as broken.
+- The empty states are five different shapes, not one, and three of them offer
+  no action — against the spec's own rule that every list's empty state carries
+  a reason and one action.
+
+Neither is a deviation anybody decided on; both are gaps. They are written here
+as gaps so the next reader does not take this section as a clean bill of
+health — which is what it was, for as long as the sentence stood unchecked.
+
+_A note on this file's purpose: it records decisions taken deliberately AGAINST
+the spec, with the reason. A line that asserts conformance is doing something
+different, and is only worth its ink if somebody has just verified it. Prefer
+"checked on <date>, holds" over a bare claim._
 
 ## Some rows are deliberately not `DsRow`
 

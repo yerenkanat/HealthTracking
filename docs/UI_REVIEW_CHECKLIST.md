@@ -40,6 +40,24 @@ the issue fixed, before saying a screen is done.
       inline tap targets should be added to it._
 - [ ] Every icon-only button has a semantics label / tooltip.
 - [ ] Text contrast is legible for tired eyes; no gray-on-gray body text.
+- [ ] **Text on an accent tint uses the `*Text` token, never the fill token.**
+      `Ds.mintText` / `Ds.amberText` / `Ds.blueText` / `Ds.coralText` exist for
+      exactly this pairing. _This is the mistake that added this rule: the child
+      map's freshness badge painted its label in the fill colour on a 14 % tint
+      of that same colour —_
+      ```
+      live    #17A97A on its own tint — 2.62:1
+      delayed #E08A00 on its own tint — 2.38:1
+      recent  #1F5FBF on its own tint — 4.96:1   ← the only one that passed
+      ```
+      _13 px bold needs 4.5:1, so the one claim that screen exists to make — how
+      current a child's position is — was illegible in exactly «she is fine» and
+      «this is late». The blue middle state passed, which is why it never looked
+      obviously broken and shipped anyway._ An icon may keep the fill: 4.5:1 is
+      a rule about text. `test/accent_contrast_test.dart` computes the ratio
+      arithmetically, because the framework's `textContrastGuideline` samples
+      what is on screen and can be satisfied by a label that happens to sit over
+      an opaque parent — a different question from whether the PAIRING is sound.
 - [ ] Live/critical status regions use Semantics(liveRegion: true).
 - [ ] **A primary or repeated action sits in the thumb zone (bottom of the
       screen), not the top.** She holds the phone in one hand and taps with the
@@ -77,6 +95,14 @@ legal layout:
 - **Ellipsis is not overflow.** No test fails when a title renders as "Ваше
   здоров…". The dashboard and calendar titles were truncated on the first two
   screens of the app, in its default language, with every test green.
+- **A number scales down; it never ellipsizes.** `TextOverflow.ellipsis` is for
+  prose a person typed — a note, a lesson title. On a figure, a unit, a control
+  label or a screen title it does not degrade the reading, it makes it *wrong*:
+  "1 234 ша…" and "12 340 шагов" are indistinguishable, and «0 шевелений сег…»
+  was found on a real 1080 px device with the whole suite green. Use
+  `FittedBox(fit: BoxFit.scaleDown)`, as `_MetricCard` and `_ModeChip` already
+  do. Better still, don't put a sentence in a value slot: the value line carries
+  a number and at most one short word, and the long form lives in the label.
 - **A hand-rolled formatter is not a missing translation.** verify_ui_strings
   checks literals in the source; it cannot see `'${h}h ${m}m'` built at
   runtime, which printed "уже 1m" inside a Russian sentence.
