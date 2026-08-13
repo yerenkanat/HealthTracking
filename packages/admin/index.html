@@ -1254,14 +1254,36 @@
            children are. applyCaps hides the card; go() will not open a view
            that has been hidden. -->
       <section class="view" id="emergencies">
+        <!-- Frame 19's first line, and it is not decoration.
+             The panel does not call an ambulance. Somebody reading a red row at
+             02:00 has to know, before anything else, what this screen can and
+             cannot do — otherwise the honest answer («мы звоним маме») looks
+             like negligence rather than the design. Never dismissible. -->
+        <div class="card ocnote warn" style="margin-bottom:16px" id="emgDisclaimer">
+          <b>Мы не служба спасения.</b> Панель не вызывает скорую. Если жизни угрожает опасность — 103.
+          Здесь мы звоним маме и записываем, что сделали.
+        </div>
         <div class="card" style="margin-bottom:16px"><div class="feed" id="feedFull"></div></div>
+        <!-- The four steps, collapsed. An operator who has done it a hundred
+             times does not need them open; the one on her first night shift
+             does, and at 02:00 she will not go looking in a wiki. -->
+        <details class="card" style="margin-bottom:16px" id="emgSteps">
+          <summary style="padding:14px 18px;cursor:pointer;font-weight:700">Что делать по сигналу — 4 шага</summary>
+          <ol style="margin:0;padding:0 18px 16px 34px;line-height:1.7">
+            <li><b>Позвонить маме.</b> Номер — в карточке; звонок важнее записи.</li>
+            <li><b>Спросить, что случилось.</b> Не «всё ли хорошо», а что происходит прямо сейчас.</li>
+            <li><b>Записать в обращение.</b> Что сказала, что сделали, во сколько.</li>
+            <li><b>Подтвердить сигнал.</b> Только после разговора — подтверждение значит «с ней говорили», а не «я увидела».</li>
+          </ol>
+        </details>
         <div class="card" data-cap="health">
           <div class="sec-h"><h3>SOS и зоны</h3>
             <span class="sub">Тревоги и пересечения зон по всем семьям</span></div>
           <div class="tablewrap">
-            <table><thead><tr><th>Когда</th><th>Семья</th><th>Ребёнок</th><th>Событие</th><th>Зона</th></tr></thead>
+            <table><thead><tr><th>Когда</th><th>Семья</th><th>Ребёнок</th><th>Событие</th><th>Зона</th><th>Чем закончилось</th></tr></thead>
             <tbody id="safetyBody"></tbody></table>
           </div>
+          <div class="metricnote">«Чем закончилось» заполняет мама в приложении, когда закрывает SOS. Пустое поле — это «ещё не закрыла», а не «ложная тревога»: доля ложных считается только по закрытым.</div>
         </div>
       </section>
 
@@ -3542,14 +3564,45 @@
       <button class="btn primary" data-user="${esc(e.userId)}">Открыть карточку</button></div></div>`;
   }
   /// Acknowledge an emergency, then refresh the feed so the row updates.
-  async function ackEmergency(id){
+  /** Say so when the acknowledgement did not happen.
+   *
+   * This was `if(r.ok||r.status===409){…}` with NO else, and `catch(e){}`. An
+   * operator clicked «Подтвердить» on a live emergency, the write was refused,
+   * and the panel said nothing whatsoever — no message, no colour, the button
+   * still sitting there. She had no way to tell «my click missed» from «the
+   * server refused», and at shift hand-over the row was still unacknowledged
+   * with nobody knowing why.
+   *
+   * 409 stays a success: it means somebody else got there first, which is the
+   * outcome we wanted.
+   */
+  async function ackEmergency(id,btn){
+    const say=(text,cls)=>{
+      // In the ROW, next to the button she just pressed — not an alert() she
+      // dismisses without reading, and not a toast that has gone by the time
+      // she looks up from the phone.
+      const row=btn&&btn.closest(".frow");
+      let note=row&&row.querySelector(".ackmsg");
+      if(row&&!note){ note=document.createElement("div"); note.className="ackmsg t"; note.style.cssText="grid-column:1/-1;margin-top:4px"; row.appendChild(note); }
+      if(note){ note.textContent=text; note.style.color=cls; }
+    };
+    if(btn) btn.disabled=true;
     try{
       const r=await fetch("/admin/emergencies/"+encodeURIComponent(id)+"/ack",{method:"POST",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
       if(r.ok||r.status===409){
         try{ MOCK.emergencies=(await api("/admin/emergencies")).emergencies||MOCK.emergencies; }catch(e){}
         renderFeeds();
+        return;
       }
-    }catch(e){/* offline — leave the row as is */}
+      if(btn) btn.disabled=false;
+      say(r.status===403
+        ? "Не удалось подтвердить: нет прав на экстренные. Сигнал остаётся неподтверждённым."
+        : `Не удалось подтвердить (${r.status}). Сигнал остаётся неподтверждённым — попробуйте ещё раз.`,
+        "var(--crit-text)");
+    }catch(e){
+      if(btn) btn.disabled=false;
+      say("Нет связи с сервером. Сигнал остаётся неподтверждённым.","var(--crit-text)");
+    }
   }
   /// Nothing to show is good news here, and has to say so.
   ///
@@ -7751,7 +7804,7 @@
       if(first) go(first.dataset.view,first);
       return;
     }
-    const ackb=e.target.closest("[data-ack]"); if(ackb){ackEmergency(ackb.dataset.ack);return;}
+    const ackb=e.target.closest("[data-ack]"); if(ackb){ackEmergency(ackb.dataset.ack,ackb);return;}
     // Frame 14b's three buttons, before the week chips: the editor sits inside
     // the same view, and #pwSave is not a [data-week].
     if(e.target.id==="wkSave"){wkSave(false);return;}
@@ -8724,9 +8777,30 @@
       $("#safetyBody").innerHTML = tableNote(5, "Не удалось загрузить события безопасности.");
       return;
     }
-    rowsOrEmpty($("#safetyBody"), list.map((e) => `<tr>
+    // An SOS must not look like a child walking into the school zone.
+    //
+    // Every row printed the raw English `kind` — `entered`, `left`, `checkIn`,
+    // `sos`, `lowBattery` — in the same weight, in the same colour, in time
+    // order. A pressed panic button and a routine arrival were the same row,
+    // on the screen whose entire job is telling them apart.
+    //
+    // Colour goes on the ROW BACKGROUND, not on the text: §2.3's rule, and the
+    // one that survives a person who does not perceive red.
+    const KIND_RU={entered:"Вошёл в зону",left:"Вышел из зоны",checkIn:"Отметился",sos:"SOS",lowBattery:"Разряжен"};
+    const KIND_CLS={sos:"attn-crit",lowBattery:"attn-warn"};
+    // `outcome` is how a mother closed an SOS — false_press / scared /
+    // needed_help — and NULL is not «не выяснили», it is «она ещё не закрыла».
+    // The schema comment says so and the distinction is the whole value of the
+    // column, so the UI keeps it.
+    const OUTCOME_RU={false_press:"Ложное нажатие",scared:"Испугался",needed_help:"Нужна была помощь",unknown:"Не выяснили"};
+    const outcomeCell=(e)=> e.kind!=="sos" ? "—"
+      : (e.outcome==null
+          ? `<span class="t" style="color:var(--warn-text)">мама ещё не закрыла</span>`
+          : esc(OUTCOME_RU[e.outcome]||e.outcome));
+    rowsOrEmpty($("#safetyBody"), list.map((e) => `<tr${KIND_CLS[e.kind]?` class="${KIND_CLS[e.kind]}"`:""}>
       <td class="num t">${esc(stamp(e.at))}</td><td>${esc(e.displayName)}</td><td>${esc(e.childName)}</td>
-      <td>${esc(e.kind)}</td><td>${esc(e.zoneName || "—")}</td></tr>`).join(""), 5,
+      <td><b>${esc(KIND_RU[e.kind]||e.kind)}</b></td><td>${esc(e.zoneName || "—")}</td>
+      <td>${outcomeCell(e)}</td></tr>`).join(""), 6,
       "Событий безопасности пока нет.");
   }
 
