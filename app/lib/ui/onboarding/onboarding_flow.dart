@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../ble/band_scan_state.dart';
 import '../../domain/country_codes.dart';
 import '../../domain/family.dart';
 import '../../domain/onboarding_controller.dart';
@@ -20,14 +21,30 @@ import '../theme.dart';
 import '../widgets/glass.dart';
 import '../widgets/phone_format.dart';
 
-/// A discovered band the user can pick during onboarding.
-typedef DiscoveredBand = ({String id, String name});
-typedef BandScanner = Stream<List<DiscoveredBand>> Function();
+/// [DiscoveredBand] used to be declared here, which is why `ble/band_scan.dart`
+/// imported a UI file to describe its own output. It now lives with the scan
+/// state it belongs to and is re-exported so existing importers keep working.
+export '../../ble/band_scan_state.dart'
+    show BandScanPhase, BandScanUpdate, DiscoveredBand, isStrongSignal;
+
+/// The pairing scan. Emits what it is doing AND why it has found nothing — see
+/// [BandScanUpdate]. It used to emit a bare list, so four different reasons for
+/// an empty one looked identical on the screen.
+typedef BandScanner = Stream<BandScanUpdate> Function();
+
+/// Asks the OS to switch Bluetooth on, for the «Включить Bluetooth» button.
+/// Resolves to whether the radio is on afterwards. Null on platforms where no
+/// such API exists (iOS) — the button is then not offered rather than offered
+/// and silently doing nothing.
+typedef BluetoothEnabler = Future<bool> Function();
 
 class OnboardingFlow extends StatefulWidget {
   final OnboardingController controller;
   final void Function(OnboardingResult) onComplete;
   final BandScanner? scanBands;
+
+  /// Passed through to the pairing step's «Включить Bluetooth» button.
+  final BluetoothEnabler? onEnableBluetooth;
   final void Function(AppLocale)? onLocaleChange;
 
   const OnboardingFlow({
@@ -35,6 +52,7 @@ class OnboardingFlow extends StatefulWidget {
     required this.controller,
     required this.onComplete,
     this.scanBands,
+    this.onEnableBluetooth,
     this.onLocaleChange,
   });
 
@@ -159,7 +177,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           ),
         OnboardingStep.language => _LanguagePage(controller: widget.controller, onLocaleChange: widget.onLocaleChange),
         OnboardingStep.profile => _ProfilePage(controller: widget.controller),
-        OnboardingStep.pairBand => _PairBandPage(controller: widget.controller, scanBands: widget.scanBands),
+        OnboardingStep.pairBand => _PairBandPage(
+            controller: widget.controller,
+            scanBands: widget.scanBands,
+            onEnableBluetooth: widget.onEnableBluetooth,
+          ),
         OnboardingStep.child => _ChildPage(controller: widget.controller),
         OnboardingStep.done => const SizedBox.shrink(),
       };
@@ -406,43 +428,117 @@ class _ExpectingSection extends StatelessWidget {
   }
 }
 
-class _PairBandPage extends StatelessWidget {
+/// Onboarding step 5 — «Есть устройство Ana-Bala?».
+///
+/// This page could say two things: «Поиск устройств…» and a list of watches.
+/// Everything else the transport can produce — Bluetooth switched off, the
+/// permission declined, a handset with no radio at all, a scan that would not
+/// start, and the ordinary case of nothing being nearby — arrived as the same
+/// empty list, so all five rendered as the scanning line, for ever. A woman
+/// whose phone simply had Bluetooth off was never told the one fact she needed,
+/// and could not tell a broken app from a broken watch.
+///
+/// It now renders one state per [BandScanPhase], each with its own sentence and
+/// its own action. What it deliberately does NOT show is anything about
+/// connecting: this step records the id she picks and the link is made after
+/// onboarding, so "connecting", "connected" and "connection refused" have no
+/// truth to draw from here. They live on [BandLinkState] and are shown by the
+/// dashboard.
+class _PairBandPage extends StatefulWidget {
   final OnboardingController controller;
   final BandScanner? scanBands;
-  const _PairBandPage({required this.controller, this.scanBands});
+  final BluetoothEnabler? onEnableBluetooth;
+  const _PairBandPage({
+    required this.controller,
+    this.scanBands,
+    this.onEnableBluetooth,
+  });
+
+  @override
+  State<_PairBandPage> createState() => _PairBandPageState();
+}
+
+class _PairBandPageState extends State<_PairBandPage> {
+  /// Bumped by «Искать снова» — a new key rebuilds the StreamBuilder against a
+  /// fresh scan rather than re-listening to a stream that has already settled.
+  int _attempt = 0;
+
+  /// She tapped «Пока нет — буду записывать вручную». Not a dead end: it is the
+  /// state that says what the app does without a watch, which is most of it.
+  bool _decidedManual = false;
+
+  Stream<BandScanUpdate>? _stream;
+  int _streamKey = -1;
+
+  Stream<BandScanUpdate>? _scan() {
+    final scan = widget.scanBands;
+    if (scan == null) return null;
+    // Built once per attempt: StreamBuilder rebuilds on every setState, and
+    // calling scanBands() in build would start a new radio scan each time.
+    if (_streamKey != _attempt || _stream == null) {
+      _streamKey = _attempt;
+      _stream = scan();
+    }
+    return _stream;
+  }
+
+  void _retry() => setState(() {
+        _decidedManual = false;
+        _attempt++;
+      });
+
+  Future<void> _enableBluetooth() async {
+    final enable = widget.onEnableBluetooth;
+    if (enable == null) return;
+    final on = await enable();
+    if (!mounted) return;
+    // Only a radio that actually came on earns a fresh scan. A refusal at the
+    // system dialog leaves the «Bluetooth выключен» plate where it is, which is
+    // still true — the alternative is a spinner that will never resolve.
+    if (on) _retry();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final stream = _scan();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l.t('onb_pair_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+        Text(l.t('onb_pair_title'),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
-        Text(l.t('onb_pair_body'), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 16),
         Expanded(
-          child: scanBands == null
-              ? Center(child: Text(l.t('onb_pair_skip')))
-              : StreamBuilder<List<DiscoveredBand>>(
-                  stream: scanBands!(),
+          child: _decidedManual || stream == null
+              // No scanner injected (a desktop or test build) is the same
+              // situation as choosing to log by hand: there is no radio path,
+              // so say what the app does without one instead of showing a
+              // search that cannot happen.
+              ? ListView(padding: EdgeInsets.zero, children: [
+                  _Subtitle(l.t('onb_pair_hint')),
+                  const SizedBox(height: 16),
+                  _manualPlate(l),
+                ])
+              : StreamBuilder<BandScanUpdate>(
+                  key: ValueKey(_attempt),
+                  stream: stream,
                   builder: (context, snap) {
-                    final bands = snap.data ?? const [];
-                    if (bands.isEmpty) {
-                      return Center(child: Text(l.t('onb_pair_scanning')));
-                    }
-                    return RadioGroup<String>(
-                      groupValue: controller.bandId,
-                      onChanged: controller.setBandId,
-                      child: ListView(
-                        children: [
-                          for (final b in bands)
-                            RadioListTile<String>(
-                              value: b.id,
-                              title: Text(b.name),
-                              subtitle: Text(b.id),
-                            ),
-                        ],
-                      ),
+                    final update = snap.data ?? BandScanUpdate.opening;
+                    return ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        // The subtitle is built from the SAME frame as the slot
+                        // below it: «выберите из списка» is only true when
+                        // there is a list, and printed over an empty area it is
+                        // the sentence that made the step read as broken.
+                        _Subtitle(l.t(update.phase == BandScanPhase.found
+                            ? 'onb_pair_body'
+                            : 'onb_pair_hint')),
+                        const SizedBox(height: 16),
+                        ..._slotFor(context, l, update),
+                        const SizedBox(height: 8),
+                        _manualLink(l),
+                      ],
                     );
                   },
                 ),
@@ -450,6 +546,327 @@ class _PairBandPage extends StatelessWidget {
       ],
     );
   }
+
+  List<Widget> _slotFor(BuildContext context, L10n l, BandScanUpdate u) {
+    switch (u.phase) {
+      case BandScanPhase.scanning:
+        return [_ScanningCard(label: l.t('onb_pair_scanning'))];
+
+      case BandScanPhase.found:
+        return [
+          _FoundList(
+            bands: u.bands,
+            selected: widget.controller.bandId,
+            onSelect: widget.controller.setBandId,
+          ),
+          if (u.searching) ...[
+            const SizedBox(height: 6),
+            _ScanningLine(label: l.t('onb_pair_scanning_more')),
+          ],
+        ];
+
+      case BandScanPhase.noneNearby:
+        return [
+          _StatePlate(
+            key: const Key('onb-pair-none'),
+            title: l.t('onb_pair_none_title'),
+            body: l.t('onb_pair_none_body'),
+          ),
+          _RetryButton(label: l.t('onb_pair_retry'), onTap: _retry),
+        ];
+
+      case BandScanPhase.bluetoothOff:
+        return [
+          _StatePlate(
+            key: const Key('onb-pair-bluetooth-off'),
+            title: l.t('onb_pair_bt_off_title'),
+            body: l.t('onb_pair_bt_off_body'),
+          ),
+          // Android can be asked to switch it on; iOS cannot, and there the
+          // honest offer is to look again once she has done it herself.
+          if (widget.onEnableBluetooth != null)
+            _RetryButton(
+                label: l.t('onb_pair_bt_on'),
+                icon: Icons.bluetooth_rounded,
+                onTap: _enableBluetooth)
+          else
+            _RetryButton(label: l.t('onb_pair_retry'), onTap: _retry),
+        ];
+
+      case BandScanPhase.permissionDenied:
+        return [
+          _StatePlate(
+            key: const Key('onb-pair-permission'),
+            title: l.t('onb_pair_perm_title'),
+            body: l.t('onb_pair_perm_body'),
+          ),
+          _RetryButton(label: l.t('onb_pair_retry'), onTap: _retry),
+        ];
+
+      case BandScanPhase.unsupported:
+        // The one state with no retry: a phone does not grow a radio. The way
+        // forward is the manual route, and it is the next thing on the screen.
+        return [
+          _StatePlate(
+            key: const Key('onb-pair-unsupported'),
+            title: l.t('onb_pair_unsupported_title'),
+            body: l.t('onb_pair_unsupported_body'),
+          ),
+        ];
+
+      case BandScanPhase.failed:
+        return [
+          _StatePlate(
+            key: const Key('onb-pair-failed'),
+            title: l.t('onb_pair_failed_title'),
+            body: l.t('onb_pair_failed_body'),
+          ),
+          _RetryButton(label: l.t('onb_pair_retry'), onTap: _retry),
+        ];
+    }
+  }
+
+  Widget _manualLink(L10n l) => Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          key: const Key('onb-pair-no-device'),
+          onPressed: () => setState(() {
+            _decidedManual = true;
+            widget.controller.setBandId(null);
+          }),
+          style: TextButton.styleFrom(
+              foregroundColor: Palette.violetText,
+              minimumSize: const Size(0, DsShape.minTapTarget)),
+          child: Text(l.t('onb_pair_no_device'),
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      );
+
+  /// «Без браслета приложение работает полностью» — and what that means, in the
+  /// four words she will look for later: Настройки → Устройства.
+  Widget _manualPlate(L10n l) => Container(
+        key: const Key('onb-pair-manual'),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Ds.pastelMint,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                  color: Palette.good, borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.check_rounded, size: 19, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l.t('onb_pair_manual_title'),
+                      style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Ds.mintText)),
+                  const SizedBox(height: 2),
+                  Text(l.t('onb_pair_manual_body'),
+                      style: const TextStyle(
+                          fontSize: 13.5, height: 1.45, color: Ds.mintText)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _Subtitle extends StatelessWidget {
+  final String text;
+  const _Subtitle(this.text);
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant));
+}
+
+/// «Ищем устройства рядом…» with a spinner and two skeleton rows, so the wait
+/// looks like a wait rather than like a page that failed to load.
+class _ScanningCard extends StatelessWidget {
+  final String label;
+  const _ScanningCard({required this.label});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Palette.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ScanningLine(label: label),
+            const SizedBox(height: 10),
+            for (final w in const [1.0, 0.62]) ...[
+              FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: w,
+                child: Container(
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Palette.glass,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ],
+        ),
+      );
+}
+
+class _ScanningLine extends StatelessWidget {
+  final String label;
+  const _ScanningLine({required this.label});
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(fontSize: 13.5, color: Palette.textDim)),
+          ),
+        ],
+      );
+}
+
+/// The watches we can see, strongest first.
+class _FoundList extends StatelessWidget {
+  final List<DiscoveredBand> bands;
+  final String? selected;
+  final ValueChanged<String?> onSelect;
+  const _FoundList(
+      {required this.bands, required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: Palette.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+      ),
+      // Transparent Material: a RadioListTile paints its ink on the nearest
+      // Material ancestor, and a DecoratedBox between the two hides the splash
+      // — which the framework asserts about rather than merely looking wrong.
+      child: Material(
+        type: MaterialType.transparency,
+        child: RadioGroup<String>(
+          groupValue: selected,
+          onChanged: onSelect,
+          child: Column(
+            children: [
+              for (final b in bands)
+                RadioListTile<String>(
+                  value: b.id,
+                  title: Text(b.name),
+                  // Two identical AK-08B advertisements are otherwise the same
+                  // row twice; the id and the signal are what tell her which one
+                  // is the watch on the table in front of her.
+                  subtitle: Text(
+                    '${b.id} · ${l.t(isStrongSignal(b.rssi) ? 'onb_pair_signal_strong' : 'onb_pair_signal_weak')}',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// An amber "something needs attention" plate — the spec's «плашка-внимание».
+/// Amber, never red: «Красный только SOS», and a radio that is switched off is
+/// not an emergency.
+class _StatePlate extends StatelessWidget {
+  final String title;
+  final String body;
+  const _StatePlate({super.key, required this.title, required this.body});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Ds.pastelButter,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                  color: Palette.amber,
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.priority_high_rounded,
+                  size: 19, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Ds.amberText)),
+                  const SizedBox(height: 2),
+                  Text(body,
+                      style: const TextStyle(
+                          fontSize: 13.5, height: 1.45, color: Ds.amberText)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _RetryButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  const _RetryButton(
+      {required this.label, required this.onTap, this.icon = Icons.refresh_rounded});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: onTap,
+            icon: Icon(icon, size: 18),
+            label: Text(label),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Palette.violetText,
+              minimumSize: const Size.fromHeight(52),
+              side: BorderSide(color: Palette.violet.withValues(alpha: 0.45)),
+            ),
+          ),
+        ),
+      );
 }
 
 class _ChildPage extends StatelessWidget {

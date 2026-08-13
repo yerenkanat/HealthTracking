@@ -921,6 +921,49 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cry_history_title': {AppLocale.ru: 'Недавние проверки', AppLocale.kk: 'Соңғы тексерулер', AppLocale.en: 'Recent checks'},
   'cry_last': {AppLocale.ru: 'Последняя проверка: {reason}', AppLocale.kk: 'Соңғы тексеру: {reason}', AppLocale.en: 'Last check: {reason}'},
 
+  // Кадр 17c. Below the served threshold the screen names NO reason. «Голод» at
+  // 31 % reads to a mother exactly like «Голод» at 91 %, and she acts on it the
+  // same way — so the honest answer is that we do not know, plus the one thing
+  // that helps: a quieter recording.
+  'cry_unsure_title': {AppLocale.ru: 'Причина не определена', AppLocale.kk: 'Себебі анықталмады', AppLocale.en: 'No reason determined'},
+  'cry_unsure_headline': {AppLocale.ru: 'Не уверены', AppLocale.kk: 'Сенімді емеспіз', AppLocale.en: 'Not sure'},
+  'cry_unsure_body': {
+    AppLocale.ru: 'Уверенности слишком мало, чтобы называть причину. Ниже — как распределились вероятности. Запишите ещё раз в тишине, ближе к малышу.',
+    AppLocale.kk: 'Себебін атау үшін сенімділік тым аз. Төменде — ықтималдықтардың таралуы. Тыныштықта, балаға жақынырақ қайта жазыңыз.',
+    AppLocale.en: 'Too little confidence to name a reason. The spread is below. Record again somewhere quiet, closer to the baby.',
+  },
+  // «Это было верно?» — the only ground truth this product has about why a baby
+  // cried. Without it every accuracy figure in the back office would be the
+  // model's own confidence wearing a different word.
+  'cry_verdict_q': {AppLocale.ru: 'Это было верно?', AppLocale.kk: 'Бұл дұрыс па еді?', AppLocale.en: 'Was this right?'},
+  'cry_verdict_hint': {
+    AppLocale.ru: 'Ваш ответ — единственный способ узнать, насколько подсказка попадает. Он ни на что не влияет прямо сейчас.',
+    AppLocale.kk: 'Сіздің жауабыңыз — кеңестің қаншалықты дәл екенін білудің жалғыз жолы. Ол дәл қазір ештеңеге әсер етпейді.',
+    AppLocale.en: 'Your answer is the only way to know how well the hint works. It changes nothing right now.',
+  },
+  'cry_verdict_yes': {AppLocale.ru: 'Да', AppLocale.kk: 'Иә', AppLocale.en: 'Yes'},
+  'cry_verdict_no': {AppLocale.ru: 'Нет', AppLocale.kk: 'Жоқ', AppLocale.en: 'No'},
+  'cry_verdict_which': {AppLocale.ru: 'А что было на самом деле?', AppLocale.kk: 'Шын мәнінде не болды?', AppLocale.en: 'What was it actually?'},
+  'cry_verdict_dont_know': {AppLocale.ru: 'Не знаю', AppLocale.kk: 'Білмеймін', AppLocale.en: 'I don’t know'},
+  'cry_verdict_thanks': {AppLocale.ru: 'Спасибо, записали', AppLocale.kk: 'Рақмет, жазып алдық', AppLocale.en: 'Thank you — noted'},
+  'cry_verdict_why': {
+    AppLocale.ru: 'По таким ответам мы считаем точность подсказок. Записи плача при этом не сохраняются.',
+    AppLocale.kk: 'Осындай жауаптар бойынша кеңестердің дәлдігін есептейміз. Жылау жазбалары сақталмайды.',
+    AppLocale.en: 'Answers like this are how we measure the hint’s accuracy. The recordings themselves are not kept.',
+  },
+  'cry_verdict_failed': {
+    AppLocale.ru: 'Не удалось сохранить ответ. Попробуйте ещё раз — пока он никуда не записан.',
+    AppLocale.kk: 'Жауапты сақтау мүмкін болмады. Қайта көріңіз — ол әзірге ешқайда жазылмаған.',
+    AppLocale.en: 'Could not save your answer. Try again — nothing has been recorded yet.',
+  },
+  'cry_verdict_was_right': {AppLocale.ru: 'Вы отметили: верно', AppLocale.kk: 'Сіз белгіледіңіз: дұрыс', AppLocale.en: 'You marked this right'},
+  'cry_verdict_was_wrong': {AppLocale.ru: 'Вы отметили: неверно', AppLocale.kk: 'Сіз белгіледіңіз: дұрыс емес', AppLocale.en: 'You marked this wrong'},
+  'cry_verdict_was_wrong_actual': {
+    AppLocale.ru: 'Вы отметили: неверно, было «{reason}»',
+    AppLocale.kk: 'Сіз белгіледіңіз: дұрыс емес, «{reason}» болған',
+    AppLocale.en: 'You marked this wrong — it was “{reason}”',
+  },
+
   // Permission priming — a plain-language "why" shown before the OS prompt, so
   // a denial (which the OS then remembers for good) is far less likely.
   'prime_continue': {AppLocale.ru: 'Продолжить', AppLocale.kk: 'Жалғастыру', AppLocale.en: 'Continue'},
@@ -1086,6 +1129,12 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'visit_period': {AppLocale.ru: 'За последние {n} дней', AppLocale.kk: 'Соңғы {n} күн', AppLocale.en: 'Last {n} days'},
   'visit_vitals': {AppLocale.ru: 'ПОКАЗАТЕЛИ ({n} измерений)', AppLocale.kk: 'КӨРСЕТКІШТЕР ({n} өлшем)', AppLocale.en: 'VITALS ({n} readings)'},
   'visit_avg': {AppLocale.ru: 'сред.', AppLocale.kk: 'орт.', AppLocale.en: 'avg'},
+  // Names the instrument on the temperature row of a page a doctor reads. The
+  // row exists ONLY for readings she measured and typed in — device estimates
+  // never reach this summary (visit_summary.dart says why) — so this states a
+  // fact about the number rather than warning about it, and no wording here may
+  // suggest the app measured anything.
+  'visit_temp_thermometer': {AppLocale.ru: 'измерено термометром, введено вручную', AppLocale.kk: 'термометрмен өлшенген, қолмен енгізілген', AppLocale.en: 'measured with a thermometer, entered by hand'},
   'visit_meds': {AppLocale.ru: 'ВИТАМИНЫ И ЛЕКАРСТВА', AppLocale.kk: 'ДӘРУМЕНДЕР МЕН ДӘРІЛЕР', AppLocale.en: 'MEDICATIONS'},
   'visit_weight': {AppLocale.ru: 'ВЕС', AppLocale.kk: 'САЛМАҚ', AppLocale.en: 'WEIGHT'},
   'visit_since_start': {AppLocale.ru: 'с начала', AppLocale.kk: 'басынан', AppLocale.en: 'since start'},
@@ -3488,6 +3537,119 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.ru: 'Обнаружен серьёзный признак. Немедленно обратитесь за медицинской помощью.',
     AppLocale.kk: 'Елеулі белгі анықталды. Дереу медициналық көмекке жүгініңіз.',
     AppLocale.en: 'A serious sign was detected. Please seek medical help immediately.'
+  },
+
+  // ---- Onboarding · the pairing step, once it can tell its states apart ----
+  //
+  // The page had two sentences for six situations: «Поиск устройств…» and a
+  // list. With Bluetooth off it showed the first one for ever, and nothing on
+  // the screen was about the phone — which is the only thing she could have
+  // fixed. Each key below belongs to exactly one state of [BandScanPhase]; the
+  // wording says what happened and what to do, and none of it promises that the
+  // app will notice anything on her behalf.
+  //
+  // `onb_pair_body` («Выберите ваш браслет из списка») is kept and now shown
+  // ONLY in the state where a list exists; `onb_pair_hint` is what leads every
+  // other state, because "pick from the list" over an empty area is the sentence
+  // that made the step read as broken.
+  'onb_pair_hint': {
+    AppLocale.ru: 'Включите браслет и держите его рядом с телефоном.',
+    AppLocale.kk: 'Білезікті қосып, телефонның қасында ұстаңыз.',
+    AppLocale.en: 'Switch the band on and keep it near the phone.'
+  },
+  'onb_pair_scanning_more': {
+    AppLocale.ru: 'Ищем ещё…',
+    AppLocale.kk: 'Іздеу жалғасуда…',
+    AppLocale.en: 'Still looking…'
+  },
+  'onb_pair_none_title': {
+    AppLocale.ru: 'Рядом ничего не нашли',
+    AppLocale.kk: 'Жақын маңнан ештеңе табылмады',
+    AppLocale.en: 'Nothing found nearby'
+  },
+  'onb_pair_none_body': {
+    AppLocale.ru: 'Проверьте: браслет заряжен и включён, лежит рядом с телефоном и не подключён к другому телефону.',
+    AppLocale.kk: 'Тексеріңіз: білезік зарядталған және қосулы, телефонның қасында тұр және басқа телефонға жалғанбаған.',
+    AppLocale.en: 'Check that the band is charged and switched on, is next to the phone, and is not connected to another phone.'
+  },
+  'onb_pair_retry': {
+    AppLocale.ru: 'Искать снова',
+    AppLocale.kk: 'Қайта іздеу',
+    AppLocale.en: 'Search again'
+  },
+  'onb_pair_bt_off_title': {
+    AppLocale.ru: 'Bluetooth выключен',
+    AppLocale.kk: 'Bluetooth өшірулі',
+    AppLocale.en: 'Bluetooth is off'
+  },
+  'onb_pair_bt_off_body': {
+    AppLocale.ru: 'Без него телефон не видит браслет.',
+    AppLocale.kk: 'Онсыз телефон білезікті көрмейді.',
+    AppLocale.en: 'Without it the phone cannot see the band.'
+  },
+  'onb_pair_bt_on': {
+    AppLocale.ru: 'Включить Bluetooth',
+    AppLocale.kk: 'Bluetooth қосу',
+    AppLocale.en: 'Turn Bluetooth on'
+  },
+  'onb_pair_perm_title': {
+    AppLocale.ru: 'Нужен доступ к Bluetooth',
+    AppLocale.kk: 'Bluetooth-қа рұқсат керек',
+    AppLocale.en: 'Bluetooth permission is needed'
+  },
+  'onb_pair_perm_body': {
+    AppLocale.ru: 'Разрешите в настройках телефона — искать браслет без этого нельзя. Мы не определяем ваше местоположение.',
+    AppLocale.kk: 'Телефон параметрлерінен рұқсат беріңіз — онсыз білезікті іздеу мүмкін емес. Біз сіздің орналасқан жеріңізді анықтамаймыз.',
+    AppLocale.en: 'Allow it in your phone settings — the band cannot be found without it. We do not use your location.'
+  },
+  'onb_pair_unsupported_title': {
+    AppLocale.ru: 'На этом телефоне нет Bluetooth',
+    AppLocale.kk: 'Бұл телефонда Bluetooth жоқ',
+    AppLocale.en: 'This phone has no Bluetooth'
+  },
+  'onb_pair_unsupported_body': {
+    AppLocale.ru: 'Браслет подключить не получится. Всё остальное в приложении работает так же.',
+    AppLocale.kk: 'Білезікті қосу мүмкін болмайды. Қосымшадағы қалғанының бәрі бұрынғыдай жұмыс істейді.',
+    AppLocale.en: 'A band cannot be paired here. Everything else in the app works the same.'
+  },
+  'onb_pair_failed_title': {
+    AppLocale.ru: 'Поиск не запустился',
+    AppLocale.kk: 'Іздеу басталмады',
+    AppLocale.en: 'The search did not start'
+  },
+  'onb_pair_failed_body': {
+    AppLocale.ru: 'Телефон не смог включить поиск. Попробуйте ещё раз.',
+    AppLocale.kk: 'Телефон іздеуді бастай алмады. Қайталап көріңіз.',
+    AppLocale.en: 'The phone could not start the search. Please try again.'
+  },
+  'onb_pair_signal_strong': {
+    AppLocale.ru: 'сигнал сильный',
+    AppLocale.kk: 'сигнал күшті',
+    AppLocale.en: 'strong signal'
+  },
+  'onb_pair_signal_weak': {
+    AppLocale.ru: 'сигнал слабый',
+    AppLocale.kk: 'сигнал әлсіз',
+    AppLocale.en: 'weak signal'
+  },
+  // «Пропустить» said nothing about what she was skipping, on the one step
+  // where the answer «у меня его нет» is the ordinary one, not the exception.
+  'onb_pair_no_device': {
+    AppLocale.ru: 'Пока нет — буду записывать вручную',
+    AppLocale.kk: 'Әзірге жоқ — қолмен жазып отырамын',
+    AppLocale.en: 'Not yet — I will log by hand'
+  },
+  'onb_pair_manual_title': {
+    AppLocale.ru: 'Записывайте вручную',
+    AppLocale.kk: 'Қолмен жазып отырыңыз',
+    AppLocale.en: 'Log it by hand'
+  },
+  // No arrow glyph: Rubik has no U+2192, and it is the only face with the full
+  // Kazakh set — «Настройки → Устройства» renders as a tofu box in Kazakh.
+  'onb_pair_manual_body': {
+    AppLocale.ru: 'Давление, вес и сон вы вводите сами — дневник, календари и напоминания те же самые. Браслет можно подключить в любой момент в разделе «Настройки», пункт «Устройства».',
+    AppLocale.kk: 'Қысым, салмақ және ұйқыны өзіңіз енгізесіз — күнделік, күнтізбелер мен еске салғыштар сол күйінде. Білезікті кез келген уақытта «Параметрлер» бөліміндегі «Құрылғылар» тармағынан қосуға болады.',
+    AppLocale.en: 'You enter blood pressure, weight and sleep yourself — the diary, the calendars and the reminders are the same. You can pair a band at any time in Settings, under Devices.'
   },
 };
 

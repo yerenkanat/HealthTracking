@@ -7,6 +7,8 @@
 /// The active L10n is provided to the whole tree via L10nScope.
 library;
 
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -137,9 +139,16 @@ class FcsApp extends StatelessWidget {
         // back to its skip line when `scanBands` is null, and nothing has ever
         // passed one. The id she picks is persisted as her paired band and is
         // what the watch link reconnects to and stamps on every reading.
-        // TODO(design): the page has no copy for "scanned, found nothing" — it
-        // shows the scanning line for ever. Wording is design's call.
+        //
+        // The scan now reports WHY it has nothing (BandScanUpdate), which is
+        // what let the page stop showing one spinner for radio-off, permission
+        // declined, no-watch-nearby and window-not-elapsed alike.
         scanBands: scanForBands,
+        // «Включить Bluetooth» on the radio-off state. Android only: iOS has no
+        // API for it, so on iOS the page offers «Искать снова» instead of a
+        // button that would do nothing. Platform.isAndroid rather than a
+        // try/catch, so the button is absent rather than failing when pressed.
+        onEnableBluetooth: Platform.isAndroid ? requestBluetoothOn : null,
       );
     }
     // Returning user, but the privacy policy / terms changed since they last

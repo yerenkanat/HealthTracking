@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:fcs_app/ble/band_scan.dart';
 import 'package:fcs_app/core/geofence.dart';
 import 'package:fcs_app/data/device_location.dart';
 import 'package:fcs_app/domain/onboarding_controller.dart';
@@ -180,5 +181,75 @@ void main() {
     expect(result!.profile.e164, '+77001234567');
     expect(result!.child!.name, 'Sultan');
     expect(result!.child!.geofences.any((f) => f.name == 'Home'), isTrue);
+  });
+
+  /// The real radio, on a real handset, with no watch anywhere near it.
+  ///
+  /// The widget suite drives every [BandScanPhase] through an injected stream,
+  /// which proves the page can draw them. It cannot prove the thing that was
+  /// actually broken: that the SCAN ever leaves «Поиск устройств…». It never
+  /// did — an empty list was its answer to Bluetooth being off, to the
+  /// permission being declined, and to nothing being nearby alike, so the
+  /// spinner ran until she gave up.
+  ///
+  /// Only a device can settle that, and it is deliberately not asserted WHICH
+  /// reason this machine gives: an emulator with no Bluetooth stack, a phone
+  /// with the radio off and a phone in an empty room are three different true
+  /// answers. What must hold on all of them is that the page stops spinning,
+  /// names something, and offers a way on.
+  testWidgets('the pairing step stops spinning and says what happened',
+      (tester) async {
+    await tester.pumpWidget(L10nScope(
+      l10n: const L10n(AppLocale.en),
+      child: MaterialApp(
+        home: OnboardingFlow(
+          controller: OnboardingController(initialLocale: AppLocale.en),
+          onComplete: (_) {},
+          // The real scan, on a short window so the test does not sit through
+          // the production fifteen seconds.
+          scanBands: () => scanForBands(timeout: const Duration(seconds: 3)),
+        ),
+      ),
+    ));
+    await tester.pump();
+    await toProfile(tester);
+    await tester.enterText(find.byType(TextField).first, 'Aigerim');
+    await tester.enterText(find.byType(TextField).last, '7001234567');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Next'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Next'));
+    // pump, NOT pumpAndSettle: the scanning state carries an indeterminate
+    // progress indicator and pumpAndSettle would wait for it for ever — which
+    // is a fair description of the defect this test exists for.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Pair your band'), findsOneWidget);
+
+    // Let the window close, plus a margin for the platform round-trip.
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
+    final settled = [
+      const Key('onb-pair-none'),
+      const Key('onb-pair-bluetooth-off'),
+      const Key('onb-pair-permission'),
+      const Key('onb-pair-unsupported'),
+      const Key('onb-pair-failed'),
+    ].where((k) => find.byKey(k).evaluate().isNotEmpty).toList();
+
+    // Either it found a watch (somebody left one on the desk) or it settled on
+    // exactly one reason. What it may NOT do is neither.
+    final foundAWatch = find.byType(RadioListTile<String>).evaluate().isNotEmpty;
+    expect(foundAWatch || settled.length == 1, isTrue,
+        reason: 'the scan is still showing the scanning line after its window '
+            'closed — the state it could never leave');
+
+    if (!foundAWatch) {
+      // A reason, and a way on. «Пока нет — буду записывать вручную» is always
+      // there; a retry is offered wherever retrying could change the answer.
+      expect(find.byKey(const Key('onb-pair-no-device')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    }
   });
 }
