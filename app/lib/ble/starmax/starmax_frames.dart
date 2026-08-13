@@ -73,8 +73,23 @@ class StarmaxHealthSnapshot {
     required this.breathRate,
   });
 
-  /// Temperature in °C, or null when unknown. The device sends tenths.
-  double? get tempCelsius => tempRaw == 0 ? null : tempRaw / 10.0;
+  /// Temperature in °C, or null when unknown or not credible. The device sends
+  /// tenths.
+  ///
+  /// PLAUSIBILITY-GATED, on the same 20–45 °C window the OEM band path has
+  /// always applied (`band_parser.dart`). [tempRaw] is a u16 off an external
+  /// device, so a corrupt or misaligned frame reading 4000 became 400 °C and,
+  /// until this gate existed, went straight into triage and took over the
+  /// screen. A parser rejects; it never passes an impossible number on for
+  /// someone else to disbelieve.
+  ///
+  /// The window is a CREDIBILITY bound, not a clinical one — it deliberately
+  /// keeps every temperature a person can have, including the alarming ones.
+  double? get tempCelsius {
+    if (tempRaw == 0) return null; // the device's "not measured"
+    final c = tempRaw / 10.0;
+    return (c >= 20 && c <= 45) ? c : null;
+  }
 }
 
 /// Decode a frame-141 payload. Later firmware appends fields; every one past

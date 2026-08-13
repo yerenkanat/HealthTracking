@@ -7,7 +7,9 @@
 /// and the emergency alert can never disagree.
 library;
 
-import '../core/triage.dart' show TriageThresholds;
+import '../core/triage.dart' show BandTelemetry, ReadingSource, TriageThresholds;
+
+export '../core/triage.dart' show ReadingSource;
 
 class HealthSample {
   final DateTime at;
@@ -15,10 +17,29 @@ class HealthSample {
   final double? spo2;
   final double? systolic;
   final double? diastolic;
+
+  /// The temperature reading, in °C.
+  ///
+  /// The name predates provenance and is now only half true: for a
+  /// [ReadingSource.manual] sample it is a thermometer reading, for a
+  /// [ReadingSource.sensor] one it is a DEVICE ESTIMATE — either the OEM band's
+  /// converted skin reading or the watch's uncalibrated `deviceTempC`. Nothing
+  /// may say anything about her body from this field without reading [source]
+  /// first; see health_advisor.dart.
   final double? coreTemp;
   final double? glucose; // mmol/L. A wellness estimate (band optical / manual),
   // graded by the advisor — deliberately NOT a triage/emergency vital.
   final bool duringSleep;
+
+  /// Where the numbers came from — a sensor on her wrist, or a measurement she
+  /// took and typed in.
+  ///
+  /// Defaults to [ReadingSource.manual] for the same reason [BandTelemetry]
+  /// does: the only hand-built samples in the app are the typed ones, and every
+  /// device path states its provenance explicitly (pinned by test). [fromJson]
+  /// deliberately defaults the other way.
+  final ReadingSource source;
+
   const HealthSample({
     required this.at,
     this.heartRate,
@@ -28,7 +49,12 @@ class HealthSample {
     this.coreTemp,
     this.glucose,
     this.duringSleep = false,
+    this.source = ReadingSource.manual,
   });
+
+  /// True when nothing here was measured by her — so no card may assert what
+  /// her body is doing on the strength of it.
+  bool get isDeviceEstimate => source != ReadingSource.manual;
 
   /// Mirrors [fromJson]'s wire names so a persisted sample reads back identically.
   /// Null metrics are omitted — a reading rarely carries every field.
@@ -41,8 +67,15 @@ class HealthSample {
         if (coreTemp != null) 'coreTempC': coreTemp,
         if (glucose != null) 'glucoseMmol': glucose,
         if (duringSleep) 'duringSleep': true,
+        // Always written, never conditional: an absent key means "unknown", and
+        // that has to keep meaning what it means below.
+        'source': BandTelemetry.sourceToWire(source),
       };
 
+  /// A row with no `source` predates the field, and cannot be shown to have
+  /// come off a thermometer — so it is read as a device estimate, which neither
+  /// escalates nor reassures. Assuming manual would restore the exact defect
+  /// this field was added to remove, on every stored row at once.
   factory HealthSample.fromJson(Map<String, dynamic> j) => HealthSample(
         at: DateTime.parse(j['recordedAt'] as String),
         heartRate: (j['heartRateBpm'] as num?)?.toDouble(),
@@ -52,6 +85,7 @@ class HealthSample {
         coreTemp: (j['coreTempC'] as num?)?.toDouble(),
         glucose: (j['glucoseMmol'] as num?)?.toDouble(),
         duringSleep: (j['duringSleep'] as bool?) ?? false,
+        source: BandTelemetry.sourceFromWire(j['source']),
       );
 }
 

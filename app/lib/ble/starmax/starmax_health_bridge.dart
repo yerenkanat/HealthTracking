@@ -47,7 +47,13 @@ WearableMetrics wearableMetricsFromSnapshot(StarmaxHealthSnapshot s, DateTime at
 /// carrying it cannot raise an emergency.
 BandTelemetry bandTelemetryFromSnapshot(StarmaxHealthSnapshot s) {
   return BandTelemetry(
-    coreTempC: s.tempCelsius, // already null when unknown
+    // NOT coreTempC. The vendor names the quantity (`当前体温`) and states
+    // neither a measurement site nor an accuracy, so there is no defensible
+    // conversion to a core estimate — and applying the OEM band's
+    // `skinToCoreTempC` to it would be inventing a calibration, which is worse
+    // than leaving it raw. It rides along like glucose: carried to the server,
+    // shown, graded, never triaged. See docs/CLINICAL-REVIEW-WATCH.md.
+    deviceTempC: s.tempCelsius, // null when unknown or out of the plausible band
     heartRateBpm: _nz(s.heartRate),
     spo2Pct: _nz(s.bloodOxygen),
     systolicMmHg: _nz(s.bpSystolic),
@@ -55,6 +61,10 @@ BandTelemetry bandTelemetryFromSnapshot(StarmaxHealthSnapshot s) {
     glucoseMmol: s.bloodSugar == 0 ? null : s.bloodSugar / 10.0,
     // The snapshot has no sleep flag; the daytime path never claims sleep.
     duringSleep: false,
+    // A watch measured this, not a woman with a thermometer. Stated rather than
+    // defaulted: the fever rule branches on it, and the whole point of the
+    // branch is that this side of it may warn and may not escalate.
+    source: ReadingSource.sensor,
   );
 }
 

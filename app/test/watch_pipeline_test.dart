@@ -27,7 +27,6 @@ import 'package:fcs_app/ble/watch_identity.dart';
 import 'package:fcs_app/core/triage.dart';
 import 'package:fcs_app/data/api_client.dart' show IngestSummary;
 import 'package:fcs_app/data/sync_push.dart';
-import 'package:fcs_app/domain/emergency_confirmation.dart' show ReadingSource;
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/health_monitor.dart';
 import 'package:fcs_app/domain/health_series.dart';

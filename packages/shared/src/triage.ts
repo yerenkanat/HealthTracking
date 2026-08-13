@@ -107,8 +107,36 @@ export function assessTelemetry(t: BandTelemetry): TriageResult {
   }
 
   // --- Fever -------------------------------------------------------------
+  //
+  // BRANCHES ON PROVENANCE, and the twin in app/lib/core/triage.dart does the
+  // same. See docs/CLINICAL-REVIEW-WATCH.md, "Device temperature — closed
+  // 2026-08-13": no device path may raise `emergency`, not because a wrist
+  // sensor is imprecise but because the error source the conversion would have
+  // to correct for — the room, the bedding, the strap — is not one of its
+  // inputs. That error is systematic, not transient, so a repeat reading
+  // confirms it rather than filtering it out.
+  //
+  // `source` absent means a device: the historical case, and the one that must
+  // not escalate. A thermometer reading typed in ('manual') is UNCHANGED, at
+  // full emergency weight — it is the one temperature this product is entitled
+  // to escalate on, and the device branch's job is to route her to it.
   if (typeof t.coreTempC === 'number') {
-    if (t.coreTempC >= T.FEVER_EMERGENCY_C) {
+    if (t.source !== 'manual') {
+      if (t.coreTempC >= T.FEVER_WARNING_C) {
+        findings.push({
+          // MUST NOT end in 'FEVER': the app's emergencyFamily() sweeps
+          // anything matching endsWith('FEVER') into the escalation gate, so
+          // the name is load-bearing rather than cosmetic.
+          code: 'DEVICE_TEMP_HIGH',
+          severity: 'warning',
+          metric: 'coreTempC',
+          value: t.coreTempC,
+          threshold: T.FEVER_WARNING_C,
+          message:
+            'The device estimated a raised temperature. A wrist sensor cannot tell a fever from a warm room. Take your temperature with a thermometer and enter it here; call your doctor today if it is raised or you feel unwell.',
+        });
+      }
+    } else if (t.coreTempC >= T.FEVER_EMERGENCY_C) {
       findings.push({
         code: 'HIGH_FEVER',
         severity: 'emergency',

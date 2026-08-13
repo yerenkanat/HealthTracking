@@ -37,12 +37,28 @@ export interface BandTelemetry {
    */
   deviceId: string;
   recordedAt: ISOTimestamp;
-  /** How the reading was obtained. Absent means a band, the historical case. */
+  /**
+   * How the reading was obtained. Absent means a band, the historical case.
+   *
+   * READ BY assessTelemetry: the fever rule branches on it, and absent counts
+   * as a device. Only 'manual' — a thermometer reading she typed in — can raise
+   * a temperature emergency. See docs/CLINICAL-REVIEW-WATCH.md.
+   */
   source?: 'band' | 'manual';
   /** Estimated CORE body temperature in °C (already calibrated from skin temp). */
   coreTempC?: number;
   /** Raw skin temperature in °C as read from the sensor, kept for auditing. */
   skinTempC?: number;
+  /**
+   * A temperature a device reported with no stated measurement site and no
+   * stated accuracy — the Starmax watch's `当前体温`. Deliberately NOT
+   * `coreTempC`: with no site there is no defensible conversion, and every
+   * consumer of `coreTempC` reads it as an estimated core temperature.
+   *
+   * Carried and graded, never triaged — the `glucoseMmol` precedent.
+   * assessTelemetry ignores it.
+   */
+  deviceTempC?: number;
   heartRateBpm?: number;
   spo2Pct?: number;
   /** PPG-estimated blood pressure. SCREENING ONLY — must be confirmed by a cuff. */

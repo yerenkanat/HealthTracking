@@ -212,6 +212,11 @@ class BleDeviceManager {
       systolicMmHg: sys,
       diastolicMmHg: dia,
       duringSleep: f.duringSleep ?? false,
+      // A band on her wrist measured this. Stated rather than defaulted: the
+      // fever rule branches on it, and this side of the branch warns without
+      // ever raising an emergency — the band's `skinToCoreTempC` has a stated
+      // input site and a tested conversion, but it is still a wrist.
+      source: ReadingSource.sensor,
     );
 
     // OB-GYN: triage ON-DEVICE so emergencies fire even offline.

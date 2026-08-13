@@ -1,5 +1,6 @@
 {
   "_comment": "Golden conformance vectors. BOTH the Dart app and the Node server run assessTelemetry() over these EXACT inputs and MUST produce the listed severity + forceEmergencyScreen. If the two implementations ever diverge, one language's contract test fails. This is the anti-drift guarantee for the safety-critical path.",
+  "_comment_source": "The fever cases carry `source`, because since 2026-08-13 the fever rule branches on it: a thermometer reading typed in ('manual') escalates as before, a device reading warns and never escalates, and an ABSENT source counts as a device. That last case is pinned deliberately — every stored row written before the field existed reads that way. See docs/CLINICAL-REVIEW-WATCH.md.",
   "version": 1,
   "cases": [
     { "name": "bp_140_85_emergency",      "input": { "systolicMmHg": 140, "diastolicMmHg": 85 }, "severity": "emergency", "forceEmergencyScreen": true,  "topCode": "PREECLAMPSIA_BP" },
@@ -7,8 +8,12 @@
     { "name": "bp_165_112_severe",        "input": { "systolicMmHg": 165, "diastolicMmHg": 112 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "PREECLAMPSIA_BP_SEVERE" },
     { "name": "bp_118_76_ok",             "input": { "systolicMmHg": 118, "diastolicMmHg": 76 }, "severity": "ok",        "forceEmergencyScreen": false },
     { "name": "bp_139_89_boundary_ok",    "input": { "systolicMmHg": 139, "diastolicMmHg": 89 }, "severity": "ok",        "forceEmergencyScreen": false },
-    { "name": "fever_386_emergency",      "input": { "coreTempC": 38.6 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "HIGH_FEVER" },
-    { "name": "fever_379_warning",        "input": { "coreTempC": 37.9 }, "severity": "warning",   "forceEmergencyScreen": false, "topCode": "LOW_FEVER" },
+    { "name": "fever_386_manual_emergency", "input": { "coreTempC": 38.6, "source": "manual" }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "HIGH_FEVER" },
+    { "name": "fever_379_manual_warning",   "input": { "coreTempC": 37.9, "source": "manual" }, "severity": "warning",   "forceEmergencyScreen": false, "topCode": "LOW_FEVER" },
+    { "name": "fever_386_device_warning",   "input": { "coreTempC": 38.6, "source": "band" },   "severity": "warning",   "forceEmergencyScreen": false, "topCode": "DEVICE_TEMP_HIGH" },
+    { "name": "fever_386_unlabelled_warning", "input": { "coreTempC": 38.6 },                   "severity": "warning",   "forceEmergencyScreen": false, "topCode": "DEVICE_TEMP_HIGH" },
+    { "name": "fever_379_device_warning",   "input": { "coreTempC": 37.9, "source": "band" },   "severity": "warning",   "forceEmergencyScreen": false, "topCode": "DEVICE_TEMP_HIGH" },
+    { "name": "temp_369_device_ok",         "input": { "coreTempC": 36.9, "source": "band" },   "severity": "ok",        "forceEmergencyScreen": false },
     { "name": "spo2_93_sleep_warning",    "input": { "spo2Pct": 93, "duringSleep": true }, "severity": "warning", "forceEmergencyScreen": false, "topCode": "HYPOXIA_SLEEP" },
     { "name": "spo2_93_awake_info",       "input": { "spo2Pct": 93, "duringSleep": false }, "severity": "info",   "forceEmergencyScreen": false, "topCode": "HYPOXIA_SLEEP" },
     { "name": "spo2_88_emergency",        "input": { "spo2Pct": 88 }, "severity": "emergency", "forceEmergencyScreen": true, "topCode": "HYPOXIA_SEVERE" },

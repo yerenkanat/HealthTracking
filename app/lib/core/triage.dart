@@ -9,6 +9,13 @@
 /// Flutter. Owned by the OB-GYN specialist.
 library;
 
+import '../domain/emergency_confirmation.dart' show ReadingSource;
+
+/// Re-exported so anything that already imports the triage rules can name the
+/// provenance of a reading without a second import. There is ONE vocabulary in
+/// this app for "where did this number come from", and this is it.
+export '../domain/emergency_confirmation.dart' show ReadingSource;
+
 /// Thresholds — MUST equal packages/contract/triage_thresholds.json.
 /// A contract test loads that JSON and asserts equality, so these cannot drift.
 class TriageThresholds {
@@ -50,6 +57,20 @@ String severityToString(TriageSeverity s) => s.name;
 class BandTelemetry {
   final double? coreTempC;
   final double? skinTempC;
+
+  /// A temperature a DEVICE reported with no stated measurement site and no
+  /// stated accuracy — today the Starmax watch's `当前体温`.
+  ///
+  /// Deliberately not [coreTempC]. The vendor names the quantity and nothing
+  /// else, so there is no defensible conversion to a core estimate, and
+  /// applying the band's `skinToCoreTempC` to it would be inventing a
+  /// calibration. Every consumer of `coreTempC` reads it as "estimated core
+  /// temperature"; this one has not earned that reading.
+  ///
+  /// Carried, shown and graded — never triaged, exactly like [glucoseMmol].
+  /// See docs/CLINICAL-REVIEW-WATCH.md, "Device temperature — closed
+  /// 2026-08-13".
+  final double? deviceTempC;
   final int? heartRateBpm;
   final int? spo2Pct;
   final int? systolicMmHg;
@@ -60,32 +81,65 @@ class BandTelemetry {
   final double? glucoseMmol;
   final bool duringSleep;
 
+  /// How this reading was obtained — the branch the fever rule turns on.
+  ///
+  /// Defaults to [ReadingSource.manual] because the ONLY place this class is
+  /// built by hand is the typed-reading path (`AppController.logManualVitals`);
+  /// every device path is a decoder — `band_parser`, `ble_device_manager`,
+  /// `starmax_health_bridge` — and each states [ReadingSource.sensor]
+  /// explicitly, pinned by test. The default is chosen in the direction that
+  /// cannot DISARM the one escalation this product is entitled to make: a
+  /// thermometer reading she typed in. A missing label on a device path costs a
+  /// false alarm; a missing label on the manual path would cost a real fever.
+  ///
+  /// [fromJson] deliberately defaults the other way — see there.
+  final ReadingSource source;
+
   const BandTelemetry({
     this.coreTempC,
     this.skinTempC,
+    this.deviceTempC,
     this.heartRateBpm,
     this.spo2Pct,
     this.systolicMmHg,
     this.diastolicMmHg,
     this.glucoseMmol,
     this.duringSleep = false,
+    this.source = ReadingSource.manual,
   });
+
+  /// Wire name for [source]. 'band' is the server's word for "a device
+  /// measured this" (`packages/shared/src/types.ts`), and one vocabulary on the
+  /// wire is worth more than a prettier one.
+  static String sourceToWire(ReadingSource s) =>
+      s == ReadingSource.manual ? 'manual' : 'band';
+
+  /// Anything that is not explicitly 'manual' — including ABSENT — is read as a
+  /// device reading. A row written before provenance existed cannot be shown to
+  /// have come off a thermometer, and the safe interpretation of an unlabelled
+  /// temperature is the one that neither escalates nor reassures.
+  static ReadingSource sourceFromWire(Object? v) =>
+      v == 'manual' ? ReadingSource.manual : ReadingSource.sensor;
 
   factory BandTelemetry.fromJson(Map<String, dynamic> j) => BandTelemetry(
         coreTempC: (j['coreTempC'] as num?)?.toDouble(),
         skinTempC: (j['skinTempC'] as num?)?.toDouble(),
+        deviceTempC: (j['deviceTempC'] as num?)?.toDouble(),
         heartRateBpm: (j['heartRateBpm'] as num?)?.toInt(),
         spo2Pct: (j['spo2Pct'] as num?)?.toInt(),
         systolicMmHg: (j['systolicMmHg'] as num?)?.toInt(),
         diastolicMmHg: (j['diastolicMmHg'] as num?)?.toInt(),
         glucoseMmol: (j['glucoseMmol'] as num?)?.toDouble(),
         duringSleep: (j['duringSleep'] as bool?) ?? false,
+        source: sourceFromWire(j['source']),
       );
 
   /// Sensor fields only (no deviceId/recordedAt — the transport layer stamps those).
   Map<String, dynamic> toJson() => {
         if (coreTempC != null) 'coreTempC': coreTempC,
         if (skinTempC != null) 'skinTempC': skinTempC,
+        if (deviceTempC != null) 'deviceTempC': deviceTempC,
+        'source': sourceToWire(source),
         if (heartRateBpm != null) 'heartRateBpm': heartRateBpm,
         if (spo2Pct != null) 'spo2Pct': spo2Pct,
         if (systolicMmHg != null) 'systolicMmHg': systolicMmHg,
@@ -152,8 +206,34 @@ TriageResult assessTelemetry(BandTelemetry t) {
   }
 
   // --- Fever ---
+  //
+  // BRANCHES ON PROVENANCE, and the twin in packages/shared/src/triage.ts does
+  // the same. See docs/CLINICAL-REVIEW-WATCH.md, "Device temperature — closed
+  // 2026-08-13": no device path may raise `emergency`, not because a wrist
+  // sensor is imprecise but because the error source the conversion would have
+  // to correct for — the room, the bedding, the strap — is not one of its
+  // inputs, and that error is systematic rather than transient, so the
+  // two-minute confirmation gate confirms it rather than filtering it.
+  //
+  // A thermometer reading she typed in is unchanged, at full emergency weight.
+  // It is the one temperature this product is entitled to escalate on, and the
+  // device branch's job is to route her to it.
   if (t.coreTempC != null) {
-    if (t.coreTempC! >= TriageThresholds.feverEmergencyC) {
+    if (t.source != ReadingSource.manual) {
+      if (t.coreTempC! >= TriageThresholds.feverWarningC) {
+        findings.add(TriageFinding(
+          // MUST NOT end in 'FEVER': emergencyFamily() sweeps anything matching
+          // endsWith('FEVER') into the escalation gate. The name is load-bearing.
+          code: 'DEVICE_TEMP_HIGH',
+          severity: TriageSeverity.warning,
+          metric: 'coreTempC',
+          value: t.coreTempC,
+          threshold: TriageThresholds.feverWarningC,
+          message:
+              'The device estimated a raised temperature. A wrist sensor cannot tell a fever from a warm room. Take your temperature with a thermometer and enter it here; call your doctor today if it is raised or you feel unwell.',
+        ));
+      }
+    } else if (t.coreTempC! >= TriageThresholds.feverEmergencyC) {
       findings.add(TriageFinding(
         code: 'HIGH_FEVER',
         severity: TriageSeverity.emergency,

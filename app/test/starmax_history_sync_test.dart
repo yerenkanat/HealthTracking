@@ -18,6 +18,8 @@ import 'package:fcs_app/ble/starmax/starmax_client.dart';
 import 'package:fcs_app/ble/starmax/starmax_history.dart';
 import 'package:fcs_app/ble/starmax/starmax_history_sync.dart';
 import 'package:fcs_app/ble/starmax/starmax_protocol.dart';
+import 'package:fcs_app/domain/health_advisor.dart';
+import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/domain/wearable_day.dart';
 
 late Map<String, dynamic> _golden;
@@ -274,6 +276,23 @@ void main() {
     expect(report.samples.every((s) => s.heartRate != null), isTrue);
     final days = report.samples.map((s) => DateTime(s.at.year, s.at.month, s.at.day)).toSet();
     expect(days, {DateTime(2026, 8, 9), DateTime(2026, 8, 10)});
+    // A watch recorded these, and they land on the same chart the advisor reads.
+    // Unlabelled they would read as hand-measured, and a backfilled day of wrist
+    // estimates would earn «температура держится ровно» — the reassurance the
+    // 2026-08-13 clinical review refused (#15), arriving by the back door.
+    expect(report.samples.every((s) => s.source == ReadingSource.sensor), isTrue);
+    expect(
+        generateAdvisories(report.samples).map((a) => a.code),
+        isNot(contains('ADV_TEMP_STEADY')));
+  });
+
+  test('a corrupt temperature in the history is dropped, not charted', () async {
+    // The history stream carries u16 tenths off the same external device as the
+    // live frame: 4000 is 400 °C. Same 20–45 °C window the band path applies.
+    final w = _HotWatch([DateTime(2026, 8, 10)]);
+    final report = await syncStarmaxHistory(w, maxDays: 7);
+    expect(report.samples, isNotEmpty);
+    expect(report.samples.every((s) => s.coreTemp == null), isTrue);
   });
 
   test('a day the watch lists but has no samples for is not filed as a zero day', () async {
@@ -350,6 +369,30 @@ void main() {
     expect(wire.containsKey('batteryPercent'), isFalse);
     expect(wire['worn'], false);
   });
+}
+
+/// A watch whose temperature stream is corrupt — 4000 tenths, i.e. 400 °C.
+class _HotWatch implements StarmaxHistoryReader {
+  final List<DateTime> dates;
+  _HotWatch(this.dates);
+  @override
+  Future<List<DateTime>> readValidHistoryDates(StarmaxHistoryType type) async =>
+      type == StarmaxHistoryType.temp || type == StarmaxHistoryType.heartRate
+          ? dates
+          : const [];
+  @override
+  Future<StarmaxDaySeries?> readDaySeries(StarmaxHistoryType t, DateTime d) async =>
+      StarmaxDaySeries(
+        StarmaxHistoryHeader(status: 0, intervalMinutes: 60, date: d, dataLength: 4),
+        [
+          for (var i = 0; i < 4; i++)
+            StarmaxSample(i * 60.0, t == StarmaxHistoryType.temp ? 4000 : 70)
+        ],
+      );
+  @override
+  Future<StarmaxBpDay?> readBloodPressureDay(DateTime d) async => null;
+  @override
+  Future<StarmaxStepDay?> readStepDay(DateTime d) async => null;
 }
 
 class _EmptyWatch implements StarmaxHistoryReader {

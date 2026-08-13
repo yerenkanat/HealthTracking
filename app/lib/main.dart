@@ -229,6 +229,9 @@ void _seedDemo(AppController c) {
         diastolic: (74 + i ~/ 3).toDouble(),
         coreTemp: 36.5 + (i % 3) * 0.1,
         duringSleep: i < 4,
+        // Band samples, so the demo shows what a band actually earns — which
+        // for temperature is silence, not «держится ровно».
+        source: ReadingSource.sensor,
       ),
   ];
   c.debugSeed(samples);

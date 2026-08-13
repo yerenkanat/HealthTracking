@@ -3432,6 +3432,27 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ago_hour': {AppLocale.ru: '{n} ч назад', AppLocale.kk: '{n} сағ бұрын', AppLocale.en: '{n} h ago'},
   'ago_day': {AppLocale.ru: '{n} дн назад', AppLocale.kk: '{n} күн бұрын', AppLocale.en: '{n} d ago'},
 
+  // ---- Device-estimated temperature -----------------------------------------
+  // Approved copy, 2026-08-13. Do not rewrite: a rewrite voids the approval.
+  //
+  // Three rules are carried by the wording rather than by a comment, so read
+  // before editing (docs/CLINICAL-REVIEW-WATCH.md):
+  //   * the subject is the SENSOR, never her temperature. ADV_TEMP_ELEVATED
+  //     asserts «Температура повышена» and tells her to «измерьте снова» without
+  //     naming an instrument — off a wrist, re-reading it is not a second
+  //     measurement. Refused sentence #16.
+  //   * the escalation is «позвоните врачу сегодня», NOT 103: emergency_help.json
+  //     reserves 103 for lethargy and unresponsiveness.
+  //   * no number. 37.8 and 38.5 have no cited source for pregnancy anywhere in
+  //     this repo, so no user-facing string may state either.
+  'ADV_TEMP_DEVICE_HIGH': {AppLocale.ru: 'Датчик показывает повышенную температуру', AppLocale.kk: 'Датчик жоғары дене қызуын көрсетті', AppLocale.en: 'The sensor is reading a raised temperature'},
+  'ADV_TEMP_DEVICE_HIGH_b': {AppLocale.ru: 'Это оценка датчика на запястье, а не измерение. Измерьте температуру термометром под мышкой и введите результат в приложении. Если термометр тоже показывает повышенную температуру или вы плохо себя чувствуете — позвоните врачу сегодня.', AppLocale.kk: 'Бұл — қолыңыздағы датчиктің болжамы, нақты өлшем емес. Дене қызуын термометрмен қолтық астынан өлшеп, нәтижесін қолданбаға енгізіңіз. Термометр де жоғары қызуды көрсетсе немесе өзіңізді нашар сезінсеңіз — бүгін дәрігерге хабарласыңыз.', AppLocale.en: 'This is a wrist-sensor estimate, not a measurement. Take your temperature with a thermometer under your arm and enter the result in the app. If the thermometer also shows a raised temperature, or you feel unwell, call your doctor today.'},
+  // Sits next to the number on the vitals grid — the place the claim is made.
+  // States a limitation and stops there: «если что-то будет не так, приложение
+  // вас предупредит» is refused sentence #12, in every phrasing, because it
+  // turns every gap in coverage into an implied all-clear.
+  'temp_device_estimate_note': {AppLocale.ru: 'Температура с датчика — приблизительная оценка: она сильно зависит от того, насколько вам тепло и как плотно надето устройство. По ней нельзя судить, есть ли у вас жар. Точную температуру даёт только термометр.', AppLocale.kk: 'Датчиктен алынған дене қызуы — шамалас болжам: ол сізге қаншалықты жылы екеніне және құрылғының қаншалықты тығыз тағылғанына қатты тәуелді. Ол бойынша қызуыңыз бар-жоғын білуге болмайды. Нақты дене қызуын тек термометр көрсетеді.', AppLocale.en: 'A temperature from the sensor is a rough estimate: it depends heavily on how warm you are and how tightly the device is worn. It cannot tell you whether you have a fever. Only a thermometer gives an accurate temperature.'},
+
   // Triage messages (emergency-severity codes; the safety layer emits the code)
   'PREECLAMPSIA_BP': {
     AppLocale.ru: 'Обнаружено высокое давление — признак преэклампсии. Немедленно свяжитесь с врачом.',

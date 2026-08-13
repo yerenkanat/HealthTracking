@@ -137,15 +137,25 @@ class _HourBucket {
     final t = _mean(tempTenths);
     final g = _mean(sugarTenths);
     if (h == null && o == null && sy == null && t == null && g == null) return null;
+    // Same plausibility window the live frame and the OEM band apply (20–45 °C).
+    // The history stream is u16 tenths off the same external device, so it can
+    // produce the same 400 °C, and these samples land on the chart the advisor
+    // reads.
+    final tempC = t == null ? null : t / 10.0;
     return HealthSample(
       at: at,
       heartRate: h?.toDouble(),
       spo2: o?.toDouble(),
       systolic: sy?.toDouble(),
       diastolic: di?.toDouble(),
-      coreTemp: t == null ? null : t / 10.0,
+      coreTemp: (tempC != null && tempC >= 20 && tempC <= 45) ? tempC : null,
       glucose: g == null ? null : g / 10.0,
       duringSleep: asleep,
+      // A watch recorded these while the phone was away. Stated rather than
+      // defaulted: without it a backfilled day of wrist estimates would earn
+      // «температура держится ровно», which is the defect this whole change
+      // exists to remove — arriving by the back door.
+      source: ReadingSource.sensor,
     );
   }
 }

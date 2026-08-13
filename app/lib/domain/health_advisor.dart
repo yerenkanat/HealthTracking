@@ -78,10 +78,33 @@ List<Advisory> generateAdvisories(
   }
 
   // ---- Temperature ----
+  //
+  // WHAT MAY BE SAID DEPENDS ON WHO MEASURED IT. From a thermometer reading she
+  // typed in, both cards are true. From a wrist estimate — whose dominant error
+  // term is the room, the bedding and how tightly the strap is done up — only
+  // one of them is:
+  //
+  //   * a device reading below the threshold produces NOTHING. «Температура по
+  //     браслету держится ровно» is a normality verdict on a body, off one
+  //     estimate, and the woman whose wrist reads 35.9 while her core is 39 was
+  //     being reassured by name. Refused sentence #15 in
+  //     docs/CLINICAL-REVIEW-WATCH.md. Silence is the correct output, and it is
+  //     honest silence: the same fever in a cool room raises nothing either way.
+  //   * a high device reading gets its own card, which asserts the SENSOR's
+  //     reading rather than her temperature and names the instrument to measure
+  //     with. ADV_TEMP_ELEVATED's «измерьте снова» is refused sentence #16 here:
+  //     the only instrument to hand is the same wrist, and re-reading it is not
+  //     a second measurement.
   final temp = statsFor(buildSeries(samples, 'temp'));
+  final tempFromDevice = _latestTempIsDeviceEstimate(samples);
   if (temp != null && temp.latest >= TriageThresholds.feverWarningC) {
-    watch.add(Advisory('ADV_TEMP_ELEVATED', AdviceTone.watch, 'temp', value: temp.latest));
-  } else if (temp != null) {
+    watch.add(Advisory(
+      tempFromDevice ? 'ADV_TEMP_DEVICE_HIGH' : 'ADV_TEMP_ELEVATED',
+      AdviceTone.watch,
+      'temp',
+      value: temp.latest,
+    ));
+  } else if (temp != null && !tempFromDevice) {
     positive.add(Advisory('ADV_TEMP_STEADY', AdviceTone.positive, 'temp', value: temp.latest));
   }
 
@@ -155,6 +178,22 @@ bool _lastNShort(List<SleepSummary> nights, int n) {
   if (nights.length < n) return false;
   final sorted = [...nights]..sort((a, b) => b.night.compareTo(a.night));
   return sorted.take(n).every((s) => s.asleepMin < SleepThresholds.fairAsleepMin);
+}
+
+/// Who measured the temperature the card would be about.
+///
+/// Matches `statsFor(buildSeries(samples, 'temp')).latest` exactly — that is the
+/// CHRONOLOGICALLY last sample carrying a temperature, not the last one in the
+/// list — so the provenance and the number can never come from different
+/// readings. Nothing to say about? Treated as a device estimate, which says
+/// nothing.
+bool _latestTempIsDeviceEstimate(List<HealthSample> samples) {
+  HealthSample? latest;
+  for (final s in samples) {
+    if (s.coreTemp == null) continue;
+    if (latest == null || !s.at.isBefore(latest.at)) latest = s;
+  }
+  return latest?.isDeviceEstimate ?? true;
 }
 
 double _mean(Iterable<double> xs) {

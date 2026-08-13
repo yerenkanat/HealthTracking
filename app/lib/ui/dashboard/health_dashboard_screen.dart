@@ -534,6 +534,15 @@ class HealthDashboardView extends StatelessWidget {
                         _BloodPressureCard(samples: samples),
                       ],
                     ),
+                    // What the temperature card is actually showing, next to the
+                    // number rather than three taps away in Settings. The app
+                    // stated freshness, span and connectivity and never that
+                    // these are estimates — «не медицинский прибор» on the legal
+                    // screen is not a qualifier on the number.
+                    //
+                    // Only when the reading on that card came off a device: from
+                    // a thermometer she typed in, none of this is true.
+                    _DeviceTempNote(samples: samples),
                   ],
                   // Sleep sits directly under the vital signs — it is one of her
                   // core health readings, not something to bury in the watch
@@ -1476,6 +1485,49 @@ class _VitalsFreshness extends StatelessWidget {
         fontSize: 12,
         height: 1.4,
         fontWeight: stale ? FontWeight.w600 : FontWeight.w400,
+      ),
+    );
+  }
+}
+
+/// What the temperature on the vitals grid is, when a device produced it.
+///
+/// ONE placement, and it is this one: the claim is made where the number is
+/// drawn. It says what the reading cannot tell her and stops — it does not
+/// promise that the app will warn her if something is wrong, which is the
+/// strongest false reassurance available here (refused sentence #12) because it
+/// turns every gap in coverage into an implied all-clear.
+///
+/// Hidden when there is no temperature, and when the latest one came off a
+/// thermometer she used: none of this applies to that, and a qualifier attached
+/// to a real measurement teaches her to ignore the qualifier.
+class _DeviceTempNote extends StatelessWidget {
+  final List<HealthSample> samples;
+  const _DeviceTempNote({required this.samples});
+
+  @override
+  Widget build(BuildContext context) {
+    HealthSample? latest;
+    for (final s in samples) {
+      if (s.coreTemp == null) continue;
+      if (latest == null || !s.at.isBefore(latest.at)) latest = s;
+    }
+    if (latest == null || !latest.isDeviceEstimate) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 15, color: Palette.textDim),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              L10nScope.of(context).t('temp_device_estimate_note'),
+              style: const TextStyle(
+                  color: Palette.textDim, fontSize: 12, height: 1.4),
+            ),
+          ),
+        ],
       ),
     );
   }

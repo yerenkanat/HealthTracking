@@ -1874,7 +1874,8 @@ class AppController {
   void _recordBandGlucose(WearableMetrics m) {
     final g = m.bloodSugar;
     if (!_isNewBandGlucose(g)) return;
-    store.addSample(HealthSample(at: m.at, glucose: g));
+    store.addSample(
+        HealthSample(at: m.at, glucose: g, source: ReadingSource.sensor));
   }
 
   WearableHistoryReport? _wearableHistory;
@@ -2855,9 +2856,17 @@ class AppController {
       spo2: t.spo2Pct?.toDouble(),
       systolic: t.systolicMmHg?.toDouble(),
       diastolic: t.diastolicMmHg?.toDouble(),
-      coreTemp: t.coreTempC,
+      // The watch's temperature is deliberately NOT a coreTempC — see
+      // BandTelemetry.deviceTempC — but it is still the temperature she is
+      // shown, so the chart and the advisor get it. `source` below is what
+      // stops anything being claimed about her body on the strength of it.
+      coreTemp: t.coreTempC ?? t.deviceTempC,
       glucose: glucose,
       duringSleep: t.duringSleep,
+      // The reading's provenance reached this method and stopped here, so every
+      // sample on the chart looked hand-measured. That is what let a wrist
+      // estimate earn «температура держится ровно».
+      source: source,
     ));
     final f = triage.findings.isNotEmpty ? triage.findings.first : null;
     final decision = _confirmation.consider(

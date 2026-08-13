@@ -13,6 +13,7 @@ import 'package:fcs_app/ble/starmax/starmax_client.dart';
 import 'package:fcs_app/ble/starmax/starmax_frames.dart';
 import 'package:fcs_app/ble/starmax/starmax_protocol.dart';
 import 'package:fcs_app/ble/starmax/starmax_health_bridge.dart';
+import 'package:fcs_app/core/triage.dart' show ReadingSource;
 
 StarmaxHealthSnapshot snap({int hr = 0, int spo2 = 0, int tempTenths = 0, int sys = 0, int dia = 0}) =>
     StarmaxHealthSnapshot(
@@ -139,9 +140,15 @@ void main() {
     final t = bandTelemetryFromSnapshot(snap(hr: 78, spo2: 96, tempTenths: 368, sys: 118, dia: 76));
     expect(t.heartRateBpm, 78);
     expect(t.spo2Pct, 96);
-    expect(t.coreTempC, 36.8);
+    // NOT coreTempC. The vendor states no measurement site and no accuracy for
+    // `当前体温`, so this value has not earned a field every consumer reads as
+    // an estimated core temperature — and the fever rule reads coreTempC.
+    expect(t.deviceTempC, 36.8);
+    expect(t.coreTempC, isNull);
     expect(t.systolicMmHg, 118);
     expect(t.diastolicMmHg, 76);
+    // A watch measured it, and the fever rule branches on that.
+    expect(t.source, ReadingSource.sensor);
   });
 
   test('the bridge turns unmeasured zeros into null, not a false zero reading', () {
