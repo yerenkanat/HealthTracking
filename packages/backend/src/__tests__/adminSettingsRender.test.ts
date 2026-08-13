@@ -82,6 +82,14 @@ async function boot(): Promise<Booted> {
       window.scrollTo = () => {};
       window.fetch = (async (path: string, opts?: RequestInit) => {
         const p = String(path);
+        // Who is signed in. The catch-all used to answer this with
+        // {leads,orders,products}, so the panel ran with an empty role — a
+        // session no server produces. The keys card is `staff` (the response
+        // carries the Anthropic key and the Telegram bot token), so an empty
+        // role now correctly draws nothing at all.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin', displayName: 'Ерен' }) };
+        }
         if (p.includes('/admin/settings/test-telegram')) {
           posts.push(p);
           return { ok: true, status: 200, json: async () => ({ ok: true }) };

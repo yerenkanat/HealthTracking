@@ -423,60 +423,119 @@ describe('the mother card answers «часы вообще передают да�
 });
 
 /**
- * The vitals a day of watch HISTORY carries — heart rate, SpO2, blood pressure,
- * temperature, blood sugar.
+ * The vitals a day of watch HISTORY carries — and the three a clinical review
+ * REFUSED.
  *
  * The backfill reads about a week of per-minute samples off the watch, the
- * server stores them (migration 042) and puts them on the wire, and the panel
- * printed none of them. Read off the wrist, through BLE, through two
- * repositories, into Postgres, out through a capability-guarded audited route —
- * and dropped in the last hundred pixels. That is this repository's most
- * repeated defect, and everything upstream of the screen is worth nothing
- * without it.
+ * server stores them (migration 042) and puts them on the wire. Five were
+ * rendered. Review kept two and refused three, and the refusal is the part
+ * that needs a test: a removal with no test comes back on the next person who
+ * notices a field on the wire and nothing on the screen.
+ *
+ * The payload below deliberately still CARRIES all five. These cases are worth
+ * nothing against a fixture that has nothing to leak.
  */
 const VITALS = {
   ...DAY,
   heartRateAvg: 78, heartRateMin: 54, heartRateMax: 165,
   spo2Avg: 97, spo2Min: 88,
+  // Refused. On the wire, and must not be on the screen.
   systolicAvg: 118, diastolicAvg: 76,
   tempAvgTenths: 365,
   bloodSugarTenths: 54,
 };
 
 describe('the vitals of a day reach the screen', () => {
-  it('prints every one of them', async () => {
+  it('prints heart rate and SpO2', async () => {
     const { drawer, errors } = await openCard({ days: [VITALS], window: 14 });
     expect(errors).toEqual([]);
-    expect(drawer).toContain('пульс 78');
-    expect(drawer).toContain('кислород 97');
-    expect(drawer).toContain('118/76');
-    // Tenths on the wire, divided once here — 365 is 36.5 °C, not 365 degrees.
-    expect(drawer).toContain('36.5 °C');
-    expect(drawer).toContain('5.4 ммоль/л');
+    expect(drawer).toContain('пульс 78 уд/мин');
+    expect(drawer).toContain('кислород 97 %');
   });
 
-  it('shows the range, because a mean cannot express the day', async () => {
-    // 78 average touching 165 is not the day that never left 80, and a
-    // clinician cannot tell them apart from the average alone.
+  it('labels the daily extremes instead of leaving them to be read as alarms', async () => {
+    // 54 is under our own bradycardia line and 165 is over the tachycardia
+    // one. Both are an ordinary night's sleep and an ordinary flight of
+    // stairs, and an unlabelled pair invites a phone call about neither.
     const { drawer } = await openCard({ days: [VITALS], window: 14 });
-    expect(drawer).toContain('(54–165)');
-    expect(drawer, 'the SpO2 dip is the reading worth a phone call').toContain('(88–—)');
+    expect(drawer).toContain('за сутки 54–165');
+    expect(drawer).toContain('минимум обычно во сне, максимум при нагрузке');
   });
 
-  it('says the sensor is an estimate, once, where a person will read it', async () => {
+  it('states the SpO2 floor as a floor, not as half a range', async () => {
+    // «кислород 97% (88–—)» read as a truncated range: a dash where a maximum
+    // would go looks like data that failed to arrive.
     const { drawer } = await openCard({ days: [VITALS], window: 14 });
-    expect(drawer).toContain('оптическим датчиком');
-    // Named specifically: these two are the ones somebody might act on.
-    expect(drawer).toMatch(/тонометр/i);
-    expect(drawer).toMatch(/глюкометр/i);
+    expect(drawer).toContain('самое низкое за сутки 88 %');
+    expect(drawer, 'the dash range is back').not.toContain('(88–—)');
+  });
+
+  it('marks every row as an estimate, not just the card', async () => {
+    // The card-level qualifier scrolls off around day five of fourteen, and
+    // after that every line reads as a measurement.
+    const { drawer } = await openCard({
+      days: [VITALS, { ...VITALS, day: '2026-07-30' }, { ...VITALS, day: '2026-07-29' }],
+      window: 14,
+    });
+    expect((drawer.match(/оценка часов ·/g) || []).length,
+      'the per-row marker is missing from some rows').toBe(3);
   });
 
   it('says nothing was measured rather than printing zeros', async () => {
     // A stored 0 heart rate reads as a heart that stopped. Absent must look
     // absent.
     const { drawer } = await openCard({ days: [DAY], window: 14 });
-    expect(drawer).toContain('показатели за день не измерялись');
+    expect(drawer).toContain('пульс и кислород за день не измерялись');
     expect(drawer).not.toContain('пульс 0');
-    expect(drawer).not.toContain('0/0');
+  });
+});
+
+/**
+ * The three the clinician refused. Each has its own reason and its own way of
+ * being wrong, so each gets its own case rather than one loop.
+ */
+describe('the refused metrics are not on the screen', () => {
+  it('does not print a day-average blood pressure', async () => {
+    // There is no maximum column. A day that touched 158/104 and sat at
+    // 105/68 renders «118/76» and reads as reassurance — and wrist PPG BP is
+    // ±10–15 mmHg against a 140 threshold, with no calibration state on these
+    // rows at all.
+    const { drawer } = await openCard({ days: [VITALS], window: 14 });
+    expect(drawer, 'the day-average BP is back').not.toContain('118/76');
+    expect(drawer).not.toMatch(/давление \d/);
+  });
+
+  it('does not print a day-average temperature', async () => {
+    // Four hours at 38.6 inside an otherwise-36.6 day averages to 36.9: the
+    // statistic hides the thing it would be opened to find. And the OEM band
+    // path runs skinToCoreTempC while the Starmax path does not, so the two
+    // code paths do not agree on what the degrees mean.
+    const { drawer } = await openCard({ days: [VITALS], window: 14 });
+    expect(drawer, 'the day-average temperature is back').not.toContain('36.5 °C');
+    expect(drawer).not.toMatch(/температура \d/);
+  });
+
+  it('does not print blood sugar, and never prints a unit the vendor does not state', async () => {
+    // The band field is «血糖（0.1）» with no unit stated anywhere in the
+    // vendor's 3 248 lines. We invented «ммоль/л» — on a diabetes number, to
+    // pregnant women, against a 24–28-week OGTT window that closes.
+    const { drawer } = await openCard({ days: [VITALS], window: 14 });
+    expect(drawer, 'blood sugar is back').not.toContain('5.4');
+    expect(drawer, 'a unit our source never claims').not.toContain('ммоль/л');
+    // «сахар» as a VALUE. The qualifier above the rows names it deliberately —
+    // «не называйте эти цифры маме как её … сахар» — so the word itself is not
+    // the thing to forbid; a number after it is.
+    expect(drawer, 'a blood sugar value is back').not.toMatch(/сахар[^.]{0,12}\d/i);
+  });
+
+  it('the qualifier is written for the owner, and forbids acting on the numbers', async () => {
+    const { drawer } = await openCard({ days: [VITALS], window: 14 });
+    expect(drawer).toContain('оценки оптического датчика на запястье');
+    // The old text said «сверяйте с тонометром» — an instruction the reader
+    // cannot carry out for a woman who is not in the room.
+    expect(drawer, 'the un-actionable instruction is back').not.toMatch(/сверяйте с тонометром/i);
+    expect(drawer).toContain('Не называйте эти цифры маме');
+    // It has to qualify the STATISTIC, not only the sensor.
+    expect(drawer).toContain('в среднем не виден');
   });
 });

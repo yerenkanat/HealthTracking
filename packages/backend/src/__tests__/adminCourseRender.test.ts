@@ -103,6 +103,13 @@ async function render(): Promise<Page> {
       window.scrollTo = () => {};
       window.fetch = (async (path: string, opts?: { method?: string; body?: string }) => {
         const p = String(path);
+        // Who is signed in. Without this the panel ran with an empty role,
+        // which no real session produces — and the course tab is now two
+        // capability-guarded cards (`content` for the lessons, `orders` for
+        // the access list), so an empty role draws neither.
+        if (p.includes('/admin/me')) {
+          return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin', displayName: 'Ерен' }) };
+        }
         if (opts?.method === 'PUT' && p.includes('/admin/course/lessons')) {
           saved.push(JSON.parse(opts.body ?? '{}'));
           return { ok: true, status: 200, json: async () => ({ ok: true, id: 'new' }) };
@@ -324,6 +331,9 @@ describe('authoring a lesson', () => {
           window.scrollTo = () => {};
           window.fetch = (async (path: string) => {
             const p = String(path);
+            if (p.includes('/admin/me')) {
+              return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin', displayName: 'Ерен' }) };
+            }
             if (p.includes('/admin/course/progress')) {
               return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) };
             }

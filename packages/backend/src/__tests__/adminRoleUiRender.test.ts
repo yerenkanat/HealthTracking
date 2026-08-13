@@ -120,11 +120,20 @@ describe('the panel and the server agree on what a role may do', () => {
   });
 
   it('every capability a nav item names is a real one', async () => {
+    // `data-cap` may list SEVERAL capabilities, space separated, meaning "any
+    // of these" — Курс Ма!Ма! is `content orders`, because the tab holds a
+    // lessons card the server guards with `content` and an entitlements card
+    // it guards with `orders`. Each token is checked on its own, so a typo in
+    // one half of a pair cannot hide behind the other.
     const { window } = await openAs('owner');
     const real = new Set(ROLE_CAPS.owner);
     for (const [view, cap] of navCaps(window)) {
       if (cap === null) continue;
-      expect(real.has(cap as never), `${view} names '${cap}', which no role can hold`).toBe(true);
+      const tokens = cap.split(/\s+/).filter(Boolean);
+      expect(tokens.length, `${view} has an empty data-cap`).toBeGreaterThan(0);
+      for (const t of tokens) {
+        expect(real.has(t as never), `${view} names '${t}', which no role can hold`).toBe(true);
+      }
     }
   });
 });
@@ -146,9 +155,24 @@ describe('what each role sees', () => {
       !(window.document.querySelector(`.nav[data-view="${v}"]`) as HTMLElement).hidden;
 
     expect(shown('stock')).toBe(true);
-    for (const v of ['users', 'kids', 'devices', 'audit', 'staff', 'shop', 'content']) {
+    for (const v of ['users', 'kids', 'devices', 'audit', 'shop', 'content']) {
       expect(shown(v), `${v} must be hidden from a warehouse hand`).toBe(false);
     }
+    // «Персонал» is DELIBERATELY not in that list any more. The tab holds two
+    // cards: her own password, which /admin/staff/me/password lets any role
+    // change, and the roster, which is `staff`. Hiding the tab hid the
+    // password form with it, so a warehouse hand whose password had leaked
+    // could not rotate it. The capability moved to the roster card; asserted
+    // below that the card, and not the tab, is what disappears.
+    expect(shown('staff'), 'she cannot change her own password').toBe(true);
+    expect(
+      (window.document.getElementById('staffAdminCard') as HTMLElement).hidden,
+      'a warehouse hand can see the colleague roster',
+    ).toBe(true);
+    expect(
+      (window.document.getElementById('pwForm') as HTMLElement).hidden,
+      'the password form is gone with the roster',
+    ).toBe(false);
     // «SOS и зоны» has no nav item of its own since the seven-section rail: it
     // is a card on the Экстренные screen, carrying the same `health`
     // capability the tab used to. Asserted on the card, because that is now the
@@ -164,10 +188,89 @@ describe('what each role sees', () => {
     expect(shown('shop')).toBe(true);
     expect(shown('stock')).toBe(true);
     expect(shown('users')).toBe(true); // contacts — «контакты» is in her list
-    for (const v of ['kids', 'devices', 'audit', 'staff']) {
+    for (const v of ['kids', 'devices', 'audit']) {
       expect(shown(v), `${v} must be hidden from a seller`).toBe(false);
     }
+    // Персонал for her own password; the roster inside it stays shut.
+    expect(shown('staff')).toBe(true);
+    expect((window.document.getElementById('staffAdminCard') as HTMLElement).hidden).toBe(true);
     expect(sosCard(window).hidden, 'the SOS feed must be hidden from a seller').toBe(true);
+  });
+
+  /**
+   * Курс Ма!Ма! is two screens in one tab, and the tab was wrong for both.
+   *
+   * The lessons are `content`; «Кому открыт курс» calls /admin/entitlements,
+   * which the server guards with `orders`. Under a single `content`:
+   *   * a content editor opened the tab and the access list answered 403,
+   *     which the panel painted as «Не удалось загрузить список»;
+   *   * a seller — the person taking the order that includes the course —
+   *     could not see the tab at all, so only owner/admin could grant access.
+   */
+  describe('Курс Ма!Ма! shows each role the half it is allowed to have', () => {
+    const card = (window: JSDOM['window'], id: string) =>
+      (window.document.getElementById(id) as HTMLElement).hidden;
+
+    it('a content editor gets the lessons and not the access list', async () => {
+      const { window } = await openAs('content');
+      expect((window.document.querySelector('.nav[data-view="course"]') as HTMLElement).hidden).toBe(false);
+      expect(card(window, 'courseLessonFormCard')).toBe(false);
+      expect(card(window, 'courseLessonListCard')).toBe(false);
+      expect(card(window, 'courseAccessCard'),
+        'the card whose 403 read as a breakage is still drawn').toBe(true);
+    });
+
+    it('a seller gets the access list and not the lesson editor', async () => {
+      const { window } = await openAs('seller');
+      expect((window.document.querySelector('.nav[data-view="course"]') as HTMLElement).hidden,
+        'the person taking the order cannot reach the screen that grants the course').toBe(false);
+      expect(card(window, 'courseAccessCard')).toBe(false);
+      expect(card(window, 'courseLessonFormCard')).toBe(true);
+    });
+
+    it('a warehouse hand, who holds neither, does not see the tab at all', async () => {
+      const { window } = await openAs('warehouse');
+      expect((window.document.querySelector('.nav[data-view="course"]') as HTMLElement).hidden).toBe(true);
+    });
+  });
+
+  /**
+   * Магазин: two cards whose capabilities the panel did not declare.
+   */
+  describe('Магазин hides the blocks the server would refuse', () => {
+    it('an operator sees neither the stock block nor the keys card', async () => {
+      // /admin/shop/variants is `stock` and /admin/settings is `staff`;
+      // an operator holds neither, and both printed «Не удалось загрузить».
+      const { window } = await openAs('operator');
+      expect((window.document.getElementById('shopStockCard') as HTMLElement).hidden).toBe(true);
+      expect((window.document.getElementById('shopStoreCard') as HTMLElement).hidden,
+        'the settings card carried no data-cap at all').toBe(true);
+      // She still has orders, which is what the tab is for.
+      expect((window.document.querySelector('.nav[data-view="shop"]') as HTMLElement).hidden).toBe(false);
+    });
+
+    it('a seller sees the stock block and not the API keys', async () => {
+      const { window } = await openAs('seller');
+      expect((window.document.getElementById('shopStockCard') as HTMLElement).hidden).toBe(false);
+      expect((window.document.getElementById('shopStoreCard') as HTMLElement).hidden).toBe(true);
+    });
+
+    it('opening Магазин as an operator sends neither guaranteed 403', async () => {
+      // Hiding the card is half the fix. The loader also has to stop asking:
+      // GET /admin/settings writes a `view_settings` audit row on the way to
+      // refusing her, and «Не удалось загрузить склад» over a working server
+      // is how a bug gets filed against one.
+      const { window, errors } = await openAs('operator');
+      window.document.querySelector('.nav[data-view="shop"]')!
+        .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300));
+
+      expect(errors, errors.join('\n')).toEqual([]);
+      expect(window.document.getElementById('shopVariants')!.textContent,
+        'the stock block printed a load failure at a refusal').not.toMatch(/Не удалось/);
+      expect((window.document.getElementById('shopStockCard') as HTMLElement).hidden).toBe(true);
+      expect((window.document.getElementById('shopStoreCard') as HTMLElement).hidden).toBe(true);
+    });
   });
 
   it('an operator gets the alarms but not where the children are', async () => {

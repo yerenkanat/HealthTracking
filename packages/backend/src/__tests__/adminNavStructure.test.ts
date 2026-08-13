@@ -281,8 +281,30 @@ describe('the rail shows a person only what she can open', () => {
     const visible = sections(window);
     expect(visible, 'a section with nothing in it for her is still drawn').not.toContain('Экстренные');
     expect(visible).not.toContain('Пользователи');
-    expect(visible).not.toContain('Настройки');
     expect(visible).toContain('Склад');
+
+    // «Настройки» IS drawn for her, and the rule has not changed: a section is
+    // drawn when it holds something she can open, and this one now does.
+    //
+    // «Персонал» lost its data-cap. The tab holds her own password form, which
+    // /admin/staff/me/password lets ANY signed-in role use — hiding the tab
+    // hid the form with it, so a warehouse hand whose password had leaked
+    // could not rotate it. The roster inside carries `staff` instead.
+    //
+    // Asserted as an exact list rather than relaxed to "may contain": the
+    // section must hold that one item and nothing else, or the capability has
+    // leaked somewhere new.
+    expect(visible).toContain('Настройки');
+    const settingsGroup = window.document.querySelector('.navgroup[data-section="settings"]') as HTMLElement;
+    const openable = [...settingsGroup.querySelectorAll('.nav[data-view]')]
+      .filter((el) => !(el as HTMLElement).hidden)
+      .map((el) => text(el));
+    expect(openable, 'only her own password belongs to her in Настройки').toEqual(['Персонал']);
+    expect(
+      (window.document.getElementById('staffAdminCard') as HTMLElement).hidden,
+      'the colleague roster is `staff` and must stay shut',
+    ).toBe(true);
+
     // And what she lands on is a real screen, not a blank one.
     const active = window.document.querySelector('.nav.active') as HTMLElement;
     expect(active.hidden).toBe(false);

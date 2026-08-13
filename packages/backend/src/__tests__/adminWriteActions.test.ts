@@ -156,6 +156,13 @@ describe('settings cannot be wiped by a failed load', () => {
             sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });
             return { ok: true, status: 200, json: async () => ({ ok: true }) };
           }
+          // Who is signed in. This branch was missing, so /admin/me answered
+          // `{}` and the panel ran with an empty role — which no real session
+          // produces, and which now (correctly) hides every capability-guarded
+          // card. The fake was lying about the session, not the settings.
+          if (p.includes('/admin/me')) {
+            return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
+          }
           // The one that breaks.
           if (p.includes('/admin/settings')) return { ok: false, status: 503, json: async () => ({}) };
           const body = p.includes('/admin/shop/leads') ? { leads: [] }

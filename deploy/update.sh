@@ -205,6 +205,54 @@ check "/admin" 'navtree'             "the sidebar is seven sections, not a flat 
 check "/admin" 'navsub-warehouse'    "Склад opens onto Приёмка and Инвентаризация"
 check "/admin" 'sideme'              "the rail says who is signed in, in Russian"
 
+# Writes that used to fail in silence (BACKLOG §4). Each of these strings only
+# exists in the branch that reports a refusal, so a stale panel loses the
+# report and keeps the silence — which is invisible until somebody believes a
+# stolen tracker is blocked.
+check "/admin" 'sblkmsg'                 "a refused device block says so in the row"
+check "/admin" 'Доступ НЕ закрыт'        "a refused course revoke says so"
+check "/admin" 'Порядок не изменён'      "a refused lesson reorder names the reason"
+check "/admin" 'наполовину'              "a half-applied reorder is reported as half"
+# Destructive edits in the content editor (§4.4). `{items: []}` empties a live
+# stage for every reader of the app.
+check "/admin" 'убрана из черновика'     "deleting a content card asks first"
+check "/admin" 'всем читателям сразу'    "publishing a shrunken stage asks first"
+check "/admin" 'drawnstage'              "the editor cannot read a stale draft back"
+# Tabs the server refuses (§2.1–2.3). No `data-cap` on Персонал is the fix, so
+# the marker is the roster card carrying it instead.
+check "/admin" 'data-cap="content orders"' "Курс opens for whoever owns either half"
+check "/admin" 'shopStockCard'           "Магазин declares who may see stock"
+check "/admin" 'staffAdminCard" data-cap="staff"' "anyone can change their own password"
+# Undefined classes (§5.4, §8.1): a critical status rendered as white chrome.
+check "/admin" '.formmsg.err'            "an error message is red, not grey"
+check "/admin" "pill crit'>списание"     "a write-off is painted as critical"
+# Clinical review. Three watch metrics were REFUSED — day-average blood
+# pressure, day-average temperature and blood sugar — and a rollback to a
+# previous panel build is exactly how a withdrawn number comes back, silently,
+# on the screen an owner reads. So these are checked as ABSENCES.
+#
+# Same `case` matching as check(), and for the same reason: see its comment.
+absent() { # path, literal substring, label
+  local body
+  body="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" wget -qO- "http://$BACKEND:8080$1" 2>/dev/null || true)"
+  if [ ${#body} = 0 ]; then
+    fail "$3 INCONCLUSIVE — $1 returned nothing, so an absence proves nothing"
+    return
+  fi
+  case "$body" in
+    *"$2"*) fail "$3 FAILED — «$2» is being served again; it was withdrawn on clinical review" ;;
+    *)      echo "    $3 OK (absent)" ;;
+  esac
+}
+check  "/admin" 'оценка часов ·'          "every watch row is marked as an estimate"
+check  "/admin" 'Не называйте эти цифры маме' "the watch qualifier forbids acting on it"
+absent "/admin" 'ммоль/л'                 "blood sugar carries no invented unit"
+absent "/admin" 'mmol/L'                  "the mother card has no glucose tile"
+absent "/admin" 'bloodSugarTenths/10'     "blood sugar is not computed for display"
+absent "/admin" 'tempAvgTenths/10'        "no day-average temperature"
+absent "/admin" 'd.systolicAvg'           "no day-average blood pressure"
+absent "/admin" 'glucoseColor'            "the non-pregnant glucose scale is gone"
+
 echo
 echo "==> Routes the PROXY must pass through"
 #

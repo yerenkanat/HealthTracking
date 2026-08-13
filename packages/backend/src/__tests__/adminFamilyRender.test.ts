@@ -157,18 +157,36 @@ describe('the family sections in the user drawer', () => {
     });
   });
 
-  describe('blood glucose in the vitals block', () => {
-    it('shows a graded glucose reading when she has one', async () => {
+  /**
+   * Blood glucose was refused on clinical review, and the tile is gone.
+   *
+   * It used to render `8.2 mmol/L`, graded on a scale the comment beside it
+   * called «pregnancy-aware» while using the NON-pregnant bands: 3.9–7.8
+   * green, when the pregnancy fasting threshold sits below that ceiling. A
+   * fasting 5.4 painted green — reassurance about the exact patient GDM
+   * screening exists for, at the 24–28-week OGTT window that closes.
+   *
+   * Separately, the band field is documented as «血糖（0.1）» with no unit
+   * stated anywhere in the vendor's 3 248 lines. «mmol/L» was ours.
+   *
+   * Asserted on a payload that DOES carry a reading: a test that omitted it
+   * would pass against a tile that still works.
+   */
+  describe('blood glucose is not shown', () => {
+    it('renders no glucose tile even when the payload carries a reading', async () => {
       const { drawer, errors } = await openDrawer({ latest: { hr: 78, spo2: 98, systolic: 118, diastolic: 76, temp: 36.6, glucose: 8.2 } });
       expect(errors).toEqual([]);
-      expect(drawer).toContain('Glucose');
-      expect(drawer).toContain('8.2');
-      expect(drawer).toContain('mmol/L');
+      expect(drawer, 'the glucose tile is back').not.toContain('Glucose');
+      expect(drawer, 'a unit the vendor never states').not.toContain('mmol/L');
+      expect(drawer).not.toContain('8.2');
     });
-    it('omits glucose when there is no reading', async () => {
-      const { drawer, errors } = await openDrawer({ latest: { hr: 78, spo2: 98, systolic: 118, diastolic: 76, temp: 36.6 } });
+
+    it('and still draws the rest of the vitals block', async () => {
+      // The removal must not take the temperature tile beside it with it.
+      const { drawer, errors } = await openDrawer({ latest: { hr: 78, spo2: 98, systolic: 118, diastolic: 76, temp: 36.6, glucose: 8.2 } });
       expect(errors).toEqual([]);
-      expect(drawer).not.toContain('Glucose');
+      expect(drawer).toContain('Температура');
+      expect(drawer).toContain('36.6');
     });
   });
 

@@ -883,6 +883,16 @@
 .lessonpreview .link{color:var(--accent-text);font-weight:600;font-size:12.5px;text-decoration:none}
 .formmsg.bad{color:var(--crit)}
 .formmsg.ok{color:var(--good)}
+/* `err` was set in five places and defined in none, so a message that meant
+   "this did not save" rendered in the muted grey of a hint. Kept as an alias of
+   .bad rather than only fixing the call sites: the class name is now in the
+   panel's own history, and a sixth site typing it must not be silent again. */
+.formmsg.err{color:var(--crit)}
+/* The result of blocking a device, in the row whose button was pressed — the
+   card-level #serialMsg is above a table that can be twenty rows long, and a
+   refusal printed off-screen is a refusal nobody reads. */
+.sblkmsg{font-size:12px;color:var(--muted);margin-top:4px;white-space:normal;max-width:320px}
+.sblkmsg.bad{color:var(--crit);font-weight:600}
 .staffrow.off{opacity:.55}
 .staffrow .btn.sm{padding:6px 10px;min-height:36px;font-size:13px}
 .rolesel{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--hair);
@@ -1079,7 +1089,13 @@
           <button type="button" class="nav sub" data-view="childdev">Календарь развития</button>
           <button type="button" class="nav sub" data-view="vaccines">Вакцинация</button>
           <button type="button" class="nav sub" data-view="audio" data-cap="content">Аудио</button>
-          <button type="button" class="nav sub" data-view="course" data-cap="content">Курс Ма!Ма!</button>
+          <!-- Two capabilities, because the tab holds two cards with different
+               owners: the lessons are `content`, «Кому открыт курс» calls
+               /admin/entitlements, which the server guards with `orders`.
+               Under `content` alone a content editor got «Не удалось загрузить
+               список» — a refusal painted as a breakage — and a seller could
+               not reach the screen that grants the course she just sold. -->
+          <button type="button" class="nav sub" data-view="course" data-cap="content orders">Курс Ма!Ма!</button>
         </div>
       </div>
 
@@ -1091,7 +1107,13 @@
           <span class="chev" aria-hidden="true">›</span>
         </button>
         <div class="navsub" id="navsub-settings" hidden>
-          <button type="button" class="nav sub" data-view="staff" data-cap="staff">Персонал</button>
+          <!-- NO data-cap. The tab holds two cards: «Мой пароль», which
+               /admin/staff/me/password lets ANY signed-in role use, and the
+               roster, which is `staff`. Hiding the tab hid the password form
+               with it, so nobody but an owner could rotate a leaked password —
+               exactly what the comment above the section says must not happen.
+               The capability now sits on the roster card alone. -->
+          <button type="button" class="nav sub" data-view="staff">Персонал</button>
           <button type="button" class="nav sub" data-view="roles" data-cap="staff">Роли и права</button>
           <!-- The privacy screen (frame 22), not the SOS feed: two tabs sharing
                a name is how somebody looking for the access log lands on a map
@@ -1602,9 +1624,15 @@
       </section>
 
       <!-- ПЕРСОНАЛ — who can sign in to this panel.
-           Two cards: everyone's password (yours), then the roster, which only
-           an admin can see. A clinician opening this tab gets the first card
-           and an explanation instead of an empty table. -->
+           Two cards with two different audiences, which is why the NAV ITEM
+           carries no capability and this second card carries `staff`:
+             * «Мой пароль» is everyone's own password. requireStaff lets any
+               signed-in role change it, and a leaked password that its owner
+               cannot rotate is the whole reason this card exists.
+             * the roster is `staff`. Without it the card is not drawn and the
+               request is not sent; with it, a 403 still prints an explanation
+               rather than an empty table, because `staff` and the roster's own
+               admin-only rule are not quite the same line. -->
       <section class="view" id="staff">
         <div class="card">
           <div class="sec-h"><h3>Мой пароль</h3></div>
@@ -1619,7 +1647,7 @@
           <div id="pwMsg" class="formmsg"></div>
         </div>
 
-        <div class="card" id="staffAdminCard" hidden>
+        <div class="card" id="staffAdminCard" data-cap="staff" hidden>
           <div class="sec-h"><h3>Сотрудники</h3></div>
           <p style="color:var(--muted);margin:0 0 10px">
             Кто может входить в панель. Отключённый сотрудник теряет доступ сразу,
@@ -1746,7 +1774,9 @@
            customer is actually buying. Only people with the entitlement see it
            in the app; the gate is on the server. -->
       <section class="view" id="course">
-        <div class="card" style="margin-bottom:16px">
+        <!-- The lesson editor is `content`; the access list below is `orders`.
+             A seller sees the second card only, a content editor the first two. -->
+        <div class="card" id="courseLessonFormCard" data-cap="content" style="margin-bottom:16px">
           <div class="sec-h"><h3>Добавить урок</h3>
             <span class="sub">Название и ссылка на YouTube · черновик не виден в приложении</span></div>
           <form id="lessonForm" class="stafform" autocomplete="off">
@@ -1783,12 +1813,12 @@
           <div id="lessonMsg" class="formmsg"></div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="courseLessonListCard" data-cap="content" style="margin-bottom:16px">
           <div class="sec-h"><h3>Уроки</h3></div>
           <div id="lessonList"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
         </div>
 
-        <div class="card">
+        <div class="card" id="courseAccessCard" data-cap="orders">
           <div class="sec-h"><h3>Кому открыт курс</h3>
             <span class="sub">Комплект открывает доступ · можно выдать вручную по номеру</span></div>
           <form id="entForm" class="stafform" autocomplete="off">
@@ -1808,6 +1838,12 @@
               <th>Прогресс</th><th>Последний урок</th><th></th></tr></thead>
             <tbody id="entBody"></tbody></table>
           </div>
+          <!-- Every table states its rule (§3.6). It also states what it does
+               NOT know: /admin/course/progress is guarded by `content`, so a
+               seller reading this list cannot be shown progress. An empty
+               «Прогресс» column there would read as «не начинала», which is a
+               statement about a customer we have no basis for. -->
+          <div class="tfoot" id="entFoot"></div>
         </div>
       </section>
 
@@ -2242,7 +2278,12 @@
       </section>
 
       <section class="view" id="shop">
-        <div class="card" id="shopStoreCard" style="margin-bottom:16px">
+        <!-- data-cap="staff": GET and PUT /admin/settings are both guarded by
+             `staff` on the server, because the response carries the Anthropic
+             key and the Telegram bot token. This card carried no capability at
+             all, so an operator saw seven empty boxes and a Сохранить button
+             and read the 403 as a broken screen. -->
+        <div class="card" id="shopStoreCard" data-cap="staff" style="margin-bottom:16px">
           <div class="sec-h"><h3>Настройки и ключи</h3><span class="sub">WhatsApp и Kaspi показываются на лендинге · API-ключи используются на сервере</span></div>
           <div class="audioadd">
             <label>WhatsApp для заказов<input type="tel" id="setWhatsapp" placeholder="+7 700 123 45 67" autocomplete="off"></label>
@@ -2328,7 +2369,11 @@
           </div>
 
         <div class="grid2">
-          <div class="card">
+          <!-- `stock`, which an operator does not hold: /admin/shop/variants
+               is guarded by it for GET, PATCH and POST alike. Without the
+               capability here the block 403'd and printed «Не удалось
+               загрузить склад» — a refusal dressed as a server fault. -->
+          <div class="card" id="shopStockCard" data-cap="stock">
             <div class="sec-h"><h3>Склад · остатки по цветам</h3><span class="sub">Меняйте количество — сохраняется сразу</span></div>
             <div id="shopVariants"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
           </div>
@@ -4584,12 +4629,28 @@
     // The acute clinical picture — latest vitals, how trustworthy the BP is
     // (calibration), and the triage history. A clinician reads these first, so
     // they lead the drawer right after identity, ahead of the care logs.
-    // Blood glucose (mmol/L), graded green/amber/red on the same pregnancy-aware
-    // thresholds the app uses. Shown only when she has a reading (typed or band).
-    const glucoseColor=(v)=> v==null ? 'var(--ink)' : (v>=11.1||v<3.0) ? 'var(--crit)' : (v>=7.8||v<3.9) ? 'var(--warn)' : 'var(--good)';
-    const glucoseVital = h.latest.glucose!=null
-      ? `<div class="vital"><div class="k">Glucose</div><div class="v" style="color:${glucoseColor(h.latest.glucose)}">${h.latest.glucose}<span style="font-size:12px;color:var(--muted)"> mmol/L</span></div></div>`
-      : '';
+    // BLOOD GLUCOSE IS NOT SHOWN. Refused on clinical review; the tile and its
+    // colour scale are gone rather than commented out.
+    //
+    // Two separate faults, either of which is enough:
+    //
+    //  1. The unit was ours, not the source's. The band field is documented as
+    //     «血糖（0.1）» with no unit stated anywhere in the vendor's 3 248
+    //     lines. We divided by ten and printed a millimoles-per-litre unit.
+    //
+    //     Neither that unit nor its Russian spelling appears anywhere in this
+    //     file on purpose: deploy/update.sh checks for their ABSENCE, because
+    //     a rollback to a previous panel build is exactly how a number
+    //     withdrawn on clinical review comes back without anyone deciding to
+    //     bring it back.
+    //  2. The thresholds were the NON-PREGNANT bands (3.9–7.8 green) while the
+    //     comment here called them «pregnancy-aware». The pregnancy fasting
+    //     threshold is below that green ceiling, so a fasting 5.4 painted
+    //     green — a reassurance about the exact patient GDM screening exists
+    //     for, at the 24–28-week OGTT window that closes.
+    //
+    // Restoring this needs a stated unit from the vendor, pregnancy-specific
+    // thresholds, and a new clinical review — not a revert.
     // HOW OLD the reading is, and what that permits the screen to claim.
     //
     // These four numbers had no timestamp anywhere near them. 162/108 from
@@ -4612,7 +4673,7 @@
       ${!measuredAt?`<div class="metricnote">Когда сняты эти показания — неизвестно. Считайте их справочными, пока в карточке нет времени.</div>`:""}
       ${stale?`<div class="metricnote warn">Последнему измерению ${ago(u.lastMetricAt)}. Эти цифры описывают тот день, а не сегодняшний.</div>`:""}
       <div class="vitals"${stale?' style="opacity:.55"':''}>${vital("hr","Пульс","уд/мин")}${vital("spo2","Кислород в крови","%")}${vital("systolic","Верхнее","мм рт. ст.")}${vital("diastolic","Нижнее","мм рт. ст.")}</div>
-      <div class="vitals" style="grid-template-columns:${glucoseVital?'1fr 1fr':'1fr'}${stale?';opacity:.55':''}">${vital("temp","Температура","°C")}${glucoseVital}</div>
+      <div class="vitals" style="grid-template-columns:1fr${stale?';opacity:.55':''}">${vital("temp","Температура","°C")}</div>
       ${bpCalSection}
       <div class="dsec">История триажа</div>
       <div class="tl">${h.triage.length?h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(TRIAGE_RU[t.severity]||t.severity)}</b>${t.code&&t.code!==t.severity?` <span class="t">${esc(t.code)}</span>`:""}</span><span class="t">${stamp(t.at)}</span></div>`).join(""):`<div class="tli"><span class="t" style="color:var(--muted)">Триаж ничего не отмечал</span></div>`}</div>`;
@@ -4741,14 +4802,24 @@
     /**
      * «Что передают часы» — кадр 09a, правая колонка.
      *
-     * Ответ на вопрос, который задаёт оператор поддержки: часы вообще что-то
-     * присылают, или мама держит в руках кирпич? Кадр 11 отвечает «выходило
-     * ли устройство на связь»; здесь видно, ЧТО именно пришло — по дням.
+     * КТО ЭТО ЧИТАЕТ. Раньше здесь было написано «оператор поддержки». Это
+     * неверно и это важно: /admin/users/:id/wearable требует capability
+     * `health`, которой у ролей operator, support и seller нет. Реальный
+     * нетренированный читатель этого блока — ВЛАДЕЛЕЦ (owner/admin держит все
+     * capabilities). Оговорки здесь написаны для него: человека без
+     * медицинского образования, у которого есть доступ ко всему.
+     *
+     * Ответ на вопрос: часы вообще что-то присылают, или мама держит в руках
+     * кирпич? Кадр 11 отвечает «выходило ли устройство на связь»; здесь видно,
+     * ЧТО именно пришло — по дням.
      *
      * Ничего не досочиняем. Стресс, дыхание и MET часы измеряют не всегда, и
      * ноль у них значит «не мерили»; поэтому отсутствующее значение написано
      * словами, а не нулём и не прочерком. Пустой ответ и НЕОТВЕЧЕННЫЙ запрос —
      * разные строки: «за 14 дней ничего не пришло» и «не загрузилось».
+     *
+     * Давление, температура и сахар за сутки НЕ показываются — отклонены на
+     * клинической проверке; причины по каждому расписаны у строк ниже.
      */
     const wearSection=(()=>{
       if(wear===undefined) return "";               // не спрашивали (демо)
@@ -4768,7 +4839,7 @@
       const unmeasured='<span style="color:var(--muted)">не измерялось</span>';
       return `
       <div class="dsec">Что передают часы · ${wdays.length} ${ruPlural(wdays.length,"день","дня","дней")} из ${win}</div>
-      <div class="metricnote" id="wearRule">Пульс, кислород, давление, температура и сахар сняты оптическим датчиком на запястье — это оценка часов, а не измерение прибором. Давление и сахар особенно: сверяйте с тонометром и глюкометром, прежде чем что-то на них строить. В скобках — минимум и максимум за день: среднее их не показывает.</div>
+      <div class="metricnote" id="wearRule">Это оценки оптического датчика на запястье, а не измерения прибором. Цифры за сутки — средние: подъём давления или температуры на несколько часов в среднем не виден. Не называйте эти цифры маме как её давление, температуру или сахар и не решайте по ним, нужен ли визит. Клиническое решение — только по тонометру, термометру и лабораторному анализу. Для пульса в скобках — минимум и максимум за сутки: минимум обычно во сне, максимум при нагрузке.</div>
       <div class="tl">${wdays.map(d=>{
         // «Не носила» — это ответ, а не пропуск: часы на зарядке шагов не
         // считают, и нулевой день без этой пометки читается как бездействие.
@@ -4780,46 +4851,63 @@
           `дыхание ${d.breathRate!=null?esc(d.breathRate)+" /мин":unmeasured}`,
           `MET ${d.met!=null?esc(d.met):unmeasured}`,
         ].join(" · ");
-        // The VITALS the day carries — heart rate, SpO2, blood pressure,
-        // temperature, blood sugar. They arrived with the history backfill and
-        // the panel printed none of them: the server read them off the watch,
-        // stored them, put them on the wire, and the last mile dropped them.
-        // That is this repository's most repeated defect and it is worth
-        // nothing until it is on the screen.
+        // The VITALS the day carries. Two of them, after clinical review.
         //
-        // Range, not just the mean, where the device gives one. A day averaging
-        // 78 bpm that touched 165 is not the day that never left 80, and
-        // «среднее 78» alone cannot tell a clinician which she had. Same on the
-        // other side for SpO2: an average of 97 that dipped to 88 is the
-        // reading worth a phone call.
-        const range=(avg,lo,hi,unit)=>{
-          if(avg==null&&lo==null&&hi==null) return null;
-          const bits=[];
-          if(avg!=null) bits.push(`${esc(avg)}${unit}`);
-          if(lo!=null||hi!=null) bits.push(`(${lo!=null?esc(lo):"—"}–${hi!=null?esc(hi):"—"})`);
-          return bits.join(" ");
-        };
-        const hr=range(d.heartRateAvg,d.heartRateMin,d.heartRateMax," уд/мин");
-        const spo2=range(d.spo2Avg,d.spo2Min,null,"%");
-        const bp=(d.systolicAvg!=null||d.diastolicAvg!=null)
-          ? `${d.systolicAvg!=null?esc(d.systolicAvg):"—"}/${d.diastolicAvg!=null?esc(d.diastolicAvg):"—"} мм рт. ст.` : null;
-        // Tenths on the wire so nothing rounds twice between the wrist and this
-        // screen; divided once, here, at the moment it is read by a person.
-        const temp=d.tempAvgTenths!=null?`${(d.tempAvgTenths/10).toFixed(1)} °C`:null;
-        const sugar=d.bloodSugarTenths!=null?`${(d.bloodSugarTenths/10).toFixed(1)} ммоль/л`:null;
-        const vitals=[
-          hr?`пульс ${hr}`:null,
-          spo2?`кислород ${spo2}`:null,
-          bp?`давление ${bp}`:null,
-          temp?`температура ${temp}`:null,
-          sugar?`сахар ${sugar}`:null,
-        ].filter(Boolean).join(" · ");
-        // Said once per card, not per row, and only when there is something to
-        // qualify: these come off an optical sensor on a wrist. The panel must
-        // not let a number it drew be read as a clinical measurement.
+        // Three were REFUSED and are deliberately not rendered here, even
+        // though the payload carries them and the code to print them was
+        // written and working:
+        //
+        //  * BLOOD SUGAR (`bloodSugarTenths`). The vendor documents the field
+        //    as «血糖（0.1）» and states no unit anywhere in 3 248 lines. We
+        //    were dividing by ten and printing a millimoles-per-litre unit
+        //    our source never claims — on a diabetes number, to pregnant
+        //    women, in a
+        //    country where GDM screening is a scheduled protocol item with a
+        //    closing 24–28-week OGTT window. An estimate that looks normal
+        //    displaces that appointment.
+        //  * TEMPERATURE (`tempAvgTenths`). A day AVERAGE hides the fever it
+        //    would be opened to find: four hours at 38.6 inside an otherwise
+        //    36.6 day averages to 36.9. And the degrees have no agreed
+        //    referent — the OEM band path runs skinToCoreTempC, the Starmax
+        //    path does not, and the vendor gives neither a measurement site
+        //    nor an accuracy. Two code paths in one product mean two different
+        //    things by the same number.
+        //  * BLOOD PRESSURE (`systolicAvg`/`diastolicAvg`). There is no
+        //    maximum column, and the peak is the clinical object: a day that
+        //    touched 158/104 and sat at 105/68 renders «118/76» and reads as
+        //    reassurance. emergency_confirmation.dart puts wrist PPG BP at
+        //    ±10–15 mmHg against a 140 threshold, and these day rows carry no
+        //    calibration state at all. The LIVE BP tile elsewhere stays — that
+        //    path has the two-reading gate.
+        //
+        // Do not restore any of the three without a new clinical review.
+        //
+        // What survives is qualified in place rather than by a paragraph the
+        // reader scrolled past on day five of fourteen.
+        const hrParts=[];
+        if(d.heartRateAvg!=null) hrParts.push(`пульс ${esc(d.heartRateAvg)} уд/мин`);
+        if(d.heartRateMin!=null&&d.heartRateMax!=null){
+          // Labelled, never coloured. 46 is under our own bradycardia line and
+          // 162 is over the tachycardia one, and both are an ordinary night's
+          // sleep and an ordinary flight of stairs.
+          hrParts.push(`за сутки ${esc(d.heartRateMin)}–${esc(d.heartRateMax)} (минимум обычно во сне, максимум при нагрузке)`);
+        } else if(d.heartRateMin!=null){
+          hrParts.push(`самый низкий за сутки ${esc(d.heartRateMin)} (минимум обычно во сне)`);
+        } else if(d.heartRateMax!=null){
+          hrParts.push(`самый высокий за сутки ${esc(d.heartRateMax)} (максимум при нагрузке)`);
+        }
+        const spo2Parts=[];
+        if(d.spo2Avg!=null) spo2Parts.push(`кислород ${esc(d.spo2Avg)} %`);
+        // «(88–—)» read as a truncated range rather than as a floor. There is
+        // no maximum column for SpO2 and there never was; say what the number
+        // IS instead of drawing the hole where the other end would go.
+        if(d.spo2Min!=null) spo2Parts.push(`самое низкое за сутки ${esc(d.spo2Min)} %`);
+        const vitals=[hrParts.join(" · "),spo2Parts.join(" · ")].filter(Boolean).join(" · ");
+        // Per ROW, not per card. The card-level qualifier scrolls off around
+        // day five of fourteen, and after that every line reads as measurement.
         const vitalsLine=vitals
-          ? `<div class="t">${vitals}</div>`
-          : `<div class="t" style="color:var(--muted)">показатели за день не измерялись</div>`;
+          ? `<div class="t">оценка часов · ${vitals}</div>`
+          : `<div class="t" style="color:var(--muted)">пульс и кислород за день не измерялись</div>`;
         return `<div class="tli"><span>
           <b>${esc(fmtDate(d.day))}</b> <span class="t">${fmt(d.steps||0)} ${ruPlural(d.steps||0,"шаг","шага","шагов")} · ${km(d.meters)} · ${fmt(d.kcal||0)} ккал</span>
           ${vitalsLine}
@@ -5967,6 +6055,10 @@
     </tr>`;
   }
   async function renderSettings(){
+    // The card is hidden by applyCaps for anyone without `staff`; sending the
+    // request anyway would only write a `view_settings` audit row for a read
+    // the server is about to refuse.
+    if(!can("staff")) return;
     const $=id=>document.getElementById(id), msg=$("setMsg");
     // Whether we know what the server currently holds.
     //
@@ -6148,7 +6240,11 @@
     renderSettings();
     renderNewOrder();
     const vwrap=document.getElementById("shopVariants");
-    try{
+    // `stock`, which an operator does not hold. The card is hidden for her by
+    // applyCaps, and the guaranteed 403 is not sent — «Не удалось загрузить
+    // склад» over a working server is how a bug gets filed against one.
+    if(!can("stock")){ vwrap.innerHTML=""; }
+    else try{
       const {variants}=await api("/admin/shop/variants");
       const byProd=new Map(); // productId -> {name, vs}
       for(const v of variants){ if(!byProd.has(v.productId)) byProd.set(v.productId,{name:v.productName,vs:[]}); byProd.get(v.productId).vs.push(v); }
@@ -6877,10 +6973,19 @@
   async function renderCourse(){
     wireCourse();
 
+    // The two halves of this screen are guarded separately on the server, so
+    // the panel asks only for the half it is allowed to have. A request that
+    // is CERTAIN to 403 is not a load — it is an error message with a delay.
+    const mayEditLessons = can("content");
+    const mayGrant = can("orders");
+
     let data = null;
-    try{ data = await api("/admin/course/lessons"); }catch(e){ data = null; }
+    if(mayEditLessons){
+      try{ data = await api("/admin/course/lessons"); }catch(e){ data = null; }
+    }
     const list = $("#lessonList");
-    if(!data){ list.innerHTML = `<div style="color:var(--muted);padding:16px 0">Не удалось загрузить уроки.</div>`; }
+    if(!mayEditLessons){ /* the card is hidden by applyCaps; nothing to draw */ }
+    else if(!data){ list.innerHTML = `<div style="color:var(--muted);padding:16px 0">Не удалось загрузить уроки.</div>`; }
     else if(!data.lessons.length){
       list.innerHTML = `<div style="color:var(--muted);padding:16px 0">Уроков пока нет. Добавьте первый — он появится у тех, кто купил комплект.</div>`;
     } else {
@@ -6913,6 +7018,12 @@
        * If the second save fails the first has already landed, so the list
        * is redrawn from the server either way — what is on screen is then
        * what is really stored, rather than the move we hoped for.
+       *
+       * Redrawing was ALL it did. Neither response was read, and the commonest
+       * refusal here is the bilingual gate: a published lesson with no Kazakh
+       * title 400s on every PUT, including one that only changes `sort`. The
+       * operator clicked ↑ and the list came back identical, over and over,
+       * with nothing anywhere saying why.
        */
       async function moveLesson(id, delta){
         const i = data.lessons.findIndex(x => x.id === id);
@@ -6925,17 +7036,44 @@
         let sa = bb.sort, sb = a.sort;
         if(sa === sb){ sa = sb + (delta > 0 ? 1 : -1); }
 
-        const put = (lesson, sort) => fetch("/admin/course/lessons", {
-          method:"PUT", credentials:"same-origin",
-          headers:{"content-type":"application/json"},
-          body: JSON.stringify({
-            id: lesson.id, titleRu: lesson.titleRu, titleKk: lesson.titleKk,
-            youtubeUrl: lesson.youtubeUrl, summaryRu: lesson.summaryRu,
-            summaryKk: lesson.summaryKk, published: lesson.published, sort,
-          }),
-        });
-        try{ await put(a, sa); await put(bb, sb); }
-        catch(e){ /* the redraw below shows what actually stuck */ }
+        // Returns null when it saved, or the reason it did not — the server's
+        // own wording where there is one, because «Не удалось» does not tell
+        // anybody to go and write a Kazakh title.
+        const put = async (lesson, sort) => {
+          const r = await fetch("/admin/course/lessons", {
+            method:"PUT", credentials:"same-origin",
+            headers:{"content-type":"application/json"},
+            body: JSON.stringify({
+              id: lesson.id, titleRu: lesson.titleRu, titleKk: lesson.titleKk,
+              youtubeUrl: lesson.youtubeUrl, summaryRu: lesson.summaryRu,
+              summaryKk: lesson.summaryKk, published: lesson.published, sort,
+            }),
+          });
+          if(r.ok) return null;
+          const body = await r.json().catch(()=>({}));
+          return body.message || body.detail
+            || (r.status === 403 ? "у вашей роли нет права «Контент»." : `сервер ответил ${r.status}.`);
+        };
+
+        msgTo("#lessonMsg", "");
+        let problem = null;
+        try{
+          // The first refusal stops the pair: sending the second anyway would
+          // move one lesson and not the other, for no gain.
+          const why = await put(a, sa);
+          if(why){
+            problem = `Порядок не изменён — «${a.titleRu}» не сохранился: ${why}`;
+          } else {
+            const why2 = await put(bb, sb);
+            // Half of a swap is a real state and has to be said as one: the
+            // first lesson HAS moved on the server.
+            if(why2) problem = `Порядок изменён наполовину: «${a.titleRu}» переставлен, ` +
+              `«${bb.titleRu}» — нет: ${why2}`;
+          }
+        }catch(e){ problem = "Порядок не изменён — нет связи с сервером."; }
+        if(problem){
+          msgTo("#lessonMsg", `${problem} Список ниже — то, что действительно сохранено.`, "bad");
+        }
         renderCourse();
       }
 
@@ -6976,6 +7114,12 @@
       }));
     }
 
+    // Nothing below this line is drawn for a role that cannot read it: the
+    // access list is `orders` on the server, and asking anyway painted the
+    // 403 as «Не удалось загрузить список» — a refusal that reads as a fault.
+    if(!mayGrant) return;
+
+    const foot = $("#entFoot");
     try{
       // Access and progress together. Two separate tables would put "she has
       // it" and "she has not started it" on different screens, which is the
@@ -6985,9 +7129,15 @@
         // Progress is the newer half. On a server that has not been migrated
         // yet this 404s, and the access list — the older, more important half —
         // must still draw.
-        api("/admin/course/progress").catch(() => ({ progress: [] })),
+        //
+        // It is also guarded by `content`, which a seller does not hold. For
+        // her it is not fetched and the column says so: an empty progress cell
+        // renders as «не начинала», which would be a claim about a customer
+        // that nobody here is in a position to make.
+        mayEditLessons ? api("/admin/course/progress").catch(() => ({ progress: [] })) : Promise.resolve(null),
       ]);
-      const byPhone = new Map((prog.progress || []).map(p => [p.phone, p]));
+      const knowProgress = prog != null;
+      const byPhone = new Map(((prog && prog.progress) || []).map(p => [p.phone, p]));
       // Out of the PUBLISHED lessons: a draft is not something anyone can
       // watch, so counting it would show every customer permanently behind.
       const total = ((data && data.lessons) || []).filter(l => l.published).length;
@@ -6998,20 +7148,56 @@
         <td class="num">${esc(e.phone)}</td>
         <td class="t">${esc(stamp(e.at))}</td>
         <td class="t">${esc(e.note || (e.orderId ? "заказ" : "вручную"))}</td>
-        <td>${courseProgressCell(p, total)}</td>
-        <td class="t">${p ? esc(p.lastLessonTitle || "—") + `<br><span class="sub">${esc(stamp(p.lastAt))}</span>` : "—"}</td>
+        <td>${knowProgress ? courseProgressCell(p, total) : `<span class="t">не показан</span>`}</td>
+        <td class="t">${knowProgress ? (p ? esc(p.lastLessonTitle || "—") + `<br><span class="sub">${esc(stamp(p.lastAt))}</span>` : "—") : "не показан"}</td>
         <td><button type="button" class="btn sm ghost erev" data-p="${esc(e.phone)}">Закрыть</button></td>
       </tr>`; }).join("") || tableNote(6,"Курс пока никому не открыт. Он входит в комплект — или откройте доступ вручную по номеру телефона в форме выше.");
 
+      if(foot){
+        foot.innerHTML =
+          `<span class="shown">Показано ${fmt(entitlements.length)}</span>` +
+          `<span style="white-space:normal">` +
+          (knowProgress
+            ? "Прогресс считается по опубликованным урокам — черновики в знаменатель не входят."
+            : "Прогресс по урокам здесь не показан: его отдаёт /admin/course/progress, а он требует права «Контент». Пустая клетка не значит «не начинала».") +
+          `</span>`;
+      }
+
       $("#entBody").querySelectorAll(".erev").forEach(b => b.addEventListener("click", async () => {
         if(!window.confirm(`Закрыть доступ к курсу для ${b.dataset.p}?`)) return;
+        // Was `try { await fetch(...) } catch(e) {}` with the response never
+        // read. fetch does not throw on 403 or 500, so a refused revoke redrew
+        // the same row and read as a stale render: the operator moves on and
+        // the customer keeps a course she was meant to lose.
+        b.disabled = true;
         try{
-          await fetch(`/admin/entitlements/mama_course/${encodeURIComponent(b.dataset.p)}`,
+          const r = await fetch(`/admin/entitlements/mama_course/${encodeURIComponent(b.dataset.p)}`,
             { method:"DELETE", credentials:"same-origin" });
-        }catch(e){ /* redraw shows the truth */ }
+          if(!r.ok){
+            const body = await r.json().catch(()=>({}));
+            b.disabled = false;
+            msgTo("#entMsg",
+              `Доступ НЕ закрыт — ${b.dataset.p} по-прежнему видит курс. ` +
+              (r.status === 403
+                ? "У вашей роли нет права «Заказы»: попросите владельца закрыть доступ."
+                : (body.message || body.error || `сервер ответил ${r.status}`)) , "bad");
+            return;
+          }
+          msgTo("#entMsg", `Доступ закрыт: ${b.dataset.p} ✓`, "ok");
+        }catch(e){
+          b.disabled = false;
+          msgTo("#entMsg", `Нет связи с сервером — доступ для ${b.dataset.p} НЕ закрыт.`, "bad");
+          return;
+        }
         renderCourse();
       }));
-    }catch(e){ $("#entBody").innerHTML = tableNote(6,"Не удалось загрузить список."); }
+    }catch(e){
+      // Reaching here now means a real failure. The 403 case — a role without
+      // `orders` — never gets this far, because the card it lives in is hidden
+      // and the request is not sent.
+      $("#entBody").innerHTML = tableNote(6,"Не удалось загрузить список. Он не пуст — он просто не пришёл; повторите позже.");
+      if(foot) foot.innerHTML = `<span class="shown">Показано —</span><span>Список не загружен, поэтому счётчика нет.</span>`;
+    }
   }
 
   // ---- Склад --------------------------------------------------------------
@@ -7126,15 +7312,57 @@
 
     body.querySelectorAll(".sblk").forEach(b => b.addEventListener("click", async () => {
       const blocking = b.dataset.next === "blocked";
+      const serial = b.dataset.s;
       if(blocking && !window.confirm(
-          `Заблокировать ${b.dataset.s}? Устройство перестанет привязываться к аккаунтам.`)) return;
+          `Заблокировать ${serial}? Устройство перестанет привязываться к аккаунтам.`)) return;
+      // The worst silent failure in this file. This is how a stolen tracker is
+      // stopped, and the response was never read: fetch resolves on 403 and on
+      // 500, the row redrew unchanged, and «Заблокировано» never appeared —
+      // which reads as a stale list, not as a refusal. The thief keeps a
+      // working device and nobody knows.
+      const inRow = b.parentElement;
+      let note = inRow && inRow.querySelector(".sblkmsg");
+      if(!note && inRow){
+        note = document.createElement("div");
+        note.className = "sblkmsg";
+        inRow.appendChild(note);
+      }
+      const say = (text, bad) => {
+        if(!note) return;
+        note.textContent = text || "";
+        note.className = "sblkmsg" + (bad ? " bad" : "");
+      };
+      const label = b.textContent;
+      b.disabled = true; b.textContent = "…"; say("");
       try{
-        await fetch(`/admin/device-registry/${encodeURIComponent(b.dataset.s)}/status`, {
+        const r = await fetch(`/admin/device-registry/${encodeURIComponent(serial)}/status`, {
           method:"POST", credentials:"same-origin",
           headers:{"content-type":"application/json"},
           body: JSON.stringify({ status: b.dataset.next }),
         });
-      }catch(e){ /* the redraw below shows the truth either way */ }
+        if(!r.ok){
+          const rb = await r.json().catch(()=>({}));
+          b.disabled = false; b.textContent = label;
+          const why = r.status === 403
+            ? "у вашей роли нет складского доступа"
+            : (rb.detail || rb.message || rb.error || `сервер ответил ${r.status}`);
+          const line = blocking
+            ? `НЕ заблокировано (${why}). ${serial} по-прежнему привязывается к аккаунтам.`
+            : `НЕ разблокировано (${why}). ${serial} остаётся заблокированным.`;
+          say(line, true);
+          msgTo("#serialMsg", `${serial}: ${line}`, "bad");
+          return;
+        }
+      }catch(e){
+        b.disabled = false; b.textContent = label;
+        const line = blocking
+          ? `Нет связи с сервером — ${serial} НЕ заблокировано.`
+          : `Нет связи с сервером — ${serial} НЕ разблокировано.`;
+        say(line, true);
+        msgTo("#serialMsg", line, "bad");
+        return;
+      }
+      msgTo("#serialMsg", blocking ? `Заблокировано: ${serial} ✓` : `Разблокировано: ${serial} ✓`, "ok");
       renderSerials();
     }));
   }
@@ -7594,6 +7822,22 @@
     support:["orders","customers","emergencies"],
   };
   const can=(cap)=>(ROLE_CAPS[STAFF.role]||[]).includes(cap);
+  /**
+   * `data-cap` may name MORE THAN ONE capability, space separated, meaning
+   * "any of these".
+   *
+   * Курс Ма!Ма! is why. The tab holds two cards with two different owners: the
+   * lessons need `content`, and «Кому открыт курс» calls /admin/entitlements,
+   * which needs `orders`. Under one capability the tab was wrong in both
+   * directions at once — a content editor opened it and got «Не удалось
+   * загрузить список» (a 403 painted as a breakage), and a seller, who is the
+   * person taking the order, could not reach the only screen that grants the
+   * course she just sold.
+   *
+   * Each card still carries its own single capability, so the halves appear
+   * separately. This only decides whether the tab is worth showing at all.
+   */
+  const canAny=(spec)=>String(spec||"").split(/\s+/).filter(Boolean).some(can);
 
   /**
    * Hide everything this person cannot use.
@@ -7606,7 +7850,7 @@
    */
   function applyCaps(){
     document.querySelectorAll("[data-cap]").forEach(el=>{
-      el.hidden=!can(el.dataset.cap);
+      el.hidden=!canAny(el.dataset.cap);
     });
     // A section every one of whose sub-items is hidden is not drawn at all.
     // Six greyed rows would tell a warehouse hand nothing except that most of
@@ -7713,6 +7957,11 @@
   async function renderStaff(){
     wireStaff();
     const card=$("#staffAdminCard"), body=$("#staffBody");
+    // The roster is `staff`; «Мой пароль» above it is not, and this tab is now
+    // reachable by every role for exactly that reason. Without the capability
+    // the card stays hidden and no request goes out — a 403 here would be a
+    // guaranteed one, and reading a colleague list is an audited action.
+    if(!can("staff")){ card.hidden=true; return; }
     let data=null;
     try{ data=await api("/admin/staff"); }
     catch(e){ data=null; }
@@ -8283,6 +8532,23 @@
   const stageLabel = (k) =>
     k[0] === "w" ? `${k.slice(1)}-я неделя` : (k === "m0" ? "Новорождённый" : `${k.slice(1)} мес.`);
 
+  /// What to call a card in a question about deleting it.
+  ///
+  /// The Russian title if there is one, then the Kazakh, then the id. A card
+  /// that has neither is a card somebody just added, and its id is the only
+  /// name it has ever had — «Удалить карточку?» would name nothing at all.
+  const itemName = (item) =>
+    String((item.title || {}).ru || (item.title || {}).kk || item.id || "").trim() || "без названия";
+
+  /// Russian plural for a count of cards: 1 карточка, 2 карточки, 5 карточек.
+  const cardsWord = (n) => {
+    const a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return "карточек";
+    if (b > 1 && b < 5) return "карточки";
+    if (b === 1) return "карточка";
+    return "карточек";
+  };
+
   function cellClass(items) {
     if (!items || items.length === 0) return "";
     return items.every((i) => (i.url || "").trim()) ? "ok" : "part";
@@ -8525,12 +8791,20 @@
     updatePublishState();
     if (!selected) {
       box.innerHTML = `<div class="sub">Выберите неделю или месяц выше, чтобы изменить содержимое.</div>`;
+      // NOT `data-stage`: the document click handler treats that attribute as
+      // "open this stage", so putting one on the items container turned every
+      // click inside the editor into a stage switch — including the click on
+      // Удалить, which then did nothing at all.
+      box.dataset.drawnstage = ""; box.dataset.drawncount = "0";
       return;
     }
     const own = draft.length
       ? draft.map(itemHtml).join("")
       : `<div class="sub">Для «${esc(stageLabel(selected))}» ничего не опубликовано на самом этапе.</div>`;
     box.innerHTML = own + sharedIntoHtml(selected);
+    // Which draft this markup describes. readDraftFromDom refuses to map rows
+    // onto a draft these rows were not drawn from — see its docstring.
+    box.dataset.drawnstage = selected; box.dataset.drawncount = String(draft.length);
     // Re-check as they type, so the button unlocks the moment the last Kazakh
     // field is filled rather than on some later re-render.
     box.querySelectorAll("[data-f]").forEach((el) =>
@@ -8601,7 +8875,29 @@
     el.className = "savebar" + (kind ? " " + kind : "");
   }
 
+  /**
+   * Copy what is typed on screen back into the draft.
+   *
+   * REFUSES TO READ A DOM THAT DOES NOT DESCRIBE THE CURRENT DRAFT, and that
+   * guard is the whole reason this has a docstring.
+   *
+   * `data-idx` is a position in `draft`, so a DOM one edit out of date maps
+   * every row onto the wrong object. renderEditor calls updatePublishState —
+   * which calls this — BEFORE it replaces the markup, so the sequence
+   * «splice, renderEditor» read three stale rows into a two-item draft:
+   * row 0 overwrote item 0, row 1 overwrote item 1, row 2 fell off the end.
+   * Deleting «Прикорм» kept «Прикорм» and «Сон» and silently dropped «Зубы» —
+   * the last card in the list, whatever it was, on every delete. The same
+   * mapping corrupted a stage switch between two stages holding equally many
+   * cards: the new draft came back wearing the old stage's text.
+   *
+   * The container therefore records WHICH stage it was drawn for and HOW MANY
+   * cards it drew, and this reads nothing unless both still hold.
+   */
   function readDraftFromDom() {
+    const box = $("#stageItems");
+    if (!box) return;
+    if (box.dataset.drawnstage !== String(selected) || Number(box.dataset.drawncount) !== draft.length) return;
     document.querySelectorAll("#stageItems .item").forEach((el) => {
       const item = draft[Number(el.dataset.idx)];
       if (!item) return;
@@ -8657,8 +8953,41 @@
     });
   }
 
+  /**
+   * Publish the draft over the live stage.
+   *
+   * PUT /admin/content/:stage REPLACES the stage with `items`, so a draft that
+   * has lost cards takes them away from every reader the moment this returns —
+   * and `{items: []}` empties a live week outright. Neither asked anything.
+   *
+   * It asks only when something DISAPPEARS. A prompt on every publish would be
+   * clicked through within a week, and that habit is exactly what would carry
+   * somebody through the one that empties a stage — the same reasoning that
+   * keeps «Подтверждён» quiet and «Отменён» loud on the orders screen.
+   *
+   * The count is taken from `catalog[selected]`, which is what the server last
+   * said this stage holds. Nothing here is estimated.
+   */
   async function publish() {
     readDraftFromDom();
+    const live = catalog[selected] || [];
+    const keptIds = new Set(draft.map((i) => i.id));
+    const removed = live.filter((i) => !keptIds.has(i.id));
+    if (removed.length) {
+      const names = removed.slice(0, 3).map((i) => `«${itemName(i)}»`).join(", ");
+      const head = draft.length === 0
+        ? `Опубликовать «${stageLabel(selected)}» ПУСТОЙ?\n\n` +
+          `Сейчас там ${live.length} ${cardsWord(live.length)} — исчезнет всё.`
+        : `Опубликовать «${stageLabel(selected)}»?\n\n` +
+          `Исчезнет ${removed.length} ${cardsWord(removed.length)} из ${live.length}: ` +
+          `${names}${removed.length > 3 ? ` и ещё ${removed.length - 3}` : ""}.`;
+      if (!window.confirm(
+        `${head}\n\nЭто видно всем читателям сразу — приложение берёт этот этап отсюда. ` +
+        "Отменить публикацию нельзя, вернуть можно только набрав карточки заново.")) {
+        setMsg("Публикация отменена — на сервере ничего не изменилось.");
+        return;
+      }
+    }
     try {
       const res = await api(`/admin/content/${selected}`, {
         method: "PUT",
@@ -8971,7 +9300,30 @@
     const cell = e.target.closest("[data-stage]");
     if (cell) { selectStage(cell.dataset.stage); return; }
     const del = e.target.closest("[data-del]");
-    if (del) { readDraftFromDom(); draft.splice(Number(del.dataset.del), 1); renderEditor(); return; }
+    if (del) {
+      readDraftFromDom();
+      const idx = Number(del.dataset.del);
+      const item = draft[idx];
+      if (!item) return;
+      // Every neighbour asks — the bulk import, the week revert, the stocktake,
+      // the write-off, the broadcast, the medical sign-off. This did not, and
+      // «Удалить» sits next to «Опубликовать» on the same card.
+      //
+      // The question says what is actually true right now: the card leaves the
+      // DRAFT immediately and leaves the readers on Publish. Claiming it is
+      // already live would be as wrong in the other direction.
+      const name = itemName(item);
+      const live = (catalog[selected] || []).some((i) => i.id === item.id);
+      if (!window.confirm(
+        `Удалить «${name}» из «${stageLabel(selected)}»?\n\n` +
+        (live
+          ? "Карточка исчезнет у читателей, как только вы нажмёте «Опубликовать». Вернуть её можно будет только набрав заново."
+          : "Эта карточка ещё не опубликована — она просто исчезнет из черновика."))) return;
+      draft.splice(idx, 1);
+      renderEditor();
+      setMsg(`«${name}» убрана из черновика. У читателей она исчезнет после «Опубликовать».`);
+      return;
+    }
     // The nav branch that used to sit here is gone: go() calls loadFor now, so
     // a screen reached from a section header or a hash loads too. Keeping both
     // would fetch everything twice on every click.
@@ -9041,9 +9393,15 @@
            <td>${esc((e.at || "").slice(0, 10))}</td>
            <td>${esc(e.productName)} · ${esc(e.color)}</td>
            <td style="font-family:var(--mono)">${e.units}</td>
+           <!-- .pill, not .chip: the class chip.crit was never defined, so
+                «списание» — the row that costs real money — rendered as a
+                plain white lozenge indistinguishable from chrome. .pill is
+                the vocabulary the spec describes and both modifiers exist
+                in it. (No backticks in here: this comment sits inside a
+                template literal and one would end the string.) -->
            <td>${e.reason === "return"
-             ? "<span class='chip warn'>возврат</span>"
-             : "<span class='chip crit'>списание</span>"}</td>
+             ? "<span class='pill warn'>возврат</span>"
+             : "<span class='pill crit'>списание</span>"}</td>
            <td>${esc(e.note || "—")}</td></tr>`).join("")}</tbody></table>
          <div class="note">Списано на ${finTenge(ret.writeOffCostMinor)} по себестоимости —
            там, где она указана. Возврат возвращает товар на склад, списание нет.</div>`
@@ -9156,7 +9514,9 @@
     return `<tr>
       <td style="font-family:var(--mono)${late ? ";color:var(--crit-text);font-weight:700" : ""}">${esc(supWait(t.waitingHours))}</td>
       <td><b>${esc(t.customerName || "—")}</b><div class="sub">${esc(t.phone || "нет номера")}</div></td>
-      <td>${esc(t.subject)}${t.neverAnswered ? ` <span class="chip crit">без ответа</span>` : ""}</td>
+      <!-- .pill.crit — the class chip.crit does not exist, and a ticket nobody
+           has answered was painted as white chrome. -->
+      <td>${esc(t.subject)}${t.neverAnswered ? ` <span class="pill crit">без ответа</span>` : ""}</td>
       <td>${esc(SUP_CHANNEL_RU[t.channel] || t.channel)}</td>
       <td>${esc(SUP_STATUS_RU[t.status] || t.status)}</td>
       <td><button class="btn" type="button" data-ticket="${esc(t.id)}">Открыть</button></td>
