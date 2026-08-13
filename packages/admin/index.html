@@ -728,10 +728,32 @@
 /* Персонал. Wraps rather than scrolls: this is used on a laptop and, when a
    colleague has to be cut off in a hurry, on a phone. */
 .stafform{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.stafform input,.stafform select{font:inherit;padding:10px 12px;border-radius:10px;
+/* Every control may shrink, and none may exceed the card.
+ *
+ * A flex item's min-width defaults to `auto`, which is its CONTENT width. So a
+ * row of eight fields that each carry their own `min-width` cannot wrap: the
+ * line refuses to break, the row grows past the card, and everything after the
+ * second field is clipped where no scrollbar reaches it. That is why «Приёмка
+ * поставки» showed a half-cut «Фактически в коробке» and why the section
+ * subtitle disappeared off the right edge.
+ *
+ * One line, and the existing `flex-wrap` starts doing the job it was written
+ * for. `max-width:100%` is the second half: a field with an inline min-width
+ * wider than a narrow card would otherwise still overhang on its own line.
+ */
+.stafform > *{min-width:0;max-width:100%}
+/* textarea was missing from this list, so #recvSerials inherited none of the
+ * panel's field styling and sat in the row as an unstyled browser default. */
+.stafform input,.stafform select,.stafform textarea{font:inherit;padding:10px 12px;border-radius:10px;
   border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);min-height:44px;flex:1 1 180px}
-.stafform input:focus,.stafform select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.stafform input:focus,.stafform select:focus,.stafform textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
 .stafform .btn{min-height:44px;flex:0 0 auto}
+/* A field whose only label is its placeholder loses that label the moment it
+ * has a value, and a <select> never had one at all — #recvKind read «без
+ * серийников» with nothing saying what the choice was about. */
+.stafform label{display:flex;flex-direction:column;gap:4px;flex:1 1 180px;min-width:0;
+  font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.stafform label > select,.stafform label > input{flex:0 0 auto;width:100%}
 .formmsg{font-size:13px;min-height:18px;margin-top:8px;color:var(--muted)}
 /* The link check. Grid-column 1/-1 so it spans the form rather than sitting in
    a field slot; the thumbnail is fixed-size so a slow image cannot reflow the
@@ -1901,21 +1923,37 @@
         <div class="card" style="margin-bottom:16px">
           <div class="sec-h"><h3>Приёмка поставки</h3>
             <span class="sub">Принимаем факт, а не накладную: расхождение — претензия поставщику, а не повод не принять</span></div>
+          <!-- Labels above the fields, not placeholders inside them.
+               A placeholder vanishes the moment a value is typed, so a form of
+               five numbers becomes five anonymous boxes exactly when somebody
+               is checking their work against a delivery note. #recvKind was
+               worse: a <select> has no placeholder at all, so it read «без
+               серийников» with nothing anywhere saying what that choice was
+               about. The inline max-widths are gone — .stafform wraps on its
+               own once its children are allowed to shrink. -->
           <form id="recvForm" class="stafform" autocomplete="off" style="align-items:flex-start">
-            <select id="recvVariant" aria-label="Товар и цвет" style="min-width:220px"></select>
-            <input id="recvQty" type="number" min="1" step="1" placeholder="Фактически в коробке" required style="max-width:170px">
-            <input id="recvInvoice" type="number" min="0" step="1" placeholder="По накладной" style="max-width:150px">
-            <input id="recvDefect" type="number" min="0" step="1" placeholder="Из них брак" style="max-width:140px">
-            <input id="recvCost" type="number" min="0" step="1" placeholder="Стоимость партии, ₸" style="max-width:190px">
-            <textarea id="recvSerials" rows="3" placeholder="MAC-адреса из накладной — по одному в строке (необязательно)"
-              style="flex:1;min-width:260px;font-family:ui-monospace,monospace;font-size:12px"></textarea>
-            <select id="recvKind" aria-label="Тип устройства">
+            <label style="flex:2 1 240px">Товар и цвет
+              <select id="recvVariant"></select></label>
+            <label>Фактически в коробке
+              <input id="recvQty" type="number" min="1" step="1" required></label>
+            <label>По накладной
+              <input id="recvInvoice" type="number" min="0" step="1"></label>
+            <label>Из них брак
+              <input id="recvDefect" type="number" min="0" step="1"></label>
+            <label>Стоимость партии, ₸
+              <input id="recvCost" type="number" min="0" step="1"></label>
+            <label style="flex:2 1 260px">MAC-адреса из накладной — по одному в строке, необязательно
+              <textarea id="recvSerials" rows="3"
+                style="font-family:ui-monospace,monospace;font-size:12px;width:100%"></textarea></label>
+            <label>Тип устройства
+            <select id="recvKind">
               <option value="">без серийников</option>
               <option value="tag">Брелок</option>
               <option value="band">Часы</option>
-            </select>
-            <input id="recvNote" placeholder="Накладная / примечание" maxlength="300" style="min-width:180px">
-            <button class="btn primary" id="recvBtn" type="submit">Оприходовать</button>
+            </select></label>
+            <label style="flex:2 1 200px">Накладная / примечание
+              <input id="recvNote" maxlength="300"></label>
+            <button class="btn primary" id="recvBtn" type="submit" style="align-self:flex-end">Оприходовать</button>
           </form>
           <div class="metricnote" id="recvCheck"></div>
           <div id="recvMsg" class="formmsg"></div>
@@ -6547,13 +6585,25 @@
   function renderStocktake(){
     const box=$("#takeBody");
     if(!box) return;
+    // Grid with an explicitly shrinkable first column, NOT flex:1.
+    //
+    // flex:1 leaves min-width at `auto` — the label's own content width — so a
+    // long «Смарт-часы Ana-Bala · Розовое золото» pushed «в базе N» and the
+    // count box off the right edge of the card, where nothing could scroll to
+    // them. The screen whose entire job is typing one number per row rendered
+    // as a list of names with nowhere to type. minmax(0,1fr) is what lets the
+    // name shrink instead.
+    //
+    // This comment lives out here rather than inside the template literal: the
+    // version that sat inside it quoted `flex:1` in backticks, which closed the
+    // template and took the whole panel's script down with a SyntaxError.
     box.innerHTML=VARIANTS.map(v=>`
-      <div class="row" style="display:flex;gap:8px;align-items:center;padding:5px 0">
-        <span style="flex:1">${esc(v.label)}</span>
-        <span class="t" style="min-width:96px;text-align:right">в базе ${v.stock}</span>
+      <div class="row" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--hair)">
+        <span style="min-width:0;overflow-wrap:anywhere">${esc(v.label)}</span>
+        <span class="t" style="text-align:right">в базе ${v.stock}</span>
         <input class="takecount" data-vid="${esc(v.id)}" data-was="${v.stock}" type="number" min="0" step="1"
                placeholder="посчитано" aria-label="Посчитано: ${esc(v.label)}"
-               style="width:110px;font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--hair);border-radius:5px;background:var(--bg);color:inherit">
+               style="width:104px;min-height:44px;font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--hair);border-radius:8px;background:var(--bg);color:inherit">
       </div>`).join("") || `<div class="sub">Пока нечего пересчитывать.</div>`;
 
     const summarise=()=>{
