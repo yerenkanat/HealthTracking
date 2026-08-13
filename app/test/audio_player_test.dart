@@ -199,6 +199,17 @@ void main() {
     expect(find.text(l.t('aud_all', {'n': 64})), findsOneWidget);
   });
 
+  testWidgets('«Все записи» actually opens them', (tester) async {
+    // The row was built long before anything could answer it, so for a while
+    // it was a button with nowhere to go. It now leads to AudioLibraryScreen —
+    // this is the assertion that it leads ANYWHERE.
+    var opened = 0;
+    await pump(tester, total: 12, onOpenAll: () => opened++);
+    await tester.tap(find.text(l.t('aud_all', {'n': 12})));
+    await tester.pumpAndSettle();
+    expect(opened, 1);
+  });
+
   testWidgets('releases the session when the screen closes', (tester) async {
     final s = await pump(tester);
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));

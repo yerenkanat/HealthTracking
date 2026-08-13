@@ -55,7 +55,7 @@ preeclampsia-range reading is drawn at full strength for forty-two hours.
 | Blood pressure | ≤ 4 h **and** calibration ≤ 8 days | 4–12 h | > 12 h, always when calibration is stale |
 | Heart rate | ≤ 6 h | 6–24 h | > 24 h |
 | SpO2 | ≤ 6 h, sub-95 only with the sleep flag | 6–24 h | > 24 h |
-| Temperature | never coloured — recommended removal | — | — |
+| Temperature | never coloured — recommended removal, and **barred from `emergency` severity at any freshness** (see below) | — | — |
 | Blood sugar | never shown | — | — |
 | Steps · distance · calories · sleep | 48 h is fine | — | — |
 
@@ -93,8 +93,19 @@ Refused in advance, with the reason, so they are not re-proposed:
 13. «Показатели в норме — визит можно перенести», in a mother's card.
 14. Any of the above added as a `medical: true` card on the strength of "the
     panel already says something like it".
+15. **«Температура по браслету держится ровно» — `ADV_TEMP_STEADY`, from a
+    device-derived sample. SHIPS TODAY** at `l10n.dart:102`. A normality verdict
+    on a body, from a wrist estimate whose dominant error term is the room, and
+    it fires off ONE sample. The same defect as #2, and worse in effect: the
+    woman whose wrist reads 35.9 while her core is 39 is not met with silence,
+    she is reassured by name. It may remain for a thermometer reading she typed
+    in, where it is true.
+16. «Температура повышена» — `ADV_TEMP_ELEVATED` — from a device-derived sample.
+    Asserts her temperature. And «измерьте снова» does not name the instrument,
+    when the only one to hand is the same wrist; re-reading it is not a second
+    measurement.
 
-## Triage is unchanged, and three guards keep it that way
+## Triage changed once — here is what did not
 
 `assessTelemetry` is fed by the live snapshot; backfilled days go to
 `wearable_days` and never enter triage. That is correct — an emergency raised
@@ -110,12 +121,75 @@ tempting next commits, all refused:
 3. **No trend rule.** «Давление растёт третий день» from three daily means, each
    ±10–15 mmHg and possibly uncalibrated, is a diagnosis dressed as an
    observation.
+4. **Never unify the three temperature sources into one rule.** A patch that
+   lowers manual entry to `warning`, or raises a device reading to `emergency`,
+   is a rejection of this review and must not ship. The correct shape is a
+   branch on provenance inside the fever block, in `app/lib/core/triage.dart`
+   and `packages/shared/src/triage.ts` together, kept as behavioural twins.
+
+## Device temperature — closed 2026-08-13
+
+The first open ticket below, deferred by the review above, came back for a
+verdict. Four rulings, and the reason each one is not merely about precision:
+
+1. **No device path may raise `emergency`.** Not because a wrist sensor is
+   imprecise, but because *the error source the conversion must correct for is
+   not one of its inputs*: `skinToCoreTempC` takes one argument, while the room,
+   the bedding and the strap are the dominant terms. Worked against our own
+   constants, the emergency line sits at skin 37.86 °C and the warning at 35.86;
+   `verify_calibration.dart`'s own «a wrist warmed by bedding is not a fever»
+   case clears the warning by **0.36 °C of skin**, against a documented ambient
+   swing of "several degrees". The uncertainty is the size of the decision —
+   the same finding as blood pressure.
+2. **The two-minute confirmation gate does not rescue it.**
+   `EmergencyConfirmation` was built against *transient* artifacts — movement,
+   stress, position. Temperature's dominant error is *systematic*: a warm room,
+   a duvet, a banya persist for hours and confirm themselves at two minutes with
+   near-certainty. The gate was designed against noise; this is bias.
+3. **Warning only, under a NEW code** — never `LOW_FEVER`/`HIGH_FEVER`, because
+   `emergencyFamily` sweeps anything matching `endsWith('FEVER')` into the
+   escalation path. The instruction «измерьте термометром» is the one qualifier
+   that passes finding #1 above: the reader IS the woman, the instrument IS a
+   household item, and the product can act on the result — a thermometer reading
+   typed in carries full emergency weight. It routes her to the one measurement
+   path this product is entitled to escalate on.
+4. **Manual entry is unchanged, at full emergency weight.** Stated explicitly so
+   no one "simplifies" the three sources into one rule and disarms the only one
+   that deserves to fire.
+
+The Starmax raw value is additionally **refused as a `coreTempC` value** until
+the vendor states a site and an accuracy. The vendor names the quantity
+(`当前体温`) but not where it is measured, so there is no defensible conversion —
+applying `skinToCoreTempC` to it would be inventing a calibration, which is
+worse than leaving it raw. The precedent is in the same file: `glucoseMmol` is
+carried and graded but never triaged.
+
+The resulting gap — a real fever seen only by a watch now raises nothing — is
+accepted, because it is not created by this decision: a genuine fever in a cool
+room reads low on the wrist today and raises nothing today. The change makes the
+silence honest rather than arbitrary. It is accepted **conditional on** removing
+the false reassurance that currently fills it (refused sentence #15).
 
 ## Open tickets this raised
 
-- The **live** Starmax temperature reaches `assessTelemetry` as `coreTempC`
-  unconverted, while the OEM path converts. A false-emergency risk in both
-  directions, pre-existing and outside this review.
+- The **server-side** emergency path re-runs `assessTelemetry` and pushes on the
+  FIRST crossing, with no equivalent of `EmergencyConfirmation` and no source
+  check — for every metric, not only temperature. It already reads `t.source`
+  for attribution. The on-device confirmation gate is therefore not the last
+  word on any vital.
+- The Starmax temperature has **no plausibility range at all**: `tempRaw` is a
+  u16, `tempCelsius => tempRaw / 10.0`, fed straight to `assessTelemetry`. A
+  corrupt frame reading 4000 becomes 400 °C and takes over the screen. The band
+  path has this gate; the watch path does not. Independent of the verdict above.
+- **37.8 / 38.5 are uncited.** No source this product already cites supports
+  either number for pregnancy: the antenatal protocol contains no fever item at
+  all, and `emergency_help.json`'s only two fever entries are newborn and
+  postpartum, both at 38 °C. The neighbouring thresholds in the same file *are*
+  attributed (140/90 to ACOG, 95 % to the spec); temperature is the one uncited
+  entry in the block. The numbers stay for the manual path — disarming the only
+  real-thermometer escalation over a documentation gap would be worse — but no
+  user-facing string may state either number until the owner records a source,
+  which is why the approved copy is non-numeric.
 - `server.ts` bounds `systolicAvg` and `bloodSugarTenths` at 255 while the
   ingest handler and CHECK constraints allow 260 and 300; values in the gap fail
   the whole wearable item at the wire. Harmless until a max column arrives.

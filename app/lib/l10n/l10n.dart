@@ -354,6 +354,23 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // player, so the clip continues while the display is off.
   'aud_screen_off': {AppLocale.ru: 'Экран погаснет — запись не остановится', AppLocale.kk: 'Экран сөнеді — жазба тоқтамайды', AppLocale.en: 'The screen will dim — the recording keeps playing'},
   'aud_all': {AppLocale.ru: 'Все записи · {n}', AppLocale.kk: 'Барлық жазба · {n}', AppLocale.en: 'All recordings · {n}'},
+  // --- «Все записи» · the library the row above leads to --------------------
+  // Day NUMBERS, not dates: the catalogue is keyed by gestational day / day of
+  // life, and the server holds no calendar to turn one into a date.
+  'aud_lib_title': {AppLocale.ru: 'Все записи', AppLocale.kk: 'Барлық жазба', AppLocale.en: 'All recordings'},
+  'aud_lib_day': {AppLocale.ru: 'День {n}', AppLocale.kk: '{n}-күн', AppLocale.en: 'Day {n}'},
+  'aud_lib_untitled': {AppLocale.ru: 'Без названия', AppLocale.kk: 'Атауы жоқ', AppLocale.en: 'Untitled'},
+  // Printed because tapping a row downloads the clip: on a village connection
+  // the difference between 40 КБ and 4 МБ is the difference between "a moment"
+  // and "not now".
+  'aud_lib_size': {AppLocale.ru: '{n} КБ', AppLocale.kk: '{n} КБ', AppLocale.en: '{n} KB'},
+  // Said out loud because the list is filtered to her language: a mother who
+  // sees fewer entries than a friend does should know why.
+  'aud_lib_lang_note': {AppLocale.ru: 'Записи на вашем языке · {n}', AppLocale.kk: 'Сіздің тіліңіздегі жазбалар · {n}', AppLocale.en: 'Recordings in your language · {n}'},
+  'aud_lib_empty': {AppLocale.ru: 'Записей пока нет', AppLocale.kk: 'Әзірге жазба жоқ', AppLocale.en: 'No recordings yet'},
+  'aud_lib_empty_hint': {AppLocale.ru: 'Они появятся здесь, как только их добавят', AppLocale.kk: 'Қосылған бойда осында пайда болады', AppLocale.en: 'They will appear here as soon as they are added'},
+  'aud_lib_loading': {AppLocale.ru: 'Открываем запись…', AppLocale.kk: 'Жазба ашылуда…', AppLocale.en: 'Opening the recording…'},
+  'aud_lib_failed': {AppLocale.ru: 'Не удалось открыть запись. Проверьте связь и попробуйте ещё раз.', AppLocale.kk: 'Жазбаны ашу мүмкін болмады. Байланысты тексеріп, қайталап көріңіз.', AppLocale.en: 'Could not open the recording. Check your connection and try again.'},
   // --- Screen 41 · «Магазин» ----------------------------------------------
   'shop_title': {AppLocale.ru: 'Магазин', AppLocale.kk: 'Дүкен', AppLocale.en: 'Shop'},
   'shop_for_your_stage': {AppLocale.ru: 'Для вашего этапа', AppLocale.kk: 'Сіздің кезеңіңізге', AppLocale.en: 'For where you are now'},

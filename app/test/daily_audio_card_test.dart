@@ -24,7 +24,6 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
 import 'package:flutter/foundation.dart';

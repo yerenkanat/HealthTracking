@@ -49,6 +49,12 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  # Already pulled in by audioplayers; declared so a widget test may replace
+  # AudioplayersPlatformInterface.instance with a fake — the seam the plugin
+  # provides for driving a player with no device behind it. Without this,
+  # DailyAudioCard can never reach its «ready» state in `flutter test` and the
+  # full player it opens is untestable.
+  audioplayers_platform_interface: ^7.2.0
 
 flutter:
   uses-material-design: true

@@ -11,9 +11,11 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../data/audio_library_repository.dart';
 import '../../data/audio_player_session.dart';
 import '../../l10n/l10n.dart' show AppLocale;
 import '../../l10n/l10n_scope.dart';
+import '../content/audio_library_screen.dart';
 import '../content/audio_player_screen.dart';
 import '../design_system.dart';
 import '../theme.dart';
@@ -29,7 +31,22 @@ class DailyAudioCard extends StatefulWidget {
   /// clip (the card renders nothing) adds no stray gap to the surrounding list.
   final EdgeInsetsGeometry margin;
 
-  const DailyAudioCard({super.key, required this.track, required this.day, this.margin = EdgeInsets.zero});
+  /// Who answers `GET /audio/:track` for «Все записи · N». Injected so a widget
+  /// test can drive the row without a server; production uses HTTP.
+  final AudioLibraryFetcher libraryFetcher;
+
+  /// Where the last catalogue is kept between launches. Optional: without it
+  /// the row simply waits for the network instead of showing a stale count.
+  final AudioLibraryCache? libraryCache;
+
+  const DailyAudioCard({
+    super.key,
+    required this.track,
+    required this.day,
+    this.margin = EdgeInsets.zero,
+    this.libraryFetcher = const HttpAudioLibraryFetcher(),
+    this.libraryCache = const PrefsAudioLibraryCache(),
+  });
 
   @override
   State<DailyAudioCard> createState() => _DailyAudioCardState();
@@ -50,6 +67,12 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
   Duration _dur = Duration.zero;
   String? _loadedUrl;
 
+  /// The whole catalogue of this track, both locales — the source of «Все
+  /// записи · N» and of the list that row opens. Null until something answers:
+  /// the row stays hidden rather than printing a zero it cannot stand behind.
+  AudioLibrary? _library;
+  String? _loadedLibraryTrack;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -59,6 +82,41 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
       _loadedUrl = url;
       _load(url);
     }
+    if (widget.track != _loadedLibraryTrack) {
+      _loadedLibraryTrack = widget.track;
+      _loadLibrary(widget.track);
+    }
+  }
+
+  /// The catalogue, cache first and then the network — the same ladder every
+  /// other server-published list in the app uses. A failed refresh KEEPS the
+  /// cached list; a first launch with no signal leaves [_library] null and the
+  /// «Все записи» row simply does not appear.
+  Future<void> _loadLibrary(String track) async {
+    final cache = widget.libraryCache;
+    if (cache != null) {
+      final cached = await primeAudioLibraryFromCache(track, cache);
+      if (cached != null && mounted && _loadedLibraryTrack == track) {
+        setState(() => _library = cached);
+      }
+    }
+    final fresh = await refreshAudioLibraryFromApi(
+      track: track,
+      fetcher: widget.libraryFetcher,
+      cache: cache,
+    );
+    if (fresh != null && mounted && _loadedLibraryTrack == track) {
+      setState(() => _library = fresh);
+    }
+  }
+
+  /// The clips she can actually listen to: her language only. Counting the raw
+  /// list would double «Все записи», because the server returns ru and kk
+  /// together.
+  List<AudioClip> _herClips(BuildContext context) {
+    final lib = _library;
+    if (lib == null) return const [];
+    return lib.forLocale(L10nScope.of(context).locale == AppLocale.kk ? 'kk' : 'ru');
   }
 
   Future<void> _load(String url) async {
@@ -126,30 +184,36 @@ class _DailyAudioCardState extends State<DailyAudioCard> {
   /// ownsPlayer stays false: this card created the player and disposes it, and
   /// the full screen disposes its session on the way out.
   ///
-  /// No `totalRecordings` / `onOpenAll`, deliberately, and the screen's «Все
-  /// записи · N» row therefore stays hidden. THE COUNT IS NOT AVAILABLE TO THE
-  /// APP: the only routes that know it are `GET /admin/audio` (staff session,
-  /// capability `content`) and `GET /api/v1/audio/:track`, which lives behind
-  /// the partner API-key guard and is meant for integrators, not for this
-  /// client. There is also nowhere for the row to LEAD — the app has no
-  /// screen listing the recordings, only this per-day card.
-  ///
-  /// Making the row appear would need, in order: an app-facing
-  /// `GET /audio/:track` on the unprefixed public surface (server.ts, beside
-  /// the existing stream route, reusing repo.listDailyAudio), an api_client
-  /// method, and a library screen that can play an arbitrary day. Passing a
-  /// fabricated number, or a callback that opens nothing, would be worse than
-  /// the hidden row: «Все записи · 0» reads as a broken catalogue, which is
-  /// exactly why AudioPlayerScreen hides it on null.
+  /// `totalRecordings` is the number of clips IN HER LANGUAGE, counted from the
+  /// rows [AudioLibraryScreen] will show, so the row and the list it opens can
+  /// never disagree. Both it and `onOpenAll` are null until the catalogue
+  /// arrives, and the screen then hides the row — «Все записи · 0» reads as a
+  /// broken catalogue rather than one that has not loaded, which is why
+  /// [AudioPlayerScreen] hides it on null.
   void _openFullPlayer() {
     final player = _player;
     if (player == null || _st != _St.ready) return;
     final l = L10nScope.of(context);
+    final clips = _herClips(context);
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => AudioPlayerScreen(
         title: l.t('audio_title'),
         session: AudioPlayerSession(player),
+        totalRecordings: clips.isEmpty ? null : clips.length,
+        onOpenAll: clips.isEmpty ? null : () => _openLibrary(clips),
       ),
+    ));
+  }
+
+  /// «Все записи» — the whole track, day by day.
+  ///
+  /// Today's clip is PAUSED first: the library builds a fresh player per clip,
+  /// so without this she would hear two recordings at once. It is paused rather
+  /// than stopped, so coming back and hitting play resumes where she was.
+  void _openLibrary(List<AudioClip> clips) {
+    unawaited(_player?.pause());
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => AudioLibraryScreen(clips: clips, todayDay: widget.day),
     ));
   }
 
