@@ -132,9 +132,14 @@ describe('the Dashboard', () => {
     expect(page.errors).toEqual([]);
   });
 
-  it('is called Dashboard, in the header and in the sidebar', () => {
-    expect(page.text('#pageTitle')).toBe('Dashboard');
-    expect(page.text('[data-view="overview"]')).toContain('Dashboard');
+  it('is called «Обзор», in the header and in the sidebar', () => {
+    // It read «Dashboard» — the first word on the first screen of a back office
+    // whose every other word is Russian. In the rail it is «Сводка», the first
+    // sub-item of «Обзор», which is what the design artifact labels it.
+    expect(page.text('#pageTitle')).toBe('Обзор');
+    expect(page.text('.navsec[data-section="overview"]')).toContain('Обзор');
+    expect(page.text('.nav[data-view="overview"]')).toContain('Сводка');
+    expect(page.text('#sideNav')).not.toContain('Dashboard');
   });
 
   it('leads with the four numbers a business is run on', () => {

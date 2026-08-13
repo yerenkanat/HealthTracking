@@ -131,6 +131,52 @@
   .nav .badge[hidden]{display:none}
   .nav .badge{margin-left:auto;background:var(--crit);color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700}
 
+  /* ---- Seven sections ----------------------------------------------------
+     The rail is a tree: seven section rows, and the sub-items of the OPEN one
+     underneath it. Collapsing is done with the `hidden` attribute on the
+     sub-list rather than a display rule, so what a test reads is what a browser
+     paints — a display-only rule is invisible to jsdom, and the panel's whole
+     suite is jsdom. */
+  .navtree{display:flex;flex-direction:column;gap:3px;min-height:0}
+  .navgroup[hidden]{display:none}
+  .navsec{display:flex;gap:10px;align-items:center;width:100%;padding:8px 11px;border-radius:8px;
+          color:var(--side-text);font-weight:600;cursor:pointer;border:1px solid transparent;
+          text-align:left;background:none;font-family:inherit;font-size:14px;line-height:1.3}
+  .navsec:hover{background:rgba(255,255,255,.06);color:#fff}
+  .navsec .ic{width:18px;height:18px;flex:0 0 auto}
+  .navsec .secname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .navsec .chev{margin-left:auto;color:var(--side-group);font-size:12px;line-height:1;transition:transform .15s ease}
+  /* The open section is a white plate. On a dark rail it is the only treatment
+     that reads at a glance, and it is what the artifact draws. */
+  .navsec.active{background:#fff;color:var(--ink);border-color:transparent}
+  .navsec.active .chev{transform:rotate(90deg);color:var(--muted-2)}
+  /* Экстренные, when it is not the open one: crimson is reserved for this and
+     for work that is late. */
+  .navsec.leaf:not(.active){color:#FF6B8F}
+  .navsec .badge[hidden]{display:none}
+  .navsec .badge{margin-left:auto;background:var(--crit);color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700}
+  .navsec .badge+.chev{margin-left:6px}
+  /* The rolled-up count of a closed section. Muted ink, deliberately: it is a
+     summary, and the panel has no «overdue» signal to justify crimson. */
+  .navsec .badge.sum{background:rgba(255,255,255,.10);color:var(--side-text);font-weight:700}
+  .navsec.active .badge.sum{background:var(--surface-2);color:var(--muted)}
+  .navsub{display:flex;flex-direction:column;gap:1px;padding:2px 0 4px}
+  .navsub[hidden]{display:none}
+  .nav.sub{padding:6px 12px 6px 26px;font-size:13px;font-weight:500;color:var(--side-group);gap:6px;border-radius:7px}
+  .nav.sub:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav.sub.active{background:none;color:#fff;font-weight:600}
+  .nav.sub[hidden]{display:none}
+  /* Лендинг · API-сервис: destinations, not sections. Small, at the foot. */
+  .navext{margin-top:auto;display:flex;flex-direction:column;gap:4px;padding:8px 12px 0;font-size:12px}
+  .navext a{display:flex;justify-content:space-between;gap:8px;color:var(--side-group);text-decoration:none}
+  .navext a:hover{color:#fff}
+  /* Who is signed in. */
+  .sideme{display:flex;align-items:center;gap:10px;border-top:1px solid rgba(255,255,255,.10);margin-top:10px;padding:11px 12px 0}
+  .sideme .avatar{width:28px;height:28px;flex:0 0 auto}
+  .sideme .who{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+  .sideme .who b{color:#fff;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sideme .who span{font-size:11px;color:var(--side-group)}
+
   /* ---- Timeline coverage map ----
      101 stages have to be readable at a glance, so each is a small cell
      coloured by state rather than a row in a very long list. */
@@ -170,7 +216,9 @@
   .btn.danger{color:var(--crit-text)}
   .savebar{margin-top:10px;font-size:13px;font-weight:600;min-height:18px}
   .savebar.ok{color:var(--good-text)} .savebar.err{color:var(--crit-text)}
-  .side .foot{margin-top:auto;font-size:11px;color:var(--side-group);padding:8px}
+  /* Not margin-top:auto any more — .navext holds the spring, so the version
+     line sits under the identity block instead of pushing it up. */
+  .side .foot{font-size:10px;color:var(--side-group);padding:9px 12px 2px}
 
   /* Main */
   .main{min-width:0;display:flex;flex-direction:column}
@@ -180,7 +228,9 @@
   .top .sub{color:var(--muted-2);font-size:12px}
   .spacer{flex:1}
   .chip{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--hair);border-radius:30px;padding:5px 6px 5px 12px;font-weight:600;font-size:12.5px}
-  .chip .role{background:var(--accent-soft);color:var(--accent-text);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;text-transform:capitalize}
+  /* .chip .role is gone with the topbar identity chip: the role now reads as a
+     Russian word under the name in the sidebar footer. `.chip` itself stays —
+     it is the status chip used all through the tables. */
   .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#E39A72);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
   .iconbtn{width:40px;height:40px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center}
   .modepill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid var(--hair)}
@@ -832,139 +882,167 @@
       <div class="logo">A</div>
       <div><b>Ana-Bala</b><span>Back-office</span></div>
     </div>
-    <button type="button" class="nav active" data-view="overview" aria-current="page">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-      Dashboard
-    </button>
-    <!-- «Дашбордов два … Не смешивать.» This is the owner's: money, what is on
-         fire, and one decision. Dashboard above is the snapshot it is built
-         from, and Очереди is the operator's. -->
-    <button type="button" class="nav" data-view="owner" data-cap="finance">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      Владелец
-    </button>
-    <button type="button" class="nav" data-view="emergencies" data-cap="emergencies">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-      Экстренные <span class="badge" id="navBadge" hidden></span>
-    </button>
-    <button type="button" class="nav" data-view="users" data-cap="customers">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Пользователи
-    </button>
-    <button type="button" class="nav" data-view="content" data-cap="content">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
-      Контент <span class="badge" id="navContentBadge" style="background:var(--muted)" hidden></span>
-    </button>
-    <button type="button" class="nav" data-view="review" data-cap="health">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-      Проверка врачом <span class="badge" id="reviewBadgeCount" hidden></span>
-    </button>
-    <button type="button" class="nav" data-view="kids" data-cap="health">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>
-      Дети
-    </button>
-    <button type="button" class="nav" data-view="antenatal">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M9 16l2 2 4-4"/></svg>
-      Антенатальный уход
-    </button>
-    <button type="button" class="nav" data-view="pregweeks">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      Календарь беременности
-    </button>
-    <button type="button" class="nav" data-view="childdev">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0z"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg>
-      Календарь развития
-    </button>
-    <button type="button" class="nav" data-view="vaccines">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2l4 4M17 3l4 4-8.5 8.5-4-4zM9.5 10.5l4 4M3 21l5-1 9-9-4-4-9 9z"/></svg>
-      Вакцинация
-    </button>
-    <button type="button" class="nav" data-view="devices" data-cap="health">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
-      Устройства
-    </button>
-    <!-- «SOS и зоны», not «Безопасность»: this is the feed of alarms and
-         geofence crossings. The spec's «Безопасность» (frame 22) is the
-         privacy screen further down, and two tabs sharing a name is how
-         somebody looking for the access log lands on a map of children. -->
-    <button type="button" class="nav" data-view="safety" data-cap="health">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z"/></svg>
-      SOS и зоны
-    </button>
-    <button type="button" class="nav" data-view="course" data-cap="content">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m10 8 6 4-6 4V8z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
-      Курс Ма!Ма!
-    </button>
-    <!-- Каталог is what a product IS — its stage, its age band, its Kazakh
-         copy. Склад is how many there are. Two jobs, two roles: the content
-         editor owns this one and never sees margin, the seller owns stock. -->
-    <button type="button" class="nav" data-view="catalog" data-cap="content">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
-      Каталог <span class="badge" id="catalogBadge" hidden></span>
-    </button>
-    <button type="button" class="nav" data-view="stock" data-cap="stock">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
-      Склад
-    </button>
-    <button type="button" class="nav" data-view="shop" data-cap="orders">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      Магазин <span class="badge" id="shopBadge" hidden></span>
-    </button>
-    <!-- Кадр 06. `content` rather than `orders`: this is writing to customers,
-         which is the content editor's job and the one role that already carries
-         the bilingual rule. -->
-    <button type="button" class="nav" data-view="marketing" data-cap="content">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-7z"/><path d="M11 14 21 3"/></svg>
-      Маркетинг
-    </button>
-    <button type="button" class="nav" data-view="audio" data-cap="content">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10v4h4l5 5V5L7 10z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg>
-      Аудио
-    </button>
-    <button type="button" class="nav" data-view="analytics">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
-      Аналитика
-    </button>
-    <button type="button" class="nav" data-view="audit" data-cap="staff">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
-      Журнал действий
-    </button>
-    <button type="button" class="nav" data-view="staff" data-cap="staff">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Персонал
-    </button>
-    <button type="button" class="nav" data-view="finance" data-cap="stock">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      Финансы
-    </button>
-    <button type="button" class="nav" data-view="support" data-cap="customers">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/></svg>
-      Поддержка <span class="badge" id="supBadge" hidden></span>
-    </button>
-    <button type="button" class="nav" data-view="integrations" data-cap="staff">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
-      Интеграции <span class="badge" id="intBadge" hidden></span>
-    </button>
-    <button type="button" class="nav" data-view="security" data-cap="staff">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      Безопасность
-    </button>
-    <button type="button" class="nav" data-view="roles" data-cap="staff">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
-      Роли и права
-    </button>
+    <!-- «Структура меню — ровно семь разделов» (CLAUDE-admin-design §3.2), and
+         it is the one structural rule the spec calls non-negotiable.
+         Twenty-seven flat buttons were what stood here: the sidebar scrolled
+         itself, so «Роли и права», «Лендинг» and «API-сервис» lived permanently
+         below the fold, and nothing said which of the twenty-seven belonged
+         together.
+
+         Seven sections, sub-items listed ONLY under the open one — the artifact
+         never shows two expanded at once. A section whose every sub-item is
+         hidden by capability is not drawn at all (applyCaps), so a warehouse
+         hand sees the two sections she can work in, not six greyed rows.
+
+         data-view is unchanged on every item: the hash routes, the deep links
+         on the dashboard and the per-role hiding all key off it. -->
+    <nav class="navtree" id="navTree" aria-label="Разделы панели">
+
+      <!-- Обзор is open and «Сводка» is current in the markup itself, which is
+           frame 00 exactly. It also matters before any script runs: applyCaps
+           moves the panel to the first tab a role may see when nothing is
+           current, and go() rewrites the hash when it does — so an empty
+           starting state ate a bookmarked #finance on the way in. -->
+      <div class="navgroup" data-section="overview">
+        <button type="button" class="navsec active" data-section="overview" aria-expanded="true" aria-controls="navsub-overview">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span class="secname">Обзор</span>
+          <span class="badge sum" hidden></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>
+        <div class="navsub" id="navsub-overview">
+          <button type="button" class="nav sub active" data-view="overview" aria-current="page">Сводка</button>
+          <!-- «Дашбордов два … Не смешивать.» This is the owner's: money, what
+               is on fire, and one decision. Сводка is the snapshot it is built
+               from, and Очереди is the operator's. -->
+          <button type="button" class="nav sub" data-view="owner" data-cap="finance">Дашборд владельца</button>
+          <button type="button" class="nav sub" data-view="analytics">Аналитика</button>
+        </div>
+      </div>
+
+      <!-- No sub-items and a count, exactly as the artifact draws it. «SOS и
+           зоны» — the geofence feed that used to be its own tab — is now the
+           second half of this one screen, gated on `health` so an operator who
+           may see an alarm still may not see where a child is. -->
+      <div class="navgroup" data-section="emergencies">
+        <button type="button" class="navsec nav leaf" data-section="emergencies" data-view="emergencies" data-cap="emergencies">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+          <span class="secname">Экстренные</span>
+          <span class="badge" id="navBadge" hidden></span>
+        </button>
+      </div>
+
+      <div class="navgroup" data-section="sales">
+        <button type="button" class="navsec" data-section="sales" aria-expanded="false" aria-controls="navsub-sales">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span class="secname">Продажи</span>
+          <span class="badge sum" hidden></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>
+        <div class="navsub" id="navsub-sales" hidden>
+          <button type="button" class="nav sub" data-view="shop" data-anchor="shopOrdersCard" data-cap="orders">Заказы <span class="badge" id="shopBadge" hidden></span></button>
+          <button type="button" class="nav sub" data-view="shop" data-anchor="shopStoreCard" data-cap="orders">Витрина и заявки</button>
+          <button type="button" class="nav sub" data-view="finance" data-cap="stock">Финансы</button>
+          <!-- Кадр 06. `content` rather than `orders`: this is writing to
+               customers, which is the content editor's job and the one role that
+               already carries the bilingual rule. -->
+          <button type="button" class="nav sub" data-view="marketing" data-cap="content">Маркетинг</button>
+        </div>
+      </div>
+
+      <div class="navgroup" data-section="warehouse">
+        <button type="button" class="navsec" data-section="warehouse" aria-expanded="false" aria-controls="navsub-warehouse">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+          <span class="secname">Склад</span>
+          <span class="badge sum" hidden></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>
+        <!-- Остатки … История are five cards on ONE screen, so these five items
+             open that screen and scroll to the card. They are not five views and
+             do not pretend to be: the hash stays #stock. Приёмка and
+             Инвентаризация were below the fold of an 8 KB screen with nothing
+             in the menu pointing at them. -->
+        <div class="navsub" id="navsub-warehouse" hidden>
+          <button type="button" class="nav sub" data-view="stock" data-anchor="stockListCard" data-cap="stock">Остатки</button>
+          <button type="button" class="nav sub" data-view="stock" data-anchor="stockReceiveCard" data-cap="stock">Приёмка</button>
+          <button type="button" class="nav sub" data-view="stock" data-anchor="stockAuditCard" data-cap="stock">Инвентаризация</button>
+          <button type="button" class="nav sub" data-view="stock" data-anchor="stockSerialCard" data-cap="stock">Серийные номера</button>
+          <button type="button" class="nav sub" data-view="stock" data-anchor="stockHistoryCard" data-cap="stock">История</button>
+          <!-- Каталог is what a product IS — its stage, its age band, its Kazakh
+               copy. Остатки is how many there are. Two jobs, two roles: the
+               content editor owns this one and never sees margin. -->
+          <button type="button" class="nav sub" data-view="catalog" data-cap="content">Каталог <span class="badge" id="catalogBadge" hidden></span></button>
+        </div>
+      </div>
+
+      <div class="navgroup" data-section="people">
+        <button type="button" class="navsec" data-section="people" aria-expanded="false" aria-controls="navsub-people">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="secname">Пользователи</span>
+          <span class="badge sum" hidden></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>
+        <div class="navsub" id="navsub-people" hidden>
+          <button type="button" class="nav sub" data-view="users" data-cap="customers">Мамы</button>
+          <button type="button" class="nav sub" data-view="kids" data-cap="health">Дети</button>
+          <button type="button" class="nav sub" data-view="devices" data-cap="health">Устройства</button>
+          <button type="button" class="nav sub" data-view="support" data-cap="customers">Поддержка <span class="badge" id="supBadge" hidden></span></button>
+        </div>
+      </div>
+
+      <div class="navgroup" data-section="content">
+        <button type="button" class="navsec" data-section="content" aria-expanded="false" aria-controls="navsub-content">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5z"/><path d="M9 8h7M9 12h7"/></svg>
+          <span class="secname">Контент</span>
+          <span class="badge sum" hidden></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>
+        <div class="navsub" id="navsub-content" hidden>
+          <button type="button" class="nav sub" data-view="review" data-cap="health">Проверка врачом <span class="badge" id="reviewBadgeCount" hidden></span></button>
+          <button type="button" class="nav sub" data-view="content" data-cap="content">Уроки и товары <span class="badge" id="navContentBadge" style="background:var(--muted)" hidden></span></button>
+          <button type="button" class="nav sub" data-view="antenatal">Антенатальный уход</button>
+          <button type="button" class="nav sub" data-view="pregweeks">Календарь беременности</button>
+          <button type="button" class="nav sub" data-view="childdev">Календарь развития</button>
+          <button type="button" class="nav sub" data-view="vaccines">Вакцинация</button>
+          <button type="button" class="nav sub" data-view="audio" data-cap="content">Аудио</button>
+          <button type="button" class="nav sub" data-view="course" data-cap="content">Курс Ма!Ма!</button>
+        </div>
+      </div>
+
+      <div class="navgroup" data-section="settings">
+        <button type="button" class="navsec" data-section="settings" aria-expanded="false" aria-controls="navsub-settings">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
+          <span class="secname">Настройки</span>
+          <span class="badge sum" hidden></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>
+        <div class="navsub" id="navsub-settings" hidden>
+          <button type="button" class="nav sub" data-view="staff" data-cap="staff">Персонал</button>
+          <button type="button" class="nav sub" data-view="roles" data-cap="staff">Роли и права</button>
+          <!-- The privacy screen (frame 22), not the SOS feed: two tabs sharing
+               a name is how somebody looking for the access log lands on a map
+               of children. -->
+          <button type="button" class="nav sub" data-view="security" data-cap="staff">Безопасность</button>
+          <button type="button" class="nav sub" data-view="audit" data-cap="staff">Журнал действий</button>
+          <button type="button" class="nav sub" data-view="integrations" data-cap="staff">Интеграции и ключи <span class="badge" id="intBadge" hidden></span></button>
+        </div>
+      </div>
+
+    </nav>
     <!-- Direct one-click links to public pages (open in a new tab). Not
-         data-view items: they're external destinations, not SPA sections. -->
-    <a class="nav" href="/" target="_blank" rel="noopener" style="text-decoration:none" title="Открыть лендинг ana-bala.kz в новой вкладке">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2z"/><path d="M9 22h6"/></svg>
-      Лендинг
-      <svg class="ic" style="width:14px;height:14px;margin-left:auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M9 7h8v8"/></svg>
-    </a>
-    <a class="nav" href="/api-docs" target="_blank" rel="noopener" style="text-decoration:none" title="Документация API с живой консолью (/api-docs)">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 5l-2 14"/></svg>
-      API-сервис
-      <svg class="ic" style="width:14px;height:14px;margin-left:auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M9 7h8v8"/></svg>
-    </a>
+         data-view items: they're external destinations, not SPA sections. At
+         the foot of the rail, as the artifact has them. -->
+    <div class="navext">
+      <a href="/" target="_blank" rel="noopener" title="Открыть лендинг ana-bala.kz в новой вкладке">Лендинг<span aria-hidden="true">↗</span></a>
+      <a href="/api-docs" target="_blank" rel="noopener" title="Документация API с живой консолью (/api-docs)">API-сервис<span aria-hidden="true">↗</span></a>
+    </div>
+    <!-- Who is signed in, in the sidebar footer where the artifact puts it. It
+         used to be a chip in the topbar printing the RAW ENGLISH ROLE KEY
+         («owner», «warehouse») at a Russian-speaking operator. -->
+    <div class="sideme">
+      <span class="avatar" id="staffAv">·</span>
+      <span class="who"><b id="staffName">—</b><span id="staffRole">—</span></span>
+    </div>
     <div class="foot">v0.1.0 · not a medical device</div>
   </aside>
 
@@ -978,7 +1056,7 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <div>
-        <h1 id="pageTitle">Dashboard</h1>
+        <h1 id="pageTitle">Обзор</h1>
         <!-- Filled from `titles` on every navigation. Static text here is what
              the very first paint shows, and it was the one English sentence
              left on the default screen. -->
@@ -990,7 +1068,10 @@
       <button class="iconbtn" id="themeBtn" title="Светлая или тёмная тема" aria-label="Переключить тему">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
       </button>
-      <span class="chip"><span class="role" id="staffRole">clinician</span><span id="staffName">—</span><span class="avatar" id="staffAv">·</span></span>
+      <!-- The identity chip has moved to the sidebar footer, where the artifact
+           puts it. It printed the raw English role key here, capitalised by CSS
+           — «Warehouse» at a кладовщик — and it was taking the topbar room the
+           period controls need. -->
       <button class="iconbtn" id="logoutBtn" title="Выйти из панели" aria-label="Выйти">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
       </button>
@@ -1105,9 +1186,26 @@
         </div>
       </section>
 
-      <!-- EMERGENCIES -->
+      <!-- EMERGENCIES — one screen, per the artifact: «Экстренные» carries no
+           sub-items, so the SOS-and-geofence feed that used to be its own tab
+           lives here underneath the alarms. They are read together anyway: an
+           SOS and «вышел из зоны» within a minute are one story.
+
+           The second card carries data-cap="health" of its own. It was the
+           whole tab's capability before, and merging must not hand a support
+           agent — who has `emergencies` but not `health` — a table of where
+           children are. applyCaps hides the card; go() will not open a view
+           that has been hidden. -->
       <section class="view" id="emergencies">
-        <div class="card"><div class="feed" id="feedFull"></div></div>
+        <div class="card" style="margin-bottom:16px"><div class="feed" id="feedFull"></div></div>
+        <div class="card" data-cap="health">
+          <div class="sec-h"><h3>SOS и зоны</h3>
+            <span class="sub">Тревоги и пересечения зон по всем семьям</span></div>
+          <div class="tablewrap">
+            <table><thead><tr><th>Когда</th><th>Семья</th><th>Ребёнок</th><th>Событие</th><th>Зона</th></tr></thead>
+            <tbody id="safetyBody"></tbody></table>
+          </div>
+        </div>
       </section>
 
       <!-- USERS -->
@@ -1207,15 +1305,10 @@
         </div>
       </section>
 
-      <!-- SAFETY -->
-      <section class="view" id="safety">
-        <div class="card">
-          <div class="tablewrap">
-            <table><thead><tr><th>Когда</th><th>Семья</th><th>Ребёнок</th><th>Событие</th><th>Зона</th></tr></thead>
-            <tbody id="safetyBody"></tbody></table>
-          </div>
-        </div>
-      </section>
+      <!-- SAFETY lived here as its own tab. It is now the lower half of
+           «Экстренные» above, and #safety survives only as a routing alias
+           (VIEW_ALIAS in the script) so a bookmarked #safety still lands on the
+           screen that holds the table. -->
 
       <!-- ANALYTICS -->
       <!-- ANALYTICS — the product BI module: the whole funnel from acquisition
@@ -1883,7 +1976,7 @@
       </div>
 
       <section class="view" id="stock">
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="stockListCard" style="margin-bottom:16px">
           <div class="sec-h"><h3>Товары и остатки</h3>
             <span class="sub">Приход, списание и пересчёт пишутся в историю — с автором и причиной</span></div>
           <div id="stockLow" class="alertwarn" hidden>
@@ -1920,7 +2013,7 @@
              Whichever half somebody forgot stayed invisible until it mattered
              — a shelf that disagrees with the ledger, or a customer whose new
              watch the pairing check does not recognise. -->
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="stockReceiveCard" style="margin-bottom:16px">
           <div class="sec-h"><h3>Приёмка поставки</h3>
             <span class="sub">Принимаем факт, а не накладную: расхождение — претензия поставщику, а не повод не принять</span></div>
           <!-- Labels above the fields, not placeholders inside them.
@@ -1963,7 +2056,7 @@
              The panel could only say "set this to 12", which loses the one
              fact a stocktake exists to record: that it used to say 15 and
              three are gone. -->
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="stockAuditCard" style="margin-bottom:16px">
           <div class="sec-h"><h3>Инвентаризация</h3>
             <span class="sub">Впишите пересчитанное — разница уйдёт в историю как корректировка</span></div>
           <div id="takeBody"><div class="sub">Загрузка…</div></div>
@@ -1980,7 +2073,7 @@
              серийник не записан здесь, устройство из чужой коробки работает с
              приложением так же, как наше. Записывайте при приёмке — это тот же
              момент, когда товар ставится на склад. -->
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="stockSerialCard" style="margin-bottom:16px">
           <div class="sec-h"><h3>Серийные номера устройств</h3>
             <span class="sub">пока только считаем · блокировка включается отдельно</span></div>
           <form id="serialForm" class="stafform" autocomplete="off" style="align-items:flex-start">
@@ -2000,7 +2093,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="stockHistoryCard">
           <div class="sec-h"><h3>История движений</h3>
             <span class="sub">Записи не редактируются: ошибка исправляется новой строкой</span></div>
           <div class="tablewrap">
@@ -2011,7 +2104,7 @@
       </section>
 
       <section class="view" id="shop">
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="shopStoreCard" style="margin-bottom:16px">
           <div class="sec-h"><h3>Настройки и ключи</h3><span class="sub">WhatsApp и Kaspi показываются на лендинге · API-ключи используются на сервере</span></div>
           <div class="audioadd">
             <label>WhatsApp для заказов<input type="tel" id="setWhatsapp" placeholder="+7 700 123 45 67" autocomplete="off"></label>
@@ -2044,7 +2137,7 @@
              chips, a footer and paging, and none of that fits beside the stock
              table. A row now opens кадр 03 — until this it opened nothing, and
              the order card had no way in. -->
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" id="shopOrdersCard" style="margin-bottom:16px">
             <div class="sec-h"><h3>Заказы</h3><span class="sub" id="shopOrdersSub">—</span></div>
             <!-- Taking an order by hand.
                  Sales come in on WhatsApp and Kaspi: someone calls, staff write
@@ -3259,6 +3352,10 @@
     if(!el) return;
     el.textContent=fmt(n);
     el.hidden=!n;
+    // A count that lands on a sub-item inside a closed section has to reach the
+    // section row too, or it is invisible until somebody opens the section that
+    // was waiting to be opened. Hoisted function, safe to call from here.
+    syncNavBadges();
   }
 
   const tableBusy=(cols)=>`<tr><td colspan="${cols}" class="tstate">Загрузка…</td></tr>`;
@@ -4490,8 +4587,10 @@
 
   // Navigation
   const titles={
-    overview:["Dashboard","Люди, устройства и продажи — всё, что известно о проекте"],
-    emergencies:["Экстренные","Активные тревоги, самые серьёзные сверху"],
+    // «Обзор», not «Dashboard». It is the first word on the first screen of a
+    // Russian back office, and it was the one English one left.
+    overview:["Обзор","Люди, устройства и продажи — всё, что известно о проекте"],
+    emergencies:["Экстренные","Активные тревоги сверху, ниже SOS и пересечения зон"],
     users:["Пользователи","Поиск и карточка пациентки"],
     content:["Контент","Уроки и товары для каждой недели беременности и месяца жизни ребёнка"],
     review:["Проверка врачом","Медицинский текст ждёт вашей подписи перед публикацией"],
@@ -4501,7 +4600,6 @@
     childdev:["Календарь развития","Рост, вес и навыки ребёнка по неделям первого года (RU/KZ)"],
     vaccines:["Вакцинация","Национальный календарь прививок по возрасту ребёнка"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
-    safety:["SOS и зоны","Тревоги и пересечения зон по всем семьям"],
     owner:["Дашборд владельца","Деньги, что горит, и одно решение на неделю"],
     security:["Безопасность","Кто открывал здоровье и геолокацию, когда и на каком основании"],
     roles:["Роли и права","Что может каждая роль — из тех же правил, по которым проверяет сервер"],
@@ -4531,10 +4629,72 @@
     side.classList.toggle("open",open);
     scrim.classList.toggle("open",open);
     btn.setAttribute("aria-expanded",open?"true":"false");
-    if(open) side.querySelector(".nav")?.focus();
+    if(open) side.querySelector(".navsec,.nav")?.focus();
   }
 
-  function go(v){
+  /**
+   * Views that no longer have a tab of their own.
+   *
+   * «SOS и зоны» is the lower half of «Экстренные» now. A bookmark, a link in a
+   * chat and the browser's back button all still carry #safety, and landing on
+   * the default screen would look like the bookmark broke.
+   */
+  const VIEW_ALIAS={safety:"emergencies"};
+
+  /**
+   * Roll the visible sub-item counts up onto their closed section.
+   *
+   * A count only helps if it is visible: with «Заказы» folded away inside
+   * «Продажи», a waiting order had nowhere to show. Closed sections carry the
+   * sum of their children; the open one does not, because its children are on
+   * screen carrying their own.
+   */
+  function syncNavBadges(){
+    $$(".navgroup").forEach(g=>{
+      const sum=g.querySelector(".navsec .badge.sum");
+      if(!sum) return;                       // Экстренные carries its own count
+      const open=!g.querySelector(".navsub")?.hidden;
+      let n=0;
+      g.querySelectorAll(".nav.sub:not([hidden]) .badge").forEach(b=>{
+        if(!b.hidden) n+=parseInt(String(b.textContent).replace(/\D+/g,""),10)||0;
+      });
+      sum.textContent=String(n);
+      sum.hidden=open||!n;
+    });
+  }
+
+  /**
+   * Open the section that holds [v], close the other six.
+   *
+   * The artifact never draws two expanded sections, and `hidden` — not a CSS
+   * rule — is what closes one: a display rule is invisible to jsdom, and every
+   * test this panel has is jsdom.
+   */
+  function syncNavTree(v,chosen){
+    $$(".navgroup").forEach(g=>{
+      const sec=g.querySelector(".navsec"), sub=g.querySelector(".navsub");
+      // No CSS.escape: view keys are plain latin words, and CSS.escape is one
+      // of the globals jsdom does not ship — every test would have to stub it.
+      const mine=!!(chosen&&g.contains(chosen))||
+        (!chosen&&!!g.querySelector(`.nav[data-view="${v}"]`));
+      if(sec){
+        sec.classList.toggle("active",mine);
+        if(sub) sec.setAttribute("aria-expanded",mine?"true":"false");
+      }
+      if(sub) sub.hidden=!mine;
+    });
+    syncNavBadges();
+  }
+
+  /**
+   * Open a view. [el] is the nav item clicked, when there was one.
+   *
+   * Two sub-items can name the same view — «Остатки» and «Приёмка» are two
+   * cards on the Склад screen — so which one lights up is decided by what was
+   * clicked, falling back to the first item for that view.
+   */
+  function go(v,el){
+    v=VIEW_ALIAS[v]||v;
     // Picking a destination closes the menu. Leaving it open would cover the
     // thing she just asked to see.
     setNav(false);
@@ -4544,13 +4704,22 @@
     const sec=document.getElementById(v);
     if(sec){ sec.classList.remove("entering"); void sec.offsetWidth; sec.classList.add("entering");
       setTimeout(()=>sec.classList.remove("entering"),650); }
+    // $$ is querySelectorAll — a NodeList, not an array.
+    const items=[...$$(".nav[data-view]")].filter(n=>n.dataset.view===v);
+    const chosen=(el&&items.indexOf(el)>=0)?el:items[0];
     $$(".nav").forEach(n=>{
-      const on=n.dataset.view===v;
+      const on=n===chosen;
       n.classList.toggle("active",on);
       // Colour alone said which tab you were on. aria-current says it to a
       // screen reader, and survives a user stylesheet that drops the tint.
       if(on) n.setAttribute("aria-current","page"); else n.removeAttribute("aria-current");
     });
+    syncNavTree(v,chosen);
+    // A sub-item may point at a card rather than a screen. Bring it into view;
+    // the hash still names the screen, so nothing about routing changes.
+    const anchor=chosen&&chosen.dataset.anchor&&document.getElementById(chosen.dataset.anchor);
+    if(anchor&&typeof anchor.scrollIntoView==="function")
+      setTimeout(()=>anchor.scrollIntoView({block:"start",behavior:REDUCE?"auto":"smooth"}),0);
     // A view without a title entry would blank the header; fall back rather
     // than throwing and leaving the panel half-switched.
     const t=titles[v]||[v,""];
@@ -4579,6 +4748,12 @@
     // A blank screen on the emergencies tab reads as "failed to load", on the
     // one screen where "nothing is wrong" is the thing to be certain about.
     if(v==="emergencies")renderFeeds();
+    // The loaders that live in the second script block (Контент, Устройства,
+    // SOS и зоны, Каталог, Интеграции, Финансы, Поддержка). They used to hang
+    // off their own click listener, which meant a view reached any other way —
+    // a section header, a hash, applyCaps falling back — painted a header and
+    // no rows. One funnel now: every navigation goes through go().
+    if(window.UI&&window.UI.loadFor) window.UI.loadFor(v);
     // In the URL, so a tab can be bookmarked, shared with a colleague, and
     // survives a refresh. Reloading used to drop whoever was mid-investigation
     // back on «Обзор».
@@ -4588,7 +4763,7 @@
 
   /// The view named in the URL, when it is one we have.
   function viewFromHash(){
-    const v=location.hash.slice(1);
+    const v=VIEW_ALIAS[location.hash.slice(1)]||location.hash.slice(1);
     // :not([hidden]) matters — a bookmarked #audit from an owner's browser must
     // not open the audit log for the seller who borrows the laptop. The server
     // refuses the data either way; this stops the empty tab.
@@ -6691,7 +6866,7 @@
     }
     const rows=data.waiting||[];
     const badge=$("#reviewBadgeCount");
-    if(badge){ badge.hidden=rows.length===0; badge.textContent=String(rows.length); }
+    if(badge){ setBadge(badge,rows.length); }
 
     if(!rows.length){
       // «Пустые состояния говорят причину и одно действие.»
@@ -6844,6 +7019,10 @@
     support:"support — заявки и заказы",
   };
 
+  // The one-word Russian name of a role is ROLE_RU, declared above next to the
+  // Роли и права table that also prints it. The sidebar footer uses the same
+  // map: two lists of the same eight roles is two chances to drift.
+
   /**
    * What each role may do — the SAME matrix as the server's
    * auth/capabilities.ts, kept here so the panel can hide what it cannot use.
@@ -6877,14 +7056,22 @@
     document.querySelectorAll("[data-cap]").forEach(el=>{
       el.hidden=!can(el.dataset.cap);
     });
+    // A section every one of whose sub-items is hidden is not drawn at all.
+    // Six greyed rows would tell a warehouse hand nothing except that most of
+    // this panel is not for her, on every screen, all day.
+    $$(".navgroup").forEach(g=>{
+      const items=[...g.querySelectorAll(".nav[data-view]")];
+      g.hidden=items.length>0&&items.every(el=>el.hidden);
+    });
     // The tab we are standing on may have just vanished — on a deep link
     // (#audit in a bookmark) or on the default view. Falling through would
     // leave a blank panel that looks broken.
     const cur=document.querySelector(".nav.active");
     if(!cur||cur.hidden){
-      const first=document.querySelector(".nav[data-view]:not([hidden])");
-      if(first) go(first.dataset.view);
+      const first=document.querySelector(".navgroup:not([hidden]) .nav[data-view]:not([hidden])");
+      if(first) go(first.dataset.view,first);
     }
+    syncNavBadges();
   }
   let staffWired=false;
 
@@ -7123,7 +7310,16 @@
 
   // Events
   document.addEventListener("click",e=>{
-    const nav=e.target.closest("[data-view]"); if(nav){go(nav.dataset.view);return;}
+    const nav=e.target.closest("[data-view]"); if(nav){go(nav.dataset.view,nav.classList.contains("nav")?nav:null);return;}
+    // A section header opens its section's first available screen. Which one
+    // that is depends on the role — for a content editor «Склад» starts at
+    // Каталог, because Остатки is not hers to see.
+    const sec=e.target.closest(".navsec[data-section]");
+    if(sec){
+      const first=sec.parentElement.querySelector(".nav.sub:not([hidden])");
+      if(first) go(first.dataset.view,first);
+      return;
+    }
     const ackb=e.target.closest("[data-ack]"); if(ackb){ackEmergency(ackb.dataset.ack);return;}
     // Frame 14b's three buttons, before the week chips: the editor sits inside
     // the same view, and #pwSave is not a [data-week].
@@ -7190,7 +7386,12 @@
     const saved=localStorage.getItem("umay.theme");
     if(saved==="dark"||saved==="light") document.documentElement.setAttribute("data-theme",saved);
   }catch(e){/* private mode */}
-  $("#staffName").textContent=STAFF.name;$("#staffRole").textContent=STAFF.role;$("#staffAv").textContent=STAFF.name.replace("Dr. ","")[0];
+  // Placeholders until /admin/me answers; setStaff() writes the real ones. The
+  // old line here read STAFF.name[0] of an empty string and painted the word
+  // "undefined" as an avatar for as long as the session check took.
+  $("#staffName").textContent=STAFF.name||"—";
+  $("#staffRole").textContent=(ROLE_RU[STAFF.role]||STAFF.role||"—").toLowerCase();
+  $("#staffAv").textContent=(STAFF.name.trim()[0]||"·").toUpperCase();
 
   // ---- Sign-in ----------------------------------------------------------
   //
@@ -7269,7 +7470,9 @@
     STAFF.id=me.staffId||""; STAFF.role=me.role||"";
     STAFF.name=me.displayName||me.phone||"";
     document.getElementById("staffName").textContent=STAFF.name;
-    document.getElementById("staffRole").textContent=STAFF.role;
+    // The Russian word, not the wire key. A кладовщик was shown «Warehouse».
+    // An unknown role still prints something rather than an empty line.
+    document.getElementById("staffRole").textContent=(ROLE_RU[STAFF.role]||STAFF.role).toLowerCase();
     document.getElementById("staffAv").textContent=(STAFF.name.trim()[0]||"·").toUpperCase();
     applyCaps();
   }
@@ -8096,8 +8299,9 @@
     if (cell) { selectStage(cell.dataset.stage); return; }
     const del = e.target.closest("[data-del]");
     if (del) { readDraftFromDom(); draft.splice(Number(del.dataset.del), 1); renderEditor(); return; }
-    const nav = e.target.closest("[data-view]");
-    if (nav) loadFor(nav.dataset.view);
+    // The nav branch that used to sit here is gone: go() calls loadFor now, so
+    // a screen reached from a section header or a hash loads too. Keeping both
+    // would fetch everything twice on every click.
   });
 
   /// Fetch whatever a view needs.
@@ -8870,15 +9074,19 @@
   function loadFor(v) {
     if (v === "content") loadContent();
     if (v === "devices") loadDevices();
-    if (v === "safety") loadSafety();
+    // «SOS и зоны» is the lower half of Экстренные now, so it loads with it.
+    // The alias is kept because a bookmarked #safety still resolves through it.
+    if (v === "emergencies" || v === "safety") loadSafety();
     if (v === "catalog") loadCatalog();
     if (v === "integrations") loadIntegrations();
     if (v === "finance") loadFinance();
     if (v === "support") loadSupport();
   }
-  // The same views, reached by URL rather than by click.
-  window.addEventListener("hashchange", () => loadFor(location.hash.slice(1)));
-  loadFor(location.hash.slice(1));
+  // The one funnel: go() — in the first block — calls this for every
+  // navigation, whether it came from a click, a section header or the URL.
+  // Two listeners of its own used to do it, and neither ran when a screen was
+  // opened by anything else.
+  window.UI.loadFor = loadFor;
   const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
   on("#addLesson", () => addItem("lesson"));
   on("#addProduct", () => addItem("product"));

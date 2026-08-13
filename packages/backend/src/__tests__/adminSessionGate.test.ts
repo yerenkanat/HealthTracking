@@ -124,7 +124,10 @@ describe('the header names the person who signed in', () => {
     // audit log recording every action against a made-up staff id.
     const { window } = await boot();
     expect(window.document.getElementById('staffName')!.textContent).toBe('Ерен');
-    expect(window.document.getElementById('staffRole')!.textContent).toBe('admin');
+    // The Russian word for the role, not the wire key. This printed «admin»,
+    // «warehouse», «content» at Russian-speaking staff, capitalised by CSS so
+    // that a кладовщик read «Warehouse».
+    expect(window.document.getElementById('staffRole')!.textContent).toBe('админ');
     expect(window.document.getElementById('staffAv')!.textContent).toBe('Е');
   });
 

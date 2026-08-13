@@ -71,6 +71,23 @@ async function openAs(role: StaffRole, hash = '') {
   return { window: dom.window, errors };
 }
 
+/**
+ * The «SOS и зоны» card — the geofence feed, on the Экстренные screen.
+ *
+ * Found by its heading rather than by its capability, so that dropping the
+ * capability reports the leak instead of reporting a missing card.
+ */
+function sosCard(window: JSDOM['window']): HTMLElement {
+  const card = [...window.document.querySelectorAll('#emergencies .card')]
+    .find((c) => (c.querySelector('h3')?.textContent ?? '').includes('SOS'));
+  expect(card, 'the SOS feed is gone from the Экстренные screen').toBeDefined();
+  expect(
+    (card as HTMLElement).dataset.cap,
+    'the SOS card stopped naming `health` — every role with `emergencies` can now see where children are',
+  ).toBe('health');
+  return card as HTMLElement;
+}
+
 /** The capability each nav item declares, read from the panel's own markup. */
 function navCaps(window: JSDOM['window']): Map<string, string | null> {
   const out = new Map<string, string | null>();
@@ -129,9 +146,14 @@ describe('what each role sees', () => {
       !(window.document.querySelector(`.nav[data-view="${v}"]`) as HTMLElement).hidden;
 
     expect(shown('stock')).toBe(true);
-    for (const v of ['users', 'kids', 'devices', 'safety', 'audit', 'staff', 'shop', 'content']) {
+    for (const v of ['users', 'kids', 'devices', 'audit', 'staff', 'shop', 'content']) {
       expect(shown(v), `${v} must be hidden from a warehouse hand`).toBe(false);
     }
+    // «SOS и зоны» has no nav item of its own since the seven-section rail: it
+    // is a card on the Экстренные screen, carrying the same `health`
+    // capability the tab used to. Asserted on the card, because that is now the
+    // thing that either appears or does not.
+    expect(sosCard(window).hidden, 'the SOS feed must be hidden from a warehouse hand').toBe(true);
   });
 
   it('a seller sees orders and stock, and neither children nor the audit log', async () => {
@@ -142,9 +164,28 @@ describe('what each role sees', () => {
     expect(shown('shop')).toBe(true);
     expect(shown('stock')).toBe(true);
     expect(shown('users')).toBe(true); // contacts — «контакты» is in her list
-    for (const v of ['kids', 'safety', 'devices', 'audit', 'staff']) {
+    for (const v of ['kids', 'devices', 'audit', 'staff']) {
       expect(shown(v), `${v} must be hidden from a seller`).toBe(false);
     }
+    expect(sosCard(window).hidden, 'the SOS feed must be hidden from a seller').toBe(true);
+  });
+
+  it('an operator gets the alarms but not where the children are', async () => {
+    // The merge put two capabilities on one screen. An operator holds
+    // `emergencies` and not `health`, so she must reach the feed and not the
+    // geofence table — the exact leak the merge could have introduced.
+    const { window, errors } = await openAs('operator');
+    expect(errors, errors.join('\n')).toEqual([]);
+    expect((window.document.querySelector('.nav[data-view="emergencies"]') as HTMLElement).hidden)
+      .toBe(false);
+    expect(sosCard(window).hidden, 'an operator must not see where children are').toBe(true);
+  });
+
+  it('a clinician gets both halves of the Экстренные screen', async () => {
+    const { window } = await openAs('clinician');
+    expect((window.document.querySelector('.nav[data-view="emergencies"]') as HTMLElement).hidden)
+      .toBe(false);
+    expect(sosCard(window).hidden).toBe(false);
   });
 
   it('a content editor sees the CMS and the course, and no orders', async () => {
@@ -203,5 +244,17 @@ describe('the roster can hand out every role the server accepts', () => {
       // of other people's data they are about to hand over.
       expect(labels).toMatch(new RegExp(`\\b${role}:"${role} — .{8,}"`));
     }
+  });
+
+  it('every role has a Russian word for the sidebar footer', async () => {
+    // The footer prints ROLE_RU[role]. A role missing from it falls back to the
+    // English key — which is the defect the footer was built to end.
+    const ru = readFileSync(PANEL, 'utf8').match(/const ROLE_RU=\{([\s\S]*?)\n {2}\};/)![1];
+    for (const role of STAFF_ROLES) {
+      expect(ru, `no Russian label for ${role} — the footer would print the wire key`)
+        .toMatch(new RegExp(`\\b${role}:"[^"]+"`));
+    }
+    const { window } = await openAs('warehouse');
+    expect(window.document.getElementById('staffRole')!.textContent).toBe('склад');
   });
 });

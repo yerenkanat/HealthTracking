@@ -32,9 +32,15 @@ import { antenatalProtocol } from '../antenatal/protocol.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
 
-/** Every tab in the sidebar. */
+/**
+ * Every tab in the sidebar.
+ *
+ * `safety` is not one any more: «SOS и зоны» is the lower half of «Экстренные»
+ * since the seven-section rail, where the artifact gives Экстренные no
+ * sub-items. It is checked below, on the screen it now lives on.
+ */
 const VIEWS = [
-  'overview', 'analytics', 'users', 'kids', 'devices', 'safety',
+  'overview', 'analytics', 'users', 'kids', 'devices',
   'emergencies', 'audit', 'content', 'antenatal', 'pregweeks',
   'childdev', 'vaccines', 'audio', 'shop', 'marketing',
 ] as const;
@@ -183,5 +189,17 @@ describe('every admin view renders', () => {
     // "Загрузка…" left on screen means the render never replaced the
     // placeholder, which is the visible half of the same failure.
     expect(text, `${view}: still showing its loading placeholder`).not.toMatch(/^Загрузка…$/);
+  }, 30_000);
+
+  it('«Экстренные» carries the SOS and geofence feed that used to be its own tab', async () => {
+    // The merge is the reason `safety` left the list above. If the table had
+    // simply been deleted with the tab, everything here would still be green
+    // and the geofence feed would be unreachable in the product.
+    const b = await boot('emergencies');
+    expect(b.errors, 'script error').toEqual([]);
+    expect(b.rejections, 'unhandled rejection').toEqual([]);
+    const table = b.window.document.querySelector('#emergencies #safetyBody');
+    expect(table, 'the SOS feed is not on the Экстренные screen').not.toBeNull();
+    expect(table!.textContent).toContain('Школа');
   }, 30_000);
 });

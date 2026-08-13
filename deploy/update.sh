@@ -198,6 +198,11 @@ check "/admin" 'devMetrics'              "Устройства counts who is on 
 check "/admin" 'Пометить браком'         "a faulty watch can be flagged from the fleet view"
 check "/admin" 'devFoot'                 "the fleet table states what «последний сигнал» means"
 check "/admin" 'Что передают часы'       "the mother card shows what her watch actually sent"
+# The rail. A stale panel here is a flat list of twenty-seven buttons — which is
+# exactly what the owner reported, and what these markers prove is gone.
+check "/admin" 'navtree'             "the sidebar is seven sections, not a flat list"
+check "/admin" 'navsub-warehouse'    "Склад opens onto Приёмка and Инвентаризация"
+check "/admin" 'sideme'              "the rail says who is signed in, in Russian"
 
 echo
 echo "==> Routes the PROXY must pass through"

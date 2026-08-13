@@ -7,19 +7,15 @@ not "fix" a decision that was already made.
 Anything not listed here is either implemented as specified or is an oversight
 worth reporting.
 
-## Four tabs, not five
-
-**Spec:** Главная · Здоровье · Дети · Курс · Я
-**App:** Здоровье · Календарь · Ребёнок · Профиль
-
-The «Курс» tab has no content behind it. The app does have a lesson catalogue
-and a player, but they are reached from the dashboard's timeline, where they sit
-next to the week they belong to — moving them to a tab of their own would take
-them away from that context for no gain until there is a course to structure.
-
-Owner decision, 2026-08-04: keep four tabs. Revisit if a real course is built.
-
-Everything else about the tab bar follows the spec — see `tab_bar_test.dart`.
+The tab bar itself is **not** on this list. It used to carry an entry reading
+"four tabs, not five", which was wrong twice over: `CLAUDE-app-design.md` §2.15
+specifies exactly «Сегодня ☀ · Календарь ▦ · Ребёнок ◎ · Профиль ☺», in that
+order, so the build matches the spec — and the reason the entry gave for having
+no «Курс» tab (that the course is reached from the dashboard timeline) had
+stopped being true: the course is reached from Профиль. Filing a correct build
+as a compromise is how a later reader "fixes" it back. `tab_bar_test.dart` now
+drives the real `HomeShell` and asserts those four, their order and their
+labels.
 
 ## Two tab-bar colours are darker than specified
 

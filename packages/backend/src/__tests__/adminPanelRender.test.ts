@@ -298,7 +298,9 @@ describe('the tabs that were showing invented data', () => {
     // noticed, because none of them looked at it.
     for (const [view, sel] of [
       ['devices', '#devicesBody'],
-      ['safety', '#safetyBody'],
+      // The SOS/geofence table is the lower half of «Экстренные» now — the
+      // section has no sub-items in the design, so it is one screen.
+      ['emergencies', '#safetyBody'],
       ['users', '#usersBody'],
       ['audit', '#auditBody'],
     ] as const) {
