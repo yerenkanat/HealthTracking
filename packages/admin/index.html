@@ -595,6 +595,22 @@
     font:inherit;font-size:13px;padding:9px 11px;resize:vertical}
   .pw-f textarea{min-height:84px;line-height:1.5}
   .pw-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 18px 18px}
+  /* Frame 16b «Экстренная помощь» → app screen 37.
+     The rows are drawn with the SAME left border the app paints, red or amber,
+     because that stripe is the whole message: red means dial 103 now, amber
+     means call the clinic today. An editor who cannot see which of the two she
+     is writing cannot tell whether she has just told somebody to wait. */
+  .eh-list{display:flex;flex-direction:column;gap:8px;padding:6px 18px 12px}
+  .eh-row{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;cursor:pointer;
+    border:1px solid var(--hair);border-left-width:5px;border-radius:10px;background:var(--surface-2);padding:11px 13px}
+  .eh-row.red{border-left-color:#A8002F}
+  .eh-row.amber{border-left-color:var(--warn-text)}
+  .eh-row.active{background:var(--accent-soft)}
+  .eh-ttl{font-weight:700;font-size:13px;color:var(--ink)}
+  .eh-sub{color:var(--muted);font-size:12px;line-height:1.45;margin-top:3px}
+  .eh-sev{margin-left:auto;font-size:11px;font-weight:700;border-radius:20px;padding:3px 9px;white-space:nowrap}
+  .eh-sev.red{background:#FFE4EA;color:#A8002F}
+  .eh-sev.amber{background:var(--warn-soft);color:var(--warn-text)}
   /* Children dashboard */
   .k-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;padding:6px 18px 4px}
   .k-kpi{border:1px solid var(--hair);border-radius:12px;background:var(--surface-2);padding:14px}
@@ -1037,6 +1053,10 @@
         <div class="navsub" id="navsub-content" hidden>
           <button type="button" class="nav sub" data-view="review" data-cap="health">Проверка врачом <span class="badge" id="reviewBadgeCount" hidden></span></button>
           <button type="button" class="nav sub" data-view="content" data-cap="content">Уроки и товары <span class="badge" id="navContentBadge" style="background:var(--muted)" hidden></span></button>
+          <!-- Кадр 16b. No data-cap: a clinician holding `health` opens this to
+               READ what she is being asked to approve. The boxes inside are
+               `content`-gated; the list is not. -->
+          <button type="button" class="nav sub" data-view="emergency-help">Экстренная помощь</button>
           <button type="button" class="nav sub" data-view="antenatal">Антенатальный уход</button>
           <button type="button" class="nav sub" data-view="pregweeks">Календарь беременности</button>
           <button type="button" class="nav sub" data-view="childdev">Календарь развития</button>
@@ -1627,6 +1647,35 @@
             Базовый текст — общий контракт, который приложение носит с собой и показывает без сети.
             Здесь сохраняются только изменённые недели: они ложатся поверх базового.</p>
           <div id="pwEdit"><div style="color:var(--muted);padding:16px 0">Выберите неделю.</div></div>
+        </div>
+      </section>
+
+      <!-- Кадр 16b «Экстренная помощь» → экран приложения 37.
+           Nine scenarios that decide whether somebody dials 103 at 3am or waits
+           until morning. Contract + overrides, exactly like the pregnancy
+           calendar next door: the shipped text is the offline baseline the app
+           carries, and only what is edited here lives in the database. -->
+      <section class="view" id="emergency-help">
+        <div class="card">
+          <div class="sec-h">
+            <h3>Что показывает экран «Экстренная помощь»</h3>
+            <div class="pw-lang"><button type="button" class="eh-l active" data-ehlang="ru">RU</button><button type="button" class="eh-l" data-ehlang="kk">KZ</button></div>
+          </div>
+          <p style="color:var(--muted);margin:0 0 8px">
+            Тот же список, что видит мама в приложении — единый источник (<code>/emergency-help</code>).
+            Красная полоса — «звоните 103 сейчас», янтарная — «позвоните врачу сегодня».</p>
+          <div id="ehList" class="eh-list"></div>
+          <p class="pw-rule" id="ehRule"></p>
+        </div>
+
+        <!-- Hidden from anyone without `content`: a clinician opens this tab to
+             read and to approve, not to type. -->
+        <div class="card" id="ehEditCard" data-cap="content">
+          <div class="sec-h"><h3 id="ehEditH">Редактор сценария</h3></div>
+          <p style="color:var(--muted);margin:0 0 8px">
+            Базовый текст — общий справочник, который приложение носит с собой и показывает без сети.
+            Здесь сохраняются только изменённые сценарии: они ложатся поверх базового.</p>
+          <div id="ehEdit"><div style="color:var(--muted);padding:16px 0">Выберите сценарий.</div></div>
         </div>
       </section>
 
@@ -3531,6 +3580,9 @@
   /// The search runs server-side now, which is also where it belongs: filtering
   /// a page of 25 in the browser silently searches only that page.
   let usersReq=0;
+  /** The last page of /admin/users, by id, so the drawer can seed from data
+   *  rather than from the table it just drew. */
+  const USERS_BY_ID=new Map();
   async function renderUsers(q=""){
     const body=$("#usersBody"); if(!body) return;
     const mine=++usersReq;
@@ -3543,6 +3595,19 @@
       return;
     }
     const rows=data.users||[];
+    // Keep the rows the server just sent.
+    //
+    // openUser() seeded its drawer from MOCK.users — the DEMO fixture — and,
+    // finding no match for a real id, fell back to scraping the clicked <tr>
+    // for a name and a phone number. So every field the list endpoint returns
+    // and the table does not draw was thrown away at the door, `lastMetricAt`
+    // among them: the drawer could not say how old a reading was because the
+    // answer had been discarded one function earlier.
+    //
+    // Scraping the DOM for a name was also its own small defect — the drawer
+    // was reading the panel's own rendering back rather than the data.
+    USERS_BY_ID.clear();
+    for(const u of rows) USERS_BY_ID.set(u.id,u);
     // Exception dot: only a warning/emergency latest reading marks the row, so a
     // clinician scans the whole caseload and sees who needs attention without
     // opening each drawer. Healthy patients stay unmarked (no clutter).
@@ -3567,6 +3632,12 @@
   /// Rendered for a person: the action as a phrase rather than `view_health`,
   /// and a full timestamp rather than a bare "09:41" that is ambiguous the
   /// moment yesterday exists.
+  /* The triage severities, in Russian.
+   *
+   * The mother card printed `t.code` raw, and `code` IS `triage_severity` —
+   * so the clinical history of a patient read «emergency», «warning», «good»
+   * in English, in a Russian panel, under «История триажа». */
+  const TRIAGE_RU={emergency:"Экстренно",warning:"Предупреждение",good:"Норма",none:"Без отметок"};
   const AUDIT_ACTIONS={
     // Keys are the strings the server actually writes. Three entries here —
     // view_detail, view_safety, publish_content, bulk_content — named actions
@@ -4103,7 +4174,8 @@
     // Seed from the row that was clicked, so the drawer has a name to show
     // while the detail request is in flight.
     const row=document.querySelector(`#usersBody tr[data-user="${CSS.escape(id)}"]`);
-    let u=MOCK.users.find(x=>x.id===id)||{
+    // The real row first, then the demo fixture, then the DOM as a last resort.
+    let u=USERS_BY_ID.get(id)||MOCK.users.find(x=>x.id===id)||{
       displayName:row?.querySelector("b")?.textContent||"—",
       phone:row?.querySelector(".num")?.textContent||"",
     };
@@ -4415,13 +4487,32 @@
     const glucoseVital = h.latest.glucose!=null
       ? `<div class="vital"><div class="k">Glucose</div><div class="v" style="color:${glucoseColor(h.latest.glucose)}">${h.latest.glucose}<span style="font-size:12px;color:var(--muted)"> mmol/L</span></div></div>`
       : '';
+    // HOW OLD the reading is, and what that permits the screen to claim.
+    //
+    // These four numbers had no timestamp anywhere near them. 162/108 from
+    // three weeks ago and 162/108 from four minutes ago were the same pixels,
+    // on the one card a clinician opens to decide whether to ring somebody.
+    // `lastMetricAt` was on the list row that opened this drawer the whole
+    // time; the health payload discards its own `recorded_at`.
+    //
+    // The thresholds are the app's own: 6 h is `latestTelemetryMaxAge`, past
+    // which the guardrail refuses to call a reading "how she is now" — so the
+    // panel must not colour it as one either. 48 h is a different day.
+    const measuredAt=u.lastMetricAt?new Date(u.lastMetricAt):null;
+    const ageH=measuredAt?(Date.now()-measuredAt.getTime())/36e5:null;
+    const stale=ageH!=null&&ageH>48;
+    const ageNote=measuredAt
+      ? `<span class="t" style="color:var(--${ageH>48?'warn-text':'muted'})">${ago(u.lastMetricAt)}</span>`
+      : `<span class="t" style="color:var(--muted)">времени измерения нет</span>`;
     const acuteBlock=`
-      <div class="dsec">Последние измерения</div>
-      <div class="vitals">${vital("hr","Heart rate","bpm")}${vital("spo2","Blood oxygen","%")}${vital("systolic","Systolic","mmHg")}${vital("diastolic","Diastolic","mmHg")}</div>
-      <div class="vitals" style="grid-template-columns:${glucoseVital?'1fr 1fr':'1fr'}">${vital("temp","Temperature","°C")}${glucoseVital}</div>
+      <div class="dsec">Последние измерения ${ageNote}</div>
+      ${!measuredAt?`<div class="metricnote">Когда сняты эти показания — неизвестно. Считайте их справочными, пока в карточке нет времени.</div>`:""}
+      ${stale?`<div class="metricnote warn">Последнему измерению ${ago(u.lastMetricAt)}. Эти цифры описывают тот день, а не сегодняшний.</div>`:""}
+      <div class="vitals"${stale?' style="opacity:.55"':''}>${vital("hr","Пульс","уд/мин")}${vital("spo2","Кислород в крови","%")}${vital("systolic","Верхнее","мм рт. ст.")}${vital("diastolic","Нижнее","мм рт. ст.")}</div>
+      <div class="vitals" style="grid-template-columns:${glucoseVital?'1fr 1fr':'1fr'}${stale?';opacity:.55':''}">${vital("temp","Температура","°C")}${glucoseVital}</div>
       ${bpCalSection}
       <div class="dsec">История триажа</div>
-      <div class="tl">${h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(t.code)}</b></span><span class="t">${esc(t.at)}</span></div>`).join("")}</div>`;
+      <div class="tl">${h.triage.length?h.triage.map(t=>`<div class="tli"><span class="tld" style="background:var(--${t.severity==='emergency'?'crit':t.severity==='warning'?'warn':'good'})"></span><span><b>${esc(TRIAGE_RU[t.severity]||t.severity)}</b>${t.code&&t.code!==t.severity?` <span class="t">${esc(t.code)}</span>`:""}</span><span class="t">${stamp(t.at)}</span></div>`).join(""):`<div class="tli"><span class="t" style="color:var(--muted)">Триаж ничего не отмечал</span></div>`}</div>`;
 
     // ---- Family: her children and the devices tracking them. ----
     // The backend has returned children[] and devices[] all along; the drawer
@@ -4719,6 +4810,7 @@
     kids:["Дети","Демография детей под наблюдением: пол и возраст"],
     antenatal:["Антенатальный уход","График визитов, обследований и скринингов по протоколу МЗ РК"],
     pregweeks:["Календарь беременности","Развитие малыша, изменения и рекомендации по неделям (RU/KZ)"],
+    "emergency-help":["Экстренная помощь","Сценарии «что происходит?» и что делать — то, что мама читает в 3 часа ночи"],
     childdev:["Календарь развития","Рост, вес и навыки ребёнка по неделям первого года (RU/KZ)"],
     vaccines:["Вакцинация","Национальный календарь прививок по возрасту ребёнка"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
@@ -4851,6 +4943,7 @@
     if(v==="kids")renderKids();
     if(v==="antenatal")renderAntenatal();
     if(v==="pregweeks")renderPregWeeks();
+    if(v==="emergency-help")renderEmergencyHelp();
     if(v==="marketing")renderMarketing();
     if(v==="childdev")renderChildDev();
     if(v==="vaccines")renderVaccines();
@@ -5219,6 +5312,222 @@
   async function wkRevert(){
     if(!window.confirm(`Вернуть неделю ${pwWeek} к базовому тексту? Изменения останутся черновиком, но читатели снова увидят контракт.`)) return;
     await wkSave(true);
+  }
+
+  // ---- Кадр 16b · Экстренная помощь (экран приложения 37) -----------------
+  //
+  // Read from /admin/emergency-help, which is the list AS SERVED — the shipped
+  // contract with the back office's edits on top — plus each scenario's edit
+  // state. Nine pieces of first aid somebody reads while deciding whether to
+  // call an ambulance; the panel must show exactly what a phone receives, which
+  // is why it does not read the raw contract from anywhere else.
+  //
+  // There is deliberately no head-count on this screen. The pregnancy editor
+  // can say «это увидят N мам» because users.due_date answers it; nothing in
+  // this product records who opened screen 37, and a number here would be
+  // invented.
+  let EH=null, EHMETA=null, EHERR=null, ehId=null, ehLang="ru";
+
+  async function loadEh(force){
+    if(EH&&!force) return EH;
+    try{
+      const r=await fetch("/admin/emergency-help",{credentials:"same-origin",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
+      if(r.ok){ const d=await r.json(); EH=d.scenarios||[]; EHMETA=d; EHERR=null; }
+      // A refusal is not «панель не обслуживается сервером» — it is the server
+      // answering and saying no. Kept so the tab can print which.
+      else EHERR=`Сервер ответил ошибкой ${r.status}.`;
+    }catch(e){ EHERR="Сервер не ответил."; }
+    return EH;
+  }
+
+  /// True when the server could not read the overrides table (migration 043 not
+  /// applied, or a database blip). The nine scenarios are still the real served
+  /// text; what is unknown is which of them somebody has edited.
+  function ehEditsUnknown(){ return !!(EHMETA&&EHMETA.editsKnown===false); }
+
+  /// Which dot goes on a scenario row. Colour is status and nothing else — the
+  /// LEFT border already carries severity, and reusing it for edit state would
+  /// make an amber draft look like an amber scenario.
+  function ehDot(s){
+    if(!s.edited) return "";
+    if(s.draft) return `<span class="pw-dot draft" title="Черновик — мамы видят базовый текст"></span>`;
+    if(!s.reviewCurrent) return `<span class="pw-dot wait" title="Ждёт проверки врача"></span>`;
+    return `<span class="pw-dot live" title="Изменено и опубликовано"></span>`;
+  }
+
+  async function renderEmergencyHelp(){
+    const list=$("#ehList"), rule=$("#ehRule"); if(!list) return;
+    const rows=await loadEh();
+    if(!rows||!rows.length){
+      list.innerHTML=`<div style="color:var(--muted);padding:16px 0">${EHERR
+        ? `Список не загрузился: ${esc(EHERR)} Попробуйте обновить страницу.`
+        : `Список доступен, когда панель обслуживается сервером (<code>/emergency-help</code>).`}</div>`;
+      if(rule) rule.textContent=""; renderEhEditor(); return;
+    }
+    if(!rows.some(s=>s.id===ehId)) ehId=rows[0].id;
+    list.innerHTML=rows.map(s=>{
+      const t=s[ehLang]||s.ru;
+      const sev=s.severity==="red"?"red":"amber";
+      const sevLabel=sev==="red"?"103 сейчас":"врачу сегодня";
+      return `<button type="button" class="eh-row ${sev}${s.id===ehId?" active":""}" data-ehid="${esc(s.id)}">`+
+        `<div style="flex:1;min-width:0">`+
+        `<div class="eh-ttl">${esc(t.title)}${ehDot(s)}</div>`+
+        `<div class="eh-sub">${esc(t.what)}</div>`+
+        `<div class="eh-sub"><b>${ehLang==="kk"?"Не істеу керек":"Что делать"}:</b> ${esc(t.do)}</div>`+
+        `</div><span class="eh-sev ${sev}">${sevLabel}</span></button>`;
+    }).join("");
+    if(rule){
+      rule.innerHTML=
+        (ehEditsUnknown()
+          ? `<b style="color:var(--warn-text)">Состояние правок недоступно</b> — сервер не смог прочитать таблицу правок, поэтому отметки не показаны и редактор закрыт: текст выше верен, но неизвестно, какие сценарии уже редактировали. `
+          : "")+
+        `Полоса слева: <b style="color:#A8002F">красная</b> — звоните ${esc((EHMETA&&EHMETA.tel)||"103")} сейчас · `+
+        `<b style="color:var(--warn-text)">янтарная</b> — позвоните врачу сегодня. `+
+        `Точка у заголовка: <b style="color:var(--good-text)">●</b> изменено и опубликовано · `+
+        `<b style="color:var(--warn-text)">●</b> ждёт проверки врача · `+
+        `<b style="color:var(--muted)">●</b> черновик, мамы видят базовый текст. `+
+        `Сколько людей это увидят — неизвестно: приложение не записывает, кто открывал экран, `+
+        `и число здесь было бы выдумано. `+
+        `Версия справочника: ${EHMETA?Number(EHMETA.version)||0:"—"} (базовый контракт ${EHMETA?Number(EHMETA.contractVersion)||0:"—"}).`;
+    }
+    renderEhEditor();
+  }
+
+  /**
+   * The scenario editor.
+   *
+   * Six boxes (RU/ҚАЗ × заголовок / что происходит / что делать), the severity,
+   * the order, and three buttons that mean three different things:
+   *
+   *   «Опубликовать»  — this text goes to every phone.
+   *   «В черновик»    — save it, do not serve it; mothers get the base text.
+   *   «Проверено»     — a clinician signs the text off. `health`, not
+   *                     `content`, so it is a second person by construction.
+   *
+   * The Kazakh boxes are checked here as well as on the server, so the refusal
+   * arrives before the round trip — and the server still refuses, because a
+   * check only in the browser is not a rule.
+   */
+  function renderEhEditor(){
+    const box=$("#ehEdit"); if(!box) return;
+    if(!can("content")){ box.innerHTML=""; return; }
+    // No boxes while the edit state is unknown. Saving here would overwrite a
+    // scenario whose draft, published text and clinician sign-off the panel
+    // cannot see — and would carry no review forward, because there is none to
+    // read.
+    if(ehEditsUnknown()){
+      box.innerHTML=`<div style="color:var(--muted);padding:16px 0">Редактор недоступен: сервер не смог прочитать таблицу правок `+
+        `(<code>emergency_help_overrides</code>). Сохранение сейчас стёрло бы чужую правку и проверку врача, поэтому боксы закрыты. `+
+        `Обновите страницу, когда база ответит.</div>`;
+      return;
+    }
+    const s=(EH||[]).find(x=>x.id===ehId);
+    if(!s){ box.innerHTML=`<div style="color:var(--muted);padding:16px 0">Выберите сценарий.</div>`; return; }
+    const h=$("#ehEditH"); if(h) h.textContent=`Редактор: ${s.ru.title}`;
+
+    const state = !s.edited
+      ? `<span class="pw-tag base">Базовый текст из справочника</span>`
+      : s.draft
+        ? `<span class="pw-tag base">Черновик — мамы видят базовый текст</span>`
+        : s.reviewCurrent
+          ? `<span class="pw-tag live">Опубликовано, проверено врачом</span>`
+          : `<span class="pw-tag wait">Опубликовано, но текст изменён после проверки</span>`;
+    const review = s.review
+      ? `<span class="pw-chip">Проверил: ${esc(s.review.by)} · ${stamp(s.review.at)}</span>`
+      : `<span class="pw-chip">Врач ещё не проверял</span>`;
+    const who = s.updatedAt
+      ? `<span class="pw-chip">Изменено: ${stamp(s.updatedAt)}${s.updatedBy?" · "+esc(s.updatedBy):""}</span>`
+      : "";
+
+    const fld=(id,label,val,rows)=>`<div class="pw-f"><label for="${id}">${label}</label>`+
+      (rows?`<textarea id="${id}" rows="${rows}">${esc(val||"")}</textarea>`
+           :`<input id="${id}" type="text" value="${esc(val||"")}">`)+`</div>`;
+
+    box.innerHTML=`
+      <div class="pw-state">${state}${review}${who}</div>
+      <div class="pw-fgrid">
+        <div class="pw-f"><label for="ehSev">Срочность</label>
+          <select id="ehSev" style="border:1px solid var(--hair);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:9px 11px">
+            <option value="red"${s.severity==="red"?" selected":""}>Красная — звонить 103 сейчас</option>
+            <option value="amber"${s.severity==="amber"?" selected":""}>Янтарная — позвонить врачу сегодня</option>
+          </select></div>
+        ${fld("ehSort","Порядок в списке",s.sort)}
+      </div>
+      <div class="pw-fgrid">
+        ${fld("ehRuTitle","RU · заголовок",s.ru.title)}
+        ${fld("ehKkTitle","ҚАЗ · тақырып",s.kk.title)}
+        ${fld("ehRuWhat","RU · что происходит",s.ru.what,4)}
+        ${fld("ehKkWhat","ҚАЗ · не болып жатыр",s.kk.what,4)}
+        ${fld("ehRuDo","RU · что делать",s.ru.do,4)}
+        ${fld("ehKkDo","ҚАЗ · не істеу керек",s.kk.do,4)}
+      </div>
+      <div class="pw-acts">
+        <button type="button" class="btn primary" id="ehSave">Опубликовать</button>
+        <button type="button" class="btn" id="ehDraft">Сохранить черновиком</button>
+        ${can("health")?`<button type="button" class="btn" id="ehReview"${s.edited?"":" disabled"}>Отметить проверенным</button>`:""}
+        ${s.edited&&!s.draft?`<button type="button" class="btn" id="ehRevert">Вернуть исходный текст</button>`:""}
+      </div>
+      <p class="savebar" id="ehMsg" style="padding:0 18px 16px"></p>`;
+  }
+
+  function ehMsg(text,kind){
+    const el=$("#ehMsg"); if(!el) return;
+    el.textContent=text; el.className="savebar"+(kind?" "+kind:"");
+  }
+
+  /// What is in the boxes right now.
+  function ehReadForm(){
+    const v=id=>{const e=$("#"+id); return e?e.value.trim():"";};
+    const sev=$("#ehSev"); const sort=Number(v("ehSort"));
+    return {
+      severity: sev&&sev.value==="amber"?"amber":"red",
+      sort: Number.isFinite(sort)?Math.max(0,Math.round(sort)):0,
+      ru:{title:v("ehRuTitle"),what:v("ehRuWhat"),do:v("ehRuDo")},
+      kk:{title:v("ehKkTitle"),what:v("ehKkWhat"),do:v("ehKkDo")},
+    };
+  }
+
+  async function ehSave(draft){
+    const body={...ehReadForm(),draft:!!draft};
+    // Named before the round trip, in the same words the server uses.
+    const missing=[];
+    for(const [f,label] of [["title","заголовок"],["what","что происходит"],["do","что делать"]]){
+      if(!body.ru[f]) missing.push(`русского текста «${label}»`);
+      if(!body.kk[f]) missing.push(`казахского текста «${label}»`);
+    }
+    if(missing.length){ ehMsg(`Нельзя сохранить: нет ${missing.join(", ")}.`,"err"); return; }
+    ehMsg("Сохраняем…");
+    try{
+      // wkSend, not apiSend: the whole point of translation_required /
+      // review_required is the sentence that comes with them, and "409" alone
+      // is not something a content editor can act on.
+      const res=await wkSend(`/admin/emergency-help/${encodeURIComponent(ehId)}`,"PUT",body);
+      await loadEh(true);
+      // AWAITED, and the message written after — re-rendering rebuilds the
+      // editor, including #ehMsg.
+      await renderEmergencyHelp();
+      ehMsg(draft
+        ? `Сценарий сохранён черновиком — мамы по-прежнему видят базовый текст.`
+        : `Сценарий опубликован${res.reviewed?", проверка врача сохранена":""}.`,"ok");
+    }catch(e){ ehMsg(String(e.message||e),"err"); }
+  }
+
+  async function ehApprove(){
+    if(!window.confirm("Подтвердить, что этот текст проверен вами? Ваше имя попадёт в журнал.")) return;
+    ehMsg("Отправляем…");
+    try{
+      await wkSend(`/admin/emergency-help/${encodeURIComponent(ehId)}/review`,"POST");
+      await loadEh(true); await renderEmergencyHelp();
+      ehMsg(`Сценарий отмечен проверенным.`,"ok");
+    }catch(e){ ehMsg(String(e.message||e),"err"); }
+  }
+
+  /// Back to the shipped text. Not a DELETE — the scenario is put back into
+  /// draft, so the contract shows through again while the words somebody wrote
+  /// are still there to come back to.
+  async function ehRevert(){
+    if(!window.confirm("Вернуть исходный текст сценария? Изменения останутся черновиком, но мамы снова увидят справочник.")) return;
+    await ehSave(true);
   }
 
   // ---- Кадр 06 · Маркетинг: рассылки -------------------------------------
@@ -7449,6 +7758,12 @@
     if(e.target.id==="wkDraft"){wkSave(true);return;}
     if(e.target.id==="wkReview"){wkApprove();return;}
     if(e.target.id==="wkRevert"){wkRevert();return;}
+    // Кадр 16b, same reasoning: the editor sits inside the same view as the
+    // scenario rows, and #ehSave is not an [data-ehid].
+    if(e.target.id==="ehSave"){ehSave(false);return;}
+    if(e.target.id==="ehDraft"){ehSave(true);return;}
+    if(e.target.id==="ehReview"){ehApprove();return;}
+    if(e.target.id==="ehRevert"){ehRevert();return;}
     // Кадр 06. Before the generic row handlers: these live inside a table row
     // and a [data-view] sidebar would otherwise swallow the clicks.
     if(e.target.id==="bcSave"){bcSave();return;}
@@ -7458,6 +7773,8 @@
     if(bce){bcEditing=bce.dataset.bcedit;bcRenderForm();bcRefreshCount();bcMsg("");return;}
     const pwk=e.target.closest("[data-week]"); if(pwk){pwWeek=+pwk.dataset.week;renderPregWeeks();return;}
     const pwl=e.target.closest("[data-lang]"); if(pwl){pwLang=pwl.dataset.lang;$$(".pw-l").forEach(b=>b.classList.toggle("active",b===pwl));renderPregWeeks();return;}
+    const ehr=e.target.closest("[data-ehid]"); if(ehr){ehId=ehr.dataset.ehid;renderEmergencyHelp();return;}
+    const ehl=e.target.closest("[data-ehlang]"); if(ehl){ehLang=ehl.dataset.ehlang;$$(".eh-l").forEach(b=>b.classList.toggle("active",b===ehl));renderEmergencyHelp();return;}
     const cdk=e.target.closest("[data-cdweek]"); if(cdk){cdWeek=+cdk.dataset.cdweek;renderChildDev();return;}
     const cdl=e.target.closest("[data-cdlang]"); if(cdl){cdLang=cdl.dataset.cdlang;$$(".cd-l").forEach(b=>b.classList.toggle("active",b===cdl));renderChildDev();return;}
     const urow=e.target.closest("[data-user]"); if(urow){openUser(urow.dataset.user);return;}

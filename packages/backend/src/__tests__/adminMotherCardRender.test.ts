@@ -57,17 +57,20 @@ type Drawn = { drawer: string; errors: string[] };
  */
 const drawn = new Map<string, Promise<Drawn>>();
 
-function openDrawer(mother: unknown, triage: Triage = []): Promise<Drawn> {
-  const key = `${JSON.stringify(mother) ?? 'undefined'}|${JSON.stringify(triage)}`;
+function openDrawer(mother: unknown, triage: Triage = [], measuredAt: string | null = null): Promise<Drawn> {
+  // measuredAt is part of the key: two fixtures that differ only in HOW OLD
+  // the reading is must not share a cached render, which is the whole point of
+  // the freshness assertions below.
+  const key = `${JSON.stringify(mother) ?? 'undefined'}|${JSON.stringify(triage)}|${measuredAt ?? '-'}`;
   let hit = drawn.get(key);
   if (!hit) {
-    hit = renderDrawer(mother, triage);
+    hit = renderDrawer(mother, triage, measuredAt);
     drawn.set(key, hit);
   }
   return hit;
 }
 
-async function renderDrawer(mother: unknown, triage: Triage): Promise<Drawn> {
+async function renderDrawer(mother: unknown, triage: Triage, measuredAt: string | null = null): Promise<Drawn> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -102,7 +105,7 @@ async function renderDrawer(mother: unknown, triage: Triage): Promise<Drawn> {
           : p.includes('/detail')
             ? detail(mother, triage)
             : p.includes('/admin/users')
-              ? USERS
+              ? { total: 1, users: [{ ...USERS.users[0], lastMetricAt: measuredAt }] }
               : p.includes('/admin/stats')
                 ? { activeUsers: 1, devicesOnline: 0, alertsToday: 0, ingestLastHour: 0 }
                 : {};
@@ -320,3 +323,86 @@ describe('the mother card in the drawer', () => {
     expect(drawer).not.toContain('Этап');
   });
 });
+
+/**
+ * How old the reading is, and what the card is therefore allowed to claim.
+ *
+ * Four vitals were drawn with no timestamp anywhere near them, on the one card
+ * a clinician opens to decide whether to ring somebody. 162/108 from three
+ * weeks ago and 162/108 from four minutes ago were the same pixels.
+ * `adminUserHealth` selects the newest row `ORDER BY recorded_at DESC` and
+ * throws `recorded_at` away; `lastMetricAt` was on the list row that opened the
+ * drawer the whole time.
+ *
+ * The thresholds are the app's own, not invented here: 6 h is
+ * `latestTelemetryMaxAge`, past which the guardrail refuses to call a reading
+ * "how she is now" — so the panel must not colour it as one either. Past 48 h
+ * it is describing a different day and says so.
+ */
+describe('the age of a reading', () => {
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 36e5).toISOString();
+
+  it('says when the measurement was taken', async () => {
+    const { drawer, errors } = await openDrawer(undefined, [], hoursAgo(0.05));
+    expect(errors).toEqual([]);
+    expect(drawer).toContain('Последние измерения');
+    expect(drawer).toMatch(/(мин|ч|дн) назад|только что/);
+  });
+
+  it('says outright when it does NOT know, rather than implying "now"', async () => {
+    // The commonest state on a server that has not backfilled: no timestamp.
+    // Silence here reads as freshness, which is the failure being prevented.
+    const { drawer } = await openDrawer(undefined, [], null);
+    expect(drawer).toContain('времени измерения нет');
+    expect(drawer).toContain('справочными');
+  });
+
+  it('warns, in words, when the reading is from another day', async () => {
+    const { drawer } = await openDrawer(undefined, [], hoursAgo(72));
+    expect(drawer).toContain('описывают тот день, а не сегодняшний');
+  });
+
+  it('does not warn about a reading from an hour ago', async () => {
+    const { drawer } = await openDrawer(undefined, [], hoursAgo(1));
+    expect(drawer).not.toContain('описывают тот день');
+  });
+});
+
+/**
+ * A Russian panel, in Russian.
+ *
+ * «Heart rate», «Blood oxygen», «Systolic», «Diastolic», «Temperature»,
+ * «Glucose», «bpm», «mmHg», «mmol/L» — all under a Russian heading, on the
+ * clinical card. And «История триажа» printed `t.code`, which IS
+ * `triage_severity`, so a patient's clinical history read «emergency».
+ */
+describe('the clinical card speaks Russian', () => {
+  it('labels the vitals and their units', async () => {
+    const { drawer } = await openDrawer(undefined, [], hoursAgoIso());
+    for (const s of ['Пульс', 'уд/мин', 'Кислород в крови', 'Верхнее', 'Нижнее', 'мм рт. ст.', 'Температура']) {
+      expect(drawer, `«${s}» is missing`).toContain(s);
+    }
+    for (const s of ['Heart rate', 'Blood oxygen', 'Systolic', 'Diastolic', 'bpm', 'mmHg']) {
+      expect(drawer, `«${s}» is still in English`).not.toContain(s);
+    }
+  });
+
+  it('names the triage severity instead of printing its key', async () => {
+    const { drawer } = await openDrawer(undefined,
+      [{ code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-08-12T09:41:03.221Z' }],
+      hoursAgoIso());
+    expect(drawer).toContain('Экстренно');
+    expect(drawer, 'the raw severity key reached the screen').not.toContain('emergency');
+    // And a readable time, not the ISO string the row used to print.
+    expect(drawer).not.toContain('2026-08-12T09:41:03.221Z');
+  });
+
+  it('says the triage found nothing rather than drawing an empty list', async () => {
+    const { drawer } = await openDrawer(undefined, [], hoursAgoIso());
+    expect(drawer).toContain('Триаж ничего не отмечал');
+  });
+});
+
+function hoursAgoIso(h = 0.5) {
+  return new Date(Date.now() - h * 36e5).toISOString();
+}

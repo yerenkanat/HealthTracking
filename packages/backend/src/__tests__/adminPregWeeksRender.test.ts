@@ -17,6 +17,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { pregnancyCalendar } from '../pregnancy/weeks.js';
 
+// A due date that puts her in week 28 TODAY, rather than a fixed calendar date
+// that silently drifts a week every week. The drawer derives the gestational
+// week from dueDate — it used to read `weeks` off the demo fixture instead,
+// which is how a real drawer came to be showing demo data.
+const DUE_WEEK_28 = new Date(Date.now() + 12 * 7 * 864e5).toISOString();
+
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
 
@@ -124,7 +130,7 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
         }
         if (p.includes('/admin/reference/pregnancy')) return { ok: true, status: 200, json: async () => pregnancyCalendar };
         if (p.includes('/admin/users')) {
-          return { ok: true, status: 200, json: async () => ({ total: 1, users: [{ id: 'u1', displayName: 'Aigerim S.', phone: '+77073452244', dueDate: '2026-11-14T00:00:00.000Z', lastMetricAt: '2026-07-21T11:30:00.000Z' }] }) };
+          return { ok: true, status: 200, json: async () => ({ total: 1, users: [{ id: 'u1', displayName: 'Aigerim S.', phone: '+77073452244', dueDate: DUE_WEEK_28, lastMetricAt: new Date(Date.now() - 36e5).toISOString() }] }) };
         }
         return { ok: false, status: 500, text: async () => '{}', json: async () => ({}) };
       }) as never;
