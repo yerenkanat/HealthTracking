@@ -16,6 +16,28 @@ class SampleStore {
 
   void addSample(HealthSample s) {
     _samples.add(s);
+    _trim();
+  }
+
+  /// Merge a batch of samples that may be OLDER than what is already here.
+  ///
+  /// Live readings arrive in time order and are simply appended. A backfill from
+  /// the watch does not: it delivers last Monday after today, and appending it
+  /// would leave the list unsorted. Everything downstream — [latest], the
+  /// series builder, the sparklines, the trend arrows — reads this list as
+  /// oldest-to-newest, so an out-of-order append draws the week backwards and
+  /// makes a value from four days ago the "current" reading.
+  ///
+  /// Sorted after merging, and trimmed from the front, so a backfill bigger than
+  /// the buffer drops the oldest days rather than the newest.
+  void addSamples(Iterable<HealthSample> batch) {
+    if (batch.isEmpty) return;
+    _samples.addAll(batch);
+    _samples.sort((a, b) => a.at.compareTo(b.at));
+    _trim();
+  }
+
+  void _trim() {
     // Trim from the front when over capacity (drop oldest).
     if (_samples.length > capacity) {
       _samples.removeRange(0, _samples.length - capacity);

@@ -1,0 +1,4201 @@
+{
+  "generatedBy": "app/tool/gen_starmax_history_fixtures.mjs",
+  "cases": [
+    {
+      "name": "validHistoryDates",
+      "doc": "5.53 获取历史数据有效日期",
+      "replyCmd": 233,
+      "frames": [
+        "dae90a00001a08081a08091a080addcb"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 84,
+        "validHistoryDates": [
+          {
+            "year": 2026,
+            "month": 8,
+            "day": 8
+          },
+          {
+            "year": 2026,
+            "month": 8,
+            "day": 9
+          },
+          {
+            "year": 2026,
+            "month": 8,
+            "day": 10
+          }
+        ]
+      }
+    },
+    {
+      "name": "heartRate",
+      "doc": "5.46 同步心率记录",
+      "replyCmd": 227,
+      "frames": [
+        "dae3a70000051a080a20013a41483c434a3e454c40473bffffffffffffffffffffffffffffffffffff3b42493d444b3f463a41483c434a3e454c40473b42493d444b3f463a41483c434a3e454c40473b42493d444b3f463a41483c434a3e455a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c53736d",
+        "dae3870000051a080a20015a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f564a51584c535a4e554950574b52594d54484f56d971"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 73,
+        "interval": 5,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 288,
+        "heartRateList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "heartRateValue": 58
+          },
+          {
+            "hour": 0,
+            "minute": 5,
+            "heartRateValue": 65
+          },
+          {
+            "hour": 0,
+            "minute": 10,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 0,
+            "minute": 15,
+            "heartRateValue": 60
+          },
+          {
+            "hour": 0,
+            "minute": 20,
+            "heartRateValue": 67
+          },
+          {
+            "hour": 0,
+            "minute": 25,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 0,
+            "minute": 30,
+            "heartRateValue": 62
+          },
+          {
+            "hour": 0,
+            "minute": 35,
+            "heartRateValue": 69
+          },
+          {
+            "hour": 0,
+            "minute": 40,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 0,
+            "minute": 45,
+            "heartRateValue": 64
+          },
+          {
+            "hour": 0,
+            "minute": 50,
+            "heartRateValue": 71
+          },
+          {
+            "hour": 0,
+            "minute": 55,
+            "heartRateValue": 59
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 5,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 10,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 15,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 20,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 25,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 30,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 35,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 40,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 45,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 50,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 1,
+            "minute": 55,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 2,
+            "minute": 5,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 2,
+            "minute": 10,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 2,
+            "minute": 15,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 2,
+            "minute": 20,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 2,
+            "minute": 25,
+            "heartRateValue": 0
+          },
+          {
+            "hour": 2,
+            "minute": 30,
+            "heartRateValue": 59
+          },
+          {
+            "hour": 2,
+            "minute": 35,
+            "heartRateValue": 66
+          },
+          {
+            "hour": 2,
+            "minute": 40,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 2,
+            "minute": 45,
+            "heartRateValue": 61
+          },
+          {
+            "hour": 2,
+            "minute": 50,
+            "heartRateValue": 68
+          },
+          {
+            "hour": 2,
+            "minute": 55,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "heartRateValue": 63
+          },
+          {
+            "hour": 3,
+            "minute": 5,
+            "heartRateValue": 70
+          },
+          {
+            "hour": 3,
+            "minute": 10,
+            "heartRateValue": 58
+          },
+          {
+            "hour": 3,
+            "minute": 15,
+            "heartRateValue": 65
+          },
+          {
+            "hour": 3,
+            "minute": 20,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 3,
+            "minute": 25,
+            "heartRateValue": 60
+          },
+          {
+            "hour": 3,
+            "minute": 30,
+            "heartRateValue": 67
+          },
+          {
+            "hour": 3,
+            "minute": 35,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 3,
+            "minute": 40,
+            "heartRateValue": 62
+          },
+          {
+            "hour": 3,
+            "minute": 45,
+            "heartRateValue": 69
+          },
+          {
+            "hour": 3,
+            "minute": 50,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 3,
+            "minute": 55,
+            "heartRateValue": 64
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "heartRateValue": 71
+          },
+          {
+            "hour": 4,
+            "minute": 5,
+            "heartRateValue": 59
+          },
+          {
+            "hour": 4,
+            "minute": 10,
+            "heartRateValue": 66
+          },
+          {
+            "hour": 4,
+            "minute": 15,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 4,
+            "minute": 20,
+            "heartRateValue": 61
+          },
+          {
+            "hour": 4,
+            "minute": 25,
+            "heartRateValue": 68
+          },
+          {
+            "hour": 4,
+            "minute": 30,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 4,
+            "minute": 35,
+            "heartRateValue": 63
+          },
+          {
+            "hour": 4,
+            "minute": 40,
+            "heartRateValue": 70
+          },
+          {
+            "hour": 4,
+            "minute": 45,
+            "heartRateValue": 58
+          },
+          {
+            "hour": 4,
+            "minute": 50,
+            "heartRateValue": 65
+          },
+          {
+            "hour": 4,
+            "minute": 55,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "heartRateValue": 60
+          },
+          {
+            "hour": 5,
+            "minute": 5,
+            "heartRateValue": 67
+          },
+          {
+            "hour": 5,
+            "minute": 10,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 5,
+            "minute": 15,
+            "heartRateValue": 62
+          },
+          {
+            "hour": 5,
+            "minute": 20,
+            "heartRateValue": 69
+          },
+          {
+            "hour": 5,
+            "minute": 25,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 5,
+            "minute": 30,
+            "heartRateValue": 64
+          },
+          {
+            "hour": 5,
+            "minute": 35,
+            "heartRateValue": 71
+          },
+          {
+            "hour": 5,
+            "minute": 40,
+            "heartRateValue": 59
+          },
+          {
+            "hour": 5,
+            "minute": 45,
+            "heartRateValue": 66
+          },
+          {
+            "hour": 5,
+            "minute": 50,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 5,
+            "minute": 55,
+            "heartRateValue": 61
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "heartRateValue": 68
+          },
+          {
+            "hour": 6,
+            "minute": 5,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 6,
+            "minute": 10,
+            "heartRateValue": 63
+          },
+          {
+            "hour": 6,
+            "minute": 15,
+            "heartRateValue": 70
+          },
+          {
+            "hour": 6,
+            "minute": 20,
+            "heartRateValue": 58
+          },
+          {
+            "hour": 6,
+            "minute": 25,
+            "heartRateValue": 65
+          },
+          {
+            "hour": 6,
+            "minute": 30,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 6,
+            "minute": 35,
+            "heartRateValue": 60
+          },
+          {
+            "hour": 6,
+            "minute": 40,
+            "heartRateValue": 67
+          },
+          {
+            "hour": 6,
+            "minute": 45,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 6,
+            "minute": 50,
+            "heartRateValue": 62
+          },
+          {
+            "hour": 6,
+            "minute": 55,
+            "heartRateValue": 69
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 7,
+            "minute": 5,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 7,
+            "minute": 10,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 7,
+            "minute": 15,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 7,
+            "minute": 20,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 7,
+            "minute": 25,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 7,
+            "minute": 30,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 7,
+            "minute": 35,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 7,
+            "minute": 40,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 7,
+            "minute": 45,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 7,
+            "minute": 50,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 7,
+            "minute": 55,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 8,
+            "minute": 5,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 8,
+            "minute": 10,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 8,
+            "minute": 15,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 8,
+            "minute": 20,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 8,
+            "minute": 25,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 8,
+            "minute": 30,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 8,
+            "minute": 35,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 8,
+            "minute": 40,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 8,
+            "minute": 45,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 8,
+            "minute": 50,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 8,
+            "minute": 55,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 9,
+            "minute": 5,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 9,
+            "minute": 10,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 9,
+            "minute": 15,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 9,
+            "minute": 20,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 9,
+            "minute": 25,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 9,
+            "minute": 30,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 9,
+            "minute": 35,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 9,
+            "minute": 40,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 9,
+            "minute": 45,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 9,
+            "minute": 50,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 9,
+            "minute": 55,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 10,
+            "minute": 5,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 10,
+            "minute": 10,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 10,
+            "minute": 15,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 10,
+            "minute": 20,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 10,
+            "minute": 25,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 10,
+            "minute": 30,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 10,
+            "minute": 35,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 10,
+            "minute": 40,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 10,
+            "minute": 45,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 10,
+            "minute": 50,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 10,
+            "minute": 55,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 11,
+            "minute": 5,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 11,
+            "minute": 10,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 11,
+            "minute": 15,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 11,
+            "minute": 20,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 11,
+            "minute": 25,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 11,
+            "minute": 30,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 11,
+            "minute": 35,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 11,
+            "minute": 40,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 11,
+            "minute": 45,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 11,
+            "minute": 50,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 11,
+            "minute": 55,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 12,
+            "minute": 5,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 12,
+            "minute": 10,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 12,
+            "minute": 15,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 12,
+            "minute": 20,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 12,
+            "minute": 25,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 12,
+            "minute": 30,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 12,
+            "minute": 35,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 12,
+            "minute": 40,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 12,
+            "minute": 45,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 12,
+            "minute": 50,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 12,
+            "minute": 55,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 13,
+            "minute": 5,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 13,
+            "minute": 10,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 13,
+            "minute": 15,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 13,
+            "minute": 20,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 13,
+            "minute": 25,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 13,
+            "minute": 30,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 13,
+            "minute": 35,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 13,
+            "minute": 40,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 13,
+            "minute": 45,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 13,
+            "minute": 50,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 13,
+            "minute": 55,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 14,
+            "minute": 5,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 14,
+            "minute": 10,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 14,
+            "minute": 15,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 14,
+            "minute": 20,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 14,
+            "minute": 25,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 14,
+            "minute": 30,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 14,
+            "minute": 35,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 14,
+            "minute": 40,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 14,
+            "minute": 45,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 14,
+            "minute": 50,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 14,
+            "minute": 55,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 15,
+            "minute": 5,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 15,
+            "minute": 10,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 15,
+            "minute": 15,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 15,
+            "minute": 20,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 15,
+            "minute": 25,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 15,
+            "minute": 30,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 15,
+            "minute": 35,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 15,
+            "minute": 40,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 15,
+            "minute": 45,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 15,
+            "minute": 50,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 15,
+            "minute": 55,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 16,
+            "minute": 5,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 16,
+            "minute": 10,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 16,
+            "minute": 15,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 16,
+            "minute": 20,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 16,
+            "minute": 25,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 16,
+            "minute": 30,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 16,
+            "minute": 35,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 16,
+            "minute": 40,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 16,
+            "minute": 45,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 16,
+            "minute": 50,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 16,
+            "minute": 55,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 17,
+            "minute": 5,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 17,
+            "minute": 10,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 17,
+            "minute": 15,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 17,
+            "minute": 20,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 17,
+            "minute": 25,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 17,
+            "minute": 30,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 17,
+            "minute": 35,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 17,
+            "minute": 40,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 17,
+            "minute": 45,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 17,
+            "minute": 50,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 17,
+            "minute": 55,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 18,
+            "minute": 5,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 18,
+            "minute": 10,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 18,
+            "minute": 15,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 18,
+            "minute": 20,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 18,
+            "minute": 25,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 18,
+            "minute": 30,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 18,
+            "minute": 35,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 18,
+            "minute": 40,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 18,
+            "minute": 45,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 18,
+            "minute": 50,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 18,
+            "minute": 55,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 19,
+            "minute": 5,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 19,
+            "minute": 10,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 19,
+            "minute": 15,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 19,
+            "minute": 20,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 19,
+            "minute": 25,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 19,
+            "minute": 30,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 19,
+            "minute": 35,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 19,
+            "minute": 40,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 19,
+            "minute": 45,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 19,
+            "minute": 50,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 19,
+            "minute": 55,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 20,
+            "minute": 5,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 20,
+            "minute": 10,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 20,
+            "minute": 15,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 20,
+            "minute": 20,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 20,
+            "minute": 25,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 20,
+            "minute": 30,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 20,
+            "minute": 35,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 20,
+            "minute": 40,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 20,
+            "minute": 45,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 20,
+            "minute": 50,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 20,
+            "minute": 55,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 21,
+            "minute": 5,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 21,
+            "minute": 10,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 21,
+            "minute": 15,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 21,
+            "minute": 20,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 21,
+            "minute": 25,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 21,
+            "minute": 30,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 21,
+            "minute": 35,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 21,
+            "minute": 40,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 21,
+            "minute": 45,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 21,
+            "minute": 50,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 21,
+            "minute": 55,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 22,
+            "minute": 5,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 22,
+            "minute": 10,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 22,
+            "minute": 15,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 22,
+            "minute": 20,
+            "heartRateValue": 86
+          },
+          {
+            "hour": 22,
+            "minute": 25,
+            "heartRateValue": 74
+          },
+          {
+            "hour": 22,
+            "minute": 30,
+            "heartRateValue": 81
+          },
+          {
+            "hour": 22,
+            "minute": 35,
+            "heartRateValue": 88
+          },
+          {
+            "hour": 22,
+            "minute": 40,
+            "heartRateValue": 76
+          },
+          {
+            "hour": 22,
+            "minute": 45,
+            "heartRateValue": 83
+          },
+          {
+            "hour": 22,
+            "minute": 50,
+            "heartRateValue": 90
+          },
+          {
+            "hour": 22,
+            "minute": 55,
+            "heartRateValue": 78
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "heartRateValue": 85
+          },
+          {
+            "hour": 23,
+            "minute": 5,
+            "heartRateValue": 73
+          },
+          {
+            "hour": 23,
+            "minute": 10,
+            "heartRateValue": 80
+          },
+          {
+            "hour": 23,
+            "minute": 15,
+            "heartRateValue": 87
+          },
+          {
+            "hour": 23,
+            "minute": 20,
+            "heartRateValue": 75
+          },
+          {
+            "hour": 23,
+            "minute": 25,
+            "heartRateValue": 82
+          },
+          {
+            "hour": 23,
+            "minute": 30,
+            "heartRateValue": 89
+          },
+          {
+            "hour": 23,
+            "minute": 35,
+            "heartRateValue": 77
+          },
+          {
+            "hour": 23,
+            "minute": 40,
+            "heartRateValue": 84
+          },
+          {
+            "hour": 23,
+            "minute": 45,
+            "heartRateValue": 72
+          },
+          {
+            "hour": 23,
+            "minute": 50,
+            "heartRateValue": 79
+          },
+          {
+            "hour": 23,
+            "minute": 55,
+            "heartRateValue": 86
+          }
+        ]
+      }
+    },
+    {
+      "name": "bloodOxygen",
+      "doc": "5.48 同步血氧数据",
+      "replyCmd": 229,
+      "frames": [
+        "dae53700001e1a080a3000ff5f6061625e5f6061625eff6061625e5f6061625e5fff61625e5f6061625e5f60ff625e5f6061625e5f6061ff5e5f609ed3"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 75,
+        "interval": 30,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 48,
+        "bloodOxygenList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "bloodOxygen": 0
+          },
+          {
+            "hour": 0,
+            "minute": 30,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 1,
+            "minute": 30,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 2,
+            "minute": 30,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 3,
+            "minute": 30,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 4,
+            "minute": 30,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 5,
+            "minute": 30,
+            "bloodOxygen": 0
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 6,
+            "minute": 30,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 7,
+            "minute": 30,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 8,
+            "minute": 30,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 9,
+            "minute": 30,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 10,
+            "minute": 30,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "bloodOxygen": 0
+          },
+          {
+            "hour": 11,
+            "minute": 30,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 12,
+            "minute": 30,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 13,
+            "minute": 30,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 14,
+            "minute": 30,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 15,
+            "minute": 30,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 16,
+            "minute": 30,
+            "bloodOxygen": 0
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 17,
+            "minute": 30,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 18,
+            "minute": 30,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 19,
+            "minute": 30,
+            "bloodOxygen": 98
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 20,
+            "minute": 30,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "bloodOxygen": 96
+          },
+          {
+            "hour": 21,
+            "minute": 30,
+            "bloodOxygen": 97
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "bloodOxygen": 0
+          },
+          {
+            "hour": 22,
+            "minute": 30,
+            "bloodOxygen": 94
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "bloodOxygen": 95
+          },
+          {
+            "hour": 23,
+            "minute": 30,
+            "bloodOxygen": 96
+          }
+        ]
+      }
+    },
+    {
+      "name": "bloodPressure",
+      "doc": "5.47 同步血压数据",
+      "replyCmd": 228,
+      "frames": [
+        "dae43700003c1a080a3000ffff6f457046714772487349744affff764c7744784579467a476e48ffff704a714b724c734474457546ffff77487849d0ed"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 74,
+        "interval": 60,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 48,
+        "bloodPressureList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "ss": 0,
+            "fz": 0
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "ss": 111,
+            "fz": 69
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "ss": 112,
+            "fz": 70
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "ss": 113,
+            "fz": 71
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "ss": 114,
+            "fz": 72
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "ss": 115,
+            "fz": 73
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "ss": 116,
+            "fz": 74
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "ss": 0,
+            "fz": 0
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "ss": 118,
+            "fz": 76
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "ss": 119,
+            "fz": 68
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "ss": 120,
+            "fz": 69
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "ss": 121,
+            "fz": 70
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "ss": 122,
+            "fz": 71
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "ss": 110,
+            "fz": 72
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "ss": 0,
+            "fz": 0
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "ss": 112,
+            "fz": 74
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "ss": 113,
+            "fz": 75
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "ss": 114,
+            "fz": 76
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "ss": 115,
+            "fz": 68
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "ss": 116,
+            "fz": 69
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "ss": 117,
+            "fz": 70
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "ss": 0,
+            "fz": 0
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "ss": 119,
+            "fz": 72
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "ss": 120,
+            "fz": 73
+          }
+        ]
+      }
+    },
+    {
+      "name": "temperature",
+      "doc": "5.51 同步温度数据",
+      "replyCmd": 232,
+      "frames": [
+        "dae83700003c1a080a300000006b016c016d016e016f0100006a016b016c016d016e01000070016a016b016c016d0100006f0170016a016b016c015398"
+      ],
+      "vendor": {
+        "type": 78,
+        "status": 0,
+        "interval": 60,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 48,
+        "tempList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "temp": 0
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "temp": 363
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "temp": 364
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "temp": 365
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "temp": 366
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "temp": 367
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "temp": 0
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "temp": 362
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "temp": 363
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "temp": 364
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "temp": 365
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "temp": 366
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "temp": 0
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "temp": 368
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "temp": 362
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "temp": 363
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "temp": 364
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "temp": 365
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "temp": 0
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "temp": 367
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "temp": 368
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "temp": 362
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "temp": 363
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "temp": 364
+          }
+        ]
+      }
+    },
+    {
+      "name": "stress",
+      "doc": "5.49 同步压力数据",
+      "replyCmd": 230,
+      "frames": [
+        "dae61f00003c1a080a1800ffffffffffff22232425262728292a2b2c2d2e2f30313233a0c3"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 76,
+        "interval": 60,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 24,
+        "pressureList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "pressure": 0
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "pressure": 0
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "pressure": 0
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "pressure": 0
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "pressure": 0
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "pressure": 0
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "pressure": 34
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "pressure": 35
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "pressure": 36
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "pressure": 37
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "pressure": 38
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "pressure": 39
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "pressure": 40
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "pressure": 41
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "pressure": 42
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "pressure": 43
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "pressure": 44
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "pressure": 45
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "pressure": 46
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "pressure": 47
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "pressure": 48
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "pressure": 49
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "pressure": 50
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "pressure": 51
+          }
+        ]
+      }
+    },
+    {
+      "name": "met",
+      "doc": "5.50 同步梅脱数据",
+      "replyCmd": 231,
+      "frames": [
+        "dae71f00003c1a080a1800ff0203040506010203ff0506010203040506ff0203040506e6f5"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 77,
+        "interval": 60,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 24,
+        "metList": [
+          0,
+          2,
+          3,
+          4,
+          5,
+          6,
+          1,
+          2,
+          3,
+          0,
+          5,
+          6,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          0,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    },
+    {
+      "name": "bloodSugar",
+      "doc": "5.58 同步血糖数据",
+      "replyCmd": 242,
+      "frames": [
+        "daf21f00003c1a080a1800ff31323334ff36373839ff3b3c3d3eff40414243ff45463013d1"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 80,
+        "interval": 60,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 24,
+        "bloodSugarList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "bloodSugar": 0
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "bloodSugar": 49
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "bloodSugar": 50
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "bloodSugar": 51
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "bloodSugar": 52
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "bloodSugar": 0
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "bloodSugar": 54
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "bloodSugar": 55
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "bloodSugar": 56
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "bloodSugar": 57
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "bloodSugar": 0
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "bloodSugar": 59
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "bloodSugar": 60
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "bloodSugar": 61
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "bloodSugar": 62
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "bloodSugar": 0
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "bloodSugar": 64
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "bloodSugar": 65
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "bloodSugar": 66
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "bloodSugar": 67
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "bloodSugar": 0
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "bloodSugar": 69
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "bloodSugar": 70
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "bloodSugar": 48
+          }
+        ]
+      }
+    },
+    {
+      "name": "respirationRate",
+      "doc": "5.60 同步呼吸率数据",
+      "replyCmd": 248,
+      "frames": [
+        "daf81f00003c1a080a1800ff0e0f1011120d0eff1011120d0e0f10ff120d0e0f101112642f"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 82,
+        "interval": 60,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 24,
+        "respirationRateList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "respirationRate": 0
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "respirationRate": 14
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "respirationRate": 15
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "respirationRate": 16
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "respirationRate": 17
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "respirationRate": 18
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "respirationRate": 13
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "respirationRate": 14
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "respirationRate": 0
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "respirationRate": 16
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "respirationRate": 17
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "respirationRate": 18
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "respirationRate": 13
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "respirationRate": 14
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "respirationRate": 15
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "respirationRate": 16
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "respirationRate": 0
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "respirationRate": 18
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "respirationRate": 13
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "respirationRate": 14
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "respirationRate": 15
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "respirationRate": 16
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "respirationRate": 17
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "respirationRate": 18
+          }
+        ]
+      }
+    },
+    {
+      "name": "sleep",
+      "doc": "5.61 同步睡眠数据",
+      "replyCmd": 244,
+      "frames": [
+        "daf4a70000051a080a20010102020202020202020303030303030303030505050505050505050202020202020202020303030303030303030505050505050505050202020202020202020303030303030303030505050505050505050202020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000082828256f7",
+        "daf4870000051a080a20018282828282828282000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010202020202020202020202f2f1"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 81,
+        "interval": 5,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 288,
+        "sleepDataList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "status": 1
+          },
+          {
+            "hour": 0,
+            "minute": 5,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 10,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 15,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 20,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 25,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 30,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 35,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 40,
+            "status": 2
+          },
+          {
+            "hour": 0,
+            "minute": 45,
+            "status": 3
+          },
+          {
+            "hour": 0,
+            "minute": 50,
+            "status": 3
+          },
+          {
+            "hour": 0,
+            "minute": 55,
+            "status": 3
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "status": 3
+          },
+          {
+            "hour": 1,
+            "minute": 5,
+            "status": 3
+          },
+          {
+            "hour": 1,
+            "minute": 10,
+            "status": 3
+          },
+          {
+            "hour": 1,
+            "minute": 15,
+            "status": 3
+          },
+          {
+            "hour": 1,
+            "minute": 20,
+            "status": 3
+          },
+          {
+            "hour": 1,
+            "minute": 25,
+            "status": 3
+          },
+          {
+            "hour": 1,
+            "minute": 30,
+            "status": 5
+          },
+          {
+            "hour": 1,
+            "minute": 35,
+            "status": 5
+          },
+          {
+            "hour": 1,
+            "minute": 40,
+            "status": 5
+          },
+          {
+            "hour": 1,
+            "minute": 45,
+            "status": 5
+          },
+          {
+            "hour": 1,
+            "minute": 50,
+            "status": 5
+          },
+          {
+            "hour": 1,
+            "minute": 55,
+            "status": 5
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "status": 5
+          },
+          {
+            "hour": 2,
+            "minute": 5,
+            "status": 5
+          },
+          {
+            "hour": 2,
+            "minute": 10,
+            "status": 5
+          },
+          {
+            "hour": 2,
+            "minute": 15,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 20,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 25,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 30,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 35,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 40,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 45,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 50,
+            "status": 2
+          },
+          {
+            "hour": 2,
+            "minute": 55,
+            "status": 2
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 5,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 10,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 15,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 20,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 25,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 30,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 35,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 40,
+            "status": 3
+          },
+          {
+            "hour": 3,
+            "minute": 45,
+            "status": 5
+          },
+          {
+            "hour": 3,
+            "minute": 50,
+            "status": 5
+          },
+          {
+            "hour": 3,
+            "minute": 55,
+            "status": 5
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "status": 5
+          },
+          {
+            "hour": 4,
+            "minute": 5,
+            "status": 5
+          },
+          {
+            "hour": 4,
+            "minute": 10,
+            "status": 5
+          },
+          {
+            "hour": 4,
+            "minute": 15,
+            "status": 5
+          },
+          {
+            "hour": 4,
+            "minute": 20,
+            "status": 5
+          },
+          {
+            "hour": 4,
+            "minute": 25,
+            "status": 5
+          },
+          {
+            "hour": 4,
+            "minute": 30,
+            "status": 2
+          },
+          {
+            "hour": 4,
+            "minute": 35,
+            "status": 2
+          },
+          {
+            "hour": 4,
+            "minute": 40,
+            "status": 2
+          },
+          {
+            "hour": 4,
+            "minute": 45,
+            "status": 2
+          },
+          {
+            "hour": 4,
+            "minute": 50,
+            "status": 2
+          },
+          {
+            "hour": 4,
+            "minute": 55,
+            "status": 2
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "status": 2
+          },
+          {
+            "hour": 5,
+            "minute": 5,
+            "status": 2
+          },
+          {
+            "hour": 5,
+            "minute": 10,
+            "status": 2
+          },
+          {
+            "hour": 5,
+            "minute": 15,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 20,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 25,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 30,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 35,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 40,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 45,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 50,
+            "status": 3
+          },
+          {
+            "hour": 5,
+            "minute": 55,
+            "status": 3
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 5,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 10,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 15,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 20,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 25,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 30,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 35,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 40,
+            "status": 5
+          },
+          {
+            "hour": 6,
+            "minute": 45,
+            "status": 2
+          },
+          {
+            "hour": 6,
+            "minute": 50,
+            "status": 2
+          },
+          {
+            "hour": 6,
+            "minute": 55,
+            "status": 2
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 7,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 8,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 9,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 10,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 11,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 12,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 13,
+            "minute": 5,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 10,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 15,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 20,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 25,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 30,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 35,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 40,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 45,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 50,
+            "status": 130
+          },
+          {
+            "hour": 13,
+            "minute": 55,
+            "status": 130
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 14,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 15,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 16,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 17,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 18,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 19,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 20,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 21,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 5,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 10,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 15,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 20,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 25,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 30,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 35,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 40,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 45,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 50,
+            "status": 0
+          },
+          {
+            "hour": 22,
+            "minute": 55,
+            "status": 0
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "status": 1
+          },
+          {
+            "hour": 23,
+            "minute": 5,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 10,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 15,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 20,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 25,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 30,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 35,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 40,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 45,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 50,
+            "status": 2
+          },
+          {
+            "hour": 23,
+            "minute": 55,
+            "status": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "steps",
+      "doc": "5.45 同步计步睡眠",
+      "replyCmd": 226,
+      "frames": [
+        "dae29700003c1a080a90000010000000000010000000000010000000000010000000000010000000000010000000000010000000007b110f005d0aa0111100600bc5111200630cea111400660d0f121500690e341217006c0f591218006f107e121a007211a3121b007512c8121c007813ed121e007b1412131f007e153713210081165c1322008417811324008718a61325008a19cb1327008d1a15b8"
+      ],
+      "vendor": {
+        "status": 0,
+        "type": 72,
+        "interval": 60,
+        "year": 2026,
+        "month": 8,
+        "day": 10,
+        "dataLength": 144,
+        "stepsList": [
+          {
+            "hour": 0,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 0,
+            "calorie": 0,
+            "distance": 0
+          },
+          {
+            "hour": 1,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 0,
+            "calorie": 0,
+            "distance": 0
+          },
+          {
+            "hour": 2,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 0,
+            "calorie": 0,
+            "distance": 0
+          },
+          {
+            "hour": 3,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 0,
+            "calorie": 0,
+            "distance": 0
+          },
+          {
+            "hour": 4,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 0,
+            "calorie": 0,
+            "distance": 0
+          },
+          {
+            "hour": 5,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 0,
+            "calorie": 0,
+            "distance": 0
+          },
+          {
+            "hour": 6,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 0,
+            "calorie": 0,
+            "distance": 0
+          },
+          {
+            "hour": 7,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 379,
+            "calorie": 15,
+            "distance": 2653
+          },
+          {
+            "hour": 8,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 416,
+            "calorie": 17,
+            "distance": 2912
+          },
+          {
+            "hour": 9,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 453,
+            "calorie": 18,
+            "distance": 3171
+          },
+          {
+            "hour": 10,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 490,
+            "calorie": 20,
+            "distance": 3430
+          },
+          {
+            "hour": 11,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 527,
+            "calorie": 21,
+            "distance": 3689
+          },
+          {
+            "hour": 12,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 564,
+            "calorie": 23,
+            "distance": 3948
+          },
+          {
+            "hour": 13,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 601,
+            "calorie": 24,
+            "distance": 4207
+          },
+          {
+            "hour": 14,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 638,
+            "calorie": 26,
+            "distance": 4466
+          },
+          {
+            "hour": 15,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 675,
+            "calorie": 27,
+            "distance": 4725
+          },
+          {
+            "hour": 16,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 712,
+            "calorie": 28,
+            "distance": 4984
+          },
+          {
+            "hour": 17,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 749,
+            "calorie": 30,
+            "distance": 5243
+          },
+          {
+            "hour": 18,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 786,
+            "calorie": 31,
+            "distance": 5502
+          },
+          {
+            "hour": 19,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 823,
+            "calorie": 33,
+            "distance": 5761
+          },
+          {
+            "hour": 20,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 860,
+            "calorie": 34,
+            "distance": 6020
+          },
+          {
+            "hour": 21,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 897,
+            "calorie": 36,
+            "distance": 6279
+          },
+          {
+            "hour": 22,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 934,
+            "calorie": 37,
+            "distance": 6538
+          },
+          {
+            "hour": 23,
+            "minute": 0,
+            "dataType": 1,
+            "steps": 971,
+            "calorie": 39,
+            "distance": 6797
+          }
+        ],
+        "sleepsList": []
+      }
+    },
+    {
+      "name": "heartRateNoData",
+      "doc": "5.46 with 数据无效 (status 4)",
+      "replyCmd": 227,
+      "frames": [
+        "dae3070004001a080b000034d2"
+      ],
+      "vendor": {
+        "__rejected": {
+          "code": 4,
+          "message": "数据无效"
+        }
+      }
+    }
+  ]
+}

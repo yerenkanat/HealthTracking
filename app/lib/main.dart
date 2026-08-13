@@ -1202,6 +1202,10 @@ Future<void> bootstrapRuntime(
       // The full activity/sleep/wellness snapshot → the dashboard's activity
       // panel. Everything the watch tracks beyond the four triage vitals.
       w.onSnapshot.listen(controller.onWearableMetrics);
+      // The days the watch stored while the app was closed — the week that was
+      // sitting on her wrist and being overwritten unread. Goes to the chart
+      // series, the sleep history and the backend, all through the controller.
+      w.onHistory.listen(controller.onWearableHistory);
       // Link state (connecting / connected / lost) drives the dashboard's "not
       // measuring" chip, so a watch out of range since morning is not mistaken
       // for a quiet one — the only other evidence would be a last reading that

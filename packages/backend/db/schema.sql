@@ -362,9 +362,38 @@ CREATE TABLE IF NOT EXISTS wearable_days (
   battery_pct     SMALLINT,
   charging        BOOLEAN NOT NULL DEFAULT FALSE,
   worn            BOOLEAN NOT NULL DEFAULT FALSE,
+  -- The vitals a DAY of the watch's own stored history carries (migration 042).
+  -- Averages plus the extremes a mean cannot express: a day averaging 78 bpm
+  -- that touched 165 is not the day that never left 80, and a clinician needs
+  -- to be able to tell them apart. NULL = not measured, same rule as above.
+  hr_avg             SMALLINT,
+  hr_min             SMALLINT,
+  hr_max             SMALLINT,
+  spo2_avg           SMALLINT,
+  spo2_min           SMALLINT,
+  systolic_avg       SMALLINT,
+  diastolic_avg      SMALLINT,
+  temp_avg_tenths    SMALLINT,  -- 365 = 36.5 °C, the device's own unit
+  blood_sugar_tenths SMALLINT,  -- tenths of a mmol/L; an estimate, not a test
   CONSTRAINT sane_stress  CHECK (stress      IS NULL OR stress      BETWEEN 0 AND 100),
   CONSTRAINT sane_breath  CHECK (breath_rate IS NULL OR breath_rate BETWEEN 1 AND 80),
   CONSTRAINT sane_battery CHECK (battery_pct IS NULL OR battery_pct BETWEEN 0 AND 100),
+  -- A byte read at the wrong offset lands outside human physiology; refuse it
+  -- at the door rather than draw it on a chart as a fact.
+  CONSTRAINT sane_hr CHECK (
+    (hr_avg IS NULL OR hr_avg BETWEEN 20 AND 250) AND
+    (hr_min IS NULL OR hr_min BETWEEN 20 AND 250) AND
+    (hr_max IS NULL OR hr_max BETWEEN 20 AND 250)),
+  CONSTRAINT sane_spo2 CHECK (
+    (spo2_avg IS NULL OR spo2_avg BETWEEN 50 AND 100) AND
+    (spo2_min IS NULL OR spo2_min BETWEEN 50 AND 100)),
+  CONSTRAINT sane_bp CHECK (
+    (systolic_avg  IS NULL OR systolic_avg  BETWEEN 50 AND 260) AND
+    (diastolic_avg IS NULL OR diastolic_avg BETWEEN 30 AND 200)),
+  CONSTRAINT sane_temp_day CHECK (
+    temp_avg_tenths IS NULL OR temp_avg_tenths BETWEEN 300 AND 450),
+  CONSTRAINT sane_sugar_day CHECK (
+    blood_sugar_tenths IS NULL OR blood_sugar_tenths BETWEEN 10 AND 300),
   PRIMARY KEY (user_id, device_id, day)
 );
 CREATE INDEX IF NOT EXISTS idx_wearable_days_user ON wearable_days (user_id, day DESC);

@@ -18,12 +18,14 @@ import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../../core/triage.dart';
+import '../../domain/wearable_day.dart';
 import '../../domain/wearable_metrics.dart';
 import '../link_policy.dart';
 import '../watch_identity.dart';
 import 'starmax_client.dart';
 import 'starmax_frames.dart';
 import 'starmax_health_bridge.dart';
+import 'starmax_history_sync.dart';
 
 // Nordic UART Service — the transport the watch speaks over.
 final _nusService = Guid('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
@@ -77,10 +79,19 @@ class StarmaxBandConfig {
   /// How often to pull a fresh health snapshot while connected.
   final Duration pollInterval;
 
+  /// How many days of stored history to backfill after a connection comes up.
+  ///
+  /// Seven, because that is roughly what these watches keep and because a week
+  /// is the window the dashboard reasons over. Set to 0 to switch the backfill
+  /// off entirely — it costs radio time, and a caller that does not want it
+  /// should not have to pay for it.
+  final int backfillDays;
+
   const StarmaxBandConfig({
     this.knownRemoteId,
     this.namePrefixes = starmaxNamePrefixes,
     this.pollInterval = const Duration(seconds: 30),
+    this.backfillDays = 7,
   });
 }
 
@@ -94,6 +105,7 @@ class StarmaxBandManager {
   final _emergency = StreamController<(BandTelemetry, TriageResult)>.broadcast();
   final _status = StreamController<BandLinkState>.broadcast();
   final _snapshot = StreamController<WearableMetrics>.broadcast();
+  final _history = StreamController<WearableHistoryReport>.broadcast();
 
   Stream<(BandTelemetry, TriageResult)> get onTelemetry => _telemetry.stream;
   Stream<(BandTelemetry, TriageResult)> get onEmergency => _emergency.stream;
@@ -102,6 +114,15 @@ class StarmaxBandManager {
   /// The full activity/sleep/wellness snapshot each poll, for the dashboard —
   /// everything the triage path (onTelemetry) drops.
   Stream<WearableMetrics> get onSnapshot => _snapshot.stream;
+
+  /// The days the watch had stored, delivered once per connection.
+  ///
+  /// [onSnapshot] can only ever describe the minutes the app was open and the
+  /// link was up. The watch itself keeps about a week, and until this stream
+  /// existed none of it was ever read: a wearer who opened the app on Friday
+  /// saw Friday, and Monday through Thursday sat on her wrist and were
+  /// eventually overwritten.
+  Stream<WearableHistoryReport> get onHistory => _history.stream;
 
   BandLinkState _statusValue = BandLinkState.idle;
   BandLinkState get status => _statusValue;
@@ -192,6 +213,10 @@ class StarmaxBandManager {
       await client.connect(); // pair + set clock
       _setStatus(BandLinkState.connected);
       _startPolling();
+      // The backfill runs alongside the poll rather than before it: the live
+      // snapshot is what the screen is waiting for, and a week of history must
+      // not hold it up. Unawaited on purpose, and it cannot fail the link.
+      unawaited(_backfillHistory(client));
     } catch (e) {
       _fail(classifyLinkError(e));
     } finally {
@@ -239,6 +264,36 @@ class StarmaxBandManager {
       manufacturerData: adv.manufacturerData,
       namePrefixes: cfg.namePrefixes,
     );
+  }
+
+  /// The day this manager last completed a backfill for, so a reconnect a
+  /// minute later does not re-read the whole week. A new day, or a new process,
+  /// syncs again.
+  DateTime? _backfilledOn;
+
+  /// Read the watch's stored days once per connection and publish them.
+  ///
+  /// Wrapped in its own try: a watch whose firmware does not answer the history
+  /// commands still delivers live snapshots, and a failed backfill must not look
+  /// like a dropped link.
+  Future<void> _backfillHistory(StarmaxClient client) async {
+    if (_disposed || cfg.backfillDays <= 0) return;
+    final today = DateTime.now();
+    final done = _backfilledOn;
+    if (done != null && done.year == today.year && done.month == today.month && done.day == today.day) {
+      return;
+    }
+    try {
+      final report = await syncStarmaxHistory(client, maxDays: cfg.backfillDays);
+      if (_disposed) return;
+      _backfilledOn = DateTime(today.year, today.month, today.day);
+      // An empty report is still published: "the watch holds nothing" is an
+      // answer the screen needs, and a silent stream is indistinguishable from
+      // a backfill that never ran.
+      _history.add(report);
+    } catch (_) {
+      // Not a link failure. Try again on the next connection.
+    }
   }
 
   void _startPolling() {
@@ -316,5 +371,6 @@ class StarmaxBandManager {
     await _emergency.close();
     await _status.close();
     await _snapshot.close();
+    await _history.close();
   }
 }

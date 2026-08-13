@@ -60,6 +60,14 @@ void main() {
   _chk('watch snapshots reach the controller',
       main_.contains('onSnapshot.listen(controller.onWearableMetrics)'));
 
+  // The per-day BACKFILL is the other half, and it is worth its own check for
+  // the same reason: a stream nobody listens to fails silently and looks exactly
+  // like a watch that keeps no history. Without this edge the sync runs on
+  // every connection, decodes a week, and drops it on the floor — costing radio
+  // time and battery for nothing at all.
+  _chk('watch history reaches the controller',
+      main_.contains('onHistory.listen(controller.onWearableHistory)'));
+
   // ---- the watch is started at all ----
   // It used to be behind `bool.fromEnvironment('STARMAX_WATCH')`, which no build
   // script in this repository ever set: the whole BLE stack was dead code in

@@ -51,11 +51,16 @@ void main() {
     _chk('pair (android) carries platform byte 1', cmdPair(ios: false)[4] == 1);
     _chk('pair (ios) carries platform byte 2', cmdPair(ios: true)[4] == 2);
 
-    final hm = cmdHealthMeasure(StarmaxMeasure.bloodOxygen, on: true);
-    _chk('health-measure names the metric', hm[4] == StarmaxMeasure.bloodOxygen.code);
+    final hm = cmdHealthMeasure(StarmaxMeasure.stress, on: true);
+    _chk('health-measure names the metric', hm[4] == StarmaxMeasure.stress.code);
     _chk('health-measure carries the on flag', hm[5] == 1);
     _chk('stopping a measurement clears the flag',
         cmdHealthMeasure(StarmaxMeasure.heartRate, on: false)[5] == 0);
+    // The two values the vendor actually defines (§5.39: «(99)：心率 (102)：压力»,
+    // and HealthMeasureType in types.ts). The enum used to carry 1…7, which are
+    // HealthIntervalType values from §5.63 — a different question entirely.
+    _chk('measure types are the vendor\'s two, not the interval enum',
+        StarmaxMeasure.heartRate.code == 99 && StarmaxMeasure.stress.code == 102);
 
     final hist = cmdGetHistory(StarmaxCmd.heartRateHistory, DateTime(2026, 7, 22));
     _chk('history date is (year-2000, month, day)',

@@ -1209,6 +1209,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Көрсеткіштер: {when}',
     AppLocale.en: 'Readings: {when}',
   },
+  // What the backfill from the watch actually covered. The number is the count
+  // of days the WATCH returned data for, never the window the app asked for —
+  // a chart that says seven days on the strength of a request that came back
+  // with two is a lie the reader has no way to catch.
+  'db_watch_history_span': {
+    AppLocale.ru: 'История с часов: {n} дн.',
+    AppLocale.kk: 'Сағаттан тарих: {n} күн',
+    AppLocale.en: 'From the watch: {n} days of history',
+  },
   'db_vitals_section': {AppLocale.ru: 'Показатели', AppLocale.kk: 'Көрсеткіштер', AppLocale.en: 'Vital signs'},
   'db_zone_care': {AppLocale.ru: 'Наблюдение', AppLocale.kk: 'Бақылау', AppLocale.en: 'Care'},
   'db_zone_tools': {AppLocale.ru: 'Инструменты', AppLocale.kk: 'Құралдар', AppLocale.en: 'Tools'},

@@ -65,16 +65,22 @@ class StarmaxCmd {
   static const sleepHistory = 116;
 }
 
-/// The kinds of on-demand measurement `healthMeasure` can start. Values are the
-/// vendor's `MeasureType` enum.
+/// The kinds of on-demand measurement `healthMeasure` can start.
+///
+/// TWO, not seven. These are the vendor's `HealthMeasureType` (types.ts) and the
+/// docs pin them explicitly — §5.39's field table reads «healthType … (99)：心率
+/// (102)：压力». The reply parser agrees: index.js frame 194 tests `e[0] == 102`
+/// for stress and calls everything else a heart rate.
+///
+/// This enum previously carried heartRate(1) … respiratoryRate(7). Those are the
+/// values of a DIFFERENT enum — `HealthIntervalType` from §5.63, which says how
+/// often the watch should sample a metric in the background. Sent as a measure
+/// type they name nothing the firmware recognises, so `startMeasure` was asking
+/// the watch for a measurement it has no way to start. Nothing outside a test
+/// ever called it, so nothing surfaced.
 enum StarmaxMeasure {
-  heartRate(1),
-  bloodOxygen(2),
-  temp(3),
-  hrv(4),
-  bloodSugar(5),
-  bloodPressure(6),
-  respiratoryRate(7);
+  heartRate(99),
+  stress(102);
 
   final int code;
   const StarmaxMeasure(this.code);
@@ -200,6 +206,74 @@ class StarmaxFrame {
     required this.payload,
     required this.crcOk,
   });
+}
+
+/// Reassembles logical frames out of BLE notifications.
+///
+/// WHY THIS IS NOT OPTIONAL
+///
+/// Every frame the app asked for until now fitted in one notification, so the
+/// client could parse each packet as a whole frame. A day of heart rate is 288
+/// samples: the frame is ~300 bytes and the radio delivers it in whatever the
+/// negotiated MTU allows — 20 bytes on a conservative link. The continuation
+/// packets do NOT repeat the 0xDA header, so a parser that treats each
+/// notification as a frame sees one truncated frame and a stream of garbage.
+///
+/// The frame's own length field is the authority: total = 4 + len + 2. That is
+/// the same rule the vendor applies (index.js counts `length - 13` sample bytes
+/// per frame, i.e. minus an 11-byte header and a 2-byte CRC), stated in the form
+/// that does not need to know which commands are "sync" commands.
+class StarmaxFrameAssembler {
+  final List<int> _buf = [];
+
+  /// The most bytes to hold while waiting for the rest of a frame. A day of
+  /// samples is a few hundred; anything past this is a desynchronised stream,
+  /// not a frame, and holding it for ever would leak.
+  static const maxPending = 4096;
+
+  /// Feed one notification; get back the complete logical frames it finished.
+  List<List<int>> add(List<int> packet) {
+    _buf.addAll(packet);
+    final out = <List<int>>[];
+    while (true) {
+      // Resynchronise: drop anything before a header byte. A packet that starts
+      // mid-stream is a dropped notification, not data.
+      if (_buf.isNotEmpty && _buf[0] != starmaxHeader) {
+        final at = _buf.indexOf(starmaxHeader);
+        if (at < 0) {
+          _buf.clear();
+          break;
+        }
+        _buf.removeRange(0, at);
+      }
+      if (_buf.length < 4) break;
+      final total = 4 + (_buf[2] | (_buf[3] << 8)) + 2;
+      if (total > maxPending) {
+        // A length that cannot be real — drop this header and look for the next.
+        _buf.removeAt(0);
+        continue;
+      }
+      if (_buf.length < total) break;
+      final candidate = _buf.sublist(0, total);
+      // The CRC is what makes resynchronisation possible. A dropped
+      // notification leaves a truncated frame in front of a good one; the
+      // length field then measures across the seam and the bytes handed out
+      // would be half of one frame and half of the next — with a plausible
+      // command byte on the front. Checking here and stepping one byte on
+      // failure finds the real header instead of emitting the wreckage.
+      final given = candidate[total - 2] | (candidate[total - 1] << 8);
+      if (given != starmaxCrc(candidate.sublist(0, total - 2))) {
+        _buf.removeAt(0);
+        continue;
+      }
+      out.add(candidate);
+      _buf.removeRange(0, total);
+    }
+    if (_buf.length > maxPending) _buf.clear();
+    return out;
+  }
+
+  void reset() => _buf.clear();
 }
 
 /// Parse a raw notification frame. Returns null when it is too short or the

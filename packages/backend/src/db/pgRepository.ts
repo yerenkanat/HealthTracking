@@ -2175,8 +2175,11 @@ export function createPgRepository(pool: Pool): Repository {
         `INSERT INTO wearable_days (
            user_id, device_id, day, recorded_at, steps, kcal, meters,
            sleep_min, deep_sleep_min, light_sleep_min,
-           stress, breath_rate, met, battery_pct, charging, worn)
-         SELECT $1, d.id, $3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+           stress, breath_rate, met, battery_pct, charging, worn,
+           hr_avg, hr_min, hr_max, spo2_avg, spo2_min,
+           systolic_avg, diastolic_avg, temp_avg_tenths, blood_sugar_tenths)
+         SELECT $1, d.id, $3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+                $17,$18,$19,$20,$21,$22,$23,$24,$25
            FROM devices d WHERE d.user_id = $1 AND d.ble_mac = $2
          ON CONFLICT (user_id, device_id, day) DO UPDATE
            SET recorded_at = EXCLUDED.recorded_at,
@@ -2190,11 +2193,29 @@ export function createPgRepository(pool: Pool): Repository {
                breath_rate = COALESCE(EXCLUDED.breath_rate, wearable_days.breath_rate),
                met = COALESCE(EXCLUDED.met, wearable_days.met),
                battery_pct = COALESCE(EXCLUDED.battery_pct, wearable_days.battery_pct),
-               charging = EXCLUDED.charging, worn = EXCLUDED.worn`,
+               charging = EXCLUDED.charging, worn = EXCLUDED.worn,
+               -- Same rule for the history vitals. This is what makes re-running
+               -- the backfill safe: the second sync of a day updates the row it
+               -- already wrote, and a metric the newer read did not carry keeps
+               -- the value the older one found instead of being blanked.
+               hr_avg  = COALESCE(EXCLUDED.hr_avg,  wearable_days.hr_avg),
+               hr_min  = COALESCE(EXCLUDED.hr_min,  wearable_days.hr_min),
+               hr_max  = COALESCE(EXCLUDED.hr_max,  wearable_days.hr_max),
+               spo2_avg = COALESCE(EXCLUDED.spo2_avg, wearable_days.spo2_avg),
+               spo2_min = COALESCE(EXCLUDED.spo2_min, wearable_days.spo2_min),
+               systolic_avg  = COALESCE(EXCLUDED.systolic_avg,  wearable_days.systolic_avg),
+               diastolic_avg = COALESCE(EXCLUDED.diastolic_avg, wearable_days.diastolic_avg),
+               temp_avg_tenths = COALESCE(EXCLUDED.temp_avg_tenths, wearable_days.temp_avg_tenths),
+               blood_sugar_tenths =
+                 COALESCE(EXCLUDED.blood_sugar_tenths, wearable_days.blood_sugar_tenths)`,
         [row.userId, row.deviceId, row.day, row.recordedAt, row.steps, row.kcal, row.meters,
          row.sleepMinutes, row.deepSleepMinutes, row.lightSleepMinutes,
          row.stress ?? null, row.breathRate ?? null, row.met ?? null,
-         row.batteryPercent ?? null, row.charging, row.worn]);
+         row.batteryPercent ?? null, row.charging, row.worn,
+         row.heartRateAvg ?? null, row.heartRateMin ?? null, row.heartRateMax ?? null,
+         row.spo2Avg ?? null, row.spo2Min ?? null,
+         row.systolicAvg ?? null, row.diastolicAvg ?? null,
+         row.tempAvgTenths ?? null, row.bloodSugarTenths ?? null]);
     },
     async listWearableDays(userId, limit) {
       // The MAC comes back, not our UUID: WearableDayRow.deviceId is the
@@ -2204,7 +2225,9 @@ export function createPgRepository(pool: Pool): Repository {
       const { rows } = await pool.query(
         `SELECT d.ble_mac AS device_id, w.day, w.recorded_at, w.steps, w.kcal, w.meters,
                 w.sleep_min, w.deep_sleep_min, w.light_sleep_min,
-                w.stress, w.breath_rate, w.met, w.battery_pct, w.charging, w.worn
+                w.stress, w.breath_rate, w.met, w.battery_pct, w.charging, w.worn,
+                w.hr_avg, w.hr_min, w.hr_max, w.spo2_avg, w.spo2_min,
+                w.systolic_avg, w.diastolic_avg, w.temp_avg_tenths, w.blood_sugar_tenths
            FROM wearable_days w
            JOIN devices d ON d.id = w.device_id
           WHERE w.user_id = $1 ORDER BY w.day DESC LIMIT $2`,
@@ -2220,6 +2243,13 @@ export function createPgRepository(pool: Pool): Repository {
         stress: r.stress, breathRate: r.breath_rate, met: r.met,
         batteryPercent: r.battery_pct,
         charging: r.charging, worn: r.worn,
+        // Selected AND returned. A column the query reads and the mapper drops
+        // is the same defect as never storing it: the clinician's view would
+        // show a day of walking with no heart rate in it.
+        heartRateAvg: r.hr_avg, heartRateMin: r.hr_min, heartRateMax: r.hr_max,
+        spo2Avg: r.spo2_avg, spo2Min: r.spo2_min,
+        systolicAvg: r.systolic_avg, diastolicAvg: r.diastolic_avg,
+        tempAvgTenths: r.temp_avg_tenths, bloodSugarTenths: r.blood_sugar_tenths,
       }));
     },
 

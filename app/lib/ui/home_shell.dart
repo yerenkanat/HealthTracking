@@ -137,6 +137,9 @@ class _HomeShellState extends State<HomeShell> {
         statusChipLate: _statusChipLate(c),
         bandNotMeasuring: c.isBandNotMeasuring,
         wearable: c.latestWearable,
+        // How many days the last backfill from the watch actually brought back
+        // — the span the charts below cover, stated rather than implied.
+        watchHistoryDays: c.wearableHistory?.coveredDays,
         onOpenStatus: () => setState(() => _index = 1),
         weeklyDigest: computeWeeklyDigest(
           c.dayLogs, c.waterLog, c.sleepNights, DateTime.now(),

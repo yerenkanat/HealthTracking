@@ -51,6 +51,7 @@ import '../domain/kick_session.dart';
 import '../domain/manual_vitals.dart';
 import '../domain/medication.dart';
 import '../domain/vaccination.dart';
+import '../domain/wearable_day.dart';
 import '../domain/wearable_metrics.dart';
 import '../domain/child_emergency.dart';
 import '../domain/weight.dart';
@@ -1874,6 +1875,74 @@ class AppController {
     final g = m.bloodSugar;
     if (!_isNewBandGlucose(g)) return;
     store.addSample(HealthSample(at: m.at, glucose: g));
+  }
+
+  WearableHistoryReport? _wearableHistory;
+
+  /// What the last backfill from the watch actually covered — null until one has
+  /// run. Read by the dashboard so a chart can say how many days it is showing
+  /// instead of implying a period nobody measured.
+  WearableHistoryReport? get wearableHistory => _wearableHistory;
+
+  /// From the wearable manager's onHistory stream: a week of days the watch had
+  /// stored while the app was closed.
+  ///
+  /// Three destinations, because a day of history that reaches only one of them
+  /// is the same defect in a different coat:
+  ///   * the chart series, so the sparklines cover the days she actually wore it
+  ///     rather than the minutes this process happened to be running;
+  ///   * the sleep history, so nights spent away from the phone appear on the
+  ///     sleep card;
+  ///   * the batcher, so her clinician's view has them too.
+  void onWearableHistory(WearableHistoryReport report) {
+    _wearableHistory = report;
+    // Oldest first, and merged in order: the chart series is read as a
+    // time-ordered list, and appending a backfilled Monday after today's live
+    // readings would draw the week backwards.
+    store.addSamples(report.samples);
+    for (final day in report.days) {
+      _recordHistoricalSleep(day);
+      _syncWearableDay(day);
+    }
+    _notify();
+  }
+
+  /// Queue one backfilled day for the backend.
+  ///
+  /// The server upserts on (user, device, day), so re-syncing a day the phone
+  /// already sent updates that row rather than adding a second one — which is
+  /// what makes running the backfill on every fresh connection safe.
+  void _syncWearableDay(WearableDay day) {
+    if (!day.hasAnything) return;
+    final deviceId = pairedBandId;
+    if (deviceId == null) return; // nothing the server could attribute it to
+    _batcher?.enqueueWearable(day.toIngestPayload(deviceId: deviceId, now: DateTime.now()));
+  }
+
+  /// Fold a backfilled night into the sleep history, on the same "a night she
+  /// typed in herself wins" rule the live snapshot uses.
+  void _recordHistoricalSleep(WearableDay day) {
+    if (day.sleepMinutes <= 0) return;
+    final night = DateTime(day.date.year, day.date.month, day.date.day);
+    if (_manualSleep.any((n) => _sameNight(n.night, night))) return;
+    final deep = day.deepSleepMinutes;
+    final light = day.lightSleepMinutes;
+    final rem = (day.sleepMinutes - deep - light).clamp(0, day.sleepMinutes);
+    final existing = _sleep.where((n) => _sameNight(n.night, night)).firstOrNull;
+    // A night she typed in wins over a week-old estimate the watch is only now
+    // handing over. `_manualSleep` above catches the nights that survived a
+    // restart; this catches one entered in THIS session, which has not been
+    // through persistence yet — and a backfill runs seconds after a connection,
+    // which is exactly when that is true.
+    if (existing != null && existing.source == SleepSource.manual) return;
+    if (existing != null &&
+        existing.source == SleepSource.band &&
+        existing.deepMin == deep &&
+        existing.remMin == rem &&
+        existing.lightMin == light) {
+      return;
+    }
+    addSleepSummary(SleepSummary(night: night, deepMin: deep, remMin: rem, lightMin: light));
   }
 
   /// Fold the band's nightly sleep into the sleep HISTORY, not just the live

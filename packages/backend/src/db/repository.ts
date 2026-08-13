@@ -69,6 +69,30 @@ export interface WearableDayRow {
   batteryPercent?: number | null;
   charging: boolean;
   worn: boolean;
+  /**
+   * The vitals a DAY of the watch's own stored history carries.
+   *
+   * The live snapshot could only ever describe the minutes the app was open;
+   * the watch keeps about a week of samples on the device and the vendor
+   * documents a read command per metric (§5.44–5.53, §5.58). A backfilled day
+   * therefore has a heart rate, an SpO2, a blood pressure, a temperature and a
+   * blood sugar — averaged over the day's MEASURED samples, plus the extremes
+   * that a mean cannot express.
+   *
+   * All optional and all nullable: absent means the watch measured none that
+   * day, which is not the same as zero and must never be stored as zero.
+   */
+  heartRateAvg?: number | null;
+  heartRateMin?: number | null;
+  heartRateMax?: number | null;
+  spo2Avg?: number | null;
+  spo2Min?: number | null;
+  systolicAvg?: number | null;
+  diastolicAvg?: number | null;
+  /** Tenths of a degree Celsius, the device's unit (365 = 36.5 °C). */
+  tempAvgTenths?: number | null;
+  /** Tenths of a mmol/L. A watch-optical estimate, never a diagnosis. */
+  bloodSugarTenths?: number | null;
 }
 
 export interface WeightRow {

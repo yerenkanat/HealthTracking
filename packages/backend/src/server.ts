@@ -274,6 +274,33 @@ const wearableSchema = z.object({
   // the OEM prints. Absent means the watch did not report one, and the panel
   // says «не сообщалась» rather than showing a dash that reads as "none".
   firmware: z.string().trim().min(1).max(40).optional(),
+
+  /// The vitals a BACKFILLED day carries — averages over the day's measured
+  /// samples, plus the extremes. Present when the app has read the watch's own
+  /// stored history (§5.44–5.53); absent on a live snapshot, which has no day
+  /// behind it yet.
+  ///
+  /// Zod strips keys a schema does not name. Leaving these out would mean the
+  /// app decodes a week of heart rate, posts it, gets a 200 — and the server
+  /// stores a day of steps with no heart rate in it, with nothing anywhere
+  /// saying so.
+  ///
+  /// Bounded to the WIRE's range (a byte, a halfword) rather than to human
+  /// physiology on purpose. A value outside physiology is a decoding bug, and
+  /// rejecting the batch for it makes the client resend the same bad day for
+  /// ever; `plausible()` in the ingest handler drops that one metric instead and
+  /// stores the rest of the day.
+  heartRateAvg: z.number().int().min(0).max(255).optional(),
+  heartRateMin: z.number().int().min(0).max(255).optional(),
+  heartRateMax: z.number().int().min(0).max(255).optional(),
+  spo2Avg: z.number().int().min(0).max(255).optional(),
+  spo2Min: z.number().int().min(0).max(255).optional(),
+  systolicAvg: z.number().int().min(0).max(255).optional(),
+  diastolicAvg: z.number().int().min(0).max(255).optional(),
+  /// Tenths of a degree Celsius (365 = 36.5 °C), the device's own unit.
+  tempAvgTenths: z.number().int().min(0).max(65_535).optional(),
+  /// Tenths of a mmol/L. A watch-optical estimate, never a diagnosis.
+  bloodSugarTenths: z.number().int().min(0).max(255).optional(),
 });
 const batchSchema = z.object({
   items: z

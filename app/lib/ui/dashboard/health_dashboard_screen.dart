@@ -121,6 +121,15 @@ class HealthDashboardView extends StatelessWidget {
   /// The watch's latest activity/sleep/wellness snapshot (null = none). Drives
   /// the activity panel below the vitals.
   final WearableMetrics? wearable;
+
+  /// How many days of stored history the watch actually returned on the last
+  /// backfill. Null or 0 hides the line.
+  ///
+  /// This is the COUNT OF DAYS WITH DATA, not the window the sync asked for.
+  /// The charts below reach back as far as this and no further, and the reader
+  /// cannot tell the difference by looking — so the number has to be the one
+  /// the watch gave, or the label is a claim about a period nobody measured.
+  final int? watchHistoryDays;
   // Hydration (optional — the card shows only when wired up).
   final int waterCount;
   final int waterGoal;
@@ -211,6 +220,7 @@ class HealthDashboardView extends StatelessWidget {
     this.onLogVitals,
     this.bandNotMeasuring = false,
     this.wearable,
+    this.watchHistoryDays,
     this.awaitingRepeat,
     this.waterCount = 0,
     this.waterGoal = 8,
@@ -493,6 +503,19 @@ class HealthDashboardView extends StatelessWidget {
                     _VitalsFreshness(
                         samples: samples,
                         now: nowForAppointment ?? DateTime.now()),
+                    // How far back the charts actually reach. Without it the
+                    // sparklines look like "recently" and mean whatever the app
+                    // happened to be awake for.
+                    if ((watchHistoryDays ?? 0) > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          L10nScope.of(context)
+                              .t('db_watch_history_span', {'n': watchHistoryDays}),
+                          style: const TextStyle(
+                              color: Palette.textDim, fontSize: 12, height: 1.4),
+                        ),
+                      ),
                     const SizedBox(height: 10),
                     if (bandNotMeasuring) ...[
                       const _NotMeasuringChip(),

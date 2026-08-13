@@ -241,8 +241,37 @@
   .view{display:none}.view.active{display:block}
 
   /* KPI tiles */
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  /* auto-fit, not repeat(4,1fr).
+   *
+   * A fixed four-column track cannot give way: at 1024px four KPIs with real
+   * Russian labels («самое старое без ответа») pushed the row 86px past the
+   * screen, and the 900px media query below was too late to help. It also
+   * broke the other way — #ownerMoney renders FIVE tiles, so the fifth dropped
+   * to its own row beside three empty cells on the owner's headline screen.
+   * auto-fit fits whatever number there are, at whatever width there is. */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+  /* A table is the one thing in this panel that legitimately cannot shrink —
+   * eight columns of order data have a floor. It scrolls inside its own card
+   * instead of setting the width of the document, which is what it did before:
+   * one wide table on Магазин and every OTHER screen was clipped too. */
+  .card > .tablewrap, .card > div:has(table){overflow-x:auto}
   .card{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow)}
+  /* The gutter, once, instead of thirty times.
+   *
+   * `.card` carries no padding of its own, so every direct child has to supply
+   * the 18px itself — and measuring the real panel in Chrome found ~30 that did
+   * not, across ten screens: every `.stafform`, every list body (#stockBody,
+   * #takeBody, #catBody, #supBody, #finReturns, #lessonList, #shopOrders,
+   * #shopLeads), every `.tablewrap`, the catalogue side lists, the notes and
+   * the status messages. Their text sat 1px from the white edge, which is what
+   * an owner reported as «прям в край… как будто срезали».
+   *
+   * It was invisible to the test suite because jsdom has no layout engine: two
+   * thousand tests can pass while every card is missing its left margin.
+   *
+   * `.sec-h` is excluded because it already pads itself (16px 18px 6px) and
+   * would otherwise be double-inset. */
+  .card > *:not(.sec-h){padding-left:18px;padding-right:18px}
 
   /* 3.12 Галерея форм. align-items:start is REQUIRED — without it the grid row
      stretches to the tallest panel and every short panel grows a dead margin.
@@ -446,6 +475,14 @@
   .btn:hover{border-color:var(--accent-text)}
   .btn.primary:hover{filter:brightness(1.05)}
   .t{color:var(--muted);font-size:12px;white-space:nowrap}
+  /* `.t` is nowrap because it labels timestamps and counts inside rows, where a
+   * wrap would look broken. Used as a CARD's own child it is prose — and two of
+   * those on Магазин are three-sentence paragraphs, which nowrap stretched to a
+   * single 1 700px line. That one line set the width of the whole document, so
+   * EVERY screen scrolled sideways and everything past the fold was clipped:
+   * the stocktake's count inputs, the order table's status column, «Отправить
+   * тестовое сообщение» itself. One unwrappable sentence, one broken panel. */
+  .card > .t{white-space:normal}
 
   /* Chart card */
   .chartwrap{padding:8px 18px 18px}

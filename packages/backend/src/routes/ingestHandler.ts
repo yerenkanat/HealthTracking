@@ -221,6 +221,39 @@ export interface WearableSnapshot {
   worn: boolean;
   /** The watch's firmware, when it reported one. Stamped on the device row. */
   firmware?: string;
+
+  /**
+   * The vitals a BACKFILLED day carries — averages over the day's measured
+   * samples, plus the extremes. Absent on a live snapshot, which has no day to
+   * average over yet; present when the app has read the watch's stored history.
+   */
+  heartRateAvg?: number;
+  heartRateMin?: number;
+  heartRateMax?: number;
+  spo2Avg?: number;
+  spo2Min?: number;
+  systolicAvg?: number;
+  diastolicAvg?: number;
+  tempAvgTenths?: number;
+  bloodSugarTenths?: number;
+}
+
+/**
+ * A vital, or undefined if it is not one.
+ *
+ * The wearable row is written straight into columns with CHECK constraints, so
+ * a value outside human physiology does not become a bad chart — it becomes a
+ * failed INSERT, which the batch-level catch counts as `rejected`, which makes
+ * the client resend the same day for ever. A decoding bug at the BLE edge would
+ * therefore turn into a permanent retry loop draining her battery.
+ *
+ * Dropped here instead: the day is still stored, with that one metric absent,
+ * which is the truth — we do not know what it was.
+ */
+function plausible(v: number | undefined, lo: number, hi: number): number | undefined {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+  const n = Math.round(v);
+  return n >= lo && n <= hi ? n : undefined;
 }
 
 async function ingestWearable(
@@ -241,7 +274,25 @@ async function ingestWearable(
     summary.rejected++;
     return;
   }
-  await deps.repo.upsertWearableDay({ ...w, userId: owner.userId });
+  await deps.repo.upsertWearableDay({
+    ...w,
+    userId: owner.userId,
+    // Ranges match the table's CHECK constraints exactly. An implausible value
+    // is dropped rather than rejected, so one mis-decoded metric costs that
+    // metric and not the whole day — and never an endless resend.
+    stress: plausible(w.stress, 0, 100) ?? null,
+    breathRate: plausible(w.breathRate, 1, 80) ?? null,
+    batteryPercent: plausible(w.batteryPercent, 0, 100) ?? null,
+    heartRateAvg: plausible(w.heartRateAvg, 20, 250) ?? null,
+    heartRateMin: plausible(w.heartRateMin, 20, 250) ?? null,
+    heartRateMax: plausible(w.heartRateMax, 20, 250) ?? null,
+    spo2Avg: plausible(w.spo2Avg, 50, 100) ?? null,
+    spo2Min: plausible(w.spo2Min, 50, 100) ?? null,
+    systolicAvg: plausible(w.systolicAvg, 50, 260) ?? null,
+    diastolicAvg: plausible(w.diastolicAvg, 30, 200) ?? null,
+    tempAvgTenths: plausible(w.tempAvgTenths, 300, 450) ?? null,
+    bloodSugarTenths: plausible(w.bloodSugarTenths, 10, 300) ?? null,
+  });
   // The snapshot is where the watch's own battery actually comes from today:
   // the app sends `batteryPercent` here and nothing on the telemetry item.
   await markAlive(w.deviceId, deps, { batteryPct: w.batteryPercent, firmware: w.firmware });
