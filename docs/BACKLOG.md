@@ -16,6 +16,41 @@ reproduced, it says that too.
 
 ---
 
+## SHIPPED — do not re-schedule these
+
+Struck through below rather than deleted, because the reasoning is why each one
+was wrong and a deleted line comes back. Every item here is **deployed to
+ana-bala.kz and verified against the live site**, not merely merged.
+
+| Item | Shipped as | Note |
+|---|---|---|
+| 1.2 mother card «as of», English labels, raw severity | `32632a8` | |
+| 1.3 frame 19 prints the constant `EMERGENCY` | `8d7dec8` | reason re-derived from the reading that fired it, by the same `assessTelemetry` that classified it |
+| 1.4 SOS drawn like a zone crossing; `outcome` never selected | `7a15f49` + `8d7dec8` | the column had existed since migration 032 and **no query ever selected it** |
+| 1.5 acknowledging a refused emergency says nothing | `0f1ceb5` | |
+| 1.6 clinical wording for the watch surfaces | `254ee71`, `0f1ceb5`, `ed2a0d0` | **three of six metrics REFUSED** — see `CLINICAL-REVIEW-WATCH.md`; blood sugar, temperature day-average and BP day-average were withdrawn, not reworded |
+| 2.2 / 2.3 course tab, staff password | `0f1ceb5` | `data-cap` now accepts an any-of list |
+| §11 «Сводка» capless; «Финансы» under `stock` | `8d7dec8` | plus the root cause: block 2 of the panel had no `AccessDenied` at all |
+| 4.x silent writes | `0f1ceb5` | includes blocking a **stolen tracker** |
+| 5.4 `.formmsg.err` is not a class | — | **REFUTED.** It is defined. |
+| 6.2 pairing has 2 states, needs 6 | `875821a` | seven, and three the spec asked for were refused as unreachable from that step |
+| 9 · frames 07a «Поставки» / 07g «Поставщики» | `8d7dec8` | |
+
+Also shipped, and not previously on this list:
+
+- **Device temperature may no longer raise an emergency** from any wrist path
+  (`ed2a0d0`), in both triage twins, so the SERVER stops pushing wrist-fever
+  emergencies too. `ADV_TEMP_STEADY` no longer reassures off a device sample —
+  it was telling a woman «температура держится ровно» from one wrist reading.
+- **The Starmax temperature had no plausibility gate at all** — a corrupt frame
+  reading 4000 became 400 °C and took over the screen. Same hole in the history
+  sync. Both bounded 20–45 (`ed2a0d0`).
+- **The ingest guard/CHECK agreement is now a test** (`b4fb99a`), and the
+  "255 vs 260" ticket it came from is **REFUTED**: both fields are a single byte
+  on the wire, so the gap is unreachable.
+- **The deploy now checks what the internet can reach**, not only what the
+  backend serves (`627356d`).
+
 ## 1 · Safety — a screen states something untrue about a person
 
 | # | What | Where | What it costs |
