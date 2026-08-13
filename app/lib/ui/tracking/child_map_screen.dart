@@ -796,6 +796,29 @@ class MinimalTrackingStatusBar extends StatelessWidget {
         Freshness.stale => Palette.amber,
       };
 
+  /// The same status, at a contrast a person can actually read.
+  ///
+  /// `_accent` is a FILL. It was being used for the label as well, on a 14 %
+  /// tint of itself, which measures:
+  ///
+  ///   live    #17A97A on its own tint — 2.62:1
+  ///   delayed #E08A00 on its own tint — 2.38:1
+  ///   recent  #1F5FBF on its own tint — 4.96:1  (the only one that passed)
+  ///
+  /// 13 px bold needs 4.5:1. So the one claim this screen exists to make — how
+  /// current the position is — was rendered illegibly in exactly the two states
+  /// that matter: «she is fine» and «this is late». The blue middle state
+  /// passed, which is why it never looked obviously broken.
+  ///
+  /// The `*Text` tokens exist for precisely this pairing. The rule, stated once
+  /// so it stops being rediscovered: **text on an accent tint is always the
+  /// `*Text` token, never the fill token.**
+  Color get _accentText => switch (freshness) {
+        Freshness.live => Ds.mintText,
+        Freshness.recent => Ds.blueText,
+        Freshness.stale => Ds.amberText,
+      };
+
   IconData get _icon => switch (freshness) {
         Freshness.live => Icons.gps_fixed_rounded,
         Freshness.recent => Icons.near_me_rounded,
@@ -837,14 +860,16 @@ class MinimalTrackingStatusBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(_icon, size: 14, color: _accent),
+                      // The glyph keeps the fill colour: an icon is a shape, and
+                      // WCAG's 4.5:1 is a rule about text. The label does not.
+                      Icon(_icon, size: 14, color: _accentText),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(freshnessLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                                color: _accent,
+                                color: _accentText,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 13)),
                       ),
@@ -909,12 +934,14 @@ class MinimalTrackingStatusBar extends StatelessWidget {
                           Border.all(color: Ds.ink, width: DsShape.borderWidth),
                       color: _accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20)),
+                  // Same tint, same rule — and worse here, because 12 px bold
+                  // has the same 4.5:1 floor as 13 px.
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.schedule_rounded, size: 12, color: _accent),
+                    Icon(Icons.schedule_rounded, size: 12, color: _accentText),
                     const SizedBox(width: 4),
                     Text(_dwellLabel(context)!,
                         style: TextStyle(
-                            color: _accent,
+                            color: _accentText,
                             fontWeight: FontWeight.w700,
                             fontSize: 12)),
                   ]),
