@@ -216,6 +216,32 @@ Cheap to finish; each is a number someone is already paying to produce.
 - **No genuine silent write remains** in the panel: both `api()` helpers throw
   on `!r.ok` and every write site handles it.
 
+### 161 fixed sleeps are one busy machine away from lying
+
+Found while making the role-access test deterministic, and larger than the file
+that surfaced it. **47 admin panel test files contain 161 waits of the form
+`submit` → `setTimeout(120)` → read the DOM** — `adminSupplyRender` has 16,
+`adminStaffRender` 11, `adminCourseRender` 10. Each one decides its verdict on
+elapsed wall-clock rather than on the work being finished, so every one of them
+changes answer under load. This is not theoretical: the same tree produced
+`1 failed | 165 passed` and `165 passed` on consecutive full runs, and the
+failure moved when another agent's file added ~30 s of jsdom CPU to the run.
+
+The replacement pattern now exists in `adminRoleRouteAccess.test.ts`: count the
+requests issued and in flight, return when nothing is in flight and nothing new
+has been issued for several consecutive turns, and **throw** rather than proceed
+on a half-drawn screen. Its companion test makes load an INPUT — it boots the
+same role twice, once with the transport slowed to 40 ms per request, and
+asserts the two observation sets are byte-identical, with a non-vacuity floor so
+two empty maps cannot be what passes. Porting that to 47 files is the work.
+
+Related, and deliberately not fixed: `anKpiTiles`, `renderFinance`,
+`renderSerials` and `renderStock` read their payloads with no shape guard, while
+`/admin/dashboard` has `dashUsable()` for precisely this. Unreachable today —
+every one of those handlers sends its key unconditionally, and a 401/403 throws
+in `api()` before a renderer sees a body — so it is a latent trap, not a live
+defect: it becomes reachable the day one of those fields is made conditional.
+
 ### What that audit could NOT establish
 
 It had no write tools, so it performed **no** break-and-restore verification. It
