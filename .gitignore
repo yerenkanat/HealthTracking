@@ -44,3 +44,6 @@ app/ios/Flutter/Flutter.framework
 app/ios/Flutter/Flutter.podspec
 app/ios/Flutter/ephemeral/
 app/ios/build/
+
+# graphify: generated knowledge graph (12.5k nodes) — rebuilt from source, not reviewed by hand
+graphify-out/
