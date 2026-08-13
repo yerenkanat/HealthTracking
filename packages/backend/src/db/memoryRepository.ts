@@ -1295,18 +1295,72 @@ const UUID_RE =
       emergencyAcks.set(id, { staffId, at });
       return true;
     },
-    adminListUsers: async () => {
-      // Surface each user's latest reading in the list, like the pg LATERAL:
-      // the time (the "last measurement" column) and its triage severity.
-      const mine = (healthRows as Array<Record<string, unknown>>).filter((r) => r.userId === DEMO_USER);
-      const last = mine[mine.length - 1];
+    // Takes its arguments, at last.
+    //
+    // This was `adminListUsers: async () => …` — no parameters at all. It
+    // ignored `q`, `limit` and `offset` and always returned one user, so the
+    // panel's search, its paging and its total were exercised ONLY in
+    // production. That is why nobody noticed that Postgres searched
+    // display_name and email while the box promised «по имени или телефону»:
+    // no test could reach the difference, because the fake had no search to be
+    // wrong about.
+    //
+    // An unfaithful fake is worse than no fake — it turns a whole feature into
+    // green tests.
+    adminListUsers: async (q, limit, offset) => {
+      const digits = String(q ?? '').replace(/\D+/g, '');
+      const needle = String(q ?? '').trim().toLowerCase();
+      // ONE list, assembled from the three places a user can exist in here.
+      //
+      // Production has a single `users` table. This fake has three stores:
+      // `profiles` (what an edit writes), `userNames`/`usersByPhone` (what
+      // signing in with a phone creates), and the standalone `profile` variable
+      // holding the demo account until something updates it. They are disjoint
+      // — so a woman who signed in by phone, which is the ONLY way a real user
+      // comes to exist, never appeared in the admin list at all, and no test
+      // could see it because the list ignored its arguments anyway.
+      const rows = new Map<string, { displayName: string; phone: string | null; dueDate: string | null }>();
+      const put = (id: string, v: Partial<{ displayName: string; phone: string | null; dueDate: string | null }>) => {
+        const cur = rows.get(id) ?? { displayName: '', phone: null, dueDate: null };
+        rows.set(id, {
+          displayName: v.displayName ?? cur.displayName,
+          phone: v.phone ?? cur.phone,
+          dueDate: v.dueDate ?? cur.dueDate,
+        });
+      };
+      if (profile) put(DEMO_USER, { displayName: profile.displayName ?? '', phone: profile.phone ?? null, dueDate: profile.dueDate ?? null });
+      for (const [id, name] of userNames) put(id, { displayName: name });
+      for (const [ph, id] of usersByPhone) put(id, { phone: ph });
+      for (const [id, p] of profiles) put(id, { displayName: p.displayName ?? '', phone: p.phone ?? null, dueDate: p.dueDate ?? null });
+      const everyone = [...rows.entries()].map(([id, p]) => ({ id, p }));
+      const matches = everyone.filter(({ p }) => {
+        if (!needle) return true;
+        const name = (p.displayName ?? '').toLowerCase();
+        if (name.includes(needle)) return true;
+        // Digits both sides, like the pg query: she pastes «+7 701 118 90 12»
+        // and the stored value is E.164.
+        if (digits.length >= 4) {
+          const stored = String(p.phone ?? '').replace(/\D+/g, '');
+          if (stored.includes(digits)) return true;
+        }
+        return false;
+      });
+      const page = matches.slice(offset ?? 0, (offset ?? 0) + (limit ?? matches.length));
       return {
-        total: 1,
-        users: [{
-          id: DEMO_USER, displayName: profile?.displayName ?? '', phone: profile?.phone ?? null, dueDate: profile?.dueDate ?? null,
-          lastMetricAt: last ? String(last.recordedAt) : null,
-          latestSeverity: last ? (last.triageSeverity as string) : null,
-        }],
+        // The FILTERED total, as Postgres returns — the footer says «Показано N
+        // из M» about the search, not about the table.
+        total: matches.length,
+        users: page.map(({ id, p }) => {
+          // Surface each user's latest reading, like the pg LATERAL: the time
+          // (the "last measurement" column) and its triage severity.
+          const mine = (healthRows as Array<Record<string, unknown>>).filter((r) => r.userId === id);
+          const last = mine[mine.length - 1];
+          return {
+            id, displayName: p.displayName ?? '', phone: p.phone ?? null, dueDate: p.dueDate ?? null,
+            lastMetricAt: last ? String(last.recordedAt) : null,
+            latestSeverity: last ? (last.triageSeverity as string) : null,
+          };
+        }),
       };
     },
     /// The newest reading actually ingested, falling back to the seed.

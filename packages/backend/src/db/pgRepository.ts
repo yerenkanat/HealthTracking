@@ -1237,8 +1237,24 @@ export function createPgRepository(pool: Pool): Repository {
     },
     async adminListUsers(q, limit, offset) {
       const like = `%${q}%`;
+      // Phone was NOT searched, while the box above it said «Поиск по имени или
+      // телефону…» and the table drew a phone column. An operator with a
+      // customer on the line pasted «+7 701 118 90 12», got «Никто не найден»,
+      // and told a real person she had no account.
+      //
+      // Matched on DIGITS, both sides. She types what is written on a parcel —
+      // spaces, brackets, a leading +7 or 8 — and the column holds E.164. A
+      // literal ILIKE would have been a phone search that still missed.
+      //
+      // Four digits minimum: fewer turns every query into a scan of everyone
+      // whose number contains «77», which is not a search result, it is the
+      // whole table.
+      const digits = q.replace(/\D+/g, '');
+      const phoneLike = digits.length >= 4 ? `%${digits}%` : null;
+      const where = `display_name ILIKE $1 OR email ILIKE $1
+         OR ($2::text IS NOT NULL AND regexp_replace(coalesce(phone_e164,''), '[^0-9]', '', 'g') LIKE $2)`;
       const total = await pool.query(
-        `SELECT count(*)::int AS n FROM users WHERE display_name ILIKE $1 OR email ILIKE $1`, [like]);
+        `SELECT count(*)::int AS n FROM users WHERE ${where}`, [like, phoneLike]);
       const { rows } = await pool.query(
         // The LATERAL pulls each user's most recent reading — its time (the
         // "last measurement" column, which returned nothing before) and its
@@ -1251,8 +1267,9 @@ export function createPgRepository(pool: Pool): Repository {
            WHERE user_id = u.id ORDER BY recorded_at DESC LIMIT 1
          ) m ON true
          WHERE u.display_name ILIKE $1 OR u.email ILIKE $1
+            OR ($4::text IS NOT NULL AND regexp_replace(coalesce(u.phone_e164,''), '[^0-9]', '', 'g') LIKE $4)
          ORDER BY u.created_at DESC LIMIT $2 OFFSET $3`,
-        [like, limit, offset]);
+        [like, limit, offset, phoneLike]);
       return {
         total: total.rows[0].n,
         users: rows.map((r) => ({
