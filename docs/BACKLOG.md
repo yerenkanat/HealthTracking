@@ -126,6 +126,109 @@ in the UI) · 24's head circumference · 52's «Печать» and «Добав�
 
 ---
 
+## 11 · Added by the audit of 2026-08-13
+
+An independent read-only sweep. Two findings outrank everything above them and
+were on nobody's list; several items already here were confirmed, one was
+refuted, and one was reclassified down.
+
+### The two that outrank the rest
+
+- **«Сводка» — the landing view — tells six of eight roles the backend is
+  down.** The nav button carries no `data-cap` while `/admin/dashboard` requires
+  `finance`, which only owner and admin hold. The catch paints «Сводка
+  недоступна — бэкенд не ответил». A support operator's first screen every
+  morning asserts an outage that is not happening; she cannot tell a refusal
+  from a failure, and the sentence tells her the wrong one. Fires on every
+  sign-in for operator, support, seller, warehouse, content and clinician.
+- **«Финансы» is shown to warehouse and seller under `data-cap="stock"`** while
+  its route requires `finance`. They get `Не загрузилось: 403 {"error":…}` — a
+  raw status and a JSON blob — and file a bug against a working server.
+  Twenty-seven lines earlier the same file gets it right: «Дашборд владельца» is
+  `data-cap="finance"`.
+
+**The mechanism, worth fixing once at the root:** the panel has two `<script>`
+IIFEs, each with its own `api()`. The first defines `class AccessDenied` and
+branches on 403; the second does not, and throws the raw status. Every view
+below that line — Финансы, Поддержка, Интеграции, Каталог, Устройства,
+Безопасность — is structurally unable to render a refusal as a refusal.
+
+**The test that would have caught both, and is still missing:** existing tests
+assert each `data-cap` names a REAL capability (`stock` is real, so it passes)
+and which tabs each role sees. Nothing asserts the thing that matters — *a tab
+shown to a role must have a data source that role can read.* Derive it from the
+nav caps, the view's fetch, and that route's `requireCap`.
+
+### Data the server computes and no screen shows
+
+Cheap to finish; each is a number someone is already paying to produce.
+
+- **`missingCost`** — finance returns the NAMES of products sold with no cost
+  recorded. The panel shows only «посчитана по 74 % выручки». The owner is told
+  a quarter of his margin is unmeasured and not told which products to price.
+- **`averageCheckMinor`** — computed over earned orders only, rendered nowhere,
+  while the dashboard shows a *different* average (`revenue / shipped`). An
+  owner pricing a bundle has two averages with different denominators and cannot
+  see the one computed for that decision.
+- **`users.newToday` / `new7d`** — computed, never rendered; only `new30d`
+  reaches a screen, so a campaign launched Monday is judged on a 30-day figure.
+  `memoryRepository` hard-codes all three to 0 while `pgRepository` computes
+  them, so this cannot even be developed against the memory repo until the fake
+  is made faithful.
+- **Support: `assigneeId`, `customerReadAt`, `closedAt`** — selected per ticket,
+  never drawn. Two operators answer the same woman a minute apart and neither
+  can see the other did; a third rings her to chase a reply she read yesterday.
+- **`soldInWindow`** — the panel shows «хватит на 9 дн. · 2.4 шт/день» and hides
+  the 72 units behind it, so a buyer cannot tell a steady rate from one bulk
+  order that will not repeat.
+
+### Also confirmed
+
+- **`GET /admin/users/:id/health` has no caller and is redundant** — the mother
+  card uses `/detail`, which calls it internally. A live unused endpoint
+  returning latest vitals and 20 triage events: low functional cost, non-zero
+  PHI surface on a route nothing exercises or watches.
+- **Skin temperature is a write-only column** — inserted, never selected. The
+  mother is not missing a temperature (the converted `coreTempC` is shown); what
+  is lost is the ability to ever check `skinToCoreTempC` against its own input.
+- **Two indexes exist in migrations and not in `schema.sql`** — a database built
+  from the schema file sequential-scans `shop_orders` on every mother-card open
+  and on every child's safety history, in a way nobody will connect to a missing
+  index.
+- The vaccination editor (7 routes), `DELETE /admin/shop/categories/:id`,
+  `PUT /admin/inventory/products/:id/parts`, `latestBuild`/`appUpdateAvailable`,
+  the lead badge, and the missing `/admin/users` pager — all still unwired. The
+  lead badge is worse than recorded: the correct figure is **already computed
+  and already served**, and already rendered correctly two clicks away.
+
+### Refuted and reclassified — do not re-schedule
+
+- **`.formmsg.err` is not a class — REFUTED.** It is defined.
+- **`capsOf()` — reclassified DOWN.** It is dead code (zero production callers),
+  but the stated risk, that the panel's duplicate `ROLE_CAPS` could silently
+  diverge, is guarded: a test extracts the panel's literal and compares it to
+  the server's for every role. The extraction was checked and is not vacuous —
+  8 roles parsed, real capability sets on both sides. **However** the comment
+  beside it names `adminCapsMatrix.test.ts`, a file that does not exist; the
+  guard lives in `adminRoleUiRender.test.ts`. Fix the comment before someone
+  greps for the named file, concludes the matrix is unguarded, and deletes the
+  panel's copy.
+- **No genuine silent write remains** in the panel: both `api()` helpers throw
+  on `!r.ok` and every write site handles it.
+
+### What that audit could NOT establish
+
+It had no write tools, so it performed **no** break-and-restore verification. It
+substituted one independent check, on the single test a claim depended on, and
+reported the rest as unverified rather than implying otherwise. Findings 1 and 2
+above are read off the source — `requireCap`, `ROLE_CAPS`, `applyCaps` and the
+catch branches — and were not confirmed by signing in as `warehouse` against a
+running server. Every link is cited; a jsdom test that opens the panel as an
+operator and asserts the Сводка cards do not claim an outage would settle it in
+one run, and should ship with the fix.
+
+---
+
 ## How this list was checked
 
 Every item above was reproduced or read in the source; where an agent reported
