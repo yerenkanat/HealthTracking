@@ -60,7 +60,7 @@ const monthsAgo = (n: number) => {
 
 const blankProfile = {
   displayName: 'Айгерім', phone: '+77001112233', dueDate: null, locale: 'ru',
-  birthDate: null, city: null, doctorPhone: null,
+  birthDate: null, city: null, address: null, doctorPhone: null,
   avgCycleLength: null, avgPeriodLength: null,
 };
 

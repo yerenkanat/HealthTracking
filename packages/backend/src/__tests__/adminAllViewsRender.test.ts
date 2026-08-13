@@ -28,6 +28,7 @@ import { dirname, resolve } from 'node:path';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 import { antenatalProtocol } from '../antenatal/protocol.js';
+import { emergencyHelp } from '../emergency/help.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -43,6 +44,8 @@ const VIEWS = [
   'overview', 'analytics', 'users', 'kids', 'devices',
   'emergencies', 'audit', 'content', 'antenatal', 'pregweeks',
   'childdev', 'vaccines', 'audio', 'shop', 'marketing',
+  // Frame 16b → app screen 37.
+  'emergency-help',
 ] as const;
 
 const NOW = new Date('2026-07-21T12:00:00Z');
@@ -108,6 +111,18 @@ const FIXTURES: Record<string, unknown> = {
   // no caller" earlier flagged /admin/reference/antenatal as unwired — it is not,
   // the admin panel is its caller.
   '/admin/reference/antenatal': antenatalProtocol,
+  // Frame 16b. The REAL contract rather than a hand-written scenario, so the
+  // fixture cannot drift from what the route actually serves.
+  '/admin/emergency-help': {
+    version: emergencyHelp.version,
+    contractVersion: emergencyHelp.version,
+    tel: emergencyHelp.tel,
+    editsKnown: true,
+    scenarios: emergencyHelp.scenarios.map((s) => ({
+      ...s, edited: false, draft: false, live: false,
+      review: null, reviewCurrent: false, updatedAt: null, updatedBy: null,
+    })),
+  },
   '/admin/settings': { settings: { whatsapp: '77073452244', reviews: '', rating: '', reviewCount: '', kaspiUrl: '' } },
 };
 

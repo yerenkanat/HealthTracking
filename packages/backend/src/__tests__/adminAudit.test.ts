@@ -86,6 +86,16 @@ const AGGREGATES_ONLY = new Set([
   // `pregnancy_week_review` — because «кто поменял неделю 22» and «кто её
   // проверил» must both have an answer.
   'GET /admin/pregnancy/weeks',
+  // The emergency-help scenarios as they are served, plus each one's edit
+  // state (frame 16b). Content, and less than the calendar above: there is not
+  // even a head-count, because nothing in this product records who opened
+  // screen 37 and a number here would be invented. It is the landing render of
+  // the tab and re-fetched after every save, so auditing it would write
+  // several rows per edit and bury the one that matters. The WRITES next door
+  // are audited — `edit_emergency_help` and `emergency_help_review` — because
+  // «кто поменял инструкцию про ожог» and «кто её проверил» must both have an
+  // answer.
+  'GET /admin/emergency-help',
   // The рассылка list and its recipient counter. Both are about a MESSAGE and
   // a head-count — the list carries text somebody in this panel wrote, and the
   // preview answers «сколько получателей» with two integers. No customer,

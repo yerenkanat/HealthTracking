@@ -78,6 +78,14 @@ const ANY_STAFF = new Map<string, string>([
   // counts beside each week are aggregates off `due_date` — no row names
   // anybody. WRITING is `content`; APPROVING is `health`.
   ['GET /admin/pregnancy/weeks', 'the calendar as served + counts; no personal data'],
+  // Frame 16b — the emergency-help scenarios as they are served, plus each
+  // one's edit state. ANY for exactly the same reason as the two calendars
+  // around it: the clinician who has to APPROVE a first-aid instruction holds
+  // `health`, not `content`, and gating the read on `content` would mean the
+  // only person allowed to sign it off could not open it. No row names
+  // anybody — this is nine paragraphs of first aid. WRITING is `content`;
+  // APPROVING is `health`.
+  ['GET /admin/emergency-help', 'the first-aid list as served + edit state; no personal data'],
   // The immunisation calendar as it is served, plus each row's edit state.
   // Deliberately ANY for the same reason as the pregnancy calendar above: the
   // clinician who has to APPROVE a moved dose holds `health`, not `content`,

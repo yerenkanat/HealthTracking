@@ -340,6 +340,19 @@ class ApiClient {
     return res.body;
   }
 
+  /// Screen 37's emergency scenarios as the server serves them: the shared
+  /// contract with whatever the back office has edited on top (admin frame 16b).
+  ///
+  /// Raw JSON, cached byte-for-byte by [refreshEmergencyHelpFromApi], for the
+  /// same reason as the calendar above. Unauthenticated: this is reference
+  /// content, identical for everyone, and the one screen that must not depend
+  /// on a session being valid.
+  Future<String> fetchEmergencyHelpJson() async {
+    final res = await transport.get('/emergency-help');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return res.body;
+  }
+
   /// The рассылки this account has been sent — admin frame 06 → screen 39.
   ///
   /// AUTHENTICATED and user-scoped, unlike the calendar above: the server
@@ -407,6 +420,10 @@ class ApiClient {
     String? city,
     String? locale,
     String? doctorPhone,
+    /// Where an ambulance is sent — screen 37's dispatcher card. Backed up like
+    /// everything else here so it survives a reinstall: the one moment she
+    /// needs it is the one moment she cannot be typing it in.
+    String? address,
     int? avgCycleLength,
     int? avgPeriodLength,
   }) async {
@@ -420,6 +437,7 @@ class ApiClient {
       'city': (city ?? '').trim().isEmpty ? null : city!.trim(),
       if (locale != null) 'locale': locale,
       'doctorPhone': (doctorPhone ?? '').trim().isEmpty ? null : doctorPhone!.trim(),
+      'address': (address ?? '').trim().isEmpty ? null : address!.trim(),
       'avgCycleLength': avgCycleLength,
       'avgPeriodLength': avgPeriodLength,
     });

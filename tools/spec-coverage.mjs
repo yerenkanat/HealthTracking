@@ -47,11 +47,22 @@ const ADMIN_VIEW_FOR = {
   '00': 'owner', '01': 'overview', '19': 'emergencies', '20': 'analytics',
   '02': 'shop', '03': 'shop', '04': 'shop',
   '05': 'finance', '05a': 'finance', '05b': 'finance',
+  // 06 «Маркетинг» — рассылки. Shipped in f911c55 with its own view, and this
+  // map was never updated, so the report kept listing a built screen as
+  // missing. A stale "not built" is the same defect as a stale "built": a
+  // number nobody can act on.
+  '06': 'marketing',
   '07': 'stock', '07c': 'stock',
   '08': 'catalog', '08a': 'catalog', '08b': 'catalog',
   '09': 'users', '09a': 'users', '10': 'kids', '11': 'devices', '12': 'support',
   '13': 'antenatal', '14': 'pregweeks', '14a': 'pregweeks', '14b': 'pregweeks',
-  '14c': 'childdev', '15': 'vaccines', '16': 'content', '17': 'audio',
+  '14c': 'childdev', '15': 'vaccines', '16': 'content',
+  // 16b «Экстренная помощь» — its own view, not «Уроки и товары»: the
+  // scenarios behind app screen 37 are a separate table with a separate
+  // editor, and mapping it onto `content` would report it as built because a
+  // neighbouring screen exists.
+  '16b': 'emergency-help',
+  '17': 'audio',
   '18': 'course', '21': 'review', '22': 'security', '23': 'staff',
   '23a': 'roles', '24': 'integrations', '24b': 'integrations',
 };
@@ -131,7 +142,13 @@ const APP_FILE_FOR = {
   '28': 'ui/onboarding/onboarding_flow.dart', '29': 'ui/tracking/alerts_screen.dart',
   '30': 'ui/calendar/postpartum_screen.dart', '31': 'ui/calendar/medications_screen.dart',
   '32': 'ui/appointments/appointments_screen.dart', '33': 'ui/calendar/day_log_sheet.dart',
-  '34': 'ui/content/mama_course_screen.dart', '37': 'ui/emergency/emergency_rescue_screen.dart',
+  '34': 'ui/content/mama_course_screen.dart',
+  // 37 «Экстренная помощь» — the 103 card, the scenarios, the dispatcher's
+  // address and «Позвонить педиатру». Deliberately NOT
+  // emergency_rescue_screen.dart, which is the TRIAGE screen that appears by
+  // itself: that mapping reported this frame as built while the only thing
+  // «Гиды» could open was one paragraph and one button.
+  '37': 'ui/emergency/emergency_help_screen.dart',
   '38': 'data/notification_service.dart', '39': 'ui/tracking/notification_centre_screen.dart',
   '40': 'ui/profile/family_access_screen.dart', '41': 'ui/shop/shop_screen.dart',
   '42': 'ui/profile/my_order_screen.dart', '43': 'ui/settings/help_support_screen.dart',

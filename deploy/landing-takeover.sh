@@ -178,10 +178,16 @@ $ADMIN_BLOCK
     # calendar, the pregnancy and child-development weeks, the daily audio.
     # Constants compiled into the server: they name nobody, never vary by
     # caller, and are the same rows /api/v1 already serves publicly.
+    # /emergency-help is screen 37's scenarios (frame 16b). PUBLIC rather than
+    # in @app on purpose: it is the screen somebody opens because a child
+    # cannot breathe, and a woman whose session expired must not meet a 401 —
+    # or, worse, Caddy's 404, which the app reads as the server being down.
+    # It carries no user data; the address and the doctor's number on that
+    # screen come from /profile, which stays session-scoped.
     @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready \
                  /api-docs /api/v1 /api/v1/* /join/* \
                  /antenatal/* /pregnancy/* /child/development* /vaccination/* /audio/* \
-                 /privacy /terms
+                 /emergency-help /privacy /terms
 
     # ---- The app ------------------------------------------------------------
     #

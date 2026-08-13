@@ -29,13 +29,15 @@ library;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/emergency_help_repository.dart';
+import '../../domain/emergency_help.dart';
 import '../../domain/timeline_content.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../calendar/labour_signs_screen.dart';
 import '../design_system.dart';
 import '../ds_widgets.dart';
-import '../emergency/emergency_rescue_screen.dart';
+import '../emergency/emergency_help_screen.dart';
 import '../theme.dart';
 import '../widgets/fitted_title.dart';
 import '../widgets/glass.dart';
@@ -81,8 +83,8 @@ class GuidesScreen extends StatefulWidget {
   /// just because a different screen is showing it.
   final ContentViewer viewer;
 
-  /// Whether she is expecting — decides which red-flag reference the amber
-  /// card opens.
+  /// Whether she is expecting — decides which scenarios screen 37 shows her
+  /// and whether it carries the link to «Признаки родов».
   final bool pregnant;
 
   final void Function(ContentItem item)? onOpen;
@@ -90,6 +92,20 @@ class GuidesScreen extends StatefulWidget {
   /// Place the 103 call. Injected so a widget test can drive the amber card's
   /// screen without a dialler; production leaves it null.
   final Future<bool> Function(String tel)? onCall;
+
+  /// Screen 37's three profile facts: where an ambulance is sent, her city as
+  /// the fallback line on that card, and her own doctor's number.
+  ///
+  /// Passed down rather than read from a controller so this screen stays a
+  /// pure widget — and so the emergency screen it opens shows the address a
+  /// dispatcher would need instead of nothing.
+  final String address;
+  final String city;
+  final String doctorPhone;
+
+  /// Open the profile editor, for «Добавьте адрес» and the missing doctor's
+  /// number. Null leaves both as plain instructions rather than dead buttons.
+  final VoidCallback? onEditProfile;
 
   const GuidesScreen({
     super.key,
@@ -99,14 +115,66 @@ class GuidesScreen extends StatefulWidget {
     this.pregnant = false,
     this.onOpen,
     this.onCall,
+    this.address = '',
+    this.city = '',
+    this.doctorPhone = '',
+    this.onEditProfile,
   });
 
   @override
   State<GuidesScreen> createState() => _GuidesScreenState();
 }
 
+/// What screen 37 reads off the profile, as one comparable value.
+///
+/// A record, so equality is structural: republishing an identical profile does
+/// not rebuild the open emergency screen.
+typedef _Screen37Inputs = ({
+  String address,
+  String city,
+  String doctorPhone,
+  bool pregnant,
+});
+
 class _GuidesScreenState extends State<GuidesScreen> {
   final _search = TextEditingController();
+
+  /// Screen 37's inputs, re-published to a route that is ALREADY open.
+  ///
+  /// MaterialPageRoute builds its page once and keeps it. A route built
+  /// directly from `widget.address` therefore freezes whatever the profile said
+  /// at the instant of the tap: she taps «Добавьте адрес», types her address,
+  /// saves — and the card still says «Добавьте адрес», with no way to see the
+  /// truth short of popping back to Гиды and opening the card again. That is
+  /// this repo's «assumes the request succeeded» family, on the screen where it
+  /// costs the most.
+  ///
+  /// So the values cross the route boundary through a notifier instead:
+  /// [didUpdateWidget] republishes them when the shell rebuilds this screen,
+  /// and the ValueListenableBuilder inside the route paints them.
+  late final ValueNotifier<_Screen37Inputs> _screen37 =
+      ValueNotifier(_inputsFrom(widget));
+
+  static _Screen37Inputs _inputsFrom(GuidesScreen w) => (
+        address: w.address,
+        city: w.city,
+        doctorPhone: w.doctorPhone,
+        pregnant: w.pregnant,
+      );
+
+  @override
+  void didUpdateWidget(covariant GuidesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _inputsFrom(widget);
+    if (next == _screen37.value) return;
+    // Published AFTER this frame, never inside it. The listener lives in a
+    // PUSHED route — a separate element tree — and marking it dirty while the
+    // shell is building this one is «setState() called during build», which
+    // costs the rebuild that this whole mechanism exists to deliver.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _screen37.value = next;
+    });
+  }
 
   /// How many of her own stage's items the section shows before deferring to
   /// the stage screen. Three, like the dashboard card, so the two read as the
@@ -116,6 +184,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
   @override
   void dispose() {
     _search.dispose();
+    _screen37.dispose();
     super.dispose();
   }
 
@@ -243,30 +312,52 @@ class _GuidesScreenState extends State<GuidesScreen> {
     ));
   }
 
-  /// The red-flag reference that fits who is reading.
+  /// Screen 37 «Экстренная помощь» — for everybody, tailored to who is reading.
   ///
-  /// Expecting: the signs of labour and when to go in. Otherwise: the screen
-  /// whose single action is the 103 call, which is what «звонить сразу» means
-  /// once there is no pregnancy-specific list to read first.
+  /// It used to fork: expecting → LabourSignsScreen, everybody else → screen 37.
+  /// That fork was the reason three of the nine shipped scenarios —
+  /// «кровотечение», «преэклампсия», «малыш перестал шевелиться» — could not be
+  /// opened by the only readers they are written for, while LabourSignsScreen
+  /// (which has no navigation of its own) was a dead end with no ambulance
+  /// card, no dispatcher address and no doctor's number on it. So the card
+  /// opens screen 37 for her too, with the labour reference linked FROM it.
+  ///
+  /// Screen 37 itself used to be the TRIAGE screen for non-pregnant readers —
+  /// one paragraph of red flags, one 103 button, and a confirm-to-leave gate
+  /// designed for an alert that latched by itself. It was the wrong screen
+  /// twice over: nothing had latched, so the gate was ceremony; and a reference
+  /// card tapped on purpose needs the scenarios, the address a dispatcher asks
+  /// for and her own doctor's number, none of which triage carries.
   void _openRedFlags(BuildContext context) {
-    if (widget.pregnant) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const LabourSignsScreen()),
-      );
-      return;
-    }
-    final l = L10nScope.of(context);
-    final navigator = Navigator.of(context);
-    navigator.push(MaterialPageRoute(
-      builder: (_) => EmergencyRescueScreen(
-        message: l.t('gd_call_body'),
-        callButtons: [EmergencyCallButton(l.t('em_call_ambulance'), '103')],
-        onCall: (b) async =>
-            widget.onCall?.call(b.tel) ??
-            launchUrl(Uri(scheme: 'tel', path: b.tel)),
-        // Opened from a guide rather than latched by triage, so leaving is
-        // just going back — the confirmation the screen asks for is enough.
-        onDismissConfirmed: () async => navigator.pop(),
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => FutureBuilder<EmergencyHelp>(
+        future: loadEmergencyHelp(),
+        // The screen is NEVER blank while the list loads. `EmergencyHelp.empty`
+        // still draws the 103 card, the address and the doctor — the half that
+        // matters most — and the scenarios appear a frame later. A spinner here
+        // would be a spinner on the screen somebody opened because a child
+        // cannot breathe.
+        initialData: EmergencyHelp.empty,
+        builder: (_, snap) => ValueListenableBuilder<_Screen37Inputs>(
+          // Not `widget.address` — see [_screen37]. An address saved from the
+          // prompt ON that screen has to appear ON that screen.
+          valueListenable: _screen37,
+          builder: (routeContext, p, __) => EmergencyHelpScreen(
+            help: snap.data ?? EmergencyHelp.empty,
+            address: p.address,
+            city: p.city,
+            doctorPhone: p.doctorPhone,
+            pregnant: p.pregnant,
+            onLabourSigns: p.pregnant
+                ? () => Navigator.of(routeContext).push(
+                      MaterialPageRoute(builder: (_) => const LabourSignsScreen()),
+                    )
+                : null,
+            onEditProfile: widget.onEditProfile,
+            onCall: (tel) async =>
+                widget.onCall?.call(tel) ?? launchUrl(Uri(scheme: 'tel', path: tel)),
+          ),
+        ),
       ),
     ));
   }

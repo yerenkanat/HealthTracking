@@ -22,6 +22,16 @@ class UserProfile {
   /// City, free text. Drives delivery estimates and which clinics and products
   /// are actually reachable — a Almaty price list is no use in Aktobe.
   final String city;
+
+  /// Where an ambulance is sent — screen 37's «карточка адреса для диспетчера».
+  ///
+  /// The 103 dispatcher's first question is the address, and this app had
+  /// nowhere to keep the answer: [city] is a city, and the shop's delivery
+  /// address belongs to one order and may be a workplace or a relative's flat.
+  /// Free text, because a real one is «мкр. Самал-2, д. 33, кв. 12, домофон
+  /// 12К», and optional — empty is a supported answer, which screen 37 states
+  /// as her city plus «Добавьте адрес» rather than inventing anything.
+  final String address;
   const UserProfile({
     this.displayName = '',
     this.dialCode = '+7',
@@ -31,6 +41,7 @@ class UserProfile {
     this.photoPath,
     this.birthDate,
     this.city = '',
+    this.address = '',
   });
 
   String get e164 => toE164(dialCode, phoneNumber);
@@ -41,6 +52,7 @@ class UserProfile {
   bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
   bool get hasBirthDate => birthDate != null;
   bool get hasCity => city.trim().isNotEmpty;
+  bool get hasAddress => address.trim().isNotEmpty;
 
   /// Age in whole years at [now], or null when no birth date is recorded.
   int? ageYears(DateTime now) {
@@ -61,6 +73,7 @@ class UserProfile {
     String? photoPath,
     DateTime? birthDate,
     String? city,
+    String? address,
     bool clearDueDate = false,
     bool clearPhoto = false,
     bool clearBirthDate = false,
@@ -74,6 +87,7 @@ class UserProfile {
         photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
         birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
         city: city ?? this.city,
+        address: address ?? this.address,
       );
 
   Map<String, dynamic> toJson() => {
@@ -85,6 +99,7 @@ class UserProfile {
         if (photoPath != null) 'photoPath': photoPath,
         if (birthDate != null) 'birthDate': birthDate!.toIso8601String(),
         if (city.isNotEmpty) 'city': city,
+        if (address.isNotEmpty) 'address': address,
       };
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
         displayName: (j['displayName'] as String?) ?? '',
@@ -95,6 +110,7 @@ class UserProfile {
         photoPath: j['photoPath'] as String?,
         birthDate: j['birthDate'] is String ? DateTime.tryParse(j['birthDate'] as String) : null,
         city: (j['city'] as String?) ?? '',
+        address: (j['address'] as String?) ?? '',
       );
 }
 

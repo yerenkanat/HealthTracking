@@ -36,6 +36,7 @@ import type { SmsSender } from './routes/phoneAuth';
 import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
 import { servedCalendar, weekOf } from './pregnancy/served';
+import { servedEmergencyHelp } from './emergency/served';
 import { childDevCalendar, devWeekContent } from './child/development';
 import { appVersionInfo } from './app/version';
 import { servedVaccinationSchedule } from './vaccination/served';
@@ -590,6 +591,18 @@ export function buildServer(
     if (!content) return reply.code(404).send({ error: 'not_found' });
     return reply.send(content);
   });
+
+  // Public reference data: the emergency-help scenarios (ru + kk).
+  //
+  // The shipped contract WITH the back office's edits on top — frame 16b →
+  // screen 37. Public and unauthenticated on purpose: this is the screen
+  // somebody opens because a child cannot breathe, and it must not depend on a
+  // session being valid. It names no person and carries no user data.
+  //
+  // The app bundles the contract as an asset and layers this over it, so a
+  // phone with no signal reads the shipped scenarios rather than nothing, and
+  // if this database is unreachable, so does this route.
+  app.get('/emergency-help', async () => servedEmergencyHelp(deps.repo));
 
   // Public reference data: the week-by-week baby-development calendar (ru + kk).
   app.get('/child/development', async () => childDevCalendar);

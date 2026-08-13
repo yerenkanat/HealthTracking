@@ -482,22 +482,44 @@ class _HomeShellState extends State<HomeShell> {
   /// as long as she keeps it open.
   void _openGuides(BuildContext context, AppController c) {
     final source = widget.catalogSource;
-    final p = c.profile;
-    final viewer = ContentViewer(city: p.city, ageYears: p.ageYears(DateTime.now()));
-    Widget screen(ContentCatalog catalog) => GuidesScreen(
-          catalog: catalog,
-          stage: _stageFor(c),
-          viewer: viewer,
-          pregnant: c.isPregnant,
-          onOpen: _openContent,
-        );
+    Widget screen(ContentCatalog catalog) {
+      // Read INSIDE the builder, never captured at the instant of the tap. The
+      // «Добавьте адрес» prompt on screen 37 opens the profile sheet from this
+      // shell, and a profile captured here once would leave the screen she
+      // saved it from still saying it is missing.
+      final p = c.profile;
+      return GuidesScreen(
+        catalog: catalog,
+        stage: _stageFor(c),
+        viewer: ContentViewer(city: p.city, ageYears: p.ageYears(DateTime.now())),
+        pregnant: c.isPregnant,
+        onOpen: _openContent,
+        // Screen 37 hangs off the red-flag card on this screen, and it needs
+        // the three profile facts an ambulance call turns on: where to send
+        // one, the city as the fallback line, and her own doctor's number —
+        // which the app has been syncing for a year with one screen able to
+        // dial it.
+        address: p.address,
+        city: p.city,
+        doctorPhone: p.doctorPhone,
+        onEditProfile: () => showEditProfileSheet(context, c),
+      );
+    }
+
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => source == null
-          ? screen(widget.catalog)
-          : ValueListenableBuilder<ContentCatalog>(
-              valueListenable: source,
-              builder: (_, catalog, __) => screen(catalog),
-            ),
+      // Rebuilt on every controller change, like the notification centre: a
+      // pushed route sits outside the shell's own StreamBuilder, so without
+      // this the screen — and screen 37 behind it — holds the profile as it was
+      // when she tapped, for as long as she keeps it open.
+      builder: (_) => StreamBuilder<void>(
+        stream: c.changes,
+        builder: (_, __) => source == null
+            ? screen(widget.catalog)
+            : ValueListenableBuilder<ContentCatalog>(
+                valueListenable: source,
+                builder: (_, catalog, __) => screen(catalog),
+              ),
+      ),
     ));
   }
 

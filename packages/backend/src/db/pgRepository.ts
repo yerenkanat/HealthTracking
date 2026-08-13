@@ -1812,6 +1812,47 @@ export function createPgRepository(pool: Pool): Repository {
           v.draft, v.review ? JSON.stringify(v.review) : null, v.updatedBy]);
     },
 
+    // ---- Emergency-help overrides (frame 16b → app screen 37) ----
+    async emergencyHelpOverrides() {
+      const { rows } = await pool.query(
+        `SELECT id, severity, sort, ru, kk, draft, review, rev, updated_at, updated_by
+           FROM emergency_help_overrides ORDER BY id`);
+      return rows.map((r) => ({
+        id: r.id as string,
+        severity: r.severity as 'red' | 'amber',
+        sort: Number(r.sort ?? 0),
+        ru: r.ru as { title: string; what: string; do: string },
+        kk: r.kk as { title: string; what: string; do: string },
+        draft: r.draft === true,
+        review: (r.review ?? null) as { by: string; at: string; fingerprint: string } | null,
+        rev: Number(r.rev ?? 1),
+        updatedAt: new Date(r.updated_at).toISOString(),
+        updatedBy: r.updated_by ?? null,
+      }));
+    },
+
+    async putEmergencyHelpOverride(v) {
+      // rev = existing + 1 rather than a supplied value: the counter is the
+      // store's, and the served list's version is built from it, so a caller
+      // must not be able to hold it still while changing the text.
+      await pool.query(
+        `INSERT INTO emergency_help_overrides
+           (id, severity, sort, ru, kk, draft, review, rev, updated_at, updated_by)
+         VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7::jsonb,1,now(),$8)
+         ON CONFLICT (id) DO UPDATE SET
+           severity  = EXCLUDED.severity,
+           sort      = EXCLUDED.sort,
+           ru        = EXCLUDED.ru,
+           kk        = EXCLUDED.kk,
+           draft     = EXCLUDED.draft,
+           review    = EXCLUDED.review,
+           rev       = emergency_help_overrides.rev + 1,
+           updated_at = now(),
+           updated_by = EXCLUDED.updated_by`,
+        [v.id, v.severity, v.sort, JSON.stringify(v.ru), JSON.stringify(v.kk),
+          v.draft, v.review ? JSON.stringify(v.review) : null, v.updatedBy]);
+    },
+
     // ---- Vaccination schedule overrides (frames 15 / 15a / 15b) ----
     async vaccinationOverrides() {
       const { rows } = await pool.query(
@@ -2456,7 +2497,7 @@ export function createPgRepository(pool: Pool): Repository {
     // ---- Profile ----
     async getProfile(userId) {
       const { rows } = await pool.query(
-        `SELECT display_name, phone_e164, due_date, locale, birth_date, city,
+        `SELECT display_name, phone_e164, due_date, locale, birth_date, city, address,
                 doctor_phone, avg_cycle_length, avg_period_length
            FROM users WHERE id = $1`, [userId]);
       if (rows.length === 0) return null;
@@ -2468,6 +2509,10 @@ export function createPgRepository(pool: Pool): Repository {
         locale: r.locale,
         birthDate: r.birth_date ? new Date(r.birth_date).toISOString().slice(0, 10) : null,
         city: r.city ?? null,
+        // Screen 37's dispatcher card. Null survives as null: an empty string
+        // would make the screen print a blank address card instead of the
+        // «Добавьте адрес» prompt that tells her to fix it.
+        address: r.address ?? null,
         doctorPhone: r.doctor_phone ?? null,
         avgCycleLength: r.avg_cycle_length === null ? null : Number(r.avg_cycle_length),
         avgPeriodLength: r.avg_period_length === null ? null : Number(r.avg_period_length),
@@ -2484,10 +2529,10 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(
         `UPDATE users SET display_name = $2, due_date = $3,
                           locale = COALESCE($4, locale),
-                          birth_date = $5, city = $6, doctor_phone = $7,
-                          avg_cycle_length = $8, avg_period_length = $9, updated_at = now()
+                          birth_date = $5, city = $6, address = $7, doctor_phone = $8,
+                          avg_cycle_length = $9, avg_period_length = $10, updated_at = now()
          WHERE id = $1`,
-        [userId, p.displayName, p.dueDate, p.locale, p.birthDate, p.city,
+        [userId, p.displayName, p.dueDate, p.locale, p.birthDate, p.city, p.address,
          p.doctorPhone, p.avgCycleLength, p.avgPeriodLength]);
     },
 

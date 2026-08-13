@@ -1410,6 +1410,19 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'prof_birthdate': {AppLocale.ru: 'Дата рождения', AppLocale.kk: 'Туған күні', AppLocale.en: 'Date of birth'},
   'prof_city': {AppLocale.ru: 'Город', AppLocale.kk: 'Қала', AppLocale.en: 'City'},
   'prof_city_hint': {AppLocale.ru: 'Например, Алматы', AppLocale.kk: 'Мысалы, Алматы', AppLocale.en: 'For example, Almaty'},
+  // The home address, asked for with the reason attached — it is on screen 37
+  // and nowhere else, and «адрес» without that reason reads as a delivery form.
+  'prof_address': {AppLocale.ru: 'Домашний адрес', AppLocale.kk: 'Үй мекенжайы', AppLocale.en: 'Home address'},
+  'prof_address_hint': {
+    AppLocale.ru: 'Улица, дом, квартира, домофон',
+    AppLocale.kk: 'Көше, үй, пәтер, домофон',
+    AppLocale.en: 'Street, building, flat, entry code',
+  },
+  'prof_more_why_address': {
+    AppLocale.ru: 'Адрес — его спрашивают первым при вызове 103; экран «Экстренная помощь» покажет его вам.',
+    AppLocale.kk: 'Мекенжай — 103-ке қоңырау шалғанда бірінші сұрайды; «Шұғыл көмек» экраны оны көрсетеді.',
+    AppLocale.en: 'Your address — it is the first thing 103 asks for, and the emergency screen shows it to you.',
+  },
   'prof_age_years': {AppLocale.ru: '{n} лет', AppLocale.kk: '{n} жаста', AppLocale.en: '{n} years old'},
   'prof_more_title': {
     AppLocale.ru: 'Сделать советы точнее',
@@ -1506,6 +1519,107 @@ const Map<String, Map<AppLocale, String>> _catalog = {
         'a child struggling to breathe or not coming round — do not wait for morning.',
   },
   'gd_call_open': {AppLocale.ru: 'Что делать', AppLocale.kk: 'Не істеу керек', AppLocale.en: 'What to do'},
+
+  // ---- Screen 37 «Экстренная помощь» -------------------------------------
+  //
+  // The scenarios themselves are NOT here: they are content, they live in
+  // packages/contract/emergency_help.json, and the back office edits them
+  // without a release (admin frame 16b). What is here is the furniture — the
+  // 103 card, the section headings, the address card and the pediatrician
+  // button — which is app chrome and changes with the app.
+  'eh_title': {
+    AppLocale.ru: 'Экстренная помощь',
+    AppLocale.kk: 'Шұғыл көмек',
+    AppLocale.en: 'Emergency help',
+  },
+  'eh_call_103': {
+    AppLocale.ru: 'Позвонить 103',
+    AppLocale.kk: '103-ке қоңырау шалу',
+    AppLocale.en: 'Call 103',
+  },
+  // On the card itself, above the button. Not «мы вызовем скорую» — this app
+  // calls nobody, it opens the dialler, and saying otherwise would be a promise
+  // it cannot keep at the worst possible moment.
+  'eh_call_body': {
+    AppLocale.ru: 'Скорая помощь — бесплатно, круглосуточно, с любого телефона.',
+    AppLocale.kk: 'Жедел жәрдем — тегін, тәулік бойы, кез келген телефоннан.',
+    AppLocale.en: 'The ambulance service is free, day and night, from any phone.',
+  },
+  'eh_whats_happening': {
+    AppLocale.ru: 'Что происходит?',
+    AppLocale.kk: 'Не болып жатыр?',
+    AppLocale.en: 'What is happening?',
+  },
+  'eh_sev_red': {
+    AppLocale.ru: 'Звоните 103 сейчас',
+    AppLocale.kk: 'Қазір 103-ке қоңырау шалыңыз',
+    AppLocale.en: 'Call 103 now',
+  },
+  'eh_sev_amber': {
+    AppLocale.ru: 'Позвоните врачу сегодня',
+    AppLocale.kk: 'Бүгін дәрігерге қоңырау шалыңыз',
+    AppLocale.en: 'Call the doctor today',
+  },
+  'eh_do': {AppLocale.ru: 'Что делать', AppLocale.kk: 'Не істеу керек', AppLocale.en: 'What to do'},
+  // The address card. Titled for its PURPOSE — the dispatcher asks «адрес?»
+  // first, and a card labelled «Адрес» reads as a settings row instead of the
+  // line she is meant to read out.
+  'eh_address_title': {
+    AppLocale.ru: 'Адрес для диспетчера',
+    AppLocale.kk: 'Диспетчерге арналған мекенжай',
+    AppLocale.en: 'Address for the dispatcher',
+  },
+  'eh_address_hint': {
+    AppLocale.ru: 'Прочитайте это диспетчеру — адрес спрашивают первым.',
+    AppLocale.kk: 'Мұны диспетчерге оқып беріңіз — мекенжайды бірінші сұрайды.',
+    AppLocale.en: 'Read this out to the dispatcher — the address is the first question.',
+  },
+  'eh_address_missing': {
+    AppLocale.ru: 'Добавьте адрес',
+    AppLocale.kk: 'Мекенжай қосыңыз',
+    AppLocale.en: 'Add your address',
+  },
+  'eh_address_missing_body': {
+    AppLocale.ru: 'Адрес не сохранён. Добавьте его в профиле — тогда он будет здесь, '
+        'когда звонить придётся быстро.',
+    AppLocale.kk: 'Мекенжай сақталмаған. Оны профильде қосыңыз — сонда ол тез қоңырау '
+        'шалу керек болғанда осында тұрады.',
+    AppLocale.en: 'No address saved. Add one in your profile so it is here when the call '
+        'has to be quick.',
+  },
+  'eh_address_copy': {AppLocale.ru: 'Скопировать', AppLocale.kk: 'Көшіру', AppLocale.en: 'Copy'},
+  'eh_address_copied': {
+    AppLocale.ru: 'Адрес скопирован',
+    AppLocale.kk: 'Мекенжай көшірілді',
+    AppLocale.en: 'Address copied',
+  },
+  'eh_call_doctor': {
+    AppLocale.ru: 'Позвонить педиатру',
+    AppLocale.kk: 'Педиатрға қоңырау шалу',
+    AppLocale.en: 'Call the pediatrician',
+  },
+  'eh_no_doctor': {
+    AppLocale.ru: 'Телефон врача не сохранён — добавьте его в профиле.',
+    AppLocale.kk: 'Дәрігердің телефоны сақталмаған — оны профильде қосыңыз.',
+    AppLocale.en: "The doctor's number is not saved — add it in your profile.",
+  },
+  // Screen 37 for someone expecting: the row that leads to «Признаки родов».
+  // The labour reference answers a different question from this screen — when
+  // to set off for the maternity unit, not whether to dial an ambulance — and
+  // this line says which one it is so the two are not tapped interchangeably.
+  'eh_labour_signs': {
+    AppLocale.ru: 'Схватки, воды и когда ехать в роддом',
+    AppLocale.kk: 'Толғақ, су кету және перзентханаға қашан бару керек',
+    AppLocale.en: 'Contractions, waters, and when to set off',
+  },
+  // The list could not be loaded AND the bundled copy is unusable. Rare, and
+  // the screen still shows the 103 button, so this says what is missing rather
+  // than pretending the screen is broken.
+  'eh_no_scenarios': {
+    AppLocale.ru: 'Список признаков сейчас недоступен. Кнопка вызова выше работает всегда.',
+    AppLocale.kk: 'Белгілер тізімі қазір қолжетімсіз. Жоғарыдағы шақыру түймесі әрқашан жұмыс істейді.',
+    AppLocale.en: 'The list of signs is unavailable right now. The call button above always works.',
+  },
   'gd_topics': {AppLocale.ru: 'Темы', AppLocale.kk: 'Тақырыптар', AppLocale.en: 'Topics'},
   'gd_topic_pregnancy': {
     AppLocale.ru: 'Беременность',

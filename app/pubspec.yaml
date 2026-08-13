@@ -64,6 +64,13 @@ flutter:
     # contract packages/contract/baby_development.json; kept in sync by
     # tool/verify_baby_development_contract.dart.
     - assets/data/baby_development.json
+    # Screen 37 «Экстренная помощь» — the red/amber scenarios and what to do
+    # about each. A copy of the shared contract
+    # packages/contract/emergency_help.json; kept in sync by
+    # tool/verify_emergency_help_contract.dart. Bundled rather than fetched
+    # because the one moment this screen is opened is the one moment a phone
+    # may have no signal.
+    - assets/data/emergency_help.json
   # Fonts for the Ana-Bala design system (docs/design-system-app.md).
   #
   # Unbounded, Manrope and Rubik are VARIABLE fonts — one file carrying the whole

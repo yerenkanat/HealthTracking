@@ -44,6 +44,15 @@ CREATE TABLE users (                       -- Mothers / primary caregivers
   -- Both OPTIONAL — the app works without them and must keep working.
   birth_date     DATE,
   city           TEXT,
+  -- Where an ambulance is sent (app screen 37 «Экстренная помощь», migration
+  -- 043). Free text and optional — a real address here is «мкр. Самал-2, д. 33,
+  -- кв. 12, домофон 12К», and declining is a supported answer: the screen then
+  -- shows her city with «Добавьте адрес» rather than inventing one.
+  --
+  -- NOT shop_orders.address, which is a delivery address attached to one order
+  -- and may be a workplace or a relative's flat. Dictating that to a 103
+  -- dispatcher sends the ambulance to the wrong door.
+  address        TEXT,
   -- Her own emergency contact (a doctor/clinic number), free text. Optional.
   doctor_phone   TEXT,
   -- Women's-health baselines she can set until two cycles are logged; they drive
@@ -1200,3 +1209,35 @@ CREATE TABLE IF NOT EXISTS vaccination_schedule_log (
 );
 CREATE INDEX IF NOT EXISTS idx_vaccination_log_at
   ON vaccination_schedule_log (at DESC);
+
+-- ---------------------------------------------------------------------------
+-- Frame 16b «Экстренная помощь» / app screen 37 — the editable first-aid list.
+--
+-- OVERRIDES over packages/contract/emergency_help.json, never a replacement:
+-- the contract stays the offline baseline the app bundles, and only the
+-- scenarios somebody edited live here. See migrations/043.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS emergency_help_overrides (
+  -- The contract's scenario id ('breathing', 'bleeding', …) — what joins this
+  -- row to the entry it patches.
+  id         TEXT PRIMARY KEY,
+  -- 'red' = звоните 103 сейчас, 'amber' = звоните врачу сегодня. Decides the
+  -- border-left colour, and therefore whether somebody dials or waits.
+  severity   TEXT NOT NULL CHECK (severity IN ('red', 'amber')),
+  -- Reading order: triage order is a clinical decision, so it is editable.
+  sort       INTEGER NOT NULL DEFAULT 0,
+  -- {title, what, do} per language. Both NOT NULL — the route refuses a save
+  -- without Kazakh, and a nullable column re-opens the hole that closes.
+  ru         JSONB NOT NULL,
+  kk         JSONB NOT NULL,
+  -- Stored but not served: drafting a scenario shows the contract through
+  -- again. Rows are never deleted, so `rev` — and the served version — only
+  -- ever grows.
+  draft      BOOLEAN NOT NULL DEFAULT FALSE,
+  -- {by, at, fingerprint} — see content/medicalReview.ts. The severity is
+  -- inside the fingerprint, so downgrading red to amber drops the sign-off.
+  review     JSONB,
+  rev        INTEGER NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by TEXT
+);

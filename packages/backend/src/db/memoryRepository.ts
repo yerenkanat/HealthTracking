@@ -6,7 +6,7 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
+import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
 import { BROADCAST_MIN_GAP_DAYS, matchesSegment, type AudienceRow } from '../admin/broadcasts.js';
@@ -220,6 +220,15 @@ export function createMemoryRepository(): Repository {
   /** Edited pregnancy weeks, by week — `pregnancy_week_overrides`. */
   const pregWeekOverrides = new Map<number, PregnancyWeekOverride>();
   /**
+   * Frame 16b — the editable emergency-help scenarios (app screen 37).
+   *
+   * Seeded EMPTY, like the two calendars next door: a seeded row would put
+   * first-aid instructions nobody wrote in front of somebody deciding whether
+   * to call an ambulance, and the editor already has nine scenarios to show
+   * from the contract.
+   */
+  const emergencyOverrides = new Map<string, EmergencyHelpOverride>();
+  /**
    * Frames 15 / 15a / 15b — the editable immunisation calendar.
    *
    * Seeded EMPTY, deliberately, exactly like the pregnancy weeks next door: a
@@ -248,6 +257,7 @@ export function createMemoryRepository(): Repository {
     // back-office has to render "not provided" rather than an empty cell.
     birthDate: null,
     city: null,
+    address: null,
     doctorPhone: null,
     avgCycleLength: null,
     avgPeriodLength: null,
@@ -1227,7 +1237,7 @@ const UUID_RE =
           displayName: userNames.get(userId) ?? '',
           phone,
           dueDate: null, locale: 'ru-KZ', birthDate: null, city: null,
-          doctorPhone: null, avgCycleLength: null, avgPeriodLength: null,
+          address: null, doctorPhone: null, avgCycleLength: null, avgPeriodLength: null,
         };
       }
       // The seeded demo account, for everything that runs without signing in.
@@ -1672,6 +1682,31 @@ const UUID_RE =
         draft: v.draft,
         review: v.review ? { ...v.review } : null,
         // Increment, exactly like the pg UPSERT. A fake that resets the counter
+        // would let the served version go backwards in dev and nowhere else,
+        // which is the kind of difference that is found in production.
+        rev: (prev?.rev ?? 0) + 1,
+        updatedAt: new Date().toISOString(),
+        updatedBy: v.updatedBy,
+      });
+    },
+
+    // ---- Emergency-help overrides (frame 16b → app screen 37) ----
+    emergencyHelpOverrides: async () =>
+      [...emergencyOverrides.values()]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((o) => ({ ...o, ru: { ...o.ru }, kk: { ...o.kk }, review: o.review ? { ...o.review } : null })),
+
+    putEmergencyHelpOverride: async (v) => {
+      const prev = emergencyOverrides.get(v.id);
+      emergencyOverrides.set(v.id, {
+        id: v.id,
+        severity: v.severity,
+        sort: v.sort,
+        ru: { ...v.ru },
+        kk: { ...v.kk },
+        draft: v.draft,
+        review: v.review ? { ...v.review } : null,
+        // Increment, exactly like the pg UPSERT. A fake that reset the counter
         // would let the served version go backwards in dev and nowhere else,
         // which is the kind of difference that is found in production.
         rev: (prev?.rev ?? 0) + 1,

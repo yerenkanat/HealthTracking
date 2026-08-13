@@ -432,7 +432,7 @@ describe('the week the editor is standing on', () => {
       .toISOString().slice(0, 10);
     await repo.upsertProfile(DEMO_USER, {
       displayName: 'Aigerim', dueDate: due, locale: 'ru-KZ',
-      birthDate: null, city: null, doctorPhone: null,
+      birthDate: null, city: null, address: null, doctorPhone: null,
       avgCycleLength: null, avgPeriodLength: null,
     });
 

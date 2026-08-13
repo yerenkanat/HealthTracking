@@ -26,6 +26,7 @@ Future<void> showEditProfileSheet(
   final phoneCtl = TextEditingController(text: p.phoneNumber);
   final doctorCtl = TextEditingController(text: p.doctorPhone);
   final cityCtl = TextEditingController(text: p.city);
+  final addressCtl = TextEditingController(text: p.address);
   var dial = p.dialCode;
   DateTime? birth = p.birthDate;
   return _sheet(context, (ctx, l) {
@@ -87,7 +88,11 @@ Future<void> showEditProfileSheet(
           // and say so — asking for personal data without explaining what it
           // changes is how a profile form becomes a chore people abandon.
           _WhyWeAsk(
-            lines: [l.t('prof_more_why_birth'), l.t('prof_more_why_city')],
+            lines: [
+              l.t('prof_more_why_birth'),
+              l.t('prof_more_why_city'),
+              l.t('prof_more_why_address'),
+            ],
             footnote: l.t('prof_more_optional'),
           ),
           const SizedBox(height: 10),
@@ -117,6 +122,22 @@ Future<void> showEditProfileSheet(
               prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
             ),
           ),
+          const SizedBox(height: 12),
+          // Screen 37's dispatcher card reads this and nothing else. Multi-line
+          // because a real address here is «мкр. Самал-2, д. 33, кв. 12,
+          // домофон 12К» and a one-line box makes people drop the entry code —
+          // which is the half a paramedic at the door actually needs.
+          TextField(
+            controller: addressCtl,
+            minLines: 1,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: l.t('prof_address'),
+              hintText: l.t('prof_address_hint'),
+              prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
+            ),
+          ),
         ],
         onSave: () {
           if (nameCtl.text.trim().isEmpty) return false;
@@ -127,6 +148,7 @@ Future<void> showEditProfileSheet(
             doctorPhone: doctorCtl.text.trim(),
             birthDate: birth,
             city: cityCtl.text.trim(),
+            address: addressCtl.text.trim(),
           ));
           return true;
         },
@@ -546,9 +568,15 @@ class _SheetBody extends StatelessWidget {
               child: Icon(icon, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
-            Text(title,
-                style:
-                    const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+            // Expanded, not a bare Text: «Редактировать профиль» at 19px is
+            // wider than a 390px phone leaves beside the icon, and the row
+            // overflowed by 10px — which clips the title of the sheet screen 37
+            // now sends her to from «Добавьте адрес».
+            Expanded(
+              child: Text(title,
+                  style: const TextStyle(
+                      fontSize: 19, fontWeight: FontWeight.w700)),
+            ),
           ]),
           const SizedBox(height: 18),
           ...fields,

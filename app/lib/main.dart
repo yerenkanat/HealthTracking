@@ -21,6 +21,7 @@ import 'data/notification_service.dart';
 import 'data/content_repository.dart';
 import 'data/photo_paths.dart';
 import 'data/content_store.dart';
+import 'data/emergency_help_repository.dart';
 import 'data/pregnancy_weeks_repository.dart';
 import 'data/prefs_app_store.dart';
 import 'data/prefs_telemetry_queue.dart';
@@ -152,6 +153,12 @@ Future<void> main() async {
   // shows the newest text she has ever had, and never an empty week screen.
   // The network refresh happens after runApp, like the catalogue's.
   await primePregnancyWeeksFromCache(const PrefsPregnancyWeeksCache());
+
+  // Screen 37's emergency scenarios, same ladder and for a sharper reason: the
+  // screen is opened by somebody deciding whether to call an ambulance, and it
+  // must never wait on a request or come up empty. The bundled asset is the
+  // floor; this puts the newest published text on top of it before first paint.
+  await primeEmergencyHelpFromCache(const PrefsEmergencyHelpCache());
 
   // Рассылки from the back office, from the last response this phone received
   // (admin frame 06 → screen 39). Read BEFORE first paint for the same reason
@@ -565,6 +572,15 @@ Future<void> bootstrapRuntime(
       if (n != null) debugPrint('pregnancy weeks: refreshed $n week(s) from the server');
     }());
 
+    // The emergency scenarios, same shape. Frame 16b — without this the back
+    // office can correct a first-aid instruction all day and no phone ever
+    // finds out. Unauthenticated, so it runs on a fresh install too.
+    unawaited(() async {
+      final n = await refreshEmergencyHelpFromApi(
+          api: api, cache: const PrefsEmergencyHelpCache());
+      if (n != null) debugPrint('emergency help: refreshed $n scenario(s) from the server');
+    }());
+
     // The рассылки, same shape: the cached copy is already on screen, so this
     // only ever upgrades it, and a failure — including the 503 the route
     // answers before migration 037 — leaves it alone. Frame 06: without this
@@ -698,6 +714,10 @@ Future<void> bootstrapRuntime(
               city: p.city,
               locale: controller.locale.name,
               doctorPhone: p.doctorPhone,
+              // Screen 37's dispatcher card. Backed up like everything else
+              // here: the one moment she needs it is the one moment she cannot
+              // be retyping it after a reinstall.
+              address: p.address,
               // Baselines are user-level settings that ride the profile backup;
               // read the raw (nullable) values so an unset default isn't sent as
               // a chosen one.
@@ -974,6 +994,7 @@ Future<void> bootstrapRuntime(
             birthDate: day(p['birthDate']),
             city: (p['city'] as String?) ?? '',
             doctorPhone: (p['doctorPhone'] as String?) ?? '',
+            address: (p['address'] as String?) ?? '',
           ));
           // The women's-health baselines ride the same backup but live outside
           // the profile object, so restore them separately (local still wins).

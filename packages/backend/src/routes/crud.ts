@@ -221,6 +221,11 @@ const profileBody = z.object({
   // nullable: declining is a supported answer, not a missing field.
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   city: z.string().max(80).nullable().optional(),
+  // Where an ambulance is sent — screen 37's dispatcher card. Longer than the
+  // city because a real one is «мкр. Самал-2, д. 33, кв. 12, домофон 12К», and
+  // truncating the entrance code off the end is exactly the half of it a
+  // paramedic needs at 3am.
+  address: z.string().max(200).nullable().optional(),
   doctorPhone: z.string().max(30).nullable().optional(),
   avgCycleLength: z.number().int().min(15).max(60).nullable().optional(),
   avgPeriodLength: z.number().int().min(1).max(14).nullable().optional(),
@@ -1524,6 +1529,7 @@ export function registerCrudRoutes(
       locale: parsed.data.locale ?? 'ru-KZ',
       birthDate: parsed.data.birthDate ?? null,
       city: parsed.data.city ?? null,
+      address: parsed.data.address ?? null,
       doctorPhone: parsed.data.doctorPhone ?? null,
       avgCycleLength: parsed.data.avgCycleLength ?? null,
       avgPeriodLength: parsed.data.avgPeriodLength ?? null,

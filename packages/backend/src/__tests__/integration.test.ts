@@ -529,6 +529,12 @@ function makeDeps(
       });
     },
     pregnancyWeekMotherCounts: async () => ({}),
+    // Frame 16b → screen 37. Nothing edited, therefore the shipped emergency
+    // contract, which is what `/emergency-help` must answer here. The editor
+    // itself is driven end to end in emergencyHelpEditor.test.ts against the
+    // real memory repository.
+    emergencyHelpOverrides: async () => [],
+    putEmergencyHelpOverride: async () => {},
     // Frames 15/15a/15b. Nothing edited, therefore the shipped immunisation
     // contract — which is exactly what this file's assertions about
     // `/vaccination/schedule` expect. The editor itself is driven end to end in

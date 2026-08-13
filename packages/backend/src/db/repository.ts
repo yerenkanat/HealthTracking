@@ -337,6 +337,18 @@ export interface ProfileRow {
    */
   birthDate: string | null; // yyyy-MM-dd
   city: string | null;
+  /**
+   * Where an ambulance is sent — app screen 37's dispatcher card.
+   *
+   * A HOME address, and the product's only one. `shop_orders.address` is a
+   * delivery address attached to one order and may be a workplace or a
+   * relative's flat; putting that on the screen somebody reads out to a 103
+   * dispatcher sends the ambulance to the wrong door.
+   *
+   * Null means she has not given one, which the screen states as her city plus
+   * «Добавьте адрес» rather than inventing anything.
+   */
+  address: string | null;
   doctorPhone: string | null; // her own emergency contact
   avgCycleLength: number | null; // women's-health baselines (null = app defaults)
   avgPeriodLength: number | null;
@@ -553,6 +565,38 @@ export interface PregnancyWeekOverride {
   /// A clinician's sign-off on the exact text they read; see medicalReview.ts.
   review: { by: string; at: string; fingerprint: string } | null;
   /// Save counter, so the served calendar's version moves on every edit.
+  rev: number;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+/** One language's half of an emergency scenario. Mirrors the shared contract. */
+export interface EmergencyTextRow {
+  title: string;
+  what: string;
+  do: string;
+}
+
+/**
+ * One edited emergency-help scenario — frame 16b / app screen 37.
+ *
+ * An OVERRIDE, not the scenario: the shipped contract
+ * (packages/contract/emergency_help.json) stays the baseline the app bundles
+ * and works offline from, and rows here patch it. `severity` decides whether
+ * the card tells somebody to dial 103 or to call the clinic today, so it is
+ * inside the clinician's fingerprint (see emergency/overrides.ts).
+ */
+export interface EmergencyHelpOverride {
+  id: string;
+  severity: 'red' | 'amber';
+  sort: number;
+  ru: EmergencyTextRow;
+  kk: EmergencyTextRow;
+  /// Stored, never served — the reader keeps seeing the contract text.
+  draft: boolean;
+  /// A clinician's sign-off on the exact text they read; see medicalReview.ts.
+  review: { by: string; at: string; fingerprint: string } | null;
+  /// Save counter, so the served list's version moves on every edit.
   rev: number;
   updatedAt: string;
   updatedBy: string | null;
@@ -1202,6 +1246,25 @@ export interface Repository {
   /// is in are absent from the map rather than present as zero, so a caller
   /// reporting «0 мам» is reporting a real count and not a missing key.
   pregnancyWeekMotherCounts(): Promise<Record<number, number>>;
+
+  // ---- Emergency-help overrides (frame 16b → app screen 37) ----
+  /// Every edited scenario, by id ascending. Overrides ONLY — the shipped
+  /// contract (packages/contract/emergency_help.json) is the baseline and is
+  /// not in here, so an empty list means "nothing has been edited", never
+  /// "there is no first aid". See emergency/overrides.ts for the merge.
+  emergencyHelpOverrides(): Promise<EmergencyHelpOverride[]>;
+  /// Write one scenario. `rev` is the store's business — it increments — so the
+  /// caller supplies the content and who wrote it, nothing else.
+  putEmergencyHelpOverride(v: {
+    id: string;
+    severity: 'red' | 'amber';
+    sort: number;
+    ru: EmergencyTextRow;
+    kk: EmergencyTextRow;
+    draft: boolean;
+    review: { by: string; at: string; fingerprint: string } | null;
+    updatedBy: string;
+  }): Promise<void>;
 
   // ---- Vaccination schedule overrides (frames 15 / 15a / 15b) ----
   /// Every edited or added injection, by key ascending. Overrides ONLY — the

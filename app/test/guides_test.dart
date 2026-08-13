@@ -16,6 +16,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/timeline_content.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
@@ -23,7 +24,9 @@ import 'package:fcs_app/ui/content/guides_screen.dart';
 import 'package:fcs_app/ui/content/lesson_player_screen.dart';
 import 'package:fcs_app/ui/calendar/labour_signs_screen.dart';
 import 'package:fcs_app/ui/content/timeline_content_screen.dart';
-import 'package:fcs_app/ui/emergency/emergency_rescue_screen.dart';
+import 'package:fcs_app/data/emergency_help_repository.dart';
+import 'package:fcs_app/domain/emergency_help.dart';
+import 'package:fcs_app/ui/emergency/emergency_help_screen.dart';
 import 'package:fcs_app/ui/home_shell.dart';
 import 'package:fcs_app/ui/theme.dart';
 
@@ -376,8 +379,69 @@ void main() {
   });
 
   group('«Когда сразу звонить 103»', () {
-    Future<void> pumpGuides(WidgetTester tester, {required bool pregnant}) async {
-      tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
+    // The scenarios come from the repository, and a widget test has no asset
+    // bundle worth depending on — so the baseline is injected. Two entries,
+    // one of each severity, because the screen's whole job is telling them
+    // apart.
+    setUp(() => debugSetEmergencyHelp(const EmergencyHelp(
+          version: 1,
+          tel: '103',
+          scenarios: [
+            EmergencyScenario(
+              id: 'bleeding',
+              severity: EmergencySeverity.red,
+              sort: 10,
+              ru: EmergencyText(
+                  title: 'Сильное кровотечение',
+                  what: 'Прокладка промокает за час.',
+                  todo: 'Звоните 103, лягте на бок.'),
+              kk: EmergencyText(
+                  title: 'Қатты қан кету',
+                  what: 'Прокладка бір сағатта малынады.',
+                  todo: '103-ке қоңырау шалыңыз.'),
+            ),
+            // Pregnancy triage, by its own words («после 20 недель»). The
+            // scenario the fork used to make unreachable for the only reader
+            // it applies to — and unavoidable for the one it does not.
+            EmergencyScenario(
+              id: 'preeclampsia',
+              severity: EmergencySeverity.red,
+              sort: 15,
+              audience: EmergencyAudience.pregnancy,
+              ru: EmergencyText(
+                  title: 'Головная боль, мушки в глазах, отёки',
+                  what: 'После 20 недель: сильная головная боль.',
+                  todo: 'Звоните 103 и назовите срок беременности.'),
+              kk: EmergencyText(
+                  title: 'Бас ауруы, ұшқындар, ісіну',
+                  what: '20 аптадан кейін: қатты бас ауруы.',
+                  todo: '103-ке қоңырау шалыңыз.'),
+            ),
+            EmergencyScenario(
+              id: 'fever_newborn',
+              severity: EmergencySeverity.amber,
+              sort: 20,
+              ru: EmergencyText(
+                  title: 'Температура у ребёнка до трёх месяцев',
+                  what: '38 и выше у малыша младше трёх месяцев.',
+                  todo: 'Позвоните педиатру сегодня.'),
+              kk: EmergencyText(
+                  title: 'Үш айға дейінгі баланың қызуы',
+                  what: 'Үш айға толмаған нәрестеде 38 және жоғары.',
+                  todo: 'Бүгін педиатрға қоңырау шалыңыз.'),
+            ),
+          ],
+        )));
+
+    Future<void> pumpGuides(
+      WidgetTester tester, {
+      required bool pregnant,
+      String address = '',
+      String city = '',
+      String doctorPhone = '',
+      List<String>? dialled,
+    }) async {
+      tester.view.physicalSize = const Size(390 * 3, 1800 * 3);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(L10nScope(
@@ -388,9 +452,15 @@ void main() {
             catalog: catalog,
             pregnant: pregnant,
             onOpen: (_) {},
+            address: address,
+            city: city,
+            doctorPhone: doctorPhone,
             // Injected so the tap never reaches a dialler this process has
             // no plugin for.
-            onCall: (_) async => true,
+            onCall: (tel) async {
+              dialled?.add(tel);
+              return true;
+            },
           ),
         ),
       ));
@@ -399,20 +469,124 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('expecting: the signs of labour and when to go in',
+    testWidgets('expecting: screen 37, WITH the pregnancy scenarios on it',
         (tester) async {
+      // The card used to fork here and send her to the labour reference, which
+      // meant «преэклампсия» — red, «звоните 103 сейчас», written for her and
+      // nobody else — could not be opened by a pregnant woman at all, and the
+      // screen she did get had no ambulance card, no dispatcher address and no
+      // doctor's number on it.
       await pumpGuides(tester, pregnant: true);
-      expect(find.byType(LabourSignsScreen), findsOneWidget);
+      expect(find.byType(EmergencyHelpScreen), findsOneWidget);
       // In Russian, from a PUSHED route — the scope really is above
       // MaterialApp and not at `home:`.
+      expect(find.text(l.t('eh_title')), findsWidgets);
+      expect(find.text('Головная боль, мушки в глазах, отёки'), findsOneWidget);
+      // Not instead of the rest: a pregnant woman may also have a toddler.
+      expect(find.text('Сильное кровотечение'), findsOneWidget);
+      expect(find.text('Температура у ребёнка до трёх месяцев'), findsOneWidget);
+    });
+
+    testWidgets('...and the signs of labour are one tap from it, not instead of it',
+        (tester) async {
+      // LabourSignsScreen has no navigation of its own, so a fork INTO it was a
+      // dead end. Linked FROM screen 37 it is still reachable and the ambulance
+      // card is behind the back button rather than behind a re-navigation.
+      await pumpGuides(tester, pregnant: true);
+      final row = find.text(l.t('eh_labour_signs'));
+      await tester.scrollUntilVisible(row, 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.byType(LabourSignsScreen), findsOneWidget);
       expect(find.text(l.t('lab_title')), findsWidgets);
     });
 
-    testWidgets('otherwise: the screen whose one action is the call',
+    testWidgets('not expecting: no pregnancy triage, and no labour row either',
+        (tester) async {
+      // «После 20 недель» cannot apply to her, and on this screen every row she
+      // has to read past is time. The rest of the list is untouched.
+      await pumpGuides(tester, pregnant: false);
+      expect(find.text('Головная боль, мушки в глазах, отёки'), findsNothing);
+      expect(find.text(l.t('eh_labour_signs')), findsNothing);
+      expect(find.text('Сильное кровотечение'), findsOneWidget);
+      expect(find.text('Температура у ребёнка до трёх месяцев'), findsOneWidget);
+    });
+
+    testWidgets('otherwise: screen 37, not the bare triage screen',
+        (tester) async {
+      // The wiring this feature exists to fix. Everyone who was not pregnant
+      // used to land on the TRIAGE screen — one paragraph, one button — with
+      // no scenarios, no address and no way to reach her own doctor.
+      final dialled = <String>[];
+      await pumpGuides(tester,
+          pregnant: false,
+          address: 'мкр. Самал-2, д. 33, кв. 12',
+          city: 'Алматы',
+          doctorPhone: '+77007654321',
+          dialled: dialled);
+
+      expect(find.byType(EmergencyHelpScreen), findsOneWidget);
+      // In Russian, from a PUSHED route.
+      expect(find.text(l.t('eh_title')), findsWidgets);
+      // 1 · the 103 card.
+      expect(find.text('103'), findsOneWidget);
+      // 2 · «Что происходит?» and both scenarios, each with its severity in
+      // words as well as in colour.
+      expect(find.text(l.t('eh_whats_happening').toUpperCase()), findsOneWidget);
+      expect(find.text('Сильное кровотечение'), findsOneWidget);
+      expect(find.text(l.t('eh_sev_red')), findsOneWidget);
+      expect(find.text(l.t('eh_sev_amber')), findsOneWidget);
+      // 3 · the address a dispatcher asks for.
+      expect(find.text('мкр. Самал-2, д. 33, кв. 12'), findsOneWidget);
+      // 4 · her own doctor.
+      final doctor = find.textContaining(l.t('eh_call_doctor'));
+      await tester.scrollUntilVisible(doctor, 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(doctor);
+      await tester.pumpAndSettle();
+      expect(dialled, ['+77007654321']);
+    });
+
+    testWidgets('the 103 card dials 103', (tester) async {
+      final dialled = <String>[];
+      await pumpGuides(tester, pregnant: false, dialled: dialled);
+      await tester.tap(find.text('103'));
+      await tester.pumpAndSettle();
+      expect(dialled, ['103']);
+    });
+
+    testWidgets('no address: her city and «Добавьте адрес», never an invented one',
+        (tester) async {
+      await pumpGuides(tester, pregnant: false, city: 'Алматы');
+      final prompt = find.textContaining(l.t('eh_address_missing_body'));
+      await tester.scrollUntilVisible(prompt, 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(prompt, findsOneWidget);
+      expect(find.text('Алматы'), findsOneWidget);
+    });
+
+    testWidgets('no doctor: the row says where to add one, not a dead button',
         (tester) async {
       await pumpGuides(tester, pregnant: false);
-      expect(find.byType(EmergencyRescueScreen), findsOneWidget);
-      expect(find.textContaining('103'), findsWidgets);
+      final note = find.text(l.t('eh_no_doctor'));
+      await tester.scrollUntilVisible(note, 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(note, findsOneWidget);
+      expect(find.textContaining(l.t('eh_call_doctor')), findsNothing);
+    });
+
+    testWidgets('with no scenarios at all the call button still works',
+        (tester) async {
+      // Asset missing, cache empty, server unreachable. The half that matters
+      // most is still on screen; only the list is gone, and it says so.
+      debugSetEmergencyHelp(EmergencyHelp.empty);
+      final dialled = <String>[];
+      await pumpGuides(tester, pregnant: false, dialled: dialled);
+      expect(find.text(l.t('eh_no_scenarios')), findsOneWidget);
+      await tester.tap(find.text('103'));
+      await tester.pumpAndSettle();
+      expect(dialled, ['103']);
     });
 
     testWidgets('the signs are readable on the card, not behind the tap',
@@ -428,6 +602,159 @@ void main() {
       ));
       await tester.pumpAndSettle();
       expect(find.textContaining('Кровотечение'), findsOneWidget);
+    });
+  });
+
+  /// Screen 37's profile facts, driven from the REAL shell.
+  ///
+  /// Everything above builds GuidesScreen directly and hands it an address, so
+  /// none of it can observe the address ARRIVING from the shell: delete the
+  /// four lines in home_shell.dart that pass address/city/doctorPhone and the
+  /// whole suite still passed. These tests are that join, and the join is what
+  /// puts a dispatcher's answer on the screen at 3am.
+  group('the profile reaching screen 37, from the shell', () {
+    const scenarios = EmergencyHelp(
+      version: 1,
+      tel: '103',
+      scenarios: [
+        EmergencyScenario(
+          id: 'bleeding',
+          severity: EmergencySeverity.red,
+          sort: 10,
+          ru: EmergencyText(
+              title: 'Сильное кровотечение',
+              what: 'Прокладка промокает за час.',
+              todo: 'Звоните 103, лягте на бок.'),
+          kk: EmergencyText(
+              title: 'Қатты қан кету',
+              what: 'Прокладка бір сағатта малынады.',
+              todo: '103-ке қоңырау шалыңыз.'),
+        ),
+      ],
+    );
+
+    /// Тoday tab → «Гиды» → the amber card → screen 37.
+    Future<void> openScreen37(WidgetTester tester) async {
+      final entry = find.text(l.t('tl_open_guides'));
+      await tester.scrollUntilVisible(entry, 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l.t('gd_call_title')));
+      await tester.pumpAndSettle();
+      expect(find.byType(EmergencyHelpScreen), findsOneWidget);
+    }
+
+    testWidgets('her address and her doctor arrive on it', (tester) async {
+      debugSetEmergencyHelp(scenarios);
+      final c = AppController(now: () => today, locale: AppLocale.ru);
+      addTearDown(c.dispose);
+      c.updateProfile(const UserProfile(
+        displayName: 'Айгерим',
+        city: 'Алматы',
+        address: 'мкр. Самал-2, д. 33, кв. 12, домофон 12К',
+        doctorPhone: '+77007654321',
+      ));
+      await pumpShell(tester, c);
+      await openScreen37(tester);
+
+      // The address a dispatcher asks for — the whole string, entry code
+      // included, because that is the half a paramedic at the door needs.
+      expect(find.text('мкр. Самал-2, д. 33, кв. 12, домофон 12К'), findsOneWidget);
+      expect(find.textContaining(l.t('eh_address_missing_body')), findsNothing);
+
+      // …and her own doctor's number, on the button rather than in a profile
+      // screen two taps away. Not tapped: from the shell the dialler is
+      // url_launcher, and this process has no plugin for it.
+      final doctor = find.textContaining(l.t('eh_call_doctor'));
+      await tester.scrollUntilVisible(doctor, 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(doctor, findsOneWidget);
+      expect(find.textContaining('+77007654321'), findsOneWidget);
+      expect(find.text(l.t('eh_no_doctor')), findsNothing);
+    });
+
+    testWidgets('with nothing saved it says so — her city, never an invented address',
+        (tester) async {
+      debugSetEmergencyHelp(scenarios);
+      final c = AppController(now: () => today, locale: AppLocale.ru);
+      addTearDown(c.dispose);
+      c.updateProfile(const UserProfile(displayName: 'Айгерим', city: 'Алматы'));
+      await pumpShell(tester, c);
+      await openScreen37(tester);
+
+      final prompt = find.textContaining(l.t('eh_address_missing_body'));
+      await tester.scrollUntilVisible(prompt, 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(prompt, findsOneWidget);
+      expect(find.text('Алматы'), findsOneWidget);
+    });
+
+    testWidgets('an address saved from the prompt appears on the card she saved it from',
+        (tester) async {
+      // The «assumes the request succeeded» family, on the screen where it
+      // costs the most: the write landed and the card went on saying «Добавьте
+      // адрес» until she popped screen 37, popped Гиды and opened both again.
+      debugSetEmergencyHelp(scenarios);
+      final c = AppController(now: () => today, locale: AppLocale.ru);
+      addTearDown(c.dispose);
+      c.updateProfile(const UserProfile(displayName: 'Айгерим', city: 'Алматы'));
+      await pumpShell(tester, c);
+      await openScreen37(tester);
+
+      final prompt = find.text(l.t('eh_address_missing'));
+      await tester.scrollUntilVisible(prompt, 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(prompt);
+      await tester.pumpAndSettle();
+
+      final addressField = find.byWidgetPredicate((w) =>
+          w is TextField && w.decoration?.labelText == l.t('prof_address'));
+      expect(addressField, findsOneWidget, reason: 'the profile sheet opened');
+      await tester.enterText(addressField, 'мкр. Самал-2, д. 33, кв. 12');
+      final save = find.text(l.t('act_save'));
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      // Still on screen 37 — she never left it — and the card now reads back
+      // what she typed.
+      expect(find.byType(EmergencyHelpScreen), findsOneWidget);
+      expect(c.profile.address, 'мкр. Самал-2, д. 33, кв. 12');
+      final saved = find.text('мкр. Самал-2, д. 33, кв. 12');
+      await tester.scrollUntilVisible(saved, 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(saved, findsOneWidget);
+      expect(find.text(l.t('eh_address_missing')), findsNothing);
+    });
+
+    testWidgets('and so does a doctor’s number added the same way', (tester) async {
+      debugSetEmergencyHelp(scenarios);
+      final c = AppController(now: () => today, locale: AppLocale.ru);
+      addTearDown(c.dispose);
+      c.updateProfile(const UserProfile(displayName: 'Айгерим'));
+      await pumpShell(tester, c);
+      await openScreen37(tester);
+
+      final prompt = find.text(l.t('prof_doctor_hint'));
+      await tester.scrollUntilVisible(prompt, 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(prompt);
+      await tester.pumpAndSettle();
+
+      final doctorField = find.byWidgetPredicate((w) =>
+          w is TextField && w.decoration?.labelText == l.t('prof_doctor_hint'));
+      await tester.enterText(doctorField, '+77007654321');
+      final save = find.text(l.t('act_save'));
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      final doctor = find.textContaining('+77007654321');
+      await tester.scrollUntilVisible(doctor, 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(doctor, findsOneWidget);
+      expect(find.text(l.t('eh_no_doctor')), findsNothing);
     });
   });
 

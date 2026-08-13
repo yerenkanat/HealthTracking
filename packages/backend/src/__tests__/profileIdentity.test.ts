@@ -103,7 +103,7 @@ const claim = (token: string, phone: string) =>
     method: 'PUT', url: '/profile', headers: as(token),
     payload: {
       displayName: 'Мадина', phone, dueDate: '2026-12-01', city: 'Алматы',
-      doctorPhone: '+77007654321', avgCycleLength: 30, avgPeriodLength: 6,
+      address: null, doctorPhone: '+77007654321', avgCycleLength: 30, avgPeriodLength: 6,
     },
   });
 
@@ -169,7 +169,7 @@ describe('PUT /profile cannot change the sign-in identity', () => {
     const me = await repo.userByPhone(CLAIMANT_E164);
     await repo.upsertProfile(me!.id, {
       displayName: 'Мадина', dueDate: null, locale: 'ru-KZ', birthDate: null,
-      city: null, doctorPhone: null, avgCycleLength: null, avgPeriodLength: null,
+      city: null, address: null, doctorPhone: null, avgCycleLength: null, avgPeriodLength: null,
     });
     expect((await profileOf(token)).phone).toBe(CLAIMANT_E164);
     expect((await repo.userByPhone(VICTIM_E164)), 'the victim’s number must still be free').toBeNull();

@@ -23,6 +23,9 @@ import { buildSupportBoard, SUPPORT_SLA_HOURS, whatsappReplyLink } from '../admi
 import { bilingualMessage, bilingualProblems, missingLocales, type BilingualProblem } from '../content/bilingual';
 import { weekAsReviewable, type PregnancyWeekOverride } from '../pregnancy/overrides';
 import { servedCalendar } from '../pregnancy/served';
+import { emergencyHelp, contractScenario } from '../emergency/help';
+import { scenarioAsReviewable, type EmergencyHelpOverride } from '../emergency/overrides';
+import { servedEmergencyHelp } from '../emergency/served';
 import {
   ageLabelRu, contractKey, vaccineAsReviewable, vaccineKeyOf,
   type VaccinationOverride,
@@ -232,6 +235,32 @@ const pregnancyWeekBody = z.object({
   kk: weekText,
   /// Work in progress: saved, not served. This is what makes the clinician
   /// rule workable — half-written advice has somewhere to live.
+  draft: z.boolean().default(false),
+});
+
+/// One language's half of one emergency-help scenario (frame 16b → screen 37).
+///
+/// `do` is the actionable half and the longest — «Звоните 103. Положите на бок,
+/// уберите всё твёрдое рядом…» — so it gets the room. Nothing here is optional:
+/// a scenario with a title and no instructions is a card that names a
+/// catastrophe and says nothing about it.
+const emergencyText = z.object({
+  title: z.string().trim().max(160),
+  what: z.string().trim().max(1200),
+  do: z.string().trim().max(1200),
+});
+
+const emergencyHelpBody = z.object({
+  /// The one field that is not prose. It decides the border colour and
+  /// therefore whether the reader dials 103 or waits until morning, so it is
+  /// constrained here, in the CHECK on the column, and inside the clinician's
+  /// fingerprint.
+  severity: z.enum(['red', 'amber']),
+  /// Reading order. Editable because triage order is a clinical decision.
+  sort: z.number().int().min(0).max(10_000),
+  ru: emergencyText,
+  kk: emergencyText,
+  /// Work in progress: saved, not served — the reader keeps the shipped text.
   draft: z.boolean().default(false),
 });
 
@@ -1433,6 +1462,226 @@ export function registerAdminRoutes(
     });
     await repo.writeAudit({ staffId: s.staffId, action: 'pregnancy_week_review', target: `week-${week}` });
     return reply.send({ ok: true, week, review, draft: current.draft });
+  });
+
+  // ---- Emergency help (frame 16b «Экстренная помощь» → app screen 37) -----
+  //
+  // Nine scenarios that tell a frightened person at 3am whether to dial 103 now
+  // or call the clinic in the morning, and until these routes existed they were
+  // a JSON file compiled into the server and bundled into the app. Correcting
+  // «держите ожог под водой 20 минут» to whatever the protocol actually says
+  // was a backend release AND a store rollout.
+  //
+  // What is served stays contract-plus-overrides — see emergency/overrides.ts.
+  // The contract is never touched, so the app keeps working with no signal and
+  // app/tool/verify_emergency_help_contract.dart keeps passing.
+
+  /**
+   * The editor's view: every scenario, merged, with its edit state.
+   *
+   * Staff-read rather than `content`-gated, for the same reason as the
+   * pregnancy calendar: a clinician holding `health` has to be able to READ
+   * what she is being asked to approve.
+   *
+   * There is deliberately no head-count beside a scenario. The pregnancy editor
+   * can say «это увидят N мам» because `users.due_date` answers it; nothing in
+   * this product records who opened screen 37, and a number here would be
+   * invented.
+   */
+  app.get('/admin/emergency-help', async (req, reply) => {
+    const s = await requireStaff(req, reply);
+    if (!s) return;
+    // Frame 16b is a READ of nine pieces of first aid, and it read fine before
+    // this table existed — 500ing the whole tab because migration 043 has not
+    // run yet takes the list away over the one part of it that is a patch. So:
+    // the contract, plus `editsKnown: false` so the panel can say out loud that
+    // it does not know which scenarios were edited (and refuse to let anyone
+    // save over an edit it cannot see).
+    const overrides = await repo.emergencyHelpOverrides().catch(() => null);
+    const byId = new Map((overrides ?? []).map((o) => [o.id, o]));
+    const served = await servedEmergencyHelp(repo);
+
+    return reply.send({
+      version: served.version,
+      contractVersion: emergencyHelp.version,
+      tel: emergencyHelp.tel,
+      editsKnown: overrides != null,
+      scenarios: emergencyHelp.scenarios.map((base) => {
+        const o = byId.get(base.id);
+        // The EDITOR sees the draft; a reader does not. Opening a scenario you
+        // saved as a draft and finding the shipped text back in the boxes is
+        // how an afternoon's work gets retyped.
+        const shown = o ?? base;
+        const item = o
+          ? scenarioAsReviewable(base.id, { severity: o.severity, ru: o.ru, kk: o.kk, draft: o.draft })
+          : null;
+        return {
+          id: base.id,
+          severity: shown.severity,
+          sort: shown.sort,
+          ru: shown.ru,
+          kk: shown.kk,
+          /// Somebody has edited this scenario; without it the panel cannot
+          /// tell "same as shipped" from "edited back to the same words".
+          edited: o != null,
+          draft: o?.draft === true,
+          /// What a phone gets right now is this row's text, not the contract's.
+          live: o != null && !o.draft,
+          review: o?.review ? { by: o.review.by, at: o.review.at } : null,
+          /// Does that signature still describe the text above it?
+          reviewCurrent: o?.review != null && item != null
+            && o.review.fingerprint === textFingerprint(item),
+          updatedAt: o?.updatedAt ?? null,
+          updatedBy: o?.updatedBy ?? null,
+        };
+      }).sort((a, b) => (a.sort - b.sort) || a.id.localeCompare(b.id)),
+    });
+  });
+
+  /**
+   * Save one scenario.
+   *
+   * The same two rules as the pregnancy week editor, for the same reasons and
+   * in the same words:
+   *
+   *  - no Kazakh, no publication. The app falls back to Russian silently, so a
+   *    half-translated scenario reads to a Kazakh mother as the app ignoring
+   *    the language she chose — while she is deciding whether to call an
+   *    ambulance.
+   *  - medical text is checked by a clinician, and EDITING approved text takes
+   *    the approval away. Every scenario here is an instruction about a
+   *    bleeding or unbreathing person; there is no unmarked half to slip
+   *    through.
+   */
+  app.put('/admin/emergency-help/:id', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const id = (req.params as { id: string }).id;
+    // Only scenarios the shipped contract covers. A row for an invented id
+    // would be stored faithfully and merged into nothing — an edit that
+    // vanishes silently. Adding a scenario is a contract change.
+    if (!contractScenario(id)) {
+      return reply.code(400).send({
+        error: 'unknown_scenario',
+        message: `Сценария «${id}» нет в справочнике ` +
+          `(есть ${emergencyHelp.scenarios.map((x) => x.id).join(', ')}).`,
+      });
+    }
+    const parsed = emergencyHelpBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const v = parsed.data;
+
+    const problems: BilingualProblem[] = [];
+    for (const field of ['title', 'what', 'do'] as const) {
+      const missing = missingLocales({ ru: v.ru[field], kk: v.kk[field] });
+      if (missing.length) problems.push({ id: `сценарий «${id}»`, field, missing });
+    }
+    if (problems.length) {
+      return reply.code(400).send({
+        error: 'translation_required',
+        id,
+        problems,
+        message: bilingualMessage(problems),
+      });
+    }
+
+    // NOT `.catch(() => [])`. A failed read is not "no row yet": carryReview
+    // would see no prior signature, store `review: null`, and a clinician's
+    // sign-off would be destroyed by a save that reported success. Drafts are
+    // exempt from the review gate, so nothing else would have stopped the
+    // write.
+    let stored: EmergencyHelpOverride[];
+    try {
+      stored = await repo.emergencyHelpOverrides();
+    } catch {
+      return reply.code(503).send({
+        error: 'overrides_unavailable',
+        id,
+        message: 'Не удалось прочитать сохранённые сценарии, поэтому сохранение отменено — ' +
+          'иначе проверка врача по этому сценарию была бы потеряна. Повторите через минуту.',
+      });
+    }
+    const previous = stored.find((o) => o.id === id);
+    const incoming = scenarioAsReviewable(id, v);
+    const prior: ReviewableItem | undefined = previous?.review
+      ? { ...scenarioAsReviewable(id, previous), review: previous.review }
+      : undefined;
+
+    const needReview = unreviewed([incoming], new Map(prior ? [[incoming.id, prior]] : []));
+    if (needReview.length) {
+      return reply.code(409).send({
+        error: 'review_required',
+        id,
+        problems: needReview,
+        message: reviewMessage(needReview) +
+          '. Отправьте на проверку врачу или сохраните как черновик.',
+      });
+    }
+
+    // What gets STORED is the review already in the database, never one from
+    // the request body — that would be self-approval by PUT.
+    const carried = carryReview(incoming, prior);
+    await repo.putEmergencyHelpOverride({
+      id,
+      severity: v.severity,
+      sort: v.sort,
+      ru: v.ru,
+      kk: v.kk,
+      draft: v.draft,
+      review: carried.review ?? null,
+      updatedBy: s.staffId,
+    });
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: v.draft ? 'edit_emergency_help_draft' : 'edit_emergency_help',
+      target: `emergency-${id}`,
+    });
+    return reply.send({ ok: true, id, draft: v.draft, reviewed: carried.review != null });
+  });
+
+  /**
+   * A clinician signs off one scenario.
+   *
+   * `health`, not `content` — that separation IS the two-person rule: authoring
+   * needs `content`, approving needs `health`, and no role but an owner holds
+   * both. The signature records what was read, so a later edit — including
+   * downgrading red to amber — invalidates it without anybody having to
+   * remember to.
+   *
+   * Only an EDITED scenario can be reviewed. The shipped contract came through
+   * its own release; asking a clinician to re-approve nine untouched scenarios
+   * would turn the queue into noise.
+   */
+  app.post('/admin/emergency-help/:id/review', async (req, reply) => {
+    const s = await requireCap(req, reply, 'health');
+    if (!s) return;
+    const id = (req.params as { id: string }).id;
+    const current = (await repo.emergencyHelpOverrides()).find((o) => o.id === id);
+    if (!current) {
+      return reply.code(404).send({
+        error: 'not_edited',
+        message: 'Этот сценарий не редактировался — проверять нечего.',
+      });
+    }
+    const review = {
+      by: s.staffId,
+      at: new Date().toISOString(),
+      fingerprint: textFingerprint(scenarioAsReviewable(id, current)),
+    };
+    await repo.putEmergencyHelpOverride({
+      id,
+      severity: current.severity,
+      sort: current.sort,
+      ru: current.ru,
+      kk: current.kk,
+      // Approving does NOT publish. Two decisions, two people, two moments —
+      // the clinician says the text is safe, the editor says it is finished.
+      draft: current.draft,
+      review,
+      updatedBy: current.updatedBy ?? s.staffId,
+    });
+    await repo.writeAudit({ staffId: s.staffId, action: 'emergency_help_review', target: `emergency-${id}` });
+    return reply.send({ ok: true, id, review, draft: current.draft });
   });
 
   // ---- Immunisation calendar (frames 15 / 15a / 15b) ----------------------

@@ -19,7 +19,7 @@ describe('memory adminUserDetail parity', () => {
       locale: 'ru-KZ',
       birthDate: null,
       city: 'Алматы',
-      doctorPhone: '+77007654321',
+      address: null, doctorPhone: '+77007654321',
       avgCycleLength: 30,
       avgPeriodLength: 6,
     });

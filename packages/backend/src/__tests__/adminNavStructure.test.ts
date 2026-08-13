@@ -45,6 +45,19 @@ const VIEWS_BEFORE = [
   'audit', 'staff', 'finance', 'support', 'integrations', 'security', 'roles',
 ];
 
+/**
+ * Screens added to the rail SINCE that snapshot.
+ *
+ * The check below says "nothing was invented on the way", which is about the
+ * regrouping, not about the panel never growing again. Listing a new view here
+ * is a deliberate act with a name attached; leaving the list out and relaxing
+ * the assertion to "anything goes" would retire the guard entirely.
+ */
+const VIEWS_ADDED_SINCE = [
+  // Кадр 16b «Экстренная помощь» → экран приложения 37.
+  'emergency-help',
+];
+
 const FINANCE = buildFinanceReport({
   orders: [], products: [], moves: [], planMinor: 0, from: '2026-08-01', to: '2026-08-31',
 });
@@ -216,7 +229,8 @@ describe('everything that was reachable is still reachable', () => {
     expect(missing, `dropped on the way into the sections: ${missing.join(', ')}`).toEqual([]);
 
     // And nothing was invented on the way.
-    const extra = [...inRail].filter((v) => !VIEWS_BEFORE.includes(v));
+    const extra = [...inRail].filter(
+      (v) => !VIEWS_BEFORE.includes(v) && !VIEWS_ADDED_SINCE.includes(v));
     expect(extra, `these views appeared from nowhere: ${extra.join(', ')}`).toEqual([]);
   });
 

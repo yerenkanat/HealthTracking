@@ -50,7 +50,7 @@ let pushed: Array<{ userIds: string[]; id: string; ru: { title: string; body: st
 function profileFor(locale: string, dueDate: string | null) {
   return {
     displayName: 'Мама', dueDate, locale,
-    birthDate: null, city: null, doctorPhone: null,
+    birthDate: null, city: null, address: null, doctorPhone: null,
     avgCycleLength: null, avgPeriodLength: null,
   };
 }
