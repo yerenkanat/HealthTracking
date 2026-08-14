@@ -210,9 +210,28 @@ export function assessTelemetry(t: BandTelemetry): TriageResult {
     'ok',
   );
 
+  // findings[0] must be the WORST finding, not the earliest branch.
+  //
+  // The Dart twin's docstring has always described `findings[0]` as "the top
+  // finding surfaced in UI/push", and until this sort it was simply the first
+  // branch that matched. That turned dangerous once DEVICE_TEMP_HIGH — a
+  // WARNING — joined the fever block, which runs before oxygen: a sample with a
+  // band temperature of 37.9 and an SpO2 of 82 came out `severity: 'emergency'`
+  // with `findings[0]` a warning about the temperature. The app hands
+  // `findings[0]` to its confirmation gate, which then asked about the wrong
+  // reading and suppressed the hypoxia emergency screen.
+  //
+  // `.sort()` IS specified as stable in ES2019+, so equal severities keep the
+  // clinical branch order (blood pressure, fever, oxygen, heart rate) — which
+  // is what keeps `findings[0]` identical to the Dart twin, whose own sort has
+  // to carry the index explicitly because Dart's `List.sort` is not stable.
+  const ranked = [...findings].sort(
+    (a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity],
+  );
+
   return {
     severity,
-    findings,
+    findings: ranked,
     forceEmergencyScreen: severity === 'emergency',
   };
 }

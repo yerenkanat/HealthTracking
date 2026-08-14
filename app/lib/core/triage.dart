@@ -173,8 +173,13 @@ class TriageResult {
   const TriageResult(this.severity, this.findings, this.forceEmergencyScreen);
 }
 
-/// Pure, synchronous. Branch order matches triage.ts exactly so `findings[0]`
-/// (the "top" finding surfaced in UI/push) is identical across languages.
+/// Pure, synchronous. Branch order matches triage.ts exactly, and the returned
+/// findings are then ranked WORST-FIRST, so `findings[0]` really is the top
+/// finding surfaced in UI/push — and is identical across languages.
+///
+/// That last sentence used to be a claim rather than a fact: the list came out
+/// in branch order, so `findings[0]` was whichever metric happened to be
+/// checked first. See the note at the return for what that cost.
 TriageResult assessTelemetry(BandTelemetry t) {
   final findings = <TriageFinding>[];
 
@@ -307,5 +312,48 @@ TriageResult assessTelemetry(BandTelemetry t) {
   for (final f in findings) {
     severity = _maxSeverity(severity, f.severity);
   }
-  return TriageResult(severity, findings, severity == TriageSeverity.emergency);
+
+  // findings[0] must be the WORST finding, not the earliest branch.
+  //
+  // This function's own docstring has always called `findings[0]` "the top
+  // finding surfaced in UI/push", and until this sort that was simply untrue:
+  // the list came out in branch order, and `[0]` was whichever metric happened
+  // to be checked first.
+  //
+  // It became dangerous when DEVICE_TEMP_HIGH — a WARNING — was added to the
+  // fever block, which runs before oxygen. A single sample carrying a band
+  // temperature of 37.9 and an SpO2 of 82 produced:
+  //
+  //     severity              = emergency        (from the hypoxia)
+  //     forceEmergencyScreen  = true
+  //     findings[0]           = DEVICE_TEMP_HIGH (a warning)
+  //
+  // and `findings.first` is what the caller hands to EmergencyConfirmation. So
+  // the gate was asked about the wrong reading, in a different family, from a
+  // sensor source — it answered «ask her to repeat it», the caller returned
+  // early, and THE SEVERE-HYPOXIA EMERGENCY SCREEN DID NOT OPEN. Had it opened
+  // later, it would have carried a code with no localized message and printed
+  // the TEMPERATURE as the reading that raised an emergency.
+  //
+  // Among EQUAL severities the clinical branch order (blood pressure, fever,
+  // oxygen, heart rate) must survive untouched — it is deliberate, and it is
+  // what keeps `findings[0]` identical to the TypeScript twin.
+  //
+  // `List.sort` in Dart is NOT stable (it is an introsort), so the index is
+  // carried into the comparator rather than assumed. Sorting on severity alone
+  // would have reordered equal findings unpredictably and broken the twin in a
+  // way no test asserting a single code would notice.
+  //
+  // `packages/backend/src/emergency/reason.ts` already picked by severity; this
+  // is the same rule, applied where every caller reads it instead of in one of
+  // them.
+  final indexed = [
+    for (var i = 0; i < findings.length; i++) (i, findings[i]),
+  ]..sort((a, b) {
+      final bySeverity =
+          _rank(b.$2.severity).compareTo(_rank(a.$2.severity));
+      return bySeverity != 0 ? bySeverity : a.$1.compareTo(b.$1);
+    });
+  final ranked = [for (final e in indexed) e.$2];
+  return TriageResult(severity, ranked, severity == TriageSeverity.emergency);
 }

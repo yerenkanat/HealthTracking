@@ -105,3 +105,55 @@ describe('assessTelemetry — worst-of severity', () => {
     expect(r.findings.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+/**
+ * `findings[0]` is the WORST finding, not the earliest branch.
+ *
+ * The Dart twin's docstring has always called `findings[0]` "the top finding
+ * surfaced in UI/push", and it was branch order. That became dangerous when
+ * DEVICE_TEMP_HIGH — a WARNING — joined the fever block, which runs before
+ * oxygen: the app hands `findings[0]` to its confirmation gate, so a warning
+ * about a wrist temperature was asked about instead of a severe hypoxia, and
+ * the emergency screen did not open.
+ *
+ * Pinned on BOTH sides because these are behavioural twins: a rule that holds
+ * in Dart and not in TypeScript means the handset and the server disagree about
+ * what the top finding is, which is the same defect wearing a server hat.
+ */
+describe('assessTelemetry — the top finding', () => {
+  it('ranks an emergency above a warning that fired in an earlier branch', () => {
+    const r = assessTelemetry({
+      ...base,
+      coreTempC: 37.9, // warning tier, fever block runs first
+      spo2Pct: 82, // severe hypoxia, checked later
+      source: 'band',
+    } as BandTelemetry);
+
+    expect(r.severity).toBe('emergency');
+    expect(r.forceEmergencyScreen).toBe(true);
+    expect(r.findings[0].severity).toBe('emergency');
+    // The warning is demoted, never dropped — it is still a true finding.
+    expect(r.findings.map((f) => f.code)).toContain('DEVICE_TEMP_HIGH');
+  });
+
+  it('leaves the clinical branch order intact among equal severities', () => {
+    // Blood pressure is checked before heart rate and both are emergencies.
+    // `Array.prototype.sort` is stable in ES2019+, which is what preserves
+    // this; the Dart twin has to carry the index explicitly because its
+    // `List.sort` is not stable. If these two ever disagree, the twins have
+    // silently diverged on which finding is "the" one.
+    const r = assessTelemetry({
+      ...base,
+      systolicMmHg: 170,
+      diastolicMmHg: 115,
+      heartRateBpm: 145,
+    } as BandTelemetry);
+
+    const codes = r.findings.map((f) => f.code);
+    const bp = codes.findIndex((c) => c.startsWith('PREECLAMPSIA'));
+    const hr = codes.findIndex((c) => c.includes('TACHY'));
+    expect(bp).toBeGreaterThanOrEqual(0);
+    expect(hr).toBeGreaterThanOrEqual(0);
+    expect(bp).toBeLessThan(hr);
+  });
+});
