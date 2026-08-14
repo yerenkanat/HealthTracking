@@ -8,16 +8,70 @@
 /// What it deliberately does NOT do is claim to know what the child has had.
 /// Nothing here reads a clinic record, and the disclaimer says so where it
 /// cannot be missed.
+///
+/// The schedule and the catch-up window come from
+/// data/vaccination_schedule_repository.dart, not from the compiled-in
+/// constants: the back office can move a dose (admin frame 15) and until this
+/// screen read the served copy, moving it meant a store rollout. The bundled
+/// calendar is still the floor, so a phone with no signal draws the whole
+/// screen — it is the repository, not this file, that decides which of the two
+/// is in hand.
 library;
 
 import 'package:flutter/material.dart';
 
+import '../../data/vaccination_schedule_repository.dart';
 import '../../domain/child_development.dart' show ageInMonths;
 import '../../domain/family.dart';
 import '../../domain/vaccination.dart';
+import '../../l10n/l10n.dart' show AppLocale, L10n;
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
+
+/// What to call a vaccine, and the line under it.
+///
+/// The back office's words win where somebody has written them, and the app's
+/// own l10n fills in everywhere else. That order is the whole reason
+/// [Vaccine.ru] and friends are nullable rather than empty strings: for a
+/// shipped vaccine the app ships a Kazakh and an English name, and the server
+/// carries a Russian one only — overwriting `vac_bcg` with a merge's fallback
+/// would blank a row that reads perfectly well today.
+///
+/// A vaccine ADDED in the back office has no l10n key at all, so the server's
+/// text is the only text it will ever have; the last fallback is its id, which
+/// at least identifies the row instead of printing `vac_rota`.
+///
+/// ENGLISH IS NOT A FALLBACK POSITION FOR RUSSIAN. The back office writes ru
+/// and kk and nothing else, so an English reader takes the l10n entry FIRST —
+/// «БЦЖ» is not a better English label than «BCG» merely because it arrived
+/// over the network. She only sees the Russian when this build has no word for
+/// the vaccine at all, which is the case for one added in frame 15a.
+String vaccineName(L10n l, Vaccine v) => _pick(
+      l,
+      own: l.locale == AppLocale.kk ? v.kk : (l.locale == AppLocale.ru ? v.ru : null),
+      key: 'vac_${v.id}',
+      last: v.ru ?? v.id,
+    );
+
+String vaccineNote(L10n l, Vaccine v) => _pick(
+      l,
+      own: l.locale == AppLocale.kk ? v.kkNote : (l.locale == AppLocale.ru ? v.ruNote : null),
+      key: 'vac_${v.id}_note',
+      last: v.ruNote ?? '',
+    );
+
+String _pick(L10n l, {required String? own, required String key, required String last}) {
+  if (own != null && own.isNotEmpty) return own;
+  return _l10nOr(l, key, last);
+}
+
+/// `l.t` answers with the key itself when there is no entry, which on screen is
+/// the string `vac_rota`. That is a missing translation, not a label.
+String _l10nOr(L10n l, String key, String fallback) {
+  final s = l.t(key);
+  return s == key ? fallback : s;
+}
 
 class VaccinationScreen extends StatelessWidget {
   final ChildProfile child;
@@ -64,7 +118,13 @@ class VaccinationScreen extends StatelessWidget {
               // future visit to remind about. The card promises a reminder only
               // when one truly exists — the app schedules it the moment a child
               // with a birth date is added.
-              reminderAt: nextVaccinationReminderAt(dob: dob, now: today),
+              //
+              // Computed over the SERVED schedule: a dose moved in the back
+              // office moves the next visit, and a reminder armed off the
+              // compiled-in calendar would fire on a date this screen no longer
+              // shows.
+              reminderAt: nextVaccinationReminderAt(
+                  dob: dob, now: today, schedule: servedVaccines()),
               done: doneKeys,
               onToggle: onToggleDone,
             ),
@@ -86,12 +146,21 @@ class _Schedule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final due = vaccinesDue(ageMonths);
-    final next = nextVisit(ageMonths);
-    final untilNext = monthsUntilNextVisit(ageMonths);
-    final byAge = scheduleByAge();
-    // Passed but not recorded done — the real catch-up list.
-    final catchUp = vaccinesToCatchUp(ageMonths, done);
+    // The calendar and the window the back office actually published — or the
+    // bundled ones, when this phone has never reached the server. Read ONCE per
+    // build so every list below is computed against the same schedule.
+    final schedule = servedVaccines();
+    final window = servedDueWindowMonths();
+    final due = vaccinesDue(ageMonths, schedule, window);
+    final next = nextVisit(ageMonths, schedule);
+    final untilNext = monthsUntilNextVisit(ageMonths, schedule);
+    final byAge = scheduleByAge(schedule);
+    // Passed but not recorded done — the real catch-up list. The window decides
+    // where «пора» ends and «стоит наверстать» begins, so it has to be the
+    // served one: the admin panel's coverage denominator is drawn on exactly
+    // the same boundary, and staff chasing parents whose own screen still says
+    // «пора» is what a one-month disagreement looks like.
+    final catchUp = vaccinesToCatchUp(ageMonths, done, schedule, window);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -173,11 +242,20 @@ class _Schedule extends StatelessWidget {
               months: entry.key,
               vaccines: entry.value,
               ageMonths: ageMonths,
+              windowMonths: window,
               done: done,
               onToggle: onToggle),
 
         const SizedBox(height: 8),
-        Text(l.t('vac_revision', {'d': scheduleRevision}),
+        // Where this calendar came from, said out loud. A schedule changes by
+        // order of the health ministry, and a parent using a two-year-old build
+        // that has never reached the server should be able to find out that she
+        // is reading a two-year-old table — which is exactly the state
+        // `vac_revision` alone could not distinguish.
+        Text(
+            vaccinationScheduleIsFromServer()
+                ? l.t('vac_source_server')
+                : l.t('vac_revision', {'d': scheduleRevision}),
             style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
       ],
     );
@@ -228,12 +306,14 @@ class _AgeGroup extends StatelessWidget {
   final int months;
   final List<Vaccine> vaccines;
   final int ageMonths;
+  final int windowMonths;
   final Set<String> done;
   final ValueChanged<String>? onToggle;
   const _AgeGroup(
       {required this.months,
       required this.vaccines,
       required this.ageMonths,
+      required this.windowMonths,
       required this.done,
       required this.onToggle});
 
@@ -274,7 +354,7 @@ class _AgeGroup extends StatelessWidget {
                 for (final v in vaccines)
                   _VaccineRow(
                       v: v,
-                      status: vaccineStatus(v, ageMonths),
+                      status: vaccineStatus(v, ageMonths, windowMonths),
                       compact: true,
                       done: done.contains(vaccineKey(v)),
                       onToggle: onToggle),
@@ -361,16 +441,16 @@ class _VaccineRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${l.t('vac_${v.id}')}$dose',
+                Text('${vaccineName(l, v)}$dose',
                     style: TextStyle(
                         fontSize: compact ? 13.5 : 14.5,
                         fontWeight: FontWeight.w700,
                         color: done ? Palette.textDim : Palette.text,
                         decoration: done ? TextDecoration.lineThrough : null,
                         decorationColor: Palette.textDim)),
-                if (!compact) ...[
+                if (!compact && vaccineNote(l, v).isNotEmpty) ...[
                   const SizedBox(height: 3),
-                  Text(l.t('vac_${v.id}_note'),
+                  Text(vaccineNote(l, v),
                       style: const TextStyle(
                           color: Palette.textDim, fontSize: 12.5, height: 1.4)),
                 ],

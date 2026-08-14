@@ -67,8 +67,20 @@ const ADMIN_VIEW_FOR = {
   // neighbouring screen exists.
   '16b': 'emergency-help',
   '17': 'audio',
+  // 17c «Детектор плача» — its own view, not «Аудио»: the two share nothing but
+  // a spec number. Audio is clips somebody uploads for a calendar day; this is
+  // the classifier's accuracy and the confidence threshold below which the app
+  // names no reason. Mapping it onto `audio` would report it as built because a
+  // neighbouring screen exists.
+  '17c': 'cry',
   '18': 'course', '21': 'review', '22': 'security', '23': 'staff',
   '23a': 'roles', '24': 'integrations', '24b': 'integrations',
+  // 25 «Уведомления» — its own view, not a card on «Маркетинг»: frame 06
+  // answers «кому мы решили написать» and this one answers «дошло ли, а если
+  // нет, то почему». Mapping it onto `marketing` would report it as built
+  // because a neighbouring screen exists — the failure this map already
+  // carries three warnings about.
+  '25': 'notifications',
 };
 
 function adminCoverage() {

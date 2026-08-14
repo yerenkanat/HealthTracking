@@ -142,6 +142,23 @@ const AGGREGATES_ONLY = new Set([
   'GET /admin/vaccination/coverage',
   'GET /admin/vaccination/impact',
   'GET /admin/vaccination/log',
+  // Frame 17c. GROUP BY over `cry_results` and one settings row: counts per
+  // reason, average confidence, how many mothers said the answer was right.
+  // No cry row of any individual family reaches the response — that is a rule
+  // of the route, not an accident of its shape — and it is the landing render
+  // of the tab, re-fetched after every threshold change, so auditing it would
+  // write several rows per edit and bury the one that matters. The write next
+  // door IS audited (`edit_cry_threshold`), because «кто поднял порог до 70 %»
+  // changes what every phone says and must have an answer.
+  'GET /admin/cry',
+  // Кадр 25. Counts of pushes by KIND, and counts of how many mothers switched
+  // each category off. Deliberately no identity of any sort reaches the
+  // response — that is asserted in notificationGate.test.ts, which checks the
+  // serialized body contains no user id — so there is no read here whose
+  // recording would tell anybody anything. Auditing it would write a row every
+  // time somebody opens the tab to check whether last night's рассылка went
+  // out, and bury the entries this log exists for.
+  'GET /admin/notifications',
 ]);
 
 // Shared with adminAuthorization.test.ts. Two copies of this parser would be

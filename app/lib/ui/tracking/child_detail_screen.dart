@@ -9,6 +9,8 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
+import '../../data/cry_settings_repository.dart';
+import '../../data/vaccination_schedule_repository.dart';
 import '../../domain/cry_analysis.dart';
 import '../../domain/family.dart';
 import '../../domain/geofence_alerts.dart';
@@ -419,10 +421,19 @@ String _developmentSummary(L10n l, int ageMonths) {
 /// The vaccination card: anything to catch up on, else due now, else the next
 /// visit. Catch-up (past its age and not recorded done) outranks the rest —
 /// it's the one thing that might need action.
+///
+/// Over the SERVED schedule and the SERVED catch-up window, like the screen the
+/// card opens. The two used to disagree the moment the back office moved a
+/// dose: the hub read the compiled-in calendar and said «пора», the screen
+/// behind it said «стоит наверстать».
 String _vaccinationSummary(L10n l, int ageMonths, Set<String> done) {
-  if (vaccinesToCatchUp(ageMonths, done).isNotEmpty) return l.t('vac_catchup');
-  if (vaccinesDue(ageMonths).isNotEmpty) return l.t('vac_due');
-  final months = monthsUntilNextVisit(ageMonths);
+  final schedule = servedVaccines();
+  final window = servedDueWindowMonths();
+  if (vaccinesToCatchUp(ageMonths, done, schedule, window).isNotEmpty) {
+    return l.t('vac_catchup');
+  }
+  if (vaccinesDue(ageMonths, schedule, window).isNotEmpty) return l.t('vac_due');
+  final months = monthsUntilNextVisit(ageMonths, schedule);
   return months == null
       ? l.t('vac_complete')
       : l.t('vac_in_months', {'n': months});
@@ -518,11 +529,19 @@ String _newbornSummary(L10n l, List<NewbornEvent> events, DateTime today) {
 
 /// Card summary for the cry-analysis tool: the last reason if there's history,
 /// else the one-line intro.
+///
+/// The threshold applies HERE TOO (кадр 17c). The screen inside refuses to name
+/// a reason it was not sure about, and a card outside it printing «Последняя
+/// проверка: голод» for the same recording would be the app disagreeing with
+/// itself — with the summary line, which is the one a parent reads in passing,
+/// making the confident claim.
 String _crySummary(L10n l, List<CryResult> history) {
   if (history.isEmpty) return l.t('cry_intro');
-  final code = CryReason.fromCode(history.first.reason) == null
-      ? 'unknown'
-      : history.first.reason;
+  final last = history.first;
+  if (!last.namesReasonAt(cryMinConfidence())) {
+    return l.t('cry_last', {'reason': l.t('cry_unsure_headline')});
+  }
+  final code = CryReason.fromCode(last.reason) == null ? 'unknown' : last.reason;
   return l.t('cry_last', {'reason': l.t('cry_reason_$code')});
 }
 

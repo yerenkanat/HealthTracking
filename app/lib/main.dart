@@ -15,17 +15,24 @@ import 'app/app.dart';
 import 'app/app_controller.dart';
 import 'core/geofence.dart';
 import 'package:path_provider/path_provider.dart';
+// Her IANA zone, for `users.timezone` — the clock the SERVER reads her quiet
+// hours against. Already a dependency: notification_service uses it to point
+// tz.local at the device's real zone.
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import 'data/announcements_repository.dart';
 import 'data/notification_service.dart';
 import 'data/content_repository.dart';
 import 'data/photo_paths.dart';
 import 'data/content_store.dart';
+import 'data/cry_settings_repository.dart';
 import 'data/emergency_help_repository.dart';
 import 'data/pregnancy_weeks_repository.dart';
+import 'data/vaccination_schedule_repository.dart';
 import 'data/prefs_app_store.dart';
 import 'data/prefs_telemetry_queue.dart';
 import 'domain/geofence_alerts.dart';
+import 'domain/notification_prefs.dart';
 import 'domain/notification_route.dart';
 import 'domain/notification_ids.dart';
 import 'domain/error_log.dart';
@@ -66,6 +73,30 @@ Geofence? _tryGeofence(Map<String, dynamic> j) {
   try {
     return Geofence.fromJson(j);
   } catch (_) {
+    return null;
+  }
+}
+
+/// The device's IANA zone — 'Europe/Berlin', not '+02:00' — or null.
+///
+/// This is what `users.timezone` on the server is set from, and what her quiet
+/// hours are read against there. Cached after the first answer because it is a
+/// platform channel call and every settings save would otherwise make one.
+///
+/// NULL RATHER THAN A GUESS on any failure. `DateTime.now().timeZoneName` is the
+/// tempting fallback and it is wrong twice over: it gives an abbreviation or an
+/// offset ('+05', 'CEST'), which is not an IANA name the server can resolve, and
+/// an offset cannot survive her clocks changing in October. A missing key leaves
+/// the server holding whatever it already had, which is the safe direction.
+String? _cachedTimezone;
+Future<String?> _deviceTimezone() async {
+  if (_cachedTimezone != null) return _cachedTimezone;
+  try {
+    final tz = (await FlutterTimezone.getLocalTimezone()).identifier;
+    if (tz.trim().isEmpty) return null;
+    return _cachedTimezone = tz;
+  } catch (_) {
+    // No platform channel (a widget test), or a platform that cannot say.
     return null;
   }
 }
@@ -154,11 +185,27 @@ Future<void> main() async {
   // The network refresh happens after runApp, like the catalogue's.
   await primePregnancyWeeksFromCache(const PrefsPregnancyWeeksCache());
 
+  // The immunisation calendar and its catch-up window (admin frames 15/15a/15b),
+  // from the last server answer this phone received. Read BEFORE first paint for
+  // the same reason as the pregnancy calendar, and for a sharper one: the window
+  // decides where «пора» ends and «стоит наверстать» begins on every row of the
+  // vaccination screen, and applying yesterday's number for a moment is fine
+  // while applying a number the back office replaced months ago is not. The
+  // bundled kzSchedule stays the floor, so a phone with no signal still opens
+  // the whole calendar.
+  await primeVaccinationScheduleFromCache(const PrefsVaccinationScheduleCache());
+
   // Screen 37's emergency scenarios, same ladder and for a sharper reason: the
   // screen is opened by somebody deciding whether to call an ambulance, and it
   // must never wait on a request or come up empty. The bundled asset is the
   // floor; this puts the newest published text on top of it before first paint.
   await primeEmergencyHelpFromCache(const PrefsEmergencyHelpCache());
+
+  // The cry detector's confidence threshold (кадр 17c), from the last answer
+  // this phone received. Read BEFORE first paint because it decides whether the
+  // screen NAMES a reason at all — applying yesterday's number for the first
+  // few seconds of a launch is fine; applying none is not.
+  await primeCryThresholdFromCache(const PrefsCryThresholdCache());
 
   // Рассылки from the back office, from the last response this phone received
   // (admin frame 06 → screen 39). Read BEFORE first paint for the same reason
@@ -575,6 +622,16 @@ Future<void> bootstrapRuntime(
       if (n != null) debugPrint('pregnancy weeks: refreshed $n week(s) from the server');
     }());
 
+    // The immunisation calendar, same shape. Frames 15/15a/15b — without this
+    // the back office can move the second pneumococcal dose all day and no phone
+    // ever finds out, which is exactly what it did before this call existed.
+    // Unauthenticated, so it runs on a fresh install too.
+    unawaited(() async {
+      final n = await refreshVaccinationScheduleFromApi(
+          api: api, cache: const PrefsVaccinationScheduleCache());
+      if (n != null) debugPrint('vaccination schedule: refreshed $n vaccine(s) from the server');
+    }());
+
     // The emergency scenarios, same shape. Frame 16b — without this the back
     // office can correct a first-aid instruction all day and no phone ever
     // finds out. Unauthenticated, so it runs on a fresh install too.
@@ -582,6 +639,16 @@ Future<void> bootstrapRuntime(
       final n = await refreshEmergencyHelpFromApi(
           api: api, cache: const PrefsEmergencyHelpCache());
       if (n != null) debugPrint('emergency help: refreshed $n scenario(s) from the server');
+    }());
+
+    // The cry threshold, same shape. Кадр 17c — without this the back office
+    // can raise the bar for naming a reason all day and no phone finds out, and
+    // the number goes back to needing a store rollout. Unauthenticated, so it
+    // runs on a fresh install too.
+    unawaited(() async {
+      final v = await refreshCryThresholdFromApi(
+          api: api, cache: const PrefsCryThresholdCache());
+      if (v != null) debugPrint('cry: threshold from the server is $v');
     }());
 
     // The рассылки, same shape: the cached copy is already on screen, so this
@@ -735,6 +802,44 @@ Future<void> bootstrapRuntime(
         delete: (id) => api.deleteAppointment(id),
       );
 
+      // Her notification switches and quiet hours — frame 25, screen 39.
+      //
+      // Three of the four categories gate notifications the SERVER raises: a
+      // zone crossing derived from a tracker fix this phone never saw, an
+      // operator's answer, a рассылка. Until this hook existed the switches
+      // were written to SharedPrefs and read by nothing else, so «Зоны: выкл»
+      // and quiet hours 22:00–07:00 stopped exactly the notifications this
+      // phone raised for itself and none of the ones it did not.
+      //
+      // NO first-sync push here. That is the obvious next line and it is a
+      // data-loss bug: on a fresh install this phone holds the DEFAULTS, and
+      // pushing them before the restore below has run would erase the quiet
+      // hours she set on her old phone. The upload happens after the GET, in
+      // the restore batch, and only when the two disagree.
+      //
+      // HER ZONE TRAVELS WITH THE WINDOW. `users.timezone` is what the server
+      // reads her quiet hours against, and nothing had ever written it: the
+      // column sat at its 'Asia/Almaty' default for everybody, so a mother in
+      // Berlin or Istanbul — the app ships ru/kk/en and there is a diaspora on
+      // all three — had 22:00–07:00 applied three or four hours early. A
+      // geofence push at 22:30 her time went out and one at 06:00 was held:
+      // quiet hours exactly wrong rather than merely absent.
+      //
+      // Sent as an IANA NAME, never an offset: the server has to survive her
+      // clocks changing in October, and '+02:00' cannot.
+      controller.attachNotificationPrefsSync(
+        push: (p) async {
+          final zone = await _deviceTimezone();
+          await api.putNotificationSettings({
+            ...p.toApiJson(),
+            // Omitted rather than guessed when the platform cannot say. The
+            // server leaves the stored zone alone for a missing key, which is
+            // the safe direction: a guess would overwrite a good one.
+            if (zone != null) 'timezone': zone,
+          });
+        },
+      );
+
       // Manual safety events — SOS and check-in. The one sync that is not a
       // backup: it is how an SOS pressed on this phone reaches the back-office
       // safety feed and the rest of the family at all. Alerts are keyed on the
@@ -774,6 +879,33 @@ Future<void> bootstrapRuntime(
       controller.attachCrySync(upsert: pushCry);
       for (final c in controller.cryHistory) {
         unawaited(pushCry(c));
+      }
+
+      // «Это было верно?» (кадр 17c). Wrapped in `pushed` rather than fired and
+      // forgotten: a verdict is the only ground truth this product has about
+      // why a baby cried, and one that silently 404s is one nobody can ever
+      // recover — the screen has already thanked her for it.
+      controller.attachCryVerdictSync(
+        push: (c) => pushed(
+            'cry verdict',
+            () => api.postCryVerdict(
+                at: c.at.toIso8601String(),
+                verdict: c.verdict!,
+                actualReason: c.actualReason),
+            errorLog: controller.errorLog),
+      );
+      // The verdicts already sitting in a history recorded while signed out.
+      // Without this they reach the server only if she happens to rate again.
+      for (final c in controller.cryHistory) {
+        if (c.verdict != null) {
+          unawaited(pushed(
+              'cry verdict',
+              () => api.postCryVerdict(
+                  at: c.at.toIso8601String(),
+                  verdict: c.verdict!,
+                  actualReason: c.actualReason),
+              errorLog: controller.errorLog));
+        }
       }
 
       // Push-only women's-health day-log sync (flow / mood / symptoms / kicks),
@@ -1090,6 +1222,28 @@ Future<void> bootstrapRuntime(
         _restore(() async {
           final days = await api.getDayLogs(from: '1970-01-01', to: '2999-12-31');
           controller.mergeRemoteDayLogs([for (final d in days) DayLog.fromJson(d)]);
+        }),
+
+        // Her notification switches and quiet hours (frame 25 / screen 39), so
+        // a new phone stops buzzing at 03:00 without her setting them again.
+        _restore(() async {
+          final raw = await api.getNotificationSettings();
+          // Null = the server could not answer (unmigrated database). Keep what
+          // this phone holds and retry next launch; adopting invented defaults
+          // over something she chose is the one outcome worse than not syncing.
+          if (raw == null) return;
+          final remote = NotificationPrefs.fromJson(raw);
+          // Local wins unless this install is untouched — see
+          // mergeRemoteNotificationPrefs for why "untouched" and not "present".
+          controller.mergeRemoteNotificationPrefs(remote);
+          // First-sync push, AFTER the merge and only on a real disagreement:
+          // an account that predates the server half uploads what she already
+          // chose. Doing it before the merge would push this phone's defaults
+          // over her real settings, which is the whole reason it is here and
+          // not beside attachNotificationPrefsSync.
+          if (controller.notificationPrefs != remote) {
+            controller.syncNotificationPrefs();
+          }
         }),
 
         // Paired trackers/bands, the pregnancy timing history, and the baby log.

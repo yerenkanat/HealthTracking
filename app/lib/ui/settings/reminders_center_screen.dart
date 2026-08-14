@@ -160,6 +160,25 @@ class RemindersCenterScreen extends StatelessWidget {
                         () => c.setNotificationPrefs(
                             c.notificationPrefs.copyWith(lowBattery: on))),
                   ).toRow(),
+                  // Рассылки and support answers — frames 06 and 43.
+                  //
+                  // Its own switch, never folded into «Отметки»: those two
+                  // notifications come from the product, not from her child's
+                  // tracker, and a mother silencing announcements must not
+                  // silence «ребёнок на месте» without being told.
+                  _ReminderTile(
+                    icon: Icons.campaign_rounded,
+                    color: Palette.roseDeep,
+                    title: l.t('notif_updates'),
+                    subtitle: l.t('notif_updates_sub'),
+                    value: c.notificationPrefs.updates,
+                    onChanged: (on) => _enable(
+                        context,
+                        c,
+                        on,
+                        () => c.setNotificationPrefs(
+                            c.notificationPrefs.copyWith(updates: on))),
+                  ).toRow(),
                   _ReminderTile(
                     icon: Icons.bedtime_rounded,
                     color: Palette.violet,

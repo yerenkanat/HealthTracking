@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
 import 'package:fcs_app/core/geofence.dart';
+import 'package:fcs_app/domain/cry_analysis.dart';
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/geofence_alerts.dart';
 import 'package:fcs_app/domain/phone_auth.dart';
@@ -104,6 +105,31 @@ void main() {
     // The cry tool is a first-class Care card (its title), not a header icon
     // buried inside the newborn log.
     expect(find.text('Why is baby crying'), findsOneWidget);
+  });
+
+  testWidgets('the cry card does not name a reason the screen inside refuses to name', (tester) async {
+    // Кадр 17c. The summary line is the one a parent reads in passing, so a
+    // card saying «Последняя проверка: голод» about a 21 %-confidence analysis
+    // is the app making its most confident claim in the place it is least
+    // examined — while the screen behind the card says «не уверены».
+    final c = AppController(now: () => now);
+    c.configureChild(name: 'Sultan', fences: [home], dateOfBirth: DateTime(2026, 5, 1));
+    c.signIn(AuthSession(userId: 'u1', phoneE164: '+77001112233', token: 't', signedInAt: now));
+    addTearDown(c.dispose);
+
+    c.recordCry(const CryAnalysis(
+        primaryReason: 'hungry', confidence: 0.21,
+        probabilities: {'hungry': 21}, recommendationRu: ''));
+    await tester.pumpWidget(wrap(c));
+    expect(find.text('Last check: Hunger'), findsNothing);
+    expect(find.text('Last check: Not sure'), findsOneWidget);
+
+    // A confident one is still named — the rule is a threshold, not a gag.
+    c.recordCry(const CryAnalysis(
+        primaryReason: 'hungry', confidence: 0.91,
+        probabilities: {'hungry': 91}, recommendationRu: ''));
+    await tester.pumpAndSettle();
+    expect(find.text('Last check: Hunger'), findsOneWidget);
   });
 
   testWidgets('cry card is hidden when signed out (the classifier needs auth)', (tester) async {

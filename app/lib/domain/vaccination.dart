@@ -48,7 +48,41 @@ class Vaccine {
   /// for single-dose vaccines.
   final int? dose;
 
-  const Vaccine({required this.id, required this.atMonth, this.dose});
+  /// What the BACK OFFICE says this vaccine is called, and the line under it —
+  /// per language, and null when nobody has written one.
+  ///
+  /// Null is not empty, and the distinction is the whole reason these are
+  /// nullable. Every entry of [kzSchedule] leaves all four null: the shipped
+  /// calendar's names live in the app's own l10n table under `vac_<id>` and
+  /// `vac_<id>_note`, which is a better Kazakh label — and a better English
+  /// one — than anything a server merge could invent. A row that arrives from
+  /// `GET /vaccination/schedule` carries only what somebody actually typed, so
+  /// an edited Russian name wins over l10n while an untouched Kazakh one still
+  /// falls back to the translation this app ships.
+  ///
+  /// A vaccine ADDED in the back office has no l10n key at all, so these four
+  /// are the only words it will ever have — which is why the panel refuses to
+  /// save one without them.
+  final String? ru;
+  final String? kk;
+  final String? ruNote;
+  final String? kkNote;
+
+  /// Not in the shipped contract: it exists only because the back office added
+  /// it. Kept so the UI can tell "no translation yet" from "no translation
+  /// possible".
+  final bool added;
+
+  const Vaccine({
+    required this.id,
+    required this.atMonth,
+    this.dose,
+    this.ru,
+    this.kk,
+    this.ruNote,
+    this.kkNote,
+    this.added = false,
+  });
 }
 
 /// The Kazakhstan national calendar, ordered by age.
@@ -96,15 +130,23 @@ enum VaccineStatus {
   passed,
 }
 
-/// How long a vaccine reads as "due now" rather than "passed".
+/// How long a vaccine reads as "due now" rather than "passed" — the SHIPPED
+/// default.
 ///
 /// A month, because that is roughly the appointment cadence: something due at
 /// 4 months is still the thing to ask about at a visit a few weeks later.
+///
+/// It is a default and no longer a law: the back office can move it
+/// (`vaccination_settings.due_window_months`, admin frame 15), the served
+/// schedule carries the chosen value, and every function below takes it as an
+/// argument. This constant is what a phone applies before it has ever heard
+/// from the server — see data/vaccination_schedule_repository.dart.
 const dueWindowMonths = 1;
 
-VaccineStatus vaccineStatus(Vaccine v, int ageMonths) {
+VaccineStatus vaccineStatus(Vaccine v, int ageMonths,
+    [int windowMonths = dueWindowMonths]) {
   if (ageMonths < v.atMonth) return VaccineStatus.upcoming;
-  if (ageMonths <= v.atMonth + dueWindowMonths) return VaccineStatus.due;
+  if (ageMonths <= v.atMonth + windowMonths) return VaccineStatus.due;
   return VaccineStatus.passed;
 }
 
@@ -123,8 +165,13 @@ Map<int, List<Vaccine>> scheduleByAge([List<Vaccine> schedule = kzSchedule]) {
 }
 
 /// Vaccines due around [ageMonths] now.
-List<Vaccine> vaccinesDue(int ageMonths, [List<Vaccine> schedule = kzSchedule]) =>
-    [for (final v in schedule) if (vaccineStatus(v, ageMonths) == VaccineStatus.due) v];
+List<Vaccine> vaccinesDue(int ageMonths,
+        [List<Vaccine> schedule = kzSchedule,
+        int windowMonths = dueWindowMonths]) =>
+    [
+      for (final v in schedule)
+        if (vaccineStatus(v, ageMonths, windowMonths) == VaccineStatus.due) v
+    ];
 
 /// A stable key for one injection — id plus dose — used to record that a parent
 /// has marked it done. Matches the uniqueness the schedule guards.
@@ -136,10 +183,13 @@ String vaccineKey(Vaccine v) => '${v.id}/${v.dose}';
 ///
 /// [done] is the set of [vaccineKey]s she has ticked.
 List<Vaccine> vaccinesToCatchUp(int ageMonths, Set<String> done,
-        [List<Vaccine> schedule = kzSchedule]) =>
+        [List<Vaccine> schedule = kzSchedule,
+        int windowMonths = dueWindowMonths]) =>
     [
       for (final v in schedule)
-        if (vaccineStatus(v, ageMonths) == VaccineStatus.passed && !done.contains(vaccineKey(v))) v
+        if (vaccineStatus(v, ageMonths, windowMonths) == VaccineStatus.passed &&
+            !done.contains(vaccineKey(v)))
+          v
     ];
 
 /// How many of the whole schedule the parent has recorded as done.

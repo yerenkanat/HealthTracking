@@ -37,6 +37,7 @@ import { RateLimiter } from './http/rateLimit';
 import { antenatalProtocol } from './antenatal/protocol';
 import { servedCalendar, weekOf } from './pregnancy/served';
 import { servedEmergencyHelp } from './emergency/served';
+import { servedCryThreshold } from './cry/settings';
 import { childDevCalendar, devWeekContent } from './child/development';
 import { appVersionInfo } from './app/version';
 import { servedVaccinationSchedule } from './vaccination/served';
@@ -605,6 +606,20 @@ export function buildServer(
     if (!content) return reply.code(404).send({ error: 'not_found' });
     return reply.send(content);
   });
+
+  // Public reference data: the cry detector's confidence threshold — frame 17c.
+  //
+  // The shipped default (0.45) WITH the back office's override on top, exactly
+  // like the two calendars above and for the same reason: until this route
+  // existed the number lived in a Dart constant, so «модель стала хуже на
+  // шумных записях, поднимите порог» meant a store rollout. Now the panel
+  // changes it and every phone picks it up on its next launch.
+  //
+  // Unauthenticated: it is one number about the model, identical for everyone,
+  // and it names nobody. The app carries the same default as a constant, so a
+  // phone with no signal applies a threshold rather than none — and if this
+  // database is unreachable, so does this route.
+  app.get('/protocols/cry', async () => servedCryThreshold(deps.repo));
 
   // Public reference data: the emergency-help scenarios (ru + kk).
   //

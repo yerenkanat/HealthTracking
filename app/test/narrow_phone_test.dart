@@ -1159,6 +1159,63 @@ void main() {
     );
   });
 
+  testWidgets('the «это было верно?» chips fit at 130%', (tester) async {
+    // Кадр 17c's second card, in the state that has the most on screen: she
+    // said «нет», so five reason chips and «Не знаю» are laid out at once. The
+    // screen has to be DRIVEN there — a card that only exists after a
+    // recording is a state this sweep would otherwise never measure.
+    const l = L10n(AppLocale.ru);
+    await fits(
+      tester,
+      () => CryInsightScreen(
+        recorder: _StubRecorder(),
+        client: _stubCryClient(),
+        onVerdict: (_, __) => true,
+      ),
+      'the cry verdict chips',
+      textScale: 1.3,
+      afterPump: (t) async {
+        await t.tap(find.text(l.t('cry_record')));
+        await t.pump();
+        await t.pump(const Duration(seconds: cryRecordSeconds));
+        await t.pumpAndSettle();
+        final no = find.text(l.t('cry_verdict_no'));
+        await t.ensureVisible(no);
+        await t.pumpAndSettle();
+        await t.tap(no);
+        await t.pumpAndSettle();
+        await t.ensureVisible(find.text(l.t('cry_verdict_dont_know')));
+        await t.pumpAndSettle();
+      },
+    );
+  });
+
+  testWidgets('the cry history fits with a verdict on every row at 130%', (tester) async {
+    // Кадр 17c added a second line under each history row («Вы отметили:
+    // неверно, было «Боль в животе»») and an unnamed row for an analysis below
+    // the threshold. The longest of both, at the largest text, on the narrowest
+    // phone — the combination that broke the confidence column before.
+    await fits(
+      tester,
+      () => CryInsightScreen(
+        recorder: _StubRecorder(),
+        client: _stubCryClient(),
+        history: [
+          CryResult(
+              at: now.subtract(const Duration(hours: 2)), reason: 'belly_pain',
+              confidence: 0.82, verdict: CryVerdict.wrong, actualReason: 'discomfort'),
+          CryResult(
+              at: now.subtract(const Duration(days: 1)), reason: 'hungry',
+              confidence: 0.91, verdict: CryVerdict.correct),
+          // Below the shipped threshold: named as «не уверены», not as a reason.
+          CryResult(at: now.subtract(const Duration(days: 2)), reason: 'tired', confidence: 0.21),
+        ],
+      ),
+      'the cry history with verdicts',
+      textScale: 1.3,
+    );
+  });
+
   // ---- 360dp with the font-size slider turned up -------------------------
   //
   // The combination that actually breaks layouts: the narrowest screen and the

@@ -272,5 +272,102 @@ void main() {
     expect(categoryOfAlert(AlertKind.left), NotifyCategory.zoneEvents);
     expect(categoryOfAlert(AlertKind.checkIn), NotifyCategory.checkIn);
     expect(categoryOfAlert(AlertKind.lowBattery), NotifyCategory.lowBattery);
+    // `updates` is deliberately not in this map: no AlertKind produces it. It
+    // gates what the SERVER sends (рассылки, support answers), which this phone
+    // never raises — which is exactly why the switch had to leave the device.
+  });
+
+  // ---- The switches have to leave the phone -------------------------------
+  //
+  // Three of the four categories gate notifications this app never raises: a
+  // zone crossing the server derived from a tracker fix, an operator's answer,
+  // a рассылка. Stored only in SharedPrefs they controlled nothing at all for
+  // those, and the screen promising otherwise was telling the truth about a
+  // switch wired to nothing. These tests are about the WIRE.
+
+  test('flipping a switch pushes it to the server', () async {
+    final c = _at(noon);
+    final pushed = <NotificationPrefs>[];
+    c.attachNotificationPrefsSync(push: (p) async => pushed.add(p));
+
+    c.setNotificationPrefs(const NotificationPrefs(zoneEvents: false));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(pushed, hasLength(1));
+    expect(pushed.single.zoneEvents, isFalse);
+    c.dispose();
+  });
+
+  test('setting the same object again pushes nothing', () async {
+    // The reminders screen rebuilds on every stream tick and would otherwise
+    // re-push the same preferences on each rebuild.
+    final c = _at(noon);
+    final pushed = <NotificationPrefs>[];
+    c.attachNotificationPrefsSync(push: (p) async => pushed.add(p));
+
+    c.setNotificationPrefs(const NotificationPrefs(checkIn: false));
+    c.setNotificationPrefs(const NotificationPrefs(checkIn: false));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(pushed, hasLength(1));
+    c.dispose();
+  });
+
+  test('a failed push never surfaces as an error on the toggle', () async {
+    final c = _at(noon);
+    c.attachNotificationPrefsSync(push: (_) async => throw StateError('offline'));
+
+    c.setNotificationPrefs(const NotificationPrefs(updates: false));
+    await Future<void>.delayed(Duration.zero);
+
+    // The value is kept locally, and the next change or launch retries.
+    expect(c.notificationPrefs.updates, isFalse);
+    c.dispose();
+  });
+
+  test('a new phone adopts the switches she set on the old one', () async {
+    final c = _at(noon); // untouched install — everything at the defaults
+    c.mergeRemoteNotificationPrefs(
+        const NotificationPrefs(zoneEvents: false, quietStart: 1320, quietEnd: 420));
+
+    expect(c.notificationPrefs.zoneEvents, isFalse);
+    expect(c.notificationPrefs.hasQuietHours, isTrue);
+    c.dispose();
+  });
+
+  test('a restore never overwrites what she just changed on THIS phone', () async {
+    final c = _at(noon);
+    c.setNotificationPrefs(const NotificationPrefs(updates: false));
+
+    c.mergeRemoteNotificationPrefs(const NotificationPrefs()); // server says all-on
+
+    expect(c.notificationPrefs.updates, isFalse,
+        reason: 'a stale server copy undid a switch she flipped seconds ago');
+    c.dispose();
+  });
+
+  test('a restore does not echo the server\'s own copy back at it', () async {
+    final c = _at(noon);
+    final pushed = <NotificationPrefs>[];
+    c.attachNotificationPrefsSync(push: (p) async => pushed.add(p));
+
+    c.mergeRemoteNotificationPrefs(const NotificationPrefs(lowBattery: false));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(pushed, isEmpty);
+    c.dispose();
+  });
+
+  test('muting «Новости» leaves the child\'s own alerts alone', () async {
+    // The trap: рассылки have no AlertKind, so the tempting shortcut is to hang
+    // them off checkIn. A mother silencing announcements would then silence
+    // «ребёнок на месте» with nothing to tell her which switch did it.
+    final c = _at(noon);
+    c.setNotificationPrefs(const NotificationPrefs(updates: false));
+
+    final fired = await _delivered(c, () => c.logChildEvent(AlertKind.checkIn));
+
+    expect(fired.map((a) => a.kind), [AlertKind.checkIn]);
+    c.dispose();
   });
 }

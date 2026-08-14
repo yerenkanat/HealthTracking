@@ -27,6 +27,9 @@ import { emergencyHelp, contractScenario } from '../emergency/help';
 import { scenarioAsReviewable, type EmergencyHelpOverride } from '../emergency/overrides';
 import { servedEmergencyHelp } from '../emergency/served';
 import {
+  CRY_MIN_CONFIDENCE_MAX, CRY_MIN_CONFIDENCE_MIN, servedCryThreshold,
+} from '../cry/settings';
+import {
   ageLabelRu, contractKey, vaccineAsReviewable, vaccineKeyOf,
   type VaccinationOverride,
 } from '../vaccination/overrides';
@@ -42,6 +45,7 @@ import {
   SEGMENT_FIELDS, describeSegment, normalizeSegment, segmentMessage, validateSegment,
   type BroadcastSegment,
 } from '../admin/broadcasts';
+import { HOLD_REASON_RU, NOTIFY_CATEGORIES } from '../notifications/gate';
 import { summarizeSecurity } from '../admin/security';
 import { buildOwnerDashboard } from '../admin/ownerDashboard';
 import { buildMotherCard } from '../admin/motherCard';
@@ -312,6 +316,13 @@ const vaccinationBody = z.object({
 });
 
 /// The catch-up window, in months. 1..12 matches the column's CHECK.
+// Frame 17c. A fraction, not a percentage: the app, the database and the
+// public route all speak 0..1, and converting in three places is how 45
+// becomes 0.45 in two of them and 45.0 in the third. The panel does the ×100
+// for the human and sends the fraction back.
+const cryThresholdBody = z.object({
+  minConfidence: z.number().min(CRY_MIN_CONFIDENCE_MIN).max(CRY_MIN_CONFIDENCE_MAX),
+});
 const vaccinationSettingsBody = z.object({
   dueWindowMonths: z.number().int().min(1).max(12),
 });
@@ -2148,6 +2159,99 @@ export function registerAdminRoutes(
     }
   });
 
+  // ---- Детектор плача (кадр 17c) ------------------------------------------
+  //
+  // READ THIS BEFORE PRINTING ANY NUMBER FROM HERE AS «ТОЧНОСТЬ».
+  //
+  // `cry_results` records what the classifier ANSWERED — a reason and its own
+  // confidence. Until migration 046 there was no column anywhere in this
+  // product saying whether the answer was right, and there still is no other
+  // source of one: nothing here reads a clinic, and the recording itself is
+  // never stored (см. __tests__/cryNotStored.test.ts), so nobody can go back
+  // and listen. A model's confidence is not evidence about the model.
+  //
+  // So accuracy is computed over RATED rows only — the analyses a mother
+  // answered «это было верно?» about — and the response carries `unrated` and
+  // `ratedSince` beside it so the panel can say «оценок пока нет · собираем
+  // с …» instead of inventing a percentage out of average confidence.
+  //
+  // Aggregates only. No cry row of any individual mother reaches this response:
+  // it is GROUP BY reason and nothing else, because a per-mother list here
+  // would be a feed of one family's nights in a back office.
+
+  const CRY_WINDOW_DAYS = 30;
+
+  app.get('/admin/cry', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const [threshold, stats] = await Promise.all([
+      servedCryThreshold(repo),
+      repo.cryStats(CRY_WINDOW_DAYS).catch(() => null),
+    ]);
+    if (!stats) {
+      // A screen of zeroes would read as «детектором никто не пользуется»,
+      // which is a claim about the product, not about a failed query.
+      return reply.code(503).send({
+        error: 'cry_stats_unavailable',
+        message: 'Не удалось посчитать статистику детектора — таблица разборов сейчас недоступна. ' +
+          'Порог ниже верен; цифры не показаны, и это не нули.',
+      });
+    }
+    const rated = stats.byReason.reduce((n, r) => n + r.correct + r.wrong, 0);
+    const correct = stats.byReason.reduce((n, r) => n + r.correct, 0);
+    return reply.send({
+      windowDays: CRY_WINDOW_DAYS,
+      ...stats,
+      minConfidence: threshold.minConfidence,
+      defaultMinConfidence: threshold.defaultMinConfidence,
+      thresholdSource: threshold.source,
+      thresholdUpdatedAt: threshold.updatedAt,
+      maxMinConfidence: CRY_MIN_CONFIDENCE_MAX,
+      // `...stats` above already carries `firstAt` — «собираем с …», the only
+      // honest thing to print where a percentage would go while nothing has
+      // been rated. Not re-exported under a second name: two fields holding one
+      // value is how a panel ends up showing two different dates.
+      /// Rated by a mother. THE denominator of every accuracy figure here.
+      rated,
+      correct,
+      /// null, never 0, when nothing has been rated: «нет данных» and «0 %
+      /// правильных» are opposite statements about the model.
+      accuracy: rated > 0 ? correct / rated : null,
+      /// Where the ground truth comes from, in the payload rather than left to
+      /// whoever writes the HTML — the same discipline as the vaccination
+      /// coverage route's `sourceNote`.
+      source: 'mother_verdicts',
+      sourceNote: 'Точность считается только по разборам, которые мама оценила сама («это было верно?»). ' +
+        'Уверенность модели — это её мнение о себе, и точностью не является.',
+      audioNote: 'Записи не хранятся: клип уходит в классификатор и нигде не сохраняется, ' +
+        'поэтому послушать разбор из панели нельзя.',
+      rule: `Окно — ${CRY_WINDOW_DAYS} дней. «Ниже порога» — разборы с уверенностью меньше ` +
+        `${Math.round(threshold.minConfidence * 100)} %: приложение по ним НЕ называет причину.`,
+    });
+  });
+
+  /**
+   * The threshold, changed without a release — the whole point of frame 17c.
+   *
+   * Below it the app names no reason: it says «не уверены», keeps the bars and
+   * asks for another recording. Raising it means more «не уверены» and fewer
+   * confident wrong answers; lowering it the reverse. The panel states that
+   * consequence beside the field, and this route states the range.
+   */
+  app.put('/admin/cry/threshold', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const parsed = cryThresholdBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    await repo.setCryThreshold({ minConfidence: parsed.data.minConfidence, updatedBy: s.staffId });
+    await repo.writeAudit({
+      staffId: s.staffId,
+      action: 'edit_cry_threshold',
+      target: `minConfidence=${parsed.data.minConfidence}`,
+    });
+    return reply.send({ ok: true, minConfidence: parsed.data.minConfidence });
+  });
+
   // ---- Рассылки (frame 06 «Маркетинг») ------------------------------------
   //
   // Writing to every pregnant user at once is the most dangerous button in this
@@ -2425,6 +2529,73 @@ export function registerAdminRoutes(
       userIds: undefined,
       pushed,
       minGapDays: BROADCAST_MIN_GAP_DAYS,
+    });
+  });
+
+  /**
+   * How far back frame 25 looks by default.
+   *
+   * Thirty days, the same window as the cry detector's, because both answer
+   * «работает ли это сейчас» rather than «сколько всего». A lifetime total
+   * would keep looking healthy for months after delivery broke.
+   */
+  const NOTIFY_WINDOW_DAYS = 30;
+
+  /**
+   * КАДР 25 · УВЕДОМЛЕНИЯ — what happened to every push we tried to send.
+   *
+   * Listed in the spec and never built, which is why nothing in this product
+   * could answer the two questions a notification feature generates: «сколько
+   * дошло» and «почему ЕЙ не пришло». The marketing tab's «Доставлено N» counts
+   * ledger rows — people we decided to write to — and says nothing about
+   * phones.
+   *
+   * THREE THINGS THIS DELIBERATELY DOES NOT RETURN.
+   *
+   * An open rate. FCM accepting a message is not a phone displaying it and is
+   * certainly not a woman reading it. Nothing in this product records an open,
+   * so there is no such number to print and none is derived.
+   *
+   * A padded list of kinds. A kind nothing happened to is absent, not a row of
+   * zeros: «broadcast 0 0 0» reads as a broken sender, when the truth is that
+   * nobody has sent one this week.
+   *
+   * Anybody's identity. The held counts say how many attempts were held and
+   * why, never who — the switches are hers, and a back office does not need a
+   * list of women who muted advertisements to know the feature works.
+   *
+   * `content` rather than `staff`: this is the delivery half of the marketing
+   * and support screens, and it is the content editor who writes the messages
+   * whose fate it reports.
+   */
+  app.get('/admin/notifications', async (req, reply) => {
+    const s = await requireCap(req, reply, 'content');
+    if (!s) return;
+    const raw = Number((req.query as { days?: string }).days ?? NOTIFY_WINDOW_DAYS);
+    const days = Number.isFinite(raw) ? Math.min(90, Math.max(1, Math.trunc(raw))) : NOTIFY_WINDOW_DAYS;
+    let summary;
+    try {
+      summary = await repo.pushDeliverySummary(days);
+    } catch {
+      // Migration 047 not applied, or a database blip. Said out loud rather
+      // than answered with zeros: «доставлено 0» and «мы не смогли прочитать»
+      // call for opposite reactions, and an empty table that means the second
+      // one is how somebody spends an afternoon debugging a working sender.
+      return reply.code(503).send({
+        error: 'notifications_unavailable',
+        message: 'Не удалось прочитать журнал отправок (push_deliveries). Пока база не ответит, ' +
+          'цифр здесь не будет — ноль читался бы как «ничего не отправлялось».',
+      });
+    }
+    return reply.send({
+      ...summary,
+      // The vocabulary travels with the data, so the panel labels the same
+      // reasons the server writes and cannot invent a third.
+      holdReasons: HOLD_REASON_RU,
+      categories: NOTIFY_CATEGORIES,
+      // Stated by the server, so the footer's promise and the gate's behaviour
+      // are one fact rather than two.
+      alwaysDelivered: ['sos', 'emergency'],
     });
   });
 

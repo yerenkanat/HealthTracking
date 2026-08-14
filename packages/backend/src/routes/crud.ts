@@ -10,6 +10,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository } from '../db/repository';
+import { CRY_VERDICTS } from '../db/repository';
 import type { Geofence } from '@fcs/shared';
 import type { LeadNotifier } from '../notifications/leadAlert';
 import { normalizePhone } from '../http/staffAuth';
@@ -23,6 +24,7 @@ import {
   ACCESS_LEVELS, canWrite, checkInvite, grantCovers, inviteExpiry, isAccessLevel,
   isOpen, MAX_OPEN_INVITES, SHAREABLE, type Shareable,
 } from '../family/access';
+import { isKnownTimezone } from '../notifications/gate';
 
 /**
  * Only the hash is stored, so the table is not a set of working links.
@@ -51,6 +53,37 @@ const deviceBody = z.object({
   kind: z.enum(['band', 'tag']),
   childId: z.string().uuid().nullable().optional(),
 });
+/**
+ * PUT /notifications/settings — frame 25 / screen 39.
+ *
+ * Four booleans and a window, and NOT an SOS switch. There is no field for it
+ * because there is no such preference: an alarm the product exists to deliver
+ * must not be refusable through a JSON body that the screen never shows.
+ *
+ * Minutes since midnight, 0–1439 IN HER TIMEZONE. 1440 is rejected rather than
+ * clamped — it is the commonest off-by-one here and would store a boundary
+ * nobody can ever be inside.
+ */
+const notificationSettingsBody = z.object({
+  zoneEvents: z.boolean(),
+  checkIn: z.boolean(),
+  lowBattery: z.boolean(),
+  // Рассылки and support answers. A separate switch, never a reuse of checkIn:
+  // muting advertisements must not mute «ребёнок на месте».
+  updates: z.boolean(),
+  quietStart: z.number().int().min(0).max(1439).nullable().optional(),
+  quietEnd: z.number().int().min(0).max(1439).nullable().optional(),
+  /**
+   * The IANA zone her quiet hours are read against — 'Europe/Berlin', not '+02:00'.
+   *
+   * OPTIONAL, because an app build older than this one sends none and must keep
+   * saving its switches. Absent means "leave the stored zone alone"; it can
+   * never mean Asia/Almaty, which is what the whole product silently assumed
+   * while nothing wrote this column at all.
+   */
+  timezone: z.string().trim().min(1).max(64).optional(),
+});
+
 const appointmentBody = z.object({
   id: z.string().min(1).max(64),
   title: z.string().min(1).max(200),
@@ -152,6 +185,13 @@ const cryResultBody = z.object({
   at: z.string(),
   reason: z.string().max(40),
   confidence: z.number().min(0).max(1),
+});
+// Frame 17c. `actualReason` is optional and free-form up to the same 40
+// characters as `reason`: the classifier's five codes are what the app offers,
+// but a mother who picks «другое» must not be refused for saying so.
+const cryVerdictBody = z.object({
+  verdict: z.enum(CRY_VERDICTS),
+  actualReason: z.string().max(40).nullable().optional(),
 });
 const weightBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -1232,8 +1272,48 @@ export function registerCrudRoutes(
     if (!u) return;
     const parsed = cryResultBody.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-    await repo.recordCry(u.userId, parsed.data);
+    // Stored normalised, so the verdict route below can find this row by the
+    // same instant written any legal way. Postgres does this on its own (the
+    // column is a timestamptz); the in-memory repository compares strings, and
+    // a fake where '…00Z' and '…00.000Z' are two analyses would hide a verdict
+    // that silently 404s in development and works in production.
+    const at = new Date(parsed.data.at);
+    if (Number.isNaN(at.getTime())) return reply.code(400).send({ error: 'bad_at' });
+    await repo.recordCry(u.userId, { ...parsed.data, at: at.toISOString() });
     return reply.code(201).send({ ok: true });
+  });
+
+  /**
+   * «Это было верно?» — frame 17c.
+   *
+   * The ONLY ground truth this product will ever have about why a baby cried.
+   * Nothing here reads a clinic, the clip is never stored, and the model's own
+   * confidence is not evidence about itself — so without this route every
+   * «точность» figure in the back office would be a restatement of the average
+   * confidence wearing the word accuracy.
+   *
+   * Keyed by the instant of the analysis and scoped to the caller: 404 when she
+   * has no such row, rather than silently accepting a verdict about nothing.
+   */
+  app.post('/cry/results/:at/verdict', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = cryVerdictBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    // The path segment is an ISO instant; normalise it so '…09:00:00Z' and
+    // '…09:00:00.000Z' are the same analysis rather than two.
+    const raw = decodeURIComponent((req.params as { at: string }).at);
+    const at = new Date(raw);
+    if (Number.isNaN(at.getTime())) return reply.code(400).send({ error: 'bad_at' });
+    const ok = await repo.recordCryVerdict(
+      u.userId,
+      at.toISOString(),
+      parsed.data.verdict,
+      // «Верно» carries no actual reason: the reason is the one already stored.
+      parsed.data.verdict === 'wrong' ? (parsed.data.actualReason ?? null) : null,
+    );
+    if (!ok) return reply.code(404).send({ error: 'not_found' });
+    return reply.send({ ok: true });
   });
 
   // ---- Maternal weight (upsert on the date) ----
@@ -1336,6 +1416,89 @@ export function registerCrudRoutes(
       req.log.warn(`announcements unavailable — ${e instanceof Error ? e.message : String(e)}`);
       return reply.code(503).send({ error: 'announcements_unavailable' });
     }
+  });
+
+  // ---- Notification settings (screen 39 → «Настроить остальные») ----------
+  //
+  // The other end of `lib/domain/notification_prefs.dart`. Those switches have
+  // existed on the phone for months and reached exactly one thing: the
+  // notifications that phone raised for itself. Everything the SERVER sends —
+  // a zone crossing derived from a tracker fix, an operator's answer, a
+  // рассылка — went out regardless, so a mother who turned «Зоны» off and set
+  // quiet hours still had her phone light up at three in the morning.
+  //
+  // GET is the restore side: a new phone reads what she chose on the old one.
+  // PUT is the whole object rather than a patch — the screen holds every
+  // switch on it at once, so there is no partial write to get wrong.
+  app.get('/notifications/settings', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    try {
+      const p = await repo.getNotificationPrefs(u.userId);
+      return reply.send({
+        settings: {
+          zoneEvents: p.zoneEvents,
+          checkIn: p.checkIn,
+          lowBattery: p.lowBattery,
+          updates: p.updates,
+          quietStart: p.quietStart,
+          quietEnd: p.quietEnd,
+        },
+        // Echoed so the app can SAY which clock the quiet hours are read
+        // against. A window she set at 22:00 that fires by a timezone she
+        // cannot see is worse than no window at all.
+        timezone: p.timezone,
+        // Null while she has never saved anything: these are the defaults, and
+        // the screen must not claim she chose them.
+        updatedAt: p.updatedAt,
+        // Stated by the server as well as printed by the app, because it is a
+        // server rule: SOS and medical emergencies pass every switch.
+        alwaysDelivered: ['sos', 'emergency'],
+      });
+    } catch (e) {
+      // An unmigrated database must not take the settings screen down. The app
+      // keeps its local copy and retries; answering 200 with invented defaults
+      // would look like a successful read of an empty preference set and could
+      // overwrite what she actually chose.
+      req.log.warn(`notification settings unavailable — ${e instanceof Error ? e.message : String(e)}`);
+      return reply.code(503).send({ error: 'notification_settings_unavailable' });
+    }
+  });
+
+  app.put('/notifications/settings', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = notificationSettingsBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const b = parsed.data;
+    // Half a window is no window — the same tolerance the app and the gate
+    // have, so a client that sends only a start cannot create a quiet period
+    // nobody can see on the screen or clear from it.
+    const both = b.quietStart != null && b.quietEnd != null;
+    // A zone this runtime cannot resolve is refused rather than stored, for the
+    // same reason 1440 is refused above: a window evaluated against a fallback
+    // she never chose is quiet hours that are exactly wrong, and nothing on the
+    // screen would say so. GET echoes what we stored, so she can see it.
+    if (b.timezone !== undefined && !isKnownTimezone(b.timezone)) {
+      return reply.code(400).send({ error: 'bad_timezone' });
+    }
+    try {
+      // The clock BEFORE the window, so a save can never leave new quiet hours
+      // being read against the old zone.
+      if (b.timezone !== undefined) await repo.setUserTimezone(u.userId, b.timezone);
+      await repo.putNotificationPrefs(u.userId, {
+        zoneEvents: b.zoneEvents,
+        checkIn: b.checkIn,
+        lowBattery: b.lowBattery,
+        updates: b.updates,
+        quietStart: both ? b.quietStart! : null,
+        quietEnd: both ? b.quietEnd! : null,
+      });
+    } catch (e) {
+      req.log.warn(`notification settings not saved — ${e instanceof Error ? e.message : String(e)}`);
+      return reply.code(503).send({ error: 'notification_settings_unavailable' });
+    }
+    return reply.send({ ok: true });
   });
 
   // ---- Child safety alerts (zone enter/exit) ----

@@ -22,11 +22,13 @@ import type {
 import type { Repository } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { normalizePhone } from '../phone.js';
+import { CRY_MIN_CONFIDENCE_DEFAULT } from '../cry/settings.js';
 import { computeBiMetrics, type BiEventKind } from '../analytics/biMetrics.js';
 import {
   BROADCAST_MIN_GAP_DAYS, INFANT_MAX_MONTHS, normalizeSegment,
   type BroadcastSegment,
 } from '../admin/broadcasts.js';
+import { DEFAULT_PREFS, FALLBACK_TZ } from '../notifications/gate.js';
 
 /**
  * One purchase order out of its own row plus its item rows (migration 045).
@@ -2231,6 +2233,146 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    // ---- Notifications (frame 25 «Уведомления») ----
+    //
+    // The join is the whole point of the first query: the switches live in
+    // notification_prefs and the CLOCK they are read against lives in
+    // users.timezone, and fetching them separately is how one of the two gets
+    // forgotten. A LEFT JOIN, because most accounts have no prefs row — and
+    // COALESCE fills the defaults so a missing row can never read as «она
+    // отключила».
+    async getNotificationPrefs(userId) {
+      const { rows } = await pool.query(
+        `SELECT u.timezone,
+                COALESCE(p.zone_events, TRUE) AS zone_events,
+                COALESCE(p.check_in,    TRUE) AS check_in,
+                COALESCE(p.low_battery, TRUE) AS low_battery,
+                COALESCE(p.updates,     TRUE) AS updates,
+                p.quiet_start, p.quiet_end, p.updated_at
+           FROM users u
+           LEFT JOIN notification_prefs p ON p.user_id = u.id
+          WHERE u.id = $1`,
+        [userId]);
+      const r = rows[0];
+      // No user row at all — a deleted account, a stale token. Defaults, never
+      // an exception: a push path that throws when it cannot read preferences
+      // is a push path that stops sending emergencies.
+      if (!r) return { ...DEFAULT_PREFS, timezone: FALLBACK_TZ, updatedAt: null };
+      const s = r.quiet_start == null ? null : Number(r.quiet_start);
+      const e = r.quiet_end == null ? null : Number(r.quiet_end);
+      return {
+        zoneEvents: r.zone_events as boolean,
+        checkIn: r.check_in as boolean,
+        lowBattery: r.low_battery as boolean,
+        updates: r.updates as boolean,
+        // Half a window is no window — same tolerance as the app and the gate.
+        quietStart: s != null && e != null ? s : null,
+        quietEnd: s != null && e != null ? e : null,
+        timezone: (r.timezone as string) || FALLBACK_TZ,
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
+      };
+    },
+
+    async putNotificationPrefs(userId, prefs) {
+      const both = prefs.quietStart != null && prefs.quietEnd != null;
+      await pool.query(
+        `INSERT INTO notification_prefs
+           (user_id, zone_events, check_in, low_battery, updates, quiet_start, quiet_end, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7, now())
+         ON CONFLICT (user_id) DO UPDATE
+           SET zone_events = EXCLUDED.zone_events,
+               check_in    = EXCLUDED.check_in,
+               low_battery = EXCLUDED.low_battery,
+               updates     = EXCLUDED.updates,
+               quiet_start = EXCLUDED.quiet_start,
+               quiet_end   = EXCLUDED.quiet_end,
+               updated_at  = now()`,
+        [userId, prefs.zoneEvents, prefs.checkIn, prefs.lowBattery, prefs.updates,
+          both ? prefs.quietStart : null, both ? prefs.quietEnd : null]);
+    },
+
+    /// The write side of `users.timezone` — the column getNotificationPrefs
+    /// joins in above and, until this existed, nothing anywhere set. The
+    /// column is NOT NULL DEFAULT 'Asia/Almaty', so a row that has never been
+    /// told keeps that default rather than going null.
+    async setUserTimezone(userId, timezone) {
+      await pool.query(`UPDATE users SET timezone = $2 WHERE id = $1`, [userId, timezone]);
+    },
+
+    /// Never lets a bookkeeping failure become a delivery failure — see the
+    /// caller in notifications/dispatch.ts, which swallows this on purpose.
+    async recordPushDelivery(row) {
+      await pool.query(
+        `INSERT INTO push_deliveries (user_id, kind, sent, failed, dead, held_reason, error)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [row.userId, row.kind, row.sent, row.failed, row.dead, row.heldReason, row.error]);
+    },
+
+    async pushDeliverySummary(days) {
+      const window = Math.max(1, Math.trunc(days));
+      const [{ rows: kinds }, { rows: prefRows }, { rows: lastRows }] = await Promise.all([
+        pool.query(
+          // FILTER rather than five round trips, and every column a count of
+          // rows that exist. Nothing here is derived from a rate.
+          `SELECT kind,
+                  count(*)::int                                            AS attempts,
+                  COALESCE(sum(sent), 0)::int                              AS delivered,
+                  COALESCE(sum(failed), 0)::int                            AS failed,
+                  COALESCE(sum(dead), 0)::int                              AS dead,
+                  count(*) FILTER (WHERE held_reason IS NOT NULL)::int      AS held,
+                  count(*) FILTER (WHERE held_reason = 'muted')::int        AS held_muted,
+                  count(*) FILTER (WHERE held_reason = 'quiet_hours')::int  AS held_quiet,
+                  count(*) FILTER (WHERE error = 'no_tokens')::int          AS no_tokens,
+                  count(*) FILTER (WHERE error IS NOT NULL AND error <> 'no_tokens')::int AS errors
+             FROM push_deliveries
+            WHERE at >= now() - make_interval(days => $1::int)
+            GROUP BY kind
+            ORDER BY kind`,
+          [window]),
+        pool.query(
+          `SELECT count(*)::int                                              AS configured,
+                  count(*) FILTER (WHERE NOT zone_events)::int               AS zone_events,
+                  count(*) FILTER (WHERE NOT check_in)::int                  AS check_in,
+                  count(*) FILTER (WHERE NOT low_battery)::int               AS low_battery,
+                  count(*) FILTER (WHERE NOT updates)::int                   AS updates,
+                  count(*) FILTER (WHERE quiet_start IS NOT NULL
+                                     AND quiet_end IS NOT NULL
+                                     AND quiet_start <> quiet_end)::int      AS quiet_hours
+             FROM notification_prefs`),
+        pool.query(
+          `SELECT max(at) AS last_at FROM push_deliveries
+            WHERE at >= now() - make_interval(days => $1::int)`,
+          [window]),
+      ]);
+      const p = prefRows[0] ?? {};
+      const kindRows = kinds.map((r) => ({
+        kind: r.kind as string,
+        attempts: Number(r.attempts),
+        delivered: Number(r.delivered),
+        failed: Number(r.failed),
+        noTokens: Number(r.no_tokens),
+        held: Number(r.held),
+        heldMuted: Number(r.held_muted),
+        heldQuiet: Number(r.held_quiet),
+        errors: Number(r.errors),
+        dead: Number(r.dead),
+      }));
+      return {
+        windowDays: window,
+        kinds: kindRows,
+        deadTokens: kindRows.reduce((n, k) => n + k.dead, 0),
+        muted: {
+          zoneEvents: Number(p.zone_events ?? 0),
+          checkIn: Number(p.check_in ?? 0),
+          lowBattery: Number(p.low_battery ?? 0),
+          updates: Number(p.updates ?? 0),
+          quietHours: Number(p.quiet_hours ?? 0),
+          configured: Number(p.configured ?? 0),
+        },
+        lastAt: lastRows[0]?.last_at ? new Date(lastRows[0].last_at).toISOString() : null,
+      };
+    },
+
     async putStageContent(stageKey, items) {
       if (items.length === 0) {
         await pool.query(`DELETE FROM timeline_content WHERE stage_key = $1`, [stageKey]);
@@ -2367,6 +2509,10 @@ export function createPgRepository(pool: Pool): Repository {
 
     // ---- Baby cry-analysis history ----
     async recordCry(userId, c) {
+      // The verdict is NOT in the SET list on purpose. The app re-pushes its
+      // whole cry history on every sign-in, and overwriting the row wholesale
+      // would erase «это было верно?» — the only ground truth this product has
+      // — every time a mother reinstalls the app.
       await pool.query(
         `INSERT INTO cry_results (user_id, at, reason, confidence)
          VALUES ($1,$2,$3,$4)
@@ -2376,11 +2522,92 @@ export function createPgRepository(pool: Pool): Repository {
     },
     async listCry(userId, limit) {
       const { rows } = await pool.query(
-        `SELECT at, reason, confidence FROM cry_results
+        `SELECT at, reason, confidence, verdict, actual_reason FROM cry_results
          WHERE user_id = $1 ORDER BY at DESC LIMIT $2`, [userId, limit]);
       return rows.map((r) => ({
         at: new Date(r.at).toISOString(), reason: r.reason, confidence: Number(r.confidence),
+        verdict: r.verdict ?? null, actualReason: r.actual_reason ?? null,
       }));
+    },
+    // «Это было верно?» — frame 17c. Scoped to HER analyses by user_id: a
+    // verdict is a statement about one mother's own recording, and keying it by
+    // the instant alone would let one account rate another's.
+    async recordCryVerdict(userId, at, verdict, actualReason) {
+      const { rowCount } = await pool.query(
+        `UPDATE cry_results SET verdict = $3, actual_reason = $4
+          WHERE user_id = $1 AND at = $2`,
+        [userId, at, verdict, actualReason]);
+      return (rowCount ?? 0) > 0;
+    },
+    /**
+     * The detector's aggregate picture — every user, no user named.
+     *
+     * `belowThreshold` is counted against the threshold IN FORCE, read in the
+     * same statement rather than passed in, so the panel cannot report "how
+     * many were suppressed" against a number that is no longer the one the app
+     * applies. An absent settings row means the shipped default.
+     */
+    async cryStats(days) {
+      const { rows } = await pool.query(
+        `WITH t AS (
+           SELECT COALESCE((SELECT min_confidence FROM cry_settings WHERE id), $2::real) AS min_confidence
+         )
+         SELECT reason,
+                COUNT(*)::int                                          AS count,
+                AVG(confidence)::float8                                AS avg_confidence,
+                COUNT(*) FILTER (WHERE confidence < t.min_confidence)::int AS below_threshold,
+                COUNT(*) FILTER (WHERE verdict = 'correct')::int        AS correct,
+                COUNT(*) FILTER (WHERE verdict = 'wrong')::int          AS wrong,
+                COUNT(*) FILTER (WHERE verdict IS NULL)::int            AS unrated,
+                MAX(at)                                                AS last_at,
+                MIN(at)                                                AS first_at
+           FROM cry_results, t
+          WHERE at >= now() - ($1::int * INTERVAL '1 day')
+          GROUP BY reason, t.min_confidence
+          ORDER BY count DESC, reason ASC`,
+        [days, CRY_MIN_CONFIDENCE_DEFAULT]);
+      const byReason = rows.map((r) => ({
+        reason: r.reason,
+        count: Number(r.count),
+        avgConfidence: Number(r.avg_confidence),
+        belowThreshold: Number(r.below_threshold),
+        correct: Number(r.correct),
+        wrong: Number(r.wrong),
+      }));
+      // The window's edges across ALL reasons: the GROUP BY gives one pair per
+      // reason, and «последний разбор» is about the detector, not about hunger.
+      const stamps = (col: 'last_at' | 'first_at') => rows
+        .map((r) => (r[col] ? new Date(r[col]).toISOString() : null))
+        .filter((x): x is string => x !== null)
+        .sort();
+      return {
+        analyses: byReason.reduce((n, r) => n + r.count, 0),
+        byReason,
+        unrated: rows.reduce((n, r) => n + Number(r.unrated), 0),
+        lastAt: stamps('last_at').pop() ?? null,
+        firstAt: stamps('first_at').shift() ?? null,
+      };
+    },
+    async getCryThreshold() {
+      const { rows } = await pool.query(
+        `SELECT min_confidence, updated_at, updated_by FROM cry_settings WHERE id`);
+      const r = rows[0];
+      if (!r) return null; // nobody has chosen — the shipped default is in force
+      return {
+        minConfidence: Number(r.min_confidence),
+        updatedAt: new Date(r.updated_at).toISOString(),
+        updatedBy: r.updated_by ?? null,
+      };
+    },
+    async setCryThreshold(v) {
+      await pool.query(
+        `INSERT INTO cry_settings (id, min_confidence, updated_at, updated_by)
+         VALUES (TRUE, $1, now(), $2)
+         ON CONFLICT (id) DO UPDATE
+           SET min_confidence = EXCLUDED.min_confidence,
+               updated_at = now(),
+               updated_by = EXCLUDED.updated_by`,
+        [v.minConfidence, v.updatedBy]);
     },
 
     // ---- Maternal weight log ----

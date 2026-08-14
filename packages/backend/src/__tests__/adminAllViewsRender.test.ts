@@ -46,6 +46,10 @@ const VIEWS = [
   'childdev', 'vaccines', 'audio', 'shop', 'marketing',
   // Frame 16b → app screen 37.
   'emergency-help',
+  // Frame 17c → the cry-analysis screen.
+  'cry',
+  // Frame 25 → what became of every push the server tried to send.
+  'notifications',
 ] as const;
 
 const NOW = new Date('2026-07-21T12:00:00Z');
@@ -102,6 +106,23 @@ const FIXTURES: Record<string, unknown> = {
     minGapDays: 7, audiences: ['all', 'pregnant', 'mothers', 'infants'],
     locales: ['ru', 'kk'], segmentFields: ['audience', 'locale'], infantMaxMonths: 12,
   },
+  // Frame 25. The state this screen spends its life in and the one that has
+  // actually broken it: sends happened AND some were held. A fixture with no
+  // held rows would render the interesting half of the table as «—» and prove
+  // nothing about the branch the feature exists for.
+  '/admin/notifications': {
+    windowDays: 30,
+    kinds: [
+      { kind: 'geofence', attempts: 12, delivered: 9, failed: 1, noTokens: 0, held: 2, heldMuted: 1, heldQuiet: 1, errors: 0, dead: 1 },
+      { kind: 'sos', attempts: 2, delivered: 2, failed: 0, noTokens: 0, held: 0, heldMuted: 0, heldQuiet: 0, errors: 0, dead: 0 },
+    ],
+    deadTokens: 1,
+    muted: { zoneEvents: 3, checkIn: 0, lowBattery: 1, updates: 5, quietHours: 4, configured: 9 },
+    lastAt: '2026-08-10T21:14:00.000Z',
+    holdReasons: { muted: 'категория отключена', quiet_hours: 'тихие часы' },
+    categories: ['zoneEvents', 'checkIn', 'lowBattery', 'updates'],
+    alwaysDelivered: ['sos', 'emergency'],
+  },
   '/admin/audio': { audio: [] },
   '/admin/shop/variants': { variants: [{ id: 'v1', productName: 'Часы', color: 'black', stock: 12, priceMinor: 2490000 }] },
   '/admin/shop/orders': { orders: [] },
@@ -124,6 +145,33 @@ const FIXTURES: Record<string, unknown> = {
     })),
   },
   '/admin/settings': { settings: { whatsapp: '77073452244', reviews: '', rating: '', reviewCount: '', kaspiUrl: '' } },
+  // Frame 17c. The state that has actually broken this screen once: analyses
+  // exist and NOBODY has rated any of them, so `accuracy` is null. A fixture
+  // with a tidy 0.9 would render fine and prove nothing about the branch the
+  // product spends its first months in.
+  '/admin/cry': {
+    windowDays: 30,
+    analyses: 4,
+    byReason: [
+      { reason: 'hungry', count: 3, avgConfidence: 0.71, belowThreshold: 1, correct: 0, wrong: 0 },
+      { reason: 'tired', count: 1, avgConfidence: 0.32, belowThreshold: 1, correct: 0, wrong: 0 },
+    ],
+    unrated: 4,
+    lastAt: '2026-08-10T21:14:00.000Z',
+    firstAt: '2026-07-29T04:02:00.000Z',
+    minConfidence: 0.45,
+    defaultMinConfidence: 0.45,
+    thresholdSource: 'default',
+    thresholdUpdatedAt: null,
+    maxMinConfidence: 0.95,
+    rated: 0,
+    correct: 0,
+    accuracy: null,
+    source: 'mother_verdicts',
+    sourceNote: 'Точность считается только по разборам, которые мама оценила сама.',
+    audioNote: 'Записи не хранятся.',
+    rule: 'Окно — 30 дней.',
+  },
 };
 
 interface Booted {

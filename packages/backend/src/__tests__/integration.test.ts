@@ -13,7 +13,7 @@ import type { InjectPayload, Response as InjectResponse } from 'light-my-request
 import { buildServer } from '../server';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { emergencyReason } from '../emergency/reason.js';
-import type { Repository, SleepNight, WearableDayRow, CryRow, DayLogRow, SafetyAlertRow, ProfileRow } from '../db/repository';
+import type { Repository, SleepNight, WearableDayRow, CryRow, CryThresholdRow, DayLogRow, SafetyAlertRow, ProfileRow, NotificationPrefs, PushDeliveryRecord } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
 /**
@@ -72,6 +72,8 @@ function makeDeps(
   const sleepRows: SleepNight[] = [];
   const wearableRows: WearableDayRow[] = [];
   const cryRows: CryRow[] = [];
+  /** `cry_settings` — absent until the back office sets a threshold (17c). */
+  let cryThresholdRow: CryThresholdRow | null = null;
   const weightRows: Array<{ date: string; kg: number }> = [];
   const kickRows: Array<{ endedAt: string; count: number; durationSec: number }> = [];
   const contractionRows: Array<{ endedAt: string; count: number; avgDurationSec: number; avgIntervalSec: number }> = [];
@@ -80,6 +82,15 @@ function makeDeps(
   const contentRows = new Map<string, import('../db/repository').ContentItemRow[]>();
   const pregWeeks = new Map<number, import('../db/repository').PregnancyWeekOverride>();
   let profile: ProfileRow | null = null;
+  /** notification_prefs — null until PUT /notifications/settings writes one. */
+  let notifyPrefs: NotificationPrefs | null = null;
+  /** push_deliveries — every attempt this server recorded, held ones included. */
+  const pushLedger: PushDeliveryRecord[] = [];
+  /// Her timezone, not the box's. Deliberately not UTC: a fake that agrees with
+  /// the server clock cannot fail the way production does.
+  const NOTIFY_TZ = 'Asia/Almaty';
+  /// What PUT /notifications/settings last stored in `users.timezone`.
+  let notifyTz = NOTIFY_TZ;
   let idSeq = 1;
 
   const repo: Repository = {
@@ -396,9 +407,26 @@ function makeDeps(
       [...wearableRows].sort((a, b) => b.day.localeCompare(a.day)).slice(0, limit),
     recordCry: async (_u, c) => {
       const i = cryRows.findIndex((x) => x.at === c.at);
-      if (i >= 0) cryRows[i] = c; else cryRows.push(c);
+      // The verdict survives a re-push of the analysis, exactly as the ON
+      // CONFLICT clause in pgRepository leaves it alone: the app re-sends its
+      // whole history on sign-in, and a fake that dropped it here would hide a
+      // route that erases the only ground truth this product has.
+      const kept = i >= 0 ? { verdict: cryRows[i].verdict ?? null, actualReason: cryRows[i].actualReason ?? null } : {};
+      const row = { verdict: null, actualReason: null, ...kept, ...c };
+      if (i >= 0) cryRows[i] = row; else cryRows.push(row);
     },
     listCry: async (_u, limit) => [...cryRows].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit),
+    recordCryVerdict: async (_u, at, verdict, actualReason) => {
+      const i = cryRows.findIndex((x) => x.at === at);
+      if (i < 0) return false;
+      cryRows[i] = { ...cryRows[i], verdict, actualReason };
+      return true;
+    },
+    cryStats: async () => ({ analyses: cryRows.length, byReason: [], unrated: cryRows.length, lastAt: null, firstAt: null }),
+    getCryThreshold: async () => cryThresholdRow,
+    setCryThreshold: async (v) => {
+      cryThresholdRow = { minConfidence: v.minConfidence, updatedAt: new Date().toISOString(), updatedBy: v.updatedBy };
+    },
     recordWeight: async (_u, w) => {
       const i = weightRows.findIndex((x) => x.date === w.date);
       if (i >= 0) weightRows[i] = w; else weightRows.push(w);
@@ -583,6 +611,32 @@ function makeDeps(
     broadcastAudience: async () => ({ matched: 0, excluded: 0 }),
     publishBroadcast: async () => null,
     listAnnouncements: async () => [],
+    // Frame 25. A REAL little store rather than a stub returning defaults: the
+    // settings route is a read-your-writes contract, and a fake that forgets
+    // what it was told would make «сохранилось» pass while the screen resets
+    // itself on every open. `notifyPrefs` is captured above so a test can look
+    // at what the route actually stored.
+    getNotificationPrefs: async () => ({
+      ...(notifyPrefs ?? {
+        zoneEvents: true, checkIn: true, lowBattery: true, updates: true,
+        quietStart: null, quietEnd: null,
+      }),
+      timezone: notifyTz,
+      updatedAt: notifyPrefs ? '2026-07-15T08:00:00.000Z' : null,
+    }),
+    putNotificationPrefs: async (_userId, prefs) => { notifyPrefs = { ...prefs }; },
+    /// Read back by getNotificationPrefs above rather than swallowed: a fake
+    /// that accepts a zone and keeps answering Asia/Almaty would make the write
+    /// path look wired while the column stayed unwritten — the exact defect.
+    setUserTimezone: async (_userId, tz) => { notifyTz = tz; },
+    recordPushDelivery: async (row) => void pushLedger.push({ ...row }),
+    pushDeliverySummary: async (days) => ({
+      windowDays: days,
+      kinds: [],
+      deadTokens: 0,
+      muted: { zoneEvents: 0, checkIn: 0, lowBattery: 0, updates: 0, quietHours: 0, configured: notifyPrefs ? 1 : 0 },
+      lastAt: null,
+    }),
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
     listAudit: async () =>
       // reason included: the interface declares it, and a fake that omits it
@@ -621,7 +675,12 @@ function makeDeps(
     { logger: false },
   );
 
-  return { server, events, pushes, healthRows, calRows, get lastLocation() { return lastLocation; } };
+  return {
+    server, events, pushes, healthRows, calRows, pushLedger,
+    get lastLocation() { return lastLocation; },
+    /** What PUT /notifications/settings actually stored, or null. */
+    get notifyPrefs() { return notifyPrefs; },
+  };
 }
 
 let ctx: ReturnType<typeof makeDeps>;

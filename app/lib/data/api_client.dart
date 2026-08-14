@@ -340,6 +340,33 @@ class ApiClient {
     return res.body;
   }
 
+  /// The childhood immunisation calendar as the server serves it: the shared
+  /// contract with whatever the back office has edited on top, plus the
+  /// catch-up window (admin frames 15/15a/15b).
+  ///
+  /// Raw JSON, cached byte-for-byte by [refreshVaccinationScheduleFromApi], for
+  /// the same reason as the calendar above. Unauthenticated: it is the national
+  /// schedule, identical for everyone, and it names nobody — the app carries
+  /// the same calendar as a constant, so a phone with no signal still shows the
+  /// whole thing rather than an apology.
+  Future<String> fetchVaccinationScheduleJson() async {
+    final res = await transport.get('/vaccination/schedule');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return res.body;
+  }
+
+  /// The cry detector's confidence threshold, as the server serves it: the
+  /// shipped default with whatever the back office has chosen on top (кадр 17c).
+  ///
+  /// Raw JSON, cached by [refreshCryThresholdFromApi], for the same reason as
+  /// the calendar above. Unauthenticated: it is one number about the model,
+  /// identical for everyone, and it must reach a phone that has not signed in.
+  Future<String> fetchCryThresholdJson() async {
+    final res = await transport.get('/protocols/cry');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    return res.body;
+  }
+
   /// Screen 37's emergency scenarios as the server serves them: the shared
   /// contract with whatever the back office has edited on top (admin frame 16b).
   ///
@@ -706,6 +733,27 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// «Это было верно?» — her verdict on one analysis (кадр 17c).
+  ///
+  /// The ONLY ground truth this product has about why a baby cried: nothing
+  /// reads a clinic, and the recording is never stored, so without this the
+  /// back office's «точность» could only ever be the model's opinion of itself.
+  ///
+  /// [at] identifies the analysis; the server 404s when the caller has no such
+  /// row, which is why this throws rather than reporting success — a rating
+  /// that silently went nowhere is worse than one that was never offered.
+  Future<void> postCryVerdict({
+    required String at, // ISO instant of the analysis
+    required String verdict, // CryVerdict.correct | CryVerdict.wrong
+    String? actualReason,
+  }) async {
+    final res = await transport.post(
+      '/cry/results/${Uri.encodeComponent(at)}/verdict',
+      {'verdict': verdict, if (actualReason != null) 'actualReason': actualReason},
+    );
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
   /// The caller's own hand-entered readings (HealthSample wire shape). For
   /// restoring a typed vitals/glucose history on a new device — the server only
   /// returns device-less rows, so band readings are never pulled back.
@@ -1001,6 +1049,33 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
     final j = jsonDecode(res.body) as Map<String, dynamic>;
     return ((j['events'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// Her notification switches and quiet hours, as the SERVER holds them.
+  ///
+  /// This is the half that made the screen mean anything. The switches lived in
+  /// SharedPrefs and gated only the notifications this phone raised for itself;
+  /// a zone crossing the server derived from a tracker fix, an operator's
+  /// answer and a рассылка ignored them completely.
+  ///
+  /// Returns null when the server cannot answer (503 on an unmigrated
+  /// database), so the caller keeps the local copy rather than adopting
+  /// invented defaults over something she chose.
+  Future<Map<String, dynamic>?> getNotificationSettings() async {
+    final res = await transport.get('/notifications/settings');
+    if (res.statusCode == 503 || res.statusCode == 404) return null;
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    final s = j['settings'];
+    return s is Map ? s.cast<String, dynamic>() : null;
+  }
+
+  /// Save them. A full replace, not a patch — the screen holds every switch at
+  /// once, so there is no partial write to get wrong, and a cleared quiet
+  /// window has to travel as an explicit null rather than as a missing key.
+  Future<void> putNotificationSettings(Map<String, dynamic> body) async {
+    final res = await transport.put('/notifications/settings', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
   /// Delete an appointment. A 404 counts as done (already gone).

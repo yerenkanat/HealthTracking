@@ -138,7 +138,7 @@ async function productionDeps(): Promise<ServerDeps> {
   const { getChildLastLocation, setChildLastLocation, setBpCalibration, resolveTransition } = await import('./cache/redis');
   const { announcementCopy, emergencyCopy, geofenceCopy, sendPush, sosCopy, supportReplyCopy, toPushLocale } =
     await import('./notifications/push');
-  type PushResult = Awaited<ReturnType<typeof sendPush>>;
+  const { createPushDispatch } = await import('./notifications/dispatch');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const repo = createPgRepository(pool);
   // One call, so the effective flag and the warning can never disagree — and so
@@ -175,27 +175,27 @@ async function productionDeps(): Promise<ServerDeps> {
     /* settings table absent (unmigrated DB) — env-only until migrated */
   }
 
-  /// Forget dead tokens, and SAY when a push did not land.
-  ///
-  /// sendPush reports instead of throwing, so without this the result would be
-  /// discarded and a failed emergency notification would leave no trace at all
-  /// — the one push in the product where nobody finding out is the whole
-  /// problem.
-  async function afterPush(kind: string, res: PushResult): Promise<void> {
-    for (const token of res.dead) {
-      // pruneToken() used to live in push.ts as an empty function with a
-      // comment saying to wire it to the database. Nobody did, so tokens from
-      // reinstalled apps accumulated and quietly swallowed every push.
-      await repo.deletePushToken(token).catch(() => {});
-    }
-    if (res.error || res.failed > 0) {
-      console.warn(
-        `push(${kind}): ${res.sent} delivered, ${res.failed} failed` +
-          (res.error ? ` — ${res.error}` : '') +
-          (res.dead.length ? `, ${res.dead.length} dead token(s) removed` : ''),
-      );
-    }
-  }
+  /**
+   * The ONE way this process sends a push — frame 25.
+   *
+   * It consults her notification switches and her quiet hours (in HER
+   * timezone, off `users.timezone`), forgets the tokens FCM declares dead, and
+   * writes one `push_deliveries` row per attempt INCLUDING the held ones.
+   *
+   * This replaced a local `afterPush(kind, res)` that pruned dead tokens and
+   * console.warn'd the rest. Two things were wrong with it and both are the
+   * same defect: nothing consulted the preferences the app had been collecting
+   * for months, and nothing anywhere recorded that a notification had not gone
+   * out — so «мне не пришло» had no answer but a guess.
+   *
+   * `deliver` never holds an `emergency` or an `sos`. That rule lives in
+   * notifications/gate.ts, in one function, so it cannot be half-applied here.
+   */
+  const push = createPushDispatch({
+    repo,
+    send: sendPush,
+    warn: (line) => console.warn(line),
+  });
   return {
     repo,
     guardrail: { callLLM: createAnthropicCaller() },
@@ -206,15 +206,26 @@ async function productionDeps(): Promise<ServerDeps> {
       // outage must not silently switch off the alerts this product exists to
       // send. See inProcessTransitions for what that trade costs.
       resolveTransition: fallbackTransitions,
+      // NEVER gated. `emergency` is her own vitals crossing a threshold the
+      // triage module calls serious; no switch and no quiet hour holds it, and
+      // the dispatcher enforces that rather than trusting this call site.
       sendEmergencyPush: async (userId, triage) => {
         const { tokens, locale } = await repo.guardianPushTokensForUser(userId);
-        const res = await sendPush(tokens, emergencyCopy(triage, toPushLocale(locale)));
-        await afterPush('emergency', res);
+        await push.deliver('emergency', userId, tokens, emergencyCopy(triage, toPushLocale(locale)));
       },
+      // Gated by «Зоны». The owner is read from the CHILD rather than assumed,
+      // because the preferences belong to a person and this event names only a
+      // child — without the lookup the gate would have nobody to ask and every
+      // zone alert would go out regardless, which is the bug being fixed.
       sendGeofencePush: async (evt) => {
         const { tokens, childName, locale } = await repo.guardianPushTokens(evt.childId);
-        const res = await sendPush(tokens, geofenceCopy(evt, childName, toPushLocale(locale)));
-        await afterPush('geofence', res);
+        const owner = await repo.childOwner(evt.childId).catch(() => null);
+        await push.deliver(
+          'geofence',
+          owner?.userId ?? null,
+          tokens,
+          geofenceCopy(evt, childName, toPushLocale(locale)),
+        );
       },
     },
     // Screen 21 — a child pressed the button.
@@ -256,8 +267,21 @@ async function productionDeps(): Promise<ServerDeps> {
         if (seen.has(recipient)) continue;
         seen.add(recipient);
         const { tokens, locale } = await repo.guardianPushTokensForUser(recipient);
-        if (tokens.length === 0) continue;
-        const res = await sendPush(
+        // NO EARLY `continue` FOR AN EMPTY TOKEN LIST. A relative with no live
+        // token is the most important row this ledger can hold: the alarm was
+        // raised and reached nobody. Skipping the dispatcher wrote no row at
+        // all, so frame 25 had no `sos` line — and its footer reads a missing
+        // line as «за 30 дней SOS не отправляли», which is the opposite of what
+        // happened. sendPush answers `error:'no_tokens'` for an empty list, so
+        // the attempt lands in «Нет устройства» where it belongs.
+        //
+        // Through the same dispatcher as everything else, and held by nothing.
+        // Routing SOS around the gate «to be safe» is how the exemption stops
+        // being tested: it is one rule, in gate.ts, and this is the call that
+        // proves it holds.
+        await push.deliver(
+          'sos',
+          recipient,
           tokens,
           sosCopy(
             {
@@ -270,7 +294,6 @@ async function productionDeps(): Promise<ServerDeps> {
             toPushLocale(locale),
           ),
         );
-        await afterPush('sos', res);
       }
     },
     // Frame 43 — an operator answered. In HER language, from the locale on the
@@ -280,13 +303,18 @@ async function productionDeps(): Promise<ServerDeps> {
     // afterPush REPORTS rather than throws, and the admin route swallows a
     // throw besides: a reply that saved must never come back to an operator as
     // a failure because a phone had a dead token.
+    //
+    // Gated by «Новости и ответы». Holding it is safe in a way holding a zone
+    // alert is not: the answer is already in the thread, so a muted mother
+    // finds it the next time she opens the screen rather than losing it.
     notifySupportReply: async (userId, ticket, body) => {
       const { tokens, locale } = await repo.guardianPushTokensForUser(userId);
-      const res = await sendPush(
+      await push.deliver(
+        'support',
+        userId,
         tokens,
         supportReplyCopy(ticket.subject, body, toPushLocale(locale), ticket.id),
       );
-      await afterPush('support', res);
     },
     // Frame 06 — a рассылка reaches the phones the ledger accepted.
     //
@@ -301,20 +329,37 @@ async function productionDeps(): Promise<ServerDeps> {
     notifyBroadcast: async (userIds, message) => {
       let sent = 0;
       let noTokens = 0;
+      let held = 0;
       for (const userId of userIds) {
         const { tokens, locale } = await repo.guardianPushTokensForUser(userId);
-        if (tokens.length === 0) { noTokens += 1; continue; }
         const text = toPushLocale(locale) === 'kk' ? message.kk : message.ru;
-        const res = await sendPush(tokens, announcementCopy(text.title, text.body, message.id));
-        sent += res.sent;
-        await afterPush('broadcast', res);
+        // NO early `continue` for an empty token list. Sixty women out of a
+        // hundred with no registered device used to leave the panel showing
+        // «попыток 40 · нет устройства 0» — the gap the frame exists to explain
+        // missing from precisely the column built to explain it. The dispatcher
+        // records the attempt (`error:'no_tokens'`) instead.
+        //
+        // Gated by «Новости и ответы». The delivery ledger row was already
+        // written by publishBroadcast, and that is right: the message IS in her
+        // notification centre either way. What the switch decides is whether her
+        // phone lights up, which is the only part she asked about.
+        const out = await push.deliver(
+          'broadcast', userId, tokens, announcementCopy(text.title, text.body, message.id));
+        sent += out.sent;
+        // Counted off the OUTCOME, not off `tokens`, so this log line and the
+        // ledger behind frame 25 can never disagree: a muted mother with no
+        // device is held, not «нет устройства», and is counted once.
+        if (out.held) held += 1;
+        else if (out.error === 'no_tokens') noTokens += 1;
       }
       // Said out loud. «Доставлено 40» on the panel counts ledger rows — what
       // reached a phone is this number, and the gap between them is people who
-      // have never opened the app on a device we can reach.
+      // have never opened the app on a device we can reach, plus the ones who
+      // asked us not to buzz them.
       console.warn(
         `broadcast ${message.id}: ${sent} push(es) delivered to ${userIds.length} recipient(s)` +
-        (noTokens ? `, ${noTokens} with no registered device` : ''),
+        (noTokens ? `, ${noTokens} with no registered device` : '') +
+        (held ? `, ${held} held by notification settings` : ''),
       );
     },
     authUser,

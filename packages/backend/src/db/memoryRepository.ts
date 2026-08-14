@@ -6,8 +6,10 @@
  */
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
-import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from './repository';
+import { CRY_MIN_CONFIDENCE_DEFAULT, type CryThresholdRow } from '../cry/settings';
+import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, NotificationPrefs, PushDeliveryRecord, PushDeliverySummary } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
+import { DEFAULT_PREFS, FALLBACK_TZ } from '../notifications/gate.js';
 import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
 import { BROADCAST_MIN_GAP_DAYS, matchesSegment, type AudienceRow } from '../admin/broadcasts.js';
 import { normalizePhone } from '../phone.js';
@@ -203,7 +205,14 @@ export function createMemoryRepository(): Repository {
   // the process shared one watch history — a fake more permissive than
   // production cannot fail on an authorisation regression.
   const wearableDays: Array<WearableDayRow & { userId: string }> = [];
-  const cryResults: CryRow[] = [];
+  // Keyed by (user, at), exactly like the pg PRIMARY KEY. The userId used to be
+  // dropped on the way in and ignored on the way out, so every account in the
+  // process shared one cry history — the same defect that was fixed for
+  // wearableDays above, and the reason a verdict could be applied to somebody
+  // else's analysis without anything failing.
+  const cryResults: Array<CryRow & { userId: string }> = [];
+  /** `cry_settings` — absent until somebody sets a threshold (frame 17c). */
+  let cryThresholdRow: CryThresholdRow | null = null;
   const weights: WeightRow[] = [];
   const kickSessions: KickSessionRow[] = [];
   const contractionSessions: ContractionSessionRow[] = [];
@@ -249,6 +258,24 @@ export function createMemoryRepository(): Repository {
    */
   const broadcasts = new Map<string, Omit<BroadcastRow, 'delivered'>>();
   const broadcastDeliveries: Array<{ broadcastId: string; userId: string; at: string }> = [];
+  /**
+   * notification_prefs — frame 25.
+   *
+   * Seeded EMPTY, and that is the state the product spends most of its life in:
+   * a woman who has never opened the screen has no row, and no row means
+   * everything on. Seeding a row would hide the branch every real account uses.
+   */
+  const notificationPrefs = new Map<string, NotificationPrefs & { updatedAt: string }>();
+  /**
+   * users.timezone, which this fake has no users table for.
+   *
+   * Defaulted to the same 'Asia/Almaty' as the column rather than to UTC:
+   * quiet hours read in the wrong zone are the defect the timezone exists to
+   * prevent, and a fake that is five hours out would let it through green.
+   */
+  const userTimezones = new Map<string, string>();
+  /** push_deliveries — one row per attempt, held ones included. */
+  const pushDeliveries: Array<PushDeliveryRecord & { at: string }> = [];
   let profile: ProfileRow | null = {
     displayName: 'Aigerim',
     phone: '+77001112233',
@@ -1160,11 +1187,62 @@ const UUID_RE =
         .slice(0, limit)
         .map(({ userId: _u, ...day }) => ({ ...day })),
     // Baby cry-analysis history
-    recordCry: async (_u, c) => {
-      const i = cryResults.findIndex((x) => x.at === c.at);
-      if (i >= 0) cryResults[i] = c; else cryResults.push(c);
+    recordCry: async (userId, c) => {
+      const i = cryResults.findIndex((x) => x.userId === userId && x.at === c.at);
+      // An upsert of the ANALYSIS must not silently drop a verdict already
+      // recorded against it: the app re-pushes its whole history on sign-in,
+      // and «это было верно?» would be answered once and then forgotten.
+      const kept = i >= 0 ? { verdict: cryResults[i].verdict ?? null, actualReason: cryResults[i].actualReason ?? null } : {};
+      const row = { userId, verdict: null, actualReason: null, ...kept, ...c };
+      if (i >= 0) cryResults[i] = row; else cryResults.push(row);
     },
-    listCry: async (_u, limit) => [...cryResults].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit),
+    listCry: async (userId, limit) =>
+      cryResults
+        .filter((c) => c.userId === userId)
+        .sort((a, b) => b.at.localeCompare(a.at))
+        .slice(0, limit)
+        .map(({ userId: _u, ...row }) => ({ ...row })),
+    recordCryVerdict: async (userId, at, verdict, actualReason) => {
+      const i = cryResults.findIndex((x) => x.userId === userId && x.at === at);
+      if (i < 0) return false;
+      cryResults[i] = { ...cryResults[i], verdict, actualReason };
+      return true;
+    },
+    cryStats: async (days) => {
+      // The window is computed the same way as the pg query below: rows at or
+      // after (now - days). Both count only what is inside it, so the panel's
+      // «за 30 дней» means the same thing whichever repository answers.
+      const from = new Date(Date.now() - days * 86_400_000).toISOString();
+      const rows = cryResults.filter((c) => c.at >= from);
+      const threshold = cryThresholdRow?.minConfidence ?? CRY_MIN_CONFIDENCE_DEFAULT;
+      const byReason = new Map<string, { reason: string; count: number; sum: number; belowThreshold: number; correct: number; wrong: number }>();
+      for (const r of rows) {
+        let e = byReason.get(r.reason);
+        if (!e) byReason.set(r.reason, (e = { reason: r.reason, count: 0, sum: 0, belowThreshold: 0, correct: 0, wrong: 0 }));
+        e.count++;
+        e.sum += r.confidence;
+        if (r.confidence < threshold) e.belowThreshold++;
+        if (r.verdict === 'correct') e.correct++;
+        if (r.verdict === 'wrong') e.wrong++;
+      }
+      return {
+        analyses: rows.length,
+        byReason: [...byReason.values()]
+          .map(({ sum, ...e }) => ({ ...e, avgConfidence: e.count ? sum / e.count : 0 }))
+          .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
+        unrated: rows.filter((r) => r.verdict !== 'correct' && r.verdict !== 'wrong').length,
+        lastAt: rows.length ? rows.reduce((m, r) => (r.at > m ? r.at : m), rows[0].at) : null,
+        firstAt: rows.length ? rows.reduce((m, r) => (r.at < m ? r.at : m), rows[0].at) : null,
+      };
+    },
+    getCryThreshold: async () => (cryThresholdRow ? { ...cryThresholdRow } : null),
+    setCryThreshold: async (v) => {
+      cryThresholdRow = {
+        minConfidence: v.minConfidence,
+        updatedAt: new Date().toISOString(),
+        updatedBy: v.updatedBy,
+      };
+    },
     // Weight (upsert on the date)
     recordWeight: async (_u, w) => {
       const i = weights.findIndex((x) => x.date === w.date);
@@ -1590,13 +1668,24 @@ const UUID_RE =
       healthRows.length = 0;
       seenReadings.clear();
       sleep.length = 0;
-      cryResults.length = 0;
+      // Hers, by user id — the rows are keyed like the pg table now, and a
+      // blanket truncate would be a fake that erases more than the cascade does.
+      for (let i = cryResults.length - 1; i >= 0; i--) {
+        if (cryResults[i].userId === userId) cryResults.splice(i, 1);
+      }
       dayLogs.clear();
       alerts.length = 0;
       // The watch's activity days go with the account, exactly as
       // wearable_days does through ON DELETE CASCADE. Leaving them behind
       // would let the fake say «стёрто» while still holding her step counts.
       wearableDays.length = 0;
+      // Her notification switches cascade too (notification_prefs.user_id).
+      // push_deliveries does NOT: its user_id is ON DELETE SET NULL, so the
+      // count of what we sent survives the erasure while the name does not —
+      // and this fake anonymises rather than deletes, for the same reason.
+      notificationPrefs.delete(userId);
+      userTimezones.delete(userId);
+      for (const r of pushDeliveries) if (r.userId === userId) r.userId = null;
       return true;
     },
 
@@ -2011,6 +2100,80 @@ const UUID_RE =
         if (out.length >= limit) break;
       }
       return out;
+    },
+
+    // ---- Notifications (frame 25 «Уведомления») ----
+    getNotificationPrefs: async (userId) => {
+      const own = notificationPrefs.get(userId);
+      return {
+        ...(own ? { ...own } : DEFAULT_PREFS),
+        timezone: userTimezones.get(userId) ?? FALLBACK_TZ,
+        // Null when these are the defaults rather than something she chose —
+        // the panel counts «сколько мам настроили» off exactly this.
+        updatedAt: own?.updatedAt ?? null,
+      };
+    },
+    putNotificationPrefs: async (userId, prefs) => {
+      notificationPrefs.set(userId, {
+        zoneEvents: prefs.zoneEvents,
+        checkIn: prefs.checkIn,
+        lowBattery: prefs.lowBattery,
+        updates: prefs.updates,
+        // Half a window is no window, exactly as the app and the gate treat it.
+        quietStart: prefs.quietStart != null && prefs.quietEnd != null ? prefs.quietStart : null,
+        quietEnd: prefs.quietStart != null && prefs.quietEnd != null ? prefs.quietEnd : null,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    /// The write side of users.timezone. This map used to be populated by
+    /// nothing and only ever deleted, so the fake always answered FALLBACK_TZ
+    /// and no HTTP-level test could carry a mother who lives anywhere else.
+    setUserTimezone: async (userId, timezone) => {
+      userTimezones.set(userId, timezone);
+    },
+    recordPushDelivery: async (row) => {
+      pushDeliveries.push({ ...row, at: new Date().toISOString() });
+    },
+    pushDeliverySummary: async (days) => {
+      const floor = Date.now() - Math.max(1, days) * 86_400_000;
+      const rows = pushDeliveries.filter((r) => Date.parse(r.at) >= floor);
+      const byKind = new Map<string, PushDeliverySummary['kinds'][number]>();
+      for (const r of rows) {
+        const k = byKind.get(r.kind) ?? {
+          kind: r.kind, attempts: 0, delivered: 0, failed: 0,
+          noTokens: 0, held: 0, heldMuted: 0, heldQuiet: 0, errors: 0, dead: 0,
+        };
+        k.attempts += 1;
+        k.delivered += r.sent;
+        k.failed += r.failed;
+        k.dead += r.dead;
+        if (r.heldReason) {
+          k.held += 1;
+          if (r.heldReason === 'muted') k.heldMuted += 1;
+          else k.heldQuiet += 1;
+        }
+        // «Нет устройства» is not a failure of ours and is counted apart from
+        // one: lumping them together turns «она не установила приложение» into
+        // «наш пуш сломан».
+        if (r.error === 'no_tokens') k.noTokens += 1;
+        else if (r.error) k.errors += 1;
+        byKind.set(r.kind, k);
+      }
+      const prefs = [...notificationPrefs.values()];
+      return {
+        windowDays: days,
+        kinds: [...byKind.values()].sort((a, b) => a.kind.localeCompare(b.kind)),
+        deadTokens: rows.reduce((n, r) => n + r.dead, 0),
+        muted: {
+          zoneEvents: prefs.filter((p) => !p.zoneEvents).length,
+          checkIn: prefs.filter((p) => !p.checkIn).length,
+          lowBattery: prefs.filter((p) => !p.lowBattery).length,
+          updates: prefs.filter((p) => !p.updates).length,
+          quietHours: prefs.filter((p) => p.quietStart != null && p.quietEnd != null && p.quietStart !== p.quietEnd).length,
+          configured: prefs.length,
+        },
+        lastAt: rows.length ? rows[rows.length - 1].at : null,
+      };
     },
 
     contentCatalog: async () => Object.fromEntries([...content.entries()].map(([k, v]) => [k, v.map((i) => ({ ...i }))])),

@@ -1098,6 +1098,11 @@
           <button type="button" class="nav sub" data-view="pregweeks">Календарь беременности</button>
           <button type="button" class="nav sub" data-view="childdev">Календарь развития</button>
           <button type="button" class="nav sub" data-view="vaccines">Вакцинация</button>
+          <!-- Кадр 17c. `content` on both halves, matching GET /admin/cry and
+               PUT /admin/cry/threshold: the screen is a threshold that decides
+               what the app SAYS, not a clinical record — and a tab somebody can
+               open but not read is how «отказано» gets mistaken for «сломалось». -->
+          <button type="button" class="nav sub" data-view="cry" data-cap="content">Детектор плача</button>
           <button type="button" class="nav sub" data-view="audio" data-cap="content">Аудио</button>
           <!-- Two capabilities, because the tab holds two cards with different
                owners: the lessons are `content`, «Кому открыт курс» calls
@@ -1131,6 +1136,13 @@
           <button type="button" class="nav sub" data-view="security" data-cap="staff">Безопасность</button>
           <button type="button" class="nav sub" data-view="audit" data-cap="staff">Журнал действий</button>
           <button type="button" class="nav sub" data-view="integrations" data-cap="staff">Интеграции и ключи <span class="badge" id="intBadge" hidden></span></button>
+          <!-- Кадр 25 «Уведомления». `content`, not `staff`, and for the same
+               reason as Маркетинг: this is what became of the messages the
+               content editor writes, so the person who sends them is the person
+               who has to see whether they arrived. GET /admin/notifications is
+               requireCap(…, 'content'), and a tab drawn for a role the route
+               refuses is a tab that answers «Не загрузилось: 403». -->
+          <button type="button" class="nav sub" data-view="notifications" data-cap="content">Уведомления</button>
         </div>
       </div>
 
@@ -1788,12 +1800,163 @@
         </div>
       </section>
 
+      <!-- КАДРЫ 15 / 15a / 15b · НАЦИОНАЛЬНЫЙ КАЛЕНДАРЬ ПРИВИВОК.
+           Шестнадцать строк, которые решают, что каждому родителю в этом
+           приложении говорят делать и когда. До этой вкладки они были файлом,
+           вкомпилированным в сервер и продублированным в Dart: перенести вторую
+           дозу пневмококка значило релиз бэкенда И выкатку в сторы.
+
+           ЧИТАТЬ ПЕРЕД ТЕМ, КАК ПРОЦИТИРОВАТЬ ОТСЮДА ЛЮБОЙ ПРОЦЕНТ.
+
+           Колонка охвата — это ОТМЕТКИ МАМ В ПРИЛОЖЕНИИ. Строка в
+           child_vaccines появляется потому, что родитель нажал кружок на экране
+           прививок. Ничто в этом продукте не читает карту поликлиники и никогда
+           не читало. Поэтому «76 % по пневмококку» здесь — не охват по РК, не
+           сравнимо с цифрой Минздрава и не может быть выдано за неё. Это доля
+           родителей — пользователей приложения, которые отметили укол
+           сделанным. Сервер присылает `source`, `sourceNote` и `rule`, и
+           подпись под таблицей печатает именно их, а не текст из этого файла.
+
+           Доза — это ИДЕНТИЧНОСТЬ: под ключом «код/доза» уже лежат отметки мам.
+           Перенумеровать её нельзя, и карточка говорит об этом словами вместо
+           того, чтобы молча осиротить отметки. -->
       <section class="view" id="vaccines">
         <div class="card">
-          <div class="sec-h"><h3>Национальный календарь прививок</h3></div>
-          <p style="color:var(--muted);margin:0 0 4px">
-            Тот же график, что видит родитель в приложении по возрасту ребёнка — единый источник (<code>/admin/reference/vaccination</code>).</p>
+          <div class="sec-h">
+            <h3>Национальный календарь прививок</h3>
+            <span class="sub" id="vacVer">—</span>
+          </div>
+          <p style="color:var(--muted);margin:0 0 8px">
+            Тот же график, что уходит на телефон — единый источник (<code>/vaccination/schedule</code>):
+            контракт, который приложение носит с собой и показывает без сети, плюс правки этой панели поверх него.</p>
           <div id="vacBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+          <p class="pw-rule" id="vacRule"></p>
+        </div>
+
+        <!-- Кадр 15a. Скрыт от всех, у кого нет `content`: клиницист заходит
+             сюда читать и подписывать, а не заводить новые прививки. -->
+        <div class="card" id="vacAddCard" data-cap="content">
+          <div class="sec-h"><h3>Добавить прививку</h3>
+            <span class="sub">Кадр 15a · её нет в контракте — она появится только отсюда</span></div>
+          <p style="color:var(--muted);margin:0 0 8px">
+            Код и доза вместе образуют ключ <code>код/доза</code> — под ним мамы отмечают сделанные прививки.
+            Поменять его потом нельзя, поэтому он спрашивается здесь, а не в карточке.</p>
+          <form id="vacAddForm" class="stafform" autocomplete="off">
+            <input id="vacAddId" placeholder="код: rota" required maxlength="32" pattern="[a-z][a-z0-9_]{1,31}">
+            <input id="vacAddDose" type="number" min="1" max="9" step="1" placeholder="доза (пусто — одна)">
+            <button class="btn" type="submit">Открыть карточку</button>
+          </form>
+          <div id="vacAddMsg" class="formmsg"></div>
+        </div>
+
+        <!-- «Настройки напоминаний», ровно настолько, насколько этот продукт
+             может их честно предложить.
+
+             СЕРВЕРНОЙ РАССЫЛКИ ПРИВИВОК НЕТ. Ничто в бэкенде не шлёт пуш «пора
+             прививаться» — напоминание ставит себе сам телефон. Тумблер «слать
+             напоминания» здесь был бы переключателем, не подключённым ни к
+             чему, и это любимый дефект этого репозитория. Что действительно
+             доезжает до каждого телефона — догоняющее окно. -->
+        <div class="card" id="vacSetCard" data-cap="content">
+          <div class="sec-h"><h3>Настройки напоминаний</h3>
+            <span class="sub">Одна настройка — и это всё, что здесь есть по-честному</span></div>
+          <p style="color:var(--muted);margin:0 0 8px">
+            Догоняющее окно — сколько месяцев прививка читается как «пора», прежде чем станет «стоит наверстать».
+            Его применяет каждый телефон к каждой строке экрана прививок, и по нему же считается знаменатель охвата.
+            Рассылки прививок на сервере нет: напоминание о ближайшем визите ставит себе само приложение,
+            поэтому тумблера «слать напоминания» здесь нет.</p>
+          <form id="vacSetForm" class="stafform" autocomplete="off">
+            <label for="vacWin">Догоняющее окно, мес. (1–12)
+              <input id="vacWin" type="number" min="1" max="12" step="1" required></label>
+            <button class="btn" type="submit">Сохранить</button>
+          </form>
+          <div id="vacSetMsg" class="formmsg"></div>
+        </div>
+
+        <!-- Кадр 15b. Из append-only журнала, поэтому diff — то, что
+             действительно произошло, а не реконструкция по текущей строке. -->
+        <div class="card" id="vacLogCard">
+          <div class="sec-h"><h3>История версий</h3>
+            <span class="sub">Кадр 15b · что именно поменялось, когда и кто</span></div>
+          <div id="vacLog"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+        </div>
+      </section>
+
+      <!-- Карточка прививки. Модалка по рецепту §3, а не window.confirm():
+           здесь принимается решение о том, в каком месяце тысячам детей скажут
+           идти на укол, и такое решение не принимают в системном диалоге без
+           цифры «затронет N детей» перед глазами.
+
+           Живёт СНАРУЖИ секции: `.view` без `.active` — это display:none, и
+           модалка внутри неё не открылась бы с другой вкладки. -->
+      <div class="modal" id="vacCard" hidden>
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="vacCardT">
+          <div class="mh">
+            <div style="flex:1;min-width:0">
+              <h3 id="vacCardT">Прививка</h3>
+              <div class="sub" id="vacCardSub">—</div>
+            </div>
+            <button class="mx" id="vacCardX" type="button" aria-label="Закрыть">✕</button>
+          </div>
+          <div class="mb" id="vacCardBody"></div>
+          <div class="mf">
+            <span class="savebar" id="vacCardMsg" style="margin:0"></span>
+            <span class="acts" id="vacCardActs"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- КАДР 17c · ДЕТЕКТОР ПЛАЧА.
+           Две честные вещи и ни одной выдуманной.
+
+           Первая: точность здесь считается ТОЛЬКО по разборам, которые мама
+           оценила сама. Уверенность модели — это её мнение о себе, и печатать
+           среднюю уверенность под словом «точность» значит выдать оценку, из
+           которой потом двигают порог. Пока оценок нет, экран так и пишет.
+
+           Вторая: записи не хранятся. Клип уходит в классификатор и нигде не
+           сохраняется, поэтому кнопки «прослушать» здесь нет и не будет без
+           отдельного спрошенного согласия — вместо неё стоит строка, которая
+           говорит это словами.
+
+           Ни одной строки конкретной мамы: всё, что ниже, — GROUP BY по
+           причине. -->
+      <section class="view" id="cry">
+        <div class="card">
+          <div class="sec-h"><h3>Как отвечает детектор</h3>
+            <span class="sub">Окно 30 дней · только сводные числа, без строк отдельных мам</span></div>
+          <div class="kpis" id="cryMetrics"></div>
+          <div class="tablewrap" style="margin-top:14px">
+            <table>
+              <thead><tr>
+                <th>Причина</th><th>Разборов</th><th>Средняя уверенность</th>
+                <th>Ниже порога</th><th>Верно</th><th>Неверно</th><th>Точность</th>
+              </tr></thead>
+              <tbody id="cryBody"><tr><td colspan="7" class="tstate">Загрузка…</td></tr></tbody>
+            </table>
+          </div>
+          <!-- Every table states its rule (§3.6), and this one states two: what
+               «ниже порога» counts, and where the accuracy column comes from. -->
+          <div class="tfoot" id="cryFoot"></div>
+        </div>
+
+        <div class="card" id="cryThresholdCard" style="margin-top:16px">
+          <div class="sec-h"><h3>Порог уверенности</h3>
+            <span class="sub">Ниже него приложение не называет причину</span></div>
+          <p style="color:var(--muted);margin:0 0 10px" id="cryThreshWhat">
+            Порог применяется на телефоне к каждому разбору. Если уверенность ниже порога, экран
+            «Почему малыш плачет» пишет «не уверены», оставляет столбики вероятностей и просит
+            записать ещё раз — причину он в этом случае не называет.</p>
+          <form id="cryThreshForm" class="stafform" autocomplete="off">
+            <label for="cryThresh" style="flex:0 1 160px">Порог, %
+              <input id="cryThresh" type="number" min="0" max="95" step="1" inputmode="numeric" required></label>
+            <button class="btn" id="cryThreshBtn" type="submit">Сохранить</button>
+          </form>
+          <div id="cryThreshMsg" class="formmsg"></div>
+          <!-- What raising and lowering it actually does, beside the field that
+               does it — a number changed without its consequence in view is a
+               number changed by guess. -->
+          <p class="pw-rule" id="cryThreshRule"></p>
         </div>
       </section>
 
@@ -2607,6 +2770,46 @@
             <button type="button" class="btn" id="bcNew" hidden>Новая рассылка</button>
           </div>
           <p class="savebar" id="bcMsg" style="padding:0 18px 16px"></p>
+        </div>
+      </section>
+
+      <!-- КАДР 25 · УВЕДОМЛЕНИЯ — что стало с каждым пушем.
+           Frame 06 answers «кому мы решили написать». This one answers «дошло
+           ли», and its whole value is the second half of the table: the
+           attempts that were NOT made, and why. Every column is a count of
+           rows; there is no open rate here and there will not be one. -->
+      <section class="view" id="notifications">
+        <div class="card" style="margin-bottom:14px">
+          <div class="sec-h">
+            <h3>Отправки уведомлений</h3>
+            <span class="sub" id="ntWindow">—</span>
+          </div>
+          <div class="tablewrap">
+            <table><thead><tr>
+              <th>Тип</th>
+              <th class="num">Доставлено на устройства</th>
+              <th class="num">Не доставлено</th>
+              <th class="num">Нет устройства</th>
+              <th class="num">Придержано</th>
+              <th>Почему придержано</th>
+            </tr></thead>
+            <tbody id="ntBody"></tbody></table>
+          </div>
+          <p class="pw-rule" id="ntRule"></p>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="sec-h">
+            <h3>Что мамы отключили</h3>
+            <span class="sub" id="ntPrefsSub">—</span>
+          </div>
+          <div class="tablewrap">
+            <table><thead><tr>
+              <th>Категория</th><th class="num">Отключили</th><th>Что перестаёт приходить</th>
+            </tr></thead>
+            <tbody id="ntPrefsBody"></tbody></table>
+          </div>
+          <p class="pw-rule" id="ntPrefsRule"></p>
         </div>
       </section>
 
@@ -5256,12 +5459,14 @@
     "emergency-help":["Экстренная помощь","Сценарии «что происходит?» и что делать — то, что мама читает в 3 часа ночи"],
     childdev:["Календарь развития","Рост, вес и навыки ребёнка по неделям первого года (RU/KZ)"],
     vaccines:["Вакцинация","Национальный календарь прививок по возрасту ребёнка"],
+    cry:["Детектор плача","Что отвечает модель, что из этого подтвердили мамы, и порог, ниже которого причина не называется"],
     devices:["Устройства","Все браслеты и трекеры по всем аккаунтам"],
     owner:["Дашборд владельца","Деньги, что горит, и одно решение на неделю"],
     security:["Безопасность","Кто открывал здоровье и геолокацию, когда и на каком основании"],
     roles:["Роли и права","Что может каждая роль — из тех же правил, по которым проверяет сервер"],
     shop:["Магазин","Остатки по цветам и заказы на доставку"],
     marketing:["Маркетинг","Одно сообщение — выбранной группе мам, не чаще раза в неделю"],
+    notifications:["Уведомления","Что стало с каждым пушем: дошло, не дошло или придержано её настройками"],
     audio:["Аудио","Ежедневные аудио для календарей беременности и развития"],
     analytics:["Аналитика","Охват, вовлечённость и покрытие каталога"],
     audit:["Журнал действий","Каждое действие сотрудника с защищёнными данными"],
@@ -5388,8 +5593,10 @@
     if(v==="pregweeks")renderPregWeeks();
     if(v==="emergency-help")renderEmergencyHelp();
     if(v==="marketing")renderMarketing();
+    if(v==="notifications")renderNotifications();
     if(v==="childdev")renderChildDev();
     if(v==="vaccines")renderVaccines();
+    if(v==="cry")renderCry();
     if(v==="shop")renderShop();
     if(v==="audio")renderAudio();
     if(v==="staff")renderStaff();
@@ -5436,6 +5643,13 @@
     setNav(!$("#sideNav").classList.contains("open")));
   $("#navScrim")?.addEventListener("click",()=>setNav(false));
   document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") setNav(false); });
+  // Кадр 15: карточка прививки — модалка, а модалку, которую можно открыть и
+  // нельзя закрыть, лучше не открывать.
+  document.addEventListener("keydown",(e)=>{
+    if(e.key!=="Escape") return;
+    const m=document.getElementById("vacCard");
+    if(m&&!m.hidden&&typeof vacCloseCard==="function") vacCloseCard();
+  });
   // Dragging the window back to desktop width must not leave the drawer state
   // stuck on — the sidebar is permanent there and `.open` would be meaningless.
   window.addEventListener("resize",()=>{ if(window.innerWidth>900) setNav(false); });
@@ -6204,6 +6418,149 @@
     }catch(e){ bcMsg(String(e.message||e),"err"); }
   }
 
+  // ---- Кадр 25 · Уведомления: что стало с каждым пушем -------------------
+  //
+  // Frame 06 says who we decided to write to. This says whether a phone lit up,
+  // and it is the only screen in the panel that can answer «почему ЕЙ не
+  // пришло» — the question a support desk actually receives.
+  //
+  // Three things it never does.
+  //
+  // It never prints an open rate. FCM accepting a message is not a phone
+  // showing it and is certainly not a woman reading it. The column says
+  // «доставлено на устройства», and the footer says why there is nothing more.
+  //
+  // It never pads the table. A kind nothing happened to is absent, not a row of
+  // zeros: «broadcast 0 0 0» reads as a broken sender when the truth is that
+  // nobody sent one this week.
+  //
+  // It never computes anything. Every number is counted by the server over
+  // push_deliveries; this browser holds no rows and could only guess.
+  let NTS=null, NTERR=null;
+
+  const NT_KIND_RU={
+    emergency:"Экстренные (здоровье)", geofence:"Зоны ребёнка", sos:"SOS",
+    support:"Ответы поддержки", broadcast:"Рассылки",
+  };
+  const NT_CAT_RU={
+    zoneEvents:["Зоны","Ребёнок вошёл в зону или вышел из неё"],
+    checkIn:["Отметки «я на месте»","Ребёнок отметил, что всё хорошо"],
+    lowBattery:["Низкий заряд трекера","У браслета садится батарея"],
+    updates:["Новости и ответы","Рассылки и ответы поддержки"],
+  };
+
+  async function loadNotifications(force){
+    if(NTS&&!force) return NTS;
+    try{
+      const r=await fetch("/admin/notifications",{credentials:"same-origin",headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role}});
+      if(r.status===401){sessionLost();return null;}
+      if(r.ok){ NTS=await r.json(); NTERR=null; }
+      else { const d=await r.json().catch(()=>({})); NTERR=d.message||`Сервер ответил ошибкой ${r.status}.`; NTS=null; }
+    }catch(e){ NTERR="Сервер не ответил."; NTS=null; }
+    return NTS;
+  }
+
+  function ntRow(k,reasons){
+    // Both halves of «придержано», spelled out. A bare number would make
+    // «тихие часы» and «она отключила категорию» look like one thing, and they
+    // need different answers from support.
+    const why=[];
+    if(k.heldMuted) why.push(`${fmt(k.heldMuted)} — ${esc(reasons.muted||"категория отключена")}`);
+    if(k.heldQuiet) why.push(`${fmt(k.heldQuiet)} — ${esc(reasons.quiet_hours||"тихие часы")}`);
+    // «Не доставлено» counts DEVICES, exactly like «доставлено на устройства»
+    // beside it. It used to be `k.failed+k.errors` — tokens plus attempts, two
+    // different units in one cell: a single send to three phones that threw
+    // inside firebase-admin returns failed:3 AND an error, and the column read
+    // «4» for a send that had three devices in it. A number larger than any
+    // real quantity on the screen and traceable to nothing.
+    //
+    // Errored SENDS are their own line underneath, in attempts, because that is
+    // what they are — and the reader still sees both without adding them up.
+    const notes=[];
+    if(k.errors) notes.push(`${fmt(k.errors)} отправк(и) сорвались с ошибкой`);
+    if(k.dead) notes.push(`${fmt(k.dead)} мёртвых токенов удалено`);
+    const failNote=notes.length?`<div class="sub">${notes.join(" · ")}</div>`:"";
+    return `<tr data-ntkind="${esc(k.kind)}">
+      <td><b>${esc(NT_KIND_RU[k.kind]||k.kind)}</b><div class="sub">${fmt(k.attempts)} попыт(ок)</div></td>
+      <td class="num">${fmt(k.delivered)}</td>
+      <td class="num">${fmt(k.failed)}${failNote}</td>
+      <td class="num">${fmt(k.noTokens)}</td>
+      <td class="num">${fmt(k.held)}</td>
+      <td>${why.length?why.join("<br>"):"—"}</td>
+    </tr>`;
+  }
+
+  async function renderNotifications(){
+    const body=$("#ntBody"), win=$("#ntWindow"), rule=$("#ntRule");
+    const pBody=$("#ntPrefsBody"), pSub=$("#ntPrefsSub"), pRule=$("#ntPrefsRule");
+    if(!body) return;
+    const d=await loadNotifications();
+    if(!d){
+      body.innerHTML=tableNote(6,NTERR
+        ? `Не удалось загрузить журнал отправок: ${esc(NTERR)}`
+        : "Не удалось загрузить журнал отправок. Проверьте доступ и соединение.");
+      if(win) win.textContent="—";
+      if(rule) rule.textContent="";
+      if(pBody) pBody.innerHTML=tableNote(3,"Не удалось прочитать настройки мам. Проверьте доступ и соединение.");
+      if(pSub) pSub.textContent="—";
+      if(pRule) pRule.textContent="";
+      return;
+    }
+
+    const kinds=d.kinds||[];
+    const reasons=d.holdReasons||{};
+    body.innerHTML=kinds.map(k=>ntRow(k,reasons)).join("")
+      || tableNote(6,`За последние ${Number(d.windowDays)||30} дн. приложение не отправляло ни одного уведомления. `+
+                     `Это не ошибка панели: строк в журнале отправок нет.`);
+
+    const delivered=kinds.reduce((n,k)=>n+k.delivered,0);
+    const held=kinds.reduce((n,k)=>n+k.held,0);
+    if(win){
+      win.textContent=`За ${Number(d.windowDays)||30} дн. · доставлено на устройства ${fmt(delivered)}`+
+        (held?` · придержано ${fmt(held)}`:"")+
+        (d.lastAt?` · последняя отправка ${stamp(d.lastAt)}`:"");
+    }
+    if(rule){
+      const always=(d.alwaysDelivered||["sos","emergency"]).map(k=>NT_KIND_RU[k]||k).join(" и ");
+      rule.innerHTML=
+        `«Доставлено на устройства» — сколько телефонов приняли уведомление по данным FCM. `+
+        `<b>Не «прочитано»</b>: приложение нигде не отмечает, открыла ли она уведомление, `+
+        `поэтому такой цифры здесь нет и не будет придуманной. `+
+        `«Не доставлено» — тоже телефоны, а не отправки: обе колонки в одних единицах, `+
+        `а сорвавшиеся целиком отправки указаны отдельной строкой под числом. `+
+        `«Нет устройства» — мы пытались, но у неё не зарегистрирован ни один телефон: `+
+        `это считается для всех типов, включая SOS и рассылки. `+
+        `«Придержано» — мы не отправляли: она отключила категорию или шли её тихие часы `+
+        `(по её часовому поясу <code>users.timezone</code>, а не по времени сервера). `+
+        `${esc(always)} не придерживаются никогда — ни одним переключателем, ни тихими часами. `+
+        `Типов без единой попытки в таблице нет: ноль напротив строки читался бы как поломка отправки.`;
+    }
+
+    const m=d.muted||{};
+    if(pBody){
+      const cats=(d.categories||["zoneEvents","checkIn","lowBattery","updates"]);
+      pBody.innerHTML=cats.map(c=>{
+        const lbl=NT_CAT_RU[c]||[c,""];
+        return `<tr data-ntcat="${esc(c)}"><td><b>${esc(lbl[0])}</b></td>`+
+          `<td class="num">${fmt(Number(m[c])||0)}</td><td>${esc(lbl[1])}</td></tr>`;
+      }).join("")+
+      `<tr data-ntcat="quietHours"><td><b>Тихие часы</b></td>`+
+      `<td class="num">${fmt(Number(m.quietHours)||0)}</td>`+
+      `<td>Окно, внутри которого телефон молчит — кроме SOS и экстренных</td></tr>`;
+    }
+    if(pSub){
+      pSub.textContent=Number(m.configured)
+        ? `${fmt(m.configured)} мам(ы) открывали экран настроек`
+        : "Экран настроек ещё никто не открывал";
+    }
+    if(pRule){
+      pRule.innerHTML=
+        `Считаются только те, кто что-то сохранил на экране «Уведомления» в приложении. `+
+        `У остальных включено всё — отсутствие строки означает согласие по умолчанию, а не отказ. `+
+        `Кто именно отключил, здесь не показывается: это её настройка, и списка таких мам панели не нужно.`;
+    }
+  }
+
   // ---- Baby-development calendar (same content the app shows by child age) ----
   let CDEV=null, cdNote=null, cdWeek=24, cdLang="ru";
   async function loadCdev(){
@@ -6236,7 +6593,13 @@
   }
 
   // ---- Vaccination schedule (same calendar the app shows by child age) ----
-  let VACC=null;
+  //
+  // The state and the renderer live further down, beside renderVaccines(). Only
+  // [ageLabel] is here, because the shop block below reads it too.
+  //
+  // Byte-identical to ageLabelRu() in vaccination/overrides.ts: the impact and
+  // coverage routes put ages into sentences a person reads, and «затронет 6 104
+  // детей на 4 мес.» assembled in two places drifts.
   function ageLabel(m){
     if(m===0) return "При рождении";
     if(m<12) return `${m} мес.`;
@@ -8818,17 +9181,673 @@
     }
   }
 
+  // ---- Кадры 15 / 15a / 15b · Национальный календарь прививок --------------
+  //
+  // Читается из /admin/vaccination/schedule, а НЕ из
+  // /admin/reference/vaccination: первое — график КАК ОН ОТДАЁТСЯ (контракт с
+  // правками панели сверху) плюс состояние каждой правки; второе — сырой
+  // контракт. Пока эта вкладка рисовала контракт, она показывала не то, что
+  // получает телефон, — то есть ровно ту рассинхронизацию, ради которой
+  // редактор и существует.
+  //
+  // ЕЩЁ РАЗ ПРО ОХВАТ: цифры в колонке — отметки мам в приложении, не данные
+  // поликлиник. Подпись под таблицей печатает `source`/`sourceNote`/`rule` из
+  // ответа сервера, а не формулировку, выбранную здесь.
+  let VAC=null, VACMETA=null, VACERR=null;
+  let VACCOV=null, VACCOVERR=null;
+  let VACLOG=null, VACLOGERR=null;
+  /// Открытый ключ, или null. `vacNewKey` не пуст, когда карточка заведена под
+  /// прививку, которой в графике ещё нет (кадр 15a).
+  let vacOpenKey=null, vacNewKey=null, vacImpTimer=null;
+
+  /// Отказ — это не «не загрузилось». Сервер ответил и сказал «нет», и
+  /// вкладка обязана напечатать именно это.
+  const vacDenied=(e)=>(typeof AccessDenied!=="undefined")&&(e instanceof AccessDenied);
+
+  /// esc() этого блока не трогает кавычку, а сюда попадают названия, которые
+  /// печатал человек: одна `"` в поле — и value= закрывается посреди атрибута.
+  const vacAttr=(s)=>String(s==null?"":s)
+    .replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  async function loadVac(force){
+    if(VAC&&!force) return VAC;
+    try{
+      const d=await api("/admin/vaccination/schedule");
+      VAC=d.vaccines||[]; VACMETA=d; VACERR=null;
+    }catch(e){
+      VAC=null; VACMETA=null;
+      VACERR=vacDenied(e)?"denied":`Сервер ответил ошибкой ${esc(String(e.message||e))}.`;
+    }
+    return VAC;
+  }
+
+  /// Охват требует права `health`. Без него колонка пуста и подпись говорит,
+  /// что это отказ, а не сбой, — «—» без объяснения читается как «ноль».
+  async function loadVacCoverage(force){
+    if(VACCOV&&!force) return VACCOV;
+    if(!can("health")){ VACCOV=null; VACCOVERR="nocap"; return null; }
+    try{ VACCOV=await api("/admin/vaccination/coverage"); VACCOVERR=null; }
+    catch(e){
+      VACCOV=null;
+      VACCOVERR=vacDenied(e)?"denied":`сервер ответил ошибкой ${String(e.message||e)}`;
+    }
+    return VACCOV;
+  }
+
+  async function loadVacLog(force){
+    if(VACLOG&&!force) return VACLOG;
+    try{ VACLOG=(await api("/admin/vaccination/log?limit=50")).entries||[]; VACLOGERR=null; }
+    catch(e){
+      VACLOG=null;
+      VACLOGERR=vacDenied(e)?"denied":`сервер ответил ошибкой ${String(e.message||e)}`;
+    }
+    return VACLOG;
+  }
+
+  /// Сервер не смог прочитать таблицу правок (миграция 038 не применена или
+  /// база моргнула). Шестнадцать строк — по-прежнему настоящий график; неизвестно
+  /// именно то, какие из них уже правили.
+  function vacEditsUnknown(){ return !!(VACMETA&&VACMETA.editsKnown===false); }
+
+  const vacRow=(key)=>(VAC||[]).find(v=>v.key===key)||null;
+
+  /// Состояние строки словами. Цвет — только статус.
+  function vacStateTag(v){
+    if(!v.edited) return `<span class="pw-tag base">Из контракта</span>`;
+    if(v.draft) return `<span class="pw-tag base">Черновик — ${v.inContract?"на телефонах контракт":"в графике её нет"}</span>`;
+    if(!v.reviewCurrent) return `<span class="pw-tag wait">Опубликовано, текст изменён после проверки</span>`;
+    return `<span class="pw-tag live">Опубликовано, проверено врачом</span>`;
+  }
+
+  /// «Было / стало» по возрасту. Только там, где контракт есть и где он
+  /// действительно разошёлся с текущей строкой.
+  function vacAgeCell(v){
+    const now=`<b>${esc(ageLabel(v.atMonth))}</b>`;
+    const moved=v.inContract&&v.contractAtMonth!=null&&v.contractAtMonth!==v.atMonth;
+    // Черновик — это третье число: в боксах один месяц, а на телефонах пока
+    // другой. Без этой строки редактор показывает срок, которого нет ни у кого.
+    const live=v.draft&&v.liveAtMonth!=null&&v.liveAtMonth!==v.atMonth
+      ? `<div class="pw-chip">на телефонах: ${esc(ageLabel(v.liveAtMonth))}</div>` : "";
+    return moved
+      ? `<span class="pw-chip" style="text-decoration:line-through">${esc(ageLabel(v.contractAtMonth))}</span> → ${now}${live}`
+      : `${now}${live}`;
+  }
+
+  /// Доля отмеченного, из ответа /coverage. Никогда не выдумывается: нет права,
+  /// нет ответа или нет детей подходящего возраста — три разных надписи.
+  function vacCovCell(key){
+    if(VACCOVERR==="nocap") return `<span class="pw-chip">нужно право health</span>`;
+    if(VACCOVERR) return `<span class="pw-chip">не посчитан</span>`;
+    const c=((VACCOV&&VACCOV.vaccines)||[]).find(x=>x.key===key);
+    if(!c) return `<span class="pw-chip">—</span>`;
+    if(c.pct==null) return `<span class="pw-chip">детей такого возраста нет</span>`;
+    return `<b>${Number(c.pct)} %</b> <span class="pw-chip">${Number(c.done)} из ${Number(c.due)}</span>`;
+  }
+
   async function renderVaccines(){
     const box=$("#vacBody"); if(!box) return;
-    if(!VACC){ try{ const r=await fetch("/admin/reference/vaccination",{credentials:"same-origin"}); if(r.ok){ VACC=(await r.json()).vaccines||[]; } }catch(e){} }
-    if(!VACC||!VACC.length){ box.innerHTML=`<div style="color:var(--muted);padding:16px 0">График доступен, когда панель обслуживается сервером (<code>/admin/reference/vaccination</code>).</div>`; return; }
-    const byAge={}; VACC.forEach(v=>{ (byAge[v.atMonth]=byAge[v.atMonth]||[]).push(v); });
-    const ages=Object.keys(byAge).map(Number).sort((a,b)=>a-b);
-    box.innerHTML=`<div class="an-grid">`+ages.map(m=>`
-      <div class="an-visit">
-        <div class="an-vh"><span class="an-vn" style="width:auto;padding:0 8px;border-radius:12px">${esc(ageLabel(m))}</span></div>
-        ${byAge[m].map(v=>`<div class="an-item">${esc(v.ru)}${v.dose?` <span class="an-wk">доза ${v.dose}</span>`:""}</div>`).join("")}
-      </div>`).join("")+`</div>`;
+    const rows=await loadVac();
+    // Охват и журнал — независимые запросы: у них разные права и разные способы
+    // отказать, и падение одного не должно уносить таблицу.
+    await Promise.all([loadVacCoverage(), loadVacLog()]);
+    vacFillWindow();
+    renderVacLog();
+
+    const ver=$("#vacVer");
+    if(ver) ver.textContent=VACMETA?`версия ${Number(VACMETA.version)||0}`:"—";
+
+    if(!rows||!rows.length){
+      box.innerHTML=`<div style="color:var(--muted);padding:16px 0">${
+        VACERR==="denied"
+          ? `Нет доступа к календарю прививок: сервер ответил и отказал — у вашей роли нет нужного права. Это не сбой.`
+          : VACERR
+            ? `График не загрузился: ${VACERR} Попробуйте обновить страницу.`
+            : `График доступен, когда панель обслуживается сервером (<code>/admin/vaccination/schedule</code>).`}</div>`;
+      const rule=$("#vacRule"); if(rule) rule.textContent="";
+      return;
+    }
+
+    const mayEdit=can("content")&&!vacEditsUnknown();
+    box.innerHTML=`<div class="tablewrap"><table>
+      <thead><tr>
+        <th>Возраст</th><th>Прививка</th><th>Ключ</th><th>Состояние</th>
+        <th>Отмечено мамами</th><th></th>
+      </tr></thead>
+      <tbody>${rows.map(v=>`
+        <tr data-vackey="${esc(v.key)}">
+          <td>${vacAgeCell(v)}</td>
+          <td><b>${esc(v.ru.name||v.contractRu||v.key)}</b>${v.dose!=null?` <span class="pw-chip">доза ${Number(v.dose)}</span>`:""}${
+            v.added?` <span class="pw-chip">добавлена здесь</span>`:""}${
+            v.ru.note?`<div class="pw-chip">${esc(v.ru.note)}</div>`:""}</td>
+          <td><code>${esc(v.key)}</code></td>
+          <td>${vacStateTag(v)}</td>
+          <td>${vacCovCell(v.key)}</td>
+          <td style="text-align:right"><button type="button" class="btn" data-vackey="${esc(v.key)}">${
+            mayEdit?"Изменить":"Открыть"}</button></td>
+        </tr>`).join("")}
+      </tbody></table></div>`;
+
+    const rule=$("#vacRule");
+    if(rule){
+      const w=VACMETA?Number(VACMETA.dueWindowMonths)||0:0;
+      const win=VACMETA&&VACMETA.dueWindowEdited
+        ? `Догоняющее окно: <b>${w} мес.</b> — выбрано в панели${VACMETA.dueWindowUpdatedAt?` ${stamp(VACMETA.dueWindowUpdatedAt)}`:""}${
+            VACMETA.dueWindowUpdatedBy?` · ${esc(VACMETA.dueWindowUpdatedBy)}`:""}. `
+        : `Догоняющее окно: <b>${w} мес.</b> — контрактное значение, в панели его никто не менял. `;
+      // «Не знаю» и «не выбрано» — разные утверждения, и сервер их различает.
+      const setUnknown=VACMETA&&VACMETA.settingsKnown===false
+        ? `<b style="color:var(--warn-text)">Настройку прочитать не удалось</b> — показано контрактное значение. `
+        : "";
+      const cov=VACCOV
+        ? `<b>Охват — по отметкам мам, не по данным поликлиник.</b> ${esc(VACCOV.sourceNote||"")} ${esc(VACCOV.rule||"")} `+
+          `Детей с датой рождения: ${Number(VACCOV.children)||0}`+
+          (Number(VACCOV.childrenWithoutDob)>0
+            ? `; без даты рождения: ${Number(VACCOV.childrenWithoutDob)} — их нельзя поставить на календарь, поэтому они не входят ни в один знаменатель`
+            : "")+
+          `. Код источника: <code>${esc(VACCOV.source||"")}</code>. `
+        : VACCOVERR==="nocap"
+          ? `Охват не показан: он считается по записям детей, а на них нужно право <code>health</code>. Это отказ, а не сбой. `
+          : VACCOVERR==="denied"
+            ? `Охват не показан: сервер ответил и отказал — у вашей роли нет права <code>health</code>. Это не сбой. `
+            : `Охват не посчитан (${esc(String(VACCOVERR||"нет ответа"))}). Пустые клетки — это «неизвестно», а не нули. `;
+      rule.innerHTML=
+        (vacEditsUnknown()
+          ? `<b style="color:var(--warn-text)">Состояние правок недоступно</b> — сервер не смог прочитать таблицу правок `+
+            `(<code>vaccination_overrides</code>), поэтому сохранение закрыто: график ниже верен, но неизвестно, какие строки уже правили. `
+          : "")+
+        setUnknown+win+cov+
+        `Версия графика: ${VACMETA?Number(VACMETA.version)||0:"—"} (контракт ${VACMETA?Number(VACMETA.contractVersion)||0:"—"}).`;
+    }
+  }
+
+  /// Поле догоняющего окна — из того же ответа, что и таблица.
+  function vacFillWindow(){
+    const el=$("#vacWin"); if(!el||!VACMETA) return;
+    el.value=String(Number(VACMETA.dueWindowMonths)||1);
+  }
+
+  // ---- Кадр 15b · история версий ------------------------------------------
+  //
+  // Из append-only журнала: строка правки хранит только ТЕКУЩИЙ текст, и список
+  // версий, собранный по ней, показал бы что изменилось, но никогда — из чего.
+  // `before: null` — не пробел: строки не было, и точкой отсчёта был контракт,
+  // который у панели уже есть и который она и показывает.
+
+  /// Точка отсчёта для первой правки: то, что говорит шипованный календарь.
+  function vacContractBaseline(key){
+    const v=vacRow(key);
+    if(!v||!v.inContract) return null;
+    return { atMonth:v.contractAtMonth, ru:{name:v.contractRu||"",note:""}, kk:{name:"",note:""}, draft:false };
+  }
+
+  function vacDiffLines(entry){
+    const a=entry.after||{};
+    if(entry.key==="@settings"){
+      const was=entry.before&&entry.before.dueWindowMonths!=null
+        ? `${Number(entry.before.dueWindowMonths)} мес.` : "контрактное значение";
+      return [["Догоняющее окно", was, `${Number(a.dueWindowMonths)} мес.`]];
+    }
+    const b=entry.before||vacContractBaseline(entry.key);
+    if(!b){
+      return [["Заведена", "её не было", `${esc(a.ru&&a.ru.name||entry.key)}, ${ageLabel(Number(a.atMonth))}`]];
+    }
+    const out=[];
+    const txt=(o,l,f)=>((o&&o[l]&&o[l][f])||"").trim();
+    if(Number(b.atMonth)!==Number(a.atMonth)) out.push(["Возраст", ageLabel(Number(b.atMonth)), ageLabel(Number(a.atMonth))]);
+    for(const [l,f,label] of [["ru","name","Название RU"],["kk","name","Атауы ҚАЗ"],["ru","note","Пояснение RU"],["kk","note","Пояснение ҚАЗ"]]){
+      const was=txt(b,l,f), now=txt(a,l,f);
+      if(was!==now) out.push([label, was||"пусто", now||"пусто"]);
+    }
+    if(!!b.draft!==!!a.draft){
+      out.push(["Публикация", b.draft?"черновик":"опубликовано", a.draft?"черновик":"опубликовано"]);
+    }
+    const hadReview=!!(b&&b.review), hasReview=!!a.review;
+    if(hadReview!==hasReview){
+      out.push(["Проверка врача", hadReview?"есть":"нет", hasReview?`подписал ${a.review.by}`:"снята правкой"]);
+    }
+    // Сохранение без единого изменённого поля — это тоже событие: оно сдвинуло
+    // версию, которую телефоны кешируют. Промолчать было бы неправдой.
+    return out.length?out:[["Сохранено без изменений текста","—","версия сдвинулась"]];
+  }
+
+  /// «Влияет на N детей» для записи журнала — только там, где это можно
+  /// сказать честно: возраст изменился, охват посчитан, и мы знаем, сколько
+  /// детей между старым и новым сроком.
+  function vacLogImpact(entry){
+    if(!VACCOV||entry.key==="@settings") return "";
+    const a=entry.after||{}, b=entry.before||vacContractBaseline(entry.key);
+    if(!b||Number(b.atMonth)===Number(a.atMonth)) return "";
+    const c=(VACCOV.vaccines||[]).find(x=>x.key===entry.key);
+    if(!c) return "";
+    const n=Number(c.due)+Number(c.notYet);
+    return ` <span class="pw-chip">детей в базе на этой прививке сейчас: ${n}</span>`;
+  }
+
+  function renderVacLog(){
+    const box=$("#vacLog"); if(!box) return;
+    if(!VACLOG){
+      box.innerHTML=`<div style="color:var(--muted);padding:16px 0">${
+        VACLOGERR==="denied"
+          ? "Нет доступа к журналу версий: сервер ответил и отказал."
+          : `Журнал версий не загрузился (${esc(String(VACLOGERR||"нет ответа"))}). Это не значит, что правок не было.`}</div>`;
+      return;
+    }
+    if(!VACLOG.length){
+      box.innerHTML=`<div style="color:var(--muted);padding:16px 0">Правок ещё не было — график идёт ровно по контракту.</div>`;
+      return;
+    }
+    box.innerHTML=`<div class="eh-list">${VACLOG.map(e=>{
+      const v=vacRow(e.key);
+      const name=e.key==="@settings"
+        ? "Настройки напоминаний"
+        : (v?(v.ru.name||v.contractRu||e.key):e.key);
+      return `<div class="eh-row" style="cursor:default">
+        <div style="flex:1;min-width:0">
+          <div class="eh-ttl">${esc(name)} <span class="pw-chip"><code>${esc(e.key)}</code></span>${vacLogImpact(e)}</div>
+          <div class="eh-sub">${vacDiffLines(e).map(([f,was,now])=>
+            `${esc(f)}: <span style="text-decoration:line-through">${esc(was)}</span> → <b>${esc(now)}</b>`).join("<br>")}</div>
+          <div class="eh-sub">${stamp(e.at)}${e.actor?` · ${esc(e.actor)}`:" · автор не записан"}${
+            e.before?"":" · до этого правок не было, базой был контракт"}</div>
+        </div>
+      </div>`;
+    }).join("")}</div>`;
+  }
+
+  // ---- Карточка прививки (модалка) ----------------------------------------
+
+  function vacCardMsg(text,kind){
+    const el=$("#vacCardMsg"); if(!el) return;
+    el.textContent=text||""; el.className="savebar"+(kind?" "+kind:"");
+  }
+
+  /// Подтверждение — в этой же модалке, а не в window.confirm(): системный
+  /// диалог не может показать, скольких детей это затронет, а именно ради этой
+  /// цифры человек сюда и пришёл.
+  function vacAsk(question, yes){
+    return new Promise(resolve=>{
+      const acts=$("#vacCardActs"); if(!acts){ resolve(false); return; }
+      const keep=acts.innerHTML;
+      vacCardMsg(question,"err");
+      acts.innerHTML=`<button type="button" class="btn" id="vacAskNo">Отмена</button>`+
+        `<button type="button" class="btn primary" id="vacAskYes">${esc(yes)}</button>`;
+      const done=(v)=>{ acts.innerHTML=keep; vacCardMsg(""); resolve(v); };
+      $("#vacAskYes").addEventListener("click",()=>done(true));
+      $("#vacAskNo").addEventListener("click",()=>done(false));
+    });
+  }
+
+  function vacCloseCard(){
+    const m=$("#vacCard"); if(m) m.hidden=true;
+    vacOpenKey=null; vacNewKey=null;
+    clearTimeout(vacImpTimer);
+  }
+
+  /**
+   * Открыть карточку одной прививки.
+   *
+   * `key` — существующий ключ; `neu` — {id, dose, key} для прививки, которой в
+   * графике ещё нет (кадр 15a). Второй случай отдельный, потому что для него
+   * нет ни контрактной строки, ни l10n в приложении: и название, и пояснение
+   * обязаны быть написаны здесь на обоих языках, иначе строка приедет на
+   * телефон пустой.
+   */
+  function vacOpenCard(key, neu){
+    const m=$("#vacCard"); if(!m) return;
+    vacOpenKey=key||null; vacNewKey=neu?neu.key:null;
+    const v=key?vacRow(key):null;
+    const shownKey=v?v.key:(neu?neu.key:(key||""));
+    const dose=v?v.dose:(neu?neu.dose:null);
+    const added=v?v.added:true;
+    const t=$("#vacCardT"), sub=$("#vacCardSub"), body=$("#vacCardBody"), acts=$("#vacCardActs");
+    t.textContent=v?(v.ru.name||v.contractRu||v.key):`Новая прививка ${shownKey}`;
+    sub.innerHTML=`<code>${esc(shownKey)}</code> · ${
+      v&&v.inContract?"есть в контракте":"в контракте её нет"}${
+      dose!=null?` · доза ${Number(dose)}`:" · одна доза"}`;
+
+    const mayEdit=can("content")&&!vacEditsUnknown();
+    const fld=(fid,label,val,rows)=>`<div class="pw-f"><label for="${fid}">${label}</label>`+
+      (rows?`<textarea id="${fid}" rows="${rows}"${mayEdit?"":" disabled"}>${esc(val||"")}</textarea>`
+           :`<input id="${fid}" type="text" value="${vacAttr(val||"")}"${mayEdit?"":" disabled"}>`)+`</div>`;
+
+    const state=v?vacStateTag(v):`<span class="pw-tag base">Ещё не сохранена</span>`;
+    const review=v&&v.review
+      ? `<span class="pw-chip">Проверил: ${esc(v.review.by)} · ${stamp(v.review.at)}</span>`
+      : `<span class="pw-chip">Врач ещё не проверял</span>`;
+    const who=v&&v.updatedAt
+      ? `<span class="pw-chip">Изменено: ${stamp(v.updatedAt)}${v.updatedBy?" · "+esc(v.updatedBy):""}</span>` : "";
+
+    body.innerHTML=`
+      <div class="pw-state" style="padding:0">${state}${review}${who}</div>
+      ${v&&v.inContract&&v.contractAtMonth!=null
+        ? `<div class="pw-chip">В контракте: ${esc(v.contractRu||"")} · ${esc(ageLabel(v.contractAtMonth))}</div>` : ""}
+      <!-- Доза — идентичность: под «код/доза» уже лежат отметки мам о сделанных
+           прививках. Поле показано и заблокировано, а не спрятано, чтобы никто
+           не искал, где его поменять. -->
+      <div class="pw-fgrid" style="padding:0">
+        <div class="pw-f"><label for="vacAt">Возраст, полных месяцев (0–216)</label>
+          <input id="vacAt" type="number" min="0" max="216" step="1" value="${v?Number(v.atMonth):0}"${mayEdit?"":" disabled"}></div>
+        <div class="pw-f"><label for="vacDose">Доза — сменить нельзя</label>
+          <input id="vacDose" type="text" value="${dose==null?"одна":Number(dose)}" disabled></div>
+      </div>
+      <p class="pw-rule" style="padding:0" id="vacImpact">Считаем, скольких детей это затронет…</p>
+      <div class="pw-fgrid" style="padding:0">
+        ${fld("vacRuName","RU · название",v?v.ru.name:"")}
+        ${fld("vacKkName","ҚАЗ · атауы",v?v.kk.name:"")}
+        ${fld("vacRuNote","RU · пояснение",v?v.ru.note:"",3)}
+        ${fld("vacKkNote","ҚАЗ · түсініктеме",v?v.kk.note:"",3)}
+      </div>
+      <p class="pw-rule" style="padding:0">${added
+        ? "Эта прививка добавлена здесь: в приложении для неё нет ни базового названия, ни пояснения, поэтому обязательны все четыре поля."
+        : "Название обязательно на обоих языках. Пояснение — по желанию, но если написано на одном, нужно и на втором."}
+        ${vacEditsUnknown()
+          ? `<b style="color:var(--warn-text)">Сохранение закрыто:</b> сервер не смог прочитать таблицу правок (<code>vaccination_overrides</code>). Сохранение сейчас стёрло бы чужую правку и проверку врача.`
+          : ""}</p>`;
+
+    acts.innerHTML=
+      (can("content")?`<button type="button" class="btn" id="vacDraft"${mayEdit?"":" disabled"}>Сохранить черновиком</button>`:"")+
+      (can("content")?`<button type="button" class="btn primary" id="vacSave"${mayEdit?"":" disabled"}>Опубликовать</button>`:"")+
+      (can("health")&&v&&v.edited?`<button type="button" class="btn" id="vacReview">Отметить проверенным</button>`:"")+
+      (can("content")&&v&&v.edited&&!v.draft&&v.inContract?`<button type="button" class="btn" id="vacRevert"${mayEdit?"":" disabled"}>Вернуть к контракту</button>`:"");
+    vacCardMsg("");
+    m.hidden=false;
+    // Счётчик пересчитывается ПОКА человек печатает месяц, а не после
+    // сохранения: «затронет N детей» после публикации — это уже не решение,
+    // а отчёт о том, что произошло.
+    const at=$("#vacAt");
+    if(at) at.addEventListener("input",()=>{ clearTimeout(vacImpTimer); vacImpTimer=setTimeout(vacLoadImpact,180); });
+    vacLoadImpact();
+  }
+
+  /**
+   * «Затронет N детей» — ДО сохранения, не после.
+   *
+   * Число, которое имеет значение, — `reclassified`: скольким детям строка
+   * перещёлкнется между «предстоит», «пора» и «стоит наверстать» в тот момент,
+   * когда правка уедет. Перенос бустера на месяц может за ночь загнать тысячи
+   * детей в список «наверстать», и никто не должен иметь возможности сделать
+   * это, не видя счётчик.
+   */
+  async function vacLoadImpact(){
+    const el=$("#vacImpact"); if(!el) return;
+    const at=Number(($("#vacAt")||{}).value);
+    if(!can("health")){
+      el.innerHTML=`«Затронет N детей» не показано: счёт идёт по записям детей, а на них нужно право <code>health</code>. `+
+        `Это отказ, а не сбой, — и это не ноль.`;
+      return;
+    }
+    if(!Number.isInteger(at)||at<0||at>216){ el.textContent="Возраст должен быть целым числом от 0 до 216 месяцев."; return; }
+    el.textContent="Считаем, скольких детей это затронет…";
+    const q=vacNewKey&&!vacOpenKey
+      ? `?atMonth=${at}`
+      : `?key=${encodeURIComponent(vacOpenKey)}&atMonth=${at}`;
+    let d=null;
+    try{ d=await api("/admin/vaccination/impact"+q); }
+    catch(e){
+      el.innerHTML=vacDenied(e)
+        ? `«Затронет N детей» не показано: сервер ответил и отказал — нет права <code>health</code>.`
+        : `Не удалось посчитать, скольких детей это затронет (${esc(String(e.message||e))}). `+
+          `Сохранение не заблокировано, но число сейчас неизвестно — <b>это не ноль</b>.`;
+      return;
+    }
+    const n=Number(d.reclassified)||0;
+    el.innerHTML=
+      `<b>Затронет ${n} ${plural(n,"ребёнка","детей","детей")}</b> — стольким строка сменит `+
+      `«предстоит» / «пора» / «стоит наверстать», если сохранить возраст ${esc(ageLabel(at))}. `+
+      `Ещё не доросли: ${Number(d.notYet)||0} · окно уже прошло: ${Number(d.passed)||0} · `+
+      `всего детей с датой рождения: ${Number(d.total)||0}.`;
+  }
+
+  /// Что сейчас в боксах.
+  function vacReadForm(){
+    const val=id=>{const e=$("#"+id); return e?String(e.value).trim():"";};
+    return {
+      atMonth:Number(($("#vacAt")||{}).value),
+      ru:{name:val("vacRuName"),note:val("vacRuNote")},
+      kk:{name:val("vacKkName"),note:val("vacKkNote")},
+    };
+  }
+
+  /// Запись, которая печатает СОБСТВЕННУЮ причину сервера. `apiSend` бросает
+  /// один код статуса, а «409» — не то, с чем контент-редактор может что-то
+  /// сделать: весь смысл translation_required / review_required в предложении,
+  /// которое приходит вместе с ними.
+  async function vacSend(path,method,body){
+    const r=await fetch(path,{method,credentials:"same-origin",
+      headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role,"content-type":"application/json"},
+      body:body?JSON.stringify(body):undefined});
+    if(r.status===401) sessionLost();
+    const text=await r.text();
+    let parsed=null; try{ parsed=JSON.parse(text); }catch(_){/* not JSON */}
+    if(!r.ok){
+      const e=new Error((parsed&&parsed.message)||`Ошибка ${r.status}`);
+      e.status=r.status; throw e;
+    }
+    return parsed||{};
+  }
+
+  async function vacSave(draft){
+    if(vacEditsUnknown()){
+      vacCardMsg("Сохранение закрыто: панель не знает, какие прививки уже правили.","err"); return;
+    }
+    const key=vacOpenKey||vacNewKey;
+    const v=vacOpenKey?vacRow(vacOpenKey):null;
+    const id=v?v.id:String(key||"").split("/")[0];
+    const doseRaw=v?v.dose:(String(key||"").split("/")[1]);
+    const dose=(v?(v.dose==null?null:Number(v.dose))
+                 :(doseRaw==="null"||doseRaw===""||doseRaw==null?null:Number(doseRaw)));
+    const f=vacReadForm();
+    if(!Number.isInteger(f.atMonth)||f.atMonth<0||f.atMonth>216){
+      vacCardMsg("Возраст должен быть целым числом от 0 до 216 месяцев.","err"); return;
+    }
+    // Названо ДО поездки на сервер, теми же словами, какими откажет сервер —
+    // и сервер всё равно откажет, потому что проверка только в браузере
+    // правилом не является.
+    const missing=[];
+    if(!f.ru.name) missing.push("русского названия");
+    if(!f.kk.name) missing.push("казахского названия");
+    const added=v?v.added:true;
+    if(added||f.ru.note||f.kk.note){
+      if(!f.ru.note) missing.push("русского пояснения");
+      if(!f.kk.note) missing.push("казахского пояснения");
+    }
+    if(missing.length){ vacCardMsg(`Нельзя сохранить: нет ${missing.join(", ")}.`,"err"); return; }
+
+    vacCardMsg("Сохраняем…");
+    try{
+      const res=await vacSend(`/admin/vaccination/schedule/${encodeURIComponent(id)}/${dose==null?"null":dose}`,
+        "PUT",{...f,dose,draft:!!draft});
+      await loadVac(true); await loadVacCoverage(true); await loadVacLog(true);
+      await renderVaccines();
+      // Карточка перерисовывается с сохранённой строкой, и сообщение ставится
+      // ПОСЛЕ: перерисовка сносит #vacCardMsg, и текст, поставленный раньше,
+      // стёрся бы — сохранение выглядело бы как «ничего не произошло».
+      vacOpenCard(res.key||key,null);
+      vacCardMsg(draft
+        ? `Сохранено черновиком — на телефонах ${v&&v.inContract?"остаётся контрактный срок":"этой прививки нет"}.`
+        : `Опубликовано${res.reviewed?", проверка врача сохранена":""}.`,"ok");
+    }catch(e){ vacCardMsg(String(e.message||e),"err"); }
+  }
+
+  async function vacApprove(){
+    const key=vacOpenKey; if(!key) return;
+    if(!await vacAsk("Подтвердить, что эта прививка — срок и текст — проверена вами? Ваше имя попадёт в журнал.","Да, проверено")) return;
+    vacCardMsg("Отправляем…");
+    try{
+      const [id,doseRaw]=String(key).split("/");
+      await vacSend(`/admin/vaccination/schedule/${encodeURIComponent(id)}/${doseRaw}/review`,"POST");
+      await loadVac(true); await loadVacLog(true); await renderVaccines();
+      vacOpenCard(key,null);
+      vacCardMsg("Отмечено проверенным.","ok");
+    }catch(e){ vacCardMsg(String(e.message||e),"err"); }
+  }
+
+  /// Назад к шипованному сроку. Не DELETE: строка уходит в черновик, поэтому
+  /// контракт снова проступает, а написанные слова остаются на месте.
+  async function vacRevert(){
+    const v=vacOpenKey?vacRow(vacOpenKey):null; if(!v) return;
+    if(!await vacAsk(
+      `Вернуть «${v.ru.name||v.contractRu||v.key}» к контрактному сроку ${ageLabel(v.contractAtMonth)}? `+
+      `Правка останется черновиком, но телефоны снова получат контракт.`,"Да, вернуть")) return;
+    await vacSave(true);
+  }
+
+  // ---- Кадр 15a · «Добавить прививку» --------------------------------------
+  function vacAdd(e){
+    e.preventDefault();
+    const msg=$("#vacAddMsg"); const set=(t,k)=>{ if(msg){ msg.textContent=t; msg.className="formmsg"+(k?" "+k:""); } };
+    const id=String(($("#vacAddId")||{}).value||"").trim();
+    const doseRaw=String(($("#vacAddDose")||{}).value||"").trim();
+    if(!/^[a-z][a-z0-9_]{1,31}$/.test(id)){
+      set("Код прививки — латиница, цифры и подчёркивание, 2–32 символа (например pcv).","bad"); return;
+    }
+    const dose=doseRaw===""?null:Number(doseRaw);
+    if(dose!=null&&(!Number.isInteger(dose)||dose<1||dose>9)){
+      set("Доза — целое число от 1 до 9, или пусто, если прививка одна.","bad"); return;
+    }
+    const key=`${id}/${dose==null?"null":dose}`;
+    // Уже существует — это не ошибка, а «вы имели в виду вот эту»: открыть её
+    // честнее, чем завести вторую строку под тем же ключом.
+    if(vacRow(key)){ set(`Такая прививка уже есть — открыта её карточка.`,"ok"); vacOpenCard(key,null); return; }
+    set(`Ключ ${key} — заполните оба языка и сохраните.`,"ok");
+    vacOpenCard(null,{id,dose,key});
+  }
+
+  // ---- Догоняющее окно → PUT /admin/vaccination/settings -------------------
+  async function vacSaveWindow(e){
+    e.preventDefault();
+    const msg=$("#vacSetMsg"); const set=(t,k)=>{ if(msg){ msg.textContent=t; msg.className="formmsg"+(k?" "+k:""); } };
+    const n=Number(($("#vacWin")||{}).value);
+    if(!Number.isInteger(n)||n<1||n>12){ set("Догоняющее окно — целое число месяцев от 1 до 12.","bad"); return; }
+    set("Сохраняем…");
+    try{
+      await vacSend("/admin/vaccination/settings","PUT",{dueWindowMonths:n});
+      await loadVac(true); await loadVacCoverage(true); await loadVacLog(true);
+      await renderVaccines();
+      set(`Догоняющее окно — ${n} мес. Его применит каждый телефон на следующем запуске, и по нему же пересчитан знаменатель охвата.`,"ok");
+    }catch(e2){ set(String(e2.message||e2),"err"); }
+  }
+
+  // ---- Кадр 17c · Детектор плача -----------------------------------------
+  //
+  // ЧИТАТЬ ПЕРЕД ТЕМ, КАК ПЕЧАТАТЬ ЗДЕСЬ ЛЮБОЕ ЧИСЛО СО СЛОВОМ «ТОЧНОСТЬ».
+  //
+  // Сервер отдаёт `rated` — сколько разборов мама оценила — и `accuracy`,
+  // которая равна null, а не нулю, пока оценок нет. Ноль и «нет данных» — это
+  // противоположные утверждения о модели, и подставить сюда среднюю
+  // уверенность вместо отсутствующей точности значит нарисовать оценку,
+  // которой никто не давал. Поэтому ниже везде проверка на null.
+  //
+  // Причины приходят кодами классификатора; их русские подписи — единственное,
+  // что этот файл добавляет от себя.
+  const CRY_REASON_RU={
+    hungry:"Голод", tired:"Усталость", belly_pain:"Боль в животе",
+    discomfort:"Дискомфорт", burping:"Газы / срыгивание",
+  };
+  const cryReasonRu=code=>CRY_REASON_RU[code]||code;
+  /// A share as a whole percent. Kept local: `pct` above formats a 0..1 rate
+  /// with a decimal, which reads wrong beside counts this small.
+  const cryPct=x=>Math.round(x*100)+" %";
+
+  async function renderCry(){
+    const body=$("#cryBody"), metrics=$("#cryMetrics"), foot=$("#cryFoot");
+    if(!body) return;
+    let d=null;
+    try{ d=await api("/admin/cry"); }catch(e){ d=null; }
+    if(!d||typeof d.analyses!=="number"){
+      // A failure is not an empty state: zeroes here would read as «детектором
+      // никто не пользуется», which is a claim about the product.
+      body.innerHTML=tableNote(7,"Не удалось загрузить статистику детектора. Это не значит, что разборов не было — цифры просто не получены.");
+      if(metrics) metrics.innerHTML="";
+      if(foot) foot.textContent="Данные не загружены, поэтому ни одно число выше не показано.";
+      cryFillThreshold(null);
+      return;
+    }
+    cryFillThreshold(d);
+    const thresholdPct=Math.round(d.minConfidence*100);
+    const below=(d.byReason||[]).reduce((n,r)=>n+r.belowThreshold,0);
+    if(metrics){
+      metrics.innerHTML=[
+        {dot:"var(--ink)",lbl:"Разборов за 30 дней",val:d.analyses,
+         delta:d.lastAt?`последний — ${stamp(d.lastAt)}`:"за окно не было ни одного разбора"},
+        {dot:"var(--good)",lbl:"Точность",
+         // The whole point of this screen. `accuracy` is null until a mother has
+         // rated something, and the tile says so instead of printing 0 %.
+         val:d.accuracy==null?"—":cryPct(d.accuracy),
+         delta:d.rated?`по ${fmt(d.rated)} оценкам мам из ${fmt(d.analyses)} разборов`
+                       :(d.firstAt?`оценок пока нет · собираем с ${stamp(d.firstAt)}`
+                                   :"оценок пока нет · появятся, когда мама ответит «это было верно?»")},
+        {dot:"var(--warn)",lbl:"Ниже порога",val:below,
+         delta:`уверенность меньше ${thresholdPct} % · по ним приложение причину не называет`},
+        {dot:"var(--muted)",lbl:"Без оценки",val:d.unrated,
+         delta:"мама не ответила «это было верно?» — это «неизвестно», а не «неверно»"},
+      ].map(kpiTile).join("");
+    }
+    const rows=d.byReason||[];
+    body.innerHTML=rows.length
+      ? rows.map(r=>{
+          const rated=r.correct+r.wrong;
+          return `<tr>
+            <td><b>${esc(cryReasonRu(r.reason))}</b></td>
+            <td>${fmt(r.count)}</td>
+            <td>${cryPct(r.avgConfidence)}</td>
+            <td>${fmt(r.belowThreshold)}</td>
+            <td>${fmt(r.correct)}</td>
+            <td>${fmt(r.wrong)}</td>
+            <td>${rated?`<b>${cryPct(r.correct/rated)}</b> <span class="sub">по ${fmt(rated)}</span>`:`<span class="sub">оценок нет</span>`}</td>
+          </tr>`;
+        }).join("")
+      : tableNote(7,"Разборов за 30 дней не было — строки появятся, когда мамы запишут плач в приложении.");
+    if(foot){
+      foot.textContent=`${d.rule} ${d.sourceNote} ${d.audioNote}`;
+    }
+  }
+
+  /**
+   * Put the served threshold into the field, and say what changing it does.
+   *
+   * The field is filled from the SERVER's answer, never from a constant here:
+   * a box pre-filled with 45 while the database holds 60 invites somebody to
+   * press Сохранить and silently undo a decision.
+   */
+  function cryFillThreshold(d){
+    const input=$("#cryThresh"), rule=$("#cryThreshRule");
+    // Emptied on a failure, not left holding the last good number: a filled box
+    // beside «порог неизвестен» is an invitation to press Сохранить and write
+    // back a value nobody has confirmed is still the one in force.
+    if(input) input.value=d?String(Math.round(d.minConfidence*100)):"";
+    if(!rule) return;
+    if(!d){ rule.textContent="Текущий порог неизвестен — сервер не ответил. Поле выше не заполнено, чтобы не показать чужое число как действующее."; return; }
+    const shipped=Math.round(d.defaultMinConfidence*100);
+    rule.textContent=
+      `Сейчас ${Math.round(d.minConfidence*100)} % — `+
+      (d.thresholdSource==="override"
+        ? `выбрано в панели${d.thresholdUpdatedAt?" "+stamp(d.thresholdUpdatedAt):""} (поставочное значение ${shipped} %).`
+        : `поставочное значение, здесь его ещё никто не менял.`)+
+      ` Выше порог — больше «не уверены» и меньше уверенно неверных ответов; ниже — наоборот.`+
+      ` Изменение доходит до телефонов без обновления приложения, при следующем запуске.`+
+      ` Максимум ${Math.round((d.maxMinConfidence||0.95)*100)} %: порог, которого не достигает ни один ответ, выключил бы экран целиком.`;
+  }
+
+  async function crySaveThreshold(){
+    const input=$("#cryThresh"), msg=$("#cryThreshMsg"), btn=$("#cryThreshBtn");
+    if(!input||!msg) return;
+    const v=Number(input.value);
+    if(!Number.isFinite(v)||v<0||v>95){
+      msg.textContent="Порог — целое число от 0 до 95 %."; msg.className="formmsg err"; return;
+    }
+    if(btn) btn.disabled=true;
+    msg.textContent="Сохранение…"; msg.className="formmsg";
+    try{
+      // A write whose answer is never read is a write that can fail in silence.
+      const r=await apiSend("/admin/cry/threshold","PUT",{minConfidence:Math.round(v)/100});
+      msg.textContent=`Порог ${Math.round((r.minConfidence??v/100)*100)} % сохранён. Телефоны применят его при следующем запуске.`;
+      msg.className="formmsg ok";
+      await renderCry(); // re-read: «ниже порога» is counted against the new one
+    }catch(e){
+      msg.textContent="Не удалось сохранить порог — ничего не изменилось. Попробуйте ещё раз.";
+      msg.className="formmsg err";
+    }
+    if(btn) btn.disabled=false;
   }
 
   // ---- Children demographics dashboard ----
@@ -8892,6 +9911,17 @@
     if(e.target.id==="ehDraft"){ehSave(true);return;}
     if(e.target.id==="ehReview"){ehApprove();return;}
     if(e.target.id==="ehRevert"){ehRevert();return;}
+    // Кадры 15/15a/15b. Кнопки карточки идут ПЕРЕД [data-vackey]: карточка
+    // висит снаружи секции, но её кнопки не несут ключа, а строки таблицы несут.
+    if(e.target.id==="vacSave"){vacSave(false);return;}
+    if(e.target.id==="vacDraft"){vacSave(true);return;}
+    if(e.target.id==="vacReview"){vacApprove();return;}
+    if(e.target.id==="vacRevert"){vacRevert();return;}
+    if(e.target.id==="vacCardX"){vacCloseCard();return;}
+    // Клик по подложке — тоже закрытие. Без него модалку можно закрыть только
+    // крестиком, а на узком экране он уезжает за край шапки.
+    if(e.target.id==="vacCard"){vacCloseCard();return;}
+    const vk=e.target.closest("[data-vackey]"); if(vk){vacOpenCard(vk.dataset.vackey,null);return;}
     // Кадр 06. Before the generic row handlers: these live inside a table row
     // and a [data-view] sidebar would otherwise swallow the clicks.
     if(e.target.id==="bcSave"){bcSave();return;}
@@ -8921,6 +9951,15 @@
   // Кадр 06. The segment selects ask the SERVER for a new head-count; the text
   // boxes only re-decide whether «Отправить» is alive. Debounced together so
   // holding a key down does not become a request per character.
+  // Кадр 17c. A submit handler rather than a click on the button, so Enter in
+  // the number field saves too — and preventDefault, because a form that
+  // navigates away takes the confirmation with it.
+  $("#cryThreshForm")?.addEventListener("submit",e=>{ e.preventDefault(); crySaveThreshold(); });
+  // Кадры 15a и «настройки напоминаний» — submit, а не click по кнопке, чтобы
+  // Enter в поле тоже срабатывал; preventDefault, потому что форма, уводящая со
+  // страницы, уносит с собой и подтверждение.
+  $("#vacAddForm")?.addEventListener("submit",vacAdd);
+  $("#vacSetForm")?.addEventListener("submit",vacSaveWindow);
   let bcCountTimer=null;
   for(const id of ["bcAudience","bcLocale"]){
     $("#"+id)?.addEventListener("change",()=>{

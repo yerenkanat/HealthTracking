@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../data/cry_classifier_client.dart';
 import '../../data/cry_recorder.dart';
+import '../../data/cry_settings_repository.dart';
 import '../../domain/child_growth.dart';
 import '../../domain/family.dart';
 import '../../domain/newborn_log.dart';
@@ -129,6 +130,11 @@ void openNewbornLog(BuildContext context, AppController controller,
 /// controller.recordCry (which also syncs them across devices). The classifier
 /// is reached through the authenticated backend proxy, so the callers only
 /// offer this when signed in.
+///
+/// `minConfidence` is read at push time from the served threshold (кадр 17c),
+/// so a number the back office changed this morning is applied tonight without
+/// a release. `onVerdict` carries her «это было верно?» back to the controller,
+/// which stores it with the analysis and pushes it.
 void openCryInsight(BuildContext context, AppController controller) {
   Navigator.of(context).push(MaterialPageRoute(
     builder: (_) => StreamBuilder<void>(
@@ -141,6 +147,9 @@ void openCryInsight(BuildContext context, AppController controller) {
         ),
         onResult: controller.recordCry,
         history: controller.cryHistory,
+        minConfidence: cryMinConfidence(),
+        onVerdict: (verdict, actualReason) =>
+            controller.rateLatestCry(verdict, actualReason: actualReason),
       ),
     ),
   ));

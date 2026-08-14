@@ -53,6 +53,40 @@ void main() {
   }
   _chk('fromCode round-trips every reason', allCodes);
 
+  // ---- Кадр 17c: the threshold and the verdict ------------------------------
+  //
+  // The threshold rule is a pure predicate, and it decides whether a mother is
+  // told a reason at all — so it is verified here rather than only through the
+  // widget that reads it.
+  final low = CryResult(reason: 'hungry', confidence: 0.31, at: DateTime.utc(2026, 8, 10));
+  final high = CryResult(reason: 'hungry', confidence: 0.82, at: DateTime.utc(2026, 8, 10));
+  _chk('below the threshold names no reason', !low.namesReasonAt(kCryMinConfidenceDefault));
+  _chk('above it does', high.namesReasonAt(kCryMinConfidenceDefault));
+  // Exactly AT the threshold counts as sure: the panel's field says «порог», and
+  // a boundary that excluded its own value would make 45 % mean 46 %.
+  _chk('the boundary itself is sure',
+      CryResult(reason: 'x', confidence: 0.45, at: DateTime.utc(2026)).namesReasonAt(0.45));
+  _chk('the shipped default matches the backend constant', kCryMinConfidenceDefault == 0.45);
+
+  final wrong = high.rated(CryVerdict.wrong, actualReason: 'belly_pain');
+  _chk('a wrong verdict keeps what it actually was', wrong.actualReason == 'belly_pain');
+  _chk('rating does not rewrite the analysis', wrong.reason == 'hungry' && wrong.at == high.at);
+  // «Верно» means "the stored reason was right", so a second reason beside it
+  // would be a row saying two different things about one cry.
+  _chk('a correct verdict carries no actual reason',
+      high.rated(CryVerdict.correct, actualReason: 'tired').actualReason == null);
+  final back = CryResult.fromJson(wrong.toJson());
+  _chk('the verdict survives a JSON round trip',
+      back.verdict == CryVerdict.wrong && back.actualReason == 'belly_pain');
+  _chk('a history written before verdicts existed reads as unrated',
+      CryResult.fromJson({'reason': 'hungry', 'confidence': 0.8, 'at': '2026-08-10T00:00:00.000Z'})
+              .verdict ==
+          null);
+  _chk('a verdict word this build does not know is not shown as an answer',
+      CryResult.fromJson({'reason': 'hungry', 'confidence': 0.8, 'at': '2026-08-10T00:00:00.000Z', 'verdict': 'partly'})
+              .verdict ==
+          null);
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

@@ -21,14 +21,64 @@ import type {
   VaccineText as VaccineTextRow,
 } from '../vaccination/overrides.js';
 import type { VaccinationCoverageData } from '../vaccination/coverage.js';
+import type { CryThresholdRow } from '../cry/settings.js';
+import type { HoldReason, NotificationPrefs, PushKind } from '../notifications/gate.js';
 
 export type { BiMetrics };
+export type { NotificationPrefs };
 export type { VaccinationOverride, VaccinationSettings, VaccinationCoverageData };
+export type { CryThresholdRow };
 
 export interface CryRow {
   at: string; // ISO timestamp of the analysis
   reason: string; // wire code, e.g. 'hungry'
   confidence: number; // 0..1
+  /**
+   * Was the answer right — frame 17c. 'correct' | 'wrong', or absent when the
+   * mother has not said. Absent is a THIRD state, not «wrong»: this product has
+   * no other source of truth about why a baby cried, so an unrated row is
+   * unknown and is counted as unknown everywhere.
+   */
+  verdict?: CryVerdict | null;
+  /** What it actually was, when she said «нет» and picked one. */
+  actualReason?: string | null;
+}
+
+export type CryVerdict = 'correct' | 'wrong';
+export const CRY_VERDICTS = ['correct', 'wrong'] as const;
+
+/**
+ * The cry detector as the back office sees it — frame 17c. Aggregates only:
+ * every figure here is a GROUP BY over `cry_results` and no row names a mother
+ * or a child. There is deliberately no per-user list anywhere in this shape.
+ */
+export interface CryStats {
+  /** Analyses in the window. */
+  analyses: number;
+  byReason: Array<{
+    reason: string;
+    count: number;
+    /** Mean confidence of the analyses the model returned for this reason. */
+    avgConfidence: number;
+    /** How many of them fell UNDER the served threshold — i.e. named nothing. */
+    belowThreshold: number;
+    /** Rated by a mother as right / wrong. The only accuracy input that exists. */
+    correct: number;
+    wrong: number;
+  }>;
+  /** Analyses nobody rated. The denominator of «оценок пока нет». */
+  unrated: number;
+  /** The newest analysis in the window, or null when there is none. */
+  lastAt: string | null;
+  /**
+   * The oldest analysis in the window — «собираем с …».
+   *
+   * Beside `lastAt` because the panel has to answer two different questions
+   * while there are no verdicts at all: «работает ли он вообще» (the newest)
+   * and «сколько мы уже собираем» (the oldest). Without this the honest empty
+   * state has no date in it and reads as an excuse.
+   */
+  firstAt: string | null;
 }
 
 export interface SleepNight {
@@ -651,6 +701,86 @@ export interface BroadcastRow {
   delivered: number;
 }
 
+/**
+ * Her notification switches, PLUS the timezone they have to be read in.
+ *
+ * The timezone travels with the preferences rather than being fetched
+ * separately because forgetting it is silent: quiet hours evaluated against the
+ * server's UTC clock still "work", they just hold the wrong nine hours of her
+ * day. One call, one struct, no way to have the switches without the clock.
+ */
+export interface NotificationPrefsRow extends NotificationPrefs {
+  /** `users.timezone` — IANA, 'Asia/Almaty' by default. */
+  timezone: string;
+  /**
+   * When she last changed them, or null when this row is the DEFAULTS rather
+   * than something she chose. The panel counts «сколько мам настроили» off
+   * rows that exist, so the distinction has to survive the read.
+   */
+  updatedAt: string | null;
+}
+
+/** One attempt to reach a phone — sent or held. See migrations/047. */
+export interface PushDeliveryRecord {
+  /** Null for a send with no single recipient. */
+  userId: string | null;
+  kind: PushKind | string;
+  sent: number;
+  failed: number;
+  /** How many tokens FCM told us to forget on this attempt. */
+  dead: number;
+  /** Null = it went out. Otherwise why it did not. */
+  heldReason: HoldReason | null;
+  /** Whole-send failure, verbatim; 'no_tokens' means she has no device. */
+  error: string | null;
+}
+
+/**
+ * What the back office reads on frame 25.
+ *
+ * Every field is COUNTED. There is deliberately no open rate: FCM accepting a
+ * message is not a phone showing it and is certainly not a woman reading it,
+ * and the moment a percentage appears here somebody will make a decision with
+ * it.
+ */
+export interface PushDeliverySummary {
+  windowDays: number;
+  /** One row per push kind that actually occurred — never a padded list. */
+  kinds: Array<{
+    kind: string;
+    /** Attempts, held ones included. */
+    attempts: number;
+    /** Phones FCM accepted the message for. */
+    delivered: number;
+    failed: number;
+    /** Attempts refused because she has no registered device. */
+    noTokens: number;
+    /** Attempts we did not make, because of her switches. */
+    held: number;
+    heldMuted: number;
+    heldQuiet: number;
+    /** Whole-send failures other than «нет устройства». */
+    errors: number;
+    /** Dead tokens removed on this kind's attempts. */
+    dead: number;
+  }>;
+  /** Dead tokens removed across all kinds in the window. */
+  deadTokens: number;
+  /** How many mothers have switched each category OFF. */
+  muted: {
+    zoneEvents: number;
+    checkIn: number;
+    lowBattery: number;
+    updates: number;
+    /** …and how many have a quiet-hours window set. */
+    quietHours: number;
+    /** Rows in notification_prefs — mothers who have touched the screen. */
+    configured: number;
+  };
+  /** The most recent attempt in the window, or null when there were none. */
+  lastAt: string | null;
+}
+
 /** One рассылка as the app receives it. */
 export interface AnnouncementRow {
   id: string;
@@ -1143,6 +1273,26 @@ export interface Repository {
   // survive a reinstall and restore on a new device — history was device-local.
   recordCry(userId: string, c: CryRow): Promise<void>;
   listCry(userId: string, limit: number): Promise<CryRow[]>;
+  /**
+   * «Это было верно?» — frame 17c. Applies a mother's verdict to one of HER
+   * analyses, keyed by the instant. False when there is no such row, so the
+   * route can answer 404 rather than accept a verdict about nothing.
+   */
+  recordCryVerdict(
+    userId: string,
+    at: string,
+    verdict: CryVerdict,
+    actualReason: string | null,
+  ): Promise<boolean>;
+  /**
+   * The detector's aggregate picture over the last [days] — every user, no
+   * user named. `belowThreshold` is counted against the threshold in force,
+   * which is why this reads the settings row itself rather than taking one.
+   */
+  cryStats(days: number): Promise<CryStats>;
+  /** The override row, or null when nobody has set one (= shipped default). */
+  getCryThreshold(): Promise<CryThresholdRow | null>;
+  setCryThreshold(v: { minConfidence: number; updatedBy: string }): Promise<void>;
 
   // ---- Maternal weight log (one row per day, upsert on the date) ----
   recordWeight(userId: string, w: WeightRow): Promise<void>;
@@ -1398,6 +1548,39 @@ export interface Repository {
   /// languages travel, because she may change hers after the message arrives
   /// and a cached copy in the wrong language is a bug she cannot fix.
   listAnnouncements(userId: string, limit: number): Promise<AnnouncementRow[]>;
+
+  // ---- Notifications (frame 25 «Уведомления» → app screen 39) ----
+  /// Her switches and the timezone to read the quiet hours in.
+  ///
+  /// NEVER throws for a woman who has never opened the screen: no row means
+  /// DEFAULT_PREFS, everything on. An install that predates the table must not
+  /// lose the alerts it was already receiving because nobody has saved
+  /// anything yet — and a missing row must never read as "she muted it".
+  getNotificationPrefs(userId: string): Promise<NotificationPrefsRow>;
+  /// Save what she chose. Upsert on user_id; the app sends the whole object,
+  /// so there is no partial-update path to get wrong.
+  putNotificationPrefs(userId: string, prefs: NotificationPrefs): Promise<void>;
+  /// Write the clock her quiet hours are read against — `users.timezone`.
+  ///
+  /// THE OTHER HALF OF getNotificationPrefs. That column was READ by the push
+  /// gate and written by nothing: no route accepted a zone, no INSERT supplied
+  /// one, so every woman in the product was evaluated as if she were in
+  /// Asia/Almaty. For a mother in Berlin that is quiet hours applied three or
+  /// four hours early — exactly wrong rather than merely absent, which is the
+  /// failure the column exists to prevent.
+  ///
+  /// [timezone] is an IANA name the caller has already validated; the
+  /// repository stores what it is given.
+  setUserTimezone(userId: string, timezone: string): Promise<void>;
+  /// Record one attempt — INCLUDING the ones the gate held.
+  ///
+  /// Held attempts are the point. A ledger of only the sends can say how many
+  /// went out and can never answer «почему ей не пришло», which is the
+  /// question a support desk actually receives.
+  recordPushDelivery(row: PushDeliveryRecord): Promise<void>;
+  /// The back-office summary over the last [days]. Counted rows only: a kind
+  /// nothing happened to is absent rather than printed as a row of zeros.
+  pushDeliverySummary(days: number): Promise<PushDeliverySummary>;
 
   /**
    * Record a back-office action.

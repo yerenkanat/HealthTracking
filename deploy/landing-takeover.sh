@@ -184,10 +184,16 @@ $ADMIN_BLOCK
     # or, worse, Caddy's 404, which the app reads as the server being down.
     # It carries no user data; the address and the doctor's number on that
     # screen come from /profile, which stays session-scoped.
+    # /protocols/cry is the cry detector's confidence threshold (кадр 17c) — one
+    # number about the model, identical for every caller. PUBLIC because the app
+    # fetches it at launch, before she has signed in: behind @app a fresh
+    # install would meet Caddy's 404, fall back to the shipped default, and the
+    # back office's whole point — moving the threshold without a release —
+    # would silently stop working on exactly the phones that never sign in.
     @public path / /robots.txt /sitemap.xml /landing/* /shop /shop/* /health /ready \
                  /api-docs /api/v1 /api/v1/* /join/* \
                  /antenatal/* /pregnancy/* /child/development* /vaccination/* /audio/* \
-                 /emergency-help /privacy /terms
+                 /emergency-help /protocols/cry /privacy /terms
 
     # ---- The app ------------------------------------------------------------
     #
@@ -240,11 +246,16 @@ $ADMIN_BLOCK
     #   /announcements* — frame 06, the app end of the marketing tab. Left out,
     #               the back office publishes a рассылка, counts it as
     #               delivered, and no phone ever finds out.
+    #   /notifications/* — frame 25 / screen 39: her per-category switches and
+    #               quiet hours. Session-scoped, never public — these are one
+    #               woman's settings. Left out, the app would save them to the
+    #               phone as before while every server-sent push ignored them,
+    #               which is the exact defect the route exists to close.
     @app path /account* /ai/* /alerts* /announcements* /app/* /appointments* \
               /auth/logout /calibration/* /children* /content* \
               /contraction-sessions* /course* /cry/* /cycle* /devices* /doses* \
               /family* /geofences* /growth* /ingest/* /kick-sessions* \
-              /medications* /metrics* /newborn-events* /profile* /sleep* \
+              /medications* /metrics* /newborn-events* /notifications/* /profile* /sleep* \
               /support* /vaccines* /vitals* /weight*
     handle @app {
         reverse_proxy ${BACKEND}

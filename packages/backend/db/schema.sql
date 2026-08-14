@@ -319,7 +319,27 @@ CREATE TABLE cry_results (
   at          TIMESTAMPTZ NOT NULL,
   reason      TEXT NOT NULL,          -- wire code, e.g. hungry | tired | discomfort
   confidence  REAL NOT NULL,          -- 0..1
-  PRIMARY KEY (user_id, at)
+  -- Was the answer right? Migration 046. The mother's own verdict, and the only
+  -- ground truth this product will ever have: nothing here reads a clinic and
+  -- the clip itself is never stored. NULL is «не спрашивали», a third state —
+  -- never «wrong» — and every accuracy figure is computed over rated rows only.
+  verdict       TEXT,
+  actual_reason TEXT,
+  PRIMARY KEY (user_id, at),
+  CONSTRAINT cry_results_verdict_check
+    CHECK (verdict IS NULL OR verdict IN ('correct','wrong'))
+);
+
+-- The one number the cry detector has that a release used to be needed to
+-- change: below it the app names NO reason and says «не уверены» instead
+-- (migration 046). Single-row, like vaccination_settings — one detector, one
+-- threshold. Deliberately NOT seeded: an absent row means the shipped default
+-- in src/cry/settings.ts, which is the truthful state before anybody decided.
+CREATE TABLE cry_settings (
+  id             BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
+  min_confidence REAL NOT NULL CHECK (min_confidence >= 0 AND min_confidence <= 0.95),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by     TEXT
 );
 
 CREATE TABLE sleep_nights (
@@ -1161,6 +1181,53 @@ CREATE INDEX IF NOT EXISTS idx_broadcast_deliveries_user
   ON broadcast_deliveries (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_broadcasts_published
   ON broadcasts (published_at DESC NULLS LAST);
+
+
+-- ---------------------------------------------------------------------------
+-- Frame 25 «Уведомления» — the switches the SERVER obeys, and what happened to
+-- every push it tried to send. See migrations/047.
+--
+-- Until this existed, the app's notification screen was a promise the server
+-- had never heard of: the switches lived in SharedPrefs on one phone and gated
+-- only what that phone raised for itself.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notification_prefs (
+  user_id     UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  -- All TRUE by default, and a MISSING ROW means the same: an install that
+  -- predates the table must not lose alerts it was already receiving.
+  zone_events BOOLEAN NOT NULL DEFAULT TRUE,
+  check_in    BOOLEAN NOT NULL DEFAULT TRUE,
+  low_battery BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Рассылки and support answers — a FOURTH category, never a reuse of
+  -- check_in: muting advertisements must not mute «ребёнок на месте».
+  updates     BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Minutes since midnight IN HER timezone (users.timezone), not the server's.
+  -- Both NULL = off; start > end is a legitimate overnight window.
+  quiet_start SMALLINT CHECK (quiet_start BETWEEN 0 AND 1439),
+  quiet_end   SMALLINT CHECK (quiet_end   BETWEEN 0 AND 1439),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- SOS and medical emergency have no column here on purpose: they are not
+-- switchable, and a column for them is a column somebody sets to false.
+
+-- One row per ATTEMPT, held ones included — «почему ей не пришло» is the
+-- question this table exists for. It records no open rate: FCM accepting a
+-- message is not a woman reading it, and there is no such number in this
+-- product to print.
+CREATE TABLE IF NOT EXISTS push_deliveries (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+  kind        TEXT NOT NULL,
+  sent        INTEGER NOT NULL DEFAULT 0,
+  failed      INTEGER NOT NULL DEFAULT 0,
+  dead        INTEGER NOT NULL DEFAULT 0,
+  held_reason TEXT CHECK (held_reason IN ('muted', 'quiet_hours')),
+  error       TEXT,
+  at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_push_deliveries_at ON push_deliveries (at DESC);
+CREATE INDEX IF NOT EXISTS idx_push_deliveries_kind ON push_deliveries (kind, at DESC);
+CREATE INDEX IF NOT EXISTS idx_push_deliveries_user ON push_deliveries (user_id, at DESC);
 
 
 -- ---------------------------------------------------------------------------

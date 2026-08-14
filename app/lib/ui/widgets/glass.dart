@@ -45,7 +45,24 @@ class AuroraBackground extends StatelessWidget {
 /// gradients, so the parameter is a plain [color] — keeping a Gradient argument
 /// that only ever contributed its first stop would have been a lie in the API.
 class MetricRing extends StatelessWidget {
-  final double fraction; // 0..1
+  /// How much of the ring is filled, 0..1 — or NULL for «there was nothing to
+  /// measure this against».
+  ///
+  /// Nullable on a clinical ruling, and the type is the ruling. The health
+  /// dashboard computed `withData == 0 ? 1.0 : healthy / withData`, so a day on
+  /// which NOTHING could be graded drew a complete ring: the most confident
+  /// shape the screen owns, asserting that everything checked is fine, on a day
+  /// when nothing was checked. That 1.0 looked like a display default and was
+  /// an assertion. A default that must be chosen is a default that will be
+  /// chosen wrong again, so "nothing to grade" is now a state in the type
+  /// rather than a number that happens to mean it — a caller cannot fall into
+  /// it by accident, it has to say `null`.
+  ///
+  /// Null paints the track and NO arc, in no accent at all. Not a grey full
+  /// ring: a full ring is still read as "all good" at a glance, on a small
+  /// screen, by a frightened reader. The words that explain it belong to the
+  /// caller, in the semantics tree as well as in paint.
+  final double? fraction;
   final Color color;
   final double size;
   final double stroke;
@@ -61,11 +78,12 @@ class MetricRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final f = fraction;
     return SizedBox(
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _RingPainter(fraction.clamp(0, 1), color, stroke),
+        painter: _RingPainter(f?.clamp(0.0, 1.0), color, stroke),
         child: Center(child: center),
       ),
     );
@@ -73,7 +91,8 @@ class MetricRing extends StatelessWidget {
 }
 
 class _RingPainter extends CustomPainter {
-  final double fraction;
+  /// Null = draw the track only. See [MetricRing.fraction].
+  final double? fraction;
   final Color color;
   final double stroke;
   _RingPainter(this.fraction, this.color, this.stroke);
@@ -90,6 +109,12 @@ class _RingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, radius, track);
 
+    // Nothing to grade → the empty track and nothing else. Returning before the
+    // arc is what makes "no data" unpaintable as a reassurance: there is no
+    // fraction to round up, and no accent on screen to read a verdict off.
+    final f = fraction;
+    if (f == null) return;
+
     // Flat accent, not a sweep: take the gradient's first stop and drop the ramp.
     final arc = Paint()
       ..style = PaintingStyle.stroke
@@ -99,7 +124,7 @@ class _RingPainter extends CustomPainter {
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       -math.pi / 2,
-      2 * math.pi * fraction,
+      2 * math.pi * f,
       false,
       arc,
     );
