@@ -259,8 +259,12 @@ void main() {
     expect(d.stress, 30);
     expect(d.breathRate, 16);
     expect(d.met, 3);
+    // The raw integer is carried; there is deliberately no `bloodSugar` getter
+    // to compare it against any more. Dividing by ten and calling the result
+    // mmol/L invented a unit the vendor never states — see refused sentence #26
+    // in docs/CLINICAL-REVIEW-WATCH.md. The value is still synced and stored,
+    // as `glucoseMmol` already was: carried, never graded.
     expect(d.bloodSugarTenths, 52);
-    expect(d.bloodSugar, 5.2);
   });
 
   test('the chart samples cover the day hourly, in time order', () async {

@@ -169,8 +169,14 @@ void main() {
       final at = DateTime(2026, 8, 12, 9);
       final c = AppController(now: () => at);
       // A single poll of the watch emits BOTH an activity snapshot and a
-      // telemetry record, and the glucose estimate now rides on both.
+      // telemetry record. The ACTIVITY half no longer records a sample at all
+      // — it read `WearableMetrics.bloodSugar`, which was the raw integer over
+      // ten, and that division invented a unit the vendor never states
+      // (docs/CLINICAL-REVIEW-WATCH.md). The telemetry record still carries the
+      // value, so the count is unchanged: one reading, one sample.
       c.onWearableMetrics(WearableMetrics(at: at, steps: 900, bloodSugarTenths: 82));
+      expect(buildSeries(c.samples, 'glucose'), isEmpty,
+          reason: 'the activity snapshot is not a chart sample any more');
       const t = BandTelemetry(heartRateBpm: 72, glucoseMmol: 8.2);
       c.onTelemetry(t, assessTelemetry(t));
       expect(buildSeries(c.samples, 'glucose').length, 1,
@@ -180,7 +186,11 @@ void main() {
     test('a hand-typed glucose is always recorded', () {
       final at = DateTime(2026, 8, 12, 9);
       final c = AppController(now: () => at);
-      c.onWearableMetrics(WearableMetrics(at: at, steps: 900, bloodSugarTenths: 82));
+      // The watch has just reported the same figure, so the de-dup latch is
+      // armed with 8.2. A reading she typed in is hers and is stored anyway —
+      // and it is the only one of the two the advisor may say anything about.
+      const band = BandTelemetry(heartRateBpm: 72, glucoseMmol: 8.2);
+      c.onTelemetry(band, assessTelemetry(band));
       const typed = BandTelemetry(glucoseMmol: 8.2);
       c.onTelemetry(typed, assessTelemetry(typed), source: ReadingSource.manual);
       expect(buildSeries(c.samples, 'glucose').length, 2,

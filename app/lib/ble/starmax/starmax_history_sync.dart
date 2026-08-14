@@ -126,7 +126,6 @@ class _HourBucket {
   final sys = <int>[];
   final dia = <int>[];
   final tempTenths = <int>[];
-  final sugarTenths = <int>[];
   bool asleep = false;
 
   HealthSample? toSample(DateTime at) {
@@ -135,8 +134,7 @@ class _HourBucket {
     final sy = _mean(sys);
     final di = _mean(dia);
     final t = _mean(tempTenths);
-    final g = _mean(sugarTenths);
-    if (h == null && o == null && sy == null && t == null && g == null) return null;
+    if (h == null && o == null && sy == null && t == null) return null;
     // Same plausibility window the live frame and the OEM band apply (20–45 °C).
     // The history stream is u16 tenths off the same external device, so it can
     // produce the same 400 °C, and these samples land on the chart the advisor
@@ -149,7 +147,10 @@ class _HourBucket {
       systolic: sy?.toDouble(),
       diastolic: di?.toDouble(),
       coreTemp: (tempC != null && tempC >= 20 && tempC <= 45) ? tempC : null,
-      glucose: g == null ? null : g / 10.0,
+      // No `glucose:` here, and no `/ 10.0` to produce one. A backfilled day of
+      // wrist sugar has no scale to be drawn or graded on, so it does not
+      // become a chart point at all; the day's mean still goes to the server as
+      // the raw integer it is.
       duringSleep: asleep,
       // A watch recorded these while the phone was away. Stated rather than
       // defaulted: without it a backfilled day of wrist estimates would earn
@@ -254,8 +255,12 @@ void _foldSeries(_DayBuilder b, StarmaxHistoryType type, StarmaxDaySeries d) {
         b.temp.add(s.value);
         b._bucket(s.minuteOfDay).tempTenths.add(s.value);
       case StarmaxHistoryType.bloodSugar:
+        // Day-level only. The raw value still reaches the server as an integer
+        // column, and it no longer reaches the hourly chart samples, because
+        // there is nothing to put it on: the `/ 10.0` that made it a mmol/L is
+        // deleted, not stubbed (docs/CLINICAL-REVIEW-WATCH.md — the vendor
+        // documents `当前血糖（0.1）`, a decimal place and not a unit).
         b.sugar.add(s.value);
-        b._bucket(s.minuteOfDay).sugarTenths.add(s.value);
       case StarmaxHistoryType.stress:
         // The column is CHECKed 0–100; a firmware that reports outside it is
         // dropped rather than rejected by the database on arrival.

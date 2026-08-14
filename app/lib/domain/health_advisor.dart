@@ -171,29 +171,43 @@ List<Advisory> generateAdvisories(
     positive.add(Advisory('ADV_TEMP_STEADY', AdviceTone.positive, 'temp', value: temp.latest));
   }
 
-  // ---- Blood glucose (a wellness estimate — graded here, never triaged) ----
+  // ---- Blood glucose ----
   //
-  // «Сахар в норме» IS GONE, and it was refused sentence #5 shipping word for
-  // word. Blood sugar was withdrawn from the admin panel on 2026-08-13 because
-  // the vendor documents the field as 血糖（0.1）with NO UNIT STATED anywhere in
-  // 3,248 pages — the computation was deleted rather than stubbed, so that no
-  // scale could be quietly reintroduced. The app went on grading the same
-  // number against the same absent unit for another day. A withdrawal on one
-  // surface is not a withdrawal.
+  // TWO NUMBERS ARRIVE THROUGH THIS DOOR AND ONLY ONE OF THEM IS ON A SCALE.
+  // «Сахар в норме» is already gone — refused sentence #5, shipping word for
+  // word. This is the other half of the ruling, and it is the one place in this
+  // file where a WARNING is silenced too, so the reason has to live here or it
+  // will be reverted by someone correctly quoting the rule it breaks.
   //
-  // Silence is the whole fix for the positive card, and it needs no copy: a
-  // number whose unit its own source never states cannot be called normal on
-  // any scale, and the pregnancy stakes are specific — GDM screening is a
-  // scheduled protocol item, and a reassuring number displaces the OGTT window
-  // at 24–28 weeks, which closes.
+  // «Gate the positives, never the warnings» presupposes A QUANTITY ON A KNOWN
+  // SCALE. The vendor documents the field as `当前血糖（0.1）` — that is a decimal
+  // place, not a unit. If the raw integer is mg/dL tenths, or a proprietary
+  // index, then a true 2.8 mmol/L can sit ABOVE our low threshold and stay
+  // silent while a true 5.5 fires. A warning with no defined relationship to
+  // the thing it warns about is not conservative; it is a coin flip in BOTH
+  // directions, spending her alarm budget at random — and an alarm budget spent
+  // at random is how a real warning stops being read.
   //
-  // The two WATCH cards are deliberately still here, pending their own ruling.
-  // Removing them is not the same act: gate the positives, never the warnings —
-  // a missed reassurance costs her a sentence she was owed anyway, a missed
-  // warning can cost more. They are refused too (they name a value in the same
-  // absent unit) but the replacement is a clinical decision, not this one.
+  // So the device path says NOTHING, and nothing is said in its place: no
+  // routing card, no «датчик что-то увидел». Unlike the temperature gap this
+  // costs nothing, because the silenced card never carried information. A
+  // routing card WAS considered and refused: temperature routes to a
+  // thermometer because the wrist number is a monotone function of a real
+  // quantity with a known direction of bias and a thermometer is a household
+  // item. Neither holds here, and prompting a pregnant woman to go and buy test
+  // strips on the strength of an unscaled number is a real cost backed by
+  // nothing.
+  //
+  // The MANUAL path is untouched and keeps its LOW card, because a glucometer
+  // reading is the one blood-sugar number this product may act on: she chose
+  // the instrument, the instrument states its unit, and a genuine
+  // hypoglycaemia is dangerous. Both bodies were rewritten with the gate —
+  // ADV_GLUCOSE_HIGH_b used to say «это оценка по браслету», which becomes
+  // FALSE the moment the card is manual-only, and a card misdescribing its own
+  // source is this review's defect running backwards.
   final glucose = statsFor(buildSeries(samples, 'glucose'));
-  if (glucose != null) {
+  final glucoseFromDevice = _latestGlucoseIsDeviceEstimate(samples);
+  if (glucose != null && !glucoseFromDevice) {
     if (glucose.latest >= GlucoseThresholds.elevatedMmol) {
       watch.add(Advisory('ADV_GLUCOSE_HIGH', AdviceTone.watch, 'glucose', value: glucose.latest));
     } else if (glucose.latest < GlucoseThresholds.lowMmol) {
@@ -307,6 +321,31 @@ bool _latestBpIsDeviceEstimate(List<HealthSample> samples) {
   HealthSample? latest;
   for (final s in samples) {
     if (s.systolic == null) continue;
+    if (latest == null || !s.at.isBefore(latest.at)) latest = s;
+  }
+  return latest?.isDeviceEstimate ?? true;
+}
+
+/// Who measured the blood sugar the card would be about.
+///
+/// The THIRD copy of this loop, and the note above now applies three times over
+/// rather than becoming an argument for folding them into one helper. These
+/// three answer different questions about different clinical objects: what
+/// temperature provenance decides is whether a normality verdict may be made,
+/// what blood-pressure provenance decides is which of two warnings fires, and
+/// what THIS decides is whether a number is on a scale at all — the only one of
+/// the three where the answer silences a warning outright. A shared helper would
+/// invite a shared change, and a shared change here means one metric silently
+/// inheriting another's rule. They are allowed to diverge; keeping them apart is
+/// what makes divergence cheap.
+///
+/// Empty means device, so nothing is said — the same empty case as the other
+/// two, and the opposite of `latestSourceFor` in health_series.dart, which
+/// answers a display question.
+bool _latestGlucoseIsDeviceEstimate(List<HealthSample> samples) {
+  HealthSample? latest;
+  for (final s in samples) {
+    if (s.glucose == null) continue;
     if (latest == null || !s.at.isBefore(latest.at)) latest = s;
   }
   return latest?.isDeviceEstimate ?? true;

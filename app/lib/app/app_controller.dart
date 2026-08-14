@@ -24,6 +24,7 @@ import '../data/sample_store.dart';
 import '../data/api_client.dart';
 import '../data/app_store.dart';
 import '../data/persisted_config.dart';
+import '../data/vaccination_schedule_repository.dart';
 import '../domain/emergency_confirmation.dart';
 import '../domain/notification_ids.dart';
 import '../domain/error_log.dart';
@@ -234,6 +235,7 @@ class AppController {
   // Push-only cry-analysis sync: fires when a result is recorded, so the history
   // survives a reinstall and restores on a new device (it was device-local).
   Future<void> Function(CryResult)? _onCryUpsert;
+  Future<void> Function(CryResult)? _onCryVerdict;
   // Push-only women's-health day-log sync: fires when a day changes, so the
   // admin wellness diary mirrors the mother's (flow / mood / symptoms / kicks).
   Future<void> Function(DayLog)? _onDayLogUpsert;
@@ -1344,7 +1346,12 @@ class AppController {
     final id = vaccinationReminderIdFor(c.id);
     final dob = c.dateOfBirth;
     if (dob == null) return ReminderCommand.cancel(id);
-    final at = nextVaccinationReminderAt(dob: dob, now: _now());
+    // Over the SERVED calendar. The reminder is armed for the day the child
+    // reaches the next scheduled age, and a dose moved in the back office moves
+    // that day — an alarm computed off the compiled-in constant would fire for
+    // a visit the vaccination screen no longer shows.
+    final at = nextVaccinationReminderAt(
+        dob: dob, now: _now(), schedule: servedVaccines());
     if (at == null) return ReminderCommand.cancel(id);
     final l = L10n(_locale);
     return ReminderCommand.schedule(
@@ -1742,6 +1749,31 @@ class AppController {
     _onCryUpsert = upsert;
   }
 
+  /// «Это было верно?» — her answer about the analysis she is looking at.
+  ///
+  /// Applied to the NEWEST result, which is the one the screen has on it: the
+  /// question only ever appears under a result that was just recorded, and the
+  /// history above it carries the answers already given.
+  ///
+  /// Returns false when there is nothing to rate — a screen that never saved a
+  /// result must not report a rating that went nowhere.
+  bool rateLatestCry(String verdict, {String? actualReason}) {
+    if (_cryHistory.isEmpty) return false;
+    final rated = _cryHistory.first.rated(verdict, actualReason: actualReason);
+    _cryHistory[0] = rated;
+    // Push it, like the analysis itself. Failure is reported by the sync layer
+    // (main.dart wraps it), not swallowed here.
+    unawaited(_onCryVerdict?.call(rated) ?? Future<void>.value());
+    _persist();
+    _notify();
+    return true;
+  }
+
+  /// Wire backend sync for cry verdicts (called by main.dart when signed in).
+  void attachCryVerdictSync({required Future<void> Function(CryResult) push}) {
+    _onCryVerdict = push;
+  }
+
   /// Merge cry results pulled from the server on a new device. Dedup by instant;
   /// local wins. Newest-first, capped — so a restored history reads exactly like
   /// a locally-built one.
@@ -1812,7 +1844,6 @@ class AppController {
   void onWearableMetrics(WearableMetrics metrics) {
     _latestWearable = metrics;
     _recordBandSleep(metrics);
-    _recordBandGlucose(metrics);
     _syncWearable(metrics);
     _notify();
   }
@@ -1852,10 +1883,16 @@ class AppController {
 
   /// True when [g] is a band glucose reading we have not already recorded.
   ///
-  /// Shared by both paths that can carry the watch's glucose — the activity
-  /// snapshot and, since it started syncing, the telemetry record — because one
-  /// poll produces both and each would otherwise store its own sample of the
-  /// same measurement.
+  /// The band re-sends the same snapshot every poll, and one unchanged reading
+  /// is not a new data point.
+  ///
+  /// It used to be shared by two paths — the activity snapshot and the
+  /// telemetry record — because one poll produces both. The snapshot path is
+  /// gone: it read `WearableMetrics.bloodSugar`, which was `raw / 10.0`, and
+  /// that division is where a unit the vendor never states was invented. The
+  /// telemetry record still carries the value to the server, so nothing is lost
+  /// by the removal; what it stops is a second sample of the same measurement
+  /// arriving through a converter this ruling deleted.
   bool _isNewBandGlucose(double? g) {
     if (g == null || g <= 0) return false;
     if (_lastBandGlucose != null && (g - _lastBandGlucose!).abs() < 0.05) {
@@ -1863,19 +1900,6 @@ class AppController {
     }
     _lastBandGlucose = g;
     return true;
-  }
-
-  /// Fold the band's blood-sugar estimate into the health series so the advisor
-  /// (and the glucose sparkline) can actually reason over it. Before this the
-  /// number reached the wellness tile and nowhere else — displayed, never judged.
-  /// De-duplicated: the band re-sends the same snapshot every sync, and one
-  /// unchanged reading is not a new data point. A wellness estimate only — it is
-  /// never routed through the emergency triage.
-  void _recordBandGlucose(WearableMetrics m) {
-    final g = m.bloodSugar;
-    if (!_isNewBandGlucose(g)) return;
-    store.addSample(
-        HealthSample(at: m.at, glucose: g, source: ReadingSource.sensor));
   }
 
   WearableHistoryReport? _wearableHistory;
@@ -3152,8 +3176,73 @@ class AppController {
   /// Per-category notification preferences + quiet hours. SOS is never gated by
   /// these — see NotificationPrefs.shouldDeliver and [shouldDeliverAlert].
   NotificationPrefs get notificationPrefs => _notificationPrefs;
+
+  /// Pushes her switches to the server. Null until [attachNotificationPrefsSync].
+  Future<void> Function(NotificationPrefs)? _onNotificationPrefs;
+
+  /// Where these switches have to reach, and why a local setter was not enough.
+  ///
+  /// Three of the four categories gate notifications the SERVER raises — a zone
+  /// crossing derived from a tracker fix it saw and this phone did not, an
+  /// operator's answer, a рассылка. Stored only in SharedPrefs, the switches
+  /// controlled nothing at all for those: a mother who turned «Зоны» off and
+  /// set quiet hours 22:00–07:00 still had her phone light up at three in the
+  /// morning, and the screen promising otherwise was telling the truth about a
+  /// switch that reached nothing.
+  ///
+  /// Fire-and-forget, like every other sync here: she is on a bus with no
+  /// signal, and the next change — or the next sign-in, which re-pushes — heals
+  /// it.
+  void attachNotificationPrefsSync({
+    required Future<void> Function(NotificationPrefs) push,
+  }) {
+    _onNotificationPrefs = push;
+  }
+
   void setNotificationPrefs(NotificationPrefs p) {
+    final changed = p != _notificationPrefs;
     _notificationPrefs = p;
+    _persist();
+    _notify();
+    // Only on a real change: the reminders screen rebuilds on every stream tick
+    // and would otherwise re-push the same object on each rebuild.
+    if (changed) _pushNotificationPrefs();
+  }
+
+  /// Send the current switches up, ignoring the failure. Also the first-sync
+  /// push: called once at sign-in so an account that predates the server half
+  /// arrives with what she already chose rather than with the defaults.
+  void _pushNotificationPrefs() {
+    final push = _onNotificationPrefs;
+    if (push == null) return;
+    final prefs = _notificationPrefs;
+    // Deliberately unawaited and swallowed. A failed settings push must never
+    // surface as an error on a toggle she just flipped; the value is stored
+    // locally and the next change or launch retries it.
+    push(prefs).catchError((_) {});
+  }
+
+  /// Push whatever this phone holds, now — the first-sync half of the hook.
+  void syncNotificationPrefs() => _pushNotificationPrefs();
+
+  /// Adopt the server's switches on a NEW device.
+  ///
+  /// LOCAL WINS, exactly like [mergeRemoteBpCalibration] and every other
+  /// restore in this class — but "local" here means "she has changed something
+  /// on this phone", not "this phone has a value". Every install has a value:
+  /// the defaults. Treating those as a local choice would make the restore a
+  /// no-op on precisely the device it exists for, and her quiet hours would
+  /// stay behind on the old phone.
+  ///
+  /// So an untouched install (everything still at the default) adopts, and one
+  /// where she has flipped anything keeps its own — including the case where
+  /// she flipped it seconds ago on a bus, before this response came back.
+  ///
+  /// Fires no sync hook, so a restore cannot echo the server's own copy back.
+  void mergeRemoteNotificationPrefs(NotificationPrefs remote) {
+    if (_notificationPrefs != const NotificationPrefs()) return; // local wins
+    if (remote == _notificationPrefs) return;
+    _notificationPrefs = remote;
     _persist();
     _notify();
   }

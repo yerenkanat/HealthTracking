@@ -82,7 +82,7 @@ void main() {
       home: HealthDashboardView(
         samples: const [],
         greetingName: 'Айгерім',
-        gestation: GestationInfo(154, 22, 0, 126),
+        gestation: const GestationInfo(154, 22, 0, 126),
         timelineStage: TimelineStage.pregnancyWeek(22),
         kicksToday: 12,
         latestWeightKg: 68.4,

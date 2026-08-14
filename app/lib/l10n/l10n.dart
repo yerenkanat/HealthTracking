@@ -147,10 +147,28 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ADV_TEMP_ELEVATED_b': {AppLocale.ru: 'Температура повышена. Отдохните, пейте больше жидкости и измерьте снова. Если температура держится или растёт — обратитесь к врачу: при беременности высокая температура требует осмотра.', AppLocale.kk: 'Дене қызуы жоғарылаған. Демалыңыз, көбірек сұйықтық ішіңіз және қайта өлшеңіз. Қызу басылмаса немесе өссе — дәрігерге жүгініңіз: жүктілік кезінде жоғары температура тексеруді қажет етеді.', AppLocale.en: 'Your temperature is elevated. Rest, drink fluids, and re-measure. If it stays up or climbs, contact your doctor — a high temperature in pregnancy needs to be checked.'},
   'ADV_TEMP_STEADY': {AppLocale.ru: 'Температура ровная', AppLocale.kk: 'Дене қызуы біркелкі', AppLocale.en: 'Temperature steady'},
   'ADV_TEMP_STEADY_b': {AppLocale.ru: 'Температура по браслету держится ровно.', AppLocale.kk: 'Білезік бойынша дене қызуы біркелкі.', AppLocale.en: 'Your temperature readings have held steady.'},
+  // BOTH glucose cards are now MANUAL-ONLY — a glucometer reading she typed in.
+  // The device path says nothing at all (health_advisor.dart carries the
+  // reasoning), so the bodies had to change with the gate:
+  //
+  //   * HIGH said «Это оценка по браслету, не диагноз». True while the card
+  //     could fire off the wrist, FALSE the moment it cannot — a card
+  //     misdescribing its own source is this review's defect in reverse. It now
+  //     names the instrument the reading actually came from, and points AT the
+  //     OGTT window instead of substituting for it (refused item #6): 24–28
+  //     недель is the ONE number permitted here, and it is permitted because it
+  //     is cited — packages/contract/antenatal_protocol.json, item `ogtt`.
+  //   * LOW never said what would make it urgent. It now names the reviewed
+  //     hypoglycaemia red flags and 103, on the emergency_help.json pattern,
+  //     and asks for a re-measurement BY THE GLUCOMETER — «измерьте снова» with
+  //     no instrument named is refused sentence #16's mistake.
+  //
+  // No threshold numbers: GlucoseThresholds is uncited here, exactly as 37.8 /
+  // 38.5 are for fever. What fired the card may not be printed on it.
   'ADV_GLUCOSE_HIGH': {AppLocale.ru: 'Следите за сахаром', AppLocale.kk: 'Қантты қадағалаңыз', AppLocale.en: 'Watch your blood sugar'},
-  'ADV_GLUCOSE_HIGH_b': {AppLocale.ru: 'Сахар в крови повышен. Это оценка по браслету, не диагноз. Обсудите с врачом скрининг на гестационный диабет.', AppLocale.kk: 'Қандағы қант жоғары. Бұл — білезік бойынша бағалау, диагноз емес. Гестациялық диабетке скрининг туралы дәрігермен ақылдасыңыз.', AppLocale.en: 'Your blood sugar looks high. This is a band estimate, not a diagnosis — ask your doctor about gestational-diabetes screening.'},
+  'ADV_GLUCOSE_HIGH_b': {AppLocale.ru: 'Показание глюкометра высокое. Это не диагноз: гестационный диабет подтверждают лабораторным тестом. Обсудите с врачом тест на толерантность к глюкозе — по плану наблюдения его делают в 24–28 недель.', AppLocale.kk: 'Глюкометр көрсеткіші жоғары. Бұл — диагноз емес: гестациялық диабет зертханалық тестпен расталады. Дәрігермен глюкозаға төзімділік тесті туралы сөйлесіңіз — бақылау жоспары бойынша ол 24–28 аптада жасалады.', AppLocale.en: 'Your glucometer reading is high. This is not a diagnosis: gestational diabetes is confirmed by a laboratory test. Ask your doctor about the glucose tolerance test — your antenatal plan schedules it at 24–28 weeks.'},
   'ADV_GLUCOSE_LOW': {AppLocale.ru: 'Низкий сахар', AppLocale.kk: 'Қант төмен', AppLocale.en: 'Low blood sugar'},
-  'ADV_GLUCOSE_LOW_b': {AppLocale.ru: 'Сахар в крови низкий. Перекусите и измерьте снова. Если повторяется — скажите врачу.', AppLocale.kk: 'Қандағы қант төмен. Тамақтанып, қайта өлшеңіз. Қайталанса — дәрігерге айтыңыз.', AppLocale.en: 'Your blood sugar looks low. Have a snack and re-check. If it keeps happening, tell your doctor.'},
+  'ADV_GLUCOSE_LOW_b': {AppLocale.ru: 'Показание глюкометра низкое. Съешьте или выпейте что-нибудь сладкое, немного подождите и измерьте глюкометром ещё раз, а результат введите в приложении. Если появились сильная слабость, дрожь, холодный пот или спутанность сознания — звоните 103. Скажите врачу о низких показаниях на ближайшем приёме.', AppLocale.kk: 'Глюкометр көрсеткіші төмен. Тәтті бірдеңе жеп немесе ішіп, аздап күте тұрып, глюкометрмен қайта өлшеңіз де, нәтижесін қолданбаға енгізіңіз. Егер қатты әлсіздік, дірілдеу, суық тер немесе сананың шатасуы пайда болса — 103-ке қоңырау шалыңыз. Жақын арадағы қабылдауда төмен көрсеткіштер туралы дәрігерге айтыңыз.', AppLocale.en: 'Your glucometer reading is low. Eat or drink something sweet, wait a little, measure again with the glucometer, and enter the result in the app. If you get severe weakness, shaking, cold sweat or confusion, call 103. Tell your doctor about the low readings at your next visit.'},
   // ADV_GLUCOSE_STEADY / _b are DELETED, not reworded. «Сахар в норме» was
   // refused sentence #5 in docs/CLINICAL-REVIEW-WATCH.md and shipped word for
   // word — a normality verdict on a diabetes number, from an optical wrist
@@ -1928,6 +1946,20 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'range_7d': {AppLocale.ru: '7 дней', AppLocale.kk: '7 күн', AppLocale.en: '7 days'},
   'range_all': {AppLocale.ru: 'Всё', AppLocale.kk: 'Барлығы', AppLocale.en: 'All'},
   'db_outside_range': {AppLocale.ru: ', вне безопасного диапазона', AppLocale.kk: ', қауіпсіз аралықтан тыс', AppLocale.en: ', outside the safe range'},
+  // What the peace-of-mind ring says when it has readings and may grade none of
+  // them — a day of wrist blood pressure and a wrist temperature, now that both
+  // are gated on provenance. The ring used to render a FULL arc in that state,
+  // which is an assertion, in the most confident register the screen has, that
+  // everything checked is fine on a day when nothing was checked. A shape
+  // cannot be qualified, so the shape had to change: empty, dim, and explained
+  // in words AND in the semantics tree, because `db_outside_range` was exactly
+  // a claim that survived in the announcement after it was removed from the
+  // paint.
+  //
+  // NOT shown when there is nothing to grade at all — that is ADV_GATHERING's
+  // job in the banner beside it, and two explanations of two different absences
+  // confuse both.
+  'db_ring_ungraded': {AppLocale.ru: 'Эти показания приложение не оценивает', AppLocale.kk: 'Бұл көрсеткіштерді қолданба бағаламайды', AppLocale.en: 'The app does not grade these readings'},
   'metric_bp': {AppLocale.ru: 'Давление', AppLocale.kk: 'Қан қысымы', AppLocale.en: 'Blood pressure'},
   // db_peace_stable / db_peace_stable_noname / db_peace_stable_b are DELETED,
   // not reworded (docs/CLINICAL-REVIEW-WATCH.md, refused sentence #21).

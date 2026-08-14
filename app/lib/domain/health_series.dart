@@ -27,8 +27,18 @@ class HealthSample {
   /// may say anything about her body from this field without reading [source]
   /// first; see health_advisor.dart.
   final double? coreTemp;
-  final double? glucose; // mmol/L. A wellness estimate (band optical / manual),
-  // graded by the advisor — deliberately NOT a triage/emergency vital.
+  /// The blood-sugar reading.
+  ///
+  /// Like [coreTemp], the meaning of this field depends on [source] and the
+  /// name is only half true. For a [ReadingSource.manual] sample it is mmol/L
+  /// off a glucometer, which states its unit — that one is graded, and it is
+  /// the only blood sugar this product may act on. For a
+  /// [ReadingSource.sensor] one it is an optical estimate whose vendor
+  /// documents it as `当前血糖（0.1）` — a decimal place, not a unit — so it is
+  /// CARRIED AND NEVER GRADED: no advisory, no band, no colour, no unit label.
+  /// See health_advisor.dart. Never a triage/emergency vital from either
+  /// source.
+  final double? glucose;
   final bool duringSleep;
 
   /// Where the numbers came from — a sensor on her wrist, or a measurement she
@@ -154,12 +164,17 @@ ReadingSource latestSourceFor(List<HealthSample> samples, String metric) {
 
 /// The danger zone the chart shades for [metric].
 ///
-/// [source] is read for temperature only, and it removes the band: a device
-/// temperature is never coloured (docs/CLINICAL-REVIEW-WATCH.md, freshness
-/// table). A red zone painted behind a wrist estimate makes the same claim the
-/// red number makes, in graphical form.
+/// [source] is read for temperature and blood sugar, and it removes the band. A
+/// device temperature is never coloured (docs/CLINICAL-REVIEW-WATCH.md,
+/// freshness table): a red zone painted behind a wrist estimate makes the same
+/// claim the red number makes, in graphical form. A device blood sugar is
+/// worse than uncoloured — the shaded band is drawn at 3.9 and 7.8 mmol/L, and
+/// the vendor's raw value is documented only as `当前血糖（0.1）`, a decimal place
+/// and not a unit, so the band and the line are not on the same axis. Two
+/// different quantities in one picture is not a chart.
 MetricBand bandFor(String metric, {ReadingSource source = ReadingSource.manual}) {
-  if (metric == 'temp' && source != ReadingSource.manual) {
+  if ((metric == 'temp' || metric == 'glucose') &&
+      source != ReadingSource.manual) {
     return const MetricBand();
   }
   switch (metric) {
@@ -257,8 +272,8 @@ SeriesStats? statsFor(List<SeriesPoint> pts, {double flatEps = 0.5}) {
 }
 
 /// Is the latest value in the danger zone? Drives the tile's alert styling.
-/// [source] is forwarded to [bandFor], so a device temperature — which has no
-/// band — is never in danger.
+/// [source] is forwarded to [bandFor], so a device temperature and a device
+/// blood sugar — neither of which has a band — are never in danger.
 bool latestInDanger(String metric, SeriesStats? stats,
     {ReadingSource source = ReadingSource.manual}) {
   if (stats == null) return false;
@@ -275,8 +290,8 @@ bool latestInDanger(String metric, SeriesStats? stats,
 /// triage cutoff that forces the Emergency screen. NOT a diagnosis.
 enum MetricStatus { normal, watch, danger }
 
-/// Grade one reading. [source] is read for temperature only — see the `temp`
-/// branch — and defaults to [ReadingSource.manual] for the same reason every
+/// Grade one reading. [source] is read for temperature and blood sugar — see
+/// those two branches — and defaults to [ReadingSource.manual] for the same reason every
 /// other default in this vocabulary does: the hand-built values in this app are
 /// the typed ones, and every device path states its provenance (pinned by
 /// `device_temperature_test.dart`). Pass [latestSourceFor]'s answer whenever the
@@ -323,6 +338,18 @@ MetricStatus metricStatus(String metric, double v,
       if (v >= TriageThresholds.feverWarningC) return MetricStatus.watch;
       return MetricStatus.normal;
     case 'glucose':
+      // Graded only for a glucometer reading she typed in, on the same shape as
+      // `temp` above and for a sharper reason: these three constants are
+      // mmol/L, and the device number's own vendor documentation states no unit
+      // for it at all. Grading a raw index against a mmol/L threshold is not an
+      // imprecise judgement, it is a judgement about a different quantity.
+      //
+      // Normal, not a fourth "ungraded" tier, for the same reason as
+      // temperature: normal is what every surface already renders as "no
+      // claim". Today nothing in the app grades a device blood sugar — the
+      // wellness tile that did was removed with this ruling — so this branch is
+      // the guard that keeps it that way when a new surface arrives.
+      if (source != ReadingSource.manual) return MetricStatus.normal;
       if (v >= GlucoseThresholds.highMmol || v < GlucoseThresholds.severeLowMmol) return MetricStatus.danger;
       if (v >= GlucoseThresholds.elevatedMmol || v < GlucoseThresholds.lowMmol) return MetricStatus.watch;
       return MetricStatus.normal;

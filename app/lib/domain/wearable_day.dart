@@ -59,8 +59,14 @@ class WearableDay {
   /// database.
   final int? tempAvgTenths;
 
-  /// Blood sugar in tenths of a mmol/L. A watch-optical estimate, never a
-  /// diagnosis.
+  /// The day's mean blood-sugar value, in the watch's own raw units.
+  ///
+  /// NOT «tenths of a mmol/L», which is what this said and what the deleted
+  /// `bloodSugar` getter turned it into. The vendor documents the field as
+  /// `当前血糖（0.1）` — a decimal place, no unit — so the division by ten was
+  /// where the unit was invented. The integer is carried to the server as-is,
+  /// like the day's other raw columns; nothing converts it to a scale or prints
+  /// it beside one. See docs/CLINICAL-REVIEW-WATCH.md.
   final int? bloodSugarTenths;
 
   /// How many days of history this row came from is a property of the SYNC, not
@@ -94,9 +100,6 @@ class WearableDay {
 
   /// Body temperature in °C, or null.
   double? get tempC => tempAvgTenths == null ? null : tempAvgTenths! / 10.0;
-
-  /// Blood sugar in mmol/L, or null.
-  double? get bloodSugar => bloodSugarTenths == null ? null : bloodSugarTenths! / 10.0;
 
   /// True when the watch recorded anything at all for this day. A day it holds
   /// a date for but no samples is not worth a network write, and would file an

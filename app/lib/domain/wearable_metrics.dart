@@ -34,7 +34,19 @@ class WearableMetrics {
   // Current wellness signals — 0 means "not measured" → null.
   final int? stress; // 0–100
   final int? breathRate; // breaths per minute
-  final int? bloodSugarTenths; // 0.1 mmol/L units
+  /// The watch's raw blood-sugar value, exactly as the frame carries it.
+  ///
+  /// The comment here used to read «0.1 mmol/L units». That was the false claim
+  /// in source form: the vendor documents the field as `当前血糖（0.1）`, which
+  /// states a decimal place and NO UNIT — not in 3,248 pages. The name keeps
+  /// `Tenths` because tenths-of-something is the one thing the vendor does say.
+  ///
+  /// So there is no `bloodSugar` getter any more, and its removal is the point
+  /// rather than tidying: `/ 10.0` was where the unit was invented, and a
+  /// stubbed conversion is a conversion waiting to be un-stubbed. The integer
+  /// is carried and stored (the `glucoseMmol` precedent — carried, never
+  /// triaged); nothing may convert it to a scale or print it beside one.
+  final int? bloodSugarTenths;
 
   /// The watch's metabolic-equivalent estimate for the current activity — the
   /// vendor's `met` byte. 0 means "not measured" → null, like the other current
@@ -96,20 +108,24 @@ class WearableMetrics {
   /// Distance in kilometres.
   double get km => meters / 1000.0;
 
-  /// Blood sugar in mmol/L, or null when unknown.
-  double? get bloodSugar => bloodSugarTenths == null ? null : bloodSugarTenths! / 10.0;
-
   /// True when there is anything worth showing IN THE ACTIVITY PANEL — a watch
   /// that has synced nothing yet should not render an empty panel. Sleep is
   /// excluded on purpose: it is shown by the dedicated Sleep card, not here, so
   /// a sleep-only sync must not open an otherwise-empty activity panel.
+  ///
+  /// Blood sugar is excluded for the same reason, and it is a consequence of
+  /// the ruling rather than a taste: the wellness grid no longer has a
+  /// blood-sugar tile, so a snapshot whose only measured value is the watch's
+  /// raw sugar has nothing to draw. Left in, it would open an empty panel —
+  /// which is the defect this getter exists to prevent, arriving from the other
+  /// direction. It is also nothing to sync: [toIngestPayload] does not carry
+  /// the field, the telemetry record does.
   bool get hasAnything =>
       steps > 0 ||
       kcal > 0 ||
       meters > 0 ||
       stress != null ||
-      breathRate != null ||
-      bloodSugarTenths != null;
+      breathRate != null;
 
   /// True when this snapshot carries anything the SERVER does not already have
   /// by another route — the test for "is this worth a network write".

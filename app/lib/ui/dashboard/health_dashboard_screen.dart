@@ -719,11 +719,20 @@ class _PeaceOfMindBanner extends StatelessWidget {
         ),
     };
 
-    // Data-driven ring: fraction of metrics currently in a healthy range.
+    // Data-driven ring: fraction of metrics currently in a healthy range —
+    // or NOTHING, when there is no metric this product may grade.
     var withData = 0, healthy = 0;
+    // Whether she has readings AT ALL on the metrics the ring is about. Kept
+    // separate from `withData`, which counts only the ones that survive the
+    // provenance filters below, because the two absences need different
+    // answers: readings that may not be graded get a sentence, no readings at
+    // all get ADV_GATHERING in the copy beside this ring and must not get a
+    // second explanation of a different absence.
+    var anyReading = false;
     for (final k in metricKeys) {
       final s = statsFor(buildSeries(samples, k));
       if (s == null) continue;
+      anyReading = true;
       final source = latestSourceFor(samples, k);
       // A device temperature leaves the ring entirely — it is not counted as in
       // danger, and it is NOT counted as healthy either. Passing it through as
@@ -748,7 +757,36 @@ class _PeaceOfMindBanner extends StatelessWidget {
       withData++;
       if (!latestInDanger(k, s, source: source)) healthy++;
     }
-    final fraction = withData == 0 ? 1.0 : healthy / withData;
+    // NULL, not 1.0.
+    //
+    // `withData == 0 ? 1.0 : …` was not a display default, it was an assertion
+    // in the most confident register this screen has — a complete ring — that
+    // everything checked is fine, on a day when nothing was checked. And a
+    // shape cannot be qualified: it is the one reassurance in this review with
+    // no sentence attached to argue with. The provenance gating above made it
+    // fire MORE often, because a day of wrist blood pressure and a wrist
+    // temperature now skips every metric it has.
+    //
+    // So the state is in the type. Null means "nothing to grade" and there is
+    // no number that can be mistaken for it.
+    final double? fraction = withData == 0 ? null : healthy / withData;
+
+    // Dim ink, never the healthy colour — a grey FULL ring would still be read
+    // as "all good" at a glance, so the ring is empty as well as neutral. And
+    // it is not hidden: removing it removes the only place the explanation can
+    // hang, and a layout that shifts between days is itself a signal she will
+    // read into.
+    final ringInk = fraction == null ? Palette.textDim : ringColor;
+
+    // Said in words, not only painted — and it is the SAME string that goes
+    // into the semantics label below, because `db_outside_range` was exactly a
+    // claim that survived in the announcement after it had been taken out of
+    // the paint.
+    //
+    // Only when she HAS readings and none may be graded. With nothing at all,
+    // the advisory beside it is already ADV_GATHERING, and two explanations of
+    // two different absences confuse both.
+    final ungraded = fraction == null && anyReading ? l.t('db_ring_ungraded') : null;
 
     // EVERY tone renders the advisory, including the positive one.
     //
@@ -782,20 +820,28 @@ class _PeaceOfMindBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          MetricRing(
-            fraction: fraction,
-            color: ringColor,
-            size: 74,
-            stroke: 8,
-            center: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: ringColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+          // The ring carries the sentence in the SEMANTICS TREE, not only in
+          // the paint beside it. A reader who cannot see the arc is the reader
+          // most exposed to a ring that means one thing and announces another,
+          // and `db_outside_range` is the precedent: a claim removed from the
+          // colour that went on being spoken aloud.
+          Semantics(
+            label: ungraded,
+            child: MetricRing(
+              fraction: fraction,
+              color: ringInk,
+              size: 74,
+              stroke: 8,
+              center: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: ringColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                ),
+                child: Icon(icon, color: Colors.white, size: 21),
               ),
-              child: Icon(icon, color: Colors.white, size: 21),
             ),
           ),
           const SizedBox(width: 16),
@@ -815,6 +861,18 @@ class _PeaceOfMindBanner extends StatelessWidget {
                   Text(sub,
                       style: const TextStyle(
                           color: Palette.textDim, fontSize: 13, height: 1.35)),
+                  // And in words, beside the shape it explains. An empty ring
+                  // on its own is an absence, and an absence is read as
+                  // whatever the reader fears or hopes.
+                  if (ungraded != null) ...[
+                    const SizedBox(height: 6),
+                    Text(ungraded,
+                        style: const TextStyle(
+                            color: Palette.textDim,
+                            fontSize: 12.5,
+                            height: 1.3,
+                            fontWeight: FontWeight.w600)),
+                  ],
                 ],
               ),
             ),
@@ -1316,14 +1374,20 @@ class _ActivityWellnessCard extends StatelessWidget {
             unit: l.t('wm_unit_brpm'),
             valueColor: _statusColor(
                 metricStatus('breathRate', m.breathRate!.toDouble()))),
-      if (m.bloodSugar != null)
-        _StatTile(
-            icon: Icons.water_drop_rounded,
-            colour: Palette.violet,
-            label: l.t('wm_sugar'),
-            value: _num1(m.bloodSugar!),
-            unit: l.t('wm_unit_mmol'),
-            valueColor: _statusColor(metricStatus('glucose', m.bloodSugar!))),
+      // THE BLOOD-SUGAR TILE IS GONE — the panel withdrew this metric on
+      // 2026-08-13 and the app kept drawing it, which is how a withdrawal on
+      // one surface turns out not to be a withdrawal at all.
+      //
+      // What it drew: `m.bloodSugar` (the raw integer over ten), a «ммоль/л»
+      // unit label our only source never claims, and a green/amber/red grade
+      // from metricStatus('glucose', …) against 3.9 / 7.8 / 11.1 — three
+      // numbers that appear in no file under packages/contract. The unit label
+      // is the worst of the three: it tells the reader which scale to compare
+      // her doctor's figure against.
+      //
+      // Removed rather than de-coloured, because a bare number under «Глюкоза»
+      // is still read as mmol/L by anyone who has ever seen a glucometer. See
+      // docs/CLINICAL-REVIEW-WATCH.md.
     ];
 
     return DsCard(
