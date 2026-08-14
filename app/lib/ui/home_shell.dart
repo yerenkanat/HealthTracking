@@ -227,6 +227,12 @@ class _HomeShellState extends State<HomeShell> {
             waterCount: c.waterFor(DateTime.now()),
             waterGoal: c.waterGoal,
             nowHour: DateTime.now().hour,
+            // The freshness gate, on the third absorber. The banner and the
+            // clipboard summary already have it; a reassurance left standing
+            // here would be one tap from the screen it was removed from.
+            now: DateTime.now(),
+            bpCalibrationStale:
+                bpCalibrationIsStale(c.bpCalibration, DateTime.now()),
             // The conversational assistant, when its controller is attached
             // (a network build). Null in offline/test builds hides the entry.
             onOpenChat: c.chat == null
@@ -710,17 +716,23 @@ class _HomeShellState extends State<HomeShell> {
 
   /// Open a guide: its article, its video, or its page.
   ///
-  /// The ARTICLE WINS when there is one, and that ordering is the whole point
-  /// of the screen it opens. A guide with a written red-flag block and a video
+  /// The TEXT WINS when there is any, and that ordering is the whole point of
+  /// the screen it opens. A guide with a written red-flag block and a video
   /// used to go straight to the player, so the block — which
   /// docs/CLAUDE-app-design.md §4.6 requires above the text and never behind a
   /// disclosure — was never drawn at all. ArticleScreen shows the text and
   /// offers the video at the end, so nothing is lost and the order is right.
   ///
+  /// [ContentItem.hasReadable], not `hasArticle`: the red-flag block is drawn
+  /// on that screen and on no other, so a card carrying a warning and an empty
+  /// article has to come through here too. Gating on the article alone left
+  /// exactly the failure this comment claims to have fixed — the warning
+  /// written, translated, published, and drawn nowhere.
+  ///
   /// Items with neither text nor a link are not tappable, so this is only ever
   /// reached for something real.
   Future<void> _openContent(ContentItem item) async {
-    if (item.hasArticle) {
+    if (item.hasReadable) {
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => ArticleScreen(
           item: item,

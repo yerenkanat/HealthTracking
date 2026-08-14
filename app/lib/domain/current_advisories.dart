@@ -61,10 +61,6 @@ List<Advisory> currentAdvisories(
         recentNights: recentNights,
       );
 
-  // REVERT PROBE: the advisor as it was, with no idea when anything was
-  // measured.
-  return gen(samples);
-  // ignore: dead_code
   final all = gen(samples);
   final warnings = [for (final a in all) if (a.tone == AdviceTone.watch) a];
   final fresh = gen(currentReadingsOnly(samples,

@@ -227,7 +227,27 @@ class ContentItem {
   bool get hasArticle => body.byLocale.values.any((t) => t.trim().isNotEmpty);
 
   /// Whether there is a red-flag block to draw above the article.
+  ///
+  /// Locale-free for the same reason as [hasArticle]: the fallback exists so a
+  /// Kazakh reader whose card carries only a Russian warning still sees it.
   bool get hasRedFlags => redFlags.byLocale.values.any((t) => t.trim().isNotEmpty);
+
+  /// Whether there is anything to READ on the article screen — the text, the
+  /// red-flag block, or both.
+  ///
+  /// [hasRedFlags] is in here and that is the whole point of this getter.
+  /// «Красный флаг» is drawn in exactly one place (ArticleScreen), and the only
+  /// route to that screen used to be [hasArticle] alone. So a card with a
+  /// written, translated, doctor-signed warning and an EMPTY article — which is
+  /// what somebody produces when they add a warning to an existing video
+  /// lesson, and what the back office's own hint invites — either rendered as
+  /// «Скоро» and could not be opened, or opened straight into the player with
+  /// the warning drawn nowhere at all. Safety-critical text, published green,
+  /// seen by nobody.
+  ///
+  /// The article screen is honest with an empty body: the summary, the red-flag
+  /// block, the source button and 103, in that order.
+  bool get hasReadable => hasArticle || hasRedFlags;
 
   /// Somewhere else to go: a shop page, a video, a link out. Distinct from
   /// [hasArticle] because the article screen offers this as a button at the
@@ -245,11 +265,11 @@ class ContentItem {
   /// no url — rendered as «Скоро» and could not be opened. The player existed
   /// and worked; nothing could reach it.
   ///
-  /// [hasArticle] is here for the same reason one turn later: a guide whose
+  /// [hasReadable] is here for the same reason one turn later: a guide whose
   /// whole content is the text somebody wrote in the back office has no url
   /// and no video, and judging it by those two would render a finished article
-  /// as «Скоро» with no way to open it.
-  bool get hasLink => hasSource || hasArticle;
+  /// — or a finished red-flag block — as «Скоро» with no way to open it.
+  bool get hasLink => hasSource || hasReadable;
 
   /// The video to play for a lesson, or null.
   ///

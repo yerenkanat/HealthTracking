@@ -177,13 +177,16 @@ class ContentTile extends StatelessWidget {
                     const Spacer(),
                     Flexible(
                       child: Text(
-                        // «Читать» when the article is what opens. A guide
-                        // whose whole content is written text would otherwise
+                        // «Читать» when text is what opens. A guide whose
+                        // whole content is written text would otherwise
                         // promise «Смотреть» and play nothing — and a card
                         // with no url and no video used to say «Скоро» while
-                        // holding a finished article.
+                        // holding a finished article. hasReadable, not
+                        // hasArticle: a card whose only text is the red-flag
+                        // block opens the same screen, so it must make the
+                        // same promise.
                         actionable
-                            ? (item.hasArticle
+                            ? (item.hasReadable
                                 ? l.t('tl_read')
                                 : lesson
                                     ? l.t('tl_watch')

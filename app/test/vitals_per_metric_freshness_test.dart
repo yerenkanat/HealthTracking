@@ -28,6 +28,7 @@ import 'package:fcs_app/domain/health_monitor.dart' show latestTelemetryMaxAge;
 import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/ui/advisor/advisor_screen.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
 import 'package:fcs_app/ui/dashboard/health_summary.dart';
 import 'package:fcs_app/ui/theme.dart';
@@ -489,6 +490,31 @@ void main() {
       await tester.pumpWidget(_dashboard(quietDay(const Duration(minutes: 5)), now));
       await tester.pumpAndSettle();
       expect(find.text(_en.t('ADV_NOTHING_UNUSUAL')), findsOneWidget);
+    });
+
+    testWidgets('nor on the advisor screen, which is the third absorber',
+        (tester) async {
+      // «What else on this product can say she is fine?» Gating the banner and
+      // the clipboard and leaving this one would put the removed reassurance
+      // one tap away, on the screen someone opens to ask exactly that.
+      tester.view.physicalSize = const Size(400 * 3, 2400 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      for (final (ago, present) in [
+        (const Duration(hours: 30), false),
+        (const Duration(minutes: 5), true),
+      ]) {
+        await tester.pumpWidget(L10nScope(
+          l10n: _en,
+          child: MaterialApp(
+              key: UniqueKey(),
+              home: AdvisorScreen(samples: quietDay(ago), now: now)),
+        ));
+        await tester.pumpAndSettle();
+        expect(find.text(_en.t('ADV_NOTHING_UNUSUAL')),
+            present ? findsOneWidget : findsNothing,
+            reason: 'readings $ago old');
+      }
     });
 
     test('the copied summary carries a per-metric age on every row', () {

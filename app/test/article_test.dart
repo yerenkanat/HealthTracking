@@ -127,9 +127,27 @@ void main() {
       final none = article(body: const {}, flags: const {});
       expect(none.hasArticle, isFalse);
       expect(none.hasRedFlags, isFalse);
+      expect(none.hasReadable, isFalse);
       expect(none.hasLink, isFalse, reason: 'nothing to open, so «Скоро» is honest');
       // Whitespace is not text: a body of spaces would render a blank screen.
       expect(article(body: const {'ru': '   '}).hasArticle, isFalse);
+    });
+
+    test('a red-flag block with no article is still something to read', () {
+      // The state the back office invites — the article box says «Пусто» is
+      // allowed — and the state that was reachable from nowhere: red flags are
+      // drawn on ArticleScreen and on no other screen, and the only route there
+      // was `hasArticle`.
+      final warning = article(body: const {});
+      expect(warning.hasArticle, isFalse);
+      expect(warning.hasRedFlags, isTrue);
+      expect(warning.hasReadable, isTrue);
+      expect(warning.hasSource, isFalse);
+      expect(warning.hasLink, isTrue, reason: '«Скоро» on a published warning');
+      // …and it survives the wire in that shape, with no empty `body` in tow.
+      final back = ContentItem.fromJson(warning.toJson());
+      expect(back.toJson().containsKey('body'), isFalse);
+      expect(back.hasReadable, isTrue);
     });
 
     test('the article survives the wire in both directions', () {
@@ -245,6 +263,62 @@ void main() {
       await tester.tap(watch);
       // pump(duration), never pumpAndSettle: the player shows an indeterminate
       // spinner while it reaches for the stream, and pumpAndSettle waits for ever.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(LessonPlayerScreen), findsOneWidget);
+    });
+
+    testWidgets('a warning with no article is readable, not «Скоро»',
+        (tester) async {
+      // Written, translated, published — and reachable from nothing: the tile
+      // said «Скоро» and could not be tapped, because the only route to the one
+      // screen that draws «Красный флаг» was the article body.
+      final c = AppController(now: () => today, locale: AppLocale.ru);
+      addTearDown(c.dispose);
+      await pumpShell(tester, c, catalogWith(article(body: const {})));
+
+      final entry = find.text(l.t('tl_open_guides'));
+      await tester.scrollUntilVisible(entry, 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'кровотечение');
+      await tester.pumpAndSettle();
+      expect(find.text(l.t('tl_soon')), findsNothing);
+      expect(find.text(l.t('tl_read')), findsOneWidget);
+
+      await tester.tap(find.text('Кровотечение'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ArticleScreen), findsOneWidget);
+      for (final line in articleParagraphs(flagsRu)) {
+        expect(find.text(line), findsOneWidget, reason: 'a red flag is unreachable: $line');
+      }
+      // 103 under it, as on every screen that lists signs.
+      expect(find.byType(CallAmbulanceFooter), findsOneWidget);
+    });
+
+    testWidgets('a warning added to an existing VIDEO lesson is drawn before the player',
+        (tester) async {
+      // The likeliest way this shape is authored: somebody adds «Красный флаг»
+      // to a lesson that already has a video and leaves the article empty. The
+      // tap went straight to LessonPlayerScreen and the block was drawn nowhere
+      // — while the back office told them «Показывается НАД текстом».
+      final c = AppController(now: () => today, locale: AppLocale.ru);
+      addTearDown(c.dispose);
+      await pumpShell(tester, c, catalogWith(article(
+        body: const {},
+        video: const VideoSource(provider: VideoProvider.hls, url: 'https://cdn/x.m3u8'),
+      )));
+      await openTheGuide(tester, 'кровотечение', 'Кровотечение');
+
+      expect(find.byType(ArticleScreen), findsOneWidget);
+      expect(find.byType(LessonPlayerScreen), findsNothing);
+      expect(find.text(l.t('art_red_flag')), findsOneWidget);
+      expect(find.text(articleParagraphs(flagsRu).first), findsOneWidget);
+
+      // And the video is still one tap away — nothing was taken from her.
+      final watch = find.text(l.t('tl_watch'));
+      await tester.scrollUntilVisible(watch, 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(watch);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(LessonPlayerScreen), findsOneWidget);

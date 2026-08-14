@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../domain/current_advisories.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/sleep.dart';
@@ -22,6 +23,18 @@ class AdvisorScreen extends StatelessWidget {
   final int waterGoal;
   final int nowHour;
 
+  /// The clock the freshness gate below reads.
+  ///
+  /// This screen is the third absorber on the checklist — it renders the same
+  /// `ADV_NOTHING_UNUSUAL` the banner and the clipboard do, from the same
+  /// advisor. Gating two of the three and not this one is the partial fix the
+  /// absorber rule calls worse than none: the reassurance would survive one tap
+  /// away, on the screen someone opens to ask exactly this question.
+  final DateTime? now;
+
+  /// See HealthDashboardView.bpCalibrationStale. Same default, same reason.
+  final bool bpCalibrationStale;
+
   /// Opens the conversational assistant. Null hides the entry — the advisories
   /// above stand on their own, and there is nothing to chat with until the
   /// ChatController is attached.
@@ -34,13 +47,17 @@ class AdvisorScreen extends StatelessWidget {
     this.waterCount,
     this.waterGoal = 0,
     this.nowHour = 12,
+    this.now,
+    this.bpCalibrationStale = true,
     this.onOpenChat,
   });
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final advisories = generateAdvisories(samples,
+    final advisories = currentAdvisories(samples,
+        now: now ?? DateTime.now(),
+        bpCalibrationStale: bpCalibrationStale,
         lastNight: lastNight,
         recentNights: recentNights,
         waterCount: waterCount,

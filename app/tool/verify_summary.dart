@@ -35,8 +35,14 @@ void main() {
   final nights = [
     SleepSummary(night: DateTime(2026, 7, 15), deepMin: 90, remMin: 110, lightMin: 250, awakeMin: 20),
   ];
+  // The clock these fixtures are CURRENT on. The summary's notes block is
+  // computed from readings that are still current on their own metric's ladder
+  // (docs/CLINICAL-REVIEW-WATCH.md, "Freshness must differ per metric"), so
+  // without this the fixture ages out and the block this file exists to check
+  // simply stops being generated — quietly, and more so every day.
+  final now = DateTime(2026, 7, 15, 9);
 
-  final s = buildHealthSummary(l, samples, nights: nights, name: 'Aizhan');
+  final s = buildHealthSummary(l, samples, nights: nights, name: 'Aizhan', now: now);
   _chk('has title', s.contains('Health summary'));
   _chk('includes name', s.contains('Aizhan'));
   _chk('heart rate row', s.contains('Heart rate:') && s.contains('bpm'));
@@ -55,13 +61,13 @@ void main() {
   _chk('empty → no name blank line noise', !empty.contains('Blood oxygen'));
 
   // Optional status line (pregnancy/cycle) is included when provided, omitted otherwise.
-  final withStatus = buildHealthSummary(l, samples, name: 'Aizhan', status: 'Pregnancy · week 20');
+  final withStatus = buildHealthSummary(l, samples, name: 'Aizhan', status: 'Pregnancy · week 20', now: now);
   _chk('status line included', withStatus.contains('Pregnancy · week 20'));
   _chk('no status → no stray line', !s.contains('Pregnancy'));
 
   // Localization: Russian title + labels present.
   const ru = L10n(AppLocale.ru);
-  final rs = buildHealthSummary(ru, samples, nights: nights, name: 'Аружан');
+  final rs = buildHealthSummary(ru, samples, nights: nights, name: 'Аружан', now: now);
   _chk('ru title', rs.contains('Сводка здоровья'));
   _chk('ru heart-rate label', rs.contains('Пульс:'));
   _chk('ru disclaimer', rs.contains('не медицинский диагноз'));
