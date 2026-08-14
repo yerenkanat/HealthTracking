@@ -79,6 +79,7 @@ import 'package:fcs_app/ui/tracking/child_growth_screen.dart';
 import 'package:fcs_app/ui/appointments/appointments_screen.dart';
 import 'package:fcs_app/ui/calendar/cycle_insights_screen.dart';
 import 'package:fcs_app/ui/calendar/medications_screen.dart';
+import 'package:fcs_app/ui/calendar/epds_screen.dart';
 import 'package:fcs_app/ui/calendar/postpartum_screen.dart';
 import 'package:fcs_app/ui/settings/legal_screen.dart';
 import 'package:fcs_app/ui/calendar/contraction_timer_screen.dart';
@@ -920,27 +921,58 @@ void main() {
     );
   });
 
+  // With a controller, and with four low weeks logged: that is the WIDEST
+  // this screen ever gets — the mood row wraps five pills and the amber card
+  // carries «Четвёртую неделю подряд так себе» plus a button. Measuring the
+  // version without them would measure a screen no mother sees.
+  AppController _recoveryController() {
+    final c = AppController(now: () => now);
+    for (var w = 0; w < 4; w++) {
+      for (var d = 0; d < 3; d++) {
+        final day = now.subtract(Duration(days: w * 7 + d));
+        c.setDayLog(DayLog(date: dateKey(day), mood: Mood.sad));
+      }
+    }
+    return c;
+  }
+
   testWidgets('the postpartum screen fits', (tester) async {
+    final c = _recoveryController();
+    addTearDown(c.dispose);
     await fits(
       tester,
       () => PostpartumScreen(
         birthDate: now.subtract(const Duration(days: 12)),
         today: now,
+        controller: c,
       ),
       'the postpartum screen',
     );
   });
 
   testWidgets('the postpartum screen fits at 130%', (tester) async {
+    final c = _recoveryController();
+    addTearDown(c.dispose);
     await fits(
       tester,
       () => PostpartumScreen(
         birthDate: now.subtract(const Duration(days: 12)),
         today: now,
+        controller: c,
       ),
       'the postpartum screen',
       textScale: 1.3,
     );
+  });
+
+  testWidgets('the screening questionnaire fits', (tester) async {
+    // Ten questions, four options each, and the options are whole sentences.
+    await fits(tester, () => EpdsScreen(onCompleted: (_) {}), 'the EPDS questionnaire');
+  });
+
+  testWidgets('the screening questionnaire fits at 130%', (tester) async {
+    await fits(tester, () => EpdsScreen(onCompleted: (_) {}), 'the EPDS questionnaire',
+        textScale: 1.3);
   });
 
   testWidgets('the privacy policy fits', (tester) async {

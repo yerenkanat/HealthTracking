@@ -113,6 +113,9 @@ void main() {
     'attachGrowthSync(',
     'attachDoseSync(',
     'attachVaccineSync(',
+    // The postpartum screening (screen 30). A result that reaches nothing is
+    // ten questions she answered for a number on one handset.
+    'attachEpdsSync(',
   ]) {
     _chk('sync hook wired: $hook', main_.contains(hook));
   }
@@ -131,6 +134,10 @@ void main() {
   // must be pulled into the feed, or they exist only in the back-office.
   _chk('server safety alerts are pulled into the app',
       main_.contains('api.getAlerts()') && main_.contains('mergeRemoteAlerts('));
+  // Her screening history, so a new phone does not offer the questionnaire as
+  // though she had never taken it — and «прошлый раз» survives a reinstall.
+  _chk('the screening history is restored on a new device',
+      main_.contains('api.getEpds()') && main_.contains('mergeRemoteEpds('));
 
   // ---- screens 21 + 38: a tapped notification goes somewhere ----
   // The plugin was initialized without a response handler, so every tap in the

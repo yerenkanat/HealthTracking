@@ -246,6 +246,10 @@ $ADMIN_BLOCK
     #   /announcements* — frame 06, the app end of the marketing tab. Left out,
     #               the back office publishes a рассылка, counts it as
     #               delivered, and no phone ever finds out.
+    #   /epds* — screen 30, the postpartum screening. Session-scoped and never
+    #               public: the payload is one woman's score. Left out, the app
+    #               would say «сохранено» on a result that Caddy 404s, and the
+    #               ten questions she answered would exist on one handset only.
     #   /notifications/* — frame 25 / screen 39: her per-category switches and
     #               quiet hours. Session-scoped, never public — these are one
     #               woman's settings. Left out, the app would save them to the
@@ -254,7 +258,7 @@ $ADMIN_BLOCK
     @app path /account* /ai/* /alerts* /announcements* /app/* /appointments* \
               /auth/logout /calibration/* /children* /content* \
               /contraction-sessions* /course* /cry/* /cycle* /devices* /doses* \
-              /family* /geofences* /growth* /ingest/* /kick-sessions* \
+              /epds* /family* /geofences* /growth* /ingest/* /kick-sessions* \
               /medications* /metrics* /newborn-events* /notifications/* /profile* /sleep* \
               /support* /vaccines* /vitals* /weight*
     handle @app {

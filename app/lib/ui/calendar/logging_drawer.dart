@@ -17,7 +17,11 @@ import '../theme.dart';
 import '../widgets/confirm.dart';
 
 /// Icon + accent colour for each mood (localized label via `mood_<name>`).
-({IconData icon, Color color}) _moodStyle(Mood m) => switch (m) {
+///
+/// Public because the postpartum recovery screen logs the SAME mood into the
+/// SAME [DayLog]. Two tables of mood icons drifting apart would mean one
+/// feeling is a blue moon on one screen and a violet one on the other.
+({IconData icon, Color color}) moodStyle(Mood m) => switch (m) {
       Mood.happy => (
           icon: Icons.sentiment_very_satisfied_rounded,
           color: Palette.good
@@ -138,8 +142,8 @@ class FloStyleCalendarDrawer extends StatelessWidget {
                 children: [
                   for (final m in Mood.values)
                     _PillButton(
-                      icon: _moodStyle(m).icon,
-                      color: _moodStyle(m).color,
+                      icon: moodStyle(m).icon,
+                      color: moodStyle(m).color,
                       label: l.t('mood_${m.name}'),
                       selected: log.mood == m,
                       onTap: () => onToggleMood(m),

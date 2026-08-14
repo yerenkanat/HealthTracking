@@ -661,7 +661,11 @@ export function registerAdminRoutes(
     if (reason == null) return;
     const userId = (req.params as { id: string }).id;
     await repo.writeAudit({ staffId: s.staffId, action: 'view_wellness', target: userId, reason });
-    const [sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration, growth, doses, vaccines] = await Promise.all([
+    // `epds` rides this route rather than getting its own: it is read in the
+    // same breath as her diary, by the same person, under the same audit line
+    // and the same «зачем» — a separate endpoint would mean a second reason
+    // prompt for one number, which is how a reason prompt gets clicked through.
+    const [sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration, growth, doses, vaccines, epds] = await Promise.all([
       repo.listSleep(userId, 14),
       repo.listDayLogs(userId, '1970-01-01', '2999-12-31'),
       repo.listAlerts(userId, 50),
@@ -675,8 +679,9 @@ export function registerAdminRoutes(
       repo.listGrowth(userId),
       repo.listDoses(userId),
       repo.listVaccines(userId),
+      repo.listEpds(userId, 10),
     ]);
-    return reply.send({ sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration, growth, doses, vaccines });
+    return reply.send({ sleep, days, alerts, weight, medications, medicalIds, kickSessions, contractionSessions, newbornEvents, bpCalibration, growth, doses, vaccines, epds });
   });
 
   /**

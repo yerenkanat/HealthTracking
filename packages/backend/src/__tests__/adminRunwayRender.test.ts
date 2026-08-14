@@ -201,9 +201,17 @@ async function renderStock() {
 
 describe('the sentence reaches the screen', () => {
   it('a fast seller reads as days, a rate, and what to do', async () => {
-    const { body, errors } = await renderStock();
+    const { body, errors, window } = await renderStock();
     expect(errors, errors.join('\n')).toEqual([]);
-    expect(body).toContain('хватит на 4 дн.');
+    // Frame 07 asks for a COLUMN, not a sentence per row: «хватит на 4 дн.»
+    // moved into a «Хватит на» cell reading «4 дн.». The heading carries the
+    // words, the cell carries the figure, and the rate stays beside it — the
+    // denominator does not stop mattering because the layout changed.
+    const heads = [...window.document.querySelectorAll('#stockBody th')]
+      .map((th) => (th.textContent ?? '').trim());
+    expect(heads, 'no «Хватит на» column').toContain('Хватит на');
+    const cover = window.document.querySelector('#stockBody td.cover');
+    expect((cover?.textContent ?? '')).toContain('4 дн.');
     expect(body).toContain('6 шт/день');
     expect(body).toContain('пора заказывать');
     expect(body).toContain('14 дн.'); // the lead time it was judged against
@@ -239,9 +247,27 @@ describe('the sentence reaches the screen', () => {
   });
 
   it('every product carries an explaining line, not a bare count', async () => {
+    // One «Хватит на» cell per product, and none of them is a bare figure:
+    // «4 дн.» alone cannot be checked, argued with or acted on.
     const { window } = await renderStock();
-    const notes = window.document.querySelectorAll('#stockBody .metricnote');
-    expect(notes.length).toBe(INVENTORY.products.length);
-    for (const n of notes) expect((n.textContent ?? '').trim().length).toBeGreaterThan(8);
+    const cells = window.document.querySelectorAll('#stockBody td.cover');
+    expect(cells.length).toBe(INVENTORY.products.length);
+    for (const c of cells) {
+      const note = c.querySelector('.metricnote');
+      expect(note, 'a «Хватит на» figure with nothing explaining it').not.toBeNull();
+      expect((note!.textContent ?? '').trim().length).toBeGreaterThan(8);
+    }
+  });
+
+  it('states the rule the column was computed by, under the table', async () => {
+    // Every table footer states its rule (docs/CLAUDE-admin-design.md §3):
+    // a column of days nobody can reproduce is a column nobody trusts twice.
+    const { window } = await renderStock();
+    const rule = window.document.querySelector('#stockRule')?.textContent ?? '';
+    expect(rule).toContain('продано за 30 дн.');
+    expect(rule).toContain('14 дн.');
+    // And why the colour rows leave it empty rather than inventing a per-colour
+    // rate: sales are booked against the product, not the colour.
+    expect(rule).toContain('не на цвет');
   });
 });

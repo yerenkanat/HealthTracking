@@ -278,10 +278,47 @@ export function registerInventoryRoutes(
      * whole warehouse screen.
      */
     const inTransit = await repo.inTransitByVariant().catch(() => ({} as Record<string, number>));
+    /**
+     * Which photos exist — WITHOUT the bytes (see `listProductPhotos`).
+     *
+     * The warehouse screen drew a coloured dot per colour while the storefront
+     * showed the real picture of the same thing, and per-colour upload was
+     * built precisely so the two agree. The index travels with the shelf so the
+     * panel can draw a photo where there is one and an honest placeholder where
+     * there is not — rather than firing an <img> at every row and letting most
+     * of them 404 into a broken-image icon.
+     *
+     * Absent on an unmigrated database rather than fatal, like the two reads
+     * above: a missing photo table should cost the thumbnails, not the shelf.
+     */
+    const photos = await repo.listProductPhotos().catch(() => [] as Array<{ productId: string; color: string; uploadedAt: string }>);
+    const photoAt = new Map<string, string>();
+    for (const ph of photos) photoAt.set(`${ph.productId}|${ph.color}`, ph.uploadedAt);
+    /**
+     * The same URL the storefront and the app already use, so there is one
+     * photo endpoint and not a second admin-only one to keep in step.
+     * `uploadedAt` rides alongside instead of being baked into the URL: the
+     * response is cached for a day, and the caller that needs a fresh copy
+     * after a replacement is the one that should say so.
+     */
+    const photoOf = (productId: string, color: string) => {
+      const at = photoAt.get(`${productId}|${color}`);
+      if (!at) return {};
+      const base = `/shop/products/${encodeURIComponent(productId)}/photo`;
+      return {
+        // Absent rather than null when there is none, matching /shop/products:
+        // a client testing `if (photoUrl)` and one testing `'photoUrl' in v`
+        // then agree.
+        photoUrl: color ? `${base}?color=${encodeURIComponent(color)}` : base,
+        photoUpdatedAt: at,
+      };
+    };
 
     const withParts = await Promise.all(products.map(async (p) => {
       const runway = runwayOf(p.stock, sold[p.id] ?? 0, SALES_WINDOW_DAYS);
-      const variants = p.variants.map((v) => ({ ...v, inTransit: inTransit[v.id] ?? 0 }));
+      const variants = p.variants.map((v) => ({
+        ...v, inTransit: inTransit[v.id] ?? 0, ...photoOf(p.id, v.color),
+      }));
       // A bundle has no shelf of its own, so nothing is ordered against it —
       // its parts are. Summing its variants would be summing an empty list
       // anyway; saying so explicitly stops a future reader adding one.
@@ -301,6 +338,9 @@ export function registerInventoryRoutes(
       return {
         ...p,
         variants,
+        // The product's own photo (`color === ''`), for the row that names the
+        // product and for a bundle, which has colours nowhere to carry one.
+        ...photoOf(p.id, ''),
         parts: p.kind === 'bundle' ? await repo.bundleParts(p.id) : [],
         soldInWindow: sold[p.id] ?? 0,
         // JSON has no Infinity — it serialises as null, which would be
@@ -832,8 +872,37 @@ export function registerInventoryRoutes(
   app.get('/admin/inventory/moves', async (req, reply) => {
     const s = await requireCap(req, reply, 'stock');
     if (!s) return;
-    const q = req.query as { variantId?: string; limit?: string };
+    const q = req.query as { variantId?: string; limit?: string; since?: string };
     const limit = Math.min(500, Math.max(1, Number(q.limit) || 100));
-    return reply.send({ moves: await repo.stockMoves(limit, q.variantId) });
+    /**
+     * «Движения за день» (frame 07) asks for one day, and the day starts where
+     * the operator is — so the instant comes from the caller and is normalised
+     * here rather than guessed from the server's timezone.
+     *
+     * An unparsable value is REFUSED, not ignored. Ignoring it would answer a
+     * question about today with the whole ledger, and the panel would add those
+     * rows up and print somebody's month as their shift.
+     */
+    let since: string | undefined;
+    if (q.since != null && q.since !== '') {
+      const t = new Date(q.since);
+      if (Number.isNaN(t.getTime())) {
+        return reply.code(400).send({ error: 'bad_since', detail: 'since must be an ISO instant' });
+      }
+      since = t.toISOString();
+    }
+    const moves = await repo.stockMoves(limit, q.variantId, since);
+    return reply.send({
+      moves,
+      limit,
+      since: since ?? null,
+      /**
+       * False when the window was full: the caller asked for a period, got a
+       * truncated slice of it, and any total computed from it is short. The
+       * panel hides its day totals in that case rather than printing a number
+       * the response cannot support.
+       */
+      exact: moves.length < limit,
+    });
   });
 }

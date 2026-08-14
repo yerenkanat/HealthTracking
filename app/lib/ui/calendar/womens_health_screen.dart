@@ -307,7 +307,9 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                         inDays: daysUntilCheck(daysSinceBirth(_recentBirth(c)!, _today)),
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => PostpartumScreen(
-                              birthDate: _recentBirth(c)!, today: _today),
+                              birthDate: _recentBirth(c)!,
+                              today: _today,
+                              controller: c),
                         )),
                       ),
                     ),
@@ -366,7 +368,9 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                         ? null
                         : () => Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => PostpartumScreen(
-                                  birthDate: _recentBirth(c)!, today: _today),
+                                  birthDate: _recentBirth(c)!,
+                                  today: _today,
+                                  controller: c),
                             )),
                     recoveryInDays: _recentBirth(c) == null
                         ? null

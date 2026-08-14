@@ -534,6 +534,27 @@
      competes with the status chip that is already saying it. */
   tbody tr.attn-warn{background:var(--warn-soft)}
   tbody tr.attn-crit{background:var(--crit-soft)}
+  /* Склад · кадр 07 — фото цвета и колонка «Хватит на».
+     Строка товара и его цвета — одна группа: разделитель рисуется только под
+     последним цветом, иначе таблица распадается на одинаковые полоски и
+     перестаёт читаться как «товар → его цвета». */
+  .stocktbl td{padding:4px 16px;border-bottom:none;vertical-align:middle}
+  .stocktbl tr{cursor:default}
+  .stocktbl tr:hover{background:transparent}
+  .stocktbl tr.prow td{padding-top:12px}
+  .stocktbl tr.plast td{padding-bottom:12px;border-bottom:1px solid var(--row)}
+  .stocktbl .cover b{font-family:var(--mono);font-size:14px;white-space:nowrap}
+  .stocktbl .acts{white-space:nowrap;text-align:right}
+  /* Пояснительные строки во всю ширину переносятся: .t не переносится, и
+     состав комплекта в одну строку растягивал бы таблицу горизонтально. */
+  .stocktbl td[colspan]{white-space:normal}
+  /* Фиксированный размер и у фото, и у заглушки — иначе строка подпрыгивает,
+     когда картинка догрузится. Пунктир читается как «пустое место», а не как
+     сломанное изображение. */
+  .thumb{width:32px;height:32px;border-radius:8px;display:block;flex:0 0 32px;
+    object-fit:cover;border:1px solid var(--hair);background:var(--surface-2)}
+  .thumb.none{border-style:dashed;display:flex;align-items:center;justify-content:center}
+  .thumb.none i{width:10px;height:10px;border-radius:50%;display:block}
   .search{display:flex;gap:10px;padding:14px 18px;align-items:center}
   .search input{flex:1;background:var(--surface-2);border:1px solid var(--hair);border-radius:8px;padding:8px 12px;color:var(--ink);font-size:13px;font-family:var(--sans)}
   .search input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
@@ -2402,6 +2423,23 @@
             <div><b>Заканчивается</b><div class="sub" id="stockLowList"></div></div>
           </div>
           <div id="stockBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+
+          <!-- ДВИЖЕНИЯ ЗА ДЕНЬ — третий элемент кадра 07, которого не было.
+               Карточка обещает в подзаголовке, что приход, списание и пересчёт
+               пишутся в историю с автором и причиной, — а увидеть, что сделали
+               сегодня, было негде: внизу экрана лежали последние 50 записей за
+               всё время, и в них смена не читается.
+               Итог считается ровно по показанным строкам и исчезает, если
+               ответ пришёл обрезанным: неполная сумма за день — это то самое
+               уверенное неверное число. -->
+          <div class="sec-h" style="margin-top:20px"><h3>Движения за день</h3>
+            <span class="sub">С 00:00 по вашим часам · «В пути» сюда не попадает — это ещё не склад</span></div>
+          <div class="tablewrap">
+            <table><thead><tr><th>Когда</th><th>Товар</th><th>Цвет</th><th>Что</th>
+              <th>Кол-во</th><th>Кто</th><th>Примечание</th></tr></thead>
+            <tbody id="stockDayBody"><tr><td colspan="7" class="tstate">Загрузка…</td></tr></tbody></table>
+          </div>
+          <div class="metricnote" id="stockDayNote"></div>
         </div>
 
         <div class="card" style="margin-bottom:16px">
@@ -2591,9 +2629,12 @@
           <div id="supplierMsg" class="formmsg"></div>
         </div>
 
+        <!-- Не дубль «Движений за день» наверху: там сегодняшняя смена с
+             итогом, здесь — хвост всего журнала. Подзаголовок называет период,
+             чтобы две таблицы одного журнала нельзя было спутать. -->
         <div class="card" id="stockHistoryCard">
           <div class="sec-h"><h3>История движений</h3>
-            <span class="sub">Записи не редактируются: ошибка исправляется новой строкой</span></div>
+            <span class="sub">Последние 50 записей за всё время · записи не редактируются: ошибка исправляется новой строкой</span></div>
           <div class="tablewrap">
             <table><thead><tr><th>Когда</th><th>Товар</th><th>Цвет</th><th>Что</th><th>Кол-во</th><th>Кто</th><th>Примечание</th></tr></thead>
             <tbody id="movesBody"></tbody></table>
@@ -4877,6 +4918,9 @@
     let growth=[]; // child growth measurements (weight/height), across her children
     let doses=[]; // medication adherence (doses taken per med per day)
     let vaccines=[]; // child vaccination record (parent-marked keys), per child
+    // Скрининг ЭШПД: только дата, баллы и полоса. Ответов на десять вопросов
+    // здесь нет и быть не может — см. db/migrations/049_epds.sql.
+    let epds=[];
     // What her watch has actually been sending (GET /admin/users/:id/wearable,
     // migration 040). undefined = не запрашивали (демо-режим), null = запрос
     // упал, {days:[]} = сервер ответил, дней нет. Три разных утверждения.
@@ -4904,7 +4948,7 @@
       // ношение и заряд по дням. Данные писались с самого запуска пайплайна и
       // не имели ни одного читателя.
       try{ wear=await api(withReason(`/admin/users/${id}/wearable`)); }catch(e){ wear=null; }
-      try{ const w=await api(withReason(`/admin/users/${id}/wellness`)); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; vaccines=(w&&w.vaccines)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; vaccines=[]; }
+      try{ const w=await api(withReason(`/admin/users/${id}/wellness`)); sleep=(w&&w.sleep)||[]; days=(w&&w.days)||[]; weight=(w&&w.weight)||[]; meds=(w&&w.medications)||[]; medids=(w&&w.medicalIds)||[]; kicks=(w&&w.kickSessions)||[]; contractions=(w&&w.contractionSessions)||[]; newborn=(w&&w.newbornEvents)||[]; bpcal=(w&&w.bpCalibration)||null; growth=(w&&w.growth)||[]; doses=(w&&w.doses)||[]; vaccines=(w&&w.vaccines)||[]; epds=(w&&w.epds)||[]; }catch(e){ sleep=[]; days=[]; weight=[]; meds=[]; medids=[]; kicks=[]; contractions=[]; newborn=[]; bpcal=null; growth=[]; doses=[]; vaccines=[]; epds=[]; }
     }
     // "Nч Mмин" from total asleep minutes.
     const hm=(min)=>{ const h=Math.floor(min/60), m=min%60; return h?`${h}ч ${m}мин`:`${m}мин`; };
@@ -4957,6 +5001,23 @@
         if(d.symptoms&&d.symptoms.length) bits.push(`симптомы: ${d.symptoms.length}`);
         return `<div class="tli"><span><b>${esc(fmtDate(d.date))}</b></span><span class="t" style="max-width:62%;text-align:right">${esc(bits.join(" · "))}</span></div>`;
       }).join("")}</div>`:"";
+    // Скрининг ЭШПД (Эдинбургская шкала) — то, что мама заполнила сама на
+    // экране «После родов».
+    //
+    // Здесь ТОЛЬКО дата, баллы и полоса. Ответов на десять вопросов нет ни в
+    // базе, ни в этом ответе, ни на экране: десятый вопрос — про мысли навредить
+    // себе, и это не то, что должно лежать в карточке, открытой нескольким
+    // сотрудникам. См. db/migrations/049_epds.sql.
+    //
+    // Инструмент назван, вердикта нет. «15 из 30» — это результат опросника, а
+    // не диагноз, и никакое слово рядом не должно читаться как диагноз: «выше
+    // порога 13» — факт о шкале, а не заключение о человеке.
+    const epdsSection=epds.length?`
+      <div class="dsec">Скрининг ЭШПД</div>
+      <div class="tl">${epds.slice(0,5).map(r=>`<div class="tli"><span><b>${esc(fmtDate(r.takenAt))}</b>${
+        r.band==="high"?' <span class="t">выше порога 13</span>':""
+      }</span><span class="t num">${Number(r.score)||0} из 30</span></div>`).join("")}</div>
+      <div class="disc">Эдинбургская шкала — опросник самооценки, мама заполняет его сама. Это не диагноз и не заключение. Ответы на вопросы не сохраняются: только дата и число баллов.</div>`:"";
     // Weight trend: newest first, with the change since the previous entry.
     const wsorted=[...weight].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
     const weightSpark=sparkline([...wsorted].reverse().map(w=>Number(w.kg))); // oldest→newest
@@ -5510,6 +5571,7 @@
       ${medsSection}
       ${doseAdherence}
       ${diarySection}
+      ${epdsSection}
       ${kicksSection}
       ${contractionsSection}
       ${newbornSection}
@@ -8139,23 +8201,48 @@
   }
 
   /**
-   * A stock level as a date: «хватит на 9 дней · 1.4 шт/день».
+   * «Хватит на» — КОЛОНКОЙ, как просит кадр 07, а не предложением в строке.
    *
-   * docs/CLAUDE-admin-design.md is explicit that a metric card without its
-   * explaining line is not a metric card — «26 шт» ничего не значит. This is
-   * the line for every number on the Склад screen, and it is the only thing
-   * on that screen that answers the question a buyer actually has.
+   * Предложение под каждым товаром нельзя просмотреть глазами сверху вниз:
+   * закупщик читал по абзацу на товар, чтобы понять, что кончится первым.
+   * Колонка отвечает на это одним движением взгляда — но правило «у каждой
+   * цифры виден знаменатель или период» от переезда в колонку не отменяется,
+   * поэтому под числом остаётся строка, из чего оно посчитано.
+   *
+   * Три случая, в которых числа быть НЕ ДОЛЖНО:
+   *   • на полке ноль — «хватит на 0 дн.» правда и бесполезна: делить нечего,
+   *     и срочность здесь не в сроке, а в том, едет ли что-нибудь;
+   *   • продаж за окно не было — скорость НЕ РАВНА нулю, она неизвестна, и
+   *     «хватит навсегда» было бы выдумкой;
+   *   • сервер не прислал запас (старая сборка, нет ledger) — прочерк.
    *
    * @param p product row from /admin/inventory, carrying daysOfCover/noSales
    * @param w the response's windowDays / leadTimeDays
+   * @returns {{head:string, note:string, cls:string}} число, объяснение, цвет
    */
-  function runwayLine(p, w){
+  function coverCell(p, w){
     // Пустая полка — это и есть тот случай, когда «а что-нибудь едет?» самый
     // срочный вопрос в строке. Ожидаемое НЕ прибавляется к остатку: продать
-    // сегодня по-прежнему нечего, и предложение это говорит прямо.
-    if(!p.stock) return p.inTransit ? `нет на складе · в пути ${p.inTransit} шт.` : "нет на складе";
-    if(p.noSales) return `продаж за ${w.windowDays} дн. не было`;
-    if(p.daysOfCover == null) return "";
+    // сегодня по-прежнему нечего, и колонка это говорит прямо.
+    if(!p.stock){
+      return {
+        head: "нет остатка",
+        cls: "var(--crit-text)",
+        note: p.inTransit
+          ? `на полке ноль · в пути ${p.inTransit} шт. — в остаток они не входят`
+          : "на полке ноль · поставок в пути нет",
+      };
+    }
+    if(p.noSales){
+      return {
+        head: "нет продаж",
+        cls: "var(--muted)",
+        note: `продаж за ${w.windowDays} дн. не было — скорость неизвестна, срок считать не из чего`,
+      };
+    }
+    if(p.daysOfCover == null){
+      return { head: "—", cls: "var(--muted)", note: "запас не посчитан: сервер не прислал скорость продаж" };
+    }
     // Число, из которого посчитана скорость, а не только сама скорость.
     // «2.4 шт/день» одинаково выглядит у ровных 72 штук за месяц и у одной
     // оптовой отгрузки на 72 штуки, которая не повторится, — а закупщик
@@ -8169,14 +8256,50 @@
     // повторяет «пора заказывать» о товаре, заказанном две недели назад, либо
     // закажет второй раз, либо перестанет верить плашке.
     if(p.reorderCovered){
-      return `хватит на ${p.daysOfCover} дн. · ${rate} — заказ уже размещён, ожидается ${p.inTransit} шт.`;
+      return { head:`${p.daysOfCover} дн.`, cls:"var(--warn-text)",
+        note:`${rate} · заказ уже размещён, ожидается ${p.inTransit} шт.` };
     }
     // The lead time is the whole point of saying it: 9 days of cover is fine
     // for a shelf restocked in three and a stockout for one restocked in
     // fourteen. Naming the number a person can act on beats a colour.
-    return p.reorder
-      ? `хватит на ${p.daysOfCover} дн. · ${rate} — поставка идёт ${w.leadTimeDays} дн., пора заказывать`
-      : `хватит на ${p.daysOfCover} дн. · ${rate}`;
+    if(p.reorder){
+      return { head:`${p.daysOfCover} дн.`, cls:"var(--warn-text)",
+        note:`${rate} · поставка идёт ${w.leadTimeDays} дн., пора заказывать` };
+    }
+    return { head:`${p.daysOfCover} дн.`, cls:"var(--muted)", note:rate };
+  }
+
+  /**
+   * Порядок строк: раньше кончится — выше. Правило написано в подвале таблицы.
+   *
+   * Пустая полка идёт впереди всего: продавать нечего уже сейчас, а не через
+   * четыре дня. Товары без продаж — в самый конец: про них срок неизвестен, и
+   * поставить их между «4 дн.» и «9 дн.» значило бы притвориться, что известен.
+   */
+  function coverRank(p){
+    if(!p.stock) return -1;
+    if(p.noSales || p.daysOfCover == null) return Infinity;
+    return p.daysOfCover;
+  }
+
+  /**
+   * Фото цвета — то самое, которое видит покупатель на витрине.
+   *
+   * Склад рисовал цветной кружок, пока витрина показывала настоящую фотографию
+   * того же товара; фото на цвет для этого и загружали. Размер задан и у
+   * картинки, и у заглушки, поэтому строка не подпрыгивает, когда фото
+   * догрузится, а пунктирная рамка читается как «фото нет», а не как битая
+   * картинка. Ссылки нет — значит фото нет: запрос, который вернёт 404, мы не
+   * отправляем вовсе (у большинства цветов фото пока не загружено, и это
+   * нормальное состояние, а не сбой).
+   */
+  function thumbCell(url, hex, label){
+    if(url){
+      return `<img class="thumb" src="${esc(url)}" alt="${esc(label)}" width="32" height="32" loading="lazy"
+        onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'thumb none',title:'Фото не открылось'}))">`;
+    }
+    return `<span class="thumb none" title="${esc(label)}: фото не загружено — Каталог → карточка товара → вкладка «Фото»"
+      >${hex?`<i style="background:${esc(hex)}"></i>`:""}</span>`;
   }
 
   /**
@@ -8864,10 +8987,19 @@
     await renderSuppliers();
     await renderSupply();
     const box = $("#stockBody");
-    let data = null;
-    try{ data = await api("/admin/inventory"); }catch(e){ data = null; }
+    let data = null, invDenied = false;
+    try{ data = await api("/admin/inventory"); }
+    catch(e){ invDenied = (typeof AccessDenied!=="undefined") && (e instanceof AccessDenied); data = null; }
     if(!data){
-      box.innerHTML = `<div style="color:var(--muted);padding:16px 0">Не удалось загрузить склад.</div>`;
+      // Сбой чтения НЕ рисуется как пустая полка: «нет на складе» напротив
+      // каждого товара — это подпись этой панели под чужой ошибкой, и именно
+      // так выглядит экран, по которому потом заказывают товар.
+      box.innerHTML = `<div style="color:var(--crit-text);padding:16px 0">${invDenied
+        ? "Нет доступа к складу — попросите роль со «складом»."
+        : "Не удалось загрузить склад. Это сбой чтения, а не пустой склад: остатки не показаны, а не равны нулю. Обновите страницу."}</div>`;
+      // Движения за день живут в этой же карточке и своим запросом: журнал
+      // может ответить, даже когда полка не ответила.
+      await renderDayMoves();
       return;
     }
 
@@ -8906,72 +9038,206 @@
     const low = data.products.filter(p => p.reorder || p.lowStock || p.reorderCovered);
     $("#stockLow").hidden = low.length === 0;
     $("#stockLowList").textContent = low.map(p => {
+      // Пустая полка — раньше сюда попадала строка «— 0 шт., хватит на 0 дн.»:
+      // распроданный товар считается по своей же скорости и честно даёт ноль
+      // дней. Формально верно, читать нечего, и это ровно та цифра, которую
+      // колонка «Хватит на» печатать отказывается — печатать её в плашке в трёх
+      // строках отсюда значило бы держать два разных ответа на один вопрос.
+      if (!p.stock) return `${p.name} — нет на складе${p.inTransit ? `, в пути ${p.inTransit} шт.` : ""}`;
       if (p.reorder && p.daysOfCover != null) return `${p.name} — ${p.stock} шт., хватит на ${p.daysOfCover} дн.`;
       // Полка всё ещё короткая, но действие уже сделано. Молча убрать строку
       // было бы неправдой, а повторить «пора заказывать» — поводом заказать
       // второй раз.
       if (p.reorderCovered) return `${p.name} — ${p.stock} шт., заказ размещён, ожидается ${p.inTransit} шт.`;
-      return `${p.name} — ${p.stock} шт.`;
+      // Пороговая строка. Называла только количество — а «— 4 шт.» не отвечает
+      // на вопрос, почему товар в плашке: сюда его привёл порог, поставленный
+      // руками, и скорость продаж этого не подтверждала. Обе ветви выше свою
+      // причину называют; эта молчала.
+      //
+      // Порог берётся из ответа сервера. Если его не прислали (старая сборка),
+      // строка говорит, что причина — порог, но не выдумывает его величину.
+      const rule = p.lowStockThreshold != null
+        ? `порог склада ${p.lowStockThreshold} шт.`
+        : "порог склада";
+      // Почему сюда не привела скорость продаж: её нет. Это тот же факт, что и
+      // в колонке «Хватит на», и сказан он теми же словами.
+      const rate = p.noSales ? `, продаж за ${W.windowDays} дн. не было` : "";
+      return `${p.name} — ${p.stock} шт., ${rule}${rate}`;
     }).join(" · ");
 
-    box.innerHTML = data.products.map(p => {
-      const margin = p.costMinor != null
-        ? `<span class="t">маржа ${tenge(p.priceMinor - p.costMinor)}</span>` : "";
-      // A bundle has no shelf of its own: it is an arithmetic statement about
-      // its parts, so it gets a count and no editable rows.
-      const rows = p.kind === "bundle"
-        ? `<div class="t" style="padding:8px 0">Комплект из: ${p.parts.map(x=>esc(x.partName)).join(" + ")}
-             — можно собрать <b>${p.stock}</b> шт.</div>`
-        : p.variants.map(v => `
-            <div class="row" data-vid="${esc(v.id)}" style="display:flex;gap:8px;align-items:center;padding:6px 0">
-              <span class="dot" style="background:${esc(v.colorHex)};width:12px;height:12px;border-radius:50%;display:inline-block"></span>
-              <span style="flex:1">${esc(v.color)}</span>
-              <b style="min-width:44px;text-align:right">${v.stock}</b>
-              <button type="button" class="btn sm ghost mv" data-vid="${esc(v.id)}" data-d="1">+1</button>
-              <button type="button" class="btn sm ghost mv" data-vid="${esc(v.id)}" data-d="10">+10</button>
-              <button type="button" class="btn sm ghost off" data-vid="${esc(v.id)}">Списать</button>
-            </div>`).join("")
-          || `<div class="t" style="padding:6px 0">Цветов пока нет.</div>`;
+    // Кадр 07 — ТАБЛИЦА с колонкой «Хватит на», а не список абзацев.
+    // Порядок строк: раньше кончится — выше (coverRank), правило написано в
+    // подвале таблицы, потому что невидимая сортировка читается как «сервер
+    // прислал в случайном порядке».
+    const ordered = data.products.slice().sort((a, b) => coverRank(a) - coverRank(b));
+    const rowsHtml = ordered.map(p => {
+      const margin = p.costMinor != null ? ` · маржа ${tenge(p.priceMinor - p.costMinor)}` : "";
       // The article code, where somebody packing a box can read it.
       //
       // The column exists, is uniquely indexed, and is documented as "what goes
       // on a box, an invoice and a courier's manifest" — and it was never shown
       // anywhere, so a manifest was written from the product name.
       const sku = p.sku ? ` · <span class="num">${esc(p.sku)}</span>` : "";
-      const run = runwayLine(p, W);
-      const runCls = p.reorder ? "var(--warn-text,var(--warn))" : "var(--muted)";
-      return `<div style="margin-bottom:18px">
-        <div class="sec-h"><h3>${esc(p.name)}${p.active?"":" · архив"}</h3>
-          <span class="sub">${tenge(p.priceMinor)} ${margin}${sku}</span></div>
-        <div class="metricnote" style="color:${runCls}">${esc(run)}</div>
-        ${rows}
-      </div>`;
+      const cov = coverCell(p, W);
+      // Шесть ячеек в каждой строке — фото, название, остаток, в пути,
+      // «хватит на», действия.
+      //
+      // У цвета в колонке запаса стоит «по товару», а НЕ прочерк. Прочерк там
+      // уже был и оказался хуже пустоты: в соседней колонке «В пути» прочерк
+      // означает измеренный ноль («ничего не едет»), а здесь он означал
+      // отсутствие основания для расчёта — два разных смысла одним и тем же
+      // серым знаком в одной строке, из-за чего колонка выглядела заполненной
+      // там, где ответа в ней нет. Продажи пишутся на товар, а не на цвет, и
+      // «по-цветной» срок был бы выдуманным; ячейка теперь объясняет себя сама,
+      // не отсылая к подвалу таблицы.
+      const vars = p.kind === "bundle" ? [] : (p.variants || []);
+      const kids = vars.map((v, i) => `<tr class="crow${i === vars.length-1 ? " plast" : ""}" data-vid="${esc(v.id)}">
+        <td>${thumbCell(v.photoUrl, v.colorHex, `${p.name} · ${v.color}`)}</td>
+        <td style="padding-left:6px">${esc(v.color)}</td>
+        <td class="num">${v.stock}</td>
+        <td class="num t">${v.inTransit ? v.inTransit : "—"}</td>
+        <td class="t" title="Срок считается по товару целиком: продажи пишутся на товар, а не на цвет">по товару</td>
+        <td class="acts">
+          <button type="button" class="btn sm ghost mv" data-vid="${esc(v.id)}" data-d="1">+1</button>
+          <button type="button" class="btn sm ghost mv" data-vid="${esc(v.id)}" data-d="10">+10</button>
+          <button type="button" class="btn sm ghost off" data-vid="${esc(v.id)}"
+            data-label="${esc(p.name + " · " + v.color)}">Списать</button>
+        </td></tr>`);
+      // A bundle has no shelf of its own: it is an arithmetic statement about
+      // its parts, so it gets a count and no editable rows.
+      if (p.kind === "bundle") {
+        kids.push(`<tr class="crow plast"><td></td><td colspan="5" class="t">Комплект из: ${(p.parts||[]).map(x=>esc(x.partName)).join(" + ")} — можно собрать <b>${p.stock}</b> шт., своей полки у комплекта нет</td></tr>`);
+      } else if (!kids.length) {
+        kids.push(`<tr class="crow plast"><td></td><td colspan="5" class="t">Цветов пока нет — добавьте цвет, чтобы было что приходовать.</td></tr>`);
+      }
+      return `<tr class="prow">
+        <td>${thumbCell(p.photoUrl, null, p.name)}</td>
+        <td><b>${esc(p.name)}</b>${p.active?"":" <span class=\"pill neutral\">архив</span>"}
+          <div class="t">${tenge(p.priceMinor)}${margin}${sku}</div></td>
+        <td class="num"><b>${p.stock}</b></td>
+        <td class="num t">${p.inTransit ? p.inTransit : "—"}</td>
+        <td class="cover"><b style="color:${cov.cls}">${esc(cov.head)}</b>
+          <div class="metricnote" style="margin:0">${esc(cov.note)}</div></td>
+        <td></td>
+      </tr>${kids.join("")}`;
     }).join("");
+
+    // Правило таблицы — в подвале, как у каждой таблицы в этой панели: цифра
+    // без знаменателя и порядок без объяснения одинаково быстро перестают
+    // вызывать доверие.
+    box.innerHTML = `<div class="tablewrap"><table class="stocktbl">
+      <thead><tr>
+        <th style="width:52px">Фото</th><th>Товар и цвет</th>
+        <th style="width:86px">Остаток</th><th style="width:78px">В пути</th>
+        <th style="width:250px">Хватит на</th><th style="width:184px"></th>
+      </tr></thead>
+      <tbody>${rowsHtml || tableNote(6,"Товаров пока нет. Первый появится здесь, как только вы заполните форму «Добавить товар» ниже.")}</tbody>
+      </table></div>
+      <div class="metricnote" id="stockRule">«Хватит на» = остаток ÷ (продано за ${W.windowDays} дн. ÷ ${W.windowDays});
+        жёлтым — то, чего не хватит на ${W.leadTimeDays} дн. поставки.
+        Считается по товару целиком: продажи пишутся на товар, а не на цвет, поэтому у строки цвета там «по товару».
+        «В пути» в остаток не входит — что именно едет и когда, показывает карточка «Поставки в пути» ниже.
+        Сортировка: сначала то, что кончится раньше; товары без продаж — в конце.
+        Фото — то же, что на витрине: общее из карточки товара, у цвета — своё (Каталог → Фото).</div>`;
 
     box.querySelectorAll(".mv").forEach(btn => btn.addEventListener("click", () =>
       moveStock(btn.dataset.vid, Number(btn.dataset.d), "receipt", "приход через панель")));
 
     box.querySelectorAll(".off").forEach(btn => btn.addEventListener("click", () => {
       // A write-off is not reversible by setting the number back — it is a
-      // separate row in a financial record — so it asks, and it asks why.
+      // separate row in a financial record — so it asks first, names what it is
+      // about to write off, and then asks why.
+      const what = btn.dataset.label || "этот цвет";
+      if(!window.confirm(`Списать 1 шт.: ${what}?\n\nЭто строка в журнале склада, её нельзя отменить — ошибку исправляют только новой записью.`)) return;
       const why = window.prompt("Причина списания (брак, потеря, подарок):", "");
       if(why === null) return;
       moveStock(btn.dataset.vid, -1, "writeoff", why || "без причины");
     }));
 
-    // History, newest first.
+    // Движения за день (кадр 07) — сразу под таблицей остатков, где их и ищут.
+    await renderDayMoves();
+
+    // History, newest first. Тот же журнал, но хвост за всё время — период
+    // назван в подзаголовке карточки, чтобы две таблицы нельзя было спутать.
     try{
       const { moves } = await api("/admin/inventory/moves?limit=50");
-      $("#movesBody").innerHTML = moves.map(m => `<tr>
-        <td class="num t">${esc(stamp(m.at))}</td>
-        <td>${esc(m.productName)}</td>
-        <td class="t">${esc(m.color)}</td>
-        <td>${esc(MOVE_LABEL[m.reason] || m.reason)}</td>
-        <td class="num"><b style="color:${m.delta>0?"var(--good-text)":"var(--crit-text)"}">${m.delta>0?"+":""}${m.delta}</b></td>
-        <td class="t">${esc(m.staffId||"—")}</td>
-        <td class="t">${esc(m.note||"")}</td>
-      </tr>`).join("") || tableNote(7,"Движений пока не было. Первая строка появится после приёмки поставки во вкладке «Приёмка поставки» выше.");
+      $("#movesBody").innerHTML = moves.map(moveRow).join("")
+        || tableNote(7,"Движений пока не было. Первая строка появится после приёмки поставки во вкладке «Приёмка поставки» выше.");
     }catch(e){ $("#movesBody").innerHTML = tableNote(7,"Не удалось загрузить историю."); }
+  }
+
+  /// Одна строка журнала. Одна разметка на обе таблицы движений — две копии
+  /// разъезжаются, и тогда одно и то же движение читается по-разному в двух
+  /// метрах друг от друга.
+  function moveRow(m){
+    return `<tr>
+      <td class="num t">${esc(stamp(m.at))}</td>
+      <td>${esc(m.productName)}</td>
+      <td class="t">${esc(m.color)}</td>
+      <td>${esc(MOVE_LABEL[m.reason] || m.reason)}</td>
+      <td class="num"><b style="color:${m.delta>0?"var(--good-text)":"var(--crit-text)"}">${m.delta>0?"+":""}${m.delta}</b></td>
+      <td class="t">${esc(m.staffId||"—")}</td>
+      <td class="t">${esc(m.note||"")}</td>
+    </tr>`;
+  }
+
+  /// Полночь ПО ЧАСАМ ТОГО, КТО СМОТРИТ. Сервер живёт в UTC, склад — в Алматы;
+  /// «за сегодня», посчитанное по серверной дате, половину суток показывало бы
+  /// чужой день. Отправляем момент, а не дату.
+  function dayStartIso(){
+    const d = new Date(); d.setHours(0,0,0,0); return d.toISOString();
+  }
+
+  /**
+   * «Движения за день» — третий элемент кадра 07.
+   *
+   * Карточка обещала, что приход, списание и пересчёт пишутся в историю с
+   * автором и причиной, а посмотреть смену было негде. Итог за день считается
+   * ровно по тем строкам, что пришли: если ответ обрезан по лимиту, итога не
+   * будет вовсе — неполная сумма выглядит как полная и врёт молча.
+   */
+  async function renderDayMoves(){
+    const body = $("#stockDayBody"), note = $("#stockDayNote");
+    if(!body) return;
+    const LIMIT = 500, SHOWN = 8;
+    let d = null, denied = false;
+    try{
+      d = await api(`/admin/inventory/moves?limit=${LIMIT}&since=${encodeURIComponent(dayStartIso())}`);
+    }catch(e){ denied = (typeof AccessDenied!=="undefined") && (e instanceof AccessDenied); d = null; }
+    if(!d || !Array.isArray(d.moves)){
+      // Не «сегодня ничего не двигали»: это разные вещи, и молчаливая подмена
+      // одного другим — та самая ошибка, из-за которой пустой склад выглядит
+      // как настоящий ответ сервера.
+      body.innerHTML = denied
+        ? tableNote(7, "Не удалось открыть журнал: у вашей роли нет доступа к складу.")
+        : tableNote(7, "Не удалось загрузить движения за сегодня — это сбой чтения, а не пустой день.");
+      note.textContent = "";
+      return;
+    }
+    const moves = d.moves;
+    const exact = d.exact === undefined ? moves.length < LIMIT : d.exact;
+    if(!moves.length){
+      body.innerHTML = tableNote(7,"Сегодня остатки не двигались: с 00:00 не было ни прихода, ни продажи, ни списания. Первая строка появится здесь в тот же момент, когда движение проведут.");
+      note.textContent = "Считаем с 00:00 сегодняшнего дня по вашим часам.";
+      return;
+    }
+    body.innerHTML = moves.slice(0, SHOWN).map(moveRow).join("")
+      + (moves.length > SHOWN
+        ? tableNote(7, `…и ещё ${moves.length - SHOWN} за сегодня — все записи в «Истории движений» внизу экрана.`)
+        : "");
+    if(!exact){
+      note.textContent = `Показаны последние ${LIMIT} записей за сегодня — их было больше, поэтому итог за день не считаем: неполная сумма выглядела бы как полная.`;
+      return;
+    }
+    // Итог по причинам — по тем же строкам, что показаны выше. Разложен по
+    // причинам, а не сведён в одно число: +120 прихода и −120 продаж дают ноль,
+    // и этот ноль означает совсем не «ничего не происходило».
+    const by = {};
+    for(const m of moves) by[m.reason] = (by[m.reason] || 0) + m.delta;
+    const parts = Object.keys(MOVE_LABEL)
+      .filter(r => by[r] !== undefined)
+      .map(r => `${MOVE_LABEL[r].toLowerCase()} ${by[r] > 0 ? "+" : ""}${by[r]} шт.`);
+    note.textContent = `За сегодня с 00:00: ${parts.join(" · ")} — ${moves.length} ${plural(moves.length,"запись","записи","записей")}.`;
   }
 
   // ---- Персонал ----------------------------------------------------------

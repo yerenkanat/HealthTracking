@@ -54,6 +54,7 @@ import 'package:fcs_app/ui/theme.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_safety_screen.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
+import 'package:fcs_app/ui/calendar/epds_screen.dart';
 import 'package:fcs_app/ui/calendar/postpartum_screen.dart';
 import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
 import 'package:fcs_app/ui/settings/legal_screen.dart';
@@ -651,8 +652,28 @@ void main() {
 
   // ---- The guides and records added this session ----
   testWidgets('the postpartum screen fits every locale', (tester) async {
-    await checkAllLocales(tester, 'PostpartumScreen',
-        () => PostpartumScreen(birthDate: DateTime(2026, 6, 20), today: today), scroll: true);
+    // With her own data, so the mood row and the amber screening card are
+    // measured too — they are the widest things on the screen, and Kazakh
+    // «Төртінші апта қатарынан көңіл-күй нашар» is the longest of the three.
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    for (var w = 0; w < 4; w++) {
+      for (var d = 0; d < 3; d++) {
+        final day = today.subtract(Duration(days: w * 7 + d));
+        c.setDayLog(DayLog(date: dateKey(day), mood: Mood.sad));
+      }
+    }
+    await checkAllLocales(
+        tester,
+        'PostpartumScreen',
+        () => PostpartumScreen(
+            birthDate: DateTime(2026, 6, 20), today: today, controller: c),
+        scroll: true);
+  });
+
+  testWidgets('the screening questionnaire fits every locale', (tester) async {
+    await checkAllLocales(tester, 'EpdsScreen', () => EpdsScreen(onCompleted: (_) {}),
+        scroll: true);
   });
 
   testWidgets('the pregnancy weight guide fits every locale', (tester) async {

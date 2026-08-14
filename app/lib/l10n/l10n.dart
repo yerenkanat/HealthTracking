@@ -2341,6 +2341,236 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Thoughts of harming yourself or the baby — seek help immediately',
   },
 
+  // ---- «Как вы себя чувствуете»: her own mood, on her own recovery screen ----
+  //
+  // The same DayLog the calendar writes — one tap here is one tap there. The
+  // section exists on THIS screen because it is the one a woman six weeks after
+  // giving birth actually opens, and because the four-low-weeks card below it
+  // can only be earned by entries somebody made.
+  'pp_mood_title': {AppLocale.ru: 'Как вы себя чувствуете', AppLocale.kk: 'Өзіңізді қалай сезінесіз', AppLocale.en: 'How are you feeling'},
+  'pp_mood_hint': {
+    AppLocale.ru: 'Одна отметка в день. Это остаётся в вашем дневнике и помогает заметить, если тяжело держится неделями.',
+    AppLocale.kk: 'Күніне бір белгі. Бұл сіздің күнделігіңізде қалады және ауыр күй апталап созылса, оны байқауға көмектеседі.',
+    AppLocale.en: 'One tap a day. It stays in your diary and helps notice if a hard patch lasts for weeks.',
+  },
+  'pp_mood_cta': {AppLocale.ru: 'Отметить самочувствие', AppLocale.kk: 'Көңіл-күйді белгілеу', AppLocale.en: 'Log how you feel'},
+  'pp_mood_saved': {AppLocale.ru: 'Отмечено на сегодня', AppLocale.kk: 'Бүгінге белгіленді', AppLocale.en: 'Logged for today'},
+
+  // The amber card. It names the PATTERN in her own entries and offers a
+  // self-check — it does not name a condition, and must never start to.
+  'pp_low_run_title': {
+    AppLocale.ru: 'Четвёртую неделю подряд так себе',
+    AppLocale.kk: 'Төртінші апта қатарынан көңіл-күй нашар',
+    AppLocale.en: 'A fourth week in a row of feeling low',
+  },
+  'pp_low_run_title_n': {
+    AppLocale.ru: 'Уже {n} недель подряд так себе',
+    AppLocale.kk: 'Қатарынан {n} апта бойы көңіл-күй нашар',
+    AppLocale.en: '{n} weeks in a row of feeling low',
+  },
+  'pp_low_run_body': {
+    AppLocale.ru: 'Так бывает, и это не слабость. Есть короткий опросник о самочувствии — он ничего не решает за вас, но помогает понять, стоит ли сказать об этом врачу.',
+    AppLocale.kk: 'Бұлай болады, әрі бұл әлсіздік емес. Көңіл-күй туралы қысқа сауалнама бар — ол сіздің орныңызға шешім қабылдамайды, бірақ дәрігерге айту керек пе, соны түсінуге көмектеседі.',
+    AppLocale.en: 'This happens, and it is not weakness. There is a short self-check — it decides nothing for you, but it helps you see whether this is worth telling a doctor.',
+  },
+  'pp_screen_offer_title': {AppLocale.ru: 'Проверить самочувствие', AppLocale.kk: 'Көңіл-күйді тексеру', AppLocale.en: 'Check how you are'},
+  'pp_screen_offer_body': {
+    AppLocale.ru: 'Короткий опросник о том, как прошли последние семь дней. Ответы остаются у вас: сохраняются только дата и число баллов.',
+    AppLocale.kk: 'Соңғы жеті күн қалай өткені туралы қысқа сауалнама. Жауаптар сізде қалады: тек күні мен ұпай саны сақталады.',
+    AppLocale.en: 'A short set of questions about the last seven days. The answers stay with you — only the date and the score are kept.',
+  },
+  'pp_screen_last': {
+    AppLocale.ru: 'Прошлый раз: {d} · {n} из 30',
+    AppLocale.kk: 'Өткен жолы: {d} · 30-дан {n}',
+    AppLocale.en: 'Last time: {d} · {n} of 30',
+  },
+
+  // ---- The screening questionnaire (EPDS), frame 30 «Опросник · 10 вопросов» ----
+  //
+  // Wording rules, not preferences: nothing here diagnoses, nothing here is
+  // called a test, and the Kazakh rendering is offered as a self-check because
+  // the instrument is validated per language and this rendering has not been.
+  'epds_title': {AppLocale.ru: 'Как вы себя чувствуете', AppLocale.kk: 'Өзіңізді қалай сезінесіз', AppLocale.en: 'How you have been feeling'},
+  'epds_entry': {AppLocale.ru: 'Опросник · 10 вопросов', AppLocale.kk: 'Сауалнама · 10 сұрақ', AppLocale.en: 'Questionnaire · 10 questions'},
+  'epds_instrument': {
+    AppLocale.ru: 'Эдинбургская шкала (ЭШПД) — опросник самооценки',
+    AppLocale.kk: 'Эдинбург шкаласы (ЭПДШ) — өзін-өзі бағалау сауалнамасы',
+    AppLocale.en: 'The Edinburgh scale (EPDS) — a self-report questionnaire',
+  },
+  'epds_disclaimer': {
+    AppLocale.ru: 'Это не диагноз и не заключение. Опросник помогает вам самой увидеть, как прошла неделя, и решить, стоит ли сказать об этом врачу. Ответы никуда не отправляются: сохраняются только дата и число баллов.',
+    AppLocale.kk: 'Бұл диагноз да, қорытынды да емес. Сауалнама апта қалай өткенін өзіңіз көріп, бұл туралы дәрігерге айту керек пе, соны шешуге көмектеседі. Жауаптар еш жаққа жіберілмейді: тек күні мен ұпай саны сақталады.',
+    AppLocale.en: 'This is not a diagnosis or an assessment. It helps you see your own week and decide whether to raise it with a doctor. The answers are not sent anywhere — only the date and the score are kept.',
+  },
+  // The Kazakh sentence is shown in Kazakh only; the same key carries a plain
+  // note in the other languages rather than a blank.
+  'epds_not_validated': {
+    AppLocale.ru: 'Русский и казахский варианты опросника приводятся как вспомогательные: пороговые значения шкалы получены на других языковых версиях.',
+    AppLocale.kk: 'Сауалнаманың қазақша нұсқасы көмекші құрал ретінде беріледі: шкаланың шекті мәндері басқа тілдік нұсқаларда алынған.',
+    AppLocale.en: 'The Russian and Kazakh renderings are offered as an aid: the published thresholds come from studies of other language versions.',
+  },
+  'epds_period': {AppLocale.ru: 'За последние 7 дней', AppLocale.kk: 'Соңғы 7 күнде', AppLocale.en: 'In the past 7 days'},
+  'epds_progress': {AppLocale.ru: 'Отвечено {n} из 10', AppLocale.kk: '10 сұрақтың {n} жауап берілді', AppLocale.en: '{n} of 10 answered'},
+  'epds_submit': {AppLocale.ru: 'Показать результат', AppLocale.kk: 'Нәтижені көрсету', AppLocale.en: 'Show the result'},
+  'epds_incomplete': {
+    AppLocale.ru: 'Ответьте на все десять вопросов — иначе счёт будет неполным.',
+    AppLocale.kk: 'Он сұрақтың бәріне жауап беріңіз — әйтпесе есеп толық болмайды.',
+    AppLocale.en: 'Answer all ten questions — otherwise the score is incomplete.',
+  },
+  'epds_result_title': {AppLocale.ru: 'Ваш результат', AppLocale.kk: 'Сіздің нәтижеңіз', AppLocale.en: 'Your result'},
+  'epds_score': {AppLocale.ru: '{n} из 30', AppLocale.kk: '30-дан {n}', AppLocale.en: '{n} of 30'},
+  'epds_band_low': {
+    AppLocale.ru: 'На этой неделе ответы в спокойной части шкалы. Если самочувствие изменится, пройдите опросник снова.',
+    AppLocale.kk: 'Осы аптада жауаптар шкаланың тыныш бөлігінде. Көңіл-күй өзгерсе, сауалнаманы қайта өтіңіз.',
+    AppLocale.en: 'This week your answers sit in the calm part of the scale. If things change, take it again.',
+  },
+  'epds_band_possible': {
+    AppLocale.ru: 'Неделя была непростой. Это стоит проговорить с врачом на ближайшем приёме — и повторить опросник через неделю.',
+    AppLocale.kk: 'Апта оңай болмады. Мұны жақындағы қабылдауда дәрігермен талқылаған жөн — және бір аптадан кейін сауалнаманы қайталаңыз.',
+    AppLocale.en: 'It has been a hard week. It is worth mentioning at your next appointment, and taking this again in a week.',
+  },
+  'epds_band_high': {
+    AppLocale.ru: 'Ответы набрали 13 баллов и выше — это тот порог, на котором опросник рекомендует поговорить с врачом. Не ждите планового осмотра.',
+    AppLocale.kk: 'Жауаптар 13 және одан жоғары ұпай жинады — бұл сауалнама дәрігермен сөйлесуді ұсынатын шек. Жоспарлы тексеруді күтпеңіз.',
+    AppLocale.en: 'The answers reached 13 or more — the threshold at which this questionnaire advises talking to a clinician. Do not wait for the scheduled check.',
+  },
+  // Shown whenever item 10 is answered at all, whatever the total. It is not a
+  // softer version of the warning list — it introduces it.
+  'epds_harm_flag': {
+    AppLocale.ru: 'Вы отметили мысли навредить себе. Пожалуйста, не оставайтесь с этим одна — свяжитесь с врачом или скорой сегодня.',
+    AppLocale.kk: 'Сіз өзіңізге зиян келтіру ойларын белгіледіңіз. Өтінеміз, мұнымен жалғыз қалмаңыз — бүгін дәрігерге немесе жедел жәрдемге хабарласыңыз.',
+    AppLocale.en: 'You marked thoughts of harming yourself. Please do not stay alone with this — contact a clinician or emergency services today.',
+  },
+  'epds_saved': {
+    AppLocale.ru: 'Сохранены только дата и баллы',
+    AppLocale.kk: 'Тек күні мен ұпай сақталды',
+    AppLocale.en: 'Only the date and the score were saved',
+  },
+  'epds_retake': {AppLocale.ru: 'Пройти заново', AppLocale.kk: 'Қайта өту', AppLocale.en: 'Take it again'},
+  'epds_close': {AppLocale.ru: 'Закрыть', AppLocale.kk: 'Жабу', AppLocale.en: 'Close'},
+
+  // The ten items (epds_q<i>) and their four options (epds_q<i>_a<0..3>), in
+  // PRINTED order. Seven items are printed worst-first and score 3→0 — see
+  // domain/epds.dart. Never reorder an option list without changing the scoring
+  // there: the total stays plausible and becomes wrong.
+  'epds_q1': {
+    AppLocale.ru: 'Я могла смеяться и видеть смешную сторону вещей',
+    AppLocale.kk: 'Мен күле алдым және нәрсенің күлкілі жағын көре алдым',
+    AppLocale.en: 'I have been able to laugh and see the funny side of things',
+  },
+  'epds_q1_a0': {AppLocale.ru: 'Так же, как всегда', AppLocale.kk: 'Әрдайымғыдай', AppLocale.en: 'As much as I always could'},
+  'epds_q1_a1': {AppLocale.ru: 'Пожалуй, чуть меньше', AppLocale.kk: 'Сәл азырақ', AppLocale.en: 'Not quite so much now'},
+  'epds_q1_a2': {AppLocale.ru: 'Определённо меньше', AppLocale.kk: 'Әлдеқайда азырақ', AppLocale.en: 'Definitely not so much now'},
+  'epds_q1_a3': {AppLocale.ru: 'Совсем нет', AppLocale.kk: 'Мүлдем жоқ', AppLocale.en: 'Not at all'},
+
+  'epds_q2': {
+    AppLocale.ru: 'Я ждала предстоящего с удовольствием',
+    AppLocale.kk: 'Мен алдағыны қуанышпен күттім',
+    AppLocale.en: 'I have looked forward with enjoyment to things',
+  },
+  'epds_q2_a0': {AppLocale.ru: 'Так же, как раньше', AppLocale.kk: 'Бұрынғыдай', AppLocale.en: 'As much as I ever did'},
+  'epds_q2_a1': {AppLocale.ru: 'Немного меньше, чем раньше', AppLocale.kk: 'Бұрынғыдан сәл азырақ', AppLocale.en: 'Rather less than I used to'},
+  'epds_q2_a2': {AppLocale.ru: 'Определённо меньше, чем раньше', AppLocale.kk: 'Бұрынғыдан әлдеқайда азырақ', AppLocale.en: 'Definitely less than I used to'},
+  'epds_q2_a3': {AppLocale.ru: 'Почти совсем нет', AppLocale.kk: 'Мүлдем дерлік жоқ', AppLocale.en: 'Hardly at all'},
+
+  'epds_q3': {
+    AppLocale.ru: 'Я без причины винила себя, когда что-то шло не так',
+    AppLocale.kk: 'Бірдеңе сәтсіз болғанда, себепсіз өзімді кінәладым',
+    AppLocale.en: 'I have blamed myself unnecessarily when things went wrong',
+  },
+  'epds_q3_a0': {AppLocale.ru: 'Да, почти всё время', AppLocale.kk: 'Иә, көбіне', AppLocale.en: 'Yes, most of the time'},
+  'epds_q3_a1': {AppLocale.ru: 'Да, иногда', AppLocale.kk: 'Иә, кейде', AppLocale.en: 'Yes, some of the time'},
+  'epds_q3_a2': {AppLocale.ru: 'Не очень часто', AppLocale.kk: 'Онша жиі емес', AppLocale.en: 'Not very often'},
+  'epds_q3_a3': {AppLocale.ru: 'Нет, никогда', AppLocale.kk: 'Жоқ, ешқашан', AppLocale.en: 'No, never'},
+
+  'epds_q4': {
+    AppLocale.ru: 'Я тревожилась или беспокоилась без явной причины',
+    AppLocale.kk: 'Мен айқын себепсіз мазасызданып, уайымдадым',
+    AppLocale.en: 'I have been anxious or worried for no good reason',
+  },
+  'epds_q4_a0': {AppLocale.ru: 'Нет, совсем нет', AppLocale.kk: 'Жоқ, мүлдем', AppLocale.en: 'No, not at all'},
+  'epds_q4_a1': {AppLocale.ru: 'Почти никогда', AppLocale.kk: 'Дерлік ешқашан', AppLocale.en: 'Hardly ever'},
+  'epds_q4_a2': {AppLocale.ru: 'Да, иногда', AppLocale.kk: 'Иә, кейде', AppLocale.en: 'Yes, sometimes'},
+  'epds_q4_a3': {AppLocale.ru: 'Да, очень часто', AppLocale.kk: 'Иә, өте жиі', AppLocale.en: 'Yes, very often'},
+
+  'epds_q5': {
+    AppLocale.ru: 'Мне бывало страшно или я паниковала без серьёзной причины',
+    AppLocale.kk: 'Маған елеулі себепсіз қорқынышты болды немесе дүрбелеңге түстім',
+    AppLocale.en: 'I have felt scared or panicky for no very good reason',
+  },
+  'epds_q5_a0': {AppLocale.ru: 'Да, довольно часто', AppLocale.kk: 'Иә, едәуір жиі', AppLocale.en: 'Yes, quite a lot'},
+  'epds_q5_a1': {AppLocale.ru: 'Да, иногда', AppLocale.kk: 'Иә, кейде', AppLocale.en: 'Yes, sometimes'},
+  'epds_q5_a2': {AppLocale.ru: 'Нет, не очень', AppLocale.kk: 'Жоқ, онша емес', AppLocale.en: 'No, not much'},
+  'epds_q5_a3': {AppLocale.ru: 'Нет, совсем нет', AppLocale.kk: 'Жоқ, мүлдем', AppLocale.en: 'No, not at all'},
+
+  'epds_q6': {
+    AppLocale.ru: 'Дела наваливались и мне было трудно справляться',
+    AppLocale.kk: 'Істер үйіліп қалып, оларды атқару қиын болды',
+    AppLocale.en: 'Things have been getting on top of me',
+  },
+  'epds_q6_a0': {
+    AppLocale.ru: 'Да, почти всё время я совсем не справлялась',
+    AppLocale.kk: 'Иә, көбіне мүлдем үлгере алмадым',
+    AppLocale.en: "Yes, most of the time I haven't been able to cope at all",
+  },
+  'epds_q6_a1': {
+    AppLocale.ru: 'Да, иногда справлялась хуже обычного',
+    AppLocale.kk: 'Иә, кейде әдеттегіден нашар үлгердім',
+    AppLocale.en: "Yes, sometimes I haven't been coping as well as usual",
+  },
+  'epds_q6_a2': {
+    AppLocale.ru: 'Нет, почти всё время справлялась неплохо',
+    AppLocale.kk: 'Жоқ, көбіне жақсы үлгердім',
+    AppLocale.en: 'No, most of the time I have coped quite well',
+  },
+  'epds_q6_a3': {
+    AppLocale.ru: 'Нет, справлялась как всегда',
+    AppLocale.kk: 'Жоқ, әрдайымғыдай үлгердім',
+    AppLocale.en: 'No, I have been coping as well as ever',
+  },
+
+  'epds_q7': {
+    AppLocale.ru: 'Мне было так плохо, что я плохо спала',
+    AppLocale.kk: 'Көңіл-күйім соншалық ауыр болып, ұйқым бұзылды',
+    AppLocale.en: 'I have been so unhappy that I have had difficulty sleeping',
+  },
+  'epds_q7_a0': {AppLocale.ru: 'Да, почти всё время', AppLocale.kk: 'Иә, көбіне', AppLocale.en: 'Yes, most of the time'},
+  'epds_q7_a1': {AppLocale.ru: 'Да, иногда', AppLocale.kk: 'Иә, кейде', AppLocale.en: 'Yes, sometimes'},
+  'epds_q7_a2': {AppLocale.ru: 'Не очень часто', AppLocale.kk: 'Онша жиі емес', AppLocale.en: 'Not very often'},
+  'epds_q7_a3': {AppLocale.ru: 'Нет, совсем нет', AppLocale.kk: 'Жоқ, мүлдем', AppLocale.en: 'No, not at all'},
+
+  'epds_q8': {
+    AppLocale.ru: 'Мне было грустно или тоскливо',
+    AppLocale.kk: 'Мен мұңайдым немесе жабырқау болдым',
+    AppLocale.en: 'I have felt sad or miserable',
+  },
+  'epds_q8_a0': {AppLocale.ru: 'Да, почти всё время', AppLocale.kk: 'Иә, көбіне', AppLocale.en: 'Yes, most of the time'},
+  'epds_q8_a1': {AppLocale.ru: 'Да, довольно часто', AppLocale.kk: 'Иә, едәуір жиі', AppLocale.en: 'Yes, quite often'},
+  'epds_q8_a2': {AppLocale.ru: 'Не очень часто', AppLocale.kk: 'Онша жиі емес', AppLocale.en: 'Not very often'},
+  'epds_q8_a3': {AppLocale.ru: 'Нет, совсем нет', AppLocale.kk: 'Жоқ, мүлдем', AppLocale.en: 'No, not at all'},
+
+  'epds_q9': {
+    AppLocale.ru: 'Мне было так плохо, что я плакала',
+    AppLocale.kk: 'Көңіл-күйім соншалық ауыр болып, жыладым',
+    AppLocale.en: 'I have been so unhappy that I have been crying',
+  },
+  'epds_q9_a0': {AppLocale.ru: 'Да, почти всё время', AppLocale.kk: 'Иә, көбіне', AppLocale.en: 'Yes, most of the time'},
+  'epds_q9_a1': {AppLocale.ru: 'Да, довольно часто', AppLocale.kk: 'Иә, едәуір жиі', AppLocale.en: 'Yes, quite often'},
+  'epds_q9_a2': {AppLocale.ru: 'Только изредка', AppLocale.kk: 'Тек сирек', AppLocale.en: 'Only occasionally'},
+  'epds_q9_a3': {AppLocale.ru: 'Нет, никогда', AppLocale.kk: 'Жоқ, ешқашан', AppLocale.en: 'No, never'},
+
+  // Item 10. Any answer above «никогда» sends her outward on its own, whatever
+  // the total — see domain/epds.dart, flaggedSelfHarm.
+  'epds_q10': {
+    AppLocale.ru: 'У меня возникала мысль навредить себе',
+    AppLocale.kk: 'Менде өзіме зиян келтіру ойы туындады',
+    AppLocale.en: 'The thought of harming myself has occurred to me',
+  },
+  'epds_q10_a0': {AppLocale.ru: 'Да, довольно часто', AppLocale.kk: 'Иә, едәуір жиі', AppLocale.en: 'Yes, quite often'},
+  'epds_q10_a1': {AppLocale.ru: 'Иногда', AppLocale.kk: 'Кейде', AppLocale.en: 'Sometimes'},
+  'epds_q10_a2': {AppLocale.ru: 'Почти никогда', AppLocale.kk: 'Дерлік ешқашан', AppLocale.en: 'Hardly ever'},
+  'epds_q10_a3': {AppLocale.ru: 'Никогда', AppLocale.kk: 'Ешқашан', AppLocale.en: 'Never'},
+
   // ---- Pregnancy guide (what she might feel this stage, and when to call) ----
   'preg_expect_title': {AppLocale.ru: 'Как вы себя чувствуете', AppLocale.kk: 'Өзіңізді қалай сезінесіз', AppLocale.en: 'How you may feel'},
   'preg_warn_title': {AppLocale.ru: 'Когда обращаться к врачу', AppLocale.kk: 'Қашан дәрігерге қаралу керек', AppLocale.en: 'When to call your doctor'},

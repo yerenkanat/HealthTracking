@@ -97,6 +97,8 @@ function makeApp(callerId: string) {
     listSleep: async () => [],
     upsertDayLog: async () => {},
     listDayLogs: async () => [],
+    upsertEpds: async () => {},
+    listEpds: async () => [],
     recordAlert: async () => {},
     listAlerts: async () => [],
     getProfile: async () => null,

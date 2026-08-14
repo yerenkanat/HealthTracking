@@ -2688,6 +2688,27 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    // ---- Postpartum screening (EPDS) ----
+    //
+    // Four columns, and the fifth one does not exist: the ten answers are never
+    // sent and there is nowhere here to put them. See migration 049.
+    async upsertEpds(userId, row) {
+      await pool.query(
+        `INSERT INTO epds_results (user_id, id, taken_at, score, band)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (user_id, id) DO UPDATE
+           SET taken_at = EXCLUDED.taken_at, score = EXCLUDED.score, band = EXCLUDED.band`,
+        [userId, row.id, row.takenAt, row.score, row.band]);
+    },
+    async listEpds(userId, limit) {
+      const { rows } = await pool.query(
+        `SELECT id, taken_at, score, band FROM epds_results
+         WHERE user_id = $1 ORDER BY taken_at DESC LIMIT $2`, [userId, limit]);
+      return rows.map((r) => ({
+        id: r.id, takenAt: new Date(r.taken_at).toISOString(), score: r.score, band: r.band,
+      }));
+    },
+
     // ---- Safety alerts ----
     // ---- Support (frame 12) ----
     async listSupportTickets(limit) {
@@ -3369,17 +3390,25 @@ export function createPgRepository(pool: Pool): Repository {
       return out;
     },
 
-    async stockMoves(limit, variantId) {
+    async stockMoves(limit, variantId, sinceIso) {
+      // Built up rather than interpolated: two optional conditions with hard
+      // -coded $2/$3 is how a filter ends up reading the other one's value.
+      const params: unknown[] = [limit];
+      const where: string[] = [];
+      if (variantId) { params.push(variantId); where.push(`m.variant_id = $${params.length}`); }
+      // Inclusive, matching the memory repository — a move booked exactly at
+      // midnight belongs to the day that is starting.
+      if (sinceIso) { params.push(sinceIso); where.push(`m.at >= $${params.length}`); }
       const { rows } = await pool.query(
         `SELECT m.id, m.variant_id, m.delta, m.reason, m.note, m.staff_id, m.order_id, m.at,
                 v.color, p.name AS product_name
            FROM shop_stock_moves m
            JOIN shop_variants v ON v.id = m.variant_id
            JOIN shop_products p ON p.id = v.product_id
-          ${variantId ? 'WHERE m.variant_id = $2' : ''}
+          ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
           ORDER BY m.at DESC, m.id DESC
           LIMIT $1`,
-        variantId ? [limit, variantId] : [limit]);
+        params);
       return rows.map((r) => ({
         id: Number(r.id), variantId: r.variant_id, productName: r.product_name,
         color: r.color, delta: r.delta, reason: r.reason, note: r.note,

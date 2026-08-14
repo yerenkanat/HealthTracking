@@ -535,6 +535,26 @@ CREATE TABLE cycle_day_logs (
   PRIMARY KEY (user_id, log_date)
 );
 
+-- Postpartum screening results (EPDS) — the SCORE, the BAND and the DATE.
+--
+-- There is no column for the ten answers and there must never be one: item 10
+-- asks about thoughts of self-harm, and that answer is not something a back
+-- office needs in order to do anything. See db/migrations/049_epds.sql for the
+-- full reasoning, and app/lib/domain/epds.dart for the scoring the numbers
+-- come from. Not a diagnosis; nothing downstream may present it as one.
+--
+-- Per-person only: read through the audited /admin/users/:id/wellness route and
+-- never listed, filtered or segmented by (there is no index by score or band,
+-- on purpose).
+CREATE TABLE epds_results (
+  user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id        UUID NOT NULL,                    -- client-supplied, so a re-push upserts
+  taken_at  TIMESTAMPTZ NOT NULL,
+  score     INTEGER NOT NULL CHECK (score BETWEEN 0 AND 30),
+  band      TEXT NOT NULL CHECK (band IN ('low', 'possible', 'high')),
+  PRIMARY KEY (user_id, id)
+);
+
 -- Child safety alerts (geofence enter/exit history).
 CREATE TABLE safety_alerts (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

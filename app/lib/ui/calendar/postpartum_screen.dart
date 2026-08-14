@@ -7,20 +7,49 @@
 ///
 /// Nothing here diagnoses. The recovery notes describe what is usual; the
 /// warning list points OUTWARD, to a clinic, on purpose.
+///
+/// BETWEEN THE TWO HALVES, «Как вы себя чувствуете».
+///
+/// The calm half described mood and the warning half named thoughts of harm,
+/// and there was nothing in between — no way to say how today went, and no way
+/// for the app to notice a month of bad weeks in the diary it was already
+/// keeping. The mood row writes the SAME [DayLog] the calendar writes (so it
+/// syncs on the existing path and reaches the back office's diary), and four
+/// low weeks in a row raise the amber card that offers the screening
+/// questionnaire. Everything the questionnaire concludes ends up back at the
+/// warning block below, which is the only place this screen is allowed to send
+/// her.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 
+import '../../app/app_controller.dart';
+import '../../domain/cycle_log.dart';
+import '../../domain/epds.dart';
 import '../../domain/postpartum.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
+import 'epds_screen.dart';
+import 'logging_drawer.dart' show moodStyle;
 
 class PostpartumScreen extends StatelessWidget {
   final DateTime birthDate;
   final DateTime today;
-  const PostpartumScreen(
-      {super.key, required this.birthDate, required this.today});
+
+  /// Her own data. Optional ONLY so the layout suites (overflow, narrow phone)
+  /// can render the screen without building a controller; every real caller
+  /// passes one, and without it the mood row and the screening offer are simply
+  /// not drawn — there is nothing to write to and nothing to read a run from.
+  final AppController? controller;
+
+  const PostpartumScreen({
+    super.key,
+    required this.birthDate,
+    required this.today,
+    this.controller,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +57,7 @@ class PostpartumScreen extends StatelessWidget {
     final days = daysSinceBirth(birthDate, today);
     final notes = notesNow(days);
     final untilCheck = daysUntilCheck(days);
+    final c = controller;
 
     return Scaffold(
       backgroundColor: Palette.bg,
@@ -61,6 +91,16 @@ class PostpartumScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
+          // How she is TODAY, before the general notes: it is the one thing on
+          // this screen only she can supply, and it is what everything below
+          // reads from.
+          if (c != null) ...[
+            _MoodSection(controller: c, today: today),
+            const SizedBox(height: 18),
+            _ScreeningCard(controller: c, today: today),
+            const SizedBox(height: 18),
+          ],
+
           // What is ordinary around now.
           _Title(l.t('pp_now_title')),
           for (final n in notes) _NoteRow(note: n),
@@ -71,9 +111,238 @@ class PostpartumScreen extends StatelessWidget {
           const SizedBox(height: 22),
 
           // Set apart: the signs that mean call now.
-          _WarningBlock(),
+          const PostpartumWarningBlock(),
         ],
       ),
+    );
+  }
+}
+
+/// «Как вы себя чувствуете» — one tap, into the day log she already keeps.
+///
+/// Writes through `AppController.toggleMoodFor`, which is `setDayLog`, which
+/// fires the existing cycle-sync hook. No new sync, no new table, and the mood
+/// appears in the back office's «Дневник» beside the ones she logs from the
+/// calendar — because it IS one of those.
+class _MoodSection extends StatelessWidget {
+  final AppController controller;
+  final DateTime today;
+  const _MoodSection({required this.controller, required this.today});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    // Rebuilt on every controller change so the tap lights up immediately —
+    // the controller persists and re-emits, exactly as the logging drawer does.
+    // AppController is not a Listenable; `changes` is the stream every other
+    // screen in this folder subscribes to.
+    return StreamBuilder<void>(
+      stream: controller.changes,
+      builder: (context, _) {
+        final log = controller.logFor(today);
+        return DsCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.t('pp_mood_title'),
+                  style: const TextStyle(
+                      fontSize: 15.5, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              Text(l.t('pp_mood_hint'),
+                  style: const TextStyle(
+                      color: Palette.textDim, fontSize: 12.5, height: 1.4)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final m in Mood.values)
+                    _MoodButton(
+                      mood: m,
+                      selected: log.mood == m,
+                      onTap: () => controller.toggleMoodFor(today, m),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // The frame's «Отметить самочувствие» line. It says which state
+              // the row is in rather than repeating the instruction: a woman
+              // who has already tapped needs confirmation, not a second nudge.
+              Row(
+                children: [
+                  Icon(
+                    log.mood == null
+                        ? Icons.touch_app_outlined
+                        : Icons.check_circle_outline,
+                    size: 16,
+                    color: log.mood == null ? Palette.textDim : Palette.good,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      log.mood == null
+                          ? l.t('pp_mood_cta')
+                          : l.t('pp_mood_saved'),
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              log.mood == null ? Palette.textDim : Palette.good),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MoodButton extends StatelessWidget {
+  final Mood mood;
+  final bool selected;
+  final VoidCallback onTap;
+  const _MoodButton(
+      {required this.mood, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    final style = moodStyle(mood);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: DsShape.minTapTarget),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? style.color.withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? style.color : Ds.hairline,
+            width: DsShape.borderWidth,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(style.icon, size: 20, color: style.color),
+            const SizedBox(width: 7),
+            Text(l.t('mood_${mood.name}'),
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The screening offer. Amber and named when her own entries have run low for
+/// four weeks; quiet otherwise — but present either way, because a woman who
+/// never logs a mood is not a woman who is fine.
+class _ScreeningCard extends StatelessWidget {
+  final AppController controller;
+  final DateTime today;
+  const _ScreeningCard({required this.controller, required this.today});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return StreamBuilder<void>(
+      stream: controller.changes,
+      builder: (context, _) {
+        final run = lowMoodWeekRun(controller.dayLogs, today);
+        final raised = run >= lowMoodRunThreshold;
+        final last = controller.lastEpds;
+        final accent = raised ? Palette.amber : Palette.violet;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: accent.withValues(alpha: raised ? 0.16 : 0.10),
+            border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Ds.ink, width: DsShape.borderWidth),
+                      color: accent.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                        raised
+                            ? Icons.wb_twilight_outlined
+                            : Icons.favorite_outline,
+                        size: 20,
+                        color: raised ? Ds.amberText : accent),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          raised
+                              ? (run == lowMoodRunThreshold
+                                  ? l.t('pp_low_run_title')
+                                  : l.t('pp_low_run_title_n', {'n': run}))
+                              : l.t('pp_screen_offer_title'),
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          raised
+                              ? l.t('pp_low_run_body')
+                              : l.t('pp_screen_offer_body'),
+                          style: const TextStyle(
+                              color: Palette.textDim,
+                              fontSize: 12.5,
+                              height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (last != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  l.t('pp_screen_last', {
+                    'd': MaterialLocalizations.of(context)
+                        .formatMediumDate(last.takenAt),
+                    'n': last.score,
+                  }),
+                  style:
+                      const TextStyle(color: Palette.textDim, fontSize: 12),
+                ),
+              ],
+              const SizedBox(height: 12),
+              DsSecondaryButton(
+                label: l.t('epds_entry'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => EpdsScreen(onCompleted: controller.recordEpds),
+                )),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -227,7 +496,14 @@ class _CheckCard extends StatelessWidget {
 
 /// The warning list, set apart with its own warm frame so it is never read as
 /// part of the reassurance above.
-class _WarningBlock extends StatelessWidget {
+///
+/// Public because the screening result ends here too. That is the point of the
+/// whole questionnaire: whatever it scores, the only thing it may do is show
+/// her THIS list — the same words, in the same frame, not a softened restatement
+/// written for the result screen.
+class PostpartumWarningBlock extends StatelessWidget {
+  const PostpartumWarningBlock({super.key});
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);

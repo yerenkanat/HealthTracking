@@ -39,6 +39,7 @@ import '../domain/chat_controller.dart';
 import '../domain/contraction.dart';
 import '../domain/cycle_log.dart';
 import '../domain/cycle_predictions.dart';
+import '../domain/epds.dart';
 import '../domain/family.dart';
 import '../domain/announcement.dart';
 import '../domain/geofence_alerts.dart';
@@ -216,6 +217,12 @@ class AppController {
   int? _avgCycleLength;
   int? _avgPeriodLength;
   final Map<String, DayLog> _dayLogs = {};
+
+  /// Completed EPDS screenings, oldest→newest. SCORE, BAND AND DATE ONLY — the
+  /// ten answers are never held here, never persisted and never pushed (see
+  /// domain/epds.dart; item 10 asks about self-harm).
+  final List<EpdsResult> _epdsResults = [];
+  static const _maxEpdsResults = 50;
   final List<KickSessionRecord> _kickSessions = []; // completed timed sessions (oldest→newest)
   static const _maxKickSessions = 50;
   final List<ContractionSessionRecord> _contractionSessions = []; // oldest→newest
@@ -239,6 +246,7 @@ class AppController {
   // Push-only women's-health day-log sync: fires when a day changes, so the
   // admin wellness diary mirrors the mother's (flow / mood / symptoms / kicks).
   Future<void> Function(DayLog)? _onDayLogUpsert;
+  Future<void> Function(EpdsResult)? _onEpdsUpsert;
   // Push-only child sync: fires when a child is added/edited, so the back-office
   // kids demographics dashboard is built from real children.
   Future<void> Function(ChildProfile)? _onChildUpsert;
@@ -459,6 +467,9 @@ class AppController {
           note: log.note,
         ),
       )));
+    _epdsResults
+      ..clear()
+      ..addAll(cfg.epdsResults);
     _kickSessions
       ..clear()
       ..addAll(cfg.kickSessions);
@@ -598,6 +609,7 @@ class AppController {
         avgCycleLength: _avgCycleLength,
         avgPeriodLength: _avgPeriodLength,
         dayLogs: Map.of(_dayLogs),
+        epdsResults: List.of(_epdsResults),
         alerts: List.of(_alerts),
         lastChildZone: _lastChildZone,
         kickSessions: List.of(_kickSessions),
@@ -1125,6 +1137,62 @@ class AppController {
   /// sign-in).
   void attachCycleSync({required Future<void> Function(DayLog) upsert}) {
     _onDayLogUpsert = upsert;
+  }
+
+  // ---- The postpartum screening (EPDS) ----
+  //
+  // Stored, persisted and synced as SCORE + BAND + DATE. There is no method
+  // here that takes the ten answers, on purpose: the screen totals them and
+  // throws them away, so nothing downstream — persistence, the API client, the
+  // back office — can leak an answer to item 10 that it never received.
+
+  /// Completed screenings, newest first.
+  List<EpdsResult> get epdsResults => _epdsResults.reversed.toList(growable: false);
+
+  /// The most recent screening, or null if she has never taken one.
+  EpdsResult? get lastEpds => _epdsResults.isEmpty ? null : _epdsResults.last;
+
+  /// Whether her own mood entries have run low for four weeks — the condition
+  /// the amber card on the recovery screen is raised by.
+  bool shouldOfferEpds(DateTime today) => shouldOfferScreening(_dayLogs, today);
+
+  /// Record a completed screening (upsert on the id, so a re-save from the same
+  /// screen updates rather than duplicates).
+  void recordEpds(EpdsResult r) {
+    final at = _epdsResults.indexWhere((x) => x.id == r.id);
+    if (at >= 0) {
+      _epdsResults[at] = r;
+    } else {
+      _epdsResults.add(r);
+      if (_epdsResults.length > _maxEpdsResults) {
+        _epdsResults.removeRange(0, _epdsResults.length - _maxEpdsResults);
+      }
+    }
+    unawaited(_onEpdsUpsert?.call(r) ?? Future<void>.value());
+    _persist();
+    _notify();
+  }
+
+  /// Wire backend sync for screenings (called by main.dart on sign-in).
+  void attachEpdsSync({required Future<void> Function(EpdsResult) upsert}) {
+    _onEpdsUpsert = upsert;
+  }
+
+  /// Restore screenings on a new phone: add any this install lacks (by id),
+  /// keep oldest→newest, re-apply the cap. Local wins and no push fires — a
+  /// restore must not echo the server's copy back.
+  void mergeRemoteEpds(List<EpdsResult> remote) {
+    final have = _epdsResults.map((r) => r.id).toSet();
+    final added = [for (final r in remote) if (have.add(r.id)) r]; // drops in-batch dupes too
+    if (added.isEmpty) return;
+    _epdsResults
+      ..addAll(added)
+      ..sort((a, b) => a.takenAt.compareTo(b.takenAt));
+    if (_epdsResults.length > _maxEpdsResults) {
+      _epdsResults.removeRange(0, _epdsResults.length - _maxEpdsResults);
+    }
+    _persist();
+    _notify();
   }
 
   void toggleMoodFor(DateTime day, Mood m) => setDayLog(logFor(day).withMoodToggled(m));

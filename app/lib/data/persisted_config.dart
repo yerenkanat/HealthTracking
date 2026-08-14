@@ -13,6 +13,7 @@ import '../domain/child_emergency.dart';
 import '../domain/contraction.dart';
 import '../domain/cry_analysis.dart';
 import '../domain/cycle_log.dart';
+import '../domain/epds.dart';
 import '../domain/family.dart';
 import '../domain/phone_auth.dart';
 import '../domain/notification_prefs.dart';
@@ -184,6 +185,13 @@ class PersistedConfig {
   /// sign-in survives a restart.
   final AuthSession? authSession;
   final Map<String, DayLog> dayLogs; // dateKey → women's-health day entry
+
+  /// Completed postpartum screenings — DATE, SCORE AND BAND ONLY.
+  ///
+  /// The ten answers are deliberately absent and there is no field for them:
+  /// item 10 asks about thoughts of self-harm, and a phone backup is not a
+  /// place that answer belongs. See domain/epds.dart.
+  final List<EpdsResult> epdsResults;
   final bool notificationsEnabled;
   final NotificationPrefs notificationPrefs;
   final List<SafetyAlert> alerts; // recent zone enter/exit history
@@ -250,6 +258,7 @@ class PersistedConfig {
     this.pendingLogouts = const [],
     this.authSession,
     this.dayLogs = const {},
+    this.epdsResults = const [],
     this.notificationsEnabled = true,
     this.notificationPrefs = const NotificationPrefs(),
     this.alerts = const [],
@@ -297,6 +306,7 @@ class PersistedConfig {
         if (pendingLogouts.isNotEmpty) 'pendingLogouts': pendingLogouts,
         if (authSession != null) 'authSession': authSession!.toJson(),
         if (dayLogs.isNotEmpty) 'dayLogs': dayLogsToJson(dayLogs),
+        if (epdsResults.isNotEmpty) 'epdsResults': [for (final r in epdsResults) r.toJson()],
         'notificationsEnabled': notificationsEnabled,
         'notificationPrefs': notificationPrefs.toJson(),
         if (alerts.isNotEmpty) 'alerts': [for (final a in alerts) a.toJson()],
@@ -422,6 +432,13 @@ class PersistedConfig {
             : null,
         dayLogs: dayLogsFromJson(
             j['dayLogs'] is Map ? (j['dayLogs'] as Map).cast<String, dynamic>() : null),
+        // EpdsResult.fromJson returns null for an unusable row (a score outside
+        // 0–30, an unparseable date) rather than throwing, so the nulls are
+        // dropped here — one bad row must not cost her the whole history.
+        epdsResults: [
+          for (final r in _items(j['epdsResults'], EpdsResult.fromJson))
+            if (r != null) r,
+        ],
         notificationsEnabled: (j['notificationsEnabled'] as bool?) ?? true,
         notificationPrefs: j['notificationPrefs'] is Map
             ? NotificationPrefs.fromJson((j['notificationPrefs'] as Map).cast<String, dynamic>())

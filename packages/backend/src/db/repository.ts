@@ -210,6 +210,29 @@ export interface DayLogRow {
   note?: string; // free-text note the user typed for the day; '' / absent = none
 }
 
+/** The published bands of the EPDS. See app/lib/domain/epds.dart. */
+export const EPDS_BANDS = ['low', 'possible', 'high'] as const;
+export type EpdsBand = (typeof EPDS_BANDS)[number];
+
+/**
+ * One completed postpartum screening: when, how many points, which band.
+ *
+ * There is no `answers` field, and adding one is not a small change. Item 10 of
+ * the scale asks about thoughts of self-harm; the handset totals the sheet and
+ * discards it, so this row is all that has ever existed off the phone. The
+ * score is enough for the only thing the back office legitimately does with it
+ * — see it on the woman's own card, in context, behind an audit line.
+ *
+ * NOT a diagnosis. Nothing that renders this row may print one.
+ */
+export interface EpdsRow {
+  /** Client-supplied UUID, so a re-push upserts rather than duplicating. */
+  id: string;
+  takenAt: string; // ISO timestamp
+  score: number; // 0–30
+  band: EpdsBand;
+}
+
 /** The kinds the app's AlertKind sends. See migration 030. */
 export const SAFETY_ALERT_KINDS = ['entered', 'left', 'checkIn', 'sos', 'lowBattery'] as const;
 export type SafetyAlertKind = (typeof SAFETY_ALERT_KINDS)[number];
@@ -1342,6 +1365,14 @@ export interface Repository {
   upsertDayLog(userId: string, log: DayLogRow): Promise<void>;
   listDayLogs(userId: string, from: string, to: string): Promise<DayLogRow[]>;
 
+  // ---- Postpartum screening (EPDS): score + band + date, never the answers ----
+  //
+  // Read per person, newest first, and never across people: there is no
+  // `epdsStats`, no cohort count and no "mothers scoring 13+" list, deliberately
+  // — see db/migrations/049_epds.sql.
+  upsertEpds(userId: string, row: EpdsRow): Promise<void>;
+  listEpds(userId: string, limit: number): Promise<EpdsRow[]>;
+
   // ---- Child safety alerts (zone enter/exit history) ----
   // ---- Support (frame 12) ----
   //
@@ -1804,8 +1835,16 @@ export interface Repository {
     staffId?: string;
     orderId?: string;
   }): Promise<{ ok: true; stock: number } | { ok: false; error: 'insufficient_stock' | 'unknown_variant' }>;
-  /// The ledger, newest first, optionally for one variant.
-  stockMoves(limit: number, variantId?: string): Promise<StockMove[]>;
+  /**
+   * The ledger, newest first, optionally for one variant.
+   *
+   * [sinceIso] bounds it from below, INCLUSIVE — «движения за день» (frame 07)
+   * needs the day's rows and the day's totals, and a caller that asks for "the
+   * last 100" and adds them up prints a total for a period it cannot name. The
+   * bound is an instant, not a date: the operator's midnight is theirs, and a
+   * server that decides where the day starts gets it wrong for half the year.
+   */
+  stockMoves(limit: number, variantId?: string, sinceIso?: string): Promise<StockMove[]>;
 
   // ---- Поставки (migration 045, frames 07a / 07g) ----
   //

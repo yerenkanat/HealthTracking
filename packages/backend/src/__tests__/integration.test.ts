@@ -13,7 +13,7 @@ import type { InjectPayload, Response as InjectResponse } from 'light-my-request
 import { buildServer } from '../server';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { emergencyReason } from '../emergency/reason.js';
-import type { Repository, SleepNight, WearableDayRow, CryRow, CryThresholdRow, DayLogRow, SafetyAlertRow, ProfileRow, NotificationPrefs, PushDeliveryRecord } from '../db/repository';
+import type { Repository, SleepNight, WearableDayRow, CryRow, CryThresholdRow, DayLogRow, EpdsRow, SafetyAlertRow, ProfileRow, NotificationPrefs, PushDeliveryRecord } from '../db/repository';
 import type { Geofence, GeofenceEvent, ChildLocationFix } from '@fcs/shared';
 
 /**
@@ -78,6 +78,8 @@ function makeDeps(
   const kickRows: Array<{ endedAt: string; count: number; durationSec: number }> = [];
   const contractionRows: Array<{ endedAt: string; count: number; avgDurationSec: number; avgIntervalSec: number }> = [];
   const dayLogs = new Map<string, DayLogRow>();
+  /** `epds_results` — keyed by the client-supplied id, as the real table is. */
+  const epdsRows = new Map<string, EpdsRow>();
   const alertRows: SafetyAlertRow[] = [];
   const contentRows = new Map<string, import('../db/repository').ContentItemRow[]>();
   const pregWeeks = new Map<number, import('../db/repository').PregnancyWeekOverride>();
@@ -446,6 +448,12 @@ function makeDeps(
     upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
     listDayLogs: async (_u, from, to) =>
       [...dayLogs.values()].filter((d) => d.date >= from && d.date <= to).sort((a, b) => a.date.localeCompare(b.date)),
+    // Postpartum screenings: upsert on the id, newest first — the same shape
+    // `ON CONFLICT (user_id, id)` gives, so a re-push updates in the fake too
+    // rather than growing the list the way a naive push-only fake would.
+    upsertEpds: async (_u, row) => void epdsRows.set(row.id, row),
+    listEpds: async (_u, limit) =>
+      [...epdsRows.values()].sort((a, b) => b.takenAt.localeCompare(a.takenAt)).slice(0, limit),
     // Safety alerts
     recordAlert: async (_u, a) => void alertRows.unshift(a),
     listAlerts: async (_u, limit) => alertRows.slice(0, limit),

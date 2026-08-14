@@ -10,7 +10,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Repository } from '../db/repository';
-import { CRY_VERDICTS } from '../db/repository';
+import { CRY_VERDICTS, EPDS_BANDS } from '../db/repository';
 import type { Geofence } from '@fcs/shared';
 import type { LeadNotifier } from '../notifications/leadAlert';
 import { normalizePhone } from '../http/staffAuth';
@@ -216,6 +216,24 @@ const dayLogBody = z.object({
   kicks: z.number().int().min(0).max(999).default(0),
   flow: z.enum(['light', 'medium', 'heavy']).nullable().optional(),
   note: z.string().max(2000).optional(), // free-text note the user typed for the day
+});
+/**
+ * One completed postpartum screening (EPDS).
+ *
+ * FOUR FIELDS, and zod strips everything else — which is the guard that matters
+ * here. A future client that "helpfully" attaches the ten answers finds them
+ * dropped at the edge rather than written to a table that has no column for
+ * them: item 10 asks about thoughts of self-harm and that answer must not exist
+ * off her handset. See db/migrations/049_epds.sql.
+ *
+ * The bounds repeat the CHECK constraints exactly, in both directions, so a bad
+ * score comes back as an honest 400 rather than as a 500 from the database.
+ */
+const epdsBody = z.object({
+  id: z.string().uuid(),
+  takenAt: iso,
+  score: z.number().int().min(0).max(30),
+  band: z.enum(EPDS_BANDS),
 });
 // Same date shape as dayLogBody.date, which was already validated. Without it
 // an arbitrary string reached the date comparison in the query and surfaced as
@@ -1391,6 +1409,30 @@ export function registerCrudRoutes(
       flow: parsed.data.flow ?? null,
       note: parsed.data.note ?? '',
     });
+    return reply.send({ ok: true });
+  });
+
+  // ---- The postpartum screening (app screen 30) ----------------------------
+  //
+  // Beside /cycle/days because it is the same kind of thing: her own entry,
+  // pushed from her own phone, read back on a new one. It is NOT beside it in
+  // one respect — the payload is a result, not a record of what she answered.
+  // See db/migrations/049_epds.sql for why that line is drawn where it is.
+  app.get('/epds', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const limit = Math.min(200, Number((req.query as { limit?: string }).limit ?? 50) || 50);
+    return reply.send({ results: await repo.listEpds(u.userId, limit) });
+  });
+
+  app.put('/epds', async (req, reply) => {
+    const u = await requireUser(req, reply);
+    if (!u) return;
+    const parsed = epdsBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    // parsed.data, not req.body: zod has already dropped anything the schema
+    // does not name, and that is the guard that keeps the answers out.
+    await repo.upsertEpds(u.userId, parsed.data);
     return reply.send({ ok: true });
   });
 

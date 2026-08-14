@@ -6,6 +6,7 @@ import 'dart:io';
 import '../lib/domain/child_development.dart';
 import '../lib/domain/vaccination.dart';
 import '../lib/domain/postpartum.dart';
+import '../lib/domain/epds.dart';
 import '../lib/domain/pregnancy_guide.dart';
 import '../lib/domain/fetal_development.dart';
 import '../lib/domain/safe_sleep.dart';
@@ -67,7 +68,12 @@ void main() {
   }
 
   // ---- Lookups differ per language and are non-empty ----
-  for (final key in ['nav_health', 'em_call_ambulance', 'metric_hr']) {
+  // `nav_health` used to be one of these samples. The key was removed from the
+  // catalogue when the tab was renamed, so `t()` returned the KEY for both
+  // languages, ru == en, and this check reported the app untranslated — a
+  // failure about the sample, not about the product. `nav_today` is a nav label
+  // that still exists.
+  for (final key in ['nav_today', 'em_call_ambulance', 'metric_hr']) {
     final ru = const L10n(AppLocale.ru).t(key);
     final kk = const L10n(AppLocale.kk).t(key);
     final en = const L10n(AppLocale.en).t(key);
@@ -298,6 +304,66 @@ void main() {
       }
     }
     _chk('and postpartum strings are all translated ($ppBlank blanks)', ppBlank == 0);
+
+    // The screening questionnaire: `epds_q<i>` and `epds_q<i>_a<0..3>` are
+    // composed from the item number at render time, so the literal scan above
+    // cannot see one. A missing option renders `epds_q7_a2` as a choice a woman
+    // is asked to pick between two real sentences — and, because the options
+    // are scored by POSITION, she would be picking a number blind.
+    final epdsKeys = <String>[
+      for (var i = 1; i <= epdsItemCount; i++) ...[
+        'epds_q$i',
+        for (var a = 0; a < epdsOptionCount; a++) 'epds_q${i}_a$a',
+      ],
+      for (final b in EpdsBand.values) 'epds_band_${b.name}',
+    ];
+    final epdsMissing = [for (final k in epdsKeys) if (!known.contains(k)) k];
+    _chk('every EPDS item, option and band has a string', epdsMissing.isEmpty);
+    if (epdsMissing.isNotEmpty) print('    missing: ${epdsMissing.join(', ')}');
+
+    var epdsBlank = 0;
+    for (final k in epdsKeys) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k);
+        if (v == k || v.trim().isEmpty) epdsBlank++;
+      }
+    }
+    _chk('and every EPDS string is translated ($epdsBlank blanks)', epdsBlank == 0);
+
+    // Nothing on this path may print a diagnosis. The scale is a screening
+    // questionnaire; «у вас депрессия» is a sentence only a clinician may say,
+    // and the app has no way to unsay it.
+    //
+    // «депрессия» is allowed to appear in the postpartum NOTES (pp_note_*),
+    // which point her at a doctor for the condition by name — that is the
+    // opposite failure and reads as reassurance. It is the RESULT strings that
+    // must never claim one.
+    var verdicts = 0;
+    for (final k in [...epdsKeys, 'epds_result_title', 'epds_title', 'epds_score',
+                     'pp_low_run_title', 'pp_low_run_title_n', 'pp_low_run_body',
+                     'epds_harm_flag', 'pp_screen_offer_title', 'pp_screen_offer_body']) {
+      for (final loc in AppLocale.values) {
+        final v = L10n(loc).t(k).toLowerCase();
+        if (v.contains('депресс') || v.contains('депресси') ||
+            v.contains('diagnos') || v.contains('диагноз') || v.contains('диагно')) {
+          verdicts++;
+          print('    verdict word in $k (${loc.name}): $v');
+        }
+      }
+    }
+    _chk('no question, option, band or result string names a condition ($verdicts do)',
+        verdicts == 0);
+
+    // And the other direction, which is the one a rushed edit deletes: the
+    // disclaimer must SAY it is not a diagnosis, in every language. A screen
+    // that merely avoids the word is not the same as one that denies the claim.
+    final denies = [
+      const L10n(AppLocale.ru).t('epds_disclaimer').contains('не диагноз'),
+      const L10n(AppLocale.kk).t('epds_disclaimer').contains('диагноз да'),
+      const L10n(AppLocale.en).t('epds_disclaimer').contains('not a diagnosis'),
+    ];
+    _chk('the disclaimer denies being a diagnosis in all three languages',
+        denies.every((x) => x));
 
     // Pregnancy guide: `preg_note_<id>`, `preg_warn_<id>` and `preg_area_<area>`
     // are composed at render time, same as the postpartum ones.

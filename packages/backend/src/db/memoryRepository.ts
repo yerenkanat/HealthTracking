@@ -7,7 +7,7 @@
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { CRY_MIN_CONFIDENCE_DEFAULT, type CryThresholdRow } from '../cry/settings';
-import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, NotificationPrefs, PushDeliveryRecord, PushDeliverySummary } from './repository';
+import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, EpdsRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, NotificationPrefs, PushDeliveryRecord, PushDeliverySummary } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { DEFAULT_PREFS, FALLBACK_TZ } from '../notifications/gate.js';
 import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
@@ -254,6 +254,8 @@ export function createMemoryRepository(): Repository {
   type BpCalRow = BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number };
   const bpCalibrations: Array<BpCalRow & { userId: string }> = [];
   const dayLogs = new Map<string, DayLogRow>();
+  /** `${userId}|${id}` → screening. Keyed like the pg table's primary key. */
+  const epds = new Map<string, EpdsRow>();
   const alerts: SafetyAlertRow[] = [];
   /** Profiles by user id — what the pg repository stores on `users`. */
   const profiles = new Map<string, ProfileRow>();
@@ -1310,6 +1312,17 @@ const UUID_RE =
     upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
     listDayLogs: async (_u, from, to) =>
       [...dayLogs.values()].filter((d) => d.date >= from && d.date <= to).sort((a, b) => a.date.localeCompare(b.date)),
+    // Screening results: upsert on (user, id), newest first. Scoped by user id
+    // even though this fake models one account — the moment it does not, a test
+    // that passes here would be reading another woman's screening in
+    // production, and this is the one table where that must be impossible.
+    upsertEpds: async (userId, row) => void epds.set(`${userId}|${row.id}`, row),
+    listEpds: async (userId, limit) =>
+      [...epds.entries()]
+        .filter(([k]) => k.startsWith(`${userId}|`))
+        .map(([, r]) => r)
+        .sort((a, b) => b.takenAt.localeCompare(a.takenAt))
+        .slice(0, limit),
     // Safety alerts
     // ---- Support (frame 12) ----
     listSupportTickets: async (limit) =>
@@ -1720,6 +1733,11 @@ const UUID_RE =
         if (cryResults[i].userId === userId) cryResults.splice(i, 1);
       }
       dayLogs.clear();
+      // Her screenings cascade with the account (epds_results.user_id), and
+      // this is the last table that may survive an erasure.
+      for (const k of [...epds.keys()]) {
+        if (k.startsWith(`${userId}|`)) epds.delete(k);
+      }
       alerts.length = 0;
       // The watch's activity days go with the account, exactly as
       // wearable_days does through ON DELETE CASCADE. Leaving them behind
@@ -2594,9 +2612,13 @@ const UUID_RE =
       return out;
     },
 
-    stockMoves: async (limit, variantId) =>
+    stockMoves: async (limit, variantId, sinceIso) =>
       stockMoves
-        .filter((m) => !variantId || m.variantId === variantId)
+        // Filtered BEFORE the slice, like the SQL's WHERE runs before its
+        // LIMIT: filtering the last hundred rows would return "today's moves"
+        // that silently stop at yesterday on a busy day.
+        .filter((m) => (!variantId || m.variantId === variantId)
+          && (!sinceIso || m.at >= sinceIso))
         .slice(-limit)
         .reverse()
         .map((m) => {

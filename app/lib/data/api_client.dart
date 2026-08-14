@@ -979,6 +979,25 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
   }
 
+  /// Push one completed postpartum screening. Idempotent on the client id.
+  ///
+  /// The body is {id, takenAt, score, band} and NOTHING ELSE — see
+  /// domain/epds.dart. The ten answers do not leave the handset, and the server
+  /// has no column to receive them if they did.
+  Future<void> putEpds(Map<String, dynamic> body) async {
+    final res = await transport.put('/epds', body);
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+  }
+
+  /// The caller's screening history ({id, takenAt, score, band}), newest first.
+  /// For bringing it back on a new phone.
+  Future<List<Map<String, dynamic>>> getEpds() async {
+    final res = await transport.get('/epds?limit=50');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((j['results'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
   /// The caller's registered devices ({id, name, kind, childId}). For bringing
   /// paired trackers/bands back on a new phone.
   Future<List<Map<String, dynamic>>> getDevices() async {

@@ -38,6 +38,7 @@ import 'domain/notification_ids.dart';
 import 'domain/error_log.dart';
 import 'ui/widgets/error_fallback.dart';
 import 'domain/cycle_log.dart';
+import 'domain/epds.dart';
 import 'domain/health_series.dart';
 import 'domain/sleep.dart';
 import 'domain/cry_analysis.dart';
@@ -918,6 +919,19 @@ Future<void> bootstrapRuntime(
         }
       }
 
+      // The postpartum screening (frame 30). Score, band and date — never the
+      // ten answers; `EpdsResult.toJson` has no field for them.
+      //
+      // Wrapped in `pushed` for the same reason the cry verdict is: the screen
+      // has already told her the result was saved, and a screening that
+      // silently 404s is one nobody can recover — she will not sit down and
+      // answer ten questions again to find out.
+      controller.attachEpdsSync(
+          upsert: (r) => pushed('screening', () => api.putEpds(r.toJson()), errorLog: controller.errorLog));
+      for (final r in controller.epdsResults) {
+        unawaited(pushed('screening', () => api.putEpds(r.toJson()), errorLog: controller.errorLog));
+      }
+
       // Push-only child sync, so the back-office kids dashboard is built from
       // real children (name / gender / DOB).
       //
@@ -1222,6 +1236,16 @@ Future<void> bootstrapRuntime(
         _restore(() async {
           final days = await api.getDayLogs(from: '1970-01-01', to: '2999-12-31');
           controller.mergeRemoteDayLogs([for (final d in days) DayLog.fromJson(d)]);
+        }),
+        // Her screening history, so a new phone does not offer the
+        // questionnaire as though she had never taken it — and so «прошлый раз:
+        // 5 августа» survives a reinstall.
+        _restore(() async {
+          final rows = await api.getEpds();
+          controller.mergeRemoteEpds([
+            for (final r in rows)
+              if (EpdsResult.fromJson(r) case final e?) e,
+          ]);
         }),
 
         // Her notification switches and quiet hours (frame 25 / screen 39), so
