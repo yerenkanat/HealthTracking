@@ -42,15 +42,34 @@ List<Advisory> generateAdvisories(
   final positive = <Advisory>[];
 
   // ---- Blood pressure ----
+  //
+  // The same rule as temperature below, for the same reason, and if anything a
+  // stronger one. «Давление ровное» is a normality verdict on a body; from a
+  // wrist PPG estimate it is not one this product can make. The review puts
+  // that estimate at ±10–15 mmHg against a 140 threshold — the uncertainty is
+  // the size of the decision — and `bpCalibrationMaxAgeDays` exists precisely
+  // because the calibration behind it expires.
+  //
+  // What makes it worse than the temperature case rather than merely equal: the
+  // antenatal protocol pairs blood pressure with urine protein at EVERY visit
+  // from the second, so a reassurance here can defer a scheduled check. A wrist
+  // estimate cannot exclude preeclampsia and must not sound like it did.
+  //
+  // Only the POSITIVE card is silenced. ADV_BP_ELEVATED is deliberately
+  // untouched and still fires from any source: staying quiet about a high
+  // reading is a different decision from staying quiet about a normal one, it
+  // needs its own wording, and it is with the clinical gate. Refusing to
+  // reassure is not the same as refusing to warn.
   final sys = statsFor(buildSeries(samples, 'systolic'));
   final dia = statsFor(buildSeries(samples, 'diastolic'));
+  final bpFromDevice = _latestBpIsDeviceEstimate(samples);
   if (sys != null && dia != null) {
     // "elevated" = below the emergency cutoff but worth watching.
     final sysElevated = sys.latest >= 135 && sys.latest < TriageThresholds.bpSystolicEmergency;
     final diaElevated = dia.latest >= 85 && dia.latest < TriageThresholds.bpDiastolicEmergency;
     if (sysElevated || diaElevated) {
       watch.add(Advisory('ADV_BP_ELEVATED', AdviceTone.watch, 'systolic', value: sys.latest));
-    } else if (sys.latest < 130 && dia.latest < 85) {
+    } else if (!bpFromDevice && sys.latest < 130 && dia.latest < 85) {
       positive.add(Advisory('ADV_BP_STEADY', AdviceTone.positive, 'systolic', value: sys.latest));
     }
   }
@@ -191,6 +210,26 @@ bool _latestTempIsDeviceEstimate(List<HealthSample> samples) {
   HealthSample? latest;
   for (final s in samples) {
     if (s.coreTemp == null) continue;
+    if (latest == null || !s.at.isBefore(latest.at)) latest = s;
+  }
+  return latest?.isDeviceEstimate ?? true;
+}
+
+/// Who measured the blood pressure the card would be about.
+///
+/// Keyed on `systolic`, which is what `sys.latest` is built from, so the
+/// provenance and the number cannot come from different readings. A sample
+/// carrying only a diastolic value is not a blood-pressure reading, and the
+/// advisory it would feed is guarded on both being present anyway.
+///
+/// Deliberately a SECOND function rather than a parameter on the temperature
+/// one, matching the note there: these two are allowed to diverge, and the day
+/// one of them earns a different empty case is the day a shared helper quietly
+/// applies the wrong rule to the other. Empty means device, so nothing is said.
+bool _latestBpIsDeviceEstimate(List<HealthSample> samples) {
+  HealthSample? latest;
+  for (final s in samples) {
+    if (s.systolic == null) continue;
     if (latest == null || !s.at.isBefore(latest.at)) latest = s;
   }
   return latest?.isDeviceEstimate ?? true;
