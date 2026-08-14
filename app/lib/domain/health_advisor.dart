@@ -20,7 +20,17 @@ class Advisory {
   final AdviceTone tone;
   final String metric; // 'systolic' | 'hr' | 'spo2' | 'temp' | 'general'
   final double? value; // the number behind the advice (for "{value}" interpolation)
-  const Advisory(this.code, this.tone, this.metric, {this.value});
+
+  /// The second half of a PAIRED reading — today only the diastolic behind a
+  /// blood-pressure card.
+  ///
+  /// It exists because a blood pressure is a pair and half of one is not a
+  /// reading: the advisor card used to badge `ADV_BP_ELEVATED` with a bare,
+  /// unitless «137» in bold, which is refused sentence #19 in
+  /// docs/CLINICAL-REVIEW-WATCH.md. The UI shows the pair or shows nothing, so
+  /// a `systolic` advisory that leaves this null gets no badge at all.
+  final double? pairedValue;
+  const Advisory(this.code, this.tone, this.metric, {this.value, this.pairedValue});
 }
 
 /// Generate advisories from recent samples. Ordered watch-first so the UI shows
@@ -55,22 +65,56 @@ List<Advisory> generateAdvisories(
   // from the second, so a reassurance here can defer a scheduled check. A wrist
   // estimate cannot exclude preeclampsia and must not sound like it did.
   //
-  // Only the POSITIVE card is silenced. ADV_BP_ELEVATED is deliberately
-  // untouched and still fires from any source: staying quiet about a high
-  // reading is a different decision from staying quiet about a normal one, it
-  // needs its own wording, and it is with the clinical gate. Refusing to
-  // reassure is not the same as refusing to warn.
+  // The WARNING still fires from every source — refusing to reassure is not the
+  // same as refusing to warn, and the two costs are not symmetric: a missed
+  // warning is a woman at home with preeclampsia, a missed reassurance is a
+  // woman not told she is fine. What changes with provenance is what the card
+  // is allowed to SAY, so it branches into two codes rather than going quiet.
   final sys = statsFor(buildSeries(samples, 'systolic'));
   final dia = statsFor(buildSeries(samples, 'diastolic'));
   final bpFromDevice = _latestBpIsDeviceEstimate(samples);
   if (sys != null && dia != null) {
-    // "elevated" = below the emergency cutoff but worth watching.
-    final sysElevated = sys.latest >= 135 && sys.latest < TriageThresholds.bpSystolicEmergency;
-    final diaElevated = dia.latest >= 85 && dia.latest < TriageThresholds.bpDiastolicEmergency;
-    if (sysElevated || diaElevated) {
-      watch.add(Advisory('ADV_BP_ELEVATED', AdviceTone.watch, 'systolic', value: sys.latest));
-    } else if (!bpFromDevice && sys.latest < 130 && dia.latest < 85) {
-      positive.add(Advisory('ADV_BP_STEADY', AdviceTone.positive, 'systolic', value: sys.latest));
+    // BOTH halves must be under the triage cutoff before this block says
+    // anything, and that is a fix rather than a tidy-up.
+    //
+    // `assessTelemetry` raises PREECLAMPSIA_BP at EMERGENCY severity on
+    // `sys >= 140 || dia >= 90`. This card used to fire on
+    // `sysElevated || diaElevated`, each bounded separately — so a reading of
+    // 150/86 satisfied the diastolic half (85–89) and produced a calm
+    // «повышено — отдохните и измерьте снова» advisory while the triage layer
+    // was opening the Emergency screen on the very same sample. Two screens in
+    // one app disagreeing about whether she is in danger. With the AND, this
+    // card is strictly the band BELOW the one triage acts on, and above it the
+    // advisor says nothing because triage is already speaking.
+    final belowEmergency = sys.latest < TriageThresholds.bpSystolicEmergency &&
+        dia.latest < TriageThresholds.bpDiastolicEmergency;
+    // "elevated" = below the emergency cutoff but worth watching. 135/85 fire
+    // the card and appear in NO source this product cites, which is why no
+    // user-facing string may state either of them.
+    final sysElevated = sys.latest >= 135;
+    final diaElevated = dia.latest >= 85;
+    if (belowEmergency && (sysElevated || diaElevated)) {
+      watch.add(bpFromDevice
+          // A wrist estimate. The card's own firing window sits ENTIRELY inside
+          // the ±10–15 mmHg the estimate carries, so «давление повышено» states
+          // as fact the one thing the reading cannot establish (refused
+          // sentence #17). Its own code, whose title names the SENSOR — and no
+          // number: `value` is null by ruling, because a bare unitless systolic
+          // in bold beside copy explaining it is not a measurement is refused
+          // sentence #19, and 140/90 beside a wrist estimate is #20.
+          ? const Advisory('ADV_BP_DEVICE_HIGH', AdviceTone.watch, 'systolic')
+          // A cuff reading she typed in — known instrument, deliberate act — so
+          // the card may name the number and may cite 140/90 (ACOG, via
+          // packages/shared/src/triage.ts). The badge carries BOTH halves:
+          // 137/88 is a blood pressure, 137 is not.
+          : Advisory('ADV_BP_ELEVATED', AdviceTone.watch, 'systolic',
+              value: sys.latest, pairedValue: dia.latest));
+    } else if (belowEmergency && !bpFromDevice && sys.latest < 130 && dia.latest < 85) {
+      // `belowEmergency` is redundant against 130/85 today and is stated anyway,
+      // so that the day someone widens the reassurance band it cannot reach
+      // over the cutoff triage escalates on.
+      positive.add(Advisory('ADV_BP_STEADY', AdviceTone.positive, 'systolic',
+          value: sys.latest, pairedValue: dia.latest));
     }
   }
 
@@ -177,9 +221,24 @@ List<Advisory> generateAdvisories(
     }
   }
 
-  // ---- Overall reassurance when nothing needs watching ----
+  // ---- The absorber: what is said when nothing needs watching ----
+  //
+  // This is where silencing a metric goes to die. Gating ADV_BP_STEADY on
+  // provenance did not produce silence — a day of normal wrist readings fell
+  // through to «Всё стабильно», so a blood-pressure reassurance was PROMOTED
+  // into a whole-body one, and it travelled to the clipboard too, because the
+  // export sends titles only. A broader reassurance is worse than the specific
+  // one that was removed.
+  //
+  // ADV_NOTHING_UNUSUAL claims no more than the readings it was computed from:
+  // it is about the READINGS, not about her; it says outright that this is not
+  // a health check and that some of the numbers are estimates; and it tells her
+  // that feeling unwell outranks it. That last sentence is the load-bearing one
+  // — it is what stops a green banner from talking a woman who feels wrong out
+  // of calling. Approved copy; see docs/CLINICAL-REVIEW-WATCH.md, refused
+  // sentence #21 and "The absorber rule".
   if (watch.isEmpty) {
-    return [const Advisory('ADV_ALL_STEADY', AdviceTone.positive, 'general'), ...positive];
+    return [const Advisory('ADV_NOTHING_UNUSUAL', AdviceTone.positive, 'general'), ...positive];
   }
   return [...watch, ...positive];
 }

@@ -80,12 +80,59 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'adv_ask_sub': {AppLocale.ru: 'Задайте вопрос ассистенту Ana-Bala', AppLocale.kk: 'Ana-Bala ассистентіне сұрақ қойыңыз', AppLocale.en: 'Ask the Ana-Bala assistant a question'},
   'ADV_GATHERING': {AppLocale.ru: 'Собираем данные', AppLocale.kk: 'Деректер жиналуда', AppLocale.en: 'Gathering data'},
   'ADV_GATHERING_b': {AppLocale.ru: 'Наденьте браслет — советы появятся после нескольких измерений.', AppLocale.kk: 'Білезікті тағыңыз — бірнеше өлшеуден кейін кеңестер пайда болады.', AppLocale.en: 'Wear your band — advice appears after a few readings.'},
-  'ADV_ALL_STEADY': {AppLocale.ru: 'Всё стабильно', AppLocale.kk: 'Барлығы тұрақты', AppLocale.en: 'All steady'},
-  'ADV_ALL_STEADY_b': {AppLocale.ru: 'Показания браслета держатся ровно. Так держать.', AppLocale.kk: 'Білезік көрсеткіштері біркелкі. Осылай жалғастырыңыз.', AppLocale.en: 'Your band readings have been steady. Keep it up.'},
+  // The absorber. `ADV_ALL_STEADY` / «Всё стабильно» was deleted rather than
+  // reworded, together with db_peace_stable*, so that no call site can keep
+  // rendering an approved-looking old sentence: a NEW key makes a missed call
+  // site fail visibly. Approved copy, 2026-08-14 — do not rewrite, and in
+  // particular do not trim the third sentence. It is the clinically
+  // load-bearing one: it stops the reassurance outranking her own symptoms,
+  // which is the specific harm a green banner does to a woman who feels wrong
+  // and decides not to call. No instrument is named because this card is
+  // reachable from typed readings too. See docs/CLINICAL-REVIEW-WATCH.md,
+  // refused sentence #21 and "The absorber rule".
+  'ADV_NOTHING_UNUSUAL': {AppLocale.ru: 'Ничего необычного в показаниях', AppLocale.kk: 'Көрсеткіштерде ерекше ештеңе жоқ', AppLocale.en: 'Nothing unusual in the readings'},
+  'ADV_NOTHING_UNUSUAL_b': {AppLocale.ru: 'В этих показаниях нет ничего необычного. Это не проверка здоровья: приложение видит только то, что измерено, а часть чисел — приблизительные оценки с датчика. Если вы плохо себя чувствуете, скажите об этом врачу, что бы ни показывали цифры.', AppLocale.kk: 'Бұл көрсеткіштерде ерекше ештеңе жоқ. Бұл — денсаулықты тексеру емес: қолданба тек өлшенгенді ғана көреді, ал кейбір сандар — датчиктің шамалас болжамы. Өзіңізді нашар сезінсеңіз, сандар не көрсетсе де, дәрігерге айтыңыз.', AppLocale.en: 'There is nothing unusual in these readings. This is not a health check: the app sees only what was measured, and some of the numbers are rough sensor estimates. If you feel unwell, tell your doctor, whatever the numbers show.'},
   'ADV_BP_STEADY': {AppLocale.ru: 'Давление ровное', AppLocale.kk: 'Қысым біркелкі', AppLocale.en: 'Blood pressure steady'},
   'ADV_BP_STEADY_b': {AppLocale.ru: 'Давление по браслету держится ровно, без скачков.', AppLocale.kk: 'Білезік бойынша қысым секірмей, біркелкі.', AppLocale.en: 'Your blood-pressure readings have held steady, without spikes.'},
+  // ---- The raised blood-pressure cards, one per instrument ------------------
+  // Approved copy, 2026-08-14. Do not rewrite: a rewrite voids the approval.
+  //
+  // The title is UNCHANGED and the body is replaced entirely. What went, and
+  // why (docs/CLINICAL-REVIEW-WATCH.md, refused sentences #17 and #18):
+  //   * «Давление повышено» asserted the reading as fact;
+  //   * «выпейте воды» is not a treatment for hypertension and no cited source
+  //     offers it — beside «при стойком повышении» it produced wait-and-see on
+  //     the one condition this product exists to catch;
+  //   * «измерьте снова» never named an instrument.
+  //
+  // 140/90 MAY be stated here and only here: it is attributed to ACOG in
+  // packages/shared/src/triage.ts, pinned in packages/contract/
+  // triage_thresholds.json, and it is the threshold the product acts on, so it
+  // gives her a checkable rule instead of an adjective. Numeric permission
+  // follows the SOURCE, not the metric — the device card below may not carry
+  // it. 135 and 85 may never appear in any locale of either card: they fire the
+  // card and appear in no cited source.
   'ADV_BP_ELEVATED': {AppLocale.ru: 'Следите за давлением', AppLocale.kk: 'Қысымды қадағалаңыз', AppLocale.en: 'Watch your blood pressure'},
-  'ADV_BP_ELEVATED_b': {AppLocale.ru: 'Давление повышено. Отдохните, выпейте воды и измерьте снова. При стойком повышении обратитесь к врачу.', AppLocale.kk: 'Қысым жоғарылаған. Демалыңыз, су ішіп, қайта өлшеңіз. Тұрақты жоғары болса, дәрігерге жүгініңіз.', AppLocale.en: 'Your blood pressure is elevated. Rest, hydrate, and re-measure. If it stays high, contact your doctor.'},
+  'ADV_BP_ELEVATED_b': {AppLocale.ru: 'Ваши показания близки к 140/90 — уровню, при котором нужно связаться с врачом. Отдохните, через несколько часов спокойно посидите и снова измерьте давление тонометром, а результат введите в приложении. Если тонометр покажет 140/90 или выше — немедленно свяжитесь с врачом. Скажите о повышенных показаниях на ближайшем приёме. Если появились сильная головная боль, нарушения зрения или внезапный отёк лица и рук — звоните 103 и назовите срок беременности, не дожидаясь повторного измерения.', AppLocale.kk: 'Сіздің көрсеткіштеріңіз 140/90-ға жақын — бұл дәрігерге хабарласу қажет деңгей. Демалыңыз, бірнеше сағаттан кейін тыныш отырып қысымды тонометрмен қайта өлшеңіз де, нәтижесін қолданбаға енгізіңіз. Егер тонометр 140/90 немесе одан жоғары көрсетсе — дереу дәрігерге хабарласыңыз. Жақын арадағы қабылдауда жоғары көрсеткіштер туралы айтыңыз. Егер қатты бас ауыруы, көру бұзылысы немесе беттің, қолдың кенеттен ісінуі пайда болса — қайта өлшеуді күтпей, 103-ке қоңырау шалып, жүктілік мерзімін айтыңыз.', AppLocale.en: 'Your readings are close to 140/90 — the level at which you must contact a doctor. Rest, then after a few hours sit quietly, measure your blood pressure again with a cuff, and enter the result in the app. If the cuff shows 140/90 or higher, contact your doctor immediately. Tell your doctor about the raised readings at your next visit. If you get a severe headache, vision changes, or sudden swelling of the face and hands, call 103 and say how many weeks pregnant you are, without waiting to re-measure.'},
+  // The device card. Three rules are carried by the wording rather than by a
+  // comment, so read before editing:
+  //   * the subject is the SENSOR, never her blood pressure. The card's firing
+  //     window sits entirely inside the ±10–15 mmHg a wrist estimate carries.
+  //   * NO number, and specifically not 140/90 — not a citation gap this time
+  //     but a validity one: a cuff threshold beside a wrist estimate invites
+  //     exactly the comparison the estimate cannot support (refused #20).
+  //   * «измерьте тонометром» was approved only as one branch of three. A cuff
+  //     is not as common in a Kazakh household as a thermometer, so the copy
+  //     also names the route that needs no equipment — blood pressure is
+  //     measured at every antenatal visit, per the protocol — and,
+  //     unconditionally for both, the reviewed preeclampsia red flags and 103.
+  //     That last branch is the only part that helps the woman whose wrist
+  //     reads 137 while her true pressure is 160.
+  //
+  // The title names the sensor because the clipboard export sends TITLES ONLY:
+  // it ships without the body, out of the app, to an unknown reader.
+  'ADV_BP_DEVICE_HIGH': {AppLocale.ru: 'Датчик показывает повышенное давление', AppLocale.kk: 'Датчик жоғары қан қысымын көрсетті', AppLocale.en: 'The sensor is reading a raised blood pressure'},
+  'ADV_BP_DEVICE_HIGH_b': {AppLocale.ru: 'Это оценка датчика на запястье, а не измерение: она может заметно отличаться от того, что покажет тонометр. Измерьте давление тонометром, спокойно посидев несколько минут, и введите результат в приложении. Если тонометра нет — давление измеряют на каждом приёме в женской консультации; скажите там, что видели повышенные показания. Если появились сильная головная боль, нарушения зрения или внезапный отёк лица и рук — звоните 103 и назовите срок беременности.', AppLocale.kk: 'Бұл — қолыңыздағы датчиктің болжамы, нақты өлшем емес: ол тонометр көрсететін мәннен айтарлықтай өзгеше болуы мүмкін. Бірнеше минут тыныш отырып, қысымды тонометрмен өлшеңіз де, нәтижесін қолданбаға енгізіңіз. Тонометр болмаса — қысым әйелдер консультациясындағы әр қабылдауда өлшенеді; сонда жоғары көрсеткіш байқағаныңызды айтыңыз. Егер қатты бас ауыруы, көру бұзылысы немесе беттің, қолдың кенеттен ісінуі пайда болса — 103-ке қоңырау шалып, жүктілік мерзімін айтыңыз.', AppLocale.en: 'This is a wrist-sensor estimate, not a measurement: it can differ noticeably from what a cuff would show. Sit quietly for a few minutes, measure your blood pressure with a cuff, and enter the result in the app. If you do not have a cuff, your blood pressure is measured at every antenatal visit — tell them there that you have seen raised readings. If you get a severe headache, vision changes, or sudden swelling of the face and hands, call 103 and say how many weeks pregnant you are.'},
   'ADV_HR_STEADY': {AppLocale.ru: 'Пульс ровный', AppLocale.kk: 'Тамыр соғысы тұрақты', AppLocale.en: 'Heart rate steady'},
   'ADV_HR_STEADY_b': {AppLocale.ru: 'Частота сердечных сокращений стабильна.', AppLocale.kk: 'Жүрек соғу жиілігі тұрақты.', AppLocale.en: 'Your heart rate is stable.'},
   'ADV_HR_RISING': {AppLocale.ru: 'Пульс растёт', AppLocale.kk: 'Тамыр соғысы артып барады', AppLocale.en: 'Heart rate rising'},
@@ -1457,6 +1504,14 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'share_summary_title': {AppLocale.ru: 'Сводка здоровья · Ana-Bala', AppLocale.kk: 'Денсаулық қорытындысы · Ana-Bala', AppLocale.en: 'Health summary · Ana-Bala'},
   'share_summary_notes': {AppLocale.ru: 'Заметки', AppLocale.kk: 'Ескертпелер', AppLocale.en: 'Notes'},
   'share_summary_nodata': {AppLocale.ru: 'Пока нет данных', AppLocale.kk: 'Әзірге дерек жоқ', AppLocale.en: 'No readings yet'},
+  // Stands where the blood-pressure row used to be when only wrist estimates
+  // exist. Approved copy, 2026-08-14. The row itself is DROPPED rather than
+  // qualified — unlike temperature, where the qualifier travels with the number
+  // — because a wrist BP's accuracy depends on a calibration whose age cannot
+  // travel with a line of copied text. This line says what is missing, so its
+  // absence is not read as "nothing to report": it states a fact about the
+  // instrument and makes no claim about her.
+  'share_bp_cuff_only': {AppLocale.ru: 'Давление: тонометром не измерялось', AppLocale.kk: 'Қан қысымы: тонометрмен өлшенбеген', AppLocale.en: 'Blood pressure: not measured with a cuff'},
   'share_status_pregnancy': {AppLocale.ru: 'Беременность · {week} нед.', AppLocale.kk: 'Жүктілік · {week} апта', AppLocale.en: 'Pregnancy · week {week}'},
   'share_status_cycle': {AppLocale.ru: 'Цикл · день {day} · месячные через {n} дн.', AppLocale.kk: 'Цикл · {day}-күн · етеккір {n} күнде', AppLocale.en: 'Cycle · day {day} · period in {n} days'},
   'db_chip_cycle': {AppLocale.ru: 'Цикл · день {n}', AppLocale.kk: 'Цикл · {n}-күн', AppLocale.en: 'Cycle · Day {n}'},
@@ -1865,9 +1920,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'range_all': {AppLocale.ru: 'Всё', AppLocale.kk: 'Барлығы', AppLocale.en: 'All'},
   'db_outside_range': {AppLocale.ru: ', вне безопасного диапазона', AppLocale.kk: ', қауіпсіз аралықтан тыс', AppLocale.en: ', outside the safe range'},
   'metric_bp': {AppLocale.ru: 'Давление', AppLocale.kk: 'Қан қысымы', AppLocale.en: 'Blood pressure'},
-  'db_peace_stable': {AppLocale.ru: 'Всё стабильно, {name}', AppLocale.kk: 'Барлығы тұрақты, {name}', AppLocale.en: 'Everything is stable, {name}'},
-  'db_peace_stable_noname': {AppLocale.ru: 'Всё выглядит стабильно', AppLocale.kk: 'Барлығы тұрақты көрінеді', AppLocale.en: 'Everything looks stable'},
-  'db_peace_stable_b': {AppLocale.ru: 'Ваши показатели в пределах нормы.', AppLocale.kk: 'Көрсеткіштеріңіз қалыпты шамада.', AppLocale.en: 'Your readings are within a healthy range.'},
+  // db_peace_stable / db_peace_stable_noname / db_peace_stable_b are DELETED,
+  // not reworded (docs/CLINICAL-REVIEW-WATCH.md, refused sentence #21).
+  // «Ваши показатели в пределах нормы» was refused sentence #2 and went on
+  // shipping unchanged because the peace banner substituted its own copy for
+  // the positive tone instead of rendering the advisory — a second copy path
+  // that escaped the review, and the reason fixing the advisor alone left the
+  // first screen she opens still saying it. The banner now renders
+  // ADV_NOTHING_UNUSUAL like every other tone, and her NAME is no longer
+  // attached to a normality verdict.
   'db_advisor_cta': {AppLocale.ru: 'Спросите Ana-Bala о ваших данных', AppLocale.kk: 'Ana-Balaдан деректеріңіз туралы сұраңыз', AppLocale.en: 'Ask Ana-Bala about your readings'},
   'db_advisor_sub': {AppLocale.ru: 'Аналитика по данным браслета', AppLocale.kk: 'Білезік деректеріне талдау', AppLocale.en: 'Insights from your band data'},
 
@@ -2089,6 +2150,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'This is a schedule, not a medical record: the app does not know which vaccinations have been given. The clinic keeps that record.',
   },
   'vac_revision': {AppLocale.ru: 'Календарь по состоянию на {d}', AppLocale.kk: '{d} жағдайы бойынша күнтізбе', AppLocale.en: 'Schedule as of {d}'},
+  // Shown INSTEAD of vac_revision once a server answer has been applied: the
+  // build's own date would then be a claim about the wrong table.
+  'vac_source_server': {AppLocale.ru: 'Календарь обновлён из приложения Ана-Бала', AppLocale.kk: 'Күнтізбе Ана-Бала қосымшасынан жаңартылды', AppLocale.en: 'Schedule updated from the Ana-Bala service'},
   // The next-visit reminder notification.
   'vac_reminder_title': {AppLocale.ru: 'Скоро прививки', AppLocale.kk: 'Егулердің уақыты жақындады', AppLocale.en: 'Vaccinations coming up'},
   'vac_reminder_body': {AppLocale.ru: 'У {name} по плану визит в поликлинику. Проверьте календарь прививок.', AppLocale.kk: '{name} үшін емханаға бару жоспарланған. Егу күнтізбесін тексеріңіз.', AppLocale.en: "{name} has a clinic visit due. Check the vaccination schedule."},

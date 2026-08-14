@@ -28,16 +28,40 @@ String buildHealthSummary(
 
   final hr = statsFor(buildSeries(samples, 'hr'));
   final spo2 = statsFor(buildSeries(samples, 'spo2'));
-  final sys = statsFor(buildSeries(samples, 'systolic'));
-  final dia = statsFor(buildSeries(samples, 'diastolic'));
   final temp = statsFor(buildSeries(samples, 'temp'));
   final night = latestNight(nights);
+
+  // ---- Blood pressure: only what a cuff measured -----------------------------
+  //
+  // The same decision visit_summary.dart already made, and two share paths
+  // disagreeing about it is itself the defect. This text leaves the app —
+  // clipboard, then whoever she sends it to — and «Давление: 137/88 mmHg» is
+  // read as a measurement by anyone who receives it.
+  //
+  // A qualifier is NOT sufficient here, unlike temperature, where the approved
+  // note travels with the number a few lines below. A wrist blood pressure's
+  // accuracy depends on a calibration that expires at `bpCalibrationMaxAgeDays`
+  // — and the age of that calibration cannot travel with a line of copied text,
+  // so no wording pasted into a chat can tell the reader whether the number in
+  // front of them is worth anything. The pool is filtered BEFORE any series is
+  // built, because buildSeries yields bare (t, value) pairs and throws
+  // provenance away.
+  final cuffOnly = [for (final s in samples) if (!s.isDeviceEstimate) s];
+  final sys = statsFor(buildSeries(cuffOnly, 'systolic'));
+  final dia = statsFor(buildSeries(cuffOnly, 'diastolic'));
+  final anyBp = buildSeries(samples, 'systolic').isNotEmpty;
 
   final rows = <String>[];
   if (hr != null) rows.add(row(l.metricLabel('hr'), '${hr.latest.round()} bpm'));
   if (spo2 != null) rows.add(row(l.metricLabel('spo2'), '${spo2.latest.round()}%'));
   if (sys != null && dia != null) {
     rows.add(row(l.t('metric_bp'), '${sys.latest.round()}/${dia.latest.round()} mmHg'));
+  } else if (anyBp) {
+    // She has blood-pressure readings and none of them came off a cuff. Saying
+    // so is better than a silent gap, which a reader fills with "nothing to
+    // report about her blood pressure" — the reassurance this whole change
+    // exists to remove.
+    rows.add('• ${l.t('share_bp_cuff_only')}');
   }
   if (temp != null) {
     rows.add(row(l.metricLabel('temp'), '${temp.latest.toStringAsFixed(1)} °C'));

@@ -378,7 +378,7 @@ class HealthDashboardView extends StatelessWidget {
                   // Only with readings behind it: "everything is steady" said
                   // over an empty list is a reassurance nothing measured.
                   if (samples.isNotEmpty) ...[
-                    _PeaceOfMindBanner(samples: samples, name: greetingName),
+                    _PeaceOfMindBanner(samples: samples),
                     const SizedBox(height: 18),
                   ],
 
@@ -695,8 +695,7 @@ class HealthDashboardView extends StatelessWidget {
 /// steady; warm amber ring + the top concern when something is worth watching.
 class _PeaceOfMindBanner extends StatelessWidget {
   final List<HealthSample> samples;
-  final String name;
-  const _PeaceOfMindBanner({required this.samples, required this.name});
+  const _PeaceOfMindBanner({required this.samples});
 
   @override
   Widget build(BuildContext context) {
@@ -733,23 +732,38 @@ class _PeaceOfMindBanner extends StatelessWidget {
       // claim (docs/CLINICAL-REVIEW-WATCH.md). Dropping it makes the ring the
       // fraction of the metrics this product may actually grade.
       if (k == 'temp' && source != ReadingSource.manual) continue;
+      // A device blood pressure may turn the ring RED but never green, and the
+      // asymmetry is the ruling rather than a preference (refused sentence #23
+      // in docs/CLINICAL-REVIEW-WATCH.md). The product DOES escalate a device
+      // BP at 140/90 — triage.dart has no source check — so a wrist estimate in
+      // the danger band still has to be able to pull the fraction down. What it
+      // may not do is push it up: a wrist 128/82 counted as "healthy" is the
+      // reassurance removed from ADV_BP_STEADY re-entering as a number in a
+      // ring, which is exactly how a narrow claim becomes a whole-body one.
+      if ((k == 'systolic' || k == 'diastolic') &&
+          source != ReadingSource.manual &&
+          !latestInDanger(k, s, source: source)) {
+        continue;
+      }
       withData++;
       if (!latestInDanger(k, s, source: source)) healthy++;
     }
     final fraction = withData == 0 ? 1.0 : healthy / withData;
 
-    final headline = switch (status.tone) {
-      AdviceTone.positive => name.isEmpty
-          ? l.t('db_peace_stable_noname')
-          : l.t('db_peace_stable', {'name': name}),
-      AdviceTone.info => l.t(status.code),
-      AdviceTone.watch => l.t(status.code),
-    };
-    final sub = switch (status.tone) {
-      AdviceTone.positive => l.t('db_peace_stable_b'),
-      AdviceTone.info => l.t('${status.code}_b'),
-      AdviceTone.watch => l.t('${status.code}_b'),
-    };
+    // EVERY tone renders the advisory, including the positive one.
+    //
+    // The positive branch used to substitute db_peace_stable* here — a second
+    // copy path that escaped the clinical review, so «Ваши показатели в
+    // пределах нормы» (refused sentence #2) went on shipping on the first
+    // screen she opens after the advisor itself had been fixed. Nothing here
+    // may compose its own reassurance; if this banner is ever wrong the fix
+    // belongs in generateAdvisories, where one sentence serves every surface.
+    //
+    // Her NAME is deliberately gone from the headline: attaching it to a
+    // normality verdict made the verdict personal, and the verdict is what was
+    // refused.
+    final headline = l.t(status.code);
+    final sub = l.t('${status.code}_b');
 
     return Container(
       padding: const EdgeInsets.all(18),

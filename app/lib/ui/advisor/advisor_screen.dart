@@ -152,6 +152,9 @@ class _AdvisoryCard extends StatelessWidget {
       AdviceTone.watch => (Palette.watch, Icons.info_outline),
       AdviceTone.info => (Palette.blue, Icons.hourglass_empty),
     };
+    // Null means no badge — the advisory carried no number, or carried one this
+    // card may not print on its own. See _fmtValue.
+    final badge = _fmtValue(advisory);
 
     return DsCard(
       raised: advisory.tone == AdviceTone.watch,
@@ -178,9 +181,9 @@ class _AdvisoryCard extends StatelessWidget {
                       child: Text(l.t(advisory.code),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Palette.text)),
                     ),
-                    if (advisory.value != null)
+                    if (badge != null)
                       Text(
-                        _fmtValue(advisory),
+                        badge,
                         style: TextStyle(
                           fontFamily: 'JetBrainsMono',
                           fontSize: 15,
@@ -201,13 +204,25 @@ class _AdvisoryCard extends StatelessWidget {
     );
   }
 
-  String _fmtValue(Advisory a) {
-    final v = a.value!;
+  /// The bold badge beside the title, or null when there is nothing this card
+  /// is entitled to print.
+  ///
+  /// The blood-pressure branch is a ruling, not a formatting choice: this used
+  /// to render a bare unitless «137» in bold next to copy explaining that the
+  /// reading is not a measurement — half a reading, no unit — which is refused
+  /// sentence #19 in docs/CLINICAL-REVIEW-WATCH.md. A blood pressure is a PAIR,
+  /// so it prints 137/88 or nothing at all. The device card
+  /// (`ADV_BP_DEVICE_HIGH`) carries no value by design and lands on the null
+  /// here.
+  String? _fmtValue(Advisory a) {
+    final v = a.value;
+    if (v == null) return null;
+    final dia = a.pairedValue;
     return switch (a.metric) {
       'temp' => '${v.toStringAsFixed(1)}°',
       'spo2' => '${v.round()}%',
       'glucose' => v.toStringAsFixed(1),
-      'systolic' => '${v.round()}',
+      'systolic' => dia == null ? null : '${v.round()}/${dia.round()}',
       _ => '${v.round()}',
     };
   }

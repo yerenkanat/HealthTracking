@@ -28,7 +28,13 @@ void main() {
       HealthSample(at: _t(i), heartRate: 72 + (i.isEven ? 0 : 1), spo2: 98, systolic: 118, diastolic: 76, coreTemp: 36.6),
   ];
   final n = generateAdvisories(normal);
-  _chk('normal → ADV_ALL_STEADY', _has(n, 'ADV_ALL_STEADY'));
+  // INTENT-PRESERVING UPDATE, 2026-08-14: the fallback card is still there and
+  // still positive; only its code and copy changed. ADV_ALL_STEADY / «Всё
+  // стабильно» was a whole-body normality verdict that absorbed every
+  // reassurance silenced elsewhere — see docs/CLINICAL-REVIEW-WATCH.md, refused
+  // sentence #21. Deleted rather than reworded, so this line fails loudly.
+  _chk('normal → ADV_NOTHING_UNUSUAL', _has(n, 'ADV_NOTHING_UNUSUAL'));
+  _chk('the refused whole-body verdict is gone', !_has(n, 'ADV_ALL_STEADY'));
   _chk('normal → no watch tone', n.every((a) => a.tone != AdviceTone.watch));
   _chk('normal → BP steady advisory', _has(n, 'ADV_BP_STEADY'));
   _chk('normal → temp steady', _has(n, 'ADV_TEMP_STEADY'));
@@ -42,13 +48,41 @@ void main() {
   _chk('sleep samples, no dips → ADV_SLEEP_OK', _has(generateAdvisories(sleep), 'ADV_SLEEP_OK'));
 
   // ---- Elevated BP (below emergency) → watch ----
+  //
+  // INTENT-PRESERVING UPDATE, 2026-08-14: a high reading still warns, whoever
+  // measured it — that is unchanged and is checked below for BOTH sources. What
+  // changed is the wording it warns WITH: a wrist estimate cannot assert
+  // «давление повышено» (its firing window sits inside its own ±10–15 mmHg), so
+  // it gets its own code. The fixture now states its provenance rather than
+  // relying on the default, because that default is `manual` and this file used
+  // to be silently testing only the cuff path.
   final bp = [
     for (var i = 0; i < 5; i++)
-      HealthSample(at: _t(i), heartRate: 74, spo2: 97, systolic: 138, diastolic: 86, coreTemp: 36.7),
+      HealthSample(at: _t(i), heartRate: 74, spo2: 97, systolic: 138, diastolic: 86, coreTemp: 36.7,
+          source: ReadingSource.manual),
   ];
   final b = generateAdvisories(bp);
-  _chk('systolic 138 → ADV_BP_ELEVATED (watch)', _has(b, 'ADV_BP_ELEVATED'));
+  _chk('cuff 138/86 → ADV_BP_ELEVATED (watch)', _has(b, 'ADV_BP_ELEVATED'));
   _chk('watch advisory is first', b.first.tone == AdviceTone.watch);
+  final bpDevice = [
+    for (var i = 0; i < 5; i++)
+      HealthSample(at: _t(i), heartRate: 74, spo2: 97, systolic: 138, diastolic: 86, coreTemp: 36.7,
+          source: ReadingSource.sensor),
+  ];
+  final bd = generateAdvisories(bpDevice);
+  _chk('wrist 138/86 → ADV_BP_DEVICE_HIGH (watch)', _has(bd, 'ADV_BP_DEVICE_HIGH'));
+  _chk('wrist 138/86 does not assert her blood pressure', !_has(bd, 'ADV_BP_ELEVATED'));
+  // The live contradiction that shipped: 150/86 fired the calm card off the
+  // diastolic half alone, while assessTelemetry raised PREECLAMPSIA_BP at
+  // emergency severity on the same sample.
+  final bpEmergency = [
+    for (var i = 0; i < 5; i++)
+      HealthSample(at: _t(i), heartRate: 74, spo2: 97, systolic: 150, diastolic: 86, coreTemp: 36.7,
+          source: ReadingSource.manual),
+  ];
+  final be = generateAdvisories(bpEmergency);
+  _chk('150/86 is triage\'s, not the advisor\'s',
+      !_has(be, 'ADV_BP_ELEVATED') && !_has(be, 'ADV_BP_DEVICE_HIGH'));
 
   // ---- Rising HR trend ----
   final hr = [
@@ -112,6 +146,19 @@ void main() {
       !_has(generateAdvisories(steady), 'ADV_HYDRATED') && !_has(generateAdvisories(steady), 'ADV_HYDRATE_LOW'));
   _chk('medical watch still ranks before hydration nudge',
       generateAdvisories(bp, waterCount: 1, waterGoal: 8, hour: 20).first.code == 'ADV_BP_ELEVATED');
+
+  // ---- The absorber checklist ----
+  // Silencing a positive card for provenance must not promote the reassurance
+  // into a broader one. docs/CLINICAL-REVIEW-WATCH.md, "The absorber rule".
+  final wrist = [
+    for (var i = 0; i < 5; i++)
+      HealthSample(at: _t(i), heartRate: 74, spo2: 97, systolic: 118, diastolic: 76,
+          source: ReadingSource.sensor),
+  ];
+  final w = generateAdvisories(wrist);
+  _chk('wrist BP in range → no ADV_BP_STEADY', !_has(w, 'ADV_BP_STEADY'));
+  _chk('…and no whole-body verdict in its place', !_has(w, 'ADV_ALL_STEADY'));
+  _chk('…the fallback claims only the readings', _has(w, 'ADV_NOTHING_UNUSUAL'));
 
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
