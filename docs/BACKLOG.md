@@ -277,6 +277,38 @@ every one of those handlers sends its key unconditionally, and a 401/403 throws
 in `api()` before a renderer sees a body — so it is a latent trap, not a live
 defect: it becomes reachable the day one of those fields is made conditional.
 
+### Every panel render test boots through the FAILURE path
+
+`drawBiTrend` does `const ctx = c.getContext("2d"); ctx.scale(dpr, dpr);` with no
+guard. Under jsdom `getContext("2d")` returns **null**, so `ctx.scale` throws —
+and the stack is `drawBiTrend → drawOps → render → boot`, where `boot()` catches
+everything and takes its degraded branch, logging «boot failed».
+
+So in every jsdom test that boots the panel, `LIVE` never becomes true, the mode
+pill never says «Live», and the catch's "the invented patients go first" cleanup
+runs. **The suite has been asserting against a panel in its boot-failure state**
+while believing it was testing the live one. Tests still pass, which is the
+uncomfortable part: either they assert things drawn before the throw, or they
+assert things true in both states — and nobody can tell which without checking
+each one.
+
+Worth reading two lines below the throw, where someone already recorded this
+exact lesson for the neighbouring case:
+
+> «a payload that arrives without the array is exactly that case — but
+> dereferencing it first threw instead, inside the boot() chain, so one missing
+> field took the whole panel down rather than one chart»
+
+The same unguarded dereference survived one line above the comment describing
+it. `if (!ctx) return;` is the fix, and it is deliberately NOT a test-only
+concern: a canvas that fails to give a context in a real browser would take the
+whole panel down for the same reason, which is the failure mode that comment
+exists to prevent.
+
+Expect this to CHANGE test outcomes rather than merely quieten a log line —
+several suites will start seeing a fully-booted panel for the first time. That
+is a reason to do it deliberately and read the diff, not a reason to leave it.
+
 ### What that audit could NOT establish
 
 It had no write tools, so it performed **no** break-and-restore verification. It
