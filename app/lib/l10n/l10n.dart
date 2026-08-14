@@ -151,8 +151,17 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'ADV_GLUCOSE_HIGH_b': {AppLocale.ru: 'Сахар в крови повышен. Это оценка по браслету, не диагноз. Обсудите с врачом скрининг на гестационный диабет.', AppLocale.kk: 'Қандағы қант жоғары. Бұл — білезік бойынша бағалау, диагноз емес. Гестациялық диабетке скрининг туралы дәрігермен ақылдасыңыз.', AppLocale.en: 'Your blood sugar looks high. This is a band estimate, not a diagnosis — ask your doctor about gestational-diabetes screening.'},
   'ADV_GLUCOSE_LOW': {AppLocale.ru: 'Низкий сахар', AppLocale.kk: 'Қант төмен', AppLocale.en: 'Low blood sugar'},
   'ADV_GLUCOSE_LOW_b': {AppLocale.ru: 'Сахар в крови низкий. Перекусите и измерьте снова. Если повторяется — скажите врачу.', AppLocale.kk: 'Қандағы қант төмен. Тамақтанып, қайта өлшеңіз. Қайталанса — дәрігерге айтыңыз.', AppLocale.en: 'Your blood sugar looks low. Have a snack and re-check. If it keeps happening, tell your doctor.'},
-  'ADV_GLUCOSE_STEADY': {AppLocale.ru: 'Сахар в норме', AppLocale.kk: 'Қант қалыпты', AppLocale.en: 'Blood sugar steady'},
-  'ADV_GLUCOSE_STEADY_b': {AppLocale.ru: 'Уровень сахара по браслету в обычном диапазоне.', AppLocale.kk: 'Білезік бойынша қант деңгейі қалыпты аралықта.', AppLocale.en: 'Your blood-sugar readings are in the usual range.'},
+  // ADV_GLUCOSE_STEADY / _b are DELETED, not reworded. «Сахар в норме» was
+  // refused sentence #5 in docs/CLINICAL-REVIEW-WATCH.md and shipped word for
+  // word — a normality verdict on a diabetes number, from an optical wrist
+  // estimate in a unit the vendor never states anywhere in 3,248 pages. The
+  // same metric was withdrawn from the admin panel on 2026-08-13 for exactly
+  // this reason; the app kept saying it for another day.
+  //
+  // Deleted rather than reworded so no call site can keep rendering an
+  // approved-looking string, and so a replacement has to go through the gate
+  // rather than inherit this key's history. Pinned by
+  // test/refused_sentences_test.dart, which fails the build if it returns.
   'ADV_HYDRATED': {AppLocale.ru: 'Водный баланс в норме', AppLocale.kk: 'Су балансы қалыпты', AppLocale.en: 'Well hydrated'},
   'ADV_HYDRATED_b': {AppLocale.ru: 'Вы выполнили дневную норму воды. Так держать!', AppLocale.kk: 'Күнделікті су нормасын орындадыңыз. Жалғастыра беріңіз!', AppLocale.en: "You've met today's water goal. Keep it up!"},
   'ADV_HYDRATE_LOW': {AppLocale.ru: 'Пора выпить воды', AppLocale.kk: 'Су ішетін кез', AppLocale.en: 'Time to hydrate'},
@@ -3254,6 +3263,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'notif_checkin_sub': {AppLocale.ru: 'Когда ребёнок отмечает, что всё хорошо', AppLocale.kk: 'Бала бәрі жақсы екенін белгілегенде', AppLocale.en: 'When your child marks they’ve arrived safely'},
   'notif_lowbattery': {AppLocale.ru: 'Низкий заряд трекера', AppLocale.kk: 'Трекер заряды төмен', AppLocale.en: 'Tracker low battery'},
   'notif_lowbattery_sub': {AppLocale.ru: 'Когда у трекера садится батарея', AppLocale.kk: 'Трекердің батареясы отырғанда', AppLocale.en: 'When the tracker battery is running low'},
+  // Рассылки и ответы поддержки — то, что говорит продукт, а не трекер ребёнка.
+  // Отдельный переключатель: выключив объявления, она не должна выключить
+  // «ребёнок на месте».
+  'notif_updates': {AppLocale.ru: 'Новости и ответы', AppLocale.kk: 'Жаңалықтар мен жауаптар', AppLocale.en: 'News and replies'},
+  'notif_updates_sub': {AppLocale.ru: 'Сообщения от Ana-Bala и ответы поддержки', AppLocale.kk: 'Ana-Bala хабарламалары және қолдау жауаптары', AppLocale.en: 'Messages from Ana-Bala and support replies'},
   'notif_quiet': {AppLocale.ru: 'Тихие часы', AppLocale.kk: 'Тыныш сағаттар', AppLocale.en: 'Quiet hours'},
   'notif_quiet_off': {AppLocale.ru: 'Не заданы', AppLocale.kk: 'Орнатылмаған', AppLocale.en: 'Not set'},
   'notif_quiet_at': {AppLocale.ru: 'С {from} до {to}', AppLocale.kk: '{from} — {to}', AppLocale.en: '{from} to {to}'},

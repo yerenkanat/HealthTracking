@@ -172,14 +172,32 @@ List<Advisory> generateAdvisories(
   }
 
   // ---- Blood glucose (a wellness estimate — graded here, never triaged) ----
+  //
+  // «Сахар в норме» IS GONE, and it was refused sentence #5 shipping word for
+  // word. Blood sugar was withdrawn from the admin panel on 2026-08-13 because
+  // the vendor documents the field as 血糖（0.1）with NO UNIT STATED anywhere in
+  // 3,248 pages — the computation was deleted rather than stubbed, so that no
+  // scale could be quietly reintroduced. The app went on grading the same
+  // number against the same absent unit for another day. A withdrawal on one
+  // surface is not a withdrawal.
+  //
+  // Silence is the whole fix for the positive card, and it needs no copy: a
+  // number whose unit its own source never states cannot be called normal on
+  // any scale, and the pregnancy stakes are specific — GDM screening is a
+  // scheduled protocol item, and a reassuring number displaces the OGTT window
+  // at 24–28 weeks, which closes.
+  //
+  // The two WATCH cards are deliberately still here, pending their own ruling.
+  // Removing them is not the same act: gate the positives, never the warnings —
+  // a missed reassurance costs her a sentence she was owed anyway, a missed
+  // warning can cost more. They are refused too (they name a value in the same
+  // absent unit) but the replacement is a clinical decision, not this one.
   final glucose = statsFor(buildSeries(samples, 'glucose'));
   if (glucose != null) {
     if (glucose.latest >= GlucoseThresholds.elevatedMmol) {
       watch.add(Advisory('ADV_GLUCOSE_HIGH', AdviceTone.watch, 'glucose', value: glucose.latest));
     } else if (glucose.latest < GlucoseThresholds.lowMmol) {
       watch.add(Advisory('ADV_GLUCOSE_LOW', AdviceTone.watch, 'glucose', value: glucose.latest));
-    } else {
-      positive.add(Advisory('ADV_GLUCOSE_STEADY', AdviceTone.positive, 'glucose', value: glucose.latest));
     }
   }
 

@@ -34,10 +34,21 @@ void main() {
     expect(_find(out, 'ADV_GLUCOSE_LOW')?.tone, AdviceTone.watch);
   });
 
-  test('normal glucose is a positive, steady note', () {
+  test('a normal glucose earns no reassurance at all', () {
+    // CHANGED 2026-08-14, and it is a withdrawal rather than a loosening.
+    // «Сахар в норме» was refused sentence #5 in docs/CLINICAL-REVIEW-WATCH.md
+    // and shipped word for word — a normality verdict on a diabetes number,
+    // from a value whose unit our only source never states. Blood sugar was
+    // withdrawn from the admin panel for that reason a day earlier; the app
+    // kept saying it.
+    //
+    // There is no replacement string, deliberately: silence is the whole fix,
+    // and a number with no unit cannot be called normal on any scale. Pinned
+    // from the other side by test/refused_sentences_test.dart.
     final out = generateAdvisories(_glucoseSamples(5.3));
-    expect(_find(out, 'ADV_GLUCOSE_STEADY')?.tone, AdviceTone.positive);
+    expect(_find(out, 'ADV_GLUCOSE_STEADY'), isNull);
     expect(_find(out, 'ADV_GLUCOSE_HIGH'), isNull);
+    expect(_find(out, 'ADV_GLUCOSE_LOW'), isNull);
   });
 
   test('no glucose samples → no glucose advisory at all', () {
