@@ -1623,6 +1623,10 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'tl_products': {AppLocale.ru: 'Товары', AppLocale.kk: 'Тауарлар', AppLocale.en: 'Products'},
   'tl_see_all': {AppLocale.ru: 'Смотреть все', AppLocale.kk: 'Барлығын көру', AppLocale.en: 'See all'},
   'tl_watch': {AppLocale.ru: 'Смотреть', AppLocale.kk: 'Көру', AppLocale.en: 'Watch'},
+  // A guide whose content is the text somebody wrote in the back office. It is
+  // not «Смотреть»: nothing plays, and a card promising a video that turns out
+  // to be an article is a small lie told on every card of its kind.
+  'tl_read': {AppLocale.ru: 'Читать', AppLocale.kk: 'Оқу', AppLocale.en: 'Read'},
   'tl_buy': {AppLocale.ru: 'Купить', AppLocale.kk: 'Сатып алу', AppLocale.en: 'Buy'},
   'tl_soon': {AppLocale.ru: 'Скоро', AppLocale.kk: 'Жақында', AppLocale.en: 'Soon'},
   'tl_minutes': {AppLocale.ru: '{n} мин', AppLocale.kk: '{n} мин', AppLocale.en: '{n} min'},
@@ -1667,6 +1671,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
         'a child struggling to breathe or not coming round — do not wait for morning.',
   },
   'gd_call_open': {AppLocale.ru: 'Что делать', AppLocale.kk: 'Не істеу керек', AppLocale.en: 'What to do'},
+
+  // The article screen (admin frame 16a authors it). Named «Красный флаг» —
+  // the same words the back office labels the field with, so an editor and a
+  // reader are looking at one thing rather than two.
+  'art_red_flag': {
+    AppLocale.ru: 'Красный флаг',
+    AppLocale.kk: 'Қауіпті белгі',
+    AppLocale.en: 'Red flag',
+  },
 
   // ---- Screen 37 «Экстренная помощь» -------------------------------------
   //

@@ -557,6 +557,14 @@ export interface ContentItemRow {
   kind: 'lesson' | 'product';
   title: Record<string, string>; // locale → text
   summary: Record<string, string>;
+  /// The article itself, per locale — what she actually reads (admin frame
+  /// 16a). Absent on everything published before articles existed, which is
+  /// why it is optional and why the bilingual rule only applies once one
+  /// language of it has been written. See the zod schema in routes/admin.ts.
+  body?: Record<string, string>;
+  /// «Красный флаг» — its own field so the app can draw it ABOVE the article
+  /// and always expanded, per docs/CLAUDE-app-design.md §4.6.
+  redFlags?: Record<string, string>;
   url?: string;
   priceMinor?: number; // products, in minor units (tiyn)
   currency?: string;
@@ -975,16 +983,42 @@ export interface Repository {
    * freshly inserted. Fail-safe: an implementation that does not dedup returns
    * `false`, so the worst case is a repeated push (today's behaviour), never a
    * SUPPRESSED real emergency.
+   *
+   * `BandTelemetry.deviceTempC` — a device temperature with no stated
+   * measurement site — is stored in a column of its OWN (`device_temp_c`) and
+   * must never be written to `core_temp_c`, merged into it on read, or fed to
+   * triage: every reader of `core_temp_c` treats it as an estimate of her core,
+   * and this value cannot be converted into one. Carried and stored, never
+   * graded — the `glucoseMmol` precedent. See docs/CLINICAL-REVIEW-WATCH.md,
+   * "Device temperature — closed 2026-08-13".
    */
   insertHealthMetric(m: BandTelemetry & { userId: string; triageSeverity: TriageSeverity }): Promise<boolean>;
   /**
    * The caller's own HAND-ENTERED readings (device_id NULL): typed cuff/glucose
    * values. For restoring a typed vitals history on a new device — band readings
    * are re-supplied by the device, so they are deliberately excluded.
+   *
+   * Every row carries `source: 'manual'`, and the literal type is the point: the
+   * filter is what MAKES them manual (device_id IS NULL), so an implementation
+   * has nothing to decide and cannot emit anything else.
+   *
+   * It was omitted, and omission is not neutral here. `HealthSample.fromJson`
+   * reads an absent `source` as a DEVICE reading — deliberately, because an
+   * unlabelled stored row cannot be shown to have come off a thermometer. So a
+   * woman who changed handsets got every thermometer reading she had ever typed
+   * back labelled a wrist estimate: her measured 38.6 stopped escalating (a
+   * device temperature is warning-only by ruling), her typed readings dropped
+   * out of the visit summary, and the manual-diary card disappeared for exactly
+   * the woman using it. Invisible on the phone where she typed them; it only
+   * appears on the next one. See docs/CLINICAL-REVIEW-WATCH.md.
+   *
+   * The word is the APP's wire vocabulary — `BandTelemetry.sourceFromWire`
+   * accepts 'manual' and reads everything else, including absent, as a sensor.
    */
   listManualVitals(userId: string): Promise<Array<{
     recordedAt: string; heartRateBpm: number | null; spo2Pct: number | null;
     systolicMmHg: number | null; diastolicMmHg: number | null; coreTempC: number | null; glucoseMmol: number | null;
+    source: 'manual';
   }>>;
   insertBpCalibration(userId: string, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }): Promise<void>;
   // The caller's most recent calibration, or null. Powers the admin drawer

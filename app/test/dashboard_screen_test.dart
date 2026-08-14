@@ -465,13 +465,20 @@ void main() {
   });
 
   testWidgets('danger reading gets alert styling (semantics mentions safe range)', (tester) async {
+    // Pinned to a clock that makes these readings CURRENT. The grade is
+    // withheld past the metric's own window — a month-old 150/96 is drawn grey
+    // with its age, per the freshness table — and this test is about the
+    // styling of a reading that is current, not about that ladder.
     final samples = [
       HealthSample(at: t(0), systolic: 120, diastolic: 78),
       HealthSample(at: t(1), systolic: 150, diastolic: 96), // preeclampsia range
     ];
-    await tester.pumpWidget(MaterialApp(home: HealthDashboardView(samples: samples)));
+    await tester.pumpWidget(MaterialApp(
+        home: HealthDashboardView(
+            samples: samples, nowForAppointment: t(2))));
     expect(
-      find.bySemanticsLabel(RegExp('Blood pressure: 150 / 96 mmHg, outside the safe range')),
+      find.bySemanticsLabel(
+          RegExp('Blood pressure: 150 / 96 mmHg, outside the safe range')),
       findsOneWidget,
     );
   });

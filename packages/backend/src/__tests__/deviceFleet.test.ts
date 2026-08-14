@@ -23,7 +23,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
 import {
-  createMemoryRepository, DEV_STAFF_PHONE, DEV_STAFF_PASSWORD,
+  createMemoryRepository, DEV_STAFF_PHONE, DEV_STAFF_PASSWORD, DEV_STAFF_ID,
 } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
 import { hashToken, readSessionCookie } from '../http/staffAuth';
@@ -169,7 +169,7 @@ describe('«Пометить браком»', () => {
     const row = (await fleet()).json().devices.find((d: { id: string }) => d.id === BAND);
     expect(row.defectAt).not.toBeNull();
     expect(row.defectNote).toBe('не заряжается');
-    expect(row.defectBy).toBe('staff-dev');
+    expect(row.defectBy).toBe(DEV_STAFF_ID);
   });
 
   it('can be taken back — the commonest reason to mark something is a mistake', async () => {

@@ -41,6 +41,10 @@ export interface ReviewableItem {
   draft?: boolean;
   title?: Record<string, string>;
   summary?: Record<string, string>;
+  /** The article's own text, per locale (admin frame 16a). */
+  body?: Record<string, string>;
+  /** «Красный флаг» — when to stop reading and call, per locale. */
+  redFlags?: Record<string, string>;
   url?: string;
   video?: { provider: string; url: string; posterUrl?: string };
   review?: Review;
@@ -57,16 +61,47 @@ export interface ReviewableItem {
  * fingerprint means a mismatch can be diagnosed by looking at it. Sorted keys,
  * so re-saving the same card with its languages in a different order does not
  * read as an edit and revoke a real review.
+ *
+ * THE ARTICLE IS PART OF IT (admin frame 16a). A guide used to be a headline
+ * and a link out, so signing off the headline was signing off the card. The
+ * advice now lives in `body`, with `redFlags` above it, and a fingerprint that
+ * ignored them would leave an approved headline sitting over paragraphs nobody
+ * has read — the same failure as swapping the video, in prose.
+ *
+ * APPENDED, NEVER RESHAPED. The four original parts are joined exactly as
+ * before and the two new ones contribute the EMPTY STRING when unwritten, so
+ * every fingerprint already stored against the published catalogue still
+ * matches byte for byte. Adding them as array elements instead would have left
+ * two trailing separators on every card and marked the whole approved
+ * catalogue `stale` on deploy: hundreds of live cards pulled off the app at
+ * once, waiting on a clinician to re-read text nobody had touched.
  */
 export function textFingerprint(item: ReviewableItem): string {
   const dict = (d: Record<string, string> | undefined) =>
     Object.keys(d ?? {}).sort().map((k) => `${k}=${(d ?? {})[k]}`).join('');
+  /// A named part that DISAPPEARS when nothing is written in it.
+  ///
+  /// Named because an article is long enough that an unlabelled run of text
+  /// could be reproduced by moving paragraphs from one field to another.
+  /// Disappearing because absent, `{}` and `{ru: ''}` must all fingerprint
+  /// identically — a card that never had an article must keep the signature it
+  /// already has, and typing a paragraph then deleting it again must not
+  /// revoke a real review.
+  const section = (label: string, d: Record<string, string> | undefined) => {
+    const written = Object.keys(d ?? {})
+      .filter((k) => ((d ?? {})[k] ?? '').trim().length > 0)
+      .sort();
+    if (!written.length) return '';
+    return `${label}=` + written.map((k) => `${k}=${(d ?? {})[k]}`).join('');
+  };
   return [
     dict(item.title),
     dict(item.summary),
     item.url ?? '',
     item.video ? `${item.video.provider}:${item.video.url}` : '',
-  ].join('');
+  ].join('')
+    + section('body', item.body)
+    + section('redFlags', item.redFlags);
 }
 
 /** Does this review still describe what the item says now? */

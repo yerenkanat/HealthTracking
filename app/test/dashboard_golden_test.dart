@@ -46,6 +46,11 @@ void main() {
       theme: FcsTheme.light(AppLocale.ru),
       home: HealthDashboardView(
         samples: samples,
+        // Pinned, because the picture now contains the AGE of each reading.
+        // Left to `DateTime.now()` this golden would drift a character wider
+        // the day «31 дн назад» became «100 дн назад», and the diff would land
+        // on whoever happened to run the suite that morning.
+        nowForAppointment: t(58),
         greetingName: 'Айгерім',
         sleepNights: [
           SleepSummary(night: DateTime(2026, 7, 15), deepMin: 95, remMin: 70, lightMin: 280, awakeMin: 12),
@@ -129,6 +134,7 @@ void main() {
           L10nScope(l10n: const L10n(AppLocale.ru), child: child!),
       home: HealthDashboardView(
         samples: typed,
+        nowForAppointment: t(58), // see the note on the first golden
         greetingName: 'Айгерім',
         onLogVitals: () {},
         onLogWeight: () {},

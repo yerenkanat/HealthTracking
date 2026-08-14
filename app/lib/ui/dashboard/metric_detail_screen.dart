@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../domain/health_series.dart';
+import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 import '../theme.dart';
@@ -14,12 +15,29 @@ import 'device_temp_note.dart';
 
 enum _Range { d1, d7, all }
 
+/// «9 ч назад», or null when there is no age that can honestly be described —
+/// nothing measured, or a clock that disagrees. `agoIfKnown` refuses a
+/// timestamp from the future rather than saying «через 3 часа» beside a
+/// medical number.
+String? _ageOf(L10n l, DateTime? at, DateTime now) {
+  if (at == null) return null;
+  final age = now.difference(at);
+  return l.agoIfKnown(age.isNegative ? Duration.zero : age);
+}
+
 class MetricDetailScreen extends StatefulWidget {
   final String metricKey;
   final String unit;
   final IconData icon;
   final Color color;
   final List<HealthSample> samples;
+
+  /// The clock the grid card used, so a tile and the screen behind it can never
+  /// land on opposite sides of a freshness threshold for the same reading.
+  final DateTime? now;
+
+  /// See HealthDashboardView.bpCalibrationStale. Same default, same reason.
+  final bool bpCalibrationStale;
 
   const MetricDetailScreen({
     super.key,
@@ -28,6 +46,8 @@ class MetricDetailScreen extends StatefulWidget {
     required this.icon,
     required this.color,
     required this.samples,
+    this.now,
+    this.bpCalibrationStale = true,
   });
 
   @override
@@ -61,8 +81,24 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
     // showed, so the provenance matters more here, not less: it decides both
     // whether the reading may be coloured and whether the qualifier is drawn.
     final source = latestSourceFor(filtered, metricKey);
-    final band = bandFor(metricKey, source: source);
-    final danger = latestInDanger(metricKey, stats, source: source);
+    // The same freshness ladder the grid card applies, for the same reason: the
+    // 44px number at the top of this screen is the one someone came here to
+    // look harder at, and a red one that turns out to be from last night is the
+    // defect this screen would otherwise inherit whole. Temperature is the row
+    // the table leaves blank — see the note on the card — so its grade is
+    // untouched here too.
+    final at = latestAtFor(filtered, metricKey);
+    final now = widget.now ?? DateTime.now();
+    final freshness = at == null
+        ? MetricFreshness.stale
+        : metricFreshness(metricKey, now.difference(at),
+            source: source, bpCalibrationStale: widget.bpCalibrationStale);
+    final gradeable =
+        metricKey == 'temp' || freshness == MetricFreshness.current;
+    final band =
+        gradeable ? bandFor(metricKey, source: source) : const MetricBand();
+    final danger =
+        gradeable && latestInDanger(metricKey, stats, source: source);
 
     String fmt(double v) =>
         metricKey == 'temp' ? v.toStringAsFixed(1) : v.round().toString();
@@ -96,7 +132,9 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                       fontSize: 44,
                       fontWeight: FontWeight.w700,
                       height: 1,
-                      color: danger ? Palette.danger : Palette.text,
+                      color: danger
+                          ? Palette.danger
+                          : (gradeable ? Palette.text : Palette.textDim),
                     )),
                 const SizedBox(width: 6),
                 Padding(
@@ -109,6 +147,24 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                 if (stats != null) _TrendChip(stats.trend),
               ],
             ),
+            // WHEN, directly under the number, in the same place and the same
+            // words as the card that was tapped to get here. «Показания» at the
+            // top of the grid never travelled with the tap, so this screen
+            // showed a 44px reading with no time on it at all.
+            if (_ageOf(l, at, now) case final ageLabel?)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(ageLabel,
+                    style: TextStyle(
+                      color: freshness == MetricFreshness.current
+                          ? Palette.textDim
+                          : Ds.amberText,
+                      fontSize: 12.5,
+                      fontWeight: freshness == MetricFreshness.current
+                          ? FontWeight.w400
+                          : FontWeight.w600,
+                    )),
+              ),
             // Directly under the 44px reading, because that is the number the
             // qualifier is about. The grid card carries the same note; a woman
             // who taps through to look harder at exactly this figure must not

@@ -249,9 +249,9 @@ export function createPgRepository(pool: Pool): Repository {
       // (or count the reading) a second time.
       const res = await pool.query(
         `INSERT INTO pregnancy_health_metrics
-           (device_id, user_id, recorded_at, core_temp_c, skin_temp_c, heart_rate_bpm,
+           (device_id, user_id, recorded_at, core_temp_c, skin_temp_c, device_temp_c, heart_rate_bpm,
             spo2_pct, systolic_mmhg, diastolic_mmhg, glucose_mmol, during_sleep, triage_severity)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          ON CONFLICT (user_id, device_id, recorded_at) DO NOTHING`,
         [
           // A manual reading carries deviceId '' (no device); store it as NULL so
@@ -265,6 +265,11 @@ export function createPgRepository(pool: Pool): Repository {
           // reads as "we have this reading but not which band took it" rather
           // than losing it.
           await deviceRowId(m.userId, m.deviceId), m.userId, m.recordedAt, m.coreTempC ?? null, m.skinTempC ?? null,
+          // Its OWN column, never folded into core_temp_c: a device temperature
+          // with no stated site is not an estimate of her core, and every
+          // reader of core_temp_c treats that column as one. Storing it here
+          // adds a row of data, not a second path back to a fever verdict.
+          m.deviceTempC ?? null,
           m.heartRateBpm ?? null, m.spo2Pct ?? null, m.systolicMmHg ?? null,
           m.diastolicMmHg ?? null, m.glucoseMmol ?? null, m.duringSleep ?? false, m.triageSeverity,
         ],
@@ -284,6 +289,11 @@ export function createPgRepository(pool: Pool): Repository {
         recordedAt: new Date(r.recorded_at).toISOString(),
         heartRateBpm: r.heart_rate_bpm, spo2Pct: r.spo2_pct, systolicMmHg: r.systolic_mmhg,
         diastolicMmHg: r.diastolic_mmhg, coreTempC: r.core_temp_c, glucoseMmol: r.glucose_mmol,
+        // Stated, not selected: `device_id IS NULL` above is what MAKES the row
+        // manual, so this is the WHERE clause spoken out loud. Without it the
+        // app reads the restored row as a wrist estimate and the thermometer
+        // reading she typed loses the one entitlement it has.
+        source: 'manual' as const,
       }));
     },
 

@@ -47,26 +47,55 @@ export function missingLocales(text: Record<string, string> | undefined): Requir
 export interface BilingualProblem {
   /** Which item — the id a person sees in the CMS. */
   id: string;
-  /** Which field of it: 'title' or 'summary'. */
+  /** Which field of it: 'title', 'summary', 'body' or 'redFlags'. */
   field: string;
   /** What is not there yet. */
   missing: RequiredLocale[];
 }
 
+/** Nothing written in ANY language — the field has not been started. */
+function unwritten(text: Record<string, string> | undefined): boolean {
+  return Object.values(text ?? {}).every((v) => (v ?? '').trim().length === 0);
+}
+
 /**
  * Check every translatable field of one item.
  *
- * Both fields are reported, not just the first: someone fixing a card wants to
+ * All fields are reported, not just the first: someone fixing a card wants to
  * know it needs a Kazakh summary too, rather than saving, being refused again,
  * and learning the requirements one round trip at a time.
+ *
+ * TWO CLASSES OF FIELD, and the difference is the whole reason this is not one
+ * loop.
+ *
+ * `title` and `summary` are the card itself — a card without them is not a
+ * card, so both languages are always required.
+ *
+ * `body` and `redFlags` (admin frame 16a — the article) are OPTIONAL, and have
+ * to stay optional: 364 items were published before an article could be written
+ * at all, and none of them carries one. Requiring both languages of a field
+ * nobody has filled in would refuse every save of every existing stage — the
+ * bilingual rule would go from "publish in both languages" to "the CMS is
+ * broken", and the way round a broken CMS is to stop using the field.
+ *
+ * So an unwritten article is not a problem; a HALF-WRITTEN one is. The moment
+ * somebody types a Russian paragraph, the Kazakh one is required — which is the
+ * rule as written, applied at the point it starts to mean something.
  */
 export function bilingualProblems(item: {
   id: string;
   title?: Record<string, string>;
   summary?: Record<string, string>;
+  body?: Record<string, string>;
+  redFlags?: Record<string, string>;
 }): BilingualProblem[] {
   const out: BilingualProblem[] = [];
   for (const field of ['title', 'summary'] as const) {
+    const missing = missingLocales(item[field]);
+    if (missing.length) out.push({ id: item.id, field, missing });
+  }
+  for (const field of ['body', 'redFlags'] as const) {
+    if (unwritten(item[field])) continue;
     const missing = missingLocales(item[field]);
     if (missing.length) out.push({ id: item.id, field, missing });
   }
@@ -89,6 +118,11 @@ const FIELD_NAME: Record<string, string> = {
   // back office.
   name: 'названия прививки',
   note: 'пояснения к прививке',
+  // The article (frame 16a). A guide used to be a headline and a link out; the
+  // text itself now lives here, and a half-translated article is exactly the
+  // silent Russian fallback this module exists to stop — only longer.
+  body: 'текста статьи',
+  redFlags: 'блока «Красный флаг»',
 };
 
 /**

@@ -177,8 +177,17 @@ class ContentTile extends StatelessWidget {
                     const Spacer(),
                     Flexible(
                       child: Text(
+                        // «Читать» when the article is what opens. A guide
+                        // whose whole content is written text would otherwise
+                        // promise «Смотреть» and play nothing — and a card
+                        // with no url and no video used to say «Скоро» while
+                        // holding a finished article.
                         actionable
-                            ? (lesson ? l.t('tl_watch') : l.t('tl_buy'))
+                            ? (item.hasArticle
+                                ? l.t('tl_read')
+                                : lesson
+                                    ? l.t('tl_watch')
+                                    : l.t('tl_buy'))
                             : l.t('tl_soon'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

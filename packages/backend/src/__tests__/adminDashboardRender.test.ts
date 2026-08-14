@@ -162,6 +162,34 @@ describe('the Dashboard', () => {
     expect(t).toMatch(/не складываются|обе строки/i);
   });
 
+  it('shows today\'s and this week\'s arrivals, not only the 30-day figure', () => {
+    // `newToday` and `new7d` were computed in SQL and rendered nowhere, so a
+    // campaign launched on Monday was judged by a number covering the three
+    // weeks before it existed.
+    const t = page.text('#dashAudience');
+    expect(t).toContain('Новые аккаунты');
+    expect(t).toContain('Сегодня');
+    expect(t).toContain('3');
+    expect(t).toContain('За 7 дней');
+    expect(t).toContain('19');
+    expect(t).toContain('За 30 дней');
+    expect(t).toContain('62');
+  });
+
+  it('says the three periods are nested, and where «сегодня» starts', () => {
+    // 3 + 19 + 62 is not a number of anything. Without this line the rows read
+    // as slices of one base, like the four above them.
+    const t = page.text('#dashAudience');
+    expect(t).toMatch(/вложенных периода|не слагаемые/i);
+    expect(t).toContain('с полуночи');
+  });
+
+  it('labels the all-time average cheque as all-time', () => {
+    // «Финансы» shows a SECOND average — same denominator, but only over the
+    // report's window. Two unlabelled averages is worse than one.
+    expect(page.text('#dashKpis')).toContain('средний чек за всё время');
+  });
+
   it('breaks children down by sex and by age', () => {
     const t = page.text('#dashKids');
     expect(t).toContain('Мальчики');

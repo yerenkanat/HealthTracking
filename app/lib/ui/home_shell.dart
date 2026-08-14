@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../app/app_controller.dart';
+import '../ble/calibration.dart' show bpCalibrationIsStale;
 import '../core/geofence.dart';
 import '../domain/appointment.dart' show nextAppointment;
 import '../domain/child_tracker_state.dart' show currentZone;
@@ -40,6 +41,7 @@ import 'calendar/womens_health_screen.dart';
 import 'dashboard/health_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../domain/timeline_content.dart';
+import 'content/article_screen.dart';
 import 'content/lesson_player_screen.dart';
 import 'content/guides_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
@@ -136,6 +138,13 @@ class _HomeShellState extends State<HomeShell> {
         statusChipPregnancy: c.isPregnant,
         statusChipLate: _statusChipLate(c),
         bandNotMeasuring: c.isBandNotMeasuring,
+        // The second condition on the blood-pressure row of the freshness
+        // table. The calibration behind a wrist estimate expires at
+        // `bpCalibrationMaxAgeDays`, and until now that fact reached only the
+        // settings screen — the tile drew the number it produced at full
+        // strength either way. Never calibrated answers true, which is right:
+        // there is nothing to trust.
+        bpCalibrationStale: bpCalibrationIsStale(c.bpCalibration, DateTime.now()),
         wearable: c.latestWearable,
         // How many days the last backfill from the watch actually brought back
         // — the span the charts below cover, stated rather than implied.
@@ -699,9 +708,35 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  /// Open a lesson video or a product page in the browser. Items without a URL
-  /// are not tappable, so this is only reached for a real link.
+  /// Open a guide: its article, its video, or its page.
+  ///
+  /// The ARTICLE WINS when there is one, and that ordering is the whole point
+  /// of the screen it opens. A guide with a written red-flag block and a video
+  /// used to go straight to the player, so the block — which
+  /// docs/CLAUDE-app-design.md §4.6 requires above the text and never behind a
+  /// disclosure — was never drawn at all. ArticleScreen shows the text and
+  /// offers the video at the end, so nothing is lost and the order is right.
+  ///
+  /// Items with neither text nor a link are not tappable, so this is only ever
+  /// reached for something real.
   Future<void> _openContent(ContentItem item) async {
+    if (item.hasArticle) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ArticleScreen(
+          item: item,
+          // Only when there IS one; the button is absent otherwise rather than
+          // dead. Passed as a callback so the player/browser decision below
+          // stays in one place.
+          onOpenSource: item.hasSource ? _openContentSource : null,
+        ),
+      ));
+      return;
+    }
+    await _openContentSource(item);
+  }
+
+  /// The video or the page behind a guide, wherever it is opened from.
+  Future<void> _openContentSource(ContentItem item) async {
     // A lesson we host plays in OUR player, with our controls and no third
     // party's branding. Everything else — a shop page, a YouTube link — leaves
     // the app, which for YouTube is not a limitation but a requirement.

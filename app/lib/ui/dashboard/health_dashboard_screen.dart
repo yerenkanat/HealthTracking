@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../domain/antenatal_protocol.dart';
 import '../../domain/appointment.dart';
+import '../../domain/current_advisories.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
 import '../../domain/setup_checklist.dart';
@@ -119,6 +120,20 @@ class HealthDashboardView extends StatelessWidget {
   /// the numbers on screen may be stale. Shows a quiet "not measuring" chip.
   final bool bandNotMeasuring;
 
+  /// Whether the weekly cuff calibration behind a WRIST blood pressure has
+  /// expired — `bpCalibrationIsStale(controller.bpCalibration, now)`.
+  ///
+  /// The second condition on the blood-pressure row of the freshness table: a
+  /// device BP is full colour only «≤ 4 h AND calibration ≤ 8 days», and is
+  /// «not shown as current … always when calibration is stale». It has no
+  /// effect on a cuff reading she typed in, which has no offset to expire.
+  ///
+  /// Defaults to TRUE, matching `bpCalibrationIsStale(null, …)`: never
+  /// calibrated is stale, because there is nothing to trust. A default of false
+  /// would hand every un-wired caller — including every test — the full-colour
+  /// treatment for a reading whose calibration nobody asked about.
+  final bool bpCalibrationStale;
+
   /// The watch's latest activity/sleep/wellness snapshot (null = none). Drives
   /// the activity panel below the vitals.
   final WearableMetrics? wearable;
@@ -220,6 +235,7 @@ class HealthDashboardView extends StatelessWidget {
     this.onOpenAntenatalPlan,
     this.onLogVitals,
     this.bandNotMeasuring = false,
+    this.bpCalibrationStale = true,
     this.wearable,
     this.watchHistoryDays,
     this.awaitingRepeat,
@@ -279,6 +295,11 @@ class HealthDashboardView extends StatelessWidget {
     final pregWeek = pregnancyWeek;
     final showAntenatal = pregWeek != null &&
         (visitAtWeek(pregWeek) != null || windowsOpenAt(pregWeek).isNotEmpty);
+    // ONE clock for the whole screen. Every vitals surface below asks how old a
+    // reading is, and two of them reading `DateTime.now()` a millisecond apart
+    // is how a tile and its own banner end up disagreeing about which side of a
+    // threshold the same reading is on.
+    final now = nowForAppointment ?? DateTime.now();
     return AuroraBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -378,7 +399,10 @@ class HealthDashboardView extends StatelessWidget {
                   // Only with readings behind it: "everything is steady" said
                   // over an empty list is a reassurance nothing measured.
                   if (samples.isNotEmpty) ...[
-                    _PeaceOfMindBanner(samples: samples),
+                    _PeaceOfMindBanner(
+                        samples: samples,
+                        now: now,
+                        bpCalibrationStale: bpCalibrationStale),
                     const SizedBox(height: 18),
                   ],
 
@@ -527,12 +551,19 @@ class HealthDashboardView extends StatelessWidget {
                     //
                     // The four cards below showed a number and no time, so a
                     // heart rate of 118 read as "now" whether it was measured a
-                    // minute ago or last night. One line for the group rather
-                    // than four timestamps: they all come off the same sample,
-                    // and repeating it four times is noise that stops being read.
-                    _VitalsFreshness(
-                        samples: samples,
-                        now: nowForAppointment ?? DateTime.now()),
+                    // minute ago or last night.
+                    //
+                    // This used to be the age of the newest SAMPLE, with the
+                    // reasoning that all four cards come off it. They do not:
+                    // the watch sends a frame every couple of minutes carrying
+                    // `tempRaw = 0` for anything it did not measure, so a
+                    // two-minute-old sample can be the newest thing on screen
+                    // while the newest TEMPERATURE in it is nine hours old.
+                    // Each card now states its own metric's age, and this line
+                    // states the LEAST fresh of them — an aggregate may claim
+                    // no more than the readings behind it, so the group line
+                    // can under-state and can never over-state.
+                    _VitalsFreshness(samples: samples, now: now),
                     // How far back the charts actually reach. Without it the
                     // sparklines look like "recently" and mean whatever the app
                     // happened to be awake for.
@@ -560,8 +591,15 @@ class HealthDashboardView extends StatelessWidget {
                       childAspectRatio: 0.94,
                       children: [
                         for (final spec in _specs)
-                          _MetricCard(spec: spec, samples: samples),
-                        _BloodPressureCard(samples: samples),
+                          _MetricCard(
+                              spec: spec,
+                              samples: samples,
+                              now: now,
+                              bpCalibrationStale: bpCalibrationStale),
+                        _BloodPressureCard(
+                            samples: samples,
+                            now: now,
+                            bpCalibrationStale: bpCalibrationStale),
                       ],
                     ),
                     // What the temperature card is actually showing, next to the
@@ -678,8 +716,16 @@ class HealthDashboardView extends StatelessWidget {
   }
 
   Future<void> _shareSummary(BuildContext context, L10n l) async {
+    // The clipboard is an absorber too, and the worst-placed one: the export
+    // sends advisory TITLES only, so a reassurance computed here travels out of
+    // the app to a reader who cannot see the ages on the tiles. It gets the
+    // same clock and the same calibration answer as the screen.
     final text = buildHealthSummary(l, samples,
-        nights: sleepNights, name: greetingName, status: summaryStatus);
+        nights: sleepNights,
+        name: greetingName,
+        status: summaryStatus,
+        now: nowForAppointment ?? DateTime.now(),
+        bpCalibrationStale: bpCalibrationStale);
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -695,12 +741,23 @@ class HealthDashboardView extends StatelessWidget {
 /// steady; warm amber ring + the top concern when something is worth watching.
 class _PeaceOfMindBanner extends StatelessWidget {
   final List<HealthSample> samples;
-  const _PeaceOfMindBanner({required this.samples});
+  final DateTime now;
+  final bool bpCalibrationStale;
+  const _PeaceOfMindBanner(
+      {required this.samples,
+      required this.now,
+      required this.bpCalibrationStale});
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
-    final status = overallStatus(samples);
+    // currentAdvisories, not overallStatus: the advisor cannot see a timestamp,
+    // so «ничего необычного» was being said over readings the app knew were
+    // nine hours old. Warnings still come from every reading whatever its age;
+    // only the reassurance is restricted to what is current. See
+    // domain/current_advisories.dart.
+    final status = currentOverallStatus(samples,
+        now: now, bpCalibrationStale: bpCalibrationStale);
     final (accent, icon, ringColor) = switch (status.tone) {
       AdviceTone.positive => (
           Palette.good,
@@ -749,13 +806,32 @@ class _PeaceOfMindBanner extends StatelessWidget {
       // may not do is push it up: a wrist 128/82 counted as "healthy" is the
       // reassurance removed from ADV_BP_STEADY re-entering as a number in a
       // ring, which is exactly how a narrow claim becomes a whole-body one.
+      final inDanger = latestInDanger(k, s, source: source);
       if ((k == 'systolic' || k == 'diastolic') &&
           source != ReadingSource.manual &&
-          !latestInDanger(k, s, source: source)) {
+          !inDanger) {
         continue;
       }
+      // Staleness, with the SAME asymmetry as the provenance filter above, and
+      // it has to be that way round or the arithmetic reassures on its own.
+      //
+      // An old reading may not be counted HEALTHY: a fraction is the most
+      // confident register this screen has, and «3 из 3» drawn from readings
+      // taken last night is a current claim from an out-of-date basis. But an
+      // old reading in the DANGER band stays in, exactly as a wrist blood
+      // pressure does. Dropping it would remove it from the numerator and the
+      // denominator together and push the fraction UP — a stale 165/110 beside
+      // one fresh heart rate would turn 1-of-2 into a complete ring. That is a
+      // reassurance arriving by arithmetic, and it is the failure the absorber
+      // rule was written about.
+      final at = latestAtFor(samples, k);
+      final freshness = at == null
+          ? MetricFreshness.stale
+          : metricFreshness(k, now.difference(at),
+              source: source, bpCalibrationStale: bpCalibrationStale);
+      if (freshness != MetricFreshness.current && !inDanger) continue;
       withData++;
-      if (!latestInDanger(k, s, source: source)) healthy++;
+      if (!inDanger) healthy++;
     }
     // NULL, not 1.0.
     //
@@ -786,6 +862,11 @@ class _PeaceOfMindBanner extends StatelessWidget {
     // Only when she HAS readings and none may be graded. With nothing at all,
     // the advisory beside it is already ADV_GATHERING, and two explanations of
     // two different absences confuse both.
+    //
+    // This sentence now also covers the day every reading is simply too old.
+    // It stays true — the app really is not grading them — and it is the only
+    // wording here that has been through the gate; the ages themselves are on
+    // the tiles below, which is where the reader can act on them.
     final ungraded = fraction == null && anyReading ? l.t('db_ring_ungraded') : null;
 
     // EVERY tone renders the advisory, including the positive one.
@@ -883,6 +964,62 @@ class _PeaceOfMindBanner extends StatelessWidget {
   }
 }
 
+/// «, 9 ч назад» for a screen reader, or null when there is no age worth
+/// stating.
+///
+/// Reuses `agoIfKnown`, which refuses to describe a reading from the future:
+/// with a disagreeing clock there is no age, and «через 3 часа» beside a
+/// medical number is worse than nothing.
+String? _ageLabel(L10n l, DateTime? at, DateTime now) {
+  if (at == null) return null;
+  final age = now.difference(at);
+  final when = l.agoIfKnown(age.isNegative ? Duration.zero : age);
+  return when == null ? null : ', $when';
+}
+
+/// The age of the reading on THIS tile — «2 мин назад» under the heart rate and
+/// «9 ч назад» under the temperature, on the same screen, off the same watch.
+///
+/// The one line of this whole change a woman actually reads. The grid used to
+/// carry a single group timestamp taken from the newest SAMPLE, and the watch
+/// sends a sample every couple of minutes whether or not it measured anything —
+/// so the freshest thing on screen dated the stalest number on it.
+///
+/// Amber past the metric's own window, matching the group line's convention and
+/// «Батарейка, потеря связи, пропущенный скрининг — янтарные»: something needs
+/// attention and nobody is in danger. Ds.amberText, never the fill — the bright
+/// amber measures 2.51:1 at this size.
+class _MetricAge extends StatelessWidget {
+  final DateTime? at;
+  final DateTime now;
+  final MetricFreshness freshness;
+  const _MetricAge(
+      {required this.at, required this.now, required this.freshness});
+
+  @override
+  Widget build(BuildContext context) {
+    final when = _ageLabel(L10nScope.of(context), at, now);
+    // No age, or none that can be described: draw nothing rather than a
+    // placeholder that would read as a measurement time.
+    if (when == null) return const SizedBox.shrink();
+    final old = freshness != MetricFreshness.current;
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Text(
+        when.substring(2), // drop the ", " the semantics label wants
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: old ? Ds.amberText : Palette.textDim,
+          fontSize: 11,
+          height: 1.1,
+          fontWeight: old ? FontWeight.w600 : FontWeight.w400,
+        ),
+      ),
+    );
+  }
+}
+
 /// Green / amber / red for a metric's three-tier [MetricStatus], matching the
 /// advisor's tone colours so a "watch" value reads the same on every surface.
 Color _statusColor(MetricStatus s) => switch (s) {
@@ -894,7 +1031,13 @@ Color _statusColor(MetricStatus s) => switch (s) {
 class _MetricCard extends StatelessWidget {
   final MetricSpec spec;
   final List<HealthSample> samples;
-  const _MetricCard({required this.spec, required this.samples});
+  final DateTime now;
+  final bool bpCalibrationStale;
+  const _MetricCard(
+      {required this.spec,
+      required this.samples,
+      required this.now,
+      required this.bpCalibrationStale});
 
   @override
   Widget build(BuildContext context) {
@@ -911,13 +1054,35 @@ class _MetricCard extends StatelessWidget {
     final status = stats == null
         ? MetricStatus.normal
         : metricStatus(spec.key, stats.latest, source: source);
-    final danger = status == MetricStatus.danger;
-    final abnormal = status != MetricStatus.normal;
+    // THIS metric's age, not the newest sample's. See latestAtFor.
+    final at = latestAtFor(samples, spec.key);
+    final freshness = at == null
+        ? MetricFreshness.stale
+        : metricFreshness(spec.key, now.difference(at),
+            source: source, bpCalibrationStale: bpCalibrationStale);
+    // Temperature is the one row the freshness table leaves blank in both
+    // "grey" columns, and the reason is that it carries no colour for a stale
+    // tier to withdraw: a DEVICE reading is already ungraded by provenance, and
+    // withdrawing a THERMOMETER reading's grade because it is old would gate a
+    // WARNING, which the absorber rule's corollary forbids. So temperature
+    // keeps the grade it has and gains only its age — which is the half of this
+    // defect temperature actually has, and the example the backlog item is
+    // written around.
+    final gradeable =
+        spec.key == 'temp' || freshness == MetricFreshness.current;
+    final danger = gradeable && status == MetricStatus.danger;
+    final abnormal = gradeable && status != MetricStatus.normal;
     final value = stats == null ? '—' : _fmt(spec.key, stats.latest);
 
     return Semantics(
-      label:
-          '$label: $value ${spec.unit}${abnormal ? l.t('db_outside_range') : ''}',
+      // The age goes into the announcement too. `db_outside_range` is the
+      // precedent in this file for a claim that survived in the semantics tree
+      // after it had been taken out of the paint; a reader who cannot see the
+      // grey number is the one most exposed to a nine-hour-old reading read
+      // aloud as though it were now.
+      label: '$label: $value ${spec.unit}'
+          '${abnormal ? l.t('db_outside_range') : ''}'
+          '${_ageLabel(l, at, now) ?? ''}',
       child: DsCard(
         // The raised step now means "this one wants your attention", so only an
         // out-of-range reading gets it. Passing a colour unconditionally — which
@@ -932,6 +1097,8 @@ class _MetricCard extends StatelessWidget {
             icon: spec.icon,
             color: spec.color,
             samples: samples,
+            now: now,
+            bpCalibrationStale: bpCalibrationStale,
           ),
         )),
         child: Column(
@@ -971,7 +1138,10 @@ class _MetricCard extends StatelessWidget {
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         height: 1,
-                        color: stats == null
+                        // Grey, not the healthy teal, once the reading is past
+                        // its metric's window. A colour is a grade and a grade
+                        // is a claim about now.
+                        color: stats == null || !gradeable
                             ? Palette.textDim
                             : _statusColor(status),
                       )),
@@ -982,12 +1152,13 @@ class _MetricCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            _MetricAge(at: at, now: now, freshness: freshness),
+            const SizedBox(height: 6),
             SizedBox(
-              height: 34,
+              height: 30,
               child: Sparkline(
                 points: series,
-                band: bandFor(spec.key, source: source),
+                band: gradeable ? bandFor(spec.key, source: source) : const MetricBand(),
                 color: danger ? Palette.danger : spec.color,
                 inDanger: danger,
               ),
@@ -1016,7 +1187,12 @@ class _MetricCard extends StatelessWidget {
 /// layers the diastolic wave faintly behind the systolic one.
 class _BloodPressureCard extends StatelessWidget {
   final List<HealthSample> samples;
-  const _BloodPressureCard({required this.samples});
+  final DateTime now;
+  final bool bpCalibrationStale;
+  const _BloodPressureCard(
+      {required this.samples,
+      required this.now,
+      required this.bpCalibrationStale});
 
   @override
   Widget build(BuildContext context) {
@@ -1033,9 +1209,30 @@ class _BloodPressureCard extends StatelessWidget {
     final diaStatus = dia == null
         ? MetricStatus.normal
         : metricStatus('diastolic', dia.latest);
+    // The strictest row in the freshness table, and the only one with a second
+    // condition: full colour «≤ 4 h AND calibration ≤ 8 days», grey to 12 h,
+    // and never current beyond that or while the calibration is stale. Four
+    // hours is ACOG's repeat-reading interval; eight days is the age at which
+    // the offset behind a wrist estimate stops meaning anything, which is why
+    // an expired calibration alone takes the colour away at any age.
+    //
+    // The pair is graded as one, on the OLDER half: «118 / 76» is one reading,
+    // and colouring the systolic while greying the diastolic would present half
+    // a blood pressure as current.
+    final sysAt = latestAtFor(samples, 'systolic');
+    final diaAt = latestAtFor(samples, 'diastolic');
+    final at = sysAt == null || diaAt == null
+        ? (sysAt ?? diaAt)
+        : (sysAt.isBefore(diaAt) ? sysAt : diaAt);
+    final source = latestSourceFor(samples, 'systolic');
+    final freshness = at == null
+        ? MetricFreshness.stale
+        : metricFreshness('systolic', now.difference(at),
+            source: source, bpCalibrationStale: bpCalibrationStale);
+    final gradeable = freshness == MetricFreshness.current;
     final status = worstStatus([sysStatus, diaStatus]);
-    final danger = status == MetricStatus.danger;
-    final abnormal = status != MetricStatus.normal;
+    final danger = gradeable && status == MetricStatus.danger;
+    final abnormal = gradeable && status != MetricStatus.normal;
     final sysV = sys == null ? '—' : sys.latest.round().toString();
     final diaV = dia == null ? '—' : dia.latest.round().toString();
 
@@ -1043,7 +1240,8 @@ class _BloodPressureCard extends StatelessWidget {
       // The unit goes through l10n here too — a screen reader would otherwise
       // announce "mmHg" in the middle of a Russian sentence.
       label: '${l.t('metric_bp')}: $sysV / $diaV ${l.t('unit_mmhg')}'
-          '${abnormal ? l.t('db_outside_range') : ''}',
+          '${abnormal ? l.t('db_outside_range') : ''}'
+          '${_ageLabel(l, at, now) ?? ''}',
       child: DsCard(
         raised: true,
         padding: const EdgeInsets.all(16),
@@ -1054,6 +1252,8 @@ class _BloodPressureCard extends StatelessWidget {
             icon: Icons.monitor_heart_rounded,
             color: Palette.violet,
             samples: samples,
+            now: now,
+            bpCalibrationStale: bpCalibrationStale,
           ),
         )),
         child: Column(
@@ -1092,7 +1292,7 @@ class _BloodPressureCard extends StatelessWidget {
                         fontSize: 27,
                         fontWeight: FontWeight.w700,
                         height: 1,
-                        color: sys == null
+                        color: sys == null || !gradeable
                             ? Palette.textDim
                             : _statusColor(sysStatus),
                       )),
@@ -1110,7 +1310,7 @@ class _BloodPressureCard extends StatelessWidget {
                         fontSize: 27,
                         fontWeight: FontWeight.w700,
                         height: 1,
-                        color: dia == null
+                        color: dia == null || !gradeable
                             ? Palette.textDim
                             : _statusColor(diaStatus),
                       )),
@@ -1121,9 +1321,10 @@ class _BloodPressureCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            _MetricAge(at: at, now: now, freshness: freshness),
+            const SizedBox(height: 6),
             SizedBox(
-              height: 34,
+              height: 30,
               child: Stack(
                 children: [
                   if (diaSeries.length >= 2)
@@ -1133,7 +1334,7 @@ class _BloodPressureCard extends StatelessWidget {
                         color: Palette.blue.withValues(alpha: 0.45)),
                   Sparkline(
                     points: sysSeries,
-                    band: bandFor('systolic'),
+                    band: gradeable ? bandFor('systolic') : const MetricBand(),
                     color: danger ? Palette.danger : Palette.violet,
                     inDanger: danger,
                   ),
@@ -1582,6 +1783,13 @@ class _StatTile extends StatelessWidget {
 /// about why. It is amber past a day: stale, and «Батарейка, потеря связи,
 /// пропущенный скрининг — янтарные» is the same family of "something needs
 /// attention and nobody is in danger".
+///
+/// It states the age of the LEAST fresh metric on the grid, not of the newest
+/// sample. An aggregate may claim no more than the readings behind it, and this
+/// line stands over four of them: the newest sample dated the whole group at
+/// two minutes while one of the numbers under it was nine hours old. Reading
+/// the oldest can only under-state, which is the safe direction — and each card
+/// now carries its own age, so the specific figure is never lost.
 class _VitalsFreshness extends StatelessWidget {
   final List<HealthSample> samples;
   final DateTime now;
@@ -1595,10 +1803,16 @@ class _VitalsFreshness extends StatelessWidget {
     // already gives the reason and the one action. A second empty state here
     // would be unreachable code pretending to be a safety net.
     if (samples.isEmpty) return const SizedBox.shrink();
-    // The newest sample, not the last in the list: nothing guarantees the order
-    // of what the band flushed, and sorting by hand here is cheaper than
-    // trusting every producer to.
-    final at = samples.map((s) => s.at).reduce((a, b) => a.isAfter(b) ? a : b);
+    // The oldest of the per-metric latest readings. Falls back to the newest
+    // sample when nothing on the grid carries a value — a sample of only blood
+    // sugar, say, which no card here draws.
+    DateTime? at;
+    for (final k in metricKeys) {
+      final metricAt = latestAtFor(samples, k);
+      if (metricAt == null) continue;
+      if (at == null || metricAt.isBefore(at)) at = metricAt;
+    }
+    at ??= samples.map((s) => s.at).reduce((a, b) => a.isAfter(b) ? a : b);
     final age = now.difference(at);
     // A clock that disagrees returns null rather than «через 3 часа», and a
     // reading with no describable age is better left unlabelled than mislabelled.

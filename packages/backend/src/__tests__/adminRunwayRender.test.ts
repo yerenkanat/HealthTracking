@@ -209,6 +209,14 @@ describe('the sentence reaches the screen', () => {
     expect(body).toContain('14 дн.'); // the lead time it was judged against
   });
 
+  it('shows the units the rate was computed from, and over what period', async () => {
+    // «6 шт/день» is the same sentence for 180 units sold steadily and for one
+    // bulk order of 180 that will not repeat, and a buyer orders differently
+    // for each. `soldInWindow` was on the wire and drawn nowhere.
+    const { body } = await renderStock();
+    expect(body).toContain('продано 180 шт. за 30 дн.');
+  });
+
   it('a product nobody is buying says so, and never "хватит на ∞"', async () => {
     const { body } = await renderStock();
     expect(body).toContain('продаж за 30 дн. не было');

@@ -199,6 +199,21 @@ const telemetryBase = z.object({
     // these reject only the impossible.
     coreTempC: z.number().finite().min(20).max(45).optional(),
     skinTempC: z.number().finite().min(10).max(45).optional(),
+    // A temperature a device reported with NO stated measurement site and no
+    // stated accuracy — the Starmax watch's `当前体温`. Named here because zod
+    // strips what a schema does not name: `BandTelemetry` has declared it since
+    // ed2a0d0 and the app has been sending it, so the watch's temperature
+    // reached her chart and her advisor and then died at the edge.
+    //
+    // It is NOT a core temperature and must never be graded as one: with no
+    // site there is no defensible conversion, so it is carried and stored and
+    // never triaged — the `glucoseMmol` precedent. assessTelemetry ignores it.
+    //
+    // 20–45 is the parser's own credibility gate (`starmax_frames.dart`
+    // `tempCelsius`, which nulls a u16 frame outside it) and the same window
+    // `coreTempC` carries above; the column's CHECK repeats it exactly, so no
+    // value can pass this schema and then fail the INSERT.
+    deviceTempC: z.number().finite().min(20).max(45).optional(),
     heartRateBpm: z.number().int().min(20).max(300).optional(),
     spo2Pct: z.number().int().min(1).max(100).optional(),
     systolicMmHg: z.number().int().min(40).max(300).optional(),

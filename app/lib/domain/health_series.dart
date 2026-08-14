@@ -8,6 +8,7 @@
 library;
 
 import '../core/triage.dart' show BandTelemetry, ReadingSource, TriageThresholds;
+import 'health_monitor.dart' show latestTelemetryMaxAge;
 
 export '../core/triage.dart' show ReadingSource;
 
@@ -160,6 +161,191 @@ ReadingSource latestSourceFor(List<HealthSample> samples, String metric) {
     if (latest == null || !s.at.isBefore(latest.at)) latest = s;
   }
   return latest?.source ?? ReadingSource.manual;
+}
+
+/// WHEN [metric] was last measured — the timestamp of the newest sample
+/// CARRYING it, which is not the newest sample.
+///
+/// This is the whole of backlog 1.1 in one function. Freshness was computed per
+/// SAMPLE, and the watch sends a frame every couple of minutes with `tempRaw = 0`
+/// for anything it did not measure — so the newest SAMPLE could be two minutes
+/// old while the newest TEMPERATURE was nine hours old, and the screen said
+/// «2 мин назад» over last night's 36.9. The age shown belonged to a different
+/// reading than the number shown.
+///
+/// Null when nothing carries the metric; the caller then has no number either.
+DateTime? latestAtFor(List<HealthSample> samples, String metric) {
+  DateTime? latest;
+  for (final s in samples) {
+    if (_pick(s, metric) == null) continue;
+    if (latest == null || s.at.isAfter(latest)) latest = s.at;
+  }
+  return latest;
+}
+
+/// How current a metric's newest reading is, on the ladder
+/// docs/CLINICAL-REVIEW-WATCH.md sets PER METRIC.
+///
+/// «A step count from nine hours ago is a complete fact about a finished period.
+/// A blood pressure from nine hours ago is a claim about a body that has since
+/// moved, eaten and slept. One ladder for both is a category error.»
+enum MetricFreshness {
+  /// Full colour. The reading may be graded, coloured, announced as out of
+  /// range, and counted toward a reassurance.
+  current,
+
+  /// Grey, with the age stated. The number is still drawn — it is a true fact
+  /// about a finished moment — but nothing may present it as how she is NOW,
+  /// and it may not raise a healthy fraction.
+  aging,
+
+  /// Not shown as current. Same rendering as [aging] today; kept a separate
+  /// tier because the two have different reasons and the review states them
+  /// separately, and because a later surface may want to fold these away.
+  stale,
+}
+
+/// ACOG's repeat-reading interval.
+///
+/// NOT a new number: it is the interval `emergency_confirmation.dart`'s header
+/// cites («ACOG diagnoses gestational hypertension on two elevated readings at
+/// least four hours apart»), and the freshness table names it as the source of
+/// the blood-pressure column. There was no CONSTANT to reuse — that file states
+/// it in prose and models it with a 30-minute confirmation window, which is a
+/// different mechanism — so this is the first, and every surface reads it here.
+const bpRepeatInterval = Duration(hours: 4);
+
+/// The far end of the grey band for blood pressure, and for the telemetry
+/// metrics (heart rate, SpO2).
+///
+/// Both are read off the freshness table in docs/CLINICAL-REVIEW-WATCH.md
+/// rather than derived, and they are constants here so that a surface which
+/// disagrees with the table has to change this line and not its own copy of a
+/// number. Their full-colour counterparts are [bpRepeatInterval] and
+/// [latestTelemetryMaxAge], neither of which is restated.
+const bpAgingCeiling = Duration(hours: 12);
+const telemetryAgingCeiling = Duration(hours: 24);
+
+/// The freshness tier for one metric, given how old its newest reading is.
+///
+/// [source] and [bpCalibrationStale] exist for the blood-pressure row, which is
+/// the only one with a second condition: «≤ 4 h AND calibration ≤ 8 days …
+/// always [not current] when calibration is stale». The calibration is a
+/// property of the DEVICE estimate — a cuff reading she typed in has no offset
+/// to expire — so it is asked about only for a sensor reading. The eight days
+/// are NOT restated here: the caller answers the question with
+/// `bpCalibrationIsStale`, which owns `bpCalibrationMaxAgeDays`.
+///
+/// A timestamp from the future is clamped to zero, matching what the freshness
+/// line has always done with a disagreeing clock; the label beside it comes from
+/// `L10n.agoIfKnown`, which refuses to describe such a reading at all.
+MetricFreshness metricFreshness(
+  String metric,
+  Duration age, {
+  ReadingSource source = ReadingSource.manual,
+  bool bpCalibrationStale = true,
+}) {
+  final a = age.isNegative ? Duration.zero : age;
+  switch (metric) {
+    case 'systolic':
+    case 'diastolic':
+      if (source != ReadingSource.manual && bpCalibrationStale) {
+        return MetricFreshness.stale;
+      }
+      if (a <= bpRepeatInterval) return MetricFreshness.current;
+      if (a <= bpAgingCeiling) return MetricFreshness.aging;
+      return MetricFreshness.stale;
+    default:
+      // Heart rate and SpO2 by the table; temperature and blood sugar fall here
+      // too, and for them this answer drives only the AGE line and the
+      // reassurance filter, never a colour — see [currentReadingsOnly] and the
+      // note at the tile. `latestTelemetryMaxAge` is the app's own definition of
+      // "a reading that still describes how she is now", which is exactly the
+      // question this tier answers.
+      if (a <= latestTelemetryMaxAge) return MetricFreshness.current;
+      if (a <= telemetryAgingCeiling) return MetricFreshness.aging;
+      return MetricFreshness.stale;
+  }
+}
+
+/// Every metric a surface may grade, colour or reassure from. Wider than
+/// [metricKeys], which is the vitals GRID; blood sugar is carried and never
+/// graded, and it has to be filtered here anyway so that no future surface can
+/// reassure from a three-day-old one.
+const _filterableMetrics = ['hr', 'spo2', 'systolic', 'diastolic', 'temp', 'glucose'];
+
+/// The readings a surface may compute a claim about NOW from.
+///
+/// THE ABSORBER RULE, applied to staleness (docs/CLINICAL-REVIEW-WATCH.md,
+/// 2026-08-14): «a reassurance may claim no more than the reading it was
+/// computed from». «Всё стабильно» — now `ADV_NOTHING_UNUSUAL` — was rendering
+/// over readings the app knew were old: a present-tense claim from an
+/// out-of-date basis.
+///
+/// The fix is to change what the sentence is computed FROM rather than what it
+/// says. Its title is already scoped to the readings rather than to her body,
+/// and its body already says the app sees only what was measured; what neither
+/// can carry is a tense. Restricting the input makes the approved sentence true
+/// as written — every reading behind it is current on its own metric's ladder —
+/// and needs no new medical copy, which a stale-flavoured rewording would.
+///
+/// A metric is dropped WHOLE (from every sample) or not at all, because the
+/// tier is decided by its newest reading; so the value a caller then reads as
+/// "latest" is either the same one it would have read, or absent. That is what
+/// makes it safe to compose with the warning path: this filter can never invent
+/// a finding, only withhold one.
+///
+/// A sample left carrying nothing is DROPPED, not kept as an empty shell —
+/// otherwise `generateAdvisories` sees enough samples to clear its `minSamples`
+/// gate, finds no series in any of them, and falls through to the
+/// nothing-unusual reassurance computed from no readings at all. That is the
+/// worst outcome available here, and it is one line away from the best one:
+/// with the empty shells gone the count drops and the fall-through is
+/// `ADV_GATHERING`, which claims nothing.
+List<HealthSample> currentReadingsOnly(
+  List<HealthSample> samples, {
+  required DateTime now,
+  bool bpCalibrationStale = true,
+}) {
+  final drop = <String>{};
+  for (final k in _filterableMetrics) {
+    final at = latestAtFor(samples, k);
+    if (at == null) continue;
+    final f = metricFreshness(k, now.difference(at),
+        source: latestSourceFor(samples, k),
+        bpCalibrationStale: bpCalibrationStale);
+    if (f != MetricFreshness.current) drop.add(k);
+  }
+  if (drop.isEmpty) return samples;
+  final out = <HealthSample>[];
+  for (final s in samples) {
+    final hr = drop.contains('hr') ? null : s.heartRate;
+    final spo2 = drop.contains('spo2') ? null : s.spo2;
+    final sys = drop.contains('systolic') ? null : s.systolic;
+    final dia = drop.contains('diastolic') ? null : s.diastolic;
+    final temp = drop.contains('temp') ? null : s.coreTemp;
+    final glu = drop.contains('glucose') ? null : s.glucose;
+    if (hr == null &&
+        spo2 == null &&
+        sys == null &&
+        dia == null &&
+        temp == null &&
+        glu == null) {
+      continue;
+    }
+    out.add(HealthSample(
+      at: s.at,
+      heartRate: hr,
+      spo2: spo2,
+      systolic: sys,
+      diastolic: dia,
+      coreTemp: temp,
+      glucose: glu,
+      duringSleep: s.duringSleep,
+      source: s.source,
+    ));
+  }
+  return out;
 }
 
 /// The danger zone the chart shades for [metric].

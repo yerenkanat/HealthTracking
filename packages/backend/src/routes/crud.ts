@@ -822,6 +822,11 @@ export function registerCrudRoutes(
   // Her own hand-entered readings, to restore a typed vitals/glucose history on a
   // new device. Only device-less (manual) rows — band readings are re-supplied by
   // the device, so pulling them back would duplicate stale data.
+  //
+  // Each row says `source: 'manual'`. The app reads an unlabelled row as a wrist
+  // estimate, so a restore without the label quietly demotes every thermometer
+  // reading she ever typed — see listManualVitals and
+  // docs/CLINICAL-REVIEW-WATCH.md.
   app.get('/vitals/manual', async (req, reply) => {
     const u = await requireUser(req, reply);
     if (!u) return;

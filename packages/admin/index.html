@@ -335,6 +335,16 @@
   .metricnote{font-size:12px;color:var(--muted);margin:2px 0 8px}
   .itemflags{gap:16px;align-items:center;font-size:12px;color:var(--muted)}
   .itemflags label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  /* Frame 16a — the article. Two textareas per block, RU beside ҚАЗ, so the
+     translation is written next to what it translates rather than found by
+     scrolling. `align-items:flex-start` keeps the «ru»/«kk» label on the first
+     line of a tall box instead of centred halfway down a page of prose. */
+  .artrow{align-items:flex-start}
+  .artrow textarea{flex:1;min-width:200px;font:inherit;font-size:13px;line-height:1.5;
+    border:1px solid var(--hair);border-radius:8px;padding:8px 10px;
+    background:var(--surface-2);color:var(--ink);min-height:96px;resize:vertical}
+  .artrow.flags textarea{min-height:56px;background:var(--warn-soft,var(--surface-2))}
+  .arthead{font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 2px}
   .chip.warn{background:var(--warn-soft,var(--surface-2));color:var(--warn-text,var(--muted))}
   .chip.ok{background:var(--good-soft,var(--surface-2));color:var(--good-text,var(--muted))}
   .reasonwrap{position:fixed;inset:0;background:rgba(30,20,26,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -2080,6 +2090,19 @@
 
         <div class="kpis" id="finKpis" style="margin-bottom:14px"></div>
 
+        <!-- КАДР 05 · «Себестоимость не указана».
+             The report already names the products whose cost is missing —
+             `margin.missingCost` — and the panel printed only the aggregate
+             «маржа посчитана по 74 % выручки». The owner was told a quarter of
+             his margin is unmeasured and not told which products to go and
+             price. This card is that list, with the revenue it covers. -->
+        <div class="card" id="finMissingCard" style="margin-bottom:14px">
+          <div class="sec-h"><h3>Себестоимость не указана</h3>
+            <span class="sub" id="finMissingSub">—</span></div>
+          <div id="finMissing"></div>
+          <div class="note" id="finMissingFoot"></div>
+        </div>
+
         <div class="gallery">
           <div class="card">
             <div class="sec-h"><h3>Возвраты и брак</h3>
@@ -2143,6 +2166,12 @@
             <button class="mx" id="scClose" type="button" aria-label="Закрыть">✕</button>
           </div>
           <div class="mb">
+            <!-- Кто ведёт обращение, прочитала ли она ответ и когда его
+                 закрыли. Все три поля приходили в каждом тикете и не
+                 рисовались нигде: два оператора отвечали одной женщине с
+                 разницей в минуту, а третий звонил уточнить ответ, который
+                 она прочитала вчера. -->
+            <div class="note" id="scMeta"></div>
             <div id="scThread"></div>
             <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)">
               Ответ
@@ -2155,6 +2184,10 @@
             <span id="scNote">Ответ отмечает обращение как «ждём клиента»</span>
             <span class="acts">
               <a class="btn ghost" id="scWa" target="_blank" rel="noopener" hidden>В WhatsApp</a>
+              <!-- PATCH /admin/support/:id принимает assigneeId с самого
+                   начала и до сих пор не имел ни одного вызывающего: взять
+                   обращение на себя было нельзя ниоткуда, кроме curl. -->
+              <button class="btn ghost" type="button" id="scTake">Взять на себя</button>
               <button class="btn ghost" type="button" id="scCloseTicket">Закрыть обращение</button>
               <button class="btn" type="button" id="scSend">Ответить</button>
             </span>
@@ -2655,6 +2688,10 @@
           <div class="card">
             <div class="sec-h"><h3>Заявки с лендинга · перезвонить</h3><span class="sub" id="shopLeadsSub">—</span></div>
             <div id="shopLeads"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
+            <!-- Правило счётчика: от чего считается «не обработано» и всю ли
+                 таблицу оно охватывает. Без этой строки страница из 100 строк
+                 читается как итог. -->
+            <div class="note" id="shopLeadsFoot"></div>
           </div>
         </div>
 
@@ -3319,8 +3356,12 @@
     el.innerHTML=[
       {lbl:"Пользователей",dot:"var(--accent)",val:d.users.total,
        delta:d.users.new30d?`+${fmt(d.users.new30d)} за 30 дней`:"новых за 30 дней нет"},
+      // «за всё время» стоит здесь не для красоты: на «Финансах» есть ВТОРОЙ
+      // средний чек, посчитанный по тому же знаменателю (отгруженные и
+      // доставленные), но за выбранный период. Два средних без подписи — это
+      // два числа, из которых владелец выберет неверное, назначая цену набора.
       {lbl:"Выручка · отгружено",dot:"var(--good)",val:tng(c.revenueMinor),
-       delta:c.avgOrderMinor!=null?`средний чек ${tng(c.avgOrderMinor)}`:"продаж ещё не было"},
+       delta:c.avgOrderMinor!=null?`средний чек за всё время ${tng(c.avgOrderMinor)}`:"продаж ещё не было"},
       {lbl:"Заказы в работе",dot:unshipped?"var(--warn)":"var(--muted)",val:unshipped,
        delta:c.pipelineMinor?`на ${tng(c.pipelineMinor)}`:"всё отгружено"},
       {lbl:"Устройств у семей",dot:"var(--accent)",val:d.devices.total,
@@ -3407,6 +3448,25 @@
     if(!total){ el.innerHTML=dashEmpty("Пока нет ни одного аккаунта. Он появляется, когда мама впервые входит в приложение — до этого здесь считать нечего."); return; }
     // Shares of the whole base, not of each other: these three categories
     // overlap, so they do not add to 100% and must not be drawn as if they do.
+    // Новые аккаунты за три периода. `newToday` и `new7d` считались в базе с
+    // самого начала и не доходили ни до одного экрана: на дашборде жила только
+    // тридцатидневная цифра, поэтому кампанию, запущенную в понедельник,
+    // оценивали по месяцу, в котором её ещё не было.
+    //
+    // Периоды перекрываются (сегодня входит в 7 дней, 7 — в 30), поэтому это
+    // отдельная секция со своей шкалой, а не доли одной базы, и подпись это
+    // говорит. Масштаб — по 30-дневному числу: рисовать «сегодня» в полполосы
+    // рядом с месяцем значило бы показать рост, которого нет.
+    const u=DASH.users;
+    const nScale=Math.max(1,u.new30d||0);
+    const fresh=
+      `<div class="dsec" style="margin-top:14px">Новые аккаунты</div>`+
+      mrow("Сегодня",{value:fmt(u.newToday||0),frac:(u.newToday||0)/nScale,
+        color:(u.newToday||0)?"var(--good)":"var(--muted)"})+
+      mrow("За 7 дней",{value:fmt(u.new7d||0),frac:(u.new7d||0)/nScale,
+        color:(u.new7d||0)?"var(--accent)":"var(--muted)"})+
+      mrow("За 30 дней",{value:fmt(u.new30d||0),frac:(u.new30d||0)/nScale,color:"var(--accent)"});
+
     el.innerHTML=
       mrow("Ждут ребёнка",{value:`${fmt(m.pregnant)} <span class="unit">· ${pct(m.pregnant/total)}</span>`,
         frac:m.pregnant/total,color:"var(--accent)"})+
@@ -3416,9 +3476,12 @@
         frac:m.both/total,color:"var(--warn)"})+
       mrow("Ничего не указано",{value:`${fmt(m.unknown)} <span class="unit">· ${pct(m.unknown/total)}</span>`,
         frac:m.unknown/total,color:"var(--muted)"})+
+      fresh+
       note(`Доли считаются от всей базы и НЕ складываются в 100%: мама, ждущая
             второго, попадает в обе строки. Столбец «ничего не указано» — это
-            те, кто не заполнил ни срок родов, ни ребёнка, а не бездетные.`);
+            те, кто не заполнил ни срок родов, ни ребёнка, а не бездетные.
+            «Новые аккаунты» — три вложенных периода, а не слагаемые: «сегодня»
+            считается с полуночи по времени сервера и уже входит в «за 7 дней».`);
   }
 
   function renderDashKids(){
@@ -6909,10 +6972,44 @@
 
     const lwrap=document.getElementById("shopLeads");
     try{
-      const {leads}=await api("/admin/shop/leads");
-      const uncalled=leads.filter(l=>l.status==="new").length;
+      const lr=await api("/admin/shop/leads");
+      const leads=lr.leads||[];
+      /* Сколько заявок ждут звонка — и от какого знаменателя это число.
+         Считалось по ОДНОЙ странице (limit 100) и печаталось как итог, а на
+         «Сводке» рядом стояло «50 из 140» из настоящего count(*). Две цифры об
+         одной очереди, и очередь работала по меньшей: страница отсортирована
+         от новых к старым, значит за её край уходят самые старые незвоненные
+         заявки — ровно те женщины, что ждут дольше всех.
+         Порядок доверия: страница, когда она вместила всю таблицу (exact —
+         тогда её счёт И ЕСТЬ итог); иначе настоящий count(*) со «Сводки», если
+         он уже загружен; и только потом — нижняя оценка, названная нижней
+         оценкой. Второй счётчик здесь не заводится: это те же цифры сервера. */
+      const page=lr.counts||{shown:leads.length,uncalled:leads.filter(l=>l.status==="new").length};
+      const exact=lr.exact!==undefined?lr.exact:leads.length<(lr.limit||100);
+      const served=(DASH&&DASH.commerce&&DASH.commerce.leads)?DASH.commerce.leads:null;
+      let sub,foot,uncalled;
+      if(!leads.length){
+        uncalled=0; sub="нет заявок";
+        foot="Заявки приходят с лендинга сами — завести их отсюда нельзя.";
+      }else if(exact){
+        uncalled=page.uncalled;
+        sub=page.shown+" · не обработано: "+uncalled;
+        foot="Показаны все заявки: страница вместила таблицу целиком, поэтому «не обработано» — это итог, а не часть.";
+      }else if(served){
+        uncalled=served.new;
+        sub=served.total+" · не обработано: "+uncalled;
+        foot="В таблице — последние "+page.shown+" заявок, а счётчик — по всем "+served.total+
+             " со «Сводки». Раньше здесь стояло число по одной странице, и оно было меньше настоящего.";
+      }else{
+        uncalled=page.uncalled;
+        sub="показаны последние "+page.shown+" · не обработано среди них: не менее "+uncalled;
+        foot="Заявок больше, чем помещается на странице, а общего счёта эта вкладка не получает — "+
+             "точное «не обработано» есть на «Сводке», её открывает роль с правом «финансы».";
+      }
       shopWaitLeads=uncalled;
-      document.getElementById("shopLeadsSub").textContent=leads.length?(leads.length+" · не обработано: "+uncalled):"нет заявок";
+      document.getElementById("shopLeadsSub").textContent=sub;
+      const lfoot=document.getElementById("shopLeadsFoot");
+      if(lfoot) lfoot.textContent=foot;
       lwrap.innerHTML=leads.length?leads.map(shopLeadRow).join(""):`<div style="color:var(--muted);padding:12px 0">Заявок пока нет</div>`;
       lwrap.querySelectorAll(".lstatus").forEach(sel=>{
         const was=sel.value;
@@ -8040,7 +8137,14 @@
     if(!p.stock) return p.inTransit ? `нет на складе · в пути ${p.inTransit} шт.` : "нет на складе";
     if(p.noSales) return `продаж за ${w.windowDays} дн. не было`;
     if(p.daysOfCover == null) return "";
-    const rate=`${p.perDay} шт/день`;
+    // Число, из которого посчитана скорость, а не только сама скорость.
+    // «2.4 шт/день» одинаково выглядит у ровных 72 штук за месяц и у одной
+    // оптовой отгрузки на 72 штуки, которая не повторится, — а закупщик
+    // принимает по этой строке разные решения. soldInWindow приходит в каждом
+    // товаре с /admin/inventory и не рисовался нигде.
+    const rate = p.soldInWindow == null
+      ? `${p.perDay} шт/день`
+      : `${p.perDay} шт/день · продано ${p.soldInWindow} шт. за ${w.windowDays} дн.`;
     // Уже заказано. Это НЕ то же самое, что «всё в порядке»: полка по-прежнему
     // короткая, просто действие уже сделано — и закупщик, которому экран
     // повторяет «пора заказывать» о товаре, заказанном две недели назад, либо
@@ -10331,6 +10435,13 @@
     // fourteen weeks is one lesson, not fourteen.
     const items = Object.values(catalog).reduce((n, l) => n + l.length, 0);
     const linked = Object.values(catalog).flat().filter((i) => (i.url || "").trim()).length;
+    // Counted separately from «со ссылкой», not folded into it. A guide with an
+    // article has nothing to link to and needs nothing — the text IS the
+    // material — so rolling the two together would hide which kind of work is
+    // done. Without this line an editor who has just written twenty articles
+    // reads «0 со ссылкой» and concludes none of them opens.
+    const written = Object.values(catalog).flat()
+      .filter((i) => Object.values(i.body || {}).some((t) => String(t || "").trim())).length;
     const reused = Object.values(catalog).flat().filter((i) => (i.alsoStages || []).length).length;
     // Untagged is NOT "missing": those cards do appear in «Гиды», on the tile
     // their stage implies. It is worth counting because the fallback cannot
@@ -10340,6 +10451,7 @@
     const sum = $("#covSummary");
     if (sum) {
       sum.textContent = `${filled}/101 этапов · ${items} материалов · ${linked} со ссылкой` +
+        (written ? ` · ${written} со статьёй` : "") +
         (reused ? ` · ${reused} используются на нескольких этапах` : "") +
         (untagged ? ` · ${untagged} без темы (показываются по этапу)` : "");
     }
@@ -10395,6 +10507,41 @@
     // The panel cannot recompute the fingerprint (the server owns that rule),
     // so it reports what the server last stored and when.
     return `<span class="chip ok">проверено ${esc(stamp(r.at))}</span>`;
+  }
+
+  /**
+   * Frame 16a — «Новая статья»: the text of the guide itself.
+   *
+   * WHY THIS EXISTS. A guide was a heading, a one-line summary and an external
+   * `url`. Tapping one threw a woman into a browser, or — with the url empty —
+   * did nothing and rendered as «Скоро». There was no way to write an article
+   * and no way to read one. This is where it gets written.
+   *
+   * TWO BLOCKS, NOT ONE. «Красный флаг» is its own pair of boxes rather than a
+   * paragraph of the article, because docs/CLAUDE-app-design.md §4.6 requires
+   * red flags in their own block and never behind «читать дальше». Stored
+   * apart, the app can draw it above the text and always open; typed into the
+   * article it would be one paragraph among twenty, below the fold, at 2am.
+   *
+   * PLAIN TEXT. The app renders paragraphs, not HTML — a blank line starts a
+   * new one. Markup pasted here would reach a phone as literal angle brackets,
+   * so the hint says so instead of letting somebody find out from a reader.
+   *
+   * The Kazakh box is beside the Russian one, not below the whole article: the
+   * publish gate refuses a half-translated article by name (content/bilingual),
+   * and the layout is what makes that requirement obvious while typing.
+   */
+  function articleRows(item) {
+    const box = (group, L, ph) =>
+      `<textarea data-f="${group}.${L}" placeholder="${esc(ph)}" ` +
+      `aria-label="${group} ${L}">${esc((item[group] || {})[L] || "")}</textarea>`;
+    return `
+      <div class="arthead">Статья — обычный текст, пустая строка начинает абзац. Пусто: карточка останется ссылкой.</div>
+      ${LOCALES.map((L) => `
+        <div class="row artrow"><span class="lang">${L}</span>${box("body", L, `текст статьи (${L})`)}</div>`).join("")}
+      <div class="arthead">Красный флаг — когда закрыть статью и звонить. Показывается НАД текстом и всегда раскрыт.</div>
+      ${LOCALES.map((L) => `
+        <div class="row artrow flags"><span class="lang">${L}</span>${box("redFlags", L, `когда сразу звонить 103 (${L})`)}</div>`).join("")}`;
   }
 
   function itemHtml(item, idx) {
@@ -10456,6 +10603,7 @@
           <input class="grow" data-f="title.${L}" value="${esc((item.title || {})[L] || "")}" placeholder="заголовок (${L})" aria-label="title ${L}">
           <input class="grow" data-f="summary.${L}" value="${esc((item.summary || {})[L] || "")}" placeholder="описание (${L})" aria-label="summary ${L}">
         </div>`).join("")}
+      ${articleRows(item)}
       <div class="row"><span class="lang">кому</span>
         <input class="grow" data-f="cities" value="${esc((item.cities || []).join(", "))}"
                placeholder="города через запятую — пусто: показывать всем"
@@ -10564,8 +10712,23 @@
    */
   function untranslated() {
     const bad = [];
+    const written = (t) => Object.values(t || {}).some((v) => String(v || "").trim());
     for (const item of draft) {
       for (const field of ["title", "summary"]) {
+        for (const loc of ["ru", "kk"]) {
+          if (!String((item[field] || {})[loc] || "").trim()) {
+            bad.push({ id: item.id, field, loc });
+          }
+        }
+      }
+      // The article and its red-flag block are OPTIONAL — the whole published
+      // catalogue predates them and none of it carries one, so demanding both
+      // languages of an empty field would lock every existing stage. A field
+      // somebody has STARTED is a different thing: the moment a Russian
+      // paragraph exists, the Kazakh one is required, or a Kazakh mother gets
+      // a page of Russian with nothing on screen to say why.
+      for (const field of ["body", "redFlags"]) {
+        if (!written(item[field])) continue;
         for (const loc of ["ru", "kk"]) {
           if (!String((item[field] || {})[loc] || "").trim()) {
             bad.push({ id: item.id, field, loc });
@@ -10577,7 +10740,10 @@
   }
 
   const LOC_NAME = { ru: "русский", kk: "казахский" };
-  const FIELD_NAME = { title: "заголовок", summary: "описание" };
+  const FIELD_NAME = {
+    title: "заголовок", summary: "описание",
+    body: "текст статьи", redFlags: "блок «Красный флаг»",
+  };
 
   function updatePublishState() {
     const btn = $("#saveStage");
@@ -10642,9 +10808,12 @@
     document.querySelectorAll("#stageItems .item").forEach((el) => {
       const item = draft[Number(el.dataset.idx)];
       if (!item) return;
-      // input AND select: the video provider is a dropdown, and a selector that
-      // only saw inputs would drop it silently on every publish.
-      el.querySelectorAll("input[data-f], select[data-f]").forEach((inp) => {
+      // input AND select AND textarea. The video provider is a dropdown and the
+      // article is a textarea; a selector that only saw inputs would drop each
+      // of them silently on every publish — and for the article that is worse
+      // than losing an edit, because the server's z.object strips what it is
+      // not sent, so one save would erase a written guide from the database.
+      el.querySelectorAll("input[data-f], select[data-f], textarea[data-f]").forEach((inp) => {
         const f = inp.dataset.f;
         // A checkbox has no useful .value — reading one as text set every card
         // to the string "on", which is truthy for medical AND for draft.
@@ -10652,11 +10821,21 @@
           if (inp.checked) item[f] = true; else delete item[f];
           return;
         }
+        // trim(), not a strip of every space: an article keeps its internal
+        // newlines — they are the paragraph breaks the app renders — and only
+        // the leading and trailing whitespace goes.
         const v = inp.value.trim();
-        if (f.startsWith("title.") || f.startsWith("summary.")) {
+        if (f.startsWith("title.") || f.startsWith("summary.")
+            || f.startsWith("body.") || f.startsWith("redFlags.")) {
           const [group, loc] = f.split(".");
           item[group] = item[group] || {};
           if (v) item[group][loc] = v; else delete item[group][loc];
+          // An emptied article must not linger as `{}`: the publish gate treats
+          // "nothing written in any language" as "no article", and an empty
+          // object is the shape a cleared textarea leaves behind.
+          if (!Object.keys(item[group]).length && (group === "body" || group === "redFlags")) {
+            delete item[group];
+          }
         } else if (f === "priceMinor" || f === "durationMin" || f === "minAgeYears" || f === "maxAgeYears") {
           if (v) item[f] = Number(v); else delete item[f];
         } else if (f.startsWith("video.")) {
@@ -11250,6 +11429,14 @@
     } catch (e) {
       $("#finMsg").textContent = failText(e, "Финансы");
       $("#finMsg").className = "formmsg err";
+      // Стереть то, что осталось от УДАВШЕЙСЯ загрузки. Иначе после смены
+      // периода на экране остаётся «у всех проданных товаров себестоимость
+      // указана» — утверждение о другом периоде, выглядящее как ответ про
+      // этот. Пусто плюс сообщение об ошибке выше, а не «нет данных».
+      $("#finMissingSub").textContent = "—";
+      $("#finMissing").innerHTML =
+        `<div class="note">Не загрузилось — числа выше относятся к прошлому запросу.</div>`;
+      $("#finMissingFoot").textContent = "";
       return;
     }
     finLast = r;
@@ -11270,15 +11457,32 @@
       `<div class="card kpi"><div class="lbl">${dot ? `<span class="dot" style="background:var(--${dot})"></span>` : ""}${esc(lbl)}</div>
          <div class="val">${esc(val)}</div><div class="delta">${esc(delta)}</div></div>`;
 
+    // Средний чек: computed over EARNED orders only (см. admin/finance.ts) and
+    // rendered nowhere until now — while «Сводка» shows a DIFFERENT average,
+    // `revenue ÷ отгруженные`, over ALL TIME. Two averages with two periods and
+    // no labels is worse than one, so each says its own denominator out loud:
+    // this one is the window at the top of the screen.
+    //
+    // Zero is a real answer here — «за период ничего не отгрузили» — and it is
+    // said in words rather than shown as 0 ₸, which reads as "we sell nothing".
+    const avg = r.money.averageCheckMinor
+      ? kpi("Средний чек", finTenge(r.money.averageCheckMinor),
+          `за период · выручка ÷ отгруженные и доставленные заказы`, "good")
+      : kpi("Средний чек", "не считается",
+          `за период не отгружено ни одного заказа — делить не на что`, "warn");
+
     $("#finKpis").innerHTML = [
       kpi("Заработано", finTenge(r.money.earnedMinor), plan, "good"),
       // Promised is NOT revenue and is coloured as a warning, not a win.
       kpi("Обещано", finTenge(r.money.promisedMinor), "заказы, за которые ещё не заплатили", "warn"),
       kpi("Потеряно на отменах", finTenge(r.money.lostMinor), `скидок выдано ${finTenge(r.money.discountMinor)}`, "crit"),
+      avg,
       kpi("Маржа", finTenge(r.margin.marginMinor),
         `посчитана по ${Math.round(r.margin.coverage * 100)}% выручки`,
         r.margin.coverage >= 0.9 ? "good" : "warn"),
     ].join("");
+
+    renderFinMissing(r);
 
     const ret = r.returns;
     $("#finRetSub").textContent =
@@ -11305,11 +11509,69 @@
       : `<div class="note">За период ничего не возвращали и не списывали.</div>`;
 
     // The caveats are part of the report, not a footnote to skip: the margin
-    // above is meaningless without the coverage line.
+    // above is meaningless without the coverage line. Rendered in full, the
+    // server's own words — including the one that repeats the names listed in
+    // «Себестоимость не указана» above. Dropping a server-sent caveat because
+    // the panel thinks it has said the same thing elsewhere is how a warning
+    // disappears the day the wording changes.
     $("#finCaveats").innerHTML = r.caveats.map((c) =>
       `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
          <span style="color:var(--warn-text)">•</span><div style="font-size:12.5px">${esc(c)}</div>
        </div>`).join("");
+  }
+
+  /**
+   * «Себестоимость не указана» — the products, by name, and what they cost the
+   * report.
+   *
+   * `margin.missingCost` has been on the wire since the report was written and
+   * appeared on screen only inside a prose caveat. The number that decides
+   * whether to care — how much earned revenue has no cost behind it — is
+   * `earnedMinor − coveredRevenueMinor`, arithmetic on two figures the server
+   * sent; nothing here is estimated.
+   *
+   * The empty case is stated as the good news it is, not left blank: a card
+   * that renders nothing is indistinguishable from a card that failed.
+   */
+  function renderFinMissing(r) {
+    const names = (r.margin && r.margin.missingCost) || [];
+    const uncovered = Math.max(0, r.money.earnedMinor - r.margin.coveredRevenueMinor);
+    const sub = $("#finMissingSub"), body = $("#finMissing"), foot = $("#finMissingFoot");
+    if (!body) return;
+
+    if (!names.length) {
+      if (sub) sub.textContent = "нет таких товаров";
+      body.innerHTML = `<div class="note">У всех проданных за период товаров себестоимость указана —
+        маржа посчитана по всей выручке.</div>`;
+      if (foot) foot.textContent = "";
+      return;
+    }
+
+    if (sub) sub.textContent = `${names.length} ${finGoods(names.length)} из проданных за период`;
+    body.innerHTML =
+      `<table><thead><tr><th>Товар</th><th>Что известно</th></tr></thead><tbody>` +
+      names.map((n) => `<tr>
+        <td><b>${esc(n)}</b></td>
+        <td><span class="pill warn">себестоимость не задана</span></td>
+      </tr>`).join("") +
+      `</tbody></table>`;
+    if (foot) {
+      foot.textContent =
+        `Продано на ${finTenge(uncovered)} — это выручка, по которой маржа не считается ` +
+        `(${Math.round(r.margin.coverage * 100)}% выручки посчитано). ` +
+        `Себестоимость задаётся в карточке товара: «Склад» → «Товары». ` +
+        `Список — только по товарам, проданным за выбранный период; ` +
+        `товар без цены закупки, который никто не купил, сюда не попадает.`;
+    }
+  }
+
+  /** «товар / товара / товаров» — a count of goods in a Russian sentence. */
+  function finGoods(n) {
+    const a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return "товаров";
+    if (b > 1 && b < 5) return "товара";
+    if (b === 1) return "товар";
+    return "товаров";
   }
 
   {
@@ -11388,16 +11650,20 @@
     $("#supSummary").textContent =
       `${b.items.length} всего · ${b.counts.new} новых · ${b.counts.open} в работе · ${b.counts.closed} закрыто`;
 
+    // «Ведёт» — кто взял обращение. Столбец, а не только карточка: оператор
+    // решает, что открывать, глядя на список, и до этого столбца двое могли
+    // открыть одно и то же обращение и ответить одной женщине дважды.
     $("#supBody").innerHTML = b.items.length
       ? `<table><thead><tr>
-           <th>Ждёт</th><th>Кто</th><th>С чем</th><th>Канал</th><th>Статус</th><th></th>
+           <th>Ждёт</th><th>Кто</th><th>С чем</th><th>Канал</th><th>Ведёт</th><th>Статус</th><th></th>
          </tr></thead><tbody>${b.items.map(supRow).join("")}</tbody></table>`
       : `<div class="note">Обращений пока нет.</div>`;
 
     $("#supRule").innerHTML =
       `Время считается от последнего сообщения клиента до нашего ответа — ` +
       `обращение со статусом «ждём клиента» в счётчик не попадает, ` +
-      `иначе ответ за четыре минуты выглядел бы просрочкой через неделю её молчания.`;
+      `иначе ответ за четыре минуты выглядел бы просрочкой через неделю её молчания. ` +
+      `Столбец «ведёт» — кто взял обращение на себя; пусто значит, что его не взял никто.`;
 
     const badge = $("#supBadge");
     if (badge) {
@@ -11415,15 +11681,91 @@
            has answered was painted as white chrome. -->
       <td>${esc(t.subject)}${t.neverAnswered ? ` <span class="pill crit">без ответа</span>` : ""}</td>
       <td>${esc(SUP_CHANNEL_RU[t.channel] || t.channel)}</td>
+      <td>${supAssignee(t)}</td>
       <td>${esc(SUP_STATUS_RU[t.status] || t.status)}</td>
       <td><button class="btn" type="button" data-ticket="${esc(t.id)}">Открыть</button></td>
     </tr>`;
+  }
+
+  /**
+   * Кто ведёт обращение, в трёх различимых состояниях.
+   *
+   * `assigneeId` — uuid из staff_accounts, и напечатать его было бы то же
+   * самое, что не печатать ничего: коллегу по uuid никто не узнаёт. Имя
+   * приходит с сервера (`assigneeName`), а не собирается здесь — у роли
+   * `support` нет права `staff`, и списка сотрудников у неё быть не должно.
+   *
+   * Три состояния, которые нельзя смешивать: никто не взял; взял тот, чьё имя
+   * мы знаем; взял кто-то, чьё имя не нашлось (удалённый аккаунт или сервер,
+   * который не отдал справочник) — последнее говорится словами, а не пустой
+   * ячейкой, иначе оно читается как «свободно» и обращение возьмут дважды.
+   */
+  function supAssignee(t) {
+    if (!t.assigneeId) return `<span class="sub">никто</span>`;
+    if (t.assigneeName) {
+      const mine = STAFF.id && t.assigneeId === STAFF.id;
+      return `${esc(t.assigneeName)}${mine ? ` <span class="pill neutral">вы</span>` : ""}`;
+    }
+    return `<span class="sub" title="${esc(t.assigneeId)}">взято, имя не найдено</span>`;
+  }
+
+  /** «12.08 14:32» — момент, который человек читает, а не ISO-строка. */
+  function supWhen(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso).slice(0, 16).replace("T", " ");
+    return d.toLocaleString("ru-RU", {
+      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+    });
+  }
+
+  /**
+   * Три поля карточки, которые сервер отдавал с самого начала и которые не
+   * рисовались нигде: кто ведёт, прочитала ли она ответ, когда закрыли.
+   *
+   * `customerReadAt` заполняется ТОЛЬКО когда она открывает тред в приложении
+   * (миграция 035). Для обращения из WhatsApp или со звонка оно всегда пусто —
+   * и «не прочитано» на таком тикете было бы неправдой, поэтому канал, который
+   * прочтение не отслеживает, говорит именно это.
+   *
+   * `closedAt` показывается только когда обращение закрыто: у открытого его
+   * нет, и прочерк на его месте читался бы как «дата потерялась».
+   */
+  function supMeta(d) {
+    const el = $("#scMeta");
+    if (!el) return;
+    const t = d.ticket;
+    const bits = [];
+
+    if (!t.assigneeId) bits.push("Никто не взял обращение на себя");
+    else if (d.assigneeName) {
+      bits.push(STAFF.id && t.assigneeId === STAFF.id
+        ? `Обращение на вас (${d.assigneeName})`
+        : `Обращение ведёт ${d.assigneeName}`);
+    } else bits.push("Обращение кто-то взял, но имя сотрудника не нашлось");
+
+    if (t.channel === "app") {
+      bits.push(t.customerReadAt
+        ? `Она открывала переписку ${supWhen(t.customerReadAt)}`
+        : "Она ещё ни разу не открывала переписку в приложении");
+    } else {
+      bits.push(`Канал «${SUP_CHANNEL_RU[t.channel] || t.channel}» не сообщает, прочитала ли она ответ`);
+    }
+
+    if (t.status === "closed") {
+      bits.push(t.closedAt
+        ? `Закрыто ${supWhen(t.closedAt)}`
+        : "Закрыто (когда — не записано)");
+    }
+
+    el.textContent = bits.join(" · ");
   }
 
   async function supOpen(id) {
     supOpenId = id;
     $("#supCard").hidden = false;
     $("#scThread").innerHTML = `<div style="color:var(--muted)">Загрузка…</div>`;
+    $("#scMeta").textContent = "";
     $("#scReply").value = "";
     let d;
     try {
@@ -11433,6 +11775,19 @@
       return;
     }
     const t = d.ticket;
+    supMeta(d);
+    // «Взять на себя» / «Снять с себя» — одно действие, две стороны. Кнопка
+    // прячется, когда обращение ведёт кто-то другой: отобрать его молча — это
+    // тот же двойной ответ одной женщине, только наоборот.
+    {
+      const take = $("#scTake");
+      if (take) {
+        const mine = !!(STAFF.id && t.assigneeId === STAFF.id);
+        take.hidden = !!t.assigneeId && !mine;
+        take.textContent = mine ? "Снять с себя" : "Взять на себя";
+        take.dataset.mine = mine ? "1" : "";
+      }
+    }
     $("#scTitle").textContent = t.subject;
     $("#scSub").textContent =
       `${t.customerName || "без имени"} · ${t.phone || "нет номера"} · ` +
@@ -11498,6 +11853,34 @@
     const bindS = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
     bindS("#scClose", supClose);
     bindS("#scSend", supSend);
+    // Взять обращение на себя / отпустить. Результат ЗАПРОСА, а не факт его
+    // отправки: молча провалившееся назначение оставляет двух операторов
+    // уверенными, что обращение ведёт каждый из них.
+    bindS("#scTake", async () => {
+      if (!supOpenId) return;
+      const btn = $("#scTake");
+      const mine = btn.dataset.mine === "1";
+      if (!mine && !STAFF.id) {
+        $("#scNote").innerHTML =
+          `<b style="color:var(--crit-text)">Не удалось: панель не знает, кто вы — войдите заново.</b>`;
+        return;
+      }
+      btn.disabled = true;
+      try {
+        await api(`/admin/support/${encodeURIComponent(supOpenId)}`, {
+          method: "PATCH", body: JSON.stringify({ assigneeId: mine ? null : STAFF.id }),
+        });
+        // Перечитываем карточку, а не дорисовываем по памяти: на экране должно
+        // быть то, что сохранил сервер.
+        await supOpen(supOpenId);
+        await loadSupport();
+      } catch (e) {
+        $("#scNote").innerHTML =
+          `<b style="color:var(--crit-text)">Не удалось изменить исполнителя: ${esc(e.message)}</b>`;
+      } finally {
+        btn.disabled = false;
+      }
+    });
     bindS("#scCloseTicket", async () => {
       if (!supOpenId) return;
       // Destructive-ish and visible to the customer's next question, so it asks.

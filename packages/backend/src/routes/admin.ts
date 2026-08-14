@@ -148,11 +148,52 @@ export const photoUrlFor = (productId: string, color: string) =>
   `/shop/products/${encodeURIComponent(productId)}/photo${color ? `?color=${encodeURIComponent(color)}` : ''}`;
 
 const localizedText = z.record(z.string(), z.string());
+/**
+ * An article's own text, per locale (admin frame 16a).
+ *
+ * Capped because this lands in a JSONB payload that is downloaded WHOLE to
+ * every phone by `GET /content` — the catalogue is one document, so one pasted
+ * book costs every mother on a mobile connection her data. 12 000 characters is
+ * roughly two thousand words, several times the longest guide anybody has
+ * asked for, and refusing at the edge names the field instead of letting the
+ * app fail to load a week later.
+ */
+const articleText = z.record(z.string(), z.string().max(12000));
+/** «Красный флаг» — short by nature: the few lines that mean "stop reading". */
+const redFlagText = z.record(z.string(), z.string().max(2000));
 const contentItem = z.object({
   id: z.string().min(1).max(80),
   kind: z.enum(['lesson', 'product']),
   title: localizedText,
   summary: localizedText,
+  /**
+   * The article itself — what a woman actually reads (admin frame 16a).
+   *
+   * A guide used to be a headline, a one-line summary and an external `url`,
+   * which meant tapping one either threw her into a browser or, with no url,
+   * did nothing at all. There was no way to write a guide and no way to read
+   * one. This is the text, in her language, rendered as plain paragraphs.
+   *
+   * Optional, and it stays optional: the published catalogue predates it
+   * entirely, and every one of those items must keep saving. See
+   * content/bilingual.ts for why "optional" does not mean "translatable
+   * later".
+   *
+   * It must be listed here or it would not exist: z.object STRIPS unknown
+   * keys, so an absent field would mean every panel save silently erased an
+   * article somebody had written.
+   */
+  body: articleText.optional(),
+  /**
+   * «Красный флаг» — when to stop reading this and call.
+   *
+   * Its OWN field rather than a paragraph of `body`, because
+   * docs/CLAUDE-app-design.md §4.6 requires red flags in their own block and
+   * never behind «читать дальше». A separate field is what lets the app draw
+   * it above the article and always expanded; buried in the prose it would be
+   * one paragraph among twenty, below the fold, at 2am.
+   */
+  redFlags: redFlagText.optional(),
   url: z.string().max(500).optional(),
   // Minor units (tiyn). Integer on purpose — money in floating point drifts.
   priceMinor: z.number().int().positive().optional(),
@@ -227,7 +268,13 @@ const contentItem = z.object({
   review: z.object({
     by: z.string().max(80),
     at: z.string().max(40),
-    fingerprint: z.string().max(20000),
+    // Generous because the fingerprint now quotes the whole article back (see
+    // content/medicalReview.ts). The panel round-trips the stored review with
+    // every save, so a cap below what textFingerprint can produce would 400
+    // every attempt to re-save an approved article — and the field is ignored
+    // on the way in anyway, so the ceiling only has to be big enough to accept
+    // what this server itself wrote.
+    fingerprint: z.string().max(120000),
   }).optional(),
 }).refine((i) => i.minAgeYears == null || i.maxAgeYears == null || i.minAgeYears <= i.maxAgeYears, {
   // An inverted range matches nobody, so the item would vanish with no error
@@ -3004,6 +3051,34 @@ export function registerAdminRoutes(
   // location are the owner's alone. Every ticket names a person, so all of
   // these are audited.
 
+  /**
+   * Who is holding a ticket, by NAME.
+   *
+   * `assignee_id` is selected on every ticket and was drawn nowhere, so two
+   * operators answered the same woman a minute apart and neither could see the
+   * other had. A raw staff UUID on the screen would not fix that — nobody
+   * recognises a colleague by uuid — so it is resolved here, once per request,
+   * against the roster.
+   *
+   * ONLY the display name crosses the wire. A support operator holds
+   * `customers`, not `staff`, and has no business receiving the roster's phone
+   * numbers and roles as a side effect of opening a ticket.
+   *
+   * An unresolvable id (a deleted account, or a repository that cannot list
+   * staff) comes back as null, and the panel says «имя не найдено» rather than
+   * inventing one or pretending the ticket is unassigned.
+   */
+  async function assigneeNames(ids: Array<string | null>): Promise<Map<string, string>> {
+    const wanted = new Set(ids.filter((id): id is string => !!id));
+    if (!wanted.size) return new Map();
+    const roster = await repo.listStaffAccounts().catch(() => []);
+    const out = new Map<string, string>();
+    for (const a of roster) {
+      if (wanted.has(a.id) && a.displayName) out.set(a.id, a.displayName);
+    }
+    return out;
+  }
+
   app.get('/admin/support', async (req, reply) => {
     const s = await requireCap(req, reply, 'customers');
     if (!s) return;
@@ -3013,6 +3088,7 @@ export function registerAdminRoutes(
     ]);
     await repo.writeAudit({ staffId: s.staffId, action: 'view_support' });
     const board = buildSupportBoard(tickets, new Date().toISOString());
+    const names = await assigneeNames(board.items.map((t) => t.assigneeId));
     return reply.send({
       ...board,
       templates,
@@ -3020,7 +3096,11 @@ export function registerAdminRoutes(
       // The link is built server-side so the panel cannot compose a different
       // one — and so a ticket with no usable number comes back as null rather
       // than as a button that opens nothing.
-      items: board.items.map((t) => ({ ...t, whatsapp: whatsappReplyLink(t) })),
+      items: board.items.map((t) => ({
+        ...t,
+        whatsapp: whatsappReplyLink(t),
+        assigneeName: t.assigneeId ? names.get(t.assigneeId) ?? null : null,
+      })),
     });
   });
 
@@ -3031,8 +3111,12 @@ export function registerAdminRoutes(
     const ticket = await repo.getSupportTicket(id);
     if (!ticket) return reply.code(404).send({ error: 'not found' });
     await repo.writeAudit({ staffId: s.staffId, action: 'view_support_ticket', target: id });
+    const names = await assigneeNames([ticket.assigneeId]);
     return reply.send({
       ticket,
+      // See assigneeNames: the drawer names the colleague who has this ticket,
+      // and null means "we could not resolve the id", not "nobody has it".
+      assigneeName: ticket.assigneeId ? names.get(ticket.assigneeId) ?? null : null,
       replies: await repo.listSupportReplies(id).catch(() => []),
       whatsapp: whatsappReplyLink(ticket),
     });
@@ -3412,7 +3496,32 @@ export function registerAdminRoutes(
     if (!s) return;
     const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
     await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_leads' });
-    return reply.send({ leads: await repo.adminShopLeads(limit) });
+    const leads = await repo.adminShopLeads(limit);
+    /**
+     * The callback queue's own count — and whether it can be trusted as a TOTAL.
+     *
+     * The panel used to count `status === 'new'` over whatever this page
+     * returned and print it as «не обработано: N», while the dashboard printed
+     * «50 из 140» from a real count(*). Two numbers for one queue, and the one
+     * an operator works from was the smaller. Since the page is ordered newest
+     * first, the leads that fall off it are the OLDEST uncalled ones — exactly
+     * the women who have been waiting longest.
+     *
+     * There is no count(*) for leads on the repository (`adminShopLeads` is the
+     * only accessor), so this states what it can stand behind: the count is
+     * over the rows returned, and `exact` is true only when the page held the
+     * whole table. When it is false the panel says so in words rather than
+     * printing a floor as a total.
+     */
+    return reply.send({
+      leads,
+      counts: {
+        shown: leads.length,
+        uncalled: leads.filter((l) => l.status === 'new').length,
+      },
+      limit,
+      exact: leads.length < limit,
+    });
   });
   app.patch('/admin/shop/leads/:id', async (req, reply) => {
     const s = await requireCap(req, reply, 'orders');

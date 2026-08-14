@@ -174,6 +174,18 @@ CREATE TABLE pregnancy_health_metrics (
   recorded_at    TIMESTAMPTZ NOT NULL,
   core_temp_c    REAL,
   skin_temp_c    REAL,
+  -- A temperature a DEVICE reported with no stated measurement site and no
+  -- stated accuracy (the Starmax watch's `当前体温`), in °C, unconverted.
+  --
+  -- Its own column on purpose: it is NOT a core temperature and must never be
+  -- written to, read as, or merged with core_temp_c — with no site there is no
+  -- defensible conversion, and every reader of core_temp_c treats that column
+  -- as an estimate of her core. It is NOT a triage input either: assessTelemetry
+  -- ignores it, and no device path may raise a temperature emergency. Carried
+  -- and stored, never graded — the glucose_mmol precedent below. A thermometer
+  -- reading she TYPES IN is the escalating path, and is untouched by this.
+  -- See migration 048 and docs/CLINICAL-REVIEW-WATCH.md.
+  device_temp_c  REAL,
   heart_rate_bpm SMALLINT,
   spo2_pct       SMALLINT,
   systolic_mmhg  SMALLINT,      -- PPG screening estimate (calibrated)
@@ -186,6 +198,13 @@ CREATE TABLE pregnancy_health_metrics (
   CONSTRAINT sane_hr   CHECK (heart_rate_bpm IS NULL OR heart_rate_bpm BETWEEN 20 AND 250),
   CONSTRAINT sane_spo2 CHECK (spo2_pct IS NULL OR spo2_pct BETWEEN 50 AND 100),
   CONSTRAINT sane_bp   CHECK (systolic_mmhg IS NULL OR systolic_mmhg BETWEEN 60 AND 260),
+  -- A credibility window, not a clinical one: it keeps every temperature a
+  -- person can have and rejects only a mis-decoded frame (the raw field is a
+  -- u16 — a corrupt 4000 becomes 400 °C). 20–45 repeats the wire bound in
+  -- server.ts EXACTLY, because the telemetry path has no plausible() filter
+  -- between the schema and this INSERT; a CHECK narrower than the wire would
+  -- fail the write and make the client resend that reading for ever.
+  CONSTRAINT sane_device_temp CHECK (device_temp_c IS NULL OR device_temp_c BETWEEN 20 AND 45),
   -- Idempotent ingest: the batcher re-sends a whole batch when a flush's RESPONSE
   -- is lost even though the row was stored, so the same reading can arrive twice.
   -- One reading per (user, device, instant) makes the resend a no-op instead of a

@@ -162,11 +162,39 @@ class ContentItem {
   /// of being quietly rewritten to something else on the way back out.
   final String? topic;
 
+  /// THE ARTICLE — what she actually reads (admin frame 16a).
+  ///
+  /// A guide used to be a heading, a one-line [summary] and an external [url].
+  /// Tapping one threw her into a browser; with no url it was not tappable at
+  /// all and rendered as «Скоро». The catalogue had 364 items and not one of
+  /// them contained a sentence anybody could read inside the app.
+  ///
+  /// Plain text, deliberately: a blank line starts a paragraph and nothing
+  /// else is interpreted. Markup would arrive on a phone as literal angle
+  /// brackets, and an HTML renderer in a field the back office types into
+  /// freely is a way to break the layout from a text box.
+  ///
+  /// Empty for everything published before articles existed, which is most of
+  /// the catalogue — see [hasArticle], which is what decides whether there is
+  /// anything to open.
+  final LocalizedText body;
+
+  /// «Красный флаг» — when to stop reading and call.
+  ///
+  /// Its OWN field, not a paragraph of [body], because
+  /// docs/CLAUDE-app-design.md §4.6 puts red flags in their own block and
+  /// never behind «читать дальше». Held apart, the article screen can draw it
+  /// ABOVE the text and always expanded. Inside the prose it would be one
+  /// paragraph among twenty, below the fold, read at 2am or not at all.
+  final LocalizedText redFlags;
+
   const ContentItem({
     required this.id,
     required this.kind,
     required this.title,
     required this.summary,
+    this.body = const LocalizedText({}),
+    this.redFlags = const LocalizedText({}),
     this.url = '',
     this.priceMinor,
     this.currency,
@@ -187,7 +215,28 @@ class ContentItem {
 
   bool get isLesson => kind == ContentKind.lesson;
   bool get isProduct => kind == ContentKind.product;
-  /// Whether tapping this does anything — a page to open, or a video to play.
+
+  /// Whether there is an article to read, in ANY language.
+  ///
+  /// Locale-free on purpose. [LocalizedText] falls back ru → en, so a Kazakh
+  /// reader whose guide has only a Russian body still gets text — the wrong
+  /// language is a known, bounded failure the back office is gated against
+  /// (content/bilingual.ts), and a blank screen is not. Asking "is there a
+  /// body in HER locale" would make the card untappable for exactly the reader
+  /// the fallback exists to serve.
+  bool get hasArticle => body.byLocale.values.any((t) => t.trim().isNotEmpty);
+
+  /// Whether there is a red-flag block to draw above the article.
+  bool get hasRedFlags => redFlags.byLocale.values.any((t) => t.trim().isNotEmpty);
+
+  /// Somewhere else to go: a shop page, a video, a link out. Distinct from
+  /// [hasArticle] because the article screen offers this as a button at the
+  /// end rather than replacing itself with it — a guide that has both must not
+  /// hide its own text behind a video, least of all its red flags.
+  bool get hasSource => url.trim().isNotEmpty || video != null;
+
+  /// Whether tapping this does anything — text to read, a page to open, or a
+  /// video to play.
   ///
   /// This was `url` alone, and that was wrong for the way lessons are actually
   /// authored. The CMS keeps the stream in its own field (`video.url`, kept
@@ -195,7 +244,12 @@ class ContentItem {
   /// fight over one string), so a lesson entered the intended way — a video,
   /// no url — rendered as «Скоро» and could not be opened. The player existed
   /// and worked; nothing could reach it.
-  bool get hasLink => url.trim().isNotEmpty || video != null;
+  ///
+  /// [hasArticle] is here for the same reason one turn later: a guide whose
+  /// whole content is the text somebody wrote in the back office has no url
+  /// and no video, and judging it by those two would render a finished article
+  /// as «Скоро» with no way to open it.
+  bool get hasLink => hasSource || hasArticle;
 
   /// The video to play for a lesson, or null.
   ///
@@ -217,6 +271,11 @@ class ContentItem {
         'kind': kind.name,
         'title': title.toJson(),
         'summary': summary.toJson(),
+        // Omitted when empty, matching every other optional field: the server's
+        // z.object accepts them and an empty map would be stored, downloaded to
+        // every phone and rendered nowhere.
+        if (hasArticle) 'body': body.toJson(),
+        if (hasRedFlags) 'redFlags': redFlags.toJson(),
         if (url.isNotEmpty) 'url': url,
         if (priceMinor != null) 'priceMinor': priceMinor,
         if (currency != null) 'currency': currency,
@@ -235,6 +294,8 @@ class ContentItem {
         kind: j['kind'] == 'product' ? ContentKind.product : ContentKind.lesson,
         title: LocalizedText.fromJson(j['title']),
         summary: LocalizedText.fromJson(j['summary']),
+        body: LocalizedText.fromJson(j['body']),
+        redFlags: LocalizedText.fromJson(j['redFlags']),
         url: '${j['url'] ?? ''}',
         priceMinor: (j['priceMinor'] as num?)?.toInt(),
         currency: j['currency'] as String?,
@@ -719,6 +780,26 @@ Map<ContentTopic, int> guideTopicCounts(List<GuideEntry> guides) {
 
 List<GuideEntry> guidesForTopic(List<GuideEntry> guides, ContentTopic topic) =>
     [for (final g in guides) if (g.topic == topic) g];
+
+/// An article's text broken into the paragraphs the reader sees.
+///
+/// PLAIN TEXT, NOT MARKUP. The back office types into a textarea, and whatever
+/// arrives is rendered as words — no HTML, no Markdown. An article renderer
+/// that interpreted tags would let a stray `<` from a pasted document break
+/// the page, and would put layout control in a content field.
+///
+/// Every non-blank line is a paragraph, so both authoring habits work: one
+/// blank line between paragraphs, or none. Blank lines and surrounding
+/// whitespace are dropped rather than rendered as gaps of varying height —
+/// a document pasted out of Word arrives full of them, and a screen whose
+/// spacing depends on how many stray returns somebody left is not a design.
+///
+/// Returns empty for empty input, which is what [ContentItem.hasArticle]
+/// already screens for; the article screen never has to guard a null.
+List<String> articleParagraphs(String raw) => [
+      for (final line in raw.split('\n'))
+        if (line.trim().isNotEmpty) line.trim(),
+    ];
 
 /// Free-text search over the title and the summary IN THE LOCALE SHE IS
 /// READING.

@@ -35,6 +35,19 @@ export const DEMO_CHILD = '33333333-3333-3333-3333-333333333333';
 export const DEV_STAFF_PHONE = '77000000000';
 export const DEV_STAFF_PASSWORD = 'dev-password';
 
+/**
+ * The dev account's id — a UUID, because staff ids ARE uuids everywhere else.
+ *
+ * It used to be the string `staff-dev`, and new colleagues got `staff-2`,
+ * `staff-3`. Every route that takes a staff id as INPUT validates it as a uuid
+ * (`PATCH /admin/support/:id` sets `assignee_id`, which is
+ * `UUID REFERENCES staff_accounts(id)`), so in memory mode those routes refused
+ * every id this repository could produce: taking a support ticket could not be
+ * exercised, demoed or tested at all without Postgres. The fake, not the route,
+ * was wrong.
+ */
+export const DEV_STAFF_ID = '55555555-5555-4555-8555-555555555555';
+
 export function createMemoryRepository(): Repository {
   const home: Geofence = {
     id: '44444444-4444-4444-4444-444444444444',
@@ -153,6 +166,23 @@ export function createMemoryRepository(): Repository {
   /** App sign-in: normalised phone → user id, and that user's name. */
   const usersByPhone = new Map<string, string>();
   const userNames = new Map<string, string>();
+  /**
+   * When each account appeared — `users.created_at` in Postgres.
+   *
+   * It exists for one reason: `dashboardSnapshot` reported newToday/new7d/new30d
+   * as a hard-coded 0 here while pgRepository counted them, so «сколько людей
+   * пришло сегодня» could not be exercised, demoed or tested against the memory
+   * repository at all. A fake that answers 0 to a question the real one answers
+   * is worse than one that throws — it looks like a working feature nobody is
+   * using.
+   *
+   * DEMO_USER is stamped far in the past on purpose: it is seed data, not
+   * somebody who signed up, and dating it "now" would make every memory-mode
+   * dashboard claim an arrival today that never happened. A real sign-up
+   * through createUserWithPhone is what moves these counters.
+   */
+  const SEEDED_AT = '2024-01-01T00:00:00.000Z';
+  const userCreatedAt = new Map<string, string>([[DEMO_USER, SEEDED_AT]]);
   const userSessions = new Map<
     string,
     { tokenHash: string; userId: string; expiresAt: Date; userAgent: string }
@@ -175,7 +205,7 @@ export function createMemoryRepository(): Repository {
   {
     const salt = randomBytes(16);
     staffAccounts.set(DEV_STAFF_PHONE, {
-      id: 'staff-dev',
+      id: DEV_STAFF_ID,
       phone: DEV_STAFF_PHONE,
       passwordHash: `scrypt$${salt.toString('hex')}$${scryptSync(DEV_STAFF_PASSWORD, salt, 64).toString('hex')}`,
       role: 'admin',
@@ -624,6 +654,13 @@ const UUID_RE =
       const key = `${m.userId}|${m.deviceId}|${m.recordedAt}`;
       if (seenReadings.has(key)) return true; // duplicate resend — do not store again
       seenReadings.add(key);
+      // The whole reading is kept, including `deviceTempC` — the watch's
+      // site-less temperature, which pg writes to its own `device_temp_c`
+      // column. Retained here so a test can show the value survived the wire
+      // schema; NOT copied into `coreTempC`, and `adminUserHealth` below still
+      // reads temperature from `coreTempC` alone, exactly as the pg SELECT
+      // does. A fake that merged them would report a fever the product has
+      // ruled it may not claim.
       healthRows.push(m);
       return false;
     },
@@ -637,6 +674,12 @@ const UUID_RE =
           recordedAt: String(r.recordedAt),
           heartRateBpm: num(r.heartRateBpm), spo2Pct: num(r.spo2Pct), systolicMmHg: num(r.systolicMmHg),
           diastolicMmHg: num(r.diastolicMmHg), coreTempC: num(r.coreTempC), glucoseMmol: num(r.glucoseMmol),
+          // Not read off the row — asserted by the filter above, exactly as the
+          // pg `device_id IS NULL` asserts it. Emitting whatever the stored row
+          // happened to say would make this fake disagree with production for
+          // the one row shape that matters: a reading stored before the field
+          // existed. See the interface for what an absent label costs.
+          source: 'manual' as const,
         }));
     },
     insertBpCalibration: async (userId, cal) => void bpCalibrations.push({ ...cal, userId }),
@@ -659,6 +702,8 @@ const UUID_RE =
       const id = randomUUID();
       usersByPhone.set(a.phone, id);
       userNames.set(id, a.displayName);
+      // Same instant the row would carry in Postgres — see userCreatedAt.
+      userCreatedAt.set(id, new Date().toISOString());
       return { id, displayName: a.displayName };
     },
     createUserSession: async (s) => void userSessions.set(s.tokenHash, s),
@@ -786,7 +831,8 @@ const UUID_RE =
     },
     createStaffAccount: async (a) => {
       if (staffAccounts.has(a.phone)) return null;
-      const id = `staff-${staffAccounts.size + 1}`;
+      // A uuid, like the column — see DEV_STAFF_ID.
+      const id = randomUUID();
       staffAccounts.set(a.phone, { id, ...a, disabled: false });
       staffMeta.set(id, { createdAt: new Date().toISOString(), lastLoginAt: null });
       return { id };
@@ -1745,11 +1791,31 @@ const UUID_RE =
       }
 
       const cityOf = (profile?.city ?? '').trim();
+      // Newcomers, over the same three windows the SQL counts and against the
+      // same `asOf` the rest of this snapshot uses. «Сегодня» is from midnight,
+      // like `date_trunc('day', now())`; the other two are rolling 7 and 30
+      // days, like `now() - interval '7 days'`. Accounts with no recorded
+      // creation instant are counted in none of them rather than in all.
+      //
+      // Bounded at both ends: an account created AFTER the moment the snapshot
+      // is taken is not news from that moment, and in Postgres it could not
+      // exist at all. Without the upper bound a snapshot dated last week counts
+      // everybody who has signed up since as having arrived that day.
+      const asOfMs = new Date(asOf).getTime();
+      const midnight = new Date(`${today}T00:00:00.000Z`).getTime();
+      const createdIn = (fromMs: number) => users.filter((id) => {
+        const at = userCreatedAt.get(id);
+        if (!at) return false;
+        const ms = new Date(at).getTime();
+        return ms >= fromMs && ms <= asOfMs;
+      }).length;
       return {
         asOf,
         users: {
           total: users.length,
-          newToday: 0, new7d: 0, new30d: 0,
+          newToday: createdIn(midnight),
+          new7d: createdIn(asOfMs - 7 * 86_400_000),
+          new30d: createdIn(asOfMs - 30 * 86_400_000),
           dau: bi.dau, wau: bi.wau, mau: bi.mau,
           retentionD7: bi.retention.d7.cohort > 0 ? bi.retention.d7.rate : null,
         },

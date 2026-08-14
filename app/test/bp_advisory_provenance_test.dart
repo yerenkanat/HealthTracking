@@ -106,9 +106,15 @@ void main() {
 
     test('a stored row with no provenance is treated as a wrist, not a cuff', () {
       // The safe reading of an ambiguous row. Assuming manual would restore the
-      // defect across every legacy row at once — and this is not hypothetical:
-      // GET /vitals/manual does not currently emit `source`, so these are the
-      // rows a woman gets back after changing handsets.
+      // defect across every legacy row at once.
+      //
+      // This WAS the live case: `GET /vitals/manual` emitted no `source`, so
+      // every typed thermometer reading came back from the server labelled a
+      // wrist estimate after a handset change — silently demoting the one
+      // source entitled to raise an emergency. The route now states the
+      // provenance its own `device_id IS NULL` filter already guaranteed.
+      // The assertion stays, because rows stored BEFORE that fix still carry
+      // no label, and the safe reading of them has not changed.
       final legacy = HealthSample.fromJson(const {
         'recordedAt': '2026-08-01T09:00:00.000',
         'systolicMmHg': 118.0,
@@ -466,6 +472,17 @@ void main() {
             ),
         ];
 
+    /// The clock these readings are CURRENT on.
+    ///
+    /// Pinned rather than left to `DateTime.now()`, because a second filter now
+    /// stands between these readings and every absorber below: a reassurance
+    /// may claim no more than the readings behind it, and a reading past its
+    /// metric's window no longer feeds one. Without this the whole group would
+    /// pass on the day it was written and assert nothing ever again — the
+    /// wrist BP would be filtered for AGE before the provenance rule it exists
+    /// to pin ever ran.
+    final now = DateTime(2026, 8, 14, 9, 35);
+
     testWidgets('the advisor, the banner, the ring and the clipboard, together',
         (tester) async {
       // 1. THE CARD. The narrow claim, silenced at 21a0a01.
@@ -484,7 +501,9 @@ void main() {
       // as literal text, not by key, because the keys are deleted.
       await tester.pumpWidget(L10nScope(
         l10n: _en,
-        child: MaterialApp(home: HealthDashboardView(samples: wristDay())),
+        child: MaterialApp(
+            home: HealthDashboardView(
+                samples: wristDay(), nowForAppointment: now)),
       ));
       expect(find.text('Your readings are within a healthy range.'), findsNothing);
       expect(find.text('Everything looks stable'), findsNothing);
@@ -496,7 +515,9 @@ void main() {
       // that could be graded: 2 of 3 healthy instead of 0 of 1.
       await tester.pumpWidget(L10nScope(
         l10n: _en,
-        child: MaterialApp(home: HealthDashboardView(samples: wristDay(hr: 145))),
+        child: MaterialApp(
+            home: HealthDashboardView(
+                samples: wristDay(hr: 145), nowForAppointment: now)),
       ));
       final ring = tester.widget<MetricRing>(find.byType(MetricRing).first);
       expect(ring.fraction, 0.0);
@@ -504,7 +525,7 @@ void main() {
       // 5. THE CLIPBOARD. It leaves the app and is read by whoever she sends it
       // to, and it prints the advisory TITLES, so both the row and the fallback
       // card travel.
-      final shared = buildHealthSummary(_en, wristDay());
+      final shared = buildHealthSummary(_en, wristDay(), now: now);
       expect(shared, isNot(contains('118/76')));
       expect(shared, isNot(contains('mmHg')));
       expect(shared, contains(_en.t('share_bp_cuff_only')));
@@ -553,7 +574,7 @@ void main() {
           ),
       ];
       expect(_codes(generateAdvisories(cuffDay)), contains('ADV_BP_STEADY'));
-      final shared = buildHealthSummary(_en, cuffDay);
+      final shared = buildHealthSummary(_en, cuffDay, now: now);
       expect(shared, contains('118/76'));
       expect(shared, isNot(contains(_en.t('share_bp_cuff_only'))));
     });
@@ -577,7 +598,7 @@ void main() {
             source: ReadingSource.sensor,
           ),
       ];
-      final shared = buildHealthSummary(_en, mixed);
+      final shared = buildHealthSummary(_en, mixed, now: DateTime(2026, 8, 14, 14));
       expect(shared, contains('118/76'));
       expect(shared, isNot(contains('129/84')));
     });
