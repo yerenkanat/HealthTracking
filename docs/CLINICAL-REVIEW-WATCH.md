@@ -104,6 +104,39 @@ Refused in advance, with the reason, so they are not re-proposed:
     Asserts her temperature. And «измерьте снова» does not name the instrument,
     when the only one to hand is the same wrist; re-reading it is not a second
     measurement.
+17. **«Давление повышено» — `ADV_BP_ELEVATED_b` — from a device sample.** The
+    card's own firing window (135–139 / 85–89) sits ENTIRELY INSIDE the
+    ±10–15 mmHg the wrist estimate carries, so the sentence states as fact the
+    one thing the reading cannot establish. «Измерьте снова» repeats #16, and is
+    worse here: a wrist BP also depends on a calibration that expires at 8 days,
+    so the repeat can be wrong in the same direction indefinitely.
+18. **«Выпейте воды» as a response to raised blood pressure.** Hydration is not
+    a treatment for hypertension, no cited source offers it, and beside «при
+    стойком повышении» it produces wait-and-see on the one condition this
+    product exists to catch. A woman with a wrist 137 and a headache with visual
+    sparks was being told to rest and drink water.
+19. **A bare unitless systolic as a card badge.** Half a reading, no unit, in
+    bold, beside copy explaining it is not a measurement.
+20. **A cuff threshold printed beside a wrist estimate.** Numeric permission
+    follows the SOURCE, not the metric — see the asymmetry ruling below.
+21. **«Всё стабильно» / «Всё стабильно, {name}» / «Ваши показатели в пределах
+    нормы» — `ADV_ALL_STEADY`, `db_peace_stable`, `db_peace_stable_noname`,
+    `db_peace_stable_b`. LIVE.** `db_peace_stable_b` is refused sentence #2
+    shipping **unchanged, one day after it was written down here**, and the
+    banner attaches her NAME to a normality verdict. Replaced by
+    `ADV_NOTHING_UNUSUAL`; the old keys are deleted so no call site can keep
+    rendering them.
+22. **«Сахар в норме» — `ADV_GLUCOSE_STEADY`. LIVE, and it is refused sentence
+    #5 word for word** — on an optical estimate in a unit the vendor never
+    states, in the app, after the same metric was withdrawn from the panel.
+    **«Низкий сахар» — `ADV_GLUCOSE_LOW`** asserts hypoglycaemia from that same
+    undocumented unit.
+23. **A device blood pressure counted as "healthy"** in the dashboard ring or
+    graded green on a tile. It may turn the ring RED — the product does escalate
+    device BP at 140/90 — but it may not contribute reassurance, and the 135/85
+    it would be graded against is uncited.
+24. **Any advisory title that needs its body to be true.** The clipboard export
+    sends titles only; a title is a standalone published sentence.
 
 ## Triage changed once — here is what did not
 
@@ -169,6 +202,95 @@ accepted, because it is not created by this decision: a genuine fever in a cool
 room reads low on the wrist today and raises nothing today. The change makes the
 silence honest rather than arbitrary. It is accepted **conditional on** removing
 the false reassurance that currently fills it (refused sentence #15).
+
+## The absorber rule — 2026-08-14
+
+The rule exists because of a specific mistake, and the mistake was mine.
+Silencing `ADV_BP_STEADY` for device readings did not produce silence. A day of
+normal wrist readings fell through to `ADV_ALL_STEADY` — «Всё стабильно» — so a
+blood-pressure reassurance was **promoted into a whole-body one**, which also
+travels to the clipboard, because the export sends titles only. The narrow
+claim was replaced by a wider one.
+
+> **A reassurance may claim no more than the reading it was computed from, and
+> no more than the product is entitled to say about that reading's source. When
+> a positive claim is silenced for provenance, every aggregate that can include
+> that metric must be given the same filter IN THE SAME COMMIT — otherwise the
+> reassurance survives as a broader one, and a broader reassurance is worse than
+> the specific one that was removed.**
+>
+> Corollary, and it is the shape of every ruling in this file: **gate the
+> positives, never the warnings.** The costs are not symmetric. A missed warning
+> is a woman at home with preeclampsia. A missed reassurance is a woman not told
+> she is fine — which is what the product owes her anyway.
+
+So a partial provenance fix can be **worse than none**, and the question to ask
+in the same commit is: *what else on this product can say she is fine?*
+
+Every surface that answers "is anything wrong?" is an absorber:
+
+| Absorber | State |
+|---|---|
+| `ADV_ALL_STEADY` fallback | refused — see #21 |
+| Dashboard peace banner headline + sub | refused — #2 was live here |
+| Ring "healthy fraction" | device BP counted as healthy — refused, #23 |
+| Tile grade / colour / out-of-range label | temperature gated; BP still green on an uncited band |
+| Clipboard summary | BP row refused; titles rule #24 |
+| Visit summary | **already correct — the model for the rest** |
+
+When a new metric is silenced, that table is the checklist.
+
+### Titles are published sentences
+
+> Every advisory title must be true, non-misleading and complete **with no body
+> text, no number, and no surrounding screen**: it must make no assertion about
+> her body that only the body qualifies, name the instrument whenever the claim
+> depends on it, claim no wider scope than the metric it was computed from, and
+> survive being read by a stranger she forwarded it to.
+
+Not a preference — the clipboard export maps advisories to their titles and
+never touches the body, so **every title already ships without its qualifier,
+out of the app, to an unknown reader.** `ADV_TEMP_DEVICE_HIGH` passes only
+because it names the sensor in the title; that was deliberate and must not be
+treated as incidental.
+
+Two checks are worth building, and neither can judge truth: a **reviewed-titles
+manifest** pinning each title by hash with a review date, so changing medical
+copy without re-review is a build failure; and a **deny-list regression guard**
+asserting the refused phrasings above are absent from every string in every
+locale. Crude, but refused sentences have now re-entered or persisted unnoticed
+**twice**.
+
+## Device blood pressure — closed 2026-08-14
+
+The reassurance half shipped at 21a0a01: `ADV_BP_STEADY` no longer fires from a
+wrist estimate. This is the warning half, and it is not symmetric with it —
+the warning still fires from every source, under a new code with new copy,
+because refusing to reassure is not refusing to warn.
+
+**The live contradiction found on the way** and fixed first, independently of
+any wording: the elevated card fires on `sysElevated || diaElevated`, so a
+reading of **150/86** produced a calm "rest and re-measure" advisory while
+`assessTelemetry` raised `PREECLAMPSIA_BP` at emergency severity on the same
+sample. Two screens in one app disagreeing about whether she is in danger.
+
+**The number rule is asymmetric on purpose, and must not be "harmonised".**
+140/90 MAY be printed on the cuff card — it is attributed to ACOG in this
+repository and is the threshold the product actually acts on, so it gives her a
+checkable rule instead of an adjective. It may NOT appear on the device card:
+not a citation gap this time but a validity one, since a cuff threshold beside a
+wrist estimate invites precisely the comparison the estimate cannot support.
+135/85 may never appear anywhere — they fire the card and appear in no cited
+source. **The temperature "no numbers" rule was a consequence of ITS citation
+gap and does not generalise; do not carry it across by analogy.**
+
+«Измерьте тонометром» was approved only as one branch of three. The instrument
+ground that carried the thermometer instruction does not hold — a cuff is not as
+common in a Kazakh household — so the copy also names the route that needs no
+equipment (blood pressure is measured at every antenatal visit, per the
+protocol) and, unconditionally for both, the reviewed preeclampsia red flags and
+103. That last branch is the only part that helps the woman whose wrist reads
+137 while her true pressure is 160.
 
 ## The verdict has one regression path, and it is open
 
