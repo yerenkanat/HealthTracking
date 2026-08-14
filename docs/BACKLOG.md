@@ -141,8 +141,15 @@ Also shipped, and not previously on this list:
 **Admin:** 07a Поставки · 07g Поставщики · 02b CSV export · 25 Уведомления ·
 26 Настройки · 26b Служебные страницы · 27 Карта действий · 20a Когорты ·
 09b Сегменты · 08c диалоги · 16b экстренная помощь · 17a расписание аудио.
-Also 16a «Проверка врачом» asks for a signature **without showing the text**
-being signed — the route deliberately sends only the title.
+~~Also 16a «Проверка врачом» asks for a signature **without showing the text**
+being signed — the route deliberately sends only the title.~~ **Closed.**
+`/admin/content/review-queue` now sends everything `textFingerprint` quotes —
+summary, article and «Красный флаг» in every language, plus the link and the
+video — and the queue row renders it above the «Подтвердить» button. It had to
+be: the fingerprint grew to cover the article body, so a title-only screen
+turned the signature into a rubber stamp over paragraphs the clinician had
+never been shown, and the `clinician` role holds no other screen that displays
+a body (the guides editor is `content`).
 
 **App:** 27 «Гиды» (a library gathering the seven guide screens that exist and
 are each buried under a different parent) · 30's actionable half (mood + EPDS) ·

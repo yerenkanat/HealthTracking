@@ -73,7 +73,10 @@ async function until(what: string, ready: () => boolean, ms = 5000) {
   }
 }
 
-async function open(catalog: unknown = CATALOG) {
+/** How the server answers a write — used to drive the panel's error path. */
+type WriteReply = { status: number; body: unknown };
+
+async function open(catalog: unknown = CATALOG, onWrite?: () => WriteReply) {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const sent: Sent[] = [];
@@ -104,6 +107,13 @@ async function open(catalog: unknown = CATALOG) {
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
           sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });
+          if (onWrite) {
+            const r = onWrite();
+            const text = JSON.stringify(r.body);
+            // api() throws `${status} ${text}` — the exact string publishError
+            // has to make sense of.
+            return { ok: r.status < 400, status: r.status, text: async () => text, json: async () => r.body };
+          }
         }
         const body =
           p.includes('/admin/me') ? { staffId: 's1', role: 'owner', displayName: 'Ерен' }
@@ -257,6 +267,102 @@ describe('publish is blocked while the article is half-translated', () => {
     expect(($('#saveStage') as HTMLButtonElement).disabled).toBe(true);
     type(area(0, 'body.kk'), BODY_KK);
     expect(($('#saveStage') as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe('the length limit is visible while typing, not after a 400', () => {
+  // The caps live in routes/admin.ts (12 000 for the article, 2 000 for the red
+  // flags). They used to exist ONLY there, and reached the editor as
+  // `{"error":{"formErrors":[],"fieldErrors":{"items":["String must contain at
+  // most 12000 character(s)"]}}}` — English, with no card, no field and no
+  // language in it.
+  it('every article box carries the cap the server enforces', async () => {
+    const { area } = await open();
+    expect(area(0, 'body.ru').getAttribute('maxlength')).toBe('12000');
+    expect(area(0, 'body.kk').getAttribute('maxlength')).toBe('12000');
+    expect(area(0, 'redFlags.ru').getAttribute('maxlength')).toBe('2000');
+    expect(area(0, 'redFlags.kk').getAttribute('maxlength')).toBe('2000');
+  });
+
+  it('and says it in words above each block', async () => {
+    const { items } = await open();
+    const text = (items()[0].textContent ?? '').replace(/ | /g, ' ');
+    expect(text).toContain('12 000 знаков');
+    expect(text).toContain('2 000 знаков');
+  });
+
+  it('a counter beside the box, from the first draw and on every keystroke', async () => {
+    const { items, area, type } = await open();
+    const counter = (i: number, f: string) =>
+      (items()[i].querySelector(`[data-count="${f}"]`)?.textContent ?? '')
+        .replace(/ | /g, ' ');
+    // Drawn with what was loaded, not zero.
+    expect(counter(0, 'body.ru')).toContain(`${BODY_RU.length} / 12 000`);
+    type(area(1, 'body.ru'), 'три');
+    expect(counter(1, 'body.ru')).toContain('3 / 12 000');
+  });
+
+  it('at the cap it says the text will not go any further', async () => {
+    // maxlength truncates a paste silently. Silence there is the same defect as
+    // the 400: something was lost and nothing said so.
+    const { items, area, type } = await open();
+    type(area(1, 'redFlags.ru'), 'я'.repeat(2000));
+    const c = items()[1].querySelector('[data-count="redFlags.ru"]') as HTMLElement;
+    expect(c.textContent).toContain('предел');
+    expect(c.className).toContain('full');
+  });
+});
+
+describe('a refused publish is a sentence, not a zod object', () => {
+  it('names the card, the block and the language when the text is too long', async () => {
+    const { $, sent, area, type } = await open(CATALOG, () => ({
+      status: 400,
+      body: { error: { formErrors: [], fieldErrors: { items: ['String must contain at most 12000 character(s)'] } } },
+    }));
+    // maxlength stops a person reaching this; the draft is set directly, which
+    // is what a paste into an older browser — or a second field cap — would do.
+    type(area(1, 'body.ru'), 'a');
+    (area(1, 'body.ru') as HTMLTextAreaElement).removeAttribute('maxlength');
+    type(area(1, 'body.ru'), 'ы'.repeat(12001));
+    type(area(1, 'body.kk'), 'ы'.repeat(12001));
+    ($('#saveStage') as HTMLButtonElement).click();
+    await until('the publish to be sent', () => sent.some((r) => r.method === 'PUT'));
+    await until('the error to be shown', () => ($('#saveMsg').textContent ?? '').length > 0);
+
+    const msg = ($('#saveMsg').textContent ?? '').replace(/ | /g, ' ');
+    expect(msg).toContain('w23-nursery');
+    expect(msg).toContain('текст статьи');
+    expect(msg).toContain('русский');
+    expect(msg).toContain('12 000');
+    // …and not the raw English object.
+    expect(msg).not.toContain('fieldErrors');
+    expect(msg).not.toContain('String must contain');
+  });
+
+  it('a zod refusal about anything else is still readable Russian', async () => {
+    const { $, sent } = await open(CATALOG, () => ({
+      status: 400,
+      body: { error: { formErrors: [], fieldErrors: { items: ['Required'] } } },
+    }));
+    ($('#saveStage') as HTMLButtonElement).click();
+    await until('the publish to be sent', () => sent.some((r) => r.method === 'PUT'));
+    await until('the error to be shown', () => ($('#saveMsg').textContent ?? '').length > 0);
+    const msg = $('#saveMsg').textContent ?? '';
+    expect(msg).toContain('Сервер не принял карточки');
+    expect(msg).not.toContain('fieldErrors');
+  });
+
+  it('a named refusal from the server is passed through as written', async () => {
+    // The translation and review gates write their own Russian sentence; this
+    // must not bury it under a generic one.
+    const { $, sent } = await open(CATALOG, () => ({
+      status: 409,
+      body: { error: 'review_required', message: '«w23-bleeding»: медицинский текст без проверки врачом' },
+    }));
+    ($('#saveStage') as HTMLButtonElement).click();
+    await until('the publish to be sent', () => sent.some((r) => r.method === 'PUT'));
+    await until('the error to be shown', () => ($('#saveMsg').textContent ?? '').length > 0);
+    expect($('#saveMsg').textContent).toContain('без проверки врачом');
   });
 });
 

@@ -345,6 +345,25 @@
     background:var(--surface-2);color:var(--ink);min-height:96px;resize:vertical}
   .artrow.flags textarea{min-height:56px;background:var(--warn-soft,var(--surface-2))}
   .arthead{font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 2px}
+  /* Live length against the server's cap (12 000 / 2 000). Without it the only
+     news of a limit was an English zod sentence after pressing «Опубликовать»,
+     with no card, no field and no language named. */
+  .artcount{font:11px/1.4 var(--mono);color:var(--muted);align-self:flex-end;min-width:96px;text-align:right}
+  .artcount.near{color:var(--warn-text,var(--muted))}
+  .artcount.full{color:var(--crit-text,var(--muted));font-weight:700}
+  /* «Проверка врачом» — the text being signed, shown on the signing screen.
+     pre-wrap because the app renders paragraphs: what the reviewer reads has
+     the same breaks as what ships. */
+  .revcard{border:1px solid var(--hair);border-radius:var(--r);padding:12px 14px}
+  .revblock{margin-top:10px}
+  .revlabel{font-size:11px;font-weight:700;letter-spacing:.2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .revtext{white-space:pre-wrap;font-size:13px;line-height:1.5;color:var(--ink);
+    background:var(--surface-2);border:1px solid var(--hair);border-radius:8px;padding:8px 10px;margin-top:4px;
+    max-height:340px;overflow:auto}
+  .revblock.flags .revtext{background:var(--warn-soft,var(--surface-2))}
+  .revtext .lang{display:block;font:11px/1.4 var(--mono);color:var(--muted);margin-bottom:4px}
+  .revlinks{margin-top:8px;font-size:12px;color:var(--muted);word-break:break-all}
+  .revfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
   .chip.warn{background:var(--warn-soft,var(--surface-2));color:var(--warn-text,var(--muted))}
   .chip.ok{background:var(--good-soft,var(--surface-2));color:var(--good-text,var(--muted))}
   .reasonwrap{position:fixed;inset:0;background:rgba(30,20,26,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -8734,6 +8753,55 @@
     stale: "текст изменён после проверки — материал опубликован",
   };
 
+  const REVIEW_LOC = { ru: "русский", kk: "қазақша", en: "english" };
+
+  /**
+   * The text a clinician is about to put their name against.
+   *
+   * WHY IT IS HERE AND NOT A LINK. The signature covers the whole card —
+   * title, summary, link, video, the article and «Красный флаг» (see
+   * content/medicalReview.ts textFingerprint). The queue used to show the
+   * title alone, so «Подтвердить» signed paragraphs nobody had been shown, and
+   * this role cannot go and read them anywhere else: the guides editor needs
+   * `content` and a clinician holds `health`. This screen is the only place
+   * the text reaches them.
+   *
+   * «Красный флаг» first, matching the app: it is drawn above the article
+   * there, and a reviewer should meet it in the same order the mother does.
+   *
+   * Plain text in a <div class="revtext"> with pre-wrap — the app renders
+   * paragraphs, not markup, so anything that styled it here would show the
+   * reviewer something other than what ships.
+   */
+  function reviewTextBlocks(r) {
+    const block = (label, dict, cls) => {
+      const locs = Object.keys(dict || {}).filter((L) => String(dict[L] || "").trim());
+      if (!locs.length) return "";
+      // ru first, then kk, then anything else — the order they are read in.
+      locs.sort((a, b) => (a === "ru" ? -1 : b === "ru" ? 1 : a < b ? -1 : 1));
+      return `<div class="revblock ${cls}">
+        <div class="revlabel">${esc(label)}</div>
+        ${locs.map((L) => `<div class="revtext"><span class="lang">${esc(REVIEW_LOC[L] || L)}</span>${esc(dict[L])}</div>`).join("")}
+      </div>`;
+    };
+    const parts =
+      block("Красный флаг — показывается НАД текстом, всегда раскрыт", r.redFlags, "flags") +
+      block("Описание под заголовком", r.summary, "") +
+      block("Текст статьи", r.body, "");
+    const links = [
+      r.url ? `ссылка: ${esc(r.url)}` : "",
+      r.video ? `видео: ${esc(r.video)}` : "",
+    ].filter(Boolean).join(" · ");
+    // «Пустые состояния говорят причину». A medical card with no text at all is
+    // a real shape — a link or a video under a heading — and the reviewer has
+    // to know that is ALL they are signing, not that the panel failed to load.
+    const nothing = !parts && !links
+      ? `<div class="revblock"><div class="revtext sub">В карточке нет ни текста, ни ссылки — подпись подтвердит только заголовок.</div></div>`
+      : "";
+    return parts + nothing +
+      (links ? `<div class="revlinks">${links}</div>` : "");
+  }
+
   async function renderReview(){
     const box=$("#reviewBody");
     if(!box) return;
@@ -8753,19 +8821,26 @@
         Материалы появляются здесь, когда редактор помечает карточку как медицинскую.</div>`;
       return;
     }
+    // The button sits BELOW the text, not beside the title: it is the last
+    // thing reached after reading, and a «Подтвердить» level with the heading
+    // is one that gets pressed without scrolling.
     box.innerHTML=rows.map(r=>`
-      <div class="mrow" data-review="${esc(r.stage)}|${esc(r.id)}">
+      <div class="mrow revcard" data-review="${esc(r.stage)}|${esc(r.id)}">
         <div class="mrow-head">
           <span class="mrow-label">${esc(r.title)}</span>
-          <button type="button" class="btn sm" data-approve="${esc(r.stage)}|${esc(r.id)}">Подтвердить</button>
         </div>
         <div class="sub">${esc(r.stage)} · ${esc(r.id)} · ${esc(REVIEW_REASON[r.reason]||r.reason)}${r.draft?" · черновик":""}</div>
+        ${reviewTextBlocks(r)}
+        <div class="revfoot">
+          <button type="button" class="btn sm" data-approve="${esc(r.stage)}|${esc(r.id)}">Подтвердить</button>
+          <span class="sub">Подпись закрывает весь текст выше. Любая правка снимает её.</span>
+        </div>
       </div>`).join("");
 
     box.querySelectorAll("[data-approve]").forEach(b=>b.addEventListener("click",async()=>{
       const [stage,id]=b.dataset.approve.split("|");
       // Signing off medical advice is a named, recorded act, not a click.
-      if(!window.confirm("Подтвердить, что этот текст проверен вами? Ваше имя попадёт в журнал.")) return;
+      if(!window.confirm("Подтвердить, что весь текст этой карточки — описание, статья и «Красный флаг» — проверен вами? Ваше имя попадёт в журнал.")) return;
       b.disabled=true;
       try{
         await apiSend(`/admin/content/${encodeURIComponent(stage)}/${encodeURIComponent(id)}/review`,"POST");
@@ -10531,17 +10606,55 @@
    * publish gate refuses a half-translated article by name (content/bilingual),
    * and the layout is what makes that requirement obvious while typing.
    */
+  /**
+   * How long each block may be, matching routes/admin.ts (articleText,
+   * redFlagText) EXACTLY.
+   *
+   * Duplicated on purpose. The server's cap is the one that holds — the
+   * catalogue is downloaded whole to every phone, and a pasted book costs every
+   * mother her data. This copy exists so the person typing sees the limit while
+   * they type, instead of meeting it as an English zod sentence that names
+   * neither the card nor the field nor the language.
+   */
+  const ART_MAX = { body: 12000, redFlags: 2000 };
+
   function articleRows(item) {
-    const box = (group, L, ph) =>
-      `<textarea data-f="${group}.${L}" placeholder="${esc(ph)}" ` +
-      `aria-label="${group} ${L}">${esc((item[group] || {})[L] || "")}</textarea>`;
+    const box = (group, L, ph) => {
+      const v = (item[group] || {})[L] || "";
+      return `<textarea data-f="${group}.${L}" placeholder="${esc(ph)}" maxlength="${ART_MAX[group]}" ` +
+        `aria-label="${group} ${L}">${esc(v)}</textarea>` +
+        `<span class="artcount" data-count="${group}.${L}">${artCountText(group, v.length)}</span>`;
+    };
     return `
-      <div class="arthead">Статья — обычный текст, пустая строка начинает абзац. Пусто: карточка останется ссылкой.</div>
+      <div class="arthead">Статья — обычный текст, пустая строка начинает абзац. Пусто: карточка откроется на видео или ссылке. До ${fmt(ART_MAX.body)} знаков на язык.</div>
       ${LOCALES.map((L) => `
         <div class="row artrow"><span class="lang">${L}</span>${box("body", L, `текст статьи (${L})`)}</div>`).join("")}
-      <div class="arthead">Красный флаг — когда закрыть статью и звонить. Показывается НАД текстом и всегда раскрыт.</div>
+      <div class="arthead">Красный флаг — когда закрыть статью и звонить. Показывается НАД текстом и всегда раскрыт. До ${fmt(ART_MAX.redFlags)} знаков на язык.</div>
       ${LOCALES.map((L) => `
         <div class="row artrow flags"><span class="lang">${L}</span>${box("redFlags", L, `когда сразу звонить 103 (${L})`)}</div>`).join("")}`;
+  }
+
+  /** «1 240 / 12 000», and at the cap it says the browser is now cutting. */
+  function artCountText(group, len) {
+    const max = ART_MAX[group];
+    return len >= max
+      ? `${fmt(len)} / ${fmt(max)} — предел, дальше не влезет`
+      : `${fmt(len)} / ${fmt(max)}`;
+  }
+
+  /** Keep every counter beside its box honest as somebody types or pastes. */
+  function updateArticleCounters(scope) {
+    (scope || document).querySelectorAll('.artrow textarea[data-f]').forEach((ta) => {
+      const [group] = String(ta.dataset.f).split(".");
+      const max = ART_MAX[group];
+      if (!max) return;
+      const out = ta.parentElement?.querySelector(`[data-count="${ta.dataset.f}"]`);
+      if (!out) return;
+      const len = ta.value.length;
+      out.textContent = artCountText(group, len);
+      out.classList.toggle("near", len >= max * 0.9 && len < max);
+      out.classList.toggle("full", len >= max);
+    });
   }
 
   function itemHtml(item, idx) {
@@ -10698,6 +10811,10 @@
     // field is filled rather than on some later re-render.
     box.querySelectorAll("[data-f]").forEach((el) =>
       el.addEventListener("input", updatePublishState));
+    // The length beside each article box, from the first draw and on every
+    // keystroke — a cap nobody can see is a cap met as a 400.
+    box.addEventListener("input", () => updateArticleCounters(box));
+    updateArticleCounters(box);
     updatePublishState();
   }
 
@@ -10918,16 +11035,83 @@
       renderMap();
       setMsg(`Опубликовано: ${res.items} — ${stageLabel(selected)}.`, "ok");
     } catch (e) {
-      // Surface the server's reason — "duplicate id", "unknown stage", or the
-      // named list of cards missing a translation. api() throws
-      // `400 {"error":...}`, and showing that raw is how a content editor ends
-      // up asking a developer what a 400 is.
-      const raw = String(e.message || e);
-      let shown = raw;
-      const json = raw.slice(raw.indexOf("{"));
-      try { shown = JSON.parse(json).message || raw; } catch (_) { /* not JSON */ }
-      setMsg(shown, "err");
+      setMsg(publishError(e), "err");
     }
+  }
+
+  /**
+   * The server's refusal, in a sentence a content editor can act on.
+   *
+   * api() throws `400 {"error":…}`, and `.error` comes in THREE shapes:
+   *
+   *   • `{message: "…"}` — already written for a person (the review gate, the
+   *     translation gate). Shown as it is.
+   *   • `{error: "duplicate_id"}` — a code, named here in Russian.
+   *   • `{error: {formErrors, fieldErrors}}` — zod's `.flatten()`, which has NO
+   *     `message` key at all. Reading only `.message` fell through to printing
+   *     `{"error":{"formErrors":[],"fieldErrors":{"items":["String must contain
+   *     at most 12000 character(s)"]}}}` at somebody who had just pasted a long
+   *     guide into a stage of twenty cards — no card, no field, no language,
+   *     and in English.
+   *
+   * The length case is the one that will actually happen (the article is the
+   * field designed to hold a lot of text), so the draft is re-checked HERE
+   * against the same caps and the offending cards are named. The server said
+   * "items"; this says which card, which block and which language.
+   */
+  function publishError(e) {
+    const raw = String(e.message || e);
+    const at = raw.indexOf("{");
+    if (at < 0) return raw;
+    let payload = null;
+    try { payload = JSON.parse(raw.slice(at)); } catch (_) { return raw; }
+    if (payload && typeof payload.message === "string") return payload.message;
+
+    const long = tooLong();
+    if (long.length) {
+      const first = long.slice(0, 3).map((b) =>
+        `«${b.id}» — ${FIELD_NAME[b.field]}, ${LOC_NAME[b.loc] || b.loc}: ${fmt(b.len)} из ${fmt(b.max)}`).join("; ");
+      return `Слишком длинный текст: ${first}` +
+        (long.length > 3 ? ` и ещё ${long.length - 3}` : "") +
+        ". Сократите или разбейте на две карточки.";
+    }
+
+    const err = payload ? payload.error : null;
+    if (typeof err === "string") return SERVER_REFUSAL[err] || `Сервер отклонил публикацию: ${err}`;
+    if (err && typeof err === "object") {
+      // Whatever zod complained about, said once rather than as a nested object.
+      const msgs = [
+        ...(Array.isArray(err.formErrors) ? err.formErrors : []),
+        ...Object.values(err.fieldErrors || {}).flat(),
+      ];
+      const uniq = [...new Set(msgs.map(String))];
+      if (uniq.length) {
+        return "Сервер не принял карточки: " + uniq.slice(0, 3).join("; ") +
+          ". Проверьте длину текста и обязательные поля.";
+      }
+    }
+    return raw;
+  }
+
+  const SERVER_REFUSAL = {
+    duplicate_id: "Два одинаковых id в одном этапе — id должен быть уникальным.",
+    unknown_stage: "Такого этапа нет на сервере — обновите страницу.",
+    forbidden: "Нет доступа к редактированию контента.",
+  };
+
+  /** Cards whose article or red-flag block is over the server's cap. */
+  function tooLong() {
+    const bad = [];
+    for (const item of draft) {
+      for (const field of ["body", "redFlags"]) {
+        const dict = item[field] || {};
+        for (const loc of Object.keys(dict)) {
+          const len = String(dict[loc] || "").length;
+          if (len > ART_MAX[field]) bad.push({ id: item.id, field, loc, len, max: ART_MAX[field] });
+        }
+      }
+    }
+    return bad;
   }
 
   function addItem(kind) {

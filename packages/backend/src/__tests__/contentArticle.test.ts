@@ -306,6 +306,85 @@ describe('the fingerprint of a card with no article is unchanged', () => {
   });
 });
 
+describe('the queue shows the clinician what the signature covers', () => {
+  // The signature grew to quote the whole article. A queue that still sent only
+  // the title asked a clinician to put their name in the audit log against
+  // paragraphs they had never been shown — and they cannot go and read them:
+  // the guides editor needs `content`, and this role holds `health`.
+  const MEDICAL = { ...ARTICLE, medical: true, draft: true };
+  const queue = (app: FastifyInstance) =>
+    app.inject({ method: 'GET', url: '/admin/content/review-queue' });
+
+  it('sends the article and the red flags, in every language', async () => {
+    const editor = makeApp('content');
+    const doctor = makeApp('clinician');
+    await save(editor, [MEDICAL]);
+
+    const res = await queue(doctor);
+    expect(res.statusCode, res.body).toBe(200);
+    const row = res.json().waiting.find((w: { id: string }) => w.id === ARTICLE.id);
+    expect(row, 'the card is not in the queue at all').toBeDefined();
+    expect(row.body.ru).toBe(BODY_RU);
+    expect(row.body.kk).toBe(BODY_KK);
+    expect(row.redFlags.ru).toContain('103');
+    expect(row.redFlags.kk).toContain('103');
+    expect(row.summary.ru).toBe(ARTICLE.summary.ru);
+    await editor.close();
+    await doctor.close();
+  });
+
+  it('and the link and the video, because swapping either revokes the review', async () => {
+    const editor = makeApp('content');
+    const doctor = makeApp('clinician');
+    await save(editor, [{
+      ...MEDICAL,
+      url: 'https://example.kz/bleeding',
+      video: { provider: 'hls', url: 'https://cdn/x.m3u8' },
+    }]);
+    const row = (await queue(doctor)).json().waiting[0];
+    expect(row.url).toBe('https://example.kz/bleeding');
+    expect(row.video).toContain('https://cdn/x.m3u8');
+    await editor.close();
+    await doctor.close();
+  });
+
+  it('a card with no text at all says so with empty fields, never undefined', async () => {
+    // The panel prints these; `undefined` there is «Пусто» rendered as a crash.
+    const editor = makeApp('content');
+    const doctor = makeApp('clinician');
+    await save(editor, [{ ...HEADLINE_ONLY, medical: true, draft: true }]);
+    const row = (await queue(doctor)).json().waiting[0];
+    expect(row.body).toEqual({});
+    expect(row.redFlags).toEqual({});
+    expect(row.url).toBe('');
+    expect(row.video).toBe('');
+    await editor.close();
+    await doctor.close();
+  });
+
+  it('after an edit the queue carries the NEW text, not the approved one', async () => {
+    // A rewritten card comes back into the queue (carryReview drops a signature
+    // the text no longer matches), and what it shows must be what it says NOW.
+    // Re-reading the approved paragraphs would be worse than reading nothing:
+    // it would approve the edit while showing the version that was fine.
+    const editor = makeApp('content');
+    const doctor = makeApp('clinician');
+    await save(editor, [MEDICAL]);
+    await review(doctor, ARTICLE.id);
+    await save(editor, [{
+      ...MEDICAL,
+      body: { ru: 'Совершенно другой совет.', kk: 'Мүлдем басқа кеңес.' },
+    }]);
+
+    const row = (await queue(doctor)).json().waiting[0];
+    expect(row.id).toBe(ARTICLE.id);
+    expect(row.body.ru).toBe('Совершенно другой совет.');
+    expect(row.body.ru).not.toBe(BODY_RU);
+    await editor.close();
+    await doctor.close();
+  });
+});
+
 describe('the article the panel sends back carries its own signature', () => {
   it('a re-save of an approved article is not refused by the field cap', async () => {
     // The fingerprint now quotes the whole article, and the panel round-trips

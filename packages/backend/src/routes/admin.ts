@@ -1277,12 +1277,28 @@ export function registerAdminRoutes(
    * has no way to find what is refused. `stale` items are listed first because
    * they are the dangerous kind — the card is LIVE and its text has moved since
    * anybody checked it.
+   *
+   * IT SENDS THE TEXT, because the signature covers the text.
+   * `textFingerprint` quotes the title, the summary, the link, the video, the
+   * whole article and the red-flag block; a queue that sent only the title
+   * asked a clinician to put their name in the audit log against paragraphs
+   * they had not been shown. They cannot go and read them elsewhere either —
+   * the guides editor is `content` and this role holds `health`, so this screen
+   * is the ONLY place the text can reach them. Sending everything the
+   * fingerprint quotes is what keeps «Подтвердить» from being a rubber stamp.
    */
   app.get('/admin/content/review-queue', async (req, reply) => {
     const s = await requireCap(req, reply, 'health');
     if (!s) return;
     const catalog = await repo.contentCatalog().catch(() => ({}));
-    const waiting: Array<{ stage: string; id: string; title: string; reason: string; draft: boolean }> = [];
+    const waiting: Array<{
+      stage: string; id: string; title: string; reason: string; draft: boolean;
+      summary: Record<string, string>;
+      body: Record<string, string>;
+      redFlags: Record<string, string>;
+      url: string;
+      video: string;
+    }> = [];
     for (const [stage, items] of Object.entries(catalog)) {
       for (const raw of items) {
         const item = raw as ReviewableItem;
@@ -1294,6 +1310,15 @@ export function registerAdminRoutes(
           title: item.title?.ru ?? item.title?.kk ?? item.id,
           reason: item.review ? 'stale' : 'never',
           draft: item.draft === true,
+          // Every locale, not just Russian: a clinician signs the Kazakh
+          // paragraphs too, and they are what a Kazakh mother reads.
+          summary: item.summary ?? {},
+          body: item.body ?? {},
+          redFlags: item.redFlags ?? {},
+          url: item.url ?? '',
+          // Flattened to the one string the fingerprint uses, so what is shown
+          // and what is signed cannot describe different things.
+          video: item.video ? `${item.video.provider}: ${item.video.url}` : '',
         });
       }
     }

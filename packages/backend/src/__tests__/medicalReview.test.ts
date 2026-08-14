@@ -303,8 +303,13 @@ describe('the review queue is how a clinician finds the work', () => {
     await save(editor, [{ ...MEDICAL, draft: true }]);
 
     const { waiting } = (await doctor.inject({ method: 'GET', url: '/admin/content/review-queue' })).json();
+    // Everything textFingerprint quotes, because that is what the signature
+    // covers: a queue that sent the title alone made «Подтвердить» a stamp over
+    // paragraphs the clinician had never been shown. Empty here — this card is
+    // a headline and a summary — but present, and the panel prints them.
     expect(waiting).toEqual([{
       stage: 'w23', id: MEDICAL.id, title: 'Кровотечение', reason: 'never', draft: true,
+      summary: MEDICAL.summary, body: {}, redFlags: {}, url: '', video: '',
     }]);
     await editor.close();
     await doctor.close();

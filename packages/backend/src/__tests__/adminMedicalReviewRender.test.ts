@@ -39,10 +39,27 @@ const CATALOG = {
   coverage: { total: 101, filled: ['w23'], empty: [], items: 2, linked: 0, sharedOnly: [] },
 };
 
+const BODY_RU = 'Кровотечение во втором триместре бывает разным.\n\nАлая кровь со сгустками — звоните сейчас.';
+const BODY_KK = 'Екінші триместрдегі қан кету әртүрлі болады.\n\nҰйыған қызыл қан — қазір қоңырау шалыңыз.';
+const FLAGS_RU = 'Прокладка полностью промокает за час.';
+
 const QUEUE = {
   waiting: [
-    { stage: 'w20', id: 'w20-movements', title: 'Шевеления', reason: 'stale', draft: false },
-    { stage: 'w23', id: 'w23-bleeding', title: 'Кровотечение', reason: 'never', draft: true },
+    {
+      stage: 'w20', id: 'w20-movements', title: 'Шевеления', reason: 'stale', draft: false,
+      summary: { ru: 'Сколько раз в день', kk: 'Күніне неше рет' },
+      body: { ru: 'Считайте шевеления после еды.', kk: 'Тамақтан кейін санаңыз.' },
+      redFlags: { ru: 'Меньше десяти за двенадцать часов — звоните.', kk: 'Он реттен аз болса — қоңырау шалыңыз.' },
+      url: '', video: '',
+    },
+    {
+      stage: 'w23', id: 'w23-bleeding', title: 'Кровотечение', reason: 'never', draft: true,
+      summary: { ru: 'Когда звонить', kk: 'Қашан қоңырау шалу' },
+      body: { ru: BODY_RU, kk: BODY_KK },
+      redFlags: { ru: FLAGS_RU, kk: 'Бір сағатта прокладка толады.' },
+      url: 'https://example.kz/bleeding',
+      video: 'hls: https://cdn/x.m3u8',
+    },
   ],
 };
 
@@ -183,6 +200,55 @@ describe('the clinician finds the work', () => {
     await openTab('review');
     expect($('#reviewBadgeCount').hidden).toBe(false);
     expect($('#reviewBadgeCount').textContent).toBe('2');
+  });
+
+  it('shows the whole text being signed, not just the headline', async () => {
+    // The signature quotes the article and the red-flag block (textFingerprint).
+    // A title-only row makes «Подтвердить» a rubber stamp over paragraphs the
+    // clinician has never seen — and no other screen in their role shows a body.
+    const { window, openTab } = await open('clinician');
+    await openTab('review');
+    const card = window.document.querySelector('[data-review="w23|w23-bleeding"]') as HTMLElement;
+    expect(card, 'the card is not drawn').toBeTruthy();
+    const text = card.textContent ?? '';
+    for (const p of [BODY_RU.split('\n\n')[0], BODY_RU.split('\n\n')[1], BODY_KK.split('\n\n')[0]]) {
+      expect(text, `missing from the review row: ${p}`).toContain(p);
+    }
+    expect(text).toContain(FLAGS_RU);
+    expect(text).toContain('Когда звонить');
+    // …and where the material itself lives, which the fingerprint also covers.
+    expect(text).toContain('https://example.kz/bleeding');
+    expect(text).toContain('https://cdn/x.m3u8');
+  });
+
+  it('the red-flag block comes first, as it does on the phone', async () => {
+    const { window, openTab } = await open('clinician');
+    await openTab('review');
+    const card = window.document.querySelector('[data-review="w23|w23-bleeding"]') as HTMLElement;
+    const text = card.textContent ?? '';
+    expect(text.indexOf(FLAGS_RU)).toBeLessThan(text.indexOf(BODY_RU.split('\n\n')[0]));
+    // And the button is BELOW the text: level with the title it is pressed
+    // without scrolling, which is the stamp this screen exists to prevent.
+    const blocks = card.querySelectorAll('.revblock');
+    expect(blocks.length).toBeGreaterThan(0);
+    const foot = card.querySelector('.revfoot');
+    expect(foot?.querySelector('[data-approve]'), 'the button left the footer').toBeTruthy();
+    const order = [...card.querySelectorAll('.revblock, .revfoot')];
+    expect(order[order.length - 1].className).toContain('revfoot');
+  });
+
+  it('a card with no text says so rather than showing an empty row', async () => {
+    // «Пустые состояния говорят причину». A medical card that is only a link is
+    // a real shape, and the reviewer must know that is ALL they are signing.
+    const { window, openTab } = await open('clinician', {
+      waiting: [{
+        stage: 'w23', id: 'w23-link', title: 'Ссылка', reason: 'never', draft: false,
+        summary: {}, body: {}, redFlags: {}, url: '', video: '',
+      }],
+    });
+    await openTab('review');
+    const card = window.document.querySelector('[data-review="w23|w23-link"]') as HTMLElement;
+    expect(card.textContent).toContain('нет ни текста, ни ссылки');
   });
 
   it('signing off posts to the review route for that exact card', async () => {
