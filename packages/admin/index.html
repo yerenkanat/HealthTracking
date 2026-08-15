@@ -3949,7 +3949,19 @@
     const c=$("#anRetCurve"); if(!c) return;
     const dpr=window.devicePixelRatio||1;
     const w=c.clientWidth||600, h=170; c.width=w*dpr; c.height=h*dpr;
-    const ctx=c.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+    // `getContext` returns null when a 2D context cannot be had — always, under
+    // jsdom, which is where this panel's whole test suite runs. The unguarded
+    // `ctx.scale` threw from inside the boot() chain (drawBiTrend → drawOps →
+    // render → boot), so boot took its catch branch and EVERY render test has
+    // been asserting against the panel's boot-FAILURE state while believing it
+    // tested the live one.
+    //
+    // Same rule as the `if(!BI||!BI.dauSeries...)` guard further down, written
+    // there for the neighbouring case and not applied to this line: one missing
+    // thing costs one chart, never the whole panel. It is not test-only —
+    // a browser that cannot give a context takes the panel down by this exact
+    // path.
+    const ctx=c.getContext("2d"); if(!ctx) return; ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
     const cs=getComputedStyle(document.documentElement);
     const grid=cs.getPropertyValue("--hair").trim();
     const accent=cs.getPropertyValue("--accent").trim();
@@ -4748,7 +4760,19 @@
     const c=$(canvasId); if(!c) return;
     const dpr=window.devicePixelRatio||1;
     const w=c.clientWidth||600, h=170; c.width=w*dpr; c.height=h*dpr;
-    const ctx=c.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+    // `getContext` returns null when a 2D context cannot be had — always, under
+    // jsdom, which is where this panel's whole test suite runs. The unguarded
+    // `ctx.scale` threw from inside the boot() chain (drawBiTrend → drawOps →
+    // render → boot), so boot took its catch branch and EVERY render test has
+    // been asserting against the panel's boot-FAILURE state while believing it
+    // tested the live one.
+    //
+    // Same rule as the `if(!BI||!BI.dauSeries...)` guard further down, written
+    // there for the neighbouring case and not applied to this line: one missing
+    // thing costs one chart, never the whole panel. It is not test-only —
+    // a browser that cannot give a context takes the panel down by this exact
+    // path.
+    const ctx=c.getContext("2d"); if(!ctx) return; ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
     const cs=getComputedStyle(document.documentElement);
     const grid=cs.getPropertyValue("--hair").trim();
     const accent=cs.getPropertyValue("--accent").trim();
