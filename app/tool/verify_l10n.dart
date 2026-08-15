@@ -202,6 +202,11 @@ void main() {
       'repeat_title_': ['bp', 'fever', 'spo2', 'hr'],
       'zone_loc_': ['denied', 'denied_forever', 'failed'],
       'lesson_': ['play', 'pause', 'play_failed'],
+      // The positioning source on a zone crossing, composed as
+      // t('possrc_$source') from what the server sent. The four are
+      // PositioningSource in @fcs/shared; a fifth would print its raw key
+      // under a line a parent is reading.
+      'possrc_': ['gps', 'wifi', 'lbs', 'ble'],
     };
     final missingFamily = <String>[];
     for (final e in families.entries) {

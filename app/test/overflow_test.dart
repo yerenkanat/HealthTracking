@@ -54,6 +54,8 @@ import 'package:fcs_app/ui/theme.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_safety_screen.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
+import 'package:fcs_app/ui/tracking/zone_history_screen.dart';
+import 'package:fcs_app/domain/zone_crossing.dart';
 import 'package:fcs_app/ui/calendar/epds_screen.dart';
 import 'package:fcs_app/ui/calendar/postpartum_screen.dart';
 import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
@@ -251,6 +253,44 @@ void main() {
       c.logChildEvent(AlertKind.checkIn);
       return AlertsScreen(controller: c);
     });
+  });
+
+  // «История зон». The rows are a time, a sentence and a source label, and the
+  // Kazakh sentence «"Мектеп" аймағына келді» is the long one — plus three
+  // full-width notes whose Kazakh runs to three lines at 360 dp.
+  testWidgets('zone history fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'ZoneHistoryScreen',
+      () => ZoneHistoryScreen(
+        childName: 'Алия',
+        now: today,
+        load: () async => [
+          ZoneCrossing(
+              transition: ZoneTransition.entered,
+              at: today.add(const Duration(hours: 9, minutes: 14)),
+              zoneName: 'Мектеп №25',
+              source: 'lbs'),
+          ZoneCrossing(
+              transition: ZoneTransition.left,
+              at: today.subtract(const Duration(hours: 6)),
+              zoneName: 'Әже үйі',
+              source: 'gps'),
+        ],
+      ),
+      scroll: true,
+    );
+  });
+
+  // The empty state, which is the one a family member sees first and the one
+  // whose Kazakh is longest.
+  testWidgets('zone history (empty) fits every locale', (tester) async {
+    await checkAllLocales(
+      tester,
+      'ZoneHistoryScreen (empty)',
+      () => ZoneHistoryScreen(childName: 'Алия', now: today, load: () async => []),
+      scroll: true,
+    );
   });
 
   testWidgets('reminders centre fits every locale', (tester) async {

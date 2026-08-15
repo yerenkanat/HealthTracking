@@ -7,6 +7,7 @@ library;
 import 'dart:convert';
 import '../domain/course_lesson.dart';
 import '../domain/shop_catalogue.dart';
+import '../domain/zone_crossing.dart';
 
 class HttpResponse {
   final int statusCode;
@@ -667,6 +668,30 @@ class ApiClient {
     if (!res.ok) throw ApiException(res.statusCode, res.body);
     final j = jsonDecode(res.body) as Map<String, dynamic>;
     return ((j['geofences'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// A child's zone crossings, as the SERVER recorded them.
+  ///
+  /// `GET /children/:id/events` — guarded by `child_zones`, so it answers for a
+  /// family member as well as the owner. That is the difference that makes it
+  /// worth calling: `GET /alerts` is keyed to the OWNER's user id and is pulled
+  /// once at sign-in, so an invited father's feed is empty by construction and
+  /// says «Пока нет оповещений» about a child who crossed the school boundary
+  /// this morning.
+  ///
+  /// THROWS on a bad status rather than returning an empty list. A failed load
+  /// and a child who crossed nothing are different facts, and the screen shows
+  /// them differently — it cannot, if this flattens one into the other.
+  ///
+  /// `limit` is capped at 200 by the route; asking for more silently gets 200,
+  /// so the screen says which it got rather than implying it has everything.
+  Future<List<ZoneCrossing>> getZoneCrossings(String childId,
+      {int limit = 50}) async {
+    final res = await transport.get('/children/$childId/events?limit=$limit');
+    if (!res.ok) throw ApiException(res.statusCode, res.body);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return ZoneCrossing.listFromJson(
+        ((j['events'] as List?) ?? const []).cast<Map<String, dynamic>>());
   }
 
   /// The caller's medications ({id, name, dose, perDay}).

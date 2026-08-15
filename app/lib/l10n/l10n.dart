@@ -638,6 +638,37 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_mark_saved': {AppLocale.ru: 'Отметка сохранена', AppLocale.kk: 'Белгі сақталды', AppLocale.en: 'Saved'},
   'sos_no_events': {AppLocale.ru: 'После сигнала больше ничего не записано', AppLocale.kk: 'Сигналдан кейін ештеңе жазылмаған', AppLocale.en: 'Nothing was recorded after the alert'},
 
+  // --- Zone crossing history (GET /children/:id/events) --------------------
+  //
+  // The back office could read a child's crossings on «SOS и зоны» and the app
+  // could not. These strings are the app's half. Everything here is written to
+  // the absorber rule: this list holds enter/exit and nothing else, so it may
+  // never be read as «ничего не случилось» — that is why the scope line is
+  // shown on every state, not only the empty one.
+  'zonehist_open': {AppLocale.ru: 'История зон', AppLocale.kk: 'Аймақтар тарихы', AppLocale.en: 'Zone history'},
+  'zonehist_title': {AppLocale.ru: 'История зон: {name}', AppLocale.kk: '{name}: аймақтар тарихы', AppLocale.en: "{name}'s zone history"},
+  // Said on every state. An SOS is a person pressing a button; a crossing is a
+  // child walking past a boundary. They live in different tables behind
+  // different routes, and this screen carries only the second.
+  'zonehist_scope': {AppLocale.ru: 'Только входы и выходы из зон. Сигнал SOS — не пересечение зоны, он остаётся в оповещениях.', AppLocale.kk: 'Тек аймаққа кіру мен шығу. SOS сигналы — аймақты кесіп өту емес, ол хабарламаларда қалады.', AppLocale.en: 'Zone entries and exits only. An SOS is not a zone crossing — it stays in Alerts.'},
+  'zonehist_empty': {AppLocale.ru: 'Пересечений зон не записано', AppLocale.kk: 'Аймақ шекарасын кесіп өту жазылмаған', AppLocale.en: 'No zone crossings recorded'},
+  // Why it may be empty without anything being wrong — and without claiming
+  // that nothing happened, which this screen cannot know.
+  'zonehist_empty_why': {AppLocale.ru: 'Записи появляются, когда браслет сам пересекает границу зоны. Если зону удалить, её записи удаляются вместе с ней.', AppLocale.kk: 'Жазбалар білезік аймақ шекарасын кесіп өткенде пайда болады. Аймақты жойсаңыз, оның жазбалары да жойылады.', AppLocale.en: 'Records appear when the tracker itself crosses a zone boundary. Deleting a zone deletes its records with it.'},
+  // Paired with day_failed. A server that did not answer is not a quiet week.
+  'zonehist_failed_why': {AppLocale.ru: 'Сервер не ответил. Это не значит, что пересечений не было.', AppLocale.kk: 'Сервер жауап бермеді. Бұл кесіп өту болмады дегенді білдірмейді.', AppLocale.en: 'The server did not answer. That does not mean there were no crossings.'},
+  'zonehist_capped': {AppLocale.ru: 'Показаны последние {n} — более ранние могут остаться на сервере.', AppLocale.kk: 'Соңғы {n} көрсетілген — ертерек жазбалар серверде қалуы мүмкін.', AppLocale.en: 'Showing the last {n} — earlier ones may remain on the server.'},
+  // Said rather than approximated. These rows carry a time and a zone name and
+  // no coordinates at all, so there is nothing honest to draw on a map here.
+  'zonehist_no_coords': {AppLocale.ru: 'В этих записях нет координат — только время и название зоны. Место на карте есть в истории дня.', AppLocale.kk: 'Бұл жазбаларда координаттар жоқ — тек уақыт пен аймақ атауы. Картадағы орын күн тарихында бар.', AppLocale.en: 'These records carry no coordinates — only the time and the zone name. The map is in the day history.'},
+  // Which instrument produced the fix that triggered the crossing. Named, not
+  // judged: the app says where the position came from and asserts nothing about
+  // how close it was.
+  'possrc_gps': {AppLocale.ru: 'GPS', AppLocale.kk: 'GPS', AppLocale.en: 'GPS'},
+  'possrc_wifi': {AppLocale.ru: 'Wi-Fi', AppLocale.kk: 'Wi-Fi', AppLocale.en: 'Wi-Fi'},
+  'possrc_lbs': {AppLocale.ru: 'Вышки связи', AppLocale.kk: 'Байланыс мұнаралары', AppLocale.en: 'Cell towers'},
+  'possrc_ble': {AppLocale.ru: 'Bluetooth', AppLocale.kk: 'Bluetooth', AppLocale.en: 'Bluetooth'},
+
   // Geofence zones management
   'zones_title': {AppLocale.ru: 'Зоны {name}', AppLocale.kk: '{name} аймақтары', AppLocale.en: "{name}'s zones"},
   'zones_empty': {AppLocale.ru: 'Пока нет зон. Добавьте дом, школу или другое безопасное место.', AppLocale.kk: 'Әзірге аймақ жоқ. Үй, мектеп немесе басқа қауіпсіз орын қосыңыз.', AppLocale.en: 'No zones yet. Add home, school, or any safe place.'},

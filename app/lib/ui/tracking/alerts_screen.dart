@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
+import '../../domain/family.dart';
 import '../../domain/geofence_alerts.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
@@ -12,6 +13,7 @@ import '../theme.dart';
 import '../widgets/confirm.dart';
 import '../ds_widgets.dart';
 import '../widgets/glass.dart';
+import 'zone_history_screen.dart';
 
 class AlertsScreen extends StatefulWidget {
   final AppController controller;
@@ -56,6 +58,46 @@ class _AlertsScreenState extends State<AlertsScreen> {
     if (ok) widget.controller.clearAlerts();
   }
 
+  /// Which child «История зон» would open for.
+  ///
+  /// The feed filters by NAME — that is all a local alert carries — while the
+  /// route needs an id, so the name is mapped back to a child. When the feed is
+  /// unfiltered it is the selected child. Null when neither resolves, which
+  /// hides the action rather than opening a history that belongs to somebody
+  /// else.
+  ///
+  /// Null too with no server configured: the screen would have nothing to load,
+  /// and an action that opens a failure is worse than one that is not offered.
+  ChildProfile? _historyChild() {
+    if (widget.controller.api == null) return null;
+    final name = _child;
+    if (name == null) return widget.controller.selectedChild;
+    for (final c in widget.controller.children) {
+      if (c.name == name) return c;
+    }
+    return null;
+  }
+
+  /// The server's crossing record for one child.
+  ///
+  /// This feed is what THIS PHONE remembers: alerts it derived itself, plus one
+  /// pull of `GET /alerts` at sign-in — which is keyed to the OWNER's user id.
+  /// So an invited father, or the mother herself after a reinstall, reads «Пока
+  /// нет оповещений» about a child the server watched cross the school boundary
+  /// all week. `GET /children/:id/events` is the record that does not live on
+  /// this handset, and until now nothing in the app asked for it.
+  void _openZoneHistory(ChildProfile child) {
+    final api = widget.controller.api;
+    if (api == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ZoneHistoryScreen(
+        childName: child.name,
+        now: _now(),
+        load: () => api.getZoneCrossings(child.id),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -66,6 +108,24 @@ class _AlertsScreenState extends State<AlertsScreen> {
         appBar: AppBar(
           title: Text(l.t('alerts_title')),
           actions: [
+            StreamBuilder<void>(
+              stream: controller.changes,
+              builder: (context, _) {
+                // ONE control, never two: on an empty feed the way into the
+                // server's record is a labelled button in the body, where the
+                // «пока нет оповещений» claim is being made and where an
+                // unlabelled icon would not be found.
+                final child = _historyChild();
+                if (child == null || controller.alerts.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return IconButton(
+                  icon: const Icon(Icons.history_rounded),
+                  tooltip: l.t('zonehist_open'),
+                  onPressed: () => _openZoneHistory(child),
+                );
+              },
+            ),
             StreamBuilder<void>(
               stream: controller.changes,
               builder: (context, _) => controller.alerts.isEmpty
@@ -82,6 +142,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
           builder: (context, _) {
             final all = controller.alerts;
             if (all.isEmpty) {
+              // An empty feed is a statement about THIS PHONE's memory, and it
+              // has been printed as a statement about the child: an invited
+              // father, or the mother on a new handset, reads «пока нет
+              // оповещений» about a week the server watched in full. The way to
+              // the server's record belongs here, spelled out, more than
+              // anywhere else on the screen.
+              final child = _historyChild();
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(28),
@@ -96,6 +163,19 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                               color: Palette.textDim, height: 1.4)),
+                      if (child != null) ...[
+                        const SizedBox(height: 20),
+                        OutlinedButton.icon(
+                          onPressed: () => _openZoneHistory(child),
+                          icon: const Icon(Icons.history_rounded, size: 18),
+                          label: Text(l.t('zonehist_open')),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                            side: const BorderSide(color: Palette.border),
+                            foregroundColor: Palette.text,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
