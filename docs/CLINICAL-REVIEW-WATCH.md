@@ -292,6 +292,63 @@ protocol) and, unconditionally for both, the reviewed preeclampsia red flags and
 103. That last branch is the only part that helps the woman whose wrist reads
 137 while her true pressure is 160.
 
+## The Kazakh says something weaker than the Russian — OPEN, 2026-08-17
+
+The read-back this document asked for was finally done, and it found that **a
+reviewed clinical claim was reviewed in one language and shipped in two.**
+
+Both device cards — `ADV_TEMP_DEVICE_HIGH_b` and `ADV_BP_DEVICE_HIGH_b`:
+
+| | text | what it says |
+|---|---|---|
+| RU | «Это оценка датчика на запястье, **а не измерение**» | it is **not a measurement** |
+| KK | «...**нақты өлшем емес**» | not an **accurate** measurement |
+
+The Russian denies that the number is a measurement at all. The Kazakh concedes
+that it is one and disputes only its precision.
+
+That denial is not decoration — it is the card. Ruling #1 of "Device temperature
+— closed 2026-08-13" rests on the sensor value not being the quantity, and the
+blood-pressure verdict rests on the firing window sitting entirely inside the
+estimate's own error. A card that concedes «this is a measurement, just not a
+precise one» invites exactly the comparison both rulings refused.
+
+The reading is not a guess: the catalogue fixes it two keys away, where
+`temp_device_estimate_note` ends «**Нақты** дене қызуын тек термометр көрсетеді»
+— "only a thermometer shows the **accurate** temperature".
+
+**Second divergence, same sentence.** RU «датчика **на запястье**» → KK
+«**қолыңыздағы**» = "on your hand/arm". Kazakh has `білезік` / `білек` for
+wrist. Naming the instrument is deliberate under the titles rule; the body
+drops from *wrist* to *arm*.
+
+**Third, reported as a nit rather than a defect:** both device titles move from
+the Russian present «показывает» to the Kazakh past «көрсетті» — "the sensor
+showed". Titles ship alone through the clipboard export.
+
+Not patched. Approved medical copy is not an implementer's to edit, and the
+corrected Kazakh has to come from the gate that approved the Russian.
+
+**What read back CLEAN**, sentence by sentence, so the scope of the problem is
+bounded rather than feared: `ADV_NOTHING_UNUSUAL` including its third
+load-bearing sentence; `ADV_BP_ELEVATED` with 140/90 twice, 103, the three red
+flags, «қайта өлшеуді күтпей», and no 135 or 85 anywhere; `ADV_BP_DEVICE_HIGH_b`
+carrying its no-equipment branch and correctly carrying no number;
+`temp_device_estimate_note`; all 7 triage messages; all 17 `em_*` emergency
+keys; and the confirmation-gate copy.
+
+**And the guard that let this through is now closed** — but only for the case it
+can see. `verify_l10n` checked that three locales were DEFINED and never
+compared them, so Kazakh that was a copy-paste of the Russian passed for the
+life of the project (measured: 82/0 with a known-bad key in the catalogue).
+kk≠ru is now enforced with 50 named exceptions, each carrying its reason.
+
+That catches a copy-paste. It cannot catch this: `vac_hib` shipped
+«(ревакцинация)» inside an otherwise-Kazakh string and the check never saw it,
+because the rest of the string differed. **Semantic divergence in medical copy
+is invisible to any automated check, and the only thing that finds it is a
+person reading both languages against each other.**
+
 ## The verdict has one regression path, and it is open
 
 **`GET /vitals/manual` does not say that its readings are manual.** Confirmed by
