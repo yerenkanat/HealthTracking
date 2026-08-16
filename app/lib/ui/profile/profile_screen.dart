@@ -485,8 +485,11 @@ class _CourseEntry extends StatefulWidget {
   final VoidCallback onTap;
 
   /// How to find out what she owns and how far she has got. Null in a test or
-  /// a build with no API, which falls back to the offer line — the honest
-  /// thing to show when we cannot check.
+  /// a build with no API — there is no account to own anything with there, so
+  /// the row stays on the offer line, which is what it is for.
+  ///
+  /// A load that THROWS is a different thing entirely and is handled as one:
+  /// see [_CourseEntryState.initState].
   final Future<CourseAccess> Function()? load;
 
   const _CourseEntry({required this.onTap, this.load});
@@ -501,20 +504,39 @@ class _CourseEntryState extends State<_CourseEntry> {
   @override
   void initState() {
     super.initState();
+    _check();
+  }
+
+  void _check() {
     final load = widget.load;
     if (load == null) return;
-    // Unawaited and unguarded: a failed request leaves the offer line, which is
-    // what this row said before it could check at all. A profile screen must
-    // not break because the course could not be reached.
     load().then((a) {
       if (mounted) setState(() => _access = a);
-    }).catchError((_) {});
+    }).catchError((_) {
+      if (!mounted) return;
+      // A failed request used to be swallowed, leaving the pitch line — so a
+      // customer who had paid 39 000 ₸ was sold the course again the moment
+      // her network dropped. It now says the check failed and says nothing
+      // about what she owns.
+      //
+      // An answer already received in this session survives: it came from the
+      // server, for this account, minutes ago, and it is a better thing to
+      // show than a failure banner over a row she has already read. Only the
+      // no-answer-yet case becomes «unknown». Nothing is persisted across
+      // launches — see [CourseAccess.unknown].
+      final have = _access;
+      if (have != null && !have.checkFailed) return;
+      setState(() => _access = CourseAccess.unknown);
+    });
   }
 
   /// The one line under the title. Ordered by what it is worth saying:
-  /// how far she has got beats "you own this" beats the sales pitch.
+  /// how far she has got beats "you own this" beats the sales pitch — and a
+  /// check that did not complete beats all three, because every one of them
+  /// is a claim about a purchase and we have not got one to make.
   String _subtitle(L10n l) {
     final a = _access;
+    if (a != null && a.checkFailed) return l.t('course_entry_uncheckable');
     if (a == null || !a.entitled) return l.t('course_entry_sub');
     if (a.lessons.isEmpty) return l.t('course_entry_owned');
     return l.t('course_progress_of')
@@ -526,6 +548,7 @@ class _CourseEntryState extends State<_CourseEntry> {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final entitled = _access?.entitled == true;
+    final failed = _access?.checkFailed == true;
     return DsCard(
       padding: EdgeInsets.zero,
       child: ListTile(
@@ -538,16 +561,25 @@ class _CourseEntryState extends State<_CourseEntry> {
               color: Ds.pastelPink,
               borderRadius: BorderRadius.circular(12)),
           child: Icon(
-              entitled
-                  ? Icons.play_arrow_rounded
-                  : Icons.play_circle_outline_rounded,
+              failed
+                  ? Icons.cloud_off_rounded
+                  : entitled
+                      ? Icons.play_arrow_rounded
+                      : Icons.play_circle_outline_rounded,
               color: Ds.ink,
               size: 22),
         ),
         title: Text(l.t('course_title'), style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(_subtitle(l), key: const Key('course-entry-sub')),
         trailing: const Icon(Icons.chevron_right_rounded, color: Palette.textDim),
-        onTap: widget.onTap,
+        // The row IS the retry, which is why the subtitle says so rather than
+        // growing a second control next to a chevron that already does it: the
+        // tap asks again here and opens the course screen, which asks again
+        // itself and carries its own retry button.
+        onTap: () {
+          if (failed) _check();
+          widget.onTap();
+        },
       ),
     );
   }

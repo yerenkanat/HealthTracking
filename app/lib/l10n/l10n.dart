@@ -310,7 +310,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'alerts_filter_zones': {AppLocale.ru: 'Зоны', AppLocale.kk: 'Аймақтар', AppLocale.en: 'Zones'},
   'alerts_filter_sos': {AppLocale.ru: 'SOS', AppLocale.kk: 'SOS', AppLocale.en: 'SOS'},
   'alerts_filter_checkins': {AppLocale.ru: 'Отметки', AppLocale.kk: 'Белгілер', AppLocale.en: 'Check-ins'},
-  'alerts_filter_battery': {AppLocale.ru: 'Заряд', AppLocale.kk: 'Заряд', AppLocale.en: 'Battery'},
+  'alerts_filter_battery': {AppLocale.ru: 'Заряд', AppLocale.kk: 'Қуат', AppLocale.en: 'Battery'},
   'alerts_dismiss': {AppLocale.ru: 'Убрать', AppLocale.kk: 'Жою', AppLocale.en: 'Dismiss'},
   'alerts_dismiss_title': {AppLocale.ru: 'Убрать это оповещение?', AppLocale.kk: 'Бұл ескертуді жою керек пе?', AppLocale.en: 'Dismiss this alert?'},
   'alerts_dismiss_body': {AppLocale.ru: 'Оно исчезнет из ленты. Отменить это действие нельзя.', AppLocale.kk: 'Ол таспадан жоғалады. Бұл әрекетті қайтару мүмкін емес.', AppLocale.en: 'It will disappear from the feed. This cannot be undone.'},
@@ -911,7 +911,18 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'help_q3_q': {AppLocale.ru: 'Где хранятся мои данные?', AppLocale.kk: 'Деректерім қайда сақталады?', AppLocale.en: 'Where is my data stored?'},
   'help_q3_a': {AppLocale.ru: 'По умолчанию на вашем устройстве. Резервную копию можно выгрузить в разделе «Данные».', AppLocale.kk: 'Әдепкі бойынша құрылғыңызда. Сақтық көшірмені «Деректер» бөлімінде шығаруға болады.', AppLocale.en: 'On your device by default. You can export a backup in the “Data” section.'},
   'help_q4_q': {AppLocale.ru: 'Как удалить аккаунт и данные?', AppLocale.kk: 'Аккаунт пен деректерді қалай жоюға болады?', AppLocale.en: 'How do I delete my account and data?'},
-  'help_q4_a': {AppLocale.ru: 'Откройте «Настройки → Данные → Стереть все данные». Это удалит данные с устройства и с сервера.', AppLocale.kk: '«Баптаулар → Деректер → Барлық деректі өшіру» бөліміне өтіңіз. Бұл деректерді құрылғыдан және серверден өшіреді.', AppLocale.en: 'Go to Settings → Data → Erase all data. This removes your data from the device and the server.'},
+  // The Kazakh line is a navigation instruction, so three things had to be true
+  // of it and none were:
+  //   * «Баптаулар» is not what the screen is called — `settings_title` kk is
+  //     «Параметрлер», which is also what every other Kazakh string says. She
+  //     was being sent to a menu the app does not have.
+  //   * the item is labelled «Барлық деректі жою» (`set_erase`), not «өшіру».
+  //   * U+2192 «→» is NOT in Rubik.ttf, and Rubik is the whole Kazakh font
+  //     stack (DsFont.bodyFor/displayFor + the single-entry fallback). The
+  //     arrow is the one character in this sentence she cannot be shown, in
+  //     the middle of the instruction telling her which way to go. «›» (U+203A)
+  //     is in the cmap; English already uses it in `rem_manage_hint`.
+  'help_q4_a': {AppLocale.ru: 'Откройте «Настройки → Данные → Стереть все данные». Это удалит данные с устройства и с сервера.', AppLocale.kk: '«Параметрлер › Деректер › Барлық деректі жою» бөліміне өтіңіз. Бұл деректерді құрылғыдан және серверден жояды.', AppLocale.en: 'Go to Settings → Data → Erase all data. This removes your data from the device and the server.'},
   'help_contact_section': {AppLocale.ru: 'Связь с нами', AppLocale.kk: 'Бізбен байланыс', AppLocale.en: 'Get in touch'},
   'help_contact': {AppLocale.ru: 'Написать в поддержку', AppLocale.kk: 'Қолдауға жазу', AppLocale.en: 'Contact support'},
 
@@ -1398,7 +1409,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'wm_distance': {AppLocale.ru: 'Дистанция', AppLocale.kk: 'Қашықтық', AppLocale.en: 'Distance'},
   'wm_calories': {AppLocale.ru: 'Калории', AppLocale.kk: 'Калория', AppLocale.en: 'Calories'},
   'wm_sleep': {AppLocale.ru: 'Сон', AppLocale.kk: 'Ұйқы', AppLocale.en: 'Sleep'},
-  'wm_stress': {AppLocale.ru: 'Стресс', AppLocale.kk: 'Стресс', AppLocale.en: 'Stress'},
+  // «Күйзеліс» is the Kazakh word; «Стресс» was the Russian one left in place.
+  'wm_stress': {AppLocale.ru: 'Стресс', AppLocale.kk: 'Күйзеліс', AppLocale.en: 'Stress'},
   'wm_breath': {AppLocale.ru: 'Дыхание', AppLocale.kk: 'Тыныс алу', AppLocale.en: 'Breathing'},
   'wm_sugar': {AppLocale.ru: 'Глюкоза', AppLocale.kk: 'Глюкоза', AppLocale.en: 'Glucose'},
   'wm_unit_km': {AppLocale.ru: 'км', AppLocale.kk: 'км', AppLocale.en: 'km'},
@@ -1897,7 +1909,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'vitals_diastolic': {AppLocale.ru: 'Нижнее', AppLocale.kk: 'Төменгі', AppLocale.en: 'Diastolic'},
   'vitals_hr': {AppLocale.ru: 'Пульс', AppLocale.kk: 'Тамыр соғуы', AppLocale.en: 'Heart rate'},
   'vitals_spo2': {AppLocale.ru: 'Сатурация', AppLocale.kk: 'Қанықтық', AppLocale.en: 'Blood oxygen'},
-  'vitals_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Температура', AppLocale.en: 'Temperature'},
+  'vitals_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Дене қызуы', AppLocale.en: 'Temperature'},
   'vitals_glucose': {AppLocale.ru: 'Глюкоза', AppLocale.kk: 'Глюкоза', AppLocale.en: 'Glucose'},
   'vitals_u_mmhg': {AppLocale.ru: 'мм рт. ст.', AppLocale.kk: 'мм с.б.', AppLocale.en: 'mmHg'},
   'vitals_u_bpm': {AppLocale.ru: 'уд/мин', AppLocale.kk: 'соқ/мин', AppLocale.en: 'bpm'},
@@ -1949,7 +1961,10 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'metric_spo2': {AppLocale.ru: 'Кислород', AppLocale.kk: 'Оттегі', AppLocale.en: 'Blood oxygen'},
   'metric_systolic': {AppLocale.ru: 'Систолическое', AppLocale.kk: 'Систолалық', AppLocale.en: 'Systolic'},
   'metric_diastolic': {AppLocale.ru: 'Диастолическое', AppLocale.kk: 'Диастолалық', AppLocale.en: 'Diastolic'},
-  'metric_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Температура', AppLocale.en: 'Temperature'},
+  // «Дене қызуы» is the Kazakh for body temperature, and it is what every other
+  // Kazakh string on this metric already says — em_reading_temp, ADV_TEMP_*,
+  // temp_device_estimate_note. The tile label was the one place left in Russian.
+  'metric_temp': {AppLocale.ru: 'Температура', AppLocale.kk: 'Дене қызуы', AppLocale.en: 'Temperature'},
   // Screen 05 — «Здоровье · браслета нет». «Апселла браслета здесь нет»:
   // for most users this is the permanent state of the app, not a step towards
   // buying one.
@@ -2040,7 +2055,12 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cal_dow_3': {AppLocale.ru: 'Ср', AppLocale.kk: 'Ср', AppLocale.en: 'We'},
   'cal_dow_4': {AppLocale.ru: 'Чт', AppLocale.kk: 'Бс', AppLocale.en: 'Th'},
   'cal_dow_5': {AppLocale.ru: 'Пт', AppLocale.kk: 'Жм', AppLocale.en: 'Fr'},
-  'cal_dow_6': {AppLocale.ru: 'Сб', AppLocale.kk: 'Сб', AppLocale.en: 'Sa'},
+  // Saturday's Kazakh was «Сб» — the Russian Суббота, sitting in a column of six
+  // correct Kazakh forms. Сенбі abbreviates to «Сн», on the same first-syllable
+  // pattern as every other day here (Жек-сенбі → Жс, Дүй-сенбі → Дс, Сәр-сенбі →
+  // Ср). Wednesday IS «Ср» in both languages and that collision is genuine; this
+  // one was a copy.
+  'cal_dow_6': {AppLocale.ru: 'Сб', AppLocale.kk: 'Сн', AppLocale.en: 'Sa'},
   // Under the month grid when there is nothing to colour in yet.
   //
   // With no logged days the grid is thirty grey numbers and one circle, taking
@@ -2772,7 +2792,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'an_cat_exam': {AppLocale.ru: 'Обследование', AppLocale.kk: 'Тексеру', AppLocale.en: 'Examination'},
   'an_cat_lab': {AppLocale.ru: 'Анализы', AppLocale.kk: 'Талдаулар', AppLocale.en: 'Lab tests'},
   'an_cat_imaging': {AppLocale.ru: 'Инструментальные', AppLocale.kk: 'Аспаптық зерттеу', AppLocale.en: 'Imaging'},
-  'an_cat_prophylaxis': {AppLocale.ru: 'Профилактика', AppLocale.kk: 'Профилактика', AppLocale.en: 'Prevention'},
+  'an_cat_prophylaxis': {AppLocale.ru: 'Профилактика', AppLocale.kk: 'Алдын алу', AppLocale.en: 'Prevention'},
 
   // Visit items (an_item_<id>).
   'an_item_history_risk': {AppLocale.ru: 'Сбор анамнеза и оценка факторов риска', AppLocale.kk: 'Анамнез жинау және қауіп факторларын бағалау', AppLocale.en: 'History taken and risk factors assessed'},
@@ -3208,9 +3228,14 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'vac_pcv_note': {AppLocale.ru: 'Против пневмонии и отита, вызванных пневмококком.', AppLocale.kk: 'Пневмококк тудыратын пневмония мен отитке қарсы.', AppLocale.en: 'Against pneumonia and ear infections caused by pneumococcus.'},
   'vac_mmr': {AppLocale.ru: 'Корь, паротит, краснуха (ККП)', AppLocale.kk: 'Қызылша, паротит, қызамық (ҚПҚ)', AppLocale.en: 'Measles, mumps, rubella (MMR)'},
   'vac_mmr_note': {AppLocale.ru: 'Три инфекции одной вакциной; вторая доза — перед школой.', AppLocale.kk: 'Бір вакцинамен үш инфекция; екінші доза — мектеп алдында.', AppLocale.en: 'Three infections in one vaccine; the second dose is before school.'},
-  'vac_dtp': {AppLocale.ru: 'АКДС (ревакцинация)', AppLocale.kk: 'АКДС (ревакцинация)', AppLocale.en: 'DTP booster'},
+  // The Kazakh of these two was the Russian, word for word. Only the
+  // parenthetical is translated: АКДС and Hib are what is printed on the RK
+  // immunisation card a mother matches this list against, so they stay, while
+  // «ревакцинация» has an ordinary Kazakh word — «қайта екпе» — and had no
+  // reason to be Russian.
+  'vac_dtp': {AppLocale.ru: 'АКДС (ревакцинация)', AppLocale.kk: 'АКДС (қайта екпе)', AppLocale.en: 'DTP booster'},
   'vac_dtp_note': {AppLocale.ru: 'Поддерживает защиту от дифтерии, столбняка и коклюша.', AppLocale.kk: 'Дифтерия, сіреспе және көкжөтелден қорғанысты сақтайды.', AppLocale.en: 'Keeps up protection against diphtheria, tetanus and whooping cough.'},
-  'vac_hib': {AppLocale.ru: 'Гемофильная инфекция (ревакцинация)', AppLocale.kk: 'Гемофильді инфекция (ревакцинация)', AppLocale.en: 'Hib booster'},
+  'vac_hib': {AppLocale.ru: 'Гемофильная инфекция (ревакцинация)', AppLocale.kk: 'Гемофильді инфекция (қайта екпе)', AppLocale.en: 'Hib booster'},
   'vac_hib_note': {AppLocale.ru: 'Против менингита и пневмонии, вызванных Hib.', AppLocale.kk: 'Hib тудыратын менингит пен пневмонияға қарсы.', AppLocale.en: 'Against Hib meningitis and pneumonia.'},
   'vac_adt': {AppLocale.ru: 'АДС-М', AppLocale.kk: 'АДС-М', AppLocale.en: 'Td'},
   'vac_adt_note': {AppLocale.ru: 'Дифтерия и столбняк, перед школой.', AppLocale.kk: 'Дифтерия мен сіреспе, мектеп алдында.', AppLocale.en: 'Diphtheria and tetanus, before school.'},
@@ -3580,7 +3605,10 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'notif_quiet_from': {AppLocale.ru: 'Начало тихих часов', AppLocale.kk: 'Тыныш сағаттардың басы', AppLocale.en: 'Quiet hours start'},
   'notif_quiet_to': {AppLocale.ru: 'Конец тихих часов', AppLocale.kk: 'Тыныш сағаттардың соңы', AppLocale.en: 'Quiet hours end'},
   'notif_sos_note': {AppLocale.ru: 'Сигналы SOS и экстренные оповещения приходят всегда — их нельзя отключить и они не молчат в тихие часы.', AppLocale.kk: 'SOS және шұғыл дабылдар әрқашан келеді — оларды өшіру мүмкін емес және тыныш сағаттарда да үнсіз қалмайды.', AppLocale.en: 'SOS and emergency alerts always come through — they can’t be turned off and are never held during quiet hours.'},
-  'rem_manage_hint': {AppLocale.ru: 'Напоминания о цикле — в разделе «Настройки → Напоминания».', AppLocale.kk: 'Цикл еске салулары «Параметрлер → Еске салулар» бөлімінде.', AppLocale.en: 'Manage cycle reminders in Settings › Reminders.'},
+  // «›» not «→»: U+2192 is absent from Rubik.ttf, the only Kazakh-capable
+  // family bundled, so the arrow is a box for the one reader who needs the
+  // path. English already used «›» here; Kazakh now matches.
+  'rem_manage_hint': {AppLocale.ru: 'Напоминания о цикле — в разделе «Настройки → Напоминания».', AppLocale.kk: 'Цикл еске салулары «Параметрлер › Еске салулар» бөлімінде.', AppLocale.en: 'Manage cycle reminders in Settings › Reminders.'},
   'water_reminder_title': {AppLocale.ru: 'Время попить воды', AppLocale.kk: 'Су ішу уақыты', AppLocale.en: 'Time to drink water'},
   'water_reminder_body': {AppLocale.ru: 'Не забывайте про водный баланс сегодня.', AppLocale.kk: 'Бүгін су балансын ұмытпаңыз.', AppLocale.en: "Keep up your hydration goal today."},
   'water_week_title': {AppLocale.ru: 'Вода за неделю', AppLocale.kk: 'Апталық су', AppLocale.en: 'Water this week'},
@@ -4083,6 +4111,32 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.ru: 'Ваши замеры — в дневнике и в календарях. Добавьте ещё:',
     AppLocale.kk: 'Өлшемдеріңіз күнделік пен күнтізбелерде. Тағы қосыңыз:',
     AppLocale.en: 'Your readings are in the diary and the calendars. Add another:'
+  },
+
+  // The Ма!Ма! course when the entitlement could not be read at all.
+  //
+  // Every word here is load-bearing. The sentence may not say she has bought
+  // the course and may not say she has not — the app does not know, and both
+  // guesses have already been shipped and cost trust. It also promises nothing
+  // about being told later: the retry is hers to press.
+  'course_check_failed': {
+    AppLocale.ru: 'Не удалось проверить доступ к курсу',
+    AppLocale.kk: 'Курсқа қолжетімділікті тексеру мүмкін болмады',
+    AppLocale.en: 'Could not check your access to the course'
+  },
+  // Written like `zonehist_failed_why`, and for the same reason: it denies the
+  // inference rather than making the opposite one.
+  'course_check_failed_why': {
+    AppLocale.ru: 'Сервер не ответил. Это не значит, что доступа нет.',
+    AppLocale.kk: 'Сервер жауап бермеді. Бұл қолжетімділік жоқ дегенді білдірмейді.',
+    AppLocale.en: 'The server did not answer. That does not mean you have no access.'
+  },
+  // The profile row's one line in the same state. The tap is the retry, so the
+  // line says what the tap does instead of the row growing a second control.
+  'course_entry_uncheckable': {
+    AppLocale.ru: 'Не удалось проверить доступ — нажмите, чтобы повторить',
+    AppLocale.kk: 'Қолжетімділікті тексеру мүмкін болмады — қайталау үшін басыңыз',
+    AppLocale.en: 'Could not check access — tap to retry'
   },
 };
 

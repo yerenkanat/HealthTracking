@@ -3,6 +3,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 import '../lib/domain/child_development.dart';
 import '../lib/domain/vaccination.dart';
 import '../lib/domain/postpartum.dart';
@@ -39,6 +40,179 @@ void main() {
   final incomplete = allL10nKeys.where((k) => localesDefinedFor(k) != 3).toList();
   _chk('every key translated in ru+kk+en (${allL10nKeys.length} keys)', incomplete.isEmpty);
   if (incomplete.isNotEmpty) print('   missing: $incomplete');
+
+  // ---- THE KAZAKH MUST NOT BE THE RUSSIAN ----
+  //
+  // «Двуязычность блокирует публикацию» has been enforced, for the life of this
+  // project, as "the map has three entries". It never compared them. A key whose
+  // Kazakh is a copy-paste of the Russian therefore passed the coverage check
+  // above cleanly: three locales, all non-empty, all present. Found the hard way
+  // when a new key shipped Russian text under AppLocale.kk, this tool reported
+  // 82/0, and only a widget test noticed.
+  //
+  // A threshold ("no more than N duplicates") and a blanket skip both hide the
+  // next one. So: kk must differ from ru, and every key that is genuinely the
+  // same in both languages is NAMED HERE WITH ITS REASON, where a reviewer sees
+  // it in the diff. Adding a key to this list is a claim someone has to defend.
+  //
+  // The list is also checked the other way round: an entry whose kk and ru have
+  // since diverged is a stale exception and fails too, so the list cannot rot
+  // into a permanent amnesty.
+  const kkMayEqualRu = <String, String>{
+    // --- Brand, and a Latin word printed on hardware -------------------------
+    'help_app_line': 'the brand line «Ana-Bala · {v}»',
+    'ntf_from_team': 'the brand name',
+    'alerts_filter_sos': '«SOS» — the Latin word moulded into the child button',
+    'child_sos': '«SOS» — the Latin word moulded into the child button',
+    'today_sos': '«SOS» — the Latin word moulded into the child button',
+    'sos_event_title': '«SOS» plus a timestamp',
+    'possrc_gps': 'GPS — a Latin trade name',
+    'possrc_wifi': 'Wi-Fi — a Latin trade name',
+    'possrc_ble': 'Bluetooth — a Latin trade name',
+
+    // --- No words at all ------------------------------------------------------
+    'db_greeting': 'the whole string is «{name}»',
+    'cyc_times': 'a number and the multiplication sign, «{n}×»',
+    'vitals_u_pct': 'the percent sign',
+    'vitals_u_celsius': 'the degree-Celsius symbol',
+
+    // --- Unit abbreviations. Kazakh writes the metric symbols the same way ----
+    'grw_cm': '«см» — the centimetre symbol is the same in Kazakh',
+    'grw_kg': '«кг» — the kilogram symbol is the same in Kazakh',
+    'unit_kg': '«кг» — the kilogram symbol is the same in Kazakh',
+    'hero_length': '«{cm} см» — a number and the centimetre symbol',
+    'pwg_range_value': '«{low}–{high} кг» — numbers and the kilogram symbol',
+    'zone_meters': '«{m} м» — a number and the metre symbol',
+    'wm_unit_km': '«км» — the kilometre symbol is the same in Kazakh',
+    'wm_unit_kcal': '«ккал» — the kilocalorie symbol is the same in Kazakh',
+    'wm_unit_mmol': '«ммоль/л» — the SI-derived symbol is the same in Kazakh',
+    'vitals_u_mmol': '«ммоль/л» — the SI-derived symbol is the same in Kazakh',
+    'aud_lib_size': '«{n} КБ» — the kilobyte symbol is the same in Kazakh',
+    'dur_m': '«{m} мин» — «мин» is also the Kazakh abbreviation for минут',
+    'nb_dur_m': '«{m} мин» — «мин» is also the Kazakh abbreviation for минут',
+    'tl_minutes': '«{n} мин» — «мин» is also the Kazakh abbreviation for минут',
+    'stat_min': '«Мин» — the same clipped form of минимум in Kazakh',
+    'stat_max': '«Макс» — the same clipped form of максимум in Kazakh',
+
+    // --- Loanwords Kazakh took in the same shape ------------------------------
+    // Not transliterations of a Kazakh word that exists: these ARE the Kazakh
+    // words. Where a Kazakh word does exist the string is translated (see
+    // vac_dtp, which used to be on this list and was a bug).
+    'nav_profile': '«Профиль» — the Kazakh loanword is spelled identically',
+    'set_profile': '«Профиль» — the Kazakh loanword is spelled identically',
+    'ei_phone_hint': '«Телефон» — the Kazakh loanword is spelled identically',
+    'scan_camera': '«Камера» — the Kazakh loanword is spelled identically',
+    'zone_radius': '«Радиус» — the Kazakh loanword is spelled identically',
+    'cal_mode_cycle': '«Цикл» — the Kazakh loanword is spelled identically',
+    'cyc_avg_cycle_stat': '«Цикл» — the Kazakh loanword is spelled identically',
+    'cyc_ovulation': '«Овуляция» — the Kazakh loanword is spelled identically',
+    'cyc_phase_ovulation': '«Овуляция» — the Kazakh loanword is spelled identically',
+    'vitals_glucose': '«Глюкоза» — the Kazakh loanword is spelled identically',
+    'wm_sugar': '«Глюкоза» — the Kazakh loanword is spelled identically',
+    'bag_bodysuits': '«Боди» — the Kazakh loanword is spelled identically',
+
+    // --- Fruit names used for the "baby is the size of a…" line ---------------
+    'bsize_avocado': '«авокадо» — the same borrowed fruit name in Kazakh',
+    'bsize_banana': '«банан» — the same borrowed fruit name in Kazakh',
+    'bsize_lemon': '«лимон» — the same borrowed fruit name in Kazakh',
+    'bsize_lime': '«лайм» — the same borrowed fruit name in Kazakh',
+    'bsize_papaya': '«папайя» — the same borrowed fruit name in Kazakh',
+
+    // --- Vaccines, as printed on the RK immunisation card ---------------------
+    // The card a mother carries to the polyclinic prints these forms; a Kazakh
+    // rendering she cannot match to the card is worse than the Russian one. The
+    // explanatory *_note strings beside each of these ARE in Kazakh.
+    'vac_bcg': '«БЦЖ» — the abbreviation printed on the RK immunisation card',
+    'vac_adt': '«АДС-М» — the abbreviation printed on the RK immunisation card',
+    'vac_opv': '«Полиомиелит» — the disease name is the same in Kazakh',
+
+    // --- One genuine collision -----------------------------------------------
+    'cal_dow_3': 'Сәрсенбі abbreviates to «Ср», which is also Russian Среда. '
+        'The other six weekdays are Kazakh (Жс Дс Сс Бс Жм Сн) — this one '
+        'collides by accident.',
+  };
+
+  {
+    final copied = <String>[];
+    final stale = <String>[];
+    final reasonless = <String>[];
+    var compared = 0;
+    for (final key in allL10nKeys) {
+      compared++;
+      final ru = const L10n(AppLocale.ru).t(key);
+      final kk = const L10n(AppLocale.kk).t(key);
+      final excused = kkMayEqualRu.containsKey(key);
+      if (ru == kk) {
+        if (!excused) copied.add('$key  ||  $ru');
+      } else if (excused) {
+        stale.add(key);
+      }
+    }
+    for (final e in kkMayEqualRu.entries) {
+      if (e.value.trim().isEmpty) reasonless.add(e.key);
+      if (!allL10nKeys.contains(e.key)) stale.add('${e.key} (no such key)');
+    }
+
+    // Not vacuous: this must have read the whole catalogue. A scan that matched
+    // nothing looks exactly like a pass, and every guard in this repo that
+    // silently compared zero strings looked exactly like this one.
+    _chk('the kk≠ru scan read the whole catalogue ($compared keys compared)',
+        compared == allL10nKeys.length && compared > 1000);
+    _chk('the exception list is live (${kkMayEqualRu.length} named exceptions, '
+        'all reachable, all with a reason)',
+        kkMayEqualRu.isNotEmpty && stale.isEmpty && reasonless.isEmpty);
+    if (stale.isNotEmpty) {
+      print('   exceptions that are no longer true (kk now differs, or the key '
+          'is gone) — delete them: ${stale.join(', ')}');
+    }
+    if (reasonless.isNotEmpty) print('   exceptions with no reason: $reasonless');
+
+    _chk('no Kazakh string is a copy of the Russian (${copied.length} are)',
+        copied.isEmpty);
+    for (final c in copied) {
+      print('   $c');
+    }
+  }
+
+  // ---- The Kazakh alphabet has to exist in the font that renders it ----
+  //
+  // Only Rubik carries ә ғ қ ң ө ұ ү һ і (see design_system.dart: the other
+  // three families are missing between five and thirteen of them), so Rubik is
+  // what a Kazakh screen is given. The consequence nobody checks is the other
+  // direction: a character that Rubik does NOT have is a box for a Kazakh
+  // reader and perfectly fine for everyone else, because the Russian screen is
+  // on Manrope, which has it.
+  //
+  // That is not hypothetical. U+2192 → is absent from Rubik and present in
+  // Manrope; it lives in help_q4_a and rem_manage_hint in Russian, where it
+  // renders, and the Kazakh of both uses › instead. Nothing enforced that. This
+  // does — by reading Rubik's own cmap table, not by trusting the list above.
+  {
+    final rubik = _cmapOf(File.fromUri(Platform.script.resolve('../assets/fonts/Rubik.ttf')));
+    _chk('read Rubik\'s cmap (${rubik.length} codepoints)', rubik.length > 500);
+    // The nine letters the whole rule is about, asserted by codepoint.
+    const kazakhOnly = 'ӘҒҚҢӨҰҮҺІәғқңөұүһі';
+    final lettersMissing =
+        kazakhOnly.runes.where((r) => !rubik.contains(r)).map(String.fromCharCode).join();
+    _chk('Rubik has every Kazakh-specific letter'
+        '${lettersMissing.isEmpty ? '' : ' — MISSING $lettersMissing'}',
+        lettersMissing.isEmpty);
+
+    final unrenderable = <String>[];
+    for (final key in allL10nKeys) {
+      final kk = const L10n(AppLocale.kk).t(key);
+      final bad = kk.runes.where((r) => r != 0x0A && !rubik.contains(r)).toSet();
+      if (bad.isNotEmpty) {
+        unrenderable.add('$key: ${bad.map((c) => 'U+${c.toRadixString(16).toUpperCase().padLeft(4, '0')}'
+            ' (${String.fromCharCode(c)})').join(' ')}');
+      }
+    }
+    _chk('every character of every Kazakh string exists in Rubik '
+        '(${unrenderable.length} keys would render a box)', unrenderable.isEmpty);
+    for (final u in unrenderable) {
+      print('   $u');
+    }
+  }
 
   // ---- Placeholders survive translation ----
   //
@@ -599,3 +773,69 @@ void main() {
 
 bool _sameSet(Set<String> a, Set<String> b) =>
     a.length == b.length && a.containsAll(b);
+
+/// Every Unicode codepoint a TrueType file can actually draw, read out of its
+/// `cmap` table. Formats 4 (BMP) and 12 (full range) only — those are the two
+/// the bundled families use, and an unrecognised subtable is skipped rather
+/// than guessed at. Throws if no subtable was usable, so a font this cannot
+/// parse fails loudly instead of reporting "no missing glyphs".
+Set<int> _cmapOf(File f) {
+  final bytes = f.readAsBytesSync();
+  final d = ByteData.sublistView(Uint8List.fromList(bytes));
+  final numTables = d.getUint16(4);
+  int? cmap;
+  for (var i = 0; i < numTables; i++) {
+    final rec = 12 + i * 16;
+    if (String.fromCharCodes(bytes.sublist(rec, rec + 4)) == 'cmap') {
+      cmap = d.getUint32(rec + 8);
+    }
+  }
+  if (cmap == null) throw StateError('no cmap table in ${f.path}');
+
+  final out = <int>{};
+  var usable = 0;
+  final n = d.getUint16(cmap + 2);
+  for (var i = 0; i < n; i++) {
+    final off = cmap + d.getUint32(cmap + 4 + i * 8 + 4);
+    switch (d.getUint16(off)) {
+      case 4:
+        usable++;
+        final segX2 = d.getUint16(off + 6);
+        final endO = off + 14;
+        final startO = endO + segX2 + 2;
+        final deltaO = startO + segX2;
+        final rangeO = deltaO + segX2;
+        for (var s = 0; s < segX2 ~/ 2; s++) {
+          final start = d.getUint16(startO + s * 2);
+          if (start == 0xFFFF) continue;
+          final end = d.getUint16(endO + s * 2);
+          final delta = d.getInt16(deltaO + s * 2);
+          final ro = d.getUint16(rangeO + s * 2);
+          for (var c = start; c <= end; c++) {
+            int g;
+            if (ro == 0) {
+              g = (c + delta) & 0xFFFF;
+            } else {
+              final gi = rangeO + s * 2 + ro + (c - start) * 2;
+              if (gi + 1 >= bytes.length) continue;
+              g = d.getUint16(gi);
+              if (g != 0) g = (g + delta) & 0xFFFF;
+            }
+            if (g != 0) out.add(c);
+          }
+        }
+      case 12:
+        usable++;
+        final groups = d.getUint32(off + 12);
+        for (var g = 0; g < groups; g++) {
+          final go = off + 16 + g * 12;
+          final sc = d.getUint32(go), ec = d.getUint32(go + 4);
+          for (var c = sc; c <= ec; c++) {
+            out.add(c);
+          }
+        }
+    }
+  }
+  if (usable == 0) throw StateError('no format 4 or 12 subtable in ${f.path}');
+  return out;
+}

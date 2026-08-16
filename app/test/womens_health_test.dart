@@ -589,9 +589,14 @@ void main() {
       addTearDown(c.dispose);
       await tester.pumpWidget(inLocale(c, AppLocale.kk));
 
-      // Дс Сс Ср Бс Жм Сб Жс — and all seven distinct, which the platform's
+      // Дс Сс Ср Бс Жм Сн Жс — and all seven distinct, which the platform's
       // narrow names are not.
-      for (final day in ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс']) {
+      //
+      // Saturday used to be asserted here as «Сб», the Russian Суббота, because
+      // that is what the catalogue held; the test locked the bug in rather than
+      // catching it. Сенбі abbreviates to «Сн». Wednesday «Ср» genuinely is the
+      // same string in both languages (Сәрсенбі / Среда).
+      for (final day in ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сн', 'Жс']) {
         expect(find.text(day), findsOneWidget, reason: '$day is missing');
       }
     });

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_controller.dart';
 import '../../domain/course_lesson.dart';
 import '../../domain/shop_catalogue.dart';
+import '../../l10n/l10n_scope.dart';
 import 'mama_course_screen.dart';
 
 class CourseRoute extends StatefulWidget {
@@ -44,9 +45,10 @@ class _CourseRouteState extends State<CourseRoute> {
   Future<void> _load() async {
     final api = widget.controller.api;
     if (api == null) {
-      // No server configured (a dev build with no API_BASE). Falling back to
-      // "not entitled" shows the offer, which is the honest thing to show
-      // somebody whose app cannot check what she owns.
+      // No server configured (a dev build with no API_BASE) — not the same as
+      // a server that did not answer. There is no account here to have bought
+      // anything with, and no retry that could ever succeed, so this stays on
+      // the offer rather than showing a failure with a dead button.
       if (mounted) setState(() => _access = CourseAccess.none);
       return;
     }
@@ -65,10 +67,25 @@ class _CourseRouteState extends State<CourseRoute> {
       final access = await api.getCourse();
       if (mounted) setState(() => _access = access);
     } catch (_) {
-      // A failed request must not look like an empty course she paid for.
-      // CourseAccess.none draws the offer, which is wrong for a buyer but
-      // recoverable — pull to refresh retries.
-      if (mounted) setState(() => _access = CourseAccess.none);
+      if (!mounted) return;
+      // A failed request is not an answer. It used to become
+      // CourseAccess.none, which drew the offer: a customer who had paid
+      // 39 000 ₸ was asked to buy the course again every time her signal
+      // dropped. CourseAccess.unknown draws neither branch — it says the
+      // check failed and offers a retry.
+      final have = _access;
+      if (have != null && !have.checkFailed) {
+        // An answer already arrived in this session, for this account, and
+        // it is still the last thing the server said. A pull-to-refresh that
+        // fails must not take her lessons away mid-course — but it must not
+        // pass for a success either, so it is said out loud.
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        messenger?.showSnackBar(SnackBar(
+          content: Text(L10nScope.of(context).t('course_check_failed')),
+        ));
+        return;
+      }
+      setState(() => _access = CourseAccess.unknown);
     }
   }
 

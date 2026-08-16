@@ -24,12 +24,21 @@ class _Transport implements HttpTransport {
   /// whole profile.
   final bool broken;
 
-  _Transport(this.course, {this.broken = false});
+  /// How many of the first course requests fail before the rest succeed —
+  /// a tunnel, and then the train comes out of it.
+  final int failFirst;
+
+  /// How many times the course was actually asked for, so a retry can be
+  /// proved to be a retry and not a repaint.
+  int courseCalls = 0;
+
+  _Transport(this.course, {this.broken = false, this.failFirst = 0});
 
   @override
   Future<HttpResponse> get(String path) async {
     if (path == '/course/lessons') {
-      if (broken) throw Exception('no network');
+      courseCalls++;
+      if (broken || courseCalls <= failFirst) throw Exception('no network');
       return HttpResponse(200, jsonEncode(course));
     }
     return const HttpResponse(200, '{}');
@@ -102,15 +111,58 @@ void main() {
       expect(_sub(tester), 'Пройдено 0 из 2');
     });
 
-    testWidgets('falls back to the offer line when the course cannot be reached',
+    testWidgets('sells her nothing when the check could not be made',
         (tester) async {
-      // A profile screen must not break because one request failed, and
-      // claiming she owns something we could not verify is the wrong guess.
+      // The defect this row was shipped with: a failed request was read as
+      // «она не купила», so a customer who had paid was pitched the course
+      // again every time her network dropped. It may not guess either way.
       await _pump(tester, _Transport(const {}, broken: true));
-      expect(_sub(tester), contains('комплект'));
+      expect(_sub(tester), isNot(contains('комплект')));
+      expect(_sub(tester), contains('Не удалось проверить'));
+      // And it may not go the other way either and imply she owns it.
+      expect(_sub(tester), isNot(contains('Доступ открыт')));
+      expect(_sub(tester), isNot(contains('Пройдено')));
+      // The profile itself still works — one failed request must not break it.
+      expect(find.text('Курс Ма!Ма!'), findsOneWidget);
+    });
+
+    testWidgets('tapping the failed row asks again', (tester) async {
+      // The retry has to BE something. The line says «нажмите, чтобы
+      // повторить», and this is that promise held to.
+      final t = _Transport({
+        'entitled': true,
+        'lessons': [_lesson('a', 10), _lesson('b', 20)],
+        'progress': [
+          {'lessonId': 'a', 'completed': true},
+        ],
+      }, failFirst: 1);
+      await _pump(tester, t);
+      expect(_sub(tester), contains('Не удалось проверить'));
+      expect(t.courseCalls, 1);
+
+      // The row is the last one on the profile, below an 800×600 test view.
+      await tester.ensureVisible(find.byKey(const Key('course-entry-sub')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('course-entry-sub')));
+      // Not pumpAndSettle: the tap also opens the course, whose loading state
+      // is an indeterminate spinner.
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(t.courseCalls, greaterThan(1));
+      // The row is behind the pushed course screen now, but it has the answer.
+      expect(
+          tester
+              .widget<Text>(find.byKey(const Key('course-entry-sub'),
+                  skipOffstage: false))
+              .data,
+          'Пройдено 1 из 2');
     });
 
     testWidgets('works with no API configured at all', (tester) async {
+      // Not the same as a failed check: there is no account here to have
+      // bought anything with, and no retry that could ever succeed.
       await _pump(tester, null);
       expect(_sub(tester), contains('комплект'));
     });

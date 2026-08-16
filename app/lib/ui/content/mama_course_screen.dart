@@ -1,11 +1,15 @@
 /// The Ма!Ма! course.
 ///
-/// Two screens in one, and the difference matters commercially:
+/// Three screens in one, and the difference matters commercially:
 ///
 ///   * NOT entitled — this is an offer, not an error. It says what the course
 ///     is and that the комплект includes it. A locked door with a sign sells
 ///     the bundle; a locked door with no sign looks broken and costs a sale.
 ///   * Entitled — the lessons, in order, each playing inside the app.
+///   * Could not check — neither of the above. The server did not answer, so
+///     the screen says that and offers a retry. It used to draw the offer
+///     here, which told a paying customer to buy what she owns as soon as her
+///     signal dropped.
 ///
 /// The gate is the SERVER's answer, not a flag this screen decides. It asks
 /// GET /course/lessons and draws what comes back.
@@ -29,9 +33,10 @@ import 'course_video_screen.dart';
 import '../theme.dart';
 
 class MamaCourseScreen extends StatelessWidget {
-  /// Null while loading; [CourseAccess.none] when the request failed, which
-  /// draws the offer rather than an error — the course being unreachable and
-  /// the course not being bought look the same to someone who has not bought it.
+  /// Null while loading; [CourseAccess.unknown] when the request failed, which
+  /// draws neither the offer nor the lessons — the course being unreachable and
+  /// the course not being bought are different facts, and only one of them is
+  /// safe to act on.
   final CourseAccess? access;
   final Future<void> Function()? onRetry;
 
@@ -118,7 +123,11 @@ class MamaCourseScreen extends StatelessWidget {
       appBar: AppBar(title: Text(l.t('course_title'))),
       body: a == null
           ? const Center(child: CircularProgressIndicator())
-          : a.entitled
+          // Before either branch, because both of them are claims about what
+          // she owns and this state is the absence of one.
+          : a.checkFailed
+              ? _CheckFailed(onRetry: onRetry)
+              : a.entitled
               ? _Lessons(access: a, onTap: (x) => _open(context, x), onRetry: onRetry)
               : _Offer(
                   whatsapp: whatsapp,
@@ -127,6 +136,57 @@ class MamaCourseScreen extends StatelessWidget {
                   catalogue: catalogue,
                   onPlayFree: (p) => _openFree(context, p),
                 ),
+    );
+  }
+}
+
+/// What everybody sees when the entitlement could not be read.
+///
+/// Modelled on «История зон», which draws loading / loaded / FAILED for the
+/// same reason: the failure card must not be mistakable for an answer. So no
+/// price card, no WhatsApp button, no lesson list — nothing on it acts as if
+/// we knew, and the only thing to do is ask again.
+class _CheckFailed extends StatelessWidget {
+  final Future<void> Function()? onRetry;
+  const _CheckFailed({this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+      children: [
+        DsCard(
+          key: const Key('course-check-failed'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 40, color: Palette.textDim),
+              const SizedBox(height: 12),
+              Text(l.t('course_check_failed'),
+                  style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              // The sentence that keeps this apart from the offer. Without it a
+              // customer reads a dead network as "you do not have this".
+              Text(l.t('course_check_failed_why'),
+                  style: const TextStyle(color: Palette.textDim, height: 1.45)),
+              if (onRetry != null) ...[
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: DsShape.minTapTarget,
+                  child: FilledButton(
+                    key: const Key('course-check-retry'),
+                    onPressed: () => onRetry!(),
+                    child: Text(l.t('day_retry'),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

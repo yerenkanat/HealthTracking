@@ -195,9 +195,20 @@ class CoursePreviewLesson {
 /// not bought this" and "the course has no lessons yet" need different screens —
 /// one is an offer, the other is an apology — and collapsing them into an empty
 /// list would show the wrong one half the time.
+///
+/// [checkFailed] is the third fact, and the same argument again: "the server
+/// said no" and "the server said nothing" are not the same answer. Reading a
+/// failed request as `entitled: false` showed the sales pitch for the course to
+/// a woman who had paid 39 000 ₸ for it, every time her train went into a
+/// tunnel. This state asserts NOTHING about what she owns, and the screens that
+/// receive it are required to assert nothing either.
 class CourseAccess {
   final bool entitled;
   final List<CourseLesson> lessons;
+
+  /// True only on [unknown]: nobody answered, so neither branch may be drawn.
+  /// Never set from a parsed response — a response IS an answer.
+  final bool checkFailed;
 
   /// What the course contains, for somebody who has not bought it. Empty when
   /// she owns it — the real [lessons] are the list then.
@@ -212,7 +223,11 @@ class CourseAccess {
     required this.lessons,
     this.progress = const {},
     this.preview = const [],
-  });
+    this.checkFailed = false,
+  }) :
+        // An unanswered check cannot unlock anything: that would be the client
+        // granting itself the entitlement the server exists to decide.
+        assert(!(checkFailed && entitled));
 
   /// The lesson to offer as "continue" — the one she was last in the middle of,
   /// or the first she has not finished. Null when she has finished everything,
@@ -266,7 +281,24 @@ class CourseAccess {
         lessons: lessons,
         preview: preview,
         progress: {...progress, p.lessonId: p},
+        checkFailed: checkFailed,
       );
 
+  /// The server said she has not bought it. An offer.
   static const none = CourseAccess(entitled: false, lessons: []);
+
+  /// Nobody said anything — the request threw, timed out, or came back
+  /// unreadable. NOT an offer and NOT a course: see [checkFailed].
+  ///
+  /// Deliberately not persisted anywhere. A cached "entitled" would outlive a
+  /// refund and would be a paywall the client enforces (`ApiClient.getCourse`
+  /// says why that is worthless), and it would have to carry the lesson videos
+  /// — the paid goods themselves — onto the disk of somebody who may not own
+  /// them. A cached "not entitled" is the defect this state exists to kill:
+  /// it would show the pitch to a buyer whose only sin was a dead network.
+  /// What IS kept is the answer already received in this session, in memory,
+  /// by the screens below: a refresh that fails does not demote a course she
+  /// is in the middle of watching.
+  static const unknown =
+      CourseAccess(entitled: false, lessons: [], checkFailed: true);
 }
