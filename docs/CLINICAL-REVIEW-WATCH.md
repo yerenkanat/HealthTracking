@@ -292,7 +292,41 @@ protocol) and, unconditionally for both, the reviewed preeclampsia red flags and
 103. That last branch is the only part that helps the woman whose wrist reads
 137 while her true pressure is 160.
 
-## The Kazakh says something weaker than the Russian — OPEN, 2026-08-17
+## Medical Kazakh is reviewed, not translated — the standing rule
+
+> No string in a `medical` content card, an `ADV_*` advisory, a triage message,
+> an `em_*` emergency key or a vitals qualifier may ship in Kazakh until someone
+> has read the Kazakh and the Russian against each other, sentence by sentence,
+> and recorded that they make the same clinical claim. That read-back belongs to
+> the gate that approved the Russian — not the implementer, not the translator.
+> **Approving one language is not approving the copy: the verdict does not exist
+> until it names every language it covers.**
+>
+> 1. **A verdict names its languages** — "APPROVED (ru, kk, en)". An approval
+>    that names none approved one.
+> 2. **Editing any language re-opens the key in all of them**, the same
+>    discipline `carryReview` applies to content cards.
+> 3. **The reviewer names the load-bearing words, per key, per language** — the
+>    ones whose removal changes the claim. For the two device cards they are:
+>    ru «а не измерение», «на запястье», present «показывает»; kk «өлшем емес»
+>    (and **never** «нақты өлшем емес»), «білезік», «көрсетіп тұр».
+
+Two things to build and one **not** to build:
+
+- **Do not grow the kk≠ru guard toward semantics.** It catches copy-paste, and
+  should keep doing exactly that. `vac_hib` is the proof it cannot go further —
+  a Russian parenthetical inside a Kazakh string was invisible to it because the
+  rest of the string differed. No string comparison will ever detect "conceded
+  that it is a measurement".
+- **Build the per-key load-bearing-token assertion:** for each reviewed medical
+  key, the substrings each language must contain and must not contain. Cheap,
+  and it would have caught both of today's body defects on the day they landed —
+  `нақты өлшем` present, `білезік` absent — with nobody reading Kazakh.
+- **Build the reviewed-titles manifest, hashed across all three languages.**
+  Asked for on 2026-08-14, still not built. Hashing Russian alone would have let
+  today's Kazakh title through.
+
+## The Kazakh said something weaker than the Russian — CLOSED, 2026-08-17
 
 The read-back this document asked for was finally done, and it found that **a
 reviewed clinical claim was reviewed in one language and shipped in two.**
@@ -326,8 +360,38 @@ drops from *wrist* to *arm*.
 the Russian present «показывает» to the Kazakh past «көрсетті» — "the sensor
 showed". Titles ship alone through the clipboard export.
 
-Not patched. Approved medical copy is not an implementer's to edit, and the
-corrected Kazakh has to come from the gate that approved the Russian.
+**Corrected 2026-08-17, by the gate that approved the Russian.** The diff is one
+word deleted and one corrected, in one clause of each body, plus the tense of
+both titles. Everything after that clause is unchanged by a character:
+
+| | before (kk) | after (kk) |
+|---|---|---|
+| both bodies | «Бұл — **қолыңыздағы** датчиктің болжамы, **нақты** өлшем емес» | «Бұл — **білезіктегі** датчиктің болжамы, өлшем емес» |
+| both titles | «Датчик … **көрсетті**» (showed) | «Датчик … **көрсетіп тұр**» (is showing) |
+
+`өлшем` was already the translator's chosen equivalent of «измерение» — deleting
+the hedge makes the sentence deny the CATEGORY rather than the precision. If
+anyone proposes re-adding a qualifier here — `нақты`, `дәл`, `толық` — **that is
+the defect returning and must be refused.** `білезік` over `білек`: the latter
+is the forearm, which would repeat the error, and `білезік` is the word the rest
+of the Kazakh app already uses for the band.
+
+The title tense was ruled a defect rather than a nit: a title ships alone and
+undated through the clipboard export, so tense is the only temporal information
+it carries. «көрсетті» reads as a closed episode — a warning that reads as
+concluded is a warning weakened, and weakened only for Kazakh readers. Bare
+`көрсетеді` is refused as the fix: the aorist reads habitual, a claim about what
+sensors do in general.
+
+`temp_device_estimate_note` deliberately KEEPS «Нақты дене қызуын тек термометр
+көрсетеді» — stated here so nobody "harmonises" it after seeing `нақты` deleted
+two keys away. That sentence is a claim about the THERMOMETER, and the denial in
+that note is carried by the sentence before it. It is the opposite construction
+to the defect.
+
+Confirmed by a repo-wide sweep that these four strings are the complete change:
+the text exists in exactly one file, and nothing in `packages/` mirrors it. That
+was the one way this could have been a partial fix.
 
 **What read back CLEAN**, sentence by sentence, so the scope of the problem is
 bounded rather than feared: `ADV_NOTHING_UNUSUAL` including its third
