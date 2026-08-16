@@ -1642,6 +1642,23 @@ const UUID_RE =
     adminUserDetail: async (userId) => {
       // Same reasoning as adminUserHealth: an erased account has no drilldown.
       if (userId !== DEMO_USER || accountDeleted) return null;
+      /**
+       * Her vitals and her triage history, from the SAME place the health view
+       * reads them — `pgRepository.adminUserDetail` calls `adminUserHealth`
+       * here, and this one did not.
+       *
+       * It returned a frozen fixture instead: `{hr: 80, spo2: 97, 138/82,
+       * 36.7, 5.4}` and an empty triage list, for every mother, whatever she
+       * had actually sent. So on the in-memory backend — the one that runs
+       * today — the mother card printed six invented readings under «Показатели»
+       * and «Отметок триажа нет» over a woman who had triggered an emergency.
+       * Nothing caught it, because the only route that served the real numbers
+       * was /admin/users/:id/health, which no screen called.
+       *
+       * An unfaithful fake is worse than no fake: this one agreed with a
+       * missing feature in the one place a clinician reads a person.
+       */
+      const health = await repository.adminUserHealth(userId);
       return {
         id: DEMO_USER,
         displayName: profile?.displayName ?? '',
@@ -1670,8 +1687,8 @@ const UUID_RE =
           childId: d.childId,
           batteryPct: d.batteryPct,
         })),
-        latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7, glucose: 5.4 },
-        triage: [],
+        latest: health?.latest ?? {},
+        triage: health?.triage ?? [],
         alerts: alerts.slice(0, 20).map((a) => ({
           kind: a.kind,
           childName: children.find((c) => c.id === a.childId)?.name ?? '',
@@ -2900,6 +2917,11 @@ const UUID_RE =
       return { id };
     },
     adminShopLeads: async (limit) => shopLeads.slice(-limit).reverse().map((l) => ({ ...l })),
+    /// Over the whole store, never over a page — see the interface.
+    shopLeadCounts: async () => ({
+      total: shopLeads.length,
+      uncalled: shopLeads.filter((l) => l.status === 'new').length,
+    }),
     setShopLeadStatus: async (leadId, status) => {
       const l = shopLeads.find((x) => x.id === leadId);
       if (l) l.status = status;

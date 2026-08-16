@@ -129,7 +129,8 @@ const NO_CAPABILITY_WRITES = new Set([
 /** Reads whose response is people, and the capability each must therefore hold. */
 const SENSITIVE_READS = new Map<string, string>([
   ['GET /admin/users', 'customers'], // the whole user list, searchable by name and phone
-  ['GET /admin/users/:id/health', 'health'],
+  // `GET /admin/users/:id/health` was here until it was deleted as a duplicate
+  // of /detail, which serves the same `latest` and `triage` (docs/BACKLOG.md §3).
   ['GET /admin/users/:id/wellness', 'health'],
   ['GET /admin/users/:id/detail', 'health'],
   ['GET /admin/children/stats', 'health'],
@@ -146,7 +147,7 @@ describe('back-office authorization', () => {
     // matching — the failure mode of every source-reading guard.
     const found = adminRoutes();
     expect(found.length).toBeGreaterThan(8);
-    expect(found.some((r) => r.path === '/admin/users/:id/health')).toBe(true);
+    expect(found.some((r) => r.path === '/admin/users/:id/detail')).toBe(true);
   });
 
   it('no route is reachable without an identity', () => {

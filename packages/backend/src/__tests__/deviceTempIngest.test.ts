@@ -134,7 +134,10 @@ describe('POST /ingest/batch carries the device temperature instead of dropping 
     // ruled it may not state from a wrist.
     const h = await app.inject({
       method: 'GET',
-      url: `/admin/users/${USER}/health?reason=${encodeURIComponent(REASON)}`,
+      // The mother card's own read. `/admin/users/:id/health` served exactly
+      // this `latest` and was deleted as a duplicate (docs/BACKLOG.md §3);
+      // `/detail` calls the same `adminUserHealth` and is what the panel opens.
+      url: `/admin/users/${USER}/detail?reason=${encodeURIComponent(REASON)}`,
       headers: { cookie },
     });
     expect(h.statusCode).toBe(200);

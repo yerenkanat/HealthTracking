@@ -3905,6 +3905,18 @@ export function createPgRepository(pool: Pool): Repository {
         locale: r.locale, status: r.status, createdAt: new Date(r.created_at).toISOString(),
       }));
     },
+    /**
+     * The whole table, in one round trip — deliberately the SAME expression the
+     * dashboard's `leads` block uses twenty lines into adminDashboard. Two
+     * queries counting one queue is how «не обработано: 12» and «50 из 140»
+     * come to stand on the same screen.
+     */
+    async shopLeadCounts() {
+      const { rows } = await pool.query(
+        `SELECT count(*) AS total, count(*) FILTER (WHERE status = 'new') AS uncalled
+           FROM shop_leads`);
+      return { total: Number(rows[0]?.total ?? 0), uncalled: Number(rows[0]?.uncalled ?? 0) };
+    },
     async setShopLeadStatus(leadId, status) {
       await pool.query('UPDATE shop_leads SET status = $2 WHERE id = $1', [leadId, status]);
     },

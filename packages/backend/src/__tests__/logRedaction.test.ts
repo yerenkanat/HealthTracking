@@ -4,7 +4,7 @@
  * Request logging is pino's default, which records neither headers nor bodies
  * — so no readings, names, phone numbers or chat messages reach it. It did
  * record the URL verbatim, and these URLs carry identifiers:
- * `/admin/users/{uuid}/health` states which staff member opened which
+ * `/admin/users/{uuid}/wellness` states which staff member opened which
  * patient's record.
  *
  * That question has a deliberate home already — the audit log, written on
@@ -56,8 +56,11 @@ async function captureLog(
 
 describe('what reaches the request log', () => {
   it('drops the user id from a health drilldown', () => {
-    expect(redactPathIds('/admin/users/11111111-1111-1111-1111-111111111111/health')).toBe(
-      '/admin/users/:id/health',
+    // /wellness rather than /health: the latter was deleted as a duplicate of
+    // /detail (docs/BACKLOG.md §3), and a redaction test is worth more when the
+    // path it names is one the server actually serves.
+    expect(redactPathIds('/admin/users/11111111-1111-1111-1111-111111111111/wellness')).toBe(
+      '/admin/users/:id/wellness',
     );
   });
 

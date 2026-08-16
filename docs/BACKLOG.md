@@ -76,10 +76,10 @@ Also shipped, and not previously on this list:
 | # | What | Where |
 |---|---|---|
 | 3.1 | The **whole vaccination editor**: 7 routes, 0 panel callers — `PUT /schedule/:id/:dose`, `POST .../review`, `PUT /settings`, `GET /coverage`, `/impact`, `/log`, `/schedule`. `admin.ts:449` even says «the immunisation calendar is now editable». It is editable by curl. | `routes/admin.ts` 1367–1760 |
-| 3.2 | `DELETE /admin/shop/categories/:id` — finished, audited, 409-guarded, no caller. A mistyped category is permanent. | `routes/admin.ts:2298` |
-| 3.3 | `PUT /admin/inventory/products/:id/parts` — the panel prints «Комплект из: X + Y» and offers no way to change it. | `inventory.ts:252` |
+| ~~3.2~~ | ~~`DELETE /admin/shop/categories/:id` — finished, audited, 409-guarded, no caller.~~ **WIRED.** Категории витрины card lists every category with its code and product count; the button is disabled on a non-empty one (the 409 said before the click), the confirm names the category and states what the guard protects — the FK is ON DELETE SET NULL, so products would be silently uncategorised, and products are never deleted either way. `adminCategoryDeleteRender.test.ts`. | `routes/admin.ts` · `index.html` catDelete |
+| ~~3.3~~ | ~~`PUT /admin/inventory/products/:id/parts` — no way to change a bundle.~~ **WIRED.** «Изменить состав» on the bundle row opens an editor over the same shelf the table is drawn from; it cannot offer the bundle to itself, warns on a duplicated part, confirms when a part is removed (naming it), and reports a refusal instead of closing. `adminBundlePartsRender.test.ts`. | `inventory.ts:391` · `index.html` bndOpen |
 | 3.4 | Skin temperature is parsed by the OEM band parser and synced, and rendered nowhere. | `app/lib/ble/parsers/band_parser.dart:123` |
-| 3.5 | `/app/version` sends `latestBuild`, the app parses it and drops it; `appUpdateAvailable()` has no caller in `lib/`. The soft-update nudge described in its own header does not exist. | `app/lib/main.dart:463`, `domain/app_version.dart:23` |
+| 3.5 | `/app/version` sends `latestBuild`, the app parses it and drops it; `appUpdateAvailable()` has no caller in `lib/`. The soft-update nudge described in its own header does not exist. **RE-VERIFIED 2026-08-17 and still true**, with the exact gap: the server sends it (`app/version.ts:33`), `api_client.dart:507-512` returns it in the record, and `main.dart:601-602` reads `v.minBuild` only — `v.latestBuild` dies at that call site. The predicate's only caller anywhere is `app/tool/verify_app_version.dart:27-29`, a checker, not a surface. `AppController` has `_mustUpdate`/`applyMinBuild` and no soft counterpart; `app.dart:128` routes `mustUpdate` to `force_update_screen.dart`, which by its own docstring has no way back. `l10n.dart` holds only `upd_title`/`upd_body`/`upd_cta`, all worded «больше не поддерживается» — reusing them for a nudge would tell a woman on a supported build that hers is unsupported, so a nudge needs its own RU+ҚАЗ keys. Left for an app agent: this is `app/` work. | `app/lib/main.dart:601`, `domain/app_version.dart:23` |
 | 3.6 | Support: `customerReadAt` and `assigneeId` ride in every ticket and are never displayed. Two operators answer the same woman; a third chases her about a reply she has read. | `index.html` supRow ~7361 |
 | 3.7 | `fillTemplate` — exported, tested, no production caller. Operators hand-edit `{status}` and `{eta}` on every reply. | `admin/support.ts:158` |
 | 3.8 | Product `photoUrl` and the three SEO fields are edited in a card promising «Изменения сразу видны в витрине и в приложении». Nothing renders the photo; there is no per-product page for a slug. | `index.html:1747-1787`, `shop_catalogue.dart:80` |
@@ -99,8 +99,8 @@ Also shipped, and not previously on this list:
 
 | # | What | Where |
 |---|---|---|
-| 5.1 | Lead backlog and the nav badge count `status === 'new'` in the **first 100 rows only**; the route returns no total. With 140 leads the header says «не обработано: 12» when it could be 50. | `index.html:5373`, `GET /admin/shop/leads` |
-| 5.2 | `/admin/users` returns a real `count(*)` total that the panel never reads. No footer, no pager, row 51 unreachable. Same in Журнал (`?limit=100`, no footer) — an investigation silently reads the last 100 entries. | `index.html:3307`, `repository.ts:1107` |
+| ~~5.1~~ | ~~Lead backlog and the nav badge count `status === 'new'` in the first 100 rows only; the route returns no total.~~ **CLOSED.** `Repository.shopLeadCounts()` on both implementations; `GET /admin/shop/leads` serves `counts.total` and `counts.uncalled` over the whole table to everyone holding `orders`, so the badge and the header no longer count a page. A count that fails sends `total: null` and the panel calls its number a floor in those words. `shopLeadsCount.test.ts`, `adminLeadsCountRender.test.ts`. | `routes/admin.ts` leads · `index.html` shopLeads |
+| 5.2 | ~~`/admin/users` returns a real `count(*)` total that the panel never reads. No footer, no pager, row 51 unreachable.~~ **HALF CLOSED.** The caseload now sends `offset`, reads `total`, prints «Показано 1–50 из 137» with the rule beneath it, pages both ways, resets to page one on a new search, and renders a failed read as a failed read rather than an empty base. `adminUsersPager.test.ts`. **Журнал is still unpaged** (`?limit=100`, no footer): an investigation silently reads the last 100 entries. | `index.html` renderUsers ✅ · renderAudit ❌ |
 | 5.3 | Two definitions of «online»: `/admin/stats.devicesOnline` uses 15 minutes, frame 11 uses 24 hours. Frame 11 prints its threshold; the dashboard tile does not. | `pgRepository`, `index.html` |
 | 5.4 | `.formmsg.err` is not a class — only `.bad`/`.ok` exist — so `#finMsg` and friends render grey where they mean red. | `index.html` |
 
@@ -226,10 +226,25 @@ Cheap to finish; each is a number someone is already paying to produce.
 
 ### Also confirmed
 
-- **`GET /admin/users/:id/health` has no caller and is redundant** — the mother
-  card uses `/detail`, which calls it internally. A live unused endpoint
-  returning latest vitals and 20 triage events: low functional cost, non-zero
-  PHI surface on a route nothing exercises or watches.
+- ~~**`GET /admin/users/:id/health` has no caller and is redundant**~~ —
+  **DELETED, 2026-08-17.** `/detail` serves the same `latest` and `triage` from
+  the same `adminUserHealth`, under the same capability, the same mandatory
+  reason and an audit row of its own, so removing it closed no access and
+  removed no guard: anyone who could call it gets a superset from `/detail`.
+  Wiring it into the card would have meant a second read of rows already on
+  screen and a second «зачем» prompt — the reasoning that already puts `epds`
+  on `/wellness`. Nothing outside the test suite called it (panel, app, tools
+  and deploy scripts all checked); the ten test files that used it as the
+  canonical audited per-person read were **retargeted at `/detail`, not
+  deleted**, so every security assertion survives. Recorded in
+  `adminHealthRouteRetired.test.ts` and in the comment where the route was.
+  **It took a real defect with it:** `memoryRepository.adminUserDetail` returned
+  a FROZEN vitals fixture (`hr 80 · 138/82 · 36.7`, triage `[]`) for every
+  mother while `pgRepository` built the field by calling `adminUserHealth` — so
+  on the backend that actually runs, the mother card printed invented readings
+  and «нет отметок» over a woman whose last reading was an emergency. It
+  survived because the only route serving her real numbers was the one nothing
+  called. Fixed, and guarded in `adminUserDetailMemory.test.ts`.
 - **Skin temperature is a write-only column** — inserted, never selected. The
   mother is not missing a temperature (the converted `coreTempC` is shown); what
   is lost is the ability to ever check `skinToCoreTempC` against its own input.
@@ -237,11 +252,20 @@ Cheap to finish; each is a number someone is already paying to produce.
   from the schema file sequential-scans `shop_orders` on every mother-card open
   and on every child's safety history, in a way nobody will connect to a missing
   index.
-- The vaccination editor (7 routes), `DELETE /admin/shop/categories/:id`,
+- ~~The vaccination editor (7 routes), `DELETE /admin/shop/categories/:id`,
   `PUT /admin/inventory/products/:id/parts`, `latestBuild`/`appUpdateAvailable`,
-  the lead badge, and the missing `/admin/users` pager — all still unwired. The
-  lead badge is worse than recorded: the correct figure is **already computed
-  and already served**, and already rendered correctly two clicks away.
+  the lead badge, and the missing `/admin/users` pager — all still unwired.~~
+  **Four of six closed, 2026-08-17:** the category delete (3.2), the bundle
+  composition (3.3), the `/admin/users` pager (5.2, first half) and the lead
+  count (5.1). `latestBuild`/`appUpdateAvailable` is re-verified and handed to
+  an app agent (see 3.5). **The vaccination editor (3.1) is still unwired** —
+  seven routes, nothing calls them.
+  On the lead badge: it is no longer borrowed from «Сводка». `Repository`
+  now carries `shopLeadCounts(): {total, uncalled}` on both implementations, and
+  `GET /admin/shop/leads` serves it — so seller, operator and support, who work
+  the callback queue and hold no `finance`, read the real total instead of a
+  floor («не менее 43»). The floor wording survives for exactly one case, a
+  count that did not arrive, and says so in those words.
 
 ### Refuted and reclassified — do not re-schedule
 

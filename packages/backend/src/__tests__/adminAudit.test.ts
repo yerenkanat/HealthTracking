@@ -4,7 +4,7 @@
  * The audit call is written by hand in each handler, so forgetting one is free
  * and invisible: the route works, the data is served, and nothing records who
  * looked. That is how /admin/devices came to be unaudited while
- * /admin/users/:id/health was — the same names, reached a different way.
+ * /admin/users/:id/detail was — the same names, reached a different way.
  *
  * This reads the routes out of the source rather than checking a list of them,
  * so a NEW route is failed by default. Adding one forces a decision: audit it,
@@ -172,7 +172,7 @@ describe('back-office audit coverage', () => {
     // stopped matching — the failure mode of every source-reading guard.
     const found = routes();
     expect(found.length).toBeGreaterThan(8);
-    expect(found.some((r) => r.path === '/admin/users/:id/health')).toBe(true);
+    expect(found.some((r) => r.path === '/admin/users/:id/detail')).toBe(true);
   });
 
   it('every route that can reach a family is audited', () => {

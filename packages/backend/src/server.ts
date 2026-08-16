@@ -369,7 +369,7 @@ const bpCalSchema = z.object({
 /// Request logging is pino's default, which records method and url and — good
 /// — neither headers nor bodies, so no readings, names, phone numbers or chat
 /// messages reach it. What it did record was the URL verbatim, and these URLs
-/// carry identifiers: `/admin/users/{uuid}/health` in an access log states
+/// carry identifiers: `/admin/users/{uuid}/wellness` in an access log states
 /// which staff member opened which patient's record, and `/children/{uuid}/
 /// location` states whose child was looked up and when.
 ///

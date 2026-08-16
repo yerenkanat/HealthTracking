@@ -212,6 +212,11 @@ describe('categories (frame 08b)', () => {
       method: 'DELETE', url: '/admin/shop/categories/gifts', headers: { cookie },
     });
     expect(r.statusCode).toBe(200);
+    // Read back: a 200 over a category still in the rail is the failure this
+    // route exists to prevent, and «удалено» over an unchanged storefront is
+    // exactly what nobody would notice.
+    const after = (await get('/admin/shop/products')).json();
+    expect(after.categories.some((c: { id: string }) => c.id === 'gifts')).toBe(false);
     await app.close();
   });
 });

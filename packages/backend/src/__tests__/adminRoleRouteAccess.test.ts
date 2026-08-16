@@ -72,7 +72,7 @@ const ROUTE_FILES = ['admin.ts', 'entitlements.ts', 'inventory.ts', 'staffAdmin.
 
 interface RouteGuard {
   method: string;
-  /** As declared, params included: `/admin/users/:id/health`. */
+  /** As declared, params included: `/admin/users/:id/detail`. */
   path: string;
   cap: Capability | null;
   staffOnly: boolean;
@@ -338,7 +338,7 @@ describe('the derivation itself', () => {
     expect(cap('GET', '/admin/inventory')).toBe('stock');
     expect(cap('GET', '/admin/stats')).toBe('staff');
     // Params resolve rather than falling through to a wildcard-free sibling.
-    expect(cap('GET', '/admin/users/u1/health')).toBe('health');
+    expect(cap('GET', '/admin/users/u1/detail')).toBe('health');
     // And the matrix is the real one.
     expect(capsOfRole('warehouse')).toEqual(['stock']);
     expect(capsOfRole('operator')).not.toContain('finance');

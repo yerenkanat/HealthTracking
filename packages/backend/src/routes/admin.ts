@@ -640,18 +640,34 @@ export function registerAdminRoutes(
     return reply.send(await repo.adminListUsers(q, limit, offset));
   });
 
-  // ---- Patient health (clinician/admin) — audited PHI access ----
-  app.get('/admin/users/:id/health', async (req, reply) => {
-    const s = await requireCap(req, reply, 'health');
-    if (!s) return;
-    const reason = readReason(req, reply);
-    if (reason == null) return;
-    const userId = (req.params as { id: string }).id;
-    await repo.writeAudit({ staffId: s.staffId, action: 'view_health', target: userId, reason });
-    const health = await repo.adminUserHealth(userId);
-    if (!health) return reply.code(404).send({ error: 'not found' });
-    return reply.send(health);
-  });
+  /**
+   * ---- Where a mother's vitals are read ----
+   *
+   * `GET /admin/users/:id/health` used to live here: `health` capability, a
+   * mandatory reason, one audit row, and a body of `{latest, triage}` from
+   * `repo.adminUserHealth`. It was DELETED (docs/BACKLOG.md §3, 2026-08-17),
+   * not because it was broken but because nothing called it and nothing could
+   * honestly be made to:
+   *
+   *   - `/admin/users/:id/detail` below calls `adminUserHealth` internally and
+   *     returns the same `latest` and the same `triage` inside the mother card
+   *     the panel actually opens, so every byte it served is still served;
+   *   - it carried the same guard, the same reason gate and the same audit, so
+   *     removing it removed no protection and closed no access: anybody who
+   *     could call it can call `/detail` and get a superset;
+   *   - wiring it into the card would have meant a SECOND read of the same
+   *     rows, with a second audit line and a second «зачем» prompt for data
+   *     already on screen — the exact reasoning that put `epds` on /wellness
+   *     rather than giving it a route of its own (see the note there).
+   *
+   * What was left was a live PHI endpoint whose only exercise was its own
+   * tests. Those tests were not deleted with it: every one of them used it as
+   * the canonical audited per-person read, so they now drive `/detail`, which
+   * is guarded identically. `view_health` therefore has no writer any more —
+   * `view_user_detail` and `view_wellness` are the health entries the security
+   * page counts (src/admin/security.ts), and the panel keeps the label because
+   * rows written before this deletion are still in the log.
+   */
 
   // ---- Patient wellness (sleep / cycle / safety alerts) — audited ----
   app.get('/admin/users/:id/wellness', async (req, reply) => {
@@ -3528,7 +3544,7 @@ export function registerAdminRoutes(
     await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_leads' });
     const leads = await repo.adminShopLeads(limit);
     /**
-     * The callback queue's own count — and whether it can be trusted as a TOTAL.
+     * The callback queue's own count — and it is now a TOTAL.
      *
      * The panel used to count `status === 'new'` over whatever this page
      * returned and print it as «не обработано: N», while the dashboard printed
@@ -3537,20 +3553,38 @@ export function registerAdminRoutes(
      * first, the leads that fall off it are the OLDEST uncalled ones — exactly
      * the women who have been waiting longest.
      *
-     * There is no count(*) for leads on the repository (`adminShopLeads` is the
-     * only accessor), so this states what it can stand behind: the count is
-     * over the rows returned, and `exact` is true only when the page held the
-     * whole table. When it is false the panel says so in words rather than
-     * printing a floor as a total.
+     * `repo.shopLeadCounts()` exists so this route can answer that itself. The
+     * true figure used to live only on /admin/dashboard, which requires
+     * `finance` — and seller, operator and support, the three roles that
+     * actually work this queue, do not hold it. So the people doing the calling
+     * were the only ones who could not see how much calling was left.
+     *
+     * `shown` stays beside `total`: they are different questions («сколько в
+     * таблице» vs «сколько всего»), and collapsing them is what started this.
+     * `exact` stays for the same reason it was added — a panel served by a
+     * backend one deploy behind must be able to tell a real total from a page
+     * count — and is now true whenever the counts came back.
+     *
+     * A failed count does not fail the queue: the rows are what somebody rings
+     * from. `counts.total` is then null and the panel says the total is
+     * unknown, rather than printing the page size as one.
      */
+    const counted = await repo.shopLeadCounts().catch(() => null);
     return reply.send({
       leads,
       counts: {
         shown: leads.length,
-        uncalled: leads.filter((l) => l.status === 'new').length,
+        /// Over the whole table. Null only when the count itself failed.
+        total: counted ? counted.total : null,
+        /**
+         * «Не обработано» over the whole table — the number the queue is worked
+         * from. Falls back to the page's own count when the total read failed,
+         * and `exact` then says it is a floor.
+         */
+        uncalled: counted ? counted.uncalled : leads.filter((l) => l.status === 'new').length,
       },
       limit,
-      exact: leads.length < limit,
+      exact: counted != null,
     });
   });
   app.patch('/admin/shop/leads/:id', async (req, reply) => {

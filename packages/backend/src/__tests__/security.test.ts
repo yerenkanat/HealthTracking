@@ -129,9 +129,14 @@ beforeEach(() => { app = makeApp('owner'); });
 describe('GET /admin/security', () => {
   it('reports a real read end to end', async () => {
     // Open a health record with a reason, then ask the security page about it.
+    //
+    // `/detail` rather than the deleted `/health` (docs/BACKLOG.md §3): it is
+    // the read the panel makes, it carries the same guard and reason gate, and
+    // `view_user_detail` is a `health` action in PROTECTED_ACTIONS — so this
+    // still exercises the health counter, through the route that is used.
     await app.inject({
       method: 'GET',
-      url: `/admin/users/${DEMO_USER}/health?reason=${encodeURIComponent('Разбор жалобы')}`,
+      url: `/admin/users/${DEMO_USER}/detail?reason=${encodeURIComponent('Разбор жалобы')}`,
     });
     const body = (await app.inject({ method: 'GET', url: '/admin/security' })).json();
     expect(body.protectedReads).toBeGreaterThanOrEqual(1);

@@ -2016,6 +2016,22 @@ export interface Repository {
   /// leaves — so this returns the id rather than a typed failure.
   recordShopLead(lead: ShopLeadInput): Promise<{ id: string }>;
   adminShopLeads(limit: number): Promise<ShopLead[]>;
+  /**
+   * How many callback requests there are, and how many nobody has rung yet —
+   * over the WHOLE table, not over a page.
+   *
+   * `adminShopLeads(limit)` was the only accessor, so «не обработано: N» on the
+   * Магазин tab was counted over one page and printed as a total. The page is
+   * newest-first, so what falls off it are the OLDEST uncalled leads: exactly
+   * the women who have waited longest. The true count did exist — on
+   * /admin/dashboard, which requires `finance`, and seller, operator and
+   * support (the roles that actually work this queue) do not hold it.
+   *
+   * Two numbers in one read rather than two calls: they are printed in one
+   * sentence («43 · не обработано: 12»), and counted a moment apart they can
+   * disagree.
+   */
+  shopLeadCounts(): Promise<{ total: number; uncalled: number }>;
   setShopLeadStatus(leadId: string, status: ShopLeadStatus): Promise<void>;
 
   /// Store settings — WhatsApp number, Kaspi link, and any other keys the admin

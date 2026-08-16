@@ -50,7 +50,19 @@ beforeEach(() => {
 });
 
 const get = (url: string) => app.inject({ method: 'GET', url });
-const PER_PERSON = ['health', 'wellness', 'detail'];
+/**
+ * The per-person reads, all of them.
+ *
+ * There were three; `/health` was deleted (docs/BACKLOG.md §3) because
+ * `/detail` already returns the `latest` and `triage` it served, under the same
+ * capability, the same reason gate and the same audit — see the note where it
+ * used to be in routes/admin.ts. The cases below moved onto `/detail` rather
+ * than being dropped: what they check is the reason contract, and that contract
+ * belongs to whichever route opens a named woman's record.
+ */
+const PER_PERSON = ['wellness', 'detail'];
+/** The audited read the reason cases drive. */
+const AUDITED = { path: 'detail', action: 'view_user_detail' };
 
 describe('a record does not open without a stated reason', () => {
   it.each(PER_PERSON)('/admin/users/:id/%s refuses a bare request', async (path) => {
@@ -70,7 +82,7 @@ describe('a record does not open without a stated reason', () => {
     // A required field with no floor fills up with "-" and "ok", and a log of
     // those is exactly as unreviewable as a log of nothing.
     for (const reason of ['', ' ', 'ok', '.', 'нужно']) {
-      const res = await get(`/admin/users/${DEMO_USER}/health?reason=${encodeURIComponent(reason)}`);
+      const res = await get(`/admin/users/${DEMO_USER}/${AUDITED.path}?reason=${encodeURIComponent(reason)}`);
       expect(res.statusCode, `"${reason}" was accepted as a reason`).toBe(400);
     }
   });
@@ -78,30 +90,30 @@ describe('a record does not open without a stated reason', () => {
   it('reads nothing when it refuses', async () => {
     // Refusing after the query has run has still run the query, and a 400 with
     // the record already fetched is a record already read.
-    await get(`/admin/users/${DEMO_USER}/health`);
+    await get(`/admin/users/${DEMO_USER}/${AUDITED.path}`);
     const { audit } = (await get('/admin/audit')).json();
-    expect(audit.some((a: { action: string }) => a.action === 'view_health'),
+    expect(audit.some((a: { action: string }) => a.action === AUDITED.action),
       'a refused read was logged as a read').toBe(false);
   });
 });
 
 describe('the reason reaches the log', () => {
   it('is stored beside who and when, and comes back out', async () => {
-    await get(`/admin/users/${DEMO_USER}/health?reason=${encodeURIComponent('Разбор жалобы №14')}`);
+    await get(`/admin/users/${DEMO_USER}/${AUDITED.path}?reason=${encodeURIComponent('Разбор жалобы №14')}`);
     const { audit } = (await get('/admin/audit')).json();
-    const row = audit.find((a: { action: string }) => a.action === 'view_health');
+    const row = audit.find((a: { action: string }) => a.action === AUDITED.action);
     expect(row).toBeDefined();
     expect(row.reason).toBe('Разбор жалобы №14');
     expect(row.target).toBe(DEMO_USER);
     expect(row.staffId).toBe('s1');
   });
 
-  it('each of the three reads carries its own', async () => {
-    await get(`/admin/users/${DEMO_USER}/health?reason=${encodeURIComponent('Проверка тревоги')}`);
+  it('each of the reads carries its own', async () => {
+    await get(`/admin/users/${DEMO_USER}/${AUDITED.path}?reason=${encodeURIComponent('Проверка тревоги')}`);
     await get(`/admin/users/${DEMO_USER}/wellness?reason=${encodeURIComponent('Медицинская консультация')}`);
     const { audit } = (await get('/admin/audit')).json();
     const by = (action: string) => audit.find((a: { action: string }) => a.action === action)?.reason;
-    expect(by('view_health')).toBe('Проверка тревоги');
+    expect(by(AUDITED.action)).toBe('Проверка тревоги');
     expect(by('view_wellness')).toBe('Медицинская консультация');
   });
 
@@ -119,10 +131,10 @@ describe('the reason reaches the log', () => {
   it('an over-long reason is trimmed, not refused', async () => {
     // Somebody pasting a whole email in should get their record, not a 400.
     const long = 'ж'.repeat(1000);
-    const res = await get(`/admin/users/${DEMO_USER}/health?reason=${encodeURIComponent(long)}`);
+    const res = await get(`/admin/users/${DEMO_USER}/${AUDITED.path}?reason=${encodeURIComponent(long)}`);
     expect(res.statusCode).toBe(200);
     const { audit } = (await get('/admin/audit')).json();
-    expect(audit.find((a: { action: string }) => a.action === 'view_health').reason.length).toBe(300);
+    expect(audit.find((a: { action: string }) => a.action === AUDITED.action).reason.length).toBe(300);
   });
 });
 

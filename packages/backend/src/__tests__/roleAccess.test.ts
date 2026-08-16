@@ -58,8 +58,12 @@ async function statusAs(role: StaffRole | null, url: string): Promise<number> {
 /// READ each time: a 403 on a read is unambiguous, where a write could be
 /// refused for a dozen unrelated reasons and still look like a passing guard.
 const GUARDED: Array<{ url: string; allow: StaffRole[]; what: string }> = [
-  { url: '/admin/users/1/health', allow: ['owner', 'admin', 'clinician'], what: 'a health record' },
+  // `/admin/users/1/health` sat here until it was deleted as a duplicate of the
+  // line below (docs/BACKLOG.md §3): same capability, same allow-list, and its
+  // `latest`/`triage` are inside /detail. Nothing is lost by its absence —
+  // /wellness is the second per-person read and is checked two lines down.
   { url: '/admin/users/1/detail', allow: ['owner', 'admin', 'clinician'], what: 'a family, assembled' },
+  { url: '/admin/users/1/wellness', allow: ['owner', 'admin', 'clinician'], what: 'her diary' },
   { url: '/admin/children/stats', allow: ['owner', 'admin', 'clinician'], what: 'children' },
   { url: '/admin/safety', allow: ['owner', 'admin', 'clinician'], what: 'the safety feed' },
   { url: '/admin/devices', allow: ['owner', 'admin', 'clinician'], what: 'the fleet, with child names on it' },
@@ -107,14 +111,14 @@ describe('what a role can reach', () => {
   }
 
   it('signed out is 401, not 403 — the panel shows a sign-in, not a refusal', async () => {
-    for (const url of ['/admin/users/1/health', '/admin/dashboard', '/admin/shop/orders']) {
+    for (const url of ['/admin/users/1/detail', '/admin/dashboard', '/admin/shop/orders']) {
       expect(await statusAs(null, url)).toBe(401);
     }
   });
 
   it('a refusal names the capability, so the panel can say what is missing', async () => {
     const app = makeApp('warehouse');
-    const res = await app.inject({ method: 'GET', url: '/admin/users/1/health' });
+    const res = await app.inject({ method: 'GET', url: '/admin/users/1/detail' });
     await app.close();
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: 'forbidden', need: 'health' });
@@ -127,7 +131,7 @@ describe('the two sentences the spec is explicit about', () => {
     for (const url of [
       '/admin/dashboard', // margin, revenue, stock value
       '/admin/children/stats',
-      '/admin/users/1/health',
+      '/admin/users/1/detail',
       '/admin/users/1/wellness',
       '/admin/safety',
     ]) {
@@ -141,7 +145,7 @@ describe('the two sentences the spec is explicit about', () => {
 
   it('a warehouse hand has stock and nothing else', async () => {
     expect(await statusAs('warehouse', '/admin/inventory')).not.toBe(403);
-    for (const url of ['/admin/users', '/admin/shop/orders', '/admin/users/1/health', '/admin/dashboard']) {
+    for (const url of ['/admin/users', '/admin/shop/orders', '/admin/users/1/detail', '/admin/dashboard']) {
       expect(await statusAs('warehouse', url), url).toBe(403);
     }
   });

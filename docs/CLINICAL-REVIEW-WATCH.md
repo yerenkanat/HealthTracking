@@ -234,7 +234,7 @@ Every surface that answers "is anything wrong?" is an absorber:
 | `ADV_ALL_STEADY` fallback | refused — see #21 |
 | Dashboard peace banner headline + sub | refused — #2 was live here |
 | Ring "healthy fraction" | device BP counted as healthy — refused, #23 |
-| Tile grade / colour / out-of-range label | temperature gated; BP still green on an uncited band |
+| Tile grade / colour / out-of-range label | **closed 2026-08-17** — see "Green is a claim" below |
 | Clipboard summary | BP row refused; titles rule #24 |
 | Visit summary | **already correct — the model for the rest** |
 
@@ -412,6 +412,79 @@ That catches a copy-paste. It cannot catch this: `vac_hib` shipped
 because the rest of the string differed. **Semantic divergence in medical copy
 is invisible to any automated check, and the only thing that finds it is a
 person reading both languages against each other.**
+
+## Green is a claim — CLOSED, 2026-08-17
+
+Three rulings, landed together because the absorber rule makes them one commit.
+
+**1. The colour outlived the grade.** The device-temperature verdict removed a
+wrist estimate's grade by answering `MetricStatus.normal`, on the reasoning —
+written into `metricStatus` itself — that normal renders as "plain ink, no
+raised step, no suffix". Two of those three held.
+`_statusColor(MetricStatus.normal)` returned the palette's teal, so an UNGRADED
+reading went on being painted in the same green as a healthy heart rate.
+
+An ungraded metric now renders its value in `Palette.text` — ordinary body ink,
+and **not** `Palette.textDim`, which is the STALE appearance and would say "old"
+about a reading two minutes fresh. No raised step, no out-of-range suffix in the
+semantics label, no band shading, sparkline unchanged, age line unchanged. Ink is
+correct from both sides: it is the colour the app uses when it is not judging, so
+it reads as neither an alarm nor an all-clear.
+
+Green survives only where the grade is real — a current reading, on a cited band,
+from a source the product may reassure from. That is heart rate, SpO2, a MANUAL
+temperature and a cuff blood pressure. `MetricStatus` therefore has a fourth
+state; collapsing "ungraded" onto "normal" is what caused this, and a future
+patch that re-collapses them is this defect returning.
+
+**2. The device-BP tile was refused sentence #23, shipping.** `_BloodPressureCard`
+graded by calling `metricStatus('systolic', …)` with no `source`, and
+`metricStatus` had no provenance branch for either half — so a fresh, calibrated
+wrist 118/76 was drawn in mint. The ring beside it already had the rule and is
+the model: **a device BP may pull the grade DOWN and never up.** Danger and watch
+fire from every source and come FIRST in the branch; only the positive tier reads
+provenance. The card's unconditional `raised: true` went with it, for the same
+reason the four tiles beside it are raised only when they warn.
+
+Two traps the gate named in advance, both now pinned by tests:
+
+- `worstStatus` picked the max ENUM INDEX and cannot express "an ungraded half
+  makes the pair ungraded" — a blood pressure with one ungraded half must not
+  come out `normal`. The ranking is written down explicitly and no longer depends
+  on how the enum is declared: `normal < ungraded < watch < danger`.
+- the source-passing scan test only enforced its rule where the metric *could be*
+  temperature, so it never saw the BP card. It now covers every metric whose
+  grade reads provenance, and a second test checks that list against
+  `metricStatus`'s actual behaviour so the mirror cannot rot.
+
+**3. `ADV_GATHERING_b` was a band upsell** — «Наденьте браслет — советы появятся
+после нескольких измерений.» — shown to a woman who types her readings in by
+hand, plus a promise that advice arrives once she owns the hardware. The
+dashboard's empty state had this exact sentence family removed for exactly this
+reason («Апселла браслета здесь нет», «Без устройства приложение полноценно»);
+the advisory was the surviving instance. Replaced, with the title, by approved
+copy that names no instrument.
+
+And a NEW code, `ADV_NO_CURRENT_READINGS`, for the case where readings exist and
+none is current — where «Собираем данные» is simply untrue: nothing is being
+gathered, the data exists and is out of date. **Its closing sentence is
+deliberately identical to `ADV_NOTHING_UNUSUAL_b`'s in all three languages.** It
+is the counterweight that stops an absence-of-data card from reading as an
+all-clear, and it is not to be paraphrased.
+
+Two things landed in the SAME commit, and they are the absorber discipline
+rather than tidiness: the `fallThroughs` set in `current_advisories.dart` gained
+the new code, or «Свежих измерений нет» prints underneath a warning; and the
+clipboard filter in `health_summary.dart`, which excluded only `ADV_GATHERING`,
+now reads the same constant — `noDataAdvisories`, declared once.
+
+**Also:** `AdviceTone.info` rendered in `Palette.violet` = `Ds.coralCta` =
+#D6004A, a near-crimson louder than the app's actual warning amber, under an
+hourglass meaning "coming". The calmest state the banner has was drawn in the
+loudest colour it owns. It is dim ink now, on both the banner and the advisor
+screen, and `ADV_NO_CURRENT_READINGS` does not get the hourglass — nothing is on
+its way to a woman whose band is in a drawer. No check mark and no warning
+triangle either: it is neither.
 
 ## The verdict has one regression path, and it is open
 

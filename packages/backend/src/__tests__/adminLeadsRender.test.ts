@@ -29,6 +29,16 @@ const LEADS = {
       status: 'called', createdAt: '2026-07-31T16:40:00.000Z',
     },
   ],
+  /**
+   * The shape GET /admin/shop/leads actually answers with, counts included —
+   * `repo.shopLeadCounts()` over the whole table, not over this page. The
+   * fixture carried the rows alone, which is a shape the route stopped sending;
+   * a fake that lags the thing it stands for is how a screen passes its tests
+   * and misprints in production.
+   */
+  counts: { shown: 2, total: 2, uncalled: 1 },
+  limit: 100,
+  exact: true,
 };
 
 interface Page {

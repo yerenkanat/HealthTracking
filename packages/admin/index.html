@@ -945,6 +945,15 @@
 .sblkmsg.bad{color:var(--crit);font-weight:600}
 .staffrow.off{opacity:.55}
 .staffrow .btn.sm{padding:6px 10px;min-height:36px;font-size:13px}
+/* Строка списка с действием справа — категории витрины и состав комплекта.
+   40px, 13px, радиус 10 — та же рецептура, что у строк таблиц: список,
+   набранный по-своему, читается как другой экран. */
+.lrow{display:flex;align-items:center;gap:10px;min-height:40px;padding:7px 10px;
+  border-radius:10px;font-size:13px}
+.lrow+.lrow{border-top:1px solid var(--hair)}
+.lrow .t{font-size:12px;color:var(--muted-2)}
+.lrow .btn.sm{padding:6px 10px;min-height:32px;font-size:12px;flex:0 0 auto}
+.lrow .btn[disabled]{opacity:.45;cursor:default}
 .rolesel{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--hair);
   background:var(--surface-2);color:var(--ink);min-height:36px}
 </style>
@@ -1425,6 +1434,12 @@
             <table><thead><tr><th>Имя</th><th>Телефон</th><th>Срок родов</th><th>Последнее измерение</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody></table>
           </div>
+          <!-- «Показано N из M» и страницы. /admin/users всегда отдавал
+               настоящий count(*) и принимал offset — панель не читала ни того,
+               ни другого, брала первые 50 и не рисовала подвал. На базе больше
+               пятидесяти мам пациентка №51 для врача не существовала, пока та
+               не угадает строку поиска. -->
+          <div class="tfoot" id="usersFoot"></div>
         </div>
       </section>
 
@@ -2295,8 +2310,17 @@
             <!-- 08b · Категории и этапы. Deleting one that still holds products
                  is refused by the server (409) rather than orphaning them. -->
             <div class="card">
-              <div class="sec-h"><h3>Добавить или переименовать категорию</h3>
+              <div class="sec-h"><h3>Категории витрины</h3>
                 <span class="sub">Код латиницей — он попадёт в ссылки витрины</span></div>
+              <!-- Список категорий с кнопкой удаления. DELETE
+                   /admin/shop/categories/:id был написан, проверен и защищён
+                   409-м — и не имел ни одного вызова: панель умела только PUT,
+                   поэтому опечатка в названии оставалась в рубрикаторе витрины
+                   навсегда. -->
+              <div id="catCatList"><div style="color:var(--muted);padding:12px 0">Загрузка…</div></div>
+              <div class="metricnote" id="catCatRule"></div>
+              <div class="sec-h" style="margin-top:14px"><h3>Добавить или переименовать</h3>
+                <span class="sub">Существующий код — это переименование</span></div>
               <form id="catCatForm" class="stafform" autocomplete="off">
                 <input id="catCatId" placeholder="код: gifts" required maxlength="64" pattern="[a-z0-9_-]+">
                 <input id="catCatRu" placeholder="Название (RU)" required maxlength="80">
@@ -2440,6 +2464,37 @@
             <tbody id="stockDayBody"><tr><td colspan="7" class="tstate">Загрузка…</td></tr></tbody></table>
           </div>
           <div class="metricnote" id="stockDayNote"></div>
+        </div>
+
+        <!-- СОСТАВ КОМПЛЕКТА. PUT /admin/inventory/products/:id/parts был
+             написан и проверен, и вызвать его было неоткуда: строка комплекта
+             печатала «Комплект из: X + Y» и не давала это изменить, поэтому
+             комплект, собранный не из того товара, чинил разработчик.
+             У комплекта нет своей полки — его остаток вычисляется из деталей,
+             — поэтому здесь меняется ТОЛЬКО состав, без количества на складе. -->
+        <div class="modal" id="bundleCard" hidden>
+          <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bndTitle">
+            <div class="mh">
+              <div style="flex:1;min-width:0">
+                <h3 id="bndTitle">Состав комплекта</h3>
+                <div class="sub" id="bndSub">—</div>
+              </div>
+              <button class="mx" id="bndClose" type="button" aria-label="Закрыть">✕</button>
+            </div>
+            <div class="mb">
+              <div id="bndRows"></div>
+              <button class="btn ghost" type="button" id="bndAdd" style="margin-top:10px">+ Добавить деталь</button>
+              <div class="metricnote" id="bndRule"></div>
+              <div id="bndMsg" class="formmsg"></div>
+            </div>
+            <div class="mf">
+              <span id="bndNote">Комплект не хранится на складе — его остаток считается по деталям</span>
+              <span class="acts">
+                <button class="btn" type="button" id="bndCancel">Отмена</button>
+                <button class="btn primary" type="button" id="bndSave">Сохранить состав</button>
+              </span>
+            </div>
+          </div>
         </div>
 
         <div class="card" style="margin-bottom:16px">
@@ -4313,15 +4368,37 @@
   /** The last page of /admin/users, by id, so the drawer can seed from data
    *  rather than from the table it just drew. */
   const USERS_BY_ID=new Map();
-  async function renderUsers(q=""){
+  /**
+   * Одна страница списка и место в нём.
+   *
+   * Маршрут с самого начала принимал `offset` и возвращал настоящий count(*),
+   * а панель посылала только `limit=50`, читала `data.users` и подвал не
+   * рисовала вовсе. На базе больше пятидесяти мам пациентка №51 для врача не
+   * существовала: до неё нельзя было долистать, и о том, что она есть, на
+   * экране не было ни слова.
+   */
+  const USERS_PAGE=50;
+  let usersOffset=0, usersQuery="";
+  async function renderUsers(q=usersQuery){
+    // Новый запрос — это новый список, и старое смещение в нём означает чужую
+    // страницу: поиск со смещением 100 показывает пустоту вместо трёх найденных.
+    if(q!==usersQuery){ usersQuery=q; usersOffset=0; }
     const body=$("#usersBody"); if(!body) return;
+    const foot=$("#usersFoot");
     const mine=++usersReq;
     body.innerHTML=tableBusy(5);
     let data=null;
-    try{ data=await api(`/admin/users?q=${encodeURIComponent(q)}&limit=50`); }catch(e){ data=null; }
+    try{
+      data=await api(`/admin/users?q=${encodeURIComponent(usersQuery)}`+
+        `&limit=${USERS_PAGE}&offset=${usersOffset}`);
+    }catch(e){ data=null; }
     if(mine!==usersReq) return; // a newer keystroke already answered
     if(!data){
       body.innerHTML=tableNote(5,"Не удалось загрузить список. Проверьте доступ и соединение.");
+      // Сбой чтения — это не «никого нет» и не «страница последняя». Подвал,
+      // оставшийся от прошлой удачной загрузки, врал бы обеими цифрами.
+      if(foot) foot.innerHTML=`<span class="shown">Показано —</span>`+
+        `<span style="white-space:normal">Список не загрузился, поэтому ни счёта, ни страниц здесь нет. Это сбой чтения, а не пустая база.</span>`;
       return;
     }
     const rows=data.users||[];
@@ -4350,7 +4427,37 @@
         <td>${u.dueDate?esc(monthYear(u.dueDate)):"—"}</td>
         <td class="t">${u.lastMetricAt?esc(ago(u.lastMetricAt)):"—"}</td>
         <td style="text-align:right" aria-hidden="true">›</td></tr>`).join("")
-      || tableNote(5,q?`Никто не найден по запросу «${esc(q)}».`:"Пользователей пока нет.");
+      || tableNote(5,usersQuery
+          ? `Никто не найден по запросу «${esc(usersQuery)}».`
+          : (usersOffset>0?"На этой странице пусто — вернитесь назад.":"Пользователей пока нет."));
+
+    if(foot){
+      // Настоящий count(*) с сервера. Пришёл не числом — значит не пришёл:
+      // напечатать вместо него длину страницы означало бы сказать «всего 50»
+      // о базе на три тысячи.
+      const total=typeof data.total==="number"?data.total:null;
+      const shown=rows.length;
+      const shownText=total===null
+        ? `Показано ${fmt(shown)} · сколько всего — сервер не сказал`
+        : (shown
+            ? `Показано ${fmt(usersOffset+1)}–${fmt(usersOffset+shown)} из ${fmt(total)}`
+            : `Показано 0 из ${fmt(total)}`);
+      // Правило таблицы: что за число стоит в «из N» — вся база или найденное.
+      const rule=usersQuery
+        ? `«Из N» — сколько нашлось по запросу «${esc(usersQuery)}», а не сколько мам всего. Поиск идёт по имени и телефону и выполняется на сервере, по всей базе, а не по этой странице.`
+        : "Все мамы, по «последнему измерению» — от самых свежих. Точка слева — последнее измерение с предупреждением или экстренное.";
+      const atEnd=total!==null?(usersOffset+shown>=total):(shown<USERS_PAGE);
+      foot.innerHTML=
+        `<span class="shown">${esc(shownText)}</span>`+
+        `<span style="white-space:normal">${rule}</span>`+
+        `<span class="pager">`+
+          `<button class="btn" type="button" id="usersPrev"${usersOffset<=0?" disabled":""}>← Назад</button>`+
+          `<button class="btn" type="button" id="usersNext"${atEnd?" disabled":""}>Вперёд →</button>`+
+        `</span>`;
+      const prev=$("#usersPrev"), next=$("#usersNext");
+      if(prev) prev.onclick=()=>{ usersOffset=Math.max(0,usersOffset-USERS_PAGE); renderUsers(); };
+      if(next) next.onclick=()=>{ usersOffset+=USERS_PAGE; renderUsers(); };
+    }
   }
 
   /// Who looked at what.
@@ -7085,31 +7192,37 @@
          одной очереди, и очередь работала по меньшей: страница отсортирована
          от новых к старым, значит за её край уходят самые старые незвоненные
          заявки — ровно те женщины, что ждут дольше всех.
-         Порядок доверия: страница, когда она вместила всю таблицу (exact —
-         тогда её счёт И ЕСТЬ итог); иначе настоящий count(*) со «Сводки», если
-         он уже загружен; и только потом — нижняя оценка, названная нижней
-         оценкой. Второй счётчик здесь не заводится: это те же цифры сервера. */
-      const page=lr.counts||{shown:leads.length,uncalled:leads.filter(l=>l.status==="new").length};
-      const exact=lr.exact!==undefined?lr.exact:leads.length<(lr.limit||100);
-      const served=(DASH&&DASH.commerce&&DASH.commerce.leads)?DASH.commerce.leads:null;
+         Теперь итог считает сам этот маршрут (repo.shopLeadCounts), и он
+         приходит всем, у кого есть право «заказы», — а не только роли с правом
+         «финансы», которая открывает «Сводку». Поэтому ветка «не менее N» со
+         ссылкой на «Сводку» отсюда убрана: продавцу, оператору и поддержке —
+         тем, кто и обзванивает, — больше не нужно занимать чужую цифру.
+         Нижняя оценка осталась ровно на один случай: счёт не пришёл (старая
+         сборка сервера или отказавший count). Тогда так и написано. */
+      const c=(lr.counts&&typeof lr.counts==="object")?lr.counts:null;
+      const shown=(c&&typeof c.shown==="number")?c.shown:leads.length;
+      /* Именно «не число ⇒ неизвестно», а не `||`: ноль — это ответ. */
+      const total=(c&&typeof c.total==="number")?c.total:null;
+      const uncalledAll=(c&&typeof c.uncalled==="number")
+        ? c.uncalled
+        : leads.filter(l=>l.status==="new").length;
       let sub,foot,uncalled;
-      if(!leads.length){
+      if(!leads.length && (total===null || total===0)){
         uncalled=0; sub="нет заявок";
         foot="Заявки приходят с лендинга сами — завести их отсюда нельзя.";
-      }else if(exact){
-        uncalled=page.uncalled;
-        sub=page.shown+" · не обработано: "+uncalled;
-        foot="Показаны все заявки: страница вместила таблицу целиком, поэтому «не обработано» — это итог, а не часть.";
-      }else if(served){
-        uncalled=served.new;
-        sub=served.total+" · не обработано: "+uncalled;
-        foot="В таблице — последние "+page.shown+" заявок, а счётчик — по всем "+served.total+
-             " со «Сводки». Раньше здесь стояло число по одной странице, и оно было меньше настоящего.";
+      }else if(total!==null){
+        uncalled=uncalledAll;
+        sub=total+" · не обработано: "+uncalled;
+        foot=(shown<total
+          ? "В таблице — последние "+shown+" заявок из "+total+", а «не обработано» посчитано по всем: "+
+            "страница отсортирована от новых к старым, и за её край уходят самые старые незвоненные."
+          : "Показаны все "+total+" заявок, «не обработано» — по всей таблице.")+
+          " Обе цифры считает сам сервер по всей таблице, а не по этой странице.";
       }else{
-        uncalled=page.uncalled;
-        sub="показаны последние "+page.shown+" · не обработано среди них: не менее "+uncalled;
-        foot="Заявок больше, чем помещается на странице, а общего счёта эта вкладка не получает — "+
-             "точное «не обработано» есть на «Сводке», её открывает роль с правом «финансы».";
+        uncalled=uncalledAll;
+        sub="показаны последние "+shown+" · не обработано среди них: не менее "+uncalled;
+        foot="Общий счёт заявок не пришёл — это нижняя оценка по показанным строкам, а не итог. "+
+             "Обновите страницу; если цифра не появится, сервер отвечает более старой версией этого списка.";
       }
       shopWaitLeads=uncalled;
       document.getElementById("shopLeadsSub").textContent=sub;
@@ -8658,6 +8771,145 @@
 
   let VARIANTS=[];
 
+  /**
+   * СОСТАВ КОМПЛЕКТА — кадр 07.
+   *
+   * PUT /admin/inventory/products/:id/parts был написан, покрыт тестом и
+   * защищён от комплекта, содержащего сам себя, — и не имел ни одного
+   * вызывающего. Строка склада печатала «Комплект из: Часы + Трекер» и не
+   * давала это изменить, поэтому комплект, собранный не из того SKU, правил
+   * разработчик руками в базе.
+   *
+   * Правится ТОЛЬКО состав: у комплекта нет своей полки, его остаток — это
+   * арифметика по деталям, и «сколько можно собрать» пересчитает сервер.
+   *
+   * PRODUCTS — тот же ответ /admin/inventory, из которого нарисована таблица:
+   * выпадающий список деталей не должен предлагать товар, которого на этом
+   * экране нет.
+   */
+  let PRODUCTS=[];
+  let bndId=null, bndName="", bndWas=[], bndDraft=[];
+
+  const bndCandidates=()=>PRODUCTS.filter(p=>p.kind!=="bundle" && p.id!==bndId);
+
+  function bndRender(){
+    const wrap=$("#bndRows"); if(!wrap) return;
+    const opts=bndCandidates();
+    wrap.innerHTML=bndDraft.length
+      ? bndDraft.map((row,i)=>`<div class="lrow" data-bnd="${i}">
+          <select class="bnd-part" data-i="${i}" style="flex:1 1 220px;min-width:0">
+            ${opts.map(p=>`<option value="${esc(p.id)}"${p.id===row.partId?" selected":""}>${esc(p.name)} — на складе ${p.stock}</option>`).join("")}
+            ${opts.some(p=>p.id===row.partId)?"":`<option value="${esc(row.partId)}" selected>${esc(row.partId)} — товара нет в списке</option>`}
+          </select>
+          <label class="t" style="flex:0 0 auto">шт. в комплекте
+            <input class="bnd-qty" data-i="${i}" type="number" min="1" max="100" step="1"
+              value="${row.qty}" style="width:76px;margin-left:6px"></label>
+          <button class="btn sm ghost bnd-del" type="button" data-i="${i}">Убрать</button>
+        </div>`).join("")
+      : `<div style="color:var(--muted);padding:12px 0">Состав пуст. Комплект без деталей собрать нельзя — его остаток будет нулевым.</div>`;
+
+    // Одна и та же деталь дважды — это не запрет сервера, а почти наверняка
+    // опечатка: две строки «Часы ×1» вместо одной «Часы ×2». Говорим до записи.
+    const seen=new Map();
+    for(const r of bndDraft) seen.set(r.partId,(seen.get(r.partId)||0)+1);
+    const dup=[...seen.entries()].filter(([,n])=>n>1).map(([id])=>id);
+    $("#bndRule").textContent=
+      (dup.length?`Одна и та же деталь встречается дважды (${dup.join(", ")}) — сложите её в одну строку с нужным количеством. `:"")+
+      "Комплект не лежит на складе: «можно собрать N шт.» считается по остаткам деталей и пересчитается после сохранения. "+
+      "Сам себя комплект содержать не может — такого товара в списке нет.";
+
+    wrap.querySelectorAll(".bnd-part").forEach(sel=>{
+      sel.onchange=()=>{ bndDraft[Number(sel.dataset.i)].partId=sel.value; bndRender(); };
+    });
+    wrap.querySelectorAll(".bnd-qty").forEach(inp=>{
+      inp.oninput=()=>{
+        const n=Math.max(1,Math.min(100,Math.trunc(Number(inp.value||1))||1));
+        bndDraft[Number(inp.dataset.i)].qty=n;
+      };
+    });
+    wrap.querySelectorAll(".bnd-del").forEach(btn=>{
+      btn.onclick=()=>{ bndDraft.splice(Number(btn.dataset.i),1); bndRender(); };
+    });
+  }
+
+  function bndOpen(id){
+    const p=PRODUCTS.find(x=>x.id===id);
+    if(!p) return;
+    bndId=id; bndName=p.name;
+    bndWas=(p.parts||[]).map(x=>({partId:x.partId,qty:x.qty||1}));
+    bndDraft=bndWas.map(x=>({...x}));
+    $("#bndTitle").textContent=`Состав: ${p.name}`;
+    $("#bndSub").textContent=`Код ${p.id} · сейчас можно собрать ${p.stock} шт.`;
+    const msg=$("#bndMsg"); if(msg){ msg.textContent=""; msg.className="formmsg"; }
+    bndRender();
+    $("#bundleCard").hidden=false;
+  }
+  const bndClose=()=>{ $("#bundleCard").hidden=true; bndId=null; };
+
+  async function bndSave(){
+    if(!bndId) return;
+    const msg=$("#bndMsg");
+    // Что именно уходит из комплекта. Убранная деталь — это другой товар в
+    // коробке у покупателя, а не правка карточки, поэтому она названа поимённо.
+    const nameOf=pid=>(PRODUCTS.find(x=>x.id===pid)||{}).name||pid;
+    const keep=new Set(bndDraft.map(r=>r.partId));
+    const gone=bndWas.filter(r=>!keep.has(r.partId)).map(r=>nameOf(r.partId));
+    if(gone.length || !bndDraft.length){
+      const what=bndDraft.length
+        ? `Из комплекта «${bndName}» уходит: ${gone.join(", ")}.`
+        : `Комплект «${bndName}» останется без деталей, и собрать его будет нельзя (остаток станет 0).`;
+      if(!window.confirm(`${what}\n\nПокупатель получит другой набор, а остаток комплекта пересчитается сразу. Сохранить?`)) return;
+    }
+    const btn=$("#bndSave");
+    btn.disabled=true;
+    if(msg){ msg.textContent="Сохраняем…"; msg.className="formmsg"; }
+    try{
+      await apiSend(`/admin/inventory/products/${encodeURIComponent(bndId)}/parts`,"PUT",
+        {parts:bndDraft.map(r=>({partId:r.partId,qty:r.qty}))});
+      bndClose();
+      renderStock();
+    }catch(e){
+      // Результат запроса, а не факт отправки: галочка над несохранённым
+      // составом — это коробка, собранная не из того.
+      //
+      // apiSend бросает только статус (тело он не читает), поэтому разбор идёт
+      // по нему. 400 у этого маршрута ровно три: слишком много деталей, кривое
+      // количество и комплект внутри самого себя — названы все, потому что
+      // угадывать, какая именно, читателю не из чего.
+      const raw=String((e&&e.message)||e);
+      if(msg){
+        msg.textContent=raw==="400"
+          ? "Сервер не принял состав: деталей не больше 20, количество каждой от 1 до 100, и комплект не может содержать сам себя. Ничего не сохранено."
+          : raw==="403"
+            ? "Состав комплекта меняет роль с правом «склад». Ничего не сохранено."
+            : `Состав не сохранён (ошибка ${raw}). На складе ничего не изменилось.`;
+        msg.className="formmsg err";
+      }
+    }
+    btn.disabled=false;
+  }
+
+  function wireBundle(){
+    const card=$("#bundleCard");
+    if(!card || card.dataset.wired) return;
+    card.dataset.wired="1";
+    $("#bndClose").onclick=bndClose;
+    $("#bndCancel").onclick=bndClose;
+    $("#bndSave").onclick=bndSave;
+    $("#bndAdd").onclick=()=>{
+      const first=bndCandidates()[0];
+      if(!first){
+        const msg=$("#bndMsg");
+        if(msg){ msg.textContent="Добавить нечего: кроме комплектов, товаров на складе нет."; msg.className="formmsg err"; }
+        return;
+      }
+      bndDraft.push({partId:first.id,qty:1});
+      bndRender();
+    };
+    // Клик по подложке закрывает, клик внутри — нет.
+    card.addEventListener("click",e=>{ if(e.target===card) bndClose(); });
+  }
+
   function wireReceipt(){
     const form=$("#recvForm");
     if(!form || form.dataset.wired) return;
@@ -9004,6 +9256,7 @@
     wirePurchaseOrder();
     renderSerials();
     wireStock();
+    wireBundle();
     // Поставщики раньше поставок: список заказов подписывает каждую строку
     // именем поставщика и его сроком, а форма заказа выбирает из того же
     // списка. Оба ждут — иначе первый рендер покажет «не указан» там, где
@@ -9034,6 +9287,9 @@
     // Both warehouse forms read the same shelf the table below is drawn from,
     // so a colour added a minute ago is receivable and countable immediately.
     VARIANTS = flatVariants(data);
+    // …and so does the bundle editor: the list of parts it offers is this
+    // shelf, not a second copy of it that can disagree with the table above.
+    PRODUCTS = data.products || [];
     const recvSel = $("#recvVariant");
     if (recvSel) {
       const keep = recvSel.value;
@@ -9130,7 +9386,15 @@
       // A bundle has no shelf of its own: it is an arithmetic statement about
       // its parts, so it gets a count and no editable rows.
       if (p.kind === "bundle") {
-        kids.push(`<tr class="crow plast"><td></td><td colspan="5" class="t">Комплект из: ${(p.parts||[]).map(x=>esc(x.partName)).join(" + ")} — можно собрать <b>${p.stock}</b> шт., своей полки у комплекта нет</td></tr>`);
+        // «Изменить состав» — единственное действие, которое у комплекта есть:
+        // приходовать и списывать нечего, полки у него нет. Раньше строка
+        // только сообщала состав, и поменять его было неоткуда.
+        const of = (p.parts||[]).map(x=>`${esc(x.partName)}${x.qty>1?` ×${x.qty}`:""}`).join(" + ");
+        kids.push(`<tr class="crow plast"><td></td><td colspan="4" class="t">${
+          of ? `Комплект из: ${of} — можно собрать <b>${p.stock}</b> шт., своей полки у комплекта нет`
+             : `Состав комплекта не задан — собрать нельзя, остаток <b>0</b>`
+        }</td>
+        <td class="acts"><button type="button" class="btn sm ghost bndedit" data-bid="${esc(p.id)}">Изменить состав</button></td></tr>`);
       } else if (!kids.length) {
         kids.push(`<tr class="crow plast"><td></td><td colspan="5" class="t">Цветов пока нет — добавьте цвет, чтобы было что приходовать.</td></tr>`);
       }
@@ -9163,6 +9427,9 @@
         «В пути» в остаток не входит — что именно едет и когда, показывает карточка «Поставки в пути» ниже.
         Сортировка: сначала то, что кончится раньше; товары без продаж — в конце.
         Фото — то же, что на витрине: общее из карточки товара, у цвета — своё (Каталог → Фото).</div>`;
+
+    box.querySelectorAll(".bndedit").forEach(btn => btn.addEventListener("click", () =>
+      bndOpen(btn.dataset.bid)));
 
     box.querySelectorAll(".mv").forEach(btn => btn.addEventListener("click", () =>
       moveStock(btn.dataset.vid, Number(btn.dataset.d), "receipt", "приход через панель")));
@@ -12582,6 +12849,40 @@
         ? railBtn(catPickCat === "__none", "__none", "Без категории", catCounts.get(null))
         : "");
 
+    /**
+     * Управление категориями — то же, что и слева, но здесь их МЕНЯЮТ.
+     *
+     * Рельс слева — фильтр: клик по нему сужает таблицу. Кнопку «Удалить» туда
+     * ставить нельзя, иначе один и тот же элемент и выбирает, и уничтожает.
+     *
+     * Что именно защищает 409 на сервере: удаление отклоняется, пока на
+     * категорию ссылается хотя бы один товар. Внешний ключ объявлен ON DELETE
+     * SET NULL, то есть без этой проверки удаление прошло бы — и молча
+     * обнулило категорию у всех товаров полки. Товары при этом НЕ удаляются
+     * ни в одном из случаев; поэтому в непустой категории кнопка выключена и
+     * рядом написано, сколько товаров и что с ними сделать.
+     */
+    const catCatRow = (c) => {
+      const n = catCounts.get(c.id) || 0;
+      const why = n
+        ? `В категории ${n} ${n === 1 ? "товар" : (n < 5 ? "товара" : "товаров")} — сначала переведите их в другую категорию в карточке товара (Основное → Категория).`
+        : "";
+      return `<div class="lrow" data-catrow="${esc(c.id)}">
+        <div style="flex:1;min-width:0">
+          <b>${esc(c.nameRu)}</b>${c.nameKk ? "" : ` <span class="pill neutral">нет ҚАЗ</span>`}
+          <div class="t"><span class="num">${esc(c.id)}</span> · товаров: ${n}${c.nameKk ? " · " + esc(c.nameKk) : ""}</div>
+        </div>
+        <button class="btn sm ghost" type="button" data-delcat="${esc(c.id)}"
+          ${n ? `disabled title="${esc(why)}"` : `title="Категория пуста — её можно удалить"`}>Удалить</button>
+      </div>`;
+    };
+    $("#catCatList").innerHTML = catCategories.length
+      ? catCategories.map(catCatRow).join("")
+      : `<div style="color:var(--muted);padding:12px 0">Категорий пока нет — заведите первую в форме ниже.</div>`;
+    $("#catCatRule").textContent =
+      "Удалить можно только пустую категорию: пока в ней есть товары, сервер отказывает — иначе они молча остались бы без категории. " +
+      "Товары не удаляются ни при каком исходе. Категория пропадёт из фильтра здесь и из рубрикатора витрины.";
+
     $("#catStages").innerHTML =
       railBtn(catPickStage === null, null, "Все этапы", catProducts.length) +
       catStageKeys.map((s) =>
@@ -12880,6 +13181,58 @@
     }
   }
 
+  /**
+   * Удалить категорию — кадр 08b.
+   *
+   * Маршрут DELETE /admin/shop/categories/:id существовал, был проверен и
+   * защищён 409-м, и его никто не вызывал: панель умела только PUT. Опечатка в
+   * названии рубрики оставалась на витрине навсегда, потому что исправить её
+   * могла только команда с сервера.
+   *
+   * Спрашивает до, а не после: удаление не отменяется кнопкой «назад», и
+   * категория с этим кодом исчезает из рубрикатора витрины сразу.
+   * В вопросе — название и код, потому что «Удалить категорию?» отвечают
+   * не глядя, а «Удалить категорию „Подарки“ (gifts)?» — глядя.
+   *
+   * И последствие названо тем, что реально делает сервер: товары НЕ удаляются
+   * (в непустой категории удаление вообще отклоняется 409-м — внешний ключ
+   * объявлен ON DELETE SET NULL, и без этой проверки полка молча осталась бы
+   * без категории).
+   */
+  async function catDelete(id) {
+    const c = catCategories.find((x) => x.id === id);
+    const name = c ? c.nameRu : id;
+    const msg = $("#catCatMsg");
+    if (!window.confirm(
+      `Удалить категорию «${name}» (${id})?\n\n` +
+      "В ней нет товаров, поэтому ничего не потеряется: удаляется только сама рубрика. " +
+      "Она пропадёт из фильтра каталога и из рубрикатора витрины. Товары не удаляются.\n\n" +
+      "Отменить это кнопкой «назад» нельзя — категорию с этим кодом придётся завести заново.")) return;
+    if (msg) { msg.textContent = "Удаляем…"; msg.className = "formmsg"; }
+    try {
+      await api(`/admin/shop/categories/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (msg) {
+        msg.textContent = `Категория «${name}» удалена. Товары не тронуты.`;
+        msg.className = "formmsg ok";
+      }
+      await loadCatalog();
+    } catch (e) {
+      // Результат ЗАПРОСА, а не факт его отправки. 409 — это не сбой: сервер
+      // ответил и отказал, и отказ у него ровно один, поэтому он назван.
+      const inUse = /category_in_use|\b409\b/.test(e.message);
+      if (msg) {
+        msg.textContent = inUse
+          ? `Категория «${name}» не удалена: в ней есть товары. Сервер отказал, чтобы они не остались без категории. ` +
+            "Список на экране устарел — обновите страницу и переведите товары в другую категорию."
+          : `Не удалось удалить «${name}»: ${isDenied(e) ? failText(e, "Каталог") : e.message}`;
+        msg.className = "formmsg err";
+      }
+      // Список перечитывается и в этом случае: если он устарел, дальше на
+      // экране должна быть правда, а не строка, по которой только что отказали.
+      await loadCatalog().catch(() => {});
+    }
+  }
+
   {
     // Wired directly rather than through the `on` helper: that helper is a
     // `const` declared further down this block, so calling it here would hit
@@ -12916,6 +13269,8 @@
     if (view) view.addEventListener("click", (e) => {
       const open = e.target.closest("button[data-prod]");
       if (open) { catOpen(open.dataset.prod); return; }
+      const del = e.target.closest("button[data-delcat]");
+      if (del) { catDelete(del.dataset.delcat); return; }
       const rail = e.target.closest("#catCats button, #catStages button");
       if (!rail) return;
       const key = rail.dataset.key === "" ? null : rail.dataset.key;

@@ -7,10 +7,17 @@
  * the page is newest-first, what falls off it are the oldest uncalled leads —
  * the women who have been waiting longest.
  *
- * Three states, and the panel must be able to tell them apart on screen:
- *   - the page held the whole table  → the count IS the total;
- *   - it did not, but «Сводка» is loaded → use the served count(*);
- *   - it did not, and it is not      → say «не менее», never a bare number.
+ * The route now counts the whole table itself (`repo.shopLeadCounts`), and it
+ * serves that to everyone holding `orders` — seller, operator and support
+ * included, who are the people who do the ringing and could not open «Сводку»
+ * to borrow its count(*). So the states the panel must tell apart are:
+ *   - `counts.total` arrived   → print it, and say the counter is over ALL leads
+ *                                even when the table below shows the last N;
+ *   - it did not (older build, or the count itself failed) → say «не менее»,
+ *                                never a bare number presented as the answer.
+ *
+ * The branch that borrowed «Сводка»'s figure is deliberately gone: one queue
+ * with two sources for its size is how the two came to disagree.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -114,53 +121,74 @@ describe('when the page held every lead', () => {
   it('prints the count as the total it is, and says the rule', async () => {
     const page = await render({
       leads: [lead('l-1', 'new'), lead('l-2', 'called'), lead('l-3', 'new')],
-      counts: { shown: 3, uncalled: 2 }, limit: 100, exact: true,
+      counts: { shown: 3, total: 3, uncalled: 2 }, limit: 100, exact: true,
     });
     expect(page.errors).toEqual([]);
     expect(page.text('#shopLeadsSub')).toContain('не обработано: 2');
-    expect(page.text('#shopLeadsFoot')).toContain('вместила таблицу целиком');
+    expect(page.text('#shopLeadsSub')).toContain('3 ·');
+    expect(page.text('#shopLeadsFoot')).toContain('по всей таблице');
   });
 });
 
 describe('when the page did not hold every lead', () => {
+  /** One page of two rows out of 34; nine of the 34 have never been rung. */
   const TRUNCATED = {
     leads: [lead('l-1', 'new'), lead('l-2', 'new')],
-    counts: { shown: 2, uncalled: 2 }, limit: 2, exact: false,
+    counts: { shown: 2, total: 34, uncalled: 9 }, limit: 2, exact: true,
   };
 
-  it('uses the count(*) «Сводка» already served, not the page it can see', async () => {
-    const page = await render(TRUNCATED, true);
-    expect(page.errors).toEqual([]);
-    // 9 of 34, from the dashboard — NOT the 2 on this page.
-    expect(page.text('#shopLeadsSub')).toContain('не обработано: 9');
-    expect(page.text('#shopLeadsSub')).toContain('34');
-    expect(page.text('#shopLeadsFoot')).toContain('последние 2');
-  });
-
-  it('calls the number a floor when nothing has served the total', async () => {
-    // A seller has no `finance`, so /admin/dashboard refuses her and there is
-    // no count(*) anywhere on her screen. The panel must not print the page's
-    // count as if it were the answer.
+  /**
+   * The whole point of `shopLeadCounts`, on screen: this is what a SELLER sees.
+   * She has no `finance`, so /admin/dashboard refuses her (the fixture 403s it
+   * here), and until now that left her with the page's own two.
+   */
+  it('prints the served count(*) even with «Сводка» refused', async () => {
     const page = await render(TRUNCATED, false);
     expect(page.errors).toEqual([]);
     const sub = page.text('#shopLeadsSub');
-    expect(sub).toContain('не менее 2');
-    expect(sub).toContain('показаны последние 2');
-    expect(page.text('#shopLeadsFoot')).toContain('точное');
+    expect(sub).toContain('34');
+    expect(sub).toContain('не обработано: 9');
+    // And never the floor wording, which is now reserved for a missing count.
+    expect(sub).not.toContain('не менее');
+    const foot = page.text('#shopLeadsFoot');
+    expect(foot).toContain('последние 2');
+    expect(foot).toContain('34');
+  });
+
+  it('reads the same with «Сводка» loaded — one queue, one source', async () => {
+    const page = await render(TRUNCATED, true);
+    expect(page.errors).toEqual([]);
+    expect(page.text('#shopLeadsSub')).toContain('не обработано: 9');
+    expect(page.text('#shopLeadsSub')).toContain('34');
   });
 });
 
 describe('an older backend that sends only the rows', () => {
-  it('still counts, and still states its rule', async () => {
+  it('calls its number a floor rather than printing it as the answer', async () => {
     const page = await render({ leads: [lead('l-1', 'new'), lead('l-2', 'called')] });
     expect(page.errors).toEqual([]);
-    expect(page.text('#shopLeadsSub')).toContain('не обработано: 1');
-    expect(page.text('#shopLeadsFoot')).not.toBe('');
+    const sub = page.text('#shopLeadsSub');
+    expect(sub).toContain('не менее 1');
+    expect(sub).toContain('показаны последние 2');
+    expect(page.text('#shopLeadsFoot')).toContain('нижняя оценка');
   });
 
   it('says «нет заявок» for an empty queue rather than «не обработано: 0»', async () => {
-    const page = await render({ leads: [], counts: { shown: 0, uncalled: 0 }, limit: 100, exact: true });
+    const page = await render({ leads: [], counts: { shown: 0, total: 0, uncalled: 0 }, limit: 100, exact: true });
     expect(page.text('#shopLeadsSub')).toBe('нет заявок');
     expect(page.text('#shopLeads')).toContain('Заявок пока нет');
+  });
+
+  it('a failed count is a missing total, not a total of zero', async () => {
+    // The route serves the rows with `total: null` when count(*) itself failed.
+    // Printing «0 · не обработано: 0» over two waiting women is the exact lie
+    // this branch exists to refuse.
+    const page = await render({
+      leads: [lead('l-1', 'new'), lead('l-2', 'new')],
+      counts: { shown: 2, total: null, uncalled: 2 }, limit: 100, exact: false,
+    });
+    expect(page.errors).toEqual([]);
+    expect(page.text('#shopLeadsSub')).toContain('не менее 2');
+    expect(page.text('#shopLeadsFoot')).toContain('нижняя оценка');
   });
 });

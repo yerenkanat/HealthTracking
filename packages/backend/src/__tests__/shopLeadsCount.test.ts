@@ -6,10 +6,16 @@
  * from a real count(*). The page is ordered newest first, so what falls off it
  * are the OLDEST uncalled leads — the women who have waited longest.
  *
- * There is no count(*) for leads on the repository, so the route says what it
- * can stand behind: the count is over the rows returned, and `exact` is true
- * only when the page held the whole table. Written over HTTP against a real
- * memory repository, leads posted through the public landing route.
+ * `Repository.shopLeadCounts()` now answers that count(*) — on BOTH
+ * implementations — so this route serves a real total to everyone holding
+ * `orders`. That matters more than it sounds: the true figure used to exist
+ * only on /admin/dashboard, which requires `finance`, and seller, operator and
+ * support — the three roles that actually ring people back — do not hold it.
+ *
+ * `counts.shown` stays beside `counts.total`: «сколько в таблице» and «сколько
+ * всего» are different questions, and collapsing them is what started this.
+ * Written over HTTP against a real memory repository, leads posted through the
+ * public landing route.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -76,9 +82,10 @@ describe('the callback queue counts itself', () => {
     const after = (await leads()).json();
     expect(after.counts.shown).toBe(before.counts.shown + 2);
     expect(after.counts.uncalled).toBe(wasUncalled + 2);
-    // The page held everything, so this count IS the total — the panel may
+    // The count came from the table rather than from the page — the panel may
     // print it without a hedge.
     expect(after.exact).toBe(true);
+    expect(after.counts.total).toBe(after.counts.shown);
   });
 
   it('drops a lead out of «не обработано» once somebody has rung her', async () => {
@@ -97,16 +104,56 @@ describe('the callback queue counts itself', () => {
     expect(after.counts.shown).toBe(list.counts.shown);
   });
 
-  it('admits when the page did NOT hold the whole table', async () => {
+  /**
+   * The case the whole item existed for: a page that does not hold the table.
+   *
+   * It used to answer `exact: false` and leave the panel printing «не менее 2»,
+   * because the route could only count what it had returned. It now returns one
+   * row AND the true two, so the queue is worked from the number of women
+   * waiting rather than from the number that fitted on the screen.
+   */
+  it('counts the whole table even when the page holds one row of it', async () => {
     await leave('Айгерім');
     await leave('Сәуле');
-    // One row is all this page fits; there are more, and the count over it is
-    // a floor rather than a total. The panel says «не менее» on this.
     const page = (await leads('?limit=1')).json();
     expect(page.leads).toHaveLength(1);
     expect(page.counts.shown).toBe(1);
-    expect(page.exact).toBe(false);
+    expect(page.counts.total).toBe(2);
+    expect(page.counts.uncalled).toBe(2);
+    expect(page.exact).toBe(true);
     expect(page.limit).toBe(1);
+  });
+
+  it('counts a lead that has been rung out of «не обработано» but not out of the total', async () => {
+    await leave('Айгерім');
+    await leave('Сәуле');
+    const one = (await leads('?limit=1')).json().leads[0];
+    await app.inject({
+      method: 'PATCH', url: `/admin/shop/leads/${one.id}`,
+      headers: { cookie }, payload: { status: 'called' },
+    });
+    const page = (await leads('?limit=1')).json();
+    expect(page.counts.total).toBe(2);
+    expect(page.counts.uncalled).toBe(1);
+  });
+
+  /**
+   * A count that failed must not become a total.
+   *
+   * The rows are what somebody rings from, so a broken counter may not blank
+   * the queue — but printing the page size as the total is the failure this
+   * whole route was rewritten to stop.
+   */
+  it('serves the rows with total = null when the count itself fails', async () => {
+    await leave('Айгерім');
+    repo.shopLeadCounts = async () => { throw new Error('count(*) exploded'); };
+    const page = (await leads()).json();
+    expect(page.leads.length).toBeGreaterThan(0);
+    expect(page.counts.total).toBeNull();
+    expect(page.exact).toBe(false);
+    // The floor is still served, and `exact: false` is what tells the panel to
+    // call it a floor.
+    expect(page.counts.uncalled).toBeGreaterThan(0);
   });
 
   it('still hands the rows over under the old key, so nothing that read it breaks', async () => {

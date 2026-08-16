@@ -95,6 +95,18 @@ function makeDeps(
   let notifyTz = NOTIFY_TZ;
   let idSeq = 1;
 
+  /**
+   * Her latest readings and her triage history — ONE definition.
+   *
+   * `adminUserDetail` builds these by calling `adminUserHealth` in both real
+   * repositories, so a fake in which the two disagree can make a screen pass
+   * against numbers no repository would ever hand it.
+   */
+  const HEALTH = {
+    latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 },
+    triage: [{ code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }],
+  };
+
   const repo: Repository = {
     insertHealthMetric: async (m) => { healthRows.push(m); return false; },
     listManualVitals: async () => [],
@@ -132,6 +144,7 @@ function makeDeps(
     setShopOrderStatus: async () => {},
     recordShopLead: async () => ({ id: 'lead-1' }),
     adminShopLeads: async () => [],
+    shopLeadCounts: async () => ({ total: 0, uncalled: 0 }),
     setShopLeadStatus: async () => {},
     getShopSettings: async () => ({}),
     setShopSettings: async () => {},
@@ -499,8 +512,7 @@ function makeDeps(
     }],
     acknowledgeEmergency: async () => true,
     adminListUsers: async () => ({ total: 1, users: [{ id: USER, displayName: 'Aigerim', phone: '+77001112233', dueDate: '2026-11-01', lastMetricAt: '2026-07-21T08:00:00.000Z', latestSeverity: 'warning' }] }),
-    adminUserHealth: async (userId) =>
-      userId === USER ? { latest: { hr: 80, spo2: 97, systolic: 138, diastolic: 82, temp: 36.7 }, triage: [{ code: 'PREECLAMPSIA_BP', severity: 'emergency', at: '2026-07-15T08:00:00Z' }] } : null,
+    adminUserHealth: async (userId) => (userId === USER ? { ...HEALTH } : null),
     adminUserDetail: async (userId) =>
       userId === USER
         ? {
@@ -511,7 +523,13 @@ function makeDeps(
             doctorPhone: '+77007654321', avgCycleLength: 28, avgPeriodLength: 5,
             children: children.map((c) => ({ id: c.id, name: c.name, dateOfBirth: null, zones: 0 })),
             devices: devices.map((d) => ({ ...d, batteryPct: 62 })),
-            latest: { hr: 80 }, triage: [], alerts: [], sleepNights: sleepRows.length, loggedDays: dayLogs.size,
+            // The same vitals adminUserHealth answers with, because BOTH real
+            // repositories build this field by calling it. The fake used to
+            // answer `{hr: 80}` and an empty triage list here while its own
+            // health method held six readings and an emergency — so the mother
+            // card could be asserted against numbers no repository produces.
+            ...HEALTH,
+            alerts: [], sleepNights: sleepRows.length, loggedDays: dayLogs.size,
           }
         : null,
     adminDevices: async (limit) =>
@@ -1565,13 +1583,16 @@ describe('admin API (in-process, RBAC + audit)', () => {
     expect(audit.some((a: { action: string }) => a.action === 'view_emergencies')).toBe(true);
   });
 
+  // `/detail`, not the deleted `/admin/users/:id/health` (docs/BACKLOG.md §3):
+  // it returns the same `latest` from the same `adminUserHealth`, under the
+  // same capability and reason gate, and it is the read the panel makes.
   it('patient health view is audited; unknown user 404', async () => {
-    const r = await get(`/admin/users/${USER}/health${WHY}`);
+    const r = await get(`/admin/users/${USER}/detail${WHY}`);
     expect(r.statusCode).toBe(200);
     expect(r.json().latest.systolic).toBe(138);
     const audit = (await get('/admin/audit')).json().audit;
-    expect(audit.some((a: { action: string; target: string }) => a.action === 'view_health' && a.target === USER)).toBe(true);
-    expect((await get(`/admin/users/00000000-0000-0000-0000-000000000000/health${WHY}`)).statusCode).toBe(404);
+    expect(audit.some((a: { action: string; target: string }) => a.action === 'view_user_detail' && a.target === USER)).toBe(true);
+    expect((await get(`/admin/users/00000000-0000-0000-0000-000000000000/detail${WHY}`)).statusCode).toBe(404);
   });
 
   it('a clinician reaches patients and not the audit log', async () => {
