@@ -47,3 +47,7 @@ app/ios/build/
 
 # graphify: generated knowledge graph (12.5k nodes) — rebuilt from source, not reviewed by hand
 graphify-out/
+
+# Agent probe scripts — analysis tools, not part of the app.
+# Swept into a commit once by `git add app/`; ignored so it cannot happen again.
+app/tool/_scratch/
