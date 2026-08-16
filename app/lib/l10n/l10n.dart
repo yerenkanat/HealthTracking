@@ -78,8 +78,31 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'adv_title': {AppLocale.ru: 'Советник здоровья', AppLocale.kk: 'Денсаулық кеңесшісі', AppLocale.en: 'Health advisor'},
   'adv_intro': {AppLocale.ru: 'На основе данных вашего браслета', AppLocale.kk: 'Білезік деректері негізінде', AppLocale.en: 'Based on your band data'},
   'adv_ask_sub': {AppLocale.ru: 'Задайте вопрос ассистенту Ana-Bala', AppLocale.kk: 'Ana-Bala ассистентіне сұрақ қойыңыз', AppLocale.en: 'Ask the Ana-Bala assistant a question'},
-  'ADV_GATHERING': {AppLocale.ru: 'Собираем данные', AppLocale.kk: 'Деректер жиналуда', AppLocale.en: 'Gathering data'},
-  'ADV_GATHERING_b': {AppLocale.ru: 'Наденьте браслет — советы появятся после нескольких измерений.', AppLocale.kk: 'Білезікті тағыңыз — бірнеше өлшеуден кейін кеңестер пайда болады.', AppLocale.en: 'Wear your band — advice appears after a few readings.'},
+  // ---- The two cards for "the app has nothing to report" --------------------
+  // Approved copy, 2026-08-17. Do not rewrite: a rewrite voids the approval.
+  //
+  // ADV_GATHERING_b used to read «Наденьте браслет — советы появятся после
+  // нескольких измерений.» — A BAND UPSELL, shown to a woman who types her
+  // readings in by hand, and a promise that advice arrives once she has bought
+  // one. The dashboard's own empty state had this exact sentence family removed
+  // for exactly this reason; the spec is quoted at no_band_card.dart —
+  // «Апселла браслета здесь нет», «Без устройства приложение полноценно.» This
+  // advisory was the surviving instance. The title moved with it: «Собираем
+  // данные» asserts an activity the app is not performing.
+  //
+  // Both bodies close with the sentence ADV_NOTHING_UNUSUAL_b closes with, word
+  // for word in all three languages. That is deliberate and load-bearing: it is
+  // the counterweight that stops a card about MISSING data from being read as
+  // an all-clear. Do not paraphrase it, and do not "vary" it for style.
+  'ADV_GATHERING': {AppLocale.ru: 'Пока мало измерений', AppLocale.kk: 'Өлшемдер әзірге аз', AppLocale.en: 'Not many readings yet'},
+  'ADV_GATHERING_b': {AppLocale.ru: 'Приложение говорит только о тех измерениях, которые у него есть. Если вы плохо себя чувствуете, скажите об этом врачу, что бы ни показывали цифры.', AppLocale.kk: 'Қолданба тек өзінде бар өлшемдер туралы айтады. Өзіңізді нашар сезінсеңіз, сандар не көрсетсе де, дәрігерге айтыңыз.', AppLocale.en: 'The app speaks only about the readings it has. If you feel unwell, tell your doctor, whatever the numbers show.'},
+  // The case ADV_GATHERING could not cover: readings EXIST and none of them is
+  // current on its own metric's ladder. «Собираем данные» is untrue there —
+  // nothing is being gathered — and the woman it is shown to is the one whose
+  // band has been in a drawer since yesterday. No number, no threshold, and no
+  // instrument named, because the card is reachable from typed readings too.
+  'ADV_NO_CURRENT_READINGS': {AppLocale.ru: 'Свежих измерений нет', AppLocale.kk: 'Жаңа өлшемдер жоқ', AppLocale.en: 'No recent readings'},
+  'ADV_NO_CURRENT_READINGS_b': {AppLocale.ru: 'Последние измерения уже не свежие и не говорят о том, что происходит сейчас. Если вы плохо себя чувствуете, скажите об этом врачу, что бы ни показывали цифры.', AppLocale.kk: 'Соңғы өлшемдер ескірген, олар қазір не болып жатқанын көрсетпейді. Өзіңізді нашар сезінсеңіз, сандар не көрсетсе де, дәрігерге айтыңыз.', AppLocale.en: 'The last readings are no longer fresh and do not show what is happening now. If you feel unwell, tell your doctor, whatever the numbers show.'},
   // The absorber. `ADV_ALL_STEADY` / «Всё стабильно» was deleted rather than
   // reworded, together with db_peace_stable*, so that no call site can keep
   // rendering an approved-looking old sentence: a NEW key makes a missed call

@@ -769,10 +769,27 @@ class _PeaceOfMindBanner extends StatelessWidget {
           Icons.spa_rounded,
           Palette.amber
         ),
+      // NEUTRAL, and not an hourglass for every code.
+      //
+      // `Palette.violet` is `Ds.coralCta` — #D6004A, a near-crimson, and more
+      // alarming than this app's actual warning amber one row above. The info
+      // tone is what the banner shows when the app has NOTHING to report, so it
+      // was painting the calmest state in the loudest colour it owns. Dim ink
+      // is the same neutral the ring itself takes when there is nothing to
+      // grade, a few lines down.
+      //
+      // The hourglass means "coming", which is true of ADV_GATHERING and false
+      // of ADV_NO_CURRENT_READINGS: nothing is on its way to a woman whose
+      // band has been in a drawer since yesterday, and an icon that promises
+      // arrival is the same false reassurance as a sentence that does. A dash
+      // instead — the mark this screen already prints for a reading it does not
+      // have. No check mark and no warning triangle: neither is true here.
       AdviceTone.info => (
-          Palette.violet,
-          Icons.hourglass_bottom_rounded,
-          Ds.coralCta
+          Palette.textDim,
+          status.code == 'ADV_NO_CURRENT_READINGS'
+              ? Icons.remove_rounded
+              : Icons.hourglass_bottom_rounded,
+          Palette.textDim
         ),
     };
 
@@ -1020,10 +1037,26 @@ class _MetricAge extends StatelessWidget {
   }
 }
 
-/// Green / amber / red for a metric's three-tier [MetricStatus], matching the
-/// advisor's tone colours so a "watch" value reads the same on every surface.
+/// Green / amber / red for a metric's [MetricStatus], matching the advisor's
+/// tone colours so a "watch" value reads the same on every surface — and
+/// ORDINARY INK for a reading the product may not judge.
+///
+/// GREEN IS A CLAIM. It survives only where the grade is real: a current
+/// reading, on a cited band, from a source the product may reassure from —
+/// heart rate, SpO2, a MANUAL temperature, a cuff blood pressure. It is not a
+/// device temperature, a device blood sugar or a device blood pressure, all of
+/// which now arrive here as [MetricStatus.ungraded]; this switch used to draw
+/// them in `Palette.teal` because the grade's removal collapsed them onto
+/// `normal`, and the colour outlived the grade.
+///
+/// [Palette.text] and deliberately NOT [Palette.textDim]: dim ink is what this
+/// screen uses for a STALE reading, and it would say "old" about a wrist
+/// estimate two minutes fresh. Body ink is correct from both sides — it is the
+/// colour the app uses when it is not judging, so it reads as neither an alarm
+/// nor an all-clear.
 Color _statusColor(MetricStatus s) => switch (s) {
       MetricStatus.normal => Palette.teal,
+      MetricStatus.ungraded => Palette.text,
       MetricStatus.watch => Palette.watch,
       MetricStatus.danger => Palette.danger,
     };
@@ -1071,7 +1104,11 @@ class _MetricCard extends StatelessWidget {
     final gradeable =
         spec.key == 'temp' || freshness == MetricFreshness.current;
     final danger = gradeable && status == MetricStatus.danger;
-    final abnormal = gradeable && status != MetricStatus.normal;
+    // `status.isWarning`, never `status != normal`: an UNGRADED reading is not
+    // an abnormal one, and the old phrasing would have given a wrist estimate
+    // the raised step and the «вне безопасного диапазона» announcement — the
+    // claim its grade was removed to withdraw.
+    final abnormal = gradeable && status.isWarning;
     final value = stats == null ? '—' : _fmt(spec.key, stats.latest);
 
     return Semantics(
@@ -1201,14 +1238,38 @@ class _BloodPressureCard extends StatelessWidget {
     final diaSeries = downsampleMean(buildSeries(samples, 'diastolic'), 40);
     final sys = statsFor(sysSeries);
     final dia = statsFor(diaSeries);
+    // buildSeries throws provenance away, so each grade has to be told where
+    // its own number came from — and this card asked for neither. A fresh,
+    // calibrated wrist 118/76 was therefore drawn in mint, which is refused
+    // sentence #23: a device blood pressure graded green on a tile. The ring
+    // further up this file has had the rule since 2026-08-14 and is the model —
+    // a device BP may pull the grade DOWN and never up.
+    //
+    // Read per half rather than once for the pair: `latestSourceFor` answers
+    // for the newest sample CARRYING that metric, and grading the diastolic
+    // with the systolic's provenance would be the same defect as dating a
+    // number from another reading's clock.
+    final sysSource = latestSourceFor(samples, 'systolic');
+    final diaSource = latestSourceFor(samples, 'diastolic');
     // Each number carries its own grade, so "138 / 77" can show the systolic in
     // amber while the diastolic stays green — the reader sees which one is off.
-    final sysStatus = sys == null
+    final sysGrade = sys == null
         ? MetricStatus.normal
-        : metricStatus('systolic', sys.latest);
-    final diaStatus = dia == null
+        : metricStatus('systolic', sys.latest, source: sysSource);
+    final diaGrade = dia == null
         ? MetricStatus.normal
-        : metricStatus('diastolic', dia.latest);
+        : metricStatus('diastolic', dia.latest, source: diaSource);
+    // A blood pressure is ONE reading and half of one is not a reading, so an
+    // ungraded half makes the pair ungraded: nothing beside «—» may be drawn
+    // teal. In practice both halves share a sample and a source and go ungraded
+    // together; this covers the mixed case rather than leaving it to arrive as
+    // a green systolic next to an unjudged diastolic.
+    final pairUngraded = sysGrade == MetricStatus.ungraded ||
+        diaGrade == MetricStatus.ungraded;
+    MetricStatus half(MetricStatus s) =>
+        pairUngraded && s == MetricStatus.normal ? MetricStatus.ungraded : s;
+    final sysStatus = half(sysGrade);
+    final diaStatus = half(diaGrade);
     // The strictest row in the freshness table, and the only one with a second
     // condition: full colour «≤ 4 h AND calibration ≤ 8 days», grey to 12 h,
     // and never current beyond that or while the calibration is stale. Four
@@ -1224,15 +1285,19 @@ class _BloodPressureCard extends StatelessWidget {
     final at = sysAt == null || diaAt == null
         ? (sysAt ?? diaAt)
         : (sysAt.isBefore(diaAt) ? sysAt : diaAt);
-    final source = latestSourceFor(samples, 'systolic');
     final freshness = at == null
         ? MetricFreshness.stale
         : metricFreshness('systolic', now.difference(at),
-            source: source, bpCalibrationStale: bpCalibrationStale);
+            source: sysSource, bpCalibrationStale: bpCalibrationStale);
     final gradeable = freshness == MetricFreshness.current;
+    // An ungraded half carries the pair — see [worstStatus], which ranks
+    // ungraded above normal and below both warnings precisely for this line.
     final status = worstStatus([sysStatus, diaStatus]);
     final danger = gradeable && status == MetricStatus.danger;
-    final abnormal = gradeable && status != MetricStatus.normal;
+    // `isWarning`, not `!= normal`: an ungraded pair must not be announced as
+    // «вне безопасного диапазона» to a screen reader, which is the same claim
+    // the mint colour was making to everyone else.
+    final abnormal = gradeable && status.isWarning;
     final sysV = sys == null ? '—' : sys.latest.round().toString();
     final diaV = dia == null ? '—' : dia.latest.round().toString();
 
@@ -1243,7 +1308,13 @@ class _BloodPressureCard extends StatelessWidget {
           '${abnormal ? l.t('db_outside_range') : ''}'
           '${_ageLabel(l, at, now) ?? ''}',
       child: DsCard(
-        raised: true,
+        // The raised step means "this one wants your attention", exactly as it
+        // does on the four tiles beside this card — which is why it cannot be
+        // unconditional here. `raised: true` put the step under every blood
+        // pressure the app has ever drawn, including the ungraded ones this
+        // change is about, and a step under a reading the product is refusing
+        // to judge is the same claim the mint colour was making.
+        raised: abnormal,
         padding: const EdgeInsets.all(16),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MetricDetailScreen(
@@ -1334,7 +1405,20 @@ class _BloodPressureCard extends StatelessWidget {
                         color: Palette.blue.withValues(alpha: 0.45)),
                   Sparkline(
                     points: sysSeries,
-                    band: gradeable ? bandFor('systolic') : const MetricBand(),
+                    // The shaded zone stays for a wrist estimate, and that is
+                    // the asymmetry rather than an oversight: this band is
+                    // drawn at the EMERGENCY line the product already escalates
+                    // a device blood pressure on, so it is a warning, and
+                    // warnings are never gated on provenance. `bandFor` ignores
+                    // the source for this metric for the same reason — the ring
+                    // reads `latestInDanger` through it, and a device BP that
+                    // lost its band would stop being able to pull the ring
+                    // down. The bands that DO disappear with provenance are
+                    // temperature's and blood sugar's; both are handled inside
+                    // `bandFor`.
+                    band: gradeable
+                        ? bandFor('systolic', source: sysSource)
+                        : const MetricBand(),
                     color: danger ? Palette.danger : Palette.violet,
                     inDanger: danger,
                   ),

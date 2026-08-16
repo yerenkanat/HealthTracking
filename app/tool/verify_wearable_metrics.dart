@@ -59,7 +59,15 @@ void main() {
     _chk('sleep totals map', m.sleepMinutes == 465 && m.deepSleepMinutes == 120 && m.lightSleepMinutes == 300);
     _chk('stress maps', m.stress == 34);
     _chk('breathing rate maps', m.breathRate == 15);
-    _chk('blood sugar maps to mmol/L', m.bloodSugar == 5.5);
+    // The withdrawal, asserted rather than assumed. `bloodSugar` was a getter
+    // returning tenths / 10.0 as «mmol/L» — a unit the vendor states nowhere in
+    // 3,248 pages. It was DELETED on clinical refusal, and this line used to
+    // assert the very conversion that was refused.
+    //
+    // This file stopped compiling the moment that getter went, and nobody
+    // noticed, because `flutter analyze lib test` does not cover tool/. A
+    // verification that cannot run is a verification that is not happening.
+    _chk('blood sugar is carried as raw tenths, never converted', m.bloodSugarTenths == 55);
     _chk('the timestamp is stamped', m.at == at);
     _chk('there is something to show', m.hasAnything);
   }
@@ -70,7 +78,7 @@ void main() {
     final m = wearableMetricsFromSnapshot(snap(stress: 0, breath: 0, sugar: 0), at);
     _chk('an unmeasured stress is null, not calm', m.stress == null);
     _chk('an unmeasured breathing rate is null', m.breathRate == null);
-    _chk('an unmeasured blood sugar is null', m.bloodSugar == null);
+    _chk('an unmeasured blood sugar is null', m.bloodSugarTenths == null);
 
     // Daily totals of 0 are REAL — 0 steps at dawn is true, not unknown.
     final dawn = wearableMetricsFromSnapshot(snap(steps: 0, kcal: 0), at);
@@ -92,7 +100,7 @@ void main() {
     final m = WearableMetrics(at: at);
     _chk('a bare model has nothing to show', !m.hasAnything);
     _chk('distance of a bare model is zero km', m.km == 0);
-    _chk('blood sugar unknown is null', m.bloodSugar == null);
+    _chk('blood sugar unknown is null', m.bloodSugarTenths == null);
   }
 
   print('\n$_pass passed, $_fail failed');

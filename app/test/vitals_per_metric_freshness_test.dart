@@ -219,16 +219,32 @@ void main() {
       expect(codes, contains('ADV_NOTHING_UNUSUAL'));
     });
 
-    test('old readings do not — and nothing new is said instead', () {
+    test('old readings do not — and what is said instead is true', () {
       final codes =
           currentAdvisories(quietDay(const Duration(hours: 30)), now: now)
               .map((a) => a.code)
               .toList();
       expect(codes, isNot(contains('ADV_NOTHING_UNUSUAL')));
-      // ADV_GATHERING, which claims nothing about her and is already approved
-      // copy. No new medical sentence was needed to say "we have not looked
-      // recently".
-      expect(codes, ['ADV_GATHERING']);
+      // This used to fall through to ADV_GATHERING — «Собираем данные» —
+      // accepted at the time as approved copy that claims nothing. It claims
+      // something, and the something is false: nothing is being gathered, the
+      // readings exist and are out of date. A woman whose band is in a drawer
+      // reads it as "the app is on it", which is the same false reassurance as
+      // a promise to warn her.
+      expect(codes, ['ADV_NO_CURRENT_READINGS']);
+    });
+
+    test('no readings at all is still ADV_GATHERING', () {
+      // The distinction the new code exists to make. Nothing to be stale, so
+      // «Свежих измерений нет» would be its own kind of untrue.
+      expect(currentAdvisories(const [], now: now).map((a) => a.code),
+          ['ADV_GATHERING']);
+      expect(
+          currentAdvisories([HealthSample(at: now, heartRate: 72)], now: now)
+              .map((a) => a.code),
+          ['ADV_GATHERING'],
+          reason: 'one fresh reading is too few to say anything, and it is not '
+              'stale');
     });
 
     test('a WARNING is never gated on age', () {
@@ -480,7 +496,9 @@ void main() {
       await tester.pumpWidget(_dashboard(quietDay(const Duration(hours: 30)), now));
       await tester.pumpAndSettle();
       expect(find.text(_en.t('ADV_NOTHING_UNUSUAL')), findsNothing);
-      expect(find.text(_en.t('ADV_GATHERING')), findsOneWidget);
+      expect(find.text(_en.t('ADV_NO_CURRENT_READINGS')), findsOneWidget);
+      // «Not many readings yet» would be false: she has four of them.
+      expect(find.text(_en.t('ADV_GATHERING')), findsNothing);
     });
 
     testWidgets('and does render over current ones', (tester) async {

@@ -167,7 +167,21 @@ class _AdvisoryCard extends StatelessWidget {
     final (color, icon) = switch (advisory.tone) {
       AdviceTone.positive => (Palette.good, Icons.check_circle_outline),
       AdviceTone.watch => (Palette.watch, Icons.info_outline),
-      AdviceTone.info => (Palette.blue, Icons.hourglass_empty),
+      // Neutral, and the hourglass only where something really is coming. The
+      // info tone is the app saying it has nothing to report; the banner on the
+      // dashboard drew it in the CTA coral, which is louder than the warning
+      // amber, and this screen drew it in an accent blue. Dim ink on both.
+      //
+      // ADV_NO_CURRENT_READINGS gets a dash rather than an hourglass: her
+      // readings are old and none are on the way, so an icon meaning "coming"
+      // would promise arrival the app cannot deliver. No check mark, no warning
+      // triangle — it is neither.
+      AdviceTone.info => (
+          Palette.textDim,
+          advisory.code == 'ADV_NO_CURRENT_READINGS'
+              ? Icons.remove_rounded
+              : Icons.hourglass_empty
+        ),
     };
     // Null means no badge — the advisory carried no number, or carried one this
     // card may not print on its own. See _fmtValue.

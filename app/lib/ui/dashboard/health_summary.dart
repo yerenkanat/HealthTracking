@@ -126,8 +126,14 @@ String buildHealthSummary(
   // reading whatever its age. See domain/current_advisories.dart.
   final advisories = currentAdvisories(samples, now: at, lastNight: night,
       bpCalibrationStale: bpCalibrationStale);
+  // `noDataAdvisories`, not a hand-written `!= 'ADV_GATHERING'`. The set is
+  // shared with the fall-through filter in current_advisories.dart because the
+  // two answer the same question — "does this advisory report an absence rather
+  // than a finding?" — and listing it twice is how the second no-data code
+  // would have shipped out of the app on its own, under a summary that does
+  // carry numbers.
   final notes = advisories
-      .where((a) => a.code != 'ADV_GATHERING')
+      .where((a) => !noDataAdvisories.contains(a.code))
       .map((a) => '– ${l.t(a.code)}')
       .toList();
   if (notes.isNotEmpty) {

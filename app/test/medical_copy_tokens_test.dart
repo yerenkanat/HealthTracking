@@ -134,6 +134,54 @@ const _pins = <String, Map<AppLocale, _Pin>>{
           'so it stays that way',
     ),
   },
+
+  // ---- The two "nothing to report" cards. Approved 2026-08-17 (ru, kk, en).
+  //      Their closing sentence is the SAME sentence as the one above, word for
+  //      word, in all three languages: it is the counterweight that stops a
+  //      card about MISSING data from reading as an all-clear. --------------
+  'ADV_GATHERING_b': {
+    AppLocale.ru: _Pin(
+      must: ['врачу'],
+      // The refused version: «Наденьте браслет — советы появятся после
+      // нескольких измерений.» A band upsell shown to a woman who types her
+      // readings by hand, plus a promise that advice arrives once she owns the
+      // hardware. The dashboard's empty state had this exact sentence family
+      // removed for the same reason — «Апселла браслета здесь нет».
+      mustNot: ['браслет', 'появятся'],
+      why: 'the 2026-08-17 replacement: no band upsell, no promise of future '
+          'advice, and the closing sentence that keeps the card from being read '
+          'as an all-clear',
+    ),
+    AppLocale.kk: _Pin(
+      must: ['дәрігерге'],
+      mustNot: ['білезік', 'пайда болады'],
+      why: 'as above; білезік is the word the Kazakh app uses for the band, so '
+          'its absence is what proves the upsell is gone',
+    ),
+    AppLocale.en: _Pin(
+      must: ['doctor'],
+      mustNot: ['band', 'will appear'],
+      why: 'as the Russian: the upsell and the promise of future advice are '
+          'both gone, and the closing sentence stays',
+    ),
+  },
+  'ADV_NO_CURRENT_READINGS_b': {
+    AppLocale.ru: _Pin(
+      must: ['врачу'],
+      why: 'the card says her readings are out of date; without the closing '
+          'sentence an absence of data reads as an absence of trouble',
+    ),
+    AppLocale.kk: _Pin(
+      must: ['дәрігерге'],
+      why: 'the Kazakh carries the same closing sentence as the Russian, and '
+          'it is the one part of this card that is a clinical instruction',
+    ),
+    AppLocale.en: _Pin(
+      must: ['doctor'],
+      why: 'the English carries the same closing sentence, which is what stops '
+          'the card being read as an all-clear by a stranger it is forwarded to',
+    ),
+  },
 };
 
 void main() {

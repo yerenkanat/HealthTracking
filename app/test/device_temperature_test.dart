@@ -494,13 +494,32 @@ void main() {
   group('a device temperature is never coloured', () {
     // docs/CLINICAL-REVIEW-WATCH.md, the freshness table: "never coloured —
     // recommended removal, and barred from emergency severity at any freshness".
-    test('the grade is normal at any value', () {
-      expect(metricStatus('temp', 38.6, source: ReadingSource.sensor),
-          MetricStatus.normal);
-      expect(metricStatus('temp', 40.5, source: ReadingSource.sensor),
-          MetricStatus.normal);
-      expect(metricStatus('temp', 35.2, source: ReadingSource.sensor),
-          MetricStatus.normal);
+    test('the grade is UNGRADED at any value, and never normal', () {
+      // `normal` was the answer here until 2026-08-17, on the reasoning that
+      // normal is what the surfaces render as "no claim". It was not:
+      // `_statusColor(MetricStatus.normal)` returned the palette's teal, so the
+      // grade was removed and the GREEN SURVIVED IT — a wrist estimate drawn in
+      // the same colour as a healthy heart rate. Asserting `isNot(normal)` as
+      // well as the new value, because "not green" is the ruling and the exact
+      // enum name is the implementation of it.
+      for (final v in const [38.6, 40.5, 35.2, 36.6]) {
+        expect(metricStatus('temp', v, source: ReadingSource.sensor),
+            MetricStatus.ungraded,
+            reason: '$v °C off a wrist');
+        expect(metricStatus('temp', v, source: ReadingSource.sensor),
+            isNot(MetricStatus.normal));
+      }
+    });
+
+    test('an ungraded grade is not a warning either', () {
+      // The other half of the same ruling: ungraded must not arrive at a call
+      // site that was written as `status != MetricStatus.normal`, which would
+      // hand a wrist estimate the raised step and the «вне безопасного
+      // диапазона» announcement — the claim the grade's removal withdrew.
+      expect(MetricStatus.ungraded.isWarning, isFalse);
+      expect(MetricStatus.normal.isWarning, isFalse);
+      expect(MetricStatus.watch.isWarning, isTrue);
+      expect(MetricStatus.danger.isWarning, isTrue);
     });
 
     test('a thermometer reading is graded exactly as it always was', () {
@@ -512,15 +531,22 @@ void main() {
           MetricStatus.normal);
     });
 
-    test('no other metric reads the source', () {
-      // The branch is inside the temperature case only, exactly as the triage
-      // one is inside the fever block.
+    test('no warning anywhere is gated on the source', () {
+      // «Gate the positives, never the warnings.» Blood pressure now reads the
+      // source too — see the 2026-08-17 ruling on refused sentence #23 — but
+      // only under its two warning bands, so a wrist estimate in the danger
+      // band still grades danger. Heart rate and SpO2 read it nowhere.
       expect(metricStatus('systolic', 145, source: ReadingSource.sensor),
           MetricStatus.danger);
       expect(metricStatus('spo2', 88, source: ReadingSource.sensor),
           MetricStatus.danger);
       expect(metricStatus('hr', 145, source: ReadingSource.sensor),
           MetricStatus.danger);
+      expect(metricStatus('hr', 72, source: ReadingSource.sensor),
+          MetricStatus.normal,
+          reason: 'a wrist heart rate is a reading this product may grade');
+      expect(metricStatus('spo2', 98, source: ReadingSource.sensor),
+          MetricStatus.normal);
     });
 
     test('the chart paints no danger zone behind a device temperature', () {
@@ -676,35 +702,78 @@ void main() {
     });
   });
 
-  group('no surface grades a temperature without asking where it came from', () {
+  group('no surface grades a reading without asking where it came from', () {
     // metricStatus and bandFor default to ReadingSource.manual, which is right
     // for the vocabulary and wrong as a fallback: a call site that forgets would
     // colour a wrist estimate red again. Nothing stops that at compile time, so
     // this stops it here.
-    test('every call that can see a temperature states a source', () {
+
+    /// Every metric whose GRADE reads provenance. The scan skips a call whose
+    /// metric key is a literal outside this set, because such a call cannot
+    /// reach any of those branches.
+    ///
+    /// It was `{'temp'}` alone until 2026-08-17, and that is exactly why this
+    /// guard did not catch the blood-pressure tile: `metricStatus('systolic',
+    /// sys.latest)` names a literal that was not temperature, so the scan
+    /// waved it through and a wrist 118/76 went on being drawn in mint. A
+    /// provenance rule added to `metricStatus` without its key being added
+    /// here is a rule with no guard behind it.
+    const readsSource = {'temp', 'glucose', 'systolic', 'diastolic'};
+
+    test('every call that can see one states a source', () {
       final offenders = <String>[];
       for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
         final path = f.path.replaceAll(r'\', '/');
         if (!path.endsWith('.dart')) continue;
         if (path == 'lib/domain/health_series.dart') continue; // the declarations
-        final source = f.readAsStringSync();
+        // Comment lines are dropped before the scan, on the same principle
+        // `refused_sentences_test` states: a comment explaining why a call was
+        // REMOVED must not fail the build. The withdrawn blood-sugar tile
+        // leaves exactly such a note — «a green/amber/red grade from
+        // metricStatus('glucose', …)» — and the epitaph is not a call site.
+        final source = f
+            .readAsLinesSync()
+            .where((line) => !line.trimLeft().startsWith('//'))
+            .join('\n');
         for (final fn in const ['metricStatus', 'bandFor', 'latestInDanger']) {
           for (final m in RegExp('(?<![A-Za-z0-9_.])$fn\\(([^;]*?)\\)[,;)\\s]')
               .allMatches(source)) {
             final args = m.group(1)!;
-            // A literal metric key that is not temperature cannot reach the
+            // A literal metric key outside the set cannot reach a provenance
             // branch, so it needs nothing.
             final literal = RegExp("^'([a-zA-Z0-9]+)'").firstMatch(args.trim());
-            if (literal != null && literal.group(1) != 'temp') continue;
+            if (literal != null && !readsSource.contains(literal.group(1))) {
+              continue;
+            }
             if (args.contains('source:')) continue;
             offenders.add('$path → $fn($args)');
           }
         }
       }
       expect(offenders, isEmpty,
-          reason: 'a temperature graded without its provenance is a wrist '
-              'estimate drawn in red and announced as out of range:\n'
+          reason: 'a reading graded without its provenance is a wrist estimate '
+              'painted as a judgement — red and announced as out of range, or '
+              'teal and counted as an all-clear:\n'
               '${offenders.join('\n')}');
+    });
+
+    test('the set covers every branch metricStatus actually has', () {
+      // The set above is a hand-written mirror of the switch in
+      // health_series.dart, and a mirror rots. Every metric whose grade changes
+      // with the source must be in it; every metric in it must really change.
+      const every = ['hr', 'spo2', 'systolic', 'diastolic', 'temp', 'glucose'];
+      const probes = {
+        'hr': 72.0, 'spo2': 98.0, 'systolic': 118.0,
+        'diastolic': 76.0, 'temp': 36.6, 'glucose': 5.4,
+      };
+      for (final k in every) {
+        final differs = metricStatus(k, probes[k]!, source: ReadingSource.manual) !=
+            metricStatus(k, probes[k]!, source: ReadingSource.sensor);
+        expect(readsSource.contains(k), differs,
+            reason: differs
+                ? '$k grades differently by source and the scan above skips it'
+                : '$k is in the scan set but grades the same either way');
+      }
     });
 
     test('the scan can see the call sites at all', () {
@@ -713,6 +782,11 @@ void main() {
           File('lib/ui/dashboard/health_dashboard_screen.dart').readAsStringSync();
       expect(source, contains('metricStatus(spec.key, stats.latest, source: source)'));
       expect(source, contains('bandFor(spec.key, source: source)'));
+      // And the blood-pressure tile, the call the old scan could not see.
+      expect(source,
+          contains("metricStatus('systolic', sys.latest, source: sysSource)"));
+      expect(source,
+          contains("metricStatus('diastolic', dia.latest, source: diaSource)"));
     });
   });
 }

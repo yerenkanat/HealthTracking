@@ -469,30 +469,91 @@ bool latestInDanger(String metric, SeriesStats? stats,
   return false;
 }
 
-/// Three-tier health grade for a single reading, so the UI can render a value in
-/// green (normal), amber (worth watching), or red (needs attention) at a glance.
+/// Health grade for a single reading, so the UI can render a value in green
+/// (normal), amber (worth watching), or red (needs attention) at a glance.
 /// Thresholds mirror the advisor and triage layers so every surface agrees:
 /// "watch" is the below-emergency band the advisor nudges on; "danger" is the
 /// triage cutoff that forces the Emergency screen. NOT a diagnosis.
-enum MetricStatus { normal, watch, danger }
+enum MetricStatus {
+  /// Graded, and on the right side of every band this product cites. Rendered
+  /// in the healthy teal — it is a CLAIM, and it may only be made about a
+  /// reading the product is entitled to reassure from.
+  normal,
 
-/// Grade one reading. [source] is read for temperature and blood sugar — see
-/// those two branches — and defaults to [ReadingSource.manual] for the same reason every
-/// other default in this vocabulary does: the hand-built values in this app are
-/// the typed ones, and every device path states its provenance (pinned by
-/// `device_temperature_test.dart`). Pass [latestSourceFor]'s answer whenever the
-/// metric can be temperature; a scan test fails the build if a call site
-/// forgets.
+  /// NO GRADE WAS MADE. Not "fine", and not "old": the app is not judging this
+  /// reading at all, because its source is one the review bars from a positive
+  /// claim — a device temperature, a device blood sugar, a device blood
+  /// pressure below the bands it warns on.
+  ///
+  /// It exists because the grade was removed and THE COLOUR SURVIVED IT: the
+  /// device-temperature ruling collapsed "ungraded" onto [normal], on the
+  /// reasoning that normal is what the surfaces render as "no claim" — and
+  /// `_statusColor(MetricStatus.normal)` returned the palette's teal, so a
+  /// wrist estimate went on being drawn in the same green as a healthy heart
+  /// rate. A fourth state is the only way for the type to carry the difference.
+  ///
+  /// Renders in ordinary body ink, and deliberately NOT in the dim ink that
+  /// means stale — that would say "old" about a reading two minutes fresh.
+  ungraded,
+
+  /// Worth watching: the below-emergency band the advisor nudges on.
+  watch,
+
+  /// The triage cutoff. A WARNING, and warnings are never gated on provenance
+  /// — see the absorber rule's corollary.
+  danger,
+}
+
+/// Is this grade a warning — the two tiers a surface may raise a step for,
+/// announce as out of range, or draw away from ordinary ink?
+///
+/// Written as an allow-list because the call sites used to say
+/// `status != MetricStatus.normal`, and the moment [MetricStatus.ungraded]
+/// existed that phrasing turned every ungraded reading into a raised card
+/// announced as «вне безопасного диапазона» — the exact claim the grade's
+/// removal was meant to withdraw.
+extension MetricStatusClaim on MetricStatus {
+  bool get isWarning =>
+      this == MetricStatus.watch || this == MetricStatus.danger;
+}
+
+/// Grade one reading. [source] is read for temperature, blood sugar and blood
+/// pressure — see those branches — and defaults to [ReadingSource.manual] for
+/// the same reason every other default in this vocabulary does: the hand-built
+/// values in this app are the typed ones, and every device path states its
+/// provenance (pinned by `device_temperature_test.dart`). Pass
+/// [latestSourceFor]'s answer whenever the metric can be one of those four; a
+/// scan test fails the build if a call site forgets.
 MetricStatus metricStatus(String metric, double v,
     {ReadingSource source = ReadingSource.manual}) {
   switch (metric) {
+    // ---- Blood pressure ------------------------------------------------------
+    //
+    // THE TWO WARNING BANDS COME FIRST, AND THEY FIRE FROM EVERY SOURCE. That
+    // order is the ruling, not a formatting choice: «gate the positives, never
+    // the warnings». A wrist estimate at 165/112 may be drawn in danger red —
+    // the product already escalates a device blood pressure there, since
+    // `assessTelemetry` has no source check — and it may pull the peace ring
+    // down. What it may NOT do is come out `normal` and be painted teal, which
+    // is refused sentence #23: a device blood pressure counted as healthy.
+    //
+    // The ring beside the tile has done this correctly since 2026-08-14; the
+    // tile called `metricStatus('systolic', …)` with no source at all, so a
+    // fresh, calibrated wrist 118/76 was drawn in mint. That is the reassurance
+    // removed from `ADV_BP_STEADY` re-entering as a colour.
+    //
+    // Unlike temperature this branch is NOT an early return, because the
+    // temperature ruling barred the device path from every tier including
+    // emergency, and the blood-pressure one deliberately did not.
     case 'systolic':
       if (v >= TriageThresholds.bpSystolicEmergency) return MetricStatus.danger;
       if (v >= 135) return MetricStatus.watch;
+      if (source != ReadingSource.manual) return MetricStatus.ungraded;
       return MetricStatus.normal;
     case 'diastolic':
       if (v >= TriageThresholds.bpDiastolicEmergency) return MetricStatus.danger;
       if (v >= 85) return MetricStatus.watch;
+      if (source != ReadingSource.manual) return MetricStatus.ungraded;
       return MetricStatus.normal;
     case 'hr':
       if (v >= TriageThresholds.hrTachyEmergency || v <= TriageThresholds.hrBradyEmergency) {
@@ -515,11 +576,16 @@ MetricStatus metricStatus(String metric, double v,
       // announces «вне безопасного диапазона» to someone who cannot see the
       // colour, and it hangs off this grade. Both go together, or neither.
       //
-      // Normal, not a fourth "ungraded" tier: normal is what the surfaces
-      // already render as "no claim" — plain ink, no raised step, no suffix.
-      // The reading is still drawn, and the qualifier next to it says what it
-      // is. A thermometer reading she typed in is graded exactly as before.
-      if (source != ReadingSource.manual) return MetricStatus.normal;
+      // [MetricStatus.ungraded], and this is the correction of 2026-08-17. It
+      // used to answer `normal`, on the reasoning that normal is what the
+      // surfaces already render as "no claim" — plain ink, no raised step, no
+      // suffix. Two of those three held. The ink did not: `_statusColor` drew
+      // `normal` in the palette's teal, so the grade was removed and the GREEN
+      // SURVIVED IT, and a wrist estimate went on being painted in the same
+      // colour as a healthy heart rate. The reading is still drawn, in ordinary
+      // ink, and the qualifier next to it says what it is. A thermometer
+      // reading she typed in is graded exactly as before.
+      if (source != ReadingSource.manual) return MetricStatus.ungraded;
       if (v >= TriageThresholds.feverEmergencyC) return MetricStatus.danger;
       if (v >= TriageThresholds.feverWarningC) return MetricStatus.watch;
       return MetricStatus.normal;
@@ -530,12 +596,13 @@ MetricStatus metricStatus(String metric, double v,
       // for it at all. Grading a raw index against a mmol/L threshold is not an
       // imprecise judgement, it is a judgement about a different quantity.
       //
-      // Normal, not a fourth "ungraded" tier, for the same reason as
-      // temperature: normal is what every surface already renders as "no
-      // claim". Today nothing in the app grades a device blood sugar — the
-      // wellness tile that did was removed with this ruling — so this branch is
-      // the guard that keeps it that way when a new surface arrives.
-      if (source != ReadingSource.manual) return MetricStatus.normal;
+      // [MetricStatus.ungraded], for the same reason as temperature and by the
+      // same correction: `normal` was rendered in teal, so "no claim" was
+      // painted as an all-clear. Today nothing in the app grades a device blood
+      // sugar — the wellness tile that did was removed with this ruling — so
+      // this branch is the guard that keeps it that way when a new surface
+      // arrives, and it now hands that surface a state it cannot draw green.
+      if (source != ReadingSource.manual) return MetricStatus.ungraded;
       if (v >= GlucoseThresholds.highMmol || v < GlucoseThresholds.severeLowMmol) return MetricStatus.danger;
       if (v >= GlucoseThresholds.elevatedMmol || v < GlucoseThresholds.lowMmol) return MetricStatus.watch;
       return MetricStatus.normal;
@@ -556,10 +623,29 @@ MetricStatus metricStatus(String metric, double v,
 
 /// The most severe status across several readings — for a combined card like
 /// blood pressure, where systolic and diastolic each carry their own grade.
+///
+/// AN UNGRADED HALF MAKES THE PAIR UNGRADED. «118 / 76» is ONE reading, so a
+/// pair containing a half the product may not judge cannot come out `normal` and
+/// be painted teal — that is refused sentence #23 arriving through the back
+/// door, on a card whose two halves are graded separately.
+///
+/// This used to be `s.index > worst.index`, which cannot express that: the enum
+/// index is a declaration order, and any order that put a new state next to
+/// `normal` would have made the pair normal again. So the ranking is written
+/// down explicitly below and does not depend on how the enum is declared.
+/// A warning still wins over an ungraded half, in either position — silence
+/// about one number never suppresses a warning about the other.
 MetricStatus worstStatus(Iterable<MetricStatus> xs) {
   var worst = MetricStatus.normal;
   for (final s in xs) {
-    if (s.index > worst.index) worst = s;
+    if (_rank(s) > _rank(worst)) worst = s;
   }
   return worst;
 }
+
+int _rank(MetricStatus s) => switch (s) {
+      MetricStatus.normal => 0,
+      MetricStatus.ungraded => 1,
+      MetricStatus.watch => 2,
+      MetricStatus.danger => 3,
+    };
