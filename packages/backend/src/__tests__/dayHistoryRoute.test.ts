@@ -176,6 +176,172 @@ describe('GET /children/:id/day', () => {
 });
 
 /**
+ * The 200-row window, and the day it stopped reaching.
+ *
+ * The route used to ask for the newest 200 crossings of ALL time and then keep
+ * this day's out of them in JavaScript. That works until a child has crossed a
+ * boundary 200 times in her life; after that the window ends inside recent
+ * history, and every older day comes back with no crossings.
+ *
+ * What made it worse than an empty screen: the trail is a different query with
+ * its own day bound, so the route still drew. The day rendered complete — she
+ * went here, here and here, and crossed no boundary — on a day she may have
+ * left the school zone three times.
+ *
+ * So these seed a REAL history. Three rows would pass against the shipped bug.
+ */
+describe('GET /children/:id/day — a day older than the crossing window', () => {
+  const from = `${DAY}T00:00:00.000Z`;
+  const to = '2026-08-09T00:00:00.000Z';
+  /** Later than DAY, so a newest-first window of all time lands on these. */
+  const LATER_CROSSINGS = 250;
+
+  async function seedCrossing(atIso: string, transition: 'enter' | 'exit', zone: string) {
+    await repo.insertGeofenceEvent({
+      childId: DEMO_CHILD,
+      geofenceId: 'zone-school',
+      geofenceName: zone,
+      transition,
+      at: atIso,
+      source: 'gps',
+    });
+  }
+
+  /** A lifetime of crossings, all AFTER the day under test. */
+  async function seedLaterHistory(n = LATER_CROSSINGS) {
+    // Every three hours from the following morning — real instants, so the
+    // fixture would still be valid rows against a real database.
+    const start = Date.parse('2026-08-09T06:00:00.000Z');
+    for (let i = 0; i < n; i++) {
+      await seedCrossing(
+        new Date(start + i * 3 * 3_600_000).toISOString(),
+        i % 2 === 0 ? 'exit' : 'enter',
+        'Школа',
+      );
+    }
+  }
+
+  it('still reports the crossings of that day', async () => {
+    await seedLaterHistory();
+    await seedCrossing(at(7, 40), 'exit', 'Дом');
+    await seedCrossing(at(8, 5), 'enter', 'Школа');
+
+    const b = (await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/day?day=${DAY}`,
+    })).json();
+
+    expect(b.events.map((e: { kind: string }) => e.kind)).toEqual(['exit', 'enter']);
+    expect(b.events[0].at).toBe(at(7, 40));
+    expect(b.events[0].zoneName).toBe('Дом');
+    expect(b.events[1].zoneName).toBe('Школа');
+    await app.close();
+  });
+
+  it('does not draw a route beside a silently emptied timeline', async () => {
+    // The shape of the shipped bug, stated as one assertion: a day that has
+    // both a trail and a crossing must not come back with the trail alone.
+    await seedLaterHistory();
+    await seedCrossing(at(7, 40), 'exit', 'Школа');
+    await seedFix(7, 30, 43.238, 76.889);
+    await seedFix(8, 0, 43.248, 76.889);
+
+    const b = (await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/day?day=${DAY}`,
+    })).json();
+
+    expect(b.points.length).toBeGreaterThan(0);
+    expect(b.events, 'route drawn, crossings dropped — the day reads complete and is not')
+      .not.toEqual([]);
+    await app.close();
+  });
+
+  it('spends the limit inside the day, not on recent history', async () => {
+    // Straight at the repository: the parameter has to reach the query, not be
+    // re-filtered afterwards. Filtering after slicing is the whole defect.
+    await seedLaterHistory();
+    await seedCrossing(at(7, 40), 'exit', 'Дом');
+
+    const rows = await repo.listGeofenceEvents(DEMO_CHILD, 200, from, to);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].at).toBe(at(7, 40));
+    await app.close();
+  });
+
+  it('drops the OLDEST rows when one day overflows the limit', async () => {
+    // The cap has not gone away, it has moved inside the day — and when it
+    // bites it must keep the newest, like ORDER BY occurred_at DESC LIMIT n.
+    const tick = (i: number) => at(Math.floor(i / 60), i % 60);
+    for (let i = 0; i < 205; i++) {
+      await seedCrossing(tick(i), i % 2 === 0 ? 'enter' : 'exit', 'Школа');
+    }
+    const rows = await repo.listGeofenceEvents(DEMO_CHILD, 200, from, to);
+    expect(rows).toHaveLength(200);
+    expect(rows[0].at).toBe(tick(204));
+    expect(rows[199].at).toBe(tick(5));
+    await app.close();
+  });
+
+  it('leaves the all-time zone history alone', async () => {
+    // GET /children/:id/events answers "the last crossings", not "a day", and
+    // must keep answering across all time — the bound is optional for it.
+    await seedLaterHistory(10);
+    await seedCrossing(at(7, 40), 'exit', 'Дом');
+    const b = (await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/events?limit=50`,
+    })).json();
+    expect(b.events).toHaveLength(11);
+    await app.close();
+  });
+
+  it('keeps a neighbouring day out even when it is the newest thing there is', async () => {
+    await seedCrossing('2026-08-09T00:00:00.000Z', 'enter', 'Дом');
+    await seedCrossing(at(23, 59), 'exit', 'Дом');
+    const b = (await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/day?day=${DAY}`,
+    })).json();
+    // Half-open: midnight belongs to the day that is starting, and to one day.
+    expect(b.events).toHaveLength(1);
+    expect(b.events[0].at).toBe(at(23, 59));
+    await app.close();
+  });
+
+  it('still reports an SOS on a day older than the alert window', async () => {
+    // The same defect, one line down, and it bites SOONER: alerts are stored
+    // per USER, so every crossing of every child on the account writes one, and
+    // the day's SOS was picked out of the newest 500 of all time afterwards.
+    // A red mark vanishing off an older timeline is the worst version of this —
+    // it is the thing a parent came back to the screen to look at.
+    for (let i = 0; i < 600; i++) {
+      await repo.recordAlert(DEMO_USER, {
+        childId: DEMO_CHILD, kind: i % 2 === 0 ? 'left' : 'entered', zoneName: 'Школа',
+        at: new Date(Date.parse('2026-08-09T06:00:00.000Z') + i * 3_600_000).toISOString(),
+      });
+    }
+    await repo.recordAlert(DEMO_USER, {
+      childId: DEMO_CHILD, kind: 'sos', zoneName: '', at: at(16, 41),
+    });
+
+    const b = (await app.inject({
+      method: 'GET', url: `/children/${DEMO_CHILD}/day?day=${DAY}`,
+    })).json();
+    expect(b.events).toHaveLength(1);
+    expect(b.events[0].kind).toBe('sos');
+    expect(b.events[0].at).toBe(at(16, 41));
+    await app.close();
+  });
+
+  it('answers a shaped but impossible date instead of failing', async () => {
+    // '2026-13-45' passes the YYYY-MM-DD pattern and parses to NaN. The range
+    // built from it threw RangeError out of toISOString — a 500 on a screen
+    // about a child, from a query string.
+    const r = await app.inject({ method: 'GET', url: `/children/${DEMO_CHILD}/day?day=2026-13-45` });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().day).toBe(new Date().toISOString().slice(0, 10));
+    await app.close();
+  });
+});
+
+/**
  * Frame 48 — «Чем закончилось».
  *
  * The four outcome keys and the four chips both existed from the day they were

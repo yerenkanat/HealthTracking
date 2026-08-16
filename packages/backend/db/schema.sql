@@ -581,6 +581,11 @@ CREATE INDEX idx_safety_alerts_sos_at ON safety_alerts (user_id, child_id, at) W
 -- users; the index above leads with user_id and cannot serve them.
 CREATE INDEX idx_safety_alerts_at  ON safety_alerts (at DESC);
 CREATE INDEX idx_safety_alerts_sos ON safety_alerts (at DESC) WHERE kind = 'sos';
+-- The feed and the day's history are read per child and per day; the indexes
+-- above lead with user_id or with `at` alone. Migration 030 created this one on
+-- every live server and it was never copied back here, so a database built from
+-- this file was missing an index every migrated one had.
+CREATE INDEX idx_safety_alerts_child_at ON safety_alerts (child_id, at DESC);
 
 -- Push tokens for FCM/APNS delivery.
 CREATE TABLE push_tokens (

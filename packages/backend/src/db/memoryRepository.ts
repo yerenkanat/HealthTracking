@@ -1210,8 +1210,22 @@ const UUID_RE =
       return out;
     },
     queryMetrics: async () => [],
-    listGeofenceEvents: async (childId, limit) =>
-      events.filter((e) => e.childId === childId).slice(-limit).reverse(),
+    listGeofenceEvents: async (childId, limit, fromIso, toIso) =>
+      events
+        // Filtered BEFORE the slice, exactly as the SQL's WHERE runs before its
+        // LIMIT. Slicing first and filtering after is the bug this parameter
+        // exists to remove: it answers "yesterday's crossings" out of the newest
+        // 200 of all time, so a child with a long history gets a confident
+        // empty list for every older day.
+        .filter((e) => e.childId === childId
+          && (!fromIso || e.at >= fromIso)
+          && (!toIso || e.at < toIso))
+        // Sorted rather than trusting insertion order: an offline tracker
+        // flushes its buffer out of order, and the database orders by
+        // occurred_at. A fake that returned the last N INSERTED would drop
+        // different rows than the LIMIT does.
+        .sort((a, b) => b.at.localeCompare(a.at))
+        .slice(0, limit),
     // Sleep
     recordSleep: async (_u, s) => {
       const i = sleep.findIndex((x) => x.night === s.night);
@@ -1396,7 +1410,16 @@ const UUID_RE =
     listSupportTemplates: async () => [...supportTemplates].sort((a, b) => a.sort - b.sort),
 
     recordAlert: async (_u, a) => void alerts.unshift(a),
-    listAlerts: async (_u, limit) => alerts.slice(0, limit),
+    listAlerts: async (_u, limit, fromIso, toIso) =>
+      alerts
+        // Before the slice, like the SQL's WHERE before its LIMIT.
+        .filter((a) => (!fromIso || a.at >= fromIso) && (!toIso || a.at < toIso))
+        // recordAlert unshifts, so insertion order is usually newest-first —
+        // usually. An offline tracker flushing a buffer records out of order,
+        // and the database sorts on `at`. Stable, so equal instants keep the
+        // order they were recorded in.
+        .sort((a, b) => b.at.localeCompare(a.at))
+        .slice(0, limit),
     setAlertOutcome: async (_u, childId, at, outcome) => {
       const row = alerts.find(
         (a) => a.childId === childId && a.kind === 'sos' && Date.parse(a.at) === Date.parse(at));

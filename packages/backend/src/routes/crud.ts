@@ -1050,8 +1050,12 @@ export function registerCrudRoutes(
     if (!(await requireChildAccess(req, reply, id, 'child_location'))) return;
 
     const q = req.query as { day?: string };
-    const day = /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? '')
-      ? q.day!
+    // Shape AND value. '2026-13-45' matches the pattern and parses to NaN, and
+    // the range built from it used to throw RangeError out of toISOString — a
+    // 500 on a screen about a child, from a query string.
+    const asked = q.day ?? '';
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(asked) && !Number.isNaN(Date.parse(`${asked}T00:00:00.000Z`))
+      ? asked
       : new Date().toISOString().slice(0, 10);
     const from = `${day}T00:00:00.000Z`;
     const to = new Date(Date.parse(from) + 86_400_000).toISOString();
@@ -1064,13 +1068,27 @@ export function registerCrudRoutes(
     const owner = await repo.childOwner(id).catch(() => null);
     const [fixes, crossings, alerts] = await Promise.all([
       repo.locationHistory(id, from, to, 5000).catch(() => []),
-      repo.listGeofenceEvents(id, 200).catch(() => []),
-      owner ? repo.listAlerts(owner.userId, 500).catch(() => []) : Promise.resolve([]),
+      // The day goes into the QUERY, not into a filter over the answer. Asking
+      // for the newest 200 crossings of all time and keeping this day's out of
+      // them worked until a child had crossed a boundary 200 times in her life;
+      // after that the window stopped short of yesterday and every older day
+      // reported no crossings at all — beside a route that still drew, because
+      // the trail is a different query with a different bound. 200 WITHIN one
+      // day is a different promise: crossings are debounced to real
+      // transitions, so a day that reaches it is not a day this screen can
+      // summarise anyway.
+      repo.listGeofenceEvents(id, 200, from, to).catch(() => []),
+      // Day-bounded for the same reason as the crossings, and sooner: alerts
+      // are per USER, so every child on the account writes into this window.
+      owner ? repo.listAlerts(owner.userId, 500, from, to).catch(() => []) : Promise.resolve([]),
     ]);
 
     const inDay = (at: string) => at >= from && at < to;
     const history = buildDayHistory({
       fixes,
+      // Still filtered here: the repository is now day-bounded, and a second
+      // check costs nothing over at most 200 rows. It is the guard against a
+      // future implementation that forgets the bound, not a substitute for it.
       crossings: crossings
         .filter((c) => inDay(c.at))
         .map((c) => ({

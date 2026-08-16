@@ -1226,11 +1226,24 @@ export function createPgRepository(pool: Pool): Repository {
          ORDER BY recorded_at`, [userId, from, to]);
       return rows.map((r) => ({ t: new Date(r.t).toISOString(), value: Number(r.value) }));
     },
-    async listGeofenceEvents(childId, limit) {
+    async listGeofenceEvents(childId, limit, fromIso, toIso) {
+      // Built up rather than interpolated, like stockMoves: two optional
+      // conditions with hard-coded $3/$4 is how one bound ends up reading the
+      // other one's value.
+      //
+      // The WHERE runs before the LIMIT, which is the entire point — the day
+      // must be chosen by the database, not by a filter over rows it already
+      // dropped. idx_gfevents_child_time (child_id, occurred_at DESC) serves
+      // this exactly: equality on the leading column, a range on the second,
+      // and the ORDER BY satisfied by the index order.
+      const params: unknown[] = [childId, limit];
+      const where: string[] = ['ge.child_id = $1'];
+      if (fromIso) { params.push(fromIso); where.push(`ge.occurred_at >= $${params.length}`); }
+      if (toIso) { params.push(toIso); where.push(`ge.occurred_at < $${params.length}`); }
       const { rows } = await pool.query(
         `SELECT ge.child_id, ge.geofence_id, g.name AS geofence_name, ge.transition, ge.source, ge.occurred_at
          FROM geofence_events ge JOIN geofences g ON g.id = ge.geofence_id
-         WHERE ge.child_id = $1 ORDER BY ge.occurred_at DESC LIMIT $2`, [childId, limit]);
+         WHERE ${where.join(' AND ')} ORDER BY ge.occurred_at DESC LIMIT $2`, params);
       return rows.map((r) => ({
         childId: r.child_id, geofenceId: r.geofence_id, geofenceName: r.geofence_name,
         transition: r.transition, at: new Date(r.occurred_at).toISOString(), source: r.source,
@@ -2799,10 +2812,17 @@ export function createPgRepository(pool: Pool): Repository {
         `INSERT INTO safety_alerts (user_id, child_id, kind, zone_name, at) VALUES ($1,$2,$3,$4,$5)`,
         [userId, a.childId, a.kind, a.zoneName, a.at]);
     },
-    async listAlerts(userId, limit) {
+    async listAlerts(userId, limit, fromIso, toIso) {
+      // Positional params built up, not hard-coded: two optional bounds with
+      // fixed $3/$4 is how one ends up reading the other one's value.
+      // idx_safety_alerts_user_at (user_id, at DESC) serves this as it stands.
+      const params: unknown[] = [userId, limit];
+      const where: string[] = ['user_id = $1'];
+      if (fromIso) { params.push(fromIso); where.push(`at >= $${params.length}`); }
+      if (toIso) { params.push(toIso); where.push(`at < $${params.length}`); }
       const { rows } = await pool.query(
         `SELECT child_id, kind, zone_name, at, outcome FROM safety_alerts
-         WHERE user_id = $1 ORDER BY at DESC LIMIT $2`, [userId, limit]);
+         WHERE ${where.join(' AND ')} ORDER BY at DESC LIMIT $2`, params);
       return rows.map((r) => ({
         childId: r.child_id, kind: r.kind, zoneName: r.zone_name, at: new Date(r.at).toISOString(),
         outcome: r.outcome ?? null,

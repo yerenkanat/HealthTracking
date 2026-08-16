@@ -1307,7 +1307,24 @@ export interface Repository {
   listVaccines(userId: string): Promise<Array<{ childId: string; childName: string; vaccineKey: string }>>;
 
   queryMetrics(userId: string, opts: { from: string; to: string; metric: string }): Promise<Array<{ t: string; value: number }>>;
-  listGeofenceEvents(childId: string, limit: number): Promise<GeofenceEvent[]>;
+  /**
+   * Zone crossings for one child, newest first.
+   *
+   * [fromIso] is INCLUSIVE and [toIso] EXCLUSIVE — a half-open window, so a
+   * crossing recorded at exactly midnight belongs to the day that is starting
+   * and to exactly one day.
+   *
+   * The bound exists because [limit] is applied by the DATABASE, and «История
+   * дня» (frame 47) asks for one day. Fetching the newest 200 rows of all time
+   * and filtering to a day afterwards spends the whole window on recent
+   * history: past 200 lifetime crossings the window no longer reaches
+   * yesterday, and every older day answers "no crossings" beside a route that
+   * still draws. A day-bounded query cannot do that, and raising the number
+   * only moves the cliff.
+   */
+  listGeofenceEvents(
+    childId: string, limit: number, fromIso?: string, toIso?: string,
+  ): Promise<GeofenceEvent[]>;
 
   // ---- Sleep (nightly summaries) ----
   recordSleep(userId: string, s: SleepNight): Promise<void>;
@@ -1411,7 +1428,20 @@ export interface Repository {
   listSupportTemplates(): Promise<SupportTemplateRow[]>;
 
   recordAlert(userId: string, a: SafetyAlertRow): Promise<void>;
-  listAlerts(userId: string, limit: number): Promise<SafetyAlertRow[]>;
+  /**
+   * The user's alert feed, newest first, optionally bounded to one day —
+   * [fromIso] INCLUSIVE, [toIso] EXCLUSIVE, like listGeofenceEvents.
+   *
+   * The bound matters more here than anywhere: alerts are stored per USER, so
+   * one row is written for every crossing of every child on the account. «Ис-
+   * тория дня» reads this for the day's SOS presses, and a family of three
+   * spends an unbounded window three times as fast. Without the bound the
+   * screen loses an SOS off an older day — a red mark on the timeline that a
+   * parent has already been shown once and would not think to doubt.
+   */
+  listAlerts(
+    userId: string, limit: number, fromIso?: string, toIso?: string,
+  ): Promise<SafetyAlertRow[]>;
   /**
    * Close an SOS with the parent's verdict (frame 48). Keyed on child + instant
    * because that pair is what the client has — the alert feed carries no id.
