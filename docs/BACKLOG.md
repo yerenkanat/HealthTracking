@@ -354,13 +354,26 @@ no-device path in onboarding therefore promises manual recording that no longer
 exists — and it is the FIRST thing offered to a woman without a bracelet.
 Direct regression from that removal; the removal agent did not reach onboarding.
 
-**2. The pairing state machine never sees a denied permission.** Denying the
-Android runtime Bluetooth permission leaves «Поиск устройств…» spinning with
-skeleton rows, indefinitely. The seven-state work maps
-`BluetoothAdapterState.unauthorized` → `permissionDenied`, but a denied RUNTIME
-permission does not surface as an adapter state — so the exact defect that work
-existed to fix («with Bluetooth off it span forever, saying nothing») is still
-reachable by a different route.
+**2. ~~The pairing state machine never sees a denied permission.~~ REFUTED —
+and the refutation is more instructive than the claim was.**
+
+I reported «Поиск устройств…» spinning indefinitely. It was not. The scan window
+is **fifteen seconds**; I screenshotted at four and called a working spinner a
+hang. Left alone it resolves correctly to `noneNearby` — «Рядом ничего не
+нашли», amber, with «Искать снова» and three things to check. That is the
+seven-state work behaving exactly as designed.
+
+Checked afterwards rather than assumed: `dumpsys package` reports
+`BLUETOOTH_SCAN: granted=true` and `BLUETOOTH_CONNECT: granted=true`, so the
+permission was never denied at all, and `noneNearby` is the truthful answer for
+an emulator with no Bluetooth devices near it.
+
+Recorded rather than quietly deleted, because it is the same failure this
+document keeps cataloguing in the test suite: **a verdict reached before the
+thing being measured had finished.** The fixed sleeps decide on a stopwatch; a
+17-minute suite measured a moving tree; and here a human did it by hand, four
+seconds into a fifteen-second window, while writing up other people's version of
+the same mistake.
 
 **3. Onboarding progress is not persisted at all.** Backgrounding the app and
 relaunching restarts at «Шаг 1 из 5» and discards the name, the phone, the due
