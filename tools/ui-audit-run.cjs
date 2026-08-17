@@ -34,17 +34,35 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const chrome = spawn(CHROME, args, { stdio: 'ignore' });
   await sleep(2500);
 
-  const WebSocket = require('ws');
+  // Node's BUILT-IN WebSocket, not the `ws` package.
+  //
+  // This file asked for `ws`, which is not a dependency of this repository and
+  // never was — so the tool has never once run. It also carried a `.mjs`
+  // extension while using `require()`, which is a hard error in ES module
+  // scope, so it failed before it reached this line anyway. Two faults, both
+  // meaning the only instrument that can measure real layout has been
+  // decorative since it was written. jsdom cannot substitute: it has no layout
+  // engine, so every size it reports is zero and every overflow check passes.
+  //
+  // The global is the browser API rather than the emitter API, hence
+  // addEventListener/`e.data` below instead of `.on()`/`m`.
   const targets = await get('/json/list');
-  const page = targets.find((t) => t.type === 'page');
-  const ws = new WebSocket(page.webSocketDebuggerUrl, { perMessageDeflate: false });
+  // Pick the page showing OUR file, not merely the first page target. A fresh
+  // Chrome answers with the new-tab page first, so `find(type === 'page')`
+  // attached the debugger to a document that had never loaded the panel — and
+  // every view then reported «NO AUDIT FN», which reads as "the audit function
+  // is missing" rather than "you are looking at the wrong tab".
+  const page = targets.find((t) => t.type === 'page' && /panel|\.html/i.test(t.url || ''))
+    ?? targets.find((t) => t.type === 'page');
+  if (!page) throw new Error('no page target — Chrome did not open the file');
+  const ws = new WebSocket(page.webSocketDebuggerUrl);
   let id = 0;
   const pending = new Map();
-  ws.on('message', (m) => {
-    const msg = JSON.parse(m);
+  ws.addEventListener('message', (e) => {
+    const msg = JSON.parse(e.data);
     if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); }
   });
-  await new Promise((r) => ws.on('open', r));
+  await new Promise((r) => ws.addEventListener('open', r, { once: true }));
   const send = (method, params) => new Promise((res) => {
     const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params }));
   });
