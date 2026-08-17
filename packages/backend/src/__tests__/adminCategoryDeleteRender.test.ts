@@ -17,11 +17,20 @@
  * catch a slip that takes every later block with it.
  */
 
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -68,6 +77,8 @@ async function boot(opts: { answer?: boolean; deleteStatus?: number } = {}): Pro
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true,
     url: 'http://localhost/admin/ui', virtualConsole: vc,
@@ -86,7 +97,7 @@ async function boot(opts: { answer?: boolean; deleteStatus?: number } = {}): Pro
         confirms.push(m);
         return opts.answer !== false;
       };
-      window.fetch = (async (path: string, init?: { method?: string }) => {
+      settle.attach(window as never, async (path: string, init?: { method?: string }) => {
         const p = String(path);
         const method = init?.method ?? 'GET';
         if (method !== 'GET') sent.push({ url: p, method });
@@ -109,16 +120,15 @@ async function boot(opts: { answer?: boolean; deleteStatus?: number } = {}): Pro
           return { ok: true, status: 200, json: async () => ({ total: 0, boys: 0, girls: 0, unknown: 0, withDob: 0, byAge: [] }) };
         }
         return { ok: false, status: 500, json: async () => ({}) };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const settle = (ms = 200) => new Promise((r) => setTimeout(r, ms));
-  await settle(150);
+  await settle.quiet();
   window.document.querySelector('[data-view="catalog"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await settle(250);
+  await settle.quiet();
 
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
@@ -127,7 +137,7 @@ async function boot(opts: { answer?: boolean; deleteStatus?: number } = {}): Pro
       const el = window.document.querySelector(sel) as HTMLElement | null;
       expect(el, `no ${sel}`).not.toBeNull();
       el!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-      await settle(250);
+      await settle.quiet();
     },
     confirms, sent, errors,
     get loads() { return loads; },

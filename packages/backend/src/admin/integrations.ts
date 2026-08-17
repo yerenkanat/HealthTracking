@@ -18,9 +18,14 @@
  * ON SECRETS. Nothing here returns a key. A stored key becomes `••••7f2a`: the
  * last four characters, which is enough to tell two keys apart and to confirm
  * that the one in the panel is the one from the dashboard, and useless to
- * anyone reading over a shoulder. GET /admin/settings already returns the real
- * values and is audited for exactly that reason; this screen deliberately does
- * not.
+ * anyone reading over a shoulder.
+ *
+ * GET /admin/settings used to return the real values — the Anthropic key and
+ * the Telegram bot token travelled to the browser in plaintext and sat in an
+ * `<input>` on the Магазин screen, readable by anybody who could open it or
+ * read the response in a devtools tab. It does not any more: `redactSettings()`
+ * below strips every secret out of that response too, and the same `••••7f2a`
+ * is all either screen ever sees.
  *
  * PURE: settings and a few booleans in, a list of statuses out.
  */
@@ -70,6 +75,79 @@ export function maskSecret(value: string | null | undefined): string | null {
   if (!v) return null;
   if (v.length <= 6) return '••••';
   return `••••${v.slice(-4)}`;
+}
+
+/**
+ * The settings whose VALUE must never leave the server.
+ *
+ * `googleMapsApiKey` is here as well even though nothing writes it any more:
+ * a row saved before the field was withdrawn is still in the table, and
+ * redacting it costs nothing while leaking it costs a key.
+ */
+export const SECRET_SETTING_KEYS = [
+  'anthropicApiKey',
+  'telegramBotToken',
+  'googleMapsApiKey',
+] as const;
+
+export type SecretSettingKey = (typeof SECRET_SETTING_KEYS)[number];
+
+export interface SecretView {
+  /** Whether a value is stored at all. */
+  stored: boolean;
+  /** `••••7f2a`, or null when nothing is stored. Never the value. */
+  mask: string | null;
+}
+
+export interface RedactedSettings {
+  /** Everything that is not a secret, verbatim. */
+  settings: Record<string, string>;
+  /** One entry per secret key, always present so the form can say «не сохранён». */
+  secrets: Record<SecretSettingKey, SecretView>;
+}
+
+/**
+ * Split a settings map into what may be shown and what may only be counted.
+ *
+ * Every secret key gets an entry whether or not it is stored: a form that has
+ * to distinguish «ключ сохранён» from «ключа нет» cannot do it from a missing
+ * property, and an absent entry reads as «нет» — which is how somebody retypes
+ * a key that was already correct.
+ */
+export function redactSettings(all: Record<string, string> | null | undefined): RedactedSettings {
+  const src = all ?? {};
+  const settings: Record<string, string> = {};
+  for (const [k, v] of Object.entries(src)) {
+    if ((SECRET_SETTING_KEYS as readonly string[]).includes(k)) continue;
+    settings[k] = v;
+  }
+  const secrets = {} as Record<SecretSettingKey, SecretView>;
+  for (const k of SECRET_SETTING_KEYS) {
+    const mask = maskSecret(src[k]);
+    secrets[k] = { stored: mask !== null, mask };
+  }
+  return { settings, secrets };
+}
+
+/**
+ * Whether a submitted secret is the MASK coming back, not a new value.
+ *
+ * This is the whole difference between a mask that protects a key and a mask
+ * that destroys one. Put `••••7f2a` in the box, let somebody open the form to
+ * change an unrelated field, and a naive save writes eight bullet characters
+ * over the real key — silently, completely, and with a green «Сохранено» on
+ * screen. Nothing would say so until the assistant stopped answering.
+ *
+ * The test is the bullet itself: U+2022 cannot occur in an Anthropic key or a
+ * BotFather token, both of which are ASCII, so a value containing one was
+ * never typed by a person. Such a value means «оставить как есть», never
+ * «записать это».
+ *
+ * An EMPTY string is not masked and is not ignored — clearing a key on purpose
+ * has to stay possible, and the panel confirms before it does.
+ */
+export function looksMasked(value: string | null | undefined): boolean {
+  return (value ?? '').includes('•');
 }
 
 export interface IntegrationInputs {
@@ -222,15 +300,33 @@ export function buildIntegrations(input: IntegrationInputs): IntegrationStatus[]
   });
 
   // ---- AI assistant -------------------------------------------------------
-  const aiKey = has(s.anthropicApiKey) ? s.anthropicApiKey : (input.anthropicEnvKey ?? '');
+  //
+  // WHICH KEY IS ACTUALLY IN USE. index.ts copies a stored key into the
+  // environment only when the environment has none — `if (!process.env[envName]
+  // && stored[key])` — so the ENVIRONMENT wins, and it wins at startup.
+  //
+  // This screen used to claim the opposite: with both set it printed «Ключ из
+  // панели» and the panel key's last four characters, while every request went
+  // out on the environment key. Someone comparing `••••1111` here against the
+  // Anthropic dashboard to find out which key was being billed was reading a
+  // key the server was not using.
+  const envKey = input.anthropicEnvKey ?? '';
+  const panelKey = s.anthropicApiKey ?? '';
+  const aiKey = has(envKey) ? envKey : panelKey;
   out.push({
     id: 'anthropic',
     name: 'AI-ассистент',
     purpose: 'Ответы ассистента и распознавание фото анализов',
     state: has(aiKey) ? 'ok' : 'off',
-    detail: has(aiKey)
-      ? (has(s.anthropicApiKey) ? 'Ключ из панели' : 'Ключ из переменных окружения')
-      : 'Ключа нет',
+    detail: !has(aiKey)
+      ? 'Ключа нет'
+      : has(envKey)
+        ? (has(panelKey)
+          // Both. Named out loud, because the two are different keys and the
+          // one on screen is the one being charged.
+          ? 'Ключ из переменных окружения — он важнее сохранённого в панели, панельный сейчас не используется'
+          : 'Ключ из переменных окружения')
+        : 'Ключ из панели — применяется после перезапуска сервера',
     breaks: has(aiKey) ? '' : 'Ассистент не отвечает, фото анализов не распознаются',
     needs: has(aiKey) ? [] : ['API-ключ Anthropic'],
     secret: maskSecret(aiKey),

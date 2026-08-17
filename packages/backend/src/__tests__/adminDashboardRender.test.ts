@@ -11,11 +11,20 @@
  * as anything else — on what the screen says when there is nothing to show.
  */
 
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -79,6 +88,8 @@ async function render(snapshot: unknown): Promise<Page> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -94,7 +105,7 @@ async function render(snapshot: unknown): Promise<Page> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/dashboard')) {
           return snapshot === null
@@ -110,12 +121,12 @@ async function render(snapshot: unknown): Promise<Page> {
               : { };
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 350));
+  await settle.quiet();
 
   return {
     window,

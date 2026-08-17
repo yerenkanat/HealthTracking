@@ -17,6 +17,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -86,8 +87,31 @@ interface Opts {
   role?: string;
 }
 
+/**
+ * The completion signal for every window this file boots.
+ *
+ * Four fixed sleeps stood here — 200 after boot, 350 after the tab, 300 per
+ * click, 250 after a status change — each deciding its verdict on elapsed
+ * wall-clock rather than on the work being finished. The order card is filled
+ * by a request that chains off the row click, and the device list by another
+ * that chains off THAT, so a window closing early left an empty card and
+ * «the card never drew» read as a bug in the panel.
+ *
+ * Kept in a WeakMap so click() needs no extra argument and every call site
+ * stays as it was: the thing that changed is what the waiting means, not how
+ * the tests are written. See helpers/panelSettle.ts.
+ */
+const settled = new WeakMap<JSDOM['window'], (label?: string) => Promise<void>>();
+
+const quietOf = (window: JSDOM['window']) => {
+  const q = settled.get(window);
+  if (!q) throw new Error('this window was not booted by openShop()');
+  return q;
+};
+
 async function openShop(opts: Opts = {}) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const sent: Sent[] = [];
   const alerts: string[] = [];
   const confirms: string[] = [];
@@ -116,7 +140,7 @@ async function openShop(opts: Opts = {}) {
         confirms.push(m);
         return opts.confirmAnswer ?? true;
       };
-      window.fetch = (async (path: string, init?: RequestInit) => {
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, text: async () => '', json: async () => ({ staffId: 's1', role: opts.role ?? 'admin', displayName: 'Нуржан' }) };
@@ -156,23 +180,24 @@ async function openShop(opts: Opts = {}) {
                   ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 }
                   : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 200));
+  settled.set(window, settle.quiet);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="shop"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 350));
-  return { window, sent, errors, alerts, confirms };
+  await settle.quiet('the Магазин tab');
+  return { window, sent, errors, alerts, confirms, quiet: settle.quiet };
 }
 
-/** Click a rendered element and let its handler finish. */
-async function click(window: JSDOM['window'], el: Element | null, ms = 300) {
+/** Click a rendered element and let its handler finish — actually finish. */
+async function click(window: JSDOM['window'], el: Element | null) {
   expect(el, 'nothing to click').not.toBeNull();
   el!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, ms));
+  await quietOf(window)('the click');
 }
 
 describe('кадр 02 — the list an operator works from', () => {
@@ -355,7 +380,7 @@ describe('the card’s dangerous actions ask first, and report the answer', () =
 
     sel.value = 'new';
     sel.dispatchEvent(new window.Event('change', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 250));
+    await quietOf(window)('the status change');
 
     expect(confirms.length, 'rolling an order back asked nothing').toBe(1);
     expect(confirms[0]).toMatch(/Ма!Ма!/);

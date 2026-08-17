@@ -114,12 +114,31 @@ describe('the AI key', () => {
     expect(ai.detail).toContain('окружения');
   });
 
-  it('prefers the panel key and says so', () => {
+  it('uses the stored key when the environment has none, and says it needs a restart', () => {
+    const ai = byId({ settings: { anthropicApiKey: 'sk-panel-1111' }, anthropicEnvKey: null }, 'anthropic');
+    expect(ai.detail).toContain('панели');
+    expect(ai.detail).toContain('перезапуск');
+    expect(ai.secret).toBe('••••1111');
+  });
+
+  it('names the ENVIRONMENT key when both exist, because that is the one in use', () => {
+    // index.ts:172 — `if (!process.env[envName] && stored[key])`. The stored key
+    // is copied across only when the environment has none, so with both set the
+    // environment wins and the panel key is inert.
+    //
+    // This screen used to say the opposite: «Ключ из панели», and it printed
+    // ••••1111 — the panel key's last four characters — while every request
+    // went out on the environment key. An owner checking which key was being
+    // billed read the wrong one, and an owner replacing a leaked key here would
+    // have believed the leaked one was out of use.
     const ai = byId(
       { settings: { anthropicApiKey: 'sk-panel-1111' }, anthropicEnvKey: 'sk-env-9999' },
       'anthropic');
-    expect(ai.detail).toContain('панели');
-    expect(ai.secret).toBe('••••1111');
+    expect(ai.secret, 'the screen names a key the server is not using').toBe('••••9999');
+    expect(ai.detail).toContain('окружения');
+    // And the inert one is named too, rather than quietly ignored: somebody
+    // pasted it in expecting it to take effect.
+    expect(ai.detail).toContain('панельный сейчас не используется');
   });
 });
 

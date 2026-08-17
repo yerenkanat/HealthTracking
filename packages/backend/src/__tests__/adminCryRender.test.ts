@@ -21,6 +21,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -59,6 +60,7 @@ function payload(over: Record<string, unknown> = {}) {
 
 async function open(opts: { data?: Record<string, unknown>; failCry?: boolean; failWrite?: boolean } = {}) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const sent: Sent[] = [];
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -80,7 +82,7 @@ async function open(opts: { data?: Record<string, unknown>; failCry?: boolean; f
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
-      window.fetch = (async (path: string, init?: { method?: string; body?: string }) => {
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
         const p = String(path);
         const method = (init?.method ?? 'GET').toUpperCase();
         if (method !== 'GET') {
@@ -96,18 +98,18 @@ async function open(opts: { data?: Record<string, unknown>; failCry?: boolean; f
           return { ok: true, status: 200, json: async () => payload(opts.data) };
         }
         return { ok: true, status: 200, json: async () => ({}) };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 150));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="cry"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('the Детектор плача tab');
   const text = (sel: string) =>
     (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim();
-  return { window, sent, errors, text };
+  return { window, sent, errors, text, quiet: settle.quiet };
 }
 
 describe('the cry-detector tab', () => {
@@ -164,7 +166,7 @@ describe('the cry-detector tab', () => {
     input.value = '60';
     (p.window.document.getElementById('cryThreshForm') as HTMLFormElement)
       .dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 150));
+    await p.quiet('the threshold save');
     const put = p.sent.find((s) => s.path.includes('/admin/cry/threshold'));
     expect(put, 'Сохранить sent nothing').toBeTruthy();
     expect(put!.method).toBe('PUT');
@@ -177,7 +179,7 @@ describe('the cry-detector tab', () => {
     const p = await open({ failWrite: true });
     (p.window.document.getElementById('cryThreshForm') as HTMLFormElement)
       .dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 150));
+    await p.quiet('the refused save');
     const msg = p.text('#cryThreshMsg');
     expect(msg).toContain('Не удалось');
     expect(msg).toContain('ничего не изменилось');

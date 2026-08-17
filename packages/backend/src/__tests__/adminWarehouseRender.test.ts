@@ -11,11 +11,20 @@
  * field means "not counted" rather than zero.
  */
 
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -53,6 +62,8 @@ async function openStock() {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -72,7 +83,7 @@ async function openStock() {
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
       (window as unknown as { confirm: () => boolean }).confirm = () => true;
 
-      window.fetch = (async (path: string, init?: RequestInit) => {
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
         const p = String(path);
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
@@ -85,15 +96,15 @@ async function openStock() {
           : p.includes('/admin/device-registry') ? { devices: [] }
           : { ok: true, stock: 20, serialsAdded: 3, serialsSkipped: 0, changed: 1, netDelta: -2, lines: [] };
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet();
   window.document.querySelector('[data-view="stock"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 300));
+  await settle.quiet();
 
   const $ = (sel: string) => window.document.querySelector(sel) as HTMLElement;
   const type = (sel: string, value: string) => {
@@ -103,7 +114,7 @@ async function openStock() {
   };
   const submit = async (sel: string) => {
     $(sel).dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 250));
+    await settle.quiet();
   };
   return { window, errors, sent, $, type, submit };
 }

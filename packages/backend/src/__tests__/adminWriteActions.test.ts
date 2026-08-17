@@ -12,6 +12,19 @@
  * showing the value the user just picked, the list is not re-rendered, and
  * nothing anywhere says the change did not stick. Staff would mark a mother as
  * called back, see it stay that way, and move on.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Six fixed sleeps — 150 after boot, 300 after the tab, 200 after each change —
+ * decided their verdict on elapsed wall-clock rather than on the work being
+ * finished. Four of the assertions here are NEGATIVE ("a declined cancellation
+ * still reached the server", "nothing was written"), and a negative read before
+ * the request has left passes for the wrong reason on every run.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for several
+ * consecutive turns, no page timer outstanding, and a throw rather than a
+ * half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,6 +32,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -45,8 +59,15 @@ interface Sent {
   body: unknown;
 }
 
+/** A booted panel that knows when it has finished working. */
+interface Shop {
+  window: JSDOM['window'];
+  quiet: (label?: string) => Promise<void>;
+}
+
 async function openShop(opts: { failWrites?: boolean; confirmAnswer?: boolean } = {}) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const sent: Sent[] = [];
   const alerts: string[] = [];
   // What the operator was asked before a destructive status change, and what
@@ -80,8 +101,8 @@ async function openShop(opts: { failWrites?: boolean; confirmAnswer?: boolean } 
         confirms.push(m);
         return opts.confirmAnswer ?? true;
       };
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         // The panel now opens on a sign-in gate and asks who is signed in
         // before it renders anything. These tests are about the dashboard,
         // so they answer as a signed-in admin.
@@ -106,25 +127,25 @@ async function openShop(opts: { failWrites?: boolean; confirmAnswer?: boolean } 
                   ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 }
                   : {};
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 150));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="shop"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 300));
-  return { window, sent, errors, alerts, confirms };
+  await settle.quiet('the Магазин tab');
+  return { window, sent, errors, alerts, confirms, quiet: settle.quiet };
 }
 
 /** Pick a new value on a `<select>` and fire the change the browser would. */
-async function choose(window: JSDOM['window'], selector: string, value: string) {
-  const sel = window.document.querySelector(selector) as HTMLSelectElement;
+async function choose(page: Shop, selector: string, value: string) {
+  const sel = page.window.document.querySelector(selector) as HTMLSelectElement;
   expect(sel, `no ${selector} on the page`).not.toBeNull();
   sel.value = value;
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 200));
+  sel.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  await page.quiet(`the change on ${selector}`);
   return sel;
 }
 
@@ -132,6 +153,7 @@ describe('settings cannot be wiped by a failed load', () => {
   /** Open Магазин with GET /admin/settings broken. */
   async function openWithBrokenSettings() {
     const html = readFileSync(PANEL, 'utf8');
+    const settle = panelSettle();
     const sent: Sent[] = [];
     const vc = new VirtualConsole();
     const dom = new JSDOM(html, {
@@ -149,8 +171,8 @@ describe('settings cannot be wiped by a failed load', () => {
         window.scrollTo = () => {};
         Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
         (window as unknown as { alert: (m: string) => void }).alert = () => {};
-        window.fetch = (async (path: string, init?: RequestInit) => {
-          const p = String(path);
+        settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+          const p = path;
           const method = init?.method ?? 'GET';
           if (method !== 'GET') {
             sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });
@@ -171,15 +193,15 @@ describe('settings cannot be wiped by a failed load', () => {
             : p.includes('/admin/stats') ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 }
             : {};
           return { ok: true, status: 200, json: async () => body };
-        }) as never;
+        });
       },
     });
     const { window } = dom;
-    await new Promise((r) => setTimeout(r, 150));
+    await settle.quiet('boot with a broken settings load');
     window.document.querySelector('[data-view="shop"]')!
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 300));
-    return { window, sent };
+    await settle.quiet('the Магазин tab');
+    return { window, sent, quiet: settle.quiet };
   }
 
   it('refuses to save when it never learned what the server holds', async () => {
@@ -188,14 +210,14 @@ describe('settings cannot be wiped by a failed load', () => {
     // sends "" for every field. The API stores what it is sent, because an
     // empty string is not undefined, so that single click wipes the Anthropic
     // key, the Telegram token, the WhatsApp number and the reviews.
-    const { window, sent } = await openWithBrokenSettings();
+    const { window, sent, quiet } = await openWithBrokenSettings();
 
     const save = window.document.getElementById('setSave') as HTMLButtonElement;
     expect(save.disabled, 'the save button should be disabled after a failed load').toBe(true);
 
     // And if it is clicked anyway, nothing is written.
     save.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the refused save');
     expect(sent.filter((s) => s.path.includes('/admin/settings') && s.method === 'PUT'))
       .toHaveLength(0);
 
@@ -209,8 +231,9 @@ describe('settings cannot be wiped by a failed load', () => {
 
 describe('the shop tab saves what staff change', () => {
   it('marking a lead as called PATCHes it', async () => {
-    const { window, sent } = await openShop();
-    await choose(window, '.lstatus', 'called');
+    const page = await openShop();
+    const { sent } = page;
+    await choose(page, '.lstatus', 'called');
 
     const write = sent.find((s) => s.path.includes('/admin/shop/leads/'));
     expect(write, 'no request went out — the dropdown changed nothing').toBeTruthy();
@@ -220,8 +243,9 @@ describe('the shop tab saves what staff change', () => {
   });
 
   it('changing an order status PATCHes it', async () => {
-    const { window, sent } = await openShop();
-    await choose(window, '.ostatus', 'shipped');
+    const page = await openShop();
+    const { sent } = page;
+    await choose(page, '.ostatus', 'shipped');
 
     const write = sent.find((s) => s.path.includes('/admin/shop/orders/'));
     expect(write, 'no request went out').toBeTruthy();
@@ -235,8 +259,9 @@ describe('the shop tab saves what staff change', () => {
     // the select kept the value the user picked and the list was never
     // re-rendered. Staff mark a mother as called back, watch it stay that way,
     // and never learn the server still has her as waiting.
-    const { window, sent, alerts } = await openShop({ failWrites: true });
-    const sel = await choose(window, '.lstatus', 'called');
+    const page = await openShop({ failWrites: true });
+    const { sent, alerts } = page;
+    const sel = await choose(page, '.lstatus', 'called');
 
     expect(sent.some((s) => s.method === 'PATCH'), 'it did try').toBe(true);
     expect(sel.value, 'the dropdown must not keep a value the server rejected')
@@ -264,8 +289,9 @@ describe('the shop tab saves what staff change', () => {
  */
 describe('a destructive status change asks first', () => {
   it('sends nothing when the operator declines the cancellation', async () => {
-    const { window, sent, confirms } = await openShop({ confirmAnswer: false });
-    const sel = await choose(window, '.ostatus', 'cancelled');
+    const page = await openShop({ confirmAnswer: false });
+    const { sent, confirms } = page;
+    const sel = await choose(page, '.ostatus', 'cancelled');
 
     expect(confirms.length, 'the order was cancelled without asking').toBe(1);
     expect(sent.filter((s) => s.method === 'PATCH'), 'a declined cancellation still reached the server').toEqual([]);
@@ -275,8 +301,9 @@ describe('a destructive status change asks first', () => {
   });
 
   it('names the customer and the money, so the question is answerable', async () => {
-    const { window, confirms } = await openShop({ confirmAnswer: false });
-    await choose(window, '.ostatus', 'cancelled');
+    const page = await openShop({ confirmAnswer: false });
+    const { confirms } = page;
+    await choose(page, '.ostatus', 'cancelled');
 
     // «Отменить заказ?» is waved through; «Отменить заказ Мадина · 39 000 ₸?»
     // is read. If this ever regresses to a bare question it is worth nothing.
@@ -285,8 +312,9 @@ describe('a destructive status change asks first', () => {
   });
 
   it('cancels when the operator confirms', async () => {
-    const { window, sent } = await openShop({ confirmAnswer: true });
-    await choose(window, '.ostatus', 'cancelled');
+    const page = await openShop({ confirmAnswer: true });
+    const { sent } = page;
+    await choose(page, '.ostatus', 'cancelled');
 
     const patch = sent.find((s) => s.method === 'PATCH');
     expect(patch, 'confirming did not save').toBeTruthy();
@@ -297,8 +325,9 @@ describe('a destructive status change asks first', () => {
     // A prompt on «Подтверждён» would be dismissed reflexively within a week,
     // and that habit is exactly what would carry the operator through the
     // cancel prompt too. Only the irreversible step asks.
-    const { window, sent, confirms } = await openShop();
-    await choose(window, '.ostatus', 'confirmed');
+    const page = await openShop();
+    const { sent, confirms } = page;
+    await choose(page, '.ostatus', 'confirmed');
 
     expect(confirms, 'a routine status change interrupted the operator').toEqual([]);
     expect(sent.find((s) => s.method === 'PATCH')!.body).toEqual({ status: 'confirmed' });
@@ -308,8 +337,9 @@ describe('a destructive status change asks first', () => {
     // The quieter version of the same mis-scroll: the woman who asked for a
     // callback leaves «не обработано» and is never rung. Nothing looks broken
     // afterwards, which is why it needs the ask.
-    const { window, sent, confirms } = await openShop({ confirmAnswer: false });
-    const sel = await choose(window, '.lstatus', 'dropped');
+    const page = await openShop({ confirmAnswer: false });
+    const { sent, confirms } = page;
+    const sel = await choose(page, '.lstatus', 'dropped');
 
     expect(confirms.length, 'a lead was written off without asking').toBe(1);
     expect(confirms[0]).toContain('Айгерім');

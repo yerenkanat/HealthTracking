@@ -2,11 +2,20 @@
  * Render frames 24 / 24b for real (jsdom): the integrations table, the banner
  * naming what is broken, and the step-by-step check.
  */
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 import { buildIntegrations, integrationSummary } from '../admin/integrations';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -51,6 +60,8 @@ async function boot(): Promise<Rendered> {
   const errors: string[] = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true,
     url: 'http://localhost/admin/ui', virtualConsole: vc,
@@ -63,7 +74,7 @@ async function boot(): Promise<Rendered> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string, opts?: { method?: string }) => {
+      settle.attach(window as never, async (path: string, opts?: { method?: string }) => {
         const p = String(path);
         if (p.includes('/check')) return { ok: true, status: 200, json: async () => CHECK_OK };
         if (p.includes('/admin/me')) {
@@ -75,23 +86,22 @@ async function boot(): Promise<Rendered> {
             : null;
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
     },
   });
   const { window } = dom;
-  const settle = () => new Promise((r) => setTimeout(r, 120));
-  await settle();
+  await settle.quiet();
   window.document.querySelector('[data-view="integrations"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await settle();
+  await settle.quiet();
   return {
     text: (s) => (window.document.querySelector(s)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (s) => window.document.querySelectorAll(s).length,
     el: (s) => window.document.querySelector(s),
     click: async (s) => {
       window.document.querySelector(s)!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-      await settle();
+      await settle.quiet();
     },
     errors,
   };

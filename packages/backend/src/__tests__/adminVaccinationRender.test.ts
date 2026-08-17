@@ -24,6 +24,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { vaccinationSchedule } from '../vaccination/schedule.js';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -138,6 +139,20 @@ const LOG_SETTINGS = {
 interface Rendered {
   text(sel: string): string;
   count(sel: string): number;
+  /**
+   * Resolves when the panel has stopped working, never after a fixed delay.
+   *
+   * This file had the one wait in the directory that was genuinely LOAD-BEARING
+   * rather than merely lazy: 260 ms after typing into the "impact" field,
+   * because the panel debounces that keystroke by 180 ms before it fetches
+   * (`vacImpTimer = setTimeout(vacLoadImpact, 180)`). Counting requests alone
+   * would return in five turns, before the debounce had even fired, and read a
+   * card that had not been asked to change. So the harness holds the page's own
+   * timers and runs the outstanding one once the request channel is calm —
+   * clearTimeout still cancels, so a debounce still debounces. See
+   * helpers/panelSettle.ts.
+   */
+  quiet: (label?: string) => Promise<void>;
   errors: string[];
   /** Every write the panel sent: [method, path, parsed body]. */
   sent: Array<{ method: string; path: string; body: unknown }>;
@@ -165,6 +180,7 @@ interface BootOpts {
 
 async function boot(opts: BootOpts = {}): Promise<Rendered> {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const sent: Rendered['sent'] = [];
   const got: string[] = [];
@@ -203,8 +219,8 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
         text: async () => JSON.stringify(body),
         json: async () => body,
       });
-      window.fetch = (async (path: string, init?: { method?: string; body?: string }) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         const method = init?.method ?? 'GET';
         if (method === 'GET') got.push(p);
         else sent.push({ method, path: p, body: init?.body ? JSON.parse(init.body) : null });
@@ -240,14 +256,15 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
           return reply(200, schedule);
         }
         return reply(500, {});
-      }) as never;
+      });
     },
   });
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 140));
+  await settle.quiet('boot');
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (sel) => window.document.querySelectorAll(sel).length,
+    quiet: settle.quiet,
     errors, sent, got, window,
   };
 }
@@ -256,19 +273,20 @@ async function click(page: Rendered, sel: string) {
   const el = page.window.document.querySelector(sel);
   if (!el) throw new Error(`nothing to click at ${sel}`);
   el.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 120));
+  await page.quiet(`the click on ${sel}`);
 }
 async function typeInto(page: Rendered, sel: string, value: string) {
   const el = page.window.document.querySelector(sel) as HTMLInputElement;
   if (!el) throw new Error(`no field at ${sel}`);
   el.value = value;
   el.dispatchEvent(new page.window.Event('input', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 260));
+  // The 180 ms debounce lives here. quiet() runs it rather than outsleeping it.
+  await page.quiet(`the typing into ${sel}`);
 }
 async function submit(page: Rendered, sel: string) {
   page.window.document.querySelector(sel)!
     .dispatchEvent(new page.window.Event('submit', { bubbles: true, cancelable: true }));
-  await new Promise((r) => setTimeout(r, 120));
+  await page.quiet(`the submit of ${sel}`);
 }
 
 /**

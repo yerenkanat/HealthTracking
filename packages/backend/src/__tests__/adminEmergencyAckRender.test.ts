@@ -4,11 +4,20 @@
  * shows who cleared it — the back-office action restored now that the backend
  * stores it.
  */
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -26,6 +35,8 @@ async function boot() {
   const errors: string[] = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/admin/ui', virtualConsole: vc,
     beforeParse(window) {
@@ -36,7 +47,7 @@ async function boot() {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         // The panel now opens on a sign-in gate and asks who is signed in
         // before it renders anything. These tests are about the dashboard,
@@ -49,11 +60,11 @@ async function boot() {
           : null;
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 150));
+  await settle.quiet();
   return {
     text: (sel: string) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (sel: string) => window.document.querySelectorAll(sel).length,

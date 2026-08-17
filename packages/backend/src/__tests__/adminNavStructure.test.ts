@@ -14,6 +14,20 @@
  * passed against a rail that never expands.
  *
  * Every check here fails if the rail goes back to a flat list.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Six fixed sleeps — 300 after boot, 60–150 after each rail click — decided
+ * their verdict on elapsed wall-clock rather than on the work being finished.
+ * The rail is drawn by applyCaps AFTER /admin/me answers, and the badges by the
+ * loaders that follow it, so a window that closed early read a rail with no
+ * capabilities applied: every section visible, which is what most of these
+ * assertions are looking for.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for several
+ * consecutive turns, no page timer outstanding, and a throw rather than a
+ * half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,6 +35,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 import type { StaffRole } from '../auth/capabilities';
 import { buildFinanceReport } from '../admin/finance';
 
@@ -69,6 +84,7 @@ const FINANCE = buildFinanceReport({
 
 async function openAs(role: StaffRole = 'owner', hash = '') {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const vc = new VirtualConsole();
   const errors: string[] = [];
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
@@ -89,8 +105,8 @@ async function openAs(role: StaffRole = 'owner', hash = '') {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
-      window.fetch = (async (path: string) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string) => {
+        const p = path;
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role, displayName: 'Ерен' }) };
         }
@@ -115,12 +131,12 @@ async function openAs(role: StaffRole = 'owner', hash = '') {
         // drifted fixture would report a bug in a working panel.
         const answer = p.includes('/admin/finance') ? FINANCE : body;
         return { ok: true, status: 200, text: async () => '', json: async () => answer };
-      }) as never;
+      });
     },
   });
 
-  await new Promise((r) => setTimeout(r, 300));
-  return { window: dom.window, errors };
+  await settle.quiet('boot');
+  return { window: dom.window, errors, quiet: settle.quiet };
 }
 
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -154,7 +170,7 @@ describe('the sidebar has exactly seven sections', () => {
   });
 
   it('sub-items are listed only under the open section', async () => {
-    const { window } = await openAs('owner');
+    const { window, quiet } = await openAs('owner');
     // Frame 00: Обзор open, its three underneath, everything else a plain row.
     expect(openItems(window).map((el) => text(el))).toEqual(['Сводка', 'Дашборд владельца', 'Аналитика']);
     const open = [...window.document.querySelectorAll('.navsub:not([hidden])')];
@@ -163,7 +179,7 @@ describe('the sidebar has exactly seven sections', () => {
     // Move to a different section: the first one closes behind you.
     const people = window.document.querySelector('.navgroup[data-section="people"] .navsec') as HTMLElement;
     people.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 60));
+    await quiet('the Пользователи section');
     expect(openItems(window).map((el) => text(el).split(' ')[0]))
       .toEqual(['Мамы', 'Дети', 'Устройства', 'Поддержка']);
     expect(window.document.querySelectorAll('.navsub:not([hidden])').length).toBe(1);
@@ -185,10 +201,10 @@ describe('the sidebar has exactly seven sections', () => {
     // «Заказы» lives inside «Продажи». An order waiting behind a closed section
     // with nothing on the section row is a count nobody can see, which is worse
     // than no count at all.
-    const { window } = await openAs('owner');
+    const { window, quiet } = await openAs('owner');
     const shop = window.document.querySelector('.nav[data-anchor="shopOrdersCard"]') as HTMLElement;
     shop.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 150));
+    await quiet('the Заказы card');
     const badge = window.document.getElementById('shopBadge') as HTMLElement;
     expect(badge.hidden, 'the waiting order never reached its own badge').toBe(false);
     expect(badge.textContent).toBe('1');
@@ -199,7 +215,7 @@ describe('the sidebar has exactly seven sections', () => {
     // Close it by going elsewhere; now the section has to carry the number.
     (window.document.querySelector('.navgroup[data-section="overview"] .navsec') as HTMLElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 100));
+    await quiet('the Обзор section');
     expect(sum.hidden, 'a closed section dropped the count of what is waiting inside it').toBe(false);
     expect(sum.textContent).toBe('1');
 
@@ -269,10 +285,10 @@ describe('everything that was reachable is still reachable', () => {
   it('two sub-items on the same screen light up separately', async () => {
     // Остатки and Приёмка are two cards on #stock. Marking both current would
     // make the rail lie about where you are.
-    const { window } = await openAs('owner');
+    const { window, quiet } = await openAs('owner');
     const receive = window.document.querySelector('.nav[data-anchor="stockReceiveCard"]') as HTMLElement;
     receive.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 80));
+    await quiet('the Приёмка card');
     const active = [...window.document.querySelectorAll('.nav.active')].map((el) => text(el));
     expect(active).toEqual(['Приёмка']);
     expect(window.location.hash, 'an anchor must not invent a route').toBe('#stock');
@@ -317,11 +333,11 @@ describe('the rail shows a person only what she can open', () => {
   });
 
   it('a content editor opening Склад gets Каталог, the only part of it she has', async () => {
-    const { window } = await openAs('content');
+    const { window, quiet } = await openAs('content');
     const wh = window.document.querySelector('.navgroup[data-section="warehouse"]') as HTMLElement;
     expect(wh.hidden, 'Каталог lives in Склад — hiding the section would strand it').toBe(false);
     (wh.querySelector('.navsec') as HTMLElement).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 80));
+    await quiet('the Склад section');
     expect(openItems(window).map((el) => text(el).split(' ')[0])).toEqual(['Каталог']);
     expect(text(window.document.querySelector('#pageTitle'))).toBe('Каталог');
   });

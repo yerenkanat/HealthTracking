@@ -25,6 +25,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 import { antenatalProtocol } from '../antenatal/protocol.js';
@@ -180,8 +181,18 @@ interface Booted {
   rejections: string[];
 }
 
+/**
+ * WAITING — two fixed sleeps stood here (150 after boot, 300 after the tab).
+ * This file's whole claim is "every tab draws"; a window that closed early
+ * reads a tab that has not drawn YET, and the difference between that and one
+ * that never draws is invisible to every assertion below. quiet() returns when
+ * nothing is in flight, nothing new has been issued for several consecutive
+ * turns and no page timer is pending, and throws rather than proceed. See
+ * helpers/panelSettle.ts.
+ */
 async function boot(view: string): Promise<Booted> {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const rejections: string[] = [];
   const vc = new VirtualConsole();
@@ -206,8 +217,8 @@ async function boot(view: string): Promise<Booted> {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
-      window.fetch = (async (path: string) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string) => {
+        const p = path;
         // The panel now opens on a sign-in gate and asks who is signed in
         // before it renders anything. These tests are about the dashboard,
         // so they answer as a signed-in admin.
@@ -221,16 +232,16 @@ async function boot(view: string): Promise<Booted> {
           .sort((a, b) => b.length - a.length)[0];
         const body = key ? FIXTURES[key] : {};
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 150));
+  await settle.quiet('boot');
   window.document.querySelector(`[data-view="${view}"]`)?.dispatchEvent(
     new window.MouseEvent('click', { bubbles: true }),
   );
-  await new Promise((r) => setTimeout(r, 300));
+  await settle.quiet(`the ${view} tab`);
   process.off('unhandledRejection', onRejection);
   return { window, errors, rejections };
 }

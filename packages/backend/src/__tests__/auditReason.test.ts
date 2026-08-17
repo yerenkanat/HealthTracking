@@ -25,6 +25,7 @@ import { dirname, resolve } from 'node:path';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 import { answerReasonPrompt } from './helpers/reasonPrompt.js';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -140,8 +141,21 @@ describe('the reason reaches the log', () => {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * WAITING — four fixed sleeps used to stand here (250 after boot, 400 after the
+ * tab, 200 after the row click, 150 after cancel), plus a fifth inside the
+ * shared reason-prompt helper. Every assertion in this file is about which
+ * requests were made and which were NOT, so a window that closed early records
+ * an empty `asked` list and every negative check passes for free.
+ *
+ * quiet() replaces all five: it returns when nothing is in flight, nothing new
+ * has been issued for several consecutive turns and no page timer is pending,
+ * and throws rather than hand a half-drawn screen to an assertion. The helper
+ * now takes it as `settled`. See helpers/panelSettle.ts.
+ */
 async function openPanel() {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const asked: string[] = [];
   const vc = new VirtualConsole();
@@ -165,8 +179,8 @@ async function openPanel() {
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
 
-      window.fetch = (async (path: string) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string) => {
+        const p = path;
         asked.push(p);
         const body =
           p.includes('/admin/me') ? { staffId: 's1', role: 'owner', displayName: 'Ерен' }
@@ -174,20 +188,23 @@ async function openPanel() {
           : p.includes('/admin/users') ? { total: 1, users: [{ id: 'u1', displayName: 'Айгерім', phone: '+77001112233' }] }
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="users"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 400));
+  await settle.quiet('the Пользователи tab');
   const row = window.document.querySelector('#usersBody tr[data-user="u1"]');
+  // Non-vacuity: without the row there is nothing to click, and "the record
+  // opened without asking" would be checked against a prompt nobody raised.
+  expect(row, 'the user list never drew, so nothing below was exercised').not.toBeNull();
   row?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('the row click');
 
-  return { window, errors, asked };
+  return { window, errors, asked, quiet: settle.quiet };
 }
 
 describe('the panel asks before it fetches', () => {
@@ -204,8 +221,8 @@ describe('the panel asks before it fetches', () => {
   });
 
   it('sends the typed reason with every request the card makes', async () => {
-    const { window, asked } = await openPanel();
-    await answerReasonPrompt(window, 'Разбор жалобы №14');
+    const { window, asked, quiet } = await openPanel();
+    await answerReasonPrompt(window, 'Разбор жалобы №14', { settled: quiet });
 
     const withReason = asked.filter((p) => p.includes('/detail') || p.includes('/wellness'));
     expect(withReason.length, 'the card fetched nothing after the prompt').toBeGreaterThan(0);
@@ -226,10 +243,10 @@ describe('the panel asks before it fetches', () => {
   });
 
   it('cancelling opens nothing', async () => {
-    const { window, asked } = await openPanel();
+    const { window, asked, quiet } = await openPanel();
     (window.document.querySelector('#reasonCancel') as HTMLElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 150));
+    await quiet('the cancelled prompt');
     expect((window.document.querySelector('#reasonWrap') as HTMLElement).hidden).toBe(true);
     expect(asked.some((p) => p.includes('/detail'))).toBe(false);
   });

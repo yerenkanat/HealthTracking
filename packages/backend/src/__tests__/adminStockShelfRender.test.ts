@@ -17,6 +17,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -126,10 +127,22 @@ interface Page {
   posted: Array<{ path: string; body: unknown }>;
   text: (sel: string) => string;
   all: (sel: string) => Element[];
+  /**
+   * Resolves when the panel has stopped working, never after a fixed delay.
+   *
+   * The four sleeps this replaces (200 after boot, 320 after the tab, 60 after
+   * each write-off click) decided their verdict on elapsed wall-clock rather
+   * than on the work being finished. The shelf is filled by /admin/inventory and
+   * the day strip by a SECOND request to /admin/inventory/moves?since=, so a
+   * window that closed early lost one of the two — differently on each run,
+   * which is the shape of "the same tree gave two different answers".
+   */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function render(o: Opts = {}): Promise<Page> {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const asked: string[] = [];
   const posted: Array<{ path: string; body: unknown }> = [];
@@ -156,8 +169,8 @@ async function render(o: Opts = {}): Promise<Page> {
       (window as unknown as { confirm: () => boolean }).confirm = () => o.confirmAnswer ?? true;
       (window as unknown as { prompt: () => string }).prompt = () => 'брак';
 
-      window.fetch = (async (path: string, init?: { method?: string; body?: string }) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         asked.push(p);
         if (init?.method && init.method !== 'GET') {
           posted.push({ path: p, body: init.body ? JSON.parse(init.body) : null });
@@ -183,20 +196,21 @@ async function render(o: Opts = {}): Promise<Page> {
           : p.includes('/admin/device-registry') ? { devices: [] }
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="stock"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 320));
+  await settle.quiet('the Склад tab');
 
   return {
     window, errors, asked, posted,
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     all: (sel) => [...window.document.querySelectorAll(sel)],
+    quiet: settle.quiet,
   };
 }
 
@@ -438,7 +452,7 @@ describe('«Списать»', () => {
     const btn = page.all('#stockBody button.off')[0] as HTMLButtonElement;
     expect(btn, 'no write-off button to guard').toBeTruthy();
     btn.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the refused write-off');
     expect(page.posted.filter((x) => x.path.includes('/admin/inventory/moves'))).toHaveLength(0);
   });
 
@@ -446,7 +460,7 @@ describe('«Списать»', () => {
     const page = await render({ confirmAnswer: true });
     const btn = page.all('#stockBody button.off')[0] as HTMLButtonElement;
     btn.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the write-off');
     const sent = page.posted.find((x) => x.path.includes('/admin/inventory/moves'));
     expect(sent, 'a confirmed write-off that never reached the server').toBeTruthy();
     expect(sent!.body).toMatchObject({ delta: -1, reason: 'writeoff', note: 'брак' });

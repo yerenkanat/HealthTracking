@@ -20,6 +20,19 @@
  *
  * Rendered in jsdom with the real panel, because "the handler checks r.ok" and
  * "the person is told" are different claims, and only the second one matters.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Five fixed sleeps — 200 after boot, 300 after the tab, 250 per click —
+ * decided their verdict on elapsed wall-clock rather than on the work being
+ * finished. Everything asserted here is a message written AFTER a write comes
+ * back, so a window that closed early read the screen mid-request and would
+ * have reported the very silence this file exists to forbid.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for several
+ * consecutive turns, no page timer outstanding, and a throw rather than a
+ * half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -27,6 +40,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -47,8 +61,15 @@ interface Opts {
   confirmAnswer?: boolean;
 }
 
+/** A booted panel that knows when it has finished working. */
+interface Page {
+  window: JSDOM['window'];
+  quiet: (label?: string) => Promise<void>;
+}
+
 async function open(opts: Opts) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const sent: Sent[] = [];
   const confirms: string[] = [];
   const alerts: string[] = [];
@@ -78,8 +99,8 @@ async function open(opts: Opts) {
         return opts.confirmAnswer ?? true;
       };
 
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         const method = init?.method ?? 'GET';
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, text: async () => '', json: async () => ({ staffId: 's1', role: 'owner', displayName: 'Ерен' }) };
@@ -95,23 +116,23 @@ async function open(opts: Opts) {
         }
         const hit = (opts.get ?? []).find(([m]) => p.includes(m));
         return { ok: true, status: 200, text: async () => '', json: async () => (hit ? hit[1] : {}) };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('boot');
   window.document.querySelector(`[data-view="${opts.view}"]`)!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 300));
-  return { window, sent, confirms, alerts, errors };
+  await settle.quiet(`the ${opts.view} tab`);
+  return { window, sent, confirms, alerts, errors, quiet: settle.quiet };
 }
 
-const click = async (window: JSDOM['window'], sel: string, ms = 250) => {
-  const el = window.document.querySelector(sel);
+const click = async (page: Page, sel: string) => {
+  const el = page.window.document.querySelector(sel);
   expect(el, `no ${sel} on the page`).not.toBeNull();
-  el!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, ms));
+  el!.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
+  await page.quiet(`the click on ${sel}`);
   return el as HTMLElement;
 };
 
@@ -141,12 +162,13 @@ const courseGets: Array<[string, unknown]> = [
 
 describe('§4.1 — revoking course access', () => {
   it('says the access was NOT closed when the server refuses', async () => {
-    const { window, sent } = await open({
+    const page = await open({
       view: 'course', get: courseGets,
       write: [['/admin/entitlements/', { ok: false, status: 500, body: {} }]],
     });
+    const { window, sent } = page;
 
-    await click(window, '#entBody .erev');
+    await click(page, '#entBody .erev');
 
     expect(sent.some((s) => s.method === 'DELETE'), 'it did try').toBe(true);
     const msg = text(window, '#entMsg');
@@ -161,26 +183,29 @@ describe('§4.1 — revoking course access', () => {
   it('names the capability when the refusal is a 403', async () => {
     // «Не удалось» sends somebody to a developer; «нет права Заказы» sends
     // them to the owner, who can actually fix it.
-    const { window } = await open({
+    const page = await open({
       view: 'course', get: courseGets,
       write: [['/admin/entitlements/', { ok: false, status: 403, body: { error: 'forbidden' } }]],
     });
-    await click(window, '#entBody .erev');
+    const { window } = page;
+    await click(page, '#entBody .erev');
     expect(text(window, '#entMsg')).toMatch(/нет права «Заказы»/i);
   });
 
   it('confirms it when the revoke actually lands', async () => {
-    const { window, sent } = await open({ view: 'course', get: courseGets });
-    await click(window, '#entBody .erev');
+    const page = await open({ view: 'course', get: courseGets });
+    const { window, sent } = page;
+    await click(page, '#entBody .erev');
     expect(sent.find((s) => s.method === 'DELETE')!.path).toContain('77001112233');
     expect(text(window, '#entMsg')).toMatch(/Доступ закрыт/);
   });
 
   it('still asks first, and sends nothing when the answer is no', async () => {
-    const { window, sent, confirms } = await open({
+    const page = await open({
       view: 'course', get: courseGets, confirmAnswer: false,
     });
-    await click(window, '#entBody .erev');
+    const { sent, confirms } = page;
+    await click(page, '#entBody .erev');
     expect(confirms.length).toBe(1);
     expect(sent.filter((s) => s.method === 'DELETE')).toEqual([]);
   });
@@ -201,14 +226,15 @@ describe('§4.3 — reordering a lesson that the bilingual gate refuses', () => 
   };
 
   it('repeats the server\'s own reason instead of redrawing in silence', async () => {
-    const { window, sent } = await open({
+    const page = await open({
       view: 'course', get: courseGets,
       write: [['/admin/course/lessons', GATE]],
     });
+    const { window, sent } = page;
 
     // ↓ on the first lesson: swap it with «Сон малыша», which is published and
     // has no Kazakh title.
-    await click(window, '#lessonList .ldn');
+    await click(page, '#lessonList .ldn');
 
     expect(sent.filter((s) => s.method === 'PUT').length, 'nothing was sent').toBeGreaterThan(0);
     const msg = text(window, '#lessonMsg');
@@ -217,11 +243,12 @@ describe('§4.3 — reordering a lesson that the bilingual gate refuses', () => 
   });
 
   it('stops after the first refusal rather than half-applying the swap', async () => {
-    const { window, sent } = await open({
+    const page = await open({
       view: 'course', get: courseGets,
       write: [['/admin/course/lessons', GATE]],
     });
-    await click(window, '#lessonList .ldn');
+    const { sent } = page;
+    await click(page, '#lessonList .ldn');
     expect(sent.filter((s) => s.method === 'PUT').length,
       'the second write went out after the first was refused').toBe(1);
   });
@@ -231,6 +258,7 @@ describe('§4.3 — reordering a lesson that the bilingual gate refuses', () => 
     // would be as wrong as reporting success.
     let n = 0;
     const html = readFileSync(PANEL, 'utf8');
+    const settle = panelSettle();
     const vc = new VirtualConsole();
     const dom = new JSDOM(html, {
       runScripts: 'dangerously', pretendToBeVisual: true,
@@ -241,8 +269,8 @@ describe('§4.3 — reordering a lesson that the bilingual gate refuses', () => 
         Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
         (window as unknown as { alert: () => void }).alert = () => {};
         (window as unknown as { confirm: () => boolean }).confirm = () => true;
-        window.fetch = (async (path: string, init?: RequestInit) => {
-          const p = String(path);
+        settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+          const p = path;
           if (p.includes('/admin/me')) {
             return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'owner' }) };
           }
@@ -256,15 +284,16 @@ describe('§4.3 — reordering a lesson that the bilingual gate refuses', () => 
             : p.includes('/admin/course/progress') ? { progress: [] }
             : p.includes('/admin/entitlements') ? ENTITLEMENTS : {};
           return { ok: true, status: 200, json: async () => body };
-        }) as never;
+        });
       },
     });
     const w = dom.window;
-    await new Promise((r) => setTimeout(r, 200));
+    const page: Page = { window: w, quiet: settle.quiet };
+    await settle.quiet('boot');
     w.document.querySelector('[data-view="course"]')!
       .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 300));
-    await click(w, '#lessonList .ldn');
+    await settle.quiet('the Курс tab');
+    await click(page, '#lessonList .ldn');
 
     expect(w.document.querySelector('#lessonMsg')!.textContent)
       .toMatch(/наполовину/i);
@@ -288,12 +317,13 @@ const stockGets: Array<[string, unknown]> = [
 
 describe('§4.2 — blocking a stolen tracker', () => {
   it('says the device was NOT blocked, in the row, when the server refuses', async () => {
-    const { window, sent } = await open({
+    const page = await open({
       view: 'stock', get: stockGets,
       write: [['/status', { ok: false, status: 500, body: {} }]],
     });
+    const { sent } = page;
 
-    const btn = await click(window, '#serialBody .sblk');
+    const btn = await click(page, '#serialBody .sblk');
 
     expect(sent.some((s) => s.path.includes('/status')), 'it did try').toBe(true);
     // In the row, not only in the card header: the table can be twenty rows
@@ -309,27 +339,29 @@ describe('§4.2 — blocking a stolen tracker', () => {
   });
 
   it('names a 403 as a missing capability, not as a fault', async () => {
-    const { window } = await open({
+    const page = await open({
       view: 'stock', get: stockGets,
       write: [['/status', { ok: false, status: 403, body: { error: 'forbidden' } }]],
     });
-    const btn = await click(window, '#serialBody .sblk');
+    const btn = await click(page, '#serialBody .sblk');
     expect(btn.closest('tr')!.textContent).toMatch(/складского доступа/i);
   });
 
   it('confirms the block when it lands', async () => {
-    const { window, sent, confirms } = await open({ view: 'stock', get: stockGets });
-    await click(window, '#serialBody .sblk');
+    const page = await open({ view: 'stock', get: stockGets });
+    const { window, sent, confirms } = page;
+    await click(page, '#serialBody .sblk');
     expect(confirms.length, 'blocking a device did not ask').toBe(1);
     expect(sent.find((s) => s.path.includes('/status'))!.body).toEqual({ status: 'blocked' });
     expect(text(window, '#serialMsg')).toMatch(/Заблокировано/);
   });
 
   it('sends nothing when the operator backs out', async () => {
-    const { window, sent } = await open({
+    const page = await open({
       view: 'stock', get: stockGets, confirmAnswer: false,
     });
-    await click(window, '#serialBody .sblk');
+    const { sent } = page;
+    await click(page, '#serialBody .sblk');
     expect(sent.filter((s) => s.path.includes('/status'))).toEqual([]);
   });
 });

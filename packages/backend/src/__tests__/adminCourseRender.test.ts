@@ -10,6 +10,18 @@
  *
  * "The markup contains an input" proves nothing here: what matters is what the
  * PUT carries and what comes back into the form when a lesson is edited.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Ten fixed sleeps used to stand in for "the panel has finished" — 120 ms after
+ * boot, 250 after the tab click, 20–80 after each action. Each of them decided
+ * its verdict on elapsed wall-clock, so each changed answer under load; the
+ * 20 ms one after a keystroke was the thinnest margin in the directory.
+ *
+ * They are all `page.quiet()` now: no request in flight, none newly issued for
+ * several consecutive turns, no page timer outstanding — and a throw rather
+ * than a half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -17,6 +29,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -77,14 +90,17 @@ interface Page {
   errors: string[];
   saved: Array<Record<string, unknown>>;
   $: (sel: string) => HTMLElement | null;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
-async function render(): Promise<Page> {
+async function render(opts: { latencyMs?: number } = {}): Promise<Page> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const saved: Array<Record<string, unknown>> = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
+  const settle = panelSettle({ latencyMs: opts.latencyMs });
 
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
@@ -101,8 +117,8 @@ async function render(): Promise<Page> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string, opts?: { method?: string; body?: string }) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, opts?: PanelRequestInit) => {
+        const p = path;
         // Who is signed in. Without this the panel ran with an empty role,
         // which no real session produces — and the course tab is now two
         // capability-guarded cards (`content` for the lessons, `orders` for
@@ -123,22 +139,22 @@ async function render(): Promise<Page> {
             ? ENTITLEMENTS
             : { };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(120);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="course"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(250);
+  await settle.quiet('the Курс tab');
 
   return {
     window,
     errors,
     saved,
     $: (sel) => window.document.querySelector(sel),
+    quiet: settle.quiet,
   };
 }
 
@@ -173,7 +189,7 @@ describe('authoring a lesson', () => {
     type(page, 'lessonSummary', 'Что происходит с телом.');
     type(page, 'lessonSummaryKk', 'Денеде не болады.');
     submit(page);
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the lesson save');
 
     expect(page.saved).toHaveLength(1);
     expect(page.saved[0].summaryRu).toBe('Что происходит с телом.');
@@ -189,7 +205,7 @@ describe('authoring a lesson', () => {
   describe('the link preview', () => {
     it('shows the video the link points at', async () => {
       type(page, 'lessonUrl', 'https://youtu.be/dQw4w9WgXcQ');
-      await new Promise((r) => setTimeout(r, 30));
+      await page.quiet('the link preview');
 
       expect((page.$('#lessonPreview') as HTMLElement).hidden).toBe(false);
       expect((page.$('#lessonThumb') as HTMLImageElement).getAttribute('src'))
@@ -205,7 +221,7 @@ describe('authoring a lesson', () => {
         'https://m.youtube.com/watch?v=dQw4w9WgXcQ',
       ]) {
         type(page, 'lessonUrl', url);
-        await new Promise((r) => setTimeout(r, 20));
+        await page.quiet('the link preview');
         expect((page.$('#lessonThumb') as HTMLImageElement).getAttribute('src'),
           url).toContain('dQw4w9WgXcQ');
       }
@@ -214,7 +230,7 @@ describe('authoring a lesson', () => {
     it('says so when the link is not a video at all', async () => {
       // A channel page and a playlist both used to save cleanly.
       type(page, 'lessonUrl', 'https://www.youtube.com/@anabala');
-      await new Promise((r) => setTimeout(r, 30));
+      await page.quiet('the link preview');
 
       expect((page.$('#lessonPreview') as HTMLElement).hidden).toBe(false);
       expect(page.$('#lessonPreviewMsg')!.textContent).toMatch(/не ссылка на конкретное видео/i);
@@ -253,7 +269,7 @@ describe('authoring a lesson', () => {
       const downs = page.window.document.querySelectorAll('.ldn');
       (downs[1] as HTMLElement).dispatchEvent(
         new page.window.MouseEvent('click', { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 80));
+      await page.quiet('the swap');
 
       expect(page.saved).toHaveLength(2);
       const byId = Object.fromEntries(page.saved.map((s) => [s.id, s.sort]));
@@ -267,7 +283,7 @@ describe('authoring a lesson', () => {
       const downs = page.window.document.querySelectorAll('.ldn');
       (downs[0] as HTMLElement).dispatchEvent(
         new page.window.MouseEvent('click', { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 80));
+      await page.quiet('the swap');
 
       const moved = page.saved.find((s) => s.id === '11111111-1111-1111-1111-111111111111')!;
       expect(moved.titleRu).toBe('Первые 40 дней');
@@ -324,13 +340,14 @@ describe('authoring a lesson', () => {
       // yet migrated 404s the progress route, and "who has access" must survive
       // that rather than going blank.
       const html = readFileSync(PANEL, 'utf8');
+      const settle = panelSettle();
       const dom = new JSDOM(html, {
         runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/admin',
         beforeParse(window) {
           window.HTMLCanvasElement.prototype.getContext = (() => null) as never;
           window.scrollTo = () => {};
-          window.fetch = (async (path: string) => {
-            const p = String(path);
+          settle.attach(window as never, async (path: string) => {
+            const p = path;
             if (p.includes('/admin/me')) {
               return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin', displayName: 'Ерен' }) };
             }
@@ -340,14 +357,14 @@ describe('authoring a lesson', () => {
             const body = p.includes('/admin/course/lessons') ? LESSONS
               : p.includes('/admin/entitlements') ? ENTITLEMENTS : {};
             return { ok: true, status: 200, json: async () => body };
-          }) as never;
+          });
         },
       });
       const w = dom.window;
-      await new Promise((r) => setTimeout(r, 120));
+      await settle.quiet('boot without the progress route');
       w.document.querySelector('[data-view="course"]')!
         .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 250));
+      await settle.quiet('the Курс tab without the progress route');
 
       const body = w.document.querySelector('#entBody')!.textContent ?? '';
       expect(body, 'the access list went blank').toContain('77001112233');
@@ -361,9 +378,65 @@ describe('authoring a lesson', () => {
     type(page, 'lessonTitle', 'Урок без описания');
     type(page, 'lessonUrl', 'https://youtu.be/bbbbbbbbbbb');
     submit(page);
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the lesson save');
 
     expect(page.saved[0].summaryRu).toBeNull();
     expect(page.saved[0].summaryKk).toBeNull();
+  });
+});
+
+/**
+ * Load as an INPUT, not as a hope.
+ *
+ * SLOW_MS is derived, not guessed, and the derivation is the point. The first
+ * attempt copied the reference file's 40 ms and was DECORATION: with the old
+ * fixed waits reinstated the sabotaged run still passed, because two chained
+ * requests at 40 ms land comfortably inside a 300 ms window on an idle runner.
+ *
+ * The rule instead: SLOW_MS is larger than the longest fixed wait these files
+ * ever contained (300 ms). At that latency a SINGLE request cannot land inside
+ * the old window, so any reinstated sleep truncates the screen and this test
+ * fails with an empty card — which is exactly the half-drawn state the whole
+ * exercise is about.
+ *
+ * One latency is still a sample. The property that holds for every latency is
+ * that quiet() THROWS rather than returning early; this test is the evidence
+ * that the throw is reachable and that nothing downstream reads a partial page.
+ */
+const SLOW_MS = 320;
+/**
+ * Load as an INPUT, not as a hope.
+ *
+ * The property the ten sleeps could not have. The lesson list and the access
+ * list are drawn from three separate requests that chain off one another, so a
+ * window that closes early loses a different one each run. Here the same screen
+ * is booted twice, once with every request answering forty times slower, and
+ * both the drawn text and the PUT that a reorder produces must come out
+ * identical. Reinstate any fixed wait and the slow run reads a half-filled
+ * table — or, for the reorder, no PUT at all.
+ */
+describe('the verdict does not depend on how fast the machine is', () => {
+  const flat = (page: Page, sel: string) =>
+    (page.$(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+  it('draws the same course whether the server answers in one turn or slowly', async () => {
+    const fast = await render();
+    const slow = await render({ latencyMs: SLOW_MS });
+
+    for (const sel of ['#lessonList', '#entBody']) {
+      expect(flat(slow, sel), `«${sel}» was drawn differently when the server was slower`)
+        .toBe(flat(fast, sel));
+    }
+    // Non-vacuity: two empty panes must not be what passed.
+    expect(flat(fast, '#lessonList')).toContain('Первые 40 дней');
+    expect(flat(fast, '#entBody')).toContain('77001112233');
+
+    for (const page of [fast, slow]) {
+      const downs = page.window.document.querySelectorAll('.ldn');
+      (downs[1] as HTMLElement).dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
+      await page.quiet('the swap');
+    }
+    expect(slow.saved).toEqual(fast.saved);
+    expect(fast.saved, 'no write was observed, so two empty lists are what matched').toHaveLength(2);
   });
 });

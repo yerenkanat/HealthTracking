@@ -10,6 +10,19 @@
  * These fill the fields in a real DOM, click Создать, and read the POST body:
  * whether the комплект is sent as a bundle is the difference between charging
  * 39 000 with a course and charging 29 800 without one.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Six fixed sleeps — 120 after boot, 250 after the tab, 60 after each Создать —
+ * decided their verdict on elapsed wall-clock rather than on the work being
+ * finished. 60 ms for a POST is the second-thinnest margin in the directory,
+ * and two of the assertions are negative ("the course is granted against this
+ * number" expects NOTHING posted), which an early read passes for free.
+ *
+ * They are all page.quiet() now: no request in flight, none newly issued for
+ * several consecutive turns, no page timer outstanding, and a throw rather than
+ * a half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -17,6 +30,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -56,10 +70,13 @@ interface Page {
   posted: Array<{ url: string; body: Record<string, unknown> }>;
   $: (sel: string) => HTMLElement | null;
   text: (sel: string) => string;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function render(inventory: unknown = INVENTORY, orderStatus = 201): Promise<Page> {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const posted: Array<{ url: string; body: Record<string, unknown> }> = [];
   const vc = new VirtualConsole();
@@ -80,8 +97,8 @@ async function render(inventory: unknown = INVENTORY, orderStatus = 201): Promis
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string, opts?: { method?: string; body?: string }) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, opts?: PanelRequestInit) => {
+        const p = path;
         if (opts?.method === 'POST' && p.includes('/admin/shop/orders')) {
           posted.push({ url: p, body: JSON.parse(opts.body ?? '{}') });
           return orderStatus === 201
@@ -101,15 +118,14 @@ async function render(inventory: unknown = INVENTORY, orderStatus = 201): Promis
                   : null;
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(120);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="shop"]')!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(250);
+  await settle.quiet('the Магазин tab');
 
   return {
     window,
@@ -117,6 +133,7 @@ async function render(inventory: unknown = INVENTORY, orderStatus = 201): Promis
     posted,
     $: (sel) => window.document.querySelector(sel),
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    quiet: settle.quiet,
   };
 }
 
@@ -174,7 +191,7 @@ describe('taking an order in the panel', () => {
   it('sends a single-product order with the colour that was picked', async () => {
     fillCustomer(page);
     click(page, '#noSave');
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the order');
 
     expect(page.posted).toHaveLength(1);
     const b = page.posted[0].body;
@@ -188,7 +205,7 @@ describe('taking an order in the panel', () => {
     pickBundle(page);
     fillCustomer(page);
     click(page, '#noSave');
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the order');
 
     expect(page.posted).toHaveLength(1);
     const b = page.posted[0].body;
@@ -203,7 +220,7 @@ describe('taking an order in the panel', () => {
     pickBundle(page);
     fillCustomer(page);
     click(page, '#noSave');
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the order');
 
     const m = page.text('#noMsg');
     expect(m).toContain('Ма!Ма!');
@@ -217,7 +234,7 @@ describe('taking an order in the panel', () => {
     const phone = page.$('#noPhone') as HTMLInputElement;
     phone.value = '705';
     click(page, '#noSave');
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the order');
 
     expect(page.posted, 'the course is granted against this number').toHaveLength(0);
     expect(page.text('#noMsg')).toMatch(/телефон/i);
@@ -227,7 +244,7 @@ describe('taking an order in the panel', () => {
     page = await render(INVENTORY, 409);
     fillCustomer(page);
     click(page, '#noSave');
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the order');
 
     expect(page.text('#noMsg')).toMatch(/склад/i);
   });

@@ -8,6 +8,19 @@
  *
  * Rendered in a browser, because "disabled" in the markup and disabled on the
  * screen are two different claims, and the second one is the one that matters.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Five fixed sleeps — 250 after boot, 250 after the tab, 200 after opening the
+ * stage, 50 after typing — decided their verdict on elapsed wall-clock rather
+ * than on the work being finished. A #saveStage that has never been rendered is
+ * disabled in the markup, so a window that closed early made "is locked when
+ * the Kazakh version is missing" pass without the gate existing at all.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for several
+ * consecutive turns, no page timer outstanding, and a throw rather than a
+ * half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,6 +28,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -40,6 +54,7 @@ const RUSSIAN_ONLY = {
 
 async function openStage(item: Record<string, unknown>) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const sent: Array<{ path: string; method: string }> = [];
   const vc = new VirtualConsole();
@@ -63,32 +78,39 @@ async function openStage(item: Record<string, unknown>) {
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
 
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         sent.push({ path: p, method: init?.method ?? 'GET' });
         const body =
           p.includes('/admin/me') ? { staffId: 's1', role: 'owner', displayName: 'Ерен' }
           : p.includes('/admin/content') ? catalogWith(item)
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="content"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('the Контент tab');
   // Open the stage the fixture filled.
   const cell = window.document.querySelector('[data-stage="w20"]') as HTMLElement | null;
   cell?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('the w20 stage');
+
+  // Non-vacuity for every assertion below: an editor that never drew leaves
+  // #saveStage disabled in the markup, which is what "is locked" looks for.
+  const button = window.document.querySelector('#saveStage') as HTMLButtonElement;
+  expect(window.document.querySelector('#stageItems .item'),
+    'the stage editor never drew — the gate assertions below would pass on an empty screen')
+    .not.toBeNull();
 
   return {
-    window, errors, sent,
-    button: window.document.querySelector('#saveStage') as HTMLButtonElement,
+    window, errors, sent, button,
     note: window.document.querySelector('#publishBlocked') as HTMLElement,
+    quiet: settle.quiet,
   };
 }
 
@@ -119,7 +141,7 @@ describe('the publish button', () => {
     // The check has to run on input. Re-checking only on a later re-render
     // leaves the button dead under a form that is now complete, which reads as
     // the panel being broken.
-    const { window, button } = await openStage(RUSSIAN_ONLY);
+    const { window, button, quiet } = await openStage(RUSSIAN_ONLY);
     expect(button.disabled).toBe(true);
 
     for (const sel of ['[data-f="title.kk"]', '[data-f="summary.kk"]']) {
@@ -128,18 +150,18 @@ describe('the publish button', () => {
       input.value = 'Тыныс алу';
       input.dispatchEvent(new window.Event('input', { bubbles: true }));
     }
-    await new Promise((r) => setTimeout(r, 50));
+    await quiet('the Kazakh fields');
     expect(button.disabled, 'both Kazakh fields are filled and it is still locked').toBe(false);
   });
 
   it('whitespace does not unlock it', async () => {
-    const { window, button } = await openStage(RUSSIAN_ONLY);
+    const { window, button, quiet } = await openStage(RUSSIAN_ONLY);
     for (const sel of ['[data-f="title.kk"]', '[data-f="summary.kk"]']) {
       const input = window.document.querySelector(sel) as HTMLInputElement;
       input.value = '   ';
       input.dispatchEvent(new window.Event('input', { bubbles: true }));
     }
-    await new Promise((r) => setTimeout(r, 50));
+    await quiet('the whitespace');
     expect(button.disabled).toBe(true);
   });
 });

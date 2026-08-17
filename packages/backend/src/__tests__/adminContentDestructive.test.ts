@@ -16,6 +16,20 @@
  * within a week, and that habit is exactly what would carry somebody through
  * the one that empties a stage. Same reasoning as the orders screen, where
  * «Подтверждён» is quiet and «Отменён» is not.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Eight fixed sleeps — 250 after boot, 250 after the tab, 200 after the stage,
+ * 200 after each delete, 250 after each publish — decided by elapsed wall-clock
+ * rather than by the work being finished, so they changed answer under load.
+ * Two of the assertions here are NEGATIVE ("a declined publish still wrote",
+ * "a publish that removes nothing interrupted the editor"), and a negative read
+ * too early passes for the wrong reason every time.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for several
+ * consecutive turns, no page timer outstanding, and a throw rather than a
+ * half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -23,6 +37,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -42,8 +57,15 @@ const LIVE = [
 
 interface Sent { path: string; method: string; body: string | null }
 
+/** A booted editor that knows when it has finished working. */
+interface Editor {
+  window: JSDOM['window'];
+  quiet: (label?: string) => Promise<void>;
+}
+
 async function openStage(items: Array<Record<string, unknown>>, confirmAnswer = true) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const sent: Sent[] = [];
   const confirms: string[] = [];
   const errors: string[] = [];
@@ -71,8 +93,8 @@ async function openStage(items: Array<Record<string, unknown>>, confirmAnswer = 
         confirms.push(m);
         return confirmAnswer;
       };
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         const method = init?.method ?? 'GET';
         if (method !== 'GET') sent.push({ path: p, method, body: (init?.body as string) ?? null });
         const body =
@@ -84,46 +106,47 @@ async function openStage(items: Array<Record<string, unknown>>, confirmAnswer = 
           }
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="content"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('the Контент tab');
   (window.document.querySelector('[data-stage="m7"]') as HTMLElement)
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('the m7 stage');
 
-  return { window, sent, confirms, errors };
+  return { window, sent, confirms, errors, quiet: settle.quiet };
 }
 
 const rows = (window: JSDOM['window']) =>
   window.document.querySelectorAll('#stageItems .item').length;
 
-const clickAll = async (window: JSDOM['window'], sel: string) => {
-  const el = window.document.querySelector(sel) as HTMLElement;
+const clickAll = async (page: Editor, sel: string) => {
+  const el = page.window.document.querySelector(sel) as HTMLElement;
   expect(el, `no ${sel}`).not.toBeNull();
-  el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 200));
+  el.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
+  await page.quiet(`the click on ${sel}`);
 };
 
-const publish = async (window: JSDOM['window']) => {
-  const btn = window.document.querySelector('#saveStage') as HTMLButtonElement;
+const publish = async (page: Editor) => {
+  const btn = page.window.document.querySelector('#saveStage') as HTMLButtonElement;
   expect(btn.disabled, 'the publish button is gated — the fixture is wrong, not the panel').toBe(false);
-  btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 250));
+  btn.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
+  await page.quiet('the publish');
 };
 
 describe('deleting a card asks first', () => {
   it('names the card and says when the reader loses it', async () => {
-    const { window, confirms, errors } = await openStage(LIVE);
+    const page = await openStage(LIVE);
+    const { window, confirms, errors } = page;
     expect(errors, errors.join('\n')).toEqual([]);
     expect(rows(window)).toBe(3);
 
-    await clickAll(window, '#stageItems [data-del]');
+    await clickAll(page, '#stageItems [data-del]');
 
     expect(confirms.length, 'a live card was deleted without asking').toBe(1);
     // «Удалить карточку?» is waved through; the title is what makes it a
@@ -135,14 +158,16 @@ describe('deleting a card asks first', () => {
   });
 
   it('keeps the card when the answer is no', async () => {
-    const { window } = await openStage(LIVE, false);
-    await clickAll(window, '#stageItems [data-del]');
+    const page = await openStage(LIVE, false);
+    const { window } = page;
+    await clickAll(page, '#stageItems [data-del]');
     expect(rows(window), 'a declined delete removed the card anyway').toBe(3);
   });
 
   it('removes it when the answer is yes, and says where it went', async () => {
-    const { window } = await openStage(LIVE);
-    await clickAll(window, '#stageItems [data-del]');
+    const page = await openStage(LIVE);
+    const { window } = page;
+    await clickAll(page, '#stageItems [data-del]');
     expect(rows(window)).toBe(2);
     expect(window.document.querySelector('#saveMsg')!.textContent)
       .toMatch(/убрана из черновика/i);
@@ -162,8 +187,9 @@ describe('deleting a card asks first', () => {
    * whole time.
    */
   it('removes the card that was named, not the last one in the list', async () => {
-    const { window, confirms, sent } = await openStage(LIVE);
-    await clickAll(window, '#stageItems [data-del]');
+    const page = await openStage(LIVE);
+    const { window, confirms, sent } = page;
+    await clickAll(page, '#stageItems [data-del]');
     expect(confirms[0]).toContain('Прикорм');
 
     const ids = [...window.document.querySelectorAll('#stageItems [data-f="id"]')]
@@ -171,7 +197,7 @@ describe('deleting a card asks first', () => {
     expect(ids, 'the wrong card was deleted').toEqual(['m7-sleep', 'm7-teeth']);
 
     // And what is PUBLISHED is the same two, not whatever the stale read left.
-    await publish(window);
+    await publish(page);
     const put = sent.find((s) => s.method === 'PUT')!;
     expect(JSON.parse(put.body!).items.map((i: { id: string }) => i.id))
       .toEqual(['m7-sleep', 'm7-teeth']);
@@ -180,13 +206,14 @@ describe('deleting a card asks first', () => {
 
 describe('publishing a stage that has lost cards asks first', () => {
   it('asks before emptying a live stage, and says how many disappear', async () => {
-    const { window, confirms, sent } = await openStage(LIVE);
+    const page = await openStage(LIVE);
+    const { window, confirms, sent } = page;
     // Delete all three, then publish `{items: []}` — the exact wipe.
-    for (let i = 0; i < 3; i += 1) await clickAll(window, '#stageItems [data-del]');
+    for (let i = 0; i < 3; i += 1) await clickAll(page, '#stageItems [data-del]');
     expect(rows(window)).toBe(0);
     const beforePublish = confirms.length;
 
-    await publish(window);
+    await publish(page);
 
     const q = confirms[beforePublish];
     expect(q, 'a live stage was emptied without asking').toBeTruthy();
@@ -199,7 +226,8 @@ describe('publishing a stage that has lost cards asks first', () => {
   });
 
   it('sends nothing when the answer is no, and says the server is untouched', async () => {
-    const { window, sent, confirms } = await openStage(LIVE, false);
+    const page = await openStage(LIVE, false);
+    const { sent, confirms } = page;
     // A declined delete leaves the draft intact, so remove the card from the
     // draft directly is not possible here — instead publish a draft that lost
     // a card via a confirmed delete. With confirmAnswer=false the delete is
@@ -207,7 +235,7 @@ describe('publishing a stage that has lost cards asks first', () => {
     expect(confirms.length).toBe(0);
 
     // Nothing was deleted, so publishing changes nothing and must NOT ask.
-    await publish(window);
+    await publish(page);
     expect(confirms.length, 'a publish that removes nothing interrupted the editor').toBe(0);
     expect(sent.some((s) => s.method === 'PUT')).toBe(true);
   });
@@ -216,6 +244,7 @@ describe('publishing a stage that has lost cards asks first', () => {
     // Delete confirmed, publish declined: two different answers, so the
     // confirm stub has to change its mind between them.
     const html = readFileSync(PANEL, 'utf8');
+    const settle = panelSettle();
     const sent: Sent[] = [];
     let answer = true;
     const dom = new JSDOM(html, {
@@ -226,8 +255,8 @@ describe('publishing a stage that has lost cards asks first', () => {
         Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
         (window as unknown as { alert: () => void }).alert = () => {};
         (window as unknown as { confirm: () => boolean }).confirm = () => answer;
-        window.fetch = (async (path: string, init?: RequestInit) => {
-          const p = String(path);
+        settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+          const p = path;
           const method = init?.method ?? 'GET';
           if (method !== 'GET') sent.push({ path: p, method, body: (init?.body as string) ?? null });
           const body = p.includes('/admin/me') ? { staffId: 's1', role: 'owner' }
@@ -237,21 +266,22 @@ describe('publishing a stage that has lost cards asks first', () => {
               coverage: { total: 101, filled: ['m7'], empty: [], items: LIVE.length, linked: 0, sharedOnly: [] },
             } : {};
           return { ok: true, status: 200, json: async () => body };
-        }) as never;
+        });
       },
     });
     const w = dom.window;
-    await new Promise((r) => setTimeout(r, 250));
+    const page: Editor = { window: w, quiet: settle.quiet };
+    await settle.quiet('boot');
     w.document.querySelector('[data-view="content"]')!
       .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 250));
+    await settle.quiet('the Контент tab');
     (w.document.querySelector('[data-stage="m7"]') as HTMLElement)
       .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await settle.quiet('the m7 stage');
 
-    await clickAll(w, '#stageItems [data-del]');
+    await clickAll(page, '#stageItems [data-del]');
     answer = false;
-    await publish(w);
+    await publish(page);
 
     expect(sent.filter((s) => s.method === 'PUT'), 'a declined publish still wrote').toEqual([]);
     expect(w.document.querySelector('#saveMsg')!.textContent)
@@ -259,10 +289,11 @@ describe('publishing a stage that has lost cards asks first', () => {
   });
 
   it('names the cards that go, not just how many', async () => {
-    const { window, confirms } = await openStage(LIVE);
-    await clickAll(window, '#stageItems [data-del]');
+    const page = await openStage(LIVE);
+    const { confirms } = page;
+    await clickAll(page, '#stageItems [data-del]');
     const before = confirms.length;
-    await publish(window);
+    await publish(page);
     expect(confirms[before]).toContain('Прикорм');
     expect(confirms[before]).toMatch(/Исчезнет 1 карточка из 3/);
   });

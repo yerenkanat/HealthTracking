@@ -8,11 +8,20 @@
  * decide.
  */
 
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 import { buildOwnerDashboard, type OwnerInput } from '../admin/ownerDashboard.js';
 import type { InventoryProduct, ShopOrder } from '../db/repository.js';
 
@@ -102,6 +111,8 @@ async function render(body: unknown, down: string[] = []): Promise<Rendered> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -121,7 +132,7 @@ async function render(body: unknown, down: string[] = []): Promise<Rendered> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return {
@@ -141,17 +152,16 @@ async function render(body: unknown, down: string[] = []): Promise<Rendered> {
           ok: true, status: 200,
           json: async () => (p.includes('/admin/owner') ? body : {}),
         };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(120);
+  await settle.quiet();
   window.document
     .querySelector('[data-view="owner"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(150);
+  await settle.quiet();
 
   const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
   return {

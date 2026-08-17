@@ -13,11 +13,20 @@
  *  · the «Мы не служба спасения» plate is on the screen, and sentence 10 of
  *    docs/CLINICAL-REVIEW-WATCH.md («Мы вызвали скорую») is nowhere on it.
  */
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -79,6 +88,8 @@ async function boot(opts: BootOpts = {}) {
   const onRejection = (r: unknown) => rejections.push(String(r));
   process.on('unhandledRejection', onRejection);
 
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/admin/ui',
     virtualConsole: vc,
@@ -93,7 +104,7 @@ async function boot(opts: BootOpts = {}) {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
@@ -108,16 +119,16 @@ async function boot(opts: BootOpts = {}) {
           return { ok: st < 400, status: st, text: async () => '', json: async () => opts.safety ?? SAFETY };
         }
         return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 150));
+  await settle.quiet();
   window.document.querySelector('[data-view="emergencies"]')?.dispatchEvent(
     new window.MouseEvent('click', { bubbles: true }),
   );
-  await new Promise((r) => setTimeout(r, 300));
+  await settle.quiet();
   process.off('unhandledRejection', onRejection);
   const txt = (sel: string) =>
     (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim();

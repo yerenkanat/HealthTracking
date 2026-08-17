@@ -17,7 +17,10 @@ import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository, ShopOrder, ShopOrderStatus } from '../db/repository';
 import { PRODUCT_STAGES, SHOP_ORDER_STATUSES, SUPPORT_CHANNELS, SUPPORT_STATUSES } from '../db/repository';
 import { buildOrderTimeline, orderRef, orderWhatsappLink } from '../admin/orders';
-import { buildIntegrations, integrationSummary, maskSecret } from '../admin/integrations';
+import {
+  buildIntegrations, integrationSummary, maskSecret,
+  redactSettings, looksMasked, SECRET_SETTING_KEYS,
+} from '../admin/integrations';
 import { buildFinanceReport, financeCsv } from '../admin/finance';
 import { buildSupportBoard, SUPPORT_SLA_HOURS, whatsappReplyLink } from '../admin/support';
 import { bilingualMessage, bilingualProblems, missingLocales, type BilingualProblem } from '../content/bilingual';
@@ -3030,15 +3033,47 @@ export function registerAdminRoutes(
     });
   });
 
-  // App settings & integration keys — WhatsApp/Kaspi (public, shown on the
-  // landing) plus secret API keys (Anthropic, Google Maps) used server-side.
-  // Editable by staff; the public /shop/config exposes ONLY the public keys.
+  /**
+   * What the storefront card (Магазин) and the keys card (Настройки →
+   * Интеграции, frame 24a) both read.
+   *
+   * NO SECRET LEAVES HERE. The Anthropic key and the Telegram bot token used to
+   * come back in full: the panel put them in `<input>` elements, so the key was
+   * in the DOM of any screen an operator left open, in the network tab of any
+   * browser, and in any HAR anybody exported while reporting a bug. They are
+   * `••••7f2a` now — enough to tell which key is installed, useless to a
+   * shoulder. See redactSettings() and frame 24's `••••7f2a` rule.
+   *
+   * Still audited. It is no longer a read of the key values themselves, but it
+   * is still the screen where somebody changes what the storefront says and
+   * which credentials the server runs on, and `view_settings` is how that is
+   * traced. Cheap, and one row per open rather than per poll.
+   */
   app.get('/admin/settings', async (req, reply) => {
     const s = await requireCap(req, reply, 'staff');
     if (!s) return;
-    // Auditable: this exposes the stored API keys, so record who read them.
     await repo.writeAudit({ staffId: s.staffId, action: 'view_settings' });
-    return reply.send({ settings: await repo.getShopSettings() });
+    const { settings, secrets } = redactSettings(await repo.getShopSettings());
+    // The environment can supply the Anthropic key instead of the panel, and
+    // frame 24 already draws that distinction («Ключ из панели» / «Ключ из
+    // переменных окружения»). The keys form says the same thing in the same
+    // words, so an owner who sees no key in the box is not told the assistant
+    // is dead when it is running on ANTHROPIC_API_KEY.
+    // The ENVIRONMENT wins, and it wins at startup: index.ts copies a stored key
+    // across only when `!process.env.ANTHROPIC_API_KEY`. So `source` is which
+    // key the server is really running on, not which one was typed last.
+    const envMask = maskSecret(process.env.ANTHROPIC_API_KEY ?? null);
+    return reply.send({
+      settings,
+      secrets: {
+        ...secrets,
+        anthropicApiKey: {
+          ...secrets.anthropicApiKey,
+          source: envMask ? 'env' : (secrets.anthropicApiKey.stored ? 'panel' : null),
+          envMask,
+        },
+      },
+    });
   });
   app.put('/admin/settings', async (req, reply) => {
     const s = await requireCap(req, reply, 'staff');
@@ -3057,9 +3092,27 @@ export function registerAdminRoutes(
       telegramBotToken: z.string().trim().max(200).optional(),
       telegramChatId: z.string().trim().max(64).optional(),
       // Social proof — public. reviews is a JSON array of {name,city,text,stars}.
+      // A review someone actually wrote on WhatsApp is a real review, so this
+      // one stays and /shop/config still publishes it.
       reviews: z.string().trim().max(6000).optional(),
-      rating: z.string().trim().max(8).optional(),
-      reviewCount: z.string().trim().max(12).optional(),
+      /**
+       * No `rating`, no `reviewCount`.
+       *
+       * They were two free-text boxes — «Рейтинг (напр. 4.9)» and «Кол-во
+       * отзывов» — that saved, read back, and reached nothing: /shop/config
+       * stopped publishing both because nothing in this schema can produce
+       * either number. There is no ratings table, no order feedback and no
+       * reviews table, so whatever was typed there would be invented, and the
+       * landing has already carried invented social proof once. See the note in
+       * routes/crud.ts and landingHonesty.test.ts.
+       *
+       * So the owner typed 4.9, the panel said «Сохранено», and the storefront
+       * never showed it. Withdrawn the same way `googleMapsApiKey` was: zod
+       * strips an unknown key, so a client still sending one is ignored rather
+       * than refused, and any row already in shop_settings is left exactly
+       * where it is — nothing is silently destroyed. The panel names those
+       * leftovers on screen instead of pretending they matter.
+       */
       /**
        * The month's revenue target in minor units, for «выручка к плану» on
        * the owner's dashboard.
@@ -3075,20 +3128,40 @@ export function registerAdminRoutes(
     // Store only the keys actually sent. The phone is normalised to digits so
     // wa.me links work regardless of how it was typed.
     const patch: Record<string, string> = {};
+    /** Secrets that arrived as their own mask and were therefore not written. */
+    const kept: string[] = [];
     for (const [k, v] of Object.entries(parsed.data)) {
       if (v === undefined) continue;
+      // The mask must never be able to become the key.
+      //
+      // Once GET stopped returning the real value, the obvious client bug is a
+      // form that renders `••••7f2a` in the box and posts it straight back on
+      // the next save — for an edit to the WhatsApp number, say. Writing that
+      // would replace a working API key with eight bullet characters, report
+      // success, and leave no trace until the assistant went quiet. Refusing it
+      // HERE means no client can do it, not just the one we shipped.
+      if ((SECRET_SETTING_KEYS as readonly string[]).includes(k) && looksMasked(v)) {
+        kept.push(k);
+        continue;
+      }
       patch[k] = k === 'whatsapp' ? v.replace(/\D/g, '') : v;
     }
     await repo.setShopSettings(patch);
     // Audit key NAMES only — never the secret values.
     await repo.writeAudit({ staffId: s.staffId, action: 'set_settings', target: Object.keys(patch).join(',') });
-    return reply.send({ ok: true, settings: await repo.getShopSettings() });
+    const { settings, secrets } = redactSettings(await repo.getShopSettings());
+    // The response is redacted for the same reason the GET is: a PUT that
+    // echoed the stored key back would put it in the browser anyway.
+    return reply.send({
+      ok: true,
+      settings,
+      secrets,
+      /** Named so the panel can say «ключ оставлен прежним» rather than imply it was rewritten. */
+      keptUnchanged: kept,
+      /** Which keys were actually written, so «Сохранено» is not a guess. */
+      written: Object.keys(patch),
+    });
   });
-  // Prove the Telegram settings actually work.
-  //
-  // Saving them succeeds regardless of whether the token is valid, so without
-  // this the first sign of a typo is a customer who was never called back. The
-  // whole point is to fail here, loudly, in front of the person who can fix it.
   // ---- Frame 12 · «Поддержка» -------------------------------------------
   //
   // `customers`, which the support role has and a warehouse hand does not. NOT
@@ -3432,17 +3505,20 @@ export function registerAdminRoutes(
     return reply.send({ ok: !!result.ok, steps });
   });
 
-  app.post('/admin/settings/test-telegram', async (req, reply) => {
-    const s = await requireCap(req, reply, 'staff');
-    if (!s) return;
-    const cfg = await repo.getShopSettings();
-    if (!cfg.telegramBotToken?.trim() || !cfg.telegramChatId?.trim()) {
-      return reply.send({ ok: false, error: 'сначала сохраните токен и chat ID' });
-    }
-    await repo.writeAudit({ staffId: s.staffId, action: 'test_telegram' });
-    const result = await sendTelegramTest(cfg.telegramBotToken, cfg.telegramChatId);
-    return reply.send(result);
-  });
+  /*
+   * POST /admin/settings/test-telegram is GONE, and nothing lost a capability.
+   *
+   * It sent a real message and answered {ok} or {ok:false,error} — one bit and
+   * a string. Its only caller was the «Отправить тестовое сообщение» button on
+   * the Магазин card, and that card no longer holds the Telegram credentials;
+   * they are on Настройки → Интеграции with the rest of the keys.
+   *
+   * POST /admin/integrations/telegram/check above is the same send, reported as
+   * frame 24b asks: token stored, chat named, message delivered — each step
+   * with what came back, so «не работает» arrives as a diagnosis rather than as
+   * a shrug. Keeping both would have left one of them wired to nothing, which
+   * is the defect this panel already has too much of.
+   */
 
   /**
    * Record an order taken by hand.

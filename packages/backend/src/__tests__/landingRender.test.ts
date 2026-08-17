@@ -16,6 +16,24 @@
  * handler paints "Заявка принята ✓" and sends nothing — landing/wire.js is what
  * turns that into a row in shop_leads, and a silent regression there looks
  * identical to success from the visitor's side.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * The poll for <x-dc> was already condition-based and stays; what followed it
+ * was not. "Let the first paint flush" was 250 ms here and 400 ms in
+ * renderWith, and the form submit was given a flat 500 — three guesses about
+ * somebody else's machine, deciding whether a review painted from /shop/config
+ * had arrived before anything read the DOM.
+ *
+ * This page is the one case in the directory where the panel harness does not
+ * port whole. It boots with resources: 'usable', so jsdom fetches the runtime
+ * and React itself — requests no counter in this process ever sees — and the
+ * artifact drives its own animation timers, which holding would turn into a
+ * flush loop that can only end in a throw. So the harness is used with
+ * holdTimers off: quiet() here means "the page has no request outstanding",
+ * nothing stronger, and the thing it cannot see is waited for separately with
+ * until(), on the outcome the assertions are about.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -23,6 +41,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import { registerLanding } from '../http/landing';
+import { panelSettle, until, type PanelRequestInit } from './helpers/panelSettle';
 
 let app: FastifyInstance;
 let base: string;
@@ -33,6 +52,8 @@ let posted: Array<Record<string, unknown>>;
 let dom: JSDOM;
 let win: JSDOM['window'];
 let pageErrors: string[];
+/** Resolves when the page has no request outstanding. See the note above. */
+let quiet: (label?: string) => Promise<void>;
 
 beforeAll(async () => {
   app = Fastify({ logger: false });
@@ -79,22 +100,25 @@ beforeAll(async () => {
   });
   win = dom.window;
   // jsdom ships no fetch; wire.js needs one. Forward to the real server so the
-  // POST is genuinely served, and record the body.
-  (win as unknown as { fetch: typeof fetch }).fetch = ((url: string, opts: RequestInit) =>
-    fetch(new URL(url, base), opts)) as typeof fetch;
+  // POST is genuinely served, and record the body — counted on the way through,
+  // so the tests can wait for the page to stop asking instead of guessing.
+  const settle = panelSettle({ holdTimers: false });
+  settle.attach(win as never, (url: string, opts?: PanelRequestInit) =>
+    fetch(new URL(url, base), opts as RequestInit));
+  quiet = settle.quiet;
 
   await new Promise<void>((r) => win.addEventListener('load', () => r(), { once: true }));
 
   // React mounts from the runtime's boot hook, after it has fetched React over
-  // HTTP. Poll for the template being consumed rather than sleeping a fixed
-  // interval: a fixed wait is either slower than it needs to be or, under a
-  // loaded machine running the rest of the suite in parallel, too short.
-  const deadline = Date.now() + 45_000;
-  while (win.document.querySelector('x-dc') && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  // Let the first paint flush before anything reads the DOM.
-  await new Promise((r) => setTimeout(r, 250));
+  // HTTP — through jsdom's own resource loader, which nothing here can count.
+  // So it is waited for by its outcome: <x-dc> is the unrendered template, and
+  // it is gone once the runtime has consumed it.
+  await until(() => !win.document.querySelector('x-dc'),
+    'the runtime never consumed the <x-dc> template');
+  // …and then for the page's own requests — /shop/config, which is what puts
+  // the configured reviews and WhatsApp number on the screen. This was "let the
+  // first paint flush", 250 ms, which is a guess about how long that takes.
+  await quiet('the landing');
 }, 60_000);
 
 afterAll(async () => {
@@ -137,14 +161,13 @@ async function renderWith(
     resources: 'usable',
     pretendToBeVisual: true,
   });
-  (d.window as unknown as { fetch: typeof fetch }).fetch = ((u: string, o: RequestInit) =>
-    fetch(new URL(u, origin), o)) as typeof fetch;
+  const settle = panelSettle({ holdTimers: false });
+  settle.attach(d.window as never, (u: string, o?: PanelRequestInit) =>
+    fetch(new URL(u, origin), o as RequestInit));
   await new Promise<void>((r) => d.window.addEventListener('load', () => r(), { once: true }));
-  const deadline = Date.now() + 45_000;
-  while (d.window.document.querySelector('x-dc') && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  await new Promise((r) => setTimeout(r, 400));
+  await until(() => !d.window.document.querySelector('x-dc'),
+    'the runtime never consumed the <x-dc> template');
+  await settle.quiet('the landing');
 
   return {
     doc: d.window.document as unknown as Document,
@@ -350,7 +373,7 @@ describe('the callback form reaches the backend', () => {
     inputs[0].value = name;
     inputs[1].value = phone;
     form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 500));
+    await quiet('the callback form');
     return form;
   }
 

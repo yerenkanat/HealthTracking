@@ -10,6 +10,20 @@
  * no API test could see: the editor read every field with `.value`, and a
  * checkbox's `.value` is the string "on" — truthy for `medical` AND for
  * `draft`, so every card in the stage became a medical draft.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Seven fixed sleeps — 300 after boot, 300 per tab, 200–250 per action —
+ * decided their verdict on elapsed wall-clock rather than on the work being
+ * finished, so they changed answer under load. The review queue is drawn from
+ * a second request that chains off the tab click, so a window that closed early
+ * read an EMPTY queue, and «an empty queue says why it is empty» would have
+ * passed on it.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for several
+ * consecutive turns, no page timer outstanding, and a throw rather than a
+ * half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -17,6 +31,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -67,6 +82,7 @@ interface Sent { path: string; method: string; body: Record<string, unknown> | n
 
 async function open(role: string, queue: unknown = QUEUE) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const sent: Sent[] = [];
   const vc = new VirtualConsole();
@@ -91,8 +107,8 @@ async function open(role: string, queue: unknown = QUEUE) {
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
       (window as unknown as { confirm: () => boolean }).confirm = () => true;
 
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
           sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });
@@ -103,29 +119,29 @@ async function open(role: string, queue: unknown = QUEUE) {
           : p.includes('/admin/content') ? CATALOG
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 300));
+  await settle.quiet('boot');
   const $ = (sel: string) => window.document.querySelector(sel) as HTMLElement;
   const openTab = async (view: string) => {
     window.document.querySelector(`[data-view="${view}"]`)!
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 300));
+    await settle.quiet(`the ${view} tab`);
   };
-  return { window, errors, sent, $, openTab };
+  return { window, errors, sent, $, openTab, quiet: settle.quiet };
 }
 
 describe('the author marks a card, and it survives the round trip', () => {
   it('shows the medical and draft flags in the state they were saved', async () => {
-    const { window, errors, openTab } = await open('owner');
+    const { window, errors, openTab, quiet } = await open('owner');
     expect(errors, errors.join('\n')).toEqual([]);
     await openTab('content');
     (window.document.querySelector('[data-stage="w23"]') as HTMLElement)
       ?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the w23 stage');
 
     const items = window.document.querySelectorAll('#stageItems .item');
     expect(items.length).toBe(2);
@@ -138,11 +154,11 @@ describe('the author marks a card, and it survives the round trip', () => {
   });
 
   it('says where the card stands with the doctor', async () => {
-    const { window, openTab } = await open('owner');
+    const { window, openTab, quiet } = await open('owner');
     await openTab('content');
     (window.document.querySelector('[data-stage="w23"]') as HTMLElement)
       ?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the w23 stage');
     const items = window.document.querySelectorAll('#stageItems .item');
     expect(items[0].querySelector('.reviewstate')!.textContent).toContain('ждёт проверки');
     // A card nobody marked medical says nothing — a badge on every card would
@@ -154,11 +170,11 @@ describe('the author marks a card, and it survives the round trip', () => {
     // The editor reads every field with `.value`, and a checkbox's value is
     // "on" whether it is ticked or not — which set every card in the stage to
     // a medical draft the first time this was written.
-    const { window, sent, openTab } = await open('owner');
+    const { window, sent, openTab, quiet } = await open('owner');
     await openTab('content');
     (window.document.querySelector('[data-stage="w23"]') as HTMLElement)
       ?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the w23 stage');
 
     // Untick both on the medical card, leave the other alone, and publish.
     const first = window.document.querySelectorAll('#stageItems .item')[0];
@@ -169,7 +185,7 @@ describe('the author marks a card, and it survives the round trip', () => {
     }
     (window.document.querySelector('#saveStage') as HTMLButtonElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 250));
+    await quiet('the publish');
 
     const put = sent.find((r) => r.method === 'PUT' && r.path.includes('/admin/content/w23'));
     expect(put, 'publish is wired to nothing').toBeDefined();
@@ -252,11 +268,11 @@ describe('the clinician finds the work', () => {
   });
 
   it('signing off posts to the review route for that exact card', async () => {
-    const { window, sent, openTab } = await open('clinician');
+    const { window, sent, openTab, quiet } = await open('clinician');
     await openTab('review');
     (window.document.querySelector('[data-approve]') as HTMLElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the sign-off');
 
     const post = sent.find((r) => r.method === 'POST' && r.path.includes('/review'));
     expect(post, 'the approve button is wired to nothing').toBeDefined();

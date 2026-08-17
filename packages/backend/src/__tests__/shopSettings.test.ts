@@ -16,8 +16,14 @@ import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 
 type StaffRole = 'admin' | 'clinician' | 'support';
 
+/** The repository behind the app under test, so a test can look at what was
+ *  really stored rather than at what the API chose to show. Since GET
+ *  /admin/settings redacts every secret, "it came back" is no longer proof that
+ *  "it was kept". */
+let repo: ReturnType<typeof createMemoryRepository>;
+
 function makeApp(role: StaffRole | null) {
-  const repo = createMemoryRepository();
+  repo = createMemoryRepository();
   return buildServer(
     {
       repo,
@@ -97,8 +103,9 @@ describe('shop settings reach the landing', () => {
     // zod strips unknown keys rather than rejecting, so the assertion is that
     // it never reaches storage.
     await save({ googleMapsApiKey: 'AIza-REAL-KEY' } as unknown as Record<string, string>);
-    const all = (await app.inject({ method: 'GET', url: '/admin/settings' })).json();
-    expect(all.settings.googleMapsApiKey).toBeUndefined();
+    // Asserted against storage, not against the response: the response redacts
+    // every secret key now, so an absent field there would prove nothing.
+    expect((await repo.getShopSettings()).googleMapsApiKey).toBeUndefined();
   });
 
   it('leaves untouched keys alone when saving one field', async () => {
@@ -109,9 +116,34 @@ describe('shop settings reach the landing', () => {
     await save({ anthropicApiKey: 'sk-ant-SECRET-VALUE', reviews: REVIEWS });
     await save({ whatsapp: '77015550101' });
 
+    expect((await repo.getShopSettings()).anthropicApiKey).toBe('sk-ant-SECRET-VALUE');
     const all = (await app.inject({ method: 'GET', url: '/admin/settings' })).json();
-    expect(all.settings.anthropicApiKey).toBe('sk-ant-SECRET-VALUE');
     expect(all.settings.reviews).toBe(REVIEWS);
+  });
+
+  it('stops publishing a rating even if one is somehow still in the table', async () => {
+    // PUT no longer accepts `rating`, but a row saved before the field was
+    // withdrawn is still there — nothing was destroyed. It must stay off the
+    // public surface regardless.
+    await repo.setShopSettings({ rating: '4.9', reviewCount: '1240' });
+    const cfg = await config();
+    expect(cfg.rating).toBeUndefined();
+    expect(cfg.reviewCount).toBeUndefined();
+    // …and the admin API still shows them, so the panel can say what became of
+    // them instead of leaving an owner hunting for a box he used to fill in.
+    const all = (await app.inject({ method: 'GET', url: '/admin/settings' })).json();
+    expect(all.settings.rating).toBe('4.9');
+    expect(all.settings.reviewCount).toBe('1240');
+  });
+
+  it('refuses to store a rating sent by an old client, and does not error', async () => {
+    // The same withdrawal `googleMapsApiKey` got: zod strips the unknown key, so
+    // a stale tab still posting one is ignored rather than refused — and the
+    // number never reaches a place somebody could mistake for a fact.
+    expect((await save({ rating: '4.9', reviewCount: '1240' })).statusCode).toBe(200);
+    const stored = await repo.getShopSettings();
+    expect(stored.rating, 'an invented rating was stored again').toBeUndefined();
+    expect(stored.reviewCount).toBeUndefined();
   });
 
   it('refuses a member of staff who is not an admin', async () => {

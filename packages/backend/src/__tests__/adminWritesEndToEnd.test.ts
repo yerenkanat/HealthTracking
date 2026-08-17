@@ -84,15 +84,22 @@ describe('storefront settings', () => {
   it('saves what the form sends and reads it back', async () => {
     const res = await send('PUT', '/admin/settings', {
       whatsapp: '77070000000',
+      kaspiUrl: 'https://kaspi.kz/shop/x',
+      // `rating: '4.8'` and `reviewCount: '37'` used to be here and used to be
+      // asserted as stored. Both are withdrawn: /shop/config never published
+      // either, because nothing in this schema can produce a rating or a review
+      // count, so the only thing saving one ever did was make the panel look
+      // like it worked. An old client still sending them is ignored, not
+      // refused — the same withdrawal googleMapsApiKey got. See
+      // adminSettingsSecrets.test.ts and shopSettings.test.ts.
       rating: '4.8',
-      reviewCount: '37',
     });
     expect(res.statusCode).toBe(200);
 
     const stored = await repo.getShopSettings();
     expect(stored.whatsapp).toBe('77070000000');
-    expect(stored.rating).toBe('4.8');
-    expect(stored.reviewCount).toBe('37');
+    expect(stored.kaspiUrl).toBe('https://kaspi.kz/shop/x');
+    expect(stored.rating, 'an invented rating was stored again').toBeUndefined();
   });
 
   it('reaches the public storefront config, which is the point of saving it', async () => {

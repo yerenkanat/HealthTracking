@@ -21,6 +21,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 import { answerReasonPromptIfShown } from './helpers/reasonPrompt.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -63,6 +64,16 @@ const DEVICES = {
 interface Sent { path: string; method: string; body: unknown }
 interface Fleet {
   window: JSDOM['window'];
+  /**
+   * Resolves when the panel has stopped working, never after a fixed delay.
+   *
+   * Three fixed sleeps stood here — 200 after boot, 400 after the tab, 250 per
+   * row action — each deciding its verdict on elapsed wall-clock rather than on
+   * the work being finished. `text` is snapshotted at the end of the boot, so a
+   * window that closed early froze a half-filled fleet view into every
+   * assertion in this file at once. See helpers/panelSettle.ts.
+   */
+  quiet: (label?: string) => Promise<void>;
   text: string;
   sent: Sent[];
   prompts: string[];
@@ -76,6 +87,7 @@ async function openFleet(opts: {
   failList?: boolean;
 } = {}): Promise<Fleet> {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const sent: Sent[] = [];
   const prompts: string[] = [];
   const confirms: string[] = [];
@@ -110,8 +122,8 @@ async function openFleet(opts: {
         prompts.push(m);
         return opts.promptAnswer === undefined ? 'не заряжается' : opts.promptAnswer;
       };
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
         }
@@ -131,27 +143,26 @@ async function openFleet(opts: {
           ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 }
           : {};
         return { ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(200);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="devices"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(400);
+  await settle.quiet('the Устройства tab');
   const read = () =>
     (window.document.querySelector('section#devices')?.textContent ?? '').replace(/\s+/g, ' ').trim();
-  return { window, text: read(), sent, prompts, confirms, errors };
+  return { window, quiet: settle.quiet, text: read(), sent, prompts, confirms, errors };
 }
 
-/** Click a row action and let the handler finish. */
+/** Click a row action and let the handler finish — actually finish. */
 async function click(f: Fleet, selector: string) {
   const el = f.window.document.querySelector(selector) as HTMLElement | null;
   expect(el, `no ${selector} on the fleet view`).not.toBeNull();
   el!.dispatchEvent(new f.window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 250));
+  await f.quiet(`the click on ${selector}`);
 }
 
 describe('кадр 11 · метрики онлайн', () => {
@@ -316,6 +327,7 @@ const WELLNESS = {
 
 async function openCard(wearable: unknown, ok = true): Promise<{ drawer: string; errors: string[] }> {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
@@ -336,8 +348,8 @@ async function openCard(wearable: unknown, ok = true): Promise<{ drawer: string;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       (window as unknown as { CSS: unknown }).CSS = { escape: (s: string) => String(s).replace(/["\\]/g, '\\$&') };
-      window.fetch = (async (path: string) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string) => {
+        const p = path;
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
         }
@@ -354,21 +366,22 @@ async function openCard(wearable: unknown, ok = true): Promise<{ drawer: string;
           : p.includes('/admin/stats') ? { activeUsers: 1, devicesOnline: 0, alertsToday: 0, ingestLastHour: 0 }
           : {};
         return { ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(200);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="users"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(400);
+  await settle.quiet('the Пользователи tab');
   const row = window.document.querySelector(`#usersBody tr[data-user="${UID}"]`);
   if (!row) throw new Error('no user row rendered');
   row.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(200);
-  await answerReasonPromptIfShown(window);
+  await settle.quiet('the row click');
+  // The shared prompt helper had its own 250 ms sleep; handing it the panel's
+  // completion signal is what removes it. See helpers/reasonPrompt.ts.
+  await answerReasonPromptIfShown(window, undefined, { settled: settle.quiet });
   return {
     drawer: (window.document.querySelector('#drawer')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     errors,

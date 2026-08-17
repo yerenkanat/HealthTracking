@@ -8,6 +8,26 @@
  * panel with an empty database. Staff would sit in front of a back office
  * showing no leads, no orders and no devices, and conclude the business had a
  * quiet day.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Nine fixed sleeps used to stand in for "the panel has finished" — 400 ms
+ * after boot and 150–250 after every click. A wait like that decides its
+ * verdict on elapsed wall-clock rather than on the work being done, so it
+ * changes answer under load, and this file is the worst possible place for
+ * that: every assertion here is about whether the LOGIN GATE is up, and a
+ * screen read mid-boot has the gate up for a reason that has nothing to do
+ * with the session — which is the same wrong conclusion the panel itself used
+ * to draw, one layer up.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for
+ * several consecutive turns, no page timer outstanding, and a throw rather
+ * than a half-drawn screen. See helpers/panelSettle.ts.
+ *
+ * The panel's INTERVALS are deliberately still real. The live poll runs every
+ * twenty seconds and no test waits for it — it is captured and invoked — and
+ * an interval is never part of "finished" anyway.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,6 +35,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -27,10 +48,13 @@ interface Opts {
   expireAfterMe?: boolean;
   /** 401 /admin/me itself — arriving signed out. */
   signedOut?: boolean;
+  /** Slow the transport, to prove the verdict does not depend on the machine. */
+  latencyMs?: number;
 }
 
 async function boot(opts: Opts = {}) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle({ latencyMs: opts.latencyMs });
   const vc = new VirtualConsole();
   const posts: string[] = [];
   /** Request bodies, for asserting what was actually sent. */
@@ -75,8 +99,8 @@ async function boot(opts: Opts = {}) {
         return realSetInterval(fn as never, ms, ...(rest as never[]));
       }) as never;
 
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         if (!init?.method || init.method === 'GET') gets.push(p);
         if (init?.method && init.method !== 'GET') {
           posts.push(p);
@@ -94,13 +118,13 @@ async function boot(opts: Opts = {}) {
         }
         const body = p.includes('/admin/stats') ? STATS : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 400));
-  return { window, posts, bodies, gets, intervals, reloaded, jsdomErrors };
+  await settle.quiet('boot');
+  return { window, posts, bodies, gets, intervals, reloaded, jsdomErrors, quiet: settle.quiet };
 }
 
 const visible = (w: JSDOM['window'], id: string) =>
@@ -132,12 +156,12 @@ describe('the header names the person who signed in', () => {
   });
 
   it('has a way out', async () => {
-    const { window, posts, reloaded } = await boot();
+    const { window, posts, reloaded, quiet } = await boot();
     const btn = window.document.getElementById('logoutBtn') as HTMLButtonElement;
     expect(btn, 'no sign-out control').not.toBeNull();
 
     btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 150));
+    await quiet('the sign-out');
 
     expect(posts.some((p) => p.includes('/admin/logout')), 'nothing was sent').toBe(true);
     // Reloading is what clears the loaded rows, charts and selected user from
@@ -181,13 +205,13 @@ describe('signing in the way a person does', () => {
     // at all — no request, no error, nothing in any server log. That is
     // indistinguishable from "the button does nothing", which is exactly how
     // it was reported.
-    const { window, posts } = await boot({ signedOut: true });
+    const { window, posts, quiet } = await boot({ signedOut: true });
     (window.document.getElementById('loginPhone') as HTMLInputElement).value = '+77073452244';
     (window.document.getElementById('loginPass') as HTMLInputElement).value = 'a-password';
 
     (window.document.getElementById('loginBtn') as HTMLButtonElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 250));
+    await quiet('the sign-in');
 
     expect(posts.some((p) => p.includes('/admin/login')), 'the button sent nothing').toBe(true);
   });
@@ -197,10 +221,10 @@ describe('signing in the way a person does', () => {
     // click that fails it fires no submit event at all. No request, no
     // message, nothing in any log — and the person reporting it can only say
     // "it does not log in", which is true and unfalsifiable.
-    const { window, posts } = await boot({ signedOut: true });
+    const { window, posts, quiet } = await boot({ signedOut: true });
     (window.document.getElementById('loginBtn') as HTMLButtonElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 150));
+    await quiet('the empty sign-in');
 
     expect(posts.some((p) => p.includes('/admin/login')), 'empty fields should not be sent').toBe(false);
     expect(window.document.getElementById('loginErr')!.textContent, 'the button did nothing visible')
@@ -211,12 +235,12 @@ describe('signing in the way a person does', () => {
     // A pasted number often carries a space. A password might legitimately end
     // with one, and eating it silently would make this form disagree with
     // every other place the same password is entered.
-    const { window, posts, bodies } = await boot({ signedOut: true });
+    const { window, posts, bodies, quiet } = await boot({ signedOut: true });
     (window.document.getElementById('loginPhone') as HTMLInputElement).value = '  +7 707 345 22 44 ';
     (window.document.getElementById('loginPass') as HTMLInputElement).value = 'secret ';
     (window.document.getElementById('loginBtn') as HTMLButtonElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the trimmed sign-in');
 
     expect(posts.some((p) => p.includes('/admin/login'))).toBe(true);
     const sent = bodies.find((b) => b.path.includes('/admin/login'))!.body as { phone: string; password: string };
@@ -227,12 +251,12 @@ describe('signing in the way a person does', () => {
   it('the reveal button never submits the form', async () => {
     // A <button> inside a <form> defaults to type="submit". If the eye were
     // left as one, looking at your password would post the form.
-    const { window, posts } = await boot({ signedOut: true });
+    const { window, posts, quiet } = await boot({ signedOut: true });
     expect((window.document.getElementById('loginEye') as HTMLButtonElement).type).toBe('button');
 
     (window.document.getElementById('loginEye') as HTMLButtonElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 150));
+    await quiet('the reveal');
     expect(posts.some((p) => p.includes('/admin/login')), 'the eye submitted the form').toBe(false);
   });
 });
@@ -294,14 +318,14 @@ describe('the live feed in a background tab', () => {
     // The tick is invoked directly. Waiting for it is not an option at a
     // twenty-second interval, and a test that just lets 200ms pass proves
     // nothing: the first version of this passed with the guard removed.
-    const { window, gets, intervals } = await boot();
+    const { window, gets, intervals, quiet } = await boot();
     const tick = liveTicker(intervals);
 
     Object.defineProperty(window.document, 'hidden', { configurable: true, get: () => true });
     const before = emergencyCalls(gets);
     tick.fn();
     tick.fn();
-    await new Promise((r) => setTimeout(r, 150));
+    await quiet('the skipped ticks');
 
     expect(emergencyCalls(gets), 'a hidden tab kept polling').toBe(before);
   });
@@ -309,25 +333,25 @@ describe('the live feed in a background tab', () => {
   it('polls normally while the tab is in front', async () => {
     // The mirror image, and the thing that stops the fix above from being
     // "switch the live feed off".
-    const { window, gets, intervals } = await boot();
+    const { window, gets, intervals, quiet } = await boot();
     const tick = liveTicker(intervals);
 
     Object.defineProperty(window.document, 'hidden', { configurable: true, get: () => false });
     const before = emergencyCalls(gets);
     tick.fn();
-    await new Promise((r) => setTimeout(r, 150));
+    await quiet('the tick');
 
     expect(emergencyCalls(gets), 'a visible tab stopped polling').toBeGreaterThan(before);
   });
 
   it('refreshes the moment you come back to it', async () => {
     // Pausing must not mean stale numbers on the screen you just returned to.
-    const { window, gets } = await boot();
+    const { window, gets, quiet } = await boot();
     Object.defineProperty(window.document, 'hidden', { configurable: true, get: () => false });
 
     const before = emergencyCalls(gets);
     window.document.dispatchEvent(new window.Event('visibilitychange'));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the refresh on return');
 
     expect(emergencyCalls(gets), 'coming back should refresh immediately').toBeGreaterThan(before);
   });

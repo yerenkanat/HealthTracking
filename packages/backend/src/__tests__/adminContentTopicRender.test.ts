@@ -11,6 +11,19 @@
  * Rendered in a browser rather than grepped, because "there is a <select> in
  * the markup" and "a person can choose a topic and publish it" are two
  * different claims.
+ *
+ * ---------------------------------------------------------------------------
+ * WAITING
+ *
+ * Five fixed sleeps — 250 after boot, 250 after the tab, 200 after the stage,
+ * 200 after each publish — decided their verdict on elapsed wall-clock rather
+ * than on the work being finished. An editor row that has not drawn has no
+ * [data-f="topic"] at all, so a window that closed early failed here with
+ * "no way to file a card under a topic" over a panel that was merely slow.
+ *
+ * They are all quiet() now: no request in flight, none newly issued for several
+ * consecutive turns, no page timer outstanding, and a throw rather than a
+ * half-drawn screen. See helpers/panelSettle.ts.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -18,6 +31,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -39,6 +53,7 @@ function catalogWith(items: Array<Record<string, unknown>>) {
 
 async function openStage(items: Array<Record<string, unknown>>) {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const sent: Array<{ path: string; method: string; body?: string }> = [];
   const vc = new VirtualConsole();
@@ -66,28 +81,28 @@ async function openStage(items: Array<Record<string, unknown>>) {
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
 
-      window.fetch = (async (path: string, init?: RequestInit) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
+        const p = path;
         sent.push({ path: p, method: init?.method ?? 'GET', body: init?.body as string });
         const body =
           p.includes('/admin/me') ? { staffId: 's1', role: 'owner', displayName: 'Ерен' }
           : p.includes('/admin/content') ? catalogWith(items)
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="content"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('the Контент tab');
   const cell = window.document.querySelector('[data-stage="m7"]') as HTMLElement | null;
   cell?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('the m7 stage');
 
-  return { window, errors, sent };
+  return { window, errors, sent, quiet: settle.quiet };
 }
 
 describe('choosing which shelf a guide goes on', () => {
@@ -116,7 +131,7 @@ describe('choosing which shelf a guide goes on', () => {
     // The whole risk. readDraftFromDom rebuilds each item from the DOM, and a
     // field it does not read is erased on every save — silently, because the
     // request still succeeds.
-    const { window, sent } = await openStage([UNTAGGED]);
+    const { window, sent, quiet } = await openStage([UNTAGGED]);
     const select = window.document.querySelector(
       '#stageItems [data-f="topic"]',
     ) as HTMLSelectElement;
@@ -125,7 +140,7 @@ describe('choosing which shelf a guide goes on', () => {
 
     (window.document.querySelector('#saveStage') as HTMLButtonElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the publish');
 
     const put = sent.find((r) => r.method === 'PUT' && r.path.includes('/admin/content/m7'));
     expect(put, 'nothing was published').toBeTruthy();
@@ -133,7 +148,7 @@ describe('choosing which shelf a guide goes on', () => {
   });
 
   it('an already-tagged card keeps its topic through a publish that changes nothing else', async () => {
-    const { window, sent } = await openStage([{ ...UNTAGGED, topic: 'child' }]);
+    const { window, sent, quiet } = await openStage([{ ...UNTAGGED, topic: 'child' }]);
     const select = window.document.querySelector(
       '#stageItems [data-f="topic"]',
     ) as HTMLSelectElement;
@@ -141,7 +156,7 @@ describe('choosing which shelf a guide goes on', () => {
 
     (window.document.querySelector('#saveStage') as HTMLButtonElement)
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 200));
+    await quiet('the publish');
 
     const put = sent.find((r) => r.method === 'PUT' && r.path.includes('/admin/content/m7'));
     expect(JSON.parse(put!.body!).items[0].topic).toBe('child');

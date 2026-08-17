@@ -20,11 +20,20 @@
  * with two sources for its size is how the two came to disagree.
  */
 
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -67,6 +76,8 @@ async function render(leadsBody: unknown, withSummary = false): Promise<Page> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true,
     url: 'http://localhost/admin/ui', virtualConsole: vc,
@@ -79,7 +90,7 @@ async function render(leadsBody: unknown, withSummary = false): Promise<Page> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
@@ -95,21 +106,20 @@ async function render(leadsBody: unknown, withSummary = false): Promise<Page> {
               : null;
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(150);
+  await settle.quiet();
   if (withSummary) {
     window.document.querySelector('[data-view="overview"]')!
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await wait(200);
+    await settle.quiet();
   }
   window.document.querySelector('[data-view="shop"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(250);
+  await settle.quiet();
 
   return {
     errors,

@@ -11,11 +11,20 @@
  * These pin the recovery, not the cause: whatever breaks, the operator gets
  * words and two buttons.
  */
+/**
+ * WAITING — the fixed sleeps that used to stand in for "the panel has finished"
+ * are gone. quiet() returns when no request is in flight, none has been issued
+ * for several consecutive turns and the page has no timer outstanding, and it
+ * THROWS rather than hand a half-drawn screen to an assertion. A wall-clock
+ * wait decides its verdict on how busy the machine is; this one decides it on
+ * the work being done. See helpers/panelSettle.ts.
+ */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -50,6 +59,8 @@ async function bootWith(failOn: string): Promise<Booted> {
   vc.on('error', () => {});
   let loggedOut = 0;
 
+  const settle = panelSettle();
+
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true,
     url: 'http://localhost/admin', virtualConsole: vc,
@@ -66,7 +77,7 @@ async function bootWith(failOn: string): Promise<Booted> {
       // the reload INTENT is not observable here. The logout request is, and
       // the buttons' presence is — those are what this file asserts, rather
       // than a stub of navigation that would only be testing itself.
-      window.fetch = (async (path: string, opts?: { method?: string }) => {
+      settle.attach(window as never, async (path: string, opts?: { method?: string }) => {
         const p = String(path);
         if (p.includes('/admin/logout')) {
           loggedOut++;
@@ -103,13 +114,12 @@ async function bootWith(failOn: string): Promise<Booted> {
           };
         }
         return { ok: true, status: 200, json: async () => ({}) };
-      }) as never;
+      });
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
     },
   });
   const { window } = dom;
-  const settle = () => new Promise((r) => setTimeout(r, 200));
-  await settle();
+  await settle.quiet();
   const d = window.document;
   return {
     hidden: (id) => !!d.getElementById(id)?.hasAttribute('hidden'),
@@ -118,7 +128,7 @@ async function bootWith(failOn: string): Promise<Booted> {
     get loggedOut() { return loggedOut; },
     click: async (sel) => {
       d.querySelector(sel)!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-      await settle();
+      await settle.quiet();
     },
   };
 }

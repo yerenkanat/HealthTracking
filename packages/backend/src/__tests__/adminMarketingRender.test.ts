@@ -16,6 +16,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -49,6 +50,15 @@ function listBody(broadcasts: unknown[]) {
 }
 
 interface Rendered {
+  /**
+   * Resolves when the panel has stopped working, never after a fixed delay.
+   *
+   * One of the waits it replaces was load-bearing: the broadcast head-count is
+   * debounced by 120 ms in the panel (bcCountTimer), and the 20 ms sleep after
+   * typing returned before that timer had fired. The harness holds the page's
+   * timers and runs the outstanding one once the request channel is calm.
+   */
+  quiet: (label?: string) => Promise<void>;
   text(sel: string): string;
   count(sel: string): number;
   errors: string[];
@@ -71,6 +81,7 @@ interface BootOpts {
 
 async function boot(opts: BootOpts = {}): Promise<Rendered> {
   const html = readFileSync(PANEL, 'utf8');
+  const settle = panelSettle();
   const errors: string[] = [];
   const sent: Rendered['sent'] = [];
   const vc = new VirtualConsole();
@@ -92,7 +103,7 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
       window.scrollTo = () => {};
       window.confirm = () => opts.confirm !== false;
       (window as unknown as { CSS: { escape: (s: string) => string } }).CSS = { escape: (s) => s };
-      window.fetch = (async (path: string, init?: { method?: string; body?: string }) => {
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
         const p = String(path);
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
@@ -126,14 +137,15 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
           return ok(listBody(opts.broadcasts ?? [PUBLISHED, HALF_TRANSLATED]));
         }
         return { ok: false, status: 500, text: async () => '{}', json: async () => ({}) };
-      }) as never;
+      });
     },
   });
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 120));
+  await settle.quiet('boot');
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (sel) => window.document.querySelectorAll(sel).length,
+    quiet: settle.quiet,
     errors,
     sent,
     window,
@@ -142,7 +154,7 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
 
 async function click(page: Rendered, sel: string) {
   page.window.document.querySelector(sel)!.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 120));
+  await page.quiet(`the click on ${sel}`);
 }
 
 /** Type, and fire the event the panel actually listens for. */
@@ -150,7 +162,10 @@ async function type(page: Rendered, sel: string, value: string) {
   const el = page.window.document.querySelector(sel) as HTMLInputElement;
   el.value = value;
   el.dispatchEvent(new page.window.Event('input', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 20));
+  // The broadcast head-count is debounced by 120 ms in the panel
+  // (bcCountTimer). quiet() runs that timer rather than outsleeping it — a
+  // 20 ms wait here returned before it had even been scheduled to fire.
+  await page.quiet(`the typing into ${sel}`);
 }
 
 /** See adminPregWeeksRender: `hidden` plus "is this the open tab". */
@@ -304,7 +319,7 @@ describe('the recipient count comes from the server', () => {
     const sel = page.window.document.querySelector('#bcAudience') as HTMLSelectElement;
     sel.value = 'infants';
     sel.dispatchEvent(new page.window.Event('change', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 250));
+    await page.quiet('the audience change');
 
     expect(seen.length, 'the browser answered the head-count itself').toBeGreaterThan(0);
     expect(decodeURIComponent(seen[0])).toContain('"audience":"infants"');
