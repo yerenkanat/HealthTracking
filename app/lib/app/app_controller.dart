@@ -352,7 +352,28 @@ class AppController {
   /// user completed onboarding previously, they skip straight into the app.
   Future<void> restore() async {
     final cfg = await _persistStore?.load();
-    if (cfg == null || !cfg.onboarded) return;
+    if (cfg == null) return;
+    // The LANGUAGE survives an unfinished onboarding, even though nothing else
+    // does.
+    //
+    // A woman picks «Қазақша» on step 2, gets a phone call on step 4, and comes
+    // back to a Russian app — because `setLocale` persisted her choice and this
+    // method threw it away one line later, on the grounds that she had not
+    // finished. Found by running the app; no test saw it, because no test
+    // relaunches a half-finished onboarding.
+    //
+    // A language is a device preference, not onboarding data. It is the one
+    // field here that is true about her before she has told us anything else,
+    // and the one whose loss makes the app unreadable rather than merely empty.
+    //
+    // Deliberately narrow: name, phone and due date still require a completed
+    // onboarding, because resuming a partial signup is a design question about
+    // what she is shown on return, and this is not that change.
+    if (!cfg.onboarded) {
+      _locale = cfg.locale;
+      _notify();
+      return;
+    }
     _applyConfig(cfg);
     // Write back if the load MIGRATED anything.
     //
