@@ -913,8 +913,20 @@
  */
 .stafform > *{min-width:0;max-width:100%}
 /* textarea was missing from this list, so #recvSerials inherited none of the
- * panel's field styling and sat in the row as an unstyled browser default. */
-.stafform input,.stafform select,.stafform textarea{font:inherit;padding:10px 12px;border-radius:10px;
+ * panel's field styling and sat in the row as an unstyled browser default.
+ *
+ * A CHECKBOX IS NOT A TEXT FIELD, and this rule was written for text fields.
+ * Unqualified, `flex:1 1 180px` + `width:100%` (below) also caught
+ * <input type=checkbox>, and «Только черновик» in «Заказ поставщику» became a
+ * 140px-wide checkbox that overflowed its own label: the label's border box
+ * ended at x=855, the checkbox at 859, and the text node after it ran to 932 on
+ * a 900px viewport. That text node WAS the page's whole horizontal scroll, and
+ * no scan of element rectangles could see it — every element's right edge was
+ * inside the viewport, because a block's rect is its border box and says
+ * nothing about the line spilling out of it. Measured in real Chrome with
+ * tools/ui-audit-run.cjs; jsdom reports every width as zero and passed it. */
+.stafform input:not([type=checkbox]):not([type=radio]),
+.stafform select,.stafform textarea{font:inherit;padding:10px 12px;border-radius:10px;
   border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);min-height:44px;flex:1 1 180px}
 .stafform input:focus,.stafform select:focus,.stafform textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
 .stafform .btn{min-height:44px;flex:0 0 auto}
@@ -924,6 +936,17 @@
 .stafform label{display:flex;flex-direction:column;gap:4px;flex:1 1 180px;min-width:0;
   font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
 .stafform label > select,.stafform label > input{flex:0 0 auto;width:100%}
+/* Its natural size, and no stretching. Specificity here (0,2,1) outranks the
+ * `width:100%` above (0,1,2) whichever order they are read in, so a checkbox
+ * cannot be widened by the rule meant for the box you type a supplier price
+ * into. The 44px touch target moves to the label, which is what a person
+ * actually clicks — and min-height costs no width, unlike the min-width:
+ * max-content tried before it, which made the page WIDER (982 > 900) by
+ * refusing to let an already-overfull row give anything back. */
+.stafform input[type=checkbox],.stafform input[type=radio]{
+  flex:0 0 auto;width:18px;height:18px;min-height:0;margin:0;accent-color:var(--accent)}
+.stafform label:has(> input[type=checkbox]),
+.stafform label:has(> input[type=radio]){min-height:44px}
 .formmsg{font-size:13px;min-height:18px;margin-top:8px;color:var(--muted)}
 /* The link check. Grid-column 1/-1 so it spans the form rather than sitting in
    a field slot; the thumbnail is fixed-size so a slow image cannot reflow the
@@ -1270,7 +1293,7 @@
           <div>
             <b>Оповещения не настроены</b>
             <div class="sub">Сайт проверяется автоматически, но сообщить о сбое некому.
-              Укажите Telegram-бота в <span class="link" data-view="shop">Магазин → Настройки</span>.</div>
+              Укажите Telegram-бота в <span class="link" data-view="integrations">Настройки → Интеграции</span>.</div>
           </div>
         </div>
         <!-- The business, top to bottom: how many people, who they are, what
@@ -2261,7 +2284,53 @@
           <div id="intBody"><div style="color:var(--muted);padding:16px 0">Загрузка…</div></div>
           <div class="note">
             Ключи здесь не показываются целиком — только последние четыре знака,
-            чтобы отличить один ключ от другого. Менять их — на вкладке «Магазин → Настройки и ключи».
+            чтобы отличить один ключ от другого. Менять их — в карточке «Ключи и доступы» ниже.
+            Номер WhatsApp и ссылка Kaspi правятся в «Продажи → Магазин»: это не доступы,
+            а то, что напечатано на витрине.
+          </div>
+        </div>
+
+        <!-- КАДР 24a · Настроить.
+             The keys themselves, on the screen the spec puts them on. They used
+             to live in «Магазин → Настройки и ключи» beside the WhatsApp number
+             and a rating box — a storefront card holding server credentials.
+
+             THE MASK IS NOT DECORATION. GET /admin/settings no longer returns
+             either secret, so these two boxes start EMPTY and empty means «не
+             менять». That is the only shape that is safe: a box pre-filled with
+             ••••7f2a would be posted back verbatim by the next save and would
+             overwrite the real key with bullet characters, silently. The server
+             refuses such a value as well — see looksMasked() — so neither side
+             can do it alone. -->
+        <div class="card" id="intKeysCard" data-cap="staff" style="margin-top:14px">
+          <div class="sec-h"><h3>Ключи и доступы</h3>
+            <span class="sub">Сохранённый ключ виден как ••••7f2a — целиком он не показывается никому</span></div>
+          <div id="intKeysState"><div style="color:var(--muted);padding:12px 0">Загрузка…</div></div>
+          <div class="audioadd" id="intKeysForm" hidden>
+            <label>Anthropic API key<input type="password" id="intAnthropic" placeholder="новый ключ sk-ant-… (пусто — не менять)" autocomplete="off"></label>
+            <label>Telegram bot token<input type="password" id="intTgToken" placeholder="новый токен 123456:ABC-DEF… (пусто — не менять)" autocomplete="off"></label>
+            <label>Telegram chat ID<input type="text" id="intTgChat" placeholder="-1001234567890" autocomplete="off"></label>
+            <button class="btn" id="intKeysSave" type="button">Сохранить</button>
+          </div>
+          <div class="t" id="intKeysHelp" hidden style="margin-top:10px">
+            Заявки с сайта приходят в Telegram. Создайте бота у @BotFather, добавьте его
+            в рабочую группу и вставьте токен и ID чата. Пока они пустые, о новой заявке
+            никто не узнаёт — её видно только в разделе «Заявки».
+            Проверить, что связь действительно есть, — кнопкой «Проверить» в строке
+            «Telegram — заявки» выше: она отправляет в чат настоящее сообщение,
+            а не сверяет настройки.
+          </div>
+          <!-- Удаление ключа необратимо и ломает то, что на нём держится, —
+               поэтому кнопки появляются только когда ключ вправду сохранён, и
+               каждая спрашивает. -->
+          <div class="t" id="intKeysDanger" hidden style="margin-top:10px">
+            <button class="btn" id="intClearAnthropic" type="button" hidden>Удалить ключ Anthropic</button>
+            <button class="btn" id="intClearTgToken" type="button" hidden>Удалить токен бота</button>
+          </div>
+          <div class="audiomsg" id="intKeysMsg"></div>
+          <div class="note">
+            Ключ применяется к следующим запросам сервера; часть из них читает его
+            при старте, поэтому после замены сервер лучше перезапустить.
           </div>
         </div>
       </section>
@@ -2699,33 +2768,40 @@
 
       <section class="view" id="shop">
         <!-- data-cap="staff": GET and PUT /admin/settings are both guarded by
-             `staff` on the server, because the response carries the Anthropic
-             key and the Telegram bot token. This card carried no capability at
-             all, so an operator saw seven empty boxes and a Сохранить button
-             and read the 403 as a broken screen. -->
+             `staff` on the server. This card carried no capability at all, so an
+             operator saw empty boxes and a Сохранить button and read the 403 as
+             a broken screen.
+
+             ЧТО ЗДЕСЬ ОСТАЛОСЬ И ПОЧЕМУ. Витрина, а не доступы. Номер WhatsApp,
+             ссылка Kaspi и отзывы печатаются на публичной странице: их правит
+             тот, кто отвечает за магазин, и /shop/config их публикует. Ключи —
+             Anthropic, токен бота и чат Telegram — не витрина, а учётные данные
+             сервера; они переехали в «Настройки → Интеграции» (кадр 24a), где
+             спецификация их и держит, рядом с состоянием каждого сервиса и
+             проверкой связи. Граница проведена по «видит ли это посетитель», а
+             не по тому, что лежало в одной карточке. -->
         <div class="card" id="shopStoreCard" data-cap="staff" style="margin-bottom:16px">
-          <div class="sec-h"><h3>Настройки и ключи</h3><span class="sub">WhatsApp и Kaspi показываются на лендинге · API-ключи используются на сервере</span></div>
+          <div class="sec-h"><h3>Настройки витрины</h3><span class="sub">WhatsApp, Kaspi и отзывы — то, что видит посетитель · ключи и токены на вкладке «Интеграции»</span></div>
           <div class="audioadd">
             <label>WhatsApp для заказов<input type="tel" id="setWhatsapp" placeholder="+7 700 123 45 67" autocomplete="off"></label>
             <label>Ссылка Kaspi<input type="url" id="setKaspi" placeholder="https://kaspi.kz/shop/…" autocomplete="off"></label>
-            <label>Anthropic API key<input type="password" id="setAnthropic" placeholder="sk-ant-…" autocomplete="off"></label>
-            <label>Рейтинг (напр. 4.9)<input type="text" id="setRating" placeholder="4.9" autocomplete="off"></label>
-            <label>Кол-во отзывов<input type="text" id="setRcount" placeholder="1240" autocomplete="off"></label>
-            <label>Telegram bot token<input type="password" id="setTgToken" placeholder="123456:ABC-DEF…" autocomplete="off"></label>
-            <label>Telegram chat ID<input type="text" id="setTgChat" placeholder="-1001234567890" autocomplete="off"></label>
             <button class="btn" id="setSave">Сохранить</button>
           </div>
           <div class="t" style="margin-top:10px">
-            Ключ Google Maps сюда не вводится: он вшивается в приложение при сборке
-            (переменная GOOGLE_MAPS_API_KEY, см. android/app/build.gradle.kts). Поле было
-            здесь раньше, но ни на что не влияло — карта оставалась пустой.
+            Ключей здесь больше нет. Anthropic API key, токен бота Telegram и ID чата
+            перенесены в «Настройки → Интеграции»: там же видно, что подключено, что
+            сломано и что из-за этого не работает, и там же кнопка «Проверить» —
+            настоящая отправка в чат.
+            <!-- data-view, not an onclick: the global handler in go() already
+                 routes every [data-view] click, so this cannot drift out of
+                 step with the sidebar. -->
+            <button class="btn" id="setToInt" type="button" data-view="integrations" style="margin-top:8px">Открыть «Интеграции»</button>
           </div>
-          <div class="t" style="margin-top:10px">
-            Заявки с сайта приходят в Telegram. Создайте бота у @BotFather, добавьте его в рабочую группу
-            и вставьте токен и ID чата. Пока поля пустые, о новой заявке никто не узнаёт —
-            её видно только здесь, в разделе «Заявки».
-            <button class="btn" id="setTgTest" style="margin-top:8px">Отправить тестовое сообщение</button>
-          </div>
+          <!-- Два поля, которые ничего не делали. Их не чинят, их убирают — ровно
+               так же, как поле Google Maps: оно тоже сохранялось и ни на что не
+               влияло. Строка ниже появляется, только если в базе действительно
+               что-то лежит, и говорит, что с этим стало. -->
+          <div class="t" id="setDeadFields" hidden style="margin-top:10px"></div>
           <label style="display:block;margin-top:12px;font-weight:600;font-size:13px;color:var(--muted)">Отзывы — JSON-массив [{"name","city","text","stars"}]. Необязательные "text_kz" и "city_kz" показываются посетителям на казахском; без них они увидят русский текст. Пусто — на сайте останутся отзывы, написанные при вёрстке.
             <textarea id="setReviews" rows="5" placeholder='[{"name":"Айгерім","city":"Алматы","city_kz":"Алматы, екі бала","text":"Очень понравилось, говорит по-казахски!","text_kz":"Өте ұнады, қазақша сөйлейді!","stars":5}]' style="width:100%;margin-top:6px;background:var(--surface-2);border:1px solid var(--hair);border-radius:9px;padding:9px 11px;color:var(--ink);font-family:ui-monospace,monospace;font-size:12px"></textarea>
           </label>
@@ -6963,28 +7039,36 @@
       const {settings}=await api("/admin/settings");
       $("setWhatsapp").value=settings.whatsapp||"";
       $("setKaspi").value=settings.kaspiUrl||"";
-      $("setAnthropic").value=settings.anthropicApiKey||"";
-      $("setRating").value=settings.rating||"";
-      $("setRcount").value=settings.reviewCount||"";
       $("setReviews").value=settings.reviews||"";
-      $("setTgToken").value=settings.telegramBotToken||"";
-      $("setTgChat").value=settings.telegramChatId||"";
+      // Что стало с «Рейтинг» и «Кол-во отзывов».
+      //
+      // Полей больше нет: /shop/config их не публикует и не будет — в схеме
+      // нет ни таблицы оценок, ни отзывов на заказ, поэтому любое число здесь
+      // было бы выдумано, а прочитано как факт. Но если владелец когда-то
+      // ввёл 4.9, строка в базе осталась, и молчать об этом нельзя: он ищет
+      // поле, которое сам заполнял. Показываем ровно то, что лежит, и что с
+      // этим стало. Ничего не удаляем — сервер их просто больше не принимает.
+      const dead=[
+        settings.rating?`рейтинг «${settings.rating}»`:"",
+        settings.reviewCount?`кол-во отзывов «${settings.reviewCount}»`:"",
+      ].filter(Boolean);
+      const df=$("setDeadFields");
+      if(dead.length){
+        df.hidden=false;
+        df.textContent=
+          "Поля «Рейтинг» и «Кол-во отзывов» убраны: витрина их не показывала и не будет — "+
+          "ни рейтинг, ни число отзывов в этой базе неоткуда взять, а придуманную цифру "+
+          "посетитель прочитает как факт. В базе осталось: "+dead.join(", ")+". "+
+          "Эти строки не удалены и никуда не попадают; сервер их больше не принимает.";
+      }else{
+        df.hidden=true; df.textContent="";
+      }
       loaded=true;
     }catch(e){
       msg.textContent="Не удалось загрузить настройки. Сохранение отключено, "+
         "чтобы не стереть то, что уже записано. Обновите страницу.";
       $("setSave").disabled=true;
     }
-    // Sends a real message through the saved token, so "сохранено" is not
-    // mistaken for "работает". A token with a stray space looks identical in
-    // the box and silently drops every lead.
-    $("setTgTest").onclick=async()=>{
-      msg.textContent="Отправляем…";
-      try{
-        const r=await apiSend("/admin/settings/test-telegram","POST",{});
-        msg.textContent=r&&r.ok?"Отправлено — проверьте чат.":("Не дошло: "+((r&&r.error)||"неизвестная ошибка"));
-      }catch(e){ msg.textContent="Не дошло: "+e.message; }
-    };
     const save=$("setSave");
     save.onclick=async()=>{
       // Belt as well as braces: the button is disabled above when the load
@@ -6999,14 +7083,14 @@
       const rv=$("setReviews").value.trim();
       if(rv){ try{ JSON.parse(rv); }catch(e){ msg.textContent="Отзывы: неверный JSON."; save.disabled=false; return; } }
       try{
+        // Только витрина. Ключи сюда больше не отправляются — не потому, что
+        // их некуда положить, а потому что этой форме их и не показывают:
+        // отправив то, чего она не знает, она бы их стёрла.
         await apiSend("/admin/settings","PUT",{
-          whatsapp:$("setWhatsapp").value, kaspiUrl:$("setKaspi").value,
-          anthropicApiKey:$("setAnthropic").value,
-          rating:$("setRating").value, reviewCount:$("setRcount").value, reviews:rv,
-          telegramBotToken:$("setTgToken").value, telegramChatId:$("setTgChat").value
+          whatsapp:$("setWhatsapp").value, kaspiUrl:$("setKaspi").value, reviews:rv
         });
-        msg.textContent="Сохранено. Ключи API применятся после перезапуска сервера.";
-      }catch(e){ msg.textContent="Не удалось сохранить."; }
+        msg.textContent="Сохранено. Витрина обновится сразу.";
+      }catch(e){ msg.textContent="Не удалось сохранить: "+((e&&e.message)||"нет связи с сервером")+"."; }
       save.disabled=false;
     };
   }
@@ -12763,6 +12847,123 @@
       : "Связь не подтвердилась: смотрите первый шаг с ✕";
   }
 
+  // ---- КАДР 24a · Настроить — ключи и доступы ----------------------------
+  //
+  // Where the Anthropic key and the Telegram credentials are actually edited.
+  // They used to be seven boxes on «Магазин → Настройки и ключи», beside the
+  // WhatsApp number and a rating field, and the key came back from the server
+  // in plaintext and sat in an <input> on that screen.
+  //
+  // TWO RULES HOLD THIS TOGETHER.
+  //
+  // 1. A secret box starts EMPTY, and empty means «не менять». It cannot start
+  //    filled: the server sends only ••••7f2a, and a form that posts back what
+  //    it was given would write bullet characters over a live key on the next
+  //    save — for an edit to the chat id, say — report «Сохранено», and leave
+  //    nothing behind saying the key was lost. PUT /admin/settings refuses a
+  //    masked value as well, so neither half can do it alone.
+  // 2. Nothing is saved from an unknown baseline. If the read failed, the form
+  //    is not drawn at all and the failure is named — a blank form here reads
+  //    as «ничего не настроено», which is how somebody retypes a key that was
+  //    already right, or wipes one that was.
+  let intKeysLoaded = false;
+
+  async function loadIntegrationKeys() {
+    const state = $("#intKeysState");
+    if (!state) return;
+    const form = $("#intKeysForm"), help = $("#intKeysHelp"), danger = $("#intKeysDanger");
+    const msg = $("#intKeysMsg");
+    let b;
+    try {
+      b = await api("/admin/settings");
+    } catch (e) {
+      intKeysLoaded = false;
+      form.hidden = true; help.hidden = true; danger.hidden = true;
+      msg.textContent = "";
+      state.innerHTML = `<div class="note">${esc(failText(e, "Ключи и доступы"))}
+        Форма не показана намеренно: пока неизвестно, что уже сохранено, любое
+        сохранение может стереть рабочий ключ.</div>`;
+      return;
+    }
+    intKeysLoaded = true;
+    const secrets = b.secrets || {};
+    const a = secrets.anthropicApiKey || { stored: false, mask: null };
+    const t = secrets.telegramBotToken || { stored: false, mask: null };
+    const cfg = b.settings || {};
+
+    // Что за ключ сейчас в силе — а не что кто-то когда-то ввёл. Переменная
+    // окружения важнее сохранённого в панели (index.ts подставляет панельный
+    // ключ только когда переменной нет), и на экране должно стоять то, чем
+    // сервер действительно пользуется.
+    const aNow = a.source === "env"
+      ? `<b style="font-family:var(--mono)">${esc(a.envMask || "")}</b> — из переменных окружения${
+          a.stored ? `; сохранённый в панели ${esc(a.mask)} сейчас НЕ используется` : ""}`
+      : a.stored
+        ? `<b style="font-family:var(--mono)">${esc(a.mask)}</b> — из панели, применяется после перезапуска сервера`
+        : `<span style="color:var(--crit-text)">не сохранён: ассистент не отвечает, фото анализов не распознаются</span>`;
+    const tNow = t.stored
+      ? `<b style="font-family:var(--mono)">${esc(t.mask)}</b>${
+          (cfg.telegramChatId || "").trim() ? "" : ` <span style="color:var(--warn-text)">— чат не указан, сообщение слать некуда</span>`}`
+      : `<span style="color:var(--crit-text)">не сохранён: о новой заявке никто не узнает</span>`;
+
+    state.innerHTML = `<table><thead><tr>
+        <th>Ключ</th><th>Что сейчас записано</th>
+      </tr></thead><tbody>
+        <tr><td><b>Anthropic API key</b><div class="sub">Ответы ассистента и распознавание фото анализов</div></td><td>${aNow}</td></tr>
+        <tr><td><b>Telegram bot token</b><div class="sub">Куда падает уведомление о новой заявке</div></td><td>${tNow}</td></tr>
+      </tbody></table>
+      <div class="note">Последние четыре знака — это всё, что показывается: их хватает,
+        чтобы отличить один ключ от другого и сверить с кабинетом Anthropic, и не хватает,
+        чтобы им воспользоваться.</div>`;
+
+    form.hidden = false; help.hidden = false;
+    // Пустые поля — «не менять». Заполнять их маской нельзя: она уехала бы
+    // обратно на сервер как новое значение.
+    $("#intAnthropic").value = "";
+    $("#intTgToken").value = "";
+    // Chat id — не секрет: он печатается в диагностике кадра 24b и в самой
+    // таблице выше, поэтому показывается целиком и правится как обычное поле.
+    $("#intTgChat").value = cfg.telegramChatId || "";
+
+    danger.hidden = !(a.stored || t.stored);
+    $("#intClearAnthropic").hidden = !a.stored;
+    $("#intClearTgToken").hidden = !t.stored;
+  }
+
+  /** Одна отправка PUT с разбором ответа — «отправлено» это не «сохранено». */
+  async function intKeysPut(patch, okText) {
+    const msg = $("#intKeysMsg"), save = $("#intKeysSave");
+    if (!intKeysLoaded) {
+      msg.textContent = "Настройки не загрузились — сохранять нельзя, обновите страницу.";
+      return false;
+    }
+    msg.textContent = "Сохранение…"; save.disabled = true;
+    let r;
+    try {
+      r = await api("/admin/settings", { method: "PUT", body: JSON.stringify(patch) });
+    } catch (e) {
+      // Что именно не получилось, а не «что-то пошло не так».
+      msg.textContent = isDenied(e)
+        ? "Не сохранено: у вашей роли нет права менять ключи."
+        : "Не сохранено: " + ((e && e.message) || "нет связи с сервером") + ". Ключи остались прежними.";
+      save.disabled = false;
+      return false;
+    }
+    save.disabled = false;
+    // Сервер отвечает, что он на самом деле записал. Если он отказался писать
+    // замаскированное значение — говорим об этом, а не рисуем галочку.
+    const written = (r && r.written) || [];
+    const kept = (r && r.keptUnchanged) || [];
+    msg.textContent = okText
+      + (written.length ? ` Записано: ${written.length}.` : " Записывать было нечего.")
+      + (kept.length ? " Ключ прислан в замаскированном виде и оставлен прежним." : "");
+    // Перечитываем и таблицу состояний, и маски: иначе экран продолжит
+    // показывать прежний ••••, и непонятно, применилось ли что-нибудь.
+    await loadIntegrationKeys();
+    await loadIntegrations();
+    return true;
+  }
+
   {
     const bindI = (sel, fn) => { const el = $(sel); if (el) el.addEventListener("click", fn); };
     const closeCheck = () => { $("#intCheck").hidden = true; };
@@ -12774,6 +12975,40 @@
     if (iv) iv.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-check]");
       if (b) intRunCheck(b.dataset.check);
+    });
+
+    bindI("#intKeysSave", async () => {
+      const msg = $("#intKeysMsg");
+      const patch = {};
+      // Только непустое. Пустое поле значит «не трогать», и отправить из него
+      // "" — это стереть ключ, о чём никто не просил.
+      const a = $("#intAnthropic").value.trim();
+      const t = $("#intTgToken").value.trim();
+      if (a) patch.anthropicApiKey = a;
+      if (t) patch.telegramBotToken = t;
+      // Chat id — обычное поле: его видно целиком, поэтому пустое значение
+      // здесь означает именно «пусто», и отправляется как есть.
+      patch.telegramChatId = $("#intTgChat").value.trim();
+      if (await intKeysPut(patch, "Сохранено.")) {
+        if (a || t) msg.textContent += " Новый ключ вступит в силу после перезапуска сервера.";
+      }
+    });
+
+    // Удаление ключа необратимо и ломает то, что на нём держится, — поэтому
+    // спрашиваем, и спрашиваем ПОСЛЕДСТВИЕМ, а не «вы уверены?».
+    bindI("#intClearAnthropic", () => {
+      if (!window.confirm(
+        "Удалить сохранённый ключ Anthropic?\n\n" +
+        "Ассистент перестанет отвечать, а фото анализов — распознаваться, " +
+        "как только сервер перезапустится. Восстановить можно только новым ключом из кабинета Anthropic.")) return;
+      intKeysPut({ anthropicApiKey: "" }, "Ключ Anthropic удалён.");
+    });
+    bindI("#intClearTgToken", () => {
+      if (!window.confirm(
+        "Удалить токен бота Telegram?\n\n" +
+        "О новой заявке с сайта больше никто не узнает — её будет видно только " +
+        "в разделе «Заявки», если туда кто-нибудь зайдёт.")) return;
+      intKeysPut({ telegramBotToken: "" }, "Токен бота удалён.");
     });
   }
 
@@ -13313,7 +13548,10 @@
     // The alias is kept because a bookmarked #safety still resolves through it.
     if (v === "emergencies" || v === "safety") loadSafety();
     if (v === "catalog") loadCatalog();
-    if (v === "integrations") loadIntegrations();
+    // Both halves of frame 24: the status table (24) and the keys form (24a).
+    // Two calls, not one chained after the other — a settings read that fails
+    // must not take the status table down with it, and the reverse.
+    if (v === "integrations") { loadIntegrations(); loadIntegrationKeys(); }
     if (v === "finance") loadFinance();
     if (v === "support") loadSupport();
   }
