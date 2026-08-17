@@ -340,6 +340,54 @@ Expect this to CHANGE test outcomes rather than merely quieten a log line —
 several suites will start seeing a fully-booted panel for the first time. That
 is a reason to do it deliberately and read the diff, not a reason to leave it.
 
+### Six defects found by RUNNING the app — 2026-08-18
+
+The device audit had failed three times to agent deaths, so it was done by hand:
+build, install, and walk onboarding on `emulator-5554`. Twenty minutes produced
+six defects, none of which any test can see. The suites were green throughout —
+2619 backend tests, 2111 Dart tests, `verify_l10n` 88/0.
+
+**1. Onboarding still offers a capability deleted the same day.** Step 4 shows
+«Пока нет — буду записывать вручную» (`onb_pair_no_device`, wired at
+`onboarding_flow.dart:640`). Hand entry of vitals was removed today. The
+no-device path in onboarding therefore promises manual recording that no longer
+exists — and it is the FIRST thing offered to a woman without a bracelet.
+Direct regression from that removal; the removal agent did not reach onboarding.
+
+**2. The pairing state machine never sees a denied permission.** Denying the
+Android runtime Bluetooth permission leaves «Поиск устройств…» spinning with
+skeleton rows, indefinitely. The seven-state work maps
+`BluetoothAdapterState.unauthorized` → `permissionDenied`, but a denied RUNTIME
+permission does not surface as an adapter state — so the exact defect that work
+existed to fix («with Bluetooth off it span forever, saying nothing») is still
+reachable by a different route.
+
+**3. Onboarding progress is not persisted at all.** Backgrounding the app and
+relaunching restarts at «Шаг 1 из 5» and discards the name, the phone, the due
+date AND the chosen language. A woman interrupted by a call starts over — and a
+Kazakh speaker is handed a Russian app again.
+
+**4. Denying the permission bounces back a step and clears half the form.**
+Step 4 → «Don't allow» → returns to step 3 with the name and phone EMPTY, while
+the pregnancy toggle and «Дата родов» survive. Partial loss is worse than total:
+the retained fields make the cleared ones look deliberate.
+
+**5. The name requirement is not re-applied after that bounce.** «Далее» is
+enabled with an empty name and advances to step 4 — though that same empty field
+disabled the button on the first pass, with «Напишите имя, чтобы продолжить».
+
+**6. The splash screen is not the brand.** A coral circle with a white heart,
+while the welcome screen one frame later shows the crimson `#D6004A` lotus. The
+first thing a user ever sees is a different mark.
+
+**What was seen WORKING**, so this is not only a defect list: every Kazakh
+string in onboarding renders correctly — «5 қадамнан 3», «Жүктілікті бақылауды
+қосамыз. Әйтпесе — цикл күнтізбесі», «Жалғастыру үшін атыңызды жазыңыз» — with
+no tofu and no overflow; the Material date picker localises fully («2027 ж.
+қаңтар», «Бас тарту»/«Иә»); the phone auto-formats; failed reads log «refresh
+failed, keeping what we have» rather than blanking; and the disabled-button
+reason updates as the blocking condition changes.
+
 ### What that audit could NOT establish
 
 It had no write tools, so it performed **no** break-and-restore verification. It
