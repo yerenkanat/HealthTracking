@@ -12,6 +12,11 @@ import { assessTelemetry } from '@fcs/shared';
 import type { BandTelemetry, ChildLocationFix, GeofenceEvent } from '@fcs/shared';
 import type { Repository } from '../db/repository';
 import {
+  EMERGENCY_EPISODE_WINDOW_MS,
+  emergencyFamily,
+  episodeAlreadyAlerted,
+} from '../emergency/episode';
+import {
   bufferForFence,
   signedDistanceToBoundaryM,
   MAX_USABLE_ACCURACY_M,
@@ -54,12 +59,29 @@ export interface IngestSummary {
   locationCount: number;
   /** Watch activity/wellbeing snapshots stored (steps, calories, stress, …). */
   wearableCount: number;
+  /**
+   * New readings triage called `emergency`. NOT the number of pushes sent —
+   * `repeatEmergencies` below is the part of this that joined an episode
+   * already alerted. Pushes = `emergencies - repeatEmergencies`.
+   */
   emergencies: number;
   geofenceEvents: GeofenceEvent[];
   rejected: number;
   /** Readings that were already stored (a resend of a batch whose response was
    *  lost). Counted, not stored again, and NOT re-pushed as an emergency. */
   duplicates: number;
+  /**
+   * New readings that crossed into `emergency` but joined an episode already
+   * alerted, so no second push went out.
+   *
+   * Reported rather than silently dropped. `emergencies` used to be the count of
+   * crossings AND the count of pushes, because they were the same number; they
+   * no longer are, and a caller (or an operator reading a response body) must be
+   * able to tell «мы её предупредили один раз» from «мы её не предупредили».
+   * Adding it to the summary is what stops this from being a suppression nobody
+   * can see.
+   */
+  repeatEmergencies: number;
 }
 
 export async function handleIngestBatch(
@@ -74,6 +96,7 @@ export async function handleIngestBatch(
     geofenceEvents: [],
     rejected: 0,
     duplicates: 0,
+    repeatEmergencies: 0,
   };
 
   for (const item of items) {
@@ -185,6 +208,55 @@ async function ingestTelemetry(
 
   if (triage.forceEmergencyScreen) {
     summary.emergencies++;
+
+    // ONE ALERT PER EPISODE.
+    //
+    // Every crossing used to push. The band samples continuously, so a woman
+    // whose pressure genuinely sits over 140/90 for an hour was alarmed once
+    // per frame — each push `critical: true`, on the DND-bypassing
+    // `medical_critical` channel — and a phone draining an offline queue fired
+    // the whole backlog in one flush. Measured before the fix: five frames one
+    // minute apart at 145/95 → five pushes.
+    //
+    // What is suppressed is a REPEAT, never a first alert. The copy, the
+    // category, the destination screen and the triage code of push two are
+    // identical to push one by construction, so nothing is withheld that was
+    // not already delivered. This is not the app's `EmergencyConfirmation`
+    // ported to the server and must not be turned into it — see
+    // ../emergency/episode.ts for why the two answer different questions.
+    //
+    // The lookup is best-effort in the SEND direction: if the repository throws,
+    // there is no evidence of a previous alert, so the push goes out. A database
+    // hiccup must never be able to silence an emergency.
+    //
+    // A READING SHE TYPED IN IS NEVER SUPPRESSED, for the same reason the app's
+    // gate lets one straight through: «A measurement she took by hand is not an
+    // estimate. Act on it.» It is also the case this rule would damage most —
+    // she sees the band's alert, puts a cuff on, types 165/115, and that is the
+    // confirmation the product asked her for. Folding it into the band's episode
+    // would silence the one source the clinical gate grants full emergency
+    // weight (docs/CLINICAL-REVIEW-WATCH.md, ruling #4 of the temperature
+    // verdict). A sensor frame arriving AFTER her typed reading is still a
+    // repeat, and is still suppressed — that direction adds nothing.
+    const family = manual ? null : emergencyFamily(triage.findings[0]?.code);
+    let repeat = false;
+    if (family) {
+      try {
+        const recent = await deps.repo.recentEmergencyReadings(
+          userId,
+          t.recordedAt,
+          EMERGENCY_EPISODE_WINDOW_MS,
+        );
+        repeat = episodeAlreadyAlerted(family, t.recordedAt, recent);
+      } catch {
+        repeat = false;
+      }
+    }
+
+    if (repeat) {
+      summary.repeatEmergencies++;
+      return;
+    }
     await deps.sendEmergencyPush(userId, triage);
   }
 }

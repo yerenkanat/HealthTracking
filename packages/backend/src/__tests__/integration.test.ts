@@ -110,6 +110,33 @@ function makeDeps(
   const repo: Repository = {
     insertHealthMetric: async (m) => { healthRows.push(m); return false; },
     listManualVitals: async () => [],
+    // Answered from `healthRows` rather than stubbed to []. The ingest path asks
+    // this before it pushes an emergency, so a fake that always says "no earlier
+    // crossing" would make every crossing look like the first one — the exact
+    // storm the episode rule exists to stop would pass its own suite. `manual`
+    // is derived from the absence of a device id, which is the only provenance
+    // Postgres stores; see the interface.
+    recentEmergencyReadings: async (userId, aroundIso, windowMs) => {
+      const at = Date.parse(aroundIso);
+      if (!Number.isFinite(at)) return [];
+      const num = (v: unknown) => (typeof v === 'number' ? v : null);
+      return (healthRows as Array<Record<string, unknown>>)
+        .filter((r) => r.userId === userId && r.triageSeverity === 'emergency')
+        .filter((r) => {
+          const t = Date.parse(String(r.recordedAt));
+          return Number.isFinite(t) && Math.abs(t - at) <= windowMs;
+        })
+        .map((r) => ({
+          recordedAt: String(r.recordedAt),
+          manual: !r.deviceId,
+          coreTempC: num(r.coreTempC),
+          heartRateBpm: num(r.heartRateBpm),
+          spo2Pct: num(r.spo2Pct),
+          systolicMmHg: num(r.systolicMmHg),
+          diastolicMmHg: num(r.diastolicMmHg),
+          duringSleep: r.duringSleep === true,
+        }));
+    },
     shopProducts: async () => [],
     listDailyAudio: async () => [],
     getProductPhoto: async () => null,

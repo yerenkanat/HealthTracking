@@ -684,6 +684,36 @@ const UUID_RE =
           source: 'manual' as const,
         }));
     },
+    recentEmergencyReadings: async (userId, aroundIso, windowMs) => {
+      const at = Date.parse(aroundIso);
+      if (!Number.isFinite(at)) return [];
+      const num = (v: unknown) => (typeof v === 'number' ? v : null);
+      return (healthRows as Array<Record<string, unknown>>)
+        .filter((r) => r.userId === userId && r.triageSeverity === 'emergency')
+        .filter((r) => {
+          const t = Date.parse(String(r.recordedAt));
+          return Number.isFinite(t) && Math.abs(t - at) <= windowMs;
+        })
+        .map((r) => ({
+          recordedAt: String(r.recordedAt),
+          // NOT read off the row's own `source`, deliberately — and this is the
+          // one place a convenient fake would lie. Postgres has no `source`
+          // column: `device_id IS NULL` is the only provenance it stores, so
+          // that is the only provenance it can return. A memory repository that
+          // echoed the submitted `source` would answer questions production
+          // cannot, and the episode rule replays triage over this flag.
+          manual: !r.deviceId,
+          coreTempC: num(r.coreTempC),
+          heartRateBpm: num(r.heartRateBpm),
+          spo2Pct: num(r.spo2Pct),
+          systolicMmHg: num(r.systolicMmHg),
+          diastolicMmHg: num(r.diastolicMmHg),
+          duringSleep: r.duringSleep === true,
+        }))
+        // Newest first, matching the pg ORDER BY — so a test written against
+        // this fake describes the order production returns.
+        .sort((a, b) => (a.recordedAt < b.recordedAt ? 1 : a.recordedAt > b.recordedAt ? -1 : 0));
+    },
     insertBpCalibration: async (userId, cal) => void bpCalibrations.push({ ...cal, userId }),
     latestBpCalibration: async (userId) => {
       const mine = bpCalibrations.filter((c) => c.userId === userId);

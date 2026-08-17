@@ -23,6 +23,8 @@ import type {
 import type { VaccinationCoverageData } from '../vaccination/coverage.js';
 import type { CryThresholdRow } from '../cry/settings.js';
 import type { HoldReason, NotificationPrefs, PushKind } from '../notifications/gate.js';
+import type { StoredEmergencyReading } from '../emergency/episode.js';
+export type { StoredEmergencyReading };
 
 export type { BiMetrics };
 export type { NotificationPrefs };
@@ -1043,6 +1045,39 @@ export interface Repository {
     systolicMmHg: number | null; diastolicMmHg: number | null; coreTempC: number | null; glucoseMmol: number | null;
     source: 'manual';
   }>>;
+  /**
+   * The user's own EMERGENCY-severity readings whose `recorded_at` falls within
+   * [windowMs] either side of [aroundIso] — the evidence for "have we already
+   * alerted about this episode?".
+   *
+   * Read by ingestTelemetry before it pushes. Without it the server had no
+   * memory between readings at all: five band frames a minute apart at 145/95
+   * produced five critical, DND-bypassing pushes about one condition, and an
+   * offline queue draining in a single flush fired the whole backlog at once.
+   *
+   * `manual` is `device_id IS NULL`, exactly as `listManualVitals` above states
+   * it — asserted by the query rather than read off the row. It has to travel,
+   * because the caller replays `assessTelemetry` over these values to recover
+   * which measurement each emergency was about, and that function's fever
+   * branch reads provenance: a thermometer reading replayed as a wrist estimate
+   * would come back with no finding at all.
+   *
+   * BOTH SIDES of the instant, not just before it. Readings do not always
+   * arrive in the order they were taken (a requeued batch, two handsets), and
+   * an "earlier than" query lets such a pair alert twice — each being the first
+   * the server saw. See emergency/episode.ts.
+   *
+   * Fail-safe direction, the same as insertHealthMetric's: an implementation
+   * that returns [] causes an extra push, never a suppressed one.
+   *
+   * Served by idx_phm_user_time (user_id, recorded_at DESC) — no new index and
+   * no migration; the columns and the index already exist.
+   */
+  recentEmergencyReadings(
+    userId: string,
+    aroundIso: string,
+    windowMs: number,
+  ): Promise<StoredEmergencyReading[]>;
   insertBpCalibration(userId: string, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }): Promise<void>;
   // The caller's most recent calibration, or null. Powers the admin drawer
   // (is her BP calibrated, and how recently?) and the new-device restore.

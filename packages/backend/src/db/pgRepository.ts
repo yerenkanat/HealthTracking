@@ -297,6 +297,42 @@ export function createPgRepository(pool: Pool): Repository {
       }));
     },
 
+    async recentEmergencyReadings(userId, aroundIso, windowMs) {
+      const at = new Date(aroundIso);
+      // A timestamp that will not parse cannot bound a range, and a NaN bound
+      // makes the driver throw — on the path that decides whether an emergency
+      // push goes out. No evidence, so no suppression: the caller pushes.
+      if (Number.isNaN(at.getTime())) return [];
+      const lo = new Date(at.getTime() - windowMs).toISOString();
+      const hi = new Date(at.getTime() + windowMs).toISOString();
+      const { rows } = await pool.query(
+        // Both bounds inclusive; the caller drops the reading being judged by
+        // its own timestamp rather than the SQL excluding it, so the rule lives
+        // in one place and both repository implementations obey it identically.
+        //
+        // No LIMIT. The window is half an hour of one user's own readings, and
+        // the partial answer a LIMIT would give is the dangerous direction here:
+        // it decides "no episode yet" from a truncated list.
+        `SELECT recorded_at, device_id IS NULL AS manual, core_temp_c, heart_rate_bpm,
+                spo2_pct, systolic_mmhg, diastolic_mmhg, during_sleep
+         FROM pregnancy_health_metrics
+         WHERE user_id = $1 AND triage_severity = 'emergency'
+           AND recorded_at >= $2 AND recorded_at <= $3
+         ORDER BY recorded_at DESC`,
+        [userId, lo, hi],
+      );
+      return rows.map((r) => ({
+        recordedAt: new Date(r.recorded_at).toISOString(),
+        manual: r.manual === true,
+        coreTempC: r.core_temp_c ?? null,
+        heartRateBpm: r.heart_rate_bpm ?? null,
+        spo2Pct: r.spo2_pct ?? null,
+        systolicMmHg: r.systolic_mmhg ?? null,
+        diastolicMmHg: r.diastolic_mmhg ?? null,
+        duringSleep: r.during_sleep === true,
+      }));
+    },
+
     async insertBpCalibration(userId, cal: BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number }) {
       await pool.query(
         `INSERT INTO bp_calibration
