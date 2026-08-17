@@ -45,7 +45,6 @@ import 'content/article_screen.dart';
 import 'content/lesson_player_screen.dart';
 import 'content/guides_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
-import 'dashboard/log_vitals_sheet.dart';
 import 'dashboard/water_history_screen.dart';
 import 'settings/reminders_center_screen.dart';
 import 'settings/support_thread_route.dart';
@@ -182,12 +181,6 @@ class _HomeShellState extends State<HomeShell> {
               setState(() => _index = 3);
           }
         },
-        onLogVitals: () => _logVitals(context, c),
-        // Screen 05's dark card. The vitals sheet already owns the camera path;
-        // this surfaces it on the screen of somebody with no band, where it is
-        // the fastest way to get a blood pressure in. Null with no server, so
-        // the card is not offered when it cannot work.
-        onScanMonitor: c.api == null ? null : () => _logVitals(context, c),
         awaitingRepeat: c.awaitingRepeat,
         nextAppointment: nextAppointment(c.appointments, DateTime.now()),
         nowForAppointment: DateTime.now(),
@@ -655,25 +648,11 @@ class _HomeShellState extends State<HomeShell> {
     ));
   }
 
-  /// Open the hand-entry sheet and record whatever comes back. The controller
-  /// triages it exactly as it would a band reading, so this may raise the
-  /// emergency screen — which is the intended behaviour.
-  Future<void> _logVitals(BuildContext context, AppController c) async {
-    final api = c.api;
-    final reading = await showLogVitalsSheet(
-      context,
-      // Only offer the photo shortcut when we can reach the server; offline, the
-      // sheet is manual-entry only.
-      onScan: api == null ? null : (bytes, mediaType) => api.extractVitalsFromImage(bytes, mediaType),
-    );
-    if (reading == null) return;
-    final saved = c.logManualVitals(reading);
-    if (!saved || !context.mounted) return;
-    final l = L10nScope.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.t('vitals_saved')), behavior: SnackBarBehavior.floating),
-    );
-  }
+  // _logVitals — the shell's only route into the typed-vitals sheet — is gone
+  // with the sheet itself (owner's decision, 2026-08-17: the watch measures the
+  // readings, the user does not type them). It was reached from three places,
+  // all removed with it: the dashboard app-bar icon, the four «Записывайте
+  // вручную» chips, and the dark «Сфотографировать тонометр» card.
 
   /// Which day of «Аудио дня» belongs to this family, if any.
   ///

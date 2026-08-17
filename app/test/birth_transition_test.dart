@@ -29,12 +29,16 @@ Widget wrap(AppController c) => MaterialApp(
       ),
     );
 
+/// The fork now hangs off the «⋯» events menu, which is where the design doc
+/// puts every change of calendar («Переключение — событием в «⋯»»). It used to
+/// be an underlined link parked under the pregnancy hero.
 Future<void> openFork(WidgetTester tester, AppController c) async {
+  const ru = L10n(AppLocale.ru);
   await tester.pumpWidget(wrap(c));
   await tester.pumpAndSettle();
-  await tester.ensureVisible(find.text(const L10n(AppLocale.ru).t('cyc_end_pregnancy')));
+  await tester.tap(find.byIcon(Icons.more_horiz_rounded));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(const L10n(AppLocale.ru).t('cyc_end_pregnancy')));
+  await tester.tap(find.text(ru.t('evt_gave_birth')));
   await tester.pumpAndSettle();
 }
 
@@ -62,10 +66,31 @@ void main() {
     await tester.tap(find.text(ru.t('birth_other')));
     await tester.pumpAndSettle();
 
+    // It asks first, naming what changes and what is kept. This used to erase
+    // the pregnancy calendar on the tap, with nothing to undo.
+    expect(find.text(ru.t('cyc_end_pregnancy_body')), findsOneWidget);
+    expect(c.dueDate, isNotNull, reason: 'nothing has happened yet');
+    await tester.tap(find.text(ru.t('evt_tracking_off')));
+    await tester.pumpAndSettle();
+
     expect(c.children, isEmpty);
     expect(c.dueDate, isNull);
     expect(find.text(ru.t('birth_title')), findsNothing);
     expect(find.text(ru.t('birth_done')), findsNothing);
+  });
+
+  testWidgets('backing out of the confirmation leaves the pregnancy alone',
+      (tester) async {
+    final c = pregnant();
+    addTearDown(c.dispose);
+    await openFork(tester, c);
+
+    await tester.tap(find.text(ru.t('birth_other')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ru.t('act_cancel')));
+    await tester.pumpAndSettle();
+
+    expect(c.dueDate, isNotNull);
   });
 
   testWidgets('"the baby is here" carries the date into a child record', (tester) async {

@@ -2835,13 +2835,41 @@ class AppController {
     _onPhoneSignIn = f;
   }
 
-  /// Record a hand-entered reading (cuff, thermometer, oximeter) for users
-  /// without a band. Returns false — changing nothing — if the reading doesn't
-  /// validate.
+  /// Record a hand-entered reading (cuff, thermometer, oximeter). Returns
+  /// false — changing nothing — if the reading doesn't validate.
   ///
   /// Manual readings run through the SAME triage as band telemetry: a typed
   /// 190/120 must raise the same emergency guidance a measured one would. The
   /// app never treats a reading as safer because a human typed it.
+  ///
+  /// UNREACHABLE FROM THE UI SINCE 2026-08-17, AND KEPT DELIBERATELY.
+  ///
+  /// Every entry point was removed that day by owner's decision — the
+  /// «Записывайте вручную» chips, the тонометр scan, the app-bar icon and the
+  /// sheet they all opened. Nothing in `lib/ui` calls this now. It survives for
+  /// three reasons, none of them "it might be handy":
+  ///
+  ///   1. It is the definition of what a MANUAL reading is in this app, and
+  ///      manual readings still exist. Rows typed on real phones are stored
+  ///      with `ReadingSource.manual`, `/vitals/manual` restores them onto a new
+  ///      device (see mergeRemoteManualVitals), and provenance decides what may
+  ///      be graded, coloured, put in the visit summary and escalated on. This
+  ///      method is the reference for the shape those rows have.
+  ///   2. It is the only exercised proof of the rule the clinical gate approved:
+  ///      a reading a woman took herself escalates IMMEDIATELY, without the
+  ///      two-reading confirmation a wrist estimate needs. That rule lives in
+  ///      emergency_confirmation.dart (the `ReadingSource.manual` exemption)
+  ///      and triage.dart (the manual temperature branch at full emergency
+  ///      weight), and both would become unreachable-and-untested if this went.
+  ///      Deleting all three together is a clinical change, not a cleanup, and
+  ///      it is not the change that was asked for.
+  ///   3. The removal was of the ENTRY PATH. Conflating that with removing the
+  ///      concept would silently re-grade every reading a user has already
+  ///      typed.
+  ///
+  /// If a future entry point appears (a cuff over BLE, an import), it wires to
+  /// this. If the owner decides manual readings should stop existing at all,
+  /// that is a separate decision and it starts here.
   bool logManualVitals(ManualVitals v) {
     if (!vitalsAreValid(v)) return false;
     final t = BandTelemetry(

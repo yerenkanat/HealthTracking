@@ -85,24 +85,28 @@ class WomensHealthScreen extends StatefulWidget {
   State<WomensHealthScreen> createState() => _WomensHealthScreenState();
 }
 
-/// Which of the three calendars is on screen.
+/// Which ONE calendar is on screen.
 ///
-/// The app used to decide this alone: pregnant → the pregnancy calendar,
-/// otherwise → the cycle calendar, and the child-development calendar was not
-/// on this tab at all (it lived behind Настройки → ребёнок → Развитие). So a
-/// mother could not look at her cycle history while pregnant, could not read
-/// ahead in the pregnancy calendar before her due date was set, and had no
-/// reason to suspect the third calendar existed.
+/// Not a choice. docs/CLAUDE-app-design.md, ЧАСТЬ 4 rule 2:
+///
+///   «Календарь один, вкладок сверху нет. Беременна — цикл скрыт полностью.
+///    Родила — развитие вместо беременности. Цикл возвращается после первых
+///    месячных. Переключение — событием в «⋯» («Тест положительный», «Я
+///    родила»), не табом. Приоритет: беременность → развитие → цикл.»
+///
+/// This screen briefly shipped three chips across the top — Цикл · Беременность
+/// · Ребёнок — which the rule forbids in terms, and for a reason: a pregnant
+/// woman could tap «Цикл» and be shown ovulation predictions and a fertile
+/// window for a body that is not producing them. Hiding the cycle during
+/// pregnancy is the point of the rule, and a tab is a hole straight through it.
+///
+/// So the mode is DERIVED, and it moves when she reports an event — see
+/// [_WomensHealthScreenState._openEvents].
 enum CalendarMode { cycle, pregnancy, child }
 
 class _WomensHealthScreenState extends State<WomensHealthScreen> {
   late DateTime _month; // first day of the visible month
   late DateTime _today;
-
-  /// Null until she picks one — until then the screen follows her state, which
-  /// is right on the first open and stops being right the moment she wants to
-  /// look at something else.
-  CalendarMode? _picked;
 
   @override
   void initState() {
@@ -111,24 +115,23 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
     _month = DateTime(_today.year, _today.month, 1);
   }
 
-  /// The mode actually shown: her choice, or the one her state implies.
+  /// The one calendar her state implies. Priority: pregnancy → development →
+  /// cycle, exactly as the rule orders them.
   ///
-  /// docs/CLAUDE-app-design.md: «Режим определяется этапом … родила — развитие
-  /// вместо беременности; цикл возвращается после первых месячных. Приоритет
-  /// при конфликте: беременность → развитие → цикл.»
-  ///
-  /// This was `isPregnant ? pregnancy : cycle`, which skipped the middle rung
-  /// entirely: a mother of a four-month-old opened the calendar on a cycle that
-  /// has not restarted, showing predictions for a body that is not producing
-  /// them yet — and the development timeline she actually wants was a tap away
-  /// behind a bar she has no reason to look at.
+  /// The middle rung is bounded by [AppController.isPostpartum], not by "a
+  /// child exists". Those are not the same, and with no tab bar to escape
+  /// through the difference is the whole rule: `_devChild(c) != null` is true
+  /// forever, so a mother whose youngest is four would have been handed a
+  /// development timeline and NO cycle calendar for the rest of her life.
+  /// `isPostpartum` is "a birth in the last year and no period logged since"
+  /// — which is «цикл возвращается после первых месячных», already computed,
+  /// and already what suppresses the cycle predictions themselves.
   CalendarMode _modeFor(AppController c) {
-    if (_picked != null) return _picked!;
     if (c.isPregnant) return CalendarMode.pregnancy;
     // A child with a birth date is what makes a development calendar possible;
     // without one there is no age to place her on the timeline, so falling
     // through to cycle is right rather than a hole.
-    if (_devChild(c) != null) return CalendarMode.child;
+    if (c.isPostpartum && _devChild(c) != null) return CalendarMode.child;
     return CalendarMode.cycle;
   }
 
@@ -234,6 +237,14 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                         builder: (_) => CycleInsightsScreen(controller: c)),
                   ),
                 ),
+                // The «⋯» the rule names: the ONLY way the calendar changes.
+                // Its contents depend on the mode, because the events that can
+                // happen to her next depend on where she is.
+                IconButton(
+                  icon: const Icon(Icons.more_horiz_rounded),
+                  tooltip: l.t('evt_menu'),
+                  onPressed: () => _openEvents(mode),
+                ),
                 const SizedBox(width: 4),
               ],
             ),
@@ -280,16 +291,6 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
               // more, so the padding no longer has to clear a button.
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
               children: [
-                // All three calendars, always visible. Which one opens first
-                // still follows her state — that is right on the first open —
-                // but the other two are now one tap away instead of being
-                // decided for her.
-                _CalendarModeBar(
-                  mode: mode,
-                  onPick: (m) => setState(() => _picked = m),
-                ),
-                const SizedBox(height: 12),
-
                 // Her recovery follows HER, not whichever calendar she happens
                 // to be reading.
                 //
@@ -337,9 +338,11 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                       childName: child.name,
                     ),
                   ] else
-                    // Empty because there is no birth date to count from —
-                    // said plainly, rather than an empty calendar that looks
-                    // broken.
+                    // Unreachable by construction — _modeFor only returns
+                    // `child` when _devChild is non-null — and kept anyway as
+                    // the fallback for if those two ever drift apart. Without
+                    // it this branch would render NOTHING, which is the "empty
+                    // calendar that looks broken" the card exists to avoid.
                     DsCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -724,126 +727,261 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
 
   void _openDay(DateTime day) =>
       showDayLogSheet(context, widget.controller, day);
-}
 
-/// Gestation header: a "Week N, Day D" progress card + a 7-day horizontal strip
-/// centred on today. When no due date is set, invites the mother to add one.
-/// The three calendars, side by side.
-///
-/// Every segment is always enabled. A calendar with nothing to show yet opens
-/// and explains what it needs — a due date, a child's birth date — which is
-/// how somebody finds out it exists. Greying one out would leave a mother who
-/// has not filled in a due date unable to discover the pregnancy calendar at
-/// all, which is the position this screen was in before.
-class _CalendarModeBar extends StatelessWidget {
-  final CalendarMode mode;
-  final ValueChanged<CalendarMode> onPick;
-  const _CalendarModeBar({required this.mode, required this.onPick});
-
-  @override
-  Widget build(BuildContext context) {
+  // ---- «⋯» — the events that move the calendar --------------------------
+  //
+  // docs/CLAUDE-app-design.md, ЧАСТЬ 4 rule 2: «Переключение — событием в «⋯»
+  // («Тест положительный», «Я родила»), не табом.» The calendar never asks her
+  // to pick a mode; it asks what happened, and derives the rest.
+  //
+  // Which events are offered depends on where she is, because the events that
+  // can happen next do:
+  //
+  //   cycle       → «Тест положительный»
+  //   pregnancy   → «Я родила» (the born/ended fork)
+  //   development → «Тест положительный», «Месячные вернулись»
+  //
+  // The third one is not decoration. «Цикл возвращается после первых месячных»
+  // has to be sayable, and in development mode there is no month grid and no
+  // «Отметить месячные» bar to say it with — so without this entry the rule
+  // would be unimplementable and a mother would sit in the development calendar
+  // until the child's first birthday. Here it is one tap, and undoable.
+  Future<void> _openEvents(CalendarMode mode) async {
     final l = L10nScope.of(context);
-    const items = <(CalendarMode, String, IconData)>[
-      (CalendarMode.cycle, 'cal_mode_cycle', Icons.water_drop_outlined),
-      (CalendarMode.pregnancy, 'cal_mode_pregnancy', Icons.pregnant_woman_rounded),
-      (CalendarMode.child, 'cal_mode_child', Icons.child_care_rounded),
+    final entries = <(String, IconData, Future<void> Function())>[
+      if (mode != CalendarMode.pregnancy)
+        ('evt_test_positive', Icons.pregnant_woman_rounded, _pickDueDate),
+      if (mode == CalendarMode.pregnancy)
+        ('evt_gave_birth', Icons.child_friendly_rounded, _endPregnancy),
+      if (mode == CalendarMode.child)
+        ('evt_period_back', Icons.water_drop_rounded, _periodReturned),
     ];
-    return Row(
-      children: [
-        for (final (m, key, icon) in items) ...[
-          Expanded(
-            child: _ModeChip(
-              label: l.t(key),
-              icon: icon,
-              selected: m == mode,
-              onTap: () => onPick(m),
-            ),
-          ),
-          if (m != items.last.$1) const SizedBox(width: 8),
-        ],
-      ],
-    );
-  }
-}
-
-class _ModeChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-  const _ModeChip(
-      {required this.label,
-      required this.icon,
-      required this.selected,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    // Selected state carries a border and a filled background, not colour
-    // alone: on a small phone in daylight a tint difference is not a reliable
-    // signal, and it is no signal at all to somebody who cannot see it.
-    final fg = selected ? Colors.white : Palette.text;
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: Material(
-        color: selected ? darkenForText(Palette.roseDeep) : Palette.surface,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            // 48, the Android minimum tap target. It is the control that
-            // switches between the three calendars, at the very top of the
-            // screen — a mis-tap here sends her to the wrong calendar.
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: selected ? Colors.transparent : Palette.border),
-            ),
-            // Icon ABOVE the label, not beside it. Three chips across a 360dp
-            // phone leave ~92dp inside each one; an icon and a 6dp gap take a
-            // quarter of that, and «Беременность» — the default language's
-            // word — then renders as «Беременно…». Stacked, the label gets the
-            // full width and reads in full on the narrowest phone we sell to.
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 18, color: fg),
-                const SizedBox(height: 3),
-                // scaleDown, not ellipsis. «Беременность» fits at the default
-                // size, but the system font-size slider is not an edge case in
-                // this app — it is read by pregnant women and by grandmothers
-                // — and at 130% the word runs past the chip. Ellipsised it
-                // becomes «Беременно…», a control nobody can identify. Shrunk
-                // it stays a word. So the label never gets cut, at any text
-                // scale, in any of the three languages.
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    maxLines: 1,
+    final chosen = await showModalBottomSheet<Future<void> Function()>(
+      context: context,
+      backgroundColor: Palette.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        top: false,
+        // Scrollable, because a bottom sheet is laid out against a height it
+        // does not choose — 9/16 of the screen by default — and these rows are
+        // full sentences that WRAP. At 320dp in Kazakh, with two events on the
+        // menu, the column ran 18px past the sheet and Flutter painted the
+        // striped bar over the second event. Nothing here is padded down or
+        // capped to one line to make it fit: the labels stay whole and the
+        // sheet scrolls if they need the room.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 18),
+              Text(l.t('evt_title'),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(l.t('evt_hint'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: fg,
-                        fontSize: 12,
-                        height: 1.1,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w600),
-                  ),
+                    style: const TextStyle(
+                        color: Palette.textDim, fontSize: 12.5, height: 1.35)),
+              ),
+              const SizedBox(height: 10),
+              for (final (key, icon, action) in entries)
+                ListTile(
+                  leading: Icon(icon, color: Palette.rose),
+                  title: Text(l.t(key),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text(l.t('${key}_sub'),
+                      style: const TextStyle(fontSize: 12.5, height: 1.35)),
+                  onTap: () => Navigator.pop(ctx, action),
                 ),
-              ],
-            ),
+              const SizedBox(height: 10),
+            ],
           ),
         ),
       ),
     );
+    if (chosen == null || !mounted) return;
+    await chosen();
+  }
+
+  /// End-of-pregnancy fork.
+  ///
+  /// This used to be one yes/no dialog that cleared the due date. Two entirely
+  /// different events came through it: a birth, and a loss.
+  ///
+  /// For the birth it threw away the date the whole second half of the app is
+  /// keyed on — the development calendar, the vaccinations, the growth chart —
+  /// leaving a woman to add a child by hand and retype it days after giving
+  /// birth. For a loss, the same door has to say nothing cheerful at all.
+  ///
+  /// The app CANNOT tell those two apart from data, and must not guess: it asks
+  /// once, plainly, and asks nothing further. `PregnancyOutcome.ended` is
+  /// deliberately one value and not a taxonomy of endings — see
+  /// domain/birth_transition.dart. The design doc does not address loss at all;
+  /// this fork is the app's own, and stays as reviewed.
+  Future<void> _endPregnancy() async {
+    final l = L10nScope.of(context);
+    final c = widget.controller;
+    final outcome = await showModalBottomSheet<PregnancyOutcome>(
+      context: context,
+      backgroundColor: Palette.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        top: false,
+        // Scrollable for the same reason as the events menu above: two wrapping
+        // subtitles in a sheet whose height is 9/16 of a 320dp phone. The one
+        // sheet in the app a woman may be reading through tears is not one to
+        // paint an overflow bar across.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 18),
+              Text(l.t('birth_which'),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 14),
+              ListTile(
+                leading: const Icon(Icons.child_friendly_rounded,
+                    color: Palette.rose),
+                title: Text(l.t('birth_born'),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(l.t('birth_born_sub'),
+                    style: const TextStyle(fontSize: 12.5, height: 1.35)),
+                onTap: () => Navigator.pop(ctx, PregnancyOutcome.born),
+              ),
+              // Deliberately plain. No icon that celebrates, no colour, no
+              // follow-up — for the woman taking this path the kindest thing
+              // the app can do is get out of the way.
+              ListTile(
+                title: Text(l.t('birth_other'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(l.t('birth_other_sub'),
+                    style: const TextStyle(fontSize: 12.5, height: 1.35)),
+                onTap: () => Navigator.pop(ctx, PregnancyOutcome.ended),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || outcome == null) return;
+
+    if (outcome == PregnancyOutcome.ended) {
+      // A tap here erases the whole pregnancy calendar, and until now it did so
+      // the instant it was touched — no confirmation, nothing to undo. So it
+      // asks, in words that name exactly what changes and what is kept, and
+      // then leaves an undo behind anyway.
+      //
+      // Neutral, not danger-red: «Красный только SOS», and this is the door a
+      // woman uses after a loss.
+      final ok = await confirmChange(
+        context,
+        title: l.t('cyc_end_pregnancy'),
+        message: l.t('cyc_end_pregnancy_body'),
+        confirmLabel: l.t('evt_tracking_off'),
+      );
+      if (!ok || !mounted) return;
+      final previous = c.dueDate;
+      c.setDueDate(null);
+      _undoBar(l.t('evt_preg_off_done'), () => c.setDueDate(previous));
+      return;
+    }
+    await _recordBirth();
+  }
+
+  /// Collect the birth date (and a name, if she has one yet) and create the
+  /// child record the calendars need.
+  Future<void> _recordBirth() async {
+    final l = L10nScope.of(context);
+    final c = widget.controller;
+    final initial = defaultBirthDate(dueDate: c.dueDate, today: _today);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      // A birth cannot be in the future, and 300 days back covers any
+      // pregnancy the app was tracking.
+      firstDate: addDays(_today, -300),
+      lastDate: _today,
+      helpText: l.t('birth_date'),
+    );
+    if (!mounted || date == null) return;
+
+    // The dialog owns its controller. Creating one here and disposing it after
+    // showDialog returns crashes: the route's exit animation is still running
+    // and the TextField still holds the controller, so the next frame uses a
+    // disposed object.
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _BirthNameDialog(
+        title: l.t('birth_title'),
+        label: l.t('birth_name'),
+        save: l.t('birth_save'),
+      ),
+    );
+    if (!mounted || name == null) return;
+
+    final previousDue = c.dueDate;
+    final t = birthTransition(
+      childId: 'child-${_today.microsecondsSinceEpoch}',
+      name: name,
+      birthDate: date,
+      today: _today,
+    );
+    c.addChild(t.child!);
+    c.setDueDate(null);
+    if (!mounted) return;
+    // Undo puts BOTH halves back — the child record this created and the due
+    // date it cleared. Restoring one without the other would leave her looking
+    // at a pregnancy calendar with a phantom newborn in the family list.
+    _undoBar(l.t('birth_done'), () {
+      c.removeChild(t.child!.id);
+      c.setDueDate(previousDue);
+    });
+  }
+
+  /// «Месячные вернулись» — the event that ends the postpartum pause and brings
+  /// the cycle calendar back, by logging today as a period day. That is not a
+  /// flag of its own: [AppController.isPostpartum] is defined as "no period
+  /// logged since the birth", so the period IS the state.
+  Future<void> _periodReturned() async {
+    final l = L10nScope.of(context);
+    final c = widget.controller;
+    if (c.logFor(_today).hasPeriod) {
+      _openDay(_today);
+      return;
+    }
+    c.toggleFlowFor(_today, Flow.medium);
+    _undoBar(l.t('evt_period_back_done'),
+        () => c.toggleFlowFor(_today, Flow.medium));
+  }
+
+  /// A snackbar that can put the event back.
+  ///
+  /// Every event on this menu is a claim about her body, and every one of them
+  /// changes which calendar she is looking at. A mis-tap must not be the end of
+  /// it, and a confirmation dialog alone is not enough — she can confirm the
+  /// wrong thing just as easily as she can tap it. So each event leaves a
+  /// reversal behind that restores exactly what it changed.
+  void _undoBar(String message, VoidCallback undo) {
+    final l = L10nScope.of(context);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(label: l.t('act_undo'), onPressed: undo),
+      ));
   }
 }
 
+/// Gestation header: a "Week N, Day D" progress card + a 7-day horizontal strip
+/// centred on today. When no due date is set, invites the mother to add one.
 class _GestationHeader extends StatelessWidget {
   final AppController controller;
   final DateTime today;
@@ -928,57 +1066,37 @@ class _GestationHeader extends StatelessWidget {
           onOpenWeek: (week) => _openWeek(context, g, week),
         ),
         const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Both sides flex and ellipsise. A long localized date plus the
-            // end-pregnancy link overflowed a narrow phone by 128px, and a
-            // layout exception blanks everything below it — which is how the
-            // tips shelf under this header stopped rendering in the test.
-            Flexible(
-              child: GestureDetector(
-                onTap: onSetDueDate,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.edit_calendar_outlined,
-                      size: 15, color: Palette.violet),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      controller.dueDate != null
-                          ? l.t('gest_due', {
-                              'date': MaterialLocalizations.of(context)
-                                  .formatMediumDate(controller.dueDate!)
-                            })
-                          : l.t('cal_no_due_title'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Palette.violetText,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ]),
+        // The due date, editable. Its old neighbour — an underlined «Больше не
+        // беременны?» — has moved into the «⋯» menu, where the rule puts every
+        // change of calendar. Two ways to end a pregnancy, one of them a bare
+        // underlined line sitting a thumb's width from the date field, was one
+        // too many.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: GestureDetector(
+            onTap: onSetDueDate,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.edit_calendar_outlined,
+                  size: 15, color: Palette.violet),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  controller.dueDate != null
+                      ? l.t('gest_due', {
+                          'date': MaterialLocalizations.of(context)
+                              .formatMediumDate(controller.dueDate!)
+                        })
+                      : l.t('cal_no_due_title'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Palette.violetText,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            // The comment above said both sides flex, and only the left one
-            // did — so with the font-size slider at 130% this side pushed the
-            // row 1px past a 360dp screen, which is a full-width striped
-            // overflow bar for one pixel of text.
-            Flexible(
-              child: GestureDetector(
-                onTap: () => _confirmEndPregnancy(context),
-                child: Text(l.t('cyc_end_pregnancy'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Palette.textDim,
-                        fontSize: 12,
-                        decoration: TextDecoration.underline)),
-              ),
-            ),
-          ],
+            ]),
+          ),
         ),
         const SizedBox(height: 12),
         _WeekStrip(
@@ -989,112 +1107,6 @@ class _GestationHeader extends StatelessWidget {
     );
   }
 
-  /// Gentle, neutral confirmation before switching out of pregnancy mode.
-  /// Not styled as destructive — logged data is kept, and the wording is soft.
-  /// End-of-pregnancy fork.
-  ///
-  /// This used to be one yes/no dialog that cleared the due date. Two entirely
-  /// different events came through it: a birth, and a loss.
-  ///
-  /// For the birth it threw away the date the whole second half of the app is
-  /// keyed on — the development calendar, the vaccinations, the growth chart —
-  /// leaving a woman to add a child by hand and retype it days after giving
-  /// birth. For a loss, the same door has to say nothing cheerful at all.
-  Future<void> _confirmEndPregnancy(BuildContext context) async {
-    final l = L10nScope.of(context);
-    final outcome = await showModalBottomSheet<PregnancyOutcome>(
-      context: context,
-      backgroundColor: Palette.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 18),
-            Text(l.t('birth_which'),
-                style:
-                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 14),
-            ListTile(
-              leading:
-                  const Icon(Icons.child_friendly_rounded, color: Palette.rose),
-              title: Text(l.t('birth_born'),
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(l.t('birth_born_sub'),
-                  style: const TextStyle(fontSize: 12.5, height: 1.35)),
-              onTap: () => Navigator.pop(ctx, PregnancyOutcome.born),
-            ),
-            // Deliberately plain. No icon that celebrates, no colour, no
-            // follow-up — for the woman taking this path the kindest thing the
-            // app can do is get out of the way.
-            ListTile(
-              title: Text(l.t('birth_other'),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(l.t('birth_other_sub'),
-                  style: const TextStyle(fontSize: 12.5, height: 1.35)),
-              onTap: () => Navigator.pop(ctx, PregnancyOutcome.ended),
-            ),
-            const SizedBox(height: 10),
-          ],
-        ),
-      ),
-    );
-    if (!context.mounted || outcome == null) return;
-
-    if (outcome == PregnancyOutcome.ended) {
-      controller.setDueDate(null);
-      return;
-    }
-    await _recordBirth(context);
-  }
-
-  /// Collect the birth date (and a name, if she has one yet) and create the
-  /// child record the calendars need.
-  Future<void> _recordBirth(BuildContext context) async {
-    final l = L10nScope.of(context);
-    final initial = defaultBirthDate(dueDate: controller.dueDate, today: today);
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      // A birth cannot be in the future, and 300 days back covers any
-      // pregnancy the app was tracking.
-      firstDate: addDays(today, -300),
-      lastDate: today,
-      helpText: l.t('birth_date'),
-    );
-    if (!context.mounted || date == null) return;
-
-    // The dialog owns its controller. Creating one here and disposing it after
-    // showDialog returns crashes: the route's exit animation is still running
-    // and the TextField still holds the controller, so the next frame uses a
-    // disposed object.
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => _BirthNameDialog(
-        title: l.t('birth_title'),
-        label: l.t('birth_name'),
-        save: l.t('birth_save'),
-      ),
-    );
-    if (!context.mounted || name == null) return;
-
-    final t = birthTransition(
-      childId: 'child-${today.microsecondsSinceEpoch}',
-      name: name,
-      birthDate: date,
-      today: today,
-    );
-    controller.addChild(t.child!);
-    controller.setDueDate(null);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(l.t('birth_done')),
-          behavior: SnackBarBehavior.floating),
-    );
-  }
 }
 
 /// Cycle header (non-pregnant mode): cycle day + days-to-next-period + phase,

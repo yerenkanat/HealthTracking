@@ -14,20 +14,24 @@ void main() {
     return MaterialApp(home: content);
   }
 
+  // These three used to key off «Записывайте вручную» / «Қолмен жазыңыз» /
+  // «Log it yourself» — the manual-entry card's heading, which was the only
+  // text on an empty dashboard. That card was removed with hand entry on
+  // 2026-08-17. The screen's own title carries the same three languages and is
+  // on the page in every state, which is what these tests are actually about.
   testWidgets('empty state renders in Russian by default scope', (tester) async {
     await tester.pumpWidget(wrap(AppLocale.ru, const HealthDashboardView(samples: [])));
-    expect(find.text('Записывайте вручную'), findsOneWidget);
+    expect(find.text('Ваше здоровье'), findsOneWidget);
   });
 
   testWidgets('empty state renders in Kazakh', (tester) async {
     await tester.pumpWidget(wrap(AppLocale.kk, const HealthDashboardView(samples: [])));
-    // Screen 05 replaced the band upsell: «Қолмен жазыңыз».
-    expect(find.text('Қолмен жазыңыз'), findsOneWidget);
+    expect(find.text('Сіздің денсаулығыңыз'), findsOneWidget);
   });
 
   testWidgets('falls back to English with no scope', (tester) async {
     await tester.pumpWidget(wrap(null, const HealthDashboardView(samples: [])));
-    expect(find.text('Log it yourself'), findsOneWidget);
+    expect(find.text('Your health'), findsOneWidget);
   });
 
   testWidgets('language switcher fires onLocaleChange', (tester) async {

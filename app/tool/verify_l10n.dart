@@ -103,7 +103,8 @@ void main() {
     'ei_phone_hint': '«Телефон» — the Kazakh loanword is spelled identically',
     'scan_camera': '«Камера» — the Kazakh loanword is spelled identically',
     'zone_radius': '«Радиус» — the Kazakh loanword is spelled identically',
-    'cal_mode_cycle': '«Цикл» — the Kazakh loanword is spelled identically',
+    // cal_mode_cycle was here until the calendar's three-tab bar was removed
+    // («Календарь один, вкладок сверху нет») and its labels went with it.
     'cyc_avg_cycle_stat': '«Цикл» — the Kazakh loanword is spelled identically',
     'cyc_ovulation': '«Овуляция» — the Kazakh loanword is spelled identically',
     'cyc_phase_ovulation': '«Овуляция» — the Kazakh loanword is spelled identically',

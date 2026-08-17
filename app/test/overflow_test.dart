@@ -194,7 +194,6 @@ void main() {
         samples: samples,
         sleepNights: nights,
         greetingName: 'Aigerim',
-        onLogVitals: () {},
         onLogSleep: () {},
         onAddWater: () {},
         onRemoveWater: () {},
@@ -206,7 +205,7 @@ void main() {
 
   testWidgets('empty dashboard fits every locale', (tester) async {
     await checkAllLocales(tester, 'HealthDashboardView (empty)',
-        () => HealthDashboardView(samples: const [], onLogVitals: () {}));
+        () => const HealthDashboardView(samples: []));
   });
 
   testWidgets('the repeat-reading prompt fits every locale', (tester) async {
@@ -220,7 +219,6 @@ void main() {
         samples: samples,
         greetingName: 'Aigerim',
         awaitingRepeat: 'bp',
-        onLogVitals: () {},
       ),
       scroll: true,
     );
@@ -658,7 +656,7 @@ void main() {
       'HealthDashboardView',
       () => HealthDashboardView(
         samples: samples, sleepNights: nights, greetingName: 'Aigerim',
-        awaitingRepeat: 'bp', onLogVitals: () {}, onLogSleep: () {},
+        awaitingRepeat: 'bp', onLogSleep: () {},
         onAddWater: () {}, onRemoveWater: () {}, onSetWaterGoal: (_) {},
       ),
       scroll: true,

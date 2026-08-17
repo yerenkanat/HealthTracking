@@ -132,7 +132,6 @@ void main() {
             samples: samples,
             sleepNights: nights,
             greetingName: 'Aigerim',
-            onLogVitals: () {},
             onLogSleep: () {},
             onAddWater: () {},
             onRemoveWater: () {},
@@ -151,7 +150,7 @@ void main() {
       MaterialApp(
         home: L10nScope(
           l10n: const L10n(AppLocale.en),
-          child: HealthDashboardView(samples: const [], onLogVitals: () {}),
+          child: const HealthDashboardView(samples: []),
         ),
       ),
     );
@@ -283,18 +282,17 @@ void main() {
     await audit(tester, screen(WomensHealthScreen(controller: seededA11y(), now: () => today)));
   });
 
-  testWidgets("the women's health screen meets them in child mode too", (tester) async {
-    // The calendar switch is three chips on one line — the tightest tap
-    // targets on the screen, and the control that reaches the other two
-    // calendars.
+  testWidgets("the women's health screen meets them on the development calendar",
+      (tester) async {
+    // Reached by STATE, not by a tap: the three-chip switch that used to open
+    // this is gone («Календарь один, вкладок сверху нет»), so the way in is a
+    // recent birth with no period logged since.
     final c = seededA11y();
+    c.addChild(ChildProfile(
+        id: 'newborn',
+        name: 'Aisha',
+        dateOfBirth: today.subtract(const Duration(days: 60))));
     await audit(tester, screen(WomensHealthScreen(controller: c, now: () => today)));
-    await tester.tap(find.text('Child'));
-    await tester.pumpAndSettle();
-    final handle = tester.ensureSemantics();
-    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-    await expectLater(tester, meetsGuideline(textContrastGuideline));
-    handle.dispose();
   });
 
   testWidgets('the Ма!Ма! course meets the guidelines', (tester) async {

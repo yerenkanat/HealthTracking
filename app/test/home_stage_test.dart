@@ -28,7 +28,6 @@ import 'package:fcs_app/ui/content/timeline_content_card.dart';
 import 'package:fcs_app/ui/dashboard/child_hero.dart';
 import 'package:fcs_app/ui/dashboard/cycle_hero.dart';
 import 'package:fcs_app/ui/dashboard/health_dashboard_screen.dart';
-import 'package:fcs_app/ui/dashboard/no_band_card.dart';
 import 'package:fcs_app/ui/dashboard/stage_hero.dart';
 import 'package:fcs_app/ui/theme.dart';
 
@@ -246,15 +245,16 @@ void main() {
       expect(find.byType(CycleHero), findsOneWidget);
     });
 
-    testWidgets('the manual diary is kept, not replaced by the hero',
+    testWidgets('the hero survives the removal of the manual diary',
         (tester) async {
-      // Screen 05 is correct — it is just not a substitute for the screen.
+      // This used to assert that screen 05's «Записывайте вручную» card sat
+      // below the hero. That card is gone (hand entry removed, 2026-08-17).
+      // What the test was really protecting is still here and still worth
+      // pinning: with no readings at all, the stage hero is on the screen —
+      // the dashboard does not collapse to an empty state for a woman who has
+      // told it she is twenty-two weeks pregnant.
       await pumpEmpty(tester, gestation: gest(22));
-      expect(find.byType(NoBandCard), findsOneWidget);
       expect(find.byType(PregnancyHero), findsOneWidget);
-      // And the hero comes first: «Показатели браслета всегда ниже».
-      expect(tester.getTopLeft(find.byType(PregnancyHero)).dy,
-          lessThan(tester.getTopLeft(find.byType(NoBandCard)).dy));
     });
   });
 }

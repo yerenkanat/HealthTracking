@@ -3,6 +3,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/domain/appointment.dart';
 import 'package:fcs_app/domain/health_series.dart';
 import 'package:fcs_app/domain/setup_checklist.dart';
@@ -112,10 +113,18 @@ void main() {
     expect(c.isBandNotMeasuring, isTrue);
   });
 
-  testWidgets('renders empty state with no samples', (tester) async {
+  testWidgets('with no samples it draws no vitals grid and no entry card',
+      (tester) async {
+    // This used to assert «Записывайте вручную» — screen 05's manual-entry
+    // card, which stood in the grid's place. Hand entry was removed on
+    // 2026-08-17, so the honest empty state is the absence of both: no grid
+    // over no readings, and no invitation to type them.
     await tester.pumpWidget(const MaterialApp(home: HealthDashboardView(samples: [])));
-    // Screen 05: manual entry, not «Наденьте браслет».
-    expect(find.text('Log it yourself'), findsOneWidget);
+    expect(find.text('Log it yourself'), findsNothing);
+    expect(find.text('VITAL SIGNS'), findsNothing);
+    // The rest of the screen is NOT gated on readings and must survive: this is
+    // the state a woman is in before her watch has said anything.
+    expect(find.byType(ListView), findsOneWidget);
   });
 
   testWidgets('renders metric cards (incl. merged blood pressure) and latest values', (tester) async {
@@ -240,8 +249,7 @@ void main() {
           signedIn: true, hasName: false, hasHealthData: false, hasChild: false, hasZone: false, hasDetails: false, hasBackup: false),
       ),
     ));
-    expect(find.text('Log it yourself'), findsOneWidget); // still the no-band screen
-    expect(find.text('Finish setting up'), findsOneWidget); // ...plus the guidance
+    expect(find.text('Finish setting up'), findsOneWidget); // the guidance
     expect(find.text('Add your name in your profile'), findsOneWidget);
   });
 
@@ -496,12 +504,9 @@ void main() {
     testWidgets('asks calmly for another reading, without claiming an emergency',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
-        home: HealthDashboardView(
-          samples: samples, awaitingRepeat: 'bp', onLogVitals: () {},
-        ),
+        home: HealthDashboardView(samples: samples, awaitingRepeat: 'bp'),
       ));
       expect(find.text('Higher blood pressure than usual'), findsOneWidget);
-      expect(find.text('Measure again'), findsOneWidget);
       // The wording is the whole point of the mechanism: one wrist estimate
       // must never be dressed up as a diagnosis or an emergency.
       for (final alarming in ['preeclampsia', 'emergency', 'urgent', 'danger']) {
@@ -521,15 +526,22 @@ void main() {
       expect(find.text('Higher blood pressure than usual'), findsNothing);
     });
 
-    testWidgets('still explains itself when there is no way to log by hand',
+    testWidgets('offers no button, because there is no action left in the app',
         (tester) async {
-      // Without onLogVitals there is no button, but the message must remain —
-      // otherwise a user with no manual entry wired up sees nothing at all.
+      // Hand entry was removed on 2026-08-17, so «Измерить снова» had nowhere
+      // to go. The gate's ruling: where there is no action she can take here, a
+      // button is worse than no button — so the CTA went, and the explanation
+      // stays. The card is the most important thing on the screen in the one
+      // moment a reading has crossed an emergency threshold; it must not become
+      // a promise wired to nothing.
       await tester.pumpWidget(MaterialApp(
         home: HealthDashboardView(samples: samples, awaitingRepeat: 'bp'),
       ));
       expect(find.text('Higher blood pressure than usual'), findsOneWidget);
-      expect(find.text('Measure again'), findsNothing);
+      expect(find.byType(FilledButton), findsNothing);
+      // And the string itself is gone from the catalogue, not merely unrendered.
+      expect(const L10n(AppLocale.ru).t('repeat_cta'), 'repeat_cta');
+      expect(const L10n(AppLocale.en).t('repeat_cta'), 'repeat_cta');
     });
   });
 }

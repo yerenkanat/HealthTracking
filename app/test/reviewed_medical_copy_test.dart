@@ -154,7 +154,12 @@ const reviewed = <String, String>{
  'em_reading_temp': 'dbae256c0dd1cfc6',
  'em_title': '5e11be70ec3f0149',
  'repeat_body': '426b098885186992',
- 'repeat_cta': '8076813206c86884',
+ // 'repeat_cta' was pinned here. The key was DELETED from the catalogue on the
+ // gate's instruction (2026-08-17) when hand entry went and its button had
+ // nowhere to open; see the note at its old home in l10n.dart. Removed from the
+ // manifest so the "manifest does not name keys that no longer exist" test
+ // passes for the right reason. This is a deletion with a verdict behind it,
+ // not a fingerprint updated to make a build green.
  'repeat_title_bp': 'f35ce10bc590bff2',
  'repeat_title_fever': '9d8dc7a70e85e6c2',
  'repeat_title_hr': '036817c5db1316f6',

@@ -144,4 +144,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('the calendar changes by event, on a real device', (tester) async {
+    // The calendar has no tabs — «Календарь один, вкладок сверху нет» — so the
+    // «⋯» menu is the ONLY way its state ever moves. That makes it the one
+    // control on the screen worth proving on hardware: a menu that does not
+    // open is a calendar frozen in whatever state the device is in.
+    //
+    // By finder, never by coordinate: this sheet is the height of its content,
+    // so a remembered position is wrong the moment a label wraps to two lines.
+    final result = await runOnboarding(tester);
+    final controller = AppController();
+    addTearDown(controller.dispose);
+    controller.completeOnboarding(result);
+
+    await tester.pumpWidget(FcsApp(
+      controller: controller,
+      content: ContentStore(const ContentCatalog({})),
+    ));
+    await tester.pumpAndSettle();
+
+    final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    final labels = [
+      for (final d in bar.destinations)
+        if (d is NavigationDestination) d.label,
+    ];
+    await tester.tap(find.text(labels[1]).last); // the calendar
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'the events menu threw');
+
+    // Onboarding left a child with no date of birth and no due date, so she is
+    // on the cycle calendar and the one event that can happen next is a
+    // positive test. It opens a date picker rather than flipping a mode.
+    expect(find.text('The test is positive'), findsOneWidget);
+    await tester.tap(find.text('The test is positive'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget,
+        reason: 'the event asked for nothing, so it changed nothing');
+
+    // Backing out leaves her exactly where she was — an event is a claim about
+    // her body, and cancelling one must cost her nothing.
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(controller.dueDate, isNull);
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -28,10 +28,10 @@ void main() {
     addTearDown(tester.view.reset);
 
     // This is the picture of a woman WEARING the band — the wearable metrics
-    // below say so. `source:` has to say so too: it defaults to manual, and the
-    // manual-entry card is now shown to anyone whose readings are all
-    // hand-typed, so an unstated fixture quietly photographs the other screen.
-    // (That screen has its own golden, below.)
+    // below say so. `source:` has to say so too: it defaults to manual, and
+    // provenance decides what may be graded and coloured, so an unstated
+    // fixture quietly photographs a differently-coloured screen. (The
+    // manual-provenance screen has its own golden, below.)
     final samples = [
       for (var i = 0; i < 12; i++)
         HealthSample(
@@ -94,9 +94,7 @@ void main() {
         onLogKick: () {},
         onLogDay: () {},
         onLogWeight: () {},
-        onLogVitals: () {},
         onLogSleep: () {},
-        onScanMonitor: () {},
       ),
     ));
     await tester.pumpAndSettle();
@@ -107,16 +105,18 @@ void main() {
     );
   });
 
-  /// The same woman a week later: no bracelet, and she has been typing her
-  /// readings in.
+  /// The same woman with readings that carry MANUAL provenance and no way in
+  /// the app to add another.
   ///
-  /// This picture did not exist because this SCREEN did not exist. The
-  /// manual-entry card was gated on `samples.isEmpty`, and a hand-typed reading
-  /// goes into the same store as band telemetry — so the first blood pressure
-  /// she entered took the card away and left her an unlabelled app-bar icon.
-  /// What the image has to show is both things at once: her own readings
-  /// charted, and the four buttons that took them still there above the chart.
-  testWidgets('golden: the home screen once she is logging by hand', (tester) async {
+  /// This is not a hypothetical state and it is why the picture is kept. Rows
+  /// typed before 2026-08-17 are on real phones, `/vitals/manual` restores them
+  /// onto a new device, and they are still labelled manual — so they are still
+  /// graded, coloured and charted as measurements rather than wrist estimates.
+  /// What the image now has to show is her readings charted and NO entry card
+  /// above them: the previous version of this golden was the four buttons and
+  /// the тонометр camera sitting over exactly this grid.
+  testWidgets('golden: stored manual readings, with no way to add another',
+      (tester) async {
     tester.view.physicalSize = const Size(402 * 3, 1500 * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -136,17 +136,15 @@ void main() {
         samples: typed,
         nowForAppointment: t(58), // see the note on the first golden
         greetingName: 'Айгерім',
-        onLogVitals: () {},
         onLogWeight: () {},
         onLogSleep: () {},
-        onScanMonitor: () {},
       ),
     ));
     await tester.pumpAndSettle();
 
     await expectLater(
       find.byType(HealthDashboardView),
-      matchesGoldenFile('goldens/home_dashboard_manual_diary.png'),
+      matchesGoldenFile('goldens/home_dashboard_stored_manual.png'),
     );
   });
 }

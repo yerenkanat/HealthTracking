@@ -1247,7 +1247,19 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'repeat_title_spo2': {AppLocale.ru: 'Кислород ниже обычного', AppLocale.kk: 'Оттегі әдеттегіден төмен', AppLocale.en: 'Lower oxygen than usual'},
   'repeat_title_hr': {AppLocale.ru: 'Пульс вне обычного диапазона', AppLocale.kk: 'Пульс әдеттегі шектен тыс', AppLocale.en: 'Heart rate outside its usual range'},
   'repeat_body': {AppLocale.ru: 'Одно измерение с браслета — ещё не повод для тревоги: на него влияют движение, поза и волнение. Отдохните пару минут и измерьте снова. Если покажет то же самое, приложение подскажет, что делать.', AppLocale.kk: 'Білезіктің бір өлшемі әлі алаңдауға себеп емес: оған қозғалыс, дене қалпы және толқу әсер етеді. Бірер минут тынығып, қайта өлшеңіз. Сол көрсеткіш қайталанса, қосымша не істеу керегін айтады.', AppLocale.en: 'One band reading is not a cause for alarm on its own — movement, posture and stress all affect it. Rest a couple of minutes and measure again. If it shows the same, the app will tell you what to do.'},
-  'repeat_cta': {AppLocale.ru: 'Измерить снова', AppLocale.kk: 'Қайта өлшеу', AppLocale.en: 'Measure again'},
+  // `repeat_cta` («Измерить снова» / «Қайта өлшеу» / «Measure again») was HERE
+  // and was DELETED on the clinical gate's instruction, 2026-08-17, not tidied
+  // away: its button opened the typed-vitals sheet, hand entry was removed the
+  // same day, and the gate's ruling is that where there is no action she can
+  // take in the app, a button is worse than no button. Deleted rather than left
+  // unrendered so that nobody re-wires an approved-looking CTA to a destination
+  // that no longer exists. Its fingerprint went from
+  // test/reviewed_medical_copy_test.dart with it.
+  //
+  // `repeat_body` above still ends «приложение подскажет, что делать». The gate
+  // has refused that sentence as it stands and is supplying replacement text;
+  // it is untouched here because inventing the replacement is not this change's
+  // to make.
   'cal_too_far':{AppLocale.ru: 'Показания тонометра и браслета слишком расходятся — калибровка не сохранена. Проверьте цифры и измерьте ещё раз в покое.', AppLocale.kk: 'Тонометр мен білезік көрсеткіштері тым алшақ — калибрлеу сақталмады. Сандарды тексеріп, тыныш күйде қайта өлшеңіз.', AppLocale.en: 'Your cuff and band readings are too far apart — nothing was saved. Check the numbers and measure again at rest.'},
   'cal_last': {AppLocale.ru: 'Откалибровано {ago}', AppLocale.kk: '{ago} калибрленген', AppLocale.en: 'Calibrated {ago}'},
   'cal_never': {AppLocale.ru: 'Не откалибровано', AppLocale.kk: 'Калибрленбеген', AppLocale.en: 'Not calibrated'},
@@ -2095,9 +2107,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Күй-жағдайды белгілеу үшін күнді басыңыз. Етеккір күндері белгіленген соң, күнтізбе болжам көрсете бастайды.',
     AppLocale.en: 'Tap a day to log how you feel. Once some period days are marked, the calendar starts showing predictions.',
   },
-  'cal_mode_cycle': {AppLocale.ru: 'Цикл', AppLocale.kk: 'Цикл', AppLocale.en: 'Cycle'},
-  'cal_mode_pregnancy': {AppLocale.ru: 'Беременность', AppLocale.kk: 'Жүктілік', AppLocale.en: 'Pregnancy'},
-  'cal_mode_child': {AppLocale.ru: 'Ребёнок', AppLocale.kk: 'Бала', AppLocale.en: 'Child'},
+  // cal_mode_cycle / _pregnancy / _child were the labels of a three-tab bar at
+  // the top of the calendar. The design doc forbids it in terms — «Календарь
+  // один, вкладок сверху нет» — and the tab let a pregnant woman open a cycle
+  // calendar, which is the exact thing the rule exists to prevent. The bar and
+  // its labels are gone; the calendar moves on events (see evt_*).
   'cal_child_empty_title': {AppLocale.ru: 'Календарь развития ребёнка', AppLocale.kk: 'Бала дамуының күнтізбесі', AppLocale.en: 'Child development calendar'},
   'cal_child_empty_body': {
     AppLocale.ru: 'Добавьте ребёнка и его дату рождения — и здесь появится, что он умеет сейчас и что будет дальше.',
@@ -4160,6 +4174,79 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.ru: 'Не удалось проверить доступ — нажмите, чтобы повторить',
     AppLocale.kk: 'Қолжетімділікті тексеру мүмкін болмады — қайталау үшін басыңыз',
     AppLocale.en: 'Could not check access — tap to retry'
+  },
+
+  // --- The «⋯» events on the calendar --------------------------------------
+  //
+  // docs/CLAUDE-app-design.md, ЧАСТЬ 4 rule 2: the one calendar changes when
+  // she reports an EVENT, never by picking a tab. These are the events. They
+  // are phrased as things that happened to her — «Тест положительный», «Я
+  // родила» — not as modes of an app, because that is what she is reporting.
+  'evt_menu': {AppLocale.ru: 'Ещё', AppLocale.kk: 'Тағы', AppLocale.en: 'More'},
+  'evt_title': {
+    AppLocale.ru: 'Что изменилось?',
+    AppLocale.kk: 'Не өзгерді?',
+    AppLocale.en: 'What has changed?'
+  },
+  // Says up front that the calendar follows the answer, so choosing one does
+  // not feel like an unexplained jump.
+  'evt_hint': {
+    AppLocale.ru: 'Календарь подстроится сам. Записи останутся.',
+    AppLocale.kk: 'Күнтізбе өзі бейімделеді. Жазбаларыңыз сақталады.',
+    AppLocale.en: 'The calendar follows. Your logs are kept.'
+  },
+  'evt_test_positive': {
+    AppLocale.ru: 'Тест положительный',
+    AppLocale.kk: 'Тест оң нәтиже берді',
+    AppLocale.en: 'The test is positive'
+  },
+  'evt_test_positive_sub': {
+    AppLocale.ru: 'Укажем срок — и откроется календарь беременности',
+    AppLocale.kk: 'Мерзімді көрсетеміз — жүктілік күнтізбесі ашылады',
+    AppLocale.en: 'Add a due date and the pregnancy calendar opens'
+  },
+  'evt_gave_birth': {
+    AppLocale.ru: 'Я родила',
+    AppLocale.kk: 'Мен босандым',
+    AppLocale.en: 'I have given birth'
+  },
+  'evt_gave_birth_sub': {
+    AppLocale.ru: 'Или беременность закончилась иначе',
+    AppLocale.kk: 'Немесе жүктілік басқаша аяқталды',
+    AppLocale.en: 'Or the pregnancy ended another way'
+  },
+  'evt_period_back': {
+    AppLocale.ru: 'Месячные вернулись',
+    AppLocale.kk: 'Етеккір қайта басталды',
+    AppLocale.en: 'My period is back'
+  },
+  'evt_period_back_sub': {
+    AppLocale.ru: 'Отметим сегодняшний день — и вернётся календарь цикла',
+    AppLocale.kk: 'Бүгінгі күнді белгілейміз — цикл күнтізбесі қайтады',
+    AppLocale.en: 'We will mark today, and the cycle calendar returns'
+  },
+  'evt_period_back_done': {
+    AppLocale.ru: 'Отметили сегодня. Календарь цикла вернулся.',
+    AppLocale.kk: 'Бүгінгі күн белгіленді. Цикл күнтізбесі қайтты.',
+    AppLocale.en: 'Marked today. The cycle calendar is back.'
+  },
+  // The confirm button on the "just turn tracking off" path. Short, plain, and
+  // not a word about why.
+  'evt_tracking_off': {
+    AppLocale.ru: 'Выключить',
+    AppLocale.kk: 'Өшіру',
+    AppLocale.en: 'Turn off'
+  },
+  'evt_preg_off_done': {
+    AppLocale.ru: 'Отслеживание беременности выключено',
+    AppLocale.kk: 'Жүктілікті бақылау өшірілді',
+    AppLocale.en: 'Pregnancy tracking is off'
+  },
+  // The reversal every one of those events leaves behind.
+  'act_undo': {
+    AppLocale.ru: 'Отменить',
+    AppLocale.kk: 'Қайтару',
+    AppLocale.en: 'Undo'
   },
 };
 

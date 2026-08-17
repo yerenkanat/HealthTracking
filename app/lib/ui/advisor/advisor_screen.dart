@@ -14,6 +14,7 @@ import '../design_system.dart';
 import '../theme.dart';
 import '../ds_widgets.dart';
 import '../widgets/glass.dart';
+import 'advisory_body.dart';
 
 class AdvisorScreen extends StatelessWidget {
   final List<HealthSample> samples;
@@ -225,8 +226,10 @@ class _AdvisoryCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 5),
-                Text(l.t('${advisory.code}_b'),
-                    style: const TextStyle(color: Palette.textDim, fontSize: 13.5, height: 1.35)),
+                // Lead + red-flag block + «Подробнее», per the declared layout
+                // for this key. With none declared it is the whole body, which
+                // is what this line used to be.
+                AdvisoryBody(code: advisory.code),
               ],
             ),
           ),

@@ -72,15 +72,18 @@ void main() {
     expect(labelY, lessThan(gridY));
   });
 
-  testWidgets('with no readings the dashboard shows its own empty state', (tester) async {
-    // Not a second one here. The vitals section only renders when there is a
+  testWidgets('with no readings there is no freshness line at all', (tester) async {
+    // Not an empty one here. The vitals section only renders when there is a
     // sample, so an empty branch inside the freshness line would be
     // unreachable code pretending to be a safety net — which is what the first
     // version of this was, and what this test caught.
+    //
+    // It used to check `noband_title` alongside, as the thing shown instead.
+    // That card was removed with hand entry on 2026-08-17 and nothing replaced
+    // it: the assertion that matters here was always the empty freshness line.
     await pump(tester, const []);
-    const l = L10n(AppLocale.ru);
-    expect(find.text(l.t('noband_title')), findsOneWidget);
     expect(freshness(tester, AppLocale.ru), '');
+    expect(find.byType(GridView), findsNothing);
   });
 
   testWidgets('a day-old reading is marked amber, not left looking current', (tester) async {

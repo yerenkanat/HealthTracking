@@ -72,7 +72,6 @@ import 'package:fcs_app/ui/advisor/advisor_screen.dart';
 import 'package:fcs_app/ui/calendar/day_log_sheet.dart';
 import 'package:fcs_app/ui/calibration/bp_calibration_sheet.dart';
 import 'package:fcs_app/ui/dashboard/log_sleep_sheet.dart';
-import 'package:fcs_app/ui/dashboard/log_vitals_sheet.dart';
 import 'package:fcs_app/ui/calendar/antenatal_plan_screen.dart';
 import 'package:fcs_app/ui/calendar/week_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_growth_screen.dart';
@@ -138,32 +137,60 @@ void main() {
     /// Drive the screen before measuring — tap into a tab, open a section.
     /// A screen with more than one state only proves the state it opened in.
     Future<void> Function(WidgetTester tester)? afterPump,
+
+    /// Put the locale AND the font scale above the Navigator, so an [afterPump]
+    /// that opens a dialog or a bottom sheet measures the right thing.
+    ///
+    /// Off by default because it changes the harness for every screen in this
+    /// file, and the screens that do not push a route cannot tell the
+    /// difference. It matters for the ones that do: a route pushed from inside
+    /// `home:` sits ABOVE the L10nScope and the MediaQuery, so it renders in
+    /// English at 100% — the language and the width the test is named for are
+    /// silently not the ones being measured, and `L10nScope.of` returns
+    /// `const L10n(AppLocale.en)` rather than throwing.
+    bool aboveNavigator = false,
   }) async {
     tester.view.physicalSize = Size(width * 3, kNarrowHeight * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: FcsTheme.light(locale),
-      // copyWith, NOT a fresh MediaQueryData: building one from scratch gives
-      // it Size.zero, and a screen that asks MediaQuery for the width then
-      // lays out against nothing. The first version of this did exactly that,
-      // so every screen here was measured against a zero-size viewport — the
-      // sweep looked like it was passing 34 screens and was not testing the
-      // width it is named after.
-      home: Builder(
-        builder: (context) => MediaQuery(
-          // The system font-size slider. Its users are not an edge case here —
-          // this app is read by pregnant women and by grandmothers minding the
-          // children, and Android's accessibility settings go well past this.
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(textScale),
-          ),
-          child: L10nScope(l10n: L10n(locale), child: build()),
-        ),
-      ),
-    ));
+    // copyWith, NOT a fresh MediaQueryData: building one from scratch gives it
+    // Size.zero, and a screen that asks MediaQuery for the width then lays out
+    // against nothing. The first version of this did exactly that, so every
+    // screen here was measured against a zero-size viewport — the sweep looked
+    // like it was passing 34 screens and was not testing the width it is named
+    // after.
+    //
+    // The system font-size slider. Its users are not an edge case here — this
+    // app is read by pregnant women and by grandmothers minding the children,
+    // and Android's accessibility settings go well past this.
+    Widget scaled(BuildContext context, Widget child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child,
+        );
+
+    await tester.pumpWidget(
+      aboveNavigator
+          ? L10nScope(
+              l10n: L10n(locale),
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: FcsTheme.light(locale),
+                // builder wraps the Navigator, so pushed routes are scaled too.
+                builder: (context, child) => scaled(context, child!),
+                home: Builder(builder: (_) => build()),
+              ),
+            )
+          : MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: FcsTheme.light(locale),
+              home: Builder(
+                builder: (context) => scaled(
+                    context, L10nScope(l10n: L10n(locale), child: build())),
+              ),
+            ),
+    );
     await tester.pumpAndSettle();
     if (afterPump != null) await afterPump(tester);
 
@@ -300,9 +327,7 @@ void main() {
         onLogKick: () {},
         onLogDay: () {},
         onLogWeight: () {},
-        onLogVitals: () {},
         onLogSleep: () {},
-        onScanMonitor: () {},
       ),
       'the home dashboard with no readings',
     );
@@ -432,43 +457,44 @@ void main() {
     );
   });
 
-  /// A controller with a child old enough to have a development calendar.
-  AppController withToddler() {
+  /// A controller in the state that PUTS her on the development calendar.
+  ///
+  /// This used to be a 400-day-old toddler plus a tap on the «Ребёнок» chip.
+  /// There is no chip now — «Календарь один, вкладок сверху нет» — and a
+  /// 400-day-old child does not open the development calendar either: the
+  /// middle rung of the priority is bounded by "a birth in the last year with
+  /// no period logged since", so a mother whose youngest is over a year is
+  /// back on her cycle. The state is the whole reach: no tap, and the test is
+  /// faster and less fragile for it.
+  AppController withNewborn() {
     final c = AppController(now: () => today);
     c.addChild(ChildProfile(
       id: 'k1',
       name: 'Сұлтан',
-      dateOfBirth: today.subtract(const Duration(days: 400)),
+      dateOfBirth: today.subtract(const Duration(days: 120)),
     ));
     return c;
   }
 
-  testWidgets("women's health fits in child-development mode", (tester) async {
-    final c = withToddler();
+  testWidgets("women's health fits on the development calendar", (tester) async {
+    final c = withNewborn();
     addTearDown(c.dispose);
     await fits(
       tester,
       () => WomensHealthScreen(controller: c, now: () => today),
-      "women's health (child)",
-      afterPump: (tester) async {
-        await tester.tap(find.text('Ребёнок'));
-        await tester.pumpAndSettle();
-      },
+      "women's health (development)",
     );
   });
 
-  testWidgets("women's health fits in child mode in Kazakh", (tester) async {
-    final c = withToddler();
+  testWidgets("women's health fits on the development calendar in Kazakh",
+      (tester) async {
+    final c = withNewborn();
     addTearDown(c.dispose);
     await fits(
       tester,
       () => WomensHealthScreen(controller: c, now: () => today),
-      "women's health (child, kk)",
+      "women's health (development, kk)",
       locale: AppLocale.kk,
-      afterPump: (tester) async {
-        await tester.tap(find.text('Бала'));
-        await tester.pumpAndSettle();
-      },
     );
   });
 
@@ -483,44 +509,181 @@ void main() {
     );
   });
 
-  /// The calendar switch is the one row that must read in full.
+  /// The calendar switch is the one control that must read in full.
   ///
-  /// Three chips share a 360dp line and the default language's word for the
-  /// middle one — «Беременность» — is twelve characters. Ellipsised it reads
-  /// «Беременно…», a control nobody can identify at a glance. The overflow
-  /// check above does not catch it: ellipsis IS the graceful degradation, so
-  /// the screen passes every other guard while the label is unreadable.
+  /// It used to be three chips sharing a 360dp line, and the guard was that
+  /// «Беременность» — twelve characters — could not be ellipsised into
+  /// «Беременно…», a control nobody can identify at a glance. The chips are
+  /// gone («Календарь один, вкладок сверху нет»), but the property they were
+  /// guarded for did not go with them: the switch is now the «⋯» events menu,
+  /// and its labels are LONGER than any chip label ever was — «Тест
+  /// положительный» is nineteen characters, «Етеккір қайта басталды» is
+  /// twenty-two, and each sits on a ListTile beside a leading icon, which is
+  /// narrower than the full width the chips had. So the same risk, moved, and
+  /// at 320dp rather than 360.
   ///
-  /// Asserted STRUCTURALLY, on purpose. Measuring the painted width here
-  /// proves nothing: flutter_test substitutes a font whose every glyph is a
-  /// full em square, so «Беременность» measures 144dp at 12px and every label
-  /// in every language would look truncated. What can be checked, and is
-  /// stronger than a measurement, is that the label is laid out in a way that
-  /// mathematically cannot truncate — scaled down to fit rather than clipped.
+  /// The overflow check does not catch this on its own: ellipsis IS the
+  /// graceful degradation as far as Flutter is concerned, so the screen passes
+  /// every other guard while the label is unreadable.
+  ///
+  /// Asserted STRUCTURALLY, as before, and for the same reason: flutter_test
+  /// substitutes a font whose every glyph is a full em square, so measuring the
+  /// painted width would call every label in every language truncated. What can
+  /// be checked is that the label is laid out in a way that mathematically
+  /// cannot truncate — here it WRAPS (no maxLines, no ellipsis) rather than
+  /// being scaled down, because a menu row can grow taller and a chip could not.
+  ///
+  /// Every event in every state she can be in, in both languages: the item is
+  /// only in the menu when it can happen next, so one state does not prove
+  /// the others.
   for (final (locale, labels) in [
-    (AppLocale.ru, ['Цикл', 'Беременность', 'Ребёнок']),
-    (AppLocale.kk, ['Цикл', 'Жүктілік', 'Бала']),
+    (
+      AppLocale.ru,
+      (
+        cycle: 'Тест положительный',
+        pregnancy: 'Я родила',
+        development: 'Месячные вернулись',
+      )
+    ),
+    (
+      AppLocale.kk,
+      (
+        cycle: 'Тест оң нәтиже берді',
+        pregnancy: 'Мен босандым',
+        development: 'Етеккір қайта басталды',
+      )
+    ),
   ]) {
-    testWidgets('the calendar switch cannot be cut short in ${locale.name}', (tester) async {
-      final c = AppController(now: () => today);
+    /// The event labels visible on screen must be whole words, not clipped.
+    void expectUncuttable(WidgetTester tester, List<String> expected) {
+      for (final label in expected) {
+        expect(find.text(label), findsOneWidget,
+            reason: '«$label» is not on the events menu at all');
+        final text = tester.widget<Text>(find.text(label));
+        expect(text.maxLines, isNull,
+            reason: '«$label» is capped to ${text.maxLines} line(s), so the '
+                'rest of it is thrown away — an event nobody can read is an '
+                'event nobody taps');
+        expect(text.overflow, isNot(TextOverflow.ellipsis),
+            reason: '«$label» can be clipped instead of wrapped');
+      }
+    }
+
+    Future<void> openMenu(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the calendar events cannot be cut short in ${locale.name}',
+        (tester) async {
+      final c = AppController(now: () => today); // cycling
       addTearDown(c.dispose);
       await fits(
         tester,
         () => WomensHealthScreen(controller: c, now: () => today),
-        'the calendar switch (${locale.name})',
+        'the calendar events, cycling (${locale.name})',
         locale: locale,
+        width: kTinyWidth,
+        // The menu is a PUSHED route, so the locale and the font scale have to
+        // be above the Navigator or this measures English at 100%.
+        aboveNavigator: true,
+        afterPump: openMenu,
       );
-      for (final label in labels) {
-        expect(find.text(label), findsOneWidget,
-            reason: '«$label» is not on the switch at all');
-        final box = tester.widget<FittedBox>(find.ancestor(
-            of: find.text(label), matching: find.byType(FittedBox)).first);
-        expect(box.fit, BoxFit.scaleDown,
-            reason: '«$label» can be clipped instead of shrunk — '
-                'a segment nobody can read is a segment nobody taps');
-      }
+      expectUncuttable(tester, [labels.cycle]);
+    });
+
+    testWidgets(
+        'the calendar events cannot be cut short while pregnant in ${locale.name}',
+        (tester) async {
+      final c = AppController(now: () => today)
+        ..setDueDate(today.add(const Duration(days: 140)));
+      addTearDown(c.dispose);
+      await fits(
+        tester,
+        () => WomensHealthScreen(controller: c, now: () => today),
+        'the calendar events, pregnant (${locale.name})',
+        locale: locale,
+        width: kTinyWidth,
+        aboveNavigator: true,
+        afterPump: openMenu,
+      );
+      expectUncuttable(tester, [labels.pregnancy]);
+    });
+
+    testWidgets(
+        'the calendar events cannot be cut short after a birth in ${locale.name}',
+        (tester) async {
+      final c = withNewborn();
+      addTearDown(c.dispose);
+      await fits(
+        tester,
+        () => WomensHealthScreen(controller: c, now: () => today),
+        'the calendar events, after a birth (${locale.name})',
+        locale: locale,
+        width: kTinyWidth,
+        aboveNavigator: true,
+        afterPump: openMenu,
+      );
+      // Two items here, the longest pairing in the app's longer language.
+      expectUncuttable(tester, [labels.cycle, labels.development]);
     });
   }
+
+  testWidgets('the calendar events fit at 320dp in Kazakh with the slider at 130%',
+      (tester) async {
+    // The worst case this file exists for, applied to the new control: the
+    // narrow floor, the longer language, and the font slider up, on a sheet
+    // whose height is 9/16 of the screen and whose rows are full sentences.
+    //
+    // This is also the case that makes `aboveNavigator` load-bearing rather
+    // than tidy: without it the sheet is pushed above the MediaQuery this test
+    // sets, so it would be measured at 100% and pass while proving nothing.
+    final c = withNewborn(); // two events on the menu — the fullest it gets
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => WomensHealthScreen(controller: c, now: () => today),
+      'the calendar events (kk, 130%)',
+      locale: AppLocale.kk,
+      width: kTinyWidth,
+      textScale: 1.3,
+      aboveNavigator: true,
+      afterPump: (tester) async {
+        await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+        await tester.pumpAndSettle();
+      },
+    );
+    expect(find.text('Етеккір қайта басталды'), findsOneWidget);
+  });
+
+  testWidgets('the end-of-pregnancy fork fits at 320dp in Kazakh at 130%',
+      (tester) async {
+    // The sheet BEHIND «Я родила» — a birth on one row and a loss on the other,
+    // each with a wrapping subtitle, inside a sheet whose height is 9/16 of the
+    // screen. It is the sheet a woman may be reading through tears, and the one
+    // place in the app where an overflow bar would be worst.
+    final c = AppController(now: () => today)
+      ..setDueDate(today.add(const Duration(days: 140)));
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => WomensHealthScreen(controller: c, now: () => today),
+      'the end-of-pregnancy fork (kk, 130%)',
+      locale: AppLocale.kk,
+      width: kTinyWidth,
+      textScale: 1.3,
+      aboveNavigator: true,
+      afterPump: (tester) async {
+        await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Мен босандым'));
+        await tester.pumpAndSettle();
+      },
+    );
+    // Both doors are on it, and both read in full.
+    expect(find.text('Бала дүниеге келді'), findsOneWidget);
+    expect(find.text('Бақылауды өшіру'), findsOneWidget);
+  });
 
   /// Lesson titles are typed by staff in the back office, so they are as long
   /// as somebody felt like making them — not as long as this layout wants.
@@ -1053,18 +1216,8 @@ void main() {
 
   // ---- The sheets --------------------------------------------------------
 
-  testWidgets('the vitals sheet fits', (tester) async {
-    await sheetFits(tester, (ctx) => showLogVitalsSheet(ctx), 'the vitals sheet');
-  });
-
-  testWidgets('the vitals sheet fits at 130%', (tester) async {
-    await sheetFits(tester, (ctx) => showLogVitalsSheet(ctx), 'the vitals sheet', textScale: 1.3);
-  });
-
-  testWidgets('the vitals sheet fits in Kazakh', (tester) async {
-    await sheetFits(tester, (ctx) => showLogVitalsSheet(ctx), 'the vitals sheet (kk)',
-        locale: AppLocale.kk);
-  });
+  // The vitals sheet's three fit tests were HERE. The sheet was deleted with
+  // hand entry on 2026-08-17; there is no widget left to measure.
 
   testWidgets('the sleep sheet fits', (tester) async {
     await sheetFits(tester, (ctx) => showLogSleepSheet(ctx, now: now), 'the sleep sheet');
@@ -1462,7 +1615,6 @@ void main() {
           greetingName: 'Айгерім-Гүлнұр',
           currentLocale: AppLocale.kk,
           onLocaleChange: (_) {},
-          onLogVitals: () {},
           onOpenProfile: () {},
           // Two digits, which is the widest the badge ever gets.
           onOpenNotifications: () {},

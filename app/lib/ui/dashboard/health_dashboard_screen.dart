@@ -23,11 +23,11 @@ import '../../domain/cycle_insights.dart';
 import '../../domain/cycle_log.dart';
 import '../../domain/cycle_predictions.dart';
 import '../../domain/timeline_content.dart';
+import '../advisor/advisory_body.dart';
 import '../common/daily_audio_card.dart';
 import '../content/timeline_content_card.dart';
 import 'child_hero.dart';
 import 'device_temp_note.dart';
-import 'no_band_card.dart';
 import 'cycle_hero.dart';
 import 'stage_hero.dart';
 import '../../domain/weekly_digest.dart';
@@ -115,7 +115,6 @@ class HealthDashboardView extends StatelessWidget {
   /// not pregnant, which hides the card.
   final int? pregnancyWeek;
   final VoidCallback? onOpenAntenatalPlan; // tap → the eight-visit schedule
-  final VoidCallback? onLogVitals; // hand-entered reading (no band required)
   /// True when a wearable is wired but not currently delivering readings, so
   /// the numbers on screen may be stale. Shows a quiet "not measuring" chip.
   final bool bandNotMeasuring;
@@ -163,11 +162,6 @@ class HealthDashboardView extends StatelessWidget {
   final VoidCallback? onLogKick;
   final VoidCallback? onLogDay;
   final VoidCallback? onLogWeight;
-
-  /// Her cycle, when she is neither expecting nor a mother. Drives screen 55.
-  /// Opens the vitals sheet on its camera path. Null with no server: the dark
-  /// card then stays off the screen rather than offering what cannot work.
-  final VoidCallback? onScanMonitor;
 
   /// The child screen 54's block is about — the selected one with a birth
   /// date. Null when she has no child, or none with a date to count from.
@@ -233,7 +227,6 @@ class HealthDashboardView extends StatelessWidget {
     this.onOpenAppointments,
     this.pregnancyWeek,
     this.onOpenAntenatalPlan,
-    this.onLogVitals,
     this.bandNotMeasuring = false,
     this.bpCalibrationStale = true,
     this.wearable,
@@ -248,7 +241,6 @@ class HealthDashboardView extends StatelessWidget {
     this.onLogKick,
     this.onLogDay,
     this.onLogWeight,
-    this.onScanMonitor,
     this.childHeroName,
     this.childHeroAgeMonths,
     this.childGrowth = const [],
@@ -272,19 +264,6 @@ class HealthDashboardView extends StatelessWidget {
     this.onSetWaterGoal,
     this.onOpenWaterHistory,
   });
-
-  /// Whether a device is putting readings on this screen.
-  ///
-  /// NOT `samples.isNotEmpty`. A hand-typed reading goes into the same store as
-  /// band telemetry, so "she has samples" was read as "she has a band" — and the
-  /// manual-entry card, gated on the negation, disappeared the instant she used
-  /// it. One typed blood pressure removed the four buttons that had taken it,
-  /// the тонометр camera and the sleep entry, leaving an unlabelled app-bar
-  /// icon as the only remaining route into the feature she had just started
-  /// using. The provenance the store now carries is the question that was
-  /// actually being asked.
-  bool get _bandSupplying =>
-      samples.any((s) => s.source == ReadingSource.sensor);
 
   @override
   Widget build(BuildContext context) {
@@ -330,13 +309,11 @@ class HealthDashboardView extends StatelessWidget {
                 tooltip: l.t('ntf_title'),
                 onPressed: onOpenNotifications,
               ),
-            if (onLogVitals != null)
-              IconButton(
-                icon:
-                    const Icon(Icons.add_chart_rounded, color: Palette.textDim),
-                tooltip: l.t('vitals_log'),
-                onPressed: onLogVitals,
-              ),
+            // No hand-entry action here. The «Записать показатели» icon opened
+            // the typed-vitals sheet, and hand entry of readings is gone by
+            // owner's decision (2026-08-17): the watch measures them. The
+            // MANUAL provenance branch survives — old rows keep their label —
+            // but nothing in the app creates a new one.
             if (samples.isNotEmpty)
               IconButton(
                 icon:
@@ -388,8 +365,7 @@ class HealthDashboardView extends StatelessWidget {
                   // wrist estimate does not justify that — but the most
                   // important thing on the screen until it resolves.
                   if (awaitingRepeat != null) ...[
-                    _RepeatReadingCard(
-                        family: awaitingRepeat!, onLog: onLogVitals),
+                    _RepeatReadingCard(family: awaitingRepeat!),
                     const SizedBox(height: 14),
                   ],
                   if (setupProgress != null && !setupProgress!.complete) ...[
@@ -505,40 +481,17 @@ class HealthDashboardView extends StatelessWidget {
                     onSeeAll: onSeeAllContent,
                   ),
                   const SizedBox(height: 18),
-                  // Screen 05, in the slot the vitals grid would occupy. This
-                  // used to be a watch icon and «Наденьте браслет — и данные
-                  // появятся здесь»: the band upsell the spec forbids by name,
-                  // shown to a woman who has not bought one — and for most of
-                  // them that is the permanent state of this app, not a step on
-                  // the way to buying.
+                  // NOTHING between the shelf and the vitals grid any more.
                   //
-                  // «Без устройства приложение полноценно.»
+                  // «Записывайте вручную» (Давление / Пульс / Вес / Сон) and the
+                  // dark «Сфотографировать тонометр» card stood here. Both are
+                  // removed, with the typed-vitals sheet and the tonometer scan
+                  // behind them — owner's decision, 2026-08-17: readings are
+                  // measured by the watch, not typed.
                   //
-                  // Gated on whether a BAND is supplying readings, not on
-                  // whether any exist: typed readings land in the same store, so
-                  // `samples.isEmpty` deleted this card the moment she used it.
-                  // It now stays for as long as she is the person it is for, and
-                  // sits ABOVE her own readings — the grid below is what she put
-                  // there, and this is how she adds to it.
-                  if (!_bandSupplying)
-                    NoBandCard(
-                      onLogVitals: onLogVitals,
-                      onLogWeight: onLogWeight,
-                      onLogSleep: onLogSleep,
-                      onScanMonitor: onScanMonitor,
-                      // The pregnancy quick actions above already carry «Вес»,
-                      // wired to this same sheet.
-                      showWeight: gestation == null,
-                      // The card's own sentence has to stay true for her. With
-                      // nothing logged it is an introduction — «приложение
-                      // работает и без браслета». Once she has been typing
-                      // readings, that reassurance has been answered, and
-                      // repeating it daily addresses a decision she made long
-                      // ago; what is true then is where those readings went.
-                      hasLoggedReadings: samples.isNotEmpty,
-                    ),
-                  if (samples.isNotEmpty && !_bandSupplying)
-                    const SizedBox(height: 18),
+                  // `_bandSupplying` went with them; it existed only to decide
+                  // whether that card was on screen. The grid below is gated on
+                  // `samples.isNotEmpty` as it always was.
                   if (samples.isNotEmpty) ...[
                     // A section label so the vitals read as one named group, in
                     // parallel with the Activity & Wellness header below — the
@@ -616,18 +569,19 @@ class HealthDashboardView extends StatelessWidget {
                   ],
                   // Sleep sits directly under the vital signs — it is one of her
                   // core health readings, not something to bury in the watch
-                  // detail. Without a band it shows only when there IS a night
-                  // to show: NoBandCard already carries «Сон» as one of its four
-                  // manual entries, and a second log-sleep button stacked under
-                  // it is the duplicate-control defect.
+                  // detail.
                   //
-                  // The second clause was `samples.isNotEmpty`, and it meant
-                  // "the manual card is not on screen" — which stopped being the
-                  // same sentence the moment that card stopped keying off
-                  // emptiness. Left alone, one typed blood pressure would have
-                  // put «Сон» on the page twice, six lines apart.
+                  // The second clause used to be `_bandSupplying && onLogSleep
+                  // != null`, because NoBandCard carried «Сон» as one of its
+                  // four chips and two log-sleep buttons on one page is the
+                  // duplicate-control defect. That card is gone, so this is now
+                  // the ONLY sleep entry on the dashboard and the band condition
+                  // has to go with it — otherwise removing the vitals card
+                  // would silently take sleep logging away from every user
+                  // without a paired watch, which is not what was asked for.
+                  // Sleep is not a vital the watch types in for her.
                   if (latestNight(sleepNights) != null ||
-                      (_bandSupplying && onLogSleep != null)) ...[
+                      onLogSleep != null) ...[
                     const SizedBox(height: 14),
                     SleepCard(nights: sleepNights, onLog: onLogSleep),
                   ],
@@ -899,7 +853,6 @@ class _PeaceOfMindBanner extends StatelessWidget {
     // normality verdict made the verdict personal, and the verdict is what was
     // refused.
     final headline = l.t(status.code);
-    final sub = l.t('${status.code}_b');
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -956,9 +909,13 @@ class _PeaceOfMindBanner extends StatelessWidget {
                           height: 1.2,
                           color: Palette.text)),
                   const SizedBox(height: 5),
-                  Text(sub,
-                      style: const TextStyle(
-                          color: Palette.textDim, fontSize: 13, height: 1.35)),
+                  // The advisory's body, divided per its declared layout: lead
+                  // here, red flags and 103 in their own amber block below it,
+                  // the procedure behind «Подробнее». `ADV_BP_ELEVATED_b` is
+                  // eleven lines of solid text and this is the screen the app
+                  // opens on. With no layout declared for a key it renders the
+                  // whole body, which is what this line used to be.
+                  AdvisoryBody(code: status.code, fontSize: 13),
                   // And in words, beside the shape it explains. An empty ring
                   // on its own is an absence, and an absence is read as
                   // whatever the reader fears or hopes.
@@ -2023,10 +1980,25 @@ class _StatusChip extends StatelessWidget {
 /// screen. It has to read as calm and actionable: she is not in an emergency,
 /// and telling her she might be, on one wrist estimate, is the thing this whole
 /// mechanism exists to avoid.
+/// «Измерьте ещё раз» — a sensor crossing waiting on a second reading.
+///
+/// It carried a CTA («Измерить снова») that opened the typed-vitals sheet.
+/// That sheet is gone (hand entry removed, 2026-08-17) and there is nowhere
+/// else for the button to go: the second reading is taken on the watch, which
+/// is what `repeat_body` already says — «отдохните пару минут и измерьте
+/// снова». So the card is title + body and no button, rather than a button
+/// that opens nothing.
+///
+/// `repeat_cta` was deleted from the catalogue with the button, on the gate's
+/// instruction — an approved-looking CTA left lying in the table is an
+/// invitation to re-wire it to a destination that no longer exists.
+///
+/// `repeat_body` still ends «приложение подскажет, что делать». The gate has
+/// refused that as it stands and is supplying replacement text; it is
+/// deliberately untouched here.
 class _RepeatReadingCard extends StatelessWidget {
   final String family;
-  final VoidCallback? onLog;
-  const _RepeatReadingCard({required this.family, this.onLog});
+  const _RepeatReadingCard({required this.family});
 
   @override
   Widget build(BuildContext context) {
@@ -2064,14 +2036,6 @@ class _RepeatReadingCard extends StatelessWidget {
           Text(l.t('repeat_body'),
               style: const TextStyle(
                   fontSize: 13.5, height: 1.4, color: Palette.textDim)),
-          if (onLog != null) ...[
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                  onPressed: onLog, child: Text(l.t('repeat_cta'))),
-            ),
-          ],
         ],
       ),
     );

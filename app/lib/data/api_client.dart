@@ -42,22 +42,13 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
-/// What the vision model read off a photo. Every field is optional — a photo of
-/// a glucometer yields only glucose — and [note] is a short human line (which
-/// device was seen, or that nothing was legible).
-class ExtractedReading {
-  final int? heartRate;
-  final int? spo2;
-  final int? systolic;
-  final int? diastolic;
-  final double? temperature;
-  final double? glucose;
-  final String? note;
-  const ExtractedReading({this.heartRate, this.spo2, this.systolic, this.diastolic, this.temperature, this.glucose, this.note});
-
-  bool get isEmpty =>
-      heartRate == null && spo2 == null && systolic == null && diastolic == null && temperature == null && glucose == null;
-}
+// ExtractedReading and extractVitalsFromImage ('/vitals/extract') are gone.
+// They existed for one caller: the «Сфотографировать тонометр» card, which
+// photographed a home device's display and pre-filled the typed-vitals sheet.
+// Hand entry of readings was removed on 2026-08-17, so there is no form for a
+// scan to fill. The server route is untouched — see packages/ — and the other
+// two vision extractors (medications, appointments) fill forms that still
+// exist and are unaffected.
 
 /// What the vision model read off a photo of a prescription / label / box.
 class ExtractedMedication {
@@ -256,28 +247,6 @@ class ApiClient {
     final res = await transport.post('/ingest/batch', {'items': items});
     if (!res.ok) throw ApiException(res.statusCode, res.body);
     return IngestSummary.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
-  }
-
-  /// Read vitals off a photo of a home device or a lab slip (Claude vision on the
-  /// server). [bytes] is the already-downscaled image; [mediaType] is one of
-  /// image/jpeg|png|webp. Returns whatever could be read — every field may be
-  /// null — for the caller to pre-fill and let the user confirm before saving.
-  Future<ExtractedReading> extractVitalsFromImage(List<int> bytes, String mediaType) async {
-    final res = await transport.post('/vitals/extract', {
-      'imageBase64': base64Encode(bytes),
-      'mediaType': mediaType,
-    });
-    if (!res.ok) throw ApiException(res.statusCode, res.body);
-    final j = jsonDecode(res.body) as Map<String, dynamic>;
-    return ExtractedReading(
-      heartRate: (j['heartRate'] as num?)?.toInt(),
-      spo2: (j['spo2'] as num?)?.toInt(),
-      systolic: (j['systolic'] as num?)?.toInt(),
-      diastolic: (j['diastolic'] as num?)?.toInt(),
-      temperature: (j['temperature'] as num?)?.toDouble(),
-      glucose: (j['glucose'] as num?)?.toDouble(),
-      note: j['note'] as String?,
-    );
   }
 
   /// Read a medication off a photo of a prescription, label, or box (Claude
