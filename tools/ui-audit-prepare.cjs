@@ -96,6 +96,47 @@ window.__audit = async function(){
         + (el.textContent||'').replace(/\\s+/g,' ').trim().slice(0,40) + '"');
     }
   }
+  // WHEN THE PAGE SCROLLS BUT NOTHING IS REPORTED.
+  //
+  // The loop above skips anything inside a horizontal scroller, which is right:
+  // a wide table inside its own overflow-x:auto card is a design decision,
+  // not a defect. But it means that when the DOCUMENT scrolls, the audit knows
+  // it and cannot say why — which is exactly the state «PAGE SCROLLS: 932 > 900»
+  // left a reader in. (No backticks in this comment: it lives inside a template
+  // literal, and one would close it — the same fault that once took the whole
+  // panel script down.)
+  //
+  // So: name the three widest right-edges regardless of scroller, as a
+  // diagnostic rather than a verdict. It answers "what should I look at",
+  // which is the only question worth asking once the page is already known to
+  // scroll.
+  if (document.documentElement.scrollWidth > vw + 1) {
+    const widest = [];
+    // body, not #appShell: the page can be pushed wide by something OUTSIDE the
+    // shell — a toast, a dialog, a fixed bar — and scanning only the shell is
+    // how this reported a scrolling page with no cause.
+    for (const el of document.querySelectorAll('body *')) {
+      if (!el.getClientRects().length) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.right <= vw + 1) continue;
+      // A position:fixed element cannot create document scroll, however far off
+      // screen it sits. The closed drawer is translateX(100%) by design and was
+      // the loudest thing here — a false lead that would have sent someone to
+      // fix correct code.
+      if (getComputedStyle(el).position === 'fixed') continue;
+      const id = el.id ? '#' + el.id : '';
+      const cls = el.className && typeof el.className === 'string'
+        ? '.' + el.className.trim().split(/\\s+/).slice(0,2).join('.') : '';
+      widest.push({ over: Math.round(r.right - vw), scroller: inScroller(el),
+        what: '<' + el.tagName.toLowerCase() + id + cls + '> "'
+          + (el.textContent||'').replace(/\\s+/g,' ').trim().slice(0,36) + '"' });
+    }
+    widest.sort((a,b) => b.over - a.over);
+    for (const w of widest.slice(0,3)) {
+      out.push('WIDEST +' + w.over + 'px' + (w.scroller ? ' (in a scroller)' : '') + '  ' + w.what);
+    }
+  }
+
   // Controls a person must reach: are they inside the viewport?
   const unreachable = [];
   for (const el of document.querySelectorAll('#appShell input, #appShell select, #appShell button, #appShell textarea')) {
