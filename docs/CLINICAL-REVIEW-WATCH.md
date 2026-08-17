@@ -292,6 +292,111 @@ protocol) and, unconditionally for both, the reviewed preeclampsia red flags and
 103. That last branch is the only part that helps the woman whose wrist reads
 137 while her true pressure is 160.
 
+## Hand entry removed — 2026-08-17, and what it costs
+
+A product decision by the owner, taken with the consequences put to him first and
+confirmed. Recorded here because it **supersedes a clinical ruling**, and a
+ruling overtaken by a product decision must be marked as such rather than left
+standing to be read later as still in force.
+
+> **Ruling #4 of "Device temperature — closed 2026-08-13" is SUPERSEDED.** It
+> read: *"manual entry is unchanged, at full emergency weight… stated explicitly
+> so no one 'simplifies' the three sources into one rule and disarms the only one
+> that deserves to fire."* The disarming has now happened — not by an
+> implementer simplifying, which is what that sentence guarded against, but by
+> the entry path being removed. The clinical argument behind it is unchanged and
+> still correct; what changed is that there is no longer a manual source.
+
+**What the product has lost, precisely:**
+
+1. **There is no fever emergency, from any source.** `HIGH_FEVER` and
+   `LOW_FEVER` sit behind `source == manual` and are now unreachable. A woman
+   with a thermometer reading of 40.0 °C receives, at most, a warning-tone card
+   saying «позвоните врачу сегодня».
+2. **Blood pressure keeps escalation and loses CORRECTION.** This corrects an
+   error in my own framing of the question: the BP branch has no provenance
+   check, so a wrist 140/90 still raises `PREECLAMPSIA_BP` and always did. What
+   is gone is the cuff reading that could refute it — in both directions. A
+   wrist 137 hiding a true 155 escalates nothing and cannot be checked; a wrist
+   145 over a true 125 escalates and **cannot be refuted**. False preeclampsia
+   alarms are not a lesser cost: they are how a woman learns to dismiss the one
+   that is real.
+3. **Six advisories become unreachable** — `ADV_BP_ELEVATED`, `ADV_BP_STEADY`,
+   `ADV_TEMP_ELEVATED`, `ADV_TEMP_STEADY`, `ADV_GLUCOSE_HIGH`,
+   `ADV_GLUCOSE_LOW`. `calibrateBp` stores only an offset and creates no
+   `HealthSample`, so calibration does not keep them alive. Per the precedent of
+   `ADV_ALL_STEADY`, an unreachable medical key is DELETED, not left warm: a
+   dead key is a live key to the next person who finds a call site.
+4. **The BP and temperature tiles are permanently ungraded**, so the peace ring
+   is now a two-metric ring — heart rate and SpO2. That is the safe direction,
+   and nobody may later "fix" it by letting a device BP count as healthy (#23).
+5. **The doctor-facing visit summary contains only wrist estimates**, since its
+   BP and temperature rows filter on provenance.
+6. **The confirmation-repeat card lost its destination.** `repeat_body` promised
+   «приложение подскажет, что делать» over a button wired to the deleted sheet —
+   refused sentence #12 with a dead control under it, on the card shown ABOVE
+   everything else at the one moment a threshold has been crossed. Rewritten to
+   send her to a second BAND reading, which is what that gate exists to wait for,
+   and `repeat_cta` deleted rather than made a no-op: where there is no action
+   she can take, a button is worse than no button.
+
+**What would buy the fever emergency back**, recorded so the option is not lost:
+a single-number thermometer entry — not the diary. The objection was to users
+entering readings the watch produces; a thermometer number is not one, and a
+cuff number is the correction the watch requires. A product decision, not a
+clinical one.
+
+**BLOCKING, and it held:** `bp_calibration_sheet.dart` must survive any removal
+of "hand entry". It is opened from Settings, stores an offset rather than a
+reading, and creates no `HealthSample`. Without it `bpCalibrationIsStale` is
+permanently true past 8 days, which by the freshness table means a blood
+pressure is «not shown as current, always» — silently removing the tile and
+leaving an uncorrectable wrist estimate as the sole input to the one device path
+still able to open the emergency screen.
+
+## Long cards: a declared PREFIX, never a summary — 2026-08-17
+
+The advisory body is too long for a home card. The fix is **not** a short second
+string per key:
+
+> The home card renders a declared PREFIX of the approved body. «Подробнее»
+> opens the whole body, INCLUDING the sentences the card already showed. The
+> split point is metadata — a sentence count — not text.
+
+A per-card summary would be a third independently-authored claim per key per
+language, kept in sync forever and re-reviewed on every edit to either. That is
+the mechanism that already cost this product a reviewed clinical claim, once.
+The prefix carries no such risk: every word that ships is still covered by the
+fingerprints in `reviewed_medical_copy_test.dart`.
+
+**Prefix integrity, all four to be pinned:**
+
+1. **A conditional and its consequent may never be split.** «Measure with a
+   cuff» on the card and «if it shows 140/90 or higher, contact your doctor
+   immediately» behind a tap is worse than no split at all — it sends her to
+   take a measurement and withholds the rule for reading it.
+2. **A 103 branch may never be last in the prefix.**
+3. **No forward reference** — no sentence on the card may depend on one below.
+4. **Every sentence in the prefix must be true with nothing after it** — the
+   titles rule, one level down.
+
+And the standing rule that follows from it:
+
+> **A 103 branch may never be the last element of a card body, and may never be
+> the first thing a summary drops.** Bodies are cut from the end — by
+> summarisation, by `maxLines`, and by the next person who finds the card too
+> long.
+
+**No split, ever, for a card whose tone is `positive` or `info`.** Their closing
+sentence is the counterweight that stops them reading as an all-clear; putting
+it behind a tap turns each into the reassurance it was written to prevent.
+Abbreviating a reassurance widens it — the absorber rule, restated for this
+feature.
+
+The clipboard export may carry the title plus the same prefix. A third,
+separately-authored summary is REFUSED. Rule #24 is unchanged regardless: every
+title must still be true and complete with no body at all.
+
 ## Medical Kazakh is reviewed, not translated — the standing rule
 
 > No string in a `medical` content card, an `ADV_*` advisory, a triage message,
