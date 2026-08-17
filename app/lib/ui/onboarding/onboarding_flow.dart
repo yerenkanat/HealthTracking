@@ -637,7 +637,18 @@ class _PairBandPageState extends State<_PairBandPage> {
           style: TextButton.styleFrom(
               foregroundColor: Palette.violetText,
               minimumSize: const Size(0, DsShape.minTapTarget)),
-          child: Text(l.t('onb_pair_no_device'),
+          // `onb_pair_skip` («Пропустить»), NOT `onb_pair_no_device`.
+          //
+          // That key read «Пока нет — буду записывать вручную» and was the FIRST
+          // thing offered to a woman without a bracelet. Hand entry of vitals
+          // was removed on 2026-08-18, so it promised a screen that no longer
+          // exists — found by running the app, after every suite passed.
+          //
+          // `onb_pair_skip` already existed and had no caller. It says only what
+          // is true: she can move on. It does not claim she will be able to
+          // record anything by hand, and it does not claim the opposite either,
+          // which is not this control's job to answer.
+          child: Text(l.t('onb_pair_skip'),
               style: const TextStyle(fontWeight: FontWeight.w600)),
         ),
       );

@@ -371,11 +371,17 @@ void main() {
       await pumpPhase(tester, const BandScanUpdate(BandScanPhase.unsupported));
       expect(find.byKey(const Key('onb-pair-unsupported')), findsOneWidget);
       expect(find.text('This phone has no Bluetooth'), findsOneWidget);
-      // No retry and no "turn it on": both would be lies here. The way on is
-      // the manual route, which is on the screen.
+      // No retry and no "turn it on": both would be lies on a phone with no
+      // radio. There must still be a way forward on the screen, or this state
+      // is a dead end.
       expect(find.text('Search again'), findsNothing);
       expect(find.text('Turn Bluetooth on'), findsNothing);
-      expect(find.text('Not yet — I will log by hand'), findsOneWidget);
+      // Was «Not yet — I will log by hand» until 2026-08-18. That named the
+      // manual diary, which was removed the same day, so the way forward
+      // pointed at a screen that no longer existed — and this assertion was
+      // pinning the promise rather than catching it. The property it guards is
+      // unchanged: an exit exists here. Only the exit's name moved.
+      expect(find.text('Skip for now'), findsOneWidget);
     });
 
     testWidgets('a scan that would not start says that, and can be retried',

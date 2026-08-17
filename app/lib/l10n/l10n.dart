@@ -4083,11 +4083,14 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   // «Пропустить» said nothing about what she was skipping, on the one step
   // where the answer «у меня его нет» is the ordinary one, not the exception.
-  'onb_pair_no_device': {
-    AppLocale.ru: 'Пока нет — буду записывать вручную',
-    AppLocale.kk: 'Әзірге жоқ — қолмен жазып отырамын',
-    AppLocale.en: 'Not yet — I will log by hand'
-  },
+  // onb_pair_no_device («Пока нет — буду записывать вручную») was DELETED on
+  // 2026-08-18. It was the first thing offered to a woman without a bracelet,
+  // and once hand entry of vitals was removed it promised a screen that does not
+  // exist. Found by running the app on an emulator, with every suite green.
+  //
+  // The control now uses `onb_pair_skip` («Пропустить»), which already existed
+  // and had no caller. Do not reinstate this string without reinstating the
+  // entry path it names.
   'onb_pair_manual_title': {
     AppLocale.ru: 'Записывайте вручную',
     AppLocale.kk: 'Қолмен жазып отырыңыз',
