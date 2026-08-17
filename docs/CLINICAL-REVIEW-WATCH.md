@@ -369,6 +369,21 @@ the mechanism that already cost this product a reviewed clinical claim, once.
 The prefix carries no such risk: every word that ships is still covered by the
 fingerprints in `reviewed_medical_copy_test.dart`.
 
+**Implemented 2026-08-17** in `app/lib/domain/advisory_layout.dart`, and the
+shape is better than the ruling asked for. A plain prefix would have put the
+sentence that must never be hidden — the red flags and 103, which sit at the END
+— behind the tap. So the split takes sentences from BOTH ends:
+
+    lead  sentences from the front  → the card, as body text
+    flags sentences from the back   → the card, as the amber red-flag block
+    the middle                      → behind «Подробнее»
+
+`flags: 0` degrades to a plain prefix for a card with no red-flag tail. This
+also satisfies `docs/CLAUDE-app-design.md` ЧАСТЬ 4 rule 6 — «Красные флаги
+отдельным блоком, не под "читать дальше". 103 внизу» — which was found after the
+ruling was written and independently requires the same thing. Amber, not red,
+per rule 5: «Красный только SOS».
+
 **Prefix integrity, all four to be pinned:**
 
 1. **A conditional and its consequent may never be split.** «Measure with a
