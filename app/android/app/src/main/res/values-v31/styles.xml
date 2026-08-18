@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and later draw the splash themselves and IGNORE
+     android:windowBackground for it.
+
+     Without this file the platform falls back to the adaptive launcher icon —
+     ic_launcher_foreground, a WHITE heart, on ic_launcher_background's coral
+     gradient. That is what the device audit saw: the first thing anyone ever
+     sees was a mark the product uses nowhere else, one frame before the
+     crimson-on-cream welcome screen.
+
+     The drawable someone had already corrected to #D6004A was never at fault.
+     It was simply never consulted on a modern phone, which is why fixing the
+     colour there did not change what the audit observed. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/brand_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_mark</item>
+        <!-- Still set, for the window behind the splash and for anything that
+             reads it after the splash is dismissed. -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

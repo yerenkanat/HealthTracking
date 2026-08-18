@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark-mode twin of values-v31/styles.xml.
+
+     A separate file is needed only because the PARENT differs (Theme.Black vs
+     Theme.Light) — @color/brand_bg already resolves per configuration and is
+     #0E0F16 here, so the splash background follows dark mode on its own.
+
+     The crimson mark is unchanged: #D6004A on #0E0F16 is the same mark the
+     welcome screen shows, and the point of this fix is that the first frame
+     and the second frame agree. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/brand_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_mark</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

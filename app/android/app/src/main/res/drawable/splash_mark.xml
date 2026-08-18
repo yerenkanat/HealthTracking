@@ -1,0 +1,22 @@
+<!-- The Android 12+ splash mark: the same crimson heart as @drawable/brand_mark,
+     centred in a viewport twice its size.
+
+     WHY THE PADDING IS NOT DECORATION. The platform splash masks
+     windowSplashScreenAnimatedIcon to a circle and shows roughly the inner
+     two-thirds. brand_mark's path spans almost its whole 24x24 viewport, so
+     handing it to the splash directly clips the top of both lobes and the
+     point of the heart. Centring it in a 48x48 viewport leaves the artwork at
+     50% of the canvas — inside the mask on every device, with no second copy
+     of the path to keep in step.
+
+     The path below is @drawable/brand_mark's, translated by 12,12. If one
+     changes, change both. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp" android:height="288dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <group android:translateX="12" android:translateY="12">
+        <path
+            android:fillColor="#D6004A"
+            android:pathData="M12,21s-7.5,-4.9 -9.5,-9.2C1,8.5 3,5.5 6,5.5c1.9,0 3.2,1 4,2 0.8,-1 2.1,-2 4,-2 3,0 5,3 3.5,6.3C19.5,16.1 12,21 12,21z"/>
+    </group>
+</vector>
