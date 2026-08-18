@@ -11,14 +11,354 @@
       "en": "Terms of use"
     },
     "legal_draft_note": {
-      "ru": "Черновик. Текст описывает, как приложение работает сегодня, и ожидает юридической проверки перед публикацией.",
-      "kk": "Жоба. Мәтін қолданбаның бүгінгі жұмысын сипаттайды және жарияланар алдында заңгерлік тексеруден өтеді.",
-      "en": "Draft. This text describes how the app works today and is pending legal review before publication."
+      "ru": "Черновик. Текст описывает, как приложение работает сегодня. До публикации он ждёт двух вещей: юридической проверки и реквизитов оператора (БИН, юридический адрес, почта для обращений) — в разделах «Кто обрабатывает ваши данные» и «Как с нами связаться» они пока не заполнены.",
+      "kk": "Жоба нұсқа. Мәтін қолданбаның бүгінгі жұмысын сипаттайды. Жарияланғанға дейін ол екі нәрсені күтеді: заңгерлік сараптаманы және оператор деректемелерін (БСН, заңды мекенжай, өтініштерге арналған пошта) — «Деректеріңізді кім өңдейді» және «Бізбен қалай байланысуға болады» бөлімдерінде олар әзірге толтырылмаған.",
+      "en": "Draft. This text describes how the app works today. Before publication it awaits two things: legal review, and the operator details (BIN, registered address, contact e-mail) — still blank in “Who processes your data” and “How to contact us”."
     },
     "legal_updated": {
-      "ru": "Обновлено: июль 2026",
-      "kk": "Жаңартылды: шілде 2026",
-      "en": "Updated: July 2026"
+      "ru": "Редакция от 18 августа 2026 года.",
+      "kk": "2026 жылғы 18 тамыздағы редакция.",
+      "en": "Version of 18 August 2026."
+    },
+    "legal_priv_collect_h": {
+      "ru": "Какие данные мы собираем",
+      "kk": "Қандай деректерді жинаймыз",
+      "en": "What data we collect"
+    },
+    "legal_priv_collect_b": {
+      "ru": "О вас: имя, номер телефона, язык, часовой пояс, при желании — дата рождения, город, домашний адрес и телефон врача. Адрес нужен для одного: чтобы было куда вызвать скорую.\n\nО беременности и здоровье: предполагаемая дата родов, длина цикла, дневник дня (настроение, симптомы, выделения, свободная заметка), шевеления, схватки, вес, лекарства и их приём, приёмы у врача с названием и заметкой, ночной сон, итоговый балл теста на послеродовую депрессию.\n\nС браслета: температура, пульс, сатурация, давление, сахар, шаги, калории, расстояние, стресс, дыхание, заряд и признак ношения — а также степень тревожности, которую приложение вычислило по этим показателям.\n\nО ребёнке: имя, пол, дата рождения, рост и вес по датам, отметки о прививках, кормления, сон и подгузники, а также карточка на экстренный случай: группа крови, аллергии, хронические болезни, лекарства, имя и телефон врача и доверенного взрослого.\n\nО безопасности: зоны, которые вы отметили на карте — то есть координаты вашего дома и школы, — и события «вышел из зоны», «пришёл», «нажал SOS», «сел брелок» с названием зоны и временем.\n\nСлужебное: идентификатор и прошивка сопряжённого устройства, записи о входах, попытки входа с номером телефона.\n\nЗаказы: имя, телефон, город, адрес доставки и комментарий. Данных банковской карты у нас нет нигде — мы их не получаем и не храним.",
+      "kk": "Сіз туралы: атыңыз, телефон нөміріңіз, тіліңіз, уақыт белдеуіңіз, қаласаңыз — туған күніңіз, қалаңыз, үй мекенжайыңыз және дәрігеріңіздің телефоны. Мекенжай бір ғана нәрсеге керек: жедел жәрдемді шақыратын жер болуы үшін.\n\nЖүктілік пен денсаулық туралы: болжамды босану күні, цикл ұзақтығы, күн күнделігі (көңіл-күй, симптомдар, бөліністер, еркін жазба), қимылдар, толғақ, салмақ, дәрілер және оларды қабылдау, дәрігер қабылдаулары — атауы мен жазбасымен, түнгі ұйқы, босанғаннан кейінгі депрессия тестінің қорытынды баллы.\n\nБілезіктен: дене қызуы, тамыр соғуы, қанықтық, қан қысымы, қант, қадам, калория, қашықтық, күйзеліс, тыныс алу, заряд және тағылып тұрғанының белгісі — сондай-ақ қолданба осы көрсеткіштер бойынша есептеген алаңдаушылық дәрежесі.\n\nБала туралы: аты, жынысы, туған күні, күні көрсетілген бойы мен салмағы, егулер туралы белгілер, тамақтандыру, ұйқы және жаялық, сондай-ақ төтенше жағдайға арналған карта: қан тобы, аллергиялар, созылмалы аурулар, дәрілер, дәрігердің және сенімді ересек адамның аты мен телефоны.\n\nҚауіпсіздік туралы: картада өзіңіз белгілеген аймақтар — яғни үйіңіз бен мектептің координаттары — және аймақ атауы мен уақыты көрсетілген «аймақтан шықты», «келді», «SOS басылды», «брелоктың заряды отырды» оқиғалары.\n\nҚызметтік: жалғанған құрылғының идентификаторы мен микробағдарламасы, кіру жазбалары, телефон нөмірімен кіру әрекеттері.\n\nТапсырыстар: аты, телефоны, қаласы, жеткізу мекенжайы және түсініктеме. Банк картасының деректері бізде еш жерде жоқ — біз оларды алмаймыз да, сақтамаймыз да.",
+      "en": "About you: name, phone number, language, time zone and, if you choose, date of birth, city, home address and your doctor’s phone. The address serves one purpose: somewhere to send an ambulance.\n\nPregnancy and health: due date, cycle length, the day diary (mood, symptoms, flow, free-text note), fetal movements, contractions, weight, medications and doses taken, appointments with their title and note, nightly sleep, and the resulting postnatal depression score.\n\nFrom the band: temperature, heart rate, oxygen saturation, blood pressure, blood sugar, steps, calories, distance, stress, breathing rate, battery and whether it is being worn — plus the severity the app computed from those readings.\n\nAbout the child: name, sex, date of birth, height and weight by date, vaccination ticks, feeds, sleep and nappies, and the emergency card: blood type, allergies, chronic conditions, medications, and the name and phone of the doctor and of a trusted adult.\n\nSafety: the zones you marked on the map — that is, the coordinates of your home and school — and the events “left the zone”, “arrived”, “pressed SOS”, “tag battery low”, with the zone name and time.\n\nTechnical: the identifier and firmware of a paired device, sign-in records, and sign-in attempts with the phone number.\n\nOrders: name, phone, city, delivery address and comment. We hold no bank card data anywhere — we neither receive nor store it."
+    },
+    "legal_priv_storage_h": {
+      "ru": "Где эти данные лежат",
+      "kk": "Бұл деректер қайда жатыр",
+      "en": "Where the data is held"
+    },
+    "legal_priv_storage_b": {
+      "ru": "Раньше здесь было написано, что по умолчанию данные остаются на телефоне. Это перестало быть правдой, и мы это исправляем, а не переписываем помягче.\n\nКак есть на самом деле: пока вы вошли в аккаунт, приложение отправляет на наш сервер профиль, детей, приёмы, лекарства, вес, дневник цикла, сон, баллы теста, шевеления, схватки, рост и вес ребёнка, прививки, дневник новорождённого, экстренную карточку ребёнка, результаты определения плача, оповещения безопасности и все показатели с браслета. На сервере лежит полная копия, и именно она возвращается вам на новом телефоне.\n\nЧто сегодня НЕ уходит с телефона: подробный маршрут ребёнка. Точки перемещения считаются и рисуются на вашем устройстве. Сами события «вышел из зоны» и «нажал SOS» на сервер уходят — маршрут между ними нет. Если это изменится, мы изменим и этот абзац до того, как включим отправку, а не после.",
+      "kk": "Бұрын мұнда деректер әдепкі бойынша телефонда қалады деп жазылған еді. Ол шындық болудан қалды, сондықтан біз оны жұмсартып қайта жазбай, түзетіп отырмыз.\n\nШындығында былай: аккаунтқа кіріп тұрғаныңызда қолданба біздің серверге профиліңізді, балаларыңызды, дәрігер қабылдауларын, дәрілерді, салмақты, цикл күнделігін, ұйқыны, тест баллдарын, қимылдарды, толғақты, баланың бойы мен салмағын, егулерді, нәресте күнделігін, баланың төтенше картасын, жылау себебін анықтау нәтижелерін, қауіпсіздік хабарламаларын және білезіктің барлық көрсеткішін жібереді. Серверде толық көшірме жатады, жаңа телефонда сізге қайтып келетіні — дәл сол көшірме.\n\nБүгінде телефоннан ШЫҚПАЙТЫНЫ: баланың толық жүрген жолы. Орын нүктелері сіздің құрылғыңызда есептеледі және сонда сызылады. «Аймақтан шықты» мен «SOS басылды» оқиғаларының өзі серверге кетеді — ал олардың арасындағы жол кетпейді. Бұл өзгерсе, біз жіберуді қосқанға дейін осы азатжолды да өзгертеміз, кейін емес.",
+      "en": "This section used to say that by default your data stays on your phone. That stopped being true, and we are correcting it rather than softening it.\n\nWhat actually happens: while you are signed in, the app sends to our server your profile, children, appointments, medications, weight, cycle diary, sleep, screening scores, fetal movements, contractions, the child’s height and weight, vaccination ticks, the newborn diary, the child’s emergency card, cry-analysis results, safety alerts and every reading from the band. The server holds a full copy, and that copy is what comes back to you on a new phone.\n\nWhat does NOT leave the phone today: the child’s detailed route. Position points are computed and drawn on your device. The events themselves — “left the zone”, “pressed SOS” — do go to the server; the trail between them does not. If that changes, we will change this paragraph before we switch the sending on, not after."
+    },
+    "legal_priv_medical_h": {
+      "ru": "Это не медицинское изделие",
+      "kk": "Бұл — медициналық бұйым емес",
+      "en": "This is not a medical device"
+    },
+    "legal_priv_medical_b": {
+      "ru": "Ana-Bala не ставит диагнозов и не заменяет врача. Браслет — бытовое устройство, а не сертифицированный прибор: его давление, сатурация и температура являются оценкой, а не измерением, и на них нельзя опираться при решении о лечении.\n\nПодсказки приложения основаны на общих рекомендациях и на ваших записях. Они не учитывают вашу историю болезни целиком.\n\nПри любом тревожном признаке звоните 103.",
+      "kk": "Ana-Bala диагноз қоймайды және дәрігердің орнын баспайды. Білезік — тұрмыстық құрылғы, сертификатталған аспап емес: оның қан қысымы, қанықтық және дене қызуы — болжам, өлшем емес, сондықтан емдеу туралы шешімде оларға сүйенуге болмайды.\n\nҚолданбаның кеңестері жалпы ұсынымдарға және сіздің жазбаларыңызға негізделген. Олар ауру тарихыңызды толық ескермейді.\n\nКез келген қауіпті белгіде 103-ке қоңырау шалыңыз.",
+      "en": "Ana-Bala does not diagnose and does not replace a doctor. The band is a consumer device, not a certified instrument: its blood pressure, oxygen saturation and temperature are estimates rather than measurements, and no treatment decision should rest on them.\n\nThe app’s prompts are based on general guidance and on your own entries. They do not take your full medical history into account.\n\nAt any worrying sign, call 103."
+    },
+    "legal_priv_contact_h": {
+      "ru": "Как с нами связаться",
+      "kk": "Бізбен қалай байланысуға болады",
+      "en": "How to contact us"
+    },
+    "legal_priv_contact_b": {
+      "ru": "ТОО «Ana-Bala», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nНаписать нам можно из приложения, в разделе поддержки. Мы понимаем, что этого недостаточно для того, кто уже удалил приложение, — поэтому почта для обращений появится здесь до публикации.",
+      "kk": "«Ana-Bala» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nБізге қолданбадағы қолдау бөлімінен жазуға болады. Қолданбаны жойып қойған адам үшін бұның жеткіліксіз екенін түсінеміз — сондықтан өтініштерге арналған пошта осы жерде жарияланғанға дейін пайда болады.",
+      "en": "Ana-Bala LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nYou can write to us from the app, in the support section. We recognise that this is not enough for someone who has already uninstalled the app — which is why a contact e-mail will appear here before publication."
+    },
+    "legal_terms_medical_h": {
+      "ru": "Приложение не заменяет врача",
+      "kk": "Қолданба дәрігердің орнын баспайды",
+      "en": "The app does not replace a doctor"
+    },
+    "legal_terms_medical_b": {
+      "ru": "Это главный пункт этих условий, и он важнее остальных.\n\nAna-Bala не является медицинским изделием, не ставит диагнозов и не назначает лечения. Браслет и брелок — бытовая электроника, а не сертифицированные приборы. Давление, сатурация, температура и сахар, которые они показывают, — оценка по датчику, а не измерение; они могут расходиться с показаниями поверенного прибора и с истиной.\n\nНикакое решение о приёме, отмене или изменении лекарства не должно приниматься по показаниям приложения. Такие решения принимает врач.\n\nОтсутствие тревожного сообщения не означает, что всё в порядке. Приложение видит только то, что вы в него внесли и что успел передать браслет.",
+      "kk": "Бұл — осы шарттардың басты тармағы, ол қалғандарының бәрінен маңызды.\n\nAna-Bala медициналық бұйым болып табылмайды, диагноз қоймайды және ем тағайындамайды. Білезік пен брелок — тұрмыстық электроника, сертификатталған аспаптар емес. Олар көрсететін қан қысымы, қанықтық, дене қызуы және қант — датчиктің болжамы, өлшем емес; олар тексеруден өткен аспаптың көрсеткішінен де, шындықтан да алшақ болуы мүмкін.\n\nДәріні қабылдау, тоқтату немесе өзгерту туралы ешбір шешім қолданбаның көрсеткіштері бойынша қабылданбауға тиіс. Мұндай шешімдерді дәрігер қабылдайды.\n\nЕскерту хабарламасының болмауы бәрі жақсы дегенді білдірмейді. Қолданба тек өзіңіз енгізгенді және білезік жіберіп үлгергенді ғана көреді.",
+      "en": "This is the principal clause of these terms and it matters more than the others.\n\nAna-Bala is not a medical device, does not diagnose and does not prescribe. The band and the tag are consumer electronics, not certified instruments. The blood pressure, oxygen saturation, temperature and blood sugar they display are sensor estimates rather than measurements; they may differ from a calibrated instrument and from the truth.\n\nNo decision to take, stop or change a medication should be made on what the app shows. A doctor makes those decisions.\n\nThe absence of an alarming message does not mean all is well. The app sees only what you have entered into it and what the band has managed to send."
+    },
+    "legal_terms_emergency_h": {
+      "ru": "Экстренные функции — не служба спасения",
+      "kk": "Төтенше функциялар — құтқару қызметі емес",
+      "en": "Emergency features are not an emergency service"
+    },
+    "legal_terms_emergency_b": {
+      "ru": "Кнопка SOS, оповещения о выходе из зоны и предупреждения о показателях — вспомогательные функции. Это не вызов скорой и не охранная служба, и никто не дежурит у экрана круглосуточно, чтобы прийти на помощь по сигналу из приложения.\n\nВ опасной ситуации звоните 103 (скорая) или 102 (полиция).\n\nОповещение может не дойти или прийти с опозданием: у телефона может сесть батарея, пропасть интернет, у брелока — разрядиться аккумулятор, а система может ограничить работу приложения в фоне. Строить безопасность ребёнка на одном лишь приложении нельзя.",
+      "kk": "SOS түймесі, аймақтан шығу туралы хабарламалар және көрсеткіштер жөніндегі ескертулер — көмекші функциялар. Бұл — жедел жәрдем шақыруы да, күзет қызметі де емес; қолданбадан келген сигнал бойынша көмекке жету үшін экран алдында тәулік бойы кезекші отырған ешкім жоқ.\n\nҚауіпті жағдайда 103-ке (жедел жәрдем) немесе 102-ге (полиция) қоңырау шалыңыз.\n\nХабарлама жетпей қалуы немесе кешігіп келуі мүмкін: телефонның батареясы отыруы, интернет үзілуі, брелоктың аккумуляторы таусылуы мүмкін, ал жүйе қолданбаның фондағы жұмысын шектеуі мүмкін. Баланың қауіпсіздігін тек қолданбаға ғана сүйеп қоюға болмайды.",
+      "en": "The SOS button, zone alerts and readings warnings are supporting features. They are not an ambulance call and not a security service, and nobody is on duty at a screen around the clock to respond to a signal from the app.\n\nIn a dangerous situation call 103 (ambulance) or 102 (police).\n\nAn alert may not arrive, or may arrive late: a phone’s battery can die, the internet can drop, a tag can run flat, and the operating system can restrict the app in the background. A child’s safety must not rest on the app alone."
+    },
+    "legal_terms_responsib_h": {
+      "ru": "Ваша ответственность",
+      "kk": "Сіздің жауапкершілігіңіз",
+      "en": "Your responsibility"
+    },
+    "legal_terms_responsib_b": {
+      "ru": "Вы отвечаете за достоверность внесённых данных, за сохранность доступа к своему номеру телефона и за то, кому вы открыли доступ к данным ребёнка.\n\nВы отвечаете и за решения, которые принимаете, увидев что-либо в приложении. Приложение показывает и подсказывает — решает человек, и при сомнении это должен быть врач.",
+      "kk": "Енгізген деректеріңіздің дұрыстығы үшін, өз телефон нөміріңізге қолжетімділікті сақтағаныңыз үшін және бала деректеріне кімге рұқсат бергеніңіз үшін сіз жауап бересіз.\n\nҚолданбадан бірдеңе көріп қабылдаған шешімдеріңіз үшін де сіз жауаптысыз. Қолданба көрсетеді және кеңес береді — шешімді адам қабылдайды, ал күмән болса, ол адам дәрігер болуға тиіс.",
+      "en": "You are responsible for the accuracy of what you enter, for keeping control of your phone number, and for whom you have given access to your child’s data.\n\nYou are also responsible for the decisions you make on seeing something in the app. The app shows and suggests — a person decides, and where there is doubt that person should be a doctor."
+    },
+    "legal_terms_warranty_h": {
+      "ru": "Пределы нашей ответственности",
+      "kk": "Біздің жауапкершілігіміздің шегі",
+      "en": "Limits of our liability"
+    },
+    "legal_terms_warranty_b": {
+      "ru": "Сервис предоставляется как есть. Мы не гарантируем, что оценки браслета совпадут с показаниями медицинского прибора, что оповещение придёт вовремя и что подсказка окажется применима именно к вам.\n\nМы не отвечаем за вред, наступивший оттого, что решение о здоровье было принято по данным приложения вместо обращения к врачу, и за последствия неполученного или запоздавшего оповещения.\n\nЭти ограничения действуют в пределах, допускаемых законодательством Республики Казахстан. Ответственность за вред жизни и здоровью, причинённый по нашей вине, ими не исключается.",
+      "kk": "Сервис қалай бар, солай ұсынылады. Білезіктің болжамдары медициналық аспаптың көрсеткішімен сәйкес келетініне, хабарламаның уақытында жететініне және кеңестің дәл сізге келетініне кепілдік бермейміз.\n\nДәрігерге жүгінудің орнына денсаулық туралы шешім қолданба деректері бойынша қабылданғандықтан келген зиян үшін де, жетпей қалған немесе кешіккен хабарламаның салдары үшін де жауап бермейміз.\n\nБұл шектеулер Қазақстан Республикасының заңнамасы жол берген шекте қолданылады. Біздің кінәмізден өмір мен денсаулыққа келтірілген зиян үшін жауапкершілік олармен жойылмайды.",
+      "en": "The service is provided as is. We do not guarantee that the band’s estimates will match a medical instrument, that an alert will arrive in time, or that a piece of guidance will apply to you specifically.\n\nWe are not liable for harm arising because a health decision was made on the app’s data instead of consulting a doctor, nor for the consequences of an alert that did not arrive or arrived late.\n\nThese limits apply to the extent permitted by the legislation of the Republic of Kazakhstan. They do not exclude liability for harm to life and health caused through our fault."
+    },
+    "legal_terms_law_h": {
+      "ru": "Применимое право",
+      "kk": "Қолданылатын құқық",
+      "en": "Governing law"
+    },
+    "legal_terms_law_b": {
+      "ru": "К этим условиям применяется право Республики Казахстан.\n\nСпоры мы сначала стараемся решить перепиской. Если не выходит — они рассматриваются судами Республики Казахстан по правилам подсудности. Ваши права потребителя этим не ограничиваются.",
+      "kk": "Осы шарттарға Қазақстан Республикасының құқығы қолданылады.\n\nДауларды алдымен хат алмасу арқылы шешуге тырысамыз. Шешілмесе — олар соттылық ережелері бойынша Қазақстан Республикасының соттарында қаралады. Тұтынушы ретіндегі құқықтарыңыз бұнымен шектелмейді.",
+      "en": "These terms are governed by the law of the Republic of Kazakhstan.\n\nWe first try to resolve disputes by correspondence. Failing that, they are heard by the courts of the Republic of Kazakhstan under the applicable rules of jurisdiction. Your consumer rights are not restricted by this."
+    },
+    "legal_priv_who_h": {
+      "ru": "Кто обрабатывает ваши данные",
+      "kk": "Деректеріңізді кім өңдейді",
+      "en": "Who processes your data"
+    },
+    "legal_priv_who_b": {
+      "ru": "Оператор — ТОО «Ana-Bala», город Алматы, Республика Казахстан. Телефон +7 707 345 22 44.\n\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nМы обрабатываем персональные данные по Закону РК «О персональных данных и их защите» № 94-V от 21 мая 2013 года. Пока эти три строки не заполнены, документ остаётся черновиком: закон требует, чтобы оператора можно было найти и написать ему, а одного номера телефона для этого недостаточно.",
+      "kk": "Оператор — «Ana-Bala» ЖШС, Алматы қаласы, Қазақстан Республикасы. Телефон +7 707 345 22 44.\n\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nДербес деректерді 2013 жылғы 21 мамырдағы № 94-V «Дербес деректер және оларды қорғау туралы» Қазақстан Республикасының Заңына сәйкес өңдейміз. Осы үш жол толтырылмағанша, құжат жоба күйінде қала береді: заң операторды тауып, оған хат жаза алуды талап етеді, ал бұл үшін бір ғана телефон нөмірі жеткіліксіз.",
+      "en": "The operator is Ana-Bala LLP, Almaty, Republic of Kazakhstan. Phone +7 707 345 22 44.\n\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nWe process personal data under the Law of the Republic of Kazakhstan “On personal data and its protection” No. 94-V of 21 May 2013. While those three lines are blank this document remains a draft: the law requires that the operator can be found and written to, and a phone number alone is not enough for that."
+    },
+    "legal_priv_short_h": {
+      "ru": "Коротко",
+      "kk": "Қысқаша",
+      "en": "In short"
+    },
+    "legal_priv_short_b": {
+      "ru": "• Пока вы вошли в аккаунт, копия ваших записей хранится на нашем сервере, а не только на телефоне.\n• Мы не продаём данные и не показываем рекламу. В приложении нет ни системы аналитики, ни сборщика сбоев — никакой сторонний счётчик за вами не следит.\n• Запись плача уходит на анализ и нигде не сохраняется. Остаётся только слово-причина и уверенность в процентах.\n• Ответы теста на послеродовую депрессию не сохраняются никогда. Сохраняется только итоговый балл.\n• Рассылки мы никогда не строим по вашим показателям, дневнику цикла или баллу теста.\n• Аккаунт можно удалить из приложения, и он удаляется на сервере.",
+      "kk": "• Аккаунтқа кіріп тұрғаныңызда жазбаларыңыздың көшірмесі тек телефонда емес, біздің серверде де сақталады.\n• Деректерді сатпаймыз және жарнама көрсетпейміз. Қолданбада аналитика жүйесі де, ақау жинағыш та жоқ — сізді бақылап отырған бөгде санауыш жоқ.\n• Жылау жазбасы талдауға жіберіледі және еш жерде сақталмайды. Тек себеп-сөз бен пайызбен берілген сенімділік қалады.\n• Босанғаннан кейінгі депрессия тестінің жауаптары ешқашан сақталмайды. Тек қорытынды балл сақталады.\n• Таратылымдарды ешқашан көрсеткіштеріңіз, цикл күнделігіңіз немесе тест балыңыз бойынша құрмаймыз.\n• Аккаунтты қолданбадан жоюға болады, ол серверде де жойылады.",
+      "en": "• While you are signed in, a copy of your records is held on our server, not only on your phone.\n• We do not sell data and we show no advertising. The app contains no analytics system and no crash reporter — no third-party tracker follows you.\n• A cry recording is sent for analysis and is stored nowhere. Only a reason word and a confidence percentage remain.\n• Your answers to the postnatal depression questionnaire are never stored. Only the resulting score is.\n• We never build message audiences from your readings, your cycle diary or your screening score.\n• You can delete your account from the app, and it is deleted on the server."
+    },
+    "legal_priv_child_h": {
+      "ru": "Данные ребёнка",
+      "kk": "Бала деректері",
+      "en": "Your child’s data"
+    },
+    "legal_priv_child_b": {
+      "ru": "Имя ребёнка, дата рождения, группа крови, аллергии и координаты его зон — самые чувствительные сведения во всём приложении, потому что вместе они позволяют узнать конкретного ребёнка и понять, где он бывает. Мы обращаемся с ними строже, чем с остальным.\n\nВы вносите их как родитель или законный представитель и отвечаете за то, что вправе это делать.\n\nДоступ к данным ребёнка можно дать второму взрослому — например, отцу или бабушке. Такой доступ распространяется только на ребёнка: местоположение, зоны, оповещения и устройство. Никакой уровень доступа не открывает вашу собственную медицинскую карту — этого нельзя выразить в системе даже при желании.\n\nПриглашение действует сутки, используется один раз, и одновременно их может быть не больше десяти. Выданный доступ можно отозвать в любой момент.",
+      "kk": "Баланың аты, туған күні, қан тобы, аллергиялары және оның аймақтарының координаттары — бүкіл қолданбадағы ең нәзік мәліметтер, өйткені бірге алғанда олар нақты бір баланы тануға және оның қайда жүретінін білуге мүмкіндік береді. Біз оларға қалғанынан гөрі қаталырақ қараймыз.\n\nОларды ата-ана немесе заңды өкіл ретінде енгізесіз және бұған құқығыңыз бар екені үшін жауап бересіз.\n\nБала деректеріне екінші ересек адамға — мысалы, әкесіне немесе әжесіне — рұқсат беруге болады. Мұндай рұқсат тек балаға қатысты: орналасқан жері, аймақтар, хабарламалар және құрылғы. Ешбір рұқсат деңгейі сіздің өз медициналық картаңызды ашпайды — тіпті қалаған күннің өзінде де жүйе мұндай рұқсатты бере алмайды.\n\nШақыру бір тәулік бойы жарамды, бір рет қана қолданылады, әрі бір мезгілде олардың саны оннан аспайды. Берілген рұқсатты кез келген сәтте кері қайтаруға болады.",
+      "en": "A child’s name, date of birth, blood type, allergies and the coordinates of their zones are the most sensitive information in the app, because together they identify a specific child and show where they go. We treat them more strictly than the rest.\n\nYou enter them as a parent or legal guardian and are responsible for being entitled to do so.\n\nYou can grant a second adult access to a child’s data — a father or a grandmother, say. That access covers the child only: location, zones, alerts and the device. No level of access opens your own medical record; the system cannot express such a grant even if someone wanted to.\n\nAn invitation is valid for 24 hours, can be used once, and no more than ten may be open at a time. Access you have granted can be revoked at any moment."
+    },
+    "legal_priv_cry_h": {
+      "ru": "Определение причины плача",
+      "kk": "Жылау себебін анықтау",
+      "en": "Cry analysis"
+    },
+    "legal_priv_cry_b": {
+      "ru": "Здесь важна точность, поэтому опишем всю цепочку.\n\nКогда вы нажимаете запись, приложение записывает короткий фрагмент плача во временный файл на вашем телефоне и отправляет его на наш сервер. Сервер не сохраняет его, а передаёт распознающему сервису. Тот раскладывает звук в памяти, возвращает ответ и не пишет его на диск. Файл со звуком не сохраняется нигде, и в базе данных его нет — такой колонки просто не существует. Временный файл на телефоне удаляется сразу после отправки — и в том случае, если отправка не удалась или вы прервали запись.\n\nСохраняется только результат: время, слово-причина (голоден, устал, дискомфорт, боль), уверенность в процентах и, если вы отметите, была ли догадка верной.\n\nМы говорим это прямо, потому что соблазн написать «звук не покидает телефон» велик, а это была бы неправда: звук телефон покидает. Он не сохраняется — это разные вещи, и путать их нельзя. То, что запись не сохраняется, проверяется автоматическим тестом при каждой сборке.",
+      "kk": "Мұнда дәлдік маңызды, сондықтан жылау себебін анықтаудың бүкіл тізбегін сипаттап береміз.\n\nЖазуды бастаған кезде қолданба телефоныңыздағы уақытша файлға жылаудың қысқа үзіндісін жазып алады да, оны біздің серверге жібереді. Сервер оны сақтамайды, тануыш сервиске береді. Ол дыбысты жадыда талдап, жауап қайтарады және оны дискіге жазбайды. Дыбыс файлы еш жерде сақталмайды, дерекқорда да жоқ — ондай баған мүлде жоқ. Телефондағы уақытша файл жіберілген бойда жойылады — жіберу сәтсіз аяқталған немесе жазуды өзіңіз тоқтатқан жағдайда да.\n\nТек нәтиже сақталады: уақыты, себеп-сөз (аштық, шаршау, ыңғайсыздық, ауырсыну), пайызбен берілген сенімділік және, өзіңіз белгілесеңіз, болжамның дұрыс болған-болмағаны.\n\nМұны ашық айтамыз, өйткені «дыбыс телефоннан шықпайды» деп жазу азғырығы күшті, ал бұл — жалған болар еді: дыбыс телефоннан шығады. Ол сақталмайды — бұл екеуі екі бөлек нәрсе, оларды шатастыруға болмайды. Жазбаның сақталмайтынын әрбір құрастыру кезінде автоматты тест тексереді.",
+      "en": "Precision matters here, so we describe the whole chain.\n\nWhen you press record, the app records a short fragment of your baby’s cry to a temporary file on your phone and sends it to our server. The server does not save it; it passes it to the recognition service. That service decomposes the sound in memory, returns an answer, and writes nothing to disk. The audio file is stored nowhere, and it is not in the database — no such column exists. The temporary file on your phone is deleted as soon as the clip has been sent — and also if the sending failed, or if you abandoned the recording partway.\n\nOnly the result is stored: the time, a reason word (hungry, tired, discomfort, pain), a confidence percentage and, if you tell us, whether the guess was right.\n\nWe say this plainly because the temptation to write “the sound never leaves your phone” is strong, and it would be untrue: the sound does leave your phone. It is not stored — those are different things and must not be conflated. That the recording is not stored is checked by an automated test on every build."
+    },
+    "legal_priv_ai_h": {
+      "ru": "Помощник и снимки приборов",
+      "kk": "Көмекші және аспаптардың суреттері",
+      "en": "The assistant and photos of devices"
+    },
+    "legal_priv_ai_b": {
+      "ru": "В приложении есть помощник, которому можно написать вопрос, и возможность сфотографировать тонометр, глюкометр, бланк анализа, коробку с лекарством или талон к врачу, чтобы не набирать цифры руками.\n\nТекст вашего вопроса и такие фотографии передаются компании Anthropic (США), чей сервис их разбирает. Показатели с браслета в переписку с помощником не отправляются — степень тревожности считается у нас.\n\nПожалуйста, помните: на бланке анализа обычно напечатаны ваши фамилия и имя. Фотографируя его, вы отправляете и их.",
+      "kk": "Қолданбада сұрақ жазуға болатын көмекші бар, сондай-ақ сандарды қолмен термеу үшін тонометрді, глюкометрді, талдау бланкісін, дәрі қорабын немесе дәрігерге жазылу талонын суретке түсіру мүмкіндігі бар.\n\nСұрағыңыздың мәтіні мен осындай суреттер Anthropic компаниясына (АҚШ) беріледі, оның сервисі оларды талдайды. Білезіктің көрсеткіштері көмекшімен жазысуға жіберілмейді — алаңдаушылық дәрежесі бізде есептеледі.\n\nЕсіңізде болсын: талдау бланкісінде әдетте тегіңіз бен атыңыз басылып тұрады. Оны суретке түсіргенде, оларды да жібересіз.",
+      "en": "The app has an assistant you can write a question to, and the ability to photograph a blood-pressure monitor, a glucometer, a lab form, a medicine box or an appointment slip so you need not type the numbers.\n\nThe text of your question and such photographs are transferred to Anthropic (USA), whose service analyses them. Band readings are not sent to the assistant — severity is computed on our side.\n\nPlease remember that a lab form usually has your surname and first name printed on it. Photographing it sends those too."
+    },
+    "legal_priv_share_h": {
+      "ru": "Кому мы передаём данные",
+      "kk": "Деректерді кімге береміз",
+      "en": "Who we share data with"
+    },
+    "legal_priv_share_b": {
+      "ru": "Мы не продаём персональные данные и не передаём их для чужой рекламы. Список тех, кто их всё же получает, короткий и полный:\n\n• Anthropic (США) — текст вопросов помощнику и фотографии приборов и бланков, как описано выше.\n• Telegram — если вы оставили заявку на сайте, ваше имя, телефон, выбранный набор и язык приходят нам уведомлением в Telegram.\n• Google — карты в приложении и видео курса, встроенные с YouTube. Google при этом видит ваш IP-адрес и то, какой участок карты вы смотрите, то есть примерно ваш район.\n• WhatsApp (Meta) — если вы пишете нам в WhatsApp. В заготовленное сообщение поддержки подставляются версия приложения, ваш номер, идентификатор устройства и тип связи; ничего медицинского туда не подставляется.\n• Хостинг — сервер, на котором работают сервис и база данных.\n\nЧего в этом списке нет и почему: у нас нет системы аналитики, нет сборщика сбоев, не подключена рассылка SMS и не подключены push-уведомления Google — токены уведомлений не собираются вовсе. Оплата картой через сервис не проходит: ссылка на Kaspi — это просто ссылка, и никаких данных мы туда не передаём. Часы и брелок работают только по Bluetooth, у их производителя нет облака, в которое что-то уходило бы.",
+      "kk": "Дербес деректерді сатпаймыз және бөгде жарнама үшін бермейміз. Оларды бәрібір алатындардың тізімі қысқа әрі толық:\n\n• Anthropic (АҚШ) — жоғарыда сипатталғандай, көмекшіге қойылған сұрақтардың мәтіні мен аспаптар мен бланкілердің суреттері.\n• Telegram — сайтта өтінім қалдырсаңыз, атыңыз, телефоныңыз, таңдаған жинағыңыз және тіліңіз бізге Telegram хабарламасымен келеді.\n• Google — қолданбадағы карталар және YouTube-тан кірістірілген курс бейнелері. Бұл ретте Google сіздің IP-мекенжайыңызды және картаның қай бөлігін қарап отырғаныңызды, яғни шамамен қай ауданда екеніңізді көреді.\n• WhatsApp (Meta) — бізге WhatsApp арқылы жазсаңыз. Қолдауға арналған дайын хабарламаға қолданба нұсқасы, нөміріңіз, құрылғы идентификаторы және байланыс түрі қойылады; оған медициналық ештеңе қойылмайды.\n• Хостинг — сервис пен дерекқор жұмыс істейтін сервер.\n\nБұл тізімде не жоқ және неге: бізде аналитика жүйесі жоқ, ақау жинағыш жоқ, SMS таратылымы қосылмаған және Google push-хабарламалары қосылмаған — хабарлама токендері мүлде жиналмайды. Картамен төлем сервис арқылы өтпейді: Kaspi сілтемесі — жай ғана сілтеме, оған ешқандай дерек бермейміз. Сағат пен брелок тек Bluetooth арқылы жұмыс істейді, олардың өндірушісінде бірдеңе кететін бұлт жоқ.",
+      "en": "We do not sell personal data and do not pass it on for anyone else’s advertising. The list of those who do receive it is short and complete:\n\n• Anthropic (USA) — the text of assistant questions and photographs of devices and forms, as described above.\n• Telegram — if you leave a request on the website, your name, phone, chosen package and language reach us as a Telegram notification.\n• Google — maps in the app and course videos embedded from YouTube. Google therefore sees your IP address and which part of the map you are viewing, i.e. roughly your neighbourhood.\n• WhatsApp (Meta) — if you write to us on WhatsApp. The prepared support message includes the app version, your number, a device identifier and your connection type; nothing medical is included.\n• Hosting — the server on which the service and its database run.\n\nWhat is not on this list, and why: we have no analytics system, no crash reporter, no SMS gateway connected and no Google push notifications connected — notification tokens are not collected at all. No card payment passes through the service: the Kaspi link is simply a link, and we send no data to it. The watch and the tag work over Bluetooth only; their manufacturer has no cloud for anything to go to."
+    },
+    "legal_priv_transfer_h": {
+      "ru": "Передача за пределы Казахстана",
+      "kk": "Қазақстаннан тыс жерге беру",
+      "en": "Transfer outside Kazakhstan"
+    },
+    "legal_priv_transfer_b": {
+      "ru": "Три вещи из перечисленных выше пересекают границу: вопросы помощнику и фотографии — в США, заявки с сайта — в Telegram, обращения к картам и видео — к Google.\n\nСтрана размещения основного сервера указывается здесь после юридической проверки. Мы не пишем её наугад: закон предъявляет отдельные требования к передаче данных граждан Казахстана за рубеж, и утверждение, которое мы не можем подтвердить, хуже, чем пустое место.",
+      "kk": "Жоғарыда аталғандардың үшеуі шекарадан өтеді: көмекшіге қойылған сұрақтар мен суреттер — АҚШ-қа, сайттан келген өтінімдер — Telegram-ға, карталар мен бейнелерге жасалған сұраныстар — Google-ға.\n\nНегізгі сервер орналасқан ел мұнда заңгерлік сараптамадан кейін көрсетіледі. Оны ойдан жазбаймыз: заң Қазақстан азаматтарының деректерін шетелге беруге бөлек талаптар қояды, ал растай алмайтын тұжырым бос орыннан да жаман.",
+      "en": "Three of the things listed above cross the border: assistant questions and photographs go to the USA, website requests go to Telegram, and map and video requests go to Google.\n\nThe country hosting the main server will be stated here after legal review. We do not write it by guesswork: the law sets separate requirements for transferring the data of Kazakh citizens abroad, and a statement we cannot verify is worse than a blank."
+    },
+    "legal_priv_retention_h": {
+      "ru": "Сколько мы храним",
+      "kk": "Қанша уақыт сақтаймыз",
+      "en": "How long we keep things"
+    },
+    "legal_priv_retention_b": {
+      "ru": "Маршрут ребёнка сегодня на сервер не передаётся — он остаётся на вашем телефоне, как сказано выше, и потому удалять там нечего. Правило на сервере при этом уже действует: точки старше 90 дней удаляются по расписанию. Это единственный срок, который наступает сам, а не по обещанию, — и он ждёт данных, которых пока нет.\n\nВсё остальное — записи о здоровье, показатели с браслета, дневники, данные ребёнка, оповещения о зонах и SOS — хранится, пока существует ваш аккаунт. Удалите аккаунт, и они удаляются вместе с ним.\n\nОбратите внимание: событие «вышел из зоны» или «нажал SOS» — это не маршрут, и правило 90 дней на него не распространяется.\n\nОтдельно живут заказы и обращения в поддержку. Они привязаны к номеру телефона, а не к аккаунту, и после удаления аккаунта остаются: заказ с адресом доставки нужен для бухгалтерии и споров о доставке, переписка с поддержкой — чтобы можно было разобраться в старом обращении. По той же причине сохраняются оплаченный доступ к курсу и пройденные уроки: если вы вернётесь с тем же номером, вы найдёте их на месте.\n\nСроки хранения для этих записей ещё не установлены. Мы не пишем сюда красивое число, под которым нет удаляющего кода, — именно так появляются обещания, которых никто не выполняет.",
+      "kk": "Баланың жүрген жолы бүгінде серверге берілмейді — ол жоғарыда айтылғандай, телефоныңызда қалады, сондықтан онда жоятын ештеңе жоқ. Бұл ретте сервердегі ереже қазірдің өзінде күшінде: 90 күннен асқан нүктелер кесте бойынша жойылады. Бұл — уәде бойынша емес, өзі келетін жалғыз мерзім, әрі ол әзірге жоқ деректерді күтіп тұр.\n\nҚалғанының бәрі — денсаулық жазбалары, білезік көрсеткіштері, күнделіктер, бала деректері, аймақтар мен SOS туралы хабарламалар — аккаунтыңыз бар болғанша сақталады. Аккаунтты жойсаңыз, олар да онымен бірге жойылады.\n\nНазар аударыңыз: «аймақтан шықты» немесе «SOS басылды» оқиғасы — жүрген жол емес, оған 90 күн ережесі қолданылмайды.\n\nТапсырыстар мен қолдауға жолданған өтініштер бөлек өмір сүреді. Олар аккаунтқа емес, телефон нөміріне байланған, әрі аккаунт жойылғаннан кейін де қалады: жеткізу мекенжайы бар тапсырыс бухгалтерия мен жеткізу дауларына керек, қолдаумен жазысу — ескі өтінішті талдап шығуға мүмкіндік беру үшін. Сол себептен курсқа төленген қолжетімділік пен өтілген сабақтар да сақталады: сол нөміріңізбен қайта оралсаңыз, оларды орнынан табасыз.\n\nБұл жазбалардың сақталу мерзімдері әлі белгіленбеген. Астында жоятын коды жоқ әдемі санды мұнда жазбаймыз — ешкім орындамайтын уәделер дәл осылай пайда болады.",
+      "en": "A child’s route is not sent to the server today — it stays on your phone, as stated above, so there is nothing there to delete. The server’s rule is nonetheless in force: points older than 90 days are removed on a schedule. It is the only period that arrives by itself rather than by promise — and it is waiting for data that does not yet reach it.\n\nEverything else — health records, band readings, diaries, the child’s data, zone and SOS alerts — is kept for as long as your account exists. Delete the account and they are deleted with it.\n\nNote: a “left the zone” or “pressed SOS” event is not a route, and the 90-day rule does not cover it.\n\nOrders and support enquiries live separately. They are tied to a phone number rather than to an account, and they remain after the account is deleted: an order with its delivery address is needed for accounting and delivery disputes, and support correspondence so that an old enquiry can still be understood. For the same reason paid course access and completed lessons are kept: if you return with the same number, you will find them where you left them.\n\nRetention periods for these records have not yet been set. We are not writing a tidy number here with no deleting code behind it — that is exactly how promises nobody keeps come about."
+    },
+    "legal_priv_rights_h": {
+      "ru": "Ваши права",
+      "kk": "Сіздің құқықтарыңыз",
+      "en": "Your rights"
+    },
+    "legal_priv_rights_b": {
+      "ru": "Посмотреть и исправить. Всё, что мы о вас храним, вы видите в приложении и можете изменить там же.\n\nЗабрать копию. В настройках есть выгрузка: приложение соберёт ваши записи в один файл и предложит сохранить или переслать его. Файл содержит ваши данные и не содержит ключа от аккаунта — переслать его безопасно.\n\nУдалить аккаунт. Кнопка в настройках удаляет ваши записи и на телефоне, и на сервере. Если сервер в этот момент недоступен, приложение скажет об этом прямо, а не сделает вид, что всё прошло. Что переживает удаление — написано выше.\n\nОтозвать согласие. Согласие на обработку можно отозвать, удалив аккаунт. Отдельные вещи выключаются по отдельности: доступ к микрофону, к геолокации, уведомления и доступ, выданный второму взрослому.\n\nПожаловаться. Если вы считаете, что мы обошлись с вашими данными неправильно, напишите нам, а если ответ вас не устроит — в уполномоченный орган по защите персональных данных Республики Казахстан.",
+      "kk": "Көру және түзету. Сіз туралы сақтап отырғанымыздың бәрін қолданбадан көресіз және сол жерде өзгерте аласыз.\n\nКөшірмесін алу. Параметрлерде шығару бар: қолданба жазбаларыңызды бір файлға жинап, оны сақтауды немесе жіберуді ұсынады. Файлда деректеріңіз бар, аккаунтыңыздың кілті жоқ — оны жіберу қауіпсіз.\n\nАккаунтты жою. Параметрлердегі түйме жазбаларыңызды телефоннан да, серверден де жояды. Сол сәтте сервер қолжетімсіз болса, қолданба бәрі сәтті өтті деген кейіп танытпай, мұны тура айтады. Жойылудан не аман қалатыны жоғарыда жазылған.\n\nКелісімді кері қайтару. Өңдеуге берілген келісімді аккаунтты жою арқылы кері қайтаруға болады. Жекелеген нәрселер бөлек-бөлек өшіріледі: микрофонға және геолокацияға қолжетімділік, хабарламалар және екінші ересек адамға берілген рұқсат.\n\nШағымдану. Деректеріңізбен дұрыс жұмыс істемедік деп есептесеңіз, бізге жазыңыз, ал жауабымыз көңіліңізден шықпаса — Қазақстан Республикасының дербес деректерді қорғау жөніндегі уәкілетті органына жүгініңіз.",
+      "en": "See and correct. Everything we hold about you is visible in the app and can be changed there.\n\nTake a copy. Settings offers an export: the app gathers your records into a single file and offers to save or forward it. The file contains your data and does not contain a key to your account — it is safe to forward.\n\nDelete your account. A button in Settings deletes your records both on the phone and on the server. If the server is unreachable at that moment, the app says so plainly instead of pretending it went through. What survives deletion is written above.\n\nWithdraw consent. Consent to processing can be withdrawn by deleting your account. Individual things can be switched off individually: microphone access, location access, notifications, and access granted to a second adult.\n\nComplain. If you believe we have handled your data wrongly, write to us — and if our answer does not satisfy you, to the authorised personal-data protection body of the Republic of Kazakhstan."
+    },
+    "legal_priv_staff_h": {
+      "ru": "Кто у нас видит эти данные",
+      "kk": "Бұл деректерді бізде кім көреді",
+      "en": "Who inside our company sees this"
+    },
+    "legal_priv_staff_b": {
+      "ru": "Сотрудник видит только то, что нужно для его работы, и права выданы по задаче, а не по должности.\n\nПродавец и склад не видят ни одной записи о здоровье. Бухгалтерия видит деньги и не видит людей. Врач видит здоровье и не видит денег.\n\nЧтобы открыть карточку конкретной женщины — её сон, дневник цикла, лекарства, карточку ребёнка или балл теста, — сотрудник обязан написать причину. Причина короче восьми символов не принимается, и обращение не открывается. Мы не подставляем «не указана» автоматически: журнал, заполненный машиной, выглядит проверенным, будучи непроверяемым.\n\nОтветы теста на послеродовую депрессию не видит никто, включая нас: они не сохраняются. Виден только балл, и только на карточке конкретного человека — по нему нельзя ни отсортировать список, ни собрать выборку.\n\nРассылки не строятся по вашим показателям, дневнику или баллу. Мы действительно используем для них язык, срок беременности и возраст ребёнка — чтобы письмо о прикорме не пришло беременной. Правило, обращающееся к давлению, система отклоняет.",
+      "kk": "Қызметкер тек өз жұмысына қажеттісін ғана көреді, ал құқықтар лауазым бойынша емес, міндет бойынша беріледі.\n\nСатушы мен қойма денсаулық туралы бірде-бір жазбаны көрмейді. Бухгалтерия ақшаны көреді, адамдарды көрмейді. Дәрігер денсаулықты көреді, ақшаны көрмейді.\n\nНақты бір әйелдің картасын — ұйқысын, цикл күнделігін, дәрілерін, бала картасын немесе тест балын — ашу үшін қызметкер себебін жазуға міндетті. Сегіз таңбадан қысқа себеп қабылданбайды, карта ашылмайды. Біз «көрсетілмеген» дегенді автоматты түрде қоймаймыз: машина толтырған журнал тексерілген болып көрінеді, ал шын мәнінде оны тексеру мүмкін емес.\n\nБосанғаннан кейінгі депрессия тестінің жауаптарын ешкім көрмейді, біз де көрмейміз: олар сақталмайды. Тек балл ғана көрінеді, әрі ол тек нақты адамның картасында ғана — ол бойынша тізімді сұрыптауға да, іріктеме жинауға да болмайды.\n\nТаратылымдар көрсеткіштеріңіз, күнделігіңіз немесе балыңыз бойынша құрылмайды. Біз олар үшін тілді, жүктілік мерзімін және баланың жасын шынымен пайдаланамыз — қосымша тамақ туралы хат жүкті әйелге келіп қалмауы үшін. Қан қысымына жүгінетін ережені жүйе қабылдамайды.",
+      "en": "A member of staff sees only what their work requires, and rights are granted by task rather than by job title.\n\nSales and warehouse staff see no health record at all. Finance sees money and does not see people. A clinician sees health and does not see money.\n\nTo open a particular woman’s record — her sleep, cycle diary, medications, her child’s card or her screening score — a member of staff must write a reason. A reason shorter than eight characters is refused and the record does not open. We do not auto-fill “not stated”: a log filled in by a machine looks reviewed while being unreviewable.\n\nNobody sees the answers to the postnatal depression questionnaire, ourselves included: they are not stored. Only the score is visible, and only on an individual’s record — it cannot be sorted on or used to build a list.\n\nMessage audiences are not built from your readings, your diary or your score. We do use language, stage of pregnancy and a child’s age — so that a message about weaning does not reach someone who is pregnant. A rule that refers to blood pressure is rejected by the system."
+    },
+    "legal_priv_age_h": {
+      "ru": "Возраст",
+      "kk": "Жас шамасы",
+      "en": "Age"
+    },
+    "legal_priv_age_b": {
+      "ru": "Приложением можно пользоваться с 16 лет.\n\nМы выбрали 16, а не 18, сознательно. Беременность до восемнадцати существует, и именно этим женщинам сопровождение нужно больше всего; порог в 18 лет не остановил бы их, а лишь заставил бы указать неверный возраст и остаться без поддержки.\n\nЕсли вам от 16 до 18, обработка ваших данных должна происходить с ведома родителя или законного представителя.\n\nДанные ребёнка вносите вы как взрослый. Сам ребёнок не является пользователем приложения: у брелока нет ни экрана, ни аккаунта.",
+      "kk": "Қолданбаны 16 жастан бастап пайдалануға болады.\n\nБіз 18-ді емес, 16-ны әдейі таңдадық. Он сегізге толмай жүкті болу деген бар, әрі қолдау дәл сол әйелдерге бәрінен де қажет; 18 жас шегі оларды тоқтатпас еді, тек жасын жалған көрсетіп, қолдаусыз қалуға мәжбүрлер еді.\n\nЕгер жасыңыз 16 бен 18 аралығында болса, деректеріңізді өңдеу ата-ананың немесе заңды өкілдің хабардар болуымен жүруге тиіс.\n\nБала деректерін ересек адам ретінде сіз енгізесіз. Баланың өзі қолданбаның пайдаланушысы емес: брелокта экран да, аккаунт та жоқ.",
+      "en": "The app may be used from the age of 16.\n\nWe chose 16 rather than 18 deliberately. Pregnancy under eighteen exists, and those are the women who most need support; an 18 threshold would not have stopped them, only made them state a false age and go without help.\n\nIf you are between 16 and 18, the processing of your data should happen with the knowledge of a parent or legal guardian.\n\nA child’s data is entered by you, as an adult. The child is not themselves a user of the app: the tag has neither a screen nor an account."
+    },
+    "legal_priv_security_h": {
+      "ru": "Как мы защищаем данные",
+      "kk": "Деректерді қалай қорғаймыз",
+      "en": "How we protect the data"
+    },
+    "legal_priv_security_b": {
+      "ru": "Связь с сервером идёт по защищённому протоколу. Пароли и коды подтверждения хранятся не в открытом виде. Каждое обращение сотрудника к карточке человека записывается в журнал.\n\nСовершенной защиты не существует, и мы этого не обещаем. Если данные всё же утекут, мы сообщим об этом пострадавшим и уполномоченному органу, а не будем молчать.",
+      "kk": "Сервермен байланыс қорғалған хаттама арқылы жүреді. Құпиясөздер мен растау кодтары ашық түрде сақталмайды. Қызметкердің адам картасына жасаған әрбір қаралымы журналға жазылады.\n\nМінсіз қорғаныс деген жоқ, біз оны уәде де етпейміз. Деректер бәрібір сыртқа шығып кетсе, үндемей қалмай, зардап шеккендерге және уәкілетті органға хабарлаймыз.",
+      "en": "Communication with the server uses a secure protocol. Passwords and confirmation codes are not stored in the clear. Every staff access to an individual’s record is written to a log.\n\nPerfect security does not exist and we do not promise it. If data does leak, we will tell those affected and the authorised body rather than keep quiet."
+    },
+    "legal_priv_changes_h": {
+      "ru": "Изменения политики",
+      "kk": "Саясаттың өзгеруі",
+      "en": "Changes to this policy"
+    },
+    "legal_priv_changes_b": {
+      "ru": "Мы обновляем этот текст, когда меняется приложение. Дата редакции стоит наверху.\n\nЕсли изменение существенно — например, мы начнём отправлять на сервер маршрут ребёнка или подключим уведомления, — мы скажем об этом в приложении до того, как оно вступит в силу, а не после.",
+      "kk": "Қолданба өзгергенде осы мәтінді жаңартып отырамыз. Редакция күні жоғарыда тұр.\n\nЕгер өзгеріс елеулі болса — мысалы, баланың жүрген жолын серверге жібере бастасақ немесе хабарламаларды қоссақ — біз бұл туралы қолданбада ол күшіне енгенге дейін айтамыз, кейін емес.",
+      "en": "We update this text when the app changes. The version date is at the top.\n\nIf a change is material — for instance, if we begin sending a child’s route to the server, or connect notifications — we will say so in the app before it takes effect, not after."
+    },
+    "legal_terms_about_h": {
+      "ru": "О сервисе",
+      "kk": "Сервис туралы",
+      "en": "About the service"
+    },
+    "legal_terms_about_b": {
+      "ru": "Ana-Bala — приложение для сопровождения беременности и первых лет жизни ребёнка. Оно ведёт дневник беременности, показывает данные с браслета, помогает следить за прививками и развитием ребёнка, а с брелоком — видеть, что ребёнок пришёл домой или в школу.\n\nЭти условия — договор между вами и ТОО «Ana-Bala». Устанавливая приложение и принимая условия, вы с ними соглашаетесь. Если вы с чем-то не согласны, приложением пользоваться не нужно.",
+      "kk": "Ana-Bala — жүктілік кезінде және баланың алғашқы жылдарында қасында болуға арналған қолданба. Ол жүктілік күнделігін жүргізеді, білезіктен келген деректерді көрсетеді, егулер мен баланың дамуын қадағалауға көмектеседі, ал брелокпен бірге — баланың үйге немесе мектепке жеткенін көруге мүмкіндік береді.\n\nОсы шарттар — сіз бен «Ana-Bala» ЖШС арасындағы шарт. Қолданбаны орнатып, шарттарды қабылдағанда сіз олармен келісесіз. Бір нәрсемен келіспесеңіз, қолданбаны пайдаланбағаныңыз жөн.",
+      "en": "Ana-Bala is an app for guiding a pregnancy and a child’s first years. It keeps a pregnancy diary, shows data from the band, helps track vaccinations and a child’s development and, with the tag, lets you see that the child has arrived home or at school.\n\nThese terms are an agreement between you and Ana-Bala LLP. By installing the app and accepting the terms you agree to them. If you disagree with something, you should not use the app."
+    },
+    "legal_terms_who_h": {
+      "ru": "Кто может пользоваться",
+      "kk": "Кім пайдалана алады",
+      "en": "Who may use it"
+    },
+    "legal_terms_who_b": {
+      "ru": "Пользоваться приложением можно с 16 лет. Если вам от 16 до 18, это должно происходить с ведома родителя или законного представителя.\n\nВнося данные ребёнка, вы подтверждаете, что являетесь его родителем или законным представителем и вправе это делать. Открывая доступ второму взрослому, вы отвечаете за свой выбор: доступ можно отозвать, но увиденное вернуть нельзя.",
+      "kk": "Қолданбаны 16 жастан бастап пайдалануға болады. Жасыңыз 16 бен 18 аралығында болса, бұл ата-ананың немесе заңды өкілдің хабардар болуымен жүруге тиіс.\n\nБала деректерін енгізе отырып, оның ата-анасы немесе заңды өкілі екеніңізді және бұған құқығыңыз бар екенін растайсыз. Екінші ересек адамға рұқсат ашқанда, өз таңдауыңыз үшін жауап бересіз: рұқсатты кері қайтаруға болады, бірақ көрілгенді қайтару мүмкін емес.",
+      "en": "The app may be used from the age of 16. If you are between 16 and 18, this should happen with the knowledge of a parent or legal guardian.\n\nBy entering a child’s data you confirm that you are their parent or legal guardian and are entitled to do so. By granting access to a second adult you take responsibility for that choice: access can be revoked, but what has been seen cannot be unseen."
+    },
+    "legal_terms_account_h": {
+      "ru": "Аккаунт и номер телефона",
+      "kk": "Аккаунт және телефон нөмірі",
+      "en": "Account and phone number"
+    },
+    "legal_terms_account_b": {
+      "ru": "Аккаунт привязан к номеру телефона, вход — по коду из сообщения. Храните доступ к своему номеру: кто получит код, тот получит и вашу медицинскую карту, и данные ребёнка.\n\nЕсли вы смените номер, сообщите нам до того, как старый номер перейдёт другому человеку.\n\nОплаченный доступ к курсу и пройденные уроки привязаны к номеру, а не к аккаунту.",
+      "kk": "Аккаунт телефон нөміріне байланған, кіру — хабарламадан келген код арқылы. Өз нөміріңізге қолжетімділікті сақтаңыз: кодты кім алса, сіздің медициналық картаңызды да, бала деректеріңізді де сол алады.\n\nНөміріңізді ауыстырсаңыз, ескі нөмір басқа адамға өтіп кетпей тұрып бізге хабарлаңыз.\n\nКурсқа төленген қолжетімділік пен өтілген сабақтар аккаунтқа емес, нөмірге байланған.",
+      "en": "Your account is tied to a phone number, and you sign in with a code from a message. Keep control of your number: whoever receives the code receives your medical record and your child’s data too.\n\nIf you change your number, tell us before the old one passes to somebody else.\n\nPaid course access and completed lessons are tied to the number rather than to the account."
+    },
+    "legal_terms_device_h": {
+      "ru": "Браслет и брелок",
+      "kk": "Білезік және брелок",
+      "en": "The band and the tag"
+    },
+    "legal_terms_device_b": {
+      "ru": "Устройства подключаются по Bluetooth и работают рядом с телефоном. Пока телефон вне зоны действия, устройство копит данные и передаёт их при следующем соединении — поэтому показания могут появиться с задержкой.\n\nГарантия на устройство и его замена регулируются условиями покупки. Приложение бесплатно для владельца устройства, а без устройства часть функций недоступна.\n\nМы не отвечаем за работу устройства, купленного не у нас или изменённого сторонней прошивкой.",
+      "kk": "Құрылғылар Bluetooth арқылы жалғанады және телефонның қасында жұмыс істейді. Телефон қолжетім аймағынан тыс тұрғанда құрылғы деректерді жинап отырады да, келесі қосылғанда жібереді — сондықтан көрсеткіштер кешігіп пайда болуы мүмкін.\n\nҚұрылғыға берілетін кепілдік және оны ауыстыру сатып алу шарттарымен реттеледі. Қолданба құрылғы иесі үшін тегін, ал құрылғысыз кейбір функциялар қолжетімсіз.\n\nБізден алынбаған немесе бөгде микробағдарламамен өзгертілген құрылғының жұмысы үшін жауап бермейміз.",
+      "en": "The devices connect over Bluetooth and work near the phone. While the phone is out of range the device accumulates data and sends it at the next connection — so readings may appear with a delay.\n\nWarranty and replacement are governed by the purchase terms. The app is free for the owner of a device, and without a device some features are unavailable.\n\nWe are not responsible for a device bought elsewhere or altered with third-party firmware."
+    },
+    "legal_terms_paid_h": {
+      "ru": "Платные материалы",
+      "kk": "Ақылы материалдар",
+      "en": "Paid material"
+    },
+    "legal_terms_paid_b": {
+      "ru": "Часть материалов — например, курс для мам — открывается после покупки. Доступ привязан к номеру телефона и не ограничен по времени, пока сервис работает.\n\nЕсли мы удалим или заменим урок, вы не теряете доступ к курсу целиком.",
+      "kk": "Кейбір материалдар — мысалы, аналарға арналған курс — сатып алғаннан кейін ашылады. Қолжетімділік телефон нөміріне байланған және сервис жұмыс істеп тұрғанда уақытпен шектелмейді.\n\nЕгер біз сабақты жойсақ немесе ауыстырсақ, курсқа қолжетімділікті түгел жоғалтпайсыз.",
+      "en": "Some material — the course for mothers, for instance — opens after purchase. Access is tied to your phone number and is not time-limited for as long as the service runs.\n\nIf we remove or replace a lesson, you do not lose access to the course as a whole."
+    },
+    "legal_terms_orders_h": {
+      "ru": "Заказы и доставка",
+      "kk": "Тапсырыстар және жеткізу",
+      "en": "Orders and delivery"
+    },
+    "legal_terms_orders_b": {
+      "ru": "Заказ оформляется через WhatsApp или по ссылке на Kaspi. Оплата проходит на стороне банка или платёжного сервиса: мы не получаем и не храним данные вашей карты.\n\nЦены, сроки и условия доставки сообщаются при оформлении. Возврат и обмен — по законодательству Республики Казахстан о защите прав потребителей.\n\nЧтобы доставить заказ, нам нужны ваше имя, телефон и адрес. Эти сведения остаются у нас и после удаления аккаунта — по причине, описанной в политике конфиденциальности.",
+      "kk": "Тапсырыс WhatsApp арқылы немесе Kaspi сілтемесімен ресімделеді. Төлем банктің немесе төлем сервисінің жағында өтеді: біз карта деректеріңізді алмаймыз да, сақтамаймыз да.\n\nБағалар, мерзімдер және жеткізу шарттары ресімдеу кезінде хабарланады. Қайтару мен айырбастау — Қазақстан Республикасының тұтынушылардың құқықтарын қорғау туралы заңнамасына сәйкес.\n\nТапсырысты жеткізу үшін бізге атыңыз, телефоныңыз және мекенжайыңыз керек. Бұл мәліметтер аккаунт жойылғаннан кейін де бізде қалады — құпиялылық саясатында сипатталған себеппен.",
+      "en": "An order is placed over WhatsApp or through a Kaspi link. Payment happens on the bank’s or the payment service’s side: we neither receive nor store your card details.\n\nPrices, timescales and delivery terms are given at the point of order. Returns and exchanges follow the consumer protection legislation of the Republic of Kazakhstan.\n\nTo deliver an order we need your name, phone and address. That information stays with us after the account is deleted, for the reason described in the privacy policy."
+    },
+    "legal_terms_content_h": {
+      "ru": "Ваши записи",
+      "kk": "Сіздің жазбаларыңыз",
+      "en": "Your entries"
+    },
+    "legal_terms_content_b": {
+      "ru": "Всё, что вы вносите, остаётся вашим. Мы не публикуем ваши записи, не показываем их другим пользователям и не используем для рекламы.\n\nМы храним и обрабатываем их только для того, чтобы приложение работало: показывало вам ваши данные, возвращало их на новом телефоне и вовремя предупреждало о тревожных показателях.",
+      "kk": "Енгізгеніңіздің бәрі өзіңіздікі болып қалады. Жазбаларыңызды жарияламаймыз, басқа пайдаланушыларға көрсетпейміз және жарнама үшін пайдаланбаймыз.\n\nОларды тек қолданба жұмыс істеуі үшін ғана сақтаймыз және өңдейміз: деректеріңізді сізге көрсету, жаңа телефонда қайтару және қауіпті көрсеткіштер туралы уақытында ескерту үшін.",
+      "en": "Everything you enter remains yours. We do not publish your entries, do not show them to other users and do not use them for advertising.\n\nWe store and process them only so that the app works: to show you your own data, to return it to you on a new phone, and to warn you in time about concerning readings."
+    },
+    "legal_terms_prohibited_h": {
+      "ru": "Чего делать нельзя",
+      "kk": "Не істеуге болмайды",
+      "en": "What you may not do"
+    },
+    "legal_terms_prohibited_b": {
+      "ru": "• Вносить данные человека, представителем которого вы не являетесь, и следить за взрослым без его ведома.\n• Пытаться получить доступ к чужому аккаунту или к внутренней части сервиса.\n• Вскрывать, копировать или изменять приложение и его протокол обмена с устройством.\n• Использовать сервис для действий, запрещённых законом.\n\nМы можем закрыть доступ, если увидим такое, и обязаны сообщить в органы, если речь идёт о безопасности ребёнка.",
+      "kk": "• Өзіңіз өкілі болып табылмайтын адамның деректерін енгізу және ересек адамды оның хабарынсыз қадағалау.\n• Бөтен аккаунтқа немесе сервистің ішкі бөлігіне қол жеткізуге әрекеттену.\n• Қолданбаны және оның құрылғымен алмасу хаттамасын ашу, көшіру немесе өзгерту.\n• Сервисті заңмен тыйым салынған әрекеттер үшін пайдалану.\n\nМұндайды байқасақ, қолжетімділікті жабуымыз мүмкін, ал әңгіме баланың қауіпсіздігі туралы болса, органдарға хабарлауға міндеттіміз.",
+      "en": "• Enter the data of a person you do not represent, or track an adult without their knowledge.\n• Attempt to access another person’s account or the internal parts of the service.\n• Reverse-engineer, copy or modify the app and its device protocol.\n• Use the service for anything the law forbids.\n\nWe may close access if we see this, and we are obliged to report to the authorities where a child’s safety is concerned."
+    },
+    "legal_terms_availability_h": {
+      "ru": "Доступность сервиса",
+      "kk": "Сервистің қолжетімділігі",
+      "en": "Availability of the service"
+    },
+    "legal_terms_availability_b": {
+      "ru": "Мы стараемся, чтобы сервис работал постоянно, но не обещаем непрерывной работы. Возможны перерывы на обслуживание, сбои связи и ошибки.\n\nМы можем изменять функции приложения и прекращать отдельные из них. О существенных изменениях предупредим в приложении.",
+      "kk": "Сервис үнемі жұмыс істеп тұруы үшін тырысамыз, бірақ үзіліссіз жұмысты уәде етпейміз. Техникалық қызмет көрсетуге байланысты үзілістер, байланыс ақаулары және қателер болуы мүмкін.\n\nҚолданба функцияларын өзгертуіміз және жекелегендерін тоқтатуымыз мүмкін. Елеулі өзгерістер туралы қолданбада ескертеміз.",
+      "en": "We aim for the service to run continuously but do not promise uninterrupted operation. Maintenance breaks, connection failures and errors are possible.\n\nWe may change the app’s features and discontinue individual ones. We will give notice of material changes in the app."
+    },
+    "legal_terms_termination_h": {
+      "ru": "Прекращение",
+      "kk": "Тоқтату",
+      "en": "Ending"
+    },
+    "legal_terms_termination_b": {
+      "ru": "Вы можете прекратить пользоваться приложением в любой момент, удалив аккаунт в настройках.\n\nМы можем закрыть доступ при существенном нарушении этих условий. Если это произойдёт, мы объясним причину и дадим забрать копию ваших данных.",
+      "kk": "Қолданбаны пайдалануды кез келген сәтте параметрлерден аккаунтты жою арқылы тоқтата аласыз.\n\nОсы шарттар елеулі түрде бұзылған жағдайда қолжетімділікті жабуымыз мүмкін. Егер бұлай болса, себебін түсіндіреміз және деректеріңіздің көшірмесін алуға мүмкіндік береміз.",
+      "en": "You may stop using the app at any time by deleting your account in Settings.\n\nWe may close access in the event of a material breach of these terms. If that happens we will explain why and let you take a copy of your data."
+    },
+    "legal_terms_changes_h": {
+      "ru": "Изменения условий",
+      "kk": "Шарттардың өзгеруі",
+      "en": "Changes to these terms"
+    },
+    "legal_terms_changes_b": {
+      "ru": "Мы можем менять эти условия. Дата редакции стоит наверху, а о существенных изменениях мы скажем в приложении.\n\nЕсли вы продолжаете пользоваться приложением после изменения, считается, что вы его приняли.",
+      "kk": "Осы шарттарды өзгертуіміз мүмкін. Редакция күні жоғарыда тұр, ал елеулі өзгерістер туралы қолданбада айтамыз.\n\nӨзгерістен кейін қолданбаны пайдалануды жалғастырсаңыз, оны қабылдадыңыз деп саналады.",
+      "en": "We may change these terms. The version date is at the top, and we will announce material changes in the app.\n\nIf you continue using the app after a change, you are taken to have accepted it."
+    },
+    "legal_terms_contact_h": {
+      "ru": "Как с нами связаться",
+      "kk": "Бізбен қалай байланысуға болады",
+      "en": "How to contact us"
+    },
+    "legal_terms_contact_b": {
+      "ru": "ТОО «Ana-Bala», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nНаписать можно из приложения, в разделе поддержки.",
+      "kk": "«Ana-Bala» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nҚолданбадағы қолдау бөлімінен жазуға болады.",
+      "en": "Ana-Bala LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nYou can write to us from the app, in the support section."
     },
     "legal_update_title": {
       "ru": "Мы обновили документы",
@@ -34,126 +374,6 @@
       "ru": "Принять и продолжить",
       "kk": "Қабылдап, жалғастыру",
       "en": "Accept and continue"
-    },
-    "legal_priv_collect_h": {
-      "ru": "Какие данные мы обрабатываем",
-      "kk": "Қандай деректерді өңдейміз",
-      "en": "What data we handle"
-    },
-    "legal_priv_collect_b": {
-      "ru": "Ваш профиль (имя, телефон), данные о беременности и цикле, имя и дату рождения ребёнка, зоны (дом, школа) и показатели здоровья с подключённого браслета.",
-      "kk": "Профиліңіз (аты, телефоны), жүктілік пен цикл деректері, баланың аты мен туған күні, аймақтар (үй, мектеп) және жалғанған білезіктен келетін денсаулық көрсеткіштері.",
-      "en": "Your profile (name, phone), pregnancy and cycle data, your child’s name and date of birth, zones (home, school), and health readings from a paired band."
-    },
-    "legal_priv_storage_h": {
-      "ru": "Хранение на устройстве",
-      "kk": "Құрылғыда сақтау",
-      "en": "Stored on your device"
-    },
-    "legal_priv_storage_b": {
-      "ru": "По умолчанию данные хранятся на вашем телефоне. Резервную копию можно выгрузить в файл — он ваш, храните его как личный документ.",
-      "kk": "Әдепкі бойынша деректер телефоныңызда сақталады. Сақтық көшірмені файлға шығаруға болады — ол сіздікі, оны жеке құжат ретінде сақтаңыз.",
-      "en": "By default your data stays on your phone. You can export a backup to a file — it is yours; keep it like a personal document."
-    },
-    "legal_priv_cloud_h": {
-      "ru": "Что уходит в облако",
-      "kk": "Бұлтқа не жіберіледі",
-      "en": "What goes to the cloud"
-    },
-    "legal_priv_cloud_b": {
-      "ru": "Только когда вы пользуетесь облачными функциями: сообщения ассистенту, показатели браслета для анализа и запись плача — она отправляется на наш сервер, разбирается там и НЕ сохраняется: после ответа файла не остаётся ни у нас, ни у третьих лиц. Мы не продаём ваши данные.",
-      "kk": "Тек бұлттық функцияларды пайдаланғанда: ассистентке жіберілген хабарлар, талдауға арналған білезік көрсеткіштері және жылау жазбасы — ол біздің серверге жіберіледі, сонда талданады және САҚТАЛМАЙДЫ: жауаптан кейін файл бізде де, үшінші тұлғаларда да қалмайды. Деректеріңізді сатпаймыз.",
-      "en": "Only when you use cloud features: messages to the assistant, band readings for analysis, and the cry recording — it is sent to our server, analysed there and NOT stored: once you have the answer no file remains, with us or with anyone else. We do not sell your data."
-    },
-    "legal_priv_medical_h": {
-      "ru": "Не медицинский прибор",
-      "kk": "Медициналық құрал емес",
-      "en": "Not a medical device"
-    },
-    "legal_priv_medical_b": {
-      "ru": "Приложение помогает следить за самочувствием, но не ставит диагноз и не заменяет врача. При тревожных признаках обращайтесь к врачу.",
-      "kk": "Қолданба әл-ауқатты қадағалауға көмектеседі, бірақ диагноз қоймайды және дәрігердің орнын баспайды. Қауіпті белгілерде дәрігерге жүгініңіз.",
-      "en": "The app helps you follow your wellbeing but does not diagnose and does not replace a doctor. See a doctor if you have warning signs."
-    },
-    "legal_priv_controls_h": {
-      "ru": "Ваш контроль",
-      "kk": "Сіздің бақылауыңыз",
-      "en": "Your controls"
-    },
-    "legal_priv_controls_b": {
-      "ru": "В любой момент вы можете выгрузить копию всех данных или полностью стереть их в разделе «Данные».",
-      "kk": "Кез келген уақытта барлық деректердің көшірмесін шығаруға немесе «Деректер» бөлімінде толық жоюға болады.",
-      "en": "At any time you can export a copy of all your data or erase it completely in the “Data” section."
-    },
-    "legal_priv_contact_h": {
-      "ru": "Связь с нами",
-      "kk": "Бізбен байланыс",
-      "en": "Contact us"
-    },
-    "legal_priv_contact_b": {
-      "ru": "По вопросам о ваших данных напишите нам через раздел поддержки в приложении.",
-      "kk": "Деректеріңіз туралы сұрақтар бойынша қолданбадағы қолдау бөлімі арқылы жазыңыз.",
-      "en": "For questions about your data, contact us through the in-app support section."
-    },
-    "legal_terms_use_h": {
-      "ru": "Использование приложения",
-      "kk": "Қолданбаны пайдалану",
-      "en": "Using the app"
-    },
-    "legal_terms_use_b": {
-      "ru": "Пользуясь приложением, вы соглашаетесь с этими условиями. Приложение предназначено для личного, некоммерческого использования.",
-      "kk": "Қолданбаны пайдалану арқылы осы шарттармен келісесіз. Қолданба жеке, коммерциялық емес пайдалануға арналған.",
-      "en": "By using the app you agree to these terms. The app is for personal, non-commercial use."
-    },
-    "legal_terms_medical_h": {
-      "ru": "Не медицинская помощь",
-      "kk": "Медициналық көмек емес",
-      "en": "Not medical advice"
-    },
-    "legal_terms_medical_b": {
-      "ru": "Информация в приложении носит справочный характер и не является медицинской консультацией, диагнозом или назначением.",
-      "kk": "Қолданбадағы ақпарат анықтамалық сипатта және медициналық кеңес, диагноз немесе тағайындау болып табылмайды.",
-      "en": "Information in the app is for reference only and is not medical advice, a diagnosis, or a prescription."
-    },
-    "legal_terms_emergency_h": {
-      "ru": "В экстренных случаях",
-      "kk": "Төтенше жағдайларда",
-      "en": "In an emergency"
-    },
-    "legal_terms_emergency_b": {
-      "ru": "Приложение не служба экстренной помощи. При угрозе жизни звоните в скорую (103) или единую службу (112).",
-      "kk": "Қолданба — жедел жәрдем қызметі емес. Өмірге қауіп төнгенде жедел жәрдемге (103) немесе бірыңғай қызметке (112) қоңырау шалыңыз.",
-      "en": "The app is not an emergency service. If life is at risk, call an ambulance (103) or the single emergency line (112)."
-    },
-    "legal_terms_responsib_h": {
-      "ru": "Ваша ответственность",
-      "kk": "Сіздің жауапкершілігіңіз",
-      "en": "Your responsibilities"
-    },
-    "legal_terms_responsib_b": {
-      "ru": "Вводите достоверные данные и берегите доступ к телефону — приложение хранит личную информацию о вас и вашем ребёнке.",
-      "kk": "Дұрыс деректер енгізіңіз және телефонға қолжетімділікті сақтаңыз — қолданба сіз бен балаңыз туралы жеке ақпаратты сақтайды.",
-      "en": "Enter accurate data and keep your phone secure — the app holds personal information about you and your child."
-    },
-    "legal_terms_warranty_h": {
-      "ru": "Без гарантий",
-      "kk": "Кепілдіксіз",
-      "en": "No warranty"
-    },
-    "legal_terms_warranty_b": {
-      "ru": "Приложение предоставляется «как есть». Мы стремимся к точности, но не гарантируем бесперебойную работу и отсутствие ошибок.",
-      "kk": "Қолданба «бар күйінде» ұсынылады. Дәлдікке ұмтыламыз, бірақ үздіксіз жұмысқа және қателердің болмауына кепілдік бермейміз.",
-      "en": "The app is provided “as is”. We aim for accuracy but do not guarantee uninterrupted, error-free operation."
-    },
-    "legal_terms_law_h": {
-      "ru": "Применимое право",
-      "kk": "Қолданылатын құқық",
-      "en": "Governing law"
-    },
-    "legal_terms_law_b": {
-      "ru": "Условия регулируются законодательством Республики Казахстан.",
-      "kk": "Шарттар Қазақстан Республикасының заңнамасымен реттеледі.",
-      "en": "These terms are governed by the laws of the Republic of Kazakhstan."
     }
   }
 }

@@ -31,20 +31,42 @@ class LegalScreen extends StatelessWidget {
 
     final sections = isPrivacy
         ? const [
+            ('legal_priv_who_h', 'legal_priv_who_b'),
+            ('legal_priv_short_h', 'legal_priv_short_b'),
             ('legal_priv_collect_h', 'legal_priv_collect_b'),
             ('legal_priv_storage_h', 'legal_priv_storage_b'),
-            ('legal_priv_cloud_h', 'legal_priv_cloud_b'),
+            ('legal_priv_child_h', 'legal_priv_child_b'),
+            ('legal_priv_cry_h', 'legal_priv_cry_b'),
+            ('legal_priv_ai_h', 'legal_priv_ai_b'),
+            ('legal_priv_share_h', 'legal_priv_share_b'),
+            ('legal_priv_transfer_h', 'legal_priv_transfer_b'),
+            ('legal_priv_retention_h', 'legal_priv_retention_b'),
+            ('legal_priv_rights_h', 'legal_priv_rights_b'),
+            ('legal_priv_staff_h', 'legal_priv_staff_b'),
+            ('legal_priv_age_h', 'legal_priv_age_b'),
             ('legal_priv_medical_h', 'legal_priv_medical_b'),
-            ('legal_priv_controls_h', 'legal_priv_controls_b'),
+            ('legal_priv_security_h', 'legal_priv_security_b'),
+            ('legal_priv_changes_h', 'legal_priv_changes_b'),
             ('legal_priv_contact_h', 'legal_priv_contact_b'),
           ]
         : const [
-            ('legal_terms_use_h', 'legal_terms_use_b'),
+            ('legal_terms_about_h', 'legal_terms_about_b'),
+            ('legal_terms_who_h', 'legal_terms_who_b'),
+            ('legal_terms_account_h', 'legal_terms_account_b'),
             ('legal_terms_medical_h', 'legal_terms_medical_b'),
             ('legal_terms_emergency_h', 'legal_terms_emergency_b'),
+            ('legal_terms_device_h', 'legal_terms_device_b'),
+            ('legal_terms_paid_h', 'legal_terms_paid_b'),
+            ('legal_terms_orders_h', 'legal_terms_orders_b'),
+            ('legal_terms_content_h', 'legal_terms_content_b'),
+            ('legal_terms_prohibited_h', 'legal_terms_prohibited_b'),
+            ('legal_terms_availability_h', 'legal_terms_availability_b'),
             ('legal_terms_responsib_h', 'legal_terms_responsib_b'),
             ('legal_terms_warranty_h', 'legal_terms_warranty_b'),
+            ('legal_terms_termination_h', 'legal_terms_termination_b'),
+            ('legal_terms_changes_h', 'legal_terms_changes_b'),
             ('legal_terms_law_h', 'legal_terms_law_b'),
+            ('legal_terms_contact_h', 'legal_terms_contact_b'),
           ];
 
     return Scaffold(

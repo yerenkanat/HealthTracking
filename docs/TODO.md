@@ -52,8 +52,8 @@ Three attempts by agents died; the fourth was done by hand. Everything below was
 |---|---|---|
 | 3.1 | ~~Onboarding offered «Пока нет — буду записывать вручную», a screen removed the same day.~~ | **Fixed** `ad7b5e6` — now `onb_pair_skip`, which existed and had no caller. |
 | 3.2 | ~~A Kazakh speaker got a Russian app back after one phone call.~~ | **Fixed** `78a47b5` — `restore()` discarded the persisted language when onboarding was unfinished. |
-| 3.3 | **Denying the Bluetooth permission bounces back a step and clears the name and phone**, while keeping the pregnancy toggle and due date. Partial loss is worse than total: the survivors make the losses look deliberate. | Open. Verified on device. |
-| 3.4 | **The name requirement is not re-applied after that bounce** — «Далее» is enabled with an empty name and advances, though the same empty field disabled it minutes earlier with «Напишите имя, чтобы продолжить». | Open. Verified on device. |
+| 3.3 | ~~Denying the Bluetooth permission bounces back a step and clears the name and phone.~~ **REFUTED — and my description was the reason it looked unexplainable.** Nothing was cleared. None of the three onboarding `TextField`s had a controller, so a rebuilt page painted blank over a model that still held the name. The field was lying about what the app had. | **Fixed**, `f109da3`. |
+| 3.4 | ~~The name requirement is not re-applied after that bounce.~~ **Same defect, not a second one.** «Далее» stayed enabled because `canProceed` reads the model, which was intact all along. | **Fixed** with 3.3. |
 | 3.5 | **The splash screen is a coral circle with a white heart**; the welcome screen one frame later is the crimson `#D6004A` lotus. The first thing anyone ever sees is a different mark. | Open. Verified on device. |
 | 3.6 | ~~The pairing screen spins for ever when permission is denied.~~ | **REFUTED — my error.** The scan window is 15s; I read it at 4s. Permission was never denied (`dumpsys`: `granted=true`), and `noneNearby` is the truthful answer. Kept in BACKLOG.md because it is the stopwatch mistake, made by hand. |
 
@@ -140,3 +140,42 @@ Each of these was raised and deliberately not answered by an implementer.
 4. **`bp_device_estimate_note`** does not exist. Temperature got one; the blood-pressure tile states no limitation at the place the claim is made. No copy has been written, deliberately.
 5. **What should an ungradeable day draw** in the peace ring — see 2.2.
 6. **Should the server require the phone's persistence before pushing** — see 2.6.
+
+## 9 · The legal documents — written 2026-08-18, and what they cannot say yet
+
+The 6-section DRAFT was replaced with real Privacy Policy and Terms of Use, 17 sections each, in ru/kk/en, served from `legal/legal.json` to both the app and ana-bala.kz. Writing them required an evidence-backed inventory of every category of personal data the product touches, and that inventory is what this section records.
+
+**Three statements in the old DRAFT were false**, which is why they were replaced rather than expanded:
+
+| # | The DRAFT said | The code does |
+|---|---|---|
+| 9.1 | «По умолчанию данные хранятся на вашем телефоне» | False across the whole schema. While signed in, the server holds a full copy — profile, children, diaries, screening scores, the child's emergency card, every band reading. Corrected in `legal_priv_storage_b`, which now says so as an admission rather than a softening. |
+| 9.2 | Cloud use is "assistant messages, band readings, the cry recording" | Omitted the photo-to-vitals features, which upload a **photograph of a BP monitor, glucometer or lab slip** to Anthropic. A lab slip carries her surname. Now disclosed in `legal_priv_ai_b`. |
+| 9.3 | «выгрузить копию всех данных» | The export file contained a **live 90-day bearer session token** — a key to the account, not a copy of data, handed straight to the share sheet. Being fixed rather than disclosed. |
+
+**Blocking publication — owner only.** These promote to §1:
+
+| # | What | Why it blocks |
+|---|---|---|
+| 9.4 | **БИН, registered address, and a contact e-mail.** The repo has only «ТОО «Ana-Bala», Алматы» and a mobile number. | ЗРК №94-V requires an identifiable operator, and Google Play rejects a policy without one. The documents carry visible blank slots `______________`; they are unfilled on purpose. "Write to us via in-app support" is not a channel for someone who has already uninstalled. |
+| 9.5 | **Hosting country for 188.137.231.252.** The repo records the IP and nothing else. | Decides whether §7 of the policy is a domestic-processing paragraph or a cross-border-transfer one. Not guessed. |
+| 9.6 | **Retention periods for everything that has none.** Only `location_history` is actually swept (90 days). Health tables, `safety_alerts`, orders with delivery addresses, `shop_leads`, support tickets and their bodies have no mechanism at all. | The policy currently says these are kept while the account exists, and says plainly that no number is written where no deleting code exists. Each number needs a sweep before it can be printed. |
+| 9.7 | **Is an infant's cry, transmitted for classification but never stored, «биометрические данные» under №94-V?** | Changes whether separate written consent is required before the microphone opens. The code facts are settled; the classification is a lawyer's call. |
+
+**Decided this session:** minimum age is **16**, not 18 — pregnancy under eighteen exists, and an 18 gate would not stop those users, only make them state a false age and go without support. Written into `legal_priv_age_b` with that reasoning, and it needs a consent path for 16–18 that does not exist yet.
+
+**Established and worth keeping** (each verified from code, not assumed):
+
+- The cry chain is honest and tested: recorded to a temp file, uploaded, proxied, decomposed in memory, **never written to disk anywhere**, only a reason word and confidence stored. `cryNotStored.test.ts` watches every repository method for the bytes rather than a whitelist. The policy states the uncomfortable half out loud — the sound *does* leave the phone — because the tempting sentence «звук не покидает телефон» would be a lie.
+- **EPDS answers are never stored**, by schema design, because item 10 asks about self-harm. Only the score, readable only on an individual record, never sortable.
+- **No analytics SDK and no crash reporter exist in the app.** Genuinely true, and now stated.
+- Broadcast segmentation cannot express a rule over readings — a blood-pressure rule is refused with a message. It *does* use pregnancy status and child age, so the policy says that rather than the flattering version.
+- Family sharing has **no expressible level** that reaches the mother's own record.
+- Staff reads of an individual's health record require a written reason of 8+ characters, refused rather than auto-filled.
+
+| # | Smaller, ours to fix | Status |
+|---|---|---|
+| 9.8 | The panel prints «Журнал доступа — хранится 3 года» and nothing deletes `audit_log`, ever. | Open — a stated period with no mechanism, the same class as 9.6. |
+| 9.9 | Screen 47 prints «Маршруты хранятся 90 дней» directly beneath a list of zone crossings and SOS events, which are **not** routes and are not swept. The card is literally true and reads as covering both. | Open — wording, or a sweep. |
+| 9.10 | The landing lead form takes a name and phone under a bare consent line with **no link to the policy at the point of collection**. | Open — now that /privacy is real, link it. |
+| 9.11 | `docs/CLAUDE-app-design.md:485` says «Плач считается на телефоне». The build does not do that. | Spec is wrong, not the code. Do not copy that sentence into anything. |

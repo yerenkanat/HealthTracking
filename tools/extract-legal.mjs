@@ -30,7 +30,12 @@ function valueFor(body, locale) {
   const re = new RegExp(String.raw`AppLocale\.${locale}: '((?:[^'\\]|\\.)*)'`);
   const m = body.match(re);
   if (!m) return null;
-  return m[1].replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  // Decode Dart's escapes in ONE pass. Two chained replaces got \n wrong twice
+  // over: it was not handled at all, so a paragraph break came out of here as
+  // the two characters \ and n and every multi-paragraph section drifted from
+  // the app the moment anyone re-ran this file.
+  return m[1].replace(/\\(.)/g, (_, c) =>
+    c === 'n' ? '\n' : c === 't' ? '\t' : c === 'r' ? '\r' : c);
 }
 
 const strings = {};
