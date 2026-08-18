@@ -137,6 +137,10 @@ List<Geofence> geofencesFromJson(Object? raw) {
 /// accepted forever: those files are on people's phones, and the failure mode
 /// of dropping it is not an error message but a refusal to restore a health
 /// record that is perfectly valid.
+/// Keys of [PersistedConfig.toJson] that are credentials, not data, and so are
+/// left out of an exported backup. See [PersistedConfig.toExportJson].
+const Set<String> exportOmittedKeys = {'authSession', 'pendingLogouts'};
+
 bool looksLikeBackup(Object? decoded) {
   if (decoded is! Map) return false;
   if (decoded['app'] == 'Ana-Bala' || decoded['app'] == 'Umay') return true;
@@ -350,6 +354,38 @@ class PersistedConfig {
           'childEmergency': {for (final e in childEmergency.entries) e.key: e.value.toJson()},
         if (vaccinesDone.isNotEmpty) 'vaccinesDone': vaccinesDone,
       };
+
+  /// The same data, with everything that AUTHENTICATES her stripped out.
+  ///
+  /// What [toJson] writes to this phone's own private storage and what leaves
+  /// the phone are not the same document. The export is offered as «выгрузить
+  /// копию всех данных» and its only action is the system share sheet, which in
+  /// practice means WhatsApp — so anything in it should be readable by whoever
+  /// she sends it to. A bearer token is not: the server honours it for ninety
+  /// days (db/schema.sql), and it opens her health record and her children's
+  /// live locations to anyone holding the file. That is not a copy of her data,
+  /// it is a key to her account.
+  ///
+  /// Both keys removed here are keys, not data:
+  ///  - `authSession` — the live session token (plus userId and phone).
+  ///  - `pendingLogouts` — tokens she has signed out of whose revoke has not
+  ///    landed yet. Still valid server-side, so still keys, and they are this
+  ///    phone's retry queue rather than anything of hers.
+  ///
+  /// Nothing else in the config authenticates: devices carry a BLE id and a
+  /// name, `pendingBpCalibration` carries cuff readings, and the diagnostics
+  /// log carries truncated error messages. Those are hers to share.
+  ///
+  /// A REMOVE-list rather than a keep-list on purpose: a new field of her data
+  /// must appear in her backup without anyone remembering to add it, and a new
+  /// credential is a thing you add deliberately.
+  Map<String, dynamic> toExportJson() {
+    final json = toJson();
+    for (final key in exportOmittedKeys) {
+      json.remove(key);
+    }
+    return json;
+  }
 
   /// How many entries the last [fromJson] had to discard.
   ///

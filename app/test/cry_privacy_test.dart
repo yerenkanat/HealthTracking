@@ -11,6 +11,8 @@
 /// packages/backend cryNotStored.test.ts.
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/data/cry_classifier_client.dart';
@@ -103,13 +105,118 @@ void main() {
 
     test('the privacy policy lists the recording too', () {
       // It named chat messages and band readings and omitted the one piece of
-      // audio — the most sensitive thing the app sends anywhere.
+      // audio — the most sensitive thing the app sends anywhere. The rewritten
+      // policy gives it a section of its own, so this now pins that section.
       const cry = {AppLocale.ru: 'плач', AppLocale.kk: 'жылау', AppLocale.en: 'cry'};
       for (final locale in AppLocale.values) {
-        final policy = L10n(locale).t('legal_priv_cloud_b').toLowerCase();
+        final policy = L10n(locale).t('legal_priv_cry_b').toLowerCase();
         expect(policy, contains(cry[locale]!),
             reason: '${locale.name} privacy policy does not mention the cry recording');
       }
     });
   });
+
+  /// «Записи не сохраняются» has to be true of the PHONE as well.
+  ///
+  /// The server keeps its half of that promise and is held to it by
+  /// packages/backend cryNotStored.test.ts, which watches every repository
+  /// method for the bytes. The phone kept none of it: the clip was written to
+  /// the temporary directory under one fixed name and left there after the
+  /// upload, so the last recording of somebody's baby crying — made inside
+  /// their home — stayed on the device until Android felt like reclaiming it,
+  /// which can be never.
+  ///
+  /// Driven through the real [RecordCryRecorder] with real files, in the same
+  /// order the screen calls it (stopAndRead, then upload). Only the microphone
+  /// is faked; cry_insight_test.dart covers the screen's side of that order.
+  group('the clip does not stay on the phone', () {
+    /// A real directory on the real filesystem — the point of the test is what
+    /// is on disk afterwards.
+    late Directory dir;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('cry_privacy_test');
+    });
+
+    tearDown(() async {
+      if (dir.existsSync()) await dir.delete(recursive: true);
+    });
+
+    File clipFile() => File('${dir.path}/umay_cry.m4a');
+
+    CryClassifierClient client({required bool succeeds, List<int>? seenBytes}) =>
+        CryClassifierClient(
+          baseUrl: Uri.parse('http://stub.local'),
+          uploader: (url, bytes, name, headers) async {
+            seenBytes?.addAll(bytes);
+            if (!succeeds) throw const CryClassifierException('HTTP 502');
+            return '{"reason":"hunger","confidence":0.8}';
+          },
+        );
+
+    /// What the screen does on the auto-stop: read the clip, then upload it.
+    Future<void> recordAndAnalyse({required bool uploadSucceeds, List<int>? seenBytes}) async {
+      final recorder = RecordCryRecorder(mic: _FakeMic(), tempDir: () async => dir);
+      expect(await recorder.start(), isTrue);
+      expect(clipFile().existsSync(), isTrue, reason: 'the fake microphone wrote nothing');
+      final bytes = await recorder.stopAndRead();
+      expect(bytes, isNotNull);
+      try {
+        await client(succeeds: uploadSucceeds, seenBytes: seenBytes).analyze(bytes!);
+      } on CryClassifierException {
+        // the failure branch; the screen shows «не удалось»
+      }
+      await recorder.dispose();
+    }
+
+    test('after the analysis comes back, no recording is left', () async {
+      final uploaded = <int>[];
+      await recordAndAnalyse(uploadSucceeds: true, seenBytes: uploaded);
+      // The clip still reached the classifier — a delete that ate the audio
+      // would pass the line below and break the only feature on this screen.
+      expect(uploaded, _FakeMic.clipBytes);
+      expect(clipFile().existsSync(), isFalse,
+          reason: 'the recording of her baby is still in the temp directory');
+    });
+
+    test('after the upload fails, no recording is left', () async {
+      // A clip whose upload failed has no purpose at all — and this is the path
+      // a happy-path delete leaves behind: bad signal, dropped connection, 502.
+      await recordAndAnalyse(uploadSucceeds: false);
+      expect(clipFile().existsSync(), isFalse,
+          reason: 'a failed upload left the recording on the phone');
+    });
+
+    test('a recording she walked away from is not left either', () async {
+      // Back-button two seconds in: the screen disposes the recorder and
+      // stopAndRead is never called, so nothing else would ever remove it.
+      final recorder = RecordCryRecorder(mic: _FakeMic(), tempDir: () async => dir);
+      expect(await recorder.start(), isTrue);
+      await recorder.dispose();
+      expect(clipFile().existsSync(), isFalse,
+          reason: 'an abandoned recording stayed in the temp directory');
+    });
+  });
+}
+
+/// Stands in for the `record` plugin: writes a clip where it is told to, as the
+/// native recorder does, and nothing else.
+class _FakeMic implements CryMic {
+  static const clipBytes = [77, 65, 66, 67, 68];
+  String? _path;
+
+  @override
+  Future<bool> hasPermission() async => true;
+
+  @override
+  Future<void> start(String path) async {
+    _path = path;
+    await File(path).writeAsBytes(clipBytes, flush: true);
+  }
+
+  @override
+  Future<String?> stop() async => _path;
+
+  @override
+  Future<void> dispose() async {}
 }

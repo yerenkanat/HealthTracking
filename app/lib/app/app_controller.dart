@@ -187,6 +187,16 @@ class AppController {
   final ErrorLog errorLog;
 
   final DateTime Function() _now;
+
+  /// The clock this controller judges everything else by — injected in tests.
+  ///
+  /// Public so that code OUTSIDE the controller which has to date something
+  /// against the same instant (screen 38's `handleNotificationTap`, deciding
+  /// whether a tapped emergency is still happening) asks the app's clock
+  /// rather than reaching for `DateTime.now()`. A staleness rule tested
+  /// against a different clock than it runs on is a rule nothing has tested.
+  DateTime get now => _now();
+
   final _changes = StreamController<void>.broadcast();
   final _alertStream = StreamController<SafetyAlert>.broadcast();
   final _reminderStream = StreamController<ReminderCommand>.broadcast();
@@ -597,11 +607,25 @@ class AppController {
     } catch (_) {
       return false;
     }
+    // WHO IS SIGNED IN IS A PROPERTY OF THIS PHONE, NOT OF THE FILE.
+    //
+    // New exports no longer carry a session (it is a credential, not data), so
+    // without this an import would blank the session of the woman who is signed
+    // in right now — restore a backup on a new handset and it signs you out of
+    // the account you just signed into. Older backups DO carry one, and
+    // adopting it would be worse: a file passed between two people would move
+    // the account with it.
+    final session = _authSession;
+    final pendingLogouts = [..._pendingLogouts];
     // Revoke the reminders belonging to the data being REPLACED, while their
     // ids can still be derived. Without this the phone keeps firing reminders
     // for appointments the import just deleted.
     _cancelAllReminders();
     _applyConfig(cfg);
+    _authSession = session;
+    _pendingLogouts
+      ..clear()
+      ..addAll(pendingLogouts);
     // Re-arm reminder notifications for the imported appointments.
     rescheduleReminders();
     _reconcileCycleReminders();
@@ -736,6 +760,11 @@ class AppController {
   /// appointments, battery, alerts). Leads with metadata (app + version + export
   /// time); the rest is the PersistedConfig shape, so a backup round-trips on
   /// import (the extra metadata keys are ignored). Telemetry samples are excluded.
+  ///
+  /// SIGN-IN CREDENTIALS ARE NOT EXPORTED. The file goes out through the share
+  /// sheet, so it must be a copy of her data and not a key to her account — see
+  /// PersistedConfig.toExportJson. [importJson] keeps whatever session THIS
+  /// phone is signed in with, so nothing here is needed to restore a backup.
   String exportJson() {
     final at = _now();
     final map = <String, dynamic>{
@@ -744,7 +773,7 @@ class AppController {
       'app': 'Ana-Bala',
       'appVersion': appVersion,
       'exportedAt': at.toIso8601String(),
-      ..._snapshot().toJson(),
+      ..._snapshot().toExportJson(),
       // Recent failures travel with the backup.
       //
       // There is no crash reporting service and no keys for one, so this is
@@ -3542,14 +3571,29 @@ class AppController {
   /// next build and consumes it with [takePendingDestination].
   NotifyDestination? get pendingDestination => _pendingDestination;
 
+  /// Which metric a pending [NotifyDestination.vitalsHistory] is about —
+  /// 'systolic', 'temp', 'spo2', 'hr'. Null for every other destination.
+  ///
+  /// Read BEFORE [takePendingDestination], which spends both together. A
+  /// destination that names a screen but not the reading it is about would
+  /// open the history of whatever the shell guessed, which is how a stale
+  /// blood pressure ends up presented as a heart rate.
+  String? get pendingMetricKey => _pendingMetricKey;
+  String? _pendingMetricKey;
+
   /// Ask for a screen. SOS is NOT routed through here — it is a takeover over
   /// the whole app, raised by [raiseSosAlert], not a route pushed on the shell.
   ///
   /// [NotifyDestination.dashboard] is a real request, not a no-op: it is where
   /// an unrecognised notification lands, and she may have left the app on the
   /// profile tab.
-  void requestDestination(NotifyDestination d) {
+  ///
+  /// [metricKey] belongs to [NotifyDestination.vitalsHistory] and is cleared
+  /// for anything else, so a request can never inherit the subject of the one
+  /// before it.
+  void requestDestination(NotifyDestination d, {String? metricKey}) {
     _pendingDestination = d;
+    _pendingMetricKey = d == NotifyDestination.vitalsHistory ? metricKey : null;
     _notify();
   }
 
@@ -3558,6 +3602,7 @@ class AppController {
   NotifyDestination? takePendingDestination() {
     final d = _pendingDestination;
     _pendingDestination = null;
+    _pendingMetricKey = null;
     return d;
   }
 
