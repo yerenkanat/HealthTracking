@@ -138,7 +138,11 @@ describe('the public pages', () => {
     // seed, fixture, migration or default — so that clearing them is permanent
     // rather than something the next deploy quietly undoes.
     const NAMES = ['Айгерим, 34', 'Мадина, 41', 'Динара, 29'];
-    const dirs = ['db', 'src', '../admin', '../../deploy', '../../legal'];
+    // ../landing is the page itself and ../../docs holds the exported artifact
+    // it was unpacked from. Both were missing, and the artifact is exactly what
+    // this test's own header blames: «they lived in an exported artifact nobody
+    // diffs». It was still carrying every fabricated name.
+    const dirs = ['db', 'src', '../admin', '../landing', '../../deploy', '../../legal', '../../docs'];
     const offenders: string[] = [];
     const walk = (dir: string) => {
       let entries;
