@@ -223,9 +223,13 @@ void _clinicalGateTests() {
     /// Writing this test turned up the sentence already shipping — not on the
     /// timer, but on `LabourSignsScreen`, which the timer's own info icon opens.
     /// `lab_go_five_one_one` states the rule in ru and kk inside a «when to go
-    /// in» list, and the `lab_*` keys are NOT matched by `isMedicalKey` in
-    /// reviewed_medical_copy_test.dart, so they carry no fingerprint and have
-    /// never been through the gate.
+    /// in» list. When this was written the `lab_*` keys were NOT matched by
+    /// `isMedicalKey` in reviewed_medical_copy_test.dart, so they carried no
+    /// fingerprint at all. That hole was closed on 2026-08-18 (TODO §8.8): the
+    /// whole `lab_` prefix is now matched and every key in it is fingerprinted.
+    ///
+    /// `knownUnreviewed` still says what it says, because PINNING IS NOT
+    /// APPROVING. The text is frozen; no reviewer has yet ruled on it.
     ///
     /// That is not mine to delete — the guide is a deliberate, spec'd feature
     /// and removing clinical content is as much a clinical decision as adding

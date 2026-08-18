@@ -726,3 +726,219 @@ appears on the next one.
 - Hard-coded l10n medical strings have no equivalent of `carryReview`, which
   revokes a content card's review when its text changes. The same discipline
   should apply.
+
+## The labour hole — the guard was scoped to the wrong thing, 2026-08-18
+
+Everything above this line is about the watch. So was `isMedicalKey`, the
+predicate in `app/test/reviewed_medical_copy_test.dart` that decides which
+strings the fingerprint manifest has to cover. It matched four prefixes and one
+key — `ADV_`, `em_`, `repeat_`, the triage codes, `temp_device_estimate_note` —
+and **every one of them came out of the vitals pipeline this document reviewed.**
+
+The guard therefore matched by ORIGIN, not by what a sentence does to a reader.
+Everything clinical the app says that did not come out of a wearable was outside
+it, and this document said nothing about any of it. It does not mention labour
+at all, which is why the hole survived five reviews.
+
+**72 strings were pinned. 436 more were not, and were live.**
+
+### The string that showed it
+
+`lab_go_five_one_one`, on LabourSignsScreen:
+
+> «Схватки примерно каждые 5 минут по ~1 минуте в течение часа (правило 5-1-1).»
+> «Толғақ шамамен әр 5 минут сайын, ~1 минуттан, бір сағат бойы (5-1-1 ережесі).»
+
+It sits in a list headed «Свяжитесь с роддомом или поезжайте, если появится
+что-то из этого:». It tells a woman in labour when to leave her house. It is
+reachable from the contraction timer info icon
+(`contraction_timer_screen.dart:205`) and from «Экстренная помощь» via
+`guides_screen.dart:353`. It shipped in ru and kk with **no fingerprint and no
+verdict**, and it was found by accident while building a guard for the same rule
+on a different screen.
+
+### What the widened predicate covers, and the rule it applies
+
+The test is now: **does the sentence make a clinical claim, give a clinical
+instruction, name a threshold, or tell the reader to seek or delay care?** Not:
+what is its prefix.
+
+Two mechanisms, deliberately:
+
+- a **prefix** where the whole screen is clinical — a red-flag list, a validated
+  instrument, a protocol transcribed from a contract;
+- an **explicit key** where one clinical sentence sits among UI chrome.
+
+The second exists so this guard does not cry wolf. `bag_` is 26 keys and two of
+them are clinical, so `bag_intro` is named and «Ночная рубашка» is not. That is
+the calibration a token rule banning «роддом» failed earlier the same day when
+it fired on «Сумка в роддом». A guard that fails on a packing list stops being
+believed, and then somebody loosens it.
+
+Prefixes: `ADV_ CS_ an_ contr_511_ eh_ em_ epds_ hs_ ill_ lab_ pp_note_
+pp_warn_ preg_note_ preg_warn_ pwg_ repeat_ sol_ ss_ teeth_not_ vac_`.
+
+**Deliberately excluded, and why**, because the boundary is the load-bearing
+part: `fet_` (22 fetal-development sentences — «Лёгкие почти готовы к первому
+вдоху» describes, it does not triage), `bsize_` (fruit), `sym_` and `mood_`
+(diary labels), `nightfeed_` and `nb_` (a timer and a tally), the `bag_` item
+names, `cyc_` statistics, `vitals_err_` (input validation, not a claim about her
+body). Excluding these is a ruling, not an oversight; re-including any of them
+needs an argument.
+
+### PINNED IS NOT APPROVED
+
+Every one of the 436 is frozen at the wording **already live on 2026-08-18**.
+A fingerprint means "this text has not changed since we noticed it". It does not
+mean a reviewer has read it. Do not cite manifest membership as clearance.
+
+Nothing was rewritten and nothing was deleted. Removing clinical content is as
+much a clinical decision as adding it.
+
+### Ranked by danger — what needs a verdict first
+
+**1. `kick_low_action` — the app contradicts itself on reduced fetal movement,
+and the weakest wording sits on the screen where she is already worried.**
+
+Four strings cover the same red flag and they do not agree:
+
+| key | what it says | strength |
+|---|---|---|
+| `preg_note_movement_pattern` | «сразу сообщите в консультацию, **в любое время суток**» | immediate |
+| `preg_warn_movement` | in the list headed «Свяжитесь с консультацией **или скорой**» | immediate |
+| `lab_go_reduced_movements` | in the «Когда ехать или звонить» list | immediate |
+| **`kick_low_action`** | «свяжитесь с консультацией **сегодня**, не ждите до завтра» | **today** |
+
+`kick_low_action` is the one that fires off an actual count — the woman who
+tapped ten times and got six. At 23:00 «сегодня» reads as «утром». The other
+three say «в любое время суток». Reduced fetal movement is the antenatal red
+flag with the shortest useful window, and the softest sentence the app has about
+it is the one attached to its own trigger.
+
+Who reads it and when: a woman past 28 weeks who opened the kick counter because
+something already felt wrong, and then sat through two hours of it.
+Wrong too eager: a night call to a consultation that tells her to come in the
+morning anyway. Wrong too slow: a stillbirth a night call would have caught.
+
+**This is the item to take to the owner first.** It is a one-sentence
+divergence, not a rewrite, and I have not made it.
+
+**2. `lab_go_five_one_one` — the benchmark.** Too eager sends her to be turned
+away in early labour; too slow is a birth in a car. Compounding it:
+`contr_511_ready` hedges the same rule («Многие врачи советуют связаться с ними
+на этом этапе — следуйте своему плану родов») while `lab_go_five_one_one` states
+it flat inside a «go in» list. Same rule, two strengths, two screens, one woman.
+
+**3. `epds_` — 68 strings, and the questions ARE the instrument.** A softened
+answer option changes the score, and the score drives `epds_band_high` («13
+баллов и выше»). `epds_harm_flag` and `pp_warn_harm` are the only two self-harm
+paths in the product. To the credit of whoever wrote it, `epds_not_validated`
+already says the ru and kk thresholds were derived on other language versions —
+that is the honest disclosure and it must not be edited away.
+
+**4. `ill_young_body` — «В этом возрасте любая температура 38 °C и выше».**
+Read by a parent of a newborn, at night, on a phone. Agrees with the newborn
+fever entry in `packages/contract/emergency_help.json`, which is also 38 °C.
+Wrong too eager: an unnecessary night trip. Wrong too slow: neonatal sepsis.
+The number is right; what was missing was any guard against it drifting.
+
+**5. `pp_warn_` — postpartum haemorrhage, sepsis, DVT, wound infection,
+self-harm.** Read in the first six weeks by someone who has just given birth and
+who will discount her own symptoms because everything hurts.
+`pp_warn_bleeding` («прокладка полностью промокает за час, или крупные сгустки»)
+is a quantified threshold and matches `emergency_help.json`.
+
+**6. `preg_warn_`** — the preeclampsia triad, bleeding, fluid loss, reduced
+movement, fever. This is the list the reviewed ADVISORY cards point AT. The
+cards had a verdict; the list they send her to did not.
+
+**7. `an_` — the RK MOH protocol, transcribed into the app.** Checked item by
+item against `packages/contract/antenatal_protocol.json` today: **the Russian
+matches verbatim, all 40 items and all 6 windows.** Pinning freezes that
+agreement. The exposure was silent drift — «Фолиевая кислота 400 мкг в день»,
+«Аспирин с 12 до 36 нед. при риске преэклампсии», «Анти-D иммуноглобулин в
+28–30 нед.», «Тест на толерантность к глюкозе (24–28 нед.)» are drug and window
+instructions, and nothing sat between the app string and the contract.
+
+**8. `vac_` — the national schedule and the catch-up wording.** Names and doses
+match `packages/contract/vaccination_schedule.json`. `vac_disclaimer` is
+load-bearing and correct: the app does not know which vaccines have been given,
+and it says so. `vac_catchup` («Стоит уточнить или наверстать») is the softest
+possible framing of an overdue immunisation; it is now frozen, and it deserves a
+verdict of its own.
+
+**9. `sol_`, `ss_`, `hs_`, `teeth_not_`, `ill_care_`** — infant death and injury
+copy: back-sleeping, never on a sofa, honey before one year, whole grapes, tap
+water not above ~50 °C, «не давайте аспирин детям», «Высокая температура —
+прорезывание её не вызывает». Each is standard guidance and none of it cites a
+source on screen.
+
+**10. `eh_` — the emergency screen furniture.** `eh_sev_red` («Звоните 103
+сейчас») and `eh_sev_amber` («Позвоните врачу сегодня») are triage verdicts
+rendered as section headings. `eh_call_body` is the sentence this app must never
+overstate: «Скорая помощь — бесплатно, круглосуточно, с любого телефона»
+describes the ambulance service and does **not** claim that we summon it. The
+emergency path is intact, and that wording is now pinned, which is the point.
+
+**11. `pwg_` — numeric weight-gain ranges by BMI band.** The figures come from
+`app/lib/domain/pregnancy_weight_guide.dart`, which attributes them to the
+Institute of Medicine. **The screen cites nothing.** CHANGES, not a refusal: the
+numbers are traceable, the citation is missing from the copy a reader sees.
+
+**12. `kick_goal_reached` — «Цель достигнута».** Two words, and they are a
+reassurance verdict on fetal movement. Formal kick-counting fell out of guidance
+partly because hitting the target reassures. `kick_goal_reached_slow` qualifies
+the over-two-hours case; the plain one qualifies nothing. Pinned.
+
+### Kazakh checked against Russian on the highest-danger items
+
+`lab_go_five_one_one`, `ill_young_body`, `pp_warn_bleeding`, `pp_warn_harm`,
+`epds_band_high`, `epds_harm_flag`, `preg_warn_movement`, `kick_low_action`,
+`sol_avoid_honey`, `an_term_note`, `pwg_weekly_body`, `eh_sev_red`,
+`eh_sev_amber`, `vac_disclaimer`: **the Kazakh says the same thing.** Numbers,
+thresholds and urgency verbs all survive the crossing.
+
+One divergence for `anabala-kazakh`, and it is a modal one:
+
+- `lab_intro` — ru «когда **пора** ехать» (it is time to go) against kk «қашан
+  баруға **болатыны**» (when it is permissible to go). Permission rather than
+  prompting, on the sentence that introduces the whole «when to go in» screen.
+  Not a changed threshold; still a softened instruction, and it is one of the
+  two keys `app/test/contraction_timer_test.dart` already lists as
+  `knownUnreviewed`.
+
+### Verified by reverting
+
+Both directions, 2026-08-18:
+
+1. Narrow predicate restored, five probe keys (`lab_go_five_one_one`,
+   `epds_band_high`, `pp_warn_bleeding`, `ill_young_body`, `eh_sev_red`) deleted
+   from the manifest. Result: **`All tests passed!`** That is the hole
+   reproduced exactly — five unreviewed clinical strings, unpinned, green.
+2. Widened predicate, the same five still unpinned. Result: **fails**, naming
+   them: `Medical keys with no reviewed fingerprint: [eh_sev_red,
+   epds_band_high, ill_young_body, lab_go_five_one_one, pp_warn_bleeding]`.
+3. Manifest restored, then the Kazakh of `lab_go_five_one_one` softened from
+   «әр 5 минут сайын» to «әр 10 минут сайын», Russian untouched. Result:
+   **fails** — `lab_go_five_one_one: cd3966cb6a5688e7 -> 41e58a6cf8b4fe5b`.
+
+All three reverted. `flutter test` in `app/`: **2215 passing.**
+
+Worth recording, because it is the reason a plain revert was not enough: undoing
+the widening on its own leaves the suite GREEN. The completeness test only fires
+when a key the predicate matches is missing from the manifest, so extra pins are
+invisible to it. The hole had to be probed by removing pins, not by removing the
+fix.
+
+### What this leaves open
+
+- The 436 are pinned and **unreviewed**. Pinning bought time; it did not buy
+  safety, and nobody should read the manifest as though it did.
+- `kick_low_action` against `preg_note_movement_pattern` is a live inconsistency
+  on the most time-critical antenatal red flag the app carries. Owner decision.
+- `contr_511_ready` and `lab_go_five_one_one` state the same rule at two
+  different strengths on two screens.
+- `pwg_` states Institute of Medicine numbers with no on-screen citation.
+- `an_source` («По клиническому протоколу МЗ РК «Антенатальный уход» (2025)») is
+  the only clinical screen in the app that names its source. It is the model the
+  other eleven do not follow.
