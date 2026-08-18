@@ -171,11 +171,83 @@ void main() {
     expect(calls, 2);
   });
 
-  testWidgets('prints the retention promise on every state', (tester) async {
-    // Including the empty one — it is a promise about the data that is not
-    // there as much as about the data that is.
-    await pumpHistory(tester, load: (_) async => history(points: const []));
-    expect(find.text(l.t('day_retention', {'n': 90})), findsOneWidget);
+  group('the retention card at the bottom', () {
+    // TODO §9.9. The card used to read «Маршруты хранятся 90 дней, потом
+    // удаляются автоматически» on every state, directly under a list of zone
+    // crossings and SOS events. That sentence is true about location_history,
+    // which really is swept every six hours, and false about everything the
+    // list contains: geofence_events and safety_alerts have no sweep at all and
+    // live until the account is deleted. A mother reading it over her
+    // daughter's SOS was told the opposite of what happens to it.
+
+    testWidgets('says what happens to the crossings and the SOS, on every state',
+        (tester) async {
+      // Loaded.
+      await pumpHistory(
+        tester,
+        load: (_) async =>
+            history(events: [DayEvent(at: at(9), kind: DayEventKind.sos)]),
+      );
+      expect(find.text(l.t('day_retention_events')), findsOneWidget);
+
+      // Empty — a promise about the data that is not there as much as about
+      // the data that is.
+      await pumpHistory(tester,
+          load: (_) async => history(points: const [], events: const []));
+      expect(find.text(l.t('day_retention_events')), findsOneWidget);
+
+      // Failed.
+      await pumpHistory(tester, load: (_) async => throw Exception('offline'));
+      expect(find.text(l.t('day_retention_events')), findsOneWidget);
+    });
+
+    testWidgets('never prints a period over data that nothing sweeps',
+        (tester) async {
+      // A real day as the server answers it today: SOS rows arrive over
+      // POST /alerts, and no route does — nothing in app/lib calls
+      // TelemetryBatcher.enqueueLocation, so location_history stays empty and
+      // its 90-day sweep governs nothing that is on this screen. Printing a
+      // number here would be a retention promise over the two tables beneath
+      // it, neither of which is ever deleted.
+      await pumpHistory(
+        tester,
+        load: (_) async => history(
+          points: const [],
+          events: [
+            DayEvent(at: at(8, 10), kind: DayEventKind.exit, zoneName: 'Дом'),
+            DayEvent(at: at(9), kind: DayEventKind.sos),
+          ],
+        ),
+      );
+      expect(find.text(l.t('day_retention_events')), findsOneWidget);
+      expect(find.text(l.t('day_retention_route', {'n': 90})), findsNothing);
+      // And no other phrasing of it either: the number itself must not be on
+      // screen when there is no route for it to describe.
+      expect(find.textContaining('90'), findsNothing);
+    });
+
+    testWidgets('prints the period beside a real route, and never alone',
+        (tester) async {
+      // The moment somebody wires enqueueLocation the points arrive, the sweep
+      // starts governing something visible, and the line comes back — still
+      // paired with the sentence about the events, which it does not cover.
+      await pumpHistory(tester, load: (_) async => history());
+      expect(find.text(l.t('day_retention_route', {'n': 90})), findsOneWidget);
+      expect(find.text(l.t('day_retention_events')), findsOneWidget);
+    });
+
+    test('the sentence about the events names no period, in any language', () {
+      for (final locale in AppLocale.values) {
+        final s = L10n(locale).t('day_retention_events');
+        // §9.6: nobody has chosen a period for geofence_events or
+        // safety_alerts, and none may be printed before there is code that
+        // deletes. A digit in this string is that invented number.
+        expect(RegExp(r'\d').hasMatch(s), isFalse,
+            reason: '$locale: «$s» names a period for data nothing deletes');
+        // It has to be recognisable as being about what is listed above it.
+        expect(s, contains('SOS'), reason: '$locale: «$s»');
+      }
+    });
   });
 
   group('the timeline', () {

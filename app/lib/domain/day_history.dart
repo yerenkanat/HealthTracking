@@ -97,8 +97,13 @@ class DayHistory {
   final int rawCount;
   final List<DayEvent> events;
 
-  /// How long routes are kept — read from the server rather than typed here,
-  /// so «маршруты хранятся 90 дней» cannot promise what the sweep does not do.
+  /// How long ROUTE POINTS are kept on the server — read from the constant the
+  /// sweep uses rather than typed here, so the screen cannot promise a window
+  /// the sweep does not keep.
+  ///
+  /// It covers `location_history` and nothing else. The crossings and the SOS
+  /// rows in [events] come from other tables that no sweep touches, and the
+  /// screen says so separately; do not let this number spread over them.
   final int retentionDays;
 
   const DayHistory({

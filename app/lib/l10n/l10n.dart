@@ -641,7 +641,19 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'day_left_unknown': {AppLocale.ru: 'Вышла из зоны', AppLocale.kk: 'Аймақтан шықты', AppLocale.en: 'Left a zone'},
   'day_entered_unknown': {AppLocale.ru: 'Пришла в зону', AppLocale.kk: 'Аймаққа келді', AppLocale.en: 'Arrived at a zone'},
   'day_sos': {AppLocale.ru: 'Нажала кнопку SOS', AppLocale.kk: 'SOS түймесін басты', AppLocale.en: 'Pressed SOS'},
-  'day_retention': {AppLocale.ru: 'Маршруты хранятся {n} дней, потом удаляются автоматически', AppLocale.kk: 'Маршруттар {n} күн сақталады, содан кейін автоматты түрде жойылады', AppLocale.en: 'Routes are kept for {n} days, then deleted automatically'},
+  // Two lines, because the screen holds two kinds of data with two different
+  // answers. The old single «Маршруты хранятся {n} дней» sat above a list of
+  // zone crossings and SOS events, which are not routes and which nothing
+  // sweeps — literally true, read as covering everything under it. The wording
+  // below is the privacy policy's (legal_priv_retention_b), shortened.
+  //
+  // Printed only when the server actually returned a route, so it describes the
+  // line drawn above it rather than promising a store that is empty.
+  'day_retention_route': {AppLocale.ru: 'Точки маршрута старше {n} дней сервер удаляет по расписанию', AppLocale.kk: 'Серверде {n} күннен асқан маршрут нүктелері кесте бойынша жойылады', AppLocale.en: 'Route points older than {n} days are deleted on the server on a schedule'},
+  // Printed always, including on an empty day. No number: nothing deletes a
+  // crossing or an SOS, and inventing a period for them is the defect this
+  // pair replaced. «Пока существует аккаунт» is what is true today.
+  'day_retention_events': {AppLocale.ru: 'Выход из зоны и SOS — не маршрут: они хранятся, пока существует ваш аккаунт', AppLocale.kk: 'Аймақтан шығу мен SOS — маршрут емес: олар аккаунтыңыз бар болғанша сақталады', AppLocale.en: 'A zone crossing or an SOS is not a route: they are kept for as long as your account exists'},
   'day_simplified': {AppLocale.ru: 'Линия упрощена: {raw} отметок сведены к {n}', AppLocale.kk: 'Сызық жеңілдетілді: {raw} белгі {n} нүктеге сыйды', AppLocale.en: 'Simplified: {raw} fixes drawn as {n} points'},
   'day_empty': {AppLocale.ru: 'В этот день браслет ничего не записал', AppLocale.kk: 'Бұл күні білезік ештеңе жазбаған', AppLocale.en: 'The tracker recorded nothing this day'},
   'day_empty_why': {AppLocale.ru: 'Обычно так бывает, когда браслет был выключен или без связи. Данные появятся, как только он снова выйдет на связь.', AppLocale.kk: 'Әдетте білезік өшірулі болғанда немесе байланыс болмағанда солай болады. Байланыс қалпына келгенде деректер пайда болады.', AppLocale.en: 'Usually the tracker was off or out of range. Data appears once it reconnects.'},

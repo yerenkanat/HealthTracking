@@ -8,6 +8,11 @@
 /// ninety days, and until now there was nothing that could look at it. This is
 /// the looking.
 ///
+/// The design's closing plashka is the one thing here that is NOT built as
+/// drawn. See [_RetentionNote]: «маршруты хранятся 90 дней» is a promise about
+/// `location_history`, and the list it sits under is zone crossings and SOS,
+/// which live in other tables that nothing sweeps.
+///
 /// Like [ChildMapScreen], the map itself is a platform view that cannot render
 /// in a widget test, so it sits behind [routeMapBuilder] — the default builds
 /// the real one, tests inject a stub, and everything floating above it is plain
@@ -208,8 +213,12 @@ class _DayHistoryScreenState extends State<DayHistoryScreen> {
           ],
           const SizedBox(height: 20),
           // Printed on every state, including the empty one. It is a promise
-          // about the data that is not there as much as about the data that is.
-          _RetentionNote(days: h?.retentionDays ?? 90),
+          // about the data that is not there as much as about the data that is
+          // — but only the events half of it is unconditional. The route half
+          // needs a route: see [_RetentionNote].
+          _RetentionNote(
+            routeDays: h != null && h.points.isNotEmpty ? h.retentionDays : null,
+          ),
         ],
       ),
     );
@@ -257,24 +266,60 @@ class _RouteCard extends StatelessWidget {
   }
 }
 
-/// «Маршруты хранятся 90 дней» — the promise, with the number read from the
-/// server rather than typed here, so it cannot claim what the sweep does not do.
+/// What actually happens to what is on this screen — which is two answers, so
+/// two lines.
+///
+/// It used to be one: «Маршруты хранятся 90 дней, потом удаляются
+/// автоматически», printed unconditionally with the number read from the
+/// server. Every word of it is true about `location_history`, and none of it is
+/// true about the list directly beneath it. Zone crossings (`geofence_events`)
+/// and SOS rows (`safety_alerts`) are not routes; the sweep in
+/// `packages/backend/src/privacy/retention.ts` does not touch them, and nothing
+/// else does either — they live until the account is deleted. A mother reading
+/// «хранится 90 дней» over her daughter's SOS was being told the opposite of
+/// what happens to it.
+///
+/// So:
+///
+///  * [routeDays] is null unless the server actually returned a route, and the
+///    period is printed only then. The 90-day rule is real, but no code path in
+///    `app/lib` sends a location fix today — `enqueueLocation` in
+///    `net/telemetry_batcher.dart` has no caller outside `tool/` — so on every
+///    real day the store it governs is empty, and a retention promise over an
+///    empty map is a claim about nothing. When somebody wires the sender, the
+///    points arrive and the line comes back by itself.
+///  * the events line is unconditional and carries NO number, because there is
+///    no period to name. «Пока существует ваш аккаунт» is what is true today;
+///    TODO §9.6 records that choosing an actual period is the owner's call, and
+///    a period may not be printed here before there is code that deletes.
+///
+/// The wording is the privacy policy's own (`legal_priv_retention_b`),
+/// shortened — the screen must not contradict the document it ships with.
 class _RetentionNote extends StatelessWidget {
-  final int days;
-  const _RetentionNote({required this.days});
+  /// The server's route window, or null when this day carries no route.
+  final int? routeDays;
+  const _RetentionNote({required this.routeDays});
 
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    const style =
+        TextStyle(fontSize: 12, height: 1.35, color: Ds.textSecondary);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Icon(Icons.lock_clock_rounded, size: 16, color: Ds.textSecondary),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            l.t('day_retention', {'n': days}),
-            style: const TextStyle(fontSize: 12, height: 1.35, color: Ds.textSecondary),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (routeDays != null) ...[
+                Text(l.t('day_retention_route', {'n': routeDays!}), style: style),
+                const SizedBox(height: 6),
+              ],
+              Text(l.t('day_retention_events'), style: style),
+            ],
           ),
         ),
       ],
