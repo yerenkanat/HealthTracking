@@ -298,18 +298,85 @@ class _LanguagePage extends StatelessWidget {
   }
 }
 
-class _ProfilePage extends StatelessWidget {
+/// A controller seeded with what the model already holds, caret at the end.
+///
+/// Every text field on this flow needs one. A [TextField] with no `controller:`
+/// makes a private one, empty, on each fresh [State] — so a page that is rebuilt
+/// from scratch paints an empty box over data the app still has.
+TextEditingController _seededField(String text) => TextEditingController.fromValue(
+      TextEditingValue(
+        text: text,
+        // Not the default TextEditingController(text:) — that leaves the
+        // selection at offset -1, and a field she taps into then has to guess
+        // where the caret goes.
+        selection: TextSelection.collapsed(offset: text.length),
+      ),
+    );
+
+/// Bring a field back in line with the model — and ONLY when they truly differ.
+///
+/// The unguarded version (`field.text = value` on every build) is a worse bug
+/// than the one being fixed: assigning `.text` resets the selection, so the
+/// caret jumps out of the word she is in the middle of typing, on every
+/// keystroke. She types "Aigerim" and gets "mireagi".
+void _syncField(TextEditingController field, String value) {
+  if (field.text == value) return;
+  field.value = TextEditingValue(
+    text: value,
+    selection: TextSelection.collapsed(offset: value.length),
+  );
+}
+
+/// Step 3 — her name and phone.
+///
+/// Stateful for one reason: it owns the two [TextEditingController]s, so it can
+/// dispose them. It was a StatelessWidget with two uncontrolled [TextField]s,
+/// and that is how the name went missing.
+///
+/// Deny the Bluetooth permission on the next step and the flow bounces back
+/// here. A bounce builds a NEW [State], the fields' private controllers were
+/// born empty, and the page painted an empty name over an
+/// `OnboardingController` that still held "Aigerim". Nothing was ever lost —
+/// only the display of it — which is exactly why «Далее» stayed enabled over an
+/// apparently blank required field and moved her on: [OnboardingController.canProceed]
+/// reads the model, and the model was intact. The pregnancy switch beside it
+/// survived for the same reason: it reads the model on every build, as these
+/// fields now do.
+class _ProfilePage extends StatefulWidget {
   final OnboardingController controller;
   const _ProfilePage({required this.controller});
+
+  @override
+  State<_ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<_ProfilePage> {
+  late final TextEditingController _name = _seededField(widget.controller.displayName);
+  late final TextEditingController _phone = _seededField(widget.controller.phoneNumber);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final controller = widget.controller;
     final dial = controller.dialCode;
+    // The model can also be written from outside these fields (the flow rebuilds
+    // on every change it publishes), so follow it here too — guarded, so typing
+    // is never overwritten mid-word.
+    _syncField(_name, controller.displayName);
+    _syncField(_phone, controller.phoneNumber);
     return ListView(
       children: [
         Text(l.t('onb_profile_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
         const SizedBox(height: 20),
         TextField(
+          controller: _name,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(labelText: l.t('onb_name_hint')),
@@ -349,6 +416,7 @@ class _ProfilePage extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
+                controller: _phone,
                 keyboardType: TextInputType.phone,
                 // Grouped as she types. Eleven unbroken digits cannot be
                 // checked at a glance, and this is the number her whole
@@ -880,12 +948,35 @@ class _RetryButton extends StatelessWidget {
       );
 }
 
-class _ChildPage extends StatelessWidget {
+/// Step 5 — the child, optional.
+///
+/// Stateful for the same reason as [_ProfilePage]: it owns the name field's
+/// controller. Coming back to this step — from the zone picker's snackbar, or
+/// simply by stepping back and forward again — used to repaint an empty name
+/// over a child the controller still knew about, and «Пропустить» then replaced
+/// «Завершить» on a form that looked filled in.
+class _ChildPage extends StatefulWidget {
   final OnboardingController controller;
   const _ChildPage({required this.controller});
+
+  @override
+  State<_ChildPage> createState() => _ChildPageState();
+}
+
+class _ChildPageState extends State<_ChildPage> {
+  late final TextEditingController _childName = _seededField(widget.controller.childName);
+
+  @override
+  void dispose() {
+    _childName.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
+    final controller = widget.controller;
+    _syncField(_childName, controller.childName);
     final homeSet = controller.home != null;
     // ListView, not Column: this page carries a name field, a date row, gender
     // chips and two zone tiles, and at 360dp in Russian that is 27px taller
@@ -896,6 +987,7 @@ class _ChildPage extends StatelessWidget {
         Text(l.t('onb_child_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
         const SizedBox(height: 20),
         TextField(
+          controller: _childName,
           decoration: InputDecoration(labelText: l.t('onb_child_name_hint'), border: const OutlineInputBorder()),
           onChanged: controller.setChildName,
         ),

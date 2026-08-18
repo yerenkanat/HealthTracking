@@ -121,6 +121,67 @@ void main() {
     expect(find.text('Pair your band'), findsOneWidget);
   });
 
+  testWidgets('a step she is bounced back to still SHOWS her name and number',
+      (tester) async {
+    // Observed here, on a handset, and on no other kind of run: deny the
+    // Bluetooth permission on step 4 and the flow drops back to step 3 with the
+    // name and phone boxes blank — while the pregnancy switch beside them is
+    // still on. The data was never lost. The fields were declared without a
+    // `controller:`, so each fresh State made itself an empty private one and
+    // painted that over a model that still said "Aigerim".
+    //
+    // On a device because the bounce arrives with the real IME open: the
+    // keyboard resizes the layout, the page is rebuilt under it, and that is
+    // the state a widget test cannot stand up. Found by finder, never by
+    // coordinate — remembered positions are what produced three false reports
+    // on this flow.
+    final c = OnboardingController(initialLocale: AppLocale.en);
+    addTearDown(c.dispose);
+    await tester.pumpWidget(L10nScope(
+      l10n: const L10n(AppLocale.en),
+      child: MaterialApp(
+        home: OnboardingFlow(controller: c, onComplete: (_) {}),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await toProfile(tester);
+
+    await tester.tap(find.byType(TextField).first); // raises the real keyboard
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Aigerim');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TextField).last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '7001234567');
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Next'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pair your band'), findsOneWidget);
+
+    // The bounce.
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    expect(find.text("What's your name?"), findsOneWidget);
+
+    String shown(Finder field) => tester
+        .widget<EditableText>(
+            find.descendant(of: field, matching: find.byType(EditableText)))
+        .controller
+        .text;
+
+    expect(shown(find.byType(TextField).first), c.displayName,
+        reason: 'the field is showing something other than what the app holds '
+            '("${c.displayName}"), and «Next» is enabled from the model — so a '
+            'blank-looking required field advances the flow');
+    expect(shown(find.byType(TextField).last), c.phoneNumber);
+    expect(
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next')).onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets('the profile step states WHY it is blocking', (tester) async {
     // A disabled button with no reason is indistinguishable from a broken one
     // — which is precisely the conclusion I drew from a screenshot.
