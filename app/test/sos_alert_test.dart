@@ -404,7 +404,14 @@ void main() {
 
     test('a medical emergency raises the rescue screen, localized by code', () {
       final c = controllerWithChild(now);
-      handleNotificationTap(c, '{"screen":"EmergencyRescue","code":"HIGH_FEVER"}');
+      // `at` is four minutes ago — this is happening. The payload used to carry
+      // no time at all and the handler asked for none; see the staleness group
+      // below for why both had to change together.
+      handleNotificationTap(
+        c,
+        '{"screen":"EmergencyRescue","code":"HIGH_FEVER",'
+            '"at":"${pressed.toUtc().toIso8601String()}"}',
+      );
       expect(c.route, AppRoute.emergency);
       expect(c.emergency!.message, ru.triageMessage('HIGH_FEVER'));
     });

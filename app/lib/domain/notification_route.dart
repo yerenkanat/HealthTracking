@@ -16,6 +16,10 @@ library;
 
 import 'dart:convert';
 
+import 'child_tracker_state.dart' show clockDisagrees;
+import 'emergency_confirmation.dart' show emergencyFamily;
+import 'health_monitor.dart' show latestTelemetryMaxAge;
+
 /// Where a tap has to go.
 enum NotifyDestination {
   /// Screen 21 — the red SOS takeover.
@@ -37,10 +41,95 @@ enum NotifyDestination {
   /// [EmergencyRescueScreen], raised app-wide rather than pushed.
   emergency,
 
+  /// The vitals HISTORY for one metric — [MetricDetailScreen], pushed on the
+  /// dashboard tab. Where a tap on an emergency notification lands once the
+  /// emergency is over: the same reading, in its own series, with «9 ч назад»
+  /// under it in amber.
+  ///
+  /// Deliberately absent from [kNotifyScreens]: no payload names it, on either
+  /// side. It is decided HERE, from the age of an `EmergencyRescue` push, and
+  /// it travels through this channel only because that is the one way to ask
+  /// for a screen from outside the widget tree. A payload built for it would
+  /// fall back to `Dashboard`, which is the correct answer to a question
+  /// nothing asks.
+  vitalsHistory,
+
   /// Screen 53/55 — home. The destination for anything we do not recognise,
   /// which is deliberately never "nowhere" and never a crash.
   dashboard,
 }
+
+/// What a tapped MEDICAL emergency notification actually is: something
+/// happening NOW, a record of something that already finished, or a claim we
+/// cannot date.
+enum EmergencyTapAge {
+  /// Recent enough that the takeover is still a true sentence in the present
+  /// tense. Behaves exactly as this app always has.
+  live,
+
+  /// Over. The crossing is real history — it must be readable, and it must not
+  /// take the screen over.
+  past,
+
+  /// No usable timestamp: the field is absent (a push from a build that did
+  /// not carry it), unparseable, or so far in the future that the two clocks
+  /// disagree and we do not know the age at all.
+  unknown,
+}
+
+/// How old a tapped emergency may be and still raise the takeover.
+///
+/// NOT a new number, and deliberately not a second idea of "too old".
+/// [latestTelemetryMaxAge] is the app's existing answer to «how long does a
+/// reading still describe how she is NOW», and `health_monitor.dart` states it
+/// against this very failure: a critical reading that nothing expired «was
+/// still attached on Friday, so an unrelated question about a mild headache was
+/// answered by throwing the emergency screen at her again». A notification
+/// fished out of the tray in the evening is the same stale reading and the same
+/// mistake arriving through a different door, so it gets the same window.
+const emergencyTakeoverMaxAge = latestTelemetryMaxAge;
+
+/// Date a tapped emergency against [now].
+///
+/// FAILS TOWARD [EmergencyTapAge.unknown], and unknown must never raise the
+/// takeover. A takeover is a sentence in the present tense — «seek emergency
+/// care now» — and we may only say it when we can prove the reading behind it
+/// is from the last few hours. Not being able to prove it is not permission to
+/// assume it: the cost of missing the takeover is that she reads the same
+/// finding one screen later, and the cost of raising it wrongly is that the
+/// next real one is the third false alarm she has learned to dismiss.
+///
+/// A timestamp a little ahead of us is ordinary phone-vs-server skew and stays
+/// [live] — `clockDisagrees` owns where that line is drawn, and this does not
+/// restate it.
+EmergencyTapAge emergencyTapAge(DateTime? at, DateTime now) {
+  if (at == null) return EmergencyTapAge.unknown;
+  final age = now.difference(at);
+  if (clockDisagrees(age)) return EmergencyTapAge.unknown;
+  final a = age.isNegative ? Duration.zero : age;
+  return a <= emergencyTakeoverMaxAge
+      ? EmergencyTapAge.live
+      : EmergencyTapAge.past;
+}
+
+/// The vitals series a triage code is about — where a PAST emergency is read
+/// back, in its own history, with its own time on it.
+///
+/// Grouped by [emergencyFamily] rather than code-by-code, so the ordinary and
+/// the severe threshold for one measurement land on one screen; that function
+/// already owns the grouping and this must not grow a second copy of it.
+///
+/// Null for a finding with no number behind it (`SYMPTOM_RED_FLAG`, an
+/// `UNKNOWN` code from a newer server) — the caller then falls back to the
+/// dashboard, which is the honest destination when there is no single series
+/// to open.
+String? emergencyMetricKey(String? code) => switch (emergencyFamily(code)) {
+      'bp' => 'systolic',
+      'fever' => 'temp',
+      'spo2' => 'spo2',
+      'hr' => 'hr',
+      _ => null,
+    };
 
 /// The `screen` value each destination travels as. These strings are a CONTRACT
 /// with `packages/backend/src/notifications/push.ts` — they are the values that
@@ -71,7 +160,12 @@ class NotifyTap {
   String get childName => (data['childName'] ?? '').trim();
 
   /// When it happened, as the SENDER recorded it. Null when absent or
-  /// unparseable; the screen falls back to the moment it opened, and says so.
+  /// unparseable; the SOS screen falls back to the moment it opened, and says
+  /// so.
+  ///
+  /// For a medical emergency it is not decoration but the deciding field —
+  /// [emergencyTapAge] reads it to decide whether the takeover may be raised
+  /// at all — so null here means "we do not know", never "just now".
   DateTime? get at => DateTime.tryParse(data['at'] ?? '')?.toLocal();
 
   /// The zone the child was in, if any. An SOS happens wherever she is, so this

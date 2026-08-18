@@ -45,6 +45,7 @@ import 'content/article_screen.dart';
 import 'content/lesson_player_screen.dart';
 import 'content/guides_screen.dart';
 import 'dashboard/log_sleep_sheet.dart';
+import 'dashboard/metric_detail_screen.dart';
 import 'dashboard/water_history_screen.dart';
 import 'settings/reminders_center_screen.dart';
 import 'settings/support_thread_route.dart';
@@ -111,8 +112,12 @@ class _HomeShellState extends State<HomeShell> {
     if (c.pendingDestination != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        // Read the subject BEFORE spending the destination — takePending…
+        // clears both, and a vitals-history request without its metric would
+        // open the wrong reading's screen.
+        final metricKey = c.pendingMetricKey;
         final d = c.takePendingDestination();
-        if (d != null) _goTo(d, c);
+        if (d != null) _goTo(d, c, metricKey: metricKey);
       });
     }
     final loc = c.childLocation;
@@ -853,8 +858,42 @@ class _HomeShellState extends State<HomeShell> {
   ///
   /// SOS is absent on purpose: it is a takeover raised over the whole app by
   /// AppController, not a route pushed on this shell.
-  void _goTo(NotifyDestination d, AppController c) {
+  ///
+  /// [metricKey] belongs to [NotifyDestination.vitalsHistory] and is null for
+  /// every other branch.
+  void _goTo(NotifyDestination d, AppController c, {String? metricKey}) {
     switch (d) {
+      case NotifyDestination.vitalsHistory:
+        // A tapped emergency whose emergency is OVER (screen 38 → main.dart's
+        // handleNotificationTap). She lands on the reading itself, with its age
+        // printed in amber under the 44px number — which is the whole point:
+        // the thing she must not be able to believe is that this is happening
+        // now.
+        //
+        // The dashboard tab first, so backing out of this screen leaves her on
+        // the vitals grid the reading belongs to rather than on whatever tab
+        // the notification interrupted.
+        final spec = metricKey == null ? null : metricSpecFor(metricKey);
+        setState(() => _index = _tabDashboard);
+        // No tile for this metric — nothing to open, and the dashboard we just
+        // switched to is the honest destination rather than a blank screen.
+        if (spec == null) return;
+        // The controller's clock, and read ONCE: the age line and the
+        // calibration check must not land on opposite sides of a threshold for
+        // the same reading, and the staleness rule that routed her here was
+        // judged against this same clock.
+        final asOf = c.now;
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MetricDetailScreen(
+            metricKey: spec.key,
+            unit: spec.unit,
+            icon: spec.icon,
+            color: spec.color,
+            samples: c.samples,
+            now: asOf,
+            bpCalibrationStale: bpCalibrationIsStale(c.bpCalibration, asOf),
+          ),
+        ));
       case NotifyDestination.supportThread:
         // Screen 43. Without a server there is no thread to show, so fall back
         // to the profile tab, which is where Настройки → Помощь lives.

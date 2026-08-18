@@ -116,6 +116,25 @@ describe('emergency copy', () => {
     expect(emergencyCopy(TRIAGE, 'ru').data?.screen).toBe('EmergencyRescue');
   });
 
+  it('carries WHEN the crossing happened, in every language', () => {
+    // The app refuses to raise the full emergency takeover for a tap it cannot
+    // date (app/lib/domain/notification_route.dart, `emergencyTapAge`) — that
+    // is what stops a notification found in the tray at night from re-raising
+    // a morning crossing. An emergency push with no `at` is undatable, so the
+    // takeover would never fire for anyone. This block is load-bearing on the
+    // app side; it is asserted here because that is where it is written.
+    const at = new Date('2026-08-17T09:15:00.000Z');
+    for (const locale of ['ru', 'kk', 'en'] as const) {
+      expect(emergencyCopy(TRIAGE, locale, at).data?.at, `at for ${locale}`)
+        .toBe('2026-08-17T09:15:00.000Z');
+    }
+    // Defaulted to now, because the push is composed at the moment of the
+    // crossing — a caller that forgets it must not produce an undatable alarm.
+    const now = Date.parse(emergencyCopy(TRIAGE, 'ru').data!.at!);
+    expect(Number.isNaN(now)).toBe(false);
+    expect(Math.abs(Date.now() - now)).toBeLessThan(60_000);
+  });
+
   it('is marked critical in every language', () => {
     for (const locale of ['ru', 'kk', 'en'] as const) {
       const m = emergencyCopy(TRIAGE, locale);

@@ -16,6 +16,7 @@ import '../../domain/appointment.dart';
 import '../../domain/current_advisories.dart';
 import '../../domain/health_advisor.dart';
 import '../../domain/health_series.dart';
+import '../../domain/peace_ring.dart';
 import '../../domain/setup_checklist.dart';
 import '../../domain/sleep.dart';
 import '../../domain/child_growth.dart';
@@ -68,6 +69,28 @@ const _specs = <MetricSpec>[
   MetricSpec('temp', '°C', Icons.thermostat_rounded,
       _tempA),
 ];
+
+/// Blood pressure's card is drawn by hand — two numbers in one tile — so it is
+/// not in [_specs]; this is the spec the detail screen behind it is opened
+/// with, named once so the tap and any other route into that screen cannot
+/// drift into different units or a different icon.
+const _bpSpec =
+    MetricSpec('systolic', 'mmHg', Icons.monitor_heart_rounded, Palette.violet);
+
+/// The card spec for [key], for a surface OUTSIDE this file that has to open
+/// the same detail screen a tap on the card opens — today, screen 38's tap on
+/// an emergency notification whose emergency is over.
+///
+/// Both sides of blood pressure answer with the systolic card, because that is
+/// the one card the pair is drawn on. Null for a key this dashboard has no
+/// tile for; the caller then has no screen to open either.
+MetricSpec? metricSpecFor(String key) {
+  if (key == 'systolic' || key == 'diastolic') return _bpSpec;
+  for (final s in _specs) {
+    if (s.key == key) return s;
+  }
+  return null;
+}
 
 class HealthDashboardView extends StatelessWidget {
   final List<HealthSample> samples;
@@ -747,76 +770,23 @@ class _PeaceOfMindBanner extends StatelessWidget {
         ),
     };
 
-    // Data-driven ring: fraction of metrics currently in a healthy range —
-    // or NOTHING, when there is no metric this product may grade.
-    var withData = 0, healthy = 0;
-    // Whether she has readings AT ALL on the metrics the ring is about. Kept
-    // separate from `withData`, which counts only the ones that survive the
-    // provenance filters below, because the two absences need different
-    // answers: readings that may not be graded get a sentence, no readings at
-    // all get ADV_GATHERING in the copy beside this ring and must not get a
-    // second explanation of a different absence.
-    var anyReading = false;
-    for (final k in metricKeys) {
-      final s = statsFor(buildSeries(samples, k));
-      if (s == null) continue;
-      anyReading = true;
-      final source = latestSourceFor(samples, k);
-      // A device temperature leaves the ring entirely — it is not counted as in
-      // danger, and it is NOT counted as healthy either. Passing it through as
-      // "not in danger" would let a wrist estimate raise the fraction, which is
-      // reassurance from the same reading the review barred from making any
-      // claim (docs/CLINICAL-REVIEW-WATCH.md). Dropping it makes the ring the
-      // fraction of the metrics this product may actually grade.
-      if (k == 'temp' && source != ReadingSource.manual) continue;
-      // A device blood pressure may turn the ring RED but never green, and the
-      // asymmetry is the ruling rather than a preference (refused sentence #23
-      // in docs/CLINICAL-REVIEW-WATCH.md). The product DOES escalate a device
-      // BP at 140/90 — triage.dart has no source check — so a wrist estimate in
-      // the danger band still has to be able to pull the fraction down. What it
-      // may not do is push it up: a wrist 128/82 counted as "healthy" is the
-      // reassurance removed from ADV_BP_STEADY re-entering as a number in a
-      // ring, which is exactly how a narrow claim becomes a whole-body one.
-      final inDanger = latestInDanger(k, s, source: source);
-      if ((k == 'systolic' || k == 'diastolic') &&
-          source != ReadingSource.manual &&
-          !inDanger) {
-        continue;
-      }
-      // Staleness, with the SAME asymmetry as the provenance filter above, and
-      // it has to be that way round or the arithmetic reassures on its own.
-      //
-      // An old reading may not be counted HEALTHY: a fraction is the most
-      // confident register this screen has, and «3 из 3» drawn from readings
-      // taken last night is a current claim from an out-of-date basis. But an
-      // old reading in the DANGER band stays in, exactly as a wrist blood
-      // pressure does. Dropping it would remove it from the numerator and the
-      // denominator together and push the fraction UP — a stale 165/110 beside
-      // one fresh heart rate would turn 1-of-2 into a complete ring. That is a
-      // reassurance arriving by arithmetic, and it is the failure the absorber
-      // rule was written about.
-      final at = latestAtFor(samples, k);
-      final freshness = at == null
-          ? MetricFreshness.stale
-          : metricFreshness(k, now.difference(at),
-              source: source, bpCalibrationStale: bpCalibrationStale);
-      if (freshness != MetricFreshness.current && !inDanger) continue;
-      withData++;
-      if (!inDanger) healthy++;
-    }
-    // NULL, not 1.0.
+    // The ring's arithmetic is a DOMAIN object, and it is one because it was
+    // not: the provenance gate, the staleness gate and the fraction all lived
+    // in this build method, where the only test that could reach them was a
+    // widget test reading a painter argument. See domain/peace_ring.dart for
+    // the three gates and why each is asymmetric.
     //
-    // `withData == 0 ? 1.0 : …` was not a display default, it was an assertion
-    // in the most confident register this screen has — a complete ring — that
-    // everything checked is fine, on a day when nothing was checked. And a
-    // shape cannot be qualified: it is the one reassurance in this review with
-    // no sentence attached to argue with. The provenance gating above made it
-    // fire MORE often, because a day of wrist blood pressure and a wrist
-    // temperature now skips every metric it has.
-    //
-    // So the state is in the type. Null means "nothing to grade" and there is
-    // no number that can be mistaken for it.
-    final double? fraction = withData == 0 ? null : healthy / withData;
+    // What it added is coverage. `healthy / withData` counted only the cards
+    // that survived the gates, so the ones that did not survive left the
+    // numerator and the denominator together and the arc closed anyway: a
+    // band-only day has two gradeable cards of four — a wrist temperature and
+    // a wrist blood pressure may not be graded at all — and drew the complete
+    // green circle of a day on which everything was checked and everything was
+    // fine. `assessed` is that share, and the rest of the circle is now painted
+    // as not-assessed instead of being dropped out of the sum.
+    final ring = gradePeaceRing(samples,
+        now: now, bpCalibrationStale: bpCalibrationStale);
+    final fraction = ring.fraction;
 
     // Dim ink, never the healthy colour — a grey FULL ring would still be read
     // as "all good" at a glance, so the ring is empty as well as neutral. And
@@ -838,7 +808,22 @@ class _PeaceOfMindBanner extends StatelessWidget {
     // It stays true — the app really is not grading them — and it is the only
     // wording here that has been through the gate; the ages themselves are on
     // the tiles below, which is where the reader can act on them.
-    final ungraded = fraction == null && anyReading ? l.t('db_ring_ungraded') : null;
+    //
+    // And the PARTIAL day gets its own, because it is a different fact: some of
+    // the grid was assessed and some was not. Saying nothing there is what let
+    // a complete circle stand over two cards of four. It states the count
+    // rather than a feeling — «{n} из {total}» is arithmetic the reader can
+    // check by counting the cards below, which is the whole reason the ring
+    // counts CARDS and not the five entries of metricKeys.
+    //
+    // Neither sentence is an alarm and neither is a reassurance. Nothing here
+    // says what is wrong, and nothing here says she is fine: the advisory above
+    // it owns both of those, and this line owns only what the ring left out.
+    final ungraded = fraction == null
+        ? (ring.anyReading ? l.t('db_ring_ungraded') : null)
+        : (ring.complete
+            ? null
+            : l.t('db_ring_partial', {'n': ring.assessed, 'total': ring.total}));
 
     // EVERY tone renders the advisory, including the positive one.
     //
@@ -880,6 +865,10 @@ class _PeaceOfMindBanner extends StatelessWidget {
             label: ungraded,
             child: MetricRing(
               fraction: fraction,
+              // The shape carries the coverage, because a shape cannot be
+              // qualified by the sentence beside it — that was the whole
+              // finding about the 1.0, and it is just as true of 2-of-4.
+              assessed: ring.assessedShare,
               color: ringInk,
               size: 74,
               stroke: 8,
@@ -1275,10 +1264,10 @@ class _BloodPressureCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MetricDetailScreen(
-            metricKey: 'systolic',
-            unit: 'mmHg',
-            icon: Icons.monitor_heart_rounded,
-            color: Palette.violet,
+            metricKey: _bpSpec.key,
+            unit: _bpSpec.unit,
+            icon: _bpSpec.icon,
+            color: _bpSpec.color,
             samples: samples,
             now: now,
             bpCalibrationStale: bpCalibrationStale,

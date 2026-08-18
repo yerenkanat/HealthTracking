@@ -260,7 +260,27 @@ export function sosCopy(
   };
 }
 
-export function emergencyCopy(triage: TriageResult, locale: PushLocale = 'ru'): PushMessage {
+/**
+ * `at` is the instant of the CROSSING, and it is not optional decoration.
+ *
+ * A notification sits in the tray until it is dismissed, so the app has to be
+ * able to tell "this is happening" from "this happened this morning". It now
+ * does — `handleNotificationTap` in app/lib/main.dart dates the tap against
+ * `latestTelemetryMaxAge` and refuses to raise the full emergency takeover for
+ * anything older, or for anything it cannot date at all. This block is what it
+ * dates. Without it every emergency push is undatable and NO tap raises the
+ * takeover, which is the more dangerous half of the same bug.
+ *
+ * Defaulted rather than plumbed because this function is called from
+ * `sendEmergencyPush` at the moment of the crossing — the composition time IS
+ * the event time. Callers may pass it explicitly, and the tests do, so the
+ * assertion is on a fixed string rather than on a clock.
+ */
+export function emergencyCopy(
+  triage: TriageResult,
+  locale: PushLocale = 'ru',
+  at: Date = new Date(),
+): PushMessage {
   const top = triage.findings[0];
   return {
     title: pick(EMERGENCY_TITLE, locale),
@@ -274,6 +294,9 @@ export function emergencyCopy(triage: TriageResult, locale: PushLocale = 'ru'): 
     data: {
       screen: 'EmergencyRescue',
       code: top?.code ?? 'UNKNOWN',
+      // The same ISO-8601 UTC shape `sosCopy` sends, because one parser on the
+      // app side reads both (`NotifyTap.at`).
+      at: at.toISOString(),
     },
   };
 }

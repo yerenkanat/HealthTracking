@@ -430,14 +430,43 @@ void handleNotificationTap(AppController controller, String? payload) {
     return;
   }
   if (tap.destination == NotifyDestination.emergency) {
-    // The mother's own medical emergency. The code travels in the payload, so
-    // the app localizes it exactly as it does an on-device one rather than
-    // showing whatever language the server composed in.
-    controller.onChatEmergency(
-      L10n(controller.locale).triageMessage(tap.code),
-      const [],
-      code: tap.code,
-    );
+    // The mother's own medical emergency — and the one question this branch
+    // never asked: WHEN.
+    //
+    // A notification sits in the tray until it is dismissed. She finds one in
+    // the evening from a crossing at nine that morning — measured again,
+    // called her doctor, resolved — taps it, and the app throws the full
+    // takeover at her: «Обратитесь за неотложной помощью», in the present
+    // tense, about a body that has since moved, eaten and slept. That is the
+    // alarm-fatigue failure emergency_confirmation.dart exists to prevent,
+    // reintroduced at the last step of the chain.
+    switch (emergencyTapAge(tap.at, controller.now)) {
+      case EmergencyTapAge.live:
+        // Untouched. The code travels in the payload, so the app localizes it
+        // exactly as it does an on-device one rather than showing whatever
+        // language the server composed in.
+        controller.onChatEmergency(
+          L10n(controller.locale).triageMessage(tap.code),
+          const [],
+          code: tap.code,
+        );
+      case EmergencyTapAge.past:
+      case EmergencyTapAge.unknown:
+        // Over, or undatable — and the two share an answer on purpose. We may
+        // only say "now" when we can show it is now; not knowing is not
+        // permission to assume. So: no takeover, and instead the reading in
+        // its own history, where the number carries its age in amber
+        // underneath it. What she must not be able to believe is that this is
+        // happening at this moment, and a screen whose whole job is to date a
+        // reading is the shortest way to tell her it is not.
+        final metric = emergencyMetricKey(tap.code);
+        controller.requestDestination(
+          metric == null
+              ? NotifyDestination.dashboard
+              : NotifyDestination.vitalsHistory,
+          metricKey: metric,
+        );
+    }
     return;
   }
   controller.requestDestination(tap.destination);
