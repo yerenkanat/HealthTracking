@@ -447,6 +447,57 @@ void main() {
     );
   });
 
+  /// Cycle mode with a period ACTUALLY LOGGED.
+  ///
+  /// The case above builds cycle mode from a controller with no logs, so it
+  /// renders the invitation card and nothing else — the vacuity this file's
+  /// header warns about, and it hid a 131px overflow in the phase card at
+  /// 402dp, wider than this sweep ever measures. A logged period is what puts
+  /// the phase card, the ring and the countdown rows on the screen.
+  AppController withPeriod() {
+    final c = AppController(now: () => today);
+    c.setDayLog(DayLog(
+        date: dateKey(today.subtract(const Duration(days: 10))),
+        flow: Flow.medium));
+    return c;
+  }
+
+  testWidgets("women's health fits in cycle mode with a period logged",
+      (tester) async {
+    final c = withPeriod();
+    addTearDown(c.dispose);
+    await fits(
+      tester,
+      () => WomensHealthScreen(controller: c, now: () => today),
+      "women's health (cycle, logged, kk, 320dp, 130%)",
+      locale: AppLocale.kk,
+      width: 320,
+      textScale: 1.3,
+    );
+  });
+
+  /// A period marked on a date that has not arrived — TODO §8.5.
+  ///
+  /// The card that replaces the cycle-day ring in this state carries three
+  /// stacked strings and a link, and Kazakh is where they run longest. It is
+  /// also the only state of this screen whose copy is new, so it is the one
+  /// with no width history at all.
+  testWidgets("women's health fits with a period marked in the future",
+      (tester) async {
+    final c = AppController(now: () => today);
+    addTearDown(c.dispose);
+    c.setDayLog(DayLog(
+        date: dateKey(today.add(const Duration(days: 3))), flow: Flow.medium));
+    await fits(
+      tester,
+      () => WomensHealthScreen(controller: c, now: () => today),
+      "women's health (future mark, kk, 320dp, 130%)",
+      locale: AppLocale.kk,
+      width: 320,
+      textScale: 1.3,
+    );
+  });
+
   testWidgets("women's health fits in pregnancy mode", (tester) async {
     final c = AppController(now: () => today)..setDueDate(today.add(const Duration(days: 140)));
     addTearDown(c.dispose);

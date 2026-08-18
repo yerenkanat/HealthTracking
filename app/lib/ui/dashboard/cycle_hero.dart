@@ -23,19 +23,33 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../domain/cycle_insights.dart';
+import '../../domain/cycle_log.dart' show humanDayMonth;
 import '../../domain/cycle_predictions.dart';
+import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
 
 /// The five bands the hero draws, in cycle order.
 enum CycleBand { menstrual, follicular, fertile, ovulation, luteal }
 
-/// Which band today falls in.
+/// Which band today falls in — or NULL when the app cannot place her in one.
 ///
 /// Named cycleBandFor, not bandFor: health_series.dart already exports a
 /// bandFor for vitals, and the dashboard imports both. Ovulation wins over the fertile window it sits
 /// inside — it is the day the whole screen is about.
-CycleBand cycleBandFor(CycleInfo info, CyclePhaseInfo? phase) {
+///
+/// NULLABLE ON THE SAME RULING AS [PeaceRing.fraction], and the type is the
+/// ruling. This returned `CycleBand.follicular` for a null phase, so the hero's
+/// 21pt headline read «Спокойные дни» and the second of five segments lit at
+/// full white — «you are here» — for a brand-new account with nothing logged at
+/// all, which is the opening state of screen 55 for every user who is neither
+/// pregnant nor a mother. [cyclePhaseFor] also returns null when
+/// [CycleInfo.cycleDay] is null while [CycleInfo.hasData] is true, i.e. when a
+/// period is marked on a date that has not arrived, so the same fallback caught
+/// the future-mark case that TODO §8.5 raised about the cycle ring.
+///
+/// A default that must be chosen is a default that will be chosen wrong again.
+CycleBand? cycleBandFor(CycleInfo info, CyclePhaseInfo? phase) {
   final ov = info.ovulation;
   if (ov != null) {
     final t = DateTime(info.today.year, info.today.month, info.today.day);
@@ -47,7 +61,7 @@ CycleBand cycleBandFor(CycleInfo info, CyclePhaseInfo? phase) {
     CyclePhase.follicular => CycleBand.follicular,
     CyclePhase.fertile => CycleBand.fertile,
     CyclePhase.luteal => CycleBand.luteal,
-    null => CycleBand.follicular,
+    null => null,
   };
 }
 
@@ -80,6 +94,19 @@ class CycleHero extends StatelessWidget {
     CycleBand.luteal: 'cyc_band_luteal',
   };
 
+  /// The small line above the headline: the cycle day, the reason there is no
+  /// cycle day, or the invitation to start logging.
+  static String _daySlot(L10n l, CycleInfo info) {
+    final day = info.cycleDay;
+    if (day != null) return l.t('cyc_day_n', {'n': day});
+    final mark = info.lastPeriodStart;
+    if (info.hasData && mark != null) {
+      return l.t('cyc_future_mark_title',
+          {'d': humanDayMonth(mark, info.today)});
+    }
+    return l.t('cyc_no_data_title');
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
@@ -101,10 +128,12 @@ class CycleHero extends StatelessWidget {
           Row(
             children: [
               Expanded(
+                // Three states, three different sentences, and none of them
+                // guesses a day. A marked date in the future is named here
+                // because it is the whole reason the day is missing, and it is
+                // hers to change; the calendar screen offers the way to do it.
                 child: Text(
-                  info.cycleDay == null
-                      ? l.t('cyc_no_data_title')
-                      : l.t('cyc_day_n', {'n': info.cycleDay!}),
+                  _daySlot(l, info),
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
                 ),
@@ -127,10 +156,14 @@ class CycleHero extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            // «Овуляция сегодня» on the day itself; otherwise the phase she is in.
-            band == CycleBand.ovulation
-                ? l.t('cyc_ovulation_today')
-                : l.t(_bandKey[band]!),
+            // «Овуляция сегодня» on the day itself; otherwise the phase she is
+            // in — and when there is no phase, the absence of one, in the
+            // headline slot rather than a phase name borrowed from a fallback.
+            band == null
+                ? l.t('cyc_no_phase')
+                : band == CycleBand.ovulation
+                    ? l.t('cyc_ovulation_today')
+                    : l.t(_bandKey[band]!),
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 21,
@@ -151,7 +184,10 @@ class CycleHero extends StatelessWidget {
                       borderRadius: BorderRadius.circular(3),
                       // White at full strength for where she is, a wash for the
                       // rest — the same read as the pregnancy bar, in the
-                      // colours this gradient allows.
+                      // colours this gradient allows. With no band, NOTHING is
+                      // lit: five equal washes say «somewhere in here, we do
+                      // not know», which is true, where a lit segment is a
+                      // position claimed from nothing.
                       color: Colors.white
                           .withValues(alpha: b == band ? 1.0 : 0.30),
                     ),

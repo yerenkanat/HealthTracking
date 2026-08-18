@@ -103,6 +103,21 @@ DateTime? dateFromKey(String key) {
   return DateTime(y, m, d);
 }
 
+/// A calendar date shown to a person: `dd.MM`, with the year only when it is
+/// not [reference]'s year.
+///
+/// Ours, and numeric, deliberately. `MaterialLocalizations.formatMediumDate`
+/// and `DateFormat` both need a locale this app does not hand them — the same
+/// trap that headed a Russian month grid «Mo Tu We Th Fr Sa Su», recorded at
+/// [dateKey]'s neighbour `cal_dow_*`. Numeric also stays two words wide in
+/// Kazakh, which matters where it is used: inside a sentence, on a 320dp
+/// screen, at 130 % text scale.
+String humanDayMonth(DateTime d, DateTime reference) {
+  final dd = d.day.toString().padLeft(2, '0');
+  final mm = d.month.toString().padLeft(2, '0');
+  return d.year == reference.year ? '$dd.$mm' : '$dd.$mm.${d.year}';
+}
+
 /// True when [a] and [b] fall on the same calendar day.
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;

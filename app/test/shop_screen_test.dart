@@ -476,11 +476,11 @@ void main() {
           catalogue: catalogue(products: [
             product('watch', 'Часы', 100000),
             product('tracker', 'Трекер', 100000),
-            product('combo', 'Комплект', 9900000, isBundle: true),
+            product('combo', 'Комплект', 11000000, isBundle: true),
           ]));
       expect(find.textContaining(l.t('shop_saving', {'amount': ''}).split('{')[0].trim()),
           findsNothing);
-      expect(find.text(formatTenge(9900000)), findsOneWidget);
+      expect(find.text(formatTenge(11000000)), findsOneWidget);
     });
 
     testWidgets('is shown, with the live figures, when there IS a saving',
@@ -492,13 +492,13 @@ void main() {
             product('tracker', 'Трекер', 500000),
             product('combo', 'Комплект', 3900000, isBundle: true),
           ]));
-      // 20 000 + 5 000 + 40 000 (the course constant) − 39 000 = 26 000 ₸.
+      // 20 000 + 5 000 + 99 000 (the course constant) − 39 000 = 85 000 ₸.
       final prices = coursePricesFrom(catalogue(products: [
         product('watch', 'Часы', 2000000),
         product('tracker', 'Трекер', 500000),
         product('combo', 'Комплект', 3900000, isBundle: true),
       ]));
-      expect(prices.savingMinor, 2600000);
+      expect(prices.savingMinor, 8500000);
       expect(
           find.text(
               l.t('shop_saving', {'amount': formatTenge(prices.savingMinor)})),

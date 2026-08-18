@@ -363,6 +363,7 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     controller: c,
                     today: _today,
                     onSetDueDate: _pickDueDate,
+                    onOpenDay: _openDay,
                     // After a recent birth the recovery guide is the one thing
                     // worth doing from this screen, so it lives IN the card
                     // explaining why the calendar is quiet, rather than in a
@@ -1127,12 +1128,22 @@ class _CycleHeader extends StatelessWidget {
   final VoidCallback? onOpenRecovery;
   final int? recoveryInDays;
 
+  /// Open the day sheet on one specific date.
+  ///
+  /// Only used by the future-mark state below, and it is the one place in the
+  /// app that reaches a FUTURE day's sheet: the month grid refuses to open one
+  /// (_buildCell, `onTap: isFuture ? null`). That guard is right for browsing and
+  /// wrong here — a period entry dated in the future is precisely the thing she
+  /// cannot otherwise get back to and undo.
+  final void Function(DateTime day)? onOpenDay;
+
   const _CycleHeader(
       {required this.controller,
       required this.today,
       required this.onSetDueDate,
       this.onOpenRecovery,
-      this.recoveryInDays});
+      this.recoveryInDays,
+      this.onOpenDay});
 
   @override
   Widget build(BuildContext context) {
@@ -1199,6 +1210,24 @@ class _CycleHeader extends StatelessWidget {
       );
     }
 
+    // THE DAY, OR THE ABSENCE OF ONE.
+    //
+    // This was `info.cycleDay ?? 1` in both the arc and the numeral, so a null
+    // day drew a rose tick at twelve o'clock and printed «1» in the middle of
+    // the ring: «you are on day 1 of your cycle» — the first day of bleeding, a
+    // specific claim about her body produced by a fallback operator.
+    //
+    // Null here has exactly ONE cause and it is knowable, so the screen names
+    // it rather than blanking. `computeCycle` returns a null day only when today
+    // precedes [CycleInfo.lastPeriodStart] (cycle_predictions.dart:158) — a
+    // period marked on a date that has not arrived. That reaches this screen
+    // without her ever tapping a future day: `mergeRemoteDayLogs` replays
+    // whatever another install or a restored hand-editable backup sent up, a
+    // phone whose clock ran ahead writes tomorrow's key as today, and flying
+    // west across the date line moves the local calendar backwards.
+    final day = info.cycleDay;
+    final futureMark = day == null ? info.lastPeriodStart : null;
+
     final loggedToday = controller.logFor(today).hasPeriod;
     final phaseType = cycleDayType(today, info, loggedPeriod: loggedToday);
     final until = info.daysUntilNextPeriod ?? 0;
@@ -1216,48 +1245,93 @@ class _CycleHeader extends StatelessWidget {
         border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              MetricRing(
-                fraction: (info.cycleDay ?? 1) / info.avgCycleLength,
-                color: Palette.rose,
-                size: 72,
-                stroke: 8,
-                center: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('${info.cycleDay ?? 1}',
-                        style: const TextStyle(
-                            fontFamily: 'JetBrainsMono',
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            height: 1)),
-                    Text(l.t('cyc_day_short'),
-                        style: const TextStyle(
-                            color: Palette.textDim, fontSize: 10)),
-                  ],
+              // The ring carries its sentence in the SEMANTICS TREE, because a
+              // dashed circle and an em dash announce nothing on their own.
+              // Same treatment as the peace ring on the home screen.
+              Semantics(
+                // container: true, because Semantics defaults to ANNOTATING the
+                // child's node and MetricRing publishes none of its own once
+                // excludeSemantics has dropped the dash and the caption. The
+                // label was silently going nowhere.
+                container: true,
+                label: day == null
+                    ? l.t('cyc_day_unknown')
+                    : l.t('cyc_day_n', {'n': day}),
+                excludeSemantics: true,
+                child: MetricRing(
+                  // No day → NO ARC, and the whole circle in the not-assessed
+                  // dashes (`assessed: 0`). Deliberately the vocabulary the peace
+                  // ring already established rather than a second one: dashes
+                  // because a solid rose arc of ANY length is a position in the
+                  // cycle, and this state is the absence of a position.
+                  fraction: day == null ? null : day / info.avgCycleLength,
+                  assessed: day == null ? 0 : null,
+                  color: Palette.rose,
+                  size: 72,
+                  stroke: 8,
+                  center: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // The dash is this product's glyph for «no reading» — the
+                      // vitals tiles print it where a number would go. Body ink
+                      // and not dim: dim is how STALE renders, and «not known»
+                      // is a different claim from «old» (c316c29).
+                      Text(day == null ? '—' : '$day',
+                          style: const TextStyle(
+                              fontFamily: 'JetBrainsMono',
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              height: 1)),
+                      Text(l.t('cyc_day_short'),
+                          style: const TextStyle(
+                              color: Palette.textDim, fontSize: 10)),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(subtitle,
+                child: futureMark != null
+                    // Beside the ring, only the fact — a restatement of her own
+                    // entry, no verdict on it. The explanation and the way to
+                    // change it run full width below, where Kazakh has room.
+                    ? Text(
+                        l.t('cyc_future_mark_title',
+                            {'d': humanDayMonth(futureMark, today)}),
                         style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 5),
-                    if (_phaseLabel(l, phaseType) != null)
-                      _PhasePill(
-                          label: _phaseLabel(l, phaseType)!, type: phaseType),
-                    const SizedBox(height: 6),
-                    _ExpectingLink(onTap: onSetDueDate),
-                  ],
-                ),
+                            fontSize: 18, fontWeight: FontWeight.w700))
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(subtitle,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 5),
+                          if (_phaseLabel(l, phaseType) != null)
+                            _PhasePill(
+                                label: _phaseLabel(l, phaseType)!,
+                                type: phaseType),
+                          const SizedBox(height: 6),
+                          _ExpectingLink(onTap: onSetDueDate),
+                        ],
+                      ),
               ),
             ],
           ),
+          if (futureMark != null) ...[
+            const SizedBox(height: 10),
+            Text(l.t('cyc_future_mark_body'),
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 12.5, height: 1.3)),
+            if (onOpenDay != null) ...[
+              const SizedBox(height: 8),
+              _FixMarkLink(onTap: () => onOpenDay!(futureMark)),
+            ],
+          ],
           const SizedBox(height: 16),
           _WeekStrip(today: today, logs: controller.dayLogs),
         ],
@@ -1334,6 +1408,43 @@ class _RecoveryLink extends StatelessWidget {
           ),
         ),
         const Icon(Icons.chevron_right_rounded, size: 16, color: Palette.violetText),
+      ]),
+    );
+  }
+}
+
+/// «Изменить отметку» — the way back to a period entry dated in the future.
+///
+/// Shaped like [_ExpectingLink] because it plays the same role: the one thing
+/// worth doing from a card that is otherwise explaining why there is no number.
+/// Not destructive itself — it opens that day's sheet, where clearing the flow
+/// carries its own confirmation.
+class _FixMarkLink extends StatelessWidget {
+  final VoidCallback onTap;
+  const _FixMarkLink({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.edit_calendar_outlined,
+            size: 15, color: Palette.violet),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            l.t('cyc_future_mark_fix'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                color: Palette.violetText,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600),
+          ),
+        ),
+        const Icon(Icons.chevron_right_rounded,
+            size: 16, color: Palette.violetText),
       ]),
     );
   }
@@ -2349,14 +2460,24 @@ class _CyclePhaseCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                // Wrap, not Row: «Фолликулярная фаза» plus «День 11 из 12»
+                // overflowed this line by 131px at 402dp — a striped bar across
+                // the card for every user with a period logged, in Russian, on
+                // a phone WIDER than the narrow sweep's. It was never rendered:
+                // both the golden and `narrow_phone_test` build cycle mode from
+                // a controller with no logs, so no phase card exists in either.
+                // A Wrap drops the pill to its own line instead of clipping,
+                // and cannot overflow at any width or text scale.
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
                     Text(name,
                         style: TextStyle(
                             fontSize: 16.5,
                             fontWeight: FontWeight.w800,
                             color: color)),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),

@@ -103,6 +103,26 @@ the issue fixed, before saying a screen is done.
       It is deliberately NOT the dim ink that means stale — «old» is a different
       claim from «not judged», and a reading two minutes fresh must not be told
       it is old.
+- [ ] **A `??` that reaches the paint or the label is an invented number.**
+      The aggregate rule above is about denominators; this is its scalar twin,
+      and it hid for longer because one character is easier to miss than a
+      formula. The cycle ring drew `(info.cycleDay ?? 1) / avgCycleLength` and
+      printed the same `1` in its middle, so a woman whose cycle day the app did
+      not know was told she was on **day 1** — the first day of bleeding, a
+      specific clinical claim, chosen by a fallback operator. Grep any
+      health-bearing widget for `??` before shipping it. If the value can be
+      absent, the ABSENCE is a state to design: the shape drops to
+      `fraction: null, assessed: 0`, the number becomes «—», and the copy says
+      why — naming the cause where the cause is knowable, and offering the fix.
+      See `womens_health_screen.dart` `_CycleHeader` and
+      `test/cycle_unknown_day_test.dart`.
+- [ ] **A fallback in a `switch` is the same defect with a longer name.**
+      `cycleBandFor` mapped `null => CycleBand.follicular`, so the dashboard hero
+      headlined «Спокойные дни» over a lit segment of five for **every account
+      with nothing logged**, and a test blessed it because follicular was the
+      softest wrong answer available. A default that must be chosen is a default
+      that will be chosen wrong: make the return type nullable and let the
+      caller draw the absence.
 - [ ] **A golden blesses whatever you draw.** `home_dashboard.png` was a
       photograph of the full-ring defect and passed for a month. When a golden
       changes, look at the image and say in the commit why the NEW one is right;

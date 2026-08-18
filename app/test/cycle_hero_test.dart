@@ -71,10 +71,14 @@ void main() {
       }
     });
 
-    test('with no phase at all it does not crash or claim ovulation', () {
-      // A new account with nothing logged. Guessing «Овуляция сегодня» there
-      // would be a claim about her body from no data.
-      expect(cycleBandFor(infoWith(ovulation: null), null), CycleBand.follicular);
+    test('with no phase at all it claims no band, not even a quiet one', () {
+      // A new account with nothing logged. This used to answer
+      // `CycleBand.follicular` — and that was checked here, with the reasoning
+      // that guessing «Овуляция сегодня» would be a claim about her body from
+      // no data. So it is, and so is guessing «Спокойные дни»: the hero printed
+      // it at 21pt over a lit second segment, which reads «you are here».
+      // Follicular was the softest wrong answer available, not a right one.
+      expect(cycleBandFor(infoWith(ovulation: null), null), isNull);
     });
   });
 
