@@ -103,6 +103,31 @@ void main() {
       }
     });
 
+    test('the failure message does not blame the room, and says the clip is gone', () {
+      // The one error this screen can show is, in production today, almost
+      // always the same one: there is no trained model.pkl, the classifier
+      // answers 503 and the proxy turns it into 502. The copy used to read
+      // «Попробуйте ещё раз в тишине» — advice about NOISE, for a failure that
+      // is not about noise. It blamed a mother's room for a missing file on our
+      // server and invited her to upload her baby's cry again, and again.
+      //
+      // «В тишине» is the right advice for a low-confidence ANSWER, and now
+      // lives only in cry_unsure_body, where it is true.
+      const quiet = {AppLocale.ru: 'тишин', AppLocale.kk: 'тыныштық', AppLocale.en: 'quiet'};
+      // And this is the moment she is most likely to wonder what happened to
+      // the recording, so the failure message repeats the deletion promise —
+      // which the three filesystem tests below prove is true on this exact
+      // branch: the clip is deleted in a `finally` BEFORE the upload can fail.
+      const gone = {AppLocale.ru: 'не осталась', AppLocale.kk: 'қалмады', AppLocale.en: 'nothing is left'};
+      for (final locale in AppLocale.values) {
+        final text = L10n(locale).t('cry_error').toLowerCase();
+        expect(text.contains(quiet[locale]!), isFalse,
+            reason: '${locale.name} still blames the noise in her room for a server that has no model');
+        expect(text, contains(gone[locale]!),
+            reason: '${locale.name} does not say the recording is gone');
+      }
+    });
+
     test('the privacy policy lists the recording too', () {
       // It named chat messages and band readings and omitted the one piece of
       // audio — the most sensitive thing the app sends anywhere. The rewritten

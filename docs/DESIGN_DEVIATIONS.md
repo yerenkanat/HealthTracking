@@ -164,3 +164,78 @@ when it does not — the same behaviour as the tracking tab, from the same
 `buildTrackingMap`. With no fix at all it says the app has not received one
 instead of centring a map on a default coordinate, which would draw a pin in
 Almaty for a child in Shymkent.
+
+## Детектор плача — four numbers and two promises that are not built
+
+Frames 15a–15e were supplied with a five-frame visual reference. Its layout is
+adopted. Six things in it are not, and each is refused for a reason that lives
+in this repository's own code.
+
+### «работает без интернета — звук не уходит на сервер» (15b) and «Всё считается на телефоне» (15d)
+
+**Refused, permanently, until an on-device build exists.**
+
+The audio is uploaded. `app/lib/data/cry_recorder.dart` writes a clip,
+`app/lib/data/cry_classifier_client.dart:52` posts it,
+`packages/backend/src/server.ts:778` proxies it, and
+`packages/cry-classifier/app/main.py` classifies it. Nothing on the phone does
+inference.
+
+Three things make this non-negotiable rather than a preference:
+
+1. `app/test/cry_privacy_test.dart:81` forbids «не уходит» / «на телефоне» /
+   "never leaves" in this copy, and `:93` requires the string to say **both**
+   halves — that it is sent, and that it is not kept.
+2. The published privacy policy (`legal_priv_cry_b`, live in ru/kk/en) states
+   that the sound leaves the phone and is stored nowhere. A screen contradicting
+   the policy is worse than either document alone.
+3. It is a promise about a mother's baby's voice.
+
+The shipped wording is `cry_privacy`, and it stays above the record button.
+`docs/CLAUDE-app-design.md` §7 used to carry the on-device claim as product
+logic; it has been corrected in place. Tracked as `docs/TODO.md` §9.11.
+
+### «15 секунд» (15b) / «из 15 секунд» (15c) → **5 seconds**
+
+`packages/cry-classifier/cry_features.py:33` sets `DURATION_SEC = 5.0` and
+`fix_length` truncates or pads every input to exactly five seconds. A
+fifteen-second capture would send ten extra seconds of a crying baby to a server
+and then discard them. The number on screen equals `cryRecordSeconds`
+(`app/lib/ui/tracking/cry_insight_screen.dart:22`), which equals the model's
+window. If the window ever changes, all three change together.
+
+The recorder does stop itself — `Timer(Duration(seconds: cryRecordSeconds),
+_finish)` at `cry_insight_screen.dart:117` — so the counter is a real countdown,
+not decoration.
+
+### «Обычно занимает 5–7 секунд» (15d)
+
+**Not printed.** That is a claim about the classifier's latency, and nothing in
+this product measures it: `packages/backend/src/cry/` contains only
+`settings.ts`, there is no timing column, no metric and no percentile. A
+duration nobody measures is a promise the first slow night breaks. The frame
+keeps its progress indicator and loses its number.
+
+### «62 перцентиль» on the «Рост и вес» tile (15a)
+
+**Refused.** `app/lib/domain/child_growth.dart:12-21` declines WHO percentile
+bands by an existing, written decision: they require the WHO LMS tables, and a
+band that is 300 g off tells a mother her healthy child is underweight. The tile
+shows the last measurement and its date instead — real, and it doubles as the
+freshness stamp.
+
+### «1 просрочена» on the «Прививки» tile (15a)
+
+**Reworded, not removed.** The count is real —
+`vaccinesToCatchUp(ageMonths, vaccinesDoneFor(id))` — but the word is not.
+`app/lib/domain/vaccination.dart:126` names the state `passed` and says in as
+many words: *NOT "missed": the app has no idea what the child has received.* The
+tile reads «Стоит уточнить: N».
+
+### The cry banner above the «Каждый день» grid (15a)
+
+**Dropped.** The grid's first tile is «Почему плачет». A banner one scroll above
+a tile to the same destination is two entries to one screen on one screen, which
+is the defect that shipped as a «Вес» quick action beside a «Вес» pill. The tile
+keeps the banner's content (last check, with its date) and its prominence
+(first position).

@@ -1053,7 +1053,26 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cry_result_title': {AppLocale.ru: 'Вероятная причина', AppLocale.kk: 'Ықтимал себеп', AppLocale.en: 'Likely reason'},
   'cry_confidence': {AppLocale.ru: 'Уверенность {n}%', AppLocale.kk: 'Сенімділік {n}%', AppLocale.en: 'Confidence {n}%'},
   'cry_mic_denied': {AppLocale.ru: 'Нет доступа к микрофону. Разрешите запись в настройках, чтобы услышать подсказку.', AppLocale.kk: 'Микрофонға рұқсат жоқ. Кеңес алу үшін жазуды баптауларда рұқсат етіңіз.', AppLocale.en: 'No microphone access. Allow recording in settings to get a hint.'},
-  'cry_error': {AppLocale.ru: 'Не удалось разобрать запись. Попробуйте ещё раз в тишине.', AppLocale.kk: 'Жазбаны тану мүмкін болмады. Тыныштықта қайта көріңіз.', AppLocale.en: 'Couldn’t make sense of the recording. Try again somewhere quiet.'},
+  // The one error this screen can show today, and in production it is almost
+  // always the SAME error: there is no trained model.pkl yet
+  // (docs/INTEGRATION_STATUS.md), the classifier answers 503, the proxy turns
+  // that into 502, and this string is what she reads. It used to say
+  // «попробуйте ещё раз в тишине» — advice that blames her room for a missing
+  // file on our server, and invites her to upload her baby's cry again, and
+  // again. «В тишине» is the right advice for a LOW-CONFIDENCE answer and now
+  // lives only there (cry_unsure_body), where it is true.
+  //
+  // It also has to hold for the phone-side failure (an empty capture), so it
+  // claims nothing about where the failure was — and it repeats the deletion
+  // promise, which is true on every one of these branches: the recorder deletes
+  // in a `finally` before the upload can fail (data/cry_recorder.dart).
+  //
+  // KAZAKH NOT GATE-REVIEWED — see docs/TODO.md §9.12.
+  'cry_error': {
+    AppLocale.ru: 'Подсказки не получилось, запись на телефоне не осталась. Если повтор не помогает — разбор плача сейчас недоступен, дело не в вас.',
+    AppLocale.kk: 'Кеңес шықпады, жазба телефонда қалмады. Қайталау көмектеспесе — жылауды талдау қазір қолжетімсіз, мәселе сізде емес.',
+    AppLocale.en: 'No hint this time, and nothing is left on your phone. If trying again does not help, cry analysis is unavailable right now — it is not something you did.',
+  },
   'cry_reason_hungry': {AppLocale.ru: 'Голод', AppLocale.kk: 'Аштық', AppLocale.en: 'Hunger'},
   'cry_reason_tired': {AppLocale.ru: 'Усталость', AppLocale.kk: 'Шаршау', AppLocale.en: 'Tiredness'},
   'cry_reason_belly_pain': {AppLocale.ru: 'Боль в животе', AppLocale.kk: 'Іш ауруы', AppLocale.en: 'Belly pain'},

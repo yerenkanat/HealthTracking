@@ -1395,6 +1395,38 @@ void main() {
     );
   });
 
+  testWidgets('the cry failure message fits at 320dp / 130% in Kazakh',
+      (tester) async {
+    // The state a mother actually reaches today: there is no trained model.pkl
+    // (docs/INTEGRATION_STATUS.md), so the classifier answers 503 and the proxy
+    // turns it into 502. That makes `cry_error` the most-seen string on this
+    // screen, and it is three clauses long — the narrowest phone, the largest
+    // text and the longest language is where it breaks first, and this sweep
+    // had never driven the screen into the failure phase at all.
+    const l = L10n(AppLocale.kk);
+    await fits(
+      tester,
+      () => CryInsightScreen(
+        recorder: _StubRecorder(),
+        client: _failingCryClient(),
+      ),
+      'the cry failure message',
+      locale: AppLocale.kk,
+      textScale: 1.3,
+      width: 320,
+      afterPump: (t) async {
+        await t.tap(find.text(l.t('cry_record')));
+        await t.pump();
+        await t.pump(const Duration(seconds: cryRecordSeconds));
+        await t.pumpAndSettle();
+        // Measuring the idle screen and calling it "the failure message fits"
+        // is the failure mode this whole file exists to stop.
+        expect(find.text(l.t('cry_error')), findsOneWidget,
+            reason: 'the screen never reached the failure state');
+      },
+    );
+  });
+
   testWidgets('the «это было верно?» chips fit at 130%', (tester) async {
     // Кадр 17c's second card, in the state that has the most on screen: she
     // said «нет», so five reason chips and «Не знаю» are laid out at once. The
@@ -1869,4 +1901,13 @@ CryClassifierClient _stubCryClient() => CryClassifierClient(
       authToken: () async => 'tok',
       uploader: (url, bytes, name, headers) async =>
           '{"reason":"discomfort","confidence":0.74}',
+    );
+
+/// What production answers today: the classifier has no model, so the proxy
+/// returns 502 and the client raises. Drives the screen into `_Phase.error`.
+CryClassifierClient _failingCryClient() => CryClassifierClient(
+      baseUrl: Uri.parse('http://stub.local'),
+      authToken: () async => 'tok',
+      uploader: (url, bytes, name, headers) async =>
+          throw const CryClassifierException('HTTP 502'),
     );
