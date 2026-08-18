@@ -54,17 +54,31 @@ void main() {
         reason: 'the ambulance number is spelled out, not implied');
   });
 
-  testWidgets('the operator is named and the unfilled slots are visible', (tester) async {
-    // The documents ship with БИН, the registered address and the contact
-    // e-mail deliberately blank, because inventing a company registration
-    // number is worse than publishing without one. The blanks are the reminder,
-    // and the draft banner is what explains them — neither may quietly vanish
-    // while the other stays.
+  testWidgets('the operator is named, and no blank is left in a published document', (tester) async {
+    // This test used to assert the OPPOSITE: that visible «______» slots for
+    // БИН, the address and the e-mail were on screen, because inventing a
+    // company registration number is worse than publishing without one. The
+    // owner supplied them on 2026-08-18, so the assertion inverts.
+    //
+    // The operator is ТОО «MAMA»; Ana-Bala is its service. The documents named
+    // the brand as the legal entity, which is wrong on a contract, and the
+    // landing footer said the same.
+    //
+    // The draft banner deliberately STAYS: the identity was one of two things
+    // it waited on, and legal review is the other.
     await pump(tester, LegalDoc.privacy);
-    await expectOnPage(tester, find.textContaining('Ana-Bala'));
-    await expectOnPage(tester, find.textContaining('______'),
-        reason: 'the slots for БИН / address / e-mail are no longer visible — '
-            'if they were filled in, the draft banner must go too');
+    await expectOnPage(tester, find.textContaining('MAMA'),
+        reason: 'the operator is not named — Ana-Bala is the service, not the company');
+    await expectOnPage(tester, find.textContaining('210140036166'),
+        reason: 'the БИН is gone; without it the operator is not identifiable');
+    await expectOnPage(tester, find.textContaining('dreamwings2015@gmail.com'),
+        reason: 'no contact address — someone who uninstalled has nowhere to write');
+
+    for (final doc in LegalDoc.values) {
+      await pump(tester, doc);
+      expect(find.textContaining('______'), findsNothing,
+          reason: '${doc.name}: a blank slot is on screen in a published document');
+    }
   });
 
   testWidgets('the cry section says both halves, in every language', (tester) async {

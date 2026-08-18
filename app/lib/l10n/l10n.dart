@@ -1134,9 +1134,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'legal_privacy_title': {AppLocale.ru: 'Конфиденциальность', AppLocale.kk: 'Құпиялылық', AppLocale.en: 'Privacy'},
   'legal_terms_title': {AppLocale.ru: 'Условия использования', AppLocale.kk: 'Пайдалану шарттары', AppLocale.en: 'Terms of use'},
   'legal_draft_note': {
-    AppLocale.ru: 'Черновик. Текст описывает, как приложение работает сегодня. До публикации он ждёт двух вещей: юридической проверки и реквизитов оператора (БИН, юридический адрес, почта для обращений) — в разделах «Кто обрабатывает ваши данные» и «Как с нами связаться» они пока не заполнены.',
-    AppLocale.kk: 'Жоба нұсқа. Мәтін қолданбаның бүгінгі жұмысын сипаттайды. Жарияланғанға дейін ол екі нәрсені күтеді: заңгерлік сараптаманы және оператор деректемелерін (БСН, заңды мекенжай, өтініштерге арналған пошта) — «Деректеріңізді кім өңдейді» және «Бізбен қалай байланысуға болады» бөлімдерінде олар әзірге толтырылмаған.',
-    AppLocale.en: 'Draft. This text describes how the app works today. Before publication it awaits two things: legal review, and the operator details (BIN, registered address, contact e-mail) — still blank in “Who processes your data” and “How to contact us”.',
+    AppLocale.ru: 'Черновик. Текст описывает, как приложение работает сегодня, и ожидает юридической проверки перед публикацией.',
+    AppLocale.kk: 'Жоба нұсқа. Мәтін қолданбаның бүгінгі жұмысын сипаттайды және жарияланар алдында заңгерлік сараптамадан өтеді.',
+    AppLocale.en: 'Draft. This text describes how the app works today and is pending legal review before publication.',
   },
   'legal_updated': {AppLocale.ru: 'Редакция от 18 августа 2026 года.', AppLocale.kk: '2026 жылғы 18 тамыздағы редакция.', AppLocale.en: 'Version of 18 August 2026.'},
   'legal_priv_collect_h': {AppLocale.ru: 'Какие данные мы собираем', AppLocale.kk: 'Қандай деректерді жинаймыз', AppLocale.en: 'What data we collect'},
@@ -1159,9 +1159,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   'legal_priv_contact_h': {AppLocale.ru: 'Как с нами связаться', AppLocale.kk: 'Бізбен қалай байланысуға болады', AppLocale.en: 'How to contact us'},
   'legal_priv_contact_b': {
-    AppLocale.ru: 'ТОО «Ana-Bala», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nНаписать нам можно из приложения, в разделе поддержки. Мы понимаем, что этого недостаточно для того, кто уже удалил приложение, — поэтому почта для обращений появится здесь до публикации.',
-    AppLocale.kk: '«Ana-Bala» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nБізге қолданбадағы қолдау бөлімінен жазуға болады. Қолданбаны жойып қойған адам үшін бұның жеткіліксіз екенін түсінеміз — сондықтан өтініштерге арналған пошта осы жерде жарияланғанға дейін пайда болады.',
-    AppLocale.en: 'Ana-Bala LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nYou can write to us from the app, in the support section. We recognise that this is not enough for someone who has already uninstalled the app — which is why a contact e-mail will appear here before publication.',
+    AppLocale.ru: 'ТОО «MAMA», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: 210140036166\nПочта для обращений: dreamwings2015@gmail.com\n\nНаписать нам можно из приложения, в разделе поддержки. Тому, кто уже удалил приложение, писать в поддержку неоткуда — для этого и указана почта выше.',
+    AppLocale.kk: '«MAMA» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: 210140036166\nӨтініштерге арналған пошта: dreamwings2015@gmail.com\n\nБізге қолданбадағы қолдау бөлімінен жазуға болады. Қолданбаны жойып қойған адамға жазатын жер қалмайды — жоғарыдағы пошта сол үшін көрсетілген.',
+    AppLocale.en: 'MAMA LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: 210140036166\nContact e-mail: dreamwings2015@gmail.com\n\nYou can write to us from the app, in the support section. Someone who has already uninstalled the app has nowhere to write from — which is what the e-mail above is for.',
   },
   'legal_terms_medical_h': {
     AppLocale.ru: 'Приложение не заменяет врача',
@@ -1203,9 +1203,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   'legal_priv_who_h': {AppLocale.ru: 'Кто обрабатывает ваши данные', AppLocale.kk: 'Деректеріңізді кім өңдейді', AppLocale.en: 'Who processes your data'},
   'legal_priv_who_b': {
-    AppLocale.ru: 'Оператор — ТОО «Ana-Bala», город Алматы, Республика Казахстан. Телефон +7 707 345 22 44.\n\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nМы обрабатываем персональные данные по Закону РК «О персональных данных и их защите» № 94-V от 21 мая 2013 года. Пока эти три строки не заполнены, документ остаётся черновиком: закон требует, чтобы оператора можно было найти и написать ему, а одного номера телефона для этого недостаточно.',
-    AppLocale.kk: 'Оператор — «Ana-Bala» ЖШС, Алматы қаласы, Қазақстан Республикасы. Телефон +7 707 345 22 44.\n\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nДербес деректерді 2013 жылғы 21 мамырдағы № 94-V «Дербес деректер және оларды қорғау туралы» Қазақстан Республикасының Заңына сәйкес өңдейміз. Осы үш жол толтырылмағанша, құжат жоба күйінде қала береді: заң операторды тауып, оған хат жаза алуды талап етеді, ал бұл үшін бір ғана телефон нөмірі жеткіліксіз.',
-    AppLocale.en: 'The operator is Ana-Bala LLP, Almaty, Republic of Kazakhstan. Phone +7 707 345 22 44.\n\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nWe process personal data under the Law of the Republic of Kazakhstan “On personal data and its protection” No. 94-V of 21 May 2013. While those three lines are blank this document remains a draft: the law requires that the operator can be found and written to, and a phone number alone is not enough for that.',
+    AppLocale.ru: 'Оператор — ТОО «MAMA», город Алматы, Республика Казахстан. Ana-Bala — сервис этой компании. Телефон +7 707 345 22 44.\n\nБИН: 210140036166\nПочта для обращений: dreamwings2015@gmail.com\n\nМы обрабатываем персональные данные по Закону РК «О персональных данных и их защите» № 94-V от 21 мая 2013 года. Юридический адрес компании можно проверить по БИН в государственном реестре юридических лиц.',
+    AppLocale.kk: 'Оператор — «MAMA» ЖШС, Алматы қаласы, Қазақстан Республикасы. Ana-Bala — осы компанияның сервисі. Телефон +7 707 345 22 44.\n\nБСН: 210140036166\nӨтініштерге арналған пошта: dreamwings2015@gmail.com\n\nДербес деректерді 2013 жылғы 21 мамырдағы № 94-V «Дербес деректер және оларды қорғау туралы» Қазақстан Республикасының Заңына сәйкес өңдейміз. Компанияның заңды мекенжайын БСН арқылы заңды тұлғалардың мемлекеттік тізілімінен тексеруге болады.',
+    AppLocale.en: 'The operator is MAMA LLP, Almaty, Republic of Kazakhstan. Ana-Bala is that company’s service. Phone +7 707 345 22 44.\n\nBIN: 210140036166\nContact e-mail: dreamwings2015@gmail.com\n\nWe process personal data under the Law of the Republic of Kazakhstan “On personal data and its protection” No. 94-V of 21 May 2013. The company’s registered address can be checked against its BIN in the state register of legal entities.',
   },
   'legal_priv_short_h': {AppLocale.ru: 'Коротко', AppLocale.kk: 'Қысқаша', AppLocale.en: 'In short'},
   'legal_priv_short_b': {
@@ -1281,9 +1281,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   'legal_terms_about_h': {AppLocale.ru: 'О сервисе', AppLocale.kk: 'Сервис туралы', AppLocale.en: 'About the service'},
   'legal_terms_about_b': {
-    AppLocale.ru: 'Ana-Bala — приложение для сопровождения беременности и первых лет жизни ребёнка. Оно ведёт дневник беременности, показывает данные с браслета, помогает следить за прививками и развитием ребёнка, а с брелоком — видеть, что ребёнок пришёл домой или в школу.\n\nЭти условия — договор между вами и ТОО «Ana-Bala». Устанавливая приложение и принимая условия, вы с ними соглашаетесь. Если вы с чем-то не согласны, приложением пользоваться не нужно.',
-    AppLocale.kk: 'Ana-Bala — жүктілік кезінде және баланың алғашқы жылдарында қасында болуға арналған қолданба. Ол жүктілік күнделігін жүргізеді, білезіктен келген деректерді көрсетеді, егулер мен баланың дамуын қадағалауға көмектеседі, ал брелокпен бірге — баланың үйге немесе мектепке жеткенін көруге мүмкіндік береді.\n\nОсы шарттар — сіз бен «Ana-Bala» ЖШС арасындағы шарт. Қолданбаны орнатып, шарттарды қабылдағанда сіз олармен келісесіз. Бір нәрсемен келіспесеңіз, қолданбаны пайдаланбағаныңыз жөн.',
-    AppLocale.en: 'Ana-Bala is an app for guiding a pregnancy and a child’s first years. It keeps a pregnancy diary, shows data from the band, helps track vaccinations and a child’s development and, with the tag, lets you see that the child has arrived home or at school.\n\nThese terms are an agreement between you and Ana-Bala LLP. By installing the app and accepting the terms you agree to them. If you disagree with something, you should not use the app.',
+    AppLocale.ru: 'Ana-Bala — приложение для сопровождения беременности и первых лет жизни ребёнка. Оно ведёт дневник беременности, показывает данные с браслета, помогает следить за прививками и развитием ребёнка, а с брелоком — видеть, что ребёнок пришёл домой или в школу.\n\nЭти условия — договор между вами и ТОО «MAMA». Устанавливая приложение и принимая условия, вы с ними соглашаетесь. Если вы с чем-то не согласны, приложением пользоваться не нужно.',
+    AppLocale.kk: 'Ana-Bala — жүктілік кезінде және баланың алғашқы жылдарында қасында болуға арналған қолданба. Ол жүктілік күнделігін жүргізеді, білезіктен келген деректерді көрсетеді, егулер мен баланың дамуын қадағалауға көмектеседі, ал брелокпен бірге — баланың үйге немесе мектепке жеткенін көруге мүмкіндік береді.\n\nОсы шарттар — сіз бен «MAMA» ЖШС арасындағы шарт. Қолданбаны орнатып, шарттарды қабылдағанда сіз олармен келісесіз. Бір нәрсемен келіспесеңіз, қолданбаны пайдаланбағаныңыз жөн.',
+    AppLocale.en: 'Ana-Bala is an app for guiding a pregnancy and a child’s first years. It keeps a pregnancy diary, shows data from the band, helps track vaccinations and a child’s development and, with the tag, lets you see that the child has arrived home or at school.\n\nThese terms are an agreement between you and MAMA LLP. By installing the app and accepting the terms you agree to them. If you disagree with something, you should not use the app.',
   },
   'legal_terms_who_h': {AppLocale.ru: 'Кто может пользоваться', AppLocale.kk: 'Кім пайдалана алады', AppLocale.en: 'Who may use it'},
   'legal_terms_who_b': {
@@ -1347,9 +1347,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   'legal_terms_contact_h': {AppLocale.ru: 'Как с нами связаться', AppLocale.kk: 'Бізбен қалай байланысуға болады', AppLocale.en: 'How to contact us'},
   'legal_terms_contact_b': {
-    AppLocale.ru: 'ТОО «Ana-Bala», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nНаписать можно из приложения, в разделе поддержки.',
-    AppLocale.kk: '«Ana-Bala» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nҚолданбадағы қолдау бөлімінен жазуға болады.',
-    AppLocale.en: 'Ana-Bala LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nYou can write to us from the app, in the support section.',
+    AppLocale.ru: 'ТОО «MAMA», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: 210140036166\nПочта для обращений: dreamwings2015@gmail.com\n\nНаписать можно из приложения, в разделе поддержки.',
+    AppLocale.kk: '«MAMA» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: 210140036166\nӨтініштерге арналған пошта: dreamwings2015@gmail.com\n\nҚолданбадағы қолдау бөлімінен жазуға болады.',
+    AppLocale.en: 'MAMA LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: 210140036166\nContact e-mail: dreamwings2015@gmail.com\n\nYou can write to us from the app, in the support section.',
   },
   'legal_update_title': {AppLocale.ru: 'Мы обновили документы', AppLocale.kk: 'Құжаттарды жаңарттық', AppLocale.en: 'We’ve updated our documents'},
   'legal_update_body': {
@@ -4024,6 +4024,29 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'cyc_no_data_body': {AppLocale.ru: 'Отметьте день менструации, чтобы видеть прогнозы.', AppLocale.kk: 'Болжамды көру үшін етеккір күнін белгілеңіз.', AppLocale.en: 'Log a period day to see predictions.'},
   'cyc_pp_paused_title': {AppLocale.ru: 'Цикл на паузе после родов', AppLocale.kk: 'Босанғаннан кейін цикл кідіртілді', AppLocale.en: 'Cycle paused after birth'},
   'cyc_pp_paused_body': {AppLocale.ru: 'После родов месячные могут не приходить несколько месяцев — особенно при грудном вскармливании. Отметьте месячные, когда они вернутся, и прогнозы возобновятся.', AppLocale.kk: 'Босанғаннан кейін етеккір бірнеше ай болмауы мүмкін — әсіресе емізу кезінде. Ол қайта басталғанда белгілеңіз, сонда болжамдар жалғасады.', AppLocale.en: 'Periods can pause for months after birth — especially while breastfeeding. Log your period when it returns and predictions will resume.'},
+  // ---- When the app does not know where she is in her cycle -----------------
+  //
+  // [CycleInfo.cycleDay] is null while [CycleInfo.hasData] is TRUE for exactly
+  // one reason: the most recent period start she has logged is still in the
+  // future, so no days have elapsed to count. The cycle ring used to draw
+  // `cycleDay ?? 1` and print «1» in its middle — «day 1», the first day of
+  // bleeding, a specific clinical claim produced by a fallback rather than by
+  // anything she recorded. These strings are what the screen says instead.
+  //
+  // None of them place her anywhere in the cycle, and none of them read as an
+  // error or as her mistake: the entry is hers and may well be deliberate.
+  //
+  // KAZAKH BELOW IS NOT GATE-REVIEWED — recorded in TODO §9.12. Written short
+  // and grammatical, but it needs one pass by the language gate before release.
+  'cyc_day_unknown': {AppLocale.ru: 'День цикла неизвестен', AppLocale.kk: 'Цикл күні белгісіз', AppLocale.en: 'Cycle day unknown'},
+  'cyc_future_mark_title': {AppLocale.ru: 'Месячные отмечены на {d}', AppLocale.kk: 'Етеккір {d} күніне белгіленген', AppLocale.en: 'A period is marked for {d}'},
+  'cyc_future_mark_body': {AppLocale.ru: 'День цикла появится, когда эта дата наступит.', AppLocale.kk: 'Сол күн келгенде цикл күні шығады.', AppLocale.en: 'The cycle day appears once that date arrives.'},
+  'cyc_future_mark_fix': {AppLocale.ru: 'Изменить отметку', AppLocale.kk: 'Белгіні өзгерту', AppLocale.en: 'Change the entry'},
+  // The dashboard hero's headline when no phase can be placed — a new account
+  // with nothing logged, or the future-dated mark above. It used to fall back
+  // to the follicular band and print «Спокойные дни» over a lit second segment:
+  // the same invented claim, one screen along and in a larger type.
+  'cyc_no_phase': {AppLocale.ru: 'Фаза цикла пока неизвестна', AppLocale.kk: 'Цикл фазасы әзірге белгісіз', AppLocale.en: 'Cycle phase not known yet'},
   'cyc_expecting': {AppLocale.ru: 'Ждёте ребёнка? Укажите срок', AppLocale.kk: 'Бала күтудесіз бе? Мерзімін қосыңыз', AppLocale.en: 'Expecting? Add a due date'},
   'cyc_end_pregnancy': {AppLocale.ru: 'Больше не беременны?', AppLocale.kk: 'Енді жүкті емессіз бе?', AppLocale.en: 'No longer pregnant?'},
   'cyc_end_pregnancy_body': {AppLocale.ru: 'Отслеживание беременности отключится, и вернётся календарь цикла. Ваши записи останутся.', AppLocale.kk: 'Жүктілікті бақылау өшіріліп, цикл күнтізбесі қайтады. Жазбаларыңыз сақталады.', AppLocale.en: 'Pregnancy tracking turns off and cycle tracking returns. Your logs are kept.'},

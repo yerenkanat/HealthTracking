@@ -11,9 +11,9 @@
       "en": "Terms of use"
     },
     "legal_draft_note": {
-      "ru": "Черновик. Текст описывает, как приложение работает сегодня. До публикации он ждёт двух вещей: юридической проверки и реквизитов оператора (БИН, юридический адрес, почта для обращений) — в разделах «Кто обрабатывает ваши данные» и «Как с нами связаться» они пока не заполнены.",
-      "kk": "Жоба нұсқа. Мәтін қолданбаның бүгінгі жұмысын сипаттайды. Жарияланғанға дейін ол екі нәрсені күтеді: заңгерлік сараптаманы және оператор деректемелерін (БСН, заңды мекенжай, өтініштерге арналған пошта) — «Деректеріңізді кім өңдейді» және «Бізбен қалай байланысуға болады» бөлімдерінде олар әзірге толтырылмаған.",
-      "en": "Draft. This text describes how the app works today. Before publication it awaits two things: legal review, and the operator details (BIN, registered address, contact e-mail) — still blank in “Who processes your data” and “How to contact us”."
+      "ru": "Черновик. Текст описывает, как приложение работает сегодня, и ожидает юридической проверки перед публикацией.",
+      "kk": "Жоба нұсқа. Мәтін қолданбаның бүгінгі жұмысын сипаттайды және жарияланар алдында заңгерлік сараптамадан өтеді.",
+      "en": "Draft. This text describes how the app works today and is pending legal review before publication."
     },
     "legal_updated": {
       "ru": "Редакция от 18 августа 2026 года.",
@@ -56,9 +56,9 @@
       "en": "How to contact us"
     },
     "legal_priv_contact_b": {
-      "ru": "ТОО «Ana-Bala», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nНаписать нам можно из приложения, в разделе поддержки. Мы понимаем, что этого недостаточно для того, кто уже удалил приложение, — поэтому почта для обращений появится здесь до публикации.",
-      "kk": "«Ana-Bala» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nБізге қолданбадағы қолдау бөлімінен жазуға болады. Қолданбаны жойып қойған адам үшін бұның жеткіліксіз екенін түсінеміз — сондықтан өтініштерге арналған пошта осы жерде жарияланғанға дейін пайда болады.",
-      "en": "Ana-Bala LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nYou can write to us from the app, in the support section. We recognise that this is not enough for someone who has already uninstalled the app — which is why a contact e-mail will appear here before publication."
+      "ru": "ТОО «MAMA», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: 210140036166\nПочта для обращений: dreamwings2015@gmail.com\n\nНаписать нам можно из приложения, в разделе поддержки. Тому, кто уже удалил приложение, писать в поддержку неоткуда — для этого и указана почта выше.",
+      "kk": "«MAMA» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: 210140036166\nӨтініштерге арналған пошта: dreamwings2015@gmail.com\n\nБізге қолданбадағы қолдау бөлімінен жазуға болады. Қолданбаны жойып қойған адамға жазатын жер қалмайды — жоғарыдағы пошта сол үшін көрсетілген.",
+      "en": "MAMA LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: 210140036166\nContact e-mail: dreamwings2015@gmail.com\n\nYou can write to us from the app, in the support section. Someone who has already uninstalled the app has nowhere to write from — which is what the e-mail above is for."
     },
     "legal_terms_medical_h": {
       "ru": "Приложение не заменяет врача",
@@ -116,9 +116,9 @@
       "en": "Who processes your data"
     },
     "legal_priv_who_b": {
-      "ru": "Оператор — ТОО «Ana-Bala», город Алматы, Республика Казахстан. Телефон +7 707 345 22 44.\n\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nМы обрабатываем персональные данные по Закону РК «О персональных данных и их защите» № 94-V от 21 мая 2013 года. Пока эти три строки не заполнены, документ остаётся черновиком: закон требует, чтобы оператора можно было найти и написать ему, а одного номера телефона для этого недостаточно.",
-      "kk": "Оператор — «Ana-Bala» ЖШС, Алматы қаласы, Қазақстан Республикасы. Телефон +7 707 345 22 44.\n\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nДербес деректерді 2013 жылғы 21 мамырдағы № 94-V «Дербес деректер және оларды қорғау туралы» Қазақстан Республикасының Заңына сәйкес өңдейміз. Осы үш жол толтырылмағанша, құжат жоба күйінде қала береді: заң операторды тауып, оған хат жаза алуды талап етеді, ал бұл үшін бір ғана телефон нөмірі жеткіліксіз.",
-      "en": "The operator is Ana-Bala LLP, Almaty, Republic of Kazakhstan. Phone +7 707 345 22 44.\n\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nWe process personal data under the Law of the Republic of Kazakhstan “On personal data and its protection” No. 94-V of 21 May 2013. While those three lines are blank this document remains a draft: the law requires that the operator can be found and written to, and a phone number alone is not enough for that."
+      "ru": "Оператор — ТОО «MAMA», город Алматы, Республика Казахстан. Ana-Bala — сервис этой компании. Телефон +7 707 345 22 44.\n\nБИН: 210140036166\nПочта для обращений: dreamwings2015@gmail.com\n\nМы обрабатываем персональные данные по Закону РК «О персональных данных и их защите» № 94-V от 21 мая 2013 года. Юридический адрес компании можно проверить по БИН в государственном реестре юридических лиц.",
+      "kk": "Оператор — «MAMA» ЖШС, Алматы қаласы, Қазақстан Республикасы. Ana-Bala — осы компанияның сервисі. Телефон +7 707 345 22 44.\n\nБСН: 210140036166\nӨтініштерге арналған пошта: dreamwings2015@gmail.com\n\nДербес деректерді 2013 жылғы 21 мамырдағы № 94-V «Дербес деректер және оларды қорғау туралы» Қазақстан Республикасының Заңына сәйкес өңдейміз. Компанияның заңды мекенжайын БСН арқылы заңды тұлғалардың мемлекеттік тізілімінен тексеруге болады.",
+      "en": "The operator is MAMA LLP, Almaty, Republic of Kazakhstan. Ana-Bala is that company’s service. Phone +7 707 345 22 44.\n\nBIN: 210140036166\nContact e-mail: dreamwings2015@gmail.com\n\nWe process personal data under the Law of the Republic of Kazakhstan “On personal data and its protection” No. 94-V of 21 May 2013. The company’s registered address can be checked against its BIN in the state register of legal entities."
     },
     "legal_priv_short_h": {
       "ru": "Коротко",
@@ -246,9 +246,9 @@
       "en": "About the service"
     },
     "legal_terms_about_b": {
-      "ru": "Ana-Bala — приложение для сопровождения беременности и первых лет жизни ребёнка. Оно ведёт дневник беременности, показывает данные с браслета, помогает следить за прививками и развитием ребёнка, а с брелоком — видеть, что ребёнок пришёл домой или в школу.\n\nЭти условия — договор между вами и ТОО «Ana-Bala». Устанавливая приложение и принимая условия, вы с ними соглашаетесь. Если вы с чем-то не согласны, приложением пользоваться не нужно.",
-      "kk": "Ana-Bala — жүктілік кезінде және баланың алғашқы жылдарында қасында болуға арналған қолданба. Ол жүктілік күнделігін жүргізеді, білезіктен келген деректерді көрсетеді, егулер мен баланың дамуын қадағалауға көмектеседі, ал брелокпен бірге — баланың үйге немесе мектепке жеткенін көруге мүмкіндік береді.\n\nОсы шарттар — сіз бен «Ana-Bala» ЖШС арасындағы шарт. Қолданбаны орнатып, шарттарды қабылдағанда сіз олармен келісесіз. Бір нәрсемен келіспесеңіз, қолданбаны пайдаланбағаныңыз жөн.",
-      "en": "Ana-Bala is an app for guiding a pregnancy and a child’s first years. It keeps a pregnancy diary, shows data from the band, helps track vaccinations and a child’s development and, with the tag, lets you see that the child has arrived home or at school.\n\nThese terms are an agreement between you and Ana-Bala LLP. By installing the app and accepting the terms you agree to them. If you disagree with something, you should not use the app."
+      "ru": "Ana-Bala — приложение для сопровождения беременности и первых лет жизни ребёнка. Оно ведёт дневник беременности, показывает данные с браслета, помогает следить за прививками и развитием ребёнка, а с брелоком — видеть, что ребёнок пришёл домой или в школу.\n\nЭти условия — договор между вами и ТОО «MAMA». Устанавливая приложение и принимая условия, вы с ними соглашаетесь. Если вы с чем-то не согласны, приложением пользоваться не нужно.",
+      "kk": "Ana-Bala — жүктілік кезінде және баланың алғашқы жылдарында қасында болуға арналған қолданба. Ол жүктілік күнделігін жүргізеді, білезіктен келген деректерді көрсетеді, егулер мен баланың дамуын қадағалауға көмектеседі, ал брелокпен бірге — баланың үйге немесе мектепке жеткенін көруге мүмкіндік береді.\n\nОсы шарттар — сіз бен «MAMA» ЖШС арасындағы шарт. Қолданбаны орнатып, шарттарды қабылдағанда сіз олармен келісесіз. Бір нәрсемен келіспесеңіз, қолданбаны пайдаланбағаныңыз жөн.",
+      "en": "Ana-Bala is an app for guiding a pregnancy and a child’s first years. It keeps a pregnancy diary, shows data from the band, helps track vaccinations and a child’s development and, with the tag, lets you see that the child has arrived home or at school.\n\nThese terms are an agreement between you and MAMA LLP. By installing the app and accepting the terms you agree to them. If you disagree with something, you should not use the app."
     },
     "legal_terms_who_h": {
       "ru": "Кто может пользоваться",
@@ -356,9 +356,9 @@
       "en": "How to contact us"
     },
     "legal_terms_contact_b": {
-      "ru": "ТОО «Ana-Bala», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: ______________\nЮридический адрес: ______________\nПочта для обращений: ______________\n\nНаписать можно из приложения, в разделе поддержки.",
-      "kk": "«Ana-Bala» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: ______________\nЗаңды мекенжайы: ______________\nӨтініштерге арналған пошта: ______________\n\nҚолданбадағы қолдау бөлімінен жазуға болады.",
-      "en": "Ana-Bala LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: ______________\nRegistered address: ______________\nContact e-mail: ______________\n\nYou can write to us from the app, in the support section."
+      "ru": "ТОО «MAMA», Алматы, Республика Казахстан.\nТелефон: +7 707 345 22 44.\nБИН: 210140036166\nПочта для обращений: dreamwings2015@gmail.com\n\nНаписать можно из приложения, в разделе поддержки.",
+      "kk": "«MAMA» ЖШС, Алматы, Қазақстан Республикасы.\nТелефон: +7 707 345 22 44.\nБСН: 210140036166\nӨтініштерге арналған пошта: dreamwings2015@gmail.com\n\nҚолданбадағы қолдау бөлімінен жазуға болады.",
+      "en": "MAMA LLP, Almaty, Republic of Kazakhstan.\nPhone: +7 707 345 22 44.\nBIN: 210140036166\nContact e-mail: dreamwings2015@gmail.com\n\nYou can write to us from the app, in the support section."
     },
     "legal_update_title": {
       "ru": "Мы обновили документы",
