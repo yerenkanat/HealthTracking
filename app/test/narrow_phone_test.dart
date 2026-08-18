@@ -991,6 +991,35 @@ void main() {
     await fits(tester, () => const ContractionTimerScreen(), 'the contraction timer');
   });
 
+  /// Record two contractions, so the screen is measured with its furniture up.
+  ///
+  /// Both timer cases used to render the EMPTY screen, which is the vacuity
+  /// this file's header warns about: with nothing recorded there is no live
+  /// card, no stats bar, no 5-1-1 checklist and no rows, so the two widest
+  /// things on the screen were never laid out and the case passed by testing
+  /// almost nothing.
+  ///
+  /// The taps are by ICON-FREE label lookup through the l10n catalogue, because
+  /// the button label changes with the locale this runs in.
+  Future<void> recordTwo(WidgetTester tester, AppLocale locale) async {
+    final l = L10n(locale);
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.text(l.t('contr_start_big')));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.text(l.t('contr_stop_big')));
+      await tester.pump();
+    }
+  }
+
+  testWidgets('the contraction timer fits with contractions recorded', (tester) async {
+    await fits(
+      tester,
+      () => const ContractionTimerScreen(),
+      'the contraction timer (recording)',
+      afterPump: (t) => recordTwo(t, AppLocale.ru),
+    );
+  });
+
   testWidgets('the contraction timer fits at 130%', (tester) async {
     // Read during labour, one-handed. Worth the extra case.
     await fits(
@@ -998,6 +1027,21 @@ void main() {
       () => const ContractionTimerScreen(),
       'the contraction timer',
       textScale: 1.3,
+    );
+  });
+
+  testWidgets('the contraction timer fits in Kazakh at 130%, mid-session',
+      (tester) async {
+    // The worst case this screen has: the longer language, the larger type, a
+    // 320dp phone, and every card on screen at once. «Толғақ аяқталды» and
+    // «Соңғы толғақтар» are both longer than their Russian.
+    await fits(
+      tester,
+      () => const ContractionTimerScreen(),
+      'the contraction timer (kk, 130%, recording)',
+      locale: AppLocale.kk,
+      textScale: 1.3,
+      afterPump: (t) => recordTwo(t, AppLocale.kk),
     );
   });
 

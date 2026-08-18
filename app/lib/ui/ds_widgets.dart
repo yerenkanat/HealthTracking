@@ -728,19 +728,38 @@ class DsScreenHeader extends StatelessWidget {
 
 /// The sticky bar at the foot of a screen: an ink top rule, the cream-at-94%
 /// fill, and room left for the home indicator.
+///
+/// [fill] and [rule] exist so the two NIGHT screens (§2.17 — the contraction
+/// timer and the night feed) can use THIS bar instead of hand-rolling a third
+/// one. They were hand-rolling: the house rule says a repeated action goes at
+/// the bottom and that this widget is what puts it there, and a bar that only
+/// works on the cream canvas quietly exempts the two screens where the
+/// bottom-third rule matters most — the ones used one-handed, at night, in
+/// labour.
 class DsBottomActionBar extends StatelessWidget {
-  const DsBottomActionBar({super.key, required this.child});
+  const DsBottomActionBar({
+    super.key,
+    required this.child,
+    this.fill = Ds.barFill,
+    this.rule = Ds.ink,
+  });
 
   final Widget child;
+
+  /// The bar surface. Defaults to the cream-at-94% of the light canvas.
+  final Color fill;
+
+  /// The 1px top rule. Ink on light; on the night canvas ink is invisible, so
+  /// a night caller passes a colour that can actually be seen against [fill].
+  final Color rule;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, DsLayout.homeIndicator),
-      decoration: const BoxDecoration(
-        color: Ds.barFill,
-        border:
-            Border(top: BorderSide(color: Ds.ink, width: DsShape.borderWidth)),
+      decoration: BoxDecoration(
+        color: fill,
+        border: Border(top: BorderSide(color: rule, width: DsShape.borderWidth)),
       ),
       child: child,
     );

@@ -180,6 +180,16 @@ abstract final class Ds {
   /// someone mid-contraction.
   static const nightActionText = Color(0xFF3A0E1F);
 
+  /// The alert plate of frame 10, `#45162A` — a raised, warmer surface that
+  /// separates a warning from an ordinary [nightSurface] card WITHOUT using
+  /// red. ЧАСТЬ 1 rule 2 reserves `#A8002F` for SOS, and a woman in normal
+  /// labour is not an emergency.
+  ///
+  /// Pairs with [nightText] at 11.4:1. It is UNUSED today, on purpose: the only
+  /// thing that would sit on it is the «пора в роддом» instruction, which no
+  /// clinical gate has ruled on. See `domain/labour_alert.dart`.
+  static const nightAlertBg = Color(0xFF45162A);
+
   // -- Map placeholder stripes --
   static const mapStripeA = Color(0xFFE4EEE8);
   static const mapStripeB = Color(0xFFD5E4DC);

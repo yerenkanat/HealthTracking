@@ -250,6 +250,18 @@ void main() {
     });
   });
 
+  /// Scroll the cycle calendar until [label] is built.
+  ///
+  /// The month grid now leads the cycle calendar (frame 09: «сетка месяца →
+  /// легенда → карточка "День 3 · менструация"»), so the cards that explain
+  /// the month sit below it — and a ListView only builds what is near the
+  /// visible window. These three assertions used to pass on a 600px viewport
+  /// only because the grid was FIFTH on the screen, which is the layout the
+  /// spec says is wrong.
+  Future<void> scrollToLabel(WidgetTester tester, String label) =>
+      tester.scrollUntilVisible(find.text(label), 200,
+          scrollable: find.byType(Scrollable).first);
+
   testWidgets('cycle mode shows the current phase card', (tester) async {
     final c = controllerFor(); // cycle mode, today = Jul 16
     // A period Jul 10–12 → today (Jul 16) lands after the period, before the
@@ -258,9 +270,53 @@ void main() {
       c.toggleFlowFor(d, Flow.medium);
     }
     await tester.pumpWidget(wrap(c));
+    await scrollToLabel(tester, 'Follicular');
     expect(find.text('Follicular'), findsOneWidget);
     expect(find.textContaining('Day 4 of'), findsOneWidget);
     addTearDown(c.dispose);
+  });
+
+  testWidgets('the cycle calendar leads with the month, and draws it once',
+      (tester) async {
+    // Frame 09: «шапка + Август ▾ → сетка месяца → легенда → карточка
+    // "День 3 · менструация" → Отметить день».
+    //
+    // The grid used to be FIFTH — below the phase card, the usual-symptoms
+    // card, the fertile countdown and the predictions card. On a screen titled
+    // «Календарь» the calendar was off the bottom of the fold, which is a
+    // hierarchy defect no widget test would ever have noticed, because every
+    // widget worked.
+    // A TALL viewport, so the whole list is laid out.
+    //
+    // This matters more than it looks. On the default 600px surface a ListView
+    // builds only what is near the visible window, so the "exactly one grid"
+    // assertion passed even with the duplicate restored — the second grid was
+    // never built, and the test was green about a defect it was written to
+    // catch. Verified by reverting: with 600px, rendering the grid twice still
+    // passed. It does not now.
+    tester.view.physicalSize = const Size(900, 4000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final c = controllerFor();
+    for (final d in [DateTime(2026, 7, 10), DateTime(2026, 7, 11), DateTime(2026, 7, 12)]) {
+      c.toggleFlowFor(d, Flow.medium);
+    }
+    addTearDown(c.dispose);
+    await tester.pumpWidget(wrap(c));
+    await tester.pumpAndSettle();
+
+    // Exactly one grid on the page. Placing it twice — once per mode — would
+    // have put two sets of day targets on one screen, both opening the same
+    // sheet, which is the duplicate-control defect this repo keeps shipping.
+    expect(find.byKey(const ValueKey(monthGridKey)), findsOneWidget,
+        reason: 'one month grid per screen');
+
+    // …and it is above the card that explains the month.
+    final gridY = tester.getTopLeft(find.byKey(const ValueKey(monthGridKey))).dy;
+    final phaseY = tester.getTopLeft(find.text('Follicular')).dy;
+    expect(gridY, lessThan(phaseY),
+        reason: 'the month grid is drawn above the phase card — frame 09');
   });
 
   testWidgets('cycle mode shows the fertile-window countdown when upcoming', (tester) async {
@@ -270,6 +326,7 @@ void main() {
       c.toggleFlowFor(d, Flow.medium);
     }
     await tester.pumpWidget(wrap(c));
+    await scrollToLabel(tester, 'Fertile window in 3 days');
     expect(find.text('Fertile window in 3 days'), findsOneWidget);
     expect(find.textContaining('Ovulation in about'), findsOneWidget);
     addTearDown(c.dispose);
@@ -287,6 +344,7 @@ void main() {
     c.setDayLog(DayLog(date: dateKey(DateTime(2026, 6, 17)), symptoms: const {Symptom.headache}));
     await tester.pumpWidget(wrap(c));
 
+    await scrollToLabel(tester, 'Around now you often log');
     expect(find.text('Around now you often log'), findsOneWidget);
     expect(find.textContaining('Headache'), findsWidgets);
     addTearDown(c.dispose);

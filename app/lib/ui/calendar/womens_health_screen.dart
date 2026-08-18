@@ -59,6 +59,15 @@ import 'pregnancy_hero.dart';
 import '../ds_widgets.dart';
 import 'week_detail_screen.dart';
 
+/// Key on the single month grid.
+///
+/// Public so a test can assert BOTH halves of the frame-09 ordering: that the
+/// grid is drawn above the card that explains it, and that there is exactly
+/// ONE of it. The grid is built by a closure used from two positions (cycle
+/// mode leads with it, the other modes do not), which is precisely the shape
+/// that could regress into rendering two.
+const String monthGridKey = 'month-grid';
+
 class WomensHealthScreen extends StatefulWidget {
   final AppController controller;
   final DateTime Function() now;
@@ -176,6 +185,33 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
         final cycleMode = mode == CalendarMode.cycle;
         final pregMode = mode == CalendarMode.pregnancy;
         final childMode = mode == CalendarMode.child;
+
+        // THE GRID IS BUILT ONCE AND PLACED TWICE — never rendered twice.
+        //
+        // Frame 09 orders the cycle calendar «шапка + Август ▾ → сетка месяца →
+        // легенда → карточка "День 3 · менструация" → Отметить день». The grid
+        // was the fifth thing on the screen instead of the first: below the
+        // phase card, the usual-symptoms card, the fertile countdown, the
+        // predictions card, weight and medications. On a screen titled
+        // «Календарь», the calendar was off the bottom of the fold.
+        //
+        // Pregnancy and child mode keep the grid where it was, and that is
+        // deliberate rather than timidity: in those modes the grid is a diary
+        // index, and frames 08 and 54 lead with the week/month hero. Only the
+        // CYCLE calendar is a screen whose subject is the month itself.
+        Widget monthGrid() => _MonthCalendar(
+              // Keyed so a test can assert there is exactly ONE grid on the
+              // page and that it is drawn above the card explaining it.
+              key: const ValueKey(monthGridKey),
+              month: _month,
+              today: _today,
+              logs: c.dayLogs,
+              cycle: cycleMode ? c.cycle : null,
+              appointmentDays: {for (final a in c.appointments) dateKey(a.at)},
+              onPrev: () => _shiftMonth(-1),
+              onNext: () => _shiftMonth(1),
+              onTapDay: _openDay,
+            );
         final periodToday = c.logFor(_today).hasPeriod;
         return AuroraBackground(
           child: Scaffold(
@@ -409,6 +445,34 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     onSeeAll: widget.onSeeAllTips,
                   ),
                 ],
+                // Frame 09, in its order: the month, then what explains it.
+                if (cycleMode) ...[
+                  const SizedBox(height: 16),
+                  monthGrid(),
+                  const SizedBox(height: 14),
+                  if (c.cycle.hasData)
+                    const _CycleLegend()
+                  // Nothing to colour in yet. The grid is thirty grey numbers
+                  // with no legend under it because there is nothing to
+                  // explain — so it reads as broken rather than as empty, and
+                  // nothing says that tapping a day is how anything gets in.
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.touch_app_outlined,
+                            size: 17, color: Palette.textDim),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(l.t('cal_grid_empty'),
+                              style: const TextStyle(
+                                  color: Palette.textDim,
+                                  fontSize: 12.5,
+                                  height: 1.45)),
+                        ),
+                      ],
+                    ),
+                ],
                 if (cycleMode && c.cycle.hasData) ...[
                   const SizedBox(height: 14),
                   _CyclePhaseCard(info: c.cycle),
@@ -497,45 +561,13 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                     )),
                   ),
                 ],
-                const SizedBox(height: 16),
-                _MonthCalendar(
-                  month: _month,
-                  today: _today,
-                  logs: c.dayLogs,
-                  cycle: cycleMode ? c.cycle : null,
-                  appointmentDays: {
-                    for (final a in c.appointments) dateKey(a.at)
-                  },
-                  onPrev: () => _shiftMonth(-1),
-                  onNext: () => _shiftMonth(1),
-                  onTapDay: _openDay,
-                ),
-                if (cycleMode && c.cycle.hasData) ...[
-                  const SizedBox(height: 14),
-                  const _CycleLegend(),
-                ]
-                // Nothing to colour in yet. The grid is thirty grey numbers
-                // and one circle taking half the screen, with no legend under
-                // it because there is nothing to explain — so it reads as
-                // broken rather than as empty, and nothing says that tapping a
-                // day is how anything gets in there.
-                else if (cycleMode) ...[
-                  const SizedBox(height: 14),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.touch_app_outlined,
-                          size: 17, color: Palette.textDim),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(l.t('cal_grid_empty'),
-                            style: const TextStyle(
-                                color: Palette.textDim,
-                                fontSize: 12.5,
-                                height: 1.45)),
-                      ),
-                    ],
-                  ),
+                // Pregnancy and child mode only — the cycle calendar draws its
+                // grid at the TOP (frame 09). One grid per screen either way:
+                // two _MonthCalendars on one page would be two sets of day
+                // targets opening the same sheet.
+                if (!cycleMode) ...[
+                  const SizedBox(height: 16),
+                  monthGrid(),
                 ],
                 if (pregMode && c.kickSessions.isNotEmpty) ...[
                   const SizedBox(height: 14),
@@ -1655,6 +1687,7 @@ class _MonthCalendar extends StatelessWidget {
   final VoidCallback onNext;
   final void Function(DateTime day) onTapDay;
   const _MonthCalendar({
+    super.key,
     required this.month,
     required this.today,
     required this.logs,

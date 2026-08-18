@@ -3769,6 +3769,26 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'contr_511_note': {AppLocale.ru: 'Справочная схема из курсов подготовки к родам — не медицинский совет. Всегда следуйте рекомендациям своего врача.', AppLocale.kk: 'Босануға дайындық курстарынан анықтамалық үлгі — медициналық кеңес емес. Әрдайым дәрігеріңіздің нұсқауын ұстаныңыз.', AppLocale.en: 'A reference pattern from childbirth classes — not medical advice. Always follow your provider\'s guidance.'},
   'contr_511_ready': {AppLocale.ru: 'Схема 5-1-1 соблюдается. Многие врачи советуют связаться с ними на этом этапе — следуйте своему плану родов.', AppLocale.kk: '5-1-1 үлгісі орындалды. Көптеген дәрігерлер осы кезеңде хабарласуды ұсынады — босану жоспарыңызды ұстаныңыз.', AppLocale.en: 'The 5-1-1 pattern is met. Many providers suggest contacting them around now — follow your birth plan.'},
   'contr_first': {AppLocale.ru: 'первая', AppLocale.kk: 'бірінші', AppLocale.en: 'first'},
+  // --- Contraction timer, screen 10 (night) ---------------------------------
+  // KAZAKH WRITTEN BY A NON-GATE AGENT — see docs/TODO.md §9.12. Grammatical
+  // and verify_l10n-clean, NOT reviewed. Eight keys, all of them plain UI
+  // labels: none states a threshold, names a symptom, or tells her to do
+  // anything clinical. The one string on this screen that WOULD do that —
+  // «по минуте каждые 5 минут в течение часа, пора в роддом» — is deliberately
+  // absent from this catalogue. See app/lib/domain/labour_alert.dart.
+  'contr_live_active': {AppLocale.ru: 'Идёт схватка', AppLocale.kk: 'Толғақ жүріп жатыр', AppLocale.en: 'Contraction in progress'},
+  'contr_live_rest': {AppLocale.ru: 'Перерыв', AppLocale.kk: 'Үзіліс', AppLocale.en: 'Between contractions'},
+  'contr_start_big': {AppLocale.ru: 'Схватка началась', AppLocale.kk: 'Толғақ басталды', AppLocale.en: 'Contraction started'},
+  'contr_stop_big': {AppLocale.ru: 'Схватка закончилась', AppLocale.kk: 'Толғақ аяқталды', AppLocale.en: 'Contraction ended'},
+  'contr_stop_sub': {AppLocale.ru: 'Нажмите, когда отпустит', AppLocale.kk: 'Босаңсығанда басыңыз', AppLocale.en: 'Tap when it eases off'},
+  'contr_recent': {AppLocale.ru: 'Последние схватки', AppLocale.kk: 'Соңғы толғақтар', AppLocale.en: 'Recent contractions'},
+  'contr_history_short': {AppLocale.ru: 'История', AppLocale.kk: 'Тарих', AppLocale.en: 'History'},
+  // Both halves are checked by a test, because this screen promising something
+  // it does not do is the defect class this repo spent the week clearing. The
+  // wakelock half is asserted through the injected KeepAwake; the dark half by
+  // the Scaffold's own background colour. There is no brightness plugin in
+  // pubspec.yaml, so the sentence does NOT claim the screen is dimmed.
+  'contr_awake_note': {AppLocale.ru: 'Экран не гаснет и остаётся тёмным, пока открыт таймер.', AppLocale.kk: 'Таймер ашық тұрғанда экран сөнбейді және қараңғы күйінде қалады.', AppLocale.en: 'The screen stays awake and dark while the timer is open.'},
   'contr_reset': {AppLocale.ru: 'Сбросить', AppLocale.kk: 'Ысыру', AppLocale.en: 'Reset'},
   'contr_reset_title': {AppLocale.ru: 'Сбросить схватки?', AppLocale.kk: 'Толғақтарды ысыру керек пе?', AppLocale.en: 'Reset contractions?'},
   'contr_reset_body': {AppLocale.ru: 'Записанные схватки будут удалены.', AppLocale.kk: 'Жазылған толғақтар жойылады.', AppLocale.en: 'The recorded contractions will be cleared.'},

@@ -153,3 +153,35 @@ ContractionStats contractionStats(List<Contraction> list) {
     intCount == 0 ? Duration.zero : Duration(seconds: (intSum / intCount).round()),
   );
 }
+
+/// One row of the timer's log: when it started, how long it lasted, and how
+/// long after the PREVIOUS one it began.
+class ContractionRow {
+  final DateTime start;
+  final Duration duration;
+
+  /// Gap from the previous contraction's start. Null for the first of the
+  /// session — there is no earlier start to measure from, and a zero here would
+  /// render as a measured interval of nothing.
+  final Duration? interval;
+  const ContractionRow(this.start, this.duration, this.interval);
+}
+
+/// The log as the screen draws it: NEWEST FIRST, each row carrying the interval
+/// to the one before it.
+///
+/// Pure, and separate from the widget, because the widget did this with
+/// `list[list.length - 1 - i]` inline — an off-by-one there silently pairs a
+/// contraction with somebody else's interval, which is a wrong number on a
+/// screen rather than a crash. Now it is arithmetic that a test can check
+/// against hand-computed values.
+///
+/// [earliestToLater] is in recording order; the result is reversed.
+List<ContractionRow> contractionRows(List<Contraction> earliestToLater) => [
+      for (var i = earliestToLater.length - 1; i >= 0; i--)
+        ContractionRow(
+          earliestToLater[i].start,
+          earliestToLater[i].duration,
+          intervalBefore(earliestToLater, i),
+        ),
+    ];
