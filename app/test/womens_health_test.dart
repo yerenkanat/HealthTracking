@@ -10,6 +10,7 @@ import 'package:fcs_app/domain/cycle_log.dart';
 import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/ui/calendar/contraction_timer_screen.dart';
 import 'package:fcs_app/ui/calendar/womens_health_screen.dart';
 
 void main() {
@@ -730,4 +731,59 @@ void main() {
       expect(find.textContaining('Baby'), findsWidgets);
     });
   });
+  group('«История» on the contraction timer', () {
+    // The timer renders the action only when it is given a callback, so an
+    // unwired call site produced no visible defect — just a capability nobody
+    // could reach. That is this repository's dominant failure mode, so it gets
+    // a test rather than a note.
+
+    testWidgets('is absent before she has ever finished a session',
+        (tester) async {
+      // An action that opens an empty page is worse than no action.
+      final c = controllerFor(dueDate: today.add(const Duration(days: 42)));
+      await tester.pumpWidget(wrap(c));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.timer_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text(const L10n(AppLocale.en).t('contr_history_short')),
+          findsNothing,
+          reason: 'the timer offers a history she does not have yet');
+    });
+
+    testWidgets('opens the log ON TOP of the timer, which keeps running',
+        (tester) async {
+      // She is in labour with a clock running. Taking the timer away to show
+      // her a list is not a trade she asked for, so the history is pushed over
+      // it rather than replacing it.
+      final c = controllerFor(dueDate: today.add(const Duration(days: 42)));
+      c.logContractionSession(3, const Duration(seconds: 52),
+          const Duration(minutes: 4, seconds: 45));
+      await tester.pumpWidget(wrap(c));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.timer_outlined));
+      await tester.pumpAndSettle();
+
+      final action = find.text(const L10n(AppLocale.en).t('contr_history_short'));
+      expect(action, findsOneWidget,
+          reason: 'she has a finished session and no way to see it');
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      expect(find.text(const L10n(AppLocale.en).t('contr_history')),
+          findsOneWidget,
+          reason: 'the history did not open');
+      // The timer is still mounted underneath, not popped.
+      // skipOffstage: false — a pushed opaque route puts the one beneath it
+      // offstage, and the default finder would report the timer as gone when
+      // it is merely covered. Asserting the wrong thing here would have made
+      // this test pass for a fix that popped the timer.
+      expect(find.byType(ContractionTimerScreen, skipOffstage: false),
+          findsOneWidget,
+          reason: 'the running timer was replaced by the list, not covered by it');
+    });
+  });
+
 }

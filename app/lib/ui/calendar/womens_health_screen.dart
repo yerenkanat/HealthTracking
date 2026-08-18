@@ -229,6 +229,24 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                                 onSave: (count, dur, interval) =>
                                     c.logContractionSession(
                                         count, dur, interval),
+                                // «История» opens ON TOP of the timer rather
+                                // than popping it. She is timing contractions;
+                                // taking the running clock away to show her a
+                                // list is not a trade she asked for.
+                                //
+                                // Null while she has no past sessions, because
+                                // the timer hides the action rather than
+                                // offering an empty page.
+                                onOpenHistory: c.contractionSessions.isEmpty
+                                    ? null
+                                    : () => _openFullHistory(
+                                          l.t('contr_history'),
+                                          [
+                                            for (final s in c.contractionSessions)
+                                              _ContractionHistoryRow(
+                                                  record: s, now: _today)
+                                          ],
+                                        ),
                               )),
                     ),
                   ),
