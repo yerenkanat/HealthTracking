@@ -2181,6 +2181,20 @@ export function registerAdminRoutes(
         'Это доля родителей — пользователей приложения, которые отметили прививку сделанной.',
       rule: `В знаменателе — дети, у которых возраст прививки и догоняющее окно (${report.dueWindowMonths} мес.) уже прошли; ` +
         'дети, у которых прививка ещё «пора», не считаются ни в одну сторону.',
+      /// The sentence under frame 15's «провал» callout, written HERE so the
+      /// browser prints a claim this server stands behind rather than one
+      /// whoever edits the HTML invents. Two things it has to say out loud:
+      /// what «самый низкий» was chosen out of, and that a low share is not
+      /// evidence a child went unvaccinated — only that nobody ticked the
+      /// circle. Attributing it to the injection instead of to the tick is the
+      /// one misreading this screen can cause.
+      lowestRule: report.lowest
+        ? `Самый низкий охват выбран среди ${report.measured} прививок из ${report.vaccines.length}, ` +
+          'по которым знаменатель вообще есть — у остальных ни один ребёнок ещё не прошёл догоняющее окно. ' +
+          'Низкая доля не означает, что прививку не сделали: она означает, что её не отметили в приложении. ' +
+          'Данных поликлиник у этой панели нет.'
+        : 'Самый низкий охват не показан: ни по одной прививке ни один ребёнок ещё не прошёл догоняющее окно, ' +
+          'поэтому сравнивать нечего. Это «неизвестно», а не ноль.',
     });
   });
 

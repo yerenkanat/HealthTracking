@@ -92,25 +92,42 @@ function adminSchedule(
  */
 function adminCoverage(
   over: Record<string, Partial<{ due: number; done: number; pct: number | null; notYet: number }>> = {},
+  lowest?: unknown,
+  extra: Record<string, unknown> = {},
 ) {
+  const vaccines = vaccinationSchedule.vaccines.map((v) => {
+    const key = keyOf(v.id, v.dose);
+    return {
+      key, id: v.id, atMonth: v.atMonth, dose: v.dose ?? null, ru: v.ru,
+      due: 8, done: 5, pct: 63 as number | null, notYet: 4,
+      ...(over[key] ?? {}),
+    };
+  });
+  const measurable = vaccines.filter((v) => v.pct != null);
   return {
     children: 12,
     childrenWithoutDob: 2,
     dueWindowMonths: vaccinationSchedule.dueWindowMonths,
     version: vaccinationSchedule.version,
+    // The «провал» callout. Chosen by the ROUTE — see coverageOf() — and
+    // defaulted here to whatever the fixture's rows make lowest, so a test that
+    // changes a share does not also have to remember to restate the callout.
+    measured: measurable.length,
+    lowest: lowest !== undefined ? lowest : (measurable.length ? measurable[0] : null),
+    lowestRule: measurable.length
+      ? `Самый низкий охват выбран среди ${measurable.length} прививок из ${vaccines.length}, `
+        + 'по которым знаменатель вообще есть — у остальных ни один ребёнок ещё не прошёл догоняющее окно. '
+        + 'Низкая доля не означает, что прививку не сделали: она означает, что её не отметили в приложении. '
+        + 'Данных поликлиник у этой панели нет.'
+      : 'Самый низкий охват не показан: ни по одной прививке ни один ребёнок ещё не прошёл догоняющее окно, '
+        + 'поэтому сравнивать нечего. Это «неизвестно», а не ноль.',
+    ...extra,
     source: 'self_reported',
     sourceNote: 'Отметки мам в приложении, а не данные поликлиник. '
       + 'Это доля родителей — пользователей приложения, которые отметили прививку сделанной.',
     rule: 'В знаменателе — дети, у которых возраст прививки и догоняющее окно (1 мес.) уже прошли; '
       + 'дети, у которых прививка ещё «пора», не считаются ни в одну сторону.',
-    vaccines: vaccinationSchedule.vaccines.map((v) => {
-      const key = keyOf(v.id, v.dose);
-      return {
-        key, id: v.id, atMonth: v.atMonth, dose: v.dose ?? null, ru: v.ru,
-        due: 8, done: 5, pct: 63, notYet: 4,
-        ...(over[key] ?? {}),
-      };
-    }),
+    vaccines,
   };
 }
 
@@ -388,6 +405,113 @@ describe('the coverage column says what it is', () => {
   });
 });
 
+describe('frame 15 — «провал по охвату», with its explanation', () => {
+  // The spec's line for this frame is «таблица нацкалендаря с охватом → провал
+  // по пневмококку 76 % с объяснением». The table shipped; the callout naming
+  // the injection that has fallen behind did not, so the one number the frame
+  // exists to surface had to be found by eye across sixteen rows.
+  const LOW = {
+    key: 'pcv/2', id: 'pcv', atMonth: 4, dose: 2, ru: 'Пневмококковая',
+    due: 40, done: 10, pct: 25, notYet: 4,
+  };
+
+  it('names the injection, its share and the two numbers under it', async () => {
+    const page = await openTab({ coverage: adminCoverage({ 'pcv/2': LOW }, LOW) });
+    expect(painted(page, '#vacMetrics')).toBe(true);
+    const tiles = page.text('#vacMetrics');
+    expect(tiles).toContain('Самый низкий охват');
+    expect(tiles).toContain('25 %');
+    expect(tiles).toContain('Пневмококковая');
+    expect(tiles).toContain('4 мес.');
+    // A percentage with no numerator is a number nobody can check.
+    expect(tiles).toContain('10 из 40');
+  });
+
+  it('prints the SERVER’s explanation, not a sentence written in the browser', async () => {
+    const page = await openTab({ coverage: adminCoverage({ 'pcv/2': LOW }, LOW) });
+    const foot = page.text('#vacCovFail');
+    expect(foot).toContain('Низкая доля не означает, что прививку не сделали');
+    expect(foot).toContain('не отметили в приложении');
+    expect(foot).toContain('Данных поликлиник у этой панели нет');
+    // ...and what the minimum was chosen out of, which changes the sentence.
+    expect(foot).toContain('прививок из');
+    // The claim this screen may never make, in either direction.
+    expect(page.text('#vaccines')).not.toContain('по РК');
+    expect(page.text('#vaccines')).not.toContain('76 %');
+  });
+
+  it('the callout and the table row are the same numbers', async () => {
+    const page = await openTab({ coverage: adminCoverage({ 'pcv/2': LOW }, LOW) });
+    const row = page.text('#vacBody tr[data-vackey="pcv/2"]');
+    expect(row).toContain('25 %');
+    expect(row).toContain('10 из 40');
+    expect(page.text('#vacMetrics')).toContain('25 %');
+  });
+
+  it('says «сравнивать нечего», never 0 %, when nothing is measurable yet', async () => {
+    // Every child in the database is too young for any injection's catch-up
+    // window to have passed. «Худший охват — 0 %» there is a claim about the
+    // product rather than a measurement of it.
+    const none = adminCoverage(
+      Object.fromEntries(vaccinationSchedule.vaccines.map((v) => [
+        keyOf(v.id, v.dose), { due: 0, done: 0, pct: null, notYet: 12 },
+      ])),
+      null,
+    );
+    const page = await openTab({ coverage: none });
+    const tiles = page.text('#vacMetrics');
+    expect(tiles).toContain('сравнивать нечего');
+    expect(tiles).not.toContain('0 %');
+    expect(page.text('#vacCovFail')).toContain('«неизвестно», а не ноль');
+  });
+
+  it('a role without `health` is told which right it needs, not shown zeroes', async () => {
+    const page = await openTab({ role: 'content' });
+    const tiles = page.text('#vacMetrics');
+    expect(tiles).toContain('нужно право health');
+    expect(tiles).not.toContain('0 %');
+    expect(page.text('#vacCovFail')).toContain('Это отказ, а не сбой');
+  });
+
+  it('a 403 on coverage reads as a refusal, and the tiles say «неизвестно»', async () => {
+    const page = await openTab({ coverageStatus: 403 });
+    expect(page.text('#vacCovFail')).toContain('сервер ответил и отказал');
+    expect(page.text('#vacMetrics')).not.toContain('0 %');
+  });
+
+  it('counts the rows on phones whose text no clinician has signed', async () => {
+    // This tile is NOT coverage: it comes from the schedule's own edit state, so
+    // it stays truthful for a content editor who cannot see coverage at all.
+    const page = await openTab({
+      role: 'content',
+      schedule: adminSchedule({
+        'pcv/2': {
+          edited: true, draft: false, live: true, reviewCurrent: false,
+          ru: { name: 'Пневмококковая', note: 'x' }, kk: { name: 'Пневмококк', note: 'y' },
+        },
+        'opv/1': {
+          edited: true, draft: false, live: true, reviewCurrent: true,
+          ru: { name: 'Полиомиелит', note: 'x' }, kk: { name: 'Полиомиелит', note: 'y' },
+        },
+        'bcg/null': {
+          // A draft is not on a phone, so it is not in this count.
+          edited: true, draft: true, live: true, reviewCurrent: false,
+          ru: { name: 'БЦЖ', note: 'x' }, kk: { name: 'БЦЖ', note: 'y' },
+        },
+      }),
+    });
+    const tiles = page.text('#vacMetrics');
+    expect(tiles).toContain('Опубликовано без подписи врача');
+    expect(tiles).toContain('1');
+    expect(tiles).toContain('врач не подписывал');
+  });
+
+  it('does not report zero unsigned rows when the calendar failed to load', async () => {
+    const page = await openTab({ scheduleStatus: 503 });
+    expect(page.text('#vacMetrics')).toContain('это не ноль');
+  });
+});
+
 describe('frame 15 — the card, and «затронет N детей» BEFORE saving', () => {
   it('opens on the row that was clicked and shows «было / стало» for a moved dose', async () => {
     const page = await openTab({
@@ -538,6 +662,109 @@ describe('the card reports what the SERVER said', () => {
     await click(page, '#vacDraft');
     expect(page.sent.find((r) => r.method === 'PUT')!.body).toMatchObject({ draft: true });
     expect(page.text('#vacCardMsg')).toContain('контрактный срок');
+  });
+});
+
+describe('taking a vaccine OFF the phones asks first', () => {
+  /**
+   * «Сохранить черновиком» is the retire button on this tab, and it was the one
+   * publication-changing control with no question in front of it.
+   *
+   * A drafted row is not served: for a vaccine added in frame 15a that means it
+   * disappears from every parent's calendar, and for an edited contract row it
+   * means every phone snaps back to the shipped age. «Вернуть к контракту»
+   * asked; the button beside it did the same thing on one click, and an added
+   * vaccine has no «Вернуть к контракту» at all — so the only way to retire one
+   * was the way that never asked.
+   */
+  const withAdded = (row: Partial<Row> = {}) => {
+    const s = adminSchedule();
+    s.vaccines.push({
+      key: 'rota/1', id: 'rota', dose: 1, atMonth: 2,
+      contractAtMonth: null, contractRu: null, inContract: false, added: true,
+      ru: { name: 'Ротавирусная', note: 'Против тяжёлой кишечной инфекции' },
+      kk: { name: 'Ротавирус', note: 'Ауыр ішек инфекциясына қарсы' },
+      edited: true, draft: false, live: true, liveAtMonth: 2,
+      review: null, reviewCurrent: false, updatedAt: null, updatedBy: 'content-1',
+      ...row,
+    });
+    return s;
+  };
+
+  it('retiring an added vaccine says what disappears, and sends nothing until «да»', async () => {
+    const page = await openTab({ schedule: withAdded() });
+    await click(page, '#vacBody tr[data-vackey="rota/1"] button');
+    await click(page, '#vacDraft');
+
+    expect(page.sent.filter((r) => r.method === 'PUT'), 'it was retired on one click').toHaveLength(0);
+    const asked = page.text('#vacCardMsg');
+    expect(asked).toContain('исчезнет с экрана прививок у всех родителей');
+    expect(asked).toContain('вернуть можно');
+    expect(painted(page, '#vacAskNo')).toBe(true);
+
+    await click(page, '#vacAskYes');
+    const put = page.sent.find((r) => r.method === 'PUT');
+    expect(put!.path).toBe('/admin/vaccination/schedule/rota/1');
+    expect(put!.body).toMatchObject({ draft: true });
+  });
+
+  it('cancelling leaves the vaccine on the phones and says so', async () => {
+    const page = await openTab({ schedule: withAdded() });
+    await click(page, '#vacBody tr[data-vackey="rota/1"] button');
+    await click(page, '#vacDraft');
+    await click(page, '#vacAskNo');
+    expect(page.sent.filter((r) => r.method === 'PUT')).toHaveLength(0);
+    expect(page.text('#vacCardMsg')).toContain('ничего не сохранено');
+    // ...and window.confirm() — which cannot show any of this — was never used.
+    expect(page.errors).toEqual([]);
+  });
+
+  it('drafting a published edit warns that the phones go back to the contract', async () => {
+    const page = await openTab({
+      schedule: adminSchedule({
+        'pcv/2': {
+          atMonth: 9, edited: true, draft: false, live: true, liveAtMonth: 9, reviewCurrent: true,
+          ru: { name: 'Пневмококковая', note: 'x' }, kk: { name: 'Пневмококк', note: 'y' },
+        },
+      }),
+    });
+    await click(page, '#vacBody tr[data-vackey="pcv/2"] button');
+    await click(page, '#vacDraft');
+    expect(page.sent.filter((r) => r.method === 'PUT')).toHaveLength(0);
+    const asked = page.text('#vacCardMsg');
+    expect(asked).toContain('контрактному сроку 4 мес.');
+    expect(asked).toContain('Телефоны снова получат контракт');
+  });
+
+  it('«Вернуть к контракту» asks the same question exactly once', async () => {
+    const page = await openTab({
+      schedule: adminSchedule({
+        'pcv/2': {
+          atMonth: 9, edited: true, draft: false, live: true, liveAtMonth: 9, reviewCurrent: true,
+          ru: { name: 'Пневмококковая', note: 'x' }, kk: { name: 'Пневмококк', note: 'y' },
+        },
+      }),
+    });
+    await click(page, '#vacBody tr[data-vackey="pcv/2"] button');
+    await click(page, '#vacRevert');
+    expect(page.text('#vacCardMsg')).toContain('контрактному сроку 4 мес.');
+    await click(page, '#vacAskYes');
+    // One «да», one write. A second question here would be the two paths each
+    // asking their own, which is how a confirmation stops being read.
+    expect(page.window.document.querySelector('#vacAskYes')).toBeNull();
+    expect(page.sent.filter((r) => r.method === 'PUT')).toHaveLength(1);
+  });
+
+  it('does not ask about a row that is not on any phone', async () => {
+    // A never-edited contract row: drafting it stores a draft, the contract
+    // keeps showing through, and no parent's screen changes. A question here
+    // teaches people to press «да» without reading.
+    const page = await openTab({ putReply: { status: 200, body: { ok: true, key: 'pcv/2', draft: true, added: false, reviewed: false } } });
+    await click(page, '#vacBody tr[data-vackey="pcv/2"] button');
+    await typeInto(page, '#vacRuName', 'Пневмококковая');
+    await typeInto(page, '#vacKkName', 'Пневмококк');
+    await click(page, '#vacDraft');
+    expect(page.sent.filter((r) => r.method === 'PUT')).toHaveLength(1);
   });
 });
 

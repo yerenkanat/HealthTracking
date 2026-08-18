@@ -87,6 +87,36 @@ export interface VaccinationCoverageReport {
   /** ...and the ones that had to be left out, said out loud. */
   childrenWithoutDob: number;
   dueWindowMonths: number;
+  /**
+   * How many of the served injections have a denominator at all — a `pct` that
+   * is a number rather than null.
+   *
+   * Reported beside [lowest] because «самый низкий охват» over three measurable
+   * vaccines out of sixteen is a different sentence from the same words over
+   * all sixteen, and the reader cannot tell which one she is looking at from
+   * the percentage alone.
+   */
+  measured: number;
+  /**
+   * The worst-covered injection — frame 15's «провал по пневмококку 76 %».
+   *
+   * Chosen here rather than in the browser for the reason the owner dashboard
+   * gives: a figure the server would not agree with is the one failure this
+   * screen cannot have. It is a SELECTION over the rows already in `vaccines`,
+   * not a new measurement — the same `done`, `due` and `pct` come back
+   * unchanged, so the callout and the table row can never disagree.
+   *
+   * Null when nothing is measurable yet (no child in the database has passed
+   * any injection's catch-up window). Null, not a zero-percent row: «худший
+   * охват — 0 %» when there is nothing to have covered is a claim about the
+   * product, and it is exactly the kind of number that ends up in a slide deck.
+   *
+   * Ties go to the LARGER denominator — between two vaccines both at 50 %, the
+   * one measured over 400 children is the one worth acting on and the one
+   * measured over two is noise — and then to the key, so the answer is stable
+   * across requests rather than depending on schedule order.
+   */
+  lowest: VaccineCoverage | null;
   vaccines: VaccineCoverage[];
 }
 
@@ -124,30 +154,43 @@ export function coverageOf(
     ticksByKey.set(t.key, list);
   }
 
+  const vaccines: VaccineCoverage[] = schedule.vaccines.map((v) => {
+    const past = (age: number) => statusAt(age, v.atMonth, w) === 'passed';
+    const due = sum(data.childAges, past);
+    const done = sum(ticksByKey.get(v.key) ?? [], past);
+    return {
+      key: v.key,
+      id: v.id,
+      atMonth: v.atMonth,
+      dose: v.dose ?? null,
+      ru: v.ru,
+      due,
+      done,
+      // Null, not 0, when nobody is old enough. «0 %» on a vaccine no child
+      // in the database has reached yet reads as a catastrophe rather than as
+      // "not applicable", and it is the kind of number that ends up in a
+      // slide deck.
+      pct: due > 0 ? Math.round((done / due) * 100) : null,
+      notYet: sum(data.childAges, (age) => age < v.atMonth),
+    };
+  });
+
+  // Only rows with a real denominator can be compared; see [lowest].
+  const measurable = vaccines.filter((v) => v.pct != null);
+  const lowest = measurable.reduce<VaccineCoverage | null>((worst, v) => {
+    if (!worst) return v;
+    if (v.pct! !== worst.pct!) return v.pct! < worst.pct! ? v : worst;
+    if (v.due !== worst.due) return v.due > worst.due ? v : worst;
+    return v.key < worst.key ? v : worst;
+  }, null);
+
   return {
     children: sum(data.childAges, () => true),
     childrenWithoutDob: data.childrenWithoutDob,
     dueWindowMonths: w,
-    vaccines: schedule.vaccines.map((v) => {
-      const past = (age: number) => statusAt(age, v.atMonth, w) === 'passed';
-      const due = sum(data.childAges, past);
-      const done = sum(ticksByKey.get(v.key) ?? [], past);
-      return {
-        key: v.key,
-        id: v.id,
-        atMonth: v.atMonth,
-        dose: v.dose ?? null,
-        ru: v.ru,
-        due,
-        done,
-        // Null, not 0, when nobody is old enough. «0 %» on a vaccine no child
-        // in the database has reached yet reads as a catastrophe rather than as
-        // "not applicable", and it is the kind of number that ends up in a
-        // slide deck.
-        pct: due > 0 ? Math.round((done / due) * 100) : null,
-        notYet: sum(data.childAges, (age) => age < v.atMonth),
-      };
-    }),
+    measured: measurable.length,
+    lowest,
+    vaccines,
   };
 }
 

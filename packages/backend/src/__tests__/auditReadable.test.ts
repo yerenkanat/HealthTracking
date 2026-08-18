@@ -194,6 +194,62 @@ describe('the panel draws it', () => {
     expect(body).toContain('Сменил(а) свой пароль');
   });
 
+  it('labels what the immunisation calendar writes — the strings the ROUTES use', async () => {
+    // Frames 15 / 15a / 15b write four actions, and the panel had a label for
+    // none of them: an edit to the national vaccination schedule appeared in
+    // the log as «edit_vaccine» beside «pcv/2» — English, in a Russian panel,
+    // on exactly the rows the log exists for, the age of an injection and the
+    // clinician who signed it.
+    //
+    // The rows below are not typed by hand: they are driven through the real
+    // routes and read back out of /admin/audit, so renaming an action on either
+    // side fails here rather than silently going untranslated again.
+    const cookie = await signIn();
+    const body = {
+      atMonth: 9, dose: 2,
+      ru: { name: 'Пневмококковая', note: 'Против пневмонии и отита' },
+      kk: { name: 'Пневмококк', note: 'Пневмония мен отитке қарсы' },
+    };
+    const drafted = await app.inject({
+      method: 'PUT', url: '/admin/vaccination/schedule/pcv/2', headers: { cookie },
+      payload: { ...body, draft: true },
+    });
+    expect(drafted.statusCode, drafted.body).toBe(200);
+    const signed = await app.inject({
+      method: 'POST', url: '/admin/vaccination/schedule/pcv/2/review', headers: { cookie },
+    });
+    expect(signed.statusCode, signed.body).toBe(200);
+    const published = await app.inject({
+      method: 'PUT', url: '/admin/vaccination/schedule/pcv/2', headers: { cookie },
+      payload: { ...body, draft: false },
+    });
+    expect(published.statusCode, published.body).toBe(200);
+    const window9 = await app.inject({
+      method: 'PUT', url: '/admin/vaccination/settings', headers: { cookie },
+      payload: { dueWindowMonths: 2 },
+    });
+    expect(window9.statusCode, window9.body).toBe(200);
+
+    const rows = await auditRows(cookie);
+    const actions = rows.map((r: { action: string }) => r.action);
+    for (const a of ['edit_vaccine_draft', 'vaccine_review', 'edit_vaccine', 'edit_vaccination_settings']) {
+      expect(actions, `${a} was never recorded`).toContain(a);
+    }
+
+    const { window } = await openAudit(rows);
+    const painted = window.document.getElementById('auditBody')!.textContent ?? '';
+    expect(painted).toContain('Сохранил(а) прививку черновиком');
+    expect(painted).toContain('Подписал(а) прививку в календаре');
+    expect(painted).toContain('Изменил(а) прививку в календаре');
+    expect(painted).toContain('Изменил(а) догоняющее окно прививок');
+    // ...and not one raw key left standing.
+    expect(painted).not.toMatch(/edit_vaccin/);
+    expect(painted).not.toMatch(/vaccine_review/);
+    // The target is still there — which injection, and which window.
+    expect(painted).toContain('pcv/2');
+    expect(painted).toContain('dueWindowMonths=2');
+  });
+
   it('falls back to the id when there is no name', async () => {
     const { window } = await openAudit([
       {
