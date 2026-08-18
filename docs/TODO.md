@@ -177,5 +177,5 @@ The 6-section DRAFT was replaced with real Privacy Policy and Terms of Use, 17 s
 |---|---|---|
 | 9.8 | The panel prints «Журнал доступа — хранится 3 года» and nothing deletes `audit_log`, ever. | Open — a stated period with no mechanism, the same class as 9.6. |
 | 9.9 | Screen 47 prints «Маршруты хранятся 90 дней» directly beneath a list of zone crossings and SOS events, which are **not** routes and are not swept. The card is literally true and reads as covering both. | Open — wording, or a sweep. |
-| 9.10 | The landing lead form takes a name and phone under a bare consent line with **no link to the policy at the point of collection**. | Open — now that /privacy is real, link it. |
+| 9.10 | ~~The landing lead form takes a name and phone under a bare consent line with no link to the policy.~~ Both forms now link «обработкой персональных данных» / «дербес деректерді өңдеуге» to /privacy in their own language. Both halves had to be true first: a real document, and a link to it where the data is taken. | **Fixed.** Pinned by `landingHonesty.test.ts`, which also fails if a form loses its consent line entirely. |
 | 9.11 | `docs/CLAUDE-app-design.md:485` says «Плач считается на телефоне». The build does not do that. | Spec is wrong, not the code. Do not copy that sentence into anything. |

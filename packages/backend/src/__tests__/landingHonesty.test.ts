@@ -170,4 +170,28 @@ describe('the public pages', () => {
     expect(existsSync(`${root}../../deploy/seed-reviews.json`),
       'deploy/seed-reviews.json is back — it seeds fabricated testimonials').toBe(false);
   });
+
+  it('both lead forms link the policy where the data is actually taken', () => {
+    // The two forms take a name and a phone number under a one-line consent.
+    // Until 2026-08-18 neither line linked anywhere. The footer carried
+    // /privacy, but a consent whose document is reachable only by scrolling
+    // past the button is not much of one — and the policy those lines pointed
+    // at, had they pointed anywhere, said «данные хранятся на вашем телефоне»,
+    // which was false across the whole schema.
+    //
+    // Both halves had to be true before this test could exist: a real document,
+    // and a link to it at the point of collection.
+    const html = readFileSync(`${root}landing/index.html`, 'utf8');
+
+    expect(html, 'the Russian consent line no longer links to the policy')
+      .toMatch(/соглашаетесь с <a href="\/privacy"[^>]*>обработкой персональных данных<\/a>/);
+    expect(html, 'the Kazakh consent line no longer links to the policy')
+      .toMatch(/<a href="\/privacy\?lang=kk"[^>]*>дербес деректерді өңдеуге<\/a> келісім бересіз/);
+
+    // Neither language may lose its consent line altogether, which is the
+    // failure this would otherwise be blind to: a form with no line at all
+    // trivially satisfies "every line links".
+    expect((html.match(/<form /g) ?? []).length,
+      'a lead form was added or removed — check it carries a linked consent line too').toBe(2);
+  });
 });
