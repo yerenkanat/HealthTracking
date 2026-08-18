@@ -409,7 +409,7 @@ class _PreviewRow extends StatelessWidget {
   }
 }
 
-/// «карточка цены (39 000 ₸ / 69 800 ₸)» and the two ways to buy.
+/// «карточка цены (39 000 ₸ / 128 800 ₸)» and the two ways to buy.
 ///
 /// The comparison IS the offer: the комплект includes the whole course and
 /// costs less than the two devices and the course bought separately. Stating
@@ -469,7 +469,7 @@ class _PriceCard extends StatelessWidget {
               price: formatTenge(prices.bundleMinor),
               highlight: true,
             ),
-          // «69 800 ₸» — the comparison, and ONLY while it is one. An operator
+          // «128 800 ₸» — the comparison, and ONLY while it is one. An operator
           // can price the set above its parts; a struck-through number smaller
           // than the one above it reads as a con, so the row goes rather than
           // printing a negative saving.

@@ -419,7 +419,7 @@ void main() {
         'products': [
           _product('watch', 'Часы', 100000),
           _product('tracker', 'Трекер', 100000),
-          _product('combo', 'Комплект', 9900000, kind: 'bundle'),
+          _product('combo', 'Комплект', 11000000, kind: 'bundle'),
         ],
       }, fetchedAt: DateTime(2026, 8, 11));
       final p = coursePricesFrom(c);

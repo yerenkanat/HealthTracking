@@ -112,7 +112,7 @@ class CoursePrices {
 const coursePrices = CoursePrices(
   watchMinor: 2490000, // 24 900 ₸
   trackerMinor: 490000, //  4 900 ₸
-  courseOnlyMinor: 4000000, // 40 000 ₸
+  courseOnlyMinor: 9900000, // 99 000 ₸
   bundleMinor: 3900000, // 39 000 ₸
 );
 

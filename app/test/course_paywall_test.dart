@@ -100,7 +100,7 @@ void main() {
       );
       // And matches what the landing page publishes.
       expect(formatTenge(coursePrices.separatelyMinor),
-          formatTenge(6980000));
+          formatTenge(12880000));
       expect(formatTenge(coursePrices.bundleMinor), formatTenge(3900000));
     });
   });
@@ -223,7 +223,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // «карточка цены (39 000 ₸ / 69 800 ₸)» against the LIVE catalogue
+  // «карточка цены (39 000 ₸ / 128 800 ₸)» against the LIVE catalogue
   // -------------------------------------------------------------------------
 
   group('the price card reads the shop, not the build', () {
@@ -232,7 +232,7 @@ void main() {
       await pump(tester, access: _offer, catalogue: _live([_bundle(4450000)]));
       expect(find.text(formatTenge(4450000)), findsOneWidget);
       expect(find.text(formatTenge(coursePrices.bundleMinor)), findsNothing);
-      // «69 800 ₸» moves with it: 24 900 + 4 900 + 40 000 is unchanged, so the
+      // «128 800 ₸» moves with it: 24 900 + 4 900 + 99 000 is unchanged, so the
       // comparison row still stands.
       expect(find.text(formatTenge(coursePrices.separatelyMinor)),
           findsOneWidget);
@@ -258,9 +258,9 @@ void main() {
 
     testWidgets('hides «отдельно» rather than printing a negative saving',
         (tester) async {
-      // A struck-through 69 800 ₸ ABOVE a 99 000 ₸ set reads as a con.
-      await pump(tester, access: _offer, catalogue: _live([_bundle(9900000)]));
-      expect(find.text(formatTenge(9900000)), findsOneWidget);
+      // A struck-through 128 800 ₸ ABOVE a 139 000 ₸ set reads as a con.
+      await pump(tester, access: _offer, catalogue: _live([_bundle(13900000)]));
+      expect(find.text(formatTenge(13900000)), findsOneWidget);
       expect(find.text(l.t('crs_separate_name')), findsNothing);
       expect(find.text(formatTenge(coursePrices.separatelyMinor)), findsNothing);
     });
