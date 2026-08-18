@@ -1,0 +1,20 @@
+# The admin panel is ONE 840 KB file and it is LF.
+#
+# This repo is developed on Windows with core.autocrlf=true, and until now
+# nothing pinned this file's line endings. So an ordinary `git checkout --
+# packages/admin/index.html` — the reflex for undoing an edit — rewrote all
+# 13 838 line endings to CRLF and grew the file by ~7 KB. It has happened at
+# least twice, and the second time it silently destroyed an agent's work
+# during a revert probe: the file "looked unmodified" while being a different
+# 864 432 bytes.
+#
+# The damage is quiet because nothing fails. The panel still parses, the tests
+# still pass, and the diff is the entire file — which is unreviewable, so a
+# real change hiding inside it would not be seen.
+#
+# Deliberately narrow. This pins the one file that has demonstrably been
+# corrupted rather than declaring a line-ending policy for the whole tree:
+# app/lib/l10n/l10n.dart is CRLF on purpose and several tests assert it, so a
+# blanket `* text=auto` here would be a much larger and riskier change than
+# the problem warrants.
+packages/admin/index.html text eol=lf
