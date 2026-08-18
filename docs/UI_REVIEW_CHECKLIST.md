@@ -84,6 +84,29 @@ the issue fixed, before saying a screen is done.
 - [ ] Capped lists drop the right thing. The 50-alert feed trimmed purely by
       age, so routine zone crossings silently erased older SOS alerts. If a
       list has a cap, ask what the most important entry in it is.
+- [ ] **A shape cannot be qualified — an aggregate must show its coverage, not
+      just its verdict.** A ring, a bar, a percentage or a score computed over a
+      FILTERED pool must say how much of the whole it speaks for; the sentence
+      beside it is not enough, because the shape is read first and read alone.
+      _Two releases came from one line._ The dashboard's peace ring was
+      `withData == 0 ? 1.0 : healthy / withData`: with nothing gradeable it drew
+      a complete, reassuring circle out of an ABSENCE, and once that was fixed
+      it went on drawing the same complete circle from **two cards of four**,
+      because every card the clinical gates refused was `continue`d out of the
+      numerator and the denominator together. Ask of any aggregate: what is in
+      the denominator, what silently left it, and does the picture change when
+      something does? The answers now live in `domain/peace_ring.dart` and
+      `test/peace_ring_coverage_test.dart`.
+- [ ] **«Not assessed» is a state, and it looks like neither of the other two.**
+      Ungraded is not healthy and it is not a warning; `MetricStatus.ungraded`
+      draws it in body ink on the tiles and the ring dashes it in the same ink.
+      It is deliberately NOT the dim ink that means stale — «old» is a different
+      claim from «not judged», and a reading two minutes fresh must not be told
+      it is old.
+- [ ] **A golden blesses whatever you draw.** `home_dashboard.png` was a
+      photograph of the full-ring defect and passed for a month. When a golden
+      changes, look at the image and say in the commit why the NEW one is right;
+      when one does not change and you expected it to, that is a finding.
 
 ## 6. Localisation
 - [ ] Every user-facing string goes through l10n (ru/kk/en) — no baked-in language.

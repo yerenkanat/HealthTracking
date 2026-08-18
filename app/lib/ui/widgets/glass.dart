@@ -63,6 +63,33 @@ class MetricRing extends StatelessWidget {
   /// screen, by a frightened reader. The words that explain it belong to the
   /// caller, in the semantics tree as well as in paint.
   final double? fraction;
+
+  /// How much of the circle the [fraction] was computed over, 0..1 — or NULL
+  /// when the ring is not a coverage ring (the water goal, the kick count:
+  /// those have one denominator and it is never in doubt).
+  ///
+  /// THE SECOND HALF OF THE SAME RULING. Making the fraction nullable stopped
+  /// the ring claiming a verdict on a day with NO gradeable metric; it did
+  /// nothing about the day with SOME. `healthy / withData` over a pool the
+  /// caller had already thinned still drew a complete circle from two cards of
+  /// four — the everyday state of a band user, because a wrist temperature and
+  /// a wrist blood pressure may not be graded at all. A ring computed from two
+  /// of four and drawn as if from four is the same false completeness, one step
+  /// milder and shipped far more often.
+  ///
+  /// So the share below 1.0 is painted as NOT ASSESSED — a dashed arc in
+  /// ordinary ink — and the accent can only close the circle when everything
+  /// was assessed. Ink and not [Palette.textDim] on the tiles' precedent:
+  /// `MetricStatus.ungraded` renders in body ink exactly because dim ink is the
+  /// STALE appearance, and «old» is a different claim from «not judged». Dashes
+  /// and not a second colour: a solid second accent would be a verdict, and
+  /// this is the absence of one.
+  ///
+  /// 0.0 dashes the whole circle. That is deliberately NOT the same picture as
+  /// `fraction: 0.0`, which is every card assessed and every card concerning —
+  /// before this the two drew an identical empty ring and differed only by the
+  /// colour of the badge in the middle.
+  final double? assessed;
   final Color color;
   final double size;
   final double stroke;
@@ -71,6 +98,7 @@ class MetricRing extends StatelessWidget {
     super.key,
     required this.fraction,
     required this.color,
+    this.assessed,
     this.size = 120,
     this.stroke = 10,
     this.center,
@@ -83,7 +111,8 @@ class MetricRing extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _RingPainter(f?.clamp(0.0, 1.0), color, stroke),
+        painter: _RingPainter(
+            f?.clamp(0.0, 1.0), color, stroke, assessed?.clamp(0.0, 1.0)),
         child: Center(child: center),
       ),
     );
@@ -95,7 +124,15 @@ class _RingPainter extends CustomPainter {
   final double? fraction;
   final Color color;
   final double stroke;
-  _RingPainter(this.fraction, this.color, this.stroke);
+
+  /// Null = the whole circle is assessed, which is what every ring that is not
+  /// a health verdict wants. See [MetricRing.assessed].
+  final double? assessed;
+  _RingPainter(this.fraction, this.color, this.stroke, this.assessed);
+
+  /// The arc starts at twelve o'clock and runs clockwise, so the assessed share
+  /// is measured from there and whatever is left over is the not-assessed one.
+  static const _twelve = -math.pi / 2;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -109,9 +146,18 @@ class _RingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, radius, track);
 
-    // Nothing to grade → the empty track and nothing else. Returning before the
-    // arc is what makes "no data" unpaintable as a reassurance: there is no
-    // fraction to round up, and no accent on screen to read a verdict off.
+    // The share of the circle nothing may be claimed about, drawn before the
+    // accent so a rounded arc cap laps over the first dash rather than under
+    // it.
+    final cover = assessed;
+    if (cover != null && cover < 1) {
+      _dashes(canvas, center, radius, _twelve + 2 * math.pi * cover,
+          2 * math.pi * (1 - cover));
+    }
+
+    // Nothing to grade → the track, the dashes, and no arc. Returning before
+    // the accent is what makes "no data" unpaintable as a reassurance: there is
+    // no fraction to round up, and no accent on screen to read a verdict off.
     final f = fraction;
     if (f == null) return;
 
@@ -123,16 +169,45 @@ class _RingPainter extends CustomPainter {
       ..color = color;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      2 * math.pi * f,
+      _twelve,
+      // Over the assessed share of the circle, not over the whole of it: the
+      // arithmetic that made a partial pool look complete was doing exactly
+      // this multiplication with `cover` silently equal to 1.
+      2 * math.pi * f * (cover ?? 1),
       false,
       arc,
     );
   }
 
+  /// «Not assessed», as a texture rather than a colour.
+  ///
+  /// A dash roughly every 9dp of circumference: short enough to read as broken
+  /// at the 74dp the peace ring is drawn at, long enough not to turn into a
+  /// grey haze on a low-density screen. Butt caps, because a round cap on a
+  /// 4dp dash is a dot.
+  void _dashes(
+      Canvas canvas, Offset center, double radius, double from, double sweep) {
+    if (radius <= 0 || sweep <= 0) return;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt
+      // Body ink, the colour this app uses when it is NOT judging — the same
+      // reasoning as `MetricStatus.ungraded` on the tiles, which is deliberately
+      // not the dim ink that means stale.
+      ..color = Palette.text;
+    final dash = 5 / radius, gap = 4 / radius;
+    for (var a = from; a < from + sweep; a += dash + gap) {
+      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), a,
+          math.min(dash, from + sweep - a), false, paint);
+    }
+  }
+
   @override
   bool shouldRepaint(_RingPainter old) =>
-      old.fraction != fraction || old.color != color;
+      old.fraction != fraction ||
+      old.color != color ||
+      old.assessed != assessed;
 }
 
 /// A status pill: the accent at a light tint, outlined in ink.

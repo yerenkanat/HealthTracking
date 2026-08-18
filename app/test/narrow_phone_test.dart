@@ -1634,6 +1634,49 @@ void main() {
       );
     });
 
+    /// The peace ring's PARTIAL sentence, in Kazakh, at 320dp and 130%.
+    ///
+    /// «Барлық көрсеткіш ескерілмеді: 4 ішінен 2.» is the everyday state of a
+    /// band user — a wrist temperature and a wrist blood pressure carry no
+    /// grade — and it sits in a column 74dp of ring narrower than the card, in
+    /// the language that runs longest, under a headline that wraps. It is the
+    /// tightest place any new string on this screen can land.
+    ///
+    /// The readings are pinned CURRENT against `nowForAppointment`: left stale
+    /// they fall to `db_ring_ungraded` and this test would measure a different,
+    /// shorter sentence while claiming to measure this one.
+    testWidgets('the partial-ring sentence fits in Kazakh', (tester) async {
+      final now = DateTime.utc(2026, 7, 15, 9);
+      await fits(
+        tester,
+        () => HealthDashboardView(
+          samples: [
+            for (var i = 0; i < 6; i++)
+              HealthSample(
+                at: now.subtract(Duration(minutes: i * 2)),
+                heartRate: 72,
+                spo2: 98,
+                coreTemp: 36.6,
+                source: ReadingSource.sensor,
+              ),
+          ],
+          nowForAppointment: now,
+          greetingName: 'Айгерім-Гүлнұр',
+          currentLocale: AppLocale.kk,
+        ),
+        'the dashboard with a partial ring (kk)',
+        locale: AppLocale.kk,
+        width: kTinyWidth,
+        textScale: 1.3,
+      );
+      // …and it is the sentence this test is named for that was on the screen.
+      expect(
+        find.text(const L10n(AppLocale.kk)
+            .t('db_ring_partial', {'n': 2, 'total': 4})),
+        findsOneWidget,
+      );
+    });
+
     /// The child map carrying screen 15a's labelled tools control.
     ///
     /// It is a full-width row over the map, above the check-in / история дня /

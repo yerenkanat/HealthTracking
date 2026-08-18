@@ -233,7 +233,7 @@ Every surface that answers "is anything wrong?" is an absorber:
 |---|---|
 | `ADV_ALL_STEADY` fallback | refused — see #21 |
 | Dashboard peace banner headline + sub | refused — #2 was live here |
-| Ring "healthy fraction" | device BP counted as healthy — refused, #23 |
+| Ring "healthy fraction" | device BP counted as healthy — refused, #23. **Coverage closed 2026-08-18** — see "A shape cannot be qualified" below |
 | Tile grade / colour / out-of-range label | **closed 2026-08-17** — see "Green is a claim" below |
 | Clipboard summary | BP row refused; titles rule #24 |
 | Visit summary | **already correct — the model for the rest** |
@@ -330,6 +330,8 @@ standing to be read later as still in force.
 4. **The BP and temperature tiles are permanently ungraded**, so the peace ring
    is now a two-metric ring — heart rate and SpO2. That is the safe direction,
    and nobody may later "fix" it by letting a device BP count as healthy (#23).
+   **What it also did, and was not noticed for a month:** a two-metric ring that
+   still drew itself as a whole one. See below.
 5. **The doctor-facing visit summary contains only wrist estimates**, since its
    BP and temperature rows filter on provenance.
 6. **The confirmation-repeat card lost its destination.** `repeat_body` promised
@@ -605,6 +607,67 @@ loudest colour it owns. It is dim ink now, on both the banner and the advisor
 screen, and `ADV_NO_CURRENT_READINGS` does not get the hourglass — nothing is on
 its way to a woman whose band is in a drawer. No check mark and no warning
 triangle either: it is neither.
+
+## A shape cannot be qualified — the ring's coverage, CLOSED 2026-08-18
+
+A **design** ruling, made by the designer, on TODO §2.2. The clinical content of
+the ring is unchanged: nothing here lets a wrist estimate become healthy, and
+nothing here removes a warning.
+
+**The reported defect** was `withData == 0 ? 1.0 : healthy / withData` — a
+complete green circle on a day when NOTHING could be graded. It was fixed in
+`6b24dce`: the fraction is nullable, null draws no arc, and `db_ring_ungraded`
+explains it in the paint and in the semantics tree.
+
+**The defect that was still live** is the same one a step milder, and it shipped
+every day rather than occasionally. `healthy / withData` divides by a pool the
+loop had already thinned: a card the gates refused was `continue`d, which took
+it out of the numerator AND the denominator, and the arc closed anyway. Point 4
+above states the arithmetic without naming its consequence — a band-only day has
+**two gradeable cards of four**, so the everyday state of this product was the
+complete circle of a day on which everything was checked and everything was
+fine. `goldens/home_dashboard.png` was a photograph of it, and passed for a
+month, because a golden blesses whatever it is shown.
+
+**Ruled:**
+
+1. **The pool is stated, never thinned.** `domain/peace_ring.dart` grades all
+   four cards of the grid — every one gets `healthy`, `concerning`, `ungraded`
+   or `missing`, and nothing leaves silently. Four CARDS, not the five entries
+   of `metricKeys`: the grid draws blood pressure as one card, and a denominator
+   the reader cannot check by counting her own screen is a number she has no way
+   to catch. It also stopped one instrument owning two thirds of a cuff day.
+2. **The arc spans the assessed share of the circle, and the rest is drawn as
+   not-assessed** — a dashed arc in `Palette.text`. Dashed rather than a second
+   colour, because a solid second accent would be a verdict and this is the
+   absence of one; ink rather than `Palette.textDim` on the tile's own
+   precedent, since dim ink means STALE and «old» is a different claim from «not
+   judged». The vocabulary is `MetricStatus.ungraded`'s, deliberately: one idea,
+   one appearance, on the same screen.
+3. **A closed circle now means what it looks like** — all four cards assessed
+   and all four healthy. A cuff reading and a thermometer reading still close
+   it, so nothing is achieved here by making the ring unfillable.
+4. **The partial day says so, in words**: `db_ring_partial`, «Учтены не все
+   показатели: 2 из 4.» It names a count the reader can verify against the cards
+   below and says nothing whatever about her body — no «недостаточно данных»,
+   which reads as a fault of hers, and no «всё в порядке по 2 из 4», which is
+   the reassurance this review exists to remove. The nothing-assessed day keeps
+   `db_ring_ungraded` and does NOT also get this one: «not everything was
+   counted» is false when nothing was.
+5. **A day with no readings at all draws no ring**, and that was already true —
+   `_PeaceOfMindBanner` renders only when `samples.isNotEmpty`. It is the right
+   answer and it is recorded here so nobody "completes" the states by adding an
+   empty banner: with no readings the screen owes her the stage hero and the
+   quick actions, not a grey circle.
+
+A side effect worth keeping: before this, **«I could assess nothing» and «I
+assessed everything and it is bad» drew the identical bare ring** and differed
+only by the colour of the badge in the middle. They no longer do.
+
+The Kazakh of `db_ring_partial` is a designer's draft and is **flagged for the
+language gate** — the construction «4 ішінен 2» was chosen to avoid the numeral
+possessive («2-уі» but «1-еуі»), which no placeholder can get right for both.
+The Russian and the English are settled.
 
 ## The verdict has one regression path, and it is open
 
