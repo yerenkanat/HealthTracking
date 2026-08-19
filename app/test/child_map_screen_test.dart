@@ -15,8 +15,8 @@ void main() {
   Widget harness({
     Coordinates? loc,
     DateTime? updated,
-    VoidCallback? onCheckIn,
-    VoidCallback? onSos,
+    Future<bool> Function()? onCheckIn,
+    Future<bool> Function()? onSos,
     int? batteryPct,
     List<BatteryReading> batteryHistory = const [],
     DateTime? zoneEnteredAt,
@@ -73,7 +73,7 @@ void main() {
 
   testWidgets('check-in fires immediately and confirms', (tester) async {
     var checkedIn = 0;
-    await tester.pumpWidget(harness(loc: home.center, updated: now, onCheckIn: () => checkedIn++, onSos: () {}));
+    await tester.pumpWidget(harness(loc: home.center, updated: now, onCheckIn: () async { checkedIn++; return true; }, onSos: () async => true));
     await tester.tap(find.text('Check in'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -83,7 +83,7 @@ void main() {
 
   testWidgets('SOS asks to confirm; cancel does nothing, confirm sends', (tester) async {
     var sos = 0;
-    await tester.pumpWidget(harness(loc: home.center, updated: now, onCheckIn: () {}, onSos: () => sos++));
+    await tester.pumpWidget(harness(loc: home.center, updated: now, onCheckIn: () async => true, onSos: () async { sos++; return true; }));
 
     await tester.tap(find.text('SOS'));
     await tester.pumpAndSettle();

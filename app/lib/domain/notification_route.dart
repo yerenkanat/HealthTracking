@@ -59,10 +59,14 @@ enum NotifyDestination {
   dashboard,
 }
 
-/// What a tapped MEDICAL emergency notification actually is: something
-/// happening NOW, a record of something that already finished, or a claim we
-/// cannot date.
-enum EmergencyTapAge {
+/// What a tapped notification actually is: something happening NOW, a record
+/// of something that already finished, or a claim we cannot date.
+///
+/// No longer "Emergency" in the name. There are two takeovers in this app — the
+/// mother's own medical emergency and her child's SOS — and they were asking
+/// the same question with only one of them allowed to ask it. The QUESTION is
+/// shared; the window it is asked against is not (see [sosTakeoverMaxAge]).
+enum TapAge {
   /// Recent enough that the takeover is still a true sentence in the present
   /// tense. Behaves exactly as this app always has.
   live,
@@ -89,9 +93,30 @@ enum EmergencyTapAge {
 /// mistake arriving through a different door, so it gets the same window.
 const emergencyTakeoverMaxAge = latestTelemetryMaxAge;
 
+/// How old a tapped SOS may be and still raise the red takeover.
+///
+/// Also NOT a new number. `AppController.mergeRemoteAlerts` has bounded the SOS
+/// takeover by thirty minutes since screen 21 existed — «long enough to cover
+/// an app that was closed when the button was pressed and short enough that a
+/// takeover always means сейчас» — and `AppController.sosTakeoverMaxAge` is now
+/// an alias of THIS. The number moved here because a takeover window is pure
+/// policy that a Flutter-free module has to be able to read, and because the
+/// constant directly above it is the same kind of decision.
+///
+/// WHY IT IS NOT [emergencyTakeoverMaxAge]. That question was asked. Copying
+/// the six-hour medical window here would have been the wrong kind of
+/// consistency: one SOS press already HAS a window, honoured on the sign-in
+/// path, so a second and longer one on the notification path would mean an
+/// alarm this app refuses to raise when it pulls the event from the server is
+/// raised by a tap on the notification about that same event. Two windows for
+/// one event is the defect. Two windows for two different events, each stated
+/// where it is decided, is not. What IS reused from the medical side is the
+/// decision SHAPE below — three outcomes, and undatable raises nothing.
+const sosTakeoverMaxAge = Duration(minutes: 30);
+
 /// Date a tapped emergency against [now].
 ///
-/// FAILS TOWARD [EmergencyTapAge.unknown], and unknown must never raise the
+/// FAILS TOWARD [TapAge.unknown], and unknown must never raise the
 /// takeover. A takeover is a sentence in the present tense — «seek emergency
 /// care now» — and we may only say it when we can prove the reading behind it
 /// is from the last few hours. Not being able to prove it is not permission to
@@ -100,16 +125,33 @@ const emergencyTakeoverMaxAge = latestTelemetryMaxAge;
 /// next real one is the third false alarm she has learned to dismiss.
 ///
 /// A timestamp a little ahead of us is ordinary phone-vs-server skew and stays
-/// [live] — `clockDisagrees` owns where that line is drawn, and this does not
-/// restate it.
-EmergencyTapAge emergencyTapAge(DateTime? at, DateTime now) {
-  if (at == null) return EmergencyTapAge.unknown;
+/// [TapAge.live] — `clockDisagrees` owns where that line is drawn, and this
+/// does not restate it.
+TapAge emergencyTapAge(DateTime? at, DateTime now) =>
+    _tapAge(at, now, emergencyTakeoverMaxAge);
+
+/// Date a tapped SOS against [now]: the same three outcomes, the same
+/// fail-toward-[TapAge.unknown] rule, asked against [sosTakeoverMaxAge].
+///
+/// `handleNotificationTap` used to call `raiseSosAlert` directly and ask no age
+/// question at all. The child presses SOS at 09:00; her mother sees it, reaches
+/// her, resolves it in person, and simply never swipes the notification away.
+/// At 21:00 she clears her tray and the app answers the tap with the full-red
+/// screen, a heavy haptic, an assertive announcement and `canPop: false` —
+/// about something that finished twelve hours earlier. That is precisely the
+/// alarm fatigue `e03f09d` removed from the mother's own emergency and left
+/// standing on her child's SOS.
+TapAge sosTapAge(DateTime? at, DateTime now) =>
+    _tapAge(at, now, sosTakeoverMaxAge);
+
+/// The shared question, so the two above cannot drift into disagreeing about
+/// what «cannot be dated» means.
+TapAge _tapAge(DateTime? at, DateTime now, Duration maxAge) {
+  if (at == null) return TapAge.unknown;
   final age = now.difference(at);
-  if (clockDisagrees(age)) return EmergencyTapAge.unknown;
+  if (clockDisagrees(age)) return TapAge.unknown;
   final a = age.isNegative ? Duration.zero : age;
-  return a <= emergencyTakeoverMaxAge
-      ? EmergencyTapAge.live
-      : EmergencyTapAge.past;
+  return a <= maxAge ? TapAge.live : TapAge.past;
 }
 
 /// The vitals series a triage code is about — where a PAST emergency is read
@@ -160,12 +202,20 @@ class NotifyTap {
   String get childName => (data['childName'] ?? '').trim();
 
   /// When it happened, as the SENDER recorded it. Null when absent or
-  /// unparseable; the SOS screen falls back to the moment it opened, and says
-  /// so.
+  /// unparseable.
   ///
-  /// For a medical emergency it is not decoration but the deciding field —
-  /// [emergencyTapAge] reads it to decide whether the takeover may be raised
-  /// at all — so null here means "we do not know", never "just now".
+  /// It is the deciding field for BOTH takeovers — [emergencyTapAge] and
+  /// [sosTapAge] read it — so null here means "we do not know", never "just
+  /// now", and neither may be raised on it.
+  ///
+  /// This comment used to promise that the SOS screen «falls back to the moment
+  /// it opened, and says so». It did not say so. `sos_alert_screen.dart` prints
+  /// «в {time} · {ago}» unconditionally, so a substituted `DateTime.now()`
+  /// rendered as «в 21:14 · только что» about a press twelve hours earlier —
+  /// an invented time, printed as if observed. The substitution is gone:
+  /// `handleNotificationTap` no longer builds an alert it cannot date. The
+  /// sentence was deleted rather than made true, because there is no honest
+  /// wording for a time we do not have.
   DateTime? get at => DateTime.tryParse(data['at'] ?? '')?.toLocal();
 
   /// The zone the child was in, if any. An SOS happens wherever she is, so this

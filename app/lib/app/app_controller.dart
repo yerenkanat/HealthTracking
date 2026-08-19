@@ -45,6 +45,10 @@ import '../domain/announcement.dart';
 import '../domain/geofence_alerts.dart';
 import '../domain/notification_centre.dart';
 import '../domain/notification_route.dart';
+// The same library again, prefixed, for one constant: `sosTakeoverMaxAge` is
+// also the name of the static field below that aliases it, and inside the class
+// body the bare name would resolve to that field.
+import '../domain/notification_route.dart' as notif;
 import '../domain/health_monitor.dart';
 import '../domain/health_series.dart';
 import '../domain/hydration.dart';
@@ -2539,6 +2543,10 @@ class AppController {
     if (online == _online) return;
     _online = online;
     _notify();
+    // Coming back up is one of the two moments an SOS this phone could not send
+    // can still reach the family. See [retryUndeliveredAlerts] for the age
+    // bound — it is not a general outbox and must not become one.
+    if (online) unawaited(retryUndeliveredAlerts());
   }
 
   // ---- Legal consent (privacy policy + terms) ----
@@ -3130,7 +3138,9 @@ class AppController {
   // ---- Child safety alerts (zone enter/exit history) ----
   /// Push-only sync for manual safety events (SOS, check-in). See
   /// [attachAlertSync].
-  Future<void> Function(SafetyAlert)? _onAlertUpsert;
+  /// Returns whether the SERVER took it — see [logChildEvent]. It was
+  /// `Future<void>`, which is why the SOS confirmation had nothing to check.
+  Future<bool> Function(SafetyAlert)? _onAlertUpsert;
   String? _lastChildZone;
   ZoneHysteresisState _zoneHysteresis = ZoneHysteresisState.idle;
   final List<SafetyAlert> _alerts = [];
@@ -3245,13 +3255,31 @@ class AppController {
   /// Record a manual child event (check-in or SOS) for the selected child. It
   /// lands at the top of the safety feed and, when notifications are on, is
   /// emitted for an OS notification — the same path geofence alerts take.
-  void logChildEvent(AlertKind kind) {
+  ///
+  /// **Returns whether the SERVER took it**, which is the whole point of the
+  /// signature change. This was `void`, called through a `VoidCallback?`, and
+  /// the send was `unawaited(...)` into `pushed()`, which stays silent for
+  /// anything that is not a 4xx. Offline, 5xx, a timeout and an expired session
+  /// were therefore all indistinguishable from success, and screen 12 printed
+  /// «Сигнал SOS отправлен» over every one of them. A mother in a basement car
+  /// park read that her SOS had gone while no relative was pushed and the
+  /// back-office safety feed had no row.
+  ///
+  /// False means it is on this phone ONLY: the feed row carries
+  /// `delivered: false` and the caller must say so instead of claiming a send.
+  /// It is retried by [retryUndeliveredAlerts] while the moment is still live,
+  /// but the answer to HER is decided here and now, not by a retry that may
+  /// never happen.
+  Future<bool> logChildEvent(AlertKind kind) async {
     final child = selectedChild;
     final alert = SafetyAlert(
       kind: kind,
       childName: child?.name ?? childName,
       zoneName: _lastChildZone ?? '',
       at: _now(),
+      // Not yet. This flips only on an answer from the server — never on
+      // having tried, which is the mistake being fixed.
+      delivered: false,
     );
     _alerts.insert(0, alert);
     _trimAlerts();
@@ -3262,13 +3290,72 @@ class AppController {
     // Screen 21. The button on the tracking screen used to record a row in a
     // feed and nothing else — no screen, no family, no number to call.
     if (kind == AlertKind.sos) raiseSosAlert(alert);
+    _persist();
+    _notify();
     // …and tell the server, which is what lets it notify the rest of the family
     // and what puts the alarm in the back-office safety feed. POST /alerts has
     // existed (and been tested) all along with no caller anywhere in the app,
     // so an SOS pressed on this phone reached nobody who was not holding it.
-    unawaited(_onAlertUpsert?.call(alert) ?? Future<void>.value());
+    return _deliverAlert(alert);
+  }
+
+  /// Push one manual event and record what came back. Never throws.
+  Future<bool> _deliverAlert(SafetyAlert alert) async {
+    final upsert = _onAlertUpsert;
+    // Signed out, or a build with no backend. Not an error, and not a send:
+    // «отправлено» would be exactly as false here as it is offline.
+    if (upsert == null) return false;
+    var ok = false;
+    try {
+      ok = await upsert(alert);
+    } catch (_) {
+      ok = false;
+    }
+    if (ok) _markDelivered(alert);
+    return ok;
+  }
+
+  /// Flip one feed row to delivered, by identity — the row may have been
+  /// trimmed or replaced while the request was in flight, and marking the wrong
+  /// one would put «отправлено» on an alarm that never went.
+  void _markDelivered(SafetyAlert alert) {
+    final i = _alerts.indexWhere((a) => identical(a, alert));
+    if (i < 0) return;
+    if (_alerts[i].delivered) return;
+    _alerts[i] = _alerts[i].copyWith(delivered: true);
     _persist();
     _notify();
+  }
+
+  // No `undeliveredAlerts` getter here on purpose. The state is read off the
+  // row itself — `alerts_screen.dart` marks each one «не отправлено» — and a
+  // second accessor that only tests ever called would be the same "finished and
+  // wired to nothing" defect, one layer down from the one being fixed.
+
+  /// Re-send what the server never took.
+  ///
+  /// Called when connectivity returns ([setOnline]) and when a session attaches
+  /// a sync ([attachAlertSync]) — the two moments at which a failed push can
+  /// suddenly succeed. Both are the real reasons it failed: she was in the car
+  /// park, or she was signed out.
+  ///
+  /// BOUNDED BY [sosTakeoverMaxAge], and that bound is the difference between a
+  /// retry and a second defect. `main.dart` records why there is no first-sync
+  /// replay of the feed — «re-posting a month of old SOS presses would re-alarm
+  /// everybody the moment somebody signs in on a new phone» — and a retry queue
+  /// with no age limit is that same replay wearing a different hat: the fan-out
+  /// runs, every relative's phone screams, about a child who came home hours
+  /// ago. Inside the window the event is still «сейчас» and the fan-out is
+  /// still worth having; outside it the row stays marked «не отправлено», which
+  /// is true, and nobody is woken about it.
+  Future<void> retryUndeliveredAlerts() async {
+    if (_onAlertUpsert == null) return;
+    final now = _now();
+    for (final a in [..._alerts]) {
+      if (a.delivered) continue;
+      if (now.difference(a.at) > sosTakeoverMaxAge) continue;
+      await _deliverAlert(a);
+    }
   }
 
   /// Wire backend sync for manual safety events (called by main.dart on sign-in).
@@ -3277,8 +3364,14 @@ class AppController {
   /// check-in. Zone crossings are deliberately not pushed: the server derives
   /// its own from the tracker's fixes (see ingestHandler), and sending ours too
   /// would double every arrival in the safety feed.
-  void attachAlertSync({required Future<void> Function(SafetyAlert) upsert}) {
+  ///
+  /// [upsert] returns whether the server TOOK it. A `Future<void>` here is what
+  /// made a failure unreportable all the way up to the snackbar.
+  void attachAlertSync({required Future<bool> Function(SafetyAlert) upsert}) {
     _onAlertUpsert = upsert;
+    // An SOS pressed while signed out now has somewhere to go. Signing in is
+    // one of exactly two moments a stuck push can start working.
+    unawaited(retryUndeliveredAlerts());
   }
 
   /// Each newly generated alert (for the runtime to raise an OS notification).
@@ -3514,7 +3607,14 @@ class AppController {
   /// weeks ago. Thirty minutes is long enough to cover an app that was closed
   /// when the button was pressed and short enough that a takeover always means
   /// «сейчас».
-  static const sosTakeoverMaxAge = Duration(minutes: 30);
+  ///
+  /// The number itself now lives in `notification_route.dart` next to the
+  /// medical takeover's window, because `handleNotificationTap` — which is
+  /// Flutter-free by design and cannot see this class — has to ask the same
+  /// question. It asked no question at all until this alias existed, so a tap
+  /// on a twelve-hour-old SOS notification raised the same full-red screen this
+  /// constant was written to prevent on the sign-in path.
+  static const sosTakeoverMaxAge = notif.sosTakeoverMaxAge;
 
   /// Raise the SOS takeover for [alert].
   ///
@@ -3522,16 +3622,26 @@ class AppController {
   /// ([logChildEvent]), one the server had that this phone did not
   /// ([mergeRemoteAlerts]), and a tapped SOS notification (main.dart). One
   /// entry point, so a future fourth source cannot quietly not show it.
-  void raiseSosAlert(SafetyAlert alert) {
+  ///
+  /// [coords]/[coordsAt] are a position the CALLER knows and this phone does
+  /// not poll — today, the `lat`/`lng` the server puts in the SOS push. The
+  /// server has sent them all along with a comment saying the app reads them
+  /// back; the app did parse them, and then dropped them on the floor, so a
+  /// mother tracking her elder child tapped her younger child's SOS and screen
+  /// 21 told her «Приложение не получало координат — где она сейчас, оно не
+  /// знает.» That sentence was false: the position was in the payload she had
+  /// just tapped.
+  void raiseSosAlert(SafetyAlert alert, {Coordinates? coords, DateTime? coordsAt}) {
     if (alert.kind != AlertKind.sos) return;
-    _sos = _sosViewFor(alert);
+    _sos = _sosViewFor(alert, coords: coords, coordsAt: coordsAt);
     _notify();
   }
 
   /// Assemble what the screen may say. See [SosAlertView] — every field this
   /// phone cannot answer is left empty rather than filled with a plausible
   /// guess.
-  SosAlertView _sosViewFor(SafetyAlert alert) {
+  SosAlertView _sosViewFor(SafetyAlert alert,
+      {Coordinates? coords, DateTime? coordsAt}) {
     // The alert feed carries the child's NAME, not their id (it is what the
     // notification and the server row both carry), so the medical-ID card has
     // to be found by name. No match means a child this install does not have:
@@ -3553,12 +3663,28 @@ class AppController {
     final fix = (child != null && child.id == selectedChild?.id)
         ? _childLocation
         : null;
+    // Two candidates, and the rule between them is "whichever we can prove is
+    // newer", never "whichever is more convenient".
+    //
+    // The polled fix is about the SELECTED child; the notification's position
+    // is about the child THIS ALERT names, which is the case the whole change
+    // exists for — she is tracking her elder, the younger presses SOS, and this
+    // is the only position anything on the phone has for the younger. When both
+    // exist and both are dated, the newer one wins. When the notification's is
+    // undated we cannot show it is newer, so a dated fix keeps the card.
+    Coordinates? pos = fix?.coords;
+    DateTime? posAt = fix?.at;
+    if (coords != null &&
+        (fix == null || (coordsAt != null && coordsAt.isAfter(fix.at)))) {
+      pos = coords;
+      posAt = coordsAt;
+    }
     return SosAlertView(
       childName: child?.name ?? '',
       at: alert.at,
       zoneName: alert.zoneName,
-      coords: fix?.coords,
-      coordsAt: fix?.at,
+      coords: pos,
+      coordsAt: posAt,
       contactName: info.contactName.trim(),
       contactPhone: info.contactPhone.trim(),
     );

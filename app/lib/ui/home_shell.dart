@@ -353,6 +353,9 @@ class _HomeShellState extends State<HomeShell> {
         zoneEnteredAt: zoneEnteredAt,
         lastCheckInAt: lastCheckIn(c.alerts, c.childName),
         onCheckIn: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.checkIn),
+        // Returns whether the server took it, so the confirmation can say
+        // which of the two happened. This used to be a VoidCallback and the
+        // screen announced a send it had no way to check.
         onSos: c.selectedChild == null ? null : () => c.logChildEvent(AlertKind.sos),
         // Screen 47. Needs a child AND a server — the trail lives only on the
         // server, so offline the button is absent rather than opening a screen

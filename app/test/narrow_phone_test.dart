@@ -350,8 +350,8 @@ void main() {
         batteryHistory: const <BatteryReading>[],
         zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
         lastCheckInAt: now.subtract(const Duration(hours: 2)),
-        onCheckIn: () {},
-        onSos: () {},
+        onCheckIn: () async => true,
+        onSos: () async => true,
       ),
       'the child map',
     );
@@ -384,8 +384,8 @@ void main() {
         batteryPct: 68,
         zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
         lastCheckInAt: now.subtract(const Duration(hours: 2)),
-        onCheckIn: () {},
-        onSos: () {},
+        onCheckIn: () async => true,
+        onSos: () async => true,
         onDayHistory: () {},
       ),
       'the child map with every action',
@@ -1439,14 +1439,11 @@ void main() {
     );
   });
 
-  testWidgets('the cry failure message fits at 320dp / 130% in Kazakh',
+  testWidgets('the cry «не отправилось» message fits at 320dp / 130% in Kazakh',
       (tester) async {
-    // The state a mother actually reaches today: there is no trained model.pkl
-    // (docs/INTEGRATION_STATUS.md), so the classifier answers 503 and the proxy
-    // turns it into 502. That makes `cry_error` the most-seen string on this
-    // screen, and it is three clauses long — the narrowest phone, the largest
-    // text and the longest language is where it breaks first, and this sweep
-    // had never driven the screen into the failure phase at all.
+    // Nothing reached the analyser. Three clauses long, and the narrowest
+    // phone at the largest text in the longest language is where it breaks
+    // first — this sweep had never driven the screen into a failure phase.
     const l = L10n(AppLocale.kk);
     await fits(
       tester,
@@ -1454,7 +1451,7 @@ void main() {
         recorder: _StubRecorder(),
         client: _failingCryClient(),
       ),
-      'the cry failure message',
+      'the cry not-sent message',
       locale: AppLocale.kk,
       textScale: 1.3,
       width: 320,
@@ -1465,8 +1462,34 @@ void main() {
         await t.pumpAndSettle();
         // Measuring the idle screen and calling it "the failure message fits"
         // is the failure mode this whole file exists to stop.
-        expect(find.text(l.t('cry_error')), findsOneWidget,
-            reason: 'the screen never reached the failure state');
+        expect(find.text(l.t('cry_not_sent')), findsOneWidget,
+            reason: 'the screen never reached the not-sent state');
+      },
+    );
+  });
+
+  testWidgets('the «service unavailable» card fits at 320dp / 130% in Kazakh',
+      (tester) async {
+    // The state a mother actually reaches today: there is no trained
+    // model.pkl (docs/INTEGRATION_STATUS.md), the classifier answers 503,
+    // and the screen now says so instead of inviting another recording. It
+    // is the widest thing on this screen — two paragraphs plus a chip.
+    const l = L10n(AppLocale.kk);
+    await fits(
+      tester,
+      () => CryInsightScreen(
+        recorder: _StubRecorder(),
+        client: _unavailableCryClient(),
+      ),
+      'the cry service-unavailable card',
+      locale: AppLocale.kk,
+      textScale: 1.3,
+      width: 320,
+      afterPump: (t) async {
+        await t.pumpAndSettle();
+        expect(find.text(l.t('cry_unavailable')), findsOneWidget,
+            reason: 'the screen never reached the unavailable state');
+        expect(find.text(l.t('cry_recheck')), findsOneWidget);
       },
     );
   });
@@ -1572,8 +1595,8 @@ void main() {
           batteryHistory: const <BatteryReading>[],
           zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
           lastCheckInAt: now.subtract(const Duration(hours: 2)),
-          onCheckIn: () {},
-          onSos: () {},
+          onCheckIn: () async => true,
+          onSos: () async => true,
         ),
         'the child map',
         textScale: 1.3,
@@ -1832,8 +1855,8 @@ void main() {
           batteryPct: 68,
           zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
           lastCheckInAt: now.subtract(const Duration(hours: 2)),
-          onCheckIn: () {},
-          onSos: () {},
+          onCheckIn: () async => true,
+          onSos: () async => true,
           onDayHistory: () {},
         ),
         'the child map with the tools control (kk)',
@@ -1945,13 +1968,34 @@ CryClassifierClient _stubCryClient() => CryClassifierClient(
       authToken: () async => 'tok',
       uploader: (url, bytes, name, headers) async =>
           '{"reason":"discomfort","confidence":0.74}',
+      // The availability probe the screen fires before it opens a microphone.
+      // Answered explicitly so this test drives a KNOWN state rather than
+      // whatever flutter_test's HTTP stub happens to return.
+      prober: (url, headers) async => (status: 200, body: '{"available":true}'),
     );
 
-/// What production answers today: the classifier has no model, so the proxy
-/// returns 502 and the client raises. Drives the screen into `_Phase.error`.
+/// Nothing reached the analyser — no signal, a dropped connection, a 502.
+/// Drives the screen into `_Phase.notSent`.
 CryClassifierClient _failingCryClient() => CryClassifierClient(
       baseUrl: Uri.parse('http://stub.local'),
       authToken: () async => 'tok',
       uploader: (url, bytes, name, headers) async =>
-          throw const CryClassifierException('HTTP 502'),
+          throw const CryClassifierException('HTTP 502',
+              failure: CryFailure.unreachable),
+      // The availability probe the screen fires before it opens a microphone.
+      // Answered explicitly so this test drives a KNOWN state rather than
+      // whatever flutter_test's HTTP stub happens to return.
+      prober: (url, headers) async => (status: 200, body: '{"available":true}'),
+    );
+
+/// What production answers TODAY: no trained model.pkl, so the classifier
+/// answers 503, the proxy preserves it, and the probe says so before the
+/// microphone ever opens. Drives the screen into `_Phase.unavailable`.
+CryClassifierClient _unavailableCryClient() => CryClassifierClient(
+      baseUrl: Uri.parse('http://stub.local'),
+      authToken: () async => 'tok',
+      uploader: (url, bytes, name, headers) async =>
+          throw const CryClassifierException('HTTP 503',
+              failure: CryFailure.unavailable),
+      prober: (url, headers) async => (status: 200, body: '{"available":false}'),
     );

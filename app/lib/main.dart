@@ -406,28 +406,76 @@ void _seedDemo(AppController c) {
 void handleNotificationTap(AppController controller, String? payload) {
   final tap = parseNotificationPayload(payload);
   if (tap.destination == NotifyDestination.sos) {
-    // Screen 21, over everything. The alert goes through mergeRemoteAlerts so
-    // it also lands on the safety feed — deduplicated against the one this
-    // phone may already have recorded — and that is what raises the takeover.
-    controller.mergeRemoteAlerts([
-      SafetyAlert(
-        kind: AlertKind.sos,
-        // Empty when the push did not name a child; the screen has wording for
-        // that, and inventing one here is the one thing it must not do.
-        childName: tap.childName,
-        zoneName: tap.zoneName,
-        at: tap.at ?? DateTime.now(),
-      ),
-    ]);
-    // A merge that deduplicated against an alert already in the feed adds
-    // nothing and therefore raises nothing — so ask directly as well. Tapping
-    // an SOS notification must open screen 21 every time, not only the first.
-    controller.raiseSosAlert(SafetyAlert(
-      kind: AlertKind.sos,
-      childName: tap.childName,
-      zoneName: tap.zoneName,
-      at: tap.at ?? DateTime.now(),
-    ));
+    final at = tap.at;
+    // WHEN — the question this branch never asked, and the same one `e03f09d`
+    // added to the medical emergency two lines below while leaving the child's
+    // SOS raising the full-red takeover at any age. She resolves an SOS at
+    // 09:00 in person, clears her tray at 21:00, and the app answers with red,
+    // a heavy haptic, an assertive announcement and `canPop: false`.
+    //
+    // The window is `sosTakeoverMaxAge` — the app's OWN answer for this event,
+    // already honoured by mergeRemoteAlerts — not the six-hour medical one. See
+    // notification_route.dart for why the two differ.
+    final age = sosTapAge(at, controller.now);
+
+    // The position the push carried, if it carried one. The server has been
+    // sending lat/lng in the SOS data block all along; NotifyTap parsed them
+    // and nothing in the app read the result, so the screen said it had no
+    // coordinates while holding them.
+    final c = tap.coords;
+    final pushCoords = c == null ? null : Coordinates(c.lat, c.lng);
+
+    if (at != null) {
+      // The feed row, dated by the SENDER. Only when we have a real timestamp:
+      // substituting `DateTime.now()` here is how a press at 09:00 was listed —
+      // and printed on screen 21 — as «в 21:14 · только что». Every SOS push
+      // this app and this server compose carries `at`, so the drop is a
+      // malformed payload, not a case with a right answer.
+      //
+      // mergeRemoteAlerts deduplicates against what this phone already had, and
+      // raises the takeover itself if the alert is fresh.
+      controller.mergeRemoteAlerts([
+        SafetyAlert(
+          kind: AlertKind.sos,
+          // Empty when the push did not name a child; the screen has wording
+          // for that, and inventing one here is the one thing it must not do.
+          childName: tap.childName,
+          zoneName: tap.zoneName,
+          at: at,
+        ),
+      ]);
+    }
+
+    if (age == TapAge.live) {
+      // A merge that deduplicated against an alert already in the feed adds
+      // nothing and therefore raises nothing — so ask directly as well. Tapping
+      // a LIVE SOS notification must open screen 21 every time, not only the
+      // first. This second call is also the only one that can carry the pushed
+      // position: the feed row has no room for coordinates.
+      controller.raiseSosAlert(
+        SafetyAlert(
+          kind: AlertKind.sos,
+          childName: tap.childName,
+          zoneName: tap.zoneName,
+          at: at!,
+        ),
+        coords: pushCoords,
+        // The position is as of the moment the push was composed, which is the
+        // moment of the press. Dating it with anything else would be inventing
+        // a freshness — and the card prints that age.
+        coordsAt: pushCoords == null ? null : at,
+      );
+      return;
+    }
+
+    // Over, or undatable — and they share an answer for the same reason the
+    // medical branch gives: we may only say «сейчас» when we can show it is
+    // сейчас, and not knowing is not permission to assume. So no takeover, and
+    // instead the notification centre, where this event is a dated line in the
+    // safety feed she can read at her own pace. For the undatable case that
+    // feed is also where the server's own copy of the alert lands, carrying the
+    // real time this payload did not.
+    controller.requestDestination(NotifyDestination.notificationCentre);
     return;
   }
   if (tap.destination == NotifyDestination.emergency) {
@@ -442,7 +490,7 @@ void handleNotificationTap(AppController controller, String? payload) {
     // alarm-fatigue failure emergency_confirmation.dart exists to prevent,
     // reintroduced at the last step of the chain.
     switch (emergencyTapAge(tap.at, controller.now)) {
-      case EmergencyTapAge.live:
+      case TapAge.live:
         // Untouched. The code travels in the payload, so the app localizes it
         // exactly as it does an on-device one rather than showing whatever
         // language the server composed in.
@@ -451,8 +499,8 @@ void handleNotificationTap(AppController controller, String? payload) {
           const [],
           code: tap.code,
         );
-      case EmergencyTapAge.past:
-      case EmergencyTapAge.unknown:
+      case TapAge.past:
+      case TapAge.unknown:
         // Over, or undatable — and the two share an answer on purpose. We may
         // only say "now" when we can show it is now; not knowing is not
         // permission to assume. So: no takeover, and instead the reading in
@@ -878,8 +926,22 @@ Future<void> bootstrapRuntime(
       controller.attachAlertSync(upsert: (alert) async {
         final match = controller.children
             .where((ch) => ch.name.isNotEmpty && ch.name == alert.childName);
-        if (match.isEmpty) return;
-        await pushed(
+        if (match.isEmpty) {
+          // This used to `return;` — a bare, silent drop, on the one sync that
+          // is not a backup. The request was never attempted, nothing was
+          // logged, and the screen still said «Сигнал SOS отправлен». Now it
+          // returns FALSE, so the caller marks the row undelivered and tells
+          // her, and it says why where support can read it.
+          controller.errorLog.add(
+            source: AppErrorSource.app,
+            error: 'safety alert not sent: no child on this phone is named '
+                '"${alert.childName}", and /alerts is keyed on the child id. '
+                'The event is recorded locally only.',
+            at: DateTime.now(),
+          );
+          return false;
+        }
+        return pushed(
           'safety alert',
           () => api.postAlert(
             childId: match.first.id,

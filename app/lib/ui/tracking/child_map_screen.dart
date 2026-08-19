@@ -55,8 +55,23 @@ class ChildMapScreen extends StatelessWidget {
   final List<BatteryReading> batteryHistory; // recent readings, oldest-first
   final DateTime? zoneEnteredAt; // when the child entered their current zone
   final DateTime? lastCheckInAt; // when the child last checked in
-  final VoidCallback? onCheckIn; // manual "arrived / all good" event
-  final VoidCallback? onSos; // manual emergency signal (confirmed first)
+  /// Manual "arrived / all good" event. Returns whether the SERVER took it —
+  /// same reason as [onSos], one notch down in stakes: the feed row now marks
+  /// an undelivered check-in «не отправлено», so a snackbar that says
+  /// «Отметка отправлена» regardless would contradict the row it just wrote.
+  final Future<bool> Function()? onCheckIn;
+
+  /// Manual emergency signal (confirmed first).
+  ///
+  /// **Returns whether the SERVER took it.** It was a `VoidCallback?`, and that
+  /// type is the defect: it structurally cannot report a failure, so this
+  /// screen printed «Сигнал SOS отправлен» after calling it and had nothing to
+  /// check. Underneath, `pushed()` stays silent for anything that is not a 4xx
+  /// — offline, 5xx, timeout, expired session — and there is deliberately no
+  /// replay, so nothing retried and nothing ever told her. She reads that her
+  /// SOS was sent while no relative is pushed and the back-office safety feed
+  /// has no row.
+  final Future<bool> Function()? onSos;
   /// Opens screen 47, «История дня». Null where nothing can load a trail —
   /// the row then shows two buttons rather than a dead third.
   final VoidCallback? onDayHistory;
@@ -376,7 +391,18 @@ class ChildMapScreen extends StatelessWidget {
     );
   }
 
+  /// Confirm, send, and say WHICH of the two things happened.
+  ///
+  /// Modelled on the account-erase path in `settings_screen.dart`, which
+  /// already distinguishes «Все данные удалены» from «Данные удалены с
+  /// телефона. Копию на сервере удалить не удалось». Same shape, higher
+  /// stakes: «отправлен» is a claim about the family being notified, and if the
+  /// request did not land, repeating it is the false promise this whole change
+  /// exists to remove. An SOS that did not reach the server must never render
+  /// as one that did.
   Future<void> _confirmSos(BuildContext context, L10n l) async {
+    final send = onSos;
+    if (send == null) return;
     final ok = await confirmDestructive(
       context,
       title: l.t('sos_confirm_title'),
@@ -384,13 +410,31 @@ class ChildMapScreen extends StatelessWidget {
       confirmLabel: l.t('sos_confirm_send'),
     );
     if (!ok || !context.mounted) return;
-    onSos?.call();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(l.t('sos_sent')),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Palette.danger),
-    );
+
+    // The messenger is captured before the await: the send is a network round
+    // trip and this screen may well be gone by the time it answers.
+    final messenger = ScaffoldMessenger.of(context);
+    // «Отправляем…» — not a claim, a state. Without it the phone looks like it
+    // did nothing at all for however long the request takes, which on a bad
+    // connection is the whole timeout.
+    messenger.showSnackBar(SnackBar(
+      content: Text(l.t('sos_sending')),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Palette.danger,
+      duration: const Duration(minutes: 1),
+    ));
+
+    final sent = await send();
+
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(l.t(sent ? 'sos_sent' : 'sos_not_sent')),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Palette.danger,
+      // Longer when it failed: it names what she should do instead, and it is
+      // the one message on this screen she must not miss.
+      duration: Duration(seconds: sent ? 4 : 10),
+    ));
   }
 }
 
@@ -618,7 +662,7 @@ class _ChildToolsButton extends StatelessWidget {
 /// The check-in + SOS action row that floats above the status card. Check-in is a
 /// calm one-tap "all good"; SOS is a prominent danger button (confirmed first).
 class _ChildActionRow extends StatelessWidget {
-  final VoidCallback? onCheckIn;
+  final Future<bool> Function()? onCheckIn;
   final VoidCallback? onSos;
   final VoidCallback? onDayHistory;
   const _ChildActionRow({this.onCheckIn, this.onSos, this.onDayHistory});
@@ -635,11 +679,15 @@ class _ChildActionRow extends StatelessWidget {
               label: l.t('child_checkin'),
               foreground: Palette.blue,
               filled: false,
-              onTap: () {
-                onCheckIn!();
-                ScaffoldMessenger.of(context).showSnackBar(
+              onTap: () async {
+                // Captured before the await — the row can be gone by the time
+                // the request answers.
+                final messenger = ScaffoldMessenger.of(context);
+                final sent = await onCheckIn!();
+                messenger.showSnackBar(
                   SnackBar(
-                      content: Text(l.t('child_checkin_done')),
+                      content: Text(
+                          l.t(sent ? 'child_checkin_done' : 'child_checkin_local')),
                       behavior: SnackBarBehavior.floating),
                 );
               },

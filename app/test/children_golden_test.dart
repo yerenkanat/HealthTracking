@@ -57,8 +57,8 @@ void main() {
         batteryHistory: const <BatteryReading>[],
         zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
         lastCheckInAt: now.subtract(const Duration(hours: 2)),
-        onCheckIn: () {},
-        onSos: () {},
+        onCheckIn: () async => true,
+        onSos: () async => true,
       ),
       'child_map',
     );

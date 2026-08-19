@@ -259,13 +259,49 @@ class SafetyAlert {
   final String childName;
   final String zoneName;
   final DateTime at;
-  const SafetyAlert({required this.kind, required this.childName, required this.zoneName, required this.at});
+
+  /// Whether the SERVER has this event.
+  ///
+  /// The difference between «the family was told» and «only this phone knows».
+  /// An SOS pressed in a basement car park is recorded here either way, but
+  /// `POST /alerts` never lands, so no relative is pushed and the back-office
+  /// safety feed has no row — and the screen said «Сигнал SOS отправлен»
+  /// regardless, because `onSos` was a `VoidCallback?` and structurally could
+  /// not report a failure.
+  ///
+  /// TRUE BY DEFAULT, deliberately. Only the two events this phone pushes
+  /// itself (SOS and check-in) are ever set false. Zone crossings are derived
+  /// on the server from the tracker's own fixes and are never sent from here,
+  /// alerts merged back FROM the server are by definition on it, and a row
+  /// stored before this field existed must not start claiming it failed —
+  /// «мы не знаем» must not be rendered as «не отправлено».
+  final bool delivered;
+
+  const SafetyAlert({
+    required this.kind,
+    required this.childName,
+    required this.zoneName,
+    required this.at,
+    this.delivered = true,
+  });
+
+  SafetyAlert copyWith({bool? delivered}) => SafetyAlert(
+        kind: kind,
+        childName: childName,
+        zoneName: zoneName,
+        at: at,
+        delivered: delivered ?? this.delivered,
+      );
 
   Map<String, dynamic> toJson() => {
         'kind': kind.name,
         'childName': childName,
         'zoneName': zoneName,
         'at': at.toIso8601String(),
+        // Written only when it is false, so the stored shape does not change
+        // for the overwhelming majority of rows — and so an old build reading
+        // a new file simply ignores a key it does not know.
+        if (!delivered) 'delivered': false,
       };
 
   factory SafetyAlert.fromJson(Map<String, dynamic> j) => SafetyAlert(
@@ -273,6 +309,7 @@ class SafetyAlert {
         childName: (j['childName'] as String?) ?? '',
         zoneName: (j['zoneName'] as String?) ?? '',
         at: DateTime.parse(j['at'] as String),
+        delivered: j['delivered'] as bool? ?? true,
       );
 }
 

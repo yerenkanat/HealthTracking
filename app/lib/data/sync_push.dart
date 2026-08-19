@@ -36,7 +36,16 @@ void debugResetSyncReports() => _reported.clear();
 ///
 /// Never throws: a sync failure must not take down the caller, which is the
 /// whole reason these are unawaited in the first place.
-Future<void> pushed(
+///
+/// RETURNS whether the server actually took it. Every caller but one ignores
+/// that — `unawaited(pushed(...))` is still the right shape for a weight entry
+/// — but silence was NOT the right shape for an SOS. This function reports a
+/// 4xx and stays deliberately quiet about offline, 5xx, timeout and 401, which
+/// is correct for a log and catastrophic as the only signal a screen has: the
+/// SOS confirmation printed «Сигнал SOS отправлен» for all four. The boolean is
+/// the missing half — the log decides what is worth telling SUPPORT, the return
+/// value decides what is true to tell HER.
+Future<bool> pushed(
   String what,
   Future<void> Function() push, {
   ErrorLog? errorLog,
@@ -45,6 +54,7 @@ Future<void> pushed(
 }) async {
   try {
     await push();
+    return true;
   } catch (e) {
     final status = e is ApiException ? e.statusCode : null;
 
@@ -52,10 +62,10 @@ Future<void> pushed(
     // fixes it without anybody changing code.
     // 429 is the server asking us to slow down, which is also not a bug.
     final refused = status != null && status >= 400 && status < 500 && status != 401 && status != 429;
-    if (!refused) return; // offline, or the server having a bad minute
+    if (!refused) return false; // offline, or the server having a bad minute
 
     final key = '$what:$status';
-    if (!_reported.add(key)) return;
+    if (!_reported.add(key)) return false;
 
     // Worded for whoever reads it next. "400" alone has sent people looking at
     // the network; the point is that the network worked perfectly.
@@ -65,6 +75,7 @@ Future<void> pushed(
         'the app is sending something the server will not accept.';
     log(message);
     errorLog?.add(source: AppErrorSource.app, error: message, at: now());
+    return false;
   }
 }
 

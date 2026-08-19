@@ -351,6 +351,41 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_confirm_send': {AppLocale.ru: 'Отправить SOS', AppLocale.kk: 'SOS жіберу', AppLocale.en: 'Send SOS'},
   'sos_sent': {AppLocale.ru: 'Сигнал SOS отправлен', AppLocale.kk: 'SOS сигналы жіберілді', AppLocale.en: 'SOS signal sent'},
 
+  // --- «Отправлен» must be a fact, not an intention -------------------------
+  //
+  // KAZAKH IN THIS BLOCK WAS NOT WRITTEN BY THE LANGUAGE GATE — see TODO
+  // §9.12. Four keys: `sos_sending`, `sos_not_sent`, `child_checkin_local`,
+  // `alert_not_sent`. `sos_not_sent` is the one to look at first: it has to
+  // land as "it did not go, do this instead", calmly, on the worst minute of
+  // her year, and «жақындарыңыз хабарлама алмады» carries the whole point —
+  // that the family were NOT told, not merely that a request failed.
+  //
+  // `sos_sent` above is untouched and still means exactly what it says. What
+  // changed is that it is now printed only when the server answered.
+  'sos_sending': {
+    AppLocale.ru: 'Отправляем сигнал SOS…',
+    AppLocale.kk: 'SOS сигналы жіберілуде…',
+    AppLocale.en: 'Sending the SOS signal…'
+  },
+  'sos_not_sent': {
+    AppLocale.ru: 'Сигнал не ушёл — сервер не ответил. Близкие уведомление не получили. '
+        'Позвоните им сами или в 103.',
+    AppLocale.kk: 'Сигнал жіберілмеді — сервер жауап бермеді. Жақындарыңыз хабарлама алмады. '
+        'Оларға өзіңіз немесе 103-ке қоңырау шалыңыз.',
+    AppLocale.en: 'The signal did not go through — the server did not answer. Your family were '
+        'not notified. Call them yourself, or call 103.'
+  },
+  'child_checkin_local': {
+    AppLocale.ru: 'Отметка сохранена на телефоне — на сервер не ушла',
+    AppLocale.kk: 'Белгі телефонда сақталды — серверге жіберілмеді',
+    AppLocale.en: 'Check-in saved on this phone — it did not reach the server'
+  },
+  'alert_not_sent': {
+    AppLocale.ru: 'Не отправлено — только на этом телефоне',
+    AppLocale.kk: 'Жіберілмеді — тек осы телефонда',
+    AppLocale.en: 'Not sent — on this phone only'
+  },
+
   // --- Screen 21 · «Сигнал SOS» — the one red screen in the app -------------
   //
   // Two of the spec's three buttons are here. The third, «Позвонить Алие», is

@@ -519,6 +519,33 @@ class _AlertCard extends StatelessWidget {
                 Text('${alert.childName} · ${l.ago(age)}',
                     style: const TextStyle(
                         color: Palette.textDim, fontSize: 12.5)),
+                // The other half of the honest SOS confirmation. The snackbar
+                // is gone in four seconds; this row is where she comes back to
+                // check, and a row that looks identical whether or not the
+                // family was ever told is the same lie one screen later.
+                //
+                // Only ever false on the two events this phone pushes itself,
+                // so a zone crossing (derived server-side) cannot pick this up.
+                if (!alert.delivered) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.cloud_off_rounded,
+                          size: 13, color: Palette.danger),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          l.t('alert_not_sent'),
+                          style: const TextStyle(
+                            color: Palette.danger,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
