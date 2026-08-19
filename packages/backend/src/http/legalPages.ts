@@ -126,6 +126,7 @@ export function legalPageHtml(
   h2{font-size:19px;margin:32px 0 8px}
   p{margin:0 0 14px;color:var(--dim)}
   .meta{font-size:13px;color:var(--dim);margin-bottom:24px}
+  .edition{color:#6B5271;font-size:13px;font-style:italic;margin:-4px 0 18px}
   .draft{background:#FFF3D6;border-radius:14px;padding:14px 16px;font-size:14px;
     color:#6B4E00;margin:0 0 28px}
   .langs{margin:28px 0 0;font-size:14px}
@@ -138,6 +139,7 @@ export function legalPageHtml(
   <h1>${title}</h1>
   <p class="meta">Ana-Bala · ana-bala.kz</p>
   <div class="draft">${t('legal_draft_note')}</div>
+  <p class="edition">${t('legal_updated')}</p>
   ${sections.map(([h, b]) => `<h2>${t(h)}</h2>\n  <p>${t(b)}</p>`).join('\n  ')}
   <p class="langs">
     <a href="?lang=ru">Русский</a><a href="?lang=kk">Қазақша</a><a href="?lang=en">English</a>

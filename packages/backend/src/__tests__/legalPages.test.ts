@@ -122,4 +122,19 @@ describe('choosing a language', () => {
     expect(pickLocale({}, undefined)).toBe('ru');
     expect(pickLocale({ lang: 'klingon' }, undefined)).toBe('ru');
   });
+
+  it('states which edition the reader is looking at', async () => {
+    // The page carried the draft banner and no date. The APP rendered both,
+    // so the gap existed only on the published side — where it matters most:
+    // a document a customer can be held to has to say which version they read,
+    // and the Kazakh body was a different edition from the Russian for part of
+    // 2026-08-19 with nothing on the page to reveal it.
+    for (const lang of ['ru', 'kk', 'en']) {
+      for (const path of ['/privacy', '/terms']) {
+        const res = await app.inject({ method: 'GET', url: `${path}?lang=${lang}` });
+        expect(res.statusCode).toBe(200);
+        expect(res.body, `${path} ${lang} publishes no edition`).toContain('2026');
+      }
+    }
+  });
 });
