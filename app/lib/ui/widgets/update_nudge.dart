@@ -14,8 +14,15 @@
 /// closable, and never in the way of anything.
 ///
 /// It is deliberately terse. `upd_body` ("This version of Ana-Bala is no longer
-/// supported…") is the HARD block's copy and would be a lie here; the title and
-/// the CTA are true of both, so the strip uses those and nothing else.
+/// supported…") is the HARD block's copy and would be a lie here, so the strip
+/// shows a title and the CTA and nothing else.
+///
+/// The title is `upd_nudge_title`, not the block's `upd_title`. The two read the
+/// same in Russian and English and CANNOT in Kazakh: «жаңарту қажет» states an
+/// obligation, which is what a retired build is under and a supported one is
+/// not. Sharing one key told a Kazakh-speaking mother the update was mandatory
+/// on a build the server still accepts. `upd_cta` («Жаңарту» / "Update") is
+/// still shared — it is the same act in both states.
 library;
 
 import 'package:flutter/material.dart';
@@ -56,7 +63,7 @@ class UpdateNudgeStrip extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                l.t('upd_title'),
+                l.t('upd_nudge_title'),
                 style: const TextStyle(
                     fontSize: 12.5, fontWeight: FontWeight.w600, color: Palette.text),
               ),

@@ -353,12 +353,16 @@ const Map<String, Map<AppLocale, String>> _catalog = {
 
   // --- «Отправлен» must be a fact, not an intention -------------------------
   //
-  // KAZAKH IN THIS BLOCK WAS NOT WRITTEN BY THE LANGUAGE GATE — see TODO
-  // §9.12. Four keys: `sos_sending`, `sos_not_sent`, `child_checkin_local`,
-  // `alert_not_sent`. `sos_not_sent` is the one to look at first: it has to
-  // land as "it did not go, do this instead", calmly, on the worst minute of
-  // her year, and «жақындарыңыз хабарлама алмады» carries the whole point —
-  // that the family were NOT told, not merely that a request failed.
+  // KAZAKH GATE-REVIEWED 2026-08-19 (TODO §9.12). Four keys: `sos_sending`,
+  // `sos_not_sent`, `child_checkin_local`, `alert_not_sent`. Two changes to
+  // `sos_not_sent`, which is read on the worst minute of her year:
+  //
+  //  * «хабарлама алмады» → «хабар алмады». «Хабарлама» is the push, a
+  //    mechanism; «хабар» is being told. The next clause asks her to phone
+  //    them herself, and it only follows from "they do not know".
+  //  * «Оларға өзіңіз немесе 103-ке қоңырау шалыңыз» → «Өзіңіз оларға
+  //    немесе 103-ке…». The old order split the dative across «өзіңіз» and
+  //    read as a list of two datives rather than "call them, or 103".
   //
   // `sos_sent` above is untouched and still means exactly what it says. What
   // changed is that it is now printed only when the server answered.
@@ -370,8 +374,8 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sos_not_sent': {
     AppLocale.ru: 'Сигнал не ушёл — сервер не ответил. Близкие уведомление не получили. '
         'Позвоните им сами или в 103.',
-    AppLocale.kk: 'Сигнал жіберілмеді — сервер жауап бермеді. Жақындарыңыз хабарлама алмады. '
-        'Оларға өзіңіз немесе 103-ке қоңырау шалыңыз.',
+    AppLocale.kk: 'Сигнал жіберілмеді — сервер жауап бермеді. Жақындарыңыз хабар алмады. '
+        'Өзіңіз оларға немесе 103-ке қоңырау шалыңыз.',
     AppLocale.en: 'The signal did not go through — the server did not answer. Your family were '
         'not notified. Call them yourself, or call 103.'
   },
@@ -684,11 +688,26 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   //
   // Printed only when the server actually returned a route, so it describes the
   // line drawn above it rather than promising a store that is empty.
-  'day_retention_route': {AppLocale.ru: 'Точки маршрута старше {n} дней сервер удаляет по расписанию', AppLocale.kk: 'Серверде {n} күннен асқан маршрут нүктелері кесте бойынша жойылады', AppLocale.en: 'Route points older than {n} days are deleted on the server on a schedule'},
-  // Printed always, including on an empty day. No number: nothing deletes a
-  // crossing or an SOS, and inventing a period for them is the defect this
-  // pair replaced. «Пока существует аккаунт» is what is true today.
-  'day_retention_events': {AppLocale.ru: 'Выход из зоны и SOS — не маршрут: они хранятся, пока существует ваш аккаунт', AppLocale.kk: 'Аймақтан шығу мен SOS — маршрут емес: олар аккаунтыңыз бар болғанша сақталады', AppLocale.en: 'A zone crossing or an SOS is not a route: they are kept for as long as your account exists'},
+  'day_retention_route': {AppLocale.ru: 'Точки маршрута старше {n} дней сервер удаляет по расписанию', AppLocale.kk: '{n} күннен асқан маршрут нүктелерін сервер кесте бойынша жояды', AppLocale.en: 'Route points older than {n} days are deleted on the server on a schedule'},
+  // Printed always — including on an empty day and on a FAILED load, where the
+  // server has answered nothing and the screen therefore holds no period it
+  // could have got from a constant.
+  //
+  // So still no number, but for a new reason. Crossings are now swept at 90
+  // days and alerts (SOS included) at 12 months — privacy/retention.ts — and
+  // the old sentence, «хранятся, пока существует ваш аккаунт», became false the
+  // day those sweeps shipped. It could not simply gain the numbers: this line
+  // renders when there is no response to read them from, and a period typed
+  // into the catalogue is exactly the drift that day_retention_route avoids by
+  // interpolating {n} from the payload. It points at the policy instead, which
+  // states both periods in full.
+  //
+  // KAZAKH REWRITTEN BY THE LANGUAGE GATE 2026-08-19 (TODO §9.12). It was the
+  // old sentence — «олар аккаунтыңыз бар болғанша сақталады» — and had gone
+  // false the same day the sweeps shipped. It now carries exactly what ru and
+  // en carry: «сақталу мерзімі бөлек, ол құпиялылық саясатында көрсетілген».
+  // Still no digit in any language, which day_history_test.dart pins.
+  'day_retention_events': {AppLocale.ru: 'Выход из зоны и SOS — не маршрут: у них свой срок хранения, он указан в политике конфиденциальности', AppLocale.kk: 'Аймақтан шығу мен SOS — маршрут емес: олардың сақталу мерзімі бөлек, ол құпиялылық саясатында көрсетілген', AppLocale.en: 'A zone crossing or an SOS is not a route: they have their own retention period, set out in the privacy policy'},
   'day_simplified': {AppLocale.ru: 'Линия упрощена: {raw} отметок сведены к {n}', AppLocale.kk: 'Сызық жеңілдетілді: {raw} белгі {n} нүктеге сыйды', AppLocale.en: 'Simplified: {raw} fixes drawn as {n} points'},
   'day_empty': {AppLocale.ru: 'В этот день браслет ничего не записал', AppLocale.kk: 'Бұл күні білезік ештеңе жазбаған', AppLocale.en: 'The tracker recorded nothing this day'},
   'day_empty_why': {AppLocale.ru: 'Обычно так бывает, когда браслет был выключен или без связи. Данные появятся, как только он снова выйдет на связь.', AppLocale.kk: 'Әдетте білезік өшірулі болғанда немесе байланыс болмағанда солай болады. Байланыс қалпына келгенде деректер пайда болады.', AppLocale.en: 'Usually the tracker was off or out of range. Data appears once it reconnects.'},
@@ -854,7 +873,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // so the body must not instruct one. Closing and reopening is the only thing
   // she can still do, and it is the only thing this claims.
   //
-  // KAZAKH SECOND SENTENCE WRITTEN BY A NON-GATE AGENT — see docs/TODO.md §9.12.
+  // KAZAKH SECOND SENTENCE GATE-REVIEWED 2026-08-19 (TODO §9.12): «Қолданбаны
   // The first sentence is `err_body`'s, unchanged and already reviewed.
   'err_body_restart': {
     AppLocale.ru: 'Ваши данные на месте. Закройте приложение и откройте его снова.',
@@ -1113,7 +1132,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // promise, which is true on every one of these branches: the recorder deletes
   // in a `finally` before the upload can fail (data/cry_recorder.dart).
   //
-  // KAZAKH NOT GATE-REVIEWED — see docs/TODO.md §9.12.
+  // KAZAKH GATE-REVIEWED 2026-08-19 (TODO §9.12). «Мәселе сізде емес» carries
+  // the point of the sentence and lands; kept, and cry_unavailable below was
+  // moved onto the same idiom so the two failure screens speak alike.
   'cry_error': {
     AppLocale.ru: 'Подсказки не получилось, запись на телефоне не осталась. Если повтор не помогает — разбор плача сейчас недоступен, дело не в вас.',
     AppLocale.kk: 'Кеңес шықпады, жазба телефонда қалмады. Қайталау көмектеспесе — жылауды талдау қазір қолжетімсіз, мәселе сізде емес.',
@@ -1135,10 +1156,15 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // None of them may say the audio is analysed on the phone or does not leave
   // it — both are false and cry_privacy_test.dart forbids them.
   //
-  // KAZAKH NOT GATE-REVIEWED — see docs/TODO.md §9.12.
+  // KAZAKH GATE-REVIEWED 2026-08-19 (TODO §9.12). One change per string, two
+  // strings: «бұл біздің жақта» was a calque of «на нашей стороне» and lands as
+  // a place rather than a fault, so cry_unavailable now says «мәселе бізде,
+  // сізде емес» — cry_error's own idiom. And cry_not_sent said «қайта көріңіз»,
+  // which is "look again"; the Kazakh for "try again" is «қайталап көріңіз».
+  // cry_clip_deleted, cry_checking and cry_recheck stand as written.
   'cry_unavailable': {
     AppLocale.ru: 'Разбор плача сейчас недоступен — это на нашей стороне, не у вас. Повторная запись не поможет, пока сервис не заработает.',
-    AppLocale.kk: 'Жылауды талдау қазір қолжетімсіз — бұл біздің жақта, сізде емес. Қызмет қалпына келгенше қайта жазу көмектеспейді.',
+    AppLocale.kk: 'Жылауды талдау қазір қолжетімсіз — мәселе бізде, сізде емес. Қызмет қалпына келгенше қайта жазу көмектеспейді.',
     AppLocale.en: 'Cry analysis is unavailable right now — that is on our side, not yours. Recording again will not help until the service is back.',
   },
   // Only shown when a recording was actually made before we found out. The
@@ -1151,7 +1177,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   },
   'cry_not_sent': {
     AppLocale.ru: 'Запись не ушла на разбор — похоже, нет связи. На телефоне она тоже не осталась. Проверьте интернет и попробуйте ещё раз.',
-    AppLocale.kk: 'Жазба талдауға жіберілмеді — байланыс жоқ сияқты. Телефонда да қалмады. Интернетті тексеріп, қайта көріңіз.',
+    AppLocale.kk: 'Жазба талдауға жіберілмеді — байланыс жоқ сияқты. Телефонда да қалмады. Интернетті тексеріп, қайталап көріңіз.',
     AppLocale.en: 'The recording never reached the analyser — the connection seems to be down. Nothing is left on your phone either. Check your internet and try again.',
   },
   'cry_checking': {AppLocale.ru: 'Проверяем, доступен ли разбор…', AppLocale.kk: 'Талдау қолжетімді ме, тексеріп жатырмыз…', AppLocale.en: 'Checking whether analysis is available…'},
@@ -1227,9 +1253,32 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'prime_notif_body': {AppLocale.ru: 'Чтобы вовремя сообщать о выходе из зоны, сигналах SOS и ваших напоминаниях, Ana-Bala нужны уведомления. Экстренные оповещения приходят всегда. Дальше система спросит разрешение.', AppLocale.kk: 'Аймақтан шығу, SOS дабылдары және еске салулар туралы уақтылы хабарлау үшін Ana-Bala-ге хабарландырулар қажет. Шұғыл ескертулер әрқашан келеді. Әрі қарай жүйе рұқсат сұрайды.', AppLocale.en: 'To alert you about zone exits, SOS signals and your reminders in time, Ana-Bala needs notifications. Emergency alerts always come through. Next, the system will ask for permission.'},
 
   // Force-update gate — shown when this build is below the server's minimum.
+  // THE BLOCK ONLY. The soft nudge has its own title, upd_nudge_title below:
+  // the Kazakh here says the update is required, which is true of a retired
+  // build and false of a supported one.
   'upd_title': {AppLocale.ru: 'Пора обновить приложение', AppLocale.kk: 'Қолданбаны жаңарту қажет', AppLocale.en: 'Time to update the app'},
   'upd_body': {AppLocale.ru: 'Эта версия Ana-Bala больше не поддерживается. Обновите приложение, чтобы продолжить — это займёт минуту и сохранит ваши данные в безопасности.', AppLocale.kk: 'Ana-Bala-дің бұл нұсқасы бұдан былай қолдау таппайды. Жалғастыру үшін қолданбаны жаңартыңыз — бұл бір минут алады және деректеріңіз қауіпсіз қалады.', AppLocale.en: 'This version of Ana-Bala is no longer supported. Please update to continue — it takes a minute and keeps your data safe.'},
   'upd_cta': {AppLocale.ru: 'Обновить', AppLocale.kk: 'Жаңарту', AppLocale.en: 'Update'},
+  // The soft nudge's headline. It is NOT upd_title, and the reason is Kazakh.
+  //
+  // upd_title served both states. In ru and en that was invisible — «Пора
+  // обновить приложение» / "Time to update the app" read as a prompt, which is
+  // right for the strip and merely understated on the block. In Kazakh the two
+  // states cannot share one sentence: «жаңарту қажет» says the update is
+  // REQUIRED, which is true on the block and false on the strip, so a
+  // Kazakh-speaking mother on a build the server still supports was told she
+  // had to update. One key with two meanings; the fix is two keys.
+  //
+  // ru and en are deliberately identical to upd_title: they were already
+  // correct for this state, and inventing new Russian here would be a copy
+  // change the Russian owner has not seen. Only the Kazakh differs, because
+  // only the Kazakh had to. «Кезі келді» = "the time has come" — prompting,
+  // like «пора», with no obligation in it.
+  'upd_nudge_title': {
+    AppLocale.ru: 'Пора обновить приложение',
+    AppLocale.kk: 'Қолданбаны жаңарту кезі келді',
+    AppLocale.en: 'Time to update the app'
+  },
 
   'set_privacy': {AppLocale.ru: 'Политика конфиденциальности', AppLocale.kk: 'Құпиялылық саясаты', AppLocale.en: 'Privacy policy'},
   'set_terms': {AppLocale.ru: 'Условия использования', AppLocale.kk: 'Пайдалану шарттары', AppLocale.en: 'Terms of use'},
@@ -1240,7 +1289,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Жоба нұсқа. Мәтін қолданбаның бүгінгі жұмысын сипаттайды және жарияланар алдында заңгерлік сараптамадан өтеді.',
     AppLocale.en: 'Draft. This text describes how the app works today and is pending legal review before publication.',
   },
-  'legal_updated': {AppLocale.ru: 'Редакция от 18 августа 2026 года.', AppLocale.kk: '2026 жылғы 18 тамыздағы редакция.', AppLocale.en: 'Version of 18 August 2026.'},
+  'legal_updated': {AppLocale.ru: 'Редакция от 19 августа 2026 года.', AppLocale.kk: '2026 жылғы 19 тамыздағы редакция.', AppLocale.en: 'Version of 19 August 2026.'},
   'legal_priv_collect_h': {AppLocale.ru: 'Какие данные мы собираем', AppLocale.kk: 'Қандай деректерді жинаймыз', AppLocale.en: 'What data we collect'},
   'legal_priv_collect_b': {
     AppLocale.ru: 'О вас: имя, номер телефона, язык, часовой пояс, при желании — дата рождения, город, домашний адрес и телефон врача. Адрес нужен для одного: чтобы было куда вызвать скорую.\n\nО беременности и здоровье: предполагаемая дата родов, длина цикла, дневник дня (настроение, симптомы, выделения, свободная заметка), шевеления, схватки, вес, лекарства и их приём, приёмы у врача с названием и заметкой, ночной сон, итоговый балл теста на послеродовую депрессию.\n\nС браслета: температура, пульс, сатурация, давление, сахар, шаги, калории, расстояние, стресс, дыхание, заряд и признак ношения — а также степень тревожности, которую приложение вычислило по этим показателям.\n\nО ребёнке: имя, пол, дата рождения, рост и вес по датам, отметки о прививках, кормления, сон и подгузники, а также карточка на экстренный случай: группа крови, аллергии, хронические болезни, лекарства, имя и телефон врача и доверенного взрослого.\n\nО безопасности: зоны, которые вы отметили на карте — то есть координаты вашего дома и школы, — и события «вышел из зоны», «пришёл», «нажал SOS», «сел брелок» с названием зоны и временем.\n\nСлужебное: идентификатор и прошивка сопряжённого устройства, записи о входах, попытки входа с номером телефона.\n\nЗаказы: имя, телефон, город, адрес доставки и комментарий. Данных банковской карты у нас нет нигде — мы их не получаем и не храним.',
@@ -1346,10 +1395,33 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Three of the things listed above cross the border: assistant questions and photographs go to the USA, website requests go to Telegram, and map and video requests go to Google.\n\nThe country hosting the main server will be stated here after legal review. We do not write it by guesswork: the law sets separate requirements for transferring the data of Kazakh citizens abroad, and a statement we cannot verify is worse than a blank.',
   },
   'legal_priv_retention_h': {AppLocale.ru: 'Сколько мы храним', AppLocale.kk: 'Қанша уақыт сақтаймыз', AppLocale.en: 'How long we keep things'},
+  // KAZAKH REWRITTEN BY THE LANGUAGE GATE 2026-08-19 (TODO §9.12), paragraph
+  // for paragraph against the new Russian, every period matching: 90 / 90 /
+  // 12 / 30 / 90 / 12 / 3. The old Kazakh said «сақталу мерзімдері әлі
+  // белгіленбеген» — that no periods had been set — which stopped being true
+  // the day the sweeps shipped, in a published document.
+  //
+  // One deliberate departure from the Russian: its final paragraph opens «в
+  // последнем абзаце» while being itself the last paragraph. The Kazakh
+  // follows the English («the paragraph above»). The Russian is reported, not
+  // copied — see the gate's report.
+  //
+  // WAS: §9.12 — KAZAKH NOT UPDATED. The Russian and English below were rewritten on
+  // 2026-08-19 when privacy/retention.ts stopped sweeping one table and started
+  // enforcing every period the owner set. The Kazakh under them is the OLD text
+  // and now says the opposite of what the code does: «сақталу мерзімдері әлі
+  // белгіленбеген» — periods have not been set. They have.
+  //
+  // Left for the language gate rather than machine-translated, and it is a
+  // RELEASE BLOCKER, not a nicety: this is a published legal document on
+  // ana-bala.kz, and a Kazakh-reading customer is currently told something
+  // untrue about how long her child's SOS history is kept. Do not ship the
+  // sweeps to production before this line is rewritten and legal_updated is
+  // moved on. Same for 'day_retention_events' above.
   'legal_priv_retention_b': {
-    AppLocale.ru: 'Маршрут ребёнка сегодня на сервер не передаётся — он остаётся на вашем телефоне, как сказано выше, и потому удалять там нечего. Правило на сервере при этом уже действует: точки старше 90 дней удаляются по расписанию. Это единственный срок, который наступает сам, а не по обещанию, — и он ждёт данных, которых пока нет.\n\nВсё остальное — записи о здоровье, показатели с браслета, дневники, данные ребёнка, оповещения о зонах и SOS — хранится, пока существует ваш аккаунт. Удалите аккаунт, и они удаляются вместе с ним.\n\nОбратите внимание: событие «вышел из зоны» или «нажал SOS» — это не маршрут, и правило 90 дней на него не распространяется.\n\nОтдельно живут заказы и обращения в поддержку. Они привязаны к номеру телефона, а не к аккаунту, и после удаления аккаунта остаются: заказ с адресом доставки нужен для бухгалтерии и споров о доставке, переписка с поддержкой — чтобы можно было разобраться в старом обращении. По той же причине сохраняются оплаченный доступ к курсу и пройденные уроки: если вы вернётесь с тем же номером, вы найдёте их на месте.\n\nСроки хранения для этих записей ещё не установлены. Мы не пишем сюда красивое число, под которым нет удаляющего кода, — именно так появляются обещания, которых никто не выполняет.',
-    AppLocale.kk: 'Баланың жүрген жолы бүгінде серверге берілмейді — ол жоғарыда айтылғандай, телефоныңызда қалады, сондықтан онда жоятын ештеңе жоқ. Бұл ретте сервердегі ереже қазірдің өзінде күшінде: 90 күннен асқан нүктелер кесте бойынша жойылады. Бұл — уәде бойынша емес, өзі келетін жалғыз мерзім, әрі ол әзірге жоқ деректерді күтіп тұр.\n\nҚалғанының бәрі — денсаулық жазбалары, білезік көрсеткіштері, күнделіктер, бала деректері, аймақтар мен SOS туралы хабарламалар — аккаунтыңыз бар болғанша сақталады. Аккаунтты жойсаңыз, олар да онымен бірге жойылады.\n\nНазар аударыңыз: «аймақтан шықты» немесе «SOS басылды» оқиғасы — жүрген жол емес, оған 90 күн ережесі қолданылмайды.\n\nТапсырыстар мен қолдауға жолданған өтініштер бөлек өмір сүреді. Олар аккаунтқа емес, телефон нөміріне байланған, әрі аккаунт жойылғаннан кейін де қалады: жеткізу мекенжайы бар тапсырыс бухгалтерия мен жеткізу дауларына керек, қолдаумен жазысу — ескі өтінішті талдап шығуға мүмкіндік беру үшін. Сол себептен курсқа төленген қолжетімділік пен өтілген сабақтар да сақталады: сол нөміріңізбен қайта оралсаңыз, оларды орнынан табасыз.\n\nБұл жазбалардың сақталу мерзімдері әлі белгіленбеген. Астында жоятын коды жоқ әдемі санды мұнда жазбаймыз — ешкім орындамайтын уәделер дәл осылай пайда болады.',
-    AppLocale.en: 'A child’s route is not sent to the server today — it stays on your phone, as stated above, so there is nothing there to delete. The server’s rule is nonetheless in force: points older than 90 days are removed on a schedule. It is the only period that arrives by itself rather than by promise — and it is waiting for data that does not yet reach it.\n\nEverything else — health records, band readings, diaries, the child’s data, zone and SOS alerts — is kept for as long as your account exists. Delete the account and they are deleted with it.\n\nNote: a “left the zone” or “pressed SOS” event is not a route, and the 90-day rule does not cover it.\n\nOrders and support enquiries live separately. They are tied to a phone number rather than to an account, and they remain after the account is deleted: an order with its delivery address is needed for accounting and delivery disputes, and support correspondence so that an old enquiry can still be understood. For the same reason paid course access and completed lessons are kept: if you return with the same number, you will find them where you left them.\n\nRetention periods for these records have not yet been set. We are not writing a tidy number here with no deleting code behind it — that is exactly how promises nobody keeps come about.',
+    AppLocale.ru: 'Маршрут ребёнка сегодня на сервер не передаётся — он остаётся на вашем телефоне, как сказано выше, и потому удалять там нечего. Правило на сервере при этом уже действует: точки старше 90 дней удаляются по расписанию, и оно ждёт данных, которых пока нет.\n\nСобытие «вышел из зоны» — это тот же маршрут, записанный короче, поэтому срок у него тот же: 90 дней.\n\nОповещения, которые вы видите в ленте, — «пришёл», «ушёл», «нажал SOS», «сел брелок» — хранятся 12 месяцев. Этого достаточно, чтобы вернуться к прошлому учебному году, и недостаточно, чтобы из них получилась постоянная история передвижений ребёнка. SOS здесь на общих основаниях: мы храним запись о событии, а не о том, где был ребёнок.\n\nЗаписи о здоровье, показатели с браслета, дневники и данные ребёнка хранятся, пока существует ваш аккаунт. Удалите аккаунт — они удаляются вместе с ним. Отдельного срока у них нет намеренно: это ваши записи, и когда их стереть, решаете вы.\n\nСлужебные записи, привязанные к номеру телефона: код для входа, который запросили и не использовали, удаляется через 30 дней; журнал попыток входа — через 90 дней; заявка, оставленная на сайте (имя и телефон), — через 12 месяцев.\n\nОбращения в поддержку и переписку по ним мы храним 3 года с последнего сообщения: спор о заказе может всплыть намного позже самого заказа. Столько же живёт наш внутренний журнал — кто из сотрудников открывал чью карточку и по какой причине. Это запись не о вас, а о нас, и она существует ровно для того, чтобы нам можно было предъявить претензию.\n\nЗаказы мы не удаляем. Заказ с составом, суммой и адресом доставки — бухгалтерский документ, а закон требует хранить первичные учётные документы; точный срок мы уточняем у юриста и напишем его здесь, когда он будет подтверждён. По той же причине остаются оплаченный доступ к курсу и пройденные уроки, а также серийный номер купленного устройства и номер, с которого его активировали, — это гарантия и защита от подмены.\n\nВсё, что перечислено в последнем абзаце, привязано к номеру телефона, а не к аккаунту, и потому переживает удаление аккаунта. Это полный список: остальное либо уходит вместе с аккаунтом, либо удаляется по сроку выше.',
+    AppLocale.kk: 'Баланың жүрген жолы бүгінде серверге берілмейді — ол жоғарыда айтылғандай, телефоныңызда қалады, сондықтан онда жоятын ештеңе жоқ. Бұл ретте сервердегі ереже қазірдің өзінде күшінде: 90 күннен асқан нүктелер кесте бойынша жойылады, әрі ол әзірге жетпей жатқан деректерді күтіп тұр.\n\n«Аймақтан шықты» оқиғасы — сол жүрген жолдың қысқаша жазылғаны, сондықтан оның мерзімі де сол: 90 күн.\n\nТаспадан көретін хабарламалар — «келді», «кетті», «SOS басылды», «брелоктың заряды отырды» — 12 ай сақталады. Бұл өткен оқу жылына оралуға жеткілікті, ал олардан баланың жүріп-тұруының тұрақты тарихы құралуға жеткіліксіз. SOS мұнда жалпы негізде: біз оқиға туралы жазбаны сақтаймыз, баланың қайда болғаны туралы емес.\n\nДенсаулық жазбалары, білезік көрсеткіштері, күнделіктер мен бала деректері аккаунтыңыз бар болғанша сақталады. Аккаунтты жойсаңыз — олар да онымен бірге жойылады. Оларға бөлек мерзім әдейі белгіленбеген: бұл — сіздің жазбаларыңыз, оларды қашан өшіруді өзіңіз шешесіз.\n\nТелефон нөміріне байланған қызметтік жазбалар: сұралып, пайдаланылмаған кіру коды 30 күннен кейін жойылады; кіру әрекеттерінің журналы — 90 күннен кейін; сайтта қалдырылған өтінім (аты мен телефоны) — 12 айдан кейін.\n\nҚолдауға түскен өтініштер мен ол бойынша жазысуды соңғы хабарламадан бастап 3 жыл сақтаймыз: тапсырыс жөніндегі дау тапсырыстың өзінен әлдеқайда кеш шығуы мүмкін. Ішкі журналымыз да сонша тұрады — қай қызметкер кімнің картасын, қандай себеппен ашқаны. Бұл — сіз туралы емес, біз туралы жазба, әрі ол дәл бізге талап қоя алу үшін бар.\n\nТапсырыстарды жоймаймыз. Құрамы, сомасы және жеткізу мекенжайы бар тапсырыс — бухгалтерлік құжат, ал заң бастапқы есеп құжаттарын сақтауды талап етеді; нақты мерзімді заңгерден нақтылап жатырмыз, ол расталған соң осында жазамыз. Сол себептен курсқа төленген қолжетімділік пен өтілген сабақтар да, сатып алынған құрылғының сериялық нөмірі мен оны белсендірген нөмір де қалады — бұл кепілдік әрі құрылғыны ауыстырып жіберуден қорғау.\n\nЖоғарыдағы абзацта аталғанның бәрі аккаунтқа емес, телефон нөміріне байланған, сондықтан аккаунт жойылғаннан кейін де сақталады. Бұл — толық тізім: қалғаны не аккаунтпен бірге кетеді, не жоғарыда аталған мерзім бойынша жойылады.',
+    AppLocale.en: 'A child’s route is not sent to the server today — it stays on your phone, as stated above, so there is nothing there to delete. The server’s rule is nonetheless in force: points older than 90 days are removed on a schedule, and it is waiting for data that does not yet reach it.\n\nA “left the zone” event is the same journey written down more briefly, so it has the same period: 90 days.\n\nThe alerts you see in the feed — arrived, left, pressed SOS, tag battery low — are kept for 12 months. That is long enough to look back over a school year and short enough that they never add up to a permanent record of where a child goes. An SOS is on the same terms as the rest: we keep the record of the event, not a record of where the child was.\n\nHealth records, band readings, diaries and the child’s data are kept for as long as your account exists. Delete the account and they are deleted with it. They deliberately have no separate period: they are your records, and when to erase them is your decision.\n\nService records tied to a phone number: a sign-in code that was requested and never used is deleted after 30 days; the log of sign-in attempts after 90 days; a request left on the website (a name and a phone number) after 12 months.\n\nSupport enquiries and the correspondence on them are kept for 3 years from the last message: a dispute about an order can surface long after the order. Our internal log lives the same length of time — which member of staff opened whose record, and for what stated reason. That is a record about us rather than about you, and it exists precisely so that we can be held to account.\n\nOrders are not deleted. An order with its contents, total and delivery address is an accounting document, and the law requires primary accounting records to be retained; we are confirming the exact term with a lawyer and will state it here once it is settled. For the same reason paid course access and completed lessons remain, as do the serial number of a device you bought and the number it was activated from — that is warranty and protection against a false claim.\n\nEverything in the paragraph above is tied to a phone number rather than to an account, and so survives deletion of the account. That is the complete list: everything else either goes with the account or is deleted on one of the periods above.',
   },
   'legal_priv_rights_h': {AppLocale.ru: 'Ваши права', AppLocale.kk: 'Сіздің құқықтарыңыз', AppLocale.en: 'Your rights'},
   'legal_priv_rights_b': {
@@ -1712,6 +1784,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
 
   // ---- Signs of labour (lab_*) ----
   'lab_title': {AppLocale.ru: 'Признаки родов', AppLocale.kk: 'Босану белгілері', AppLocale.en: 'Signs of labour'},
+  // KAZAKH RAISED WITH THE CLINICAL GATE 2026-08-19, TODO §9.14, NOT edited:
+  // fingerprinted in reviewed_medical_copy_test.dart. «Қашан баруға болатыны»
+  // is PERMISSION — "when one is allowed to go" — where ru says «когда пора
+  // ехать» and en "when it's time to go". On the screen that introduces when
+  // to go in, that is the divergence that costs hours. Proposal in §9.14.
   'lab_intro': {
     AppLocale.ru: 'Что подсказывает, что роды близко, и когда пора ехать. При любых сомнениях звоните.',
     AppLocale.kk: 'Босанудың жақындағанын не білдіреді және қашан баруға болатыны. Кез келген күмәнда қоңырау шалыңыз.',
@@ -2328,6 +2405,11 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // both numerals sit outside it, so no locale needs a plural rule for n = 1.
   // The Kazakh «{total} ішінен {n}» avoids the numeral-possessive («2-уі» but
   // «1-еуі») for the same reason.
+  // KAZAKH RAISED WITH THE CLINICAL GATE 2026-08-19, TODO §9.14, NOT edited:
+  // the string is fingerprinted in reviewed_medical_copy_test.dart. «{total}
+  // ішінен» is a bare numeral with no noun for «ішінен» to govern («4 ішінен
+  // 2»), and «Барлық … ескерілмеді» carries a negation-scope risk Russian
+  // resolves with its second clause. Proposed replacement is in §9.14.
   'db_ring_partial': {
     AppLocale.ru: 'Учтены не все показатели: {n} из {total}.',
     AppLocale.kk: 'Барлық көрсеткіш ескерілмеді: {total} ішінен {n}.',
@@ -2524,9 +2606,9 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'nb_week_title': {AppLocale.ru: 'Последние 7 дней', AppLocale.kk: 'Соңғы 7 күн', AppLocale.en: 'Last 7 days'},
   'nb_week_feeds_avg': {AppLocale.ru: 'Кормлений в день: {n}', AppLocale.kk: 'Күніне тамақтандыру: {n}', AppLocale.en: 'Feeds per day: {n}'},
   'nb_week_wet_avg': {AppLocale.ru: 'Мокрых подгузников в день: {n}', AppLocale.kk: 'Күніне дымқыл жаялық: {n}', AppLocale.en: 'Wet diapers per day: {n}'},
-  // KAZAKH WRITTEN BY A NON-GATE AGENT — see docs/TODO.md §9.12. Built as an
-  // exact structural clone of the two keys above («Күніне» + noun + ': {v}'),
-  // so what needs review is the noun choice for logged sleep, not the frame.
+  // KAZAKH GATE-REVIEWED 2026-08-19 (TODO §9.12). The frame is the clone of the
+  // two keys above («Күніне» + noun + ': {v}') and the noun is right: «ұйқы» is
+  // sleep as a state, which is what is being averaged. Kept as written.
   'nb_week_sleep_avg': {AppLocale.ru: 'Сна в день: {v}', AppLocale.kk: 'Күніне ұйқы: {v}', AppLocale.en: 'Sleep per day: {v}'},
   'nb_week_over': {AppLocale.ru: 'В среднем по {n} дн. с записями', AppLocale.kk: 'Жазбасы бар {n} күн бойынша орташа', AppLocale.en: 'Averaged over {n} days with entries'},
   'nb_week_none': {AppLocale.ru: 'нет', AppLocale.kk: 'жоқ', AppLocale.en: 'none'},
@@ -3901,8 +3983,12 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'contr_511_ready': {AppLocale.ru: 'Схема 5-1-1 соблюдается. Многие врачи советуют связаться с ними на этом этапе — следуйте своему плану родов.', AppLocale.kk: '5-1-1 үлгісі орындалды. Көптеген дәрігерлер осы кезеңде хабарласуды ұсынады — босану жоспарыңызды ұстаныңыз.', AppLocale.en: 'The 5-1-1 pattern is met. Many providers suggest contacting them around now — follow your birth plan.'},
   'contr_first': {AppLocale.ru: 'первая', AppLocale.kk: 'бірінші', AppLocale.en: 'first'},
   // --- Contraction timer, screen 10 (night) ---------------------------------
-  // KAZAKH WRITTEN BY A NON-GATE AGENT — see docs/TODO.md §9.12. Grammatical
-  // and verify_l10n-clean, NOT reviewed. Eight keys, all of them plain UI
+  // KAZAKH GATE-REVIEWED 2026-08-19 (TODO §9.12). One change, contr_stop_sub:
+  // «Босаңсығанда басыңыз» has no stated subject and reads as "when it
+  // slackens" — or as "when YOU relax", which is the opposite instruction. It
+  // now names what is receding: «Толғақ қайтқанда басыңыз». «Қайту» is the verb
+  // Kazakh uses for pain going off, so the moment «когда отпустит» describes is
+  // the moment a labouring woman reads here. Eight keys, all of them plain UI
   // labels: none states a threshold, names a symptom, or tells her to do
   // anything clinical. The one string on this screen that WOULD do that —
   // «по минуте каждые 5 минут в течение часа, пора в роддом» — is deliberately
@@ -3911,7 +3997,7 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'contr_live_rest': {AppLocale.ru: 'Перерыв', AppLocale.kk: 'Үзіліс', AppLocale.en: 'Between contractions'},
   'contr_start_big': {AppLocale.ru: 'Схватка началась', AppLocale.kk: 'Толғақ басталды', AppLocale.en: 'Contraction started'},
   'contr_stop_big': {AppLocale.ru: 'Схватка закончилась', AppLocale.kk: 'Толғақ аяқталды', AppLocale.en: 'Contraction ended'},
-  'contr_stop_sub': {AppLocale.ru: 'Нажмите, когда отпустит', AppLocale.kk: 'Босаңсығанда басыңыз', AppLocale.en: 'Tap when it eases off'},
+  'contr_stop_sub': {AppLocale.ru: 'Нажмите, когда отпустит', AppLocale.kk: 'Толғақ қайтқанда басыңыз', AppLocale.en: 'Tap when it eases off'},
   'contr_recent': {AppLocale.ru: 'Последние схватки', AppLocale.kk: 'Соңғы толғақтар', AppLocale.en: 'Recent contractions'},
   'contr_history_short': {AppLocale.ru: 'История', AppLocale.kk: 'Тарих', AppLocale.en: 'History'},
   // Both halves are checked by a test, because this screen promising something
@@ -4206,8 +4292,10 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // None of them place her anywhere in the cycle, and none of them read as an
   // error or as her mistake: the entry is hers and may well be deliberate.
   //
-  // KAZAKH BELOW IS NOT GATE-REVIEWED — recorded in TODO §9.12. Written short
-  // and grammatical, but it needs one pass by the language gate before release.
+  // KAZAKH GATE-REVIEWED 2026-08-19 (TODO §9.12) — all five kept as written.
+  // cyc_future_mark_title was the one to check and it is already right: {d}
+  // arrives as «19.07», and «{d} күніне» puts the dative on «күн» instead of on
+  // the digits, which is exactly how Kazakh avoids suffixing a numeral.
   'cyc_day_unknown': {AppLocale.ru: 'День цикла неизвестен', AppLocale.kk: 'Цикл күні белгісіз', AppLocale.en: 'Cycle day unknown'},
   'cyc_future_mark_title': {AppLocale.ru: 'Месячные отмечены на {d}', AppLocale.kk: 'Етеккір {d} күніне белгіленген', AppLocale.en: 'A period is marked for {d}'},
   'cyc_future_mark_body': {AppLocale.ru: 'День цикла появится, когда эта дата наступит.', AppLocale.kk: 'Сол күн келгенде цикл күні шығады.', AppLocale.en: 'The cycle day appears once that date arrives.'},

@@ -133,7 +133,7 @@ void main() {
 
     expect(find.byType(HomeShell), findsOneWidget);
     expect(strip, findsNothing);
-    expect(find.text(l.t('upd_title')), findsNothing,
+    expect(find.text(l.t('upd_nudge_title')), findsNothing,
         reason: 'nothing to update to, so there is nothing to say');
   });
 
@@ -155,7 +155,7 @@ void main() {
     // And the nudge is painted, with its words, on the screen she is looking at.
     expect(strip, findsOneWidget,
         reason: 'latestBuild reached the controller and stopped there');
-    expect(find.text(l.t('upd_title')), findsOneWidget);
+    expect(find.text(l.t('upd_nudge_title')), findsOneWidget);
     expect(find.text(l.t('upd_cta')), findsOneWidget);
   });
 
@@ -314,11 +314,63 @@ void main() {
     await tester.pumpAndSettle();
 
     const kk = L10n(AppLocale.kk);
-    expect(find.text(kk.t('upd_title')), findsOneWidget);
+    expect(find.text(kk.t('upd_nudge_title')), findsOneWidget);
     expect(find.text(kk.t('upd_cta')), findsOneWidget);
     // Not the Russian copy leaking through a missing translation.
-    expect(kk.t('upd_title'), isNot(const L10n(AppLocale.ru).t('upd_title')));
+    expect(kk.t('upd_nudge_title'),
+        isNot(const L10n(AppLocale.ru).t('upd_nudge_title')));
     expect(kk.t('upd_cta'), isNot(const L10n(AppLocale.ru).t('upd_cta')));
+    // And not the BLOCK's title either. This build is above minBuild — the
+    // server still supports it — so «жаңарту қажет» ("the update is required")
+    // would be a false claim in the one language that makes it. The strip and
+    // the block read alike in ru/en and must not in kk.
+    expect(kk.t('upd_nudge_title'), isNot(kk.t('upd_title')),
+        reason: 'the soft strip is showing the Kazakh of the hard block');
+    expect(find.text(kk.t('upd_title')), findsNothing);
+  });
+
+  /// 320dp at 130% — the narrowest phone this product is sold to, with the
+  /// system font slider up.
+  ///
+  /// «Қолданбаны жаңарту кезі келді» is five characters longer than «Пора
+  /// обновить приложение» and shares one Row with a text button and a close
+  /// button. That is the shape that produces a Kazakh-ONLY overflow: fine in
+  /// ru and en, the striped bar across the top of every tab in kk.
+  ///
+  /// narrow_phone_test.dart cannot reach this strip — it renders screens, and
+  /// the strip exists only when the server has published a newer build — so
+  /// the width check for it lives here.
+  testWidgets('the Kazakh strip fits a 320dp phone at 130% text', (tester) async {
+    tester.view.physicalSize = const Size(320 * 3, 640 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    const kk = L10n(AppLocale.kk);
+    await tester.pumpWidget(MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Builder(
+        builder: (context) => MediaQuery(
+          // copyWith, not a fresh MediaQueryData: a fresh one is Size.zero, and
+          // nothing can overflow a viewport with no width in it.
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(1.3)),
+          child: Scaffold(
+            body: Column(children: [
+              L10nScope(
+                l10n: kk,
+                child: UpdateNudgeStrip(onDismiss: () {}, onUpdate: () {}),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull,
+        reason: 'the Kazakh nudge strip overflows 320dp at 130%');
+    expect(find.text(kk.t('upd_nudge_title')), findsOneWidget,
+        reason: 'nothing rendered, so nothing was measured');
   });
 }
 
