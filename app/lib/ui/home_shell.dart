@@ -66,6 +66,7 @@ import 'tracking/tracking_map.dart';
 import 'tracking/day_history_screen.dart';
 import 'tracking/family_sheets.dart';
 import 'tracking/zones_screen.dart';
+import 'widgets/update_nudge.dart';
 
 
 class HomeShell extends StatefulWidget {
@@ -436,6 +437,16 @@ class _HomeShellState extends State<HomeShell> {
                 ),
               ),
             ),
+          // A newer build exists, but this one still runs. Same slot and the
+          // same quiet language as the offline strip, above the IndexedStack so
+          // it is on screen whichever tab she is on — and closable, because an
+          // optional update she cannot do right now must not become furniture.
+          //
+          // Never shown alongside the hard block: below minBuild the app root
+          // renders ForceUpdateScreen instead of this shell at all, and
+          // updateNudgeVisible answers false as well (domain/app_version.dart).
+          if (c.updateNudgeVisible)
+            UpdateNudgeStrip(onDismiss: c.dismissUpdateNudge),
           Expanded(child: IndexedStack(index: _index, children: pages)),
         ],
       ),

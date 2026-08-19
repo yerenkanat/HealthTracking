@@ -106,6 +106,8 @@ void main() async {
       ],
     },
     lastExportAt: DateTime(2026, 7, 14, 10, 30),
+    updateNudgeDismissedBuild: 9,
+    updateNudgeDismissedAt: DateTime(2026, 8, 11, 7, 5),
     medications: const [
       Medication(id: 'med-1', name: 'Folic acid', dose: '400 mcg'),
       Medication(id: 'med-2', name: 'Iron', dose: '27 mg', perDay: 2),
@@ -173,6 +175,11 @@ void main() async {
   _chk('round-trip weight goal', decoded.weightGoalKg == 70.0);
   _chk('round-trip child battery', decoded.childBattery['child-1'] == 62 && decoded.childBattery['child-2'] == 8);
   _chk('round-trip last export', decoded.lastExportAt == DateTime(2026, 7, 14, 10, 30));
+  // The soft-update snooze. Without this on disk the strip she closed comes
+  // straight back on the next launch, which is how a nudge becomes noise.
+  _chk('round-trip update-nudge snooze',
+      decoded.updateNudgeDismissedBuild == 9 &&
+          decoded.updateNudgeDismissedAt == DateTime(2026, 8, 11, 7, 5));
   _chk('round-trip medications',
       decoded.medications.length == 2 &&
           decoded.medications.last.name == 'Iron' &&

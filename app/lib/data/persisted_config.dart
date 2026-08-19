@@ -220,6 +220,15 @@ class PersistedConfig {
   final bool fertileReminderEnabled; // remind when the fertile window opens
   final DateTime? lastExportAt; // when data was last exported (= backed up)
 
+  /// The soft update nudge, snoozed: the `latestBuild` she dismissed and when.
+  ///
+  /// Both, not just the time. The time alone would silence a release published
+  /// the day after she snoozed the previous one; the build alone would silence
+  /// that release forever. Together they mean "quiet about THIS build for a
+  /// week, and speak up for a newer one". See domain/app_version.dart.
+  final int updateNudgeDismissedBuild;
+  final DateTime? updateNudgeDismissedAt;
+
   /// Screen 39: everything at or before this has been seen. Persisted, so
   /// «Прочитать всё» is not undone by closing the app.
   final DateTime? alertsReadUpTo;
@@ -286,6 +295,8 @@ class PersistedConfig {
     this.periodReminderEnabled = false,
     this.fertileReminderEnabled = false,
     this.lastExportAt,
+    this.updateNudgeDismissedBuild = 0,
+    this.updateNudgeDismissedAt,
     this.alertsReadUpTo,
     this.medications = const [],
     this.medLog = const {},
@@ -343,6 +354,9 @@ class PersistedConfig {
         if (periodReminderEnabled) 'periodReminderEnabled': periodReminderEnabled,
         if (fertileReminderEnabled) 'fertileReminderEnabled': fertileReminderEnabled,
         if (lastExportAt != null) 'lastExportAt': lastExportAt!.toIso8601String(),
+        if (updateNudgeDismissedBuild > 0) 'updateNudgeDismissedBuild': updateNudgeDismissedBuild,
+        if (updateNudgeDismissedAt != null)
+          'updateNudgeDismissedAt': updateNudgeDismissedAt!.toIso8601String(),
         if (alertsReadUpTo != null) 'alertsReadUpTo': alertsReadUpTo!.toIso8601String(),
         if (medications.isNotEmpty) 'medications': [for (final m in medications) m.toJson()],
         if (medLog.isNotEmpty) 'medLog': medLogToJson(medLog),
@@ -519,6 +533,10 @@ class PersistedConfig {
         periodReminderEnabled: (j['periodReminderEnabled'] as bool?) ?? false,
         fertileReminderEnabled: (j['fertileReminderEnabled'] as bool?) ?? false,
         lastExportAt: j['lastExportAt'] is String ? DateTime.tryParse(j['lastExportAt'] as String) : null,
+        updateNudgeDismissedBuild: (j['updateNudgeDismissedBuild'] as num?)?.toInt() ?? 0,
+        updateNudgeDismissedAt: j['updateNudgeDismissedAt'] is String
+            ? DateTime.tryParse(j['updateNudgeDismissedAt'] as String)
+            : null,
         alertsReadUpTo: j['alertsReadUpTo'] is String ? DateTime.tryParse(j['alertsReadUpTo'] as String) : null,
         medications: [
           for (final m in (j['medications'] as List? ?? const []))

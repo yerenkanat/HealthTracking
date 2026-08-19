@@ -13,6 +13,7 @@ import 'package:flutter/material.dart' hide Flow;
 
 import 'app/app.dart';
 import 'app/app_controller.dart';
+import 'app/app_version_refresh.dart';
 import 'core/geofence.dart';
 import 'package:path_provider/path_provider.dart';
 // Her IANA zone, for `users.timezone` — the clock the SERVER reads her quiet
@@ -622,17 +623,12 @@ Future<void> bootstrapRuntime(
     }
     controller.onRefreshAnnouncements = pullAnnouncements;
 
-    // Ask the server whether this build is still supported. A raised floor
-    // blocks the app behind the force-update screen; offline or a failure here
-    // leaves the gate open (never strand a user who cannot reach the server).
-    unawaited(() async {
-      try {
-        final v = await api.getAppVersion();
-        controller.applyMinBuild(v.minBuild);
-      } catch (_) {
-        // Offline / backend down — do not block.
-      }
-    }());
+    // Ask the server whether this build is still supported, and whether a newer
+    // one exists. A raised floor blocks the app behind the force-update screen;
+    // a build merely older than the published one gets the soft strip on the
+    // shell instead. Offline or a failure leaves the gate open (never strand a
+    // user who cannot reach the server).
+    unawaited(refreshAppVersionFromApi(api: api, controller: controller));
 
     // Pull whatever the back-office has published. The app already showed the
     // cached or bundled catalogue at first paint, so this only ever upgrades

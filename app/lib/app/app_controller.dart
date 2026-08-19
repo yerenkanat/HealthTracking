@@ -434,6 +434,14 @@ class AppController {
     _locale = cfg.locale;
     _profile = cfg.profile;
 
+    // The snooze, restored. Without these two lines the nudge is dismissed for
+    // the life of the process and returns on the next launch — which is the
+    // shape of a nag, and trains her to dismiss the HARD block unread when it
+    // eventually matters. _snapshot writes them and the predicate reads them,
+    // so the write side looked complete; only the way back in was missing.
+    _updateNudgeDismissedBuild = cfg.updateNudgeDismissedBuild;
+    _updateNudgeDismissedAt = cfg.updateNudgeDismissedAt;
+
     // Re-issue any id the server can never accept, ONCE, on the way in.
     //
     // Onboarding used to mint the literal strings 'child-1', 'home' and
@@ -674,6 +682,8 @@ class AppController {
         periodReminderEnabled: _periodReminderEnabled,
         fertileReminderEnabled: _fertileReminderEnabled,
         lastExportAt: _lastExportAt,
+        updateNudgeDismissedBuild: _updateNudgeDismissedBuild,
+        updateNudgeDismissedAt: _updateNudgeDismissedAt,
         alertsReadUpTo: _alertsReadUpTo,
         medications: List.of(_medications),
         medLog: {for (final e in _medLog.entries) e.key: Map<String, int>.from(e.value)},
@@ -3682,20 +3692,63 @@ class AppController {
   /// Fire the OS permission request (after the primer). Returns whether granted.
   Future<bool> requestNotifications() async => await _requestNotif?.call() ?? false;
 
-  // ---- Force-update gate ----
+  // ---- Version gate: the hard block, and the soft nudge below it ----
   bool _mustUpdate = false;
+  int _serverMinBuild = 0;
+  int _serverLatestBuild = 0;
 
   /// True when the server's minimum build is newer than this one — the app is
-  /// blocked behind the force-update screen. See [applyMinBuild].
+  /// blocked behind the force-update screen. See [applyAppVersion].
   bool get mustUpdate => _mustUpdate;
 
-  /// Apply the server's minimum build to the gate. Called on launch with the
-  /// result of GET /app/version; a raised floor above [currentAppBuild] blocks
-  /// the app. Never throws and never blocks on a missing floor (minBuild 0).
-  void applyMinBuild(int minBuild) {
+  /// The newest build the server has published (0 until it has answered).
+  int get serverLatestBuild => _serverLatestBuild;
+
+  /// Apply the server's version policy. Called on launch with the result of
+  /// GET /app/version.
+  ///
+  /// [minBuild] is the hard floor: below it the app is blocked outright.
+  /// [latestBuild] is what the store has: below it — but at or above the floor
+  /// — she gets the soft nudge instead. Both arrive in the same response and
+  /// only [minBuild] used to be read, so the gentle step between "fine" and
+  /// "blocked" did not exist. Never throws; a missing floor (0) blocks nobody
+  /// and a missing latest (0) nudges nobody.
+  void applyAppVersion({required int minBuild, required int latestBuild}) {
     final req = appUpdateRequired(currentAppBuild, minBuild);
-    if (req == _mustUpdate) return;
+    if (req == _mustUpdate && minBuild == _serverMinBuild && latestBuild == _serverLatestBuild) {
+      return;
+    }
     _mustUpdate = req;
+    _serverMinBuild = minBuild;
+    _serverLatestBuild = latestBuild;
+    _notify();
+  }
+
+  /// The floor alone, leaving whatever latest build is already known.
+  void applyMinBuild(int minBuild) =>
+      applyAppVersion(minBuild: minBuild, latestBuild: _serverLatestBuild);
+
+  int _updateNudgeDismissedBuild = 0;
+  DateTime? _updateNudgeDismissedAt;
+
+  /// Whether the soft "an update is available" strip belongs on screen — the
+  /// whole policy lives in [showUpdateNudge], this only supplies the state.
+  bool get updateNudgeVisible => showUpdateNudge(
+        currentBuild: currentAppBuild,
+        minBuild: _serverMinBuild,
+        latestBuild: _serverLatestBuild,
+        dismissedBuild: _updateNudgeDismissedBuild,
+        dismissedAt: _updateNudgeDismissedAt,
+        now: _now(),
+      );
+
+  /// She closed the strip: stay quiet about THIS build for [updateNudgeSnooze],
+  /// and speak up again for a newer one. Persisted, so closing it survives the
+  /// restart it would otherwise be undone by.
+  void dismissUpdateNudge() {
+    _updateNudgeDismissedBuild = _serverLatestBuild;
+    _updateNudgeDismissedAt = _now();
+    _persist();
     _notify();
   }
 
